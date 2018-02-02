@@ -50,8 +50,5 @@ config :phoenix, :stacktrace_depth, 20
 # Configure your database
 config :beamware, Beamware.Repo,
   adapter: Ecto.Adapters.Postgres,
-  username: "postgres",
-  password: "postgres",
-  database: "beamware_dev",
-  hostname: "localhost",
-  pool_size: 10
+  url: System.get_env("DATABASE_URL"),
+  ssl: false

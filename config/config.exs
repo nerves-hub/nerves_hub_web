@@ -11,7 +11,7 @@ config :beamware,
 
 # Configures the endpoint
 config :beamware, BeamwareWeb.Endpoint,
-  url: [host: "localhost"],
+  url: [host: System.get_env("HOST")],
   secret_key_base: "3uRRXQ9FUMc3dd7NFTFWQU2xRXcVFXWpPLHZ4fdG/toP9/jJL92Mtjmq8Fd/ijZe",
   render_errors: [view: BeamwareWeb.ErrorView, accepts: ~w(html json)],
   pubsub: [name: Beamware.PubSub,

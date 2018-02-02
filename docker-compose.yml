@@ -1,0 +1,13 @@
+version: '3.3'
+services:
+  postgres:
+    image: mdillon/postgis:10
+    ports:
+      - "2345:5432"
+    environment:
+      POSTGRES_USER: db
+      POSTGRES_PASSWORD: db
+      POSTGRES_DB: db
+      PGDATA: /data
+    volumes:
+      - ~/db/beamware/postgres:/data
