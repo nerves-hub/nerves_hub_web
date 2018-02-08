@@ -1,0 +1,35 @@
+<%= form_for @changeset, account_path(@conn, :create), [as: :user], fn f -> %>
+  <p>
+    <label>
+      Name:
+      <%= text_input f, :name %>
+      <%= error_tag f, :name %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Tenant Name:
+      <%= text_input f, :tenant_name %>
+      <%= error_tag f, :tenant_name %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Email:
+      <%= email_input f, :email %>
+      <%= error_tag f, :email %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Password:
+      <%= password_input f, :password %>
+      <%= error_tag f, :password %>
+    </label>
+  </p>
+
+  <%= submit "Register" %>
+<% end %>
