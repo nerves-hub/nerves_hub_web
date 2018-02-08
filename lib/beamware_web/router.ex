@@ -17,6 +17,8 @@ defmodule BeamwareWeb.Router do
     pipe_through :browser # Use the default browser stack
 
     get "/", PageController, :index
+    get "/register", AccountController, :new
+    post "/register", AccountController, :create
   end
 
   # Other scopes may use custom stacks.
