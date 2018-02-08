@@ -9,6 +9,10 @@ defmodule BeamwareWeb.Router do
     plug :put_secure_browser_headers
   end
 
+  pipeline :logged_in do
+    plug BeamwareWeb.Plugs.EnsureLoggedIn
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
   end
@@ -16,9 +20,16 @@ defmodule BeamwareWeb.Router do
   scope "/", BeamwareWeb do
     pipe_through :browser # Use the default browser stack
 
-    get "/", PageController, :index
+    get "/", SessionController, :new
+    post "/", SessionController, :create
     get "/register", AccountController, :new
     post "/register", AccountController, :create
+  end
+
+  scope "/", BeamwareWeb do
+    pipe_through [:browser, :logged_in]
+
+    get "/dashboard", DashboardController, :index
   end
 
   # Other scopes may use custom stacks.

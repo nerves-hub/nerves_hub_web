@@ -2,6 +2,7 @@ defmodule Beamware.Accounts do
   alias Ecto.Changeset
   alias Beamware.Accounts.{Tenant, User}
   alias Beamware.Repo
+  alias Comeonin.Bcrypt
 
   @doc """
   Create a tenant. Expects `params` to contain fields for both the user and tenant.
@@ -81,5 +82,42 @@ defmodule Beamware.Accounts do
     |> Ecto.build_assoc(:users)
     |> User.creation_changeset(params)
     |> Repo.insert()
+  end
+
+  @doc """
+  Authenticates a user by their email and password. Returns the user if the
+  user is found and the password is correct, otherwise nil.
+  """
+  @spec authenticate(String.t(), String.t())
+  :: {:ok, User.t()}
+  |  {:error, :authentication_failed}
+  def authenticate(email, password) do
+    email = String.downcase(email)
+    user = Repo.get_by(User, email: email)
+    with %User{} <- user,
+      true <- Bcrypt.checkpw(password, user.password_hash)
+    do
+      {:ok, user}
+    else
+      nil ->
+        # User wasn't found; do dummy check to make user enumeration more difficult
+        Bcrypt.dummy_checkpw()
+        {:error, :authentication_failed}
+
+      false ->
+        {:error, :authentication_failed}
+    end
+  end
+
+  @spec get_user(any())
+  :: {:ok, User.t()}
+  |  {:error, :not_found}
+  def get_user(user_id) do
+    User
+    |> Repo.get(user_id)
+    |> case do
+      nil -> {:error, :not_found}
+      user -> {:ok, user}
+    end
   end
 end
