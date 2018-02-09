@@ -22,6 +22,7 @@ defmodule BeamwareWeb.Router do
 
     get "/", SessionController, :new
     post "/", SessionController, :create
+    get "/logout", SessionController, :delete
     get "/register", AccountController, :new
     post "/register", AccountController, :create
   end
