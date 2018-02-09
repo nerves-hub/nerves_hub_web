@@ -26,4 +26,10 @@ defmodule BeamwareWeb.SessionController do
         |> redirect(to: session_path(conn, :new))
     end
   end
+
+  def delete(conn, _params) do
+    conn
+    |> delete_session(@session_key)
+    |> redirect(to: "/")
+  end
 end

@@ -22,7 +22,7 @@ defmodule BeamwareWeb.Plugs.EnsureLoggedIn do
       {:ok, user} ->
         # Paranoidly remove password hash so it isn't in `conn.assigns.current_user`, in case some error message is leaked
         conn
-        |> assign(:current_user, %{user | password_hash: nil})
+        |> assign(:user, %{user | password_hash: nil})
 
       _ ->
         conn

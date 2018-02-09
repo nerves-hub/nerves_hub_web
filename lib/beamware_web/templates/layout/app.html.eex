@@ -15,9 +15,11 @@
     <div class="container">
       <header class="header">
         <nav role="navigation">
-          <ul class="nav nav-pills pull-right">
-            <li><a href="http://www.phoenixframework.org/docs">Get Started</a></li>
-          </ul>
+          <%= if Map.get(@conn.assigns, :user) do %>
+            <ul class="nav nav-pills pull-right">
+              <li><a href="<%= session_path(@conn, :delete) %>">Log Out</a></li>
+            </ul>
+          <% end %>
         </nav>
         <span class="logo"></span>
       </header>

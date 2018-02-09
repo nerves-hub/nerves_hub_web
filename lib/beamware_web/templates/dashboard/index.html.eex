@@ -1,1 +1,5 @@
-<p>Hay</p>
+<p> <a href="#">Manage Devices</a> </p>
+<p> <a href="#">Manage Firmware</a> </p>
+<p> <a href="#">Manage Updates</a> </p>
+<p> <a href="#">Settings</a> </p>
+<p> <a href="#">Tenant Settings</a> </p>
