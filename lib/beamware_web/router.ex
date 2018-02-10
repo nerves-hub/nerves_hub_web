@@ -18,7 +18,8 @@ defmodule BeamwareWeb.Router do
   end
 
   scope "/", BeamwareWeb do
-    pipe_through :browser # Use the default browser stack
+    # Use the default browser stack
+    pipe_through(:browser)
 
     get "/", SessionController, :new
     post "/", SessionController, :create
@@ -31,6 +32,8 @@ defmodule BeamwareWeb.Router do
     pipe_through [:browser, :logged_in]
 
     get "/dashboard", DashboardController, :index
+    get "/tenant", TenantController, :edit
+    put "/tenant", TenantController, :update
   end
 
   # Other scopes may use custom stacks.

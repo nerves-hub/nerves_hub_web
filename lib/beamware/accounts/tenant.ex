@@ -16,8 +16,8 @@ defmodule Beamware.Accounts.Tenant do
     timestamps()
   end
 
-  def creation_changeset(params) do
-    %Tenant{}
+  def changeset(%Tenant{} = tenant, params) do
+    tenant
     |> cast(params, [:name])
     |> validate_required([:name])
   end

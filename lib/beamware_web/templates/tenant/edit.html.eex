@@ -1,0 +1,11 @@
+<%= form_for @changeset, tenant_path(@conn, :update), fn f -> %>
+  <p>
+    <label>
+      Name:
+      <%= text_input f, :name %>
+      <%= error_tag f, :name %>
+    </label>
+  </p>
+
+  <%= submit "Update" %>
+<% end %>

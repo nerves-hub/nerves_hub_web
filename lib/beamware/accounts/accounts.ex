@@ -58,7 +58,7 @@ defmodule Beamware.Accounts do
     }
 
     Repo.transaction(fn() ->
-      with {:ok, tenant} <- tenant_params |> Tenant.creation_changeset() |> Repo.insert(),
+      with {:ok, tenant} <-  %Tenant{}|> Tenant.changeset(tenant_params) |> Repo.insert(),
            {:ok, _user} <- create_user(tenant, user_params)
       do
         tenant
@@ -119,5 +119,26 @@ defmodule Beamware.Accounts do
       nil -> {:error, :not_found}
       user -> {:ok, user}
     end
+  end
+
+  @spec get_tenant(number) ::
+          {:ok, Tenant.t()}
+          | {:error, :not_found}
+  def get_tenant(id) do
+    Tenant
+    |> Repo.get(id)
+    |> case do
+      nil -> {:error, :not_found}
+      tenant -> {:ok, tenant}
+    end
+  end
+
+  @spec update_tenant(Tenant.t(), map) ::
+          {:ok, Tenant.t()}
+          | {:error, Changeset.t()}
+  def update_tenant(%Tenant{} = tenant, attrs) do
+    tenant
+    |> Tenant.changeset(attrs)
+    |> Repo.update()
   end
 end
