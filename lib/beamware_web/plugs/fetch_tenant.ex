@@ -14,6 +14,7 @@ defmodule BeamwareWeb.Plugs.FetchTenant do
       {:ok, tenant} ->
         conn
         |> assign(:tenant, tenant)
+
       _ ->
         conn
         |> halt()

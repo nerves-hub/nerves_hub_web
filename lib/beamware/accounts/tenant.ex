@@ -9,9 +9,9 @@ defmodule Beamware.Accounts.Tenant do
   @type t :: %__MODULE__{}
 
   schema "tenants" do
-    has_many :users, User
+    has_many(:users, User)
 
-    field :name, :string
+    field(:name, :string)
 
     timestamps()
   end

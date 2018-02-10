@@ -4,7 +4,7 @@ defmodule BeamwareWeb.TenantController do
   alias Ecto.Changeset
   alias Beamware.Accounts
 
-  plug BeamwareWeb.Plugs.FetchTenant
+  plug(BeamwareWeb.Plugs.FetchTenant)
 
   def edit(%{assigns: %{tenant: tenant}} = conn, _params) do
     render(conn, "edit.html", changeset: %Changeset{data: tenant})
