@@ -26,6 +26,8 @@ defmodule BeamwareWeb.Router do
     get("/logout", SessionController, :delete)
     get("/register", AccountController, :new)
     post("/register", AccountController, :create)
+    get("/invite/:token", AccountController, :invite)
+    post("/invite/:token", AccountController, :accept_invite)
   end
 
   scope "/", BeamwareWeb do
@@ -34,6 +36,16 @@ defmodule BeamwareWeb.Router do
     get("/dashboard", DashboardController, :index)
     get("/tenant", TenantController, :edit)
     put("/tenant", TenantController, :update)
+
+    get("/tenant/invite", TenantController, :invite)
+    post("/tenant/invite", TenantController, :send_invite)
+  end
+
+  if Mix.env() in [:dev] do
+    scope "/dev" do
+      pipe_through([:browser])
+      forward("/mailbox", Plug.Swoosh.MailboxPreview, base_path: "/dev/mailbox")
+    end
   end
 
   # Other scopes may use custom stacks.

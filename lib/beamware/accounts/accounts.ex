@@ -1,6 +1,7 @@
 defmodule Beamware.Accounts do
+  import Ecto.Query
   alias Ecto.Changeset
-  alias Beamware.Accounts.{Tenant, User}
+  alias Beamware.Accounts.{Tenant, User, Invite}
   alias Beamware.Repo
   alias Comeonin.Bcrypt
 
@@ -138,6 +139,67 @@ defmodule Beamware.Accounts do
   def update_tenant(%Tenant{} = tenant, attrs) do
     tenant
     |> Tenant.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @spec invite(%{name: String.t(), email: String.t()}, Tenant.t()) ::
+          {:ok, Invite.t()}
+          | {:error, Changeset.t()}
+  def invite(params, tenant) do
+    params = Map.merge(params, %{"tenant_id" => tenant.id, "token" => Ecto.UUID.generate()})
+
+    %Invite{}
+    |> Invite.changeset(params)
+    |> Repo.insert()
+    |> case do
+      {:ok, invite} ->
+        Beamware.Accounts.Email.send(:invite, invite, tenant)
+        {:ok, invite}
+
+      error ->
+        error
+    end
+  end
+
+  @spec get_valid_invite(String.t()) ::
+          {:ok, Invite.t()}
+          | {:error, :not_found}
+  def get_valid_invite(token) do
+    query =
+      from(
+        i in Invite,
+        where: i.token == ^token,
+        where: i.accepted == false,
+        where: i.inserted_at >= fragment("NOW() - INTERVAL '48 hours'")
+      )
+
+    query
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      invite -> {:ok, invite}
+    end
+  end
+
+  @spec create_user_from_invite(Invite.t(), Tenant.t(), map) ::
+          {:ok, User.t()}
+          | {:error}
+  def create_user_from_invite(invite, tenant, user_params) do
+    user_params = %{user_params | "email" => invite.email}
+
+    Repo.transaction(fn ->
+      with {:ok, user} <- create_user(tenant, user_params),
+           {:ok, _invite} <- set_invite_accpted(invite) do
+        {:ok, user}
+      else
+        _ -> {:error}
+      end
+    end)
+  end
+
+  defp set_invite_accpted(invite) do
+    invite
+    |> Invite.changeset(%{accepted: true})
     |> Repo.update()
   end
 end

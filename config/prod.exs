@@ -15,7 +15,7 @@ use Mix.Config
 # which you typically run after static files are built.
 config :beamware, BeamwareWeb.Endpoint,
   load_from_system_env: true,
-  url: [host: "example.com", port: 80],
+  url: [scheme: "https", host: "example.com", port: 80],
   cache_static_manifest: "priv/static/cache_manifest.json"
 
 # Do not print debug messages in production
@@ -58,6 +58,10 @@ config :logger, level: :info
 #
 #     config :beamware, BeamwareWeb.Endpoint, server: true
 #
+
+# should be configured for production
+
+# config :beamware, Beamware.Mailer, adapter: Swoosh.Adapters.Local
 
 # Finally import the config/prod.secret.exs
 # which should be versioned separately.

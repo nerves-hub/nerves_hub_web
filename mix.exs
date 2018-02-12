@@ -42,7 +42,9 @@ defmodule Beamware.Mixfile do
       {:phoenix_html, "~> 2.10"},
       {:phoenix_live_reload, "~> 1.0", only: :dev},
       {:gettext, "~> 0.11"},
-      {:cowboy, "~> 1.0"}
+      {:cowboy, "~> 1.0"},
+      {:swoosh, "~> 0.13"},
+      {:phoenix_swoosh, "~> 0.2"}
     ]
   end
 

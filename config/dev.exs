@@ -31,6 +31,7 @@ config :beamware, BeamwareWeb.Endpoint,
 
 # Watch static and templates for browser reloading.
 config :beamware, BeamwareWeb.Endpoint,
+  url: [scheme: "http", host: "localhost", port: 4000],
   live_reload: [
     patterns: [
       ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
