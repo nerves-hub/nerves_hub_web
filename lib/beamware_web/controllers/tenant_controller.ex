@@ -3,6 +3,7 @@ defmodule BeamwareWeb.TenantController do
 
   alias Ecto.Changeset
   alias Beamware.Accounts
+  alias Beamware.Accounts.Invite
 
   plug(BeamwareWeb.Plugs.FetchTenant)
 
@@ -21,6 +22,24 @@ defmodule BeamwareWeb.TenantController do
 
       {:error, changeset} ->
         render(conn, "edit.html", changeset: changeset)
+    end
+  end
+
+  def invite(%{assigns: %{tenant: tenant}} = conn, _params) do
+    render(conn, "invite.html", changeset: %Changeset{data: %Invite{}}, tenant: tenant)
+  end
+
+  def send_invite(%{assigns: %{tenant: tenant}} = conn, %{"invite" => invite_params}) do
+    invite_params
+    |> Accounts.invite(tenant)
+    |> case do
+      {:ok, _invite} ->
+        conn
+        |> put_flash(:info, "User has been invited")
+        |> redirect(to: "/tenant")
+
+      {:error, changeset} ->
+        render(conn, "invite.html", changeset: changeset)
     end
   end
 end

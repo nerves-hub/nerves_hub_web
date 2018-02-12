@@ -1,3 +1,7 @@
+<div class='pull-right'>
+  <%= link("Invite User", to: tenant_path(@conn, :invite)) %>
+</div>
+
 <%= form_for @changeset, tenant_path(@conn, :update), fn f -> %>
   <p>
     <label>

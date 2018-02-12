@@ -1,0 +1,31 @@
+<p>
+  You will be added to the <%= @tenant.name %> tenant
+</p>
+
+<%= form_for @changeset, account_path(@conn, :accept_invite, @token, []) ,[as: :user], fn f -> %>
+  <p>
+    <label>
+      Email:
+      <%= email_input f, :email, readonly: true %>
+      <%= error_tag f, :email %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Name:
+      <%= text_input f, :name %>
+      <%= error_tag f, :name %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Password:
+      <%= password_input f, :password %>
+      <%= error_tag f, :password %>
+    </label>
+  </p>
+
+  <%= submit "Register" %>
+<% end %>
