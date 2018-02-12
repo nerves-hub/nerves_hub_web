@@ -6,7 +6,7 @@ defmodule BeamwareWeb.AccountController do
   alias Beamware.Accounts.User
 
   def new(conn, _params) do
-    render conn, "new.html", changeset: %Changeset{data: %User{}}
+    render(conn, "new.html", changeset: %Changeset{data: %User{}})
   end
 
   def create(conn, params) do
@@ -14,10 +14,10 @@ defmodule BeamwareWeb.AccountController do
     |> Accounts.create_tenant()
     |> case do
       {:ok, _tenant} ->
-        redirect conn, to: "/"
+        redirect(conn, to: "/")
 
       {:error, changeset} ->
-        render conn, "new.html", changeset: changeset
+        render(conn, "new.html", changeset: changeset)
     end
   end
 end

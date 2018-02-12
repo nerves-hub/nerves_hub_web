@@ -7,9 +7,9 @@ defmodule Beamware.Accounts do
   @doc """
   Create a tenant. Expects `params` to contain fields for both the user and tenant.
   """
-  @spec create_tenant(map)
-  :: {:ok, Tenant.t()}
-  |  {:error, Changeset.t()}
+  @spec create_tenant(map) ::
+          {:ok, Tenant.t()}
+          | {:error, Changeset.t()}
   def create_tenant(params) do
     types = %{
       name: :string,
@@ -41,11 +41,11 @@ defmodule Beamware.Accounts do
     end
   end
 
-  @spec do_create_tenant(Changeset.t())
-  :: {:ok, Tenant.t()}
-  |  {:error, Changeset.t()}
+  @spec do_create_tenant(Changeset.t()) ::
+          {:ok, Tenant.t()}
+          | {:error, Changeset.t()}
   defp do_create_tenant(tenant_user_changeset) do
-    field = fn(field_name) -> Changeset.get_field(tenant_user_changeset, field_name) end
+    field = fn field_name -> Changeset.get_field(tenant_user_changeset, field_name) end
 
     tenant_params = %{
       name: field.(:tenant_name)
@@ -57,16 +57,15 @@ defmodule Beamware.Accounts do
       password: field.(:password)
     }
 
-    Repo.transaction(fn() ->
-      with {:ok, tenant} <- tenant_params |> Tenant.creation_changeset() |> Repo.insert(),
-           {:ok, _user} <- create_user(tenant, user_params)
-      do
+    Repo.transaction(fn ->
+      with {:ok, tenant} <- %Tenant{} |> Tenant.changeset(tenant_params) |> Repo.insert(),
+           {:ok, _user} <- create_user(tenant, user_params) do
         tenant
       else
         {:error, changeset} ->
           # Merge errors into original changeset
           changeset.errors
-          |> Enum.reduce(tenant_user_changeset, fn({key, {message, data}}, changeset) ->
+          |> Enum.reduce(tenant_user_changeset, fn {key, {message, data}}, changeset ->
             Changeset.add_error(changeset, key, message, data)
           end)
           |> Repo.rollback()
@@ -74,9 +73,9 @@ defmodule Beamware.Accounts do
     end)
   end
 
-  @spec create_user(Tenant.t(), map)
-  :: {:ok, User.t()}
-  |  {:error, Changeset.t()}
+  @spec create_user(Tenant.t(), map) ::
+          {:ok, User.t()}
+          | {:error, Changeset.t()}
   def create_user(%Tenant{} = tenant, params) do
     tenant
     |> Ecto.build_assoc(:users)
@@ -88,15 +87,15 @@ defmodule Beamware.Accounts do
   Authenticates a user by their email and password. Returns the user if the
   user is found and the password is correct, otherwise nil.
   """
-  @spec authenticate(String.t(), String.t())
-  :: {:ok, User.t()}
-  |  {:error, :authentication_failed}
+  @spec authenticate(String.t(), String.t()) ::
+          {:ok, User.t()}
+          | {:error, :authentication_failed}
   def authenticate(email, password) do
     email = String.downcase(email)
     user = Repo.get_by(User, email: email)
+
     with %User{} <- user,
-      true <- Bcrypt.checkpw(password, user.password_hash)
-    do
+         true <- Bcrypt.checkpw(password, user.password_hash) do
       {:ok, user}
     else
       nil ->
@@ -109,9 +108,9 @@ defmodule Beamware.Accounts do
     end
   end
 
-  @spec get_user(any())
-  :: {:ok, User.t()}
-  |  {:error, :not_found}
+  @spec get_user(any()) ::
+          {:ok, User.t()}
+          | {:error, :not_found}
   def get_user(user_id) do
     User
     |> Repo.get(user_id)
@@ -119,5 +118,26 @@ defmodule Beamware.Accounts do
       nil -> {:error, :not_found}
       user -> {:ok, user}
     end
+  end
+
+  @spec get_tenant(number) ::
+          {:ok, Tenant.t()}
+          | {:error, :not_found}
+  def get_tenant(id) do
+    Tenant
+    |> Repo.get(id)
+    |> case do
+      nil -> {:error, :not_found}
+      tenant -> {:ok, tenant}
+    end
+  end
+
+  @spec update_tenant(Tenant.t(), map) ::
+          {:ok, Tenant.t()}
+          | {:error, Changeset.t()}
+  def update_tenant(%Tenant{} = tenant, attrs) do
+    tenant
+    |> Tenant.changeset(attrs)
+    |> Repo.update()
   end
 end

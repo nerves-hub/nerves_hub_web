@@ -9,15 +9,15 @@ defmodule Beamware.Accounts.Tenant do
   @type t :: %__MODULE__{}
 
   schema "tenants" do
-    has_many :users, User
+    has_many(:users, User)
 
-    field :name, :string
+    field(:name, :string)
 
     timestamps()
   end
 
-  def creation_changeset(params) do
-    %Tenant{}
+  def changeset(%Tenant{} = tenant, params) do
+    tenant
     |> cast(params, [:name])
     |> validate_required([:name])
   end

@@ -26,13 +26,13 @@ defmodule BeamwareWeb.ConnCase do
     end
   end
 
-
   setup tags do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Beamware.Repo)
+
     unless tags[:async] do
       Ecto.Adapters.SQL.Sandbox.mode(Beamware.Repo, {:shared, self()})
     end
+
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
-
 end

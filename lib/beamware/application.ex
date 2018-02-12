@@ -11,7 +11,7 @@ defmodule Beamware.Application do
       # Start the Ecto repository
       supervisor(Beamware.Repo, []),
       # Start the endpoint when the application starts
-      supervisor(BeamwareWeb.Endpoint, []),
+      supervisor(BeamwareWeb.Endpoint, [])
       # Start your own worker by calling: Beamware.Worker.start_link(arg1, arg2, arg3)
       # worker(Beamware.Worker, [arg1, arg2, arg3]),
     ]

@@ -6,16 +6,14 @@
 use Mix.Config
 
 # General application configuration
-config :beamware,
-  ecto_repos: [Beamware.Repo]
+config :beamware, ecto_repos: [Beamware.Repo]
 
 # Configures the endpoint
 config :beamware, BeamwareWeb.Endpoint,
   url: [host: System.get_env("HOST")],
   secret_key_base: "3uRRXQ9FUMc3dd7NFTFWQU2xRXcVFXWpPLHZ4fdG/toP9/jJL92Mtjmq8Fd/ijZe",
   render_errors: [view: BeamwareWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: Beamware.PubSub,
-           adapter: Phoenix.PubSub.PG2]
+  pubsub: [name: Beamware.PubSub, adapter: Phoenix.PubSub.PG2]
 
 # Configures Elixir's Logger
 config :logger, :console,
@@ -24,4 +22,4 @@ config :logger, :console,
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
-import_config "#{Mix.env}.exs"
+import_config "#{Mix.env()}.exs"
