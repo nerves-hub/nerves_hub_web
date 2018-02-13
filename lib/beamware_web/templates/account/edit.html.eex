@@ -1,0 +1,35 @@
+<%= form_for @changeset, account_path(@conn, :update), fn f -> %>
+  <p>
+    <label>
+      Name:
+      <%= text_input f, :name %>
+      <%= error_tag f, :name %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Email:
+      <%= text_input f, :email %>
+      <%= error_tag f, :email %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Password:
+      <%= password_input f, :password %>
+      <%= error_tag f, :password %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Current Password: (If changing email/password.)
+      <%= password_input f, :current_password %>
+      <%= error_tag f, :current_password %>
+    </label>
+  </p>
+
+  <%= submit "Update" %>
+<% end %>

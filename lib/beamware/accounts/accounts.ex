@@ -197,6 +197,15 @@ defmodule Beamware.Accounts do
     end)
   end
 
+  @spec update_user(User.t(), map)
+  :: {:ok, User.t()}
+  |  {:error, Changeset.t()}
+  def update_user(%User{} = user, user_params) do
+    user
+    |> User.update_changeset(user_params)
+    |> Repo.update()
+  end
+
   defp set_invite_accpted(invite) do
     invite
     |> Invite.changeset(%{accepted: true})
