@@ -16,4 +16,8 @@
   </p>
 
   <%= submit "Login" %>
+
+  <a href="<%= password_reset_path(@conn, :new) %>">
+    Forgot Password
+  </a>
 <% end %>

@@ -1,7 +1,7 @@
 defmodule Beamware.Accounts do
   import Ecto.Query
   alias Ecto.Changeset
-  alias Beamware.Accounts.{Tenant, User, Invite}
+  alias Beamware.Accounts.{Tenant, User, Invite, Email}
   alias Beamware.Repo
   alias Comeonin.Bcrypt
 
@@ -121,6 +121,25 @@ defmodule Beamware.Accounts do
     end
   end
 
+  @spec get_user_with_password_reset_token(String.t()) ::
+          {:ok, User.t()}
+          | {:error, :not_found}
+  def get_user_with_password_reset_token(token) when is_binary(token) do
+    query =
+      from(
+        u in User,
+        where: u.password_reset_token == ^token,
+        where: u.password_reset_token_expires >= ^DateTime.utc_now()
+      )
+
+    query
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      user -> {:ok, user}
+    end
+  end
+
   @spec get_tenant(number) ::
           {:ok, Tenant.t()}
           | {:error, :not_found}
@@ -153,7 +172,7 @@ defmodule Beamware.Accounts do
     |> Repo.insert()
     |> case do
       {:ok, invite} ->
-        Beamware.Accounts.Email.send(:invite, invite, tenant)
+        Email.send(:invite, invite, tenant)
         {:ok, invite}
 
       error ->
@@ -197,9 +216,9 @@ defmodule Beamware.Accounts do
     end)
   end
 
-  @spec update_user(User.t(), map)
-  :: {:ok, User.t()}
-  |  {:error, Changeset.t()}
+  @spec update_user(User.t(), map) ::
+          {:ok, User.t()}
+          | {:error, Changeset.t()}
   def update_user(%User{} = user, user_params) do
     user
     |> User.update_changeset(user_params)
@@ -210,5 +229,55 @@ defmodule Beamware.Accounts do
     invite
     |> Invite.changeset(%{accepted: true})
     |> Repo.update()
+  end
+
+  @doc """
+  Attempt to send an email with a link for resetting a user's password.
+  (If the given email address doesn't correspond to a user, do nothing.
+
+  Returns :ok regardless of the outcome to enforce the business rule
+  (at the lowest level) that we should never signal to the user whether
+  an email was sent. (Would allow brute force guessing of account emails.)
+  """
+  @spec send_password_reset_email(String.t()) :: :ok
+  def send_password_reset_email(email) when is_binary(email) do
+    query = from(u in User, where: u.email == ^email)
+
+    query
+    |> Repo.one()
+    |> case do
+      nil ->
+        :ok
+
+      %User{} = user ->
+        user
+        |> User.generate_password_reset_token_changeset()
+        |> Repo.update()
+    end
+    |> case do
+      {:ok, user} ->
+        Email.send(:forgot_password, user)
+        :ok
+
+      :ok ->
+        :ok
+    end
+  end
+
+  @spec reset_password(String.t(), map) ::
+          {:ok, User.t()}
+          | {:error, :not_found}
+  def reset_password(reset_password_token, params) do
+    reset_password_token
+    |> get_user_with_password_reset_token()
+    |> case do
+      {:ok, user} ->
+        user
+        |> User.reset_password_changeset(params)
+        |> Repo.update()
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+    end
   end
 end
