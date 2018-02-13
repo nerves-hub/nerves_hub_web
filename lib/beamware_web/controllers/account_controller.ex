@@ -21,6 +21,29 @@ defmodule BeamwareWeb.AccountController do
     end
   end
 
+  def edit(conn, _params) do
+    conn
+    |> render(
+      "edit.html",
+      changeset: %Changeset{data: conn.assigns.user}
+    )
+  end
+
+  def update(conn, params) do
+    conn.assigns.user
+    |> Accounts.update_user(params["user"])
+    |> case do
+      {:ok, _user} ->
+        conn
+        |> put_flash(:info, "Account updated")
+        |> redirect(to: account_path(conn, :edit))
+
+      {:error, changeset} ->
+        conn
+        |> render("edit.html", changeset: changeset)
+    end
+  end
+
   def invite(conn, %{"token" => token} = _) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, tenant} <- Accounts.get_tenant(invite.tenant_id) do

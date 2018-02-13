@@ -29,6 +29,30 @@ defmodule Beamware.Accounts.User do
     |> hash_password()
   end
 
+  def update_changeset(%User{} = user, params) do
+    changeset =
+      user
+      |> cast(params, [:name, :email, :password])
+      |> unique_constraint(:email)
+      |> hash_password()
+
+    changed = fn(field) -> not (changeset |> get_change(field) |> is_nil()) end
+    password_required = (changed.(:password) or changed.(:email))
+
+    cond do
+      password_required and params["current_password"] == "" ->
+        changeset
+        |> Changeset.add_error(:current_password, "can't be blank")
+
+      password_required and not Bcrypt.checkpw(params["current_password"], user.password_hash) ->
+        changeset
+        |> Changeset.add_error(:current_password, "is invalid")
+
+      true ->
+        changeset
+    end
+  end
+
   defp hash_password(%Changeset{} = changeset) do
     changeset
     |> get_field(:password)

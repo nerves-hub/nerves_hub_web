@@ -39,6 +39,9 @@ defmodule BeamwareWeb.Router do
 
     get("/tenant/invite", TenantController, :invite)
     post("/tenant/invite", TenantController, :send_invite)
+
+    get("/settings", AccountController, :edit)
+    put("/settings", AccountController, :update)
   end
 
   if Mix.env() in [:dev] do

@@ -1,5 +1,5 @@
 <p> <a href="#">Manage Devices</a> </p>
 <p> <a href="#">Manage Firmware</a> </p>
 <p> <a href="#">Manage Updates</a> </p>
-<p> <a href="#">Settings</a> </p>
-<p> <a href="/tenant">Tenant Settings</a> </p>
+<p> <a href="<%= account_path(@conn, :edit) %>">Settings</a> </p>
+<p> <a href="<%= tenant_path(@conn, :edit) %>">Tenant Settings</a> </p>
