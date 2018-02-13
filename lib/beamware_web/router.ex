@@ -26,6 +26,10 @@ defmodule BeamwareWeb.Router do
     get("/logout", SessionController, :delete)
     get("/register", AccountController, :new)
     post("/register", AccountController, :create)
+    get("/password-reset", PasswordResetController, :new)
+    post("/password-reset", PasswordResetController, :create)
+    get("/password-reset/:token", PasswordResetController, :new_password_form)
+    put("/password-reset/:token", PasswordResetController, :reset)
     get("/invite/:token", AccountController, :invite)
     post("/invite/:token", AccountController, :accept_invite)
   end

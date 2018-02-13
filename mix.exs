@@ -20,7 +20,11 @@ defmodule Beamware.Mixfile do
   def application do
     [
       mod: {Beamware.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [
+        :logger,
+        :runtime_tools,
+        :timex
+      ]
     ]
   end
 
@@ -44,6 +48,7 @@ defmodule Beamware.Mixfile do
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 1.0"},
       {:swoosh, "~> 0.13"},
+      {:timex, "~> 3.1"},
       {:phoenix_swoosh, "~> 0.2"}
     ]
   end
