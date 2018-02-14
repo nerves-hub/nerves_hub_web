@@ -2,7 +2,7 @@
   You will be added to the <%= @tenant.name %> tenant
 </p>
 
-<%= form_for @changeset, account_path(@conn, :accept_invite, @token, []) ,[as: :user], fn f -> %>
+<%= form_for @changeset, account_path(@conn, :accept_invite, @token), [as: :user], fn f -> %>
   <p>
     <label>
       Email:

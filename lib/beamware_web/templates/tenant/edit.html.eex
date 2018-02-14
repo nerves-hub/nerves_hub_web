@@ -2,7 +2,8 @@
   <%= link("Invite User", to: tenant_path(@conn, :invite)) %>
 </div>
 
-<%= form_for @changeset, tenant_path(@conn, :update), fn f -> %>
+<%= form_for @tenant_changeset, tenant_path(@conn, :update), fn f -> %>
+  <h2>Tenant Settings</h2>
   <p>
     <label>
       Name:
@@ -11,5 +12,37 @@
     </label>
   </p>
 
-  <%= submit "Update" %>
+<%= submit "Update Tenant" %>
+<% end %>
+  
+<%= form_for @tenant_key_changeset, tenant_path(@conn, :create_key), fn f -> %>
+  <h2>Tenant Keys</h2>
+  <p>
+    <label>
+      Name:
+      <%= text_input f, :name %>
+      <%= error_tag f, :name %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Key:
+      <%= text_input f, :key %>
+      <%= error_tag f, :key %>
+    </label>
+  </p>
+  <%= submit "Create New Key" %>
+
+<% end %>
+
+<%= if length(@tenant.tenant_keys) > 0 do %>
+  <p>Current Keys:</p>
+  <ul>
+    <%= for key <- @tenant.tenant_keys do %>
+    <li><span><%= key.name %></span>:<pre><%= key.key %></pre></li>
+    <% end %>
+  </ul>
+<% else %>
+  <p>No current keys</p>
 <% end %>

@@ -15,6 +15,13 @@ defmodule BeamwareWeb.Endpoint do
     only: ~w(css fonts images js favicon.ico robots.txt)
   )
 
+  # This should only be enabled if using Beamware.Firmware.Upload.File
+  plug(
+    Plug.Static,
+    at: "/firmware",
+    from: "/tmp/firmware"
+  )
+
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
   if code_reloading? do

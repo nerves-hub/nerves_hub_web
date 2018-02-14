@@ -3,13 +3,14 @@ defmodule Beamware.Accounts.Tenant do
 
   import Ecto.Changeset
 
-  alias Beamware.Accounts.User
+  alias Beamware.Accounts.{User, TenantKey}
   alias __MODULE__
 
   @type t :: %__MODULE__{}
 
   schema "tenants" do
     has_many(:users, User)
+    has_many(:tenant_keys, TenantKey)
 
     field(:name, :string)
 

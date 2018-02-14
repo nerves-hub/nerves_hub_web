@@ -1,7 +1,7 @@
 defmodule Beamware.Accounts do
   import Ecto.Query
   alias Ecto.Changeset
-  alias Beamware.Accounts.{Tenant, User, Invite, Email}
+  alias Beamware.Accounts.{Tenant, User, Invite, Email, TenantKey}
   alias Beamware.Repo
   alias Comeonin.Bcrypt
 
@@ -109,15 +109,17 @@ defmodule Beamware.Accounts do
     end
   end
 
-  @spec get_user(any()) ::
+  @spec get_user(integer()) ::
           {:ok, User.t()}
           | {:error, :not_found}
   def get_user(user_id) do
-    query = from(u in User,
-                 join: t in assoc(u, :tenant),
-                 where: u.id == ^user_id,
-                 preload: [tenant: t]
-    )
+    query =
+      from(
+        u in User,
+        join: t in assoc(u, :tenant),
+        where: u.id == ^user_id,
+        preload: [tenant: {t, :tenant_keys}]
+      )
 
     query
     |> Repo.one()
@@ -146,7 +148,7 @@ defmodule Beamware.Accounts do
     end
   end
 
-  @spec get_tenant(number) ::
+  @spec get_tenant(integer()) ::
           {:ok, Tenant.t()}
           | {:error, :not_found}
   def get_tenant(id) do
@@ -165,6 +167,15 @@ defmodule Beamware.Accounts do
     tenant
     |> Tenant.changeset(attrs)
     |> Repo.update()
+  end
+
+  @spec create_tenant_key(map) ::
+          {:ok, TenantKey.t()}
+          | {:error, Changeset.t()}
+  def create_tenant_key(attrs) do
+    %TenantKey{}
+    |> TenantKey.changeset(attrs)
+    |> Repo.insert()
   end
 
   @spec invite(%{name: String.t(), email: String.t()}, Tenant.t()) ::

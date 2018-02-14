@@ -3,10 +3,16 @@ defmodule BeamwareWeb.TenantController do
 
   alias Ecto.Changeset
   alias Beamware.Accounts
-  alias Beamware.Accounts.Invite
+  alias Beamware.Accounts.{Invite, TenantKey}
 
   def edit(%{assigns: %{tenant: tenant}} = conn, _params) do
-    render(conn, "edit.html", changeset: %Changeset{data: tenant})
+    render(
+      conn,
+      "edit.html",
+      tenant_changeset: %Changeset{data: tenant},
+      tenant_key_changeset: %Changeset{data: %TenantKey{}},
+      tenant: tenant
+    )
   end
 
   def update(%{assigns: %{tenant: tenant}} = conn, %{"tenant" => tenant_params}) do
@@ -19,7 +25,38 @@ defmodule BeamwareWeb.TenantController do
         |> redirect(to: "/tenant")
 
       {:error, changeset} ->
-        render(conn, "edit.html", changeset: changeset)
+        render(
+          conn,
+          "edit.html",
+          tenant_changeset: changeset,
+          tenant_key_changeset: %Changeset{data: %TenantKey{}},
+          tenant: tenant
+        )
+    end
+  end
+
+  def create_key(%{assigns: %{tenant: tenant}} = conn, %{"tenant_key" => tenant_key_params}) do
+    tenant_key_params
+    |> Map.put("tenant_id", tenant.id)
+    |> Accounts.create_tenant_key()
+    |> case do
+      {:ok, _tenant_key} ->
+        conn
+        |> put_flash(:info, "Tenant Key Added")
+        |> redirect(to: "/tenant")
+
+      {:error, changeset} ->
+        render(
+          conn,
+          "edit.html",
+          render(
+            conn,
+            "edit.html",
+            tenant_changeset: %Changeset{data: tenant},
+            tenant_key_changeset: changeset,
+            tenant: tenant
+          )
+        )
     end
   end
 
