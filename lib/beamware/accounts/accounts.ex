@@ -113,8 +113,14 @@ defmodule Beamware.Accounts do
           {:ok, User.t()}
           | {:error, :not_found}
   def get_user(user_id) do
-    User
-    |> Repo.get(user_id)
+    query = from(u in User,
+                 join: t in assoc(u, :tenant),
+                 where: u.id == ^user_id,
+                 preload: [tenant: t]
+    )
+
+    query
+    |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
       user -> {:ok, user}
