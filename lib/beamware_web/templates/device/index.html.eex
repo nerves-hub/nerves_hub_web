@@ -1,3 +1,6 @@
+<a class="btn btn-primary" href="<%= device_path(@conn, :new) %>">
+  Add Device
+</a>
 <table class="table table-striped">
   <thead>
     <tr>
@@ -5,7 +8,8 @@
       <th>Version</th>
       <th>Update Pending</th>
       <th>Last Connect</th>
-      <th>Operations</th>
+      <th>Tags</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
@@ -16,7 +20,14 @@
         <td>
           <input type="checkbox" disabled>
         </td>
-        <td><%= device.last_communication |> Timex.format!("{YYYY}-{0M}-{D} {h24}:{m}:{s}") %></td>
+        <td><%= last_communication(device) %></td>
+        <td>
+          <%= for tag <- (device.tags || []) do %>
+            <span class="badge">
+              <%= tag %>
+            </span>
+          <% end %>
+        </td>
         <td>
           <a href="#" class="btn btn-danger">Delete</a>
           <a href="#" class="btn btn-warning">Disable</a>

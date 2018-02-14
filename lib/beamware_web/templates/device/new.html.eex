@@ -1,0 +1,28 @@
+<%= form_for @changeset, device_path(@conn, :create), fn f -> %>
+  <p>
+    <label>
+      ID:
+      <%= text_input f, :identifier %>
+      <%= error_tag f, :identifier %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Description:
+      <%= text_input f, :description %>
+      <%= error_tag f, :description %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Tags:
+      <%= text_input f, :tags %>
+      <%= error_tag f, :tags %>
+    </label>
+  </p>
+
+  <%= submit "Add", class: "btn btn-primary" %>
+  <a class="btn btn-secondary" href="<%= device_path(@conn, :index) %>">Cancel</a>
+<% end %>
