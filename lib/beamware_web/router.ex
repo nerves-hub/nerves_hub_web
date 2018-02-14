@@ -53,6 +53,8 @@ defmodule BeamwareWeb.Router do
     put("/settings", AccountController, :update)
 
     get("/devices", DeviceController, :index)
+    get("/devices/new", DeviceController, :new)
+    post("/devices/new", DeviceController, :create)
 
     get("/firmware", FirmwareController, :index)
     get("/firmware/upload", FirmwareController, :upload)
