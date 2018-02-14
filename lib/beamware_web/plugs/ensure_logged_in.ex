@@ -22,6 +22,7 @@ defmodule BeamwareWeb.Plugs.EnsureLoggedIn do
       {:ok, user} ->
         conn
         |> assign(:user, user)
+        |> assign(:tenant, user.tenant)
 
       _ ->
         conn

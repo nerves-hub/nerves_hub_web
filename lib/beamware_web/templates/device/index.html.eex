@@ -1,0 +1,27 @@
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Device</th>
+      <th>Version</th>
+      <th>Update Pending</th>
+      <th>Last Connect</th>
+      <th>Operations</th>
+    </tr>
+  </thead>
+  <tbody>
+    <%= for device <- @devices do %>
+      <tr>
+        <td><%= device.identifier %></td>
+        <td><%= device.current_version %></td>
+        <td>
+          <input type="checkbox" disabled>
+        </td>
+        <td><%= device.last_communication |> Timex.format!("{YYYY}-{0M}-{D} {h24}:{m}:{s}") %></td>
+        <td>
+          <a href="#" class="btn btn-danger">Delete</a>
+          <a href="#" class="btn btn-warning">Disable</a>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
