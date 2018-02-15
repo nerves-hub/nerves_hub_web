@@ -17,7 +17,15 @@
 
   <%= submit "Login" %>
 
-  <a href="<%= password_reset_path(@conn, :new) %>">
-    Forgot Password
-  </a>
+  <p>
+    <a href="<%= password_reset_path(@conn, :new) %>">
+      Forgot Password
+    </a>
+  </p>
+
+  <p>
+    <a href="<%= account_path(@conn, :new) %>">
+      Register
+    </a>
+  </p>
 <% end %>

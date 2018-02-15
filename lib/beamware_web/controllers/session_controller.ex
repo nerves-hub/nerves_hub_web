@@ -8,7 +8,16 @@ defmodule BeamwareWeb.SessionController do
   @session_key "auth_user_id"
 
   def new(conn, _params) do
-    render(conn, "new.html", changeset: %Changeset{data: %User{}})
+    conn
+    |> get_session(@session_key)
+    |> case do
+      nil ->
+        render(conn, "new.html", changeset: %Changeset{data: %User{}})
+
+      _ ->
+        conn
+        |> redirect(to: dashboard_path(conn, :index))
+    end
   end
 
   def create(conn, %{"user" => %{"email" => email, "password" => password}}) do

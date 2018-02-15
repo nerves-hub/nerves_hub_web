@@ -21,13 +21,23 @@
             </ul>
           <% end %>
         </nav>
-        <a href="<%= dashboard_path(@conn, :index) %>">
+        <a href="<%= session_path(@conn, :new) %>">
           <span class="logo"></span>
         </a>
       </header>
 
       <p class="alert alert-info" role="alert"><%= get_flash(@conn, :info) %></p>
       <p class="alert alert-danger" role="alert"><%= get_flash(@conn, :error) %></p>
+
+      <%= if Map.get(@conn.assigns, :user) do %>
+	<ul class="nav nav-tabs">
+          <%= for {name, path} <- navigation_links(@conn) do %>
+            <li role="presentation" class="<%= if @conn.request_path == path, do: "active", else: "" %>">
+              <a href="<%= path %>"><%= name %></a>
+            </li>
+          <% end %>
+	</ul>
+      <% end %>
 
       <main role="main">
         <%= render @view_module, @view_template, assigns %>
