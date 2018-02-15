@@ -1,0 +1,11 @@
+<%= form_for @changeset, firmware_path(@conn, :do_upload), [multipart: true], fn f -> %>
+  <p>
+    <label>
+      Select File:
+      <%= file_input f, :file, required: true %>
+      <%= error_tag f, :file %>
+    </label>
+  </p>
+
+  <%= submit "Upload Firmware" %>
+<% end %>

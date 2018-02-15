@@ -53,3 +53,10 @@ config :beamware, Beamware.Repo,
   adapter: Ecto.Adapters.Postgres,
   url: System.get_env("DATABASE_URL"),
   ssl: false
+
+config :beamware, firmware_upload: Beamware.Firmware.Upload.File
+
+# uncomment out lines 19-23 in endpoint.ex and update paths accordingly
+config :beamware, Beamware.Firmware.Upload.File,
+  local_path: "/tmp/firmware",
+  public_path: "/firmware"

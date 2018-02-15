@@ -44,6 +44,7 @@ defmodule BeamwareWeb.Router do
     get("/dashboard", DashboardController, :index)
     get("/tenant", TenantController, :edit)
     put("/tenant", TenantController, :update)
+    post("/tenant/key", TenantController, :create_key)
 
     get("/tenant/invite", TenantController, :invite)
     post("/tenant/invite", TenantController, :send_invite)
@@ -52,6 +53,11 @@ defmodule BeamwareWeb.Router do
     put("/settings", AccountController, :update)
 
     get("/devices", DeviceController, :index)
+
+    get("/firmware", FirmwareController, :index)
+    get("/firmware/upload", FirmwareController, :upload)
+    post("/firmware/upload", FirmwareController, :do_upload)
+    get("/firmware/download/:id", FirmwareController, :download)
   end
 
   if Mix.env() in [:dev] do
