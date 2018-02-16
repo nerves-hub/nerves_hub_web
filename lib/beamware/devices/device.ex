@@ -27,7 +27,15 @@ defmodule Beamware.Devices.Device do
   def creation_changeset(%Device{} = device, params) do
     device
     |> cast(params, [:identifier, :description, :tags])
-    |> validate_required([:identifier])
+    |> validate_required([:identifier, :tags])
+    |> validate_length(:tags, min: 1)
     |> unique_constraint(:identifier, name: :devices_tenant_id_identifier_index)
+  end
+
+  def update_changeset(%Device{} = device, params) do
+    device
+    |> cast(params, [:tags])
+    |> validate_required([:tags])
+    |> validate_length(:tags, min: 1)
   end
 end
