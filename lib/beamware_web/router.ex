@@ -55,6 +55,8 @@ defmodule BeamwareWeb.Router do
     get("/devices", DeviceController, :index)
     get("/devices/new", DeviceController, :new)
     post("/devices/new", DeviceController, :create)
+    get("/devices/:device_id", DeviceController, :edit)
+    put("/devices/:device_id", DeviceController, :update)
 
     get("/firmware", FirmwareController, :index)
     get("/firmware/upload", FirmwareController, :upload)

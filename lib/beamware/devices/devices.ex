@@ -14,6 +14,19 @@ defmodule Beamware.Devices do
     |> Repo.all()
   end
 
+  def get_device(%Tenant{id: tenant_id}, device_id) do
+    query = from(d in Device,
+                 where: d.tenant_id == ^tenant_id,
+                 where: d.id == ^device_id)
+
+    query
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      device -> {:ok, device}
+    end
+  end
+
   @spec create_device(Tenant.t(), map)
   :: {:ok, Device.t()}
   |  {:error, Changeset.t()}
@@ -22,5 +35,11 @@ defmodule Beamware.Devices do
     |> Ecto.build_assoc(:devices)
     |> Device.creation_changeset(params)
     |> Repo.insert()
+  end
+
+  def update_device(%Device{} = device, params) do
+    device
+    |> Device.update_changeset(params)
+    |> Repo.update()
   end
 end
