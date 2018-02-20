@@ -11,6 +11,8 @@ defmodule Beamware.Accounts.User do
 
   @type t :: %__MODULE__{}
 
+  @password_min_length 8
+
   schema "users" do
     belongs_to(:tenant, Tenant)
 
@@ -29,6 +31,7 @@ defmodule Beamware.Accounts.User do
     |> cast(params, [:name, :email, :password])
     |> validate_required([:name, :email, :password])
     |> unique_constraint(:email)
+    |> validate_length(:password, min: @password_min_length)
     |> hash_password()
   end
 
@@ -47,6 +50,7 @@ defmodule Beamware.Accounts.User do
     |> cast(params, [:password])
     |> validate_required([:password])
     |> validate_confirmation(:password)
+    |> validate_length(:password, min: @password_min_length)
     |> hash_password()
   end
 
@@ -63,11 +67,15 @@ defmodule Beamware.Accounts.User do
     cond do
       password_required and params["current_password"] == "" ->
         changeset
-        |> Changeset.add_error(:current_password, "can't be blank")
+        |> add_error(:current_password, "can't be blank")
 
       password_required and not Bcrypt.checkpw(params["current_password"], user.password_hash) ->
         changeset
-        |> Changeset.add_error(:current_password, "is invalid")
+        |> add_error(:current_password, "is invalid")
+
+      changed.(:password) ->
+        changeset
+        |> validate_length(:password, min: @password_min_length)
 
       true ->
         changeset
