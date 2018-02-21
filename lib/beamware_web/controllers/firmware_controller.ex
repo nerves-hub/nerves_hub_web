@@ -73,8 +73,15 @@ defmodule BeamwareWeb.FirmwareController do
     firmware = Beamware.Repo.get(Firmware, id)
 
     if uploader = Application.get_env(:beamware, :firmware_upload) do
-      conn
-      |> redirect(external: uploader.download_file(firmware))
+      uploader.download_file(firmware)
+      |> case do
+        {:ok, url} ->
+          conn
+          |> redirect(external: url)
+
+        error ->
+          error
+      end
     else
       {:error}
     end

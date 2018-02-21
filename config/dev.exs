@@ -54,9 +54,20 @@ config :beamware, Beamware.Repo,
   url: System.get_env("DATABASE_URL"),
   ssl: false
 
-config :beamware, firmware_upload: Beamware.Firmware.Upload.File
-
+# uncomment if using Beamware.Firmware.Upload.File
+# config :beamware, firmware_upload: Beamware.Firmware.Upload.File
 # uncomment out lines 19-23 in endpoint.ex and update paths accordingly
-config :beamware, Beamware.Firmware.Upload.File,
-  local_path: "/tmp/firmware",
-  public_path: "/firmware"
+# config :beamware, Beamware.Firmware.Upload.File,
+#   local_path: "/tmp/firmware",
+#   public_path: "/firmware"
+
+# if using Beamware.Firmware.Upload.S3, set configuration below accordingly
+config :beamware, firmware_upload: Beamware.Firmware.Upload.S3
+
+config :beamware, Beamware.Firmware.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
+
+config :ex_aws,
+  s3_host: System.get_env("S3_HOST"),
+  access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, :instance_role],
+  secret_access_key: [{:system, "AWS_SECRET_ACCESS_KEY"}, :instance_role],
+  region: System.get_env("AWS_REGION")

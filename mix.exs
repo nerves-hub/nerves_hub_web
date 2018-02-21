@@ -49,7 +49,11 @@ defmodule Beamware.Mixfile do
       {:cowboy, "~> 1.0"},
       {:swoosh, "~> 0.13"},
       {:timex, "~> 3.1"},
-      {:phoenix_swoosh, "~> 0.2"}
+      {:phoenix_swoosh, "~> 0.2"},
+      {:ex_aws, "~> 2.0"},
+      {:ex_aws_s3, "~> 2.0"},
+      {:hackney, "~> 1.9"},
+      {:sweet_xml, "~> 0.6"}
     ]
   end
 

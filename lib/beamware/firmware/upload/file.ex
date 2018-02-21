@@ -1,4 +1,7 @@
 defmodule Beamware.Firmware.Upload.File do
+  @spec upload_file(String.t(), String.t(), integer()) ::
+          {:ok, map}
+          | {:error, atom()}
   def upload_file(filepath, filename, tenant_id) do
     config = Application.get_env(:beamware, Beamware.Firmware.Upload.File)
     random_string = :crypto.strong_rand_bytes(12) |> Base.url_encode64()
@@ -19,7 +22,10 @@ defmodule Beamware.Firmware.Upload.File do
     end
   end
 
+  @spec download_file(Firmware.t()) ::
+          {:ok, String.t()}
+          | {:error, String.t()}
   def download_file(firmware) do
-    firmware.upload_metadata["public_path"]
+    {:ok, firmware.upload_metadata["public_path"]}
   end
 end
