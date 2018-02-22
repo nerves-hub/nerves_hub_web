@@ -1,0 +1,23 @@
+<%= form_for @changset, deployment_path(@conn, :create), [as: :deployment], fn f -> %>
+   <p>
+    Selected firmware: <%= @firmware.name %>
+   </p>
+
+   <p>
+    <label>
+      Name:
+      <%= text_input f, :name, required: true %>
+      <%= error_tag f, :name %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Architecture:
+      <%= text_input f, :architecture, readonly: true, value: @firmware.architecture %>
+      <%= error_tag f, :architecture %>
+    </label>
+  </p>
+
+  <%= submit "Create Deployment" %>
+<% end %>

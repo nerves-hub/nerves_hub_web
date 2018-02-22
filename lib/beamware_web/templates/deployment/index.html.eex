@@ -1,0 +1,22 @@
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Firmware</th>
+      <th>Conditions</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <%= for deployment <- @deployments do %>
+    <tr>
+      <td><%= deployment.name %></td>
+      <td><%= deployment.firmware.filename %></td>
+      <td><pre><%= deployment.conditions %></pre></td>
+      <td><%= deployment.status %></td>
+    </tr>
+  <% end %>
+</table>
+
+<div class='pull-right'>
+  <%= link("Create Deployment", to: deployment_path(@conn, :new), class: "btn btn-primary") %>
+</div>

@@ -5,7 +5,7 @@ defmodule BeamwareWeb.LayoutView do
     [
       {"Manage Devices", device_path(conn, :index)},
       {"Manage Firmware", firmware_path(conn, :index)},
-      {"Manage Updates", "#"},
+      {"Manage Deployments", deployment_path(conn, :index)},
       {"Settings", account_path(conn, :edit)},
       {"Tenant Settings", tenant_path(conn, :edit)}
     ]

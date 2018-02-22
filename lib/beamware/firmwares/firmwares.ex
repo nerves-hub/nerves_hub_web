@@ -2,7 +2,7 @@ defmodule Beamware.Firmwares do
   import Ecto.Query
 
   alias Beamware.Accounts.TenantKey
-  alias Beamware.Firmwares.Firmware
+  alias Beamware.Firmwares.{Firmware, Deployment}
   alias Beamware.Repo
 
   @spec get_firmware_by_tenant(integer()) :: [Firmware.t()]
@@ -12,6 +12,18 @@ defmodule Beamware.Firmwares do
       where: f.tenant_id == ^tenant_id
     )
     |> Repo.all()
+  end
+
+  @spec get_firmware(integer()) ::
+          {:ok, Firmware.t()}
+          | {:error, :not_found}
+  def get_firmware(id) do
+    Firmware
+    |> Repo.get(id)
+    |> case do
+      nil -> {:error, :not_found}
+      firmware -> {:ok, firmware}
+    end
   end
 
   @spec create_firmware(map) ::
@@ -63,6 +75,9 @@ defmodule Beamware.Firmwares do
     end
   end
 
+  @spec extract_metadata(String.t()) ::
+          {:ok, String.t()}
+          | {:error}
   def extract_metadata(filepath) do
     case System.cmd("fwup", ["-m", "-i", filepath]) do
       {metadata, 0} ->
@@ -71,5 +86,14 @@ defmodule Beamware.Firmwares do
       _ ->
         {:error}
     end
+  end
+
+  @spec get_deployments_by_tenant(integer()) :: [Deployments.t()]
+  def get_deployments_by_tenant(tenant_id) do
+    from(
+      d in Deployment,
+      where: d.tenant_id == ^tenant_id
+    )
+    |> Repo.all()
   end
 end

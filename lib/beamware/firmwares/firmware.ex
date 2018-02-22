@@ -3,13 +3,15 @@ defmodule Beamware.Firmwares.Firmware do
 
   import Ecto.Changeset
 
-  alias Beamware.Accounts.{Tenant}
+  alias Beamware.Accounts.Tenant
+  alias Beamware.Firmwares.Deployment
   alias __MODULE__
 
   @type t :: %__MODULE__{}
 
   schema "firmwares" do
     belongs_to(:tenant, Tenant)
+    has_many(:deployment, Deployment)
 
     field(:filename, :string)
     field(:product, :string)
