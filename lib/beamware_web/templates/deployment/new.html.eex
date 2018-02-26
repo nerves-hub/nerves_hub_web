@@ -1,0 +1,53 @@
+<%= form_for @changeset, deployment_path(@conn, :create), [as: :deployment], fn f -> %>
+  <p>
+    Selected firmware: <%= @firmware.filename %>
+  </p>
+
+  <%= hidden_input f, :firmware_id, value: @firmware.id %>
+
+  <p>
+    <label>
+      Name:
+      <%= text_input f, :name, required: true %>
+      <%= error_tag f, :name %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Architecture:
+      <%= text_input f, :architecture, readonly: true, value: @firmware.architecture %>
+      <%= error_tag f, :architecture %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Version:
+      <%= text_input f,
+        :version,
+        value:
+          @changeset
+          |> Ecto.Changeset.get_change(:conditions, %{})
+          |> Map.get("version", "")
+      %>
+      <%= error_tag f, :version %>
+    </label>
+  </p>
+
+  <p>
+    <label>
+      Tag(s):
+      <%= text_input f,
+        :tags,
+        value:
+          @changeset
+          |> Ecto.Changeset.get_change(:conditions, %{})
+          |> Map.get("tags", "")
+      %>
+      <%= error_tag f, :tags %>
+    </label>
+  </p>
+
+  <%= submit "Create Deployment" %>
+<% end %>

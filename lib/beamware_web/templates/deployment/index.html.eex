@@ -11,7 +11,7 @@
     <tr>
       <td><%= deployment.name %></td>
       <td><%= deployment.firmware.filename %></td>
-      <td><pre><%= deployment.conditions %></pre></td>
+      <td><pre><%= deployment.conditions |> Poison.encode!() %></pre></td>
       <td><%= deployment.status %></td>
     </tr>
   <% end %>

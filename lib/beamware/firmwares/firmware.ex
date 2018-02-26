@@ -4,7 +4,7 @@ defmodule Beamware.Firmwares.Firmware do
   import Ecto.Changeset
 
   alias Beamware.Accounts.Tenant
-  alias Beamware.Firmwares.Deployment
+  alias Beamware.Deployments.Deployment
   alias __MODULE__
 
   @type t :: %__MODULE__{}

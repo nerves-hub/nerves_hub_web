@@ -1,8 +1,8 @@
 defmodule Beamware.Firmwares do
   import Ecto.Query
 
-  alias Beamware.Accounts.TenantKey
-  alias Beamware.Firmwares.{Firmware, Deployment}
+  alias Beamware.Accounts.{TenantKey, Tenant}
+  alias Beamware.Firmwares.Firmware
   alias Beamware.Repo
 
   @spec get_firmware_by_tenant(integer()) :: [Firmware.t()]
@@ -14,12 +14,12 @@ defmodule Beamware.Firmwares do
     |> Repo.all()
   end
 
-  @spec get_firmware(integer()) ::
+  @spec get_firmware(Tenant.t(), integer()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
-  def get_firmware(id) do
+  def get_firmware(%Tenant{id: tenant_id}, id) do
     Firmware
-    |> Repo.get(id)
+    |> Repo.get_by([id: id, tenant_id: tenant_id])
     |> case do
       nil -> {:error, :not_found}
       firmware -> {:ok, firmware}
@@ -86,14 +86,5 @@ defmodule Beamware.Firmwares do
       _ ->
         {:error}
     end
-  end
-
-  @spec get_deployments_by_tenant(integer()) :: [Deployments.t()]
-  def get_deployments_by_tenant(tenant_id) do
-    from(
-      d in Deployment,
-      where: d.tenant_id == ^tenant_id
-    )
-    |> Repo.all()
   end
 end

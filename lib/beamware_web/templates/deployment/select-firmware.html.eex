@@ -1,5 +1,5 @@
-<%= form_for @conn, deployment_path(@conn, :create), [as: :deployment], fn f -> %>
-   <p>
+<%= form_for @conn, deployment_path(@conn, :new), [method: :get, as: :deployment], fn f -> %>
+  <p>
     <label>
       Select Firmware:
       <%= select f, :firmware_id, @firmware_options, required: true %>

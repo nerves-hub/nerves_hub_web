@@ -2,18 +2,19 @@ defmodule BeamwareWeb.DeploymentController do
   use BeamwareWeb, :controller
 
   alias Beamware.Firmwares
-  alias Beamware.Firmwares.Deployment
+  alias Beamware.Deployments
+  alias Beamware.Deployments.Deployment
   alias Ecto.Changeset
 
   def index(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _params) do
-    deployments = Firmwares.get_deployments_by_tenant(tenant_id)
+    deployments = Deployments.get_deployments_by_tenant(tenant_id)
     render(conn, "index.html", deployments: deployments)
   end
 
-  def new(%{assigns: %{tenant: %{id: tenant_id}}} = conn, %{
+  def new(%{assigns: %{tenant: %{id: tenant_id} = tenant}} = conn, %{
         "deployment" => %{"firmware_id" => firmware_id}
       }) do
-    case Firmwares.get_firmware(firmware_id) do
+    case Firmwares.get_firmware(tenant, firmware_id) do
       {:ok, firmware} ->
         data = %{
           conditions: %{},
@@ -22,11 +23,14 @@ defmodule BeamwareWeb.DeploymentController do
           status: "Paused"
         }
 
-        changeset = Deployment.changeset(%Deployment{}, data)
+        changeset =
+          %Deployment{}
+          |> Deployment.changeset(data)
+          |> tags_to_string()
 
         conn
         |> render(
-          "set-conditions.html",
+          "new.html",
           changeset: changeset,
           firmware: firmware,
           firmware_options: []
@@ -35,11 +39,11 @@ defmodule BeamwareWeb.DeploymentController do
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Invalid firmware selected")
-        |> redirect(to: "/deployments/new")
+        |> redirect(to: deployment_path(conn, :new))
     end
   end
 
-  def new(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _) do
+  def new(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _params) do
     firmwares = Firmwares.get_firmware_by_tenant(tenant_id)
 
     if length(firmwares) === 0 do
@@ -56,27 +60,63 @@ defmodule BeamwareWeb.DeploymentController do
     end
   end
 
-  def create(%{assigns: %{tenant: %{id: tenant_id}}} = conn, %{
-        "deployment" => %{"firmware_id" => firmware_id}
-      }) do
-    case Firmwares.get_firmware(firmware_id) do
+  def create(%{assigns: %{tenant: tenant}} = conn, %{"deployment" => params}) do
+    case Firmwares.get_firmware(tenant, params["firmware_id"]) do
       {:ok, firmware} ->
-        data = %{
-          conditions: %{},
-          tenant_id: tenant_id,
-          firmware_id: firmware.id,
-          status: "Paused"
-        }
+        params =
+          params
+          |> Map.put("conditions", %{
+            "version" => params["version"],
+            "tags" =>
+              params["tags"]
+              |> tags_as_list()
+              |> MapSet.new()
+              |> MapSet.to_list()
+          })
 
-        changeset = Deployment.changeset(%Deployment{}, data)
+        case Deployments.create_deployment(tenant, params) do
+          {:ok, _deployment} ->
+            conn
+            |> put_flash(:info, "Deployment created")
+            |> redirect(to: deployment_path(conn, :index))
 
-        conn
-        |> render("set-conditions.html", changeset: changeset, firmware: firmware)
+          {:error, changeset} ->
+            conn
+            |> render("new.html",
+                      changeset: changeset |> tags_to_string(),
+                      firmware: firmware)
+        end
 
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Invalid firmware selected")
-        |> redirect(to: "/deployments/new")
+        |> redirect(to: deployment_path(conn, :new))
     end
+  end
+
+  @doc """
+  Convert tags from a list to a comma-separated list (in a string)
+  """
+  def tags_to_string(%Changeset{} = changeset) do
+    conditions =
+      changeset
+      |> Changeset.get_field(:conditions)
+
+    tags =
+      conditions
+      |> Map.get("tags", [])
+      |> Enum.join(",")
+
+    conditions = Map.put(conditions, "tags", tags)
+
+    changeset
+    |> Changeset.put_change(:conditions, conditions)
+  end
+
+  def tags_as_list(""), do: []
+  def tags_as_list(tags) do
+    tags
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
   end
 end

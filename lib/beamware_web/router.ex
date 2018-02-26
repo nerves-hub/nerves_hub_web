@@ -65,7 +65,7 @@ defmodule BeamwareWeb.Router do
 
     get("/deployments", DeploymentController, :index)
     get("/deployments/new", DeploymentController, :new)
-    post("/deployments/new", DeploymentController, :new)
+    post("/deployments/new", DeploymentController, :create)
   end
 
   if Mix.env() in [:dev] do

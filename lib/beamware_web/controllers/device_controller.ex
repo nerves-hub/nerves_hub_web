@@ -51,7 +51,7 @@ defmodule BeamwareWeb.DeviceController do
     conn.assigns.device
     |> Devices.update_device(params |> tags_to_list())
     |> case do
-      {:ok, device} ->
+      {:ok, _device} ->
         conn
         |> put_flash(:info, "Device updated.")
         |> redirect(to: device_path(conn, :edit, conn.assigns.device.id))
@@ -68,7 +68,7 @@ defmodule BeamwareWeb.DeviceController do
   def tags_to_string(%Changeset{} = changeset) do
     tags =
       changeset
-      |> Changeset.get_field(:tags, "")
+      |> Changeset.get_field(:tags)
 
     tags =
       (tags || [])
