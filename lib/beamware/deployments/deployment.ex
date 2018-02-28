@@ -34,13 +34,20 @@ defmodule Beamware.Deployments.Deployment do
     |> validate_change(:conditions, fn :conditions, conditions ->
       types = %{tags: {:array, :string}, version: :string}
 
+      version = case Map.get(conditions, "version") do
+        "" -> nil
+        v -> v
+      end
+
+      conditions = Map.put(conditions, "version", version)
+
       changeset =
         {%{}, types}
         |> cast(conditions, Map.keys(types))
-        |> validate_required([:version, :tags])
+        |> validate_required([:tags])
         |> validate_length(:tags, min: 1)
         |> validate_change(:version, fn :version, version ->
-          if Version.parse_requirement(version) == :error do
+          if version and Version.parse_requirement(version) == :error do
             [version: "Must be valid Elixir version requirement string"]
           else
             []

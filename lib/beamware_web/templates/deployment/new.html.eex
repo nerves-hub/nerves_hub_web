@@ -15,14 +15,6 @@
 
   <p>
     <label>
-      Architecture:
-      <%= text_input f, :architecture, readonly: true, value: @firmware.architecture %>
-      <%= error_tag f, :architecture %>
-    </label>
-  </p>
-
-  <p>
-    <label>
       Version:
       <%= text_input f,
         :version,
