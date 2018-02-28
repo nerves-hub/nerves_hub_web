@@ -47,7 +47,7 @@ defmodule Beamware.Deployments.Deployment do
         |> validate_required([:tags])
         |> validate_length(:tags, min: 1)
         |> validate_change(:version, fn :version, version ->
-          if version and Version.parse_requirement(version) == :error do
+          if (not is_nil(version)) and Version.parse_requirement(version) == :error do
             [version: "Must be valid Elixir version requirement string"]
           else
             []

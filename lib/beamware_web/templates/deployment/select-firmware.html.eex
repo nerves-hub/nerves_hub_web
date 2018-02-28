@@ -2,7 +2,7 @@
   <p>
     <label>
       Select Firmware:
-      <%= select f, :firmware_id, @firmware_options, required: true %>
+      <%= select f, :firmware_id, firmware_dropdown_options(@firmwares), required: true %>
       <%= error_tag f, :firmware_id %>
     </label>
   </p>

@@ -10,7 +10,7 @@
   <%= for deployment <- @deployments do %>
     <tr>
       <td><%= deployment.name %></td>
-      <td><%= deployment.firmware.filename %></td>
+      <td><%= firmware_display_name(deployment.firmware) %></td>
       <td><pre><%= deployment.conditions |> Poison.encode!() %></pre></td>
       <td><%= deployment.status %></td>
     </tr>

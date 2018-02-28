@@ -2,6 +2,7 @@ defmodule BeamwareWeb.DeploymentController do
   use BeamwareWeb, :controller
 
   alias Beamware.Firmwares
+  alias Beamware.Firmwares.Firmware
   alias Beamware.Deployments
   alias Beamware.Deployments.Deployment
   alias Ecto.Changeset
@@ -51,12 +52,8 @@ defmodule BeamwareWeb.DeploymentController do
       |> put_flash(:error, "You must upload a firmware version before creating a deployment")
       |> redirect(to: "/firmware")
     else
-      firmware_options =
-        firmwares
-        |> Enum.map(&[value: &1.id, key: &1.filename])
-
       conn
-      |> render("select-firmware.html", firmware_options: firmware_options)
+      |> render("select-firmware.html", firmwares: firmwares)
     end
   end
 

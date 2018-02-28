@@ -7,10 +7,6 @@ defmodule Beamware.Repo.Migrations.Deployments do
       add(:firmware_id, references(:firmwares), null: false)
       add(:name, :string, null: false)
       add(:conditions, :map, default: "{}", null: false)
-      # add(:tags, {:array, :string})
-      # add(:product, :string)
-      # add(:platform, :string, null: false)
-      # add(:architecture, :string, null: false)
       add(:status, :string, null: false)
 
       timestamps()
