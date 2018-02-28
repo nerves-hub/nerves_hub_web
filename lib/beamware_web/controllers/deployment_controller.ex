@@ -2,7 +2,6 @@ defmodule BeamwareWeb.DeploymentController do
   use BeamwareWeb, :controller
 
   alias Beamware.Firmwares
-  alias Beamware.Firmwares.Firmware
   alias Beamware.Deployments
   alias Beamware.Deployments.Deployment
   alias Ecto.Changeset
@@ -47,7 +46,7 @@ defmodule BeamwareWeb.DeploymentController do
   def new(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _params) do
     firmwares = Firmwares.get_firmware_by_tenant(tenant_id)
 
-    if length(firmwares) === 0 do
+    if Enum.empty?(firmwares) do
       conn
       |> put_flash(:error, "You must upload a firmware version before creating a deployment")
       |> redirect(to: "/firmware")
@@ -58,7 +57,9 @@ defmodule BeamwareWeb.DeploymentController do
   end
 
   def create(%{assigns: %{tenant: tenant}} = conn, %{"deployment" => params}) do
-    case Firmwares.get_firmware(tenant, params["firmware_id"]) do
+    tenant
+    |> Firmwares.get_firmware(params["firmware_id"])
+    |> case do
       {:ok, firmware} ->
         params =
           params
@@ -71,23 +72,31 @@ defmodule BeamwareWeb.DeploymentController do
               |> MapSet.to_list()
           })
 
-        case Deployments.create_deployment(tenant, params) do
-          {:ok, _deployment} ->
-            conn
-            |> put_flash(:info, "Deployment created")
-            |> redirect(to: deployment_path(conn, :index))
+        result = Deployments.create_deployment(tenant, params)
 
-          {:error, changeset} ->
-            conn
-            |> render("new.html",
-                      changeset: changeset |> tags_to_string(),
-                      firmware: firmware)
-        end
+        {firmware, result}
 
+      {:error, :not_found} ->
+        {:error, :not_found}
+    end
+    |> case do
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Invalid firmware selected")
         |> redirect(to: deployment_path(conn, :new))
+
+      {_, {:ok, _deployment}} ->
+        conn
+        |> put_flash(:info, "Deployment created")
+        |> redirect(to: deployment_path(conn, :index))
+
+      {firmware, {:error, changeset}} ->
+        conn
+        |> render(
+          "new.html",
+          changeset: changeset |> tags_to_string(),
+          firmware: firmware
+        )
     end
   end
 
@@ -111,6 +120,7 @@ defmodule BeamwareWeb.DeploymentController do
   end
 
   def tags_as_list(""), do: []
+
   def tags_as_list(tags) do
     tags
     |> String.split(",")

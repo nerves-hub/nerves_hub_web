@@ -53,6 +53,7 @@ defmodule Beamware.Firmwares.Firmware do
   @spec metadata_item(Firmware.t(), String.t()) :: {:ok, String.t()} | {:error, :not_found}
   def metadata_item(%Firmware{metadata: metadata}, key) when is_binary(key) do
     {:ok, regex} = "#{key}=\"(?<item>[^\n]+)\"" |> Regex.compile()
+
     regex
     |> Regex.named_captures(metadata)
     |> case do

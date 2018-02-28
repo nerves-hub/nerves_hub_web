@@ -19,7 +19,7 @@ defmodule Beamware.Firmwares do
           | {:error, :not_found}
   def get_firmware(%Tenant{id: tenant_id}, id) do
     Firmware
-    |> Repo.get_by([id: id, tenant_id: tenant_id])
+    |> Repo.get_by(id: id, tenant_id: tenant_id)
     |> case do
       nil -> {:error, :not_found}
       firmware -> {:ok, firmware}

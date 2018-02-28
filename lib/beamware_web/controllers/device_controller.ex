@@ -5,7 +5,7 @@ defmodule BeamwareWeb.DeviceController do
   alias Beamware.Devices.Device
   alias Ecto.Changeset
 
-  plug BeamwareWeb.Plugs.FetchDevice when action in [:edit, :update]
+  plug(BeamwareWeb.Plugs.FetchDevice when action in [:edit, :update])
 
   def index(conn, _params) do
     conn
@@ -81,6 +81,7 @@ defmodule BeamwareWeb.DeviceController do
   def tags_to_list(%{"tags" => ""} = params) do
     %{params | "tags" => []}
   end
+
   def tags_to_list(params) do
     tags =
       params["tags"]

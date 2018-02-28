@@ -5,7 +5,7 @@ defmodule BeamwareWeb.DeploymentView do
 
   def firmware_dropdown_options(firmwares) do
     firmwares
-    |> Enum.map(& [value: &1.id, key: firmware_display_name(&1)])
+    |> Enum.map(&[value: &1.id, key: firmware_display_name(&1)])
   end
 
   def firmware_display_name(%Firmware{} = f) do
