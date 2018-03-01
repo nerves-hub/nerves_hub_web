@@ -1,0 +1,10 @@
+<%= form_for @conn, deployment_path(@conn, :new), [method: :get, as: :deployment], fn f -> %>
+  <p>
+    <label>
+      Select Firmware:
+      <%= select f, :firmware_id, firmware_dropdown_options(@firmwares), required: true %>
+      <%= error_tag f, :firmware_id %>
+    </label>
+  </p>
+  <%= submit "Next =>" %>
+<% end %>

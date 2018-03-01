@@ -1,14 +1,16 @@
-<table style="width: 100%">
-  <tr>
-    <th>Filename</th>
-    <th>Product</th>
-    <th>Platform</th>
-    <th>Architecture</th>
-    <th>Timestamp</th>
-    <th>Signed</th>
-    <th>Metadata</th>
-    <th>Download</th>
-  </tr>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Filename</th>
+      <th>Product</th>
+      <th>Platform</th>
+      <th>Architecture</th>
+      <th>Timestamp</th>
+      <th>Signed</th>
+      <th>Metadata</th>
+      <th></th>
+    </tr>
+  </thead>
   <%= for firmware <- @firmwares do %>
     <tr>
       <td><%= firmware.filename %></td>
@@ -24,5 +26,5 @@
 </table>
 
 <div class='pull-right'>
-  <%= link("Upload Firmware", to: firmware_path(@conn, :upload)) %>
+  <%= link("Upload Firmware", to: firmware_path(@conn, :upload), class: "btn btn-primary") %>
 </div>

@@ -4,7 +4,9 @@ defmodule Beamware.Accounts.Tenant do
   import Ecto.Changeset
 
   alias Beamware.Accounts.{User, TenantKey}
+  alias Beamware.Firmwares.Firmware
   alias Beamware.Devices.Device
+  alias Beamware.Deployments.Deployment
   alias __MODULE__
 
   @type t :: %__MODULE__{}
@@ -13,6 +15,8 @@ defmodule Beamware.Accounts.Tenant do
     has_many(:users, User)
     has_many(:tenant_keys, TenantKey)
     has_many(:devices, Device)
+    has_many(:firmware, Firmware)
+    has_many(:deployments, Deployment)
 
     field(:name, :string)
 

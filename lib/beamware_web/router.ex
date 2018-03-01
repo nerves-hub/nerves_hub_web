@@ -62,6 +62,10 @@ defmodule BeamwareWeb.Router do
     get("/firmware/upload", FirmwareController, :upload)
     post("/firmware/upload", FirmwareController, :do_upload)
     get("/firmware/download/:id", FirmwareController, :download)
+
+    get("/deployments", DeploymentController, :index)
+    get("/deployments/new", DeploymentController, :new)
+    post("/deployments/new", DeploymentController, :create)
   end
 
   if Mix.env() in [:dev] do
