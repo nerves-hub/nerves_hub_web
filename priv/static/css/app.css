@@ -18,16 +18,31 @@ body, form, ul, table {
 .alert:empty { display: none; }
 
 /* Custom page header */
-.header {
-  border-bottom: 1px solid #e5e5e5;
-}
 .logo {
-  width: 519px;
-  height: 71px;
+  font-family: 'Audiowide', cursive;
   display: inline-block;
-  margin-bottom: 1em;
-  background-image: url("/images/beamware.png");
-  background-size: 519px 71px;
+  color: #555;
+  font-size: 24px;
+  line-height: 16px;
+  margin-top: 8px;
+  padding: 9px;
+}
+@media (min-width: 768px) {
+  .logo {
+    margin-left: -8px;
+  }
+}
+.logo:hover {
+  color: #000;
+  text-decoration: none;
+}
+
+.logo-font {
+  font-family: 'Audiowide', cursive;
+}
+
+.nav-tabs-header {
+  display: inline-block;
 }
 
 /* Everything but the jumbotron gets side spacing for mobile first views */
@@ -40,7 +55,7 @@ body, form, ul, table {
 /* Customize container */
 @media (min-width: 768px) {
   .container {
-    max-width: 730px;
+    max-width: 900px;
   }
 }
 .container-narrow > hr {

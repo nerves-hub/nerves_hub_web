@@ -1,5 +1,7 @@
+<h1>Create Deployment</h1>
+
 <%= form_for @changeset, deployment_path(@conn, :create), [as: :deployment], fn f -> %>
-  <h3 class="h3">Firmware</h3>
+  <h3 class="h3">Firmware Details</h3>
 
   <table class="table" style="width: auto">
     <tbody>
@@ -33,41 +35,37 @@
 
   <h3 class="h3">Deployment</h3>
 
-  <p>
-    <label>
-      Name*:
-      <%= text_input f, :name, required: true %>
-      <%= error_tag f, :name %>
-    </label>
-  </p>
+  <div class="form-group">
+    <label for="name_input">Name</label>
+    <%= text_input f, :name, class: "form-control", id: "name_input" %>
+    <div class="has-error"><%= error_tag f, :name %></div>
+  </div>
 
-  <p>
-    <label>
-      Version:
-      <%= text_input f,
-        :version,
-        value:
-          @changeset
-          |> Ecto.Changeset.get_change(:conditions, %{})
-          |> Map.get("version", "")
-      %>
-      <%= error_tag f, :version %>
-    </label>
-  </p>
+  <div class="form-group">
+    <label for="verion_input">Version</label>
+    <%= text_input f, :version,
+      class: "form-control",
+      id: "version_input",
+      value:
+        @changeset
+        |> Ecto.Changeset.get_change(:conditions, %{})
+        |> Map.get("version", "")
+    %>
+    <div class="has-error"><%= error_tag f, :version %></div>
+  </div>
 
-  <p>
-    <label>
-      Tag(s)*:
-      <%= text_input f,
-        :tags,
-        value:
-          @changeset
-          |> Ecto.Changeset.get_change(:conditions, %{})
-          |> Map.get("tags", "")
-      %>
-      <%= error_tag f, :tags %>
-    </label>
-  </p>
+  <div class="form-group">
+    <label for="verion_input">Tag(s)*</label>
+    <%= text_input f, :tags,
+      class: "form-control",
+      id: "version_input",
+      value:
+        @changeset
+        |> Ecto.Changeset.get_change(:conditions, %{})
+        |> Map.get("tags", "")
+    %>
+    <div class="has-error"><%= error_tag f, :tags %></div>
+  </div>
 
-  <%= submit "Create Deployment" %>
+  <%= submit "Create Deployment", class: "btn btn-primary" %>
 <% end %>

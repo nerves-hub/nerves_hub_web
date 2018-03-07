@@ -1,25 +1,25 @@
-<p>
-  Enter the email address of the user you would like to invite to <%= @tenant.name %>.
-  Invites will expire in 48 hours.
-<p>
+<div class="container">
+  <h1>
+    Invite User to <%= @tenant.name %>
+  </h1>
 
-<%= form_for @changeset, tenant_path(@conn, :send_invite), fn f -> %>
+  <p>Enter the email address of the user you would like to invite to <%= @tenant.name %>.</p>
+  <p><strong>Invites expire in 48 hours.</strong></p>
 
-  <p>
-    <label>
-      Name:
-      <%= text_input f, :name %>
-      <%= error_tag f, :name %>
-    </label>
-  </p>
+  <%= form_for @changeset, tenant_path(@conn, :send_invite), fn f -> %>
+    <div class="form-group">
+      <label for="name_input">Name</label>
+      <%= text_input f, :name, class: "form-control", id: "name_input" %>
+      <div class="has-error"><%= error_tag f, :name %></div>
+    </div>
 
-  <p>
-    <label>
-      Email:
-      <%= text_input f, :email %>
-      <%= error_tag f, :email %>
-    </label>
-  </p>
+    <div class="form-group">
+      <label for="email_input">Email</label>
+      <%= email_input f, :email, class: "form-control", id: "email_input" %>
+      <div class="has-error"><%= error_tag f, :email %></div>
+    </div>
 
-  <%= submit "Send Invite" %>
-<% end %>
+    <%= submit "Send Invite", class: "btn btn-success" %>
+    <a class="btn btn-secondary" href="<%= tenant_path(@conn, :edit) %>">Cancel</a>
+  <% end %>
+</div>

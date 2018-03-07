@@ -1,35 +1,31 @@
+<h1>
+  Account
+</h1>
+
 <%= form_for @changeset, account_path(@conn, :update), fn f -> %>
-  <p>
-    <label>
-      Name:
-      <%= text_input f, :name %>
-      <%= error_tag f, :name %>
-    </label>
-  </p>
+  <div class="form-group">
+    <label for="name_input">Name</label>
+    <%= text_input f, :name, class: "form-control", id: "name_input" %>
+    <div class="has-error"><%= error_tag f, :name %></div>
+  </div>
 
-  <p>
-    <label>
-      Email:
-      <%= text_input f, :email %>
-      <%= error_tag f, :email %>
-    </label>
-  </p>
+  <div class="form-group">
+    <label for="email_input">Email</label>
+    <%= email_input f, :email, class: "form-control", id: "email_input" %>
+    <div class="has-error"><%= error_tag f, :email %></div>
+  </div>
 
-  <p>
-    <label>
-      Password:
-      <%= password_input f, :password %>
-      <%= error_tag f, :password %>
-    </label>
-  </p>
+  <div class="form-group">
+    <label for="password_input">New Password</label>
+    <%= email_input f, :password, class: "form-control", id: "password_input" %>
+    <div class="has-error"><%= error_tag f, :password %></div>
+  </div>
 
-  <p>
-    <label>
-      Current Password: (If changing email/password.)
-      <%= password_input f, :current_password %>
-      <%= error_tag f, :current_password %>
-    </label>
-  </p>
+  <div class="form-group">
+    <label for="current_password_input">Current Password (If changing email/password)</label>
+    <%= email_input f, :current_password, class: "form-control", id: "current_password_input" %>
+    <div class="has-error"><%= error_tag f, :current_password %></div>
+  </div>
 
-  <%= submit "Update" %>
+  <%= submit "Update", class: "btn btn-primary" %>
 <% end %>
