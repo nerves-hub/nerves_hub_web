@@ -1,8 +1,8 @@
 <table class="table table-striped">
   <thead>
     <tr>
-      <th>Filename</th>
       <th>Product</th>
+      <th>Version</th>
       <th>Platform</th>
       <th>Architecture</th>
       <th>Timestamp</th>
@@ -13,13 +13,13 @@
   </thead>
   <%= for firmware <- @firmwares do %>
     <tr>
-      <td><%= firmware.filename %></td>
       <td><%= firmware.product %></td>
+      <td><%= firmware.version %></td>
       <td><%= firmware.platform %></td>
       <td><%= firmware.architecture %></td>
       <td><%= format_timestamp(firmware.timestamp) %></td>
       <td><%= format_signed(firmware, @tenant) %></td>
-      <td><pre><%= firmware.metadata %></pre></td>
+      <td><pre class="pre-scrollable"><%= firmware.metadata %></pre></td>
       <td><%= link("Download", to: firmware_path(@conn, :download, firmware.id)) %></td>
     </tr>
   <% end %>

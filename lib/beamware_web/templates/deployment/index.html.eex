@@ -11,7 +11,7 @@
     <tr>
       <td><%= deployment.name %></td>
       <td><%= firmware_display_name(deployment.firmware) %></td>
-      <td><pre><%= deployment.conditions |> Poison.encode!() %></pre></td>
+      <td><pre class="pre-scrollable"><%= deployment.conditions |> Poison.encode!() %></pre></td>
       <td><%= deployment.status %></td>
     </tr>
   <% end %>

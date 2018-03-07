@@ -13,7 +13,7 @@ defmodule Beamware.Firmwares.Firmware do
     belongs_to(:tenant, Tenant)
     has_many(:deployment, Deployment)
 
-    field(:filename, :string)
+    field(:version, :string)
     field(:product, :string)
     field(:platform, :string)
     field(:architecture, :string)
@@ -29,7 +29,7 @@ defmodule Beamware.Firmwares.Firmware do
   def changeset(%Firmware{} = firmware, params) do
     fields = [
       :tenant_id,
-      :filename,
+      :version,
       :product,
       :platform,
       :architecture,
@@ -45,13 +45,27 @@ defmodule Beamware.Firmwares.Firmware do
     |> validate_required(fields -- [:tenant_key_id])
   end
 
-  @spec version(Firmware.t()) :: {:ok, String.t()} | {:error, :not_found}
   def version(%Firmware{} = firmware) do
-    metadata_item(firmware, "meta-version")
+    metadata_item(firmware.metadata, "meta-version")
   end
 
-  @spec metadata_item(Firmware.t(), String.t()) :: {:ok, String.t()} | {:error, :not_found}
-  def metadata_item(%Firmware{metadata: metadata}, key) when is_binary(key) do
+  @spec timestamp(String.t())
+  :: {:ok, DateTime.t()}
+  |  {:error, atom}
+  def timestamp(metadata) do
+    metadata_item(metadata, "meta-creation-date")
+    |> case do
+      {:ok, t} -> DateTime.from_iso8601(t)
+      error -> error
+    end
+    |> case do
+      {:ok, datetime, _} -> {:ok, datetime}
+      error -> error
+    end
+  end
+
+  @spec metadata_item(String.t(), String.t()) :: {:ok, String.t()} | {:error, :not_found}
+  def metadata_item(metadata, key) when is_binary(key) do
     {:ok, regex} = "#{key}=\"(?<item>[^\n]+)\"" |> Regex.compile()
 
     regex

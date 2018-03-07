@@ -23,14 +23,15 @@ defmodule BeamwareWeb.FirmwareController do
     with {:ok, signed} <- Firmwares.verify_firmware(path),
          {:ok, tenant_key_id} <- verify_signature(path, signed, tenant.tenant_keys),
          {:ok, metadata} <- Firmwares.extract_metadata(path),
-         timestamp <- extract_timestamp(metadata),
-         product <- extract_product(metadata),
-         platform <- extract_platform(metadata),
-         architecture <- extract_architecture(metadata),
+         {:ok, version} <- Firmware.metadata_item(metadata, "meta-version"),
+         {:ok, product} <- Firmware.metadata_item(metadata, "meta-product"),
+         {:ok, platform} <- Firmware.metadata_item(metadata, "meta-platform"),
+         {:ok, architecture} <- Firmware.metadata_item(metadata, "meta-architecture"),
+         {:ok, timestamp} <- Firmware.timestamp(metadata),
          {:ok, upload_metadata} <- upload_firmware(path, filename, tenant.id) do
       %{
         tenant_id: tenant.id,
-        filename: filename,
+        version: version,
         product: product,
         platform: platform,
         architecture: architecture,
@@ -101,34 +102,6 @@ defmodule BeamwareWeb.FirmwareController do
       uploader.upload_file(filepath, filename, tenant_id)
     else
       {:error}
-    end
-  end
-
-  defp extract_product(metadata) do
-    Regex.compile!("meta-product=\"([^\"]*)\"")
-    |> Regex.run(metadata, capture: :all_but_first)
-    |> hd
-  end
-
-  defp extract_platform(metadata) do
-    Regex.compile!("meta-platform=\"([^\"]*)\"")
-    |> Regex.run(metadata, capture: :all_but_first)
-    |> hd
-  end
-
-  defp extract_architecture(metadata) do
-    Regex.compile!("meta-architecture=\"([^\"]*)\"")
-    |> Regex.run(metadata, capture: :all_but_first)
-    |> hd
-  end
-
-  defp extract_timestamp(metadata) do
-    Regex.compile!("meta-creation-date=\"([^\"]*)\"")
-    |> Regex.run(metadata, capture: :all_but_first)
-    |> hd
-    |> DateTime.from_iso8601()
-    |> case do
-      {:ok, datetime, _} -> datetime
     end
   end
 end
