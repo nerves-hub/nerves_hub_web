@@ -1,3 +1,11 @@
+<h1>
+  Deployments
+
+  <a class="btn btn-lg btn-primary pull-right" href="<%= deployment_path(@conn, :new) %>">
+    Create Deployment
+  </a>
+</h1>
+
 <table class="table table-striped">
   <thead>
     <tr>
@@ -16,7 +24,3 @@
     </tr>
   <% end %>
 </table>
-
-<div class='pull-right'>
-  <%= link("Create Deployment", to: deployment_path(@conn, :new), class: "btn btn-primary") %>
-</div>

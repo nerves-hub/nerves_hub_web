@@ -1,48 +1,65 @@
-<div class='pull-right'>
-  <%= link("Invite User", to: tenant_path(@conn, :invite)) %>
+<h1>
+  Tenant Settings
+
+  <a class="btn btn-lg btn-success pull-right" href="<%= tenant_path(@conn, :invite) %>">
+    Invite User
+  </a>
+</h1>
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    Profile
+  </div>
+
+  <div class="panel-body">
+    <%= form_for @tenant_changeset, tenant_path(@conn, :update), fn f -> %>
+      <div class="form-group">
+        <label for="name_input">Name</label>
+        <%= text_input f, :name, class: "form-control", id: "name_input" %>
+        <div class="has-error"><%= error_tag f, :name %></div>
+      </div>
+
+      <%= submit "Update Tenant", class: "btn btn-primary" %>
+    <% end %>
+  </div>
 </div>
 
-<%= form_for @tenant_changeset, tenant_path(@conn, :update), fn f -> %>
-  <h2>Tenant Settings</h2>
-  <p>
-    <label>
-      Name:
-      <%= text_input f, :name %>
-      <%= error_tag f, :name %>
-    </label>
-  </p>
+<div class="panel panel-default">
+  <div class="panel-heading">
+    Keys
+  </div>
 
-<%= submit "Update Tenant" %>
-<% end %>
-  
-<%= form_for @tenant_key_changeset, tenant_path(@conn, :create_key), fn f -> %>
-  <h2>Tenant Keys</h2>
-  <p>
-    <label>
-      Name:
-      <%= text_input f, :name %>
-      <%= error_tag f, :name %>
-    </label>
-  </p>
+  <div class="panel-body">
+    <%= form_for @tenant_key_changeset, tenant_path(@conn, :create_key), fn f -> %>
+      <div class="form-group">
+        <label for="key_name_input">Name</label>
+        <%= text_input f, :name, class: "form-control", id: "key_name_input" %>
+        <div class="has-error"><%= error_tag f, :name %></div>
+      </div>
 
-  <p>
-    <label>
-      Key:
-      <%= text_input f, :key %>
-      <%= error_tag f, :key %>
-    </label>
-  </p>
-  <%= submit "Create New Key" %>
+      <div class="form-group">
+        <label for="key_input">Key</label>
+        <%= textarea f, :key, rows: "8", class: "form-control", id: "key_input" %>
+        <div class="has-error"><%= error_tag f, :key %></div>
+      </div>
 
-<% end %>
-
-<%= if length(@tenant.tenant_keys) > 0 do %>
-  <p>Current Keys:</p>
-  <ul>
-    <%= for key <- @tenant.tenant_keys do %>
-    <li><span><%= key.name %></span>:<pre><%= key.key %></pre></li>
+      <%= submit "Create New Key", class: "btn btn-primary" %>
     <% end %>
-  </ul>
-<% else %>
-  <p>No current keys</p>
-<% end %>
+
+    <hr>
+
+    <h3>Added Keys</h3>
+
+    <%= if length(@tenant.tenant_keys) > 0 do %>
+      <%= for key <- @tenant.tenant_keys do %>
+        <p style="margin-top: 30px">
+          <strong><%= key.name %></strong>
+        </p>
+        <pre><%= key.key %></pre>
+      <% end %>
+    <% else %>
+      <p>No keys added.</p>
+    <% end %>
+  </div>
+</div>
+

@@ -9,40 +9,48 @@
 
     <title>Beamware</title>
     <link rel="stylesheet" href="<%= static_path(@conn, "/css/app.css") %>">
+    <link href="https://fonts.googleapis.com/css?family=Audiowide" rel="stylesheet">
   </head>
 
   <body>
     <div class="container">
-      <header class="header">
-        <nav role="navigation">
-          <%= if Map.get(@conn.assigns, :user) do %>
-            <ul class="nav nav-pills pull-right">
-              <li><a href="<%= session_path(@conn, :delete) %>">Log Out</a></li>
+      <nav class="navbar navbar-default">
+        <div class="container-fluid">
+          <div class="navbar-header">
+            <a class="logo" href="<%= session_path(@conn, :new) %>">
+              <span class="logo-letter">Beamware</span>
+            </a>
+          </div>
+
+          <%= if logged_in?(@conn) do %>
+            <ul class="nav navbar-nav">
+              <%= for {name, path} <- navigation_links(@conn) do %>
+                <li class="<%= if @conn.request_path == path, do: "active", else: "" %>">
+                  <a class="nav-link" href="<%= path %>"><%= name %></a>
+                </li>
+              <% end %>
             </ul>
+            <div class="nav navbar-nav navbar-right">
+              <a class="btn btn-light navbar-btn" href="<%= session_path(@conn, :delete)%>">
+                Log Out
+              </a>
+            </div>
           <% end %>
-        </nav>
-        <a href="<%= session_path(@conn, :new) %>">
-          <span class="logo"></span>
-        </a>
-      </header>
+        </div>
+      </nav>
 
       <p class="alert alert-info" role="alert"><%= get_flash(@conn, :info) %></p>
       <p class="alert alert-danger" role="alert"><%= get_flash(@conn, :error) %></p>
-
-      <%= if Map.get(@conn.assigns, :user) do %>
-	<ul class="nav nav-tabs">
-          <%= for {name, path} <- navigation_links(@conn) do %>
-            <li role="presentation" class="<%= if @conn.request_path == path, do: "active", else: "" %>">
-              <a href="<%= path %>"><%= name %></a>
-            </li>
-          <% end %>
-	</ul>
-      <% end %>
 
       <main role="main">
         <%= render @view_module, @view_template, assigns %>
       </main>
 
+      <hr style="border-top-width: 2px; margin-top: 48px">
+
+      <p class="h3 text-muted text-center logo-font" style="opacity: 0.2">
+        Beamware
+      </p>
     </div> <!-- /container -->
     <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
   </body>

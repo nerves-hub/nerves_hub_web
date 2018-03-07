@@ -1,28 +1,26 @@
+<div class="page-header">
+  <h1>Create a Device</h1>
+</div>
+
 <%= form_for @changeset, device_path(@conn, :create), fn f -> %>
-  <p>
-    <label>
-      ID:
-      <%= text_input f, :identifier %>
-      <%= error_tag f, :identifier %>
-    </label>
-  </p>
+  <div class="form-group">
+    <label for="identifier">Identifier</label>
+    <%= text_input f, :identifier, class: "form-control", id: "identifier" %>
+    <div class="has-error"><%= error_tag f, :identifier %></div>
+  </div>
 
-  <p>
-    <label>
-      Description:
-      <%= text_input f, :description %>
-      <%= error_tag f, :description %>
-    </label>
-  </p>
+  <div class="form-group">
+    <label for="description">Description</label>
+    <%= text_input f, :description, class: "form-control", id: "description" %>
+    <div class="has-error"><%= error_tag f, :description %></div>
+  </div>
 
-  <p>
-    <label>
-      Tags:
-      <%= text_input f, :tags %>
-      <%= error_tag f, :tags %>
-    </label>
-  </p>
+  <div class="form-group">
+    <label for="tags">Tags</label>
+    <%= text_input f, :tags, class: "form-control", id: "tags" %>
+    <div class="has-error"><%= error_tag f, :tags %></div>
+  </div>
 
-  <%= submit "Add", class: "btn btn-primary" %>
+  <%= submit "Create", class: "btn btn-large btn-primary" %>
   <a class="btn btn-secondary" href="<%= device_path(@conn, :index) %>">Cancel</a>
 <% end %>
