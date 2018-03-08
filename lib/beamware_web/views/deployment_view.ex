@@ -2,6 +2,7 @@ defmodule BeamwareWeb.DeploymentView do
   use BeamwareWeb, :view
 
   alias Beamware.Firmwares.Firmware
+  alias Beamware.Deployments.Deployment
 
   def firmware_dropdown_options(firmwares) do
     firmwares
@@ -14,4 +15,15 @@ defmodule BeamwareWeb.DeploymentView do
       {:error, _} -> f.product
     end
   end
+
+  def version(%Deployment{conditions: %{"version" => ""}}), do: "-"
+  def version(%Deployment{conditions: %{"version" => version}}), do: version
+
+  def status(%Deployment{is_active: true}), do: "Active"
+  def status(%Deployment{is_active: false}), do: "Inactive"
+
+  def opposite_status(%Deployment{is_active: true}), do: "Inactive"
+  def opposite_status(%Deployment{is_active: false}), do: "Active"
+
+  def tags(%Deployment{conditions: %{"tags" => tags}}), do: tags
 end

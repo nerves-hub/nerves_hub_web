@@ -15,7 +15,7 @@ defmodule Beamware.Deployments.Deployment do
 
     field(:name, :string)
     field(:conditions, :map)
-    field(:status, :string)
+    field(:is_active, :boolean)
 
     timestamps()
   end
@@ -24,7 +24,7 @@ defmodule Beamware.Deployments.Deployment do
     fields = [
       :name,
       :conditions,
-      :status,
+      :is_active,
       :firmware_id
     ]
 

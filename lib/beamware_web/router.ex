@@ -66,6 +66,8 @@ defmodule BeamwareWeb.Router do
     get("/deployments", DeploymentController, :index)
     get("/deployments/new", DeploymentController, :new)
     post("/deployments/new", DeploymentController, :create)
+    get("/deployments/:deployment_id", DeploymentController, :show)
+    post("/deployments/:deployment_id/toggle-active", DeploymentController, :toggle_is_active)
   end
 
   if Mix.env() in [:dev] do

@@ -1,0 +1,34 @@
+<h1>
+  Deployment:
+  <%= @deployment.name %>
+  <span class="label <%= if @deployment.is_active, do: "label-success", else: "label-default" %>">
+    <%= status(@deployment) %>
+  </span>
+</h1>
+
+<table class="table" style="width: auto">
+  <tbody>
+    <tr>
+      <th>Version</th>
+      <td><%= version(@deployment) %>
+    </tr>
+    <tr>
+      <th>Tags</th>
+      <td>
+        <%= for tag <- tags(@deployment) do %>
+          <span class="badge">
+            <%= tag %>
+          </span>
+        <% end %>
+      </td>
+    </tr>
+    <tr>
+      <th>Status</th>
+      <td><%= status(@deployment) %>
+    </tr>
+  </tbody>
+</table>
+
+<%= form_for @conn, deployment_path(@conn, :toggle_is_active, @deployment.id), fn _ -> %>
+  <%= submit "Make #{opposite_status(@deployment)}", class: "btn btn-primary" %>
+<% end %>

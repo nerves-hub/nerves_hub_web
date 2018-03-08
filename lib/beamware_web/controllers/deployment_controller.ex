@@ -6,6 +6,8 @@ defmodule BeamwareWeb.DeploymentController do
   alias Beamware.Deployments.Deployment
   alias Ecto.Changeset
 
+  plug BeamwareWeb.Plugs.FetchDeployment when action in [:show, :toggle_is_active]
+
   def index(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_tenant(tenant_id)
     render(conn, "index.html", deployments: deployments)
@@ -20,7 +22,7 @@ defmodule BeamwareWeb.DeploymentController do
           conditions: %{},
           tenant_id: tenant_id,
           firmware_id: firmware.id,
-          status: "Paused"
+          is_active: false
         }
 
         changeset =
@@ -98,6 +100,22 @@ defmodule BeamwareWeb.DeploymentController do
           firmware: firmware
         )
     end
+  end
+
+  def show(%{assigns: %{deployment: deployment}} = conn, _params) do
+    conn
+    |> render(
+      "show.html",
+      deployment: deployment
+    )
+  end
+
+  def toggle_is_active(%{assigns: %{deployment: deployment}} = conn, _params) do
+    # Runtime error if failure (should never fail)
+    {:ok, _} = Deployments.toggle_is_active(deployment)
+
+    conn
+    |> redirect(to: deployment_path(conn, :show, deployment.id))
   end
 
   @doc """
