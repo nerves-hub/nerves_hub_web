@@ -35,7 +35,7 @@ defmodule BeamwareWeb.Router do
     put("/password-reset/:token", PasswordResetController, :reset)
 
     get("/invite/:token", AccountController, :invite)
-    post("/invite/:token", AccountController, :accept_invite)
+    put("/invite/:token", AccountController, :accept_invite)
   end
 
   scope "/", BeamwareWeb do
