@@ -96,7 +96,7 @@ defmodule BeamwareWeb.DeploymentController do
         conn
         |> render(
           "new.html",
-          changeset: changeset |> tags_to_string(),
+          changeset: changeset |> tags_to_string() |> IO.inspect(label: "CHANGESET"),
           firmware: firmware
         )
     end
