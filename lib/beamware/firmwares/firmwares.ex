@@ -98,7 +98,11 @@ defmodule Beamware.Firmwares do
     - The device is assigned all tags in the deployment's "tags" condition
   """
   @spec get_eligible_firmware_update(Device.t(), map) :: {:ok, Firmware.t()} | {:ok, :none}
-  def get_eligible_firmware_update(%Device{} = device, %{version: version, architecture: architecture, platform: platform}) do
+  def get_eligible_firmware_update(%Device{} = device, %{
+        version: version,
+        architecture: architecture,
+        platform: platform
+      }) do
     from(
       d in Deployment,
       where: d.tenant_id == ^device.tenant_id,
@@ -108,11 +112,10 @@ defmodule Beamware.Firmwares do
       preload: [firmware: f]
     )
     |> Repo.all()
-    |> Enum.find(fn(deployment) ->
+    |> Enum.find(fn deployment ->
       with v <- deployment.conditions["version"],
            true <- v == "" or Version.match?(version, v),
-           true <- Enum.all?(deployment.conditions["tags"], fn(tag) -> tag in device.tags end)
-      do
+           true <- Enum.all?(deployment.conditions["tags"], fn tag -> tag in device.tags end) do
         true
       else
         _ ->

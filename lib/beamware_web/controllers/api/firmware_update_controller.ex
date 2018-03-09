@@ -4,7 +4,11 @@ defmodule BeamwareWeb.Api.FirmwareUpdateController do
   alias Beamware.Firmwares
   alias Beamware.Firmwares.Firmware
 
-  def show(%{assigns: %{device: device}} = conn, %{"version" => version, "architecture" => architecture, "platform" => platform}) do
+  def show(%{assigns: %{device: device}} = conn, %{
+        "version" => version,
+        "architecture" => architecture,
+        "platform" => platform
+      }) do
     device
     |> Firmwares.get_eligible_firmware_update(%{
       version: version,
@@ -20,8 +24,8 @@ defmodule BeamwareWeb.Api.FirmwareUpdateController do
         conn
         |> render("show.json", %{firmware: firmware})
     end
-
   end
+
   def show(conn, _) do
     conn
     |> render("version_missing.html")
