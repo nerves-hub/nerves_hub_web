@@ -19,3 +19,9 @@ A domain independent back end solution for rolling out software updates to edge 
   * Start the database (if not started): `docker-compose up -d`
   * Start web app: `make server` or `make iex-server` to start the server with the interactive shell
     * the whole app will need to be complied the first time you run this, so please be patient
+
+### Tags
+
+Tags are arbitrary strings, such as `"stable"` or `"beta"`. They can be added to Devices and Firmware.
+
+For a Device to be considered eligible for a given Deployment, it must have *all* the tags in the Deployment's "tags" condition.
