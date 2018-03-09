@@ -44,6 +44,21 @@ defmodule BeamwareWeb do
     end
   end
 
+  def api_view do
+    quote do
+      use Phoenix.View,
+        root: "lib/beamware_web/templates",
+        namespace: BeamwareWeb
+
+      # Import convenience functions from controllers
+      import Phoenix.Controller, only: [get_flash: 2, view_module: 1]
+
+      import BeamwareWeb.Router.Helpers
+      import BeamwareWeb.ErrorHelpers
+      import BeamwareWeb.Gettext
+    end
+  end
+
   def router do
     quote do
       use Phoenix.Router

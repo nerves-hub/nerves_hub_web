@@ -29,6 +29,18 @@ defmodule Beamware.Devices do
     end
   end
 
+  @spec get_device_by_identifier(String.t()) :: {:ok, Device.t()} | {:error, :not_found}
+  def get_device_by_identifier(identifier) when is_binary(identifier) do
+    query = from(d in Device, where: d.identifier == ^identifier)
+
+    query
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      device -> {:ok, device}
+    end
+  end
+
   @spec create_device(Tenant.t(), map) ::
           {:ok, Device.t()}
           | {:error, Changeset.t()}
