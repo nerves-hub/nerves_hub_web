@@ -6,7 +6,7 @@ defmodule BeamwareWeb.DeploymentController do
   alias Beamware.Deployments.Deployment
   alias Ecto.Changeset
 
-  plug BeamwareWeb.Plugs.FetchDeployment when action in [:show, :toggle_is_active]
+  plug(BeamwareWeb.Plugs.FetchDeployment when action in [:show, :toggle_is_active])
 
   def index(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_tenant(tenant_id)

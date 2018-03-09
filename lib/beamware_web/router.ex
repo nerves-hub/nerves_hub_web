@@ -15,6 +15,7 @@ defmodule BeamwareWeb.Router do
 
   pipeline :api do
     plug(:accepts, ["json"])
+    plug(BeamwareWeb.Plugs.Api.AuthenticateDevice)
   end
 
   scope "/", BeamwareWeb do
@@ -68,6 +69,12 @@ defmodule BeamwareWeb.Router do
     post("/deployments/new", DeploymentController, :create)
     get("/deployments/:deployment_id", DeploymentController, :show)
     post("/deployments/:deployment_id/toggle-active", DeploymentController, :toggle_is_active)
+  end
+
+  scope "/api", BeamwareWeb.Api do
+    pipe_through(:api)
+
+    get("/firmware-update", FirmwareUpdateController, :show)
   end
 
   if Mix.env() in [:dev] do
