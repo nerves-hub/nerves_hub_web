@@ -49,9 +49,9 @@ defmodule Beamware.Firmwares.Firmware do
     metadata_item(firmware.metadata, "meta-version")
   end
 
-  @spec timestamp(String.t())
-  :: {:ok, DateTime.t()}
-  |  {:error, atom}
+  @spec timestamp(String.t()) ::
+          {:ok, DateTime.t()}
+          | {:error, atom}
   def timestamp(metadata) do
     metadata_item(metadata, "meta-creation-date")
     |> case do

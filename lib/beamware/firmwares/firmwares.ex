@@ -3,6 +3,8 @@ defmodule Beamware.Firmwares do
 
   alias Beamware.Accounts.{TenantKey, Tenant}
   alias Beamware.Firmwares.Firmware
+  alias Beamware.Devices.Device
+  alias Beamware.Deployments.Deployment
   alias Beamware.Repo
 
   @spec get_firmware_by_tenant(integer()) :: [Firmware.t()]
@@ -85,6 +87,41 @@ defmodule Beamware.Firmwares do
 
       _ ->
         {:error}
+    end
+  end
+
+  @doc """
+  Given a device, look for an active deployment where:
+    - The architecture of its associated firmware and device match
+    - The platform of its associated firmware and device match
+    - The version of the device satisfies the version condition of the deployment (if one exists)
+    - The device is assigned all tags in the deployment's "tags" condition
+  """
+  @spec get_eligible_firmware_update(Device.t(), Version.t()) ::
+          {:ok, Firmware.t()} | {:ok, :none}
+  def get_eligible_firmware_update(%Device{} = device, %Version{} = version) do
+    from(
+      d in Deployment,
+      where: d.tenant_id == ^device.tenant_id,
+      where: d.is_active == true,
+      join: f in assoc(d, :firmware),
+      on: f.architecture == ^device.architecture and f.platform == ^device.platform,
+      preload: [firmware: f]
+    )
+    |> Repo.all()
+    |> Enum.find(fn deployment ->
+      with v <- deployment.conditions["version"],
+           true <- v == "" or Version.match?(version, v),
+           true <- Enum.all?(deployment.conditions["tags"], fn tag -> tag in device.tags end) do
+        true
+      else
+        _ ->
+          false
+      end
+    end)
+    |> case do
+      nil -> {:ok, :none}
+      deployment -> {:ok, deployment.firmware}
     end
   end
 end

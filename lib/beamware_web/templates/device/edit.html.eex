@@ -1,19 +1,36 @@
+<h1>
+  Device Details
+</h1>
+
+<table class="table" style="width: auto">
+  <tr>
+    <th>ID</th>
+    <td><%= @device.id %></td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td><%= @device.description %></td>
+  </tr>
+  <tr>
+    <th>Current Version</th>
+    <td><%= @device.current_version %></td>
+  </tr>
+  <tr>
+    <th>Architecture</th>
+    <td><%= @device.architecture %></td>
+  </tr>
+</table>
+
 <%= form_for @changeset, device_path(@conn, :update, @device.id), fn f -> %>
-  <h3 class="h3">Device Details</h3>
+  <div class="form-group">
+    <label for="tags">Tags</label>
+    <%= text_input f, :tags, class: "form-control", id: "tags" %>
+    <div class="has-error"><%= error_tag f, :tags %></div>
+  </div>
 
-  <p><strong>ID:</strong> <%= @device.id %></p>
-  <p><strong>Description:</strong> <%= @device.description %></p>
-  <p><strong>Current Version:</strong> <%= @device.current_version %></p>
-  <p><strong>Architecture:</strong> <%= @device.architecture %></p>
+  <%= submit "Update Tags", class: "btn btn-primary" %>
 
-  <p>
-    <label>
-      Tags:
-      <%= text_input f, :tags %>
-      <%= error_tag f, :tags %>
-    </label>
-  </p>
-
-  <%= submit "Update" %>
-  <a href="<%= device_path(@conn, :index) %>">Cancel</a>
+  <a class="btn btn-secondary" href="<%= device_path(@conn, :index) %>">
+    Cancel
+  </a>
 <% end %>

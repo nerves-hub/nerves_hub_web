@@ -21,6 +21,18 @@
     <div class="has-error"><%= error_tag f, :tags %></div>
   </div>
 
+  <div class="form-group">
+    <label for="tags">Architecture</label>
+    <%= select f, :architecture, architecture_options(), class: "form-control", id: "architecture" %>
+    <div class="has-error"><%= error_tag f, :architecture %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="tags">Platform</label>
+    <%= select f, :platform, platform_options(), class: "form-control", id: "platform" %>
+    <div class="has-error"><%= error_tag f, :platform %></div>
+  </div>
+
   <%= submit "Create", class: "btn btn-large btn-primary" %>
   <a class="btn btn-secondary" href="<%= device_path(@conn, :index) %>">Cancel</a>
 <% end %>
