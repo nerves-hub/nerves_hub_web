@@ -1,5 +1,7 @@
 # beamware
 
+[![CircleCI](https://circleci.com/gh/smartrent/beamware/tree/master.svg?style=svg)](https://circleci.com/gh/smartrent/beamware/tree/master)
+
 A domain independent back end solution for rolling out software updates to edge
 devices connected to IP based networking infrastructure.
 
