@@ -1,18 +1,22 @@
-server:
+server: .env
 	source .env && \
 	mix phx.server
+
+.env:
+	@echo "Please create a '.env' file first. Copy 'dev.env' to '.env' for a start."
+	@exit 1
 
 iex:
 	make iex-server
 
-iex-server:
+iex-server: .env
 	source .env && \
 	iex -S mix phx.server
 
 mix:
 	iex -S mix
 
-reset-db:
+reset-db: .env
 	source .env && \
 	make rebuild-db
 

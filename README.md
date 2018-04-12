@@ -13,6 +13,7 @@ devices connected to IP based networking infrastructure.
 
 * Create directory for local data storage: `mkdir ~/db`
 * Start the database (if not started): `docker-compose up -d`
+* Copy `dev.env` to `.env` and customize as needed
 * Run command `mix deps.get`
 * Run command `make reset-db`
 * Start web app: `make server` or `make iex-server` to start the server with the
