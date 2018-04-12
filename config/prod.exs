@@ -63,6 +63,3 @@ config :logger, level: :info
 
 # config :beamware, Beamware.Mailer, adapter: Swoosh.Adapters.Local
 
-# Finally import the config/prod.secret.exs
-# which should be versioned separately.
-import_config "prod.secret.exs"
