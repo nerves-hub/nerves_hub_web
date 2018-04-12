@@ -25,3 +25,9 @@ rebuild-db:
 	mix ecto.create && \
 	mix ecto.migrate && \
 	mix run priv/repo/seeds.exs
+
+test: .env
+	source .env && \
+	    MIX_ENV=test mix test
+
+.PHONY: test rebuild-db reset-db mix iex-server server
