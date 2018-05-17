@@ -39,17 +39,20 @@ defmodule Beamware.Mixfile do
     [
       {:bcrypt_elixir, "~> 1.0"},
       {:comeonin, "~> 4.1"},
-      {:phoenix, "~> 1.3.0"},
+      {:jason, "~> 1.0"},
+      {:plug, github: "mobileoverlord/plug", branch: "client_ssl", override: true},
+      {:phoenix, github: "mobileoverlord/phoenix", branch: "ws_extra_params", override: true},
       {:phoenix_pubsub, "~> 1.0"},
-      {:phoenix_ecto, "~> 3.2"},
+      {:phoenix_ecto, github: "phoenixframework/phoenix_ecto"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 2.10"},
-      {:phoenix_live_reload, "~> 1.0", only: :dev},
+      {:phoenix_live_reload, github: "mobileoverlord/phoenix_live_reload", branch: "transport", override: true, only: :dev},
       {:gettext, "~> 0.11"},
-      {:cowboy, "~> 1.0"},
+      {:cowboy, "~> 2.0", override: true},
       {:swoosh, "~> 0.13"},
       {:timex, "~> 3.1"},
-      {:phoenix_swoosh, "~> 0.2"}
+      {:phoenix_swoosh, "~> 0.2"},
+      {:beamware_client, path: "client", only: :test},
     ]
   end
 

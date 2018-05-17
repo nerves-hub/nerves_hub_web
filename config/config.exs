@@ -6,7 +6,9 @@
 use Mix.Config
 
 # General application configuration
-config :beamware, ecto_repos: [Beamware.Repo]
+config :beamware, 
+  ecto_repos: [Beamware.Repo],
+  websocket_auth_methods: [:ssl] # Options are :ssl or :header
 
 # Configures the endpoint
 config :beamware, BeamwareWeb.Endpoint,

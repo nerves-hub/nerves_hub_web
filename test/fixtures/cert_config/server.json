@@ -1,0 +1,20 @@
+{
+    "CN": "beamware",
+    "hosts": [
+        "beamware.smartrent.com",
+        "beamware.local",
+        "beamware"
+    ],
+    "key": {
+        "algo": "ecdsa",
+        "size": 256
+    },
+    "names": [
+        {
+            "C": "US",
+            "ST": "AZ",
+            "L": "Scottsdale"
+        }
+    ]
+}
+

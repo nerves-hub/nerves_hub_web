@@ -1,7 +1,10 @@
 defmodule BeamwareWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :beamware
 
-  socket("/socket", BeamwareWeb.UserSocket)
+  socket "/socket", BeamwareWeb.UserSocket,
+    websocket: [
+      extra_params: [:ssl_cert, :x_headers]
+    ]
 
   # Serve at "/" the static files from "priv/static" directory.
   #
@@ -25,7 +28,7 @@ defmodule BeamwareWeb.Endpoint do
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
   if code_reloading? do
-    socket("/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket)
+    socket("/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket, websocket: true, long_polling: true)
     plug(Phoenix.LiveReloader)
     plug(Phoenix.CodeReloader)
   end
