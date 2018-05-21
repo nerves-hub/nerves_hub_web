@@ -15,8 +15,17 @@ use Mix.Config
 # which you typically run after static files are built.
 config :beamware, BeamwareWeb.Endpoint,
   load_from_system_env: true,
-  url: [scheme: "https", host: "example.com", port: 80],
-  cache_static_manifest: "priv/static/cache_manifest.json"
+  url: [scheme: "https", host: "beamware.io", port: 80],
+  force_ssl: [hsts: true]
+  cache_static_manifest: "priv/static/cache_manifest.json",
+  https: [
+    port: 443,
+    otp_app: :beamware,
+    verify: :verify_peer, # Enable client SSL
+    keyfile: System.get_env("BEAMWARE_SSL_KEY"),
+    certfile: System.get_env("BEAMWARE_SSL_CERT"),
+    cacertfile: System.get_env("BEAMWARE_SSL_CACERT"),
+  ]
 
 # Do not print debug messages in production
 config :logger, level: :info
