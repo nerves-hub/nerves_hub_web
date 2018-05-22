@@ -1,6 +1,7 @@
 # beamware
 
 [![CircleCI](https://circleci.com/gh/smartrent/beamware/tree/master.svg?style=svg)](https://circleci.com/gh/smartrent/beamware/tree/master)
+[![Coverage Status](https://coveralls.io/repos/github/smartrent/beamware/badge.svg?branch=master)](https://coveralls.io/github/smartrent/beamware?branch=master)
 
 A domain independent back end solution for rolling out software updates to edge
 devices connected to IP based networking infrastructure.

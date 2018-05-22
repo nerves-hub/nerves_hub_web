@@ -10,7 +10,16 @@ defmodule Beamware.Mixfile do
       compilers: [:phoenix, :gettext] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test,
+        "coveralls.post": :test,
+        docs: :docs
+      ]
     ]
   end
 
@@ -58,7 +67,8 @@ defmodule Beamware.Mixfile do
       {:swoosh, "~> 0.13"},
       {:timex, "~> 3.1"},
       {:phoenix_swoosh, "~> 0.2"},
-      {:beamware_client, path: "client", only: :test}
+      {:beamware_client, path: "client", only: :test},
+      {:excoveralls, "~> 0.8", only: :test}
     ]
   end
 
