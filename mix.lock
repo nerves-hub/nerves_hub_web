@@ -20,7 +20,7 @@
   "mimerl": {:hex, :mimerl, "1.0.2", "993f9b0e084083405ed8252b99460c4f0563e41729ab42d9074fd5e52439be88", [:rebar3], [], "hexpm"},
   "parse_trans": {:hex, :parse_trans, "3.2.0", "2adfa4daf80c14dc36f522cf190eb5c4ee3e28008fc6394397c16f62a26258c2", [:rebar3], [], "hexpm"},
   "phoenix": {:git, "https://github.com/mobileoverlord/phoenix.git", "65f619795ad33791ddea5ad07f306f4a4f8418be", [branch: "ws_extra_params"]},
-  "phoenix_channel_client": {:git, "https://github.com/mobileoverlord/phoenix_channel_client.git", "8c5e811242e3600453090e6495c8ba6782bb1444", []},
+  "phoenix_channel_client": {:git, "https://github.com/mobileoverlord/phoenix_channel_client.git", "cccbce42319190b47aa589c08ce4beebd1aaa7c3", []},
   "phoenix_ecto": {:git, "https://github.com/phoenixframework/phoenix_ecto.git", "c45ed42470b47b1f73d85aef7815659cfe37a788", []},
   "phoenix_html": {:hex, :phoenix_html, "2.11.2", "86ebd768258ba60a27f5578bec83095bdb93485d646fc4111db8844c316602d6", [:mix], [{:plug, "~> 1.5", [hex: :plug, repo: "hexpm", optional: false]}], "hexpm"},
   "phoenix_live_reload": {:git, "https://github.com/mobileoverlord/phoenix_live_reload.git", "231de7d51623eda49079255e38787b45d25f531f", [branch: "transport"]},
