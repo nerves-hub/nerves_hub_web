@@ -40,6 +40,8 @@ defmodule Beamware.Mixfile do
       {:bcrypt_elixir, "~> 1.0"},
       {:comeonin, "~> 4.1"},
       {:jason, "~> 1.0"},
+      # poison can be removed once a new release of postgrex is made
+      {:poison, "~> 3.0"},
       {:plug, github: "mobileoverlord/plug", branch: "client_ssl", override: true},
       {:phoenix, github: "mobileoverlord/phoenix", branch: "ws_extra_params", override: true},
       {:phoenix_pubsub, "~> 1.0"},
