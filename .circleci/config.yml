@@ -6,6 +6,7 @@ jobs:
       - image: circleci/elixir:1.6
         environment:
           MIX_ENV: test
+          DATABASE_URL: postgres://db:db@localhost:5432/db
       - image: circleci/postgres:10.1-alpine
         environment:
           POSTGRES_USER: db
