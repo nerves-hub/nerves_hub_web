@@ -53,3 +53,10 @@ jobs:
       - run: mix test
       - run: mix format --check-formatted
 
+      - run:
+          name: Test client
+          command: |
+            cd client
+            mix do deps.get, compile, test
+            mix format --check-formatted
+

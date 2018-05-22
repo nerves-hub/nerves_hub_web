@@ -7,9 +7,7 @@ defmodule BeamwareClient.Application do
 
   def start(_type, _args) do
     # List all child processes to be supervised
-    children = [
-      
-    ]
+    children = []
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
