@@ -1,6 +1,6 @@
 defmodule Beamware.Integration.WebsocketTest do
   use ExUnit.Case, async: false
-  
+
   @serial_header Application.get_env(:beamware, :device_serial_header)
 
   @fake_ssl_socket_config [
@@ -8,7 +8,7 @@ defmodule Beamware.Integration.WebsocketTest do
     serializer: Jason,
     ssl_verify: :verify_peer,
     socket_opts: [
-      certfile: Path.expand("test/fixtures/certs/hub-fake.pem")  |> to_charlist,
+      certfile: Path.expand("test/fixtures/certs/hub-fake.pem") |> to_charlist,
       keyfile: Path.expand("test/fixtures/certs/hub-fake-key.pem") |> to_charlist,
       cacertfile: Path.expand("test/fixtures/certs/ca-fake.pem") |> to_charlist,
       server_name_indication: 'beamware'
@@ -20,7 +20,7 @@ defmodule Beamware.Integration.WebsocketTest do
     serializer: Jason,
     ssl_verify: :verify_peer,
     socket_opts: [
-      certfile: Path.expand("test/fixtures/certs/hub-1234.pem")  |> to_charlist,
+      certfile: Path.expand("test/fixtures/certs/hub-1234.pem") |> to_charlist,
       keyfile: Path.expand("test/fixtures/certs/hub-1234-key.pem") |> to_charlist,
       cacertfile: Path.expand("test/fixtures/certs/ca.pem") |> to_charlist,
       server_name_indication: 'beamware'
@@ -63,35 +63,52 @@ defmodule Beamware.Integration.WebsocketTest do
   end
 
   test "Can connect and authenticate to channel using client ssl certificate" do
-    opts = 
+    opts =
       @ssl_socket_config
       |> Keyword.put(:caller, self())
 
     {:ok, _} = ClientSocket.start_link(opts)
-    {:ok, _channel} = ClientChannel.start_link(socket: ClientSocket, topic: "device:lobby", caller: self())
+
+    {:ok, _channel} =
+      ClientChannel.start_link(socket: ClientSocket, topic: "device:lobby", caller: self())
+
     ClientChannel.join()
-    assert_receive({:ok, :join, %{"response" => %{"serial" => "hub-1234"}, "status" => "ok"}, _ref}, 1_000)
+
+    assert_receive(
+      {:ok, :join, %{"response" => %{"serial" => "hub-1234"}, "status" => "ok"}, _ref},
+      1_000
+    )
   end
 
   test "authentication rejected to channel using incorrect client ssl certificate" do
-    opts = 
+    opts =
       @fake_ssl_socket_config
       |> Keyword.put(:caller, self())
 
     {:ok, _} = ClientSocket.start_link(opts)
-    {:ok, _channel} = ClientChannel.start_link(socket: ClientSocket, topic: "device:lobby", caller: self())
+
+    {:ok, _channel} =
+      ClientChannel.start_link(socket: ClientSocket, topic: "device:lobby", caller: self())
+
     ClientChannel.join()
     assert_receive({:socket_closed, {:tls_alert, 'unknown ca'}}, 1_000)
   end
 
   test "Can connect and authenticate to channel using proxy headers" do
-    opts = 
+    opts =
       @proxy_socket_config
       |> Keyword.put(:caller, self())
 
     {:ok, _} = ClientSocket.start_link(opts)
-    {:ok, _channel} = ClientChannel.start_link(socket: ClientSocket, topic: "device:lobby", caller: self())
+
+    {:ok, _channel} =
+      ClientChannel.start_link(socket: ClientSocket, topic: "device:lobby", caller: self())
+
     ClientChannel.join()
-    assert_receive({:ok, :join, %{"response" => %{"serial" => "hub-1234"}, "status" => "ok"}, _ref}, 1_000)
+
+    assert_receive(
+      {:ok, :join, %{"response" => %{"serial" => "hub-1234"}, "status" => "ok"}, _ref},
+      1_000
+    )
   end
 end

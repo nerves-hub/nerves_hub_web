@@ -8,8 +8,7 @@ defmodule BeamwareClient.Application do
   def start(_type, _args) do
     # List all child processes to be supervised
     children = [
-      {BeamwareClient.Socket, []},
-      {BeamwareClient.DeviceChannel, [socket: BeamwareClient.Socket, topic: "device:lobby"]}
+      
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

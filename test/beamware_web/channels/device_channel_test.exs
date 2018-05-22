@@ -12,5 +12,4 @@ defmodule BeamwareWeb.DeviceChannelTest do
 
   #   {:ok, socket: socket}
   # end
-
 end

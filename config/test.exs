@@ -2,7 +2,8 @@ use Mix.Config
 
 config :beamware,
   device_serial_header: "x-client-dn",
-  websocket_auth_methods: [:ssl, :header] # Options are :ssl or :header
+  # Options are :ssl or :header
+  websocket_auth_methods: [:ssl, :header]
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
@@ -16,7 +17,8 @@ config :beamware, BeamwareWeb.Endpoint,
   https: [
     port: 4003,
     otp_app: :beamware,
-    verify: :verify_peer, # Enable client SSL
+    # Enable client SSL
+    verify: :verify_peer,
     keyfile: Path.expand("./test/fixtures/certs/server-key.pem"),
     certfile: Path.expand("./test/fixtures/certs/server.pem"),
     cacertfile: Path.expand("./test/fixtures/certs/ca.pem")
