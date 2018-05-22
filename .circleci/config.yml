@@ -51,5 +51,16 @@ jobs:
           name: Wait for DB
           command: dockerize -wait tcp://localhost:5432 -timeout 1m
 
-      - run: mix test
+      - run:
+          name: Test
+          command: mix test
 
+      - run:
+          name: Test that the client runs standalone
+          command: |
+            cd client
+            mix do deps.get, compile, test
+
+      - run:
+          name: Verify formatting
+          command: mix format --check-formatted && cd client && mix format --check-formatted
