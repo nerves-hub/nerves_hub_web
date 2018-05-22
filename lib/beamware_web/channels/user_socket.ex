@@ -5,7 +5,7 @@ defmodule BeamwareWeb.UserSocket do
 
   ## Channels
   # channel "room:*", BeamwareWeb.RoomChannel
-  channel "device:lobby", BeamwareWeb.DeviceChannel
+  channel("device:lobby", BeamwareWeb.DeviceChannel)
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After
@@ -19,22 +19,23 @@ defmodule BeamwareWeb.UserSocket do
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
 
-if Enum.member?(@websocket_auth_methods, :header) do
-  @serial_header Application.get_env(:beamware, :device_serial_header)
-  
-  def connect(%{x_headers: %{@serial_header => serial}}, socket) do
-    {:ok, assign(socket, :serial, serial)}
-  end
-end
+  if Enum.member?(@websocket_auth_methods, :header) do
+    @serial_header Application.get_env(:beamware, :device_serial_header)
 
-if Enum.member?(@websocket_auth_methods, :ssl) do
-  def connect(%{ssl_cert: ssl_cert}, socket) do
-    case Beamware.Certificate.get_common_name(ssl_cert) do
-      {:ok, serial} -> {:ok, assign(socket, :serial, serial)}
-      error -> error
+    def connect(%{x_headers: %{@serial_header => serial}}, socket) do
+      {:ok, assign(socket, :serial, serial)}
     end
   end
-end
+
+  if Enum.member?(@websocket_auth_methods, :ssl) do
+    def connect(%{ssl_cert: ssl_cert}, socket) do
+      case Beamware.Certificate.get_common_name(ssl_cert) do
+        {:ok, serial} -> {:ok, assign(socket, :serial, serial)}
+        error -> error
+      end
+    end
+  end
+
   def connect(_params, _socket) do
     :error
   end

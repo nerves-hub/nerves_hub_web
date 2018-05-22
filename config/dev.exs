@@ -15,7 +15,8 @@ config :beamware, BeamwareWeb.Endpoint,
   https: [
     port: 4001,
     otp_app: :beamware,
-    verify: :verify_peer, # Enable client SSL
+    # Enable client SSL
+    verify: :verify_peer,
     keyfile: Path.expand("./test/fixtures/certs/server-key.pem"),
     certfile: Path.expand("./test/fixtures/certs/server.pem"),
     cacertfile: Path.expand("./test/fixtures/certs/ca.pem")
