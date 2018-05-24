@@ -1,9 +1,9 @@
 {
-    "CN": "beamware",
+    "CN": "nerveshub",
     "hosts": [
-        "beamware.smartrent.com",
-        "beamware.local",
-        "beamware"
+        "connect.nerves-hub.org",
+        "nerveshub.local",
+        "nerveshub"
     ],
     "key": {
         "algo": "ecdsa",

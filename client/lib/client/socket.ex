@@ -1,3 +1,3 @@
-defmodule BeamwareClient.Socket do
-  use PhoenixChannelClient.Socket, otp_app: :beamware_client
+defmodule NervesHubClient.Socket do
+  use PhoenixChannelClient.Socket, otp_app: :nerveshub_client
 end

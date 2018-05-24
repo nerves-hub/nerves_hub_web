@@ -1,4 +1,4 @@
-defmodule Beamware.Repo.Migrations.PasswordResetFields do
+defmodule NervesHub.Repo.Migrations.PasswordResetFields do
   use Ecto.Migration
 
   def up do

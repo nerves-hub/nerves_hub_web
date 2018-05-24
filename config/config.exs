@@ -6,24 +6,24 @@
 use Mix.Config
 
 # General application configuration
-config :beamware,
-  ecto_repos: [Beamware.Repo],
+config :nerveshub,
+  ecto_repos: [NervesHub.Repo],
   # Options are :ssl or :header
   websocket_auth_methods: [:ssl]
 
 # Configures the endpoint
-config :beamware, BeamwareWeb.Endpoint,
+config :nerveshub, NervesHubWeb.Endpoint,
   url: [host: System.get_env("HOST")],
   secret_key_base: System.get_env("SECRET_KEY_BASE"),
-  render_errors: [view: BeamwareWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: Beamware.PubSub, adapter: Phoenix.PubSub.PG2]
+  render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
+  pubsub: [name: NervesHub.PubSub, adapter: Phoenix.PubSub.PG2]
 
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
-config :beamware, Beamware.Mailer, adapter: Swoosh.Adapters.Local
+config :nerveshub, NervesHub.Mailer, adapter: Swoosh.Adapters.Local
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

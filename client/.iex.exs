@@ -1,1 +1,1 @@
-alias BeamwareClient.DeviceChannel
+alias NervesHubClient.DeviceChannel

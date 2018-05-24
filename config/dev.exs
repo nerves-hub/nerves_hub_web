@@ -6,7 +6,7 @@ use Mix.Config
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we use it
 # with brunch.io to recompile .js and .css sources.
-config :beamware, BeamwareWeb.Endpoint,
+config :nerveshub, NervesHubWeb.Endpoint,
   http: [port: 4000],
   debug_errors: true,
   code_reloader: true,
@@ -14,7 +14,7 @@ config :beamware, BeamwareWeb.Endpoint,
   watchers: [],
   https: [
     port: 4001,
-    otp_app: :beamware,
+    otp_app: :nerveshub,
     # Enable client SSL
     verify: :verify_peer,
     keyfile: Path.expand("./test/fixtures/certs/server-key.pem"),
@@ -39,14 +39,14 @@ config :beamware, BeamwareWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :beamware, BeamwareWeb.Endpoint,
+config :nerveshub, NervesHubWeb.Endpoint,
   url: [scheme: "http", host: "localhost", port: 4000],
   live_reload: [
     patterns: [
       ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
       ~r{priv/gettext/.*(po)$},
-      ~r{lib/beamware_web/views/.*(ex)$},
-      ~r{lib/beamware_web/templates/.*(eex)$}
+      ~r{lib/nerveshub_web/views/.*(ex)$},
+      ~r{lib/nerveshub_web/templates/.*(eex)$}
     ]
   ]
 
@@ -58,14 +58,14 @@ config :logger, :console, format: "[$level] $message\n"
 config :phoenix, :stacktrace_depth, 20
 
 # Configure your database
-config :beamware, Beamware.Repo,
+config :nerveshub, NervesHub.Repo,
   adapter: Ecto.Adapters.Postgres,
   url: System.get_env("DATABASE_URL"),
   ssl: false
 
-config :beamware, firmware_upload: Beamware.Firmware.Upload.File
+config :nerveshub, firmware_upload: NervesHub.Firmware.Upload.File
 
 # uncomment out lines 19-23 in endpoint.ex and update paths accordingly
-config :beamware, Beamware.Firmware.Upload.File,
+config :nerveshub, NervesHub.Firmware.Upload.File,
   local_path: "/tmp/firmware",
   public_path: "/firmware"

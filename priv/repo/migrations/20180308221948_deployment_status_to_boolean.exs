@@ -1,4 +1,4 @@
-defmodule Beamware.Repo.Migrations.DeploymentStatusToBoolean do
+defmodule NervesHub.Repo.Migrations.DeploymentStatusToBoolean do
   use Ecto.Migration
 
   def up do

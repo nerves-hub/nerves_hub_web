@@ -1,11 +1,11 @@
-defmodule BeamwareClient do
-  alias BeamwareClient.{Socket, DeviceChannel}
+defmodule NervesHubClient do
+  alias NervesHubClient.{Socket, DeviceChannel}
 
   def connect do
     {:ok, _socket} = Socket.start_link()
 
     {:ok, _channel} =
-      DeviceChannel.start_link(socket: BeamwareClient.Socket, topic: "device:lobby")
+      DeviceChannel.start_link(socket: NervesHubClient.Socket, topic: "device:lobby")
 
     DeviceChannel.join()
   end

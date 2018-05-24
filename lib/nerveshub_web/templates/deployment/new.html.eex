@@ -1,0 +1,71 @@
+<h1>Create Deployment</h1>
+
+<%= form_for @changeset, deployment_path(@conn, :create), [as: :deployment], fn f -> %>
+  <h3 class="h3">Firmware Details</h3>
+
+  <table class="table" style="width: auto">
+    <tbody>
+      <tr>
+        <th>Product</th>
+        <td><%= @firmware.product %>
+      </tr>
+      <tr>
+        <th>Version</th>
+        <td>
+          <%=
+            case NervesHub.Firmwares.Firmware.version(@firmware) do
+              {:ok, version} -> version
+              _ -> "--"
+            end
+          %>
+        </td>
+      </tr>
+      <tr>
+        <th>Platform</th>
+        <td><%= @firmware.platform %></td>
+      </tr>
+      <tr>
+        <th>Architecture</th>
+        <td><%= @firmware.architecture %></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <%= hidden_input f, :firmware_id, value: @firmware.id %>
+
+  <h3 class="h3">Deployment</h3>
+
+  <div class="form-group">
+    <label for="name_input">Name</label>
+    <%= text_input f, :name, class: "form-control", id: "name_input" %>
+    <div class="has-error"><%= error_tag f, :name %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="verion_input">Version</label>
+    <%= text_input f, :version,
+      class: "form-control",
+      id: "version_input",
+      value:
+        @changeset
+        |> Ecto.Changeset.get_change(:conditions, %{})
+        |> Map.get("version", "")
+    %>
+    <div class="has-error"><%= error_tag f, :version %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="verion_input">Tag(s)*</label>
+    <%= text_input f, :tags,
+      class: "form-control",
+      id: "version_input",
+      value:
+        @changeset
+        |> Ecto.Changeset.get_change(:conditions, %{})
+        |> Map.get("tags", "")
+    %>
+    <div class="has-error"><%= error_tag f, :tags %></div>
+  </div>
+
+  <%= submit "Create Deployment", class: "btn btn-primary" %>
+<% end %>

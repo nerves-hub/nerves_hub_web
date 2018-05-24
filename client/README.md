@@ -1,9 +1,9 @@
-# BeamwareClient
+# NervesHubClient
 
-This directory contains a test client for interacting with the Beamware server
+This directory contains a test client for interacting with the NervesHub server
 as a device.
 
-First start the Beamware server, then build and start up an IEx session:
+First start the NervesHub server, then build and start up an IEx session:
 
 ```sh
 mix deps.get

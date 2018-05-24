@@ -1,4 +1,4 @@
-defmodule Beamware.Repo.Migrations.Firmware do
+defmodule NervesHub.Repo.Migrations.Firmware do
   use Ecto.Migration
 
   def change do

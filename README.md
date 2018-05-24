@@ -1,7 +1,7 @@
-# beamware
+# nerveshub
 
-[![CircleCI](https://circleci.com/gh/smartrent/beamware/tree/master.svg?style=svg)](https://circleci.com/gh/smartrent/beamware/tree/master)
-[![Coverage Status](https://coveralls.io/repos/github/smartrent/beamware/badge.svg?branch=master)](https://coveralls.io/github/smartrent/beamware?branch=master)
+[![CircleCI](https://circleci.com/gh/nerves-hub/nerveshub/tree/master.svg?style=svg)](https://circleci.com/gh/nerves-hub/nerveshub/tree/master)
+[![Coverage Status](https://coveralls.io/repos/github/nerves-hub/nerveshub/badge.svg?branch=master)](https://coveralls.io/github/nerves-hub/nerveshub?branch=master)
 
 A domain independent back end solution for rolling out software updates to edge
 devices connected to IP based networking infrastructure.
@@ -40,9 +40,9 @@ companies.
 
 ### Client-side SSL Device Authorization
 
-Beamware uses Client-side SSL to authorize and identify connected devices.
+NervesHub uses Client-side SSL to authorize and identify connected devices.
 Devices are required to provide a valid certificate that was signed using the
-trusted certificate authority beamware certificate. This certificate should be
+trusted certificate authority nerveshub certificate. This certificate should be
 generated and kept secret and private from Internet-connected servers.
 
 For convenience, we use the pre-generated certificates for `dev` and `test`.
@@ -51,9 +51,9 @@ instructions in `test/fixtures/README.md` and setting the following environment
 variables to point to the generated key and certificate paths on the server.
 
 ```text
-BEAMWARE_SSL_KEY
-BEAMWARE_SSL_CERT
-BEAMWARE_SSL_CACERT
+NERVESHUB_SSL_KEY
+NERVESHUB_SSL_CERT
+NERVESHUB_SSL_CACERT
 ```
 
 ### Tags
@@ -67,7 +67,7 @@ For a Device to be considered eligible for a given Deployment, it must have
 ## Simulating a Device
 
 The `client` directory has an example OTP application that simulates a device.
-It will connect to the Beamware server via a Phoenix Channel and can be used
+It will connect to the NervesHub server via a Phoenix Channel and can be used
 to exercise the server for development and test.
 
 See `client/README.md` for more information.

@@ -1,4 +1,4 @@
-defmodule BeamwareClientTest do
+defmodule NervesHubClientTest do
   use ExUnit.Case
-  doctest BeamwareClient
+  doctest NervesHubClient
 end

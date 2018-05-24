@@ -1,9 +1,9 @@
-defmodule Beamware.Mixfile do
+defmodule NervesHub.Mixfile do
   use Mix.Project
 
   def project do
     [
-      app: :beamware,
+      app: :nerveshub,
       version: "0.0.1",
       elixir: "~> 1.4",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -28,7 +28,7 @@ defmodule Beamware.Mixfile do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Beamware.Application, []},
+      mod: {NervesHub.Application, []},
       extra_applications: [
         :logger,
         :runtime_tools,
@@ -67,7 +67,7 @@ defmodule Beamware.Mixfile do
       {:swoosh, "~> 0.13"},
       {:timex, "~> 3.1"},
       {:phoenix_swoosh, "~> 0.2"},
-      {:beamware_client, path: "client", only: :test},
+      {:nerveshub_client, path: "client", only: :test},
       {:excoveralls, "~> 0.8", only: :test}
     ]
   end

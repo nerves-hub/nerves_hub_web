@@ -1,9 +1,9 @@
-defmodule BeamwareClient.MixProject do
+defmodule NervesHubClient.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :beamware_client,
+      app: :nerveshub_client,
       version: "0.1.0",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
@@ -15,7 +15,7 @@ defmodule BeamwareClient.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {BeamwareClient.Application, []}
+      mod: {NervesHubClient.Application, []}
     ]
   end
 

@@ -1,3 +1,3 @@
 ExUnit.start()
 
-Ecto.Adapters.SQL.Sandbox.mode(Beamware.Repo, :manual)
+Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, :manual)
