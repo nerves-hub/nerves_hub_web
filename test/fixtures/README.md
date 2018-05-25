@@ -19,8 +19,8 @@ https://github.com/cloudflare/cfssl
 ### Create certificate authority
 
 ```sh
- cd certs
- cfssl gencert -initca ../cert_config/ca-csr.json | cfssljson -bare ca -
+cd certs
+cfssl gencert -initca ../cert_config/ca-csr.json | cfssljson -bare ca -
 ```
 
 > If this were a real CA, `ca-key.pem` file should be kept in a safe place (i.e.
@@ -30,7 +30,7 @@ https://github.com/cloudflare/cfssl
 
 ```sh
 cd certs
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=../cert_config/ca-config.json -profile=www ../cert_config/server.json | cfssljson -bare server`
+cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=../cert_config/ca-config.json -profile=www ../cert_config/server.json | cfssljson -bare server
 ```
 
 ### Client certificate(s)
@@ -40,7 +40,7 @@ device's serial number.
 
 ```sh
 cd certs
-echo '{"CN":"hub-1234","hosts":[""],"key":{"algo":"ecdsa","size":256}}' | cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=../cert_config/ca-config.json -profile=client - | cfssljson -bare hub-1234`
+echo '{"CN":"device-1234","hosts":[""],"key":{"algo":"ecdsa","size":256}}' | cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=../cert_config/ca-config.json -profile=client - | cfssljson -bare device-1234
 ```
 
 ## Generate SSL certificates for negative unit tests
@@ -58,5 +58,5 @@ cfssl gencert -initca ../cert_config/ca-csr.json | cfssljson -bare ca-fake -
 
 ```sh
 cd certs
-echo '{"CN":"hub-fake","hosts":[""],"key":{"algo":"ecdsa","size":256}}' | cfssl gencert -ca=ca-fake.pem -ca-key=ca-fake-key.pem -config=../cert_config/ca-config.json -profile=client - | cfssljson -bare hub-fake
+echo '{"CN":"device-fake","hosts":[""],"key":{"algo":"ecdsa","size":256}}' | cfssl gencert -ca=ca-fake.pem -ca-key=ca-fake-key.pem -config=../cert_config/ca-config.json -profile=client - | cfssljson -bare device-fake
 ```

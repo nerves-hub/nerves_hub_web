@@ -1,14 +1,12 @@
 {
-    "CN": "Smartrent CA",
+    "CN": "NervesHub CA",
     "key": {
         "algo": "ecdsa",
         "size": 256
     },
     "names": [
         {
-            "C": "US",
-            "ST": "AZ",
-            "L": "Scottsdale"
+            "C": "US"
         }
     ]
 }

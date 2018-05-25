@@ -8,8 +8,8 @@ defmodule NervesHub.Integration.WebsocketTest do
     serializer: Jason,
     ssl_verify: :verify_peer,
     socket_opts: [
-      certfile: Path.expand("test/fixtures/certs/hub-fake.pem") |> to_charlist,
-      keyfile: Path.expand("test/fixtures/certs/hub-fake-key.pem") |> to_charlist,
+      certfile: Path.expand("test/fixtures/certs/device-fake.pem") |> to_charlist,
+      keyfile: Path.expand("test/fixtures/certs/device-fake-key.pem") |> to_charlist,
       cacertfile: Path.expand("test/fixtures/certs/ca-fake.pem") |> to_charlist,
       server_name_indication: 'nerveshub'
     ]
@@ -20,8 +20,8 @@ defmodule NervesHub.Integration.WebsocketTest do
     serializer: Jason,
     ssl_verify: :verify_peer,
     socket_opts: [
-      certfile: Path.expand("test/fixtures/certs/hub-1234.pem") |> to_charlist,
-      keyfile: Path.expand("test/fixtures/certs/hub-1234-key.pem") |> to_charlist,
+      certfile: Path.expand("test/fixtures/certs/device-1234.pem") |> to_charlist,
+      keyfile: Path.expand("test/fixtures/certs/device-1234-key.pem") |> to_charlist,
       cacertfile: Path.expand("test/fixtures/certs/ca.pem") |> to_charlist,
       server_name_indication: 'nerveshub'
     ]
@@ -30,7 +30,7 @@ defmodule NervesHub.Integration.WebsocketTest do
   @proxy_socket_config [
     url: "wss://127.0.0.1:4003/socket/websocket",
     serializer: Jason,
-    extra_headers: [{@serial_header, "hub-1234"}]
+    extra_headers: [{@serial_header, "device-1234"}]
   ]
 
   defmodule ClientSocket do
@@ -75,7 +75,7 @@ defmodule NervesHub.Integration.WebsocketTest do
     ClientChannel.join()
 
     assert_receive(
-      {:ok, :join, %{"response" => %{"serial" => "hub-1234"}, "status" => "ok"}, _ref},
+      {:ok, :join, %{"response" => %{"serial" => "device-1234"}, "status" => "ok"}, _ref},
       1_000
     )
   end
@@ -107,7 +107,7 @@ defmodule NervesHub.Integration.WebsocketTest do
     ClientChannel.join()
 
     assert_receive(
-      {:ok, :join, %{"response" => %{"serial" => "hub-1234"}, "status" => "ok"}, _ref},
+      {:ok, :join, %{"response" => %{"serial" => "device-1234"}, "status" => "ok"}, _ref},
       1_000
     )
   end
