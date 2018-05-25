@@ -66,8 +66,8 @@ For a Device to be considered eligible for a given Deployment, it must have
 
 ## Simulating a Device
 
-The `client` directory has an example OTP application that simulates a device.
+The [nerves_client](https://github.com/nerves-hub/nerveshub_client) is an example OTP application that simulates a device.
 It will connect to the NervesHub server via a Phoenix Channel and can be used
 to exercise the server for development and test.
 
-See `client/README.md` for more information.
+See the [nerveshub_client/README.md](https://github.com/nerves-hub/nerveshub_client/blob/master/README.md) for more information.
