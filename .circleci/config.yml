@@ -56,11 +56,5 @@ jobs:
           command: mix coveralls.circle
 
       - run:
-          name: Test that the client runs standalone
-          command: |
-            cd client
-            mix do deps.get, compile, test
-
-      - run:
           name: Verify formatting
-          command: mix format --check-formatted && cd client && mix format --check-formatted
+          command: mix format --check-formatted
