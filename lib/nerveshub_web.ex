@@ -29,7 +29,7 @@ defmodule NervesHubWeb do
   def view do
     quote do
       use Phoenix.View,
-        root: "lib/nerveshub_web/templates",
+        root: "lib/nerves_hub_web/templates",
         namespace: NervesHubWeb
 
       # Import convenience functions from controllers
@@ -47,7 +47,7 @@ defmodule NervesHubWeb do
   def api_view do
     quote do
       use Phoenix.View,
-        root: "lib/nerveshub_web/templates",
+        root: "lib/nerves_hub_web/templates",
         namespace: NervesHubWeb
 
       # Import convenience functions from controllers

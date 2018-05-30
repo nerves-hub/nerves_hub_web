@@ -1,7 +1,7 @@
 defmodule NervesHub.Integration.WebsocketTest do
   use ExUnit.Case, async: false
 
-  @serial_header Application.get_env(:nerveshub, :device_serial_header)
+  @serial_header Application.get_env(:nerves_hub, :device_serial_header)
 
   @fake_ssl_socket_config [
     url: "wss://127.0.0.1:4003/socket/websocket",
@@ -11,7 +11,7 @@ defmodule NervesHub.Integration.WebsocketTest do
       certfile: Path.expand("test/fixtures/certs/device-fake.pem") |> to_charlist,
       keyfile: Path.expand("test/fixtures/certs/device-fake-key.pem") |> to_charlist,
       cacertfile: Path.expand("test/fixtures/certs/ca-fake.pem") |> to_charlist,
-      server_name_indication: 'nerveshub'
+      server_name_indication: 'nerves_hub'
     ]
   ]
 
@@ -23,7 +23,7 @@ defmodule NervesHub.Integration.WebsocketTest do
       certfile: Path.expand("test/fixtures/certs/device-1234.pem") |> to_charlist,
       keyfile: Path.expand("test/fixtures/certs/device-1234-key.pem") |> to_charlist,
       cacertfile: Path.expand("test/fixtures/certs/ca.pem") |> to_charlist,
-      server_name_indication: 'nerveshub'
+      server_name_indication: 'nerves_hub'
     ]
   ]
 

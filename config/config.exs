@@ -6,13 +6,13 @@
 use Mix.Config
 
 # General application configuration
-config :nerveshub,
+config :nerves_hub,
   ecto_repos: [NervesHub.Repo],
   # Options are :ssl or :header
   websocket_auth_methods: [:ssl]
 
 # Configures the endpoint
-config :nerveshub, NervesHubWeb.Endpoint,
+config :nerves_hub, NervesHubWeb.Endpoint,
   url: [host: System.get_env("HOST")],
   secret_key_base: System.get_env("SECRET_KEY_BASE"),
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
@@ -23,7 +23,7 @@ config :logger, :console,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
-config :nerveshub, NervesHub.Mailer, adapter: Swoosh.Adapters.Local
+config :nerves_hub, NervesHub.Mailer, adapter: Swoosh.Adapters.Local
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
