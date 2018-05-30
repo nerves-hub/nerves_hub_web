@@ -67,8 +67,7 @@ defmodule NervesHub.MixProject do
       {:swoosh, "~> 0.13"},
       {:timex, "~> 3.1"},
       {:phoenix_swoosh, "~> 0.2"},
-      {:nerveshub_client, path: "../nerveshub_client", only: :test},
-#      {:nerveshub_client, github: "nerves-hub/nerveshub_client", only: :test},
+      {:nerveshub_client, github: "nerves-hub/nerveshub_client", only: :test},
       {:excoveralls, "~> 0.8", only: :test}
     ]
   end
