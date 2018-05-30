@@ -11,7 +11,7 @@ defmodule NervesHub.Integration.WebsocketTest do
       certfile: Path.expand("test/fixtures/certs/device-fake.pem") |> to_charlist,
       keyfile: Path.expand("test/fixtures/certs/device-fake-key.pem") |> to_charlist,
       cacertfile: Path.expand("test/fixtures/certs/ca-fake.pem") |> to_charlist,
-      server_name_indication: 'nerves_hub'
+      server_name_indication: 'nerveshub'
     ]
   ]
 
@@ -23,7 +23,7 @@ defmodule NervesHub.Integration.WebsocketTest do
       certfile: Path.expand("test/fixtures/certs/device-1234.pem") |> to_charlist,
       keyfile: Path.expand("test/fixtures/certs/device-1234-key.pem") |> to_charlist,
       cacertfile: Path.expand("test/fixtures/certs/ca.pem") |> to_charlist,
-      server_name_indication: 'nerves_hub'
+      server_name_indication: 'nerveshub'
     ]
   ]
 
