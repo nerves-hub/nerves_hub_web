@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Endpoint do
-  use Phoenix.Endpoint, otp_app: :nerveshub
+  use Phoenix.Endpoint, otp_app: :nerves_hub
 
   socket(
     "/socket",
@@ -16,7 +16,7 @@ defmodule NervesHubWeb.Endpoint do
   plug(
     Plug.Static,
     at: "/",
-    from: :nerveshub,
+    from: :nerves_hub,
     gzip: false,
     only: ~w(css fonts images js favicon.ico robots.txt)
   )
@@ -62,7 +62,7 @@ defmodule NervesHubWeb.Endpoint do
   plug(
     Plug.Session,
     store: :cookie,
-    key: "_nerveshub_key",
+    key: "_nerves_hub_key",
     signing_salt: "1CPjriVa"
   )
 

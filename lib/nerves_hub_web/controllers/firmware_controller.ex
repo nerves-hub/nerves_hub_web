@@ -73,7 +73,7 @@ defmodule NervesHubWeb.FirmwareController do
   def download(conn, %{"id" => id}) do
     firmware = NervesHub.Repo.get(Firmware, id)
 
-    if uploader = Application.get_env(:nerveshub, :firmware_upload) do
+    if uploader = Application.get_env(:nerves_hub, :firmware_upload) do
       conn
       |> redirect(external: uploader.download_file(firmware))
     else
@@ -98,7 +98,7 @@ defmodule NervesHubWeb.FirmwareController do
   end
 
   defp upload_firmware(filepath, filename, tenant_id) do
-    if uploader = Application.get_env(:nerveshub, :firmware_upload) do
+    if uploader = Application.get_env(:nerves_hub, :firmware_upload) do
       uploader.upload_file(filepath, filename, tenant_id)
     else
       {:error}

@@ -1,7 +1,7 @@
 defmodule NervesHub.Integration.WebsocketTest do
   use ExUnit.Case, async: false
 
-  @serial_header Application.get_env(:nerveshub, :device_serial_header)
+  @serial_header Application.get_env(:nerves_hub, :device_serial_header)
 
   @fake_ssl_socket_config [
     url: "wss://127.0.0.1:4003/socket/websocket",

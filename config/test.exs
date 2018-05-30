@@ -1,13 +1,13 @@
 use Mix.Config
 
-config :nerveshub,
+config :nerves_hub,
   device_serial_header: "x-client-dn",
   # Options are :ssl or :header
   websocket_auth_methods: [:ssl, :header]
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
-config :nerveshub, NervesHubWeb.Endpoint,
+config :nerves_hub, NervesHubWeb.Endpoint,
   http: [port: 4002],
   code_reloader: false,
   debug_errors: true,
@@ -16,7 +16,7 @@ config :nerveshub, NervesHubWeb.Endpoint,
   server: true,
   https: [
     port: 4003,
-    otp_app: :nerveshub,
+    otp_app: :nerves_hub,
     # Enable client SSL
     verify: :verify_peer,
     keyfile: Path.expand("./test/fixtures/certs/server-key.pem"),
@@ -28,9 +28,9 @@ config :nerveshub, NervesHubWeb.Endpoint,
 config :logger, level: :warn
 
 # Configure your database
-config :nerveshub, NervesHub.Repo,
+config :nerves_hub, NervesHub.Repo,
   adapter: Ecto.Adapters.Postgres,
   url: System.get_env("DATABASE_URL"),
   ssl: false,
-  database: "nerveshub_test",
+  database: "nerves_hub_test",
   pool: Ecto.Adapters.SQL.Sandbox
