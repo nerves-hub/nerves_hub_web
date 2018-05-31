@@ -3,7 +3,7 @@ defmodule NervesHub.MixProject do
 
   def project do
     [
-      app: :nerveshub,
+      app: :nerves_hub,
       version: "0.0.1",
       elixir: "~> 1.4",
       elixirc_paths: elixirc_paths(Mix.env()),

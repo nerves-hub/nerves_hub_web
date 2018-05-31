@@ -6,7 +6,7 @@ use Mix.Config
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we use it
 # with brunch.io to recompile .js and .css sources.
-config :nerveshub, NervesHubWeb.Endpoint,
+config :nerves_hub, NervesHubWeb.Endpoint,
   http: [port: 4000],
   debug_errors: true,
   code_reloader: true,
@@ -14,7 +14,7 @@ config :nerveshub, NervesHubWeb.Endpoint,
   watchers: [],
   https: [
     port: 4001,
-    otp_app: :nerveshub,
+    otp_app: :nerves_hub,
     # Enable client SSL
     verify: :verify_peer,
     keyfile: Path.expand("./test/fixtures/certs/server-key.pem"),
@@ -39,14 +39,14 @@ config :nerveshub, NervesHubWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :nerveshub, NervesHubWeb.Endpoint,
+config :nerves_hub, NervesHubWeb.Endpoint,
   url: [scheme: "http", host: "localhost", port: 4000],
   live_reload: [
     patterns: [
       ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
       ~r{priv/gettext/.*(po)$},
-      ~r{lib/nerveshub_web/views/.*(ex)$},
-      ~r{lib/nerveshub_web/templates/.*(eex)$}
+      ~r{lib/nerves_hub_web/views/.*(ex)$},
+      ~r{lib/nerves_hub_web/templates/.*(eex)$}
     ]
   ]
 
@@ -58,14 +58,14 @@ config :logger, :console, format: "[$level] $message\n"
 config :phoenix, :stacktrace_depth, 20
 
 # Configure your database
-config :nerveshub, NervesHub.Repo,
+config :nerves_hub, NervesHub.Repo,
   adapter: Ecto.Adapters.Postgres,
   url: System.get_env("DATABASE_URL"),
   ssl: false
 
-config :nerveshub, firmware_upload: NervesHub.Firmware.Upload.File
+config :nerves_hub, firmware_upload: NervesHub.Firmware.Upload.File
 
 # uncomment out lines 19-23 in endpoint.ex and update paths accordingly
-config :nerveshub, NervesHub.Firmware.Upload.File,
+config :nerves_hub, NervesHub.Firmware.Upload.File,
   local_path: "/tmp/firmware",
   public_path: "/firmware"

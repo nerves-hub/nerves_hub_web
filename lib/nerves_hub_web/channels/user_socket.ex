@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.UserSocket do
   use Phoenix.Socket
 
-  @websocket_auth_methods Application.get_env(:nerveshub, :websocket_auth_methods)
+  @websocket_auth_methods Application.get_env(:nerves_hub, :websocket_auth_methods)
 
   ## Channels
   # channel "room:*", NervesHubWeb.RoomChannel
@@ -20,7 +20,7 @@ defmodule NervesHubWeb.UserSocket do
   # performing token verification on connect.
 
   if Enum.member?(@websocket_auth_methods, :header) do
-    @serial_header Application.get_env(:nerveshub, :device_serial_header)
+    @serial_header Application.get_env(:nerves_hub, :device_serial_header)
 
     def connect(%{x_headers: %{@serial_header => serial}}, socket) do
       {:ok, assign(socket, :serial, serial)}

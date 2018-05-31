@@ -1,5 +1,5 @@
 defmodule NervesHub.Repo do
-  use Ecto.Repo, otp_app: :nerveshub
+  use Ecto.Repo, otp_app: :nerves_hub
 
   @doc """
   Dynamically loads the repository url from the
