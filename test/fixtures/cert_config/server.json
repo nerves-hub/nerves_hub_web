@@ -1,9 +1,9 @@
 {
-    "CN": "nerveshub",
+    "CN": "nerves-hub",
     "hosts": [
         "connect.nerves-hub.org",
-        "nerveshub.local",
-        "nerveshub"
+        "nerves-hub.local",
+        "nerves-hub"
     ],
     "key": {
         "algo": "ecdsa",
@@ -15,4 +15,3 @@
         }
     ]
 }
-
