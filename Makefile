@@ -38,4 +38,8 @@ test: .env
 	source .env && \
 	    MIX_ENV=test mix test
 
+test-watch: .env
+	source .env && \
+	    MIX_ENV=dev mix test.watch
+
 .PHONY: test rebuild-db reset-db mix iex-server server help
