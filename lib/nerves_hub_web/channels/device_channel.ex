@@ -1,9 +1,9 @@
 defmodule NervesHubWeb.DeviceChannel do
   use NervesHubWeb, :channel
 
-  def join("device:lobby", payload, socket) do
-    if authorized?(payload) do
-      {:ok, %{serial: socket.assigns.serial}, socket}
+  def join("device:" <> serial, _payload, socket) do
+    if authorized?(socket, serial) do
+      {:ok, %{serial: serial}, socket}
     else
       {:error, %{reason: "unauthorized"}}
     end
@@ -23,7 +23,10 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # Add authorization logic here as required.
-  defp authorized?(_payload) do
+  defp authorized?(%{assigns: %{serial: socket_serial}}, socket_serial) do
     true
+  end
+  defp authorized?(_, _) do
+    false
   end
 end
