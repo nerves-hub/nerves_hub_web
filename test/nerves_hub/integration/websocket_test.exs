@@ -2,6 +2,7 @@ defmodule NervesHub.Integration.WebsocketTest do
   use ExUnit.Case, async: false
 
   @serial_header Application.get_env(:nerves_hub, :device_serial_header)
+  @valid_serial "device-1234"
 
   @fake_ssl_socket_config [
     url: "wss://127.0.0.1:4003/socket/websocket",
@@ -30,7 +31,7 @@ defmodule NervesHub.Integration.WebsocketTest do
   @proxy_socket_config [
     url: "wss://127.0.0.1:4003/socket/websocket",
     serializer: Jason,
-    extra_headers: [{@serial_header, "device-1234"}],
+    extra_headers: [{@serial_header, @valid_serial}],
     socket_opts: [
       server_name_indication: 'nerves-hub'
     ]
@@ -73,12 +74,38 @@ defmodule NervesHub.Integration.WebsocketTest do
     {:ok, _} = ClientSocket.start_link(opts)
 
     {:ok, _channel} =
-      ClientChannel.start_link(socket: ClientSocket, topic: "device:lobby", caller: self())
+      ClientChannel.start_link(
+        socket: ClientSocket,
+        topic: "device:#{@valid_serial}",
+        caller: self()
+      )
 
     ClientChannel.join()
 
     assert_receive(
-      {:ok, :join, %{"response" => %{"serial" => "device-1234"}, "status" => "ok"}, _ref},
+      {:ok, :join, %{"response" => %{"serial" => @valid_serial}, "status" => "ok"}, _ref},
+      1_000
+    )
+  end
+
+  test "Cannot connect and authenticate to channel with non-matching serial" do
+    opts =
+      @ssl_socket_config
+      |> Keyword.put(:caller, self())
+
+    {:ok, _} = ClientSocket.start_link(opts)
+
+    {:ok, _channel} =
+      ClientChannel.start_link(
+        socket: ClientSocket,
+        topic: "device:not_valid_serial",
+        caller: self()
+      )
+
+    ClientChannel.join()
+
+    assert_receive(
+      {:error, :join, %{"response" => %{"reason" => "unauthorized"}, "status" => "error"}, _ref},
       1_000
     )
   end
@@ -91,7 +118,11 @@ defmodule NervesHub.Integration.WebsocketTest do
     {:ok, _} = ClientSocket.start_link(opts)
 
     {:ok, _channel} =
-      ClientChannel.start_link(socket: ClientSocket, topic: "device:lobby", caller: self())
+      ClientChannel.start_link(
+        socket: ClientSocket,
+        topic: "device:#{@valid_serial}",
+        caller: self()
+      )
 
     ClientChannel.join()
     assert_receive({:socket_closed, {:tls_alert, 'unknown ca'}}, 1_000)
@@ -105,12 +136,16 @@ defmodule NervesHub.Integration.WebsocketTest do
     {:ok, _} = ClientSocket.start_link(opts)
 
     {:ok, _channel} =
-      ClientChannel.start_link(socket: ClientSocket, topic: "device:lobby", caller: self())
+      ClientChannel.start_link(
+        socket: ClientSocket,
+        topic: "device:#{@valid_serial}",
+        caller: self()
+      )
 
     ClientChannel.join()
 
     assert_receive(
-      {:ok, :join, %{"response" => %{"serial" => "device-1234"}, "status" => "ok"}, _ref},
+      {:ok, :join, %{"response" => %{"serial" => @valid_serial}, "status" => "ok"}, _ref},
       1_000
     )
   end
