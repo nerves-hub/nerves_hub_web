@@ -69,7 +69,8 @@ defmodule NervesHub.MixProject do
       {:phoenix_swoosh, "~> 0.2"},
       {:nerveshub_client, github: "nerves-hub/nerveshub_client", only: :test},
       {:excoveralls, "~> 0.8", only: :test},
-      {:mix_test_watch, "~> 0.6", only: :dev, runtime: false} ]
+      {:mix_test_watch, "~> 0.6", only: :dev, runtime: false}
+    ]
   end
 
   # Aliases are shortcuts or tasks specific to the current project.

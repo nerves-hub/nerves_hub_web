@@ -26,6 +26,7 @@ defmodule NervesHubWeb.DeviceChannel do
   defp authorized?(%{assigns: %{serial: socket_serial}}, socket_serial) do
     true
   end
+
   defp authorized?(_, _) do
     false
   end
