@@ -30,7 +30,10 @@ defmodule NervesHub.Integration.WebsocketTest do
   @proxy_socket_config [
     url: "wss://127.0.0.1:4003/socket/websocket",
     serializer: Jason,
-    extra_headers: [{@serial_header, "device-1234"}]
+    extra_headers: [{@serial_header, "device-1234"}],
+    socket_opts: [
+      server_name_indication: 'nerves-hub'
+    ]
   ]
 
   defmodule ClientSocket do
