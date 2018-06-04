@@ -11,7 +11,7 @@ defmodule NervesHubWeb.AccountController do
 
   def create(conn, params) do
     params["user"]
-    |> Accounts.create_tenant()
+    |> Accounts.create_tenant_with_user()
     |> case do
       {:ok, _tenant} ->
         redirect(conn, to: "/")
