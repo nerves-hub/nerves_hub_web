@@ -5,13 +5,22 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Repo
   alias Comeonin.Bcrypt
 
-  @doc """
-  Create a tenant. Expects `params` to contain fields for both the user and tenant.
-  """
   @spec create_tenant(map) ::
           {:ok, Tenant.t()}
           | {:error, Changeset.t()}
   def create_tenant(params) do
+    %Tenant{}
+    |> Tenant.changeset(params)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Create a tenant. Expects `params` to contain fields for both the user and tenant.
+  """
+  @spec create_tenant_with_user(map) ::
+          {:ok, Tenant.t()}
+          | {:error, Changeset.t()}
+  def create_tenant_with_user(params) do
     types = %{
       name: :string,
       tenant_name: :string,
@@ -38,14 +47,14 @@ defmodule NervesHub.Accounts do
         {:error, changeset}
 
       %Changeset{valid?: true} = changeset ->
-        do_create_tenant(changeset)
+        do_create_tenant_with_user(changeset)
     end
   end
 
-  @spec do_create_tenant(Changeset.t()) ::
+  @spec do_create_tenant_with_user(Changeset.t()) ::
           {:ok, Tenant.t()}
           | {:error, Changeset.t()}
-  defp do_create_tenant(tenant_user_changeset) do
+  defp do_create_tenant_with_user(tenant_user_changeset) do
     field = fn field_name -> Changeset.get_field(tenant_user_changeset, field_name) end
 
     tenant_params = %{
@@ -59,7 +68,7 @@ defmodule NervesHub.Accounts do
     }
 
     Repo.transaction(fn ->
-      with {:ok, tenant} <- %Tenant{} |> Tenant.changeset(tenant_params) |> Repo.insert(),
+      with {:ok, tenant} <- create_tenant(tenant_params),
            {:ok, _user} <- create_user(tenant, user_params) do
         tenant
       else
