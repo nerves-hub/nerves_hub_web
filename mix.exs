@@ -67,7 +67,7 @@ defmodule NervesHub.MixProject do
       {:swoosh, "~> 0.13"},
       {:timex, "~> 3.1"},
       {:phoenix_swoosh, "~> 0.2"},
-      {:nerveshub_client, github: "nerves-hub/nerveshub_client", only: :test},
+      {:nerves_hub_client, github: "nerves-hub/nerves_hub_client", only: :test},
       {:excoveralls, "~> 0.8", only: :test},
       {:mix_test_watch, "~> 0.6", only: :dev, runtime: false},
       {:ex_aws, "~> 2.0"},
