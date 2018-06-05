@@ -1,7 +1,7 @@
-# nerveshub
+# nerves_hub
 
-[![CircleCI](https://circleci.com/gh/nerves-hub/nerveshub/tree/master.svg?style=svg)](https://circleci.com/gh/nerves-hub/nerveshub/tree/master)
-[![Coverage Status](https://coveralls.io/repos/github/nerves-hub/nerveshub/badge.svg?branch=master)](https://coveralls.io/github/nerves-hub/nerveshub?branch=master)
+[![CircleCI](https://circleci.com/gh/nerves-hub/nerves_hub.svg?style=svg)](https://circleci.com/gh/nerves-hub/nerves_hub)
+[![Coverage Status](https://coveralls.io/repos/github/nerves-hub/nerves_hub/badge.svg?branch=master)](https://coveralls.io/github/nerves-hub/nerves_hub?branch=master)
 
 A domain independent back end solution for rolling out software updates to edge
 devices connected to IP based networking infrastructure.
@@ -42,7 +42,7 @@ companies.
 
 NervesHub uses Client-side SSL to authorize and identify connected devices.
 Devices are required to provide a valid certificate that was signed using the
-trusted certificate authority nerveshub certificate. This certificate should be
+trusted certificate authority nerves_hub certificate. This certificate should be
 generated and kept secret and private from Internet-connected servers.
 
 For convenience, we use the pre-generated certificates for `dev` and `test`.
@@ -66,8 +66,12 @@ For a Device to be considered eligible for a given Deployment, it must have
 
 ## Simulating a Device
 
-The [nerves_client](https://github.com/nerves-hub/nerveshub_client) is an example OTP application that simulates a device.
-It will connect to the NervesHub server via a Phoenix Channel and can be used
-to exercise the server for development and test.
+The [nerves_hub_client](https://github.com/nerves-hub/nerves_hub_client) is an
+example OTP application that simulates a device.  It will connect to the
+NervesHub server via a Phoenix Channel and can be used to exercise the server
+for development and test.
 
-See the [nerveshub_client/README.md](https://github.com/nerves-hub/nerveshub_client/blob/master/README.md) for more information.
+See the
+[nerves_hub_client/README.md](https://github.com/nerves-hub/nerves_hub_client/blob/master/README.md)
+for more information.
+
