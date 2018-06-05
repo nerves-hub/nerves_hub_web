@@ -74,7 +74,7 @@ defmodule NervesHubWeb.DeploymentController do
               |> MapSet.to_list()
           })
 
-        result = Deployments.create_deployment(tenant, params)
+        result = Deployments.create_deployment_with_tenant(tenant, params)
 
         {firmware, result}
 

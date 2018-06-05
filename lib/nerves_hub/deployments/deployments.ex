@@ -34,14 +34,26 @@ defmodule NervesHub.Deployments do
     end
   end
 
-  @spec create_deployment(Tenant.t(), map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
-  def create_deployment(tenant, params) do
-    params = Map.put(params, "is_active", false)
-
-    tenant
-    |> Ecto.build_assoc(:deployments)
+  @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
+  def create_deployment(params) do
+    %Deployment{}
     |> Deployment.changeset(params)
     |> Repo.insert()
+  end
+
+  @spec create_deployment_with_tenant(Tenant.t(), map) ::
+          {:ok, Deployment.t()} | {:error, Changeset.t()}
+  def create_deployment_with_tenant(tenant, params) do
+    params = Map.put(params, :is_active, false)
+
+    deployment =
+      tenant
+      |> Ecto.build_assoc(:deployments)
+
+    deployment
+    |> Map.from_struct()
+    |> Map.merge(params)
+    |> create_deployment()
   end
 
   @spec toggle_is_active(Deployment.t()) :: {:ok, Deployment.t()} | {:error, Changeset.t()}

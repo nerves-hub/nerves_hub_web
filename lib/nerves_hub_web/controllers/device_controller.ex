@@ -27,7 +27,7 @@ defmodule NervesHubWeb.DeviceController do
     device_params = tags_to_list(params)
 
     conn.assigns.tenant
-    |> Devices.create_device(device_params)
+    |> Devices.create_device_with_tenant(device_params)
     |> case do
       {:ok, _device} ->
         conn

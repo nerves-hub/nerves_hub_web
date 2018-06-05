@@ -7,6 +7,15 @@ defmodule NervesHub.Devices.Device do
   alias __MODULE__
 
   @type t :: %__MODULE__{}
+  @optional_params [
+    :current_version,
+    :target_version,
+    :last_communication,
+    :description,
+    :product,
+    :tags
+  ]
+  @required_params [:tenant_id, :identifier, :architecture, :platform]
 
   schema "devices" do
     belongs_to(:tenant, Tenant)
@@ -26,8 +35,8 @@ defmodule NervesHub.Devices.Device do
 
   def creation_changeset(%Device{} = device, params) do
     device
-    |> cast(params, [:identifier, :description, :tags, :architecture, :platform])
-    |> validate_required([:identifier, :tags, :architecture, :platform])
+    |> cast(params, @required_params ++ @optional_params)
+    |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
     |> unique_constraint(:identifier, name: :devices_tenant_id_identifier_index)
   end
