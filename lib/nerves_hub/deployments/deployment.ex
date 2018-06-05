@@ -8,6 +8,8 @@ defmodule NervesHub.Deployments.Deployment do
   alias __MODULE__
 
   @type t :: %__MODULE__{}
+  @required_fields [:tenant_id, :firmware_id, :name, :conditions, :is_active]
+  @optional_fields []
 
   schema "deployments" do
     belongs_to(:tenant, Tenant)
@@ -21,16 +23,9 @@ defmodule NervesHub.Deployments.Deployment do
   end
 
   def changeset(%Deployment{} = deployment, params) do
-    fields = [
-      :name,
-      :conditions,
-      :is_active,
-      :firmware_id
-    ]
-
     deployment
-    |> cast(params, fields)
-    |> validate_required(fields)
+    |> cast(params, @required_fields ++ @optional_fields)
+    |> validate_required(@required_fields)
     |> validate_change(:conditions, fn :conditions, conditions ->
       types = %{tags: {:array, :string}, version: :string}
 

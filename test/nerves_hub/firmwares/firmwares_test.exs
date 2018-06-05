@@ -1,52 +1,17 @@
 defmodule NervesHub.FirmwaresTest do
   use NervesHub.DataCase
 
-  alias NervesHub.Repo
+  alias NervesHub.{Firmwares, Fixtures, Repo}
   alias NervesHub.Firmwares.Firmware
-  alias NervesHub.Firmwares
   alias NervesHub.Deployments.Deployment
-  alias NervesHub.Accounts.Tenant
-  alias NervesHub.Devices.Device
   alias Ecto.Changeset
 
   setup do
-    tenant =
-      %Tenant{name: "Test Tenant"}
-      |> Repo.insert!()
+    tenant = Fixtures.tenant_fixture()
+    firmware = Fixtures.firmware_fixture(tenant)
+    deployment = Fixtures.deployment_fixture(tenant, firmware)
 
-    firmware =
-      %Firmware{
-        tenant_id: tenant.id,
-        version: "1.0.0",
-        product: "test_product",
-        architecture: "arm",
-        platform: "rpi0",
-        upload_metadata: %{"public_url" => "http://example.com"},
-        timestamp: DateTime.utc_now(),
-        signed: true,
-        metadata: ""
-      }
-      |> Repo.insert!()
-
-    deployment =
-      %Deployment{
-        tenant_id: tenant.id,
-        firmware_id: firmware.id,
-        name: "Test Deployment",
-        conditions: %{
-          "version" => "< 1.0.0",
-          "tags" => ["beta", "beta-edge"]
-        },
-        is_active: true
-      }
-      |> Repo.insert!()
-
-    device = %Device{
-      tenant_id: tenant.id,
-      architecture: firmware.architecture,
-      platform: firmware.platform,
-      tags: deployment.conditions["tags"]
-    }
+    device = Fixtures.device_fixture(tenant, firmware, deployment)
 
     {:ok,
      %{
