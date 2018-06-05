@@ -44,43 +44,4 @@ defmodule NervesHub.DeploymentsTest do
 
     assert {:error, %Changeset{}} = Deployments.create_deployment(params)
   end
-
-  test 'create_deployment_with_tenant with valid parameters', %{
-    tenant: tenant,
-    firmware: firmware
-  } do
-    params = %{
-      firmware_id: firmware.id,
-      name: "my deployment",
-      conditions: %{
-        "version" => "< 1.0.0",
-        "tags" => ["beta", "beta-edge"]
-      },
-      is_active: true
-    }
-
-    {:ok, %Deployments.Deployment{} = deployment} =
-      Deployments.create_deployment_with_tenant(tenant, params)
-
-    for key <- [:firmware_id, :name, :conditions] do
-      assert Map.get(deployment, key) == Map.get(params, key)
-    end
-
-    refute deployment.is_active
-  end
-
-  test 'create_deployment_with_tenant with invalid parameters', %{
-    tenant: tenant
-  } do
-    params = %{
-      name: "my deployment",
-      conditions: %{
-        "version" => "< 1.0.0",
-        "tags" => ["beta", "beta-edge"]
-      },
-      is_active: true
-    }
-
-    {:error, %Changeset{}} = Deployments.create_deployment_with_tenant(tenant, params)
-  end
 end

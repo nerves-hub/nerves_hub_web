@@ -39,31 +39,6 @@ defmodule NervesHub.DevicesTest do
     assert {:error, %Changeset{}} = Devices.create_device(params)
   end
 
-  test 'create_device_with_tenant with valid parameters', %{tenant: tenant, firmware: firmware} do
-    params = %{
-      identifier: "valid identifier",
-      architecture: firmware.architecture,
-      platform: firmware.platform
-    }
-
-    {:ok, %Devices.Device{} = device} = Devices.create_device_with_tenant(tenant, params)
-    assert device.tenant_id == tenant.id
-
-    for key <- Map.keys(params) do
-      assert Map.get(device, key) == Map.get(params, key)
-    end
-  end
-
-  test 'create_device_with_tenant with invalid parameters', %{tenant: tenant, firmware: firmware} do
-    params = %{
-      identifier: 1,
-      architecture: firmware.architecture,
-      platform: firmware.platform
-    }
-
-    assert {:error, %Changeset{}} = Devices.create_device_with_tenant(tenant, params)
-  end
-
   test 'get_device_by_identifier with existing device', %{device: target_device} do
     assert {:ok, ^target_device} = Devices.get_device_by_identifier(target_device.identifier)
   end

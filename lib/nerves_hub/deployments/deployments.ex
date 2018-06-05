@@ -41,21 +41,6 @@ defmodule NervesHub.Deployments do
     |> Repo.insert()
   end
 
-  @spec create_deployment_with_tenant(Tenant.t(), map) ::
-          {:ok, Deployment.t()} | {:error, Changeset.t()}
-  def create_deployment_with_tenant(tenant, params) do
-    params = Map.put(params, :is_active, false)
-
-    deployment =
-      tenant
-      |> Ecto.build_assoc(:deployments)
-
-    deployment
-    |> Map.from_struct()
-    |> Map.merge(params)
-    |> create_deployment()
-  end
-
   @spec toggle_is_active(Deployment.t()) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def toggle_is_active(%Deployment{} = deployment) do
     deployment

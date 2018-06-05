@@ -50,20 +50,6 @@ defmodule NervesHub.Devices do
     |> Repo.insert()
   end
 
-  @spec create_device_with_tenant(Tenant.t(), map) ::
-          {:ok, Device.t()}
-          | {:error, Changeset.t()}
-  def create_device_with_tenant(%Tenant{} = tenant, params) do
-    device =
-      tenant
-      |> Ecto.build_assoc(:devices)
-
-    device
-    |> Map.from_struct()
-    |> Map.merge(params)
-    |> create_device()
-  end
-
   def update_device(%Device{} = device, params) do
     device
     |> Device.update_changeset(params)
