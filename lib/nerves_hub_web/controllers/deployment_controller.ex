@@ -65,6 +65,8 @@ defmodule NervesHubWeb.DeploymentController do
       {:ok, firmware} ->
         params =
           params
+          |> Map.put("tenant_id", tenant.id)
+          |> Map.put("is_active", false)
           |> Map.put("conditions", %{
             "version" => params["version"],
             "tags" =>
@@ -74,7 +76,7 @@ defmodule NervesHubWeb.DeploymentController do
               |> MapSet.to_list()
           })
 
-        result = Deployments.create_deployment_with_tenant(tenant, params)
+        result = Deployments.create_deployment(params)
 
         {firmware, result}
 

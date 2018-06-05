@@ -23,11 +23,11 @@ defmodule NervesHubWeb.DeviceController do
     )
   end
 
-  def create(conn, %{"device" => params}) do
-    device_params = tags_to_list(params)
-
-    conn.assigns.tenant
-    |> Devices.create_device_with_tenant(device_params)
+  def create(%{assigns: %{tenant: tenant}} = conn, %{"device" => params}) do
+    params
+    |> tags_to_list()
+    |> Map.put("tenant_id", tenant.id)
+    |> Devices.create_device()
     |> case do
       {:ok, _device} ->
         conn
