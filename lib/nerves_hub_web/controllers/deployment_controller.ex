@@ -6,7 +6,7 @@ defmodule NervesHubWeb.DeploymentController do
   alias NervesHub.Deployments.Deployment
   alias Ecto.Changeset
 
-  plug(NervesHubWeb.Plugs.FetchDeployment when action in [:show, :toggle_is_active])
+  plug(NervesHubWeb.Plugs.FetchDeployment when action in [:show, :toggle_is_active, :delete])
 
   def index(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_tenant(tenant_id)
@@ -110,6 +110,14 @@ defmodule NervesHubWeb.DeploymentController do
       "show.html",
       deployment: deployment
     )
+  end
+
+  def delete(%{assigns: %{tenant: tenant, deployment: deployment}} = conn, _params) do
+    Deployments.delete_deployment(tenant, deployment)
+
+    conn
+    |> put_flash(:info, "Deployment successfully deleted")
+    |> redirect(to: deployment_path(conn, :index))
   end
 
   def toggle_is_active(%{assigns: %{deployment: deployment}} = conn, _params) do
