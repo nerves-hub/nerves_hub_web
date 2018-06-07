@@ -43,7 +43,7 @@ defmodule NervesHubWeb.DeviceController do
     conn
     |> render(
       "edit.html",
-      changeset: conn.assigns.device |> Device.update_changeset(%{}) |> tags_to_string()
+      changeset: conn.assigns.device |> Device.changeset(%{}) |> tags_to_string()
     )
   end
 
