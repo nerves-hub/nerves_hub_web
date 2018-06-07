@@ -34,6 +34,25 @@ defmodule NervesHub.Deployments do
     end
   end
 
+  @spec delete_deployment(Tenant.t(), Deployment.t()) ::
+          {:ok, Deployment.t()} | {:error, :not_found}
+  def delete_deployment(%Tenant{id: tenant_id}, %Deployment{id: deployment_id}) do
+    from(
+      d in Deployment,
+      where: d.tenant_id == ^tenant_id,
+      where: d.id == ^deployment_id
+    )
+    |> Repo.one!()
+    |> Repo.delete()
+    |> case do
+      {:error, _changeset} ->
+        {:error, :not_found}
+
+      {:ok, deployment} ->
+        {:ok, deployment}
+    end
+  end
+
   @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def create_deployment(params) do
     %Deployment{}

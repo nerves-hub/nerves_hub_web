@@ -69,6 +69,7 @@ defmodule NervesHubWeb.Router do
     post("/deployments/new", DeploymentController, :create)
     get("/deployments/:deployment_id", DeploymentController, :show)
     post("/deployments/:deployment_id/toggle-active", DeploymentController, :toggle_is_active)
+    delete("/deployments/:deployment_id", DeploymentController, :delete)
   end
 
   scope "/api", NervesHubWeb.Api do

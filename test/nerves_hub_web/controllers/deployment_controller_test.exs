@@ -2,6 +2,7 @@ defmodule NervesHubWeb.DeploymentControllerTest do
   use NervesHubWeb.ConnCase.Browser
 
   alias NervesHub.Fixtures
+  alias NervesHub.Deployments
 
   describe "index" do
     test "lists all deployments", %{conn: conn} do
@@ -52,6 +53,17 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       conn = get(conn, deployment_path(conn, :index))
       assert html_response(conn, 200) =~ deployment_params.name
       assert html_response(conn, 200) =~ "Inactive"
+    end
+  end
+
+  describe "delete deployment" do
+    test "deletes chosen resource", %{conn: conn, current_tenant: tenant} do
+      firmware = Fixtures.firmware_fixture(tenant)
+      deployment = Fixtures.deployment_fixture(tenant, firmware)
+
+      conn = delete(conn, deployment_path(conn, :delete, deployment))
+      assert redirected_to(conn) == deployment_path(conn, :index)
+      assert Deployments.get_deployment(tenant, deployment.id) == {:error, :not_found}
     end
   end
 end
