@@ -1,5 +1,8 @@
 defmodule NervesHub.Integration.WebsocketTest do
   use ExUnit.Case, async: false
+  use NervesHubWeb.ChannelCase
+  alias NervesHub.Fixtures
+  alias NervesHub.Devices
 
   @serial_header Application.get_env(:nerves_hub, :device_serial_header)
   @valid_serial "device-1234"
@@ -37,6 +40,13 @@ defmodule NervesHub.Integration.WebsocketTest do
     ]
   ]
 
+  def device_fixture(device_params \\ %{}) do
+    tenant = Fixtures.tenant_fixture()
+    firmware = Fixtures.firmware_fixture(tenant)
+    deployment = Fixtures.deployment_fixture(tenant, firmware)
+    Fixtures.device_fixture(tenant, firmware, deployment, device_params)
+  end
+
   defmodule ClientSocket do
     use PhoenixChannelClient.Socket
 
@@ -66,87 +76,187 @@ defmodule NervesHub.Integration.WebsocketTest do
     end
   end
 
-  test "Can connect and authenticate to channel using client ssl certificate" do
-    opts =
-      @ssl_socket_config
-      |> Keyword.put(:caller, self())
+  describe "socket auth" do
+    test "Can connect and authenticate to channel using client ssl certificate" do
+      device =
+        %{identifier: @valid_serial}
+        |> device_fixture()
 
-    {:ok, _} = ClientSocket.start_link(opts)
+      opts =
+        @ssl_socket_config
+        |> Keyword.put(:caller, self())
 
-    {:ok, _channel} =
-      ClientChannel.start_link(
-        socket: ClientSocket,
-        topic: "device:#{@valid_serial}",
-        caller: self()
+      {:ok, _} = ClientSocket.start_link(opts)
+
+      {:ok, _channel} =
+        ClientChannel.start_link(
+          socket: ClientSocket,
+          topic: "device:#{device.identifier}",
+          caller: self()
+        )
+
+      ClientChannel.join(%{"version" => "0.0.1"})
+
+      assert_receive(
+        {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
+        1_000
       )
+    end
 
-    ClientChannel.join()
+    test "authentication rejected to channel using incorrect client ssl certificate" do
+      opts =
+        @fake_ssl_socket_config
+        |> Keyword.put(:caller, self())
 
-    assert_receive(
-      {:ok, :join, %{"response" => %{"serial" => @valid_serial}, "status" => "ok"}, _ref},
-      1_000
-    )
+      {:ok, _} = ClientSocket.start_link(opts)
+
+      {:ok, _channel} =
+        ClientChannel.start_link(
+          socket: ClientSocket,
+          topic: "device:#{@valid_serial}",
+          caller: self()
+        )
+
+      ClientChannel.join()
+      assert_receive({:socket_closed, {:tls_alert, 'unknown ca'}}, 1_000)
+    end
+
+    test "Can connect and authenticate to channel using proxy headers" do
+      device = device_fixture()
+
+      opts =
+        @proxy_socket_config
+        |> Keyword.put(:caller, self())
+
+      {:ok, _} = ClientSocket.start_link(opts)
+
+      {:ok, _channel} =
+        ClientChannel.start_link(
+          socket: ClientSocket,
+          topic: "device:#{device.identifier}",
+          caller: self()
+        )
+
+      ClientChannel.join(%{"version" => "0.1.1"})
+
+      assert_receive(
+        {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
+        1_000
+      )
+    end
   end
 
-  test "Cannot connect and authenticate to channel with non-matching serial" do
-    opts =
-      @ssl_socket_config
-      |> Keyword.put(:caller, self())
+  describe "channel auth" do
+    test "Cannot connect and authenticate to channel with non-matching serial" do
+      opts =
+        @ssl_socket_config
+        |> Keyword.put(:caller, self())
 
-    {:ok, _} = ClientSocket.start_link(opts)
+      {:ok, _} = ClientSocket.start_link(opts)
 
-    {:ok, _channel} =
-      ClientChannel.start_link(
-        socket: ClientSocket,
-        topic: "device:not_valid_serial",
-        caller: self()
+      {:ok, _channel} =
+        ClientChannel.start_link(
+          socket: ClientSocket,
+          topic: "device:not_valid_serial",
+          caller: self()
+        )
+
+      ClientChannel.join()
+
+      assert_receive(
+        {:error, :join, %{"response" => %{"reason" => "unauthorized"}, "status" => "error"},
+         _ref},
+        1_000
       )
+    end
 
-    ClientChannel.join()
+    test "Cannot connect and authenticate to channel with non-existing serial" do
+      opts =
+        @ssl_socket_config
+        |> Keyword.put(:caller, self())
 
-    assert_receive(
-      {:error, :join, %{"response" => %{"reason" => "unauthorized"}, "status" => "error"}, _ref},
-      1_000
-    )
+      {:ok, _} = ClientSocket.start_link(opts)
+
+      {:ok, _channel} =
+        ClientChannel.start_link(
+          socket: ClientSocket,
+          topic: "device:#{@valid_serial}",
+          caller: self()
+        )
+
+      ClientChannel.join()
+
+      assert_receive(
+        {:error, :join, %{"response" => %{"reason" => "unauthorized"}, "status" => "error"},
+         _ref},
+        1_000
+      )
+    end
   end
 
-  test "authentication rejected to channel using incorrect client ssl certificate" do
-    opts =
-      @fake_ssl_socket_config
-      |> Keyword.put(:caller, self())
+  describe "firmware update" do
+    test "receives update message when current_version does not match target_version" do
+      device =
+        %{identifier: @valid_serial, current_version: "a", target_version: "b"}
+        |> device_fixture()
 
-    {:ok, _} = ClientSocket.start_link(opts)
+      opts =
+        @ssl_socket_config
+        |> Keyword.put(:caller, self())
 
-    {:ok, _channel} =
-      ClientChannel.start_link(
-        socket: ClientSocket,
-        topic: "device:#{@valid_serial}",
-        caller: self()
+      {:ok, _} = ClientSocket.start_link(opts)
+
+      {:ok, _channel} =
+        ClientChannel.start_link(
+          socket: ClientSocket,
+          topic: "device:#{device.identifier}",
+          caller: self()
+        )
+
+      ClientChannel.join(%{"version" => device.current_version})
+
+      assert_receive(
+        {:ok, :join,
+         %{
+           "response" => %{"update_available" => true},
+           "status" => "ok"
+         }, _ref},
+        1_000
+      )
+    end
+
+    test "does not receive update message when current_version matches target_version" do
+      device =
+        %{identifier: @valid_serial, current_version: "a", target_version: "b"}
+        |> device_fixture()
+
+      opts =
+        @ssl_socket_config
+        |> Keyword.put(:caller, self())
+
+      {:ok, _} = ClientSocket.start_link(opts)
+
+      {:ok, _channel} =
+        ClientChannel.start_link(
+          socket: ClientSocket,
+          topic: "device:#{device.identifier}",
+          caller: self()
+        )
+
+      ClientChannel.join(%{"version" => device.target_version})
+
+      assert_receive(
+        {:ok, :join,
+         %{
+           "response" => %{"update_available" => false},
+           "status" => "ok"
+         }, _ref},
+        1_000
       )
 
-    ClientChannel.join()
-    assert_receive({:socket_closed, {:tls_alert, 'unknown ca'}}, 1_000)
-  end
+      {:ok, updated_device} = Devices.get_device_by_identifier(device.identifier)
 
-  test "Can connect and authenticate to channel using proxy headers" do
-    opts =
-      @proxy_socket_config
-      |> Keyword.put(:caller, self())
-
-    {:ok, _} = ClientSocket.start_link(opts)
-
-    {:ok, _channel} =
-      ClientChannel.start_link(
-        socket: ClientSocket,
-        topic: "device:#{@valid_serial}",
-        caller: self()
-      )
-
-    ClientChannel.join()
-
-    assert_receive(
-      {:ok, :join, %{"response" => %{"serial" => @valid_serial}, "status" => "ok"}, _ref},
-      1_000
-    )
+      assert updated_device.current_version == device.target_version
+    end
   end
 end

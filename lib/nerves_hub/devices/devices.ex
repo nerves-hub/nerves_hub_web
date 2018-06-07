@@ -46,13 +46,13 @@ defmodule NervesHub.Devices do
           | {:error, Changeset.t()}
   def create_device(params) do
     %Device{}
-    |> Device.creation_changeset(params)
+    |> Device.changeset(params)
     |> Repo.insert()
   end
 
   def update_device(%Device{} = device, params) do
     device
-    |> Device.update_changeset(params)
+    |> Device.changeset(params)
     |> Repo.update()
   end
 end

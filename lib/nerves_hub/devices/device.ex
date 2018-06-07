@@ -33,18 +33,11 @@ defmodule NervesHub.Devices.Device do
     timestamps()
   end
 
-  def creation_changeset(%Device{} = device, params) do
+  def changeset(%Device{} = device, params) do
     device
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
     |> unique_constraint(:identifier, name: :devices_tenant_id_identifier_index)
-  end
-
-  def update_changeset(%Device{} = device, params) do
-    device
-    |> cast(params, [:tags])
-    |> validate_required([:tags])
-    |> validate_length(:tags, min: 1)
   end
 end
