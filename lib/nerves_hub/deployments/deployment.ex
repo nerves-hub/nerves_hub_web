@@ -25,8 +25,9 @@ defmodule NervesHub.Deployments.Deployment do
   def edit_changeset(%Deployment{} = deployment, params) do
     fields = [
       :name,
-      :conditions,
+      :conditions
     ]
+
     deployment
     |> cast(params, fields)
     |> validate_required(fields)
