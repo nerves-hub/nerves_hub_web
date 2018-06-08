@@ -71,12 +71,17 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       firmware = Fixtures.firmware_fixture(tenant)
       deployment = Fixtures.deployment_fixture(tenant, firmware)
 
-      conn = put(conn, deployment_path(conn, :update, deployment), deployment: %{
-        "version" => "4.3.2",
-        "tags" => "new, tags, now",
-        "name" => "not original",
-        "firmware_id" => firmware.id
-      })
+      conn =
+        put(
+          conn,
+          deployment_path(conn, :update, deployment),
+          deployment: %{
+            "version" => "4.3.2",
+            "tags" => "new, tags, now",
+            "name" => "not original",
+            "firmware_id" => firmware.id
+          }
+        )
 
       {:ok, reloaded_deployment} = Deployments.get_deployment(tenant, deployment.id)
 

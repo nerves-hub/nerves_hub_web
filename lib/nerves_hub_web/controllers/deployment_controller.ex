@@ -6,7 +6,10 @@ defmodule NervesHubWeb.DeploymentController do
   alias NervesHub.Deployments.Deployment
   alias Ecto.Changeset
 
-  plug(NervesHubWeb.Plugs.FetchDeployment when action in [:show, :toggle_is_active, :delete, :edit, :update])
+  plug(
+    NervesHubWeb.Plugs.FetchDeployment
+    when action in [:show, :toggle_is_active, :delete, :edit, :update]
+  )
 
   def index(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_tenant(tenant_id)
@@ -112,9 +115,10 @@ defmodule NervesHubWeb.DeploymentController do
       {:ok, firmware} ->
         conn
         |> render(
-          "edit.html", deployment: deployment,
-                       firmware: firmware,
-                       changeset: Deployment.edit_changeset(deployment, %{}) |> tags_to_string()
+          "edit.html",
+          deployment: deployment,
+          firmware: firmware,
+          changeset: Deployment.edit_changeset(deployment, %{}) |> tags_to_string()
         )
 
       {:error, :not_found} ->
@@ -124,10 +128,11 @@ defmodule NervesHubWeb.DeploymentController do
     end
   end
 
-
-  def update(%{assigns: %{tenant: tenant, deployment: deployment}} = conn, %{"deployment" => deployment_params}) do
+  def update(%{assigns: %{tenant: tenant, deployment: deployment}} = conn, %{
+        "deployment" => deployment_params
+      }) do
     params = inject_conditions_map(deployment_params)
-    
+
     tenant
     |> Firmwares.get_firmware(params["firmware_id"])
     |> case do
@@ -150,9 +155,13 @@ defmodule NervesHubWeb.DeploymentController do
         |> redirect(to: deployment_path(conn, :show, deployment))
 
       {firmware, {:error, changeset}} ->
-        render(conn, "edit.html", deployment: deployment,
-                                  firmware: firmware,
-                                  changeset: changeset |> tags_to_string())
+        render(
+          conn,
+          "edit.html",
+          deployment: deployment,
+          firmware: firmware,
+          changeset: changeset |> tags_to_string()
+        )
     end
   end
 
