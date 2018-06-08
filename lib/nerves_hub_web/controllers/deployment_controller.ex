@@ -6,7 +6,7 @@ defmodule NervesHubWeb.DeploymentController do
   alias NervesHub.Deployments.Deployment
   alias Ecto.Changeset
 
-  plug(NervesHubWeb.Plugs.FetchDeployment when action in [:show, :toggle_is_active, :delete])
+  plug(NervesHubWeb.Plugs.FetchDeployment when action in [:show, :toggle_is_active, :delete, :edit, :update])
 
   def index(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_tenant(tenant_id)
@@ -67,14 +67,7 @@ defmodule NervesHubWeb.DeploymentController do
           params
           |> Map.put("tenant_id", tenant.id)
           |> Map.put("is_active", false)
-          |> Map.put("conditions", %{
-            "version" => params["version"],
-            "tags" =>
-              params["tags"]
-              |> tags_as_list()
-              |> MapSet.new()
-              |> MapSet.to_list()
-          })
+          |> inject_conditions_map()
 
         result = Deployments.create_deployment(params)
 
@@ -112,6 +105,57 @@ defmodule NervesHubWeb.DeploymentController do
     )
   end
 
+  def edit(%{assigns: %{tenant: tenant, deployment: deployment}} = conn, _params) do
+    tenant
+    |> Firmwares.get_firmware(deployment.firmware_id)
+    |> case do
+      {:ok, firmware} ->
+        conn
+        |> render(
+          "edit.html", deployment: deployment,
+                       firmware: firmware,
+                       changeset: Deployment.edit_changeset(deployment, %{}) |> tags_to_string()
+        )
+
+      {:error, :not_found} ->
+        conn
+        |> put_flash(:error, "Invalid firmware selected")
+        |> redirect(to: deployment_path(conn, :show, deployment))
+    end
+  end
+
+
+  def update(%{assigns: %{tenant: tenant, deployment: deployment}} = conn, %{"deployment" => deployment_params}) do
+    params = inject_conditions_map(deployment_params)
+    
+    tenant
+    |> Firmwares.get_firmware(params["firmware_id"])
+    |> case do
+      {:ok, firmware} ->
+        result = Deployments.update_deployment(deployment, params)
+        {firmware, result}
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+    end
+    |> case do
+      {:error, :not_found} ->
+        conn
+        |> put_flash(:error, "Invalid firmware selected")
+        |> redirect(to: deployment_path(conn, :show, deployment))
+
+      {_, {:ok, deployment}} ->
+        conn
+        |> put_flash(:info, "Deployment updated")
+        |> redirect(to: deployment_path(conn, :show, deployment))
+
+      {firmware, {:error, changeset}} ->
+        render(conn, "edit.html", deployment: deployment,
+                                  firmware: firmware,
+                                  changeset: changeset |> tags_to_string())
+    end
+  end
+
   def delete(%{assigns: %{tenant: tenant, deployment: deployment}} = conn, _params) do
     Deployments.delete_deployment(tenant, deployment)
 
@@ -147,9 +191,21 @@ defmodule NervesHubWeb.DeploymentController do
     |> Changeset.put_change(:conditions, conditions)
   end
 
-  def tags_as_list(""), do: []
+  defp inject_conditions_map(params) do
+    params
+    |> Map.put("conditions", %{
+      "version" => params["version"],
+      "tags" =>
+        params["tags"]
+        |> tags_as_list()
+        |> MapSet.new()
+        |> MapSet.to_list()
+    })
+  end
 
-  def tags_as_list(tags) do
+  defp tags_as_list(""), do: []
+
+  defp tags_as_list(tags) do
     tags
     |> String.split(",")
     |> Enum.map(&String.trim/1)

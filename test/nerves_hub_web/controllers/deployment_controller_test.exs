@@ -56,6 +56,37 @@ defmodule NervesHubWeb.DeploymentControllerTest do
     end
   end
 
+  describe "edit deployment" do
+    test "edits the chosen resource", %{conn: conn, current_tenant: tenant} do
+      firmware = Fixtures.firmware_fixture(tenant)
+      deployment = Fixtures.deployment_fixture(tenant, firmware)
+
+      conn = get(conn, deployment_path(conn, :edit, deployment))
+      assert html_response(conn, 200) =~ "Edit"
+    end
+  end
+
+  describe "update deployment" do
+    test "update the chosen resource", %{conn: conn, current_tenant: tenant} do
+      firmware = Fixtures.firmware_fixture(tenant)
+      deployment = Fixtures.deployment_fixture(tenant, firmware)
+
+      conn = put(conn, deployment_path(conn, :update, deployment), deployment: %{
+        "version" => "4.3.2",
+        "tags" => "new, tags, now",
+        "name" => "not original",
+        "firmware_id" => firmware.id
+      })
+
+      {:ok, reloaded_deployment} = Deployments.get_deployment(tenant, deployment.id)
+
+      assert redirected_to(conn, 302) =~ deployment_path(conn, :show, deployment)
+      assert reloaded_deployment.name == "not original"
+      assert reloaded_deployment.conditions["version"] == "4.3.2"
+      assert Enum.sort(reloaded_deployment.conditions["tags"]) == Enum.sort(~w(new tags now))
+    end
+  end
+
   describe "delete deployment" do
     test "deletes chosen resource", %{conn: conn, current_tenant: tenant} do
       firmware = Fixtures.firmware_fixture(tenant)
