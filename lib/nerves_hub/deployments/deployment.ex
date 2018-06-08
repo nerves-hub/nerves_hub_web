@@ -22,11 +22,26 @@ defmodule NervesHub.Deployments.Deployment do
     timestamps()
   end
 
+  def edit_changeset(%Deployment{} = deployment, params) do
+    fields = [
+      :name,
+      :conditions,
+    ]
+    deployment
+    |> cast(params, fields)
+    |> validate_required(fields)
+    |> validate_conditions()
+  end
+
   def changeset(%Deployment{} = deployment, params) do
     deployment
     |> cast(params, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
-    |> validate_change(:conditions, fn :conditions, conditions ->
+    |> validate_conditions()
+  end
+
+  defp validate_conditions(changeset, _options \\ []) do
+    validate_change(changeset, :conditions, fn :conditions, conditions ->
       types = %{tags: {:array, :string}, version: :string}
 
       version =

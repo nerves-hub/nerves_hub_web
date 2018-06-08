@@ -53,6 +53,13 @@ defmodule NervesHub.Deployments do
     end
   end
 
+  @spec update_deployment(Deployment.t(), map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
+  def update_deployment(deployment, params) do
+    deployment
+    |> Deployment.edit_changeset(params)
+    |> Repo.update()
+  end
+
   @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def create_deployment(params) do
     %Deployment{}

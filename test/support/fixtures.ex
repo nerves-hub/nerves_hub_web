@@ -1,5 +1,4 @@
 defmodule NervesHub.Fixtures do
-  alias NervesHub.Repo
   alias NervesHub.Accounts
   alias NervesHub.Devices
   alias NervesHub.Deployments

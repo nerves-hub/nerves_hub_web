@@ -29,6 +29,10 @@
   </tbody>
 </table>
 
+<a class="btn btn-primary" href="<%= deployment_path(@conn, :edit, @deployment) %>">
+  Edit Deployment
+</a>
+
 <%= form_for @conn, deployment_path(@conn, :toggle_is_active, @deployment.id), fn _ -> %>
   <%= submit "Make #{opposite_status(@deployment)}", class: "btn btn-primary" %>
 <% end %>
