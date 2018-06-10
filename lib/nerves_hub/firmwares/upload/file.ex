@@ -1,6 +1,9 @@
-defmodule NervesHub.Firmware.Upload.File do
+defmodule NervesHub.Firmwares.Upload.File do
+  @spec upload_file(String.t(), String.t(), integer()) ::
+          {:ok, map}
+          | {:error, atom()}
   def upload_file(filepath, filename, tenant_id) do
-    config = Application.get_env(:nerves_hub, NervesHub.Firmware.Upload.File)
+    config = Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload.File)
     random_string = :crypto.strong_rand_bytes(12) |> Base.url_encode64()
     path = Path.join([Integer.to_string(tenant_id), random_string])
     local_path = Path.join([config[:local_path], path])
@@ -19,7 +22,10 @@ defmodule NervesHub.Firmware.Upload.File do
     end
   end
 
+  @spec download_file(Firmware.t()) ::
+          {:ok, String.t()}
+          | {:error, String.t()}
   def download_file(firmware) do
-    firmware.upload_metadata["public_path"]
+    {:ok, firmware.upload_metadata["public_path"]}
   end
 end
