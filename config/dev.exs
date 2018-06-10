@@ -63,9 +63,21 @@ config :nerves_hub, NervesHub.Repo,
   url: System.get_env("DATABASE_URL"),
   ssl: false
 
-config :nerves_hub, firmware_upload: NervesHub.Firmware.Upload.File
+# uncomment if using NervesHub.Firmwares.Upload.File
+# config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
 
 # uncomment out lines 19-23 in endpoint.ex and update paths accordingly
-config :nerves_hub, NervesHub.Firmware.Upload.File,
-  local_path: "/tmp/firmware",
-  public_path: "/firmware"
+# config :nerves_hub, NervesHub.Firmwares.Upload.File,
+#   local_path: "/tmp/firmware",
+#   public_path: "/firmware"
+
+# if using NervesHub.Firmwares.Upload.S3, set configuration below accordingly
+config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.S3
+
+config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
+
+config :ex_aws,
+  s3_host: System.get_env("S3_HOST"),
+  access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, :instance_role],
+  secret_access_key: [{:system, "AWS_SECRET_ACCESS_KEY"}, :instance_role],
+  region: System.get_env("AWS_REGION")
