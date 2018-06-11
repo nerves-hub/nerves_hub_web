@@ -34,3 +34,9 @@ config :nerves_hub, NervesHub.Repo,
   ssl: false,
   database: "nerves_hub_test",
   pool: Ecto.Adapters.SQL.Sandbox
+
+config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
+
+config :nerves_hub, NervesHub.Firmwares.Upload.File,
+  local_path: "/tmp/firmware",
+  public_path: "/firmware"
