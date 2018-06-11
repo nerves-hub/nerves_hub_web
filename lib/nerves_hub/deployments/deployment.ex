@@ -25,7 +25,8 @@ defmodule NervesHub.Deployments.Deployment do
   def edit_changeset(%Deployment{} = deployment, params) do
     fields = [
       :name,
-      :conditions
+      :conditions,
+      :is_active
     ]
 
     deployment

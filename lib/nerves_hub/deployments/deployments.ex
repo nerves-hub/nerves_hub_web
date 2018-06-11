@@ -34,15 +34,9 @@ defmodule NervesHub.Deployments do
     end
   end
 
-  @spec delete_deployment(Tenant.t(), Deployment.t()) ::
-          {:ok, Deployment.t()} | {:error, :not_found}
-  def delete_deployment(%Tenant{id: tenant_id}, %Deployment{id: deployment_id}) do
-    from(
-      d in Deployment,
-      where: d.tenant_id == ^tenant_id,
-      where: d.id == ^deployment_id
-    )
-    |> Repo.one!()
+  @spec delete_deployment(Deployment.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
+  def delete_deployment(%Deployment{id: deployment_id}) do
+    Repo.get!(Deployment, deployment_id)
     |> Repo.delete()
     |> case do
       {:error, _changeset} ->
@@ -65,12 +59,5 @@ defmodule NervesHub.Deployments do
     %Deployment{}
     |> Deployment.changeset(params)
     |> Repo.insert()
-  end
-
-  @spec toggle_is_active(Deployment.t()) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
-  def toggle_is_active(%Deployment{} = deployment) do
-    deployment
-    |> Deployment.changeset(%{is_active: !deployment.is_active})
-    |> Repo.update()
   end
 end

@@ -7,7 +7,7 @@
     <tbody>
       <tr>
         <th>Product</th>
-        <td><%= @firmware.product %>
+        <td><%= @firmware.product %></td>
       </tr>
       <tr>
         <th>Version</th>

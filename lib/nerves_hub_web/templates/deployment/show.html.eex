@@ -33,7 +33,8 @@
   Edit Deployment
 </a>
 
-<%= form_for @conn, deployment_path(@conn, :toggle_is_active, @deployment.id), fn _ -> %>
+<%= form_for @conn, deployment_path(@conn, :update, @deployment), [as: :deployment, method: "put"], fn f -> %>
+  <%= hidden_input f, :is_active, id: "is_active_input", value: !@deployment.is_active %>  
   <%= submit "Make #{opposite_status(@deployment)}", class: "btn btn-primary" %>
 <% end %>
 
