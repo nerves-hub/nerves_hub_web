@@ -18,7 +18,10 @@ defmodule NervesHubWeb.FirmwareControllerTest do
 
   describe "upload firmware" do
     test "redirects after successful upload", %{conn: conn} do
-      upload = %Plug.Upload{path: "test/fixtures/firmware/unsigned.fw", filename: "unsigned.fw"}
+      upload = %Plug.Upload{
+        path: "test/fixtures/firmware/signed-key1.fw",
+        filename: "signed-key1.fw"
+      }
 
       # check that we end up in the right place
       create_conn = post(conn, "/firmware/upload", %{"firmware" => %{"file" => upload}})

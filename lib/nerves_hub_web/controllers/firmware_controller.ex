@@ -20,8 +20,7 @@ defmodule NervesHubWeb.FirmwareController do
   def do_upload(%{assigns: %{tenant: tenant}} = conn, %{
         "firmware" => %{"file" => %{filename: filename, path: path}}
       }) do
-    with {:ok, signed} <- Firmwares.verify_firmware(path),
-         {:ok, tenant_key_id} <- verify_signature(path, signed, tenant.tenant_keys),
+    with {:ok, tenant_key_id} <- verify_signature(path, tenant.tenant_keys),
          {:ok, metadata} <- Firmwares.extract_metadata(path),
          {:ok, version} <- Firmware.metadata_item(metadata, "meta-version"),
          {:ok, product} <- Firmware.metadata_item(metadata, "meta-product"),
@@ -36,7 +35,7 @@ defmodule NervesHubWeb.FirmwareController do
         platform: platform,
         architecture: architecture,
         timestamp: timestamp,
-        signed: if(signed == :signed, do: true, else: false),
+        signed: true,
         tenant_key_id: tenant_key_id,
         metadata: metadata,
         upload_metadata: upload_metadata
@@ -53,14 +52,17 @@ defmodule NervesHubWeb.FirmwareController do
           |> render("upload.html", changeset: changeset)
       end
     else
-      {:error, :corrupt_firmware, message} ->
+      {:error, :no_public_keys} ->
         conn
-        |> put_flash(:error, "Firmware is invalid or corrupt: #{message}")
+        |> put_flash(
+          :error,
+          "Please register public keys for verifying firmware signatures first"
+        )
         |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
 
       {:error, :invalid_signature} ->
         conn
-        |> put_flash(:error, "Firmware signature invalid or missing public key")
+        |> put_flash(:error, "Firmware corrupt, signature invalid or missing public key")
         |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
 
       _ ->
@@ -88,11 +90,7 @@ defmodule NervesHubWeb.FirmwareController do
     end
   end
 
-  defp verify_signature(_path, signed, _keys) when signed === :unsigned do
-    {:ok, nil}
-  end
-
-  defp verify_signature(path, signed, keys) when signed === :signed do
+  defp verify_signature(path, keys) do
     path
     |> Firmwares.verify_signature(keys)
     |> case do

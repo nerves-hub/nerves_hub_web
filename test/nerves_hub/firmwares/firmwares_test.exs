@@ -4,7 +4,23 @@ defmodule NervesHub.FirmwaresTest do
   alias NervesHub.{Firmwares, Fixtures, Repo}
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Accounts.TenantKey
+
   alias Ecto.Changeset
+
+  @test_firmware_path "test/fixtures/firmware"
+  @unsigned_firmware_path Path.join(@test_firmware_path, "unsigned.fw")
+  @signed_key1_firmware_path Path.join(@test_firmware_path, "signed-key1.fw")
+  @signed_other_key_firmware_path Path.join(@test_firmware_path, "signed-other-key.fw")
+  @corrupt_firmware_path Path.join(@test_firmware_path, "signed-other-key.fw")
+  @firmware_pub_key1 %TenantKey{
+    id: "key1",
+    key: File.read!(Path.join(@test_firmware_path, "fwup-key1.pub"))
+  }
+  @firmware_pub_key2 %TenantKey{
+    id: "key2",
+    key: File.read!(Path.join(@test_firmware_path, "fwup-key2.pub"))
+  }
 
   setup do
     tenant = Fixtures.tenant_fixture()
@@ -132,6 +148,53 @@ defmodule NervesHub.FirmwaresTest do
 
       update_version_condition(deployment, ">= 2.1.0 and < 2.37.12")
       {:ok, %Firmware{id: ^firmware_id}} = Firmwares.get_eligible_firmware_update(device, version)
+    end
+  end
+
+  describe "NervesHub.Firmwares.verify_signature/2" do
+    test "returns {:error, :no_public_keys} when no public keys are passed" do
+      assert Firmwares.verify_signature(@unsigned_firmware_path, []) == {:error, :no_public_keys}
+
+      assert Firmwares.verify_signature(@signed_key1_firmware_path, []) ==
+               {:error, :no_public_keys}
+
+      assert Firmwares.verify_signature(@signed_other_key_firmware_path, []) ==
+               {:error, :no_public_keys}
+    end
+
+    test "returns {:ok, key} when signature passes" do
+      assert Firmwares.verify_signature(@signed_key1_firmware_path, [@firmware_pub_key1]) ==
+               {:ok, @firmware_pub_key1}
+
+      assert Firmwares.verify_signature(@signed_key1_firmware_path, [
+               @firmware_pub_key1,
+               @firmware_pub_key2
+             ]) == {:ok, @firmware_pub_key1}
+
+      assert Firmwares.verify_signature(@signed_key1_firmware_path, [
+               @firmware_pub_key2,
+               @firmware_pub_key1
+             ]) == {:ok, @firmware_pub_key1}
+    end
+
+    test "returns {:error, :invalid_signature} when signature fails" do
+      assert Firmwares.verify_signature(@signed_key1_firmware_path, [@firmware_pub_key2]) ==
+               {:error, :invalid_signature}
+
+      assert Firmwares.verify_signature(@signed_other_key_firmware_path, [
+               @firmware_pub_key1,
+               @firmware_pub_key2
+             ]) == {:error, :invalid_signature}
+
+      assert Firmwares.verify_signature(@unsigned_firmware_path, [@firmware_pub_key1]) ==
+               {:error, :invalid_signature}
+    end
+
+    test "returns {:error, :invalid_signature} on corrupt files" do
+      assert Firmwares.verify_signature(@corrupt_firmware_path, [
+               @firmware_pub_key1,
+               @firmware_pub_key2
+             ]) == {:error, :invalid_signature}
     end
   end
 end
