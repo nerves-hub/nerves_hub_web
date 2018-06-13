@@ -11,21 +11,21 @@ help:
 	@exit 1
 
 server: .env
-	source .env && \
+	. ./.env && \
 	mix phx.server
 
 iex:
 	make iex-server
 
 iex-server: .env
-	source .env && \
+	. ./.env && \
 	iex -S mix phx.server
 
 mix:
 	iex -S mix
 
 reset-db: .env
-	source .env && \
+	. ./.env && \
 	make rebuild-db
 
 rebuild-db:
@@ -35,11 +35,11 @@ rebuild-db:
 	mix run priv/repo/seeds.exs
 
 test: .env
-	source .env && \
+	. ./.env && \
 	    MIX_ENV=test mix test
 
 test-watch: .env
-	source .env && \
+	. ./.env && \
 	    MIX_ENV=dev mix test.watch
 
 .PHONY: test rebuild-db reset-db mix iex-server server help
