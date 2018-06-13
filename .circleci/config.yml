@@ -17,8 +17,8 @@ jobs:
 
     steps:
       - checkout
-      - run: wget https://github.com/fhunleth/fwup/releases/download/v1.0.0/fwup_1.0.0_amd64.deb
-      - run: sudo dpkg -i ./fwup_1.0.0_amd64.deb
+      - run: wget https://github.com/fhunleth/fwup/releases/download/v1.2.0/fwup_1.2.0_amd64.deb
+      - run: sudo dpkg -i ./fwup_1.2.0_amd64.deb
       - run: mix local.hex --force
       - run: mix local.rebar --force
 
