@@ -37,26 +37,12 @@ defmodule NervesHub.Firmwares do
     |> Repo.insert()
   end
 
-  @spec verify_firmware(String.t()) ::
-          {:ok, :signed | :unsigned}
-          | {:error, :corrupt_firmware}
-  def verify_firmware(filepath) do
-    case System.cmd("fwup", ["--verify", "-i", filepath]) do
-      {response, 0} ->
-        if String.contains?(response, "Pass a public key to verify the signature") do
-          {:ok, :signed}
-        else
-          {:ok, :unsigned}
-        end
-
-      {error, 1} ->
-        {:error, :corrupt_firmware, error}
-    end
-  end
-
   @spec verify_signature(String.t(), [TenantKey.t()]) ::
           {:ok, TenantKey.t()}
           | {:error, :invalid_signature}
+          | {:error, :no_public_keys}
+  def verify_signature(_filepath, []), do: {:error, :no_public_keys}
+
   def verify_signature(filepath, keys) do
     keys
     |> Enum.find(fn key ->
