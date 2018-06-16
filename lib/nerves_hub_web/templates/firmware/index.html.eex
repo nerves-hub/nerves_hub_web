@@ -13,9 +13,12 @@
       <th>Version</th>
       <th>Platform</th>
       <th>Architecture</th>
-      <th>Timestamp</th>
-      <th>Key</th>
-      <th>Metadata</th>
+      <th>VCS Identifier</th>
+      <th>UUID</th>
+      <th>Description</th>
+      <th>Author</th>
+      <th>Signed</th>
+      <th>Misc</th>
       <th></th>
     </tr>
   </thead>
@@ -25,9 +28,12 @@
       <td><%= firmware.version %></td>
       <td><%= firmware.platform %></td>
       <td><%= firmware.architecture %></td>
-      <td><%= format_timestamp(firmware.timestamp) %></td>
-      <td><%= format_key(firmware, @tenant) %></td>
-      <td><pre class="pre-scrollable"><%= firmware.metadata %></pre></td>
+      <td><%= firmware.vcs_identifier %></td>
+      <td><%= firmware.uuid %></td>
+      <td><%= firmware.description %></td>
+      <td><%= firmware.author %></td>
+      <td><%= format_signed(firmware, @tenant) %></td>
+      <td><pre class="pre-scrollable"><%= firmware.misc %></pre></td>
       <td><%= link("Download", to: firmware_path(@conn, :download, firmware.id)) %></td>
     </tr>
   <% end %>

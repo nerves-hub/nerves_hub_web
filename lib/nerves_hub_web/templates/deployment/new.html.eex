@@ -13,9 +13,9 @@
         <th>Version</th>
         <td>
           <%=
-            case NervesHub.Firmwares.Firmware.version(@firmware) do
-              {:ok, version} -> version
-              _ -> "--"
+            case @firmware.version do
+              nil -> "--"
+              version -> version
             end
           %>
         </td>
