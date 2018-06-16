@@ -10,13 +10,17 @@ defmodule NervesHub.Fixtures do
     key: File.read!("test/fixtures/firmware/fwup-key1.pub")
   }
   @firmware_params %{
-    version: "1.0.0",
-    product: "test_product",
     architecture: "arm",
+    author: "test_author",
+    description: "test_description",
     platform: "rpi0",
+    product: "test_product",
+    signed: true,
     upload_metadata: %{"public_url" => "http://example.com"},
-    timestamp: DateTime.utc_now(),
-    metadata: "not blank"
+    version: "1.0.0",
+    vcs_identifier: "test_vcs_identifier",
+    misc: "test_misc",
+    uuid: "00000000-0000-0000-0000-000000000000"
   }
   @deployment_params %{
     name: "Test Deployment",

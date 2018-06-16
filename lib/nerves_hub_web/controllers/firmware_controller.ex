@@ -22,22 +22,29 @@ defmodule NervesHubWeb.FirmwareController do
       }) do
     with {:ok, tenant_key_id} <- verify_signature(path, tenant.tenant_keys),
          {:ok, metadata} <- Firmwares.extract_metadata(path),
-         {:ok, version} <- Firmware.metadata_item(metadata, "meta-version"),
-         {:ok, product} <- Firmware.metadata_item(metadata, "meta-product"),
-         {:ok, platform} <- Firmware.metadata_item(metadata, "meta-platform"),
-         {:ok, architecture} <- Firmware.metadata_item(metadata, "meta-architecture"),
-         {:ok, timestamp} <- Firmware.timestamp(metadata),
+         {:ok, architecture} <- Firmware.fetch_metadata_item(metadata, "meta-architecture"),
+         {:ok, platform} <- Firmware.fetch_metadata_item(metadata, "meta-platform"),
+         {:ok, product} <- Firmware.fetch_metadata_item(metadata, "meta-product"),
+         {:ok, version} <- Firmware.fetch_metadata_item(metadata, "meta-version"),
+         author <- Firmware.get_metadata_item(metadata, "meta-author"),
+         description <- Firmware.get_metadata_item(metadata, "meta-description"),
+         misc <- Firmware.get_metadata_item(metadata, "meta-misc"),
+         uuid <- Firmware.get_metadata_item(metadata, "meta-uuid"),
+         vcs_identifier <- Firmware.get_metadata_item(metadata, "meta-vcs-identifier"),
          {:ok, upload_metadata} <- upload_firmware(path, filename, tenant.id) do
       %{
-        tenant_id: tenant.id,
-        version: version,
-        product: product,
-        platform: platform,
         architecture: architecture,
-        timestamp: timestamp,
+        author: author,
+        description: description,
+        misc: misc,
+        platform: platform,
+        product: product,
+        tenant_id: tenant.id,
         tenant_key_id: tenant_key_id,
-        metadata: metadata,
-        upload_metadata: upload_metadata
+        upload_metadata: upload_metadata,
+        uuid: uuid,
+        vcs_identifier: vcs_identifier,
+        version: version
       }
       |> Firmwares.create_firmware()
       |> case do
