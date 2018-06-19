@@ -14,14 +14,13 @@ defmodule NervesHub.Firmwares.Firmware do
     :misc,
     :product,
     :tenant_key_id,
-    :uuid,
     :vcs_identifier
   ]
   @required_params [
     :architecture,
     :platform,
-    :signed,
     :tenant_id,
+    :uuid,
     :upload_metadata,
     :version
   ]
@@ -36,7 +35,6 @@ defmodule NervesHub.Firmwares.Firmware do
     field(:misc, :string)
     field(:platform, :string)
     field(:product, :string)
-    field(:signed, :boolean)
     field(:tenant_key_id, :integer)
     field(:upload_metadata, :map)
     field(:uuid, :string)

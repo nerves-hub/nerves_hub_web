@@ -6,7 +6,7 @@ defmodule NervesHub.Repo.Migrations.FirmwaresSplitMetadata do
       add(:author, :string)
       add(:description, :string)
       add(:misc, :string)
-      add(:uuid, :string)
+      add(:uuid, :string, null: false)
       add(:vcs_identifier, :string)
 
       modify(:product, :string, null: true)
