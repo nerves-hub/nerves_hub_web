@@ -12,16 +12,15 @@ defmodule NervesHubWeb.ConnCase.Browser do
       setup do
         {:ok, tenant} = NervesHub.Accounts.create_tenant(%{name: "Browser Tenant"})
 
-        NervesHub.Accounts.create_tenant_key(%{
-          tenant_id: tenant.id,
-          name: "test_key",
-          key: File.read!("test/fixtures/firmware/fwup-key1.pub")
-        })
-
-        {:ok, tenant_with_key} = NervesHub.Accounts.get_tenant(tenant.id)
+        {:ok, tenant_key} =
+          NervesHub.Accounts.create_tenant_key(%{
+            tenant_id: tenant.id,
+            name: "test_key",
+            key: File.read!("test/fixtures/firmware/fwup-key1.pub")
+          })
 
         {:ok, default_user} =
-          tenant_with_key
+          tenant
           |> NervesHub.Accounts.create_user(%{
             name: "Browser User",
             email: "user@browser.com",
@@ -30,10 +29,10 @@ defmodule NervesHubWeb.ConnCase.Browser do
 
         conn =
           build_conn()
-          |> Map.put(:assigns, %{tenant: tenant_with_key})
+          |> Map.put(:assigns, %{tenant: tenant})
           |> init_test_session(%{"auth_user_id" => default_user.id})
 
-        %{conn: conn, current_user: default_user, current_tenant: tenant}
+        %{conn: conn, current_user: default_user, current_tenant: tenant, tenant_key: tenant_key}
       end
     end
   end

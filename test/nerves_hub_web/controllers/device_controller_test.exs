@@ -19,8 +19,12 @@ defmodule NervesHubWeb.DeviceControllerTest do
   end
 
   describe "create device" do
-    test "redirects to show when data is valid", %{conn: conn, current_tenant: tenant} do
-      firmware = Fixtures.firmware_fixture(tenant)
+    test "redirects to show when data is valid", %{
+      conn: conn,
+      current_tenant: tenant,
+      tenant_key: tenant_key
+    } do
+      firmware = Fixtures.firmware_fixture(tenant, tenant_key)
 
       device_params = %{
         # firmware_id: firmware.id,

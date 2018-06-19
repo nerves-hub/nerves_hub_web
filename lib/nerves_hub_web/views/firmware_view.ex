@@ -7,12 +7,8 @@ defmodule NervesHubWeb.FirmwareView do
     "#{date} #{time}"
   end
 
-  def format_signed(%{signed: signed}, _tenant) when signed == false do
-    "No"
-  end
-
-  def format_signed(%{tenant_key_id: tenant_key_id}, tenant) do
+  def format_key(%{tenant_key_id: tenant_key_id}, tenant) do
     key = Enum.find(tenant.tenant_keys, &(&1.id == tenant_key_id))
-    "Yes - #{key.name}"
+    "#{key.name}"
   end
 end

@@ -18,7 +18,6 @@ defmodule NervesHub.Firmwares.Firmware do
     field(:platform, :string)
     field(:architecture, :string)
     field(:timestamp, :utc_datetime)
-    field(:signed, :boolean)
     field(:tenant_key_id, :integer)
     field(:metadata, :string)
     field(:upload_metadata, :map)
@@ -34,7 +33,6 @@ defmodule NervesHub.Firmwares.Firmware do
       :platform,
       :architecture,
       :timestamp,
-      :signed,
       :tenant_key_id,
       :metadata,
       :upload_metadata
@@ -42,7 +40,7 @@ defmodule NervesHub.Firmwares.Firmware do
 
     firmware
     |> cast(params, fields)
-    |> validate_required(fields -- [:tenant_key_id])
+    |> validate_required(fields)
   end
 
   def version(%Firmware{} = firmware) do
