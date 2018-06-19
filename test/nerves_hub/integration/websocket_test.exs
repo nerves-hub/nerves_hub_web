@@ -3,9 +3,12 @@ defmodule NervesHub.Integration.WebsocketTest do
   use NervesHubWeb.ChannelCase
   alias NervesHub.Fixtures
   alias NervesHub.Devices
+  alias NervesHub.Accounts
 
   @serial_header Application.get_env(:nerves_hub, :device_serial_header)
   @valid_serial "device-1234"
+  @valid_product "test-product"
+  @valid_firmware_url "http://foo.com/bar"
 
   @fake_ssl_socket_config [
     url: "wss://127.0.0.1:4003/socket/websocket",
@@ -40,10 +43,17 @@ defmodule NervesHub.Integration.WebsocketTest do
     ]
   ]
 
-  def device_fixture(device_params \\ %{}) do
+  def device_fixture(device_params \\ %{}, firmware_version \\ "0.0.1") do
     tenant = Fixtures.tenant_fixture()
     tenant_key = Fixtures.tenant_key_fixture(tenant)
-    firmware = Fixtures.firmware_fixture(tenant, tenant_key)
+
+    firmware =
+      Fixtures.firmware_fixture(tenant, tenant_key, %{
+        product: @valid_product,
+        version: firmware_version,
+        upload_metadata: %{"public_path" => @valid_firmware_url}
+      })
+
     deployment = Fixtures.deployment_fixture(tenant, firmware)
     Fixtures.device_fixture(tenant, firmware, deployment, device_params)
   end
@@ -80,7 +90,7 @@ defmodule NervesHub.Integration.WebsocketTest do
   describe "socket auth" do
     test "Can connect and authenticate to channel using client ssl certificate" do
       device =
-        %{identifier: @valid_serial}
+        %{identifier: @valid_serial, product: @valid_product}
         |> device_fixture()
 
       opts =
@@ -96,7 +106,7 @@ defmodule NervesHub.Integration.WebsocketTest do
           caller: self()
         )
 
-      ClientChannel.join(%{"version" => "0.0.1"})
+      ClientChannel.join(%{"version" => "0.0.1", "product" => device.product})
 
       assert_receive(
         {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
@@ -123,7 +133,9 @@ defmodule NervesHub.Integration.WebsocketTest do
     end
 
     test "Can connect and authenticate to channel using proxy headers" do
-      device = device_fixture()
+      device =
+        %{identifier: @valid_serial, product: @valid_product}
+        |> device_fixture()
 
       opts =
         @proxy_socket_config
@@ -138,7 +150,7 @@ defmodule NervesHub.Integration.WebsocketTest do
           caller: self()
         )
 
-      ClientChannel.join(%{"version" => "0.1.1"})
+      ClientChannel.join(%{"version" => "0.0.1", "product" => device.product})
 
       assert_receive(
         {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
@@ -197,9 +209,19 @@ defmodule NervesHub.Integration.WebsocketTest do
 
   describe "firmware update" do
     test "receives update message when current_version does not match target_version" do
+      query_version = "0.0.1"
+
       device =
-        %{identifier: @valid_serial, current_version: "a", target_version: "b"}
-        |> device_fixture()
+        %{identifier: @valid_serial, product: @valid_product}
+        |> device_fixture("0.0.2")
+
+      tenant = %Accounts.Tenant{id: device.tenant_id}
+      tenant_key = Fixtures.tenant_key_fixture(tenant, %{name: "some other key"})
+
+      Fixtures.firmware_fixture(tenant, tenant_key, %{
+        product: @valid_product,
+        version: query_version
+      })
 
       opts =
         @ssl_socket_config
@@ -214,12 +236,12 @@ defmodule NervesHub.Integration.WebsocketTest do
           caller: self()
         )
 
-      ClientChannel.join(%{"version" => device.current_version})
+      ClientChannel.join(%{"version" => query_version, "product" => device.product})
 
       assert_receive(
         {:ok, :join,
          %{
-           "response" => %{"update_available" => true},
+           "response" => %{"update_available" => true, "firmware_url" => @valid_firmware_url},
            "status" => "ok"
          }, _ref},
         1_000
@@ -227,9 +249,11 @@ defmodule NervesHub.Integration.WebsocketTest do
     end
 
     test "does not receive update message when current_version matches target_version" do
+      query_version = "0.0.2"
+
       device =
-        %{identifier: @valid_serial, current_version: "a", target_version: "b"}
-        |> device_fixture()
+        %{identifier: @valid_serial, product: @valid_product}
+        |> device_fixture("0.0.2")
 
       opts =
         @ssl_socket_config
@@ -244,7 +268,10 @@ defmodule NervesHub.Integration.WebsocketTest do
           caller: self()
         )
 
-      ClientChannel.join(%{"version" => device.target_version})
+      ClientChannel.join(%{
+        "version" => query_version,
+        "product" => device.product
+      })
 
       assert_receive(
         {:ok, :join,
@@ -255,9 +282,12 @@ defmodule NervesHub.Integration.WebsocketTest do
         1_000
       )
 
-      {:ok, updated_device} = Devices.get_device_by_identifier(device.identifier)
+      updated_device =
+        Devices.get_device_by_identifier(device.identifier)
+        |> elem(1)
+        |> NervesHub.Repo.preload(:current_firmware)
 
-      assert updated_device.current_version == device.target_version
+      assert updated_device.current_firmware.version == query_version
     end
   end
 end

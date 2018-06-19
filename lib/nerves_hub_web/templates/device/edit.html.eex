@@ -12,10 +12,6 @@
     <td><%= @device.description %></td>
   </tr>
   <tr>
-    <th>Current Version</th>
-    <td><%= @device.current_version %></td>
-  </tr>
-  <tr>
     <th>Architecture</th>
     <td><%= @device.architecture %></td>
   </tr>

@@ -1,6 +1,9 @@
 defmodule NervesHubWeb.DeviceChannel do
   use NervesHubWeb, :channel
   alias NervesHub.Devices
+  alias NervesHub.Firmwares
+
+  @uploader Application.get_env(:nerves_hub, :firmware_upload)
 
   def join("device:" <> serial, payload, socket) do
     if authorized?(socket, serial) do
@@ -17,7 +20,7 @@ defmodule NervesHubWeb.DeviceChannel do
   defp build_message(serial, payload) do
     with {:ok, device} <- db_operations(serial, payload) do
       {:ok, %{}}
-      |> update_message(device, device.current_version)
+      |> update_message(device, device.current_firmware_id)
     else
       {:error, message} -> {:error, %{reason: message}}
       _ -> {:error, %{reason: :unknown_error}}
@@ -39,18 +42,40 @@ defmodule NervesHubWeb.DeviceChannel do
 
   defp device_update({:error, message}, _), do: {:error, message}
 
-  defp device_update({:ok, device}, %{"version" => version}) do
-    Devices.update_device(device, %{current_version: version})
+  defp device_update({:ok, device}, %{"version" => version, "product" => product}) do
+    with {:ok, firmware} <-
+           Firmwares.get_firmware_by_tenant_id_product_and_version(
+             device.tenant_id,
+             product,
+             version
+           ) do
+      Devices.update_device(device, %{current_firmware_id: firmware.id})
+    else
+      _ -> {:error, :no_firmware_found}
+    end
   end
 
   defp device_update(_, _), do: {:error, :no_firmware_version}
 
-  defp update_message({:ok, %{} = message}, %Devices.Device{target_version: version}, version) do
+  defp update_message(
+         {:ok, %{} = message},
+         %Devices.Device{target_deployment: %{firmware_id: firmware_id}},
+         firmware_id
+       ) do
     {:ok, %{update_available: false} |> Map.merge(message)}
   end
 
-  defp update_message({:ok, %{} = message}, _, _) do
-    {:ok, %{update_available: true} |> Map.merge(message)}
+  defp update_message(
+         {:ok, %{} = message},
+         %Devices.Device{target_deployment: %{firmware_id: firmware_id}},
+         _
+       ) do
+    with {:ok, firmware} <- Firmwares.get_firmware(firmware_id),
+         {:ok, url} <- @uploader.download_file(firmware) do
+      {:ok, %{update_available: true, firmware_url: url} |> Map.merge(message)}
+    else
+      _ -> {:error, :no_firmware_url}
+    end
   end
 
   # Channels can be used in a request/response fashion
