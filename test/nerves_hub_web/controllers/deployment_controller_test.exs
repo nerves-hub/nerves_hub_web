@@ -12,8 +12,12 @@ defmodule NervesHubWeb.DeploymentControllerTest do
   end
 
   describe "new deployment" do
-    test "renders form with valid request params", %{conn: conn, current_tenant: tenant} do
-      firmware = Fixtures.firmware_fixture(tenant)
+    test "renders form with valid request params", %{
+      conn: conn,
+      current_tenant: tenant,
+      tenant_key: tenant_key
+    } do
+      firmware = Fixtures.firmware_fixture(tenant, tenant_key)
       conn = get(conn, deployment_path(conn, :new), deployment: %{firmware_id: firmware.id})
 
       assert html_response(conn, 200) =~ "Create Deployment"
@@ -33,8 +37,12 @@ defmodule NervesHubWeb.DeploymentControllerTest do
   end
 
   describe "create deployment" do
-    test "redirects to index when data is valid", %{conn: conn, current_tenant: tenant} do
-      firmware = Fixtures.firmware_fixture(tenant)
+    test "redirects to index when data is valid", %{
+      conn: conn,
+      current_tenant: tenant,
+      tenant_key: tenant_key
+    } do
+      firmware = Fixtures.firmware_fixture(tenant, tenant_key)
 
       deployment_params = %{
         firmware_id: firmware.id,
@@ -57,8 +65,12 @@ defmodule NervesHubWeb.DeploymentControllerTest do
   end
 
   describe "edit deployment" do
-    test "edits the chosen resource", %{conn: conn, current_tenant: tenant} do
-      firmware = Fixtures.firmware_fixture(tenant)
+    test "edits the chosen resource", %{
+      conn: conn,
+      current_tenant: tenant,
+      tenant_key: tenant_key
+    } do
+      firmware = Fixtures.firmware_fixture(tenant, tenant_key)
       deployment = Fixtures.deployment_fixture(tenant, firmware)
 
       conn = get(conn, deployment_path(conn, :edit, deployment))
@@ -67,8 +79,12 @@ defmodule NervesHubWeb.DeploymentControllerTest do
   end
 
   describe "update deployment" do
-    test "update the chosen resource", %{conn: conn, current_tenant: tenant} do
-      firmware = Fixtures.firmware_fixture(tenant)
+    test "update the chosen resource", %{
+      conn: conn,
+      current_tenant: tenant,
+      tenant_key: tenant_key
+    } do
+      firmware = Fixtures.firmware_fixture(tenant, tenant_key)
       deployment = Fixtures.deployment_fixture(tenant, firmware)
 
       conn =
@@ -93,8 +109,8 @@ defmodule NervesHubWeb.DeploymentControllerTest do
   end
 
   describe "delete deployment" do
-    test "deletes chosen resource", %{conn: conn, current_tenant: tenant} do
-      firmware = Fixtures.firmware_fixture(tenant)
+    test "deletes chosen resource", %{conn: conn, current_tenant: tenant, tenant_key: tenant_key} do
+      firmware = Fixtures.firmware_fixture(tenant, tenant_key)
       deployment = Fixtures.deployment_fixture(tenant, firmware)
 
       conn = delete(conn, deployment_path(conn, :delete, deployment))

@@ -5,6 +5,10 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Firmwares
 
   @tenant_params %{name: "Test Tenant"}
+  @tenant_key_params %{
+    name: "Test Key",
+    key: File.read!("test/fixtures/firmware/fwup-key1.pub")
+  }
   @firmware_params %{
     version: "1.0.0",
     product: "test_product",
@@ -12,7 +16,6 @@ defmodule NervesHub.Fixtures do
     platform: "rpi0",
     upload_metadata: %{"public_url" => "http://example.com"},
     timestamp: DateTime.utc_now(),
-    signed: true,
     metadata: "not blank"
   }
   @deployment_params %{
@@ -34,9 +37,23 @@ defmodule NervesHub.Fixtures do
     tenant
   end
 
-  def firmware_fixture(%Accounts.Tenant{} = tenant, params \\ %{}) do
-    {:ok, firmware} =
+  def tenant_key_fixture(%Accounts.Tenant{} = tenant, params \\ %{}) do
+    {:ok, tenant_key} =
       %{tenant_id: tenant.id}
+      |> Enum.into(params)
+      |> Enum.into(@tenant_key_params)
+      |> Accounts.create_tenant_key()
+
+    tenant_key
+  end
+
+  def firmware_fixture(
+        %Accounts.Tenant{} = tenant,
+        %Accounts.TenantKey{} = tenant_key,
+        params \\ %{}
+      ) do
+    {:ok, firmware} =
+      %{tenant_id: tenant.id, tenant_key_id: tenant_key.id}
       |> Enum.into(params)
       |> Enum.into(@firmware_params)
       |> Firmwares.create_firmware()

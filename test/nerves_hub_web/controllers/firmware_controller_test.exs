@@ -32,5 +32,31 @@ defmodule NervesHubWeb.FirmwareControllerTest do
       # starter is the product for the test firmware
       assert html_response(conn, 200) =~ "starter"
     end
+
+    test "error if corrupt firmware uploaded", %{conn: conn} do
+      upload = %Plug.Upload{
+        path: "test/fixtures/firmware/corrupt.fw",
+        filename: "corrupt.fw"
+      }
+
+      # check for the error message
+      conn = post(conn, "/firmware/upload", %{"firmware" => %{"file" => upload}})
+
+      assert html_response(conn, 200) =~
+               "Firmware corrupt, signature invalid or missing public key"
+    end
+
+    test "error if tenant keys do not match firmware", %{conn: conn} do
+      upload = %Plug.Upload{
+        path: "test/fixtures/firmware/signed-other-key.fw",
+        filename: "signed-other-key.fw"
+      }
+
+      # check for the error message
+      conn = post(conn, "/firmware/upload", %{"firmware" => %{"file" => upload}})
+
+      assert html_response(conn, 200) =~
+               "Firmware corrupt, signature invalid or missing public key"
+    end
   end
 end

@@ -24,7 +24,8 @@ defmodule NervesHub.FirmwaresTest do
 
   setup do
     tenant = Fixtures.tenant_fixture()
-    firmware = Fixtures.firmware_fixture(tenant)
+    tenant_key = Fixtures.tenant_key_fixture(tenant)
+    firmware = Fixtures.firmware_fixture(tenant, tenant_key)
     deployment = Fixtures.deployment_fixture(tenant, firmware)
 
     device = Fixtures.device_fixture(tenant, firmware, deployment)

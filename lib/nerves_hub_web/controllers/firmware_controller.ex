@@ -35,7 +35,6 @@ defmodule NervesHubWeb.FirmwareController do
         platform: platform,
         architecture: architecture,
         timestamp: timestamp,
-        signed: true,
         tenant_key_id: tenant_key_id,
         metadata: metadata,
         upload_metadata: upload_metadata
