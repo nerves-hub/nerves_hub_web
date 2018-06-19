@@ -15,7 +15,6 @@ defmodule NervesHub.Fixtures do
     description: "test_description",
     platform: "rpi0",
     product: "test_product",
-    signed: true,
     upload_metadata: %{"public_url" => "http://example.com"},
     version: "1.0.0",
     vcs_identifier: "test_vcs_identifier",
