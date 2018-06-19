@@ -87,6 +87,8 @@ defmodule NervesHub.Fixtures do
     {:ok, device} =
       %{
         tenant_id: tenant.id,
+        target_deployment_id: deployment.id,
+        current_firmware_id: firmware.id,
         architecture: firmware.architecture,
         platform: firmware.platform,
         tags: deployment.conditions["tags"]

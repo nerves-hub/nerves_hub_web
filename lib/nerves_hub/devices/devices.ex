@@ -34,6 +34,7 @@ defmodule NervesHub.Devices do
     query = from(d in Device, where: d.identifier == ^identifier)
 
     query
+    |> Device.with_deployment()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}

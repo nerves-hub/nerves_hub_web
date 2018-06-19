@@ -41,7 +41,11 @@ defmodule NervesHub.DevicesTest do
   end
 
   test 'get_device_by_identifier with existing device', %{device: target_device} do
-    assert {:ok, ^target_device} = Devices.get_device_by_identifier(target_device.identifier)
+    assert {:ok, result} = Devices.get_device_by_identifier(target_device.identifier)
+
+    for key <- [:tenant_id, :deployment_id, :device_identifier] do
+      assert Map.get(target_device, key) == Map.get(result, key)
+    end
   end
 
   test 'get_device_by_identifier without existing device' do

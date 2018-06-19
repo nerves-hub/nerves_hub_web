@@ -21,7 +21,6 @@
     <%= for device <- @devices do %>
       <tr>
         <td><%= device.identifier %></td>
-        <td><%= device.current_version %></td>
         <td>
           <input type="checkbox" disabled>
         </td>

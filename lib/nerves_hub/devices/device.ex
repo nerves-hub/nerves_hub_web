@@ -2,14 +2,18 @@ defmodule NervesHub.Devices.Device do
   use Ecto.Schema
 
   import Ecto.Changeset
+  import Ecto.Query
 
   alias NervesHub.Accounts.Tenant
+  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Firmwares.Firmware
+
   alias __MODULE__
 
   @type t :: %__MODULE__{}
   @optional_params [
-    :current_version,
-    :target_version,
+    :target_deployment_id,
+    :current_firmware_id,
     :last_communication,
     :description,
     :product,
@@ -19,13 +23,13 @@ defmodule NervesHub.Devices.Device do
 
   schema "devices" do
     belongs_to(:tenant, Tenant)
+    belongs_to(:target_deployment, Deployment)
+    belongs_to(:current_firmware, Firmware)
 
     field(:identifier, :string)
     field(:description, :string)
     field(:product, :string)
     field(:platform, :string)
-    field(:current_version, :string)
-    field(:target_version, :string)
     field(:last_communication, :utc_datetime)
     field(:architecture, :string)
     field(:tags, {:array, :string})
@@ -39,5 +43,10 @@ defmodule NervesHub.Devices.Device do
     |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
     |> unique_constraint(:identifier, name: :devices_tenant_id_identifier_index)
+  end
+
+  def with_deployment(device_query) do
+    device_query
+    |> preload(:target_deployment)
   end
 end
