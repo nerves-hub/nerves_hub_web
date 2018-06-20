@@ -51,7 +51,7 @@ defmodule NervesHub.MixProject do
       {:jason, "~> 1.0"},
       # poison can be removed once a new release of postgrex is made
       {:poison, "~> 3.0"},
-      {:plug, github: "mobileoverlord/plug", branch: "client_ssl", override: true},
+      {:plug, "~> 1.6"},
       {:phoenix, github: "mobileoverlord/phoenix", branch: "ws_extra_params", override: true},
       {:phoenix_pubsub, "~> 1.0"},
       {:phoenix_ecto, github: "phoenixframework/phoenix_ecto"},
