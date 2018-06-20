@@ -35,6 +35,7 @@ defmodule NervesHub.Devices do
 
     query
     |> Device.with_deployment()
+    |> Device.with_tenant()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}

@@ -49,4 +49,9 @@ defmodule NervesHub.Devices.Device do
     device_query
     |> preload(:target_deployment)
   end
+
+  def with_tenant(device_query) do
+    device_query
+    |> preload(:tenant)
+  end
 end

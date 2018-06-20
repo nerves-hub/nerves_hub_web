@@ -177,8 +177,7 @@ defmodule NervesHub.Integration.WebsocketTest do
       ClientChannel.join()
 
       assert_receive(
-        {:error, :join, %{"response" => %{"reason" => "unauthorized"}, "status" => "error"},
-         _ref},
+        {:socket_closed, {403, "Forbidden"}},
         1_000
       )
     end
@@ -200,8 +199,7 @@ defmodule NervesHub.Integration.WebsocketTest do
       ClientChannel.join()
 
       assert_receive(
-        {:error, :join, %{"response" => %{"reason" => "unauthorized"}, "status" => "error"},
-         _ref},
+        {:socket_closed, {403, "Forbidden"}},
         1_000
       )
     end
@@ -216,7 +214,7 @@ defmodule NervesHub.Integration.WebsocketTest do
         |> device_fixture("0.0.2")
 
       tenant = %Accounts.Tenant{id: device.tenant_id}
-      tenant_key = Fixtures.tenant_key_fixture(tenant, %{name: "some other key"})
+      tenant_key = Fixtures.tenant_key_fixture(tenant, %{name: "another key"})
 
       Fixtures.firmware_fixture(tenant, tenant_key, %{
         product: @valid_product,

@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.UserSocket do
   use Phoenix.Socket
+  alias NervesHub.Devices
 
   @websocket_auth_methods Application.get_env(:nerves_hub, :websocket_auth_methods)
 
@@ -23,14 +24,14 @@ defmodule NervesHubWeb.UserSocket do
     @serial_header Application.get_env(:nerves_hub, :device_serial_header)
 
     def connect(%{x_headers: %{@serial_header => serial}}, socket) do
-      {:ok, assign(socket, :serial, serial)}
+      build_socket(socket, serial)
     end
   end
 
   if Enum.member?(@websocket_auth_methods, :ssl) do
     def connect(%{ssl_cert: ssl_cert}, socket) do
       case NervesHub.Certificate.get_common_name(ssl_cert) do
-        {:ok, serial} -> {:ok, assign(socket, :serial, serial)}
+        {:ok, serial} -> build_socket(socket, serial)
         error -> error
       end
     end
@@ -38,6 +39,19 @@ defmodule NervesHubWeb.UserSocket do
 
   def connect(_params, _socket) do
     :error
+  end
+
+  defp build_socket(socket, serial) do
+    with {:ok, device} <- Devices.get_device_by_identifier(serial) do
+      new_socket =
+        socket
+        |> assign(:device, device)
+        |> assign(:tenant, device.tenant)
+
+      {:ok, new_socket}
+    else
+      _ -> :error
+    end
   end
 
   # Socket id's are topics that allow you to identify all sockets for a given user:
