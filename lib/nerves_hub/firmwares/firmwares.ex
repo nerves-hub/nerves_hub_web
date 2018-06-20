@@ -28,24 +28,12 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  @spec get_firmware(integer()) ::
+  @spec get_firmware_by_product_and_version(Tenant.t(), String.t(), String.t()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
-  def get_firmware(id) do
+  def get_firmware_by_product_and_version(%Tenant{} = tenant, product, version) do
     Firmware
-    |> Repo.get(id)
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
-  end
-
-  @spec get_firmware_by_tenant_id_product_and_version(integer(), string(), string()) ::
-          {:ok, Firmware.t()}
-          | {:error, :not_found}
-  def get_firmware_by_tenant_id_product_and_version(tenant_id, product, version) do
-    Firmware
-    |> Repo.get_by(tenant_id: tenant_id, product: product, version: version)
+    |> Repo.get_by(tenant_id: tenant.id, product: product, version: version)
     |> case do
       nil -> {:error, :not_found}
       firmware -> {:ok, firmware}
