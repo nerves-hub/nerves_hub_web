@@ -1,0 +1,13 @@
+{
+    "CN": "NervesHub CA",
+    "key": {
+        "algo": "ecdsa",
+        "size": 256
+    },
+    "names": [
+        {
+            "C": "US"
+        }
+    ]
+}
+

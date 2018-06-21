@@ -11,3 +11,11 @@ services:
       PGDATA: /data
     volumes:
       - ~/db/nerveshub/postgres:/data
+  nerves_hub_ca:
+    image: nerveshub/nerves_hub_ca:v0.2.0
+    ports:
+      - "8443:8443"
+    volumes:
+      - type: bind
+        source: ./test/fixtures/cfssl
+        target: /etc/cfssl
