@@ -28,6 +28,8 @@ config :nerves_hub, NervesHubWeb.Endpoint,
     cacertfile: System.get_env("NERVESHUB_SSL_CACERT")
   ]
 
+config :nerves_hub, NervesHubWeb.AccountController, allow_signups: false
+
 # Do not print debug messages in production
 config :logger, level: :info
 

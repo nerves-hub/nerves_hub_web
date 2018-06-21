@@ -5,6 +5,8 @@ defmodule NervesHubWeb.AccountController do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User
 
+  plug(NervesHubWeb.Plugs.AllowUninvitedSignups when action in [:new, :create])
+
   def new(conn, _params) do
     render(conn, "new.html", changeset: %Changeset{data: %User{}})
   end

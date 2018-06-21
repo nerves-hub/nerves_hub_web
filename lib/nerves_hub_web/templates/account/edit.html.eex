@@ -1,5 +1,5 @@
 <h1>
-  Account
+  Edit Account
 </h1>
 
 <%= form_for @changeset, account_path(@conn, :update), fn f -> %>
