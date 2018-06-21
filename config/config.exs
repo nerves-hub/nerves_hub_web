@@ -25,6 +25,8 @@ config :logger, :console,
 
 config :nerves_hub, NervesHub.Mailer, adapter: Swoosh.Adapters.Local
 
+config :nerves_hub, NervesHubWeb.AccountController, allow_signups: true
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{Mix.env()}.exs"

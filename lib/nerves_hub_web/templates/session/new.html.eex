@@ -4,9 +4,12 @@
     <p class="lead text-left">NervesHub helps you manage firmware updates for Nerves devices.</p>
 
     <p class="text-left">
-      <a class="btn btn-success btn-large" href="<%= account_path(@conn, :new) %>">
-        Create Account
-      </a>
+
+      <%= if permit_uninvited_signups() do %>
+        <a class="btn btn-success btn-large" href="<%= account_path(@conn, :new) %>">
+          Create Account
+        </a>
+      <% end %>
     </p>
 
     <hr>
