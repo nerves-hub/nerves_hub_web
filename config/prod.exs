@@ -48,7 +48,7 @@ config :logger, level: :info
 #
 # Where those two env variables return an absolute path to
 # the key and cert in disk or a relative path inside priv,
-# for example "priv/ssl/server.key".
+# for example "priv/cfssl/server.key".
 #
 # We also recommend setting `force_ssl`, ensuring no data is
 # ever sent via http, always redirecting to https:

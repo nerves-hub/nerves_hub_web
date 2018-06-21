@@ -1,6 +1,6 @@
 defmodule NervesHubWeb.UserSocket do
   use Phoenix.Socket
-  alias NervesHub.Devices
+  alias NervesHub.{Certificate, Devices}
 
   @websocket_auth_methods Application.get_env(:nerves_hub, :websocket_auth_methods)
 
@@ -30,7 +30,7 @@ defmodule NervesHubWeb.UserSocket do
 
   if Enum.member?(@websocket_auth_methods, :ssl) do
     def connect(%{ssl_cert: ssl_cert}, socket) do
-      case NervesHub.Certificate.get_common_name(ssl_cert) do
+      case Certificate.get_device_serial(ssl_cert) do
         {:ok, serial} -> build_socket(socket, serial)
         error -> error
       end

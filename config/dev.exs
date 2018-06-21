@@ -17,9 +17,9 @@ config :nerves_hub, NervesHubWeb.Endpoint,
     otp_app: :nerves_hub,
     # Enable client SSL
     verify: :verify_peer,
-    keyfile: Path.expand("./test/fixtures/certs/server-key.pem"),
-    certfile: Path.expand("./test/fixtures/certs/server.pem"),
-    cacertfile: Path.expand("./test/fixtures/certs/ca.pem")
+    keyfile: Path.expand("./test/fixtures/cfssl/server-key.pem"),
+    certfile: Path.expand("./test/fixtures/cfssl/server.pem"),
+    cacertfile: Path.expand("./test/fixtures/cfssl/ca.pem")
   ]
 
 # ## SSL Support
@@ -75,6 +75,16 @@ config :nerves_hub, NervesHub.Repo,
 config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.S3
 
 config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
+
+config :nerves_hub, NervesHub.CertificateAuthority,
+  host: "127.0.0.1",
+  port: 8443,
+  ssl: [
+    keyfile: Path.expand("./test/fixtures/cfssl/server-key.pem"),
+    certfile: Path.expand("./test/fixtures/cfssl/server.pem"),
+    cacertfile: Path.expand("./test/fixtures/cfssl/ca.pem"),
+    server_name_indication: 'ca.nerves-hub.org'
+  ]
 
 config :ex_aws,
   s3_host: System.get_env("S3_HOST"),

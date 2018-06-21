@@ -6,6 +6,9 @@ defmodule NervesHub.Application do
   def start(_type, _args) do
     import Supervisor.Spec
 
+    # Start the hackney pool for connections to NervesHubCA
+    NervesHub.CertificateAuthority.start_pool()
+
     # Define workers and child supervisors to be supervised
     children = [
       # Start the Ecto repository
