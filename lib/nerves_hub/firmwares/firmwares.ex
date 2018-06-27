@@ -40,6 +40,18 @@ defmodule NervesHub.Firmwares do
     end
   end
 
+  @spec get_firmware_by_uuid(Tenant.t(), String.t()) ::
+          {:ok, Firmware.t()}
+          | {:error, :not_found}
+  def get_firmware_by_uuid(%Tenant{} = tenant, uuid) do
+    Firmware
+    |> Repo.get_by(tenant_id: tenant.id, uuid: uuid)
+    |> case do
+      nil -> {:error, :not_found}
+      firmware -> {:ok, firmware}
+    end
+  end
+
   @spec create_firmware(map) ::
           {:ok, Firmware.t()}
           | {:error, Changeset.t()}
