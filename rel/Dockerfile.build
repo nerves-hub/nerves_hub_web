@@ -1,0 +1,48 @@
+# Elixir build container
+FROM elixir:1.6 as builder
+
+ENV MIX_ENV=prod
+
+RUN mix local.hex --force && mix local.rebar --force
+RUN mkdir /build
+ADD . /build
+WORKDIR /build
+
+RUN mix deps.clean --all && mix deps.get
+RUN mix release --env=$MIX_ENV
+
+# Release Container
+FROM elixir:1.6 as release
+
+ENV MIX_ENV=prod
+ENV REPLACE_OS_VARS true
+ENV \
+  LANG=C.UTF-8 \
+  LC_ALL=en_US.UTF-8 \
+  PATH="/app/bin:${PATH}" \
+  FWUP_VERSION=1.2.0
+
+RUN apt-get update -qq \
+  && apt-get -qq -y install \
+    locales \
+    awscli \
+  && export LANG=en_US.UTF-8 \
+  && echo $LANG UTF-8 > /etc/locale.gen \
+  && locale-gen \
+  && update-locale LANG=$LANG \
+  && wget https://github.com/fhunleth/fwup/releases/download/v${FWUP_VERSION}/fwup_${FWUP_VERSION}_amd64.deb \
+  && dpkg -i ./fwup_${FWUP_VERSION}_amd64.deb \
+  && rm -f fwup_${FWUP_VERSION}_amd64.deb
+
+EXPOSE 80
+EXPOSE 443
+
+WORKDIR /app
+
+COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub/releases/*/nerves_hub.tar.gz .
+RUN tar xvfz nerves_hub.tar.gz > /dev/null && rm nerves_hub.tar.gz
+
+COPY --from=builder /build/rel/scripts/s3-entrypoint.sh .
+RUN ["chmod", "+x", "/app/s3-entrypoint.sh"]
+
+CMD ["nerves_hub", "foreground"]
