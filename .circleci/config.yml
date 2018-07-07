@@ -1,7 +1,69 @@
+defaults: &defaults
+  docker:
+    - image: nerveshub/docker-build:latest
+  working_directory: ~/repo
+
+remote_docker: &remote_docker
+  setup_remote_docker:
+    version: 17.09.0-ce
+
+docker_env: &docker_env
+  run:
+    name: Set docker env
+    command: |
+      if [ -z "$CIRCLE_TAG" ]; then
+      BRANCH=$(git rev-parse --abbrev-ref HEAD)
+        SHA=$(git rev-parse --short HEAD)
+        TAG=$(echo "v.$BRANCH.$SHA" | sed 's/\//_/g')
+      else
+        TAG=$CIRCLE_TAG
+      fi
+      echo "export DOCKER_TAG=$TAG" >> $BASH_ENV
+      echo "export DOCKER_IMAGE=nerveshub/$CIRCLE_PROJECT_REPONAME" >> $BASH_ENV
+
+docker_build_release: &docker_build_release
+  run:
+    name: Build docker image
+    command: |
+      docker build \
+        -t $DOCKER_IMAGE:$DOCKER_TAG \
+        -f rel/Dockerfile.build .
+
+docker_push: &docker_push
+  run: 
+    name: Push docker image to dockerhub
+    command: |
+      docker login -u $DOCKER_USER -p $DOCKER_PASS
+      docker push \
+        $DOCKER_IMAGE:$DOCKER_TAG
+
+update_task: &update_task
+  run: 
+    name: Update ECS Task
+    command: |
+      TASK=$(rel/scripts/ecs-update-task.sh nerves_hub $DOCKER_IMAGE:$DOCKER_TAG)
+      echo "export ECS_TASK=$TASK" >> $BASH_ENV
+
+migrate: &migrate
+  run:
+    name: Run Migrations
+    command: |
+      rel/scripts/ecs-migrate.sh \
+        nerves-hub \
+        $ECS_TASK
+
+deploy: &deploy
+  run:
+    name: Deploy to production
+    command: |
+      rel/scripts/ecs-deploy.sh \
+        nerves-hub \
+        nerves-hub \
+        $ECS_TASK
+
 version: 2
 jobs:
-  build:
-    parallelism: 1
+  test:
     docker:
       - image: circleci/elixir:1.6
         environment:
@@ -59,3 +121,41 @@ jobs:
       - run:
           name: Verify formatting
           command: mix format --check-formatted
+  
+  build:
+    <<: *defaults
+    steps:
+      - checkout
+      - <<: *remote_docker
+      - <<: *docker_env
+      - <<: *docker_build_release
+      - <<: *docker_push
+  
+  deploy:
+    <<: *defaults
+    steps:
+      - checkout
+      - <<: *docker_env
+      - <<: *update_task
+      - <<: *migrate
+      - <<: *deploy
+
+workflows:
+  version: 2
+  pipeline:
+      jobs:
+        - test
+        - build:
+            context: org-global
+            requires:
+              - test
+            filters:
+              branches:
+                only: master
+        - deploy:
+            context: org-global
+            requires:
+              - build
+            filters:
+              branches:
+                only: master

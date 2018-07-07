@@ -15,61 +15,31 @@ use Mix.Config
 # which you typically run after static files are built.
 config :nerves_hub, NervesHubWeb.Endpoint,
   load_from_system_env: true,
-  url: [scheme: "https", host: "nerves-hub.org", port: 80],
-  force_ssl: [hsts: true],
-  cache_static_manifest: "priv/static/cache_manifest.json",
-  https: [
-    port: 443,
-    otp_app: :nerves_hub,
-    # Enable client SSL
-    verify: :verify_peer,
-    keyfile: System.get_env("NERVESHUB_SSL_KEY"),
-    certfile: System.get_env("NERVESHUB_SSL_CERT"),
-    cacertfile: System.get_env("NERVESHUB_SSL_CACERT")
-  ]
+  server: true,
+  url: [host: "www.nerves-hub.org", port: 80],
+  secret_key_base: "${SECRET_KEY_BASE}",
+  # force_ssl: [hsts: true],
+  cache_static_manifest: "priv/static/cache_manifest.json"
+
+# https: [
+#   port: 443,
+#   otp_app: :nerves_hub,
+#   # Enable client SSL
+#   verify: :verify_peer,
+#   keyfile: "/etc/ssl/server-key.pem",
+#   certfile: "/etc/ssl/server.pem",
+#   cacertfile: "/etc/ssl/ca.pem"
+# ]
 
 config :nerves_hub, NervesHubWeb.AccountController, allow_signups: false
 
 # Do not print debug messages in production
-config :logger, level: :info
+config :logger, level: :debug
 
-# ## SSL Support
-#
-# To get SSL working, you will need to add the `https` key
-# to the previous section and set your `:url` port to 443:
-#
-#     config :nerves_hub, NervesHubWeb.Endpoint,
-#       ...
-#       url: [host: "example.com", port: 443],
-#       https: [:inet6,
-#               port: 443,
-#               keyfile: System.get_env("SOME_APP_SSL_KEY_PATH"),
-#               certfile: System.get_env("SOME_APP_SSL_CERT_PATH")]
-#
-# Where those two env variables return an absolute path to
-# the key and cert in disk or a relative path inside priv,
-# for example "priv/cfssl/server.key".
-#
-# We also recommend setting `force_ssl`, ensuring no data is
-# ever sent via http, always redirecting to https:
-#
-#     config :nerves_hub, NervesHubWeb.Endpoint,
-#       force_ssl: [hsts: true]
-#
-# Check `Plug.SSL` for all available options in `force_ssl`.
-
-# ## Using releases
-#
-# If you are doing OTP releases, you need to instruct Phoenix
-# to start the server for all endpoints:
-#
-#     config :phoenix, :serve_endpoints, true
-#
-# Alternatively, you can configure exactly which server to
-# start per endpoint:
-#
-#     config :nerves_hub, NervesHubWeb.Endpoint, server: true
-#
+# Configure your database
+config :nerves_hub, NervesHub.Repo,
+  adapter: Ecto.Adapters.Postgres,
+  url: "${DATABASE_URL}"
 
 # should be configured for production
 
