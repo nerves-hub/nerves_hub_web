@@ -50,8 +50,21 @@ release :nerves_hub do
   ]
   set version: current_version(:nerves_hub)
   set applications: [
-    :runtime_tools
+    :runtime_tools,
+    nerves_hub: :permanent,
+    nerves_hub_core: :permanent
   ]
   set vm_args: "rel/vm.args"
+  set config: "config/release/nerves_hub.exs"
+end
+
+release :nerves_hub_device do
+  set version: current_version(:nerves_hub_device)
+  set applications: [
+    :runtime_tools,
+    nerves_hub_core: :permanent
+  ]
+  set vm_args: "rel/vm.args"
+  set config: "config/release/nerves_hub_device.exs"
 end
 

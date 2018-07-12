@@ -19,30 +19,36 @@ docker_env: &docker_env
         TAG=$CIRCLE_TAG
       fi
       echo "export DOCKER_TAG=$TAG" >> $BASH_ENV
-      echo "export DOCKER_IMAGE=nerveshub/$CIRCLE_PROJECT_REPONAME" >> $BASH_ENV
 
 docker_build_release: &docker_build_release
   run:
-    name: Build docker image
+    name: Build docker images
     command: |
       docker build \
-        -t $DOCKER_IMAGE:$DOCKER_TAG \
-        -f rel/Dockerfile.build .
+        -t nerveshub/nerves_hub:$DOCKER_TAG \
+        -f apps/nerves_hub/rel/Dockerfile.build .
+      docker build \
+        -t nerveshub/nerves_hub_device:$DOCKER_TAG \
+        -f apps/nerves_hub_device/rel/Dockerfile.build .
 
 docker_push: &docker_push
   run: 
-    name: Push docker image to dockerhub
+    name: Push docker images to dockerhub
     command: |
       docker login -u $DOCKER_USER -p $DOCKER_PASS
       docker push \
-        $DOCKER_IMAGE:$DOCKER_TAG
+        nerveshub/nerves_hub:$DOCKER_TAG
+      docker push \
+        nerveshub/nerves_hub_device:$DOCKER_TAG
 
 update_task: &update_task
   run: 
-    name: Update ECS Task
+    name: Update ECS Tasks
     command: |
-      TASK=$(rel/scripts/ecs-update-task.sh nerves_hub $DOCKER_IMAGE:$DOCKER_TAG)
-      echo "export ECS_TASK=$TASK" >> $BASH_ENV
+      NERVES_HUB_TASK=$(rel/scripts/ecs-update-task.sh nerves_hub nerveshub/nerves_hub:$DOCKER_TAG)
+      NERVES_HUB_DEVICE_TASK=$(rel/scripts/ecs-update-task.sh nerves_hub_device nerveshub/nerves_hub_device:$DOCKER_TAG)
+      echo "export NERVES_HUB_TASK=$NERVES_HUB_TASK" >> $BASH_ENV
+      echo "export NERVES_HUB_DEVICE_TASK=$NERVES_HUB_DEVICE_TASK" >> $BASH_ENV
 
 migrate: &migrate
   run:
@@ -50,7 +56,7 @@ migrate: &migrate
     command: |
       rel/scripts/ecs-migrate.sh \
         nerves-hub \
-        $ECS_TASK
+        $NERVES_HUB_TASK
 
 deploy: &deploy
   run:
@@ -59,7 +65,11 @@ deploy: &deploy
       rel/scripts/ecs-deploy.sh \
         nerves-hub \
         nerves-hub \
-        $ECS_TASK
+        $NERVES_HUB_TASK
+      rel/scripts/ecs-deploy.sh \
+        nerves-hub \
+        nerves-hub-device \
+        $NERVES_HUB_DEVICE_TASK
 
 send_notifications: &send_notifications
   run: 
@@ -68,7 +78,7 @@ send_notifications: &send_notifications
       rel/scripts/slack-notification.sh \
         $SLACK_INCOMING_WEBHOOK_URL \
         "#nerves-hub" \
-        "NervesHub Deployment" "Deployed Image: \`$DOCKER_IMAGE:$DOCKER_TAG\`"
+        "NervesHub Deployment" "Deployed: \`$DOCKER_TAG\`"
 
 version: 2
 jobs:
@@ -125,7 +135,7 @@ jobs:
 
       - run:
           name: Test
-          command: mix coveralls.circle
+          command: mix coveralls.circle --umbrella
 
       - run:
           name: Verify formatting
