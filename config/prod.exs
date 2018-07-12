@@ -18,7 +18,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   server: true,
   url: [host: "www.nerves-hub.org", port: 80],
   secret_key_base: "${SECRET_KEY_BASE}",
-  # force_ssl: [hsts: true],
+  force_ssl: [rewrite_on: [:x_forwarded_proto]],
   cache_static_manifest: "priv/static/cache_manifest.json"
 
 # https: [

@@ -30,13 +30,13 @@ environment :dev do
   # dev mode.
   set dev_mode: true
   set include_erts: false
-  set cookie: :"LcWJ?&&oKl41r:6VyC.kd`g[[wzlO[DT>2EXPKkQ>quN5XYx$=0}R}?w>jn9_Z!@"
+  set cookie: :""
 end
 
 environment :prod do
   set include_erts: true
   set include_src: false
-  set cookie: :"V0{_Lkp9^K6$}upoGQ=QWk[;kJY:!}G|`q;5}J[th}r_X@]3=/{AW)4O_YjMoFWV"
+  set cookie: :""
 end
 
 # You may define one or more releases in this file.
@@ -52,5 +52,6 @@ release :nerves_hub do
   set applications: [
     :runtime_tools
   ]
+  set vm_args: "rel/vm.args"
 end
 

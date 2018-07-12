@@ -1,0 +1,21 @@
+## Name of the node
+-name nerves_hub@${LOCAL_IPV4}
+
+## Cookie for distributed erlang
+-setcookie "${ERL_COOKIE}"
+
+## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
+## (Disabled by default..use with caution!)
+##-heart
+
+## Enable kernel poll and a few async threads
+##+K true
+##+A 5
+
+## Increase number of concurrent ports/sockets
+##-env ERL_MAX_PORTS 4096
+
+## Tweak GC to run more often
+##-env ERL_FULLSWEEP_AFTER 10
+
+-kernel inet_dist_listen_min 9100 inet_dist_listen_max 9155 sync_nodes_timeout 5000 sync_nodes_optional "${SYNC_NODES_OPTIONAL}" 
