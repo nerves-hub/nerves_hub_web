@@ -1,5 +1,5 @@
 ## Name of the node
--name nerves_hub@${LOCAL_IPV4}
+-name ${APP_NAME}@${LOCAL_IPV4}
 
 ## Cookie for distributed erlang
 -setcookie "${ERL_COOKIE}"

@@ -1,0 +1,56 @@
+# Elixir build container
+FROM elixir:1.6 as builder
+
+ENV MIX_ENV=prod
+
+RUN mix local.hex --force && mix local.rebar --force
+RUN mkdir /build
+ADD . /build
+WORKDIR /build
+
+RUN mix deps.clean --all && mix deps.get
+RUN mix release --env=$MIX_ENV --name=nerves_hub_device
+
+# Release Container
+FROM elixir:1.6 as release
+
+ENV MIX_ENV=prod
+ENV REPLACE_OS_VARS true
+ENV \
+  LANG=C.UTF-8 \
+  LC_ALL=en_US.UTF-8 \
+  PATH="/app/bin:${PATH}"
+
+RUN apt-get update -qq \
+  && apt-get -qq -y install \
+    locales \
+    python \
+    python-dev \
+    python-pip \
+    python-setuptools \
+    jq \
+  && pip install --upgrade awscli \
+  && apt-get clean \
+  && export LANG=en_US.UTF-8 \
+  && echo $LANG UTF-8 > /etc/locale.gen \
+  && locale-gen \
+  && update-locale LANG=$LANG 
+
+EXPOSE 443
+
+WORKDIR /app
+
+COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub_device/releases/*/nerves_hub_device.tar.gz .
+RUN tar xvfz nerves_hub_device.tar.gz > /dev/null && rm nerves_hub_device.tar.gz
+
+COPY --from=builder /build/rel/scripts/docker-entrypoint.sh .
+COPY --from=builder /build/rel/scripts/s3-sync.sh .
+COPY --from=builder /build/rel/scripts/ecs-cluster.sh .
+
+RUN ["chmod", "+x", "/app/docker-entrypoint.sh"]
+RUN ["chmod", "+x", "/app/s3-sync.sh"]
+RUN ["chmod", "+x", "/app/ecs-cluster.sh"]
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+CMD ["/app/ecs-cluster.sh"]

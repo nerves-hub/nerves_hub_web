@@ -1,14 +1,10 @@
 defmodule NervesHub.Fixtures do
-  alias NervesHub.Accounts
-  alias NervesHub.Devices
-  alias NervesHub.Deployments
-  alias NervesHub.Firmwares
-  alias NervesHub.Products
+  alias NervesHubCore.{Firmwares, Accounts, Devices, Deployments, Products}
 
   @tenant_params %{name: "Test Tenant"}
   @tenant_key_params %{
     name: "Test Key",
-    key: File.read!("test/fixtures/firmware/fwup-key1.pub")
+    key: File.read!("../../test/fixtures/firmware/fwup-key1.pub")
   }
   @firmware_params %{
     architecture: "arm",
