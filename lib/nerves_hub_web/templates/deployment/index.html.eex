@@ -1,7 +1,7 @@
 <h1>
   Deployments
 
-  <a class="btn btn-lg btn-primary pull-right" href="<%= deployment_path(@conn, :new) %>">
+  <a class="btn btn-lg btn-primary pull-right" href="<%= product_deployment_path(@conn, :new, @product.id) %>">
     Create Deployment
   </a>
 </h1>
@@ -26,7 +26,7 @@
           <%= if deployment.is_active, do: "Active", else: "Inactive" %>
         </span>
       </td>
-      <td><a class="btn btn-secondary" href="<%= deployment_path(@conn, :show, deployment.id) %>">Details</a></td>
+      <td><a class="btn btn-secondary" href="<%= product_deployment_path(@conn, :show, @product.id, deployment.id) %>">Details</a></td>
     </tr>
   <% end %>
 </table>

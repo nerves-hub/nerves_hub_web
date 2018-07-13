@@ -6,8 +6,8 @@ defmodule NervesHubWeb.FirmwareController do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Accounts.TenantKey
 
-  def index(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _params) do
-    firmwares = Firmwares.get_firmware_by_tenant(tenant_id)
+  def index(%{assigns: %{tenant: tenant, product: %{id: product_id}}} = conn, _params) do
+    firmwares = Firmwares.get_firmwares_by_product(product_id)
 
     render(conn, "index.html", firmwares: firmwares)
   end
@@ -17,14 +17,14 @@ defmodule NervesHubWeb.FirmwareController do
     |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
   end
 
-  def do_upload(%{assigns: %{tenant: tenant}} = conn, %{
+  def do_upload(%{assigns: %{tenant: tenant, product: product}} = conn, %{
         "firmware" => %{"file" => %{filename: filename, path: path}}
       }) do
     with {:ok, tenant_key_id} <- verify_signature(path, tenant.tenant_keys),
          {:ok, metadata} <- Firmwares.extract_metadata(path),
          {:ok, architecture} <- Firmware.fetch_metadata_item(metadata, "meta-architecture"),
          {:ok, platform} <- Firmware.fetch_metadata_item(metadata, "meta-platform"),
-         {:ok, product} <- Firmware.fetch_metadata_item(metadata, "meta-product"),
+         {:ok, product_name} <- Firmware.fetch_metadata_item(metadata, "meta-product"),
          {:ok, version} <- Firmware.fetch_metadata_item(metadata, "meta-version"),
          author <- Firmware.get_metadata_item(metadata, "meta-author"),
          description <- Firmware.get_metadata_item(metadata, "meta-description"),
@@ -38,7 +38,7 @@ defmodule NervesHubWeb.FirmwareController do
         description: description,
         misc: misc,
         platform: platform,
-        product: product,
+        product_name: product_name,
         tenant_id: tenant.id,
         tenant_key_id: tenant_key_id,
         upload_metadata: upload_metadata,
@@ -51,7 +51,7 @@ defmodule NervesHubWeb.FirmwareController do
         {:ok, _firmware} ->
           conn
           |> put_flash(:info, "Firmware uploaded")
-          |> redirect(to: "/firmware")
+          |> redirect(to: product_firmware_path(conn, :index, product.id))
 
         {:error, changeset} ->
           conn

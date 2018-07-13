@@ -7,17 +7,30 @@ defmodule NervesHub.DevicesTest do
 
   setup do
     tenant = Fixtures.tenant_fixture()
+    product = Fixtures.product_fixture(tenant)
     tenant_key = Fixtures.tenant_key_fixture(tenant)
-    firmware = Fixtures.firmware_fixture(tenant, tenant_key)
-    deployment = Fixtures.deployment_fixture(tenant, firmware)
-    device = Fixtures.device_fixture(tenant, firmware, deployment)
+    firmware = Fixtures.firmware_fixture(tenant, tenant_key, product)
+    deployment = Fixtures.deployment_fixture(tenant, firmware, product)
+    device = Fixtures.device_fixture(tenant, firmware, deployment, product)
 
-    {:ok, %{tenant: tenant, firmware: firmware, deployment: deployment, device: device}}
+    {:ok,
+     %{
+       tenant: tenant,
+       firmware: firmware,
+       device: device,
+       deployment: deployment,
+       product: product
+     }}
   end
 
-  test 'create_device with valid parameters', %{tenant: tenant, firmware: firmware} do
+  test 'create_device with valid parameters', %{
+    tenant: tenant,
+    firmware: firmware,
+    product: product
+  } do
     params = %{
       tenant_id: tenant.id,
+      product_id: product.id,
       identifier: "valid identifier",
       architecture: firmware.architecture,
       platform: firmware.platform

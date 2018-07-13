@@ -24,18 +24,19 @@ defmodule NervesHub.FirmwaresTest do
 
   setup do
     tenant = Fixtures.tenant_fixture()
+    product = Fixtures.product_fixture(tenant)
     tenant_key = Fixtures.tenant_key_fixture(tenant)
-    firmware = Fixtures.firmware_fixture(tenant, tenant_key)
-    deployment = Fixtures.deployment_fixture(tenant, firmware)
-
-    device = Fixtures.device_fixture(tenant, firmware, deployment)
+    firmware = Fixtures.firmware_fixture(tenant, tenant_key, product)
+    deployment = Fixtures.deployment_fixture(tenant, firmware, product)
+    device = Fixtures.device_fixture(tenant, firmware, deployment, product)
 
     {:ok,
      %{
        tenant: tenant,
        firmware: firmware,
        deployment: deployment,
-       matching_device: device
+       matching_device: device,
+       product: product
      }}
   end
 
@@ -48,6 +49,22 @@ defmodule NervesHub.FirmwaresTest do
       }
     })
     |> Repo.update!()
+  end
+
+  describe "NervesHub.Firmwares.get_firmwares_by_product/2" do
+    test "returns firmwares", %{product: %{id: product_id} = product} do
+      firmwares = Firmwares.get_firmwares_by_product(product.id)
+
+      assert [%{product_id: ^product_id}] = firmwares
+    end
+  end
+
+  describe "NervesHub.Firmwares.get_firmware/2" do
+    test "returns firmwares", %{tenant: %{id: t_id} = tenant, firmware: %{id: f_id} = firmware} do
+      {:ok, gotten_firmware} = Firmwares.get_firmware(tenant, firmware.id)
+
+      assert %{id: ^f_id, tenant_id: ^t_id} = gotten_firmware
+    end
   end
 
   describe "NervesHub.Firmwares.get_eligible_firmware_update/2" do
@@ -110,8 +127,8 @@ defmodule NervesHub.FirmwaresTest do
     end
 
     test "does not return an otherwise matching Firmware if the firmware's tenant does not match the device's",
-         %{tenant: tenant, matching_device: device} do
-      device = %{device | tenant_id: tenant.id + 1}
+         %{product: product, matching_device: device} do
+      device = %{device | product_id: product.id + 1}
       version = Version.parse!("0.5.0")
 
       {:ok, :none} = Firmwares.get_eligible_firmware_update(device, version)

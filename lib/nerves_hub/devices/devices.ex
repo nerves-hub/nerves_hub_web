@@ -3,11 +3,19 @@ defmodule NervesHub.Devices do
 
   alias NervesHub.Devices.Device
   alias NervesHub.Accounts.Tenant
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Ecto.Changeset
 
   def get_devices(%Tenant{id: tenant_id}) do
     query = from(d in Device, where: d.tenant_id == ^tenant_id)
+
+    query
+    |> Repo.all()
+  end
+
+  def get_devices(%Product{id: product_id}) do
+    query = from(d in Device, where: d.product_id == ^product_id)
 
     query
     |> Repo.all()

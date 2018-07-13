@@ -2,7 +2,7 @@
   <h1>Create a Device</h1>
 </div>
 
-<%= form_for @changeset, device_path(@conn, :create), fn f -> %>
+<%= form_for @changeset, product_device_path(@conn, :create, @product.id), fn f -> %>
   <div class="form-group">
     <label for="identifier">Identifier</label>
     <%= text_input f, :identifier, class: "form-control", id: "identifier" %>

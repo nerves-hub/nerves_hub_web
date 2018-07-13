@@ -10,7 +10,14 @@ defmodule NervesHubWeb.ConnCase.Browser do
       import Plug.Test
 
       setup do
-        {:ok, tenant} = NervesHub.Accounts.create_tenant(%{name: "Browser Tenant"})
+        %{
+          tenant: tenant,
+          tenant_key: tenant_key,
+          user: user,
+          firmware: firmware,
+          deployment: deployment,
+          product: product
+        } = NervesHub.Fixtures.very_fixture()
 
         {:ok, tenant_key} =
           NervesHub.Accounts.create_tenant_key(%{
@@ -19,20 +26,12 @@ defmodule NervesHubWeb.ConnCase.Browser do
             key: File.read!("test/fixtures/firmware/fwup-key1.pub")
           })
 
-        {:ok, default_user} =
-          tenant
-          |> NervesHub.Accounts.create_user(%{
-            name: "Browser User",
-            email: "user@browser.com",
-            password: "password"
-          })
-
         conn =
           build_conn()
           |> Map.put(:assigns, %{tenant: tenant})
-          |> init_test_session(%{"auth_user_id" => default_user.id})
+          |> init_test_session(%{"auth_user_id" => user.id})
 
-        %{conn: conn, current_user: default_user, current_tenant: tenant, tenant_key: tenant_key}
+        %{conn: conn, current_user: user, current_tenant: tenant, tenant_key: tenant_key}
       end
     end
   end

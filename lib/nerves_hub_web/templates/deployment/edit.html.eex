@@ -1,13 +1,13 @@
 <h1>Edit deployment</h1>
 
-<%= form_for @changeset, deployment_path(@conn, :update, @deployment), [as: :deployment], fn f -> %>
+<%= form_for @changeset, product_deployment_path(@conn, :update, @product.id, @deployment), [as: :deployment], fn f -> %>
   <h3 class="h3">Firmware Details</h3>
 
   <table class="table" style="width: auto">
     <tbody>
       <tr>
         <th>Product</th>
-        <td><%= @firmware.product %></td>
+        <td><%= @product.name %></td>
       </tr>
       <tr>
         <th>Version</th>

@@ -3,16 +3,18 @@ defmodule NervesHub.Deployments do
 
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Accounts.Tenant
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Ecto.Changeset
 
-  @spec get_deployments_by_tenant(integer()) :: [Deployment.t()]
-  def get_deployments_by_tenant(tenant_id) do
+  @spec get_deployments_by_product(integer()) :: [Deployment.t()]
+  def get_deployments_by_product(product_id) do
     from(
       d in Deployment,
-      where: d.tenant_id == ^tenant_id,
+      join: p in assoc(d, :product),
+      where: p.id == ^product_id,
       join: f in assoc(d, :firmware),
-      preload: [firmware: f]
+      preload: [firmware: f, product: p]
     )
     |> Repo.all()
   end
@@ -21,9 +23,12 @@ defmodule NervesHub.Deployments do
   def get_deployment(%Tenant{id: tenant_id}, deployment_id) do
     from(
       d in Deployment,
-      where: d.tenant_id == ^tenant_id,
+      join: p in assoc(d, :product),
+      where: p.tenant_id == ^tenant_id,
       where: d.id == ^deployment_id
     )
+    |> Deployment.with_firmware()
+    |> Deployment.with_product()
     |> Repo.one()
     |> case do
       nil ->

@@ -2,18 +2,21 @@ defmodule NervesHub.Deployments.Deployment do
   use Ecto.Schema
 
   import Ecto.Changeset
+  import Ecto.Query
 
   alias NervesHub.Accounts.Tenant
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Products.Product
+
   alias __MODULE__
 
   @type t :: %__MODULE__{}
-  @required_fields [:tenant_id, :firmware_id, :name, :conditions, :is_active]
+  @required_fields [:product_id, :firmware_id, :name, :conditions, :is_active]
   @optional_fields []
 
   schema "deployments" do
-    belongs_to(:tenant, Tenant)
     belongs_to(:firmware, Firmware)
+    belongs_to(:product, Product)
 
     field(:name, :string)
     field(:conditions, :map)
@@ -40,6 +43,16 @@ defmodule NervesHub.Deployments.Deployment do
     |> cast(params, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
     |> validate_conditions()
+  end
+
+  def with_firmware(deployment_query) do
+    deployment_query
+    |> preload(:firmware)
+  end
+
+  def with_product(deployment_query) do
+    deployment_query
+    |> preload(:product)
   end
 
   defp validate_conditions(changeset, _options \\ []) do

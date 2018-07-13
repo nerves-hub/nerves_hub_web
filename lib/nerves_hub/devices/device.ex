@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Accounts.Tenant
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Products.Product
 
   alias __MODULE__
 
@@ -16,19 +17,18 @@ defmodule NervesHub.Devices.Device do
     :current_firmware_id,
     :last_communication,
     :description,
-    :product,
     :tags
   ]
-  @required_params [:tenant_id, :identifier, :architecture, :platform]
+  @required_params [:tenant_id, :product_id, :identifier, :architecture, :platform]
 
   schema "devices" do
     belongs_to(:tenant, Tenant)
     belongs_to(:target_deployment, Deployment)
     belongs_to(:current_firmware, Firmware)
+    belongs_to(:product, Product)
 
     field(:identifier, :string)
     field(:description, :string)
-    field(:product, :string)
     field(:platform, :string)
     field(:last_communication, :utc_datetime)
     field(:architecture, :string)

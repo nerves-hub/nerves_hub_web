@@ -13,6 +13,14 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.Plugs.EnsureLoggedIn)
   end
 
+  pipeline :tenant_level do
+    plug(NervesHubWeb.Plugs.FetchTenant)
+  end
+
+  pipeline :product_level do
+    plug(NervesHubWeb.Plugs.FetchProduct)
+  end
+
   pipeline :api do
     plug(:accepts, ["json"])
     plug(NervesHubWeb.Plugs.Api.AuthenticateDevice)
@@ -42,7 +50,7 @@ defmodule NervesHubWeb.Router do
   scope "/", NervesHubWeb do
     pipe_through([:browser, :logged_in])
 
-    get("/dashboard", DashboardController, :index)
+    resources("/dashboard", DashboardController, only: [:index])
     get("/tenant", TenantController, :edit)
     put("/tenant", TenantController, :update)
     post("/tenant/key", TenantController, :create_key)
@@ -53,24 +61,20 @@ defmodule NervesHubWeb.Router do
     get("/settings", AccountController, :edit)
     put("/settings", AccountController, :update)
 
-    get("/devices", DeviceController, :index)
-    get("/devices/new", DeviceController, :new)
-    post("/devices/new", DeviceController, :create)
-    get("/devices/:device_id", DeviceController, :edit)
-    put("/devices/:device_id", DeviceController, :update)
+    resources("/devices", DeviceController, only: [:index])
 
-    get("/firmware", FirmwareController, :index)
-    get("/firmware/upload", FirmwareController, :upload)
-    post("/firmware/upload", FirmwareController, :do_upload)
-    get("/firmware/download/:id", FirmwareController, :download)
+    resources "/products", ProductController do
+      pipe_through(:product_level)
 
-    get("/deployments", DeploymentController, :index)
-    get("/deployments/new", DeploymentController, :new)
-    post("/deployments/new", DeploymentController, :create)
-    get("/deployments/:deployment_id/edit", DeploymentController, :edit)
-    put("/deployments/:deployment_id", DeploymentController, :update)
-    get("/deployments/:deployment_id", DeploymentController, :show)
-    delete("/deployments/:deployment_id", DeploymentController, :delete)
+      get("/firmware", FirmwareController, :index)
+      get("/firmware/upload", FirmwareController, :upload)
+      post("/firmware/upload", FirmwareController, :do_upload)
+      get("/firmware/download/:id", FirmwareController, :download)
+
+      resources("/deployments", DeploymentController)
+
+      resources("/devices", DeviceController)
+    end
   end
 
   scope "/api", NervesHubWeb.Api do

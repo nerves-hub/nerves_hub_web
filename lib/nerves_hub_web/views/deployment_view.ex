@@ -11,8 +11,8 @@ defmodule NervesHubWeb.DeploymentView do
 
   def firmware_display_name(%Firmware{} = f) do
     case f.version do
-      nil -> f.product
-      version -> "#{version} (#{f.product})"
+      nil -> f.version
+      version -> "#{version} (#{f.version})"
     end
   end
 

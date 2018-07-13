@@ -5,14 +5,16 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Devices.Device
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Products
   alias NervesHub.Repo
 
-  @spec get_firmware_by_tenant(integer()) :: [Firmware.t()]
-  def get_firmware_by_tenant(tenant_id) do
+  @spec get_firmwares_by_product(integer()) :: [Firmware.t()]
+  def get_firmwares_by_product(product_id) do
     from(
       f in Firmware,
-      where: f.tenant_id == ^tenant_id
+      where: f.product_id == ^product_id
     )
+    |> Firmware.with_product()
     |> Repo.all()
   end
 
@@ -20,8 +22,13 @@ defmodule NervesHub.Firmwares do
           {:ok, Firmware.t()}
           | {:error, :not_found}
   def get_firmware(%Tenant{id: tenant_id}, id) do
-    Firmware
-    |> Repo.get_by(id: id, tenant_id: tenant_id)
+    from(
+      f in Firmware,
+      where: f.tenant_id == ^tenant_id,
+      where: f.id == ^id
+    )
+    |> Firmware.with_product()
+    |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
       firmware -> {:ok, firmware}
@@ -55,9 +62,24 @@ defmodule NervesHub.Firmwares do
   @spec create_firmware(map) ::
           {:ok, Firmware.t()}
           | {:error, Changeset.t()}
-  def create_firmware(firmware) do
+  def create_firmware(%{product_name: product_name} = params) when is_binary(product_name) do
+    with {:ok, product} <-
+           Products.get_product_by_tenant_id_and_name(params.tenant_id, product_name) do
+      params
+      |> Map.put(:product_id, product.id)
+      |> do_create_firmware()
+    else
+      _ -> do_create_firmware(params)
+    end
+  end
+
+  def create_firmware(params) do
+    do_create_firmware(params)
+  end
+
+  defp do_create_firmware(params) do
     %Firmware{}
-    |> Firmware.changeset(firmware)
+    |> Firmware.changeset(params)
     |> Repo.insert()
   end
 
@@ -112,7 +134,7 @@ defmodule NervesHub.Firmwares do
   def get_eligible_firmware_update(%Device{} = device, %Version{} = version) do
     from(
       d in Deployment,
-      where: d.tenant_id == ^device.tenant_id,
+      where: d.product_id == ^device.product_id,
       where: d.is_active == true,
       join: f in assoc(d, :firmware),
       on: f.architecture == ^device.architecture and f.platform == ^device.platform,

@@ -1,0 +1,12 @@
+<h2>Show Device</h2>
+
+<ul>
+
+  <li>
+    <strong>Identifier:</strong>
+    <%= @device.identifier %>
+  </li>
+
+</ul>
+
+<span><%= link "Back", to: product_device_path(@conn, :index, @product.id) %></span>

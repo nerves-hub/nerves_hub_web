@@ -12,10 +12,12 @@ defmodule NervesHub.Repo.Migrations.DeviceDeploymentId do
   end
 
   def down do
-    add(:target_version, :string, null: true)
-    add(:current_version, :string, null: true)
+    alter table(:devices) do
+      add(:target_version, :string, null: true)
+      add(:current_version, :string, null: true)
 
-    remove(:target_deployment_id)
-    remove(:current_firmware_id)
+      remove(:target_deployment_id)
+      remove(:current_firmware_id)
+    end
   end
 end
