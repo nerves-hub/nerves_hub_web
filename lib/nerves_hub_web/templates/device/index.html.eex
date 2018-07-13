@@ -1,9 +1,5 @@
 <h1>
   Devices
-
-  <a class="btn btn-lg btn-primary pull-right" href="<%= device_path(@conn, :new) %>">
-    Add Device
-  </a>
 </h1>
 
 <table class="table table-striped">
@@ -33,7 +29,7 @@
           <% end %>
         </td>
         <td>
-          <a href="<%= device_path(@conn, :edit, device.id) %>" class="btn btn-info">Edit</a>
+          <a href="<%= product_device_path(@conn, :edit, device.product_id, device.id) %>" class="btn btn-info">Edit</a>
           <a href="#" class="btn btn-danger">Delete</a>
           <a href="#" class="btn btn-warning">Disable</a>
         </td>

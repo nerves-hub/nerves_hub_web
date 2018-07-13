@@ -3,6 +3,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Devices
   alias NervesHub.Deployments
   alias NervesHub.Firmwares
+  alias NervesHub.Products
 
   @tenant_params %{name: "Test Tenant"}
   @tenant_key_params %{
@@ -14,7 +15,6 @@ defmodule NervesHub.Fixtures do
     author: "test_author",
     description: "test_description",
     platform: "rpi0",
-    product: "test_product",
     upload_metadata: %{"public_url" => "http://example.com"},
     version: "1.0.0",
     vcs_identifier: "test_vcs_identifier",
@@ -30,6 +30,13 @@ defmodule NervesHub.Fixtures do
     is_active: true
   }
   @device_params %{identifier: "device-1234"}
+  @product_params %{name: "valid product"}
+  @user_params %{
+    name: "Testy McTesterson",
+    tenant_name: "mctesterson.com",
+    email: "testy@mctesterson.com",
+    password: "test_password"
+  }
 
   def tenant_fixture(params \\ %{}) do
     {:ok, tenant} =
@@ -50,13 +57,46 @@ defmodule NervesHub.Fixtures do
     tenant_key
   end
 
+  def user_fixture(%Accounts.Tenant{} = tenant, params \\ %{}) do
+    user_params =
+      params
+      |> Enum.into(@user_params)
+
+    {:ok, user} = Accounts.create_user(tenant, user_params)
+
+    user
+  end
+
+  def product_fixture(a, params \\ %{})
+
+  def product_fixture(%Accounts.Tenant{} = tenant, params) do
+    {:ok, product} =
+      %{tenant_id: tenant.id}
+      |> Enum.into(params)
+      |> Enum.into(@product_params)
+      |> Products.create_product()
+
+    product
+  end
+
+  def product_fixture(%{assigns: %{tenant: tenant}}, params) do
+    {:ok, product} =
+      %{tenant_id: tenant.id}
+      |> Enum.into(params)
+      |> Enum.into(@product_params)
+      |> Products.create_product()
+
+    product
+  end
+
   def firmware_fixture(
         %Accounts.Tenant{} = tenant,
         %Accounts.TenantKey{} = tenant_key,
+        %Products.Product{} = product,
         params \\ %{}
       ) do
     {:ok, firmware} =
-      %{tenant_id: tenant.id, tenant_key_id: tenant_key.id}
+      %{tenant_id: tenant.id, tenant_key_id: tenant_key.id, product_id: product.id}
       |> Enum.into(params)
       |> Enum.into(@firmware_params)
       |> Firmwares.create_firmware()
@@ -67,10 +107,11 @@ defmodule NervesHub.Fixtures do
   def deployment_fixture(
         %Accounts.Tenant{} = tenant,
         %Firmwares.Firmware{} = firmware,
+        %Products.Product{} = product,
         params \\ %{}
       ) do
     {:ok, deployment} =
-      %{tenant_id: tenant.id, firmware_id: firmware.id}
+      %{tenant_id: tenant.id, firmware_id: firmware.id, product_id: product.id}
       |> Enum.into(params)
       |> Enum.into(@deployment_params)
       |> Deployments.create_deployment()
@@ -82,11 +123,13 @@ defmodule NervesHub.Fixtures do
         %Accounts.Tenant{} = tenant,
         %Firmwares.Firmware{} = firmware,
         %Deployments.Deployment{} = deployment,
+        %Products.Product{} = product,
         params \\ %{}
       ) do
     {:ok, device} =
       %{
         tenant_id: tenant.id,
+        product_id: product.id,
         target_deployment_id: deployment.id,
         current_firmware_id: firmware.id,
         architecture: firmware.architecture,
@@ -98,5 +141,45 @@ defmodule NervesHub.Fixtures do
       |> Devices.create_device()
 
     device
+  end
+
+  def very_fixture() do
+    tenant = tenant_fixture(%{name: "Very"})
+    user = user_fixture(tenant, %{name: "Jeff"})
+    product = product_fixture(tenant, %{name: "Hop"})
+    tenant_key = tenant_key_fixture(tenant)
+    firmware = firmware_fixture(tenant, tenant_key, product)
+    deployment = deployment_fixture(tenant, firmware, product)
+    device = device_fixture(tenant, firmware, deployment, product)
+
+    %{
+      tenant: tenant,
+      device: device,
+      tenant_key: tenant_key,
+      user: user,
+      firmware: firmware,
+      deployment: deployment,
+      product: product
+    }
+  end
+
+  def smartrent_fixture() do
+    tenant = tenant_fixture(%{name: "Smart Rent"})
+    product = product_fixture(tenant, %{name: "Smart Rent Thing"})
+    tenant_key = tenant_key_fixture(tenant)
+    firmware = firmware_fixture(tenant, tenant_key, product)
+    deployment = deployment_fixture(tenant, firmware, product)
+
+    device =
+      device_fixture(tenant, firmware, deployment, product, %{identifier: "smartrent_1234"})
+
+    %{
+      tenant: tenant,
+      tenant_key: tenant_key,
+      device: device,
+      firmware: firmware,
+      deployment: deployment,
+      product: product
+    }
   end
 end

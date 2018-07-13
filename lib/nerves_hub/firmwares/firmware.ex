@@ -2,9 +2,12 @@ defmodule NervesHub.Firmwares.Firmware do
   use Ecto.Schema
 
   import Ecto.Changeset
+  import Ecto.Query
 
   alias NervesHub.Accounts.Tenant
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Products.Product
+
   alias __MODULE__
 
   @type t :: %__MODULE__{}
@@ -12,7 +15,6 @@ defmodule NervesHub.Firmwares.Firmware do
     :author,
     :description,
     :misc,
-    :product,
     :tenant_key_id,
     :vcs_identifier
   ]
@@ -20,6 +22,7 @@ defmodule NervesHub.Firmwares.Firmware do
     :architecture,
     :platform,
     :tenant_id,
+    :product_id,
     :uuid,
     :upload_metadata,
     :version
@@ -27,6 +30,7 @@ defmodule NervesHub.Firmwares.Firmware do
 
   schema "firmwares" do
     belongs_to(:tenant, Tenant)
+    belongs_to(:product, Product)
     has_many(:deployment, Deployment)
 
     field(:architecture, :string)
@@ -34,7 +38,6 @@ defmodule NervesHub.Firmwares.Firmware do
     field(:description, :string)
     field(:misc, :string)
     field(:platform, :string)
-    field(:product, :string)
     field(:tenant_key_id, :integer)
     field(:upload_metadata, :map)
     field(:uuid, :string)
@@ -48,6 +51,11 @@ defmodule NervesHub.Firmwares.Firmware do
     firmware
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
+  end
+
+  def with_product(firmware_query) do
+    firmware_query
+    |> preload(:product)
   end
 
   @spec fetch_metadata_item(String.t(), String.t()) :: {:ok, String.t()} | {:error, :not_found}

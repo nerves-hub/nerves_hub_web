@@ -5,10 +5,9 @@ defmodule NervesHubWeb.LayoutView do
 
   def navigation_links(conn) do
     [
-      {"Devices", device_path(conn, :index)},
-      {"Firmware", firmware_path(conn, :index)},
-      {"Deployments", deployment_path(conn, :index)},
-      {"Tenant", tenant_path(conn, :edit)},
+      {conn.assigns.tenant.name, tenant_path(conn, :edit)},
+      {"Products", product_path(conn, :index)},
+      {"All Devices", device_path(conn, :index)},
       {"Account", account_path(conn, :edit)}
     ]
   end

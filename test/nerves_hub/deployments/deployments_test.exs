@@ -7,17 +7,21 @@ defmodule NervesHub.DeploymentsTest do
 
   setup do
     tenant = Fixtures.tenant_fixture()
+    product = Fixtures.product_fixture(tenant)
     tenant_key = Fixtures.tenant_key_fixture(tenant)
-    firmware = Fixtures.firmware_fixture(tenant, tenant_key)
-    deployment = Fixtures.deployment_fixture(tenant, firmware)
+    firmware = Fixtures.firmware_fixture(tenant, tenant_key, product)
+    deployment = Fixtures.deployment_fixture(tenant, firmware, product)
 
-    {:ok, %{tenant: tenant, firmware: firmware, deployment: deployment}}
+    {:ok, %{tenant: tenant, firmware: firmware, deployment: deployment, product: product}}
   end
 
-  test 'create_deployment with valid parameters', %{tenant: tenant, firmware: firmware} do
+  test 'create_deployment with valid parameters', %{
+    firmware: firmware,
+    product: product
+  } do
     params = %{
-      tenant_id: tenant.id,
       firmware_id: firmware.id,
+      product_id: product.id,
       name: "my deployment",
       conditions: %{
         "version" => "< 1.0.0",

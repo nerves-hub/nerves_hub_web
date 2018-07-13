@@ -45,18 +45,18 @@ defmodule NervesHub.Integration.WebsocketTest do
 
   def device_fixture(device_params \\ %{}, firmware_uuid \\ "foo") do
     tenant = Fixtures.tenant_fixture()
+    product = Fixtures.product_fixture(tenant)
     tenant_key = Fixtures.tenant_key_fixture(tenant)
 
     firmware =
-      Fixtures.firmware_fixture(tenant, tenant_key, %{
-        product: @valid_product,
+      Fixtures.firmware_fixture(tenant, tenant_key, product, %{
         uuid: firmware_uuid,
         version: "0.0.1",
         upload_metadata: %{"public_path" => @valid_firmware_url}
       })
 
-    deployment = Fixtures.deployment_fixture(tenant, firmware)
-    Fixtures.device_fixture(tenant, firmware, deployment, device_params)
+    deployment = Fixtures.deployment_fixture(tenant, firmware, product)
+    Fixtures.device_fixture(tenant, firmware, deployment, product, device_params)
   end
 
   defmodule ClientSocket do
@@ -219,9 +219,10 @@ defmodule NervesHub.Integration.WebsocketTest do
         |> device_fixture("not_foobar")
 
       tenant = %Accounts.Tenant{id: device.tenant_id}
+      product = Fixtures.product_fixture(tenant)
       tenant_key = Fixtures.tenant_key_fixture(tenant, %{name: "another key"})
 
-      Fixtures.firmware_fixture(tenant, tenant_key, %{
+      Fixtures.firmware_fixture(tenant, tenant_key, product, %{
         uuid: query_uuid
       })
 

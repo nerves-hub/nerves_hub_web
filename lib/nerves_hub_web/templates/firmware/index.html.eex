@@ -1,7 +1,7 @@
 <h1>
   Firmware
 
-  <a class="btn btn-lg btn-primary pull-right" href="<%= firmware_path(@conn, :upload) %>">
+  <a class="btn btn-lg btn-primary pull-right" href="<%= product_firmware_path(@conn, :upload, @product.id) %>">
     Upload Firmware
   </a>
 </h1>
@@ -24,7 +24,7 @@
   </thead>
   <%= for firmware <- @firmwares do %>
     <tr>
-      <td><%= firmware.product %></td>
+      <td><%= firmware.product.name %></td>
       <td><%= firmware.version %></td>
       <td><%= firmware.platform %></td>
       <td><%= firmware.architecture %></td>
@@ -34,7 +34,7 @@
       <td><%= firmware.author %></td>
       <td><%= format_signed(firmware, @tenant) %></td>
       <td><pre class="pre-scrollable"><%= firmware.misc %></pre></td>
-      <td><%= link("Download", to: firmware_path(@conn, :download, firmware.id)) %></td>
+      <td><%= link("Download", to: product_firmware_path(@conn, :download, @product.id, firmware.id)) %></td>
     </tr>
   <% end %>
 </table>

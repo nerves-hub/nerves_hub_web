@@ -1,0 +1,19 @@
+<h2>Show Product
+  <a class="btn btn-lg btn-primary pull-right" href="<%= product_device_path(@conn, :new, @product.id) %>">
+    Add Device
+  </a>
+</h2>
+<ul>
+
+  <li>
+    <strong>Name:</strong>
+    <%= @product.name %>
+  </li>
+
+  <a class="btn btn-lg btn-primary pull-right" href="<%= product_device_path(@conn, :index, @product.id) %>">
+ View Devices
+  </a>
+</ul>
+
+<span><%= link "Edit", to: product_path(@conn, :edit, @product) %></span>
+<span><%= link "Back", to: product_path(@conn, :index) %></span>

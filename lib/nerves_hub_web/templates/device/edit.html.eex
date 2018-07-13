@@ -17,7 +17,7 @@
   </tr>
 </table>
 
-<%= form_for @changeset, device_path(@conn, :update, @device.id), fn f -> %>
+<%= form_for @changeset, product_device_path(@conn, :update, @product.id, @device.id), fn f -> %>
   <div class="form-group">
     <label for="tags">Tags</label>
     <%= text_input f, :tags, class: "form-control", id: "tags" %>
@@ -26,7 +26,7 @@
 
   <%= submit "Update Tags", class: "btn btn-primary" %>
 
-  <a class="btn btn-secondary" href="<%= device_path(@conn, :index) %>">
+  <a class="btn btn-secondary" href="<%= product_device_path(@conn, :index, @product.id) %>">
     Cancel
   </a>
 <% end %>

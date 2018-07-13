@@ -6,26 +6,20 @@ defmodule NervesHubWeb.DeploymentController do
   alias NervesHub.Deployments.Deployment
   alias Ecto.Changeset
 
-  plug(
-    NervesHubWeb.Plugs.FetchDeployment
-    when action in [:show, :toggle_is_active, :delete, :edit, :update]
-  )
-
-  plug(NervesHubWeb.Plugs.FetchFirmware when action in [:edit, :update])
-
-  def index(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _params) do
-    deployments = Deployments.get_deployments_by_tenant(tenant_id)
+  def index(%{assigns: %{tenant: _tenant, product: %{id: product_id}}} = conn, _params) do
+    deployments = Deployments.get_deployments_by_product(product_id)
     render(conn, "index.html", deployments: deployments)
   end
 
-  def new(%{assigns: %{tenant: %{id: tenant_id} = tenant}} = conn, %{
+  def new(%{assigns: %{tenant: tenant, product: product}} = conn, %{
         "deployment" => %{"firmware_id" => firmware_id}
       }) do
     case Firmwares.get_firmware(tenant, firmware_id) do
       {:ok, firmware} ->
         data = %{
           conditions: %{},
-          tenant_id: tenant_id,
+          tenant_id: tenant.id,
+          product_id: product.id,
           firmware_id: firmware.id,
           is_active: false
         }
@@ -46,24 +40,24 @@ defmodule NervesHubWeb.DeploymentController do
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Invalid firmware selected")
-        |> redirect(to: deployment_path(conn, :new))
+        |> redirect(to: product_deployment_path(conn, :new, product.id))
     end
   end
 
-  def new(%{assigns: %{tenant: %{id: tenant_id}}} = conn, _params) do
-    firmwares = Firmwares.get_firmware_by_tenant(tenant_id)
+  def new(%{assigns: %{tenant: _tenant, product: product}} = conn, _params) do
+    firmwares = Firmwares.get_firmwares_by_product(product.id)
 
     if Enum.empty?(firmwares) do
       conn
       |> put_flash(:error, "You must upload a firmware version before creating a deployment")
-      |> redirect(to: "/firmware")
+      |> redirect(to: product_firmware_path(conn, :upload, product.id))
     else
       conn
       |> render("select-firmware.html", firmwares: firmwares)
     end
   end
 
-  def create(%{assigns: %{tenant: tenant}} = conn, %{"deployment" => params}) do
+  def create(%{assigns: %{tenant: tenant, product: product}} = conn, %{"deployment" => params}) do
     tenant
     |> Firmwares.get_firmware(params["firmware_id"])
     |> case do
@@ -71,6 +65,7 @@ defmodule NervesHubWeb.DeploymentController do
         params =
           params
           |> Map.put("tenant_id", tenant.id)
+          |> Map.put("product_id", product.id)
           |> Map.put("is_active", false)
           |> inject_conditions_map()
 
@@ -85,12 +80,12 @@ defmodule NervesHubWeb.DeploymentController do
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Invalid firmware selected")
-        |> redirect(to: deployment_path(conn, :new))
+        |> redirect(to: product_deployment_path(conn, :new, product.id))
 
       {_, {:ok, _deployment}} ->
         conn
         |> put_flash(:info, "Deployment created")
-        |> redirect(to: deployment_path(conn, :index))
+        |> redirect(to: product_deployment_path(conn, :index, product.id))
 
       {firmware, {:error, changeset}} ->
         conn
@@ -110,12 +105,14 @@ defmodule NervesHubWeb.DeploymentController do
     )
   end
 
-  def edit(%{assigns: %{deployment: deployment, firmware: firmware}} = conn, _params) do
+  def edit(%{assigns: %{tenant: tenant, product: _product}} = conn, %{"id" => deployment_id}) do
+    {:ok, deployment} = Deployments.get_deployment(tenant, deployment_id)
+
     conn
     |> render(
       "edit.html",
       deployment: deployment,
-      firmware: firmware,
+      firmware: deployment.firmware,
       changeset:
         Deployment.edit_changeset(deployment, %{})
         |> tags_to_string()
@@ -123,35 +120,39 @@ defmodule NervesHubWeb.DeploymentController do
   end
 
   def update(
-        %{assigns: %{deployment: deployment, firmware: firmware}} = conn,
-        %{"deployment" => deployment_params}
+        %{assigns: %{tenant: tenant, product: product}} = conn,
+        %{"id" => deployment_id, "deployment" => deployment_params}
       ) do
     params = inject_conditions_map(deployment_params)
+
+    {:ok, deployment} = Deployments.get_deployment(tenant, deployment_id)
 
     Deployments.update_deployment(deployment, params)
     |> case do
       {:ok, deployment} ->
         conn
         |> put_flash(:info, "Deployment updated")
-        |> redirect(to: deployment_path(conn, :show, deployment))
+        |> redirect(to: product_deployment_path(conn, :show, product.id, deployment))
 
       {:error, changeset} ->
         render(
           conn,
           "edit.html",
           deployment: deployment,
-          firmware: firmware,
+          firmware: deployment.firmware,
           changeset: changeset |> tags_to_string()
         )
     end
   end
 
-  def delete(%{assigns: %{deployment: deployment}} = conn, _params) do
+  def delete(%{assigns: %{tenant: tenant, product: product}} = conn, %{"id" => id}) do
+    {:ok, deployment} = tenant |> Deployments.get_deployment(id)
+
     Deployments.delete_deployment(deployment)
 
     conn
     |> put_flash(:info, "Deployment successfully deleted")
-    |> redirect(to: deployment_path(conn, :index))
+    |> redirect(to: product_deployment_path(conn, :index, product.id))
   end
 
   @doc """
