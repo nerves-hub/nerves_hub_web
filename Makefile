@@ -36,10 +36,14 @@ rebuild-db:
 
 test: .env
 	. ./.env && \
-	    MIX_ENV=test mix test
+	DATABASE_URL=postgres://db:db@localhost:2345/nerves_hub_test \
+	MIX_ENV=test \
+	mix test
 
 test-watch: .env
 	. ./.env && \
-	    MIX_ENV=test mix test.watch
+	DATABASE_URL=postgres://db:db@localhost:2345/nerves_hub_test \
+	MIX_ENV=test \
+	mix test.watch
 
 .PHONY: test rebuild-db reset-db mix iex-server server help
