@@ -135,7 +135,6 @@ jobs:
       - <<: *remote_docker
       - <<: *docker_env
       - <<: *docker_build_release
-      - <<: *docker_push
 
   build-device:
     <<: *defaults
@@ -145,7 +144,6 @@ jobs:
       - <<: *remote_docker
       - <<: *docker_env
       - <<: *docker_build_release
-      - <<: *docker_push
   
   migrate:
     <<: *defaults
@@ -163,6 +161,7 @@ jobs:
       - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
       - run: echo "export SERVICE=nerves-hub" >> $BASH_ENV
       - <<: *docker_env
+      - <<: *docker_push
       - <<: *deploy
       - <<: *send_notifications
 
@@ -173,6 +172,7 @@ jobs:
       - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
       - run: echo "export SERVICE=nerves-hub-device" >> $BASH_ENV
       - <<: *docker_env
+      - <<: *docker_push
       - <<: *deploy
       - <<: *send_notifications
 
@@ -185,16 +185,10 @@ workflows:
             context: org-global
             requires:
               - test
-            filters:
-              branches:
-                only: master
         - build-device:
             context: org-global
             requires:
               - test
-            filters:
-              branches:
-                only: master
         - migrate:
             context: org-global
             requires:
