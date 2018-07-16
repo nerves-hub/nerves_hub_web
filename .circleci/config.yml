@@ -28,6 +28,23 @@ docker_build_release: &docker_build_release
         -t nerveshub/$APP_NAME:$DOCKER_TAG \
         -f apps/$APP_NAME/rel/Dockerfile.build .
 
+docker_save: &docker_save
+  run:
+    name: Save docker images
+    command: |
+      mkdir -p /docker
+      docker image save \
+        nerveshub/$APP_NAME:$DOCKER_TAG \
+        -o /docker/$APP_NAME-$DOCKER_TAG.tar
+
+docker_import: &docker_import
+  run:
+    name: Import docker images
+    command: |
+      docker image import \
+        /docker/$APP_NAME-$DOCKER_TAG.tar \
+        nerveshub/$APP_NAME:$DOCKER_TAG
+
 docker_push: &docker_push
   run: 
     name: Push docker images to dockerhub
@@ -135,6 +152,10 @@ jobs:
       - <<: *remote_docker
       - <<: *docker_env
       - <<: *docker_build_release
+      - <<: *docker_save
+      - save_cache:
+          key: docker-www-{{ .Branch }}-{{ .Revision }}
+          paths: "/docker"
 
   build-device:
     <<: *defaults
@@ -144,13 +165,22 @@ jobs:
       - <<: *remote_docker
       - <<: *docker_env
       - <<: *docker_build_release
+      - <<: *docker_save
+      - save_cache:
+          key: docker-device-{{ .Branch }}-{{ .Revision }}
+          paths: "/docker"
   
   push-www:
     <<: *defaults
     steps:
       - checkout
       - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
+      - <<: *remote_docker
       - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-www-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
       - <<: *docker_push
 
   push-device:
@@ -158,7 +188,12 @@ jobs:
     steps:
       - checkout
       - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
+      - <<: *remote_docker
       - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-device-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
       - <<: *docker_push
 
   migrate:
