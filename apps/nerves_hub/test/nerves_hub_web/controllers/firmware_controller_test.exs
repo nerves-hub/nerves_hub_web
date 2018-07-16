@@ -84,5 +84,25 @@ defmodule NervesHubWeb.FirmwareControllerTest do
       assert html_response(conn, 200) =~
                "Firmware corrupt, signature invalid or missing public key"
     end
+
+    test "error if meta-product does not match product name", %{
+      conn: conn,
+      current_tenant: tenant
+    } do
+      product = Fixtures.product_fixture(tenant, %{name: "non-matching name"})
+
+      upload = %Plug.Upload{
+        path: "../../test/fixtures/firmware/signed-key1.fw",
+        filename: "signed-key1.fw"
+      }
+
+      # check for the error message
+      conn =
+        post(conn, product_firmware_path(conn, :upload, product.id), %{
+          "firmware" => %{"file" => upload}
+        })
+
+      assert html_response(conn, 200) =~ "No matching product could be found."
+    end
   end
 end
