@@ -32,7 +32,7 @@ rebuild-db:
 	mix ecto.drop && \
 	mix ecto.create && \
 	mix ecto.migrate && \
-	mix run priv/repo/seeds.exs
+	mix run apps/nerves_hub_core/priv/repo/seeds.exs
 
 test: .env
 	. ./.env && \

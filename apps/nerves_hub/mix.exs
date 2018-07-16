@@ -70,7 +70,7 @@ defmodule NervesHub.MixProject do
       {:sweet_xml, "~> 0.6"},
       {:distillery, "~> 1.5"},
       {:nerves_hub_core, in_umbrella: true},
-      {:nerves_hub_device, in_umbrella: true},
+      {:nerves_hub_device, in_umbrella: true}
     ]
   end
 
@@ -82,7 +82,7 @@ defmodule NervesHub.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
+      "ecto.setup": ["ecto.create", "ecto.migrate", "run ../nerves_hub_core/priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate", "test"]
     ]
