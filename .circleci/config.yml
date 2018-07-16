@@ -1,6 +1,6 @@
 defaults: &defaults
   docker:
-    - image: nerveshub/docker-build:latest
+    - image: nerveshub/docker-build:alpine-3.8
   working_directory: ~/repo
 
 remote_docker: &remote_docker
@@ -25,11 +25,8 @@ docker_build_release: &docker_build_release
     name: Build docker images
     command: |
       docker build \
-        -t nerveshub/nerves_hub:$DOCKER_TAG \
-        -f apps/nerves_hub/rel/Dockerfile.build .
-      docker build \
-        -t nerveshub/nerves_hub_device:$DOCKER_TAG \
-        -f apps/nerves_hub_device/rel/Dockerfile.build .
+        -t nerveshub/$APP_NAME:$DOCKER_TAG \
+        -f apps/$APP_NAME/rel/Dockerfile.build .
 
 docker_push: &docker_push
   run: 
@@ -37,23 +34,13 @@ docker_push: &docker_push
     command: |
       docker login -u $DOCKER_USER -p $DOCKER_PASS
       docker push \
-        nerveshub/nerves_hub:$DOCKER_TAG
-      docker push \
-        nerveshub/nerves_hub_device:$DOCKER_TAG
-
-update_task: &update_task
-  run: 
-    name: Update ECS Tasks
-    command: |
-      NERVES_HUB_TASK=$(rel/scripts/ecs-update-task.sh nerves_hub nerveshub/nerves_hub:$DOCKER_TAG)
-      NERVES_HUB_DEVICE_TASK=$(rel/scripts/ecs-update-task.sh nerves_hub_device nerveshub/nerves_hub_device:$DOCKER_TAG)
-      echo "export NERVES_HUB_TASK=$NERVES_HUB_TASK" >> $BASH_ENV
-      echo "export NERVES_HUB_DEVICE_TASK=$NERVES_HUB_DEVICE_TASK" >> $BASH_ENV
+        nerveshub/$APP_NAME:$DOCKER_TAG
 
 migrate: &migrate
   run:
     name: Run Migrations
     command: |
+      NERVES_HUB_TASK=$(rel/scripts/ecs-update-task.sh nerves_hub nerveshub/nerves_hub:$DOCKER_TAG)
       rel/scripts/ecs-migrate.sh \
         nerves-hub \
         $NERVES_HUB_TASK
@@ -62,14 +49,13 @@ deploy: &deploy
   run:
     name: Deploy to production
     command: |
-      rel/scripts/ecs-deploy.sh \
-        nerves-hub \
-        nerves-hub \
-        $NERVES_HUB_TASK
-      rel/scripts/ecs-deploy.sh \
-        nerves-hub \
-        nerves-hub-device \
-        $NERVES_HUB_DEVICE_TASK
+      ecs-deploy \
+        -c nerves-hub \
+        -n $SERVICE \
+        -i nerveshub/$APP_NAME:$DOCKER_TAG \
+        -t 600 \
+        --max-definitions 10 \
+        --enable-rollback
 
 send_notifications: &send_notifications
   run: 
@@ -78,7 +64,7 @@ send_notifications: &send_notifications
       rel/scripts/slack-notification.sh \
         $SLACK_INCOMING_WEBHOOK_URL \
         "#nerves-hub" \
-        "NervesHub Deployment" "Deployed: \`$DOCKER_TAG\`"
+        "NervesHub Deployment" "Deployed: \`nerveshub/$APP_NAME:$DOCKER_TAG\`"
 
 version: 2
 jobs:
@@ -141,22 +127,52 @@ jobs:
           name: Verify formatting
           command: mix format --check-formatted
   
-  build:
+  build-www:
     <<: *defaults
     steps:
       - checkout
+      - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - <<: *docker_build_release
+      - <<: *docker_push
+
+  build-device:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
       - <<: *remote_docker
       - <<: *docker_env
       - <<: *docker_build_release
       - <<: *docker_push
   
-  deploy:
+  migrate:
     <<: *defaults
     steps:
       - checkout
+      - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub" >> $BASH_ENV
       - <<: *docker_env
-      - <<: *update_task
       - <<: *migrate
+
+  deploy-www:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub" >> $BASH_ENV
+      - <<: *docker_env
+      - <<: *deploy
+      - <<: *send_notifications
+
+  deploy-device:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub-device" >> $BASH_ENV
+      - <<: *docker_env
       - <<: *deploy
       - <<: *send_notifications
 
@@ -165,17 +181,39 @@ workflows:
   pipeline:
       jobs:
         - test
-        - build:
+        - build-www:
             context: org-global
             requires:
               - test
             filters:
               branches:
                 only: master
-        - deploy:
+        - build-device:
             context: org-global
             requires:
-              - build
+              - test
+            filters:
+              branches:
+                only: master
+        - migrate:
+            context: org-global
+            requires:
+              - build-www
+              - build-device
+            filters:
+              branches:
+                only: master
+        - deploy-www:
+            context: org-global
+            requires:
+              - migrate
+            filters:
+              branches:
+                only: master
+        - deploy-device:
+            context: org-global
+            requires:
+              - migrate
             filters:
               branches:
                 only: master
