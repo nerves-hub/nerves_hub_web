@@ -53,8 +53,17 @@ defmodule NervesHubWeb.FirmwareController do
           |> put_flash(:info, "Firmware uploaded")
           |> redirect(to: product_firmware_path(conn, :index, product.id))
 
+        {:error,
+         %Ecto.Changeset{
+           errors: [product_id: {"can't be blank", [validation: :required]}]
+         } = changeset} ->
+          conn
+          |> put_flash(:error, "No matching product could be found.")
+          |> render("upload.html", changeset: changeset)
+
         {:error, changeset} ->
           conn
+          |> put_flash(:error, "Unknown error uploading firmware.")
           |> render("upload.html", changeset: changeset)
       end
     else
