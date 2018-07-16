@@ -20,11 +20,12 @@ alias NervesHubCore.Accounts.{Tenant, User}
 # Create the root tenant
 root_tenant_name = "nerves-hub"
 
-root_tenant = 
+root_tenant =
   if root_tenant = Repo.get_by(Tenant, name: root_tenant_name) do
     root_tenant
   else
-    Accounts.create_tenant(%{name: root_tenant_name})
+    {:ok, root_tenant} = Accounts.create_tenant(%{name: root_tenant_name})
+    root_tenant
   end
 
 # Add a default user
@@ -36,5 +37,6 @@ else
   Accounts.create_user(root_tenant, %{
     name: "nerveshub",
     email: root_user_email,
-    password: "nerveshub"})
+    password: "nerveshub"
+  })
 end
