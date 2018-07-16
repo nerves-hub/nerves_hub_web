@@ -33,7 +33,7 @@ docker_save: &docker_save
     name: Save docker images
     command: |
       mkdir -p /docker
-      docker image save \
+      docker save \
         nerveshub/$APP_NAME:$DOCKER_TAG \
         -o /docker/$APP_NAME-$DOCKER_TAG.tar
 
@@ -41,9 +41,8 @@ docker_import: &docker_import
   run:
     name: Import docker images
     command: |
-      docker image import \
-        /docker/$APP_NAME-$DOCKER_TAG.tar \
-        nerveshub/$APP_NAME:$DOCKER_TAG
+      docker load \
+        -i /docker/$APP_NAME-$DOCKER_TAG.tar
 
 docker_push: &docker_push
   run: 
@@ -70,9 +69,9 @@ deploy: &deploy
         -c nerves-hub \
         -n $SERVICE \
         -i nerveshub/$APP_NAME:$DOCKER_TAG \
-        -t 600 \
-        --max-definitions 10 \
-        --enable-rollback
+        -t 720 \
+        --enable-rollback \
+        --max-definitions 15
 
 send_notifications: &send_notifications
   run: 
@@ -212,7 +211,6 @@ jobs:
       - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
       - run: echo "export SERVICE=nerves-hub" >> $BASH_ENV
       - <<: *docker_env
-      - <<: *docker_push
       - <<: *deploy
       - <<: *send_notifications
 
@@ -223,7 +221,6 @@ jobs:
       - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
       - run: echo "export SERVICE=nerves-hub-device" >> $BASH_ENV
       - <<: *docker_env
-      - <<: *docker_push
       - <<: *deploy
       - <<: *send_notifications
 
