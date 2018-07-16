@@ -145,6 +145,22 @@ jobs:
       - <<: *docker_env
       - <<: *docker_build_release
   
+  push-www:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
+      - <<: *docker_env
+      - <<: *docker_push
+
+  push-device:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
+      - <<: *docker_env
+      - <<: *docker_push
+
   migrate:
     <<: *defaults
     steps:
@@ -189,11 +205,25 @@ workflows:
             context: org-global
             requires:
               - test
-        - migrate:
+        - push-www:
             context: org-global
             requires:
               - build-www
+            filters:
+              branches:
+                only: master
+        - push-device:
+            context: org-global
+            requires:
               - build-device
+            filters:
+              branches:
+                only: master
+        - migrate:
+            context: org-global
+            requires:
+              - push-www
+              - push-device
             filters:
               branches:
                 only: master
