@@ -36,7 +36,9 @@ defmodule NervesHub.MixProject do
       extra_applications: [
         :logger,
         :runtime_tools,
-        :timex
+        :timex,
+        :swoosh, 
+        :gen_smtp
       ]
     ]
   end
@@ -51,6 +53,7 @@ defmodule NervesHub.MixProject do
   defp deps do
     [
       {:swoosh, "~> 0.13"},
+      {:gen_smtp, "~> 0.12.0"},
       {:plug, "~> 1.6"},
       {:phoenix, github: "mobileoverlord/phoenix", branch: "ws_extra_params", override: true},
       {:phoenix_pubsub, "~> 1.0"},
