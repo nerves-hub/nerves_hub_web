@@ -33,4 +33,12 @@ config :logger, level: :debug
 
 # should be configured for production
 
-# config :nerves_hub, NervesHub.Mailer, adapter: Swoosh.Adapters.Local
+config :nerves_hub, NervesHub.Mailer, 
+  adapter: Swoosh.Adapters.SMTP,
+  relay: "${SMTP_RELAY}",
+  username: "${SMTP_USERNAME}",
+  password: "${SMTP_PASSWORD}",
+  ssl: true,
+  tls: :always,
+  auth: :always,
+  port: 465
