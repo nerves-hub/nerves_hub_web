@@ -65,13 +65,11 @@ deploy: &deploy
   run:
     name: Deploy to production
     command: |
-      ecs-deploy \
-        -c nerves-hub \
-        -n $SERVICE \
-        -i nerveshub/$APP_NAME:$DOCKER_TAG \
-        -t 720 \
-        --enable-rollback \
-        --max-definitions 15
+      set -euo pipefail
+      rel/scripts/ecs-deploy.sh \
+        nerves-hub \
+        $SERVICE \
+        nerveshub/$APP_NAME:$DOCKER_TAG
 
 send_notifications: &send_notifications
   run: 
@@ -202,6 +200,9 @@ jobs:
       - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
       - run: echo "export SERVICE=nerves-hub" >> $BASH_ENV
       - <<: *docker_env
+      - run:
+          name: Lock deployments
+          command: rel/scripts/build-locking.sh --job-name migrate
       - <<: *migrate
 
   deploy-www:
@@ -211,6 +212,9 @@ jobs:
       - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
       - run: echo "export SERVICE=nerves-hub" >> $BASH_ENV
       - <<: *docker_env
+      - run:
+          name: Lock deployments
+          command: rel/scripts/build-locking.sh --job-name deploy-www
       - <<: *deploy
       - <<: *send_notifications
 
@@ -221,6 +225,9 @@ jobs:
       - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
       - run: echo "export SERVICE=nerves-hub-device" >> $BASH_ENV
       - <<: *docker_env
+      - run:
+          name: Lock deployments
+          command: rel/scripts/build-locking.sh --job-name deploy-device
       - <<: *deploy
       - <<: *send_notifications
 
