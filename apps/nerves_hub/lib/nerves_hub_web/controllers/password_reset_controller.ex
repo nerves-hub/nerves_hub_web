@@ -3,45 +3,44 @@ defmodule NervesHubWeb.PasswordResetController do
 
   alias NervesHub.Accounts.Email
   alias NervesHubCore.Accounts.User
+  alias NervesHubCore.Accounts.PasswordReset
   alias NervesHubCore.Accounts
+  alias NervesHub.Mailer
+
   alias Ecto.Changeset
 
   def new(conn, _params) do
     conn
-    |> render("new.html", changeset: %Changeset{data: %User{}})
+    |> render("new.html", changeset: PasswordReset.changeset(%PasswordReset{}, %{}))
   end
 
   def create(conn, params) do
     params
-    |> Map.get("user", %{})
+    |> Map.get("password_reset", %{})
     |> Map.get("email")
     |> case do
       e when is_binary(e) and e != "" ->
-        Accounts.send_password_reset_email(e)
+        Accounts.update_password_reset_token(e)
         |> case do
           {:ok, user} ->
-            Email.send(:forgot_password, user)
+            Email.forgot_password(user)
+            |> Mailer.deliver_later()
+
             :ok
-    
-          :ok ->
+
+          {:error, _} ->
             :ok
         end
+
         conn
         |> put_flash(:info, "Please check your email in order to reset your password.")
         |> redirect(to: session_path(conn, :new))
 
       _ ->
         conn
-        |> render("new.html", changeset: email_required_changeset())
+        |> put_flash(:error, "You must enter an email address.")
+        |> render("new.html", changeset: PasswordReset.changeset(%PasswordReset{}, %{}))
     end
-  end
-
-  defp email_required_changeset do
-    types = %{email: :string}
-
-    {%{}, types}
-    |> Changeset.cast(%{}, types)
-    |> Changeset.validate_required([:email])
   end
 
   def new_password_form(conn, params) do
@@ -53,7 +52,7 @@ defmodule NervesHubWeb.PasswordResetController do
         |> render(
           "new_password_form.html",
           token: user.password_reset_token,
-          changeset: %Changeset{data: user}
+          changeset: User.reset_password_changeset(user, %{})
         )
 
       {:error, :not_found} ->
@@ -85,6 +84,7 @@ defmodule NervesHubWeb.PasswordResetController do
 
       {:error, %Changeset{} = changeset} ->
         conn
+        |> put_flash(:error, "You must provide a new password.")
         |> render("new_password_form.html", token: params["token"], changeset: changeset)
     end
   end

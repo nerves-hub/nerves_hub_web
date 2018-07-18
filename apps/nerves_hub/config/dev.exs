@@ -71,6 +71,8 @@ config :nerves_hub, NervesHub.CertificateAuthority,
     server_name_indication: 'ca.nerves-hub.org'
   ]
 
+config :nerves_hub, NervesHub.Mailer, adapter: Bamboo.LocalAdapter
+
 config :ex_aws,
   s3_host: System.get_env("S3_HOST"),
   access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, :instance_role],
