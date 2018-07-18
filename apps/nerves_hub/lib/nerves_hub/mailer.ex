@@ -1,3 +1,3 @@
 defmodule NervesHub.Mailer do
-  use Swoosh.Mailer, otp_app: :nerves_hub
+  use Bamboo.Mailer, otp_app: :nerves_hub
 end

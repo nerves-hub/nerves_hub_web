@@ -31,14 +31,12 @@ config :nerves_hub, NervesHubCore.Firmwares.Upload.S3, bucket: System.get_env("S
 # Do not print debug messages in production
 config :logger, level: :debug
 
-# should be configured for production
-
-config :nerves_hub, NervesHub.Mailer, 
-  adapter: Swoosh.Adapters.SMTP,
-  relay: "${SMTP_RELAY}",
-  username: "${SMTP_USERNAME}",
-  password: "${SMTP_PASSWORD}",
-  ssl: true,
-  tls: :always,
-  auth: :always,
-  port: 465
+config :nerves_hub, NervesHub.Mailer,
+  adapter: Bamboo.SMTPAdapter,
+  server: System.get_env("SES_SERVER"),
+  port: System.get_env("SES_PORT"),
+  username: System.get_env("SMTP_USERNAME"),
+  password: System.get_env("SMTP_PASSWORD"),
+  tls: :always, # can be `:always` or `:never`
+  ssl: false, # can be `true`
+  retries: 1

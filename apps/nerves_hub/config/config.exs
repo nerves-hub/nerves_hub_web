@@ -23,7 +23,7 @@ config :logger, :console,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
-config :nerves_hub, NervesHub.Mailer, adapter: Swoosh.Adapters.Local
+config :nerves_hub, NervesHub.Mailer, adapter: Bamboo.LocalAdapter
 
 config :nerves_hub, NervesHubWeb.AccountController, allow_signups: true
 

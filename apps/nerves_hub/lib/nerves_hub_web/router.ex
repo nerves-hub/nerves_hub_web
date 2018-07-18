@@ -86,7 +86,7 @@ defmodule NervesHubWeb.Router do
   if Mix.env() in [:dev] do
     scope "/dev" do
       pipe_through([:browser])
-      forward("/mailbox", Plug.Swoosh.MailboxPreview, base_path: "/dev/mailbox")
+      forward("/mailbox", Bamboo.SentEmailViewerPlug, base_path: "/dev/mailbox")
     end
   end
 
