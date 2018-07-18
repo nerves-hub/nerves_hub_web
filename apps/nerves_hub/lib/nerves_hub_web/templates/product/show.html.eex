@@ -10,6 +10,9 @@
     <%= @product.name %>
   </li>
 
+  <a class="btn btn-lg btn-primary pull-right" href="<%= product_firmware_path(@conn, :index, @product.id) %>">
+ View Firmware
+  </a>
   <a class="btn btn-lg btn-primary pull-right" href="<%= product_device_path(@conn, :index, @product.id) %>">
  View Devices
   </a>
