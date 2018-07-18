@@ -39,6 +39,7 @@ defmodule NervesHubWeb.ProductControllerTest do
       assert html_response(conn, 200) =~ tenant.name
       assert html_response(conn, 200) =~ product_device_path(conn, :new, id)
       assert html_response(conn, 200) =~ product_device_path(conn, :index, id)
+      assert html_response(conn, 200) =~ product_firmware_path(conn, :index, id)
     end
 
     test "renders errors when data is invalid", %{conn: conn} do
