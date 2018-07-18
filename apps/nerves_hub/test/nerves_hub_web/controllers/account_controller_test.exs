@@ -2,7 +2,6 @@ defmodule NervesHubWeb.AccountControllerTest do
   use NervesHubWeb.ConnCase.Browser
 
   alias NervesHubCore.Accounts
-  alias NervesHubCore.Accounts.User
 
   describe "new" do
     test "renders account creation form", %{
@@ -72,25 +71,69 @@ defmodule NervesHubWeb.AccountControllerTest do
     } do
       conn = get(conn, account_path(conn, :edit))
       assert html_response(conn, 200) =~ "Edit Account"
+      assert html_response(conn, 200) =~ "type=\"password\""
     end
   end
 
   describe "update" do
     test "can update an account", %{
-      conn: conn
+      conn: conn,
+      current_user: user
     } do
       conn =
         conn
-        |> Map.merge(%{assigns: %{user: %User{name: "frodo"}}})
         |> put(
           account_path(conn, :update, %{
             "user" => %{
-              "name" => "My Newest Name"
+              "name" => "My Newest Name",
+              "password" => "foobarbaz",
+              "current_password" => user.password
             }
           })
         )
 
       assert html_response(conn, 302) =~ account_path(conn, :edit)
+
+      updated_user = Accounts.get_user(user.id) |> elem(1)
+
+      refute updated_user.password_hash == user.password_hash
+    end
+
+    test "fails with missing password", %{
+      conn: conn
+    } do
+      conn =
+        conn
+        |> put(
+          account_path(conn, :update, %{
+            "user" => %{
+              "name" => "My Newest Name",
+              "password" => "12345678",
+              "current_password" => ""
+            }
+          })
+        )
+
+      assert html_response(conn, 200) =~
+               "You must provide a current password in order to change your email or password."
+    end
+
+    test "fails with incorrect password", %{
+      conn: conn
+    } do
+      conn =
+        conn
+        |> put(
+          account_path(conn, :update, %{
+            "user" => %{
+              "name" => "My Newest Name",
+              "password" => "12345678",
+              "current_password" => "not the current password"
+            }
+          })
+        )
+
+      assert html_response(conn, 200) =~ "Current password is incorrect."
     end
   end
 

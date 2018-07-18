@@ -63,15 +63,19 @@ defmodule NervesHubCore.Accounts.User do
 
     changed = fn field -> not (changeset |> get_change(field) |> is_nil()) end
     password_required = changed.(:password) or changed.(:email)
+    current_password = params["current_password"]
 
     cond do
-      password_required and params["current_password"] == "" ->
+      password_required and (current_password == "" or is_nil(current_password)) ->
         changeset
-        |> add_error(:current_password, "can't be blank")
+        |> add_error(
+          :current_password,
+          "You must provide a current password in order to change your email or password."
+        )
 
-      password_required and not Bcrypt.checkpw(params["current_password"], user.password_hash) ->
+      password_required and not Bcrypt.checkpw(current_password, user.password_hash) ->
         changeset
-        |> add_error(:current_password, "is invalid")
+        |> add_error(:current_password, "Current password is incorrect.")
 
       changed.(:password) ->
         changeset

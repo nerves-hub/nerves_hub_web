@@ -17,13 +17,13 @@
 
   <div class="form-group">
     <label for="password_input">New Password</label>
-    <%= email_input f, :password, class: "form-control", id: "password_input" %>
+    <%= password_input f, :password, class: "form-control", id: "password_input" %>
     <div class="has-error"><%= error_tag f, :password %></div>
   </div>
 
   <div class="form-group">
     <label for="current_password_input">Current Password (If changing email/password)</label>
-    <%= email_input f, :current_password, class: "form-control", id: "current_password_input" %>
+    <%= password_input f, :current_password, class: "form-control", id: "current_password_input" %>
     <div class="has-error"><%= error_tag f, :current_password %></div>
   </div>
 
