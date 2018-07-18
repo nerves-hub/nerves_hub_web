@@ -5,6 +5,7 @@ defmodule NervesHubWeb.TenantController do
   alias NervesHub.Accounts.Email
   alias NervesHubCore.Accounts
   alias NervesHubCore.Accounts.{Invite, TenantKey}
+  alias NervesHub.Mailer
 
   def edit(%{assigns: %{tenant: tenant}} = conn, _params) do
     render(
@@ -70,7 +71,9 @@ defmodule NervesHubWeb.TenantController do
     |> Accounts.invite(tenant)
     |> case do
       {:ok, invite} ->
-        Email.send(:invite, invite, tenant)
+        Email.invite(invite, tenant)
+        |> Mailer.deliver_later()
+
         {:ok, invite}
 
         conn

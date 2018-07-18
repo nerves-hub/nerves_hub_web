@@ -249,23 +249,15 @@ defmodule NervesHubCore.Accounts do
     |> Repo.update()
   end
 
-  @doc """
-  Attempt to send an email with a link for resetting a user's password.
-  (If the given email address doesn't correspond to a user, do nothing.
-
-  Returns :ok regardless of the outcome to enforce the business rule
-  (at the lowest level) that we should never signal to the user whether
-  an email was sent. (Would allow brute force guessing of account emails.)
-  """
-  @spec send_password_reset_email(String.t()) :: :ok
-  def send_password_reset_email(email) when is_binary(email) do
+  @spec update_password_reset_token(String.t()) :: :ok
+  def update_password_reset_token(email) when is_binary(email) do
     query = from(u in User, where: u.email == ^email)
 
     query
     |> Repo.one()
     |> case do
       nil ->
-        :ok
+        {:error, :no_user}
 
       %User{} = user ->
         user

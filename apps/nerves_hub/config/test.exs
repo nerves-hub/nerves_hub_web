@@ -11,6 +11,9 @@ config :logger, level: :warn
 
 config :nerves_hub, firmware_upload: NervesHubCore.Firmwares.Upload.File
 
+config :nerves_hub, NervesHub.Mailer,
+  adapter: Bamboo.TestAdapter
+
 config :nerves_hub, NervesHubCore.Firmwares.Upload.File,
   local_path: "/tmp/firmware",
   public_path: "/firmware"
