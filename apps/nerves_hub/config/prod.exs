@@ -33,10 +33,10 @@ config :logger, level: :debug
 
 config :nerves_hub, NervesHub.Mailer,
   adapter: Bamboo.SMTPAdapter,
-  server: System.get_env("SES_SERVER"),
-  port: System.get_env("SES_PORT"),
-  username: System.get_env("SMTP_USERNAME"),
-  password: System.get_env("SMTP_PASSWORD"),
+  server: "${SES_SERVER}",
+  port: "${SES_PORT}",
+  username: "${SMTP_USERNAME}",
+  password: "${SMTP_PASSWORD}",
   tls: :always, # can be `:always` or `:never`
   ssl: false, # can be `true`
   retries: 1
