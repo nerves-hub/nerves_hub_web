@@ -36,9 +36,7 @@ defmodule NervesHub.MixProject do
       extra_applications: [
         :logger,
         :runtime_tools,
-        :timex,
-        :swoosh, 
-        :gen_smtp
+        :timex
       ]
     ]
   end
@@ -52,8 +50,6 @@ defmodule NervesHub.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:swoosh, "~> 0.13"},
-      {:gen_smtp, "~> 0.12.0"},
       {:plug, "~> 1.6"},
       {:phoenix, github: "mobileoverlord/phoenix", branch: "ws_extra_params", override: true},
       {:phoenix_pubsub, "~> 1.0"},
@@ -66,11 +62,12 @@ defmodule NervesHub.MixProject do
        only: :dev},
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 2.0", override: true},
-      {:phoenix_swoosh, "~> 0.2"},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
       {:hackney, "~> 1.9"},
       {:sweet_xml, "~> 0.6"},
+      {:bamboo, "~> 1.0"},
+      {:bamboo_smtp, "~> 1.5.0"},
       {:distillery, "~> 1.5"},
       {:nerves_hub_core, in_umbrella: true},
       {:nerves_hub_device, in_umbrella: true}
