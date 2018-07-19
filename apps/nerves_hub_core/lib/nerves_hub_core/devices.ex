@@ -2,6 +2,7 @@ defmodule NervesHubCore.Devices do
   import Ecto.Query
 
   alias NervesHubCore.Devices.Device
+  alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Deployments.Deployment
   alias NervesHubCore.Accounts.Tenant
   alias NervesHubCore.Products.Product
@@ -67,15 +68,24 @@ defmodule NervesHubCore.Devices do
     |> Repo.update()
   end
 
-  def matches_deployment?(%Device{} = device, %Deployment{} = deployment) do
-    with v <- deployment.conditions["version"],
-         true <- v == "" or Version.match?(device.current_firmware.version, v),
-         true <- Enum.all?(deployment.conditions["tags"], fn tag -> tag in device.tags end) do
+  @doc """
+  Returns true if Version.match? and all deployment tags are in device tags.
+  """
+  def matches_deployment?(
+        %Device{tags: tags, current_firmware: %Firmware{version: version}},
+        %Deployment{conditions: %{"version" => dep_version, "tags" => dep_tags}}
+      ) do
+    if Version.match?(version, dep_version) and tags_match?(tags, dep_tags) do
       true
     else
-      _ ->
-        false
+      false
     end
+  end
+
+  def matches_deployment?(_, _), do: false
+
+  defp tags_match?(device_tags, deployment_tags) do
+    Enum.all?(deployment_tags, fn tag -> tag in device_tags end)
   end
 
   def set_target_deployment(%Device{} = device, %Deployment{} = deployment) do

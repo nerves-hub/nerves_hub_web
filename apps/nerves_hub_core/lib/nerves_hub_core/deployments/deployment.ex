@@ -44,6 +44,23 @@ defmodule NervesHubCore.Deployments.Deployment do
     |> validate_conditions()
   end
 
+  def creation_changeset(%Deployment{} = deployment, params) do
+    deployment
+    |> cast(params, @required_fields ++ @optional_fields)
+    |> validate_required(@required_fields)
+    |> validate_change(:is_active, fn :is_active, is_active ->
+      creation_errors(:is_active, is_active)
+    end)
+  end
+
+  defp creation_errors(:is_active, is_active) do
+    if is_active do
+      [is_active: "cannot be true on creation"]
+    else
+      []
+    end
+  end
+
   def with_firmware(deployment_query) do
     deployment_query
     |> preload(:firmware)

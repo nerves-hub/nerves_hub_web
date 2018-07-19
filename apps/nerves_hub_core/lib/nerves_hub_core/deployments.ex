@@ -57,14 +57,14 @@ defmodule NervesHubCore.Deployments do
     deployment
     |> Deployment.edit_changeset(params)
     |> Repo.update()
+    |> update_relevant_devices()
   end
 
   @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def create_deployment(params) do
     %Deployment{}
-    |> Deployment.changeset(params)
+    |> Deployment.creation_changeset(params)
     |> Repo.insert()
-    |> update_relevant_devices()
   end
 
   defp update_relevant_devices({:ok, %Deployment{is_active: false} = deployment}) do
