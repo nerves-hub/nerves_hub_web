@@ -1,7 +1,7 @@
 {
     "CN": "nerves-hub",
     "hosts": [
-        "connect.nerves-hub.org",
+        "device.nerves-hub.org",
         "nerves-hub.local",
         "nerves-hub"
     ],
