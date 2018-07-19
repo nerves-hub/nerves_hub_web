@@ -50,6 +50,11 @@ defmodule NervesHubCore.Devices.Device do
     |> preload(:target_deployment)
   end
 
+  def with_current_firmware(device_query) do
+    device_query
+    |> preload(:current_firmware)
+  end
+
   def with_tenant(device_query) do
     device_query
     |> preload(:tenant)

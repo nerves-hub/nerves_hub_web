@@ -2,6 +2,7 @@ defmodule NervesHubCore.Deployments do
   import Ecto.Query
 
   alias NervesHubCore.Deployments.Deployment
+  alias NervesHubCore.Devices
   alias NervesHubCore.Accounts.Tenant
   alias NervesHubCore.Repo
   alias Ecto.Changeset
@@ -56,12 +57,38 @@ defmodule NervesHubCore.Deployments do
     deployment
     |> Deployment.edit_changeset(params)
     |> Repo.update()
+    |> update_relevant_devices()
   end
 
   @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def create_deployment(params) do
     %Deployment{}
-    |> Deployment.changeset(params)
+    |> Deployment.creation_changeset(params)
     |> Repo.insert()
   end
+
+  defp update_relevant_devices({:ok, %Deployment{is_active: false} = deployment}) do
+    {:ok, deployment}
+  end
+
+  defp update_relevant_devices({:ok, deployment}) do
+    relevant_devices =
+      from(
+        d in Devices.Device,
+        where: d.product_id == ^deployment.product_id,
+        join: f in assoc(d, :current_firmware),
+        where: f.architecture == d.architecture and f.platform == d.platform
+      )
+      |> Devices.Device.with_current_firmware()
+      |> Repo.all()
+
+    Task.Supervisor.async_stream(NervesHubCore.TaskSupervisor, relevant_devices, fn device ->
+      Devices.set_target_deployment(device, deployment)
+    end)
+    |> Stream.run()
+
+    {:ok, deployment}
+  end
+
+  defp update_relevant_devices({:error, changeset}), do: {:error, changeset}
 end

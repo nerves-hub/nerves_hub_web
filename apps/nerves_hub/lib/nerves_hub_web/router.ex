@@ -79,8 +79,6 @@ defmodule NervesHubWeb.Router do
 
   scope "/api", NervesHubWeb.Api do
     pipe_through(:api)
-
-    get("/firmware-update", FirmwareUpdateController, :show)
   end
 
   if Mix.env() in [:dev] do

@@ -23,7 +23,7 @@ defmodule NervesHub.Fixtures do
       "version" => "< 1.0.0",
       "tags" => ["beta", "beta-edge"]
     },
-    is_active: true
+    is_active: false
   }
   @device_params %{identifier: "device-1234"}
   @product_params %{name: "valid product"}
