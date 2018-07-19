@@ -7,7 +7,7 @@ use Mix.Config
 # watchers to your application. For example, we use it
 # with brunch.io to recompile .js and .css sources.
 config :nerves_hub, NervesHubWeb.Endpoint,
-  http: [port: 4000],
+http: [ip: {0, 0, 0, 0}, port: 4000],
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
@@ -31,7 +31,6 @@ config :nerves_hub, NervesHubWeb.Endpoint,
 
 # Watch static and templates for browser reloading.
 config :nerves_hub, NervesHubWeb.Endpoint,
-  url: [scheme: "http", host: "localhost", port: 4000],
   live_reload: [
     patterns: [
       ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
@@ -59,10 +58,9 @@ config :phoenix, :stacktrace_depth, 20
 # if using NervesHubCore.Firmwares.Upload.S3, set configuration below accordingly
 config :nerves_hub, firmware_upload: NervesHubCore.Firmwares.Upload.S3
 
-config :nerves_hub, NervesHubCore.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
 
 config :nerves_hub, NervesHub.CertificateAuthority,
-  host: "127.0.0.1",
+  host: "0.0.0.0",
   port: 8443,
   ssl: [
     keyfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/server-key.pem"]),
