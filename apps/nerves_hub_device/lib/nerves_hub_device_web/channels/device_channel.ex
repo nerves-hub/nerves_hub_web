@@ -51,16 +51,20 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   end
 
   defp device_update(_, _, _), do: {:error, :no_firmware_uuid}
-
+  
+  defp update_message({:ok, %{}},%Devices.Device{
+    target_deployment: nil},_) do
+      {:ok, %{update_available: false}}
+    end
   defp update_message(
-         {:ok, %{} = message},
+         {:ok, %{}},
          %Devices.Device{
            target_deployment: %{firmware_id: firmware_id},
            current_firmware_id: firmware_id
          },
          _
        ) do
-    {:ok, %{update_available: false} |> Map.merge(message)}
+    {:ok, %{update_available: false}}
   end
 
   defp update_message(
