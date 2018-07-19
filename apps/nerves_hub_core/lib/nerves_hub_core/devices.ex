@@ -2,6 +2,7 @@ defmodule NervesHubCore.Devices do
   import Ecto.Query
 
   alias NervesHubCore.Devices.Device
+  alias NervesHubCore.Deployments.Deployment
   alias NervesHubCore.Accounts.Tenant
   alias NervesHubCore.Products.Product
   alias NervesHubCore.Repo
@@ -64,5 +65,25 @@ defmodule NervesHubCore.Devices do
     device
     |> Device.changeset(params)
     |> Repo.update()
+  end
+
+  def matches_deployment?(%Device{} = device, %Deployment{} = deployment) do
+    with v <- deployment.conditions["version"],
+         true <- v == "" or Version.match?(device.current_firmware.version, v),
+         true <- Enum.all?(deployment.conditions["tags"], fn tag -> tag in device.tags end) do
+      true
+    else
+      _ ->
+        false
+    end
+  end
+
+  def set_target_deployment(%Device{} = device, %Deployment{} = deployment) do
+    with true <- matches_deployment?(device, deployment),
+         {:ok, device} <- update_device(device, %{target_deployment_id: deployment.id}) do
+      {:ok, device}
+    else
+      _ -> {:error, :invalid_deployment_for_device}
+    end
   end
 end
