@@ -97,7 +97,8 @@ defmodule NervesHubWeb.DeploymentController do
     end
   end
 
-  def show(%{assigns: %{deployment: deployment}} = conn, _params) do
+  def show(%{assigns: %{tenant: tenant, product: _product}} = conn, %{"id" => deployment_id}) do
+    {:ok, deployment} = Deployments.get_deployment(tenant, deployment_id)
     conn
     |> render(
       "show.html",
