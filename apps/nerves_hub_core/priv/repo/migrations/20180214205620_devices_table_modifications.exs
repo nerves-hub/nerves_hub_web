@@ -1,4 +1,4 @@
-defmodule NervesHub.Repo.Migrations.DevicesTableModifications do
+defmodule NervesHubCore.Repo.Migrations.DevicesTableModifications do
   use Ecto.Migration
 
   def up do

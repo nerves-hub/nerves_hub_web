@@ -1,4 +1,4 @@
-defmodule NervesHub.Repo.Migrations.Deployments do
+defmodule NervesHubCore.Repo.Migrations.Deployments do
   use Ecto.Migration
 
   def change do

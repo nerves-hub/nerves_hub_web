@@ -1,4 +1,4 @@
-defmodule NervesHub.Repo.Migrations.TenantsAndUsersTable do
+defmodule NervesHubCore.Repo.Migrations.TenantsAndUsersTable do
   use Ecto.Migration
 
   def up do

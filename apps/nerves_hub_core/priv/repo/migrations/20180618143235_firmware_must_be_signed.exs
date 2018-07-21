@@ -1,4 +1,4 @@
-defmodule NervesHub.Repo.Migrations.FirmwareMustBeSigned do
+defmodule NervesHubCore.Repo.Migrations.FirmwareMustBeSigned do
   use Ecto.Migration
 
   def up do

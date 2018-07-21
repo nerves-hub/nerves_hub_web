@@ -1,4 +1,4 @@
-defmodule NervesHub.Repo.Migrations.DevicePlatformArchitectureRequired do
+defmodule NervesHubCore.Repo.Migrations.DevicePlatformArchitectureRequired do
   use Ecto.Migration
 
   def up do
