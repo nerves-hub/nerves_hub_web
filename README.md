@@ -1,7 +1,7 @@
-# nerves_hub
+# nerves_hub_www
 
-[![CircleCI](https://circleci.com/gh/nerves-hub/nerves_hub.svg?style=svg)](https://circleci.com/gh/nerves-hub/nerves_hub)
-[![Coverage Status](https://coveralls.io/repos/github/nerves-hub/nerves_hub/badge.svg?branch=master)](https://coveralls.io/github/nerves-hub/nerves_hub?branch=master)
+[![CircleCI](https://circleci.com/gh/nerves-hub/nerves_hub_web.svg?style=svg)](https://circleci.com/gh/nerves-hub/nerves_hub_web)
+[![Coverage Status](https://coveralls.io/repos/github/nerves-hub/nerves_hub_web/badge.svg?branch=master)](https://coveralls.io/github/nerves-hub/nerves_hub_web?branch=master)
 
 A domain independent back end solution for rolling out software updates to edge
 devices connected to IP based networking infrastructure.
@@ -42,7 +42,7 @@ companies.
 
 NervesHub uses Client-side SSL to authorize and identify connected devices.
 Devices are required to provide a valid certificate that was signed using the
-trusted certificate authority nerves_hub certificate. This certificate should be
+trusted certificate authority NervesHub certificate. This certificate should be
 generated and kept secret and private from Internet-connected servers.
 
 For convenience, we use the pre-generated certificates for `dev` and `test`.

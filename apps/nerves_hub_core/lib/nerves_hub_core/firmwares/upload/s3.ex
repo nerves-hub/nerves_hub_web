@@ -5,7 +5,7 @@ defmodule NervesHubCore.Firmwares.Upload.S3 do
           {:ok, map}
           | {:error, atom()}
   def upload_file(filepath, filename, tenant_id) do
-    bucket = Application.get_env(:nerves_hub, __MODULE__)[:bucket]
+    bucket = Application.get_env(:nerves_hub_www, __MODULE__)[:bucket]
     random_string = :crypto.strong_rand_bytes(12) |> Base.url_encode64()
     s3_path = Path.join(["firmware", Integer.to_string(tenant_id), random_string, filename])
 
@@ -24,7 +24,7 @@ defmodule NervesHubCore.Firmwares.Upload.S3 do
           | {:error, String.t()}
   def download_file(firmware) do
     s3_key = firmware.upload_metadata["s3_key"]
-    bucket = Application.get_env(:nerves_hub, __MODULE__)[:bucket]
+    bucket = Application.get_env(:nerves_hub_www, __MODULE__)[:bucket]
 
     ExAws.Config.new(:s3)
     |> S3.presigned_url(:get, bucket, s3_key, expires_in: 600)

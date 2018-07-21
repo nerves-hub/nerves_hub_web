@@ -1,7 +1,7 @@
 defmodule NervesHubCore.FirmwaresTest do
   use NervesHubCore.DataCase
 
-  alias NervesHub.Fixtures
+  alias NervesHubWWW.Fixtures
   alias NervesHubCore.{Firmwares, Repo}
   alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Deployments.Deployment
@@ -52,7 +52,7 @@ defmodule NervesHubCore.FirmwaresTest do
     |> Repo.update!()
   end
 
-  describe "NervesHub.Firmwares.get_firmwares_by_product/2" do
+  describe "NervesHubWWW.Firmwares.get_firmwares_by_product/2" do
     test "returns firmwares", %{product: %{id: product_id} = product} do
       firmwares = Firmwares.get_firmwares_by_product(product.id)
 
@@ -60,7 +60,7 @@ defmodule NervesHubCore.FirmwaresTest do
     end
   end
 
-  describe "NervesHub.Firmwares.get_firmware/2" do
+  describe "NervesHubWWW.Firmwares.get_firmware/2" do
     test "returns firmwares", %{tenant: %{id: t_id} = tenant, firmware: %{id: f_id} = firmware} do
       {:ok, gotten_firmware} = Firmwares.get_firmware(tenant, firmware.id)
 
@@ -68,7 +68,7 @@ defmodule NervesHubCore.FirmwaresTest do
     end
   end
 
-  describe "NervesHub.Firmwares.get_eligible_firmware_update/2" do
+  describe "NervesHubWWW.Firmwares.get_eligible_firmware_update/2" do
     test "returns a Firmware struct when a deployment is found where the version is eligible and whose firmware has matching architecture and platform",
          %{matching_device: device} do
       version = Version.parse!("0.5.0")

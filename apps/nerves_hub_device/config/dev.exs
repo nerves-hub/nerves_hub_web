@@ -11,7 +11,7 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   code_reloader: false,
   check_origin: false,
   watchers: [],
-  pubsub: [name: NervesHub.PubSub, adapter: Phoenix.PubSub.PG2],
+  pubsub: [name: NervesHubWWW.PubSub, adapter: Phoenix.PubSub.PG2],
   https: [
     port: 4443,
     otp_app: :nerves_hub_device,

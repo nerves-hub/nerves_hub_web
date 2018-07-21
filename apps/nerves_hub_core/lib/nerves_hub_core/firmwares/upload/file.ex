@@ -4,14 +4,14 @@ defmodule NervesHubCore.Firmwares.Upload.File do
           {:ok, map}
           | {:error, atom()}
   def upload_file(filepath, filename, tenant_id) do
-    config = Application.get_env(:nerves_hub, __MODULE__)
+    config = Application.get_env(:nerves_hub_www, __MODULE__)
     random_string = :crypto.strong_rand_bytes(12) |> Base.url_encode64()
     path = Path.join([Integer.to_string(tenant_id), random_string])
     local_path = Path.join([config[:local_path], path])
 
     with :ok <- File.mkdir_p(local_path),
          :ok <- File.cp(filepath, Path.join([local_path, filename])) do
-      url = Application.get_env(:nerves_hub, NervesHubWeb.Endpoint)[:url]
+      url = Application.get_env(:nerves_hub_www, NervesHubWWWWeb.Endpoint)[:url]
       port = if Enum.member?([443, 80], url[:port]), do: "", else: ":#{url[:port]}"
 
       public_path =

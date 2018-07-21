@@ -44,18 +44,18 @@ end
 # when running `mix release`, the first release in the file
 # will be used by default
 
-release :nerves_hub do
+release :nerves_hub_www do
   set commands: [
     "migrate": "rel/scripts/migrate-and-seed.sh"
   ]
-  set version: current_version(:nerves_hub)
+  set version: current_version(:nerves_hub_www)
   set applications: [
     :runtime_tools,
-    nerves_hub: :permanent,
+    nerves_hub_www: :permanent,
     nerves_hub_core: :permanent
   ]
   set vm_args: "rel/vm.args"
-  set config: "config/release/nerves_hub.exs"
+  set config: "config/release/nerves_hub_www.exs"
 end
 
 release :nerves_hub_device do
