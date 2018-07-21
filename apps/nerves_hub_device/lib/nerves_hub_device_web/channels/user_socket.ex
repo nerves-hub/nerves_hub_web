@@ -6,7 +6,7 @@ defmodule NervesHubDeviceWeb.UserSocket do
   @websocket_auth_methods Application.get_env(:nerves_hub_device, :websocket_auth_methods)
 
   ## Channels
-  # channel "room:*", NervesHubWeb.RoomChannel
+  # channel "room:*", NervesHubWWWWeb.RoomChannel
   channel("device:*", NervesHubDeviceWeb.DeviceChannel)
 
   # Socket params are passed from the client and can
@@ -62,7 +62,7 @@ defmodule NervesHubDeviceWeb.UserSocket do
   # Would allow you to broadcast a "disconnect" event and terminate
   # all active sockets and channels for a given user:
   #
-  #     NervesHubWeb.Endpoint.broadcast("user_socket:#{user.id}", "disconnect", %{})
+  #     NervesHubWWWWeb.Endpoint.broadcast("user_socket:#{user.id}", "disconnect", %{})
   #
   # Returning `nil` makes this socket anonymous.
   def id(_socket), do: nil

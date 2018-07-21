@@ -1,7 +1,7 @@
-defmodule NervesHub.Integration.WebsocketTest do
+defmodule NervesHubWWW.Integration.WebsocketTest do
   use ExUnit.Case, async: false
   use NervesHubDeviceWeb.ChannelCase
-  alias NervesHub.Fixtures
+  alias NervesHubWWW.Fixtures
   alias NervesHubCore.{Repo,Devices,Accounts}
   
   @serial_header Application.get_env(:nerves_hub_device, :device_serial_header)

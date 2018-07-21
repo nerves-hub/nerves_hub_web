@@ -21,7 +21,7 @@ defmodule NervesHubCore.Release.Tasks do
   end
 
   defp init(app, start_apps) do
-    IO.puts("Loading nerves_hub app for migrations...")
+    IO.puts("Loading nerves_hub_www app for migrations...")
     :ok = Application.load(app)
 
     IO.puts("Starting dependencies...")

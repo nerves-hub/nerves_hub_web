@@ -3,7 +3,7 @@ use Mix.Config
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   load_from_system_env: true,
   url: [host: "device.nerves-hub.org"],
-  pubsub: [name: NervesHub.PubSub,
+  pubsub: [name: NervesHubWWW.PubSub,
            adapter: Phoenix.PubSub.PG2],
   server: true,
   https: [

@@ -3,7 +3,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   alias NervesHubCore.{Devices,Firmwares,Accounts}
 
-  @uploader Application.get_env(:nerves_hub, :firmware_upload)
+  @uploader Application.get_env(:nerves_hub_www, :firmware_upload)
 
   def join("device:" <> serial, payload, socket) do
     if authorized?(socket, serial) do

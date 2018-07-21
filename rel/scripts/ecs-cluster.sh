@@ -22,7 +22,7 @@ export LOCAL_IPV4=$(echo $METADATA | jq -r '.Containers[0] .Networks[] .IPv4Addr
 export AWS_REGION_NAME=us-east-1
 
 WWW_IPS=$(service_ip_addresses nerves-hub)
-WWW_NODES=$(format_nodes "$WWW_IPS" nerves_hub)
+WWW_NODES=$(format_nodes "$WWW_IPS" nerves_hub_www)
 
 DEVICE_IPS=$(service_ip_addresses nerves-hub-device)
 DEVICE_NODES=$(format_nodes "$DEVICE_IPS" nerves_hub_device)
@@ -34,7 +34,7 @@ NODES=$(echo $NODES | sed -e "s/ /, /g")
 NODE_STRING="[$NODES]"
 
 # we should now have something that looks like
-# ['nerves_hub@10.0.2.120', 'nerves_hub@10.0.3.99']
+# ['nerves_hub_www@10.0.2.120', 'nerves_hub_device@10.0.3.99']
 export SYNC_NODES_OPTIONAL="$NODE_STRING"
 echo $SYNC_NODES_OPTIONAL
 

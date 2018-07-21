@@ -1,7 +1,7 @@
 defmodule NervesHubCore.DeploymentsTest do
   use NervesHubCore.DataCase
 
-  alias NervesHub.Fixtures
+  alias NervesHubWWW.Fixtures
   alias NervesHubCore.Deployments
   alias Ecto.Changeset
 

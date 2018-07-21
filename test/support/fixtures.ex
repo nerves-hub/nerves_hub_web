@@ -1,4 +1,4 @@
-defmodule NervesHub.Fixtures do
+defmodule NervesHubWWW.Fixtures do
   alias NervesHubCore.{Firmwares, Accounts, Devices, Deployments, Products}
 
   @tenant_params %{name: "Test Tenant"}

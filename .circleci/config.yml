@@ -56,7 +56,7 @@ migrate: &migrate
   run:
     name: Run Migrations
     command: |
-      NERVES_HUB_TASK=$(rel/scripts/ecs-update-task.sh nerves_hub nerveshub/nerves_hub:$DOCKER_TAG)
+      NERVES_HUB_TASK=$(rel/scripts/ecs-update-task.sh nerves_hub_www nerveshub/nerves_hub_www:$DOCKER_TAG)
       rel/scripts/ecs-migrate.sh \
         nerves-hub \
         $NERVES_HUB_TASK
@@ -78,7 +78,7 @@ send_notifications: &send_notifications
       rel/scripts/slack-notification.sh \
         $SLACK_INCOMING_WEBHOOK_URL \
         "#nerves-hub" \
-        "NervesHub Deployment" "Deployed: \`nerveshub/$APP_NAME:$DOCKER_TAG\`"
+        "NervesHub Deployment" "Deployed: \`$APP_NAME:$DOCKER_TAG\`"
 
 version: 2
 jobs:
@@ -145,7 +145,7 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
+      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
       - <<: *remote_docker
       - <<: *docker_env
       - <<: *docker_build_release
@@ -171,7 +171,7 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
+      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
       - <<: *remote_docker
       - <<: *docker_env
       - restore_cache:
@@ -197,8 +197,8 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
-      - run: echo "export SERVICE=nerves-hub" >> $BASH_ENV
+      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub-www" >> $BASH_ENV
       - <<: *docker_env
       - run:
           name: Lock deployments
@@ -209,8 +209,8 @@ jobs:
     <<: *defaults
     steps:
       - checkout
-      - run: echo "export APP_NAME=nerves_hub" >> $BASH_ENV
-      - run: echo "export SERVICE=nerves-hub" >> $BASH_ENV
+      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub-www" >> $BASH_ENV
       - <<: *docker_env
       - run:
           name: Lock deployments

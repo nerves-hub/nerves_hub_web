@@ -1,8 +1,8 @@
 {
   "containerOverrides": [
     {
-      "name": "nerves_hub",
-      "command": ["/app/bin/nerves_hub", "migrate"]
+      "name": "nerves_hub_www",
+      "command": ["/app/bin/nerves_hub_www", "migrate"]
     }
   ]
 }
