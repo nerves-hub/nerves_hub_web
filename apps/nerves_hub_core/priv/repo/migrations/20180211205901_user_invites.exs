@@ -1,4 +1,4 @@
-defmodule NervesHub.Repo.Migrations.UserInvites do
+defmodule NervesHubCore.Repo.Migrations.UserInvites do
   use Ecto.Migration
 
   def change do

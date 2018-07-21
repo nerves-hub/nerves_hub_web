@@ -1,4 +1,4 @@
-defmodule NervesHub.Repo.Migrations.FirmwaresSplitMetadata do
+defmodule NervesHubCore.Repo.Migrations.FirmwaresSplitMetadata do
   use Ecto.Migration
 
   def up do

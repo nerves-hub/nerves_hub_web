@@ -16,7 +16,7 @@ defmodule NervesHub.DataCase do
 
   using do
     quote do
-      alias NervesHub.Repo
+      alias NervesHubCore.Repo
 
       import Ecto
       import Ecto.Changeset
