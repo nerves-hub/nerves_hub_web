@@ -11,7 +11,7 @@ config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
   code_reloader: false,
   check_origin: false,
   watchers: [],
-  pubsub: [name: NervesHubWeb.PubSub, adapter: Phoenix.PubSub.PG2],
+  pubsub: [name: NervesHubWeb.PubSub],
   https: [
     port: 4002,
     otp_app: :nerves_hub_api,
