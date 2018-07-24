@@ -16,7 +16,7 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   url: [host: System.get_env("HOST")],
   secret_key_base: System.get_env("SECRET_KEY_BASE"),
   render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: NervesHubWWW.PubSub]
+  pubsub: [name: NervesHubWeb.PubSub]
 
 # Configures Elixir's Logger
 config :logger, :console,
