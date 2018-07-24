@@ -14,7 +14,7 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   server: true,
   pubsub: [name: NervesHubWWW.PubSub, adapter: Phoenix.PubSub.PG2],
   https: [
-    port: 4443,
+    port: 4001,
     otp_app: :nerves_hub_device,
     # Enable client SSL
     verify: :verify_peer,
