@@ -1,6 +1,6 @@
 <p>Hi <%= @invite.name %>,</p>
 
-<p>You've been invited to join <%= @tenant.name %> on NervesHubWWW.</p>
+<p>You've been invited to join <%= @tenant.name %> on nerves-hub.org.</p>
 
 <p>To get started click on the link below to register your account and set up your password:</p>
 
