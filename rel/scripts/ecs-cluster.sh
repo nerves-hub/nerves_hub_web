@@ -27,14 +27,17 @@ WWW_NODES=$(format_nodes "$WWW_IPS" nerves_hub_www)
 DEVICE_IPS=$(service_ip_addresses nerves-hub-device)
 DEVICE_NODES=$(format_nodes "$DEVICE_IPS" nerves_hub_device)
 
-NODES="$DEVICE_NODES $WWW_NODES"
+API_IPS=$(service_ip_addresses nerves-hub-api)
+API_NODES=$(format_nodes "$API_IPS" nerves_hub_api)
+
+NODES="$DEVICE_NODES $WWW_NODES $API_NODES"
 
 # formatting
 NODES=$(echo $NODES | sed -e "s/ /, /g")
 NODE_STRING="[$NODES]"
 
 # we should now have something that looks like
-# ['nerves_hub_www@10.0.2.120', 'nerves_hub_device@10.0.3.99']
+# ['nerves_hub_www@10.0.2.120', 'nerves_hub_device@10.0.3.99', 'nerves_hub_api@10.0.3.101']
 export SYNC_NODES_OPTIONAL="$NODE_STRING"
 echo $SYNC_NODES_OPTIONAL
 

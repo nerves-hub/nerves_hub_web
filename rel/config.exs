@@ -68,3 +68,13 @@ release :nerves_hub_device do
   set config: "config/release/nerves_hub_device.exs"
 end
 
+release :nerves_hub_api do
+  set version: current_version(:nerves_hub_api)
+  set applications: [
+    :runtime_tools,
+    nerves_hub_core: :permanent
+  ]
+  set vm_args: "rel/vm.args"
+  set config: "config/release/nerves_hub_api.exs"
+end
+
