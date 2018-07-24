@@ -26,7 +26,7 @@
   "mime": {:hex, :mime, "1.3.0", "5e8d45a39e95c650900d03f897fbf99ae04f60ab1daa4a34c7a20a5151b7a5fe", [:mix], [], "hexpm"},
   "mimerl": {:hex, :mimerl, "1.0.2", "993f9b0e084083405ed8252b99460c4f0563e41729ab42d9074fd5e52439be88", [:rebar3], [], "hexpm"},
   "mix_test_watch": {:hex, :mix_test_watch, "0.6.0", "5e206ed04860555a455de2983937efd3ce79f42bd8536fc6b900cc286f5bb830", [:mix], [{:file_system, "~> 0.2.1 or ~> 0.3", [hex: :file_system, repo: "hexpm", optional: false]}], "hexpm"},
-  "nerves_hub_client": {:git, "https://github.com/nerves-hub/nerves_hub_client.git", "b79f4ddee3966ac12b8d4eec4e2259eb88bec832", []},
+  "nerves_hub": {:git, "https://github.com/nerves-hub/nerves_hub.git", "cb3983e079db6207f7c3635ee91d53fb551e8a3c", []},
   "parse_trans": {:hex, :parse_trans, "3.2.0", "2adfa4daf80c14dc36f522cf190eb5c4ee3e28008fc6394397c16f62a26258c2", [:rebar3], [], "hexpm"},
   "phoenix": {:git, "https://github.com/mobileoverlord/phoenix.git", "40c8460022668d34f7603cfadeefc74b16a1c219", [branch: "ws_extra_params"]},
   "phoenix_channel_client": {:git, "https://github.com/mobileoverlord/phoenix_channel_client.git", "07fd5e2a03e19a09860fb6243efa8ae967f41e3f", []},
