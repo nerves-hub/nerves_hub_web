@@ -166,6 +166,19 @@ jobs:
       - save_cache:
           key: docker-device-{{ .Branch }}-{{ .Revision }}
           paths: "/docker"
+
+  build-api:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_api" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - <<: *docker_build_release
+      - <<: *docker_save
+      - save_cache:
+          key: docker-api-{{ .Branch }}-{{ .Revision }}
+          paths: "/docker"
   
   push-www:
     <<: *defaults
@@ -190,6 +203,19 @@ jobs:
       - restore_cache:
           keys:
             - docker-device-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
+      - <<: *docker_push
+  
+  push-api:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_api" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-api-{{ .Branch }}-{{ .Revision }}
       - <<: *docker_import
       - <<: *docker_push
 
@@ -230,6 +256,19 @@ jobs:
           command: rel/scripts/build-locking.sh --job-name deploy-device
       - <<: *deploy
       - <<: *send_notifications
+  
+  deploy-api:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_api" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub-api" >> $BASH_ENV
+      - <<: *docker_env
+      - run:
+          name: Lock deployments
+          command: rel/scripts/build-locking.sh --job-name deploy-api
+      - <<: *deploy
+      - <<: *send_notifications
 
 workflows:
   version: 2
@@ -244,6 +283,10 @@ workflows:
             context: org-global
             requires:
               - test
+        - build-api:
+            context: org-global
+            requires:
+              - test
         - push-www:
             context: org-global
             requires:
@@ -255,6 +298,13 @@ workflows:
             context: org-global
             requires:
               - build-device
+            filters:
+              branches:
+                only: master
+        - push-api:
+            context: org-global
+            requires:
+              - build-api
             filters:
               branches:
                 only: master
@@ -274,6 +324,13 @@ workflows:
               branches:
                 only: master
         - deploy-device:
+            context: org-global
+            requires:
+              - migrate
+            filters:
+              branches:
+                only: master
+        - deploy-api:
             context: org-global
             requires:
               - migrate
