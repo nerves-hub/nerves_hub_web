@@ -10,7 +10,7 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
   @valid_firmware_url "http://foo.com/bar"
 
   @fake_ssl_socket_config [
-    url: "wss://127.0.0.1:4443/socket/websocket",
+    url: "wss://127.0.0.1:4001/socket/websocket",
     serializer: Jason,
     ssl_verify: :verify_peer,
     socket_opts: [
@@ -22,7 +22,7 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
   ]
 
   @ssl_socket_config [
-    url: "wss://127.0.0.1:4443/socket/websocket",
+    url: "wss://127.0.0.1:4001/socket/websocket",
     serializer: Jason,
     ssl_verify: :verify_peer,
     socket_opts: [
@@ -34,7 +34,7 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
   ]
 
   @proxy_socket_config [
-    url: "wss://127.0.0.1:4443/socket/websocket",
+    url: "wss://127.0.0.1:4001/socket/websocket",
     serializer: Jason,
     extra_headers: [{@serial_header, @valid_serial}],
     socket_opts: [
