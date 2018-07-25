@@ -21,7 +21,7 @@ METADATA=`curl http://169.254.170.2/v2/metadata`
 export LOCAL_IPV4=$(echo $METADATA | jq -r '.Containers[0] .Networks[] .IPv4Addresses[0]')
 export AWS_REGION_NAME=us-east-1
 
-WWW_IPS=$(service_ip_addresses nerves-hub)
+WWW_IPS=$(service_ip_addresses nerves-hub-www)
 WWW_NODES=$(format_nodes "$WWW_IPS" nerves_hub_www)
 
 DEVICE_IPS=$(service_ip_addresses nerves-hub-device)
