@@ -19,7 +19,7 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
           firmware: firmware,
           deployment: deployment,
           product: product
-        } = NervesHubWWW.Fixtures.very_fixture()
+        } = NervesHubWeb.Fixtures.very_fixture()
 
         {:ok, tenant_key} =
           Accounts.create_tenant_key(%{

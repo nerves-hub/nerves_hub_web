@@ -19,7 +19,8 @@ defmodule NervesHubUmbrella.MixProject do
   defp deps do
     [
       {:excoveralls, "~> 0.8", only: :test},
-      {:mix_test_watch, "~> 0.6", only: :test, runtime: false}
+      {:mix_test_watch, "~> 0.6", only: :test, runtime: false},
+      {:plug, github: "mobileoverlord/plug", branch: "peer_conn", override: true}
     ]
   end
 

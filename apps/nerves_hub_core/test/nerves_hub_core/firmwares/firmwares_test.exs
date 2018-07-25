@@ -1,7 +1,7 @@
 defmodule NervesHubCore.FirmwaresTest do
   use NervesHubCore.DataCase
 
-  alias NervesHubWWW.Fixtures
+  alias NervesHubWeb.Fixtures
   alias NervesHubCore.{Firmwares, Repo}
   alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Deployments.Deployment

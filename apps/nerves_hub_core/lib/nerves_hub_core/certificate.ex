@@ -1,10 +1,10 @@
 defmodule NervesHubCore.Certificate do
   require Record
 
-  @spec get_device_serial(binary) :: {:ok, binary} | :error
-  def get_device_serial(cert) do
+  @spec get_common_name(binary) :: {:ok, binary} | :error
+  def get_common_name(cert) do
     cert = decode_cert(cert)
-
+    [_, _, _ | cert] = cert
     cn =
       Enum.filter(cert, &Record.is_record/1)
       |> Enum.reverse()
@@ -24,13 +24,17 @@ defmodule NervesHubCore.Certificate do
       end)
 
     case cn do
-      cn when is_binary(cn) ->
-        {:printableString, cn} = :public_key.der_decode(:X520CommonName, cn)
+      {_, cn} when is_list(cn) ->
         {:ok, to_string(cn)}
 
-      _ ->
+      _res ->
         :error
     end
+  end
+
+  def get_serial_number(cert) do
+    [_, _, serial | _cert] = decode_cert(cert)
+    {:ok, to_string(serial)}
   end
 
   defp decode_cert(<<"-----BEGIN CERTIFICATE-----", _rest::binary>> = cert) do
@@ -39,8 +43,7 @@ defmodule NervesHubCore.Certificate do
   end
 
   defp decode_cert(cert) do
-    {_, cert, _, _} = :public_key.pkix_decode_cert(cert, :plain)
-    [_, _, _ | cert] = Tuple.to_list(cert)
-    cert
+    {_, cert, _, _} = :public_key.pkix_decode_cert(cert, :otp)
+    Tuple.to_list(cert)
   end
 end

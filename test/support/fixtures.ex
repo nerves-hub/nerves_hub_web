@@ -1,4 +1,4 @@
-defmodule NervesHubWWW.Fixtures do
+defmodule NervesHubWeb.Fixtures do
   alias NervesHubCore.{Firmwares, Accounts, Devices, Deployments, Products}
 
   @tenant_params %{name: "Test Tenant"}
@@ -33,6 +33,10 @@ defmodule NervesHubWWW.Fixtures do
     email: "testy@mctesterson.com",
     password: "test_password"
   }
+  @user_certificate_params %{
+    description: "my test cert",
+    serial: "439232384633564273316985768137341552447087266399"
+  }
 
   def tenant_fixture(params \\ %{}) do
     {:ok, tenant} =
@@ -59,7 +63,7 @@ defmodule NervesHubWWW.Fixtures do
       |> Enum.into(@user_params)
 
     {:ok, user} = Accounts.create_user(tenant, user_params)
-
+    {:ok, _certificate} = Accounts.create_user_certificate(user, @user_certificate_params)
     user
   end
 

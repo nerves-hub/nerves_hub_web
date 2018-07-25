@@ -3,9 +3,13 @@ defmodule NervesHubAPIWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug NervesHubAPIWeb.Plugs.User
   end
 
-  scope "/api", NervesHubAPIWeb do
+  scope "/", NervesHubAPIWeb do
     pipe_through :api
+
+    get "/users/me", UserController, :me
   end
+
 end

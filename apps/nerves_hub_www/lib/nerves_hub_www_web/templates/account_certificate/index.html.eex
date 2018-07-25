@@ -1,0 +1,26 @@
+<h1>
+  Account Certificates
+</h1>
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Description</th>
+      <th>Serial</th>
+    </tr>
+  </thead>
+  <tbody>
+    <%= for certificate <- @certificates do %>
+      <tr>
+        <td><%= certificate.description %></td>
+        <td><%= certificate.serial %></td>
+        <td>
+          <a href="#" class="btn btn-danger">Delete</a>
+          <a href="#" class="btn btn-warning">Disable</a>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<span><%= link "New Certificate", to: account_certificate_path(@conn, :new) %></span>

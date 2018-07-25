@@ -1,4 +1,4 @@
-defmodule NervesHubWWW.CertificateAuthority do
+defmodule NervesHubCore.CertificateAuthority do
   def start_pool() do
     pool = :nerves_hub_ca
     pool_opts = [timeout: 150_000, max_connections: 10]
@@ -8,6 +8,22 @@ defmodule NervesHubWWW.CertificateAuthority do
   def create_device_certificate(serial) do
     body = Jason.encode!(%{serial: serial})
     url = url("/create_device_certificate")
+
+    :hackney.request(:post, url, headers(), body, opts())
+    |> resp()
+  end
+
+  def create_user_certificate(username) do
+    body = Jason.encode!(%{username: username})
+    url = url("/create_user_certificate")
+
+    :hackney.request(:post, url, headers(), body, opts())
+    |> resp()
+  end
+
+  def get_certificate_info(cert) do
+    body = Jason.encode!(%{certificate: cert})
+    url = url("/certinfo")
 
     :hackney.request(:post, url, headers(), body, opts())
     |> resp()

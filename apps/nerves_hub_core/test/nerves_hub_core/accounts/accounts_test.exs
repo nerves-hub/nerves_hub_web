@@ -43,4 +43,28 @@ defmodule NervesHubCore.AccountsTest do
 
     assert {:error, %Changeset{}} = Accounts.create_tenant_with_user(params)
   end
+
+  test "create_tenant_with_user_with_certificate with valid params" do
+    params = %{
+      name: "Testy McTesterson",
+      tenant_name: "mctesterson.com",
+      email: "testy@mctesterson.com",
+      password: "test_password"
+    }
+
+    target_tenant = %Accounts.Tenant{name: params.tenant_name}
+    {:ok, %Accounts.Tenant{} = result_tenant} = Accounts.create_tenant_with_user(params)
+
+    [user | _] = result_tenant |> Repo.preload(:users) |> Map.get(:users)
+
+    assert result_tenant.name == target_tenant.name
+    assert user.name == params.name
+
+    params = %{
+      description: "abcd",
+      serial: "12345"
+    }
+
+    assert {:ok, _cert} = Accounts.create_user_certificate(user, params)
+  end
 end

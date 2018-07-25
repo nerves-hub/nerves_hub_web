@@ -3,7 +3,7 @@ defmodule NervesHubCore.Accounts.User do
 
   import Ecto.Changeset
 
-  alias NervesHubCore.Accounts.Tenant
+  alias NervesHubCore.Accounts.{Tenant, UserCertificate}
   alias Comeonin.Bcrypt
   alias Ecto.Changeset
   alias __MODULE__
@@ -15,6 +15,7 @@ defmodule NervesHubCore.Accounts.User do
 
   schema "users" do
     belongs_to(:tenant, Tenant)
+    has_many(:user_certificates, UserCertificate)
 
     field(:name, :string)
     field(:email, :string)
