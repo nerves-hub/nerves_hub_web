@@ -1,0 +1,3 @@
+<a href="<%= account_certificate_path(@conn, :download, file: @file) %>" class="btn btn-primary">Download Certificates</a>
+<BR/>
+<a href="<%= account_certificate_path(@conn, :index) %>" class="btn btn-secondary">Return to Index</a>

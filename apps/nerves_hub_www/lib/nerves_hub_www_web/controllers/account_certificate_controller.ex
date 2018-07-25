@@ -20,6 +20,16 @@ defmodule NervesHubWWWWeb.AccountCertificateController do
     render(conn, "new.html", changeset: %Changeset{data: %UserCertificate{}})
   end
 
+  def show(conn, %{"file" => file}) do
+    render(conn, "show.html", file: file)
+  end
+
+  def download(conn, %{"file" => file}) do
+    archive = Base.decode64!(file) |> IO.inspect
+    conn
+    |> send_download({:binary, archive}, filename: "certificates.tar.gz")
+  end
+
   def create(%{assigns: %{user: user}} = conn, %{"user_certificate" => user_certificate_params}) do
     username = user.email
     with \
@@ -32,8 +42,9 @@ defmodule NervesHubWWWWeb.AccountCertificateController do
       Accounts.create_user_certificate(user, user_certificate_params)
 
       archive = create_certificate_archive(cert, key)
+      |> Base.encode64()
       conn
-      |> send_download({:binary, archive}, filename: "certificates.tar.gz")
+      |> redirect(to: account_certificate_path(conn, :show, file: archive))
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "new.html", changeset: changeset)
