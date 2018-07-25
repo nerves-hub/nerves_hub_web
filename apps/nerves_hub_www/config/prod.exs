@@ -28,6 +28,16 @@ config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: false
 config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.S3
 config :nerves_hub_www, NervesHubCore.Firmwares.Upload.S3, bucket: "${S3_BUCKET_NAME}"
 
+config :nerves_hub_www, NervesHubCore.CertificateAuthority,
+  host: "nerves-hub-ca.local",
+  port: 8443,
+  ssl: [
+    keyfile: "/etc/ssl/ca-api-key.pem",
+    certfile: "/etc/ssl/ca-api.pem",
+    cacertfile: "/etc/ssl/ca.pem",
+    server_name_indication: 'ca.nerves-hub.org'
+  ]
+
 # Do not print debug messages in production
 config :logger, level: :debug
 
