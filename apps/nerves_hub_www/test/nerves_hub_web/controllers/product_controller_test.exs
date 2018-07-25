@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.ProductControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser
 
-  alias NervesHubWWW.Fixtures
+  alias NervesHubWeb.Fixtures
   alias NervesHubCore.Products
 
   @create_attrs %{name: "some name"}

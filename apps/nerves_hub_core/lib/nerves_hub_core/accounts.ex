@@ -1,7 +1,7 @@
 defmodule NervesHubCore.Accounts do
   import Ecto.Query
   alias Ecto.Changeset
-  alias NervesHubCore.Accounts.{Tenant, User, Invite, TenantKey}
+  alias NervesHubCore.Accounts.{Tenant, User, UserCertificate, Invite, TenantKey}
   alias NervesHubCore.Repo
   alias Comeonin.Bcrypt
 
@@ -93,6 +93,17 @@ defmodule NervesHubCore.Accounts do
     |> Repo.insert()
   end
 
+  @spec create_user_certificate(User.t(), map) ::
+          {:ok, User.t()}
+          | {:error, Changeset.t()}
+  def create_user_certificate(%User{} = user, params) do
+    user
+    |> Ecto.build_assoc(:user_certificates)
+    |> UserCertificate.changeset(params)
+    |> Repo.insert()
+  end
+  
+
   @doc """
   Authenticates a user by their email and password. Returns the user if the
   user is found and the password is correct, otherwise nil.
@@ -135,6 +146,30 @@ defmodule NervesHubCore.Accounts do
     |> case do
       nil -> {:error, :not_found}
       user -> {:ok, user}
+    end
+  end
+
+  @spec get_user_certificates(User.t()) ::
+          {:ok, [UserCertificate.t()]}
+          | {:error, :not_found}
+  def get_user_certificates(%User{id: user_id}) do
+    query = from(uc in UserCertificate, where: uc.user_id == ^user_id)
+
+    query
+    |> Repo.all()
+  end
+
+  def get_user_with_certificate_serial(serial) do
+    query = from(
+      uc in UserCertificate, 
+      where: uc.serial == ^serial,
+      preload: [:user])
+
+    query
+    |> Repo.one()
+    |> case do
+      nil -> nil
+      %{user: user} -> user
     end
   end
 

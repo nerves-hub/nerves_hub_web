@@ -60,6 +60,9 @@ defmodule NervesHubWWWWeb.Router do
 
     get("/settings", AccountController, :edit)
     put("/settings", AccountController, :update)
+    
+    resources("/account/certificates", AccountCertificateController,  only: [:index, :edit, :new, :delete, :create])
+
 
     resources("/devices", DeviceController, only: [:index])
 

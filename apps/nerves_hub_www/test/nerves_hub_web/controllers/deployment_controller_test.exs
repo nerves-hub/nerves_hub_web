@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.DeploymentControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser
 
-  alias NervesHubWWW.Fixtures
+  alias NervesHubWeb.Fixtures
   alias NervesHubCore.Deployments
 
   describe "index" do

@@ -18,7 +18,7 @@ config :nerves_hub_www, NervesHubCore.Firmwares.Upload.File,
   local_path: "/tmp/firmware",
   public_path: "/firmware"
 
-config :nerves_hub_www, NervesHubWWW.CertificateAuthority,
+config :nerves_hub_www, NervesHubCore.CertificateAuthority,
   host: "127.0.0.1",
   port: 8443,
   ssl: [

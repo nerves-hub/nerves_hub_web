@@ -1,7 +1,7 @@
 defmodule NervesHubCore.DevicesTest do
   use NervesHubCore.DataCase
 
-  alias NervesHubWWW.Fixtures
+  alias NervesHubWeb.Fixtures
   alias NervesHubCore.Devices
   alias Ecto.Changeset
 
