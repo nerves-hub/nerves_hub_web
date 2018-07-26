@@ -313,6 +313,7 @@ workflows:
             requires:
               - push-www
               - push-device
+              - push-api
             filters:
               branches:
                 only: master
