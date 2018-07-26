@@ -32,10 +32,11 @@ config :nerves_hub_www, NervesHubCore.CertificateAuthority,
   host: "nerves-hub-ca.local",
   port: 8443,
   ssl: [
-    keyfile: "/etc/cfssl/ca-api-key.pem",
-    certfile: "/etc/cfssl/ca-api.pem",
+    keyfile: "/etc/cfssl/ca-client-key.pem",
+    certfile: "/etc/cfssl/ca-client.pem",
     cacertfile: "/etc/cfssl/ca.pem",
-    server_name_indication: 'ca.nerves-hub.org'
+    server_name_indication: 'ca.nerves-hub.org',
+    verify: :verify_peer
   ]
 
 # Do not print debug messages in production

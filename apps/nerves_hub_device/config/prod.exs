@@ -11,8 +11,8 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
     otp_app: :nerves_hub_device,
     # Enable client SSL
     verify: :verify_peer,
-    keyfile: "/etc/cfssl/server-key.pem",
-    certfile: "/etc/cfssl/server.pem",
+    keyfile: "/etc/cfssl/device.nerves-hub.org-key.pem",
+    certfile: "/etc/cfssl/device.nerves-hub.org.pem",
     cacertfile: "/etc/cfssl/ca.pem"
   ]
 
