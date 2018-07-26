@@ -7,31 +7,25 @@ defmodule NervesHubCore.Devices.Device do
   alias NervesHubCore.Accounts.Tenant
   alias NervesHubCore.Deployments.Deployment
   alias NervesHubCore.Firmwares.Firmware
-  alias NervesHubCore.Products.Product
 
   alias __MODULE__
 
   @type t :: %__MODULE__{}
   @optional_params [
-    :target_deployment_id,
-    :current_firmware_id,
+    :last_known_firmware_id,
     :last_communication,
     :description,
     :tags
   ]
-  @required_params [:tenant_id, :product_id, :identifier, :architecture, :platform]
+  @required_params [:tenant_id, :identifier]
 
   schema "devices" do
     belongs_to(:tenant, Tenant)
-    belongs_to(:target_deployment, Deployment)
-    belongs_to(:current_firmware, Firmware)
-    belongs_to(:product, Product)
+    belongs_to(:last_known_firmware, Firmware)
 
     field(:identifier, :string)
     field(:description, :string)
-    field(:platform, :string)
     field(:last_communication, :utc_datetime)
-    field(:architecture, :string)
     field(:tags, {:array, :string})
 
     timestamps()
@@ -45,9 +39,9 @@ defmodule NervesHubCore.Devices.Device do
     |> unique_constraint(:identifier, name: :devices_tenant_id_identifier_index)
   end
 
-  def with_deployment(device_query) do
+  def with_firmware(device_query) do
     device_query
-    |> preload(:target_deployment)
+    |> preload(:last_known_firmware)
   end
 
   def with_tenant(device_query) do

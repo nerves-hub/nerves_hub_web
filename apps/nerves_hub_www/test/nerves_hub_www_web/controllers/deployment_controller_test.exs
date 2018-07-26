@@ -153,7 +153,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
           }
         )
 
-      {:ok, reloaded_deployment} = Deployments.get_deployment(tenant, deployment.id)
+      {:ok, reloaded_deployment} = Deployments.get_deployment(product, deployment.id)
 
       assert redirected_to(conn, 302) =~
                product_deployment_path(conn, :show, product.id, deployment)
@@ -172,7 +172,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
 
       conn = delete(conn, product_deployment_path(conn, :delete, product.id, deployment))
       assert redirected_to(conn) == product_deployment_path(conn, :index, product.id)
-      assert Deployments.get_deployment(tenant, deployment.id) == {:error, :not_found}
+      assert Deployments.get_deployment(product, deployment.id) == {:error, :not_found}
     end
   end
 end

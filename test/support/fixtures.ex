@@ -96,7 +96,7 @@ defmodule NervesHubWeb.Fixtures do
         params \\ %{}
       ) do
     {:ok, firmware} =
-      %{tenant_id: tenant.id, tenant_key_id: tenant_key.id, product_id: product.id}
+      %{tenant_key_id: tenant_key.id, product_id: product.id}
       |> Enum.into(params)
       |> Enum.into(@firmware_params)
       |> Firmwares.create_firmware()
@@ -111,7 +111,7 @@ defmodule NervesHubWeb.Fixtures do
         params \\ %{}
       ) do
     {:ok, deployment} =
-      %{tenant_id: tenant.id, firmware_id: firmware.id, product_id: product.id}
+      %{firmware_id: firmware.id}
       |> Enum.into(params)
       |> Enum.into(@deployment_params)
       |> Deployments.create_deployment()
@@ -129,11 +129,8 @@ defmodule NervesHubWeb.Fixtures do
     {:ok, device} =
       %{
         tenant_id: tenant.id,
-        product_id: product.id,
         target_deployment_id: deployment.id,
-        current_firmware_id: firmware.id,
-        architecture: firmware.architecture,
-        platform: firmware.platform,
+        last_known_firmware_id: firmware.id,
         tags: deployment.conditions["tags"]
       }
       |> Enum.into(params)

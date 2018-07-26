@@ -97,8 +97,9 @@ defmodule NervesHubWWWWeb.DeploymentController do
     end
   end
 
-  def show(%{assigns: %{tenant: tenant, product: _product}} = conn, %{"id" => deployment_id}) do
-    {:ok, deployment} = Deployments.get_deployment(tenant, deployment_id)
+  def show(%{assigns: %{tenant: _tenant, product: product}} = conn, %{"id" => deployment_id}) do
+    {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
+
     conn
     |> render(
       "show.html",
@@ -106,8 +107,8 @@ defmodule NervesHubWWWWeb.DeploymentController do
     )
   end
 
-  def edit(%{assigns: %{tenant: tenant, product: _product}} = conn, %{"id" => deployment_id}) do
-    {:ok, deployment} = Deployments.get_deployment(tenant, deployment_id)
+  def edit(%{assigns: %{tenant: _tenant, product: product}} = conn, %{"id" => deployment_id}) do
+    {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
 
     conn
     |> render(
@@ -126,7 +127,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
       ) do
     params = inject_conditions_map(deployment_params)
 
-    {:ok, deployment} = Deployments.get_deployment(tenant, deployment_id)
+    {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
 
     Deployments.update_deployment(deployment, params)
     |> case do
@@ -146,8 +147,8 @@ defmodule NervesHubWWWWeb.DeploymentController do
     end
   end
 
-  def delete(%{assigns: %{tenant: tenant, product: product}} = conn, %{"id" => id}) do
-    {:ok, deployment} = tenant |> Deployments.get_deployment(id)
+  def delete(%{assigns: %{tenant: _tenant, product: product}} = conn, %{"id" => id}) do
+    {:ok, deployment} = product |> Deployments.get_deployment(id)
 
     Deployments.delete_deployment(deployment)
 

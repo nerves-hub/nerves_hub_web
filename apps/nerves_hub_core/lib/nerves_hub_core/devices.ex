@@ -2,6 +2,8 @@ defmodule NervesHubCore.Devices do
   import Ecto.Query
 
   alias NervesHubCore.Devices.Device
+  alias NervesHubCore.Deployments.Deployment
+  alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Accounts.Tenant
   alias NervesHubCore.Products.Product
   alias NervesHubCore.Repo
@@ -11,13 +13,20 @@ defmodule NervesHubCore.Devices do
     query = from(d in Device, where: d.tenant_id == ^tenant_id)
 
     query
+    |> Device.with_firmware()
     |> Repo.all()
   end
 
   def get_devices(%Product{id: product_id}) do
-    query = from(d in Device, where: d.product_id == ^product_id)
+    query =
+      from(
+        d in Device,
+        join: f in assoc(d, :firmware),
+        where: f.product_id == ^product_id
+      )
 
     query
+    |> Device.with_firmware()
     |> Repo.all()
   end
 
@@ -30,6 +39,7 @@ defmodule NervesHubCore.Devices do
       )
 
     query
+    |> Device.with_firmware()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -42,13 +52,29 @@ defmodule NervesHubCore.Devices do
     query = from(d in Device, where: d.identifier == ^identifier)
 
     query
-    |> Device.with_deployment()
     |> Device.with_tenant()
+    |> Device.with_firmware()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
       device -> {:ok, device}
     end
+  end
+
+  def get_eligible_deployments(
+        %Device{last_known_firmware: %Firmware{id: f_id, architecture: arch, platform: plat}} =
+          device
+      ) do
+    from(
+      d in Deployment,
+      where: d.is_active,
+      join: f in assoc(d, :firmware),
+      where: f.architecture == ^arch,
+      where: f.platform == ^plat,
+      where: f.id != ^f_id
+    )
+    |> Repo.all()
+    |> Enum.filter(fn dep -> matches_deployment?(device, dep) end)
   end
 
   @spec create_device(map) ::
@@ -64,5 +90,25 @@ defmodule NervesHubCore.Devices do
     device
     |> Device.changeset(params)
     |> Repo.update()
+  end
+
+  @doc """
+  Returns true if Version.match? and all deployment tags are in device tags.
+  """
+  def matches_deployment?(
+        %Device{tags: tags, last_known_firmware: %Firmware{version: version}},
+        %Deployment{conditions: %{"version" => dep_version, "tags" => dep_tags}}
+      ) do
+    if Version.match?(version, dep_version) and tags_match?(tags, dep_tags) do
+      true
+    else
+      false
+    end
+  end
+
+  def matches_deployment?(_, _), do: false
+
+  defp tags_match?(device_tags, deployment_tags) do
+    Enum.all?(deployment_tags, fn tag -> tag in device_tags end)
   end
 end

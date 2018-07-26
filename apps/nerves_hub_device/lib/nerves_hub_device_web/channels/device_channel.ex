@@ -1,7 +1,7 @@
 defmodule NervesHubDeviceWeb.DeviceChannel do
   use NervesHubDeviceWeb, :channel
 
-  alias NervesHubCore.{Devices,Firmwares,Accounts}
+  alias NervesHubCore.{Devices, Firmwares, Accounts, Deployments}
 
   @uploader Application.get_env(:nerves_hub_www, :firmware_upload)
 
@@ -19,8 +19,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   defp build_message(%{assigns: %{device: device, tenant: tenant}}, payload) do
     with {:ok, device} <- device_update(device, tenant, payload) do
-      {:ok, %{}}
-      |> update_message(device, tenant)
+      send_update_message(device, tenant)
     else
       {:error, message} -> {:error, %{reason: message}}
       _ -> {:error, %{reason: :unknown_error}}
@@ -31,56 +30,38 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:error, %{reason: :no_device_or_tenant}}
   end
 
-  defp db_operations(serial, payload) do
-    serial_check(serial)
-    |> device_update(payload)
-  end
-
   defp device_update(%Devices.Device{} = device, %Accounts.Tenant{} = tenant, %{
          "uuid" => uuid
        }) do
-    with {:ok, firmware} <-
-           Firmwares.get_firmware_by_uuid(
-             tenant,
-             uuid
-           ) do
-      Devices.update_device(device, %{current_firmware_id: firmware.id})
+    with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(uuid) do
+      Devices.update_device(device, %{last_known_firmware_id: firmware.id})
     else
       _ -> {:error, :no_firmware_found}
     end
   end
 
   defp device_update(_, _, _), do: {:error, :no_firmware_uuid}
-  
-  defp update_message({:ok, %{}},%Devices.Device{
-    target_deployment: nil},_) do
-      {:ok, %{update_available: false}}
-    end
-  defp update_message(
-         {:ok, %{}},
-         %Devices.Device{
-           target_deployment: %{firmware_id: firmware_id},
-           current_firmware_id: firmware_id
-         },
-         _
-       ) do
+
+  defp send_update_message(%Devices.Device{} = device, tenant) do
+    device
+    |> Devices.get_eligible_deployments()
+    |> do_update_message(tenant)
+  end
+
+  defp do_update_message([], _) do
     {:ok, %{update_available: false}}
   end
 
-  defp update_message(
-         {:ok, %{} = message},
-         %Devices.Device{target_deployment: %{firmware_id: firmware_id}},
-         %Accounts.Tenant{} = tenant
-       ) do
-    with {:ok, firmware} <- Firmwares.get_firmware(tenant, firmware_id),
+  defp do_update_message([%Deployments.Deployment{} = deployment | _], tenant) do
+    with {:ok, firmware} <- Firmwares.get_firmware(tenant, deployment.firmware_id),
          {:ok, url} <- @uploader.download_file(firmware) do
-      {:ok, %{update_available: true, firmware_url: url} |> Map.merge(message)}
+      {:ok, %{update_available: true, firmware_url: url}}
     else
       _ -> {:error, :no_firmware_url}
     end
   end
 
-  defp update_message(_, _), do: {:error, :unknown_error}
+  defp do_update_message(_, _), do: {:error, :unknown_error}
 
   # Channels can be used in a request/response fashion
   # by sending replies to requests from the client
