@@ -60,14 +60,14 @@ defmodule NervesHubWWWWeb.Router do
 
     get("/settings", AccountController, :edit)
     put("/settings", AccountController, :update)
-    
+
     get("/account/certificates", AccountCertificateController, :index)
     get("/account/certificates/new", AccountCertificateController, :new)
     get("/account/certificates/show", AccountCertificateController, :show)
     post("/account/certificates/create", AccountCertificateController, :create)
     get("/account/certificates/download", AccountCertificateController, :download)
-    
-    resources("/devices", DeviceController, only: [:index])
+
+    resources("/devices", DeviceController)
 
     resources "/products", ProductController do
       pipe_through(:product_level)
@@ -78,8 +78,6 @@ defmodule NervesHubWWWWeb.Router do
       get("/firmware/download/:id", FirmwareController, :download)
 
       resources("/deployments", DeploymentController)
-
-      resources("/devices", DeviceController)
     end
   end
 

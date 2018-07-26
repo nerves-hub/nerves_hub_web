@@ -9,4 +9,4 @@
 
 </ul>
 
-<span><%= link "Back", to: product_device_path(@conn, :index, @product.id) %></span>
+<span><%= link "Back", to: device_path(@conn, :index) %></span>

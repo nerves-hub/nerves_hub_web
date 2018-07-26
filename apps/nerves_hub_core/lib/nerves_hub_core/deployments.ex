@@ -2,6 +2,7 @@ defmodule NervesHubCore.Deployments do
   import Ecto.Query
 
   alias NervesHubCore.Deployments.Deployment
+  alias NervesHubCore.Products.Product
   alias NervesHubCore.Accounts.Tenant
   alias NervesHubCore.Repo
   alias Ecto.Changeset
@@ -10,24 +11,23 @@ defmodule NervesHubCore.Deployments do
   def get_deployments_by_product(product_id) do
     from(
       d in Deployment,
-      join: p in assoc(d, :product),
-      where: p.id == ^product_id,
       join: f in assoc(d, :firmware),
-      preload: [firmware: f, product: p]
+      where: f.product_id == ^product_id,
+      preload: [{:firmware, :product}]
     )
     |> Repo.all()
   end
 
-  @spec get_deployment(Tenant.t(), String.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
-  def get_deployment(%Tenant{id: tenant_id}, deployment_id) do
+  @spec get_deployment(Product.t(), String.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
+  def get_deployment(%Product{id: product_id}, deployment_id) do
     from(
       d in Deployment,
-      join: p in assoc(d, :product),
-      where: p.tenant_id == ^tenant_id,
-      where: d.id == ^deployment_id
+      where: d.id == ^deployment_id,
+      join: f in assoc(d, :firmware),
+      where: f.product_id == ^product_id,
+      preload: [{:firmware, :product}]
     )
     |> Deployment.with_firmware()
-    |> Deployment.with_product()
     |> Repo.one()
     |> case do
       nil ->

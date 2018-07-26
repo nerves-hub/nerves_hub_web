@@ -24,8 +24,9 @@ defmodule NervesHubCore.Firmwares do
   def get_firmware(%Tenant{id: tenant_id}, id) do
     from(
       f in Firmware,
-      where: f.tenant_id == ^tenant_id,
-      where: f.id == ^id
+      where: f.id == ^id,
+      join: p in assoc(f, :product),
+      where: p.tenant_id == ^tenant_id
     )
     |> Firmware.with_product()
     |> Repo.one()
@@ -47,12 +48,12 @@ defmodule NervesHubCore.Firmwares do
     end
   end
 
-  @spec get_firmware_by_uuid(Tenant.t(), String.t()) ::
+  @spec get_firmware_by_uuid(String.t()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
-  def get_firmware_by_uuid(%Tenant{} = tenant, uuid) do
+  def get_firmware_by_uuid(uuid) do
     Firmware
-    |> Repo.get_by(tenant_id: tenant.id, uuid: uuid)
+    |> Repo.get_by(uuid: uuid)
     |> case do
       nil -> {:error, :not_found}
       firmware -> {:ok, firmware}
@@ -119,41 +120,6 @@ defmodule NervesHubCore.Firmwares do
 
       _ ->
         {:error}
-    end
-  end
-
-  @doc """
-  Given a device, look for an active deployment where:
-    - The architecture of its associated firmware and device match
-    - The platform of its associated firmware and device match
-    - The version of the device satisfies the version condition of the deployment (if one exists)
-    - The device is assigned all tags in the deployment's "tags" condition
-  """
-  @spec get_eligible_firmware_update(Device.t(), Version.t()) ::
-          {:ok, Firmware.t()} | {:ok, :none}
-  def get_eligible_firmware_update(%Device{} = device, %Version{} = version) do
-    from(
-      d in Deployment,
-      where: d.product_id == ^device.product_id,
-      where: d.is_active == true,
-      join: f in assoc(d, :firmware),
-      on: f.architecture == ^device.architecture and f.platform == ^device.platform,
-      preload: [firmware: f]
-    )
-    |> Repo.all()
-    |> Enum.find(fn deployment ->
-      with v <- deployment.conditions["version"],
-           true <- v == "" or Version.match?(version, v),
-           true <- Enum.all?(deployment.conditions["tags"], fn tag -> tag in device.tags end) do
-        true
-      else
-        _ ->
-          false
-      end
-    end)
-    |> case do
-      nil -> {:ok, :none}
-      deployment -> {:ok, deployment.firmware}
     end
   end
 end

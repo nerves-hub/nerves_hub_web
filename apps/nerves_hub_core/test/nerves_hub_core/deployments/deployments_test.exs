@@ -17,11 +17,9 @@ defmodule NervesHubCore.DeploymentsTest do
 
   test 'create_deployment with valid parameters', %{
     firmware: firmware,
-    product: product
   } do
     params = %{
       firmware_id: firmware.id,
-      product_id: product.id,
       name: "my deployment",
       conditions: %{
         "version" => "< 1.0.0",

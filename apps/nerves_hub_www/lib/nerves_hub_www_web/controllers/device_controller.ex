@@ -21,7 +21,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     )
   end
 
-  def new(%{assigns: %{tenant: _tenant, product: _product}} = conn, _params) do
+  def new(%{assigns: %{tenant: _tenant}} = conn, _params) do
     conn
     |> render(
       "new.html",
@@ -29,16 +29,15 @@ defmodule NervesHubWWWWeb.DeviceController do
     )
   end
 
-  def new(%{assigns: %{tenant: _tenant}} = conn, _params) do
-    conn
-    |> redirect(to: dashboard_path(conn, :index))
-  end
+  # def new(%{assigns: %{tenant: _tenant}} = conn, _params) do
+  # conn
+  # |> redirect(to: dashboard_path(conn, :index))
+  # end
 
-  def create(%{assigns: %{tenant: tenant, product: product}} = conn, %{"device" => params}) do
+  def create(%{assigns: %{tenant: tenant}} = conn, %{"device" => params}) do
     params
     |> tags_to_list()
     |> Map.put("tenant_id", tenant.id)
-    |> Map.put("product_id", product.id)
     |> Devices.create_device()
     |> case do
       {:ok, _device} ->
@@ -51,12 +50,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     end
   end
 
-  def create(%{assigns: %{tenant: _tenant}} = conn, _params) do
-    conn
-    |> redirect(to: dashboard_path(conn, :index))
-  end
-
-  def show(%{assigns: %{tenant: tenant, product: _product}} = conn, %{
+  def show(%{assigns: %{tenant: tenant}} = conn, %{
         "id" => id
       }) do
     {:ok, device} = Devices.get_device(tenant, id)
@@ -64,7 +58,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     render(conn, "show.html", device: device)
   end
 
-  def edit(%{assigns: %{tenant: tenant, product: _product}} = conn, %{"id" => id}) do
+  def edit(%{assigns: %{tenant: tenant}} = conn, %{"id" => id}) do
     {:ok, device} = Devices.get_device(tenant, id)
 
     conn
@@ -75,7 +69,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     )
   end
 
-  def update(%{assigns: %{tenant: tenant, product: _product}} = conn, %{
+  def update(%{assigns: %{tenant: tenant}} = conn, %{
         "id" => id,
         "device" => params
       }) do
@@ -87,17 +81,12 @@ defmodule NervesHubWWWWeb.DeviceController do
       {:ok, _device} ->
         conn
         |> put_flash(:info, "Device updated.")
-        |> redirect(to: product_device_path(conn, :show, device.product_id, id))
+        |> redirect(to: device_path(conn, :show, id))
 
       {:error, changeset} ->
         conn
         |> render("edit.html", changeset: changeset)
     end
-  end
-
-  def update(%{assigns: %{tenant: _tenant}} = conn, _params) do
-    conn
-    |> redirect(to: dashboard_path(conn, :index))
   end
 
   @doc """

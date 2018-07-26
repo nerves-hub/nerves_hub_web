@@ -5,17 +5,15 @@ defmodule NervesHubCore.Deployments.Deployment do
   import Ecto.Query
 
   alias NervesHubCore.Firmwares.Firmware
-  alias NervesHubCore.Products.Product
 
   alias __MODULE__
 
   @type t :: %__MODULE__{}
-  @required_fields [:product_id, :firmware_id, :name, :conditions, :is_active]
+  @required_fields [:firmware_id, :name, :conditions, :is_active]
   @optional_fields []
 
   schema "deployments" do
     belongs_to(:firmware, Firmware)
-    belongs_to(:product, Product)
 
     field(:name, :string)
     field(:conditions, :map)
@@ -47,11 +45,6 @@ defmodule NervesHubCore.Deployments.Deployment do
   def with_firmware(deployment_query) do
     deployment_query
     |> preload(:firmware)
-  end
-
-  def with_product(deployment_query) do
-    deployment_query
-    |> preload(:product)
   end
 
   defp validate_conditions(changeset, _options \\ []) do

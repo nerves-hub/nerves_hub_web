@@ -37,8 +37,6 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
       conn = get(conn, product_path(conn, :show, id))
       assert html_response(conn, 200) =~ "Show Product"
       assert html_response(conn, 200) =~ tenant.name
-      assert html_response(conn, 200) =~ product_device_path(conn, :new, id)
-      assert html_response(conn, 200) =~ product_device_path(conn, :index, id)
       assert html_response(conn, 200) =~ product_firmware_path(conn, :index, id)
     end
 

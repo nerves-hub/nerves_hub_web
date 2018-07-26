@@ -6,7 +6,7 @@ defmodule NervesHubCore.Accounts.Tenant do
   alias NervesHubCore.Accounts.{User, TenantKey}
   alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Devices.Device
-  alias NervesHubCore.Deployments.Deployment
+  alias NervesHubCore.Products.Product
   alias __MODULE__
 
   @type t :: %__MODULE__{}
@@ -14,9 +14,8 @@ defmodule NervesHubCore.Accounts.Tenant do
   schema "tenants" do
     has_many(:users, User)
     has_many(:tenant_keys, TenantKey)
+    has_many(:products, Product)
     has_many(:devices, Device)
-    has_many(:firmware, Firmware)
-    has_many(:deployments, Deployment)
 
     field(:name, :string)
 

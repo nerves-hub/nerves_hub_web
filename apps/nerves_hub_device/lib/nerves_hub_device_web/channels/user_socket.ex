@@ -2,7 +2,6 @@ defmodule NervesHubDeviceWeb.UserSocket do
   use Phoenix.Socket
   alias NervesHubCore.{Certificate, Devices}
 
-
   @websocket_auth_methods Application.get_env(:nerves_hub_device, :websocket_auth_methods)
 
   ## Channels

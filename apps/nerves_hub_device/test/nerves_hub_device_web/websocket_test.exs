@@ -2,8 +2,8 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
   use ExUnit.Case, async: false
   use NervesHubDeviceWeb.ChannelCase
   alias NervesHubWeb.Fixtures
-  alias NervesHubCore.{Repo,Devices,Accounts}
-  
+  alias NervesHubCore.{Repo, Devices, Accounts}
+
   @serial_header Application.get_env(:nerves_hub_device, :device_serial_header)
   @valid_serial "device-1234"
   @valid_product "test-product"
@@ -92,7 +92,7 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
       target_uuid = "foo"
 
       device =
-        %{identifier: @valid_serial, product: @valid_product}
+        %{identifier: @valid_serial}
         |> device_fixture(target_uuid)
 
       opts =
@@ -210,19 +210,27 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
   end
 
   describe "firmware update" do
-    test "receives update message when current_version does not match target_version" do
-      query_uuid = "foobar"
-
+    test "receives update message when eligible deployment is available" do
       device =
-        %{identifier: @valid_serial, product: @valid_product}
+        %{identifier: @valid_serial}
         |> device_fixture("not_foobar")
 
       tenant = %Accounts.Tenant{id: device.tenant_id}
       product = Fixtures.product_fixture(tenant)
       tenant_key = Fixtures.tenant_key_fixture(tenant, %{name: "another key"})
 
-      Fixtures.firmware_fixture(tenant, tenant_key, product, %{
-        uuid: query_uuid
+      firmware =
+        Fixtures.firmware_fixture(tenant, tenant_key, product, %{
+          uuid: "foobar",
+          version: "0.0.2",
+          upload_metadata: %{"public_path" => @valid_firmware_url}
+        })
+
+      Fixtures.deployment_fixture(tenant, firmware, product, %{
+        conditions: %{
+          "version" => ">=0.0.1",
+          "tags" => ["beta", "beta-edge"]
+        }
       })
 
       opts =
@@ -238,7 +246,7 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
           caller: self()
         )
 
-      ClientChannel.join(%{"uuid" => query_uuid})
+      ClientChannel.join(%{"uuid" => "not_foobar"})
 
       assert_receive(
         {:ok, :join,
@@ -286,9 +294,9 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
       updated_device =
         Devices.get_device_by_identifier(device.identifier)
         |> elem(1)
-        |> Repo.preload(:current_firmware)
+        |> Repo.preload(:last_known_firmware)
 
-      assert updated_device.current_firmware.uuid == query_uuid
+      assert updated_device.last_known_firmware.uuid == query_uuid
     end
   end
 end

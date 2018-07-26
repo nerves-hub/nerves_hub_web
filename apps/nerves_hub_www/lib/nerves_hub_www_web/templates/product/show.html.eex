@@ -1,5 +1,5 @@
 <h2>Show Product
-  <a class="btn btn-lg btn-primary pull-right" href="<%= product_device_path(@conn, :new, @product.id) %>">
+  <a class="btn btn-lg btn-primary pull-right" href="<%= device_path(@conn, :new) %>">
     Add Device
   </a>
 </h2>
@@ -13,7 +13,7 @@
   <a class="btn btn-lg btn-primary pull-right" href="<%= product_firmware_path(@conn, :index, @product.id) %>">
  View Firmware
   </a>
-  <a class="btn btn-lg btn-primary pull-right" href="<%= product_device_path(@conn, :index, @product.id) %>">
+  <a class="btn btn-lg btn-primary pull-right" href="<%= device_path(@conn, :index) %>">
  View Devices
   </a>
 </ul>
