@@ -33,7 +33,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   defp device_update(%Devices.Device{} = device, %Accounts.Tenant{} = tenant, %{
          "uuid" => uuid
        }) do
-    with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(uuid) do
+    with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(tenant, uuid) do
       Devices.update_device(device, %{last_known_firmware_id: firmware.id})
     else
       _ -> {:error, :no_firmware_found}
