@@ -32,9 +32,9 @@ config :nerves_hub_www, NervesHubCore.CertificateAuthority,
   host: "nerves-hub-ca.local",
   port: 8443,
   ssl: [
-    keyfile: "/etc/ssl/ca-api-key.pem",
-    certfile: "/etc/ssl/ca-api.pem",
-    cacertfile: "/etc/ssl/ca.pem",
+    keyfile: "/etc/cfssl/ca-api-key.pem",
+    certfile: "/etc/cfssl/ca-api.pem",
+    cacertfile: "/etc/cfssl/ca.pem",
     server_name_indication: 'ca.nerves-hub.org'
   ]
 
