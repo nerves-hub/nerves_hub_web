@@ -26,8 +26,14 @@ EXPOSE 443
 COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub_www/releases/*/nerves_hub_www.tar.gz .
 RUN tar xvfz nerves_hub_www.tar.gz > /dev/null && rm nerves_hub_www.tar.gz
 
+COPY --from=builder /build/rel/scripts/docker-entrypoint.sh .
+COPY --from=builder /build/rel/scripts/s3-sync.sh .
 COPY --from=builder /build/rel/scripts/ecs-cluster.sh .
 
+RUN ["chmod", "+x", "/app/docker-entrypoint.sh"]
+RUN ["chmod", "+x", "/app/s3-sync.sh"]
 RUN ["chmod", "+x", "/app/ecs-cluster.sh"]
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
 CMD ["/app/ecs-cluster.sh"]
