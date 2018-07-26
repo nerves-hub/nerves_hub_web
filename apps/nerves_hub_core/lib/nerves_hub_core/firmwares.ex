@@ -48,12 +48,17 @@ defmodule NervesHubCore.Firmwares do
     end
   end
 
-  @spec get_firmware_by_uuid(String.t()) ::
+  @spec get_firmware_by_uuid(Tenant.t(), String.t()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
-  def get_firmware_by_uuid(uuid) do
-    Firmware
-    |> Repo.get_by(uuid: uuid)
+  def get_firmware_by_uuid(%Tenant{id: t_id}, uuid) do
+    from(
+      f in Firmware,
+      where: f.uuid == ^uuid,
+      join: p in assoc(f, :product),
+      where: p.tenant_id == ^t_id
+    )
+    |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
       firmware -> {:ok, firmware}

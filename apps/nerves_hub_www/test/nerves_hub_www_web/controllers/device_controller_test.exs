@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.DeviceControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser
 
-  alias NervesHubWWW.Fixtures
+  alias NervesHubWeb.Fixtures
   alias NervesHubCore.Devices
 
   describe "index" do
