@@ -11,8 +11,6 @@ defmodule NervesHubCore.Products.Product do
   @optional_params []
 
   schema "products" do
-    has_many(:devices, Device)
-    has_many(:deployments, Deployment)
     has_many(:firmwares, Firmware)
 
     belongs_to(:tenant, Tenant)
