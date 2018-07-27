@@ -4,8 +4,6 @@ defmodule NervesHubCore.Products.Product do
 
   alias NervesHubCore.Accounts.Tenant
   alias NervesHubCore.Firmwares.Firmware
-  alias NervesHubCore.Devices.Device
-  alias NervesHubCore.Deployments.Deployment
 
   @required_params [:name, :tenant_id]
   @optional_params []
