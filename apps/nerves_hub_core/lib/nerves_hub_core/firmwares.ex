@@ -3,8 +3,6 @@ defmodule NervesHubCore.Firmwares do
 
   alias NervesHubCore.Accounts.{TenantKey, Tenant}
   alias NervesHubCore.Firmwares.Firmware
-  alias NervesHubCore.Devices.Device
-  alias NervesHubCore.Deployments.Deployment
   alias NervesHubCore.Products
   alias NervesHubCore.Repo
 

@@ -3,7 +3,6 @@ defmodule NervesHubCore.Deployments do
 
   alias NervesHubCore.Deployments.Deployment
   alias NervesHubCore.Products.Product
-  alias NervesHubCore.Accounts.Tenant
   alias NervesHubCore.Repo
   alias Ecto.Changeset
 

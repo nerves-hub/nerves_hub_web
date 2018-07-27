@@ -1,7 +1,7 @@
 defmodule NervesHubCore.DevicesTest do
   use NervesHubCore.DataCase
 
-  alias NervesHubWeb.Fixtures
+  alias NervesHubCore.Fixtures
   alias NervesHubCore.Devices
   alias NervesHubCore.Deployments
   alias Ecto.Changeset
@@ -10,9 +10,9 @@ defmodule NervesHubCore.DevicesTest do
     tenant = Fixtures.tenant_fixture()
     product = Fixtures.product_fixture(tenant)
     tenant_key = Fixtures.tenant_key_fixture(tenant)
-    firmware = Fixtures.firmware_fixture(tenant, tenant_key, product)
-    deployment = Fixtures.deployment_fixture(tenant, firmware, product)
-    device = Fixtures.device_fixture(tenant, firmware, deployment, product)
+    firmware = Fixtures.firmware_fixture(tenant_key, product)
+    deployment = Fixtures.deployment_fixture(firmware)
+    device = Fixtures.device_fixture(tenant, firmware, deployment)
 
     {:ok,
      %{
@@ -27,8 +27,7 @@ defmodule NervesHubCore.DevicesTest do
 
   test 'create_device with valid parameters', %{
     tenant: tenant,
-    firmware: firmware,
-    product: product
+    firmware: firmware
   } do
     params = %{
       tenant_id: tenant.id,
@@ -73,11 +72,11 @@ defmodule NervesHubCore.DevicesTest do
     product: product
   } do
     device =
-      Fixtures.device_fixture(tenant, firmware, old_deployment, product, %{
+      Fixtures.device_fixture(tenant, firmware, old_deployment, %{
         identifier: "new identifier"
       })
 
-    new_firmware = Fixtures.firmware_fixture(tenant, tenant_key, product, %{version: "1.0.1"})
+    new_firmware = Fixtures.firmware_fixture(tenant_key, product, %{version: "1.0.1"})
 
     params = %{
       firmware_id: new_firmware.id,
@@ -117,8 +116,8 @@ defmodule NervesHubCore.DevicesTest do
     ]
 
     for {f_params, d_params} <- incorrect_params do
-      device = Fixtures.device_fixture(tenant, firmware, old_deployment, product, d_params)
-      new_firmware = Fixtures.firmware_fixture(tenant, tenant_key, product, f_params)
+      device = Fixtures.device_fixture(tenant, firmware, old_deployment, d_params)
+      new_firmware = Fixtures.firmware_fixture(tenant_key, product, f_params)
 
       params = %{
         firmware_id: new_firmware.id,
@@ -130,7 +129,7 @@ defmodule NervesHubCore.DevicesTest do
         is_active: false
       }
 
-      {:ok, deployment} =
+      {:ok, _deployment} =
         Deployments.create_deployment(params)
         |> elem(1)
         |> Deployments.update_deployment(%{is_active: true})

@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.DeploymentControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser
 
-  alias NervesHubWeb.Fixtures
+  alias NervesHubCore.Fixtures
   alias NervesHubCore.Deployments
 
   describe "index" do
@@ -20,7 +20,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       tenant_key: tenant_key
     } do
       product = Fixtures.product_fixture(tenant)
-      firmware = Fixtures.firmware_fixture(tenant, tenant_key, product)
+      firmware = Fixtures.firmware_fixture(tenant_key, product)
 
       conn =
         get(
@@ -49,7 +49,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       tenant_key: tenant_key
     } do
       product = Fixtures.product_fixture(tenant)
-      Fixtures.firmware_fixture(tenant, tenant_key, product)
+      Fixtures.firmware_fixture(tenant_key, product)
       conn = get(conn, product_deployment_path(conn, :new, product.id))
 
       assert html_response(conn, 200) =~ "Select Firmware for New Deployment"
@@ -81,7 +81,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       product = Fixtures.product_fixture(tenant)
 
       firmware =
-        Fixtures.firmware_fixture(tenant, tenant_key, product, %{
+        Fixtures.firmware_fixture(tenant_key, product, %{
           version: "relatively unusual version"
         })
 
@@ -120,8 +120,8 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       tenant_key: tenant_key
     } do
       product = Fixtures.product_fixture(tenant)
-      firmware = Fixtures.firmware_fixture(tenant, tenant_key, product)
-      deployment = Fixtures.deployment_fixture(tenant, firmware, product)
+      firmware = Fixtures.firmware_fixture(tenant_key, product)
+      deployment = Fixtures.deployment_fixture(firmware)
 
       conn = get(conn, product_deployment_path(conn, :edit, product.id, deployment))
       assert html_response(conn, 200) =~ "Edit"
@@ -138,8 +138,8 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       tenant_key: tenant_key
     } do
       product = Fixtures.product_fixture(tenant)
-      firmware = Fixtures.firmware_fixture(tenant, tenant_key, product)
-      deployment = Fixtures.deployment_fixture(tenant, firmware, product)
+      firmware = Fixtures.firmware_fixture(tenant_key, product)
+      deployment = Fixtures.deployment_fixture(firmware)
 
       conn =
         put(
@@ -167,8 +167,8 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
   describe "delete deployment" do
     test "deletes chosen resource", %{conn: conn, current_tenant: tenant, tenant_key: tenant_key} do
       product = Fixtures.product_fixture(tenant)
-      firmware = Fixtures.firmware_fixture(tenant, tenant_key, product)
-      deployment = Fixtures.deployment_fixture(tenant, firmware, product)
+      firmware = Fixtures.firmware_fixture(tenant_key, product)
+      deployment = Fixtures.deployment_fixture(firmware)
 
       conn = delete(conn, product_deployment_path(conn, :delete, product.id, deployment))
       assert redirected_to(conn) == product_deployment_path(conn, :index, product.id)

@@ -122,7 +122,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
   end
 
   def update(
-        %{assigns: %{tenant: tenant, product: product}} = conn,
+        %{assigns: %{product: product}} = conn,
         %{"id" => deployment_id, "deployment" => deployment_params}
       ) do
     params = inject_conditions_map(deployment_params)

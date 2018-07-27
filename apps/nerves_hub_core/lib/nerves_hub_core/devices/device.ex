@@ -5,7 +5,6 @@ defmodule NervesHubCore.Devices.Device do
   import Ecto.Query
 
   alias NervesHubCore.Accounts.Tenant
-  alias NervesHubCore.Deployments.Deployment
   alias NervesHubCore.Firmwares.Firmware
 
   alias __MODULE__

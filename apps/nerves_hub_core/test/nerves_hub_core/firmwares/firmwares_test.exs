@@ -1,9 +1,8 @@
 defmodule NervesHubCore.FirmwaresTest do
   use NervesHubCore.DataCase
 
-  alias NervesHubWeb.Fixtures
+  alias NervesHubCore.Fixtures
   alias NervesHubCore.{Firmwares, Repo}
-  alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Deployments.Deployment
   alias NervesHubCore.Accounts.TenantKey
 
@@ -27,9 +26,9 @@ defmodule NervesHubCore.FirmwaresTest do
     tenant = Fixtures.tenant_fixture()
     product = Fixtures.product_fixture(tenant)
     tenant_key = Fixtures.tenant_key_fixture(tenant)
-    firmware = Fixtures.firmware_fixture(tenant, tenant_key, product)
-    deployment = Fixtures.deployment_fixture(tenant, firmware, product)
-    device = Fixtures.device_fixture(tenant, firmware, deployment, product)
+    firmware = Fixtures.firmware_fixture(tenant_key, product)
+    deployment = Fixtures.deployment_fixture(firmware)
+    device = Fixtures.device_fixture(tenant, firmware, deployment)
 
     {:ok,
      %{

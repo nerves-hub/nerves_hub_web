@@ -1,7 +1,7 @@
 defmodule NervesHubWWW.ProductsTest do
   use NervesHubWWW.DataCase
 
-  alias NervesHubWeb.Fixtures
+  alias NervesHubCore.Fixtures
   alias NervesHubCore.Products
 
   describe "products" do
