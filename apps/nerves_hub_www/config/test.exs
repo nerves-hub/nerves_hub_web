@@ -22,8 +22,8 @@ config :nerves_hub_www, NervesHubCore.CertificateAuthority,
   host: "127.0.0.1",
   port: 8443,
   ssl: [
-    keyfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/server-key.pem"]),
-    certfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/server.pem"]),
+    keyfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/ca-client-key.pem"]),
+    certfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/ca-client.pem"]),
     cacertfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/ca.pem"]),
     server_name_indication: 'ca.nerves-hub.org'
   ]

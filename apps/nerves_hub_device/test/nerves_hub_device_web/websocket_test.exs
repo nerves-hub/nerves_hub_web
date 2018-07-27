@@ -1,7 +1,7 @@
 defmodule NervesHubWWW.Integration.WebsocketTest do
   use ExUnit.Case, async: false
   use NervesHubDeviceWeb.ChannelCase
-  alias NervesHubWeb.Fixtures
+  alias NervesHubCore.Fixtures
   alias NervesHubCore.{Repo, Devices, Accounts}
 
   @serial_header Application.get_env(:nerves_hub_device, :device_serial_header)
@@ -48,14 +48,14 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
     tenant_key = Fixtures.tenant_key_fixture(tenant)
 
     firmware =
-      Fixtures.firmware_fixture(tenant, tenant_key, product, %{
+      Fixtures.firmware_fixture(tenant_key, product, %{
         uuid: firmware_uuid,
         version: "0.0.1",
         upload_metadata: %{"public_path" => @valid_firmware_url}
       })
 
-    deployment = Fixtures.deployment_fixture(tenant, firmware, product)
-    Fixtures.device_fixture(tenant, firmware, deployment, product, device_params)
+    deployment = Fixtures.deployment_fixture(firmware)
+    Fixtures.device_fixture(tenant, firmware, deployment, device_params)
   end
 
   defmodule ClientSocket do
@@ -220,13 +220,13 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
       tenant_key = Fixtures.tenant_key_fixture(tenant, %{name: "another key"})
 
       firmware =
-        Fixtures.firmware_fixture(tenant, tenant_key, product, %{
+        Fixtures.firmware_fixture(tenant_key, product, %{
           uuid: "foobar",
           version: "0.0.2",
           upload_metadata: %{"public_path" => @valid_firmware_url}
         })
 
-      Fixtures.deployment_fixture(tenant, firmware, product, %{
+      Fixtures.deployment_fixture(firmware, %{
         conditions: %{
           "version" => ">=0.0.1",
           "tags" => ["beta", "beta-edge"]

@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.UserControllerTest do
   use NervesHubAPIWeb.ConnCase
 
-  alias NervesHubWeb.Fixtures
+  alias NervesHubCore.Fixtures
 
   @certificate Path.join([__DIR__, "../../../../../test/fixtures/cfssl/user.pem"])
 

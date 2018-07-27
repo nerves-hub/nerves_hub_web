@@ -12,7 +12,9 @@ services:
     volumes:
       - ~/db/nerveshub/postgres:/data
   nerves_hub_ca:
-    image: nerveshub/nerves_hub_ca:v0.2.0
+    image: nerveshub/nerves_hub_ca:v0.3.0
+    entrypoint: ["/bin/bash"]
+    command: ["/app/bin/nerves_hub_ca", "foreground"]
     ports:
       - "8443:8443"
     volumes:

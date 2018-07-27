@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Fixtures do
+defmodule NervesHubCore.Fixtures do
   alias NervesHubCore.{Firmwares, Accounts, Devices, Deployments, Products}
 
   @tenant_params %{name: "Test Tenant"}
@@ -35,7 +35,7 @@ defmodule NervesHubWeb.Fixtures do
   }
   @user_certificate_params %{
     description: "my test cert",
-    serial: "439232384633564273316985768137341552447087266399"
+    serial: "158098897653878678601091983566405937658689714637"
   }
 
   def tenant_fixture(params \\ %{}) do
@@ -90,7 +90,6 @@ defmodule NervesHubWeb.Fixtures do
   end
 
   def firmware_fixture(
-        %Accounts.Tenant{} = tenant,
         %Accounts.TenantKey{} = tenant_key,
         %Products.Product{} = product,
         params \\ %{}
@@ -105,9 +104,7 @@ defmodule NervesHubWeb.Fixtures do
   end
 
   def deployment_fixture(
-        %Accounts.Tenant{} = tenant,
         %Firmwares.Firmware{} = firmware,
-        %Products.Product{} = product,
         params \\ %{}
       ) do
     {:ok, deployment} =
@@ -123,7 +120,6 @@ defmodule NervesHubWeb.Fixtures do
         %Accounts.Tenant{} = tenant,
         %Firmwares.Firmware{} = firmware,
         %Deployments.Deployment{} = deployment,
-        %Products.Product{} = product,
         params \\ %{}
       ) do
     {:ok, device} =
@@ -145,9 +141,9 @@ defmodule NervesHubWeb.Fixtures do
     user = user_fixture(tenant, %{name: "Jeff"})
     product = product_fixture(tenant, %{name: "Hop"})
     tenant_key = tenant_key_fixture(tenant)
-    firmware = firmware_fixture(tenant, tenant_key, product)
-    deployment = deployment_fixture(tenant, firmware, product)
-    device = device_fixture(tenant, firmware, deployment, product)
+    firmware = firmware_fixture(tenant_key, product)
+    deployment = deployment_fixture(firmware)
+    device = device_fixture(tenant, firmware, deployment)
 
     %{
       tenant: tenant,
@@ -164,11 +160,10 @@ defmodule NervesHubWeb.Fixtures do
     tenant = tenant_fixture(%{name: "Smart Rent"})
     product = product_fixture(tenant, %{name: "Smart Rent Thing"})
     tenant_key = tenant_key_fixture(tenant)
-    firmware = firmware_fixture(tenant, tenant_key, product)
-    deployment = deployment_fixture(tenant, firmware, product)
+    firmware = firmware_fixture(tenant_key, product)
+    deployment = deployment_fixture(firmware)
 
-    device =
-      device_fixture(tenant, firmware, deployment, product, %{identifier: "smartrent_1234"})
+    device = device_fixture(tenant, firmware, deployment, %{identifier: "smartrent_1234"})
 
     %{
       tenant: tenant,

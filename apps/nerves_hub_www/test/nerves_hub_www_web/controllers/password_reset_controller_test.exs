@@ -2,7 +2,7 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
   use NervesHubWWWWeb.ConnCase
   use Bamboo.Test
 
-  alias NervesHubWeb.Fixtures
+  alias NervesHubCore.Fixtures
   alias NervesHubCore.Accounts
 
   describe "new password_reset" do

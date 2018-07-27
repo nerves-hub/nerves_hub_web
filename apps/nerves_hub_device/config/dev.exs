@@ -17,8 +17,8 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
     otp_app: :nerves_hub_device,
     # Enable client SSL
     verify: :verify_peer,
-    keyfile: Path.expand("./test/fixtures/cfssl/server-key.pem"),
-    certfile: Path.expand("./test/fixtures/cfssl/server.pem"),
+    keyfile: Path.expand("./test/fixtures/cfssl/device.nerves-hub.org-key.pem"),
+    certfile: Path.expand("./test/fixtures/cfssl/device.nerves-hub.org.pem"),
     cacertfile: Path.expand("./test/fixtures/cfssl/ca.pem")
   ]
 

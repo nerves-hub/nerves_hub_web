@@ -14,7 +14,7 @@ defmodule NervesHubCore.Deployments.Deployment do
 
   schema "deployments" do
     belongs_to(:firmware, Firmware)
-
+    
     field(:name, :string)
     field(:conditions, :map)
     field(:is_active, :boolean)

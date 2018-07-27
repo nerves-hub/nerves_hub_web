@@ -4,7 +4,6 @@ defmodule NervesHubCore.Accounts.Tenant do
   import Ecto.Changeset
 
   alias NervesHubCore.Accounts.{User, TenantKey}
-  alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Devices.Device
   alias NervesHubCore.Products.Product
   alias __MODULE__

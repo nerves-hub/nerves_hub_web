@@ -1,7 +1,7 @@
 defmodule NervesHubCore.DeploymentsTest do
   use NervesHubCore.DataCase
 
-  alias NervesHubWeb.Fixtures
+  alias NervesHubCore.Fixtures
   alias NervesHubCore.Deployments
   alias Ecto.Changeset
 
@@ -9,8 +9,8 @@ defmodule NervesHubCore.DeploymentsTest do
     tenant = Fixtures.tenant_fixture()
     product = Fixtures.product_fixture(tenant)
     tenant_key = Fixtures.tenant_key_fixture(tenant)
-    firmware = Fixtures.firmware_fixture(tenant, tenant_key, product)
-    deployment = Fixtures.deployment_fixture(tenant, firmware, product)
+    firmware = Fixtures.firmware_fixture(tenant_key, product)
+    deployment = Fixtures.deployment_fixture(firmware)
 
     {:ok, %{tenant: tenant, firmware: firmware, deployment: deployment, product: product}}
   end
