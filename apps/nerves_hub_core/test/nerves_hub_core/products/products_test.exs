@@ -13,7 +13,7 @@ defmodule NervesHubWWW.ProductsTest do
 
     setup do
       tenant = Fixtures.tenant_fixture()
-      product = Fixtures.product_fixture(tenant, @valid_attrs)
+      product = Fixtures.product_fixture(tenant, %{name: "a product"})
 
       {:ok, %{product: product, tenant: tenant}}
     end
@@ -37,6 +37,18 @@ defmodule NervesHubWWW.ProductsTest do
 
     test "create_product/1 with invalid data returns error changeset" do
       assert {:error, %Ecto.Changeset{}} = Products.create_product(@invalid_attrs)
+    end
+
+    test "create_product/1 fails with duplicate names", %{tenant: tenant} do
+      {:ok, _product} =
+        %{tenant_id: tenant.id}
+        |> Enum.into(%{name: "same name"})
+        |> Products.create_product()
+
+      assert {:error, %Ecto.Changeset{}} =
+               %{tenant_id: tenant.id}
+               |> Enum.into(%{name: "same name"})
+               |> Products.create_product()
     end
 
     test "update_product/2 with valid data updates the product", %{product: product} do

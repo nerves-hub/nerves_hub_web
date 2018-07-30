@@ -12,6 +12,5 @@ defmodule NervesHubCore.Repo.Migrations.CreateUserCertificates do
 
     create(index(:user_certificates, [:user_id]))
     create(index(:user_certificates, [:serial]))
-    unique_index(:user_certificates, [:user_id, :serial], name: :user_certificates_user_id_serial_index)
   end
 end

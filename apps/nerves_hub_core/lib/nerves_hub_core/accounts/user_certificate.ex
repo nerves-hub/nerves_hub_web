@@ -19,5 +19,6 @@ defmodule NervesHubCore.Accounts.UserCertificate do
     user_certificate
     |> cast(params, [:serial, :description])
     |> validate_required([:serial, :description])
+    |> unique_constraint(:serial, name: :user_certificates_user_id_serial_index)
   end
 end

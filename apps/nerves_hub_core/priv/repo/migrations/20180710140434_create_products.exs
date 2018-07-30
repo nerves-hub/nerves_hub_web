@@ -25,8 +25,6 @@ defmodule NervesHubCore.Repo.Migrations.CreateProducts do
     end
 
     create(index(:products, [:tenant_id]))
-    unique_index(:products, [:tenant_id, :name], name: :products_tenant_id_name_index)
-    unique_index(:deployments, [:product_id, :name], name: :deployments_product_id_name_index)
   end
 
   def down do

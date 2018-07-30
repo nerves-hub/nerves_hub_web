@@ -219,7 +219,7 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
         |> device_fixture("not_foobar")
 
       tenant = %Accounts.Tenant{id: device.tenant_id}
-      product = Fixtures.product_fixture(tenant)
+      product = Fixtures.product_fixture(tenant, %{name: "new product"})
       tenant_key = Fixtures.tenant_key_fixture(tenant, %{name: "another key"})
 
       firmware =

@@ -109,7 +109,7 @@ defmodule NervesHubCore.DeploymentsTest do
         new_firmware = Fixtures.firmware_fixture(tenant_key, product, f_params)
 
         params = %{
-          firmware_id: firmware.id,
+          firmware_id: new_firmware.id,
           name: "my deployment",
           conditions: %{
             "version" => "< 1.0.0",

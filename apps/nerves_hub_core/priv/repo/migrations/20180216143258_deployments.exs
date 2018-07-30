@@ -11,7 +11,5 @@ defmodule NervesHubCore.Repo.Migrations.Deployments do
 
       timestamps()
     end
-
-    unique_index(:deployments, [:tenant_id, :name], name: :deployments_tenant_id_name_index)
   end
 end
