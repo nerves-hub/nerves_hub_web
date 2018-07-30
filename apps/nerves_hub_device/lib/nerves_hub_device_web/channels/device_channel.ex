@@ -48,10 +48,6 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     |> do_update_message(tenant)
   end
 
-  defp do_update_message([], _) do
-    {:ok, %{update_available: false}}
-  end
-
   defp do_update_message([%Deployments.Deployment{} = deployment | _], tenant) do
     with {:ok, firmware} <- Firmwares.get_firmware(tenant, deployment.firmware_id),
          {:ok, url} <- @uploader.download_file(firmware) do
@@ -59,6 +55,10 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     else
       _ -> {:error, :no_firmware_url}
     end
+  end
+
+  defp do_update_message([], _) do
+    {:ok, %{update_available: false}}
   end
 
   defp do_update_message(_, _), do: {:error, :unknown_error}
