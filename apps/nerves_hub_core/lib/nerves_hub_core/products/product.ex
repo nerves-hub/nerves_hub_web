@@ -23,5 +23,6 @@ defmodule NervesHubCore.Products.Product do
     product
     |> cast(attrs, @required_params ++ @optional_params)
     |> validate_required(@required_params)
+    |> unique_constraint(:name, name: :products_tenant_id_name_index)
   end
 end

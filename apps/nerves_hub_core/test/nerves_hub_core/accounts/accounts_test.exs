@@ -67,4 +67,25 @@ defmodule NervesHubCore.AccountsTest do
 
     assert {:ok, _cert} = Accounts.create_user_certificate(user, params)
   end
+
+  test "cannot create user certificate with duplicate serial" do
+    params = %{
+      name: "Testy McTesterson",
+      tenant_name: "mctesterson.com",
+      email: "testy@mctesterson.com",
+      password: "test_password"
+    }
+
+    {:ok, %Accounts.Tenant{} = result_tenant} = Accounts.create_tenant_with_user(params)
+
+    [user | _] = result_tenant |> Repo.preload(:users) |> Map.get(:users)
+
+    params = %{
+      description: "abcd",
+      serial: "12345"
+    }
+
+    {:ok, _cert} = Accounts.create_user_certificate(user, params)
+    {:error, %Ecto.Changeset{}} = Accounts.create_user_certificate(user, params)
+  end
 end
