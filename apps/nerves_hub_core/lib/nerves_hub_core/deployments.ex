@@ -2,6 +2,7 @@ defmodule NervesHubCore.Deployments do
   import Ecto.Query
 
   alias NervesHubCore.Deployments.Deployment
+  alias NervesHubCore.Devices
   alias NervesHubCore.Products.Product
   alias NervesHubCore.Repo
   alias Ecto.Changeset
@@ -53,14 +54,42 @@ defmodule NervesHubCore.Deployments do
   @spec update_deployment(Deployment.t(), map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def update_deployment(deployment, params) do
     deployment
+    |> Deployment.with_firmware()
     |> Deployment.edit_changeset(params)
     |> Repo.update()
+    |> update_relevant_devices()
   end
 
   @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def create_deployment(params) do
     %Deployment{}
-    |> Deployment.changeset(params)
+    |> Deployment.creation_changeset(params)
     |> Repo.insert()
   end
+
+  defp update_relevant_devices({:ok, %Deployment{is_active: false} = deployment}) do
+    {:ok, deployment}
+  end
+
+  defp update_relevant_devices({:ok, deployment}) do
+    relevant_devices =
+      from(
+        d in Devices.Device,
+        join: f in assoc(d, :last_known_firmware),
+        where: f.product_id == ^deployment.firmware.product_id,
+        where: f.architecture == ^deployment.firmware.architecture,
+        where: f.platform == ^deployment.firmware.platform
+      )
+      |> Devices.Device.with_firmware()
+      |> Repo.all()
+
+    Task.Supervisor.async_stream(NervesHubCore.TaskSupervisor, relevant_devices, fn device ->
+      Devices.send_update_message(device, deployment)
+    end)
+    |> Stream.run()
+
+    {:ok, deployment}
+  end
+
+  defp update_relevant_devices({:error, changeset}), do: {:error, changeset}
 end

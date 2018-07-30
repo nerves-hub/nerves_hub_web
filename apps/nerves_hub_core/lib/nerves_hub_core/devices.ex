@@ -9,6 +9,8 @@ defmodule NervesHubCore.Devices do
   alias NervesHubCore.Repo
   alias Ecto.Changeset
 
+  @uploader Application.get_env(:nerves_hub_www, :firmware_upload)
+
   def get_devices(%Tenant{id: tenant_id}) do
     query = from(d in Device, where: d.tenant_id == ^tenant_id)
 
@@ -75,6 +77,22 @@ defmodule NervesHubCore.Devices do
     )
     |> Repo.all()
     |> Enum.filter(fn dep -> matches_deployment?(device, dep) end)
+  end
+
+  def send_update_message(%Device{} = device, %Deployment{} = deployment) do
+    with true <- matches_deployment?(device, deployment) do
+      {:ok, url} = @uploader.download_file(deployment.firmware)
+
+      NervesHubDeviceWeb.Endpoint.broadcast(
+        "device:#{device.identifier}",
+        "update",
+        %{firmware_url: url}
+      )
+
+      {:ok, device}
+    else
+      _ -> {:error, :invalid_deployment_for_device}
+    end
   end
 
   @spec create_device(map) ::

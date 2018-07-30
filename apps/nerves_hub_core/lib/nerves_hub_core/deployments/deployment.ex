@@ -5,6 +5,8 @@ defmodule NervesHubCore.Deployments.Deployment do
   import Ecto.Query
 
   alias NervesHubCore.Firmwares.Firmware
+  alias NervesHubCore.Devices
+  alias NervesHubCore.Repo
 
   alias __MODULE__
 
@@ -20,6 +22,23 @@ defmodule NervesHubCore.Deployments.Deployment do
     field(:is_active, :boolean)
 
     timestamps()
+  end
+
+  def creation_changeset(%Deployment{} = deployment, params) do
+    deployment
+    |> cast(params, @required_fields ++ @optional_fields)
+    |> validate_required(@required_fields)
+    |> validate_change(:is_active, fn :is_active, is_active ->
+      creation_errors(:is_active, is_active)
+    end)
+  end
+
+  defp creation_errors(:is_active, is_active) do
+    if is_active do
+      [is_active: "cannot be true on creation"]
+    else
+      []
+    end
   end
 
   def edit_changeset(%Deployment{} = deployment, params) do
@@ -40,6 +59,17 @@ defmodule NervesHubCore.Deployments.Deployment do
     |> cast(params, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
     |> validate_conditions()
+  end
+
+  def with_firmware(%Deployment{firmware: %Firmware{}} = d), do: d
+
+  def with_firmware(%Deployment{id: id}) do
+    from(
+      d in Deployment,
+      where: d.id == ^id
+    )
+    |> preload(:firmware)
+    |> Repo.one!()
   end
 
   def with_firmware(deployment_query) do

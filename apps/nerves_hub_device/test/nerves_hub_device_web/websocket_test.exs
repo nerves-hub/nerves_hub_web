@@ -2,7 +2,7 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
   use ExUnit.Case, async: false
   use NervesHubDeviceWeb.ChannelCase
   alias NervesHubCore.Fixtures
-  alias NervesHubCore.{Repo, Devices, Accounts}
+  alias NervesHubCore.{Accounts, Deployments, Devices, Repo}
 
   @serial_header Application.get_env(:nerves_hub_device, :device_serial_header)
   @valid_serial "device-1234"
@@ -54,7 +54,10 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
         upload_metadata: %{"public_path" => @valid_firmware_url}
       })
 
-    deployment = Fixtures.deployment_fixture(firmware)
+    {:ok, deployment} =
+      Fixtures.deployment_fixture(firmware)
+      |> Deployments.update_deployment(%{is_active: true})
+
     Fixtures.device_fixture(tenant, firmware, deployment, device_params)
   end
 
@@ -232,6 +235,7 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
           "tags" => ["beta", "beta-edge"]
         }
       })
+      |> Deployments.update_deployment(%{is_active: true})
 
       opts =
         @ssl_socket_config

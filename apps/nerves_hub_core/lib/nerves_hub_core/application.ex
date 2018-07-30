@@ -10,6 +10,7 @@ defmodule NervesHubCore.Application do
     children = [
       # Start the Ecto repository
       supervisor(NervesHubCore.Repo, []),
+      {Task.Supervisor, name: NervesHubCore.TaskSupervisor}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
@@ -17,5 +18,4 @@ defmodule NervesHubCore.Application do
     opts = [strategy: :one_for_one, name: NervesHubCore.Supervisor]
     Supervisor.start_link(children, opts)
   end
-
 end
