@@ -49,6 +49,7 @@ defmodule NervesHubCore.Firmwares.Firmware do
     firmware
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
+    |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
   end
 
   def with_product(firmware_query) do

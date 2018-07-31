@@ -88,4 +88,24 @@ defmodule NervesHubCore.AccountsTest do
     {:ok, _cert} = Accounts.create_user_certificate(user, params)
     {:error, %Ecto.Changeset{}} = Accounts.create_user_certificate(user, params)
   end
+
+  test "tenant_key name must be unique" do
+    {:ok, tenant} = Accounts.create_tenant(@required_tenant_params)
+
+    {:ok, _} =
+      Accounts.create_tenant_key(%{name: "tenant's key", tenant_id: tenant.id, key: "foo"})
+
+    {:error, %Ecto.Changeset{errors: [name: {"has already been taken", []}]}} =
+      Accounts.create_tenant_key(%{name: "tenant's key", tenant_id: tenant.id, key: "foobar"})
+  end
+
+  test "tenant_key key must be unique" do
+    {:ok, tenant} = Accounts.create_tenant(@required_tenant_params)
+
+    {:ok, _} =
+      Accounts.create_tenant_key(%{name: "tenant's key", tenant_id: tenant.id, key: "foo"})
+
+    {:error, %Ecto.Changeset{}} =
+      Accounts.create_tenant_key(%{name: "tenant's second key", tenant_id: tenant.id, key: "foo"})
+  end
 end
