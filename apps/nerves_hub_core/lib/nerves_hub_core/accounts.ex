@@ -102,7 +102,6 @@ defmodule NervesHubCore.Accounts do
     |> UserCertificate.changeset(params)
     |> Repo.insert()
   end
-  
 
   @doc """
   Authenticates a user by their email and password. Returns the user if the
@@ -160,10 +159,12 @@ defmodule NervesHubCore.Accounts do
   end
 
   def get_user_with_certificate_serial(serial) do
-    query = from(
-      uc in UserCertificate, 
-      where: uc.serial == ^serial,
-      preload: [:user])
+    query =
+      from(
+        uc in UserCertificate,
+        where: uc.serial == ^serial,
+        preload: [:user]
+      )
 
     query
     |> Repo.one()

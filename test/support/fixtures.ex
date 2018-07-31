@@ -3,8 +3,7 @@ defmodule NervesHubCore.Fixtures do
 
   @tenant_params %{name: "Test Tenant"}
   @tenant_key_params %{
-    name: "Test Key",
-    key: File.read!("../../test/fixtures/firmware/fwup-key1.pub")
+    name: "Test Key"
   }
   @firmware_params %{
     architecture: "arm",
@@ -14,8 +13,7 @@ defmodule NervesHubCore.Fixtures do
     upload_metadata: %{"public_url" => "http://example.com"},
     version: "1.0.0",
     vcs_identifier: "test_vcs_identifier",
-    misc: "test_misc",
-    uuid: "00000000-0000-0000-0000-000000000000"
+    misc: "test_misc"
   }
   @deployment_params %{
     name: "Test Deployment",
@@ -52,6 +50,7 @@ defmodule NervesHubCore.Fixtures do
       %{tenant_id: tenant.id}
       |> Enum.into(params)
       |> Enum.into(@tenant_key_params)
+      |> Enum.into(%{key: Ecto.UUID.generate()})
       |> Accounts.create_tenant_key()
 
     tenant_key
@@ -98,6 +97,7 @@ defmodule NervesHubCore.Fixtures do
       %{tenant_key_id: tenant_key.id, product_id: product.id}
       |> Enum.into(params)
       |> Enum.into(@firmware_params)
+      |> Enum.into(%{uuid: Ecto.UUID.generate()})
       |> Firmwares.create_firmware()
 
     firmware

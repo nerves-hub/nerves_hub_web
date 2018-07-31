@@ -51,6 +51,23 @@ defmodule NervesHubCore.FirmwaresTest do
     |> Repo.update!()
   end
 
+  describe "create_firmware" do
+    test "enforces uuid uniqueness within a product", %{firmware: existing} do
+      new_params = %{
+        architecture: "arm",
+        tenant_key_id: existing.tenant_key_id,
+        platform: "rpi3",
+        product_id: existing.product_id,
+        upload_metadata: %{},
+        version: "100.0.0",
+        uuid: existing.uuid
+      }
+
+      assert {:error, %Ecto.Changeset{errors: [uuid: {"has already been taken", []}]}} =
+               Firmwares.create_firmware(new_params)
+    end
+  end
+
   describe "NervesHubWWW.Firmwares.get_firmwares_by_product/2" do
     test "returns firmwares", %{product: %{id: product_id} = product} do
       firmwares = Firmwares.get_firmwares_by_product(product.id)
