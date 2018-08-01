@@ -12,7 +12,7 @@
   </div>
 
   <div class="panel-body">
-    <%= form_for @tenant_changeset, tenant_path(@conn, :update), fn f -> %>
+    <%= form_for @tenant_changeset, tenant_path(@conn, :update, @tenant), fn f -> %>
       <div class="form-group">
         <label for="name_input">Name</label>
         <%= text_input f, :name, class: "form-control", id: "name_input" %>
@@ -30,7 +30,7 @@
   </div>
 
   <div class="panel-body">
-    <%= form_for @tenant_key_changeset, tenant_path(@conn, :create_key), fn f -> %>
+    <%= form_for @tenant_key_changeset, tenant_key_path(@conn, :create), fn f -> %>
       <div class="form-group">
         <label for="key_name_input">Name</label>
         <%= text_input f, :name, class: "form-control", id: "key_name_input" %>
@@ -50,12 +50,27 @@
 
     <h3>Added Keys</h3>
 
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Key</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
     <%= if length(@tenant.tenant_keys) > 0 do %>
       <%= for key <- @tenant.tenant_keys do %>
-        <p style="margin-top: 30px">
+        <tr>
+
+        <td>
           <strong><%= key.name %></strong>
-        </p>
-        <pre><%= key.key %></pre>
+        </td>
+        <td><%= key.key %></td>
+        <td class="text-right">
+          <%= link "Edit", to: tenant_key_path(@conn, :edit, key), class: "btn btn-primary" %>
+          <%= link "Delete", to: tenant_key_path(@conn, :delete, key), class: "btn btn-danger", method: :delete, data: [confirm: "Are you sure?"]  %>
+        </td>
       <% end %>
     <% else %>
       <p>No keys added.</p>

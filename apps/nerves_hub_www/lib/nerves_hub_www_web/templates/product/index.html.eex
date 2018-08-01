@@ -16,7 +16,7 @@
       <td>
         <%= link "Show", to: product_path(@conn, :show, product) %>
         <%= link "Edit", to: product_path(@conn, :edit, product) %>
-        <%= link "Delete", to: product_path(@conn, :delete, product), method: :delete, data: [confirm: "Are you sure?"] %>
+        <%= link "Delete", to: product_path(@conn, :delete, product), method: :delete %>
       </td>
     </tr>
 <% end %>
