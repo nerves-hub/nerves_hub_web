@@ -9,17 +9,11 @@ defmodule NervesHubCore.Products do
   alias NervesHubCore.Products.Product
   alias NervesHubCore.Accounts.Tenant
 
-  @doc """
-  Returns the list of products.
+  def list_products(%Tenant{id: tenant_id}) do
+    query = from(p in Product, where: p.tenant_id == ^tenant_id)
 
-  ## Examples
-
-      iex> list_products()
-      [%Product{}, ...]
-
-  """
-  def list_products do
-    Repo.all(Product)
+    query
+    |> Repo.all()
   end
 
   @doc """

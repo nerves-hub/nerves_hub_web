@@ -4,8 +4,8 @@ defmodule NervesHubWWWWeb.ProductController do
   alias NervesHubCore.Products
   alias NervesHubCore.Products.Product
 
-  def index(conn, _params) do
-    products = Products.list_products()
+  def index(%{assigns: %{tenant: tenant}} = conn, _params) do
+    products = Products.list_products(tenant)
     render(conn, "index.html", products: products)
   end
 
@@ -37,10 +37,13 @@ defmodule NervesHubWWWWeb.ProductController do
     render(conn, "edit.html", product: product, changeset: changeset)
   end
 
-  def update(conn, %{"id" => id, "product" => product_params}) do
+  def update(%{assigns: %{tenant: tenant}} = conn, %{"id" => id, "product" => product_params}) do
     product = Products.get_product!(id)
 
-    case Products.update_product(product, product_params) do
+    case Products.update_product(
+           product,
+           product_params |> Enum.into(%{"tenant_id" => tenant.id})
+         ) do
       {:ok, product} ->
         conn
         |> put_flash(:info, "Product updated successfully.")

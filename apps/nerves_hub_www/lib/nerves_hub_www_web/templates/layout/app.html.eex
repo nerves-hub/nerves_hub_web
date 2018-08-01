@@ -8,35 +8,36 @@
     <meta name="author" content="">
 
     <title>NervesHub</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
     <link rel="stylesheet" href="<%= static_path(@conn, "/css/app.css") %>">
+
     <link href="https://fonts.googleapis.com/css?family=Audiowide" rel="stylesheet">
   </head>
 
   <body>
     <div class="container">
-      <nav class="navbar navbar-default">
-        <div class="container-fluid">
-          <div class="navbar-header">
-            <a class="logo" href="<%= session_path(@conn, :new) %>">
+      <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <a class="logo navbar-brand" href="<%= session_path(@conn, :new) %>">
               <span class="logo-letter">NervesHub</span>
             </a>
-          </div>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <%= if logged_in?(@conn) do %>
+            <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+              <div class="navbar-nav">
+                <%= for {name, path} <- navigation_links(@conn) do %>
+                    <a class="<%= if @conn.request_path == path, do: "active nav-item nav-link", else: "nav-item nav-link" %>" href="<%= path %>"><%= name %></a>
+                <% end %>
+              </div>
+            </div>
 
-          <%= if logged_in?(@conn) do %>
-            <ul class="nav navbar-nav">
-              <%= for {name, path} <- navigation_links(@conn) do %>
-                <li class="<%= if @conn.request_path == path, do: "active", else: "" %>">
-                  <a class="nav-link" href="<%= path %>"><%= name %></a>
-                </li>
-              <% end %>
-            </ul>
             <div class="nav navbar-nav navbar-right">
               <a class="btn btn-light navbar-btn" href="<%= session_path(@conn, :delete)%>">
                 Log Out
               </a>
             </div>
           <% end %>
-        </div>
       </nav>
 
       <p class="alert alert-info" role="alert"><%= get_flash(@conn, :info) %></p>
@@ -52,6 +53,9 @@
         NervesHub
       </p>
     </div> <!-- /container -->
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
     <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
   </body>
 </html>

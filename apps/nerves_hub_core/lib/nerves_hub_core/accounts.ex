@@ -219,8 +219,57 @@ defmodule NervesHubCore.Accounts do
           | {:error, Changeset.t()}
   def create_tenant_key(attrs) do
     %TenantKey{}
-    |> TenantKey.changeset(attrs)
+    |> change_tenant_key(attrs)
     |> Repo.insert()
+  end
+
+  def list_tenant_keys(%Tenant{id: tenant_id}) do
+    query = from(tk in TenantKey, where: tk.tenant_id == ^tenant_id)
+
+    query
+    |> Repo.all()
+  end
+
+  def get_tenant_key(%Tenant{id: tenant_id}, tk_id) do
+    query =
+      from(
+        tk in TenantKey,
+        where: tk.tenant_id == ^tenant_id,
+        where: tk.id == ^tk_id
+      )
+
+    query
+    |> Repo.one!()
+    |> case do
+      nil -> {:error, :not_found}
+      device -> {:ok, device}
+    end
+  end
+
+  def update_tenant_key(%TenantKey{} = tenant_key, params) do
+    tenant_key
+    |> change_tenant_key(params)
+    |> Repo.update()
+  end
+
+  def delete_tenant_key(%TenantKey{} = tenant_key) do
+    Repo.delete(tenant_key)
+  end
+
+  def change_tenant_key(%TenantKey{id: nil} = tenant_key) do
+    TenantKey.changeset(tenant_key, %{})
+  end
+
+  def change_tenant_key(%TenantKey{id: _id} = tenant_key) do
+    TenantKey.update_changeset(tenant_key, %{})
+  end
+
+  def change_tenant_key(%TenantKey{id: nil} = tenant_key, params) do
+    TenantKey.changeset(tenant_key, params)
+  end
+
+  def change_tenant_key(%TenantKey{id: _id} = tenant_key, params) do
+    TenantKey.update_changeset(tenant_key, params)
   end
 
   @spec invite(%{name: String.t(), email: String.t()}, Tenant.t()) ::
@@ -262,7 +311,7 @@ defmodule NervesHubCore.Accounts do
 
     Repo.transaction(fn ->
       with {:ok, user} <- create_user(tenant, user_params),
-           {:ok, _invite} <- set_invite_accpted(invite) do
+           {:ok, _invite} <- set_invite_accepted(invite) do
         {:ok, user}
       else
         _ -> {:error}
@@ -279,7 +328,7 @@ defmodule NervesHubCore.Accounts do
     |> Repo.update()
   end
 
-  defp set_invite_accpted(invite) do
+  defp set_invite_accepted(invite) do
     invite
     |> Invite.changeset(%{accepted: true})
     |> Repo.update()

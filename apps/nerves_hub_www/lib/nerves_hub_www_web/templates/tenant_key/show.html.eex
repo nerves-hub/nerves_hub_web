@@ -1,0 +1,8 @@
+<h2>Show Tenant keys</h2>
+
+<ul>
+
+</ul>
+
+<span><%= link "Edit", to: tenant_key_path(@conn, :edit, @tenant_key) %></span>
+<span><%= link "Back", to: tenant_key_path(@conn, :index) %></span>
