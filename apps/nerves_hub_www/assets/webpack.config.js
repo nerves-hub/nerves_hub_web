@@ -1,41 +1,98 @@
-const path = require('path');
-const glob = require('glob');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
-const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
+var ExtractTextPlugin = require("extract-text-webpack-plugin");
+var merge = require("webpack-merge");
+var webpack = require("webpack");
 
-module.exports = (env, options) => ({
-  optimization: {
-    minimizer: [
-      new UglifyJsPlugin({ cache: true, parallel: true, sourceMap: false }),
-      new OptimizeCSSAssetsPlugin({})
-    ]
-  },
-  entry: {
-      './js/app.js': ['./js/app.js'].concat(glob.sync('./vendor/js/*.js'))
-  },
-  output: {
-    filename: 'app.js',
-    path: path.resolve(__dirname, '../priv/static/js')
-  },
+var env = process.env.NODE_ENV || "development";
+var production = env === "production";
+
+var node_modules_dir = "node_modules"
+
+var plugins = [
+  new ExtractTextPlugin("css/app.css"),
+  new webpack.ProvidePlugin({
+    $: "jquery",
+    jQuery: "jquery"
+  })
+]
+
+if (production) {
+  plugins.push(
+    new webpack.optimize.UglifyJsPlugin({
+      compress: {warnings: false},
+      output: {comments: false}
+    })
+  );
+} else {
+  plugins.push(
+    new webpack.EvalSourceMapDevToolPlugin()
+  );
+}
+
+var common = {
   module: {
     rules: [
       {
         test: /\.js$/,
-        exclude: /node_modules/,
-        use: {
-          loader: 'babel-loader'
+        exclude: [],
+        loader: "babel-loader",
+        options: {
+          presets: ["es2015"]
         }
       },
       {
-        test: /\.css$/,
-        use: [MiniCssExtractPlugin.loader, 'css-loader']
+        test: /\.scss$/,
+        use: ExtractTextPlugin.extract({
+          fallback: 'style-loader',
+          use: [
+            {
+              loader: 'css-loader',
+            },
+            {
+              loader: 'postcss-loader',
+              options: {
+                plugins() {
+                  return [
+                    require("precss"),
+                    require("autoprefixer")
+                  ];
+                }
+              }
+            },
+            {
+              loader: 'sass-loader'
+            }
+          ]
+        })
+      },
+      {
+        test: /\.(png|jpg|gif|svg)$/,
+        loader: "file-loader?name=../priv/static/images/[name].[ext]"
+      },
+      {
+        test: /\.(ttf|otf|eot|svg|woff2?)$/,
+        loader: "file-loader?name=/fonts/[name].[ext]",
       }
     ]
   },
-  plugins: [
-    new MiniCssExtractPlugin({ filename: '../css/app.css' }),
-    new CopyWebpackPlugin([{ from: 'static/', to: '../' }])
-  ]
-});
+  plugins: plugins
+};
+
+module.exports = [
+  merge(common, {
+    entry: [
+      __dirname + "/js/app.js",
+      __dirname + "/css/app.scss",
+    ],
+    output: {
+      path: __dirname + "/../priv/static",
+      filename: "js/app.js"
+    },
+    resolve: {
+      modules: [
+        node_modules_dir,
+        __dirname + "/js",
+        __dirname + "/css"
+      ]
+    }
+  })
+];
