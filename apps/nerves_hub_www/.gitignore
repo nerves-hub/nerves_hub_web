@@ -19,3 +19,5 @@ erl_crash.dump
 .env
 .elixir_ls
 .vscode
+
+node_modules/
