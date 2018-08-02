@@ -1,5 +1,21 @@
+ARG ELIXIR_VERSION=1.6.6
+FROM bitwalker/alpine-elixir:${ELIXIR_VERSION} as deps
+ADD . /build
+WORKDIR /build
+RUN mix deps.clean --all && mix deps.get
+
+FROM node:9.11.2 as assets
+RUN mkdir -p /priv/static
+WORKDIR /build
+COPY apps/nerves_hub_www/assets apps/nerves_hub_www/assets
+RUN ln -s /priv/static ./apps/nerves_hub_www/priv
+COPY --from=deps /build/deps deps
+RUN cd apps/nerves_hub_www/assets \
+  && yarn install \
+  && yarn run deploy
+
 # Elixir build container
-FROM bitwalker/alpine-elixir:1.6.6 as builder
+FROM bitwalker/alpine-elixir:${ELIXIR_VERSION} as builder
 
 ENV MIX_ENV=prod
 
@@ -8,9 +24,10 @@ RUN mix local.hex --force && mix local.rebar --force
 RUN mkdir /build
 ADD . /build
 WORKDIR /build
+COPY --from=deps /build/deps deps
+COPY --from=assets /priv/static apps/nerves_hub_www/priv/static
 
-RUN mix deps.clean --all && mix deps.get
-RUN mix release --env=$MIX_ENV --name=nerves_hub_www
+RUN mix do phx.digest, release --env=$MIX_ENV --name=nerves_hub_www
 
 # Release Container
 FROM nerveshub/runtime:alpine-3.8 as release
