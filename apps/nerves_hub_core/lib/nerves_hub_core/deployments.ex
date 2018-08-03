@@ -57,6 +57,7 @@ defmodule NervesHubCore.Deployments do
     |> Deployment.with_firmware()
     |> Deployment.edit_changeset(params)
     |> Repo.update()
+    |> Repo.reload_assoc(:firmware)
     |> update_relevant_devices()
   end
 
