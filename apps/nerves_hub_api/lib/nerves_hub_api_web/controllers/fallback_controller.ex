@@ -19,4 +19,11 @@ defmodule NervesHubAPIWeb.FallbackController do
     |> put_view(NervesHubAPIWeb.ErrorView)
     |> render(:"404")
   end
+
+  def call(conn, {:error, reason}) do
+    conn
+    |> put_status(500)
+    |> put_view(NervesHubAPIWeb.ErrorView)
+    |> render(:"500")
+  end
 end

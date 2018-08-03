@@ -38,6 +38,26 @@ defmodule NervesHubCore.Deployments do
     end
   end
 
+  @spec get_deployment_by_name(Product.t(), String.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
+  def get_deployment_by_name(%Product{id: product_id}, deployment_name) do
+    from(
+      d in Deployment,
+      where: d.name == ^deployment_name,
+      join: f in assoc(d, :firmware),
+      where: f.product_id == ^product_id,
+      preload: [{:firmware, :product}]
+    )
+    |> Deployment.with_firmware()
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:error, :not_found}
+
+      deployment ->
+        {:ok, deployment}
+    end
+  end
+
   @spec delete_deployment(Deployment.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
   def delete_deployment(%Deployment{id: deployment_id}) do
     Repo.get!(Deployment, deployment_id)
@@ -55,7 +75,7 @@ defmodule NervesHubCore.Deployments do
   def update_deployment(deployment, params) do
     deployment
     |> Deployment.with_firmware()
-    |> Deployment.edit_changeset(params)
+    |> Deployment.changeset(params)
     |> Repo.update()
     |> Repo.reload_assoc(:firmware)
     |> update_relevant_devices()
@@ -93,4 +113,5 @@ defmodule NervesHubCore.Deployments do
   end
 
   defp update_relevant_devices({:error, changeset}), do: {:error, changeset}
+
 end

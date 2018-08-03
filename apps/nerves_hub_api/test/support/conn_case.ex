@@ -13,13 +13,17 @@ defmodule NervesHubAPIWeb.ConnCase do
   of the test unless the test case is marked as async.
   """
 
+  @certificate Path.join([__DIR__, "../../../../test/fixtures/cfssl/user.pem"])
+
   use ExUnit.CaseTemplate
+  alias NervesHubCore.Fixtures
 
   using do
     quote do
       # Import conveniences for testing with connections
       use Phoenix.ConnTest
       import NervesHubAPIWeb.Router.Helpers
+      import NervesHubAPIWeb.ConnCase, only: [build_auth_conn: 0, peer_data: 0]
 
       # The default endpoint for testing
       @endpoint NervesHubAPIWeb.Endpoint
@@ -34,7 +38,23 @@ defmodule NervesHubAPIWeb.ConnCase do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHubCore.Repo, {:shared, self()})
     end
 
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
+    tenant = Fixtures.tenant_fixture()
+    user = Fixtures.user_fixture(tenant)
+    product = Fixtures.product_fixture(tenant, %{name: "starter"})
+
+    {:ok, conn: build_auth_conn(), tenant: tenant, user: user, product: product}
   end
 
+
+  def build_auth_conn() do
+    Phoenix.ConnTest.build_conn()
+    |> Plug.Test.put_peer_data(peer_data())
+    |> Plug.Conn.put_req_header("accept", "application/json")
+  end
+
+  def peer_data() do
+    certificate = File.read!(@certificate)
+    [{:Certificate, certificate, _}] = :public_key.pem_decode(certificate)
+    %{address: {127, 0, 0, 1}, port: 111_317, ssl_cert: certificate}
+  end
 end

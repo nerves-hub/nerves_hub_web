@@ -41,19 +41,6 @@ defmodule NervesHubCore.Deployments.Deployment do
     end
   end
 
-  def edit_changeset(%Deployment{} = deployment, params) do
-    fields = [
-      :name,
-      :conditions,
-      :is_active
-    ]
-
-    deployment
-    |> cast(params, fields)
-    |> validate_required(fields)
-    |> validate_conditions()
-  end
-
   def changeset(%Deployment{} = deployment, params) do
     deployment
     |> cast(params, @required_fields ++ @optional_fields)
