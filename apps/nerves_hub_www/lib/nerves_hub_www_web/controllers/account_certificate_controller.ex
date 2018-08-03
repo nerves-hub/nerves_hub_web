@@ -25,7 +25,7 @@ defmodule NervesHubWWWWeb.AccountCertificateController do
   end
 
   def download(conn, %{"file" => file}) do
-    archive = Base.decode64!(file) |> IO.inspect
+    archive = Base.decode64!(file)
     conn
     |> send_download({:binary, archive}, filename: "certificates.tar.gz")
   end
