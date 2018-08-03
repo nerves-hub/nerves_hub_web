@@ -16,13 +16,15 @@ defmodule NervesHubWWWWeb.TenantKeyController do
 
   def create(%{assigns: %{tenant: tenant}} = conn, %{"tenant_key" => tenant_key_params}) do
     case Accounts.create_tenant_key(tenant_key_params |> Enum.into(%{"tenant_id" => tenant.id})) do
-      {:ok, tenant_key} ->
+      {:ok, _tenant_key} ->
         conn
         |> put_flash(:info, "Tenant keys created successfully.")
         |> redirect(to: tenant_path(conn, :edit, tenant))
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, "new.html", changeset: changeset)
+      {:error, %Ecto.Changeset{}} ->
+        conn
+        |> put_flash(:error, "Failed to create key -- it must have a unique name and value")
+        |> redirect(to: tenant_path(conn, :edit, tenant))
     end
   end
 
@@ -47,7 +49,7 @@ defmodule NervesHubWWWWeb.TenantKeyController do
            tenant_key,
            tenant_key_params
          ) do
-      {:ok, tenant_key} ->
+      {:ok, _tenant_key} ->
         conn
         |> put_flash(:info, "Tenant Key updated successfully.")
         |> redirect(to: tenant_path(conn, :edit, tenant))

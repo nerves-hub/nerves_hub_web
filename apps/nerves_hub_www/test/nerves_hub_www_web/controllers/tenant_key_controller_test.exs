@@ -32,9 +32,9 @@ defmodule NervesHubWWWWeb.TenantKeyControllerTest do
       assert html_response(conn, 200) =~ params.name
     end
 
-    test "renders errors when data is invalid", %{conn: conn} do
+    test "renders errors when data is invalid", %{conn: conn, current_tenant: tenant} do
       conn = post(conn, tenant_key_path(conn, :create), tenant_key: @invalid_attrs)
-      assert html_response(conn, 200) =~ "New Tenant keys"
+      assert redirected_to(conn) == tenant_path(conn, :edit, tenant)
     end
   end
 
