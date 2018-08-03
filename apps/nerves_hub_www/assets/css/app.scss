@@ -1,2 +1,123 @@
 @import "custom";
 @import "~bootstrap/scss/bootstrap";
+
+
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: white;
+  min-width: 800px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-overflow-scrolling: auto;
+}
+
+.wrapper {
+    overflow-x:hidden;
+}
+.modal-header {
+  background-color: $dark_background;
+    font-family: 'Audiowide', cursive;
+    font-size: 18px;
+    color: white;
+}
+
+a.nh_std_btn {
+  @extend .btn,.btn-primary;
+  display: inline-block;
+  background-color: $dark_background;
+}
+
+.right {
+  text-align: right;
+}
+
+.logo {
+  color: $dark_text;
+  a {
+    font-family: 'Audiowide', cursive;
+    color: $dark_text;
+    font-size: 32px;
+    line-height: 56px;
+    margin-top: 8px;
+    padding: 9px;
+  }
+  a:visited {
+    color: #555;
+  }
+  a:hover {
+    text-decoration: none;
+  }
+}
+
+#header {
+  background-color: $light_background;
+  height: 54px;
+  left: 0;
+  right: 0;
+  z-index: 16;
+  a {
+    margin: 10px;
+  }
+  .hilight {
+    font-size: 18px;
+    font-weight: 800;
+    font-variant: small-caps;
+    color: $hilight;
+  }
+}
+
+#footer {
+  background-color: $light_background;
+  color: $dark_text;
+  clear:both;
+  font-family: 'Helvetica', sans-serif;
+  font-weight:800;
+  font-size:14px;
+  border-top-width:1px;
+  border-top-color:$dark_text;
+  border-top-style:solid;
+  width: 100%;
+  margin-top: -27px; /* negative value of footer height */
+  height: 32px;
+  position: absolute;
+  bottom: 0;
+  padding: 6px;
+  padding-top: 4px;
+  a {
+    color: $dark_text;
+    text-decoration: underline;
+  }
+}
+
+.content {
+  h3 {
+    padding-top: 24px;
+    font-family: 'Helvetica', sans-serif;
+    font-size: 24px;
+    line-height: 1.5;
+  }
+  font-family: 'Lora', 'Times New Roman', serif;
+  color: #4f4f4f;
+  word-wrap: break-word;
+  font-size: 32px;
+  padding: 15px;
+}
+
+#contents {
+  margin-top: 10px;
+}
+
+#wrapper {
+  min-height: 100%;
+  position: relative;
+  top: 0;
+  left: 0;
+  bottom: 24px;
+  overflow:auto;
+  right: 0;
+}
+
+#main {
+}

@@ -1,4 +1,5 @@
 var ExtractTextPlugin = require("extract-text-webpack-plugin");
+var CopyWebpackPlugin = require("copy-webpack-plugin");
 var merge = require("webpack-merge");
 var webpack = require("webpack");
 
@@ -12,7 +13,10 @@ var plugins = [
   new webpack.ProvidePlugin({
     $: "jquery",
     jQuery: "jquery"
-  })
+  }),
+  new CopyWebpackPlugin([
+      { from: 'images', to: "images" }
+  ])
 ]
 
 if (production) {
@@ -91,7 +95,8 @@ module.exports = [
       modules: [
         node_modules_dir,
         __dirname + "/js",
-        __dirname + "/css"
+        __dirname + "/css",
+        __dirname + "/images"
       ]
     }
   })

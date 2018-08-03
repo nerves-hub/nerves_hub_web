@@ -1,0 +1,48 @@
+!!! 5
+%html{lang: "en-US"}
+  %head
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>NervesHub</title>
+    <link rel="stylesheet" href="#{static_path(@conn, "/css/app.css")}">
+    <link href="https://fonts.googleapis.com/css?family=Audiowide" rel="stylesheet">
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+
+  %body
+    #wrapper
+      #header.container-fluid
+        .row
+          .col-xs-8
+            .logo
+              %a{href: "#{page_path(@conn, :index)}"}
+                NervesHub
+              = "--"
+              %span.hilight
+                = page_description(@conn)
+          .col-xs-4.right
+            = session_buttons(@conn)
+
+      #contents.container-fluid
+        %main{role: "main"}
+          = render @view_module, @view_template, assigns
+
+      #footer
+        .row
+          .col-xs-4
+            = account_data(@conn)
+          .col-xs-4
+          .col-xs-4.right
+            %a{href: "https://github.com/nerves-hub"}
+              %img{src: "images/github.png", width: 23, height: 23}
+            &nbsp;
+            %a{href: "https://twitter.com/nervesproject"}
+              %img{src: "images/twitter.jpg", width: 23, height: 23}
+
+    .modal.fade#js_modal_holder
+      .modal-dialog
+        .modal-content.std_modal#js_modal_content
+<script src="#{static_path(@conn, "/js/app.js")}"></script>

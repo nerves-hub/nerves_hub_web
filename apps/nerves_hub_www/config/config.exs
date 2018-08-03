@@ -11,6 +11,9 @@ config :nerves_hub_www,
   # Options are :ssl or :header
   websocket_auth_methods: [:ssl]
 
+config :phoenix, :template_engines,
+  haml: PhoenixHaml.Engine
+
 # Configures the endpoint
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   url: [host: System.get_env("HOST")],

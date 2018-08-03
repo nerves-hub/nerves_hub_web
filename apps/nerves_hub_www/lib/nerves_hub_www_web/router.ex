@@ -4,6 +4,7 @@ defmodule NervesHubWWWWeb.Router do
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
+    plug(NervesHubWWWWeb.Plugs.TestLoggedIn)
     plug(:fetch_flash)
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
@@ -30,8 +31,10 @@ defmodule NervesHubWWWWeb.Router do
     # Use the default browser stack
     pipe_through(:browser)
 
-    get("/", SessionController, :new)
-    post("/", SessionController, :create)
+    get("/", PageController, :index)
+
+    get("/session", SessionController, :new)
+    post("/session", SessionController, :create)
 
     get("/logout", SessionController, :delete)
 
