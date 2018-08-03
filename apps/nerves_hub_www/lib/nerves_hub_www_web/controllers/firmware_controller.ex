@@ -18,36 +18,10 @@ defmodule NervesHubWWWWeb.FirmwareController do
   end
 
   def do_upload(%{assigns: %{tenant: tenant, product: product}} = conn, %{
-        "firmware" => %{"file" => %{filename: filename, path: path}}
+        "firmware" => %{"file" => %{path: filepath}}
       }) do
-    with {:ok, tenant_key_id} <- verify_signature(path, tenant.tenant_keys),
-         {:ok, metadata} <- Firmwares.extract_metadata(path),
-         {:ok, architecture} <- Firmware.fetch_metadata_item(metadata, "meta-architecture"),
-         {:ok, platform} <- Firmware.fetch_metadata_item(metadata, "meta-platform"),
-         {:ok, product_name} <- Firmware.fetch_metadata_item(metadata, "meta-product"),
-         {:ok, version} <- Firmware.fetch_metadata_item(metadata, "meta-version"),
-         author <- Firmware.get_metadata_item(metadata, "meta-author"),
-         description <- Firmware.get_metadata_item(metadata, "meta-description"),
-         misc <- Firmware.get_metadata_item(metadata, "meta-misc"),
-         uuid <- Firmware.get_metadata_item(metadata, "meta-uuid"),
-         vcs_identifier <- Firmware.get_metadata_item(metadata, "meta-vcs-identifier"),
-         {:ok, upload_metadata} <- upload_firmware(path, filename, tenant.id) do
-      %{
-        architecture: architecture,
-        author: author,
-        description: description,
-        misc: misc,
-        platform: platform,
-        product_name: product_name,
-        tenant_id: tenant.id,
-        tenant_key_id: tenant_key_id,
-        upload_metadata: upload_metadata,
-        uuid: uuid,
-        vcs_identifier: vcs_identifier,
-        version: version
-      }
-      |> Firmwares.create_firmware()
-      |> case do
+    with {:ok, firmware_params} <- Firmwares.prepare_firmware_params(tenant, filepath) do
+      case Firmwares.create_firmware(firmware_params) do
         {:ok, _firmware} ->
           conn
           |> put_flash(:info, "Firmware uploaded")
@@ -105,23 +79,4 @@ defmodule NervesHubWWWWeb.FirmwareController do
     end
   end
 
-  defp verify_signature(path, keys) do
-    path
-    |> Firmwares.verify_signature(keys)
-    |> case do
-      {:ok, %TenantKey{id: tenant_key_id}} ->
-        {:ok, tenant_key_id}
-
-      error ->
-        error
-    end
-  end
-
-  defp upload_firmware(filepath, filename, tenant_id) do
-    if uploader = Application.get_env(:nerves_hub_www, :firmware_upload) do
-      uploader.upload_file(filepath, filename, tenant_id)
-    else
-      {:error}
-    end
-  end
 end

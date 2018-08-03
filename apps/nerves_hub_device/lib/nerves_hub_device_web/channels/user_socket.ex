@@ -31,8 +31,10 @@ defmodule NervesHubDeviceWeb.UserSocket do
   if Enum.member?(@websocket_auth_methods, :ssl) do
     def connect(%{ssl_cert: ssl_cert}, socket) do
       case Certificate.get_common_name(ssl_cert) do
-        {:ok, serial} -> build_socket(socket, serial)
-        error -> error
+        {:ok, serial} -> 
+          build_socket(socket, serial)
+        error -> 
+          error
       end
     end
   end
