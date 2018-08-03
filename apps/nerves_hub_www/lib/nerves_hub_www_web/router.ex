@@ -21,10 +21,6 @@ defmodule NervesHubWWWWeb.Router do
     plug(NervesHubWWWWeb.Plugs.FetchProduct)
   end
 
-  pipeline :api do
-    plug(:accepts, ["json"])
-    plug(NervesHubWWWWeb.Plugs.Api.AuthenticateDevice)
-  end
 
   scope "/", NervesHubWWWWeb do
     # Use the default browser stack
@@ -79,12 +75,6 @@ defmodule NervesHubWWWWeb.Router do
 
       resources("/deployments", DeploymentController)
     end
-  end
-
-  scope "/api", NervesHubWWWWeb.Api do
-    pipe_through(:api)
-
-    get("/firmware-update", FirmwareUpdateController, :show)
   end
 
   if Mix.env() in [:dev] do
