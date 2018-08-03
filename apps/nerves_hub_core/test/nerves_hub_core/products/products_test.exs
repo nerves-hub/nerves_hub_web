@@ -18,8 +18,8 @@ defmodule NervesHubWWW.ProductsTest do
       {:ok, %{product: product, tenant: tenant}}
     end
 
-    test "list_products/0 returns all products", %{product: product} do
-      assert Products.list_products() == [product]
+    test "list_products/0 returns all products", %{product: product, tenant: tenant} do
+      assert Products.list_products(tenant) == [product]
     end
 
     test "get_product!/1 returns the product with given id", %{product: product} do

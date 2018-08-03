@@ -5,7 +5,7 @@ defmodule NervesHubWWWWeb.LayoutView do
 
   def navigation_links(conn) do
     [
-      {conn.assigns.tenant.name, tenant_path(conn, :edit)},
+      {conn.assigns.tenant.name, tenant_path(conn, :edit, conn.assigns.tenant.id)},
       {"Products", product_path(conn, :index)},
       {"All Devices", device_path(conn, :index)},
       {"Account", account_path(conn, :edit)}

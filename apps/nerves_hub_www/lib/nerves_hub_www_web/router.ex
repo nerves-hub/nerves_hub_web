@@ -51,9 +51,9 @@ defmodule NervesHubWWWWeb.Router do
     pipe_through([:browser, :logged_in])
 
     resources("/dashboard", DashboardController, only: [:index])
-    get("/tenant", TenantController, :edit)
-    put("/tenant", TenantController, :update)
-    post("/tenant/key", TenantController, :create_key)
+    resources("/tenant", TenantController, only: [:edit, :update])
+
+    resources("/tenant_keys", TenantKeyController)
 
     get("/tenant/invite", TenantController, :invite)
     post("/tenant/invite", TenantController, :send_invite)
