@@ -12,7 +12,7 @@ defmodule NervesHubWWWWeb.SessionController do
     |> get_session(@session_key)
     |> case do
       nil ->
-        render(conn, "new.html", changeset: %Changeset{data: %User{}})
+        render(conn, "new.html", changeset: %Changeset{data: %User{}}, layout: false)
 
       _ ->
         conn

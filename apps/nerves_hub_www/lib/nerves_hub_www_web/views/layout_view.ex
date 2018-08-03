@@ -79,7 +79,7 @@ defmodule NervesHubWWWWeb.LayoutView do
   end
 
   def permit_uninvited_signups? do
-    Application.get_env(:nerves_hub, NervesHubWeb.AccountController)[:allow_signups]
+    Application.get_env(:nerves_hub_www, NervesHubWWWWeb.AccountController)[:allow_signups]
   end
 
   def logged_in?(%{assigns: %{user: %User{}}}), do: true
