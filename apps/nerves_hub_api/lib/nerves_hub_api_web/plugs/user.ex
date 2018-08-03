@@ -29,8 +29,10 @@ defmodule NervesHubAPIWeb.Plugs.User do
         |> halt()
 
       %User{} = user ->
+        user = NervesHubCore.Repo.preload(user, [tenant: [:tenant_keys]])
         conn
         |> assign(:user, user)
+        |> assign(:tenant, user.tenant)
 
     end
   end
