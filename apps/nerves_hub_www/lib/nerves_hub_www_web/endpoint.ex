@@ -1,4 +1,5 @@
 defmodule NervesHubWWWWeb.Endpoint do
+  @env Mix.env()
   use Phoenix.Endpoint, otp_app: :nerves_hub_www
 
   # Serve at "/" the static files from "priv/static" directory.
@@ -14,11 +15,13 @@ defmodule NervesHubWWWWeb.Endpoint do
   )
 
   # This should only be enabled if using NervesHubCore.Firmwares.Upload.File
-  # plug(
-  #   Plug.Static,
-  #   at: "/firmware",
-  #   from: "/tmp/firmware"
-  # )
+if @env in [:dev, :test] do  
+  plug(
+    Plug.Static,
+    at: "/firmware",
+    from: "/tmp/firmware"
+  )
+end
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
