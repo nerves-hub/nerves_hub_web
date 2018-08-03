@@ -108,6 +108,7 @@ defmodule NervesHubCore.Devices do
     device
     |> Device.changeset(params)
     |> Repo.update()
+    |> Repo.reload_assoc(:last_known_firmware)
   end
 
   @doc """
@@ -115,9 +116,9 @@ defmodule NervesHubCore.Devices do
   """
   def matches_deployment?(
         %Device{tags: tags, last_known_firmware: %Firmware{version: version}},
-        %Deployment{conditions: %{"version" => dep_version, "tags" => dep_tags}}
+        %Deployment{conditions: %{"version" => requirement, "tags" => dep_tags}}
       ) do
-    if Version.match?(version, dep_version) and tags_match?(tags, dep_tags) do
+    if version_match?(version, requirement) and tags_match?(tags, dep_tags) do
       true
     else
       false
@@ -125,6 +126,11 @@ defmodule NervesHubCore.Devices do
   end
 
   def matches_deployment?(_, _), do: false
+
+  defp version_match?("", _vsn), do: true
+  defp version_match?(requirement, version) do
+    Version.match?(requirement, version)
+  end
 
   defp tags_match?(device_tags, deployment_tags) do
     Enum.all?(deployment_tags, fn tag -> tag in device_tags end)
