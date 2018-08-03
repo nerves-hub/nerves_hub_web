@@ -8,7 +8,6 @@ FROM node:9.11.2 as assets
 RUN mkdir -p /priv/static
 WORKDIR /build
 COPY apps/nerves_hub_www/assets apps/nerves_hub_www/assets
-RUN ln -s /priv/static ./apps/nerves_hub_www/priv
 COPY --from=deps /build/deps deps
 RUN cd apps/nerves_hub_www/assets \
   && yarn install \
@@ -25,7 +24,7 @@ RUN mkdir /build
 ADD . /build
 WORKDIR /build
 COPY --from=deps /build/deps deps
-COPY --from=assets /priv/static apps/nerves_hub_www/priv/static
+COPY --from=assets /build/apps/nerves_hub_www/priv/static apps/nerves_hub_www/priv/static
 
 RUN mix do phx.digest, release --env=$MIX_ENV --name=nerves_hub_www
 
