@@ -21,3 +21,4 @@ erl_crash.dump
 .vscode
 
 node_modules/
+assets/yarn-error.log
