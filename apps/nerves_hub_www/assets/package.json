@@ -25,7 +25,8 @@
     "sass-loader": "^7.0.3",
     "style-loader": "^0.21.0",
     "webpack": "^3.12.0",
-    "webpack-merge": "~4.1"
+    "webpack-merge": "~4.1",
+    "copy-webpack-plugin": "^4.5.0"
   },
   "scripts": {
     "build": "NODE_ENV=production node_modules/webpack/bin/webpack.js -p",

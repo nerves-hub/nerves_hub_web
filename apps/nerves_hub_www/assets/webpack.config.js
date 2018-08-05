@@ -1,3 +1,5 @@
+const CopyWebpackPlugin = require('copy-webpack-plugin');
+
 var ExtractTextPlugin = require("extract-text-webpack-plugin");
 var merge = require("webpack-merge");
 var webpack = require("webpack");
@@ -8,6 +10,7 @@ var production = env === "production";
 var node_modules_dir = "node_modules"
 
 var plugins = [
+  new CopyWebpackPlugin([{ from: 'static/', to: '../static' }]),
   new ExtractTextPlugin("css/app.css"),
   new webpack.ProvidePlugin({
     $: "jquery",

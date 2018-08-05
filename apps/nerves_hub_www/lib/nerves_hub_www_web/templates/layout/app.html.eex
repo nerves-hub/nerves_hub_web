@@ -14,30 +14,8 @@
   </head>
 
   <body>
-    <div class="container">
-      <nav class="navbar navbar-expand-lg navbar-light bg-light">
-            <a class="logo navbar-brand" href="<%= session_path(@conn, :new) %>">
-              <span class="logo-letter">NervesHub</span>
-            </a>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <%= if logged_in?(@conn) do %>
-            <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-              <div class="navbar-nav">
-                <%= for {name, path} <- navigation_links(@conn) do %>
-                    <a class="<%= if @conn.request_path == path, do: "active nav-item nav-link", else: "nav-item nav-link" %>" href="<%= path %>"><%= name %></a>
-                <% end %>
-              </div>
-            </div>
-
-            <div class="nav navbar-nav navbar-right">
-              <a class="btn btn-light navbar-btn" href="<%= session_path(@conn, :delete)%>">
-                Log Out
-              </a>
-            </div>
-          <% end %>
-      </nav>
+    <div class="container-fullwidth">
+      <%= render("_navigation.html", conn: @conn) %>
 
       <%= if get_flash(@conn, :info) do %>
           <div class="alert alert-info alert-dismissible">
@@ -56,11 +34,7 @@
         <%= render @view_module, @view_template, assigns %>
       </main>
 
-      <hr style="border-top-width: 2px; margin-top: 48px">
-
-      <p class="h3 text-muted text-center logo-font" style="opacity: 0.2">
-        NervesHub
-      </p>
+      <%= render("_footer.html", conn: @conn) %>
     </div> <!-- /container -->
     <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
   </body>
