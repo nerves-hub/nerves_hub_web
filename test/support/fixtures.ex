@@ -66,6 +66,15 @@ defmodule NervesHubCore.Fixtures do
     user
   end
 
+  def user_certificate_fixture(%Accounts.User{} = user, params \\ %{}) do
+    cert_params =
+      params
+      |> Enum.into(@user_certificate_params)
+
+    {:ok, certificate} = user |> Accounts.create_user_certificate(cert_params)
+    certificate
+  end
+
   def product_fixture(a, params \\ %{})
 
   def product_fixture(%Accounts.Tenant{} = tenant, params) do

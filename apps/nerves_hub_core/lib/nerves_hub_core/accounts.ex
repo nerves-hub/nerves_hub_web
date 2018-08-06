@@ -158,6 +158,23 @@ defmodule NervesHubCore.Accounts do
     |> Repo.all()
   end
 
+  @spec get_user_certificate(User.t(), integer()) ::
+          {:ok, UserCertificate.t()}
+          | {:error, :not_found}
+  def get_user_certificate(%User{id: user_id}, cert_id) do
+    query = from(uc in UserCertificate, where: uc.user_id == ^user_id, where: uc.id == ^cert_id)
+
+    query
+    |> Repo.one()
+  end
+
+  @spec delete_user_certificate(UserCertificate.t()) ::
+          {:ok, UserCertificate.t()}
+          | {:error, Changeset.t()}
+  def delete_user_certificate(%UserCertificate{} = cert) do
+    Repo.delete(cert)
+  end
+
   def get_user_with_certificate_serial(serial) do
     query =
       from(
