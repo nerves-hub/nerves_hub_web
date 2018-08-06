@@ -10,11 +10,11 @@ config :nerves_hub_device,
   ecto_repos: [NervesHubCore.Repo],
   namespace: NervesHubDevice,
   websocket_auth_methods: [:ssl]
-  
+
 # Configures the endpoint
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: NervesHubWeb.PubSub, adapter: Phoenix.PubSub.PG2]
+  pubsub: [name: NervesHubDeviceWeb.PubSub, adapter: Phoenix.PubSub.PG2]
 
 # Configures Elixir's Logger
 config :logger, :console,
@@ -23,4 +23,4 @@ config :logger, :console,
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
-import_config "#{Mix.env}.exs"
+import_config "#{Mix.env()}.exs"
