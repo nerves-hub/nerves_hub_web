@@ -1,4 +1,4 @@
-<div class="jumbotron">
+<div class="jumbotron bg-dark">
   <h1 class="display-4 text-left">Welcome, <%= @conn.assigns.user.name %>!</h1>
   <p class="lead text-left">NervesHub helps you manage firmware updates for Nerves devices.</p>
   <hr class="my-4">

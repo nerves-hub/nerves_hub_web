@@ -1,13 +1,8 @@
-<div class="jumbotron clearfix">
+<div class="jumbotron clearfix bg-dark">
   <div class="container">
-    <h1 class="display-4 text-left">Welcome to NervesHub!</h1>
-    <p class="lead text-left">NervesHub helps you manage firmware updates for Nerves devices.</p>
-
-    <hr>
-
     <div class="panel panel-default">
       <div class="panel-heading panel-title text-left">
-        Log in to your NervesHub account
+        <h3>Log in to your NervesHub account</h3>
       </div>
       <div class="panel-body" style="padding-top: 0px;">
         <%= form_for @changeset, session_path(@conn, :create), fn f -> %>

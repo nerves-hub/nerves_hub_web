@@ -31,6 +31,6 @@
   "scripts": {
     "build": "NODE_ENV=production node_modules/webpack/bin/webpack.js -p",
     "deploy": "NODE_ENV=production node_modules/webpack/bin/webpack.js -p",
-    "watch": "NODE_ENV=development node_modules/webpack/bin/webpack.js --config webpack.config.js --progress --color --watch"
+    "watch": "NODE_ENV=development node_modules/webpack/bin/webpack.js --config webpack.config.js --color --watch"
   }
 }
