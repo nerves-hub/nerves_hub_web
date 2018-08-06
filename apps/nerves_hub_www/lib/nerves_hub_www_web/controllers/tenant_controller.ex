@@ -7,7 +7,7 @@ defmodule NervesHubWWWWeb.TenantController do
   alias NervesHubCore.Accounts.{Invite, TenantKey}
   alias NervesHubWWW.Mailer
 
-  def edit(%{assigns: %{tenant: %{id: conn_id} = tenant}} = conn, _params) do
+  def edit(%{assigns: %{tenant: %{id: _conn_id} = tenant}} = conn, _params) do
     render(
       conn,
       "edit.html",
