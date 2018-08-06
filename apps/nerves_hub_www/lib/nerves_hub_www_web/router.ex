@@ -26,9 +26,10 @@ defmodule NervesHubWWWWeb.Router do
     # Use the default browser stack
     pipe_through(:browser)
 
-    get("/", SessionController, :new)
-    post("/", SessionController, :create)
+    get("/", HomeController, :index)
 
+    get("/login", SessionController, :new)
+    post("/login", SessionController, :create)
     get("/logout", SessionController, :delete)
 
     get("/register", AccountController, :new)

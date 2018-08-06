@@ -1,15 +1,19 @@
 @import "custom";
 @import "navigation";
+@import "home";
 @import "~bootstrap/scss/bootstrap";
 
 logo-font {
   font-family: 'Varela Round', sans-serif;
 }
+
 body {
-  margin-top: 110px;
+  margin-top: 140px;
   padding-left: 5%;
   padding-right: 5%;
   font-family: 'Varela', sans-serif;
+  color: whitesmoke;
+  background-color: #2f2a26;
 }
 
 .panel-body {
