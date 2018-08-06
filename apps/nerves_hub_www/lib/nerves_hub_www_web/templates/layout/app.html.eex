@@ -14,7 +14,7 @@
   </head>
 
   <body>
-    <div class="container-fullwidth">
+    <main role="main" class="container-fullwidth">
       <%= render("_navigation.html", conn: @conn) %>
 
       <%= if get_flash(@conn, :info) do %>
@@ -29,13 +29,11 @@
             <%= get_flash(@conn, :error) %>
           </div>
       <% end %>
-
-      <main role="main">
-        <%= render @view_module, @view_template, assigns %>
-      </main>
-
+      <%= render @view_module, @view_template, assigns %>
+    </main>
+    <footer class="footer">
       <%= render("_footer.html", conn: @conn) %>
-    </div> <!-- /container -->
+    </footer>
     <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
   </body>
 </html>

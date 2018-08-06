@@ -8,14 +8,33 @@ logo-font {
 }
 
 body {
-  margin-top: 140px;
-  padding-left: 5%;
-  padding-right: 5%;
+  background-color: #827f7d;
+}
+
+main {
+  background-color: #595551;
+  padding: 140px 5%;
   font-family: 'Varela', sans-serif;
   color: whitesmoke;
-  background-color: #2f2a26;
 }
 
 .panel-body {
   margin-top: 20px;
 }
+
+.footer {
+  padding: 0px 5%;
+  margin-top: 10px;
+  height: 80px;
+}
+
+.footer a {
+  display: block;
+  font-size: 14px;
+  @extend .text-dark;
+  @include hover-focus {
+    color: whitesmoke;
+  }  
+}  
+ 
+

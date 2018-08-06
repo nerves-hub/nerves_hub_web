@@ -1,5 +1,27 @@
-<hr style="border-top-width: 2px; margin-top: 48px">
-
-<p class="h3 text-muted text-center logo-font" style="opacity: 0.2">
-  NervesHub
-</p>
+<div class="container-fullwidth"> 
+  
+  <div class="d-flex flex-row bd-highlight mb-3 justify-content-around footer-nav">
+    <div class="p-2 bd-highlight">
+      <h6 class="text-dark logo-font">
+        NervesHub
+      </h6>
+      <a href="https://github.com/nerves-hub">Source code</a>
+      <a href="#">Sponsors</a>
+    </div>
+    <div class="p-2 bd-highlight">
+      <h6 class="text-dark logo-font">
+        Help
+      </h6>
+      <a href="#">Documentation</a>
+      <a href="https://github.com/nerves-hub/nerves_hub_web/issues">Report an issue</a>
+      <a href="mailto:support@nerves-hub.org">Support</a>
+    </div>
+    <div class="p-2 bd-highlight">
+      <h6 class="text-dark logo-font">
+        Terms and Conditions
+      </h6>
+      <a href="#">Code of conduct</a>
+      <a href="#">Terms of service</a>
+    </div>
+  </div>
+</div>
