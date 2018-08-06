@@ -1,3 +1,10 @@
-<a href="<%= account_certificate_path(@conn, :download, file: @file) %>" class="btn btn-primary">Download Certificates</a>
+<h1>User Certificate</h1>
+<p>
+    <%= @user_certificate.description %>
+</p>
+
+<%= if not is_nil(@file) do %>
+<a href="<%= account_certificate_path(@conn, :download, @user_certificate, file: @file) %>" class="btn btn-primary">Download Certificates</a>
+<% end %>
 <BR/>
-<a href="<%= account_certificate_path(@conn, :index) %>" class="btn btn-secondary">Return to Index</a>
+<a href="<%= account_certificate_path(@conn, :index) %>" class="btn btn-secondary">Back</a>
