@@ -2,7 +2,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   use NervesHubDeviceWeb, :channel
 
   alias NervesHubCore.{Devices, Firmwares, Accounts, Deployments}
-  alias NervesHubDeviceWeb.Presence
+  alias NervesHubDevice.Presence
 
   @uploader Application.get_env(:nerves_hub_www, :firmware_upload)
 
@@ -16,6 +16,14 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     else
       {:error, %{reason: "unauthorized"}}
     end
+  end
+
+  def handle_info(:after_join, socket) do
+    push socket, "presence_state", Presence.list(socket)
+    {:ok, _} = Presence.track(socket, socket.assigns.device.id, %{
+      online_at: inspect(System.system_time(:seconds))
+    })
+    {:noreply, socket}
   end
 
   defp build_message(%{assigns: %{device: device, tenant: tenant}}, payload) do
