@@ -18,9 +18,10 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
     otp_app: :nerves_hub_device,
     # Enable client SSL
     verify: :verify_peer,
-    keyfile: Path.join([__DIR__ ,"../../../test/fixtures/cfssl/device.nerves-hub.org-key.pem"]),
-    certfile: Path.join([__DIR__ ,"../../../test/fixtures/cfssl/device.nerves-hub.org.pem"]),
-    cacertfile: Path.join([__DIR__ ,"../../../test/fixtures/cfssl/ca.pem"])
+    keyfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/device.nerves-hub.org-key.pem"]),
+    certfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/device.nerves-hub.org.pem"]),
+    cacertfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/ca.pem"])
   ]
+
 # Print only warnings and errors during test
 config :logger, level: :warn
