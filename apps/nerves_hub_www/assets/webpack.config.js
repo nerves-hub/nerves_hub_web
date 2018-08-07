@@ -69,8 +69,19 @@ var common = {
         })
       },
       {
+        test: /font-awesome\.config\.js/,
+        use: [
+          { loader: 'style-loader' },
+          { loader: 'font-awesome-loader' }
+        ]
+      },
+      {
         test: /\.(png|jpg|gif|svg)$/,
         loader: "file-loader?name=../priv/static/images/[name].[ext]"
+      },
+      {
+        test: /\.woff2?(\?v=[0-9]\.[0-9]\.[0-9])?$/,
+        use: 'url-loader?limit=10000',
       },
       {
         test: /\.(ttf|otf|eot|svg|woff2?)$/,
@@ -96,6 +107,7 @@ module.exports = [
         node_modules_dir,
         __dirname + "/js",
         __dirname + "/css",
+        "~font-awesome/scss/font-awesome.scss",
         __dirname + "/images"
       ]
     }

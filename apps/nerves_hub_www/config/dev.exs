@@ -33,10 +33,12 @@ http: [ip: {0, 0, 0, 0}, port: 4000],
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   live_reload: [
     patterns: [
-      ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
+      ~r{priv/static/js/.*(js)$},
+      ~r{priv/static/css/.*(css)$},
+      ~r{priv/static/images/.*(png|jpeg|jpg|gif|svg)$},
       ~r{priv/gettext/.*(po)$},
       ~r{lib/nerves_hub_www_web/views/.*(ex)$},
-      ~r{lib/nerves_hub_web/templates/.*(eex|haml)$}
+      ~r{lib/nerves_hub_www_web/templates/.*(eex|haml)$}
     ]
   ]
 
