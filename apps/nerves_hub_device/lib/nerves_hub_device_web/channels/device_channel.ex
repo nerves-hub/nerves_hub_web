@@ -9,6 +9,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   def join("device:" <> serial, payload, socket) do
     if authorized?(socket, serial) do
       with {:ok, message} <- build_message(socket, payload) do
+        send(self(), {:after_join, message})
         {:ok, message, socket}
       else
         {:error, reply} -> {:error, reply}
@@ -18,11 +19,13 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     end
   end
 
-  def handle_info(:after_join, socket) do
-    push socket, "presence_state", Presence.list(socket)
-    {:ok, _} = Presence.track(socket, socket.assigns.device.id, %{
-      online_at: inspect(System.system_time(:seconds))
-    })
+  def handle_info({:after_join, %{update_available: update_available} = message}, socket) do
+    {:ok, _} =
+      Presence.track(socket, socket.assigns.device.identifier, %{
+        connected_at: inspect(System.system_time(:seconds)),
+        update_available: update_available
+      })
+
     {:noreply, socket}
   end
 
@@ -73,9 +76,18 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   defp do_update_message(_, _), do: {:error, :unknown_error}
 
   def online?(%Devices.Device{} = device) do
-    device
-    |> (fn d -> "devices#{device.identifier}" end).()
+    "device:#{device.identifier}"
     |> Presence.list()
+    |> Map.has_key?(device.identifier)
+  end
+
+  def update_pending?(%Devices.Device{} = device) do
+    "device:#{device.identifier}"
+    |> Presence.list()
+    |> Map.get(device.identifier, %{})
+    |> Map.get(:metas, [%{}])
+    |> List.first()
+    |> Map.get(:update_available, false)
   end
 
   # Add authorization logic here as required.

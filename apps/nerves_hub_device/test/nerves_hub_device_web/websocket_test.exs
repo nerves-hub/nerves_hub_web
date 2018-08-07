@@ -3,6 +3,7 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
   use NervesHubDeviceWeb.ChannelCase
   alias NervesHubCore.Fixtures
   alias NervesHubCore.{Accounts, Deployments, Devices, Repo}
+  alias NervesHubDeviceWeb.DeviceChannel
 
   @serial_header Application.get_env(:nerves_hub_device, :device_serial_header)
   @valid_serial "device-1234"
@@ -117,6 +118,8 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
         {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
         1_000
       )
+
+      assert DeviceChannel.online?(device)
     end
 
     test "authentication rejected to channel using incorrect client ssl certificate" do
@@ -163,6 +166,8 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
         {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
         1_000
       )
+
+      assert DeviceChannel.online?(device)
     end
   end
 
@@ -260,6 +265,8 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
          }, _ref},
         1_000
       )
+
+      assert DeviceChannel.update_pending?(device)
     end
 
     test "does not receive update message when current_version matches target_version" do
@@ -301,6 +308,7 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
         |> Repo.preload(:last_known_firmware)
 
       assert updated_device.last_known_firmware.uuid == query_uuid
+      refute DeviceChannel.update_pending?(device)
     end
   end
 end

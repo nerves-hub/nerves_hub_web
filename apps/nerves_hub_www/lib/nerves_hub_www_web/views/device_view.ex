@@ -2,11 +2,15 @@ defmodule NervesHubWWWWeb.DeviceView do
   use NervesHubWWWWeb, :view
 
   alias NervesHubCore.Devices.Device
+  alias NervesHubDeviceWeb.DeviceChannel
 
-  def last_communication(%Device{last_communication: nil}), do: ""
-
-  def last_communication(%Device{last_communication: l}),
-    do: Timex.format!(l, "{YYYY}-{0M}-{D} {h24}:{m}:{s}")
+  def device_status(device) do
+    cond do
+      not DeviceChannel.online?(device) -> "offline"
+      DeviceChannel.update_pending?(device) -> "update pending"
+      DeviceChannel.online?(device) -> "online"
+    end
+  end
 
   def architecture_options do
     [
