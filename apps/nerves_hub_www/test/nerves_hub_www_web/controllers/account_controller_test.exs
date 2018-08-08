@@ -71,6 +71,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
     } do
       conn = get(conn, account_path(conn, :edit))
       assert html_response(conn, 200) =~ "Edit Account"
+      assert html_response(conn, 200) =~ account_certificate_path(conn, :index)
       assert html_response(conn, 200) =~ "type=\"password\""
     end
   end

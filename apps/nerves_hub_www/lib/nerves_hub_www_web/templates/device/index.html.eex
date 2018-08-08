@@ -7,8 +7,7 @@
     <tr>
       <th>Identifier</th>
       <th>Version</th>
-      <th>Update Pending</th>
-      <th>Last Connect</th>
+      <th>Status</th>
       <th>Tags</th>
       <th></th>
     </tr>
@@ -18,9 +17,13 @@
       <tr>
         <td><%= device.identifier %></td>
         <td>
-          <input type="checkbox" disabled>
+          <%= if is_nil(device.last_known_firmware) do %>
+          no firmware
+        <% else %>
+          <%= device.last_known_firmware.version %>
+        <% end %>
         </td>
-        <td><%= last_communication(device) %></td>
+        <td><%= device_status(device) %></td>
         <td>
           <%= for tag <- (device.tags || []) do %>
             <span class="badge">

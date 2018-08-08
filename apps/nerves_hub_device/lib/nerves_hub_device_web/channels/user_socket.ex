@@ -31,8 +31,11 @@ defmodule NervesHubDeviceWeb.UserSocket do
   if Enum.member?(@websocket_auth_methods, :ssl) do
     def connect(%{ssl_cert: ssl_cert}, socket) do
       case Certificate.get_common_name(ssl_cert) do
-        {:ok, serial} -> build_socket(socket, serial)
-        error -> error
+        {:ok, serial} ->
+          build_socket(socket, serial)
+
+        error ->
+          error
       end
     end
   end
@@ -64,5 +67,6 @@ defmodule NervesHubDeviceWeb.UserSocket do
   #     NervesHubWWWWeb.Endpoint.broadcast("user_socket:#{user.id}", "disconnect", %{})
   #
   # Returning `nil` makes this socket anonymous.
+  def id(%{assigns: %{device: %Devices.Device{identifier: d_id}}}), do: "device:#{d_id}"
   def id(_socket), do: nil
 end

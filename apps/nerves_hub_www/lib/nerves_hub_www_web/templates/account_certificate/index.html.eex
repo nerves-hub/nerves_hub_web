@@ -15,8 +15,7 @@
         <td><%= certificate.description %></td>
         <td><%= certificate.serial %></td>
         <td>
-          <a href="#" class="btn btn-danger">Delete</a>
-          <a href="#" class="btn btn-warning">Disable</a>
+          <%= link "Delete", to: account_certificate_path(@conn, :delete, certificate), class: "btn btn-danger", method: :delete, data: [confirm: "Are you sure?"]  %>
         </td>
       </tr>
     <% end %>

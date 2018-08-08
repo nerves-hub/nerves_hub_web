@@ -1,0 +1,29 @@
+.navbar-nav {
+  padding-left:50px;
+  padding-right:50px;
+}
+
+.navbar-brand img {
+  width: 62px;
+  height: 62px;
+  display: block;
+  margin: auto;
+}
+
+.navitem .dropdown {
+  border-left: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.logo-letter {
+  color: whitesmoke;
+  font-size: 24px;
+}
+
+.circle
+  {
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    background-color: whitesmoke;
+    border-radius: 50%;
+    width: 75px;
+    height: 75px; 
+  }

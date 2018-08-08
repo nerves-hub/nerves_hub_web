@@ -116,7 +116,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
       deployment: deployment,
       firmware: deployment.firmware,
       changeset:
-        Deployment.edit_changeset(deployment, %{})
+        Deployment.changeset(deployment, %{})
         |> tags_to_string()
     )
   end

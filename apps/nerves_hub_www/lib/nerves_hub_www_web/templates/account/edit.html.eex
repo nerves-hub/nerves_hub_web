@@ -1,5 +1,8 @@
 <h1>
   Edit Account
+  <a class="btn btn-lg btn-success pull-right" href="<%= account_certificate_path(@conn, :index)%>">
+    User Certificates
+  </a>
 </h1>
 
 <%= form_for @changeset, account_path(@conn, :update), fn f -> %>
@@ -29,3 +32,4 @@
 
   <%= submit "Update", class: "btn btn-primary" %>
 <% end %>
+

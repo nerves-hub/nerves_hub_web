@@ -74,10 +74,8 @@ defmodule NervesHubWWWWeb.LayoutView do
 
   def navigation_links(conn) do
     [
-      {conn.assigns.tenant.name, tenant_path(conn, :edit)},
       {"Products", product_path(conn, :index)},
-      {"All Devices", device_path(conn, :index)},
-      {"Account", account_path(conn, :edit)}
+      {"All Devices", device_path(conn, :index)}
     ]
   end
 
@@ -87,4 +85,8 @@ defmodule NervesHubWWWWeb.LayoutView do
 
   def logged_in?(%{assigns: %{user: %User{}}}), do: true
   def logged_in?(_), do: false
+
+  def permit_uninvited_signups do
+    Application.get_env(:nerves_hub_www, NervesHubWWWWeb.AccountController)[:allow_signups]
+  end
 end

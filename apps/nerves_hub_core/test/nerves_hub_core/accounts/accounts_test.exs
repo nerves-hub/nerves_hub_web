@@ -1,9 +1,11 @@
 defmodule NervesHubCore.AccountsTest do
   use NervesHubCore.DataCase
 
-  alias NervesHubCore.Repo
-  alias NervesHubCore.Accounts
   alias Ecto.Changeset
+
+  alias NervesHubCore.Accounts
+  alias NervesHubCore.Fixtures
+  alias NervesHubCore.Repo
 
   @required_tenant_params %{name: "Tenant"}
 
@@ -107,5 +109,16 @@ defmodule NervesHubCore.AccountsTest do
 
     {:error, %Ecto.Changeset{}} =
       Accounts.create_tenant_key(%{name: "tenant's second key", tenant_id: tenant.id, key: "foo"})
+  end
+
+  test "cannot change tenant_id of a tenant_key once created" do
+    tenant = Fixtures.tenant_fixture()
+    first_id = tenant.id
+    tenant_key = Fixtures.tenant_key_fixture(tenant)
+
+    other_tenant = Fixtures.tenant_fixture()
+
+    assert {:ok, %Accounts.TenantKey{tenant_id: ^first_id}} =
+             Accounts.update_tenant_key(tenant_key, %{tenant_id: other_tenant.id})
   end
 end

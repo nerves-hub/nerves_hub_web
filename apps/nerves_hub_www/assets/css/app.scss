@@ -1,16 +1,22 @@
 $fa-font-path: "~font-awesome/fonts";
 @import '~font-awesome/scss/font-awesome.scss';
 @import "custom";
+@import "navigation";
+@import "home";
 @import "~bootstrap/scss/bootstrap";
 
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  background-color: white;
+  background-color: #827f7d;
   min-width: 800px;
   -webkit-font-smoothing: antialiased;
   -webkit-overflow-scrolling: auto;
+}
+
+logo-font {
+  font-family: 'Varela Round', sans-serif;
 }
 
 .wrapper {
@@ -115,12 +121,22 @@ a.nh_std_btn {
   overflow-y: hidden;
   padding: 6px;
   a {
-    color: $dark_text;
-    text-decoration: underline;
+    display: block;
+    font-size: 14px;
+    @extend .text-dark;
+    @include hover-focus {
+      color: whitesmoke;
+    }  
   }
   .big_icons a {
     text-decoration: none;  
   }
+
+
+
+  padding: 0px 5%;
+  margin-top: 10px;
+  height: 80px;
 }
 
 .content {
@@ -154,5 +170,15 @@ a.nh_std_btn {
   font-size: 22px;
   margin-top: -6px;
 }
-#main {
+
+main {
+  background-color: #595551;
+  padding: 140px 5%;
+  font-family: 'Varela', sans-serif;
+  color: whitesmoke;
 }
+
+.panel-body {
+  margin-top: 20px;
+}
+

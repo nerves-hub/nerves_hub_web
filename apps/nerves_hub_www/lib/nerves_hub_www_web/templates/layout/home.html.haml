@@ -1,0 +1,54 @@
+!!! 5
+%html{lang: "en-US"}
+  %head
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>NervesHub</title>
+    <link rel="stylesheet" href="#{static_path(@conn, "/css/app.css")}">
+    <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/cookieconsent2/3.1.0/cookieconsent.min.css" />
+    <script src="//cdnjs.cloudflare.com/ajax/libs/cookieconsent2/3.1.0/cookieconsent.min.js"></script>
+    <script>
+    window.addEventListener("load", function(){
+    window.cookieconsent.initialise({
+      "palette": {
+        "popup": {
+          "background": "#343a40"
+        },
+        "button": {
+          "background": "#f1d600"
+        }
+      },
+      "position": "bottom",
+      "content": {
+        "message": "NervesHub uses cookies to ensure you get the best experience we can provide."
+      }
+    })});
+    </script>
+
+  %body
+    %main.container-fullwidth{role: "main"}
+      = render("_navigation.html", conn: @conn)
+
+      - if get_flash(@conn, :info) do
+        .alert.alert-info.alert-dismissible
+          %button.close{type: "button", data-dismiss: "alert"
+            &times;
+          = get_flash(@conn, :info)
+
+      - if get_flash(@conn, :error) do
+        .alert.alert-danger.alert-dismissible
+          %button.close{type: "button", data-dismiss: "alert"}
+            &times;
+          = get_flash(@conn, :error)
+      = render @view_module, @view_template, assigns
+
+    %footer.footer
+      = render("_footer.html", conn: @conn)
+
+    <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
+
+

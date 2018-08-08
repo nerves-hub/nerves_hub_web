@@ -1,4 +1,4 @@
-var ExtractTextPlugin = require("extract-text-webpack-plugin");
+const ExtractTextPlugin = require("extract-text-webpack-plugin");
 var CopyWebpackPlugin = require("copy-webpack-plugin");
 var merge = require("webpack-merge");
 var webpack = require("webpack");
@@ -9,6 +9,7 @@ var production = env === "production";
 var node_modules_dir = "node_modules"
 
 var plugins = [
+  new CopyWebpackPlugin([{ from: 'static/', to: '../static' }]),
   new ExtractTextPlugin("css/app.css"),
   new webpack.ProvidePlugin({
     $: "jquery",
@@ -78,10 +79,6 @@ var common = {
       {
         test: /\.(png|jpg|gif|svg)$/,
         loader: "file-loader?name=../priv/static/images/[name].[ext]"
-      },
-      {
-        test: /\.woff2?(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        use: 'url-loader?limit=10000',
       },
       {
         test: /\.(ttf|otf|eot|svg|woff2?)$/,

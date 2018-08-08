@@ -2,12 +2,14 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   use NervesHubDeviceWeb, :channel
 
   alias NervesHubCore.{Devices, Firmwares, Accounts, Deployments}
+  alias NervesHubDevice.Presence
 
   @uploader Application.get_env(:nerves_hub_www, :firmware_upload)
 
   def join("device:" <> serial, payload, socket) do
     if authorized?(socket, serial) do
       with {:ok, message} <- build_message(socket, payload) do
+        send(self(), {:after_join, message})
         {:ok, message, socket}
       else
         {:error, reply} -> {:error, reply}
@@ -15,6 +17,16 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     else
       {:error, %{reason: "unauthorized"}}
     end
+  end
+
+  def handle_info({:after_join, %{update_available: update_available} = message}, socket) do
+    {:ok, _} =
+      Presence.track(socket, socket.assigns.device.identifier, %{
+        connected_at: inspect(System.system_time(:seconds)),
+        update_available: update_available
+      })
+
+    {:noreply, socket}
   end
 
   defp build_message(%{assigns: %{device: device, tenant: tenant}}, payload) do
@@ -63,17 +75,19 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   defp do_update_message(_, _), do: {:error, :unknown_error}
 
-  # Channels can be used in a request/response fashion
-  # by sending replies to requests from the client
-  def handle_in("ping", payload, socket) do
-    {:reply, {:ok, payload}, socket}
+  def online?(%Devices.Device{} = device) do
+    "device:#{device.identifier}"
+    |> Presence.list()
+    |> Map.has_key?(device.identifier)
   end
 
-  # It is also common to receive messages from the client and
-  # broadcast to everyone in the current topic (device:lobby).
-  def handle_in("shout", payload, socket) do
-    broadcast(socket, "shout", payload)
-    {:noreply, socket}
+  def update_pending?(%Devices.Device{} = device) do
+    "device:#{device.identifier}"
+    |> Presence.list()
+    |> Map.get(device.identifier, %{})
+    |> Map.get(:metas, [%{}])
+    |> List.first()
+    |> Map.get(:update_available, false)
   end
 
   # Add authorization logic here as required.

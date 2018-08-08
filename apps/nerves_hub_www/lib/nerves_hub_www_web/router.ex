@@ -22,20 +22,15 @@ defmodule NervesHubWWWWeb.Router do
     plug(NervesHubWWWWeb.Plugs.FetchProduct)
   end
 
-  pipeline :api do
-    plug(:accepts, ["json"])
-    plug(NervesHubWWWWeb.Plugs.Api.AuthenticateDevice)
-  end
 
   scope "/", NervesHubWWWWeb do
     # Use the default browser stack
     pipe_through(:browser)
 
-    get("/", PageController, :index)
+    get("/", HomeController, :index)
 
-    get("/session", SessionController, :new)
-    post("/session", SessionController, :create)
-
+    get("/login", SessionController, :new)
+    post("/login", SessionController, :create)
     get("/logout", SessionController, :delete)
 
     get("/register", AccountController, :new)
@@ -54,9 +49,9 @@ defmodule NervesHubWWWWeb.Router do
     pipe_through([:browser, :logged_in])
 
     resources("/dashboard", DashboardController, only: [:index])
-    get("/tenant", TenantController, :edit)
-    put("/tenant", TenantController, :update)
-    post("/tenant/key", TenantController, :create_key)
+    resources("/tenant", TenantController, only: [:edit, :update])
+
+    resources("/tenant_keys", TenantKeyController)
 
     get("/tenant/invite", TenantController, :invite)
     post("/tenant/invite", TenantController, :send_invite)
@@ -66,9 +61,10 @@ defmodule NervesHubWWWWeb.Router do
 
     get("/account/certificates", AccountCertificateController, :index)
     get("/account/certificates/new", AccountCertificateController, :new)
-    get("/account/certificates/show", AccountCertificateController, :show)
+    get("/account/certificates/:id", AccountCertificateController, :show)
+    delete("/account/certificates/:id", AccountCertificateController, :delete)
     post("/account/certificates/create", AccountCertificateController, :create)
-    get("/account/certificates/download", AccountCertificateController, :download)
+    get("/account/certificates/:id/download", AccountCertificateController, :download)
 
     resources("/devices", DeviceController)
 
@@ -82,12 +78,6 @@ defmodule NervesHubWWWWeb.Router do
 
       resources("/deployments", DeploymentController)
     end
-  end
-
-  scope "/api", NervesHubWWWWeb.Api do
-    pipe_through(:api)
-
-    get("/firmware-update", FirmwareUpdateController, :show)
   end
 
   if Mix.env() in [:dev] do

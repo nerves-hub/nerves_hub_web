@@ -15,9 +15,10 @@ erl_crash.dump
 # secrets files as long as you replace their contents by environment
 # variables.
 /config/*.secret.exs
-
+/priv/static
 .env
 .elixir_ls
 .vscode
 
 node_modules/
+assets/yarn-error.log

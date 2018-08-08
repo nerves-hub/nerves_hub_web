@@ -31,6 +31,7 @@ http: [ip: {0, 0, 0, 0}, port: 4000],
 
 # Watch static and templates for browser reloading.
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
+url: [scheme: "http", host: "0.0.0.0", port: 4000],
   live_reload: [
     patterns: [
       ~r{priv/static/js/.*(js)$},
