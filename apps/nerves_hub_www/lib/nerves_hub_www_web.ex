@@ -23,6 +23,8 @@ defmodule NervesHubWWWWeb do
       import Plug.Conn
       import NervesHubWWWWeb.Router.Helpers
       import NervesHubWWWWeb.Gettext
+
+      import NervesHubWWWWeb.Controllers.ActionBtnHelpers
     end
   end
 

@@ -27,12 +27,13 @@ defmodule NervesHubWWWWeb.SessionController do
       {:ok, %User{id: user_id}} ->
         conn
         |> put_session(@session_key, user_id)
-        |> redirect(to: dashboard_path(conn, :index))
+        |> render_success
 
       {:error, :authentication_failed} ->
         conn
         |> put_flash(:error, "Login Failed")
-        |> redirect(to: session_path(conn, :new))
+        |> render_error("new.html", changeset: %Changeset{data: %User{}},
+                                    layout: false)
     end
   end
 

@@ -4,25 +4,23 @@ defmodule NervesHubWWWWeb.ProductController do
   alias NervesHubCore.Products
   alias NervesHubCore.Products.Product
 
-  def index(conn, _params) do
-    products = Products.list_products()
+  def index(%{assigns: %{tenant: tenant}} = conn, _params) do
+    products = Products.list_products_by_tenant(tenant)
     render(conn, "index.html", products: products)
   end
 
   def new(conn, _params) do
     changeset = Products.change_product(%Product{})
-    render(conn, "new.html", changeset: changeset)
+    render(conn, "new.html", changeset: changeset, layout: false)
   end
 
   def create(%{assigns: %{tenant: tenant}} = conn, %{"product" => product_params}) do
     case Products.create_product(product_params |> Enum.into(%{"tenant_id" => tenant.id})) do
-      {:ok, product} ->
-        conn
-        |> put_flash(:info, "Product created successfully.")
-        |> redirect(to: product_path(conn, :show, product))
+      {:ok, _product} ->
+        render_product_listing(conn)
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, "new.html", changeset: changeset)
+        render_error(conn, "new.html", changeset: changeset, layout: false)
     end
   end
 
@@ -34,29 +32,32 @@ defmodule NervesHubWWWWeb.ProductController do
   def edit(conn, %{"id" => id}) do
     product = Products.get_product!(id)
     changeset = Products.change_product(product)
-    render(conn, "edit.html", product: product, changeset: changeset)
+    render(conn, "edit.html", product: product, changeset: changeset, layout: false)
   end
 
   def update(conn, %{"id" => id, "product" => product_params}) do
     product = Products.get_product!(id)
 
     case Products.update_product(product, product_params) do
-      {:ok, product} ->
-        conn
-        |> put_flash(:info, "Product updated successfully.")
-        |> redirect(to: product_path(conn, :show, product))
+      {:ok, _product} ->
+        render_product_listing(conn)
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, "edit.html", product: product, changeset: changeset)
+        render_error(conn, "edit.html", changeset: changeset, product: product)
     end
   end
 
-  def delete(conn, %{"id" => id}) do
-    product = Products.get_product!(id)
+
+  def delete(%{assigns: %{tenant: tenant}} = conn, %{"id" => id}) do
+    {:ok, product} = Products.get_product_with_tenant(tenant, id)
     {:ok, _product} = Products.delete_product(product)
 
-    conn
-    |> put_flash(:info, "Product deleted successfully.")
-    |> redirect(to: product_path(conn, :index))
+    render_product_listing(conn)
   end
+
+  defp render_product_listing(%{assigns: %{tenant: tenant}} = conn) do    
+    render_success(conn, "_listing.html",
+                         products: Products.list_products_by_tenant(tenant))
+  end
+
 end

@@ -52,7 +52,7 @@ defmodule NervesHubCore.Accounts do
   end
 
   @spec do_create_tenant_with_user(Changeset.t()) ::
-          {:ok, Tenant.t()}
+          {:ok, {Tenant.t(), User.t()}}
           | {:error, Changeset.t()}
   defp do_create_tenant_with_user(tenant_user_changeset) do
     field = fn field_name -> Changeset.get_field(tenant_user_changeset, field_name) end
@@ -69,8 +69,8 @@ defmodule NervesHubCore.Accounts do
 
     Repo.transaction(fn ->
       with {:ok, tenant} <- create_tenant(tenant_params),
-           {:ok, _user} <- create_user(tenant, user_params) do
-        tenant
+           {:ok, user} <- create_user(tenant, user_params) do
+        {tenant, user}
       else
         {:error, changeset} ->
           # Merge errors into original changeset
