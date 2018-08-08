@@ -49,6 +49,10 @@
     %footer.footer
       = render("_footer.html", conn: @conn)
 
-    <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
+    <script src="#{static_path(@conn, "/js/app.js")}"></script>
+  
+    .modal#js_modal_holder
+      .modal-dialog
+        .modal-content#js_modal_content
 
 

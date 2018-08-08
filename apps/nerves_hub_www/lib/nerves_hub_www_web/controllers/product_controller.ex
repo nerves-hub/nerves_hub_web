@@ -60,7 +60,7 @@ defmodule NervesHubWWWWeb.ProductController do
 
   defp render_product_listing(%{assigns: %{tenant: tenant}} = conn) do    
     render_success(conn, "_listing.html",
-                         products: Products.list_products_by_tenant(tenant))
+                         products: Products.list_products(tenant))
   end
 
 end

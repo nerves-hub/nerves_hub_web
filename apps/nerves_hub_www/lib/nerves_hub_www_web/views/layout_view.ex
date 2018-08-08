@@ -21,7 +21,7 @@ defmodule NervesHubWWWWeb.LayoutView do
         "Welcome ",
         content_tag(:a, user.name, class: "", href: "#{account_path(conn, :edit)}"),
         " [",
-        content_tag(:a, tenant.name, class: "", href: "#{tenant_path(conn, :edit)}"),
+        content_tag(:a, tenant.name, class: "", href: "#{tenant_path(conn, :edit, tenant)}"),
         "] ",
       ]
 
@@ -34,10 +34,10 @@ defmodule NervesHubWWWWeb.LayoutView do
   def session_buttons(%{request_path: "/dashboard"} = conn) do
     if logged_in?(conn) do
       [
-        content_tag(:a, "Log Out", class: "nh_std_btn", href: "#{session_path(conn, :delete)}")
+        content_tag(:a, "Log Out", class: "btn btn-outline-danger ml-3", href: "#{session_path(conn, :delete)}")
       ]
     else
-      content_tag(:a, "Log In", class: "nh_std_btn", href: "#{session_path(conn, :new)}")
+      content_tag(:a, "Log In", class: "btn btn-outline-primary ml-3", href: "#{session_path(conn, :new)}")
     end
   end
 
@@ -45,23 +45,23 @@ defmodule NervesHubWWWWeb.LayoutView do
     cond do
      logged_in?(conn) ->
       [
-        content_tag(:a, "Dashboard", class: "nh_std_btn", href: "#{dashboard_path(conn, :index)}"),
-        content_tag(:a, "Log Out", class: "nh_std_btn", href: "#{session_path(conn, :delete)}")
+        content_tag(:a, "Dashboard", class: "btn btn-outline-primary ml-3", href: "#{dashboard_path(conn, :index)}"),
+        content_tag(:a, "Log Out", class: "btn btn-outline-primary ml-3", href: "#{session_path(conn, :delete)}")
       ]
     permit_uninvited_signups?() ->
       [
-        content_tag(:a, "Sign Up", class: "nh_std_btn action_btn",
+        content_tag(:a, "Create Account", class: "btn btn-outline-primary ml-3 action_btn",
                                   href: "#", 
                                   "data-modal-src-url": "#{account_path(conn, :new)}",
                                   "data-success-redirect-url": "#{dashboard_path(conn, :index)}"),
-        content_tag(:a, "Log In", class: "nh_std_btn action_btn",
+        content_tag(:a, "Log In", class: "btn btn-outline-success ml-3 action_btn",
                                   href: "#", 
                                   "data-modal-src-url": "#{session_path(conn, :new)}",
                                   "data-success-redirect-url": "#{dashboard_path(conn, :index)}")
       ]
     true ->
       [
-        content_tag(:a, "Log In", class: "nh_std_btn action_btn",
+        content_tag(:a, "Log In", class: "btn btn-outline-success ml-3 action_btn",
                                   href: "#", 
                                   "data-modal-src-url": "#{session_path(conn, :new)}",
                                   "data-success-redirect-url": "#{dashboard_path(conn, :index)}")
@@ -74,6 +74,7 @@ defmodule NervesHubWWWWeb.LayoutView do
 
   def navigation_links(conn) do
     [
+      {"Dashboard", dashboard_path(conn, :index)},
       {"Products", product_path(conn, :index)},
       {"All Devices", device_path(conn, :index)}
     ]

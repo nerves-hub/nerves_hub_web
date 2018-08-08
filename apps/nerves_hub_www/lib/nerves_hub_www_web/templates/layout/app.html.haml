@@ -16,14 +16,14 @@
         .row
           .col-8
             .logo
-              %a{href: "#{page_path(@conn, :index)}"}
+              %a{href: "#{home_path(@conn, :index)}"}
                 NervesHub
               %span.hilight
                 = page_description(@conn)
           .col-4.right
             = session_buttons(@conn)
       #contents.container-fluid
-        %main{role: "main"}
+        %main.light{role: "main"}
           = render @view_module, @view_template, assigns
       #footer
         .row

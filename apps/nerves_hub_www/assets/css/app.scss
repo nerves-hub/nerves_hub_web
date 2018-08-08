@@ -18,30 +18,32 @@ html, body {
 logo-font {
   font-family: 'Varela Round', sans-serif;
 }
-
+.tall {
+  height: 100%;
+}
 .wrapper {
     overflow-x:hidden;
 }
 .modal-header {
   background-color: $dark_background;
-    font-family: 'Audiowide', cursive;
+    font-family: 'Varela Round', sans-serif;
     font-size: 18px;
     color: white;
 }
 .nhw_chooser {
+  height: 100%;
 }
 .nhw_list_header {
   @include  make-col(12);
   margin-left: 10px;
   padding-left: 10px;
-  background-color: $hilight_background;
-  color: $hilight;
+  background-color: #DADEBC;
+  color: whitesmoke;
   a {
-      color: $hilight;
+    @extend .text-dark;
     font-variant: small-caps;
-      font-style: oblique;
   }
-  line-height: 22px;
+  line-height: 30px;
   height: 26px;
   padding-right: 5px;
   flex-basis: 100%;
@@ -50,9 +52,11 @@ logo-font {
 .nhw_list {
   @include  make-col(12);
   margin-left: 10px;
-  border: 2px solid $hilight_background;
+  border: 2px solid #DADEBC;
   flex-basis: 100%;
-  height: 100%;
+  a {
+    @extend .text-dark;
+  }
 }
 
 a.nh_std_btn {
@@ -68,17 +72,16 @@ a.nh_std_btn {
 }
 
 .logo {
-  color: $dark_text;
   a {
-    font-family: 'Audiowide', cursive;
-    color: $dark_text;
+      color: whitesmoke;
+    font-family: 'Varela Round', sans-serif;
     font-size: 32px;
     line-height: 56px;
     margin-top: 8px;
     padding: 9px;
   }
   a:visited {
-    color: #555;
+      color: whitesmoke;
   }
   a:hover {
     text-decoration: none;
@@ -86,7 +89,7 @@ a.nh_std_btn {
 }
 
 #header {
-  background-color: $light_background;
+  background-color: $dark_background;
   height: 54px;
   left: 0;
   right: 0;
@@ -104,7 +107,6 @@ a.nh_std_btn {
 
 #footer {
   background-color: $light_background;
-  color: $dark_text;
   clear:both;
   font-family: 'Helvetica', sans-serif;
   font-weight:800;
@@ -113,13 +115,29 @@ a.nh_std_btn {
   border-top-color:$dark_text;
   border-top-style:solid;
   width: 100%;
-  margin-top: -27px; /* negative value of footer height */
+  margin-top: -34px; /* negative value of footer height */
   height: 32px;
   position: absolute;
   bottom: 0;
   overflow-x: hidden;
   overflow-y: hidden;
   padding: 6px;
+  color: whitesmoke;
+  a {
+      color: whitesmoke;
+      @include hover-focus {
+      color: whitesmoke;
+    }  
+  }
+  .big_icons a {
+    text-decoration: none;  
+  }
+}
+
+.footer {
+  padding: 0px 5%;
+  margin-top: 10px;
+  height: 80px;
   a {
     display: block;
     font-size: 14px;
@@ -128,15 +146,6 @@ a.nh_std_btn {
       color: whitesmoke;
     }  
   }
-  .big_icons a {
-    text-decoration: none;  
-  }
-
-
-
-  padding: 0px 5%;
-  margin-top: 10px;
-  height: 80px;
 }
 
 .content {
@@ -155,6 +164,7 @@ a.nh_std_btn {
 
 #contents {
   margin-top: 10px;
+  margin-bottom: 40px;
 }
 
 #wrapper {
@@ -176,6 +186,14 @@ main {
   padding: 140px 5%;
   font-family: 'Varela', sans-serif;
   color: whitesmoke;
+}
+
+main.light {
+  background-color: transparent;
+  padding: 0;
+  font-family: 'Varela', sans-serif;
+  color: whitesmoke;
+  height: 100%;
 }
 
 .panel-body {
