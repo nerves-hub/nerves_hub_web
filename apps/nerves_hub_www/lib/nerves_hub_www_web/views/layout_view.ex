@@ -41,7 +41,7 @@ defmodule NervesHubWWWWeb.LayoutView do
     end
   end
 
-  def session_buttons(conn, opts \\ []) do
+  def session_buttons(conn, _opts \\ []) do
     cond do
      logged_in?(conn) ->
       [
@@ -51,15 +51,18 @@ defmodule NervesHubWWWWeb.LayoutView do
     permit_uninvited_signups?() ->
       [
         content_tag(:a, "Sign Up", class: "nh_std_btn action_btn",
+                                  href: "#", 
                                   "data-modal-src-url": "#{account_path(conn, :new)}",
                                   "data-success-redirect-url": "#{dashboard_path(conn, :index)}"),
         content_tag(:a, "Log In", class: "nh_std_btn action_btn",
+                                  href: "#", 
                                   "data-modal-src-url": "#{session_path(conn, :new)}",
                                   "data-success-redirect-url": "#{dashboard_path(conn, :index)}")
       ]
     true ->
       [
         content_tag(:a, "Log In", class: "nh_std_btn action_btn",
+                                  href: "#", 
                                   "data-modal-src-url": "#{session_path(conn, :new)}",
                                   "data-success-redirect-url": "#{dashboard_path(conn, :index)}")
       ]

@@ -1,0 +1,34 @@
+.modal-content
+  .modal-header.text-left
+    Sign Up
+
+  = render(NervesHubWWWWeb.SharedView, "show_flash.html", conn: @conn)
+  
+  .modal-body{style: "padding-top: 0px;"}
+    = form_for @changeset, account_path(@conn, :create), [as: :user], fn f ->
+      .form-group.text-left
+        %label{for: "name"}
+          Name
+        = text_input f, :name, class: "form-control", id: "name_input"
+        = error_tag f, :name
+
+      .form-group.text-left
+        %label{for: "tenant_name"}
+          Tenant Name
+        = text_input f, :tenant_name, class: "form-control", id: "name_input"
+        = error_tag f, :tenant_name
+
+      .form-group.text-left
+        %label{for: "email"}
+          Email
+        = email_input f, :email, class: "form-control", id: "email_input"
+        = error_tag f, :email
+
+      .form-group.text-left
+        %label{for: "password"}
+          password
+        = password_input f, :password, class: "form-control", id: "password_input"
+        = error_tag f, :password
+      .modal-footer
+        = submit "Create Account", class: "btn btn-success"
+    <% end %>

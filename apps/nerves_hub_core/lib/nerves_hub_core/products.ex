@@ -18,8 +18,13 @@ defmodule NervesHubCore.Products do
       [%Product{}, ...]
 
   """
-  def list_products do
-    Repo.all(Product)
+  def list_products_by_tenant(%Tenant{id: tenant_id}) do
+    from(
+      p in Product,
+      where: p.tenant_id == ^tenant_id,
+      order_by: [desc: p.id]
+    )
+    |> Repo.all()
   end
 
   @doc """

@@ -10,7 +10,6 @@
     <title>NervesHub</title>
     <link rel="stylesheet" href="#{static_path(@conn, "/css/app.css")}">
     <link href="https://fonts.googleapis.com/css?family=Audiowide" rel="stylesheet">
-
   %body
     #wrapper
       #header.container-fluid
@@ -23,25 +22,20 @@
                 = page_description(@conn)
           .col-4.right
             = session_buttons(@conn)
-
       #contents.container-fluid
         %main{role: "main"}
           = render @view_module, @view_template, assigns
-
       #footer
         .row
           .col-4
             = account_data(@conn)
-          .col-4
-          .col-4.right
+          .col-6
+          .col-2.text-right.big_icons
             %a{href: "https://github.com/nerves-hub"}
-              %img{src: "images/github.png", width: 23, height: 23}
-            &nbsp;
+              %span.fa.fa-github
             %a{href: "https://twitter.com/nervesproject"}
-              %img{src: "images/twitter.jpg", width: 23, height: 23}
-
-.modal#js_modal_holder
-  .modal-dialog
-    .modal-content#js_modal_content
-
-<script src="#{static_path(@conn, "/js/app.js")}"></script>
+              %span.fa.fa-twitter
+    .modal#js_modal_holder
+      .modal-dialog
+        .modal-content#js_modal_content
+    <script src="#{static_path(@conn, "/js/app.js")}"></script>

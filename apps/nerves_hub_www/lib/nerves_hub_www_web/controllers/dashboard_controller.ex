@@ -1,8 +1,11 @@
 defmodule NervesHubWWWWeb.DashboardController do
   use NervesHubWWWWeb, :controller
 
-  def index(conn, _params) do
+  alias NervesHubCore.Products
+
+  def index(%{assigns: %{tenant: tenant}} = conn, _params) do
+    products = Products.list_products_by_tenant(tenant)
     conn
-    |> render("index.html")
+    |> render("index.html", products: products, conn: conn)
   end
 end

@@ -1,7 +1,6 @@
 defmodule NervesHubWWWWeb.Plugs.TestLoggedIn do
   import Plug.Conn
 
-  alias Phoenix.Controller
   alias Plug.Conn
   alias NervesHubCore.Accounts
 

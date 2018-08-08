@@ -10,6 +10,10 @@ help:
 	@echo "Please create a '.env' file first. Copy 'dev.env' to '.env' for a start."
 	@exit 1
 
+clean: .env
+	. ./.env && \
+	mix clean
+
 server: .env
 	. ./.env && \
 	mix phx.server
