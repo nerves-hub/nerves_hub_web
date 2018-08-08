@@ -9,16 +9,16 @@ defmodule NervesHubCore.DeploymentsTest do
   @endpoint NervesHubDeviceWeb.Endpoint
 
   setup do
-    tenant = Fixtures.tenant_fixture()
-    product = Fixtures.product_fixture(tenant)
-    tenant_key = Fixtures.tenant_key_fixture(tenant)
-    firmware = Fixtures.firmware_fixture(tenant_key, product)
+    org = Fixtures.org_fixture()
+    product = Fixtures.product_fixture(org)
+    org_key = Fixtures.org_key_fixture(org)
+    firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(firmware)
 
     {:ok,
      %{
-       tenant: tenant,
-       tenant_key: tenant_key,
+       org: org,
+       org_key: org_key,
        firmware: firmware,
        deployment: deployment,
        product: product
@@ -60,14 +60,14 @@ defmodule NervesHubCore.DeploymentsTest do
 
   describe "update_deployment" do
     test "updates correct devices", %{
-      tenant: tenant,
-      tenant_key: tenant_key,
+      org: org,
+      org_key: org_key,
       firmware: firmware,
       deployment: old_deployment,
       product: product
     } do
-      device = Fixtures.device_fixture(tenant, firmware, old_deployment)
-      new_firmware = Fixtures.firmware_fixture(tenant_key, product, %{version: "1.0.1"})
+      device = Fixtures.device_fixture(org, firmware, old_deployment)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
       params = %{
         firmware_id: new_firmware.id,
@@ -91,8 +91,8 @@ defmodule NervesHubCore.DeploymentsTest do
     end
 
     test "does not update incorrect devices", %{
-      tenant: tenant,
-      tenant_key: tenant_key,
+      org: org,
+      org_key: org_key,
       firmware: firmware,
       deployment: old_deployment,
       product: product
@@ -105,8 +105,8 @@ defmodule NervesHubCore.DeploymentsTest do
       ]
 
       for {f_params, d_params} <- incorrect_params do
-        device = Fixtures.device_fixture(tenant, firmware, old_deployment, d_params)
-        new_firmware = Fixtures.firmware_fixture(tenant_key, product, f_params)
+        device = Fixtures.device_fixture(org, firmware, old_deployment, d_params)
+        new_firmware = Fixtures.firmware_fixture(org_key, product, f_params)
 
         params = %{
           firmware_id: new_firmware.id,

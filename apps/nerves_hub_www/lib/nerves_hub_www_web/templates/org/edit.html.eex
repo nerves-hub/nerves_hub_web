@@ -1,7 +1,7 @@
 <h1>
-  Tenant Settings
+  Org Settings
 
-  <a class="btn btn-lg btn-success pull-right" href="<%= tenant_path(@conn, :invite) %>">
+  <a class="btn btn-lg btn-success pull-right" href="<%= org_path(@conn, :invite) %>">
     Invite User
   </a>
 </h1>
@@ -12,14 +12,14 @@
   </div>
 
   <div class="panel-body">
-    <%= form_for @tenant_changeset, tenant_path(@conn, :update, @tenant), fn f -> %>
+    <%= form_for @org_changeset, org_path(@conn, :update, @org), fn f -> %>
       <div class="form-group">
         <label for="name_input">Name</label>
         <%= text_input f, :name, class: "form-control", id: "name_input" %>
         <div class="has-error"><%= error_tag f, :name %></div>
       </div>
 
-      <%= submit "Update Tenant", class: "btn btn-primary" %>
+      <%= submit "Update Org", class: "btn btn-primary" %>
     <% end %>
   </div>
 </div>
@@ -30,7 +30,7 @@
   </div>
 
   <div class="panel-body">
-    <%= form_for @tenant_key_changeset, tenant_key_path(@conn, :create), fn f -> %>
+    <%= form_for @org_key_changeset, org_key_path(@conn, :create), fn f -> %>
       <div class="form-group">
         <label for="key_name_input">Name</label>
         <%= text_input f, :name, class: "form-control", id: "key_name_input" %>
@@ -59,8 +59,8 @@
     </tr>
   </thead>
   <tbody>
-    <%= if length(@tenant.tenant_keys) > 0 do %>
-      <%= for key <- @tenant.tenant_keys do %>
+    <%= if length(@org.org_keys) > 0 do %>
+      <%= for key <- @org.org_keys do %>
         <tr>
 
         <td>
@@ -68,8 +68,8 @@
         </td>
         <td><%= key.key %></td>
         <td class="text-right">
-          <%= link "Edit", to: tenant_key_path(@conn, :edit, key), class: "btn btn-primary" %>
-          <%= link "Delete", to: tenant_key_path(@conn, :delete, key), class: "btn btn-danger", method: :delete, data: [confirm: "Are you sure?"]  %>
+          <%= link "Edit", to: org_key_path(@conn, :edit, key), class: "btn btn-primary" %>
+          <%= link "Delete", to: org_key_path(@conn, :delete, key), class: "btn btn-danger", method: :delete, data: [confirm: "Are you sure?"]  %>
         </td>
       <% end %>
     <% else %>

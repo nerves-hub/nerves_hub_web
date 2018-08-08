@@ -32,7 +32,7 @@
       <td><%= firmware.uuid %></td>
       <td><%= firmware.description %></td>
       <td><%= firmware.author %></td>
-      <td><%= format_signed(firmware, @tenant) %></td>
+      <td><%= format_signed(firmware, @org) %></td>
       <td><pre class="pre-scrollable"><%= firmware.misc %></pre></td>
       <td><%= link("Download", to: product_firmware_path(@conn, :download, @product.id, firmware.id)) %></td>
     </tr>

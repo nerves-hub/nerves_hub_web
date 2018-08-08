@@ -13,14 +13,13 @@ defmodule NervesHubWWWWeb.Router do
     plug(NervesHubWWWWeb.Plugs.EnsureLoggedIn)
   end
 
-  pipeline :tenant_level do
-    plug(NervesHubWWWWeb.Plugs.FetchTenant)
+  pipeline :org_level do
+    plug(NervesHubWWWWeb.Plugs.FetchOrg)
   end
 
   pipeline :product_level do
     plug(NervesHubWWWWeb.Plugs.FetchProduct)
   end
-
 
   scope "/", NervesHubWWWWeb do
     # Use the default browser stack
@@ -48,12 +47,12 @@ defmodule NervesHubWWWWeb.Router do
     pipe_through([:browser, :logged_in])
 
     resources("/dashboard", DashboardController, only: [:index])
-    resources("/tenant", TenantController, only: [:edit, :update])
+    resources("/org", OrgController, only: [:edit, :update])
 
-    resources("/tenant_keys", TenantKeyController)
+    resources("/org_keys", OrgKeyController)
 
-    get("/tenant/invite", TenantController, :invite)
-    post("/tenant/invite", TenantController, :send_invite)
+    get("/org/invite", OrgController, :invite)
+    post("/org/invite", OrgController, :send_invite)
 
     get("/settings", AccountController, :edit)
     put("/settings", AccountController, :update)

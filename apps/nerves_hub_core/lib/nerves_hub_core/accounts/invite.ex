@@ -3,13 +3,13 @@ defmodule NervesHubCore.Accounts.Invite do
 
   import Ecto.Changeset
 
-  alias NervesHubCore.Accounts.Tenant
+  alias NervesHubCore.Accounts.Org
   alias __MODULE__
 
   @type t :: %__MODULE__{}
 
   schema "invites" do
-    belongs_to(:tenant, Tenant)
+    belongs_to(:org, Org)
 
     field(:email, :string)
     field(:name, :string)
@@ -21,7 +21,7 @@ defmodule NervesHubCore.Accounts.Invite do
 
   def changeset(%Invite{} = invite, params) do
     invite
-    |> cast(params, [:email, :name, :token, :tenant_id, :accepted])
-    |> validate_required([:email, :name, :token, :tenant_id])
+    |> cast(params, [:email, :name, :token, :org_id, :accepted])
+    |> validate_required([:email, :name, :token, :org_id])
   end
 end

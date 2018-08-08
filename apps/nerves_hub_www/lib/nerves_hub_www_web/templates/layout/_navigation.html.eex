@@ -16,7 +16,7 @@
       <div class="navbar-nav mr-3">
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            <%= @conn.assigns.tenant.name %>
+            <%= @conn.assigns.org.name %>
           </a>
           <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
             <a class="dropdown-item" href="<%= account_path(@conn, :edit)%>">Account settings</a>

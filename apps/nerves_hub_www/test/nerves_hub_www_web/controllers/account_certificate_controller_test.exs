@@ -12,13 +12,13 @@ defmodule NervesHubWWWWeb.AccountCertificateControllerTest do
   describe "index" do
     test "lists all appropriate account certificates", %{
       conn: conn,
-      current_tenant: tenant,
+      current_org: org,
       current_user: user
     } do
       foo_cert = Fixtures.user_certificate_fixture(user, %{description: "foo", serial: "abc123"})
       bar_cert = Fixtures.user_certificate_fixture(user, %{description: "bar", serial: "321cba"})
 
-      other_user = Fixtures.user_fixture(tenant, %{email: "test@email.com"})
+      other_user = Fixtures.user_fixture(org, %{email: "test@email.com"})
 
       Fixtures.user_certificate_fixture(other_user, %{description: "baz", serial: "anotherserial"})
 

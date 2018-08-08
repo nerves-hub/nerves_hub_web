@@ -1,12 +1,12 @@
 <div class="container">
   <h1>
-    Invite User to <%= @tenant.name %>
+    Invite User to <%= @org.name %>
   </h1>
 
-  <p>Enter the email address of the user you would like to invite to <%= @tenant.name %>.</p>
+  <p>Enter the email address of the user you would like to invite to <%= @org.name %>.</p>
   <p><strong>Invites expire in 48 hours.</strong></p>
 
-  <%= form_for @changeset, tenant_path(@conn, :send_invite), fn f -> %>
+  <%= form_for @changeset, org_path(@conn, :send_invite), fn f -> %>
     <div class="form-group">
       <label for="name_input">Name</label>
       <%= text_input f, :name, class: "form-control", id: "name_input" %>
@@ -20,6 +20,6 @@
     </div>
 
     <%= submit "Send Invite", class: "btn btn-success" %>
-    <a class="btn btn-secondary" href="<%= tenant_path(@conn, :edit) %>">Cancel</a>
+    <a class="btn btn-secondary" href="<%= org_path(@conn, :edit) %>">Cancel</a>
   <% end %>
 </div>

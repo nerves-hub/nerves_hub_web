@@ -29,9 +29,9 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  defp build_message(%{assigns: %{device: device, tenant: tenant}}, payload) do
-    with {:ok, device} <- device_update(device, tenant, payload) do
-      send_update_message(device, tenant)
+  defp build_message(%{assigns: %{device: device, org: org}}, payload) do
+    with {:ok, device} <- device_update(device, org, payload) do
+      send_update_message(device, org)
     else
       {:error, message} -> {:error, %{reason: message}}
       _ -> {:error, %{reason: :unknown_error}}
@@ -39,13 +39,13 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   end
 
   defp build_message(_, _) do
-    {:error, %{reason: :no_device_or_tenant}}
+    {:error, %{reason: :no_device_or_org}}
   end
 
-  defp device_update(%Devices.Device{} = device, %Accounts.Tenant{} = tenant, %{
+  defp device_update(%Devices.Device{} = device, %Accounts.Org{} = org, %{
          "uuid" => uuid
        }) do
-    with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(tenant, uuid) do
+    with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(org, uuid) do
       Devices.update_device(device, %{last_known_firmware_id: firmware.id})
     else
       _ -> {:error, :no_firmware_found}
@@ -54,14 +54,14 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   defp device_update(_, _, _), do: {:error, :no_firmware_uuid}
 
-  defp send_update_message(%Devices.Device{} = device, tenant) do
+  defp send_update_message(%Devices.Device{} = device, org) do
     device
     |> Devices.get_eligible_deployments()
-    |> do_update_message(tenant)
+    |> do_update_message(org)
   end
 
-  defp do_update_message([%Deployments.Deployment{} = deployment | _], tenant) do
-    with {:ok, firmware} <- Firmwares.get_firmware(tenant, deployment.firmware_id),
+  defp do_update_message([%Deployments.Deployment{} = deployment | _], org) do
+    with {:ok, firmware} <- Firmwares.get_firmware(org, deployment.firmware_id),
          {:ok, url} <- @uploader.download_file(firmware) do
       {:ok, %{update_available: true, firmware_url: url}}
     else

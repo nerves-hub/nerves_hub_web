@@ -2,16 +2,16 @@ defmodule NervesHubCore.Products.Product do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias NervesHubCore.Accounts.Tenant
+  alias NervesHubCore.Accounts.Org
   alias NervesHubCore.Firmwares.Firmware
 
-  @required_params [:name, :tenant_id]
+  @required_params [:name, :org_id]
   @optional_params []
 
   schema "products" do
     has_many(:firmwares, Firmware)
 
-    belongs_to(:tenant, Tenant)
+    belongs_to(:org, Org)
 
     field(:name, :string)
 
@@ -23,6 +23,6 @@ defmodule NervesHubCore.Products.Product do
     product
     |> cast(attrs, @required_params ++ @optional_params)
     |> validate_required(@required_params)
-    |> unique_constraint(:name, name: :products_tenant_id_name_index)
+    |> unique_constraint(:name, name: :products_org_id_name_index)
   end
 end

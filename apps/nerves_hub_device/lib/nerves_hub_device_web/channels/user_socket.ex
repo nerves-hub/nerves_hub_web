@@ -49,7 +49,7 @@ defmodule NervesHubDeviceWeb.UserSocket do
       new_socket =
         socket
         |> assign(:device, device)
-        |> assign(:tenant, device.tenant)
+        |> assign(:org, device.org)
 
       {:ok, new_socket}
     else

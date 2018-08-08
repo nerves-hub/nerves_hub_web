@@ -1,0 +1,5 @@
+<h2>Edit Org Key</h2>
+
+<%= render "form.html", Map.put(assigns, :action, org_key_path(@conn, :update, @org_key)) %>
+
+<span><%= link "Back", to: org_key_path(@conn, :index) %></span>

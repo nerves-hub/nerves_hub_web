@@ -44,12 +44,12 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
   ]
 
   def device_fixture(device_params \\ %{}, firmware_uuid \\ "foo") do
-    tenant = Fixtures.tenant_fixture()
-    product = Fixtures.product_fixture(tenant)
-    tenant_key = Fixtures.tenant_key_fixture(tenant)
+    org = Fixtures.org_fixture()
+    product = Fixtures.product_fixture(org)
+    org_key = Fixtures.org_key_fixture(org)
 
     firmware =
-      Fixtures.firmware_fixture(tenant_key, product, %{
+      Fixtures.firmware_fixture(org_key, product, %{
         uuid: firmware_uuid,
         version: "0.0.1",
         upload_metadata: %{"public_path" => @valid_firmware_url}
@@ -59,7 +59,7 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
       Fixtures.deployment_fixture(firmware)
       |> Deployments.update_deployment(%{is_active: true})
 
-    Fixtures.device_fixture(tenant, firmware, deployment, device_params)
+    Fixtures.device_fixture(org, firmware, deployment, device_params)
   end
 
   defmodule ClientSocket do
@@ -223,12 +223,12 @@ defmodule NervesHubWWW.Integration.WebsocketTest do
         %{identifier: @valid_serial}
         |> device_fixture("not_foobar")
 
-      tenant = %Accounts.Tenant{id: device.tenant_id}
-      product = Fixtures.product_fixture(tenant, %{name: "new product"})
-      tenant_key = Fixtures.tenant_key_fixture(tenant, %{name: "another key"})
+      org = %Accounts.Org{id: device.org_id}
+      product = Fixtures.product_fixture(org, %{name: "new product"})
+      org_key = Fixtures.org_key_fixture(org, %{name: "another key"})
 
       firmware =
-        Fixtures.firmware_fixture(tenant_key, product, %{
+        Fixtures.firmware_fixture(org_key, product, %{
           uuid: "foobar",
           version: "0.0.2",
           upload_metadata: %{"public_path" => @valid_firmware_url}

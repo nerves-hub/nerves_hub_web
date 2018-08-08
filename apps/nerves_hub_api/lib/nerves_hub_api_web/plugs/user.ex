@@ -3,6 +3,7 @@ defmodule NervesHubAPIWeb.Plugs.User do
 
   alias NervesHubCore.{Accounts, Certificate}
   alias NervesHubCore.Accounts.User
+
   def init(opts) do
     opts
   end
@@ -12,12 +13,15 @@ defmodule NervesHubAPIWeb.Plugs.User do
     |> Plug.Conn.get_peer_data()
     |> Map.get(:ssl_cert)
     |> case do
-      nil -> nil
-      cert -> 
-        cert = 
+      nil ->
+        nil
+
+      cert ->
+        cert =
           {:Certificate, cert, :not_encrypted}
           |> List.wrap()
           |> :public_key.pem_encode()
+
         {:ok, serial} = Certificate.get_serial_number(cert)
         Accounts.get_user_with_certificate_serial(serial)
     end
@@ -29,11 +33,11 @@ defmodule NervesHubAPIWeb.Plugs.User do
         |> halt()
 
       %User{} = user ->
-        user = NervesHubCore.Repo.preload(user, [tenant: [:tenant_keys]])
+        user = NervesHubCore.Repo.preload(user, org: [:org_keys])
+
         conn
         |> assign(:user, user)
-        |> assign(:tenant, user.tenant)
-
+        |> assign(:org, user.org)
     end
   end
 end

@@ -106,8 +106,8 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
   end
 
   defp create_user(_) do
-    tenant = Fixtures.tenant_fixture()
-    user = Fixtures.user_fixture(tenant)
+    org = Fixtures.org_fixture()
+    user = Fixtures.user_fixture(org)
     {:ok, user: user}
   end
 end

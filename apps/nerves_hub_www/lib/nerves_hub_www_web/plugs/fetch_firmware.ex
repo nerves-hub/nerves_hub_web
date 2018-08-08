@@ -7,8 +7,8 @@ defmodule NervesHubWWWWeb.Plugs.FetchFirmware do
     opts
   end
 
-  def call(%{assigns: %{tenant: tenant, deployment: deployment}} = conn, _opts) do
-    Firmwares.get_firmware(tenant, deployment.firmware_id)
+  def call(%{assigns: %{org: org, deployment: deployment}} = conn, _opts) do
+    Firmwares.get_firmware(org, deployment.firmware_id)
     |> case do
       {:ok, firmware} ->
         conn

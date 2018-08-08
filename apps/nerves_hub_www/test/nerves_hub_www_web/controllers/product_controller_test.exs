@@ -28,7 +28,7 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   end
 
   describe "create product" do
-    test "redirects to show when data is valid", %{conn: conn, current_tenant: tenant} do
+    test "redirects to show when data is valid", %{conn: conn, current_org: org} do
       conn = post(conn, product_path(conn, :create), product: @create_attrs)
 
       assert %{id: id} = redirected_params(conn)
@@ -36,7 +36,7 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
 
       conn = get(conn, product_path(conn, :show, id))
       assert html_response(conn, 200) =~ "Show Product"
-      assert html_response(conn, 200) =~ tenant.name
+      assert html_response(conn, 200) =~ org.name
       assert html_response(conn, 200) =~ product_firmware_path(conn, :index, id)
     end
 
@@ -86,8 +86,8 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   end
 
   defp create_product(_) do
-    tenant = Fixtures.tenant_fixture()
-    product = Fixtures.product_fixture(tenant)
-    {:ok, product: product, tenant: tenant}
+    org = Fixtures.org_fixture()
+    product = Fixtures.product_fixture(org)
+    {:ok, product: product, org: org}
   end
 end
