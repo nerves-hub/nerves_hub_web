@@ -4,7 +4,7 @@ defmodule NervesHubCore.Firmwares.Firmware do
   import Ecto.Changeset
   import Ecto.Query
 
-  alias NervesHubCore.Accounts.TenantKey
+  alias NervesHubCore.Accounts.OrgKey
   alias NervesHubCore.Deployments.Deployment
   alias NervesHubCore.Products.Product
 
@@ -15,7 +15,7 @@ defmodule NervesHubCore.Firmwares.Firmware do
     :author,
     :description,
     :misc,
-    :tenant_key_id,
+    :org_key_id,
     :vcs_identifier
   ]
   @required_params [
@@ -29,8 +29,8 @@ defmodule NervesHubCore.Firmwares.Firmware do
 
   schema "firmwares" do
     belongs_to(:product, Product)
-    belongs_to(:tenant_key, TenantKey)
-    has_many(:deployment, Deployment)
+    belongs_to(:org_key, OrgKey)
+    has_many(:deployments, Deployment)
 
     field(:architecture, :string)
     field(:author, :string)

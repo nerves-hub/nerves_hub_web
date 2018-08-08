@@ -4,15 +4,15 @@ defmodule NervesHubCore.Devices do
   alias NervesHubCore.Devices.Device
   alias NervesHubCore.Deployments.Deployment
   alias NervesHubCore.Firmwares.Firmware
-  alias NervesHubCore.Accounts.Tenant
+  alias NervesHubCore.Accounts.Org
   alias NervesHubCore.Products.Product
   alias NervesHubCore.Repo
   alias Ecto.Changeset
 
   @uploader Application.get_env(:nerves_hub_www, :firmware_upload)
 
-  def get_devices(%Tenant{id: tenant_id}) do
-    query = from(d in Device, where: d.tenant_id == ^tenant_id)
+  def get_devices(%Org{id: org_id}) do
+    query = from(d in Device, where: d.org_id == ^org_id)
 
     query
     |> Device.with_firmware()
@@ -32,11 +32,11 @@ defmodule NervesHubCore.Devices do
     |> Repo.all()
   end
 
-  def get_device(%Tenant{id: tenant_id}, device_id) do
+  def get_device(%Org{id: org_id}, device_id) do
     query =
       from(
         d in Device,
-        where: d.tenant_id == ^tenant_id,
+        where: d.org_id == ^org_id,
         where: d.id == ^device_id
       )
 
@@ -54,7 +54,7 @@ defmodule NervesHubCore.Devices do
     query = from(d in Device, where: d.identifier == ^identifier)
 
     query
-    |> Device.with_tenant()
+    |> Device.with_org()
     |> Device.with_firmware()
     |> Repo.one()
     |> case do
@@ -128,6 +128,7 @@ defmodule NervesHubCore.Devices do
   def matches_deployment?(_, _), do: false
 
   defp version_match?("", _vsn), do: true
+
   defp version_match?(requirement, version) do
     Version.match?(requirement, version)
   end

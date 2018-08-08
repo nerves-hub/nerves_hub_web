@@ -21,11 +21,11 @@ to respond to the device with a list of the group channels that it should join.
 ## Joining Group Channels
 
 If the client receives a group channel from the device channel, it will attempt
-to join it. Authorization to join the group channel for that tenant and product
+to join it. Authorization to join the group channel for that org and product
 are verified by checking the device's associations in the database. These
 channels provide the same interface as the individual device channels, but allow
 bulk management of devices. Group channels are named using the format
-`group:#{tenant}:#{product}:#{group_name}`.
+`group:#{org}:#{product}:#{group_name}`.
 
 ## Joining and Leaving Groups
 

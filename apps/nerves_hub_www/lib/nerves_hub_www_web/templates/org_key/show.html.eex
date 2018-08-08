@@ -1,0 +1,8 @@
+<h2>Show Org keys</h2>
+
+<ul>
+
+</ul>
+
+<span><%= link "Edit", to: org_key_path(@conn, :edit, @org_key) %></span>
+<span><%= link "Back", to: org_key_path(@conn, :index) %></span>

@@ -1,0 +1,24 @@
+<h2>Listing Org keys</h2>
+
+<table>
+  <thead>
+    <tr>
+
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+<%= for org_keys <- @org_keys do %>
+    <tr>
+
+      <td>
+        <%= link "Show", to: org_key_path(@conn, :show, org_keys) %>
+        <%= link "Edit", to: org_key_path(@conn, :edit, org_keys) %>
+        <%= link "Delete", to: org_key_path(@conn, :delete, org_keys), method: :delete, data: [confirm: "Are you sure?"] %>
+      </td>
+    </tr>
+<% end %>
+  </tbody>
+</table>
+
+<span><%= link "New Org keys", to: org_key_path(@conn, :new) %></span>

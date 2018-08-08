@@ -1,12 +1,11 @@
 defmodule NervesHubCore.Firmwares.Upload.File do
-
   @spec upload_file(String.t(), String.t(), integer()) ::
           {:ok, map}
           | {:error, atom()}
-  def upload_file(filepath, filename, tenant_id) do
+  def upload_file(filepath, filename, org_id) do
     config = Application.get_env(:nerves_hub_www, __MODULE__)
     random_string = :crypto.strong_rand_bytes(12) |> Base.url_encode64()
-    path = Path.join([Integer.to_string(tenant_id), random_string])
+    path = Path.join([Integer.to_string(org_id), random_string])
     local_path = Path.join([config[:local_path], path])
 
     with :ok <- File.mkdir_p(local_path),

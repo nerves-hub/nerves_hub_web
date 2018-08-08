@@ -1,5 +1,0 @@
-<h2>New Tenant keys</h2>
-
-<%= render "form.html", Map.put(assigns, :action, tenant_key_path(@conn, :create)) %>
-
-<span><%= link "Back", to: tenant_key_path(@conn, :index) %></span>

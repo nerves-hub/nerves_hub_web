@@ -4,8 +4,8 @@ defmodule NervesHubWWWWeb.ProductController do
   alias NervesHubCore.Products
   alias NervesHubCore.Products.Product
 
-  def index(%{assigns: %{tenant: tenant}} = conn, _params) do
-    products = Products.list_products(tenant)
+  def index(%{assigns: %{org: org}} = conn, _params) do
+    products = Products.list_products(org)
     render(conn, "index.html", products: products)
   end
 
@@ -14,8 +14,8 @@ defmodule NervesHubWWWWeb.ProductController do
     render(conn, "new.html", changeset: changeset)
   end
 
-  def create(%{assigns: %{tenant: tenant}} = conn, %{"product" => product_params}) do
-    case Products.create_product(product_params |> Enum.into(%{"tenant_id" => tenant.id})) do
+  def create(%{assigns: %{org: org}} = conn, %{"product" => product_params}) do
+    case Products.create_product(product_params |> Enum.into(%{"org_id" => org.id})) do
       {:ok, product} ->
         conn
         |> put_flash(:info, "Product created successfully.")
@@ -37,12 +37,12 @@ defmodule NervesHubWWWWeb.ProductController do
     render(conn, "edit.html", product: product, changeset: changeset)
   end
 
-  def update(%{assigns: %{tenant: tenant}} = conn, %{"id" => id, "product" => product_params}) do
+  def update(%{assigns: %{org: org}} = conn, %{"id" => id, "product" => product_params}) do
     product = Products.get_product!(id)
 
     case Products.update_product(
            product,
-           product_params |> Enum.into(%{"tenant_id" => tenant.id})
+           product_params |> Enum.into(%{"org_id" => org.id})
          ) do
       {:ok, product} ->
         conn

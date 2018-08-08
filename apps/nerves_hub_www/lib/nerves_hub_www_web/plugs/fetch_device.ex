@@ -8,10 +8,10 @@ defmodule NervesHubWWWWeb.Plugs.FetchDevice do
   end
 
   def call(
-        %{assigns: %{tenant: tenant}, params: %{"device" => %{"id" => device_id}}} = conn,
+        %{assigns: %{org: org}, params: %{"device" => %{"id" => device_id}}} = conn,
         _opts
       ) do
-    tenant
+    org
     |> Devices.get_device(device_id)
     |> case do
       {:ok, device} ->

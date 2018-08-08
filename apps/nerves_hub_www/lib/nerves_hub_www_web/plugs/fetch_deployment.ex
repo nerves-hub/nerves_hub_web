@@ -5,8 +5,8 @@ defmodule NervesHubWWWWeb.Plugs.FetchDeployment do
 
   def init(_), do: nil
 
-  def call(%{assigns: %{tenant: tenant}, params: %{"deployment_id" => deployment_id}} = conn, _) do
-    tenant
+  def call(%{assigns: %{org: org}, params: %{"deployment_id" => deployment_id}} = conn, _) do
+    org
     |> Deployments.get_deployment(deployment_id)
     |> case do
       {:ok, deployment} ->

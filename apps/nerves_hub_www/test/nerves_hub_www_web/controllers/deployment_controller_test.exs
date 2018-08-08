@@ -5,8 +5,8 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
   alias NervesHubCore.Deployments
 
   describe "index" do
-    test "lists all deployments", %{conn: conn, current_tenant: tenant} do
-      product = Fixtures.product_fixture(tenant)
+    test "lists all deployments", %{conn: conn, current_org: org} do
+      product = Fixtures.product_fixture(org)
 
       conn = get(conn, product_deployment_path(conn, :index, product.id))
       assert html_response(conn, 200) =~ "Deployments"
@@ -16,11 +16,11 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
   describe "new deployment" do
     test "renders form with valid request params", %{
       conn: conn,
-      current_tenant: tenant,
-      tenant_key: tenant_key
+      current_org: org,
+      org_key: org_key
     } do
-      product = Fixtures.product_fixture(tenant)
-      firmware = Fixtures.firmware_fixture(tenant_key, product)
+      product = Fixtures.product_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
 
       conn =
         get(
@@ -34,8 +34,8 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       assert html_response(conn, 200) =~ product_deployment_path(conn, :create, product.id)
     end
 
-    test "redirects with invalid firmware", %{conn: conn, current_tenant: tenant} do
-      product = Fixtures.product_fixture(tenant)
+    test "redirects with invalid firmware", %{conn: conn, current_org: org} do
+      product = Fixtures.product_fixture(org)
 
       conn =
         get(conn, product_deployment_path(conn, :new, product.id), deployment: %{firmware_id: -1})
@@ -45,11 +45,11 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
 
     test "renders select firmware when no firmware_id is passed", %{
       conn: conn,
-      current_tenant: tenant,
-      tenant_key: tenant_key
+      current_org: org,
+      org_key: org_key
     } do
-      product = Fixtures.product_fixture(tenant)
-      Fixtures.firmware_fixture(tenant_key, product)
+      product = Fixtures.product_fixture(org)
+      Fixtures.firmware_fixture(org_key, product)
       conn = get(conn, product_deployment_path(conn, :new, product.id))
 
       assert html_response(conn, 200) =~ "Select Firmware for New Deployment"
@@ -57,13 +57,13 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
     end
 
     test "redirects to firmware upload firmware_id is passed and no firmwares are found" do
-      tenant = Fixtures.tenant_fixture(%{name: "empty tenant"})
-      user = Fixtures.user_fixture(tenant, %{email: "new@tenant.com"})
-      product = Fixtures.product_fixture(tenant)
+      org = Fixtures.org_fixture(%{name: "empty org"})
+      user = Fixtures.user_fixture(org, %{email: "new@org.com"})
+      product = Fixtures.product_fixture(org)
 
       conn =
         build_conn()
-        |> Map.put(:assigns, %{tenant: tenant})
+        |> Map.put(:assigns, %{org: org})
         |> init_test_session(%{"auth_user_id" => user.id})
 
       conn = get(conn, product_deployment_path(conn, :new, product.id))
@@ -75,19 +75,19 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
   describe "create deployment" do
     test "redirects to index when data is valid", %{
       conn: conn,
-      current_tenant: tenant,
-      tenant_key: tenant_key
+      current_org: org,
+      org_key: org_key
     } do
-      product = Fixtures.product_fixture(tenant)
+      product = Fixtures.product_fixture(org)
 
       firmware =
-        Fixtures.firmware_fixture(tenant_key, product, %{
+        Fixtures.firmware_fixture(org_key, product, %{
           version: "relatively unusual version"
         })
 
       deployment_params = %{
         firmware_id: firmware.id,
-        tenant_id: tenant.id,
+        org_id: org.id,
         name: "Test Deployment ABC",
         tags: "beta, beta-edge",
         version: "< 1.0.0",
@@ -116,11 +116,11 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
   describe "edit deployment" do
     test "edits the chosen resource", %{
       conn: conn,
-      current_tenant: tenant,
-      tenant_key: tenant_key
+      current_org: org,
+      org_key: org_key
     } do
-      product = Fixtures.product_fixture(tenant)
-      firmware = Fixtures.firmware_fixture(tenant_key, product)
+      product = Fixtures.product_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
       deployment = Fixtures.deployment_fixture(firmware)
 
       conn = get(conn, product_deployment_path(conn, :edit, product.id, deployment))
@@ -134,11 +134,11 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
   describe "update deployment" do
     test "update the chosen resource", %{
       conn: conn,
-      current_tenant: tenant,
-      tenant_key: tenant_key
+      current_org: org,
+      org_key: org_key
     } do
-      product = Fixtures.product_fixture(tenant)
-      firmware = Fixtures.firmware_fixture(tenant_key, product)
+      product = Fixtures.product_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
       deployment = Fixtures.deployment_fixture(firmware)
 
       conn =
@@ -165,9 +165,9 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
   end
 
   describe "delete deployment" do
-    test "deletes chosen resource", %{conn: conn, current_tenant: tenant, tenant_key: tenant_key} do
-      product = Fixtures.product_fixture(tenant)
-      firmware = Fixtures.firmware_fixture(tenant_key, product)
+    test "deletes chosen resource", %{conn: conn, current_org: org, org_key: org_key} do
+      product = Fixtures.product_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
       deployment = Fixtures.deployment_fixture(firmware)
 
       conn = delete(conn, product_deployment_path(conn, :delete, product.id, deployment))

@@ -10,7 +10,7 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
       assert html_response(conn, 200) =~ "Devices"
     end
 
-    test "does not list devices for other tenants", %{conn: conn} do
+    test "does not list devices for other orgs", %{conn: conn} do
       %{device: device} = Fixtures.smartrent_fixture()
       conn = get(conn, device_path(conn, :index))
       refute html_response(conn, 200) =~ device.identifier
@@ -48,9 +48,9 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
   describe "edit device" do
     test "renders edit page", %{
       conn: conn,
-      current_tenant: tenant
+      current_org: org
     } do
-      [to_edit | _] = Devices.get_devices(tenant)
+      [to_edit | _] = Devices.get_devices(org)
 
       conn =
         get(
@@ -65,9 +65,9 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
   describe "update device" do
     test "with valid params", %{
       conn: conn,
-      current_tenant: tenant
+      current_org: org
     } do
-      [to_update | _] = Devices.get_devices(tenant)
+      [to_update | _] = Devices.get_devices(org)
 
       device_params = %{
         identifier: "new_identifier",

@@ -4,7 +4,7 @@ defmodule NervesHubCore.FirmwaresTest do
   alias NervesHubCore.Fixtures
   alias NervesHubCore.{Firmwares, Repo}
   alias NervesHubCore.Deployments.Deployment
-  alias NervesHubCore.Accounts.TenantKey
+  alias NervesHubCore.Accounts.OrgKey
 
   alias Ecto.Changeset
 
@@ -13,26 +13,26 @@ defmodule NervesHubCore.FirmwaresTest do
   @signed_key1_firmware_path Path.join(@test_firmware_path, "signed-key1.fw")
   @signed_other_key_firmware_path Path.join(@test_firmware_path, "signed-other-key.fw")
   @corrupt_firmware_path Path.join(@test_firmware_path, "signed-other-key.fw")
-  @firmware_pub_key1 %TenantKey{
+  @firmware_pub_key1 %OrgKey{
     id: "key1",
     key: File.read!(Path.join(@test_firmware_path, "fwup-key1.pub"))
   }
-  @firmware_pub_key2 %TenantKey{
+  @firmware_pub_key2 %OrgKey{
     id: "key2",
     key: File.read!(Path.join(@test_firmware_path, "fwup-key2.pub"))
   }
 
   setup do
-    tenant = Fixtures.tenant_fixture()
-    product = Fixtures.product_fixture(tenant)
-    tenant_key = Fixtures.tenant_key_fixture(tenant)
-    firmware = Fixtures.firmware_fixture(tenant_key, product)
+    org = Fixtures.org_fixture()
+    product = Fixtures.product_fixture(org)
+    org_key = Fixtures.org_key_fixture(org)
+    firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(firmware)
-    device = Fixtures.device_fixture(tenant, firmware, deployment)
+    device = Fixtures.device_fixture(org, firmware, deployment)
 
     {:ok,
      %{
-       tenant: tenant,
+       org: org,
        firmware: firmware,
        deployment: deployment,
        matching_device: device,
@@ -55,7 +55,7 @@ defmodule NervesHubCore.FirmwaresTest do
     test "enforces uuid uniqueness within a product", %{firmware: existing} do
       new_params = %{
         architecture: "arm",
-        tenant_key_id: existing.tenant_key_id,
+        org_key_id: existing.org_key_id,
         platform: "rpi3",
         product_id: existing.product_id,
         upload_metadata: %{},
@@ -77,10 +77,10 @@ defmodule NervesHubCore.FirmwaresTest do
   end
 
   describe "NervesHubWWW.Firmwares.get_firmware/2" do
-    test "returns firmwares", %{tenant: %{id: t_id} = tenant, firmware: %{id: f_id} = firmware} do
-      {:ok, gotten_firmware} = Firmwares.get_firmware(tenant, firmware.id)
+    test "returns firmwares", %{org: %{id: t_id} = org, firmware: %{id: f_id} = firmware} do
+      {:ok, gotten_firmware} = Firmwares.get_firmware(org, firmware.id)
 
-      assert %{id: ^f_id, product: %{tenant_id: ^t_id}} = gotten_firmware
+      assert %{id: ^f_id, product: %{org_id: ^t_id}} = gotten_firmware
     end
   end
 
