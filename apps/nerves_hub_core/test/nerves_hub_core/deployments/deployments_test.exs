@@ -23,7 +23,7 @@ defmodule NervesHubCore.DeploymentsTest do
      }}
   end
 
-  test 'create_deployment with valid parameters', %{
+  test "create_deployment with valid parameters", %{
     firmware: firmware
   } do
     params = %{
@@ -43,7 +43,7 @@ defmodule NervesHubCore.DeploymentsTest do
     end
   end
 
-  test 'create_deployment with invalid parameters' do
+  test "create_deployment with invalid parameters" do
     params = %{
       name: "my deployment",
       conditions: %{
