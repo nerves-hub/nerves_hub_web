@@ -67,6 +67,6 @@ defmodule NervesHubDeviceWeb.UserSocket do
   #     NervesHubWWWWeb.Endpoint.broadcast("user_socket:#{user.id}", "disconnect", %{})
   #
   # Returning `nil` makes this socket anonymous.
-  def id(%{assigns: %{device: %Devices.Device{identifier: d_id}}}), do: "device:#{d_id}"
+  def id(%{assigns: %{device: %Devices.Device{identifier: d_id}}}), do: "device_socket:#{d_id}"
   def id(_socket), do: nil
 end
