@@ -62,8 +62,6 @@ defmodule NervesHubWWW.MixProject do
        only: :dev},
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 2.0", override: true},
-      {:ex_aws, "~> 2.0"},
-      {:ex_aws_s3, "~> 2.0"},
       {:hackney, "~> 1.9"},
       {:sweet_xml, "~> 0.6"},
       {:bamboo, "~> 1.0"},

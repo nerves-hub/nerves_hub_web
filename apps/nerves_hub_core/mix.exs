@@ -47,6 +47,11 @@ defmodule NervesHubCore.MixProject do
       # poison can be removed once a new release of postgrex is made
       {:poison, "~> 3.0"},
       {:timex, "~> 3.1"},
+      {:plug, "~> 1.6"},
+      {:jason, "~> 1.0"},
+      {:phoenix, github: "mobileoverlord/phoenix", branch: "ws_extra_params", override: true},
+      {:ex_aws, "~> 2.0"},
+      {:ex_aws_s3, "~> 2.0"}
     ]
   end
 end
