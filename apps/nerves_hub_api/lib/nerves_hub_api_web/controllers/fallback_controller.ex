@@ -24,6 +24,6 @@ defmodule NervesHubAPIWeb.FallbackController do
     conn
     |> put_status(500)
     |> put_view(NervesHubAPIWeb.ErrorView)
-    |> render(:"500")
+    |> render(:"500", %{reason: reason})
   end
 end
