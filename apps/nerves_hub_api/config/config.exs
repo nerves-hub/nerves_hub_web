@@ -9,7 +9,7 @@ use Mix.Config
 config :nerves_hub_api,
   namespace: NervesHubAPI,
   ecto_repos: [NervesHubCore.Repo]
-  
+
 # Configures the endpoint
 config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
   url: [host: "localhost"],
@@ -23,4 +23,4 @@ config :logger, :console,
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
-import_config "#{Mix.env}.exs"
+import_config "#{Mix.env()}.exs"
