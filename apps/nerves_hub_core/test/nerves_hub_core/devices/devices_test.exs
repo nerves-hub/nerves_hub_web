@@ -3,6 +3,7 @@ defmodule NervesHubCore.DevicesTest do
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Devices
+  alias NervesHubCore.Devices.DeviceCertificate
   alias NervesHubCore.Deployments
   alias Ecto.Changeset
 
@@ -50,6 +51,44 @@ defmodule NervesHubCore.DevicesTest do
     }
 
     assert {:error, %Changeset{}} = Devices.create_device(params)
+  end
+
+  test "create device certificate", %{device: device} do
+    now = DateTime.utc_now()
+    device_id = device.id
+
+    params = %{
+      serial: "12345",
+      valid_after: now,
+      valid_before: now,
+      device_id: device_id
+    }
+
+    assert {:ok, %DeviceCertificate{device_id: ^device_id}} =
+             Devices.create_device_certificate(device, params)
+  end
+
+  test "cannot create device certificates with duplicate serial numbers", %{device: device} do
+    now = DateTime.utc_now()
+
+    params = %{
+      serial: "12345",
+      valid_after: now,
+      valid_before: now,
+      device_id: device.id
+    }
+
+    assert {:ok, %DeviceCertificate{}} = Devices.create_device_certificate(device, params)
+    assert {:error, %Changeset{}} = Devices.create_device_certificate(device, params)
+  end
+
+  test "cannot create device certificates with invalid parameters", %{device: device} do
+    params = %{
+      serial: "12345",
+      device_id: device.id
+    }
+
+    assert {:error, %Changeset{}} = Devices.create_device_certificate(device, params)
   end
 
   test "get_device_by_identifier with existing device", %{device: target_device} do
