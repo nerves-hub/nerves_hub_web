@@ -83,10 +83,10 @@ defmodule NervesHubCore.Devices do
     with true <- matches_deployment?(device, deployment) do
       {:ok, url} = @uploader.download_file(deployment.firmware)
 
-      NervesHubDeviceWeb.Endpoint.broadcast(
+      Phoenix.PubSub.broadcast(
+        NervesHubWeb.PubSub,
         "device:#{device.identifier}",
-        "update",
-        %{firmware_url: url}
+        %Phoenix.Socket.Broadcast{event: "update", payload: %{firmware_url: url}}
       )
 
       {:ok, device}

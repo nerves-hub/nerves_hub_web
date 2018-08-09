@@ -6,8 +6,6 @@ defmodule NervesHubCore.DeploymentsTest do
   alias NervesHubCore.Deployments
   alias Ecto.Changeset
 
-  @endpoint NervesHubDeviceWeb.Endpoint
-
   setup do
     org = Fixtures.org_fixture()
     product = Fixtures.product_fixture(org)
@@ -80,7 +78,7 @@ defmodule NervesHubCore.DeploymentsTest do
       }
 
       device_topic = "device:#{device.identifier}"
-      @endpoint.subscribe(device_topic)
+      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, device_topic)
 
       {:ok, _deployment} =
         Deployments.create_deployment(params)
@@ -119,7 +117,7 @@ defmodule NervesHubCore.DeploymentsTest do
         }
 
         device_topic = "device:#{device.identifier}"
-        @endpoint.subscribe(device_topic)
+        Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, device_topic)
 
         {:ok, _deployment} =
           Deployments.create_deployment(params)
