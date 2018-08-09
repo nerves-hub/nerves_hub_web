@@ -9,4 +9,15 @@ defmodule NervesHubAPIWeb.UserControllerTest do
              "email" => user.email
            }
   end
+
+  test "register new account", %{} do
+    conn = build_conn()
+    body = %{name: "test", password: "12345678", email: "test@test.com"}
+    conn = post(conn, user_path(conn, :register), body)
+
+    assert json_response(conn, 200)["data"] == %{
+             "name" => body.name,
+             "email" => body.email
+           }
+  end
 end

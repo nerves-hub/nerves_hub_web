@@ -28,7 +28,7 @@ defmodule NervesHubCore.AccountsTest do
     }
 
     target_org = %Accounts.Org{name: params.org_name}
-    {:ok, %Accounts.Org{} = result_org} = Accounts.create_org_with_user(params)
+    {:ok, {%Accounts.Org{} = result_org, _user}} = Accounts.create_org_with_user(params)
 
     [user | _] = result_org |> Repo.preload(:users) |> Map.get(:users)
 
@@ -55,7 +55,7 @@ defmodule NervesHubCore.AccountsTest do
     }
 
     target_org = %Accounts.Org{name: params.org_name}
-    {:ok, %Accounts.Org{} = result_org} = Accounts.create_org_with_user(params)
+    {:ok, {%Accounts.Org{} = result_org, _user}} = Accounts.create_org_with_user(params)
 
     [user | _] = result_org |> Repo.preload(:users) |> Map.get(:users)
 
@@ -78,7 +78,7 @@ defmodule NervesHubCore.AccountsTest do
       password: "test_password"
     }
 
-    {:ok, %Accounts.Org{} = result_org} = Accounts.create_org_with_user(params)
+    {:ok, {%Accounts.Org{} = result_org, _user}} = Accounts.create_org_with_user(params)
 
     [user | _] = result_org |> Repo.preload(:users) |> Map.get(:users)
 

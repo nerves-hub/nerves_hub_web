@@ -15,7 +15,7 @@ defmodule NervesHubWWWWeb.AccountController do
     params["user"]
     |> Accounts.create_org_with_user()
     |> case do
-      {:ok, _org} ->
+      {:ok, {_org, _user}} ->
         redirect(conn, to: "/")
 
       {:error, changeset} ->

@@ -69,8 +69,8 @@ defmodule NervesHubCore.Accounts do
 
     Repo.transaction(fn ->
       with {:ok, org} <- create_org(org_params),
-           {:ok, _user} <- create_user(org, user_params) do
-        org
+           {:ok, user} <- create_user(org, user_params) do
+        {org, user}
       else
         {:error, changeset} ->
           # Merge errors into original changeset
