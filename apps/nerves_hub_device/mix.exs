@@ -51,7 +51,8 @@ defmodule NervesHubDevice.Mixfile do
       {:phoenix_pubsub, "~> 1.0"},
       {:gettext, "~> 0.11"},
       {:distillery, "~> 1.5"},
-      {:nerves_hub, github: "nerves-hub/nerves_hub", only: :test},
+      {:phoenix_channel_client, "~> 0.3"},
+      {:websocket_client, "~> 1.3"},
       {:nerves_hub_core, in_umbrella: true}
     ]
   end

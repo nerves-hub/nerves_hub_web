@@ -29,6 +29,10 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_out("presence_diff", _message, socket) do
+    {:noreply, socket}
+  end
+
   defp build_message(%{assigns: %{device: device, org: org}}, payload) do
     with {:ok, device} <- device_update(device, org, payload) do
       send_update_message(device, org)
