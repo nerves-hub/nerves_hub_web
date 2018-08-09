@@ -19,7 +19,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     end
   end
 
-  def handle_info({:after_join, %{update_available: update_available} = message}, socket) do
+  def handle_info({:after_join, %{update_available: update_available}}, socket) do
     {:ok, _} =
       Presence.track(socket, socket.assigns.device.identifier, %{
         connected_at: inspect(System.system_time(:seconds)),

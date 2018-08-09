@@ -15,13 +15,13 @@ defmodule NervesHubWWWWeb.Endpoint do
   )
 
   # This should only be enabled if using NervesHubCore.Firmwares.Upload.File
-if @env in [:dev, :test] do  
-  plug(
-    Plug.Static,
-    at: "/firmware",
-    from: "/tmp/firmware"
-  )
-end
+  if @env in [:dev, :test] do
+    plug(
+      Plug.Static,
+      at: "/firmware",
+      from: "/tmp/firmware"
+    )
+  end
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.

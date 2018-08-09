@@ -1,7 +1,6 @@
 defmodule NervesHubWWWWeb.DeviceView do
   use NervesHubWWWWeb, :view
 
-  alias NervesHubCore.Devices.Device
   alias NervesHubDeviceWeb.DeviceChannel
 
   def device_status(device) do

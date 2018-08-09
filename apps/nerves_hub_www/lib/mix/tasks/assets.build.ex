@@ -4,11 +4,13 @@ defmodule Mix.Tasks.Assets.Build do
   @shortdoc "Build web assets"
   @assets Path.expand("../../../assets", __DIR__)
 
-  def run(_) do    
-    System.cmd("yarn", ["build"], [
+  def run(_) do
+    System.cmd(
+      "yarn",
+      ["build"],
       cd: @assets,
       stderr_to_stdout: true,
       into: IO.stream(:stdio, :line)
-    ])
+    )
   end
 end

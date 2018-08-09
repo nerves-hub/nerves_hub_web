@@ -5,10 +5,12 @@ defmodule Mix.Tasks.Assets.Install do
   @assets Path.expand("../../../assets", __DIR__)
 
   def run(_) do
-    System.cmd("npm", ["install"], [
+    System.cmd(
+      "npm",
+      ["install"],
       cd: @assets,
       stderr_to_stdout: true,
       into: IO.stream(:stdio, :line)
-    ])
+    )
   end
 end
