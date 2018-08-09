@@ -1,5 +1,10 @@
+Code.compiler_options(ignore_module_conflict: true)
 defmodule NervesHubCore.Fixtures do
   alias NervesHubCore.{Firmwares, Accounts, Devices, Deployments, Products}
+
+  @after_compile {__MODULE__, :compiler_options}
+
+  def compiler_options(_, _), do: Code.compiler_options(ignore_module_conflict: false)
 
   @org_params %{name: "Test Org"}
   @org_key_params %{
