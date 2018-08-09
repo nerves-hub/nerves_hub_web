@@ -28,8 +28,9 @@ defmodule NervesHubAPIWeb do
 
   def view do
     quote do
-      use Phoenix.View, root: "lib/nerves_hub_api_web/templates",
-                        namespace: NervesHubAPIWeb
+      use Phoenix.View,
+        root: "lib/nerves_hub_api_web/templates",
+        namespace: NervesHubAPIWeb
 
       # Import convenience functions from controllers
       import Phoenix.Controller, only: [get_flash: 2, view_module: 1]
