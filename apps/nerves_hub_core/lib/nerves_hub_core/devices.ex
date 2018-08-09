@@ -1,7 +1,7 @@
 defmodule NervesHubCore.Devices do
   import Ecto.Query
 
-  alias NervesHubCore.Devices.Device
+  alias NervesHubCore.Devices.{Device, DeviceCertificate}
   alias NervesHubCore.Deployments.Deployment
   alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Accounts.Org
@@ -101,6 +101,16 @@ defmodule NervesHubCore.Devices do
   def create_device(params) do
     %Device{}
     |> Device.changeset(params)
+    |> Repo.insert()
+  end
+
+  @spec create_device_certificate(Device.t(), map) ::
+          {:ok, DeviceCertificate.t()}
+          | {:error, Changeset.t()}
+  def create_device_certificate(%Device{} = device, params) do
+    device
+    |> Ecto.build_assoc(:device_certificates)
+    |> DeviceCertificate.changeset(params)
     |> Repo.insert()
   end
 

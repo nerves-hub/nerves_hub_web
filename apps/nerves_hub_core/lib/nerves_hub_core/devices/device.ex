@@ -6,6 +6,7 @@ defmodule NervesHubCore.Devices.Device do
 
   alias NervesHubCore.Accounts.Org
   alias NervesHubCore.Firmwares.Firmware
+  alias NervesHubCore.Devices.DeviceCertificate
 
   alias __MODULE__
 
@@ -21,6 +22,8 @@ defmodule NervesHubCore.Devices.Device do
   schema "devices" do
     belongs_to(:org, Org)
     belongs_to(:last_known_firmware, Firmware)
+
+    has_many(:device_certificates, DeviceCertificate)
 
     field(:identifier, :string)
     field(:description, :string)
