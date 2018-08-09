@@ -7,6 +7,7 @@ config :nerves_hub_core,
 
 config :nerves_hub_core, NervesHubWeb.PubSub,
   name: NervesHubWeb.PubSub,
-  adapter: Phoenix.PubSub.PG2
+  adapter: Phoenix.PubSub.PG2,
+  fastlane: Phoenix.Channel.Server
 
 import_config "#{Mix.env()}.exs"
