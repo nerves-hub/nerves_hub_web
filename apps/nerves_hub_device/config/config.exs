@@ -14,7 +14,7 @@ config :nerves_hub_device,
 # Configures the endpoint
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: NervesHubWeb.PubSub, adapter: Phoenix.PubSub.PG2]
+  pubsub: [name: NervesHubWeb.PubSub]
 
 # Configures Elixir's Logger
 config :logger, :console,
