@@ -38,7 +38,8 @@ defmodule NervesHubCore.Deployments do
     end
   end
 
-  @spec get_deployment_by_name(Product.t(), String.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
+  @spec get_deployment_by_name(Product.t(), String.t()) ::
+          {:ok, Deployment.t()} | {:error, :not_found}
   def get_deployment_by_name(%Product{id: product_id}, deployment_name) do
     from(
       d in Deployment,
@@ -113,5 +114,4 @@ defmodule NervesHubCore.Deployments do
   end
 
   defp update_relevant_devices({:error, changeset}), do: {:error, changeset}
-
 end

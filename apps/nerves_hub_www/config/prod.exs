@@ -20,8 +20,7 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   secret_key_base: "${SECRET_KEY_BASE}",
   force_ssl: [rewrite_on: [:x_forwarded_proto]]
 
-config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
-  server: false
+config :nerves_hub_device, NervesHubDeviceWeb.Endpoint, server: false
 
 config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: false
 
@@ -48,6 +47,8 @@ config :nerves_hub_www, NervesHubWWW.Mailer,
   port: "${SES_PORT}",
   username: "${SMTP_USERNAME}",
   password: "${SMTP_PASSWORD}",
-  tls: :always, # can be `:always` or `:never`
-  ssl: false, # can be `true`
+  # can be `:always` or `:never`
+  tls: :always,
+  # can be `true`
+  ssl: false,
   retries: 1

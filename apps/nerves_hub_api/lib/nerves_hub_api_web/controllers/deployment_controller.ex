@@ -11,7 +11,7 @@ defmodule NervesHubAPIWeb.DeploymentController do
     render(conn, "index.json", deployments: deployments)
   end
 
-  def show(%{assigns: %{org: org, product: product}} = conn, %{"name" => name}) do
+  def show(%{assigns: %{org: _org, product: product}} = conn, %{"name" => name}) do
     with {:ok, deployment} <- Deployments.get_deployment_by_name(product, name) do
       render(conn, "show.json", deployment: deployment)
     end

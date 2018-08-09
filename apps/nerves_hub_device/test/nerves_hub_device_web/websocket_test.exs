@@ -1,4 +1,4 @@
-defmodule NervesHubWWW.Integration.WebsocketTest do
+defmodule NervesHubDeviceWeb.WebsocketTest do
   use ExUnit.Case, async: false
   use NervesHubDeviceWeb.ChannelCase
   alias NervesHubCore.Fixtures
