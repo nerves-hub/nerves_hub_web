@@ -25,7 +25,7 @@ defmodule NervesHubCore.DevicesTest do
      }}
   end
 
-  test 'create_device with valid parameters', %{
+  test "create_device with valid parameters", %{
     org: org,
     firmware: firmware
   } do
@@ -42,7 +42,7 @@ defmodule NervesHubCore.DevicesTest do
     end
   end
 
-  test 'create_device with invalid parameters', %{firmware: firmware} do
+  test "create_device with invalid parameters", %{firmware: firmware} do
     params = %{
       identifier: "valid identifier",
       architecture: firmware.architecture,
@@ -52,7 +52,7 @@ defmodule NervesHubCore.DevicesTest do
     assert {:error, %Changeset{}} = Devices.create_device(params)
   end
 
-  test 'get_device_by_identifier with existing device', %{device: target_device} do
+  test "get_device_by_identifier with existing device", %{device: target_device} do
     assert {:ok, result} = Devices.get_device_by_identifier(target_device.identifier)
 
     for key <- [:org_id, :deployment_id, :device_identifier] do
@@ -60,7 +60,7 @@ defmodule NervesHubCore.DevicesTest do
     end
   end
 
-  test 'get_device_by_identifier without existing device' do
+  test "get_device_by_identifier without existing device" do
     assert {:error, :not_found} = Devices.get_device_by_identifier("non existing identifier")
   end
 
