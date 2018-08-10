@@ -1,6 +1,7 @@
 defmodule NervesHubCore.Accounts do
   import Ecto.Query
   alias Ecto.Changeset
+  alias Ecto.UUID
   alias NervesHubCore.Accounts.{Org, User, UserCertificate, Invite, OrgKey}
   alias NervesHubCore.Repo
   alias Comeonin.Bcrypt
@@ -12,6 +13,16 @@ defmodule NervesHubCore.Accounts do
     %Org{}
     |> Org.changeset(params)
     |> Repo.insert()
+  end
+
+  def change_user(user, params \\ %{})
+
+  def change_user(%User{id: nil} = user, params) do
+    User.creation_changeset(user, params)
+  end
+
+  def change_user(%User{} = org_key, params) do
+    User.update_changeset(org_key, params)
   end
 
   @doc """
@@ -89,7 +100,7 @@ defmodule NervesHubCore.Accounts do
   def create_user(%Org{} = org, params) do
     org
     |> Ecto.build_assoc(:users)
-    |> User.creation_changeset(params)
+    |> change_user(params)
     |> Repo.insert()
   end
 
@@ -273,13 +284,7 @@ defmodule NervesHubCore.Accounts do
     Repo.delete(org_key)
   end
 
-  def change_org_key(%OrgKey{id: nil} = org_key) do
-    OrgKey.changeset(org_key, %{})
-  end
-
-  def change_org_key(%OrgKey{id: _id} = org_key) do
-    OrgKey.update_changeset(org_key, %{})
-  end
+  def change_org_key(org_key, params \\ %{})
 
   def change_org_key(%OrgKey{id: nil} = org_key, params) do
     OrgKey.changeset(org_key, params)
@@ -341,7 +346,7 @@ defmodule NervesHubCore.Accounts do
           | {:error, Changeset.t()}
   def update_user(%User{} = user, user_params) do
     user
-    |> User.update_changeset(user_params)
+    |> change_user(user_params)
     |> Repo.update()
   end
 
@@ -363,7 +368,7 @@ defmodule NervesHubCore.Accounts do
 
       %User{} = user ->
         user
-        |> User.generate_password_reset_token_changeset()
+        |> change_user(%{password_reset_token: UUID.generate()})
         |> Repo.update()
     end
   end
@@ -377,7 +382,7 @@ defmodule NervesHubCore.Accounts do
     |> case do
       {:ok, user} ->
         user
-        |> User.reset_password_changeset(params)
+        |> User.password_changeset(params)
         |> Repo.update()
 
       {:error, :not_found} ->

@@ -13,6 +13,9 @@ defmodule NervesHubCore.Accounts.User do
 
   @password_min_length 8
 
+  @required_params [:name, :email, :password_hash]
+  @optional_params [:password, :password_reset_token, :password_reset_token_expires]
+
   schema "users" do
     belongs_to(:org, Org)
     has_many(:user_certificates, UserCertificate)
@@ -20,6 +23,7 @@ defmodule NervesHubCore.Accounts.User do
     field(:name, :string)
     field(:email, :string)
     field(:password, :string, virtual: true)
+    field(:password_confirmation, :string, virtual: true)
     field(:password_hash, :string)
     field(:password_reset_token, UUID)
     field(:password_reset_token_expires, :utc_datetime)
@@ -29,76 +33,94 @@ defmodule NervesHubCore.Accounts.User do
 
   def creation_changeset(%User{} = user, params) do
     user
-    |> cast(params, [:name, :email, :password])
-    |> validate_required([:name, :email, :password])
-    |> unique_constraint(:email)
-    |> validate_length(:password, min: @password_min_length)
+    |> cast(params, @required_params ++ @optional_params)
     |> hash_password()
+    |> password_validations()
+    |> validate_required(@required_params)
+    |> unique_constraint(:email)
   end
 
-  def generate_password_reset_token_changeset(%User{} = user) do
+  def password_changeset(%User{} = user, params) do
     user
-    |> change()
-    |> put_change(:password_reset_token, UUID.generate())
+    |> cast(params, [:password, :password_confirmation])
+    |> hash_password()
+    |> password_validations()
+    |> validate_confirmation(:password, message: "does not match", required: true)
+    |> validate_required([:password_hash])
+    |> expire_password_reset_token()
+  end
+
+  def update_changeset(%User{} = user, params) do
+    creation_changeset(user, params)
+    |> generate_password_reset_token_expires()
+    |> email_password_update_valid?(user, params)
+  end
+
+  defp password_validations(%Changeset{} = changeset) do
+    changeset
+    |> validate_length(
+      :password,
+      min: @password_min_length,
+      message: "should be at least %{count} characters"
+    )
+  end
+
+  defp email_password_update_valid?(%Changeset{} = changeset, %User{} = user, %{
+         "current_password" => curr_pass
+       }) do
+    if Bcrypt.checkpw(curr_pass, user.password_hash) do
+      changeset
+    else
+      changeset
+      |> add_error(:current_password, "Current password is incorrect.")
+    end
+  end
+
+  defp email_password_update_valid?(%Changeset{changes: %{password: _}} = changeset, _, _) do
+    changeset
+    |> add_error(
+      :current_password,
+      "You must provide a current password in order to change your email or password."
+    )
+  end
+
+  defp email_password_update_valid?(%Changeset{changes: %{email: _}} = changeset, _, _) do
+    changeset
+    |> add_error(
+      :current_password,
+      "You must provide a current password in order to change your email or password."
+    )
+  end
+
+  defp email_password_update_valid?(%Changeset{} = changeset, _, _), do: changeset
+
+  defp expire_password_reset_token(%Changeset{changes: %{password: _}} = changeset) do
+    changeset |> put_change(:password_reset_token_expires, DateTime.utc_now())
+  end
+
+  defp expire_password_reset_token(%Changeset{} = changeset), do: changeset
+
+  defp generate_password_reset_token_expires(
+         %Changeset{changes: %{password_reset_token: _}} = changeset
+       ) do
+    changeset
     |> put_change(
       :password_reset_token_expires,
       DateTime.utc_now() |> Timex.shift(password_reset_window())
     )
   end
 
-  def reset_password_changeset(%User{} = user, params) do
-    user
-    |> cast(params, [:password])
-    |> validate_required([:password])
-    |> validate_confirmation(:password)
-    |> validate_length(:password, min: @password_min_length)
-    |> hash_password()
-  end
+  defp generate_password_reset_token_expires(%Changeset{} = changeset), do: changeset
 
-  def update_changeset(%User{} = user, params) do
-    changeset =
-      user
-      |> cast(params, [:name, :email, :password])
-      |> unique_constraint(:email)
-      |> hash_password()
+  defp hash_password(%Ecto.Changeset{valid?: true, changes: %{password: password}} = changeset) do
+    password_hash = Bcrypt.hashpwsalt(password)
 
-    changed = fn field -> not (changeset |> get_change(field) |> is_nil()) end
-    password_required = changed.(:password) or changed.(:email)
-    current_password = params["current_password"]
-
-    cond do
-      password_required and (current_password == "" or is_nil(current_password)) ->
-        changeset
-        |> add_error(
-          :current_password,
-          "You must provide a current password in order to change your email or password."
-        )
-
-      password_required and not Bcrypt.checkpw(current_password, user.password_hash) ->
-        changeset
-        |> add_error(:current_password, "Current password is incorrect.")
-
-      changed.(:password) ->
-        changeset
-        |> validate_length(:password, min: @password_min_length)
-
-      true ->
-        changeset
-    end
-  end
-
-  defp hash_password(%Changeset{} = changeset) do
     changeset
-    |> get_field(:password)
-    |> case do
-      nil ->
-        changeset
-
-      password ->
-        password_hash = Bcrypt.hashpwsalt(password)
-        put_change(changeset, :password_hash, password_hash)
-    end
+    |> put_change(:password_hash, password_hash)
+    |> put_change(:password_confirmation, nil)
   end
+
+  defp hash_password(changeset), do: changeset
 
   @doc """
   The time length that a password reset token is valid.

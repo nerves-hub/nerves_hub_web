@@ -52,7 +52,7 @@ defmodule NervesHubWWWWeb.PasswordResetController do
         |> render(
           "new_password_form.html",
           token: user.password_reset_token,
-          changeset: User.reset_password_changeset(user, %{})
+          changeset: User.update_changeset(user, %{})
         )
 
       {:error, :not_found} ->
