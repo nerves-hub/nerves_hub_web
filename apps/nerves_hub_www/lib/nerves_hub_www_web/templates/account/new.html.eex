@@ -10,12 +10,6 @@
   </div>
 
   <div class="form-group">
-    <label for="org_name">Org Name</label>
-    <%= text_input f, :org_name, class: "form-control", id: "org_name" %>
-    <div class="has-error"><%= error_tag f, :org_name %></div>
-  </div>
-
-  <div class="form-group">
     <label for="email">Email</label>
     <%= email_input f, :email, class: "form-control", id: "email" %>
     <div class="has-error"><%= error_tag f, :email %></div>

@@ -114,8 +114,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
           })
         )
 
-      assert html_response(conn, 200) =~
-               "You must provide a current password in order to change your email or password."
+      assert html_response(conn, 200) =~ "Current password is incorrect."
     end
 
     test "fails with incorrect password", %{
@@ -147,7 +146,6 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
           account_path(conn, :create, %{
             "user" => %{
               "name" => "My Name",
-              "org_name" => "a Org",
               "email" => "joe@example.com",
               "password" => "12345678"
             }

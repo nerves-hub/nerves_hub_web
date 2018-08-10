@@ -11,8 +11,9 @@ defmodule NervesHubWWWWeb.AccountController do
     render(conn, "new.html", changeset: %Changeset{data: %User{}})
   end
 
-  def create(conn, params) do
-    params["user"]
+  def create(conn, %{"user" => user_params}) do
+    user_params
+    |> Map.put("org_name", user_params["name"])
     |> Accounts.create_org_with_user()
     |> case do
       {:ok, {_org, _user}} ->
