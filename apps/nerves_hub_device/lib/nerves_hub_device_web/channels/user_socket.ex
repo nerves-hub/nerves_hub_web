@@ -23,16 +23,16 @@ defmodule NervesHubDeviceWeb.UserSocket do
   if Enum.member?(@websocket_auth_methods, :header) do
     @serial_header Application.get_env(:nerves_hub_device, :device_serial_header)
 
-    def connect(%{x_headers: %{@serial_header => serial}}, socket) do
-      build_socket(socket, serial)
+    def connect(_params, %{meta: %{x_headers: %{@serial_header => serial}}} = sock) do
+      build_socket(sock, serial)
     end
   end
 
   if Enum.member?(@websocket_auth_methods, :ssl) do
-    def connect(%{ssl_cert: ssl_cert}, socket) do
+    def connect(_params, %{meta: %{peer_data: %{ssl_cert: ssl_cert}}} = sock) do
       case Certificate.get_common_name(ssl_cert) do
         {:ok, serial} ->
-          build_socket(socket, serial)
+          build_socket(sock, serial)
 
         error ->
           error
