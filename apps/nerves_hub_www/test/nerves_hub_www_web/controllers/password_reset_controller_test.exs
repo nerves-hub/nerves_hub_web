@@ -60,7 +60,9 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
     end
 
     test "with valid params", %{conn: conn, user: user} do
-      params = %{"user" => %{"password" => "new password"}}
+      params = %{
+        "user" => %{"password" => "new password", "password_confirmation" => "new password"}
+      }
 
       token =
         Accounts.update_password_reset_token(user.email)
@@ -73,10 +75,16 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
       # enforce side effect
       {:ok, updated_user} = Accounts.get_user(user.id)
       refute updated_user.password_hash == user.password_hash
+
+      # check token is expired
+      second_params = %{"user" => %{"password" => "newer password"}}
+      put(conn, password_reset_path(conn, :reset, token), second_params)
+      {:ok, second_updated_user} = Accounts.get_user(user.id)
+      assert second_updated_user.password_hash == updated_user.password_hash
     end
 
     test "with invalid params", %{conn: conn, user: user} do
-      params = %{"user" => %{}}
+      params = %{"user" => %{"password" => ""}}
 
       token =
         Accounts.update_password_reset_token(user.email)
