@@ -49,7 +49,7 @@ defmodule NervesHubCore.MixProject do
       {:timex, "~> 3.1"},
       {:plug, "~> 1.6"},
       {:jason, "~> 1.0"},
-      {:phoenix, github: "mobileoverlord/phoenix", branch: "ws_extra_params", override: true},
+      {:phoenix, github: "phoenixframework/phoenix", override: true},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"}
     ]

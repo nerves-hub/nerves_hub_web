@@ -47,7 +47,7 @@ defmodule NervesHubDevice.Mixfile do
     [
       {:jason, "~> 1.0"},
       {:cowboy, "~> 2.0", override: true},
-      {:phoenix, github: "mobileoverlord/phoenix", branch: "ws_extra_params", override: true},
+      {:phoenix, github: "phoenixframework/phoenix", override: true},
       {:phoenix_pubsub, "~> 1.0"},
       {:gettext, "~> 0.11"},
       {:distillery, "~> 1.5"},

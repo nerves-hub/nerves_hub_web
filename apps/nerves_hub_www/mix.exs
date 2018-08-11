@@ -51,8 +51,8 @@ defmodule NervesHubWWW.MixProject do
   defp deps do
     [
       {:plug, "~> 1.6"},
-      {:phoenix, github: "mobileoverlord/phoenix", branch: "ws_extra_params", override: true},
-      {:phoenix_pubsub, "~> 1.0"},
+      {:phoenix, github: "phoenixframework/phoenix", override: true},
+      {:phoenix_pubsub, "~> 1.1"},
       {:phoenix_ecto, github: "phoenixframework/phoenix_ecto"},
       {:phoenix_html, "~> 2.10"},
       {:phoenix_live_reload,
