@@ -8,7 +8,7 @@ defmodule NervesHubWWWWeb.Plugs.FetchProduct do
   end
 
   def call(%{params: %{"product_id" => product_id}} = conn, _opts) do
-    with {:ok, product} <- Products.get_product_with_tenant(conn.assigns.tenant, product_id) do
+    with {:ok, product} <- Products.get_product_with_org(conn.assigns.org, product_id) do
       conn
       |> assign(:product, product)
     else

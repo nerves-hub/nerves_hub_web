@@ -6,26 +6,24 @@ defmodule NervesHubCore.DeploymentsTest do
   alias NervesHubCore.Deployments
   alias Ecto.Changeset
 
-  @endpoint NervesHubDeviceWeb.Endpoint
-
   setup do
-    tenant = Fixtures.tenant_fixture()
-    product = Fixtures.product_fixture(tenant)
-    tenant_key = Fixtures.tenant_key_fixture(tenant)
-    firmware = Fixtures.firmware_fixture(tenant_key, product)
+    org = Fixtures.org_fixture()
+    product = Fixtures.product_fixture(org)
+    org_key = Fixtures.org_key_fixture(org)
+    firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(firmware)
 
     {:ok,
      %{
-       tenant: tenant,
-       tenant_key: tenant_key,
+       org: org,
+       org_key: org_key,
        firmware: firmware,
        deployment: deployment,
        product: product
      }}
   end
 
-  test 'create_deployment with valid parameters', %{
+  test "create_deployment with valid parameters", %{
     firmware: firmware
   } do
     params = %{
@@ -45,7 +43,7 @@ defmodule NervesHubCore.DeploymentsTest do
     end
   end
 
-  test 'create_deployment with invalid parameters' do
+  test "create_deployment with invalid parameters" do
     params = %{
       name: "my deployment",
       conditions: %{
@@ -60,14 +58,14 @@ defmodule NervesHubCore.DeploymentsTest do
 
   describe "update_deployment" do
     test "updates correct devices", %{
-      tenant: tenant,
-      tenant_key: tenant_key,
+      org: org,
+      org_key: org_key,
       firmware: firmware,
       deployment: old_deployment,
       product: product
     } do
-      device = Fixtures.device_fixture(tenant, firmware, old_deployment)
-      new_firmware = Fixtures.firmware_fixture(tenant_key, product, %{version: "1.0.1"})
+      device = Fixtures.device_fixture(org, firmware, old_deployment)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
       params = %{
         firmware_id: new_firmware.id,
@@ -80,7 +78,7 @@ defmodule NervesHubCore.DeploymentsTest do
       }
 
       device_topic = "device:#{device.identifier}"
-      @endpoint.subscribe(device_topic)
+      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, device_topic)
 
       {:ok, _deployment} =
         Deployments.create_deployment(params)
@@ -91,8 +89,8 @@ defmodule NervesHubCore.DeploymentsTest do
     end
 
     test "does not update incorrect devices", %{
-      tenant: tenant,
-      tenant_key: tenant_key,
+      org: org,
+      org_key: org_key,
       firmware: firmware,
       deployment: old_deployment,
       product: product
@@ -105,8 +103,8 @@ defmodule NervesHubCore.DeploymentsTest do
       ]
 
       for {f_params, d_params} <- incorrect_params do
-        device = Fixtures.device_fixture(tenant, firmware, old_deployment, d_params)
-        new_firmware = Fixtures.firmware_fixture(tenant_key, product, f_params)
+        device = Fixtures.device_fixture(org, firmware, old_deployment, d_params)
+        new_firmware = Fixtures.firmware_fixture(org_key, product, f_params)
 
         params = %{
           firmware_id: new_firmware.id,
@@ -119,7 +117,7 @@ defmodule NervesHubCore.DeploymentsTest do
         }
 
         device_topic = "device:#{device.identifier}"
-        @endpoint.subscribe(device_topic)
+        Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, device_topic)
 
         {:ok, _deployment} =
           Deployments.create_deployment(params)

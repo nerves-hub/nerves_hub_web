@@ -1,5 +1,5 @@
-defmodule NervesHubWWW.ProductsTest do
-  use NervesHubWWW.DataCase
+defmodule NervesHubCore.ProductsTest do
+  use NervesHubCore.DataCase
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Products
@@ -12,23 +12,23 @@ defmodule NervesHubWWW.ProductsTest do
     @invalid_attrs %{name: nil}
 
     setup do
-      tenant = Fixtures.tenant_fixture()
-      product = Fixtures.product_fixture(tenant, %{name: "a product"})
+      org = Fixtures.org_fixture()
+      product = Fixtures.product_fixture(org, %{name: "a product"})
 
-      {:ok, %{product: product, tenant: tenant}}
+      {:ok, %{product: product, org: org}}
     end
 
-    test "list_products/0 returns all products", %{product: product, tenant: tenant} do
-      assert Products.list_products(tenant) == [product]
+    test "list_products/0 returns all products", %{product: product, org: org} do
+      assert Products.list_products(org) == [product]
     end
 
     test "get_product!/1 returns the product with given id", %{product: product} do
       assert Products.get_product!(product.id) == product
     end
 
-    test "create_product/1 with valid data creates a product", %{tenant: tenant} do
+    test "create_product/1 with valid data creates a product", %{org: org} do
       assert {:ok, %Product{} = product} =
-               %{tenant_id: tenant.id}
+               %{org_id: org.id}
                |> Enum.into(@valid_attrs)
                |> Products.create_product()
 
@@ -39,14 +39,14 @@ defmodule NervesHubWWW.ProductsTest do
       assert {:error, %Ecto.Changeset{}} = Products.create_product(@invalid_attrs)
     end
 
-    test "create_product/1 fails with duplicate names", %{tenant: tenant} do
+    test "create_product/1 fails with duplicate names", %{org: org} do
       {:ok, _product} =
-        %{tenant_id: tenant.id}
+        %{org_id: org.id}
         |> Enum.into(%{name: "same name"})
         |> Products.create_product()
 
       assert {:error, %Ecto.Changeset{}} =
-               %{tenant_id: tenant.id}
+               %{org_id: org.id}
                |> Enum.into(%{name: "same name"})
                |> Products.create_product()
     end

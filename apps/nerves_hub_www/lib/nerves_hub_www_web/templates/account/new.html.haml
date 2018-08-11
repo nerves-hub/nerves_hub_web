@@ -14,9 +14,9 @@
 
       .form-group.text-left
         %label{for: "tenant_name"}
-          Tenant Name
-        = text_input f, :tenant_name, class: "form-control", id: "name_input"
-        = error_tag f, :tenant_name
+          Organization Name
+        = text_input f, :org_name, class: "form-control", id: "name_input"
+        = error_tag f, :org_name
 
       .form-group.text-left
         %label{for: "email"}

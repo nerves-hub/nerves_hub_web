@@ -22,7 +22,7 @@ defmodule NervesHubWWWWeb.Plugs.EnsureLoggedIn do
       {:ok, user} ->
         conn
         |> assign(:user, user)
-        |> assign(:tenant, user.tenant)
+        |> assign(:org, user.org)
 
       _ ->
         conn

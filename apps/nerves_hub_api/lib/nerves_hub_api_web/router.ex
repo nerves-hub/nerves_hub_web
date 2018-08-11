@@ -2,20 +2,30 @@ defmodule NervesHubAPIWeb.Router do
   use NervesHubAPIWeb, :router
 
   pipeline :api do
-    plug :accepts, ["json"]
-    plug NervesHubAPIWeb.Plugs.User
-    plug NervesHubCore.Plugs.Product
+    plug(:accepts, ["json"])
+  end
+
+  pipeline :authenticated do
+    plug(NervesHubAPIWeb.Plugs.User)
+    plug(NervesHubCore.Plugs.Product)
+  end
+
+  scope "/users", NervesHubAPIWeb do
+    pipe_through(:api)
+
+    post("/register", UserController, :register)
   end
 
   scope "/", NervesHubAPIWeb do
-    pipe_through :api
+    pipe_through(:api)
+    pipe_through(:authenticated)
 
     scope "/users" do
-      get "/me", UserController, :me
+      get("/me", UserController, :me)
     end
-    
-    post "/firmwares", FirmwareController, :create
-    
+
+    post("/firmwares", FirmwareController, :create)
+
     scope "/firmwares" do
       get("/", FirmwareController, :index)
       get("/:uuid", FirmwareController, :show)

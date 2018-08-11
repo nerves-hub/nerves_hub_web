@@ -3,8 +3,8 @@ defmodule NervesHubWWWWeb.DashboardController do
 
   alias NervesHubCore.Products
 
-  def index(%{assigns: %{tenant: tenant}} = conn, _params) do
-    products = Products.list_products(tenant)
+  def index(%{assigns: %{org: org}} = conn, _params) do
+    products = Products.list_products(org)
     conn
     |> render("index.html", products: products, conn: conn)
   end

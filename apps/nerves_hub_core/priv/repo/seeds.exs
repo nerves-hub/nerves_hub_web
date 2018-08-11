@@ -15,17 +15,17 @@
 # has been run yet.
 
 alias NervesHubCore.{Repo, Accounts}
-alias NervesHubCore.Accounts.{Tenant, User}
+alias NervesHubCore.Accounts.{Org, User}
 
-# Create the root tenant
-root_tenant_name = "nerves-hub"
+# Create the root org
+root_org_name = "nerves-hub"
 
-root_tenant =
-  if root_tenant = Repo.get_by(Tenant, name: root_tenant_name) do
-    root_tenant
+root_org =
+  if root_org = Repo.get_by(Org, name: root_org_name) do
+    root_org
   else
-    {:ok, root_tenant} = Accounts.create_tenant(%{name: root_tenant_name})
-    root_tenant
+    {:ok, root_org} = Accounts.create_org(%{name: root_org_name})
+    root_org
   end
 
 # Add a default user
@@ -34,7 +34,7 @@ root_user_email = "nerveshub@nerves-hub.org"
 if root_user = Repo.get_by(User, email: root_user_email) do
   root_user
 else
-  Accounts.create_user(root_tenant, %{
+  Accounts.create_user(root_org, %{
     name: "nerveshub",
     email: root_user_email,
     password: "nerveshub"

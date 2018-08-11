@@ -7,17 +7,12 @@ defmodule NervesHubCore.Products do
   alias NervesHubCore.Repo
 
   alias NervesHubCore.Products.Product
-  alias NervesHubCore.Accounts.Tenant
+  alias NervesHubCore.Accounts.Org
 
-  @doc """
-  Gets all products for a given tenant.
-  """
-  def list_products(%Tenant{id: tenant_id}) do
-    from(
-      p in Product,
-      where: p.tenant_id == ^tenant_id,
-      order_by: [desc: p.id]
-    )
+  def list_products(%Org{id: org_id}) do
+    query = from(p in Product, where: p.org_id == ^org_id)
+
+    query
     |> Repo.all()
   end
 
@@ -37,18 +32,18 @@ defmodule NervesHubCore.Products do
   """
   def get_product!(id), do: Repo.get!(Product, id)
 
-  def get_product_with_tenant(%Tenant{} = tenant, id) do
+  def get_product_with_org(%Org{} = org, id) do
     Product
-    |> Repo.get_by(id: id, tenant_id: tenant.id)
+    |> Repo.get_by(id: id, org_id: org.id)
     |> case do
       nil -> {:error, :not_found}
       product -> {:ok, product}
     end
   end
 
-  def get_product_by_tenant_id_and_name(tenant_id, name) do
+  def get_product_by_org_id_and_name(org_id, name) do
     Product
-    |> Repo.get_by(tenant_id: tenant_id, name: name)
+    |> Repo.get_by(org_id: org_id, name: name)
     |> case do
       nil -> {:error, :not_found}
       product -> {:ok, product}

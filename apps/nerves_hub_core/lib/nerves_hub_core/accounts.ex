@@ -1,29 +1,29 @@
 defmodule NervesHubCore.Accounts do
   import Ecto.Query
   alias Ecto.Changeset
-  alias NervesHubCore.Accounts.{Tenant, User, UserCertificate, Invite, TenantKey}
+  alias NervesHubCore.Accounts.{Org, User, UserCertificate, Invite, OrgKey}
   alias NervesHubCore.Repo
   alias Comeonin.Bcrypt
 
-  @spec create_tenant(map) ::
-          {:ok, Tenant.t()}
+  @spec create_org(map) ::
+          {:ok, Org.t()}
           | {:error, Changeset.t()}
-  def create_tenant(params) do
-    %Tenant{}
-    |> Tenant.changeset(params)
+  def create_org(params) do
+    %Org{}
+    |> Org.changeset(params)
     |> Repo.insert()
   end
 
   @doc """
-  Create a tenant. Expects `params` to contain fields for both the user and tenant.
+  Create a org. Expects `params` to contain fields for both the user and org.
   """
-  @spec create_tenant_with_user(map) ::
-          {:ok, Tenant.t()}
+  @spec create_org_with_user(map) ::
+          {:ok, Org.t()}
           | {:error, Changeset.t()}
-  def create_tenant_with_user(params) do
+  def create_org_with_user(params) do
     types = %{
       name: :string,
-      tenant_name: :string,
+      org_name: :string,
       email: :string,
       password: :string
     }
@@ -33,7 +33,7 @@ defmodule NervesHubCore.Accounts do
       |> Changeset.cast(params, Map.keys(types))
       |> Changeset.validate_required([
         :name,
-        :tenant_name,
+        :org_name,
         :email,
         :password
       ])
@@ -47,18 +47,19 @@ defmodule NervesHubCore.Accounts do
         {:error, changeset}
 
       %Changeset{valid?: true} = changeset ->
-        do_create_tenant_with_user(changeset)
+        do_create_org_with_user(changeset)
     end
   end
 
-  @spec do_create_tenant_with_user(Changeset.t()) ::
-          {:ok, {Tenant.t(), User.t()}}
-          | {:error, Changeset.t()}
-  defp do_create_tenant_with_user(tenant_user_changeset) do
-    field = fn field_name -> Changeset.get_field(tenant_user_changeset, field_name) end
 
-    tenant_params = %{
-      name: field.(:tenant_name)
+  @spec do_create_org_with_user(Changeset.t()) ::
+          {:ok, Org.t()}
+          | {:error, Changeset.t()}
+  defp do_create_org_with_user(org_user_changeset) do
+    field = fn field_name -> Changeset.get_field(org_user_changeset, field_name) end
+
+    org_params = %{
+      name: field.(:org_name)
     }
 
     user_params = %{
@@ -68,14 +69,14 @@ defmodule NervesHubCore.Accounts do
     }
 
     Repo.transaction(fn ->
-      with {:ok, tenant} <- create_tenant(tenant_params),
-           {:ok, user} <- create_user(tenant, user_params) do
-        {tenant, user}
+      with {:ok, org} <- create_org(org_params),
+           {:ok, user} <- create_user(org, user_params) do
+        {org, user}
       else
         {:error, changeset} ->
           # Merge errors into original changeset
           changeset.errors
-          |> Enum.reduce(tenant_user_changeset, fn {key, {message, data}}, changeset ->
+          |> Enum.reduce(org_user_changeset, fn {key, {message, data}}, changeset ->
             Changeset.add_error(changeset, key, message, data)
           end)
           |> Repo.rollback()
@@ -83,11 +84,11 @@ defmodule NervesHubCore.Accounts do
     end)
   end
 
-  @spec create_user(Tenant.t(), map) ::
+  @spec create_user(Org.t(), map) ::
           {:ok, User.t()}
           | {:error, Changeset.t()}
-  def create_user(%Tenant{} = tenant, params) do
-    tenant
+  def create_user(%Org{} = org, params) do
+    org
     |> Ecto.build_assoc(:users)
     |> User.creation_changeset(params)
     |> Repo.insert()
@@ -135,9 +136,9 @@ defmodule NervesHubCore.Accounts do
     query =
       from(
         u in User,
-        join: t in assoc(u, :tenant),
+        join: t in assoc(u, :org),
         where: u.id == ^user_id,
-        preload: [tenant: {t, :tenant_keys}]
+        preload: [org: {t, :org_keys}]
       )
 
     query
@@ -210,48 +211,48 @@ defmodule NervesHubCore.Accounts do
     end
   end
 
-  @spec get_tenant(integer()) ::
-          {:ok, Tenant.t()}
+  @spec get_org(integer()) ::
+          {:ok, Org.t()}
           | {:error, :not_found}
-  def get_tenant(id) do
-    Tenant
+  def get_org(id) do
+    Org
     |> Repo.get(id)
     |> case do
       nil -> {:error, :not_found}
-      tenant -> {:ok, tenant}
+      org -> {:ok, org}
     end
   end
 
-  @spec update_tenant(Tenant.t(), map) ::
-          {:ok, Tenant.t()}
+  @spec update_org(Org.t(), map) ::
+          {:ok, Org.t()}
           | {:error, Changeset.t()}
-  def update_tenant(%Tenant{} = tenant, attrs) do
-    tenant
-    |> Tenant.changeset(attrs)
+  def update_org(%Org{} = org, attrs) do
+    org
+    |> Org.changeset(attrs)
     |> Repo.update()
   end
 
-  @spec create_tenant_key(map) ::
-          {:ok, TenantKey.t()}
+  @spec create_org_key(map) ::
+          {:ok, OrgKey.t()}
           | {:error, Changeset.t()}
-  def create_tenant_key(attrs) do
-    %TenantKey{}
-    |> change_tenant_key(attrs)
+  def create_org_key(attrs) do
+    %OrgKey{}
+    |> change_org_key(attrs)
     |> Repo.insert()
   end
 
-  def list_tenant_keys(%Tenant{id: tenant_id}) do
-    query = from(tk in TenantKey, where: tk.tenant_id == ^tenant_id)
+  def list_org_keys(%Org{id: org_id}) do
+    query = from(tk in OrgKey, where: tk.org_id == ^org_id)
 
     query
     |> Repo.all()
   end
 
-  def get_tenant_key(%Tenant{id: tenant_id}, tk_id) do
+  def get_org_key(%Org{id: org_id}, tk_id) do
     query =
       from(
-        tk in TenantKey,
-        where: tk.tenant_id == ^tenant_id,
+        tk in OrgKey,
+        where: tk.org_id == ^org_id,
         where: tk.id == ^tk_id
       )
 
@@ -263,37 +264,37 @@ defmodule NervesHubCore.Accounts do
     end
   end
 
-  def update_tenant_key(%TenantKey{} = tenant_key, params) do
-    tenant_key
-    |> change_tenant_key(params)
+  def update_org_key(%OrgKey{} = org_key, params) do
+    org_key
+    |> change_org_key(params)
     |> Repo.update()
   end
 
-  def delete_tenant_key(%TenantKey{} = tenant_key) do
-    Repo.delete(tenant_key)
+  def delete_org_key(%OrgKey{} = org_key) do
+    Repo.delete(org_key)
   end
 
-  def change_tenant_key(%TenantKey{id: nil} = tenant_key) do
-    TenantKey.changeset(tenant_key, %{})
+  def change_org_key(%OrgKey{id: nil} = org_key) do
+    OrgKey.changeset(org_key, %{})
   end
 
-  def change_tenant_key(%TenantKey{id: _id} = tenant_key) do
-    TenantKey.update_changeset(tenant_key, %{})
+  def change_org_key(%OrgKey{id: _id} = org_key) do
+    OrgKey.update_changeset(org_key, %{})
   end
 
-  def change_tenant_key(%TenantKey{id: nil} = tenant_key, params) do
-    TenantKey.changeset(tenant_key, params)
+  def change_org_key(%OrgKey{id: nil} = org_key, params) do
+    OrgKey.changeset(org_key, params)
   end
 
-  def change_tenant_key(%TenantKey{id: _id} = tenant_key, params) do
-    TenantKey.update_changeset(tenant_key, params)
+  def change_org_key(%OrgKey{id: _id} = org_key, params) do
+    OrgKey.update_changeset(org_key, params)
   end
 
-  @spec invite(%{name: String.t(), email: String.t()}, Tenant.t()) ::
+  @spec invite(%{name: String.t(), email: String.t()}, Org.t()) ::
           {:ok, Invite.t()}
           | {:error, Changeset.t()}
-  def invite(params, tenant) do
-    params = Map.merge(params, %{"tenant_id" => tenant.id, "token" => Ecto.UUID.generate()})
+  def invite(params, org) do
+    params = Map.merge(params, %{"org_id" => org.id, "token" => Ecto.UUID.generate()})
 
     %Invite{}
     |> Invite.changeset(params)
@@ -320,14 +321,14 @@ defmodule NervesHubCore.Accounts do
     end
   end
 
-  @spec create_user_from_invite(Invite.t(), Tenant.t(), map) ::
+  @spec create_user_from_invite(Invite.t(), Org.t(), map) ::
           {:ok, User.t()}
           | {:error}
-  def create_user_from_invite(invite, tenant, user_params) do
+  def create_user_from_invite(invite, org, user_params) do
     user_params = %{user_params | "email" => invite.email}
 
     Repo.transaction(fn ->
-      with {:ok, user} <- create_user(tenant, user_params),
+      with {:ok, user} <- create_user(org, user_params),
            {:ok, _invite} <- set_invite_accepted(invite) do
         {:ok, user}
       else

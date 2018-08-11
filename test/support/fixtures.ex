@@ -1,8 +1,13 @@
+Code.compiler_options(ignore_module_conflict: true)
 defmodule NervesHubCore.Fixtures do
   alias NervesHubCore.{Firmwares, Accounts, Devices, Deployments, Products}
 
-  @tenant_params %{name: "Test Tenant"}
-  @tenant_key_params %{
+  @after_compile {__MODULE__, :compiler_options}
+
+  def compiler_options(_, _), do: Code.compiler_options(ignore_module_conflict: false)
+
+  @org_params %{name: "Test Org"}
+  @org_key_params %{
     name: "Test Key"
   }
   @firmware_params %{
@@ -27,7 +32,7 @@ defmodule NervesHubCore.Fixtures do
   @product_params %{name: "valid product"}
   @user_params %{
     name: "Testy McTesterson",
-    tenant_name: "mctesterson.com",
+    org_name: "mctesterson.com",
     email: "testy@mctesterson.com",
     password: "test_password"
   }
@@ -36,32 +41,32 @@ defmodule NervesHubCore.Fixtures do
     serial: "158098897653878678601091983566405937658689714637"
   }
 
-  def tenant_fixture(params \\ %{}) do
-    {:ok, tenant} =
+  def org_fixture(params \\ %{}) do
+    {:ok, org} =
       params
-      |> Enum.into(@tenant_params)
-      |> Accounts.create_tenant()
+      |> Enum.into(@org_params)
+      |> Accounts.create_org()
 
-    tenant
+    org
   end
 
-  def tenant_key_fixture(%Accounts.Tenant{} = tenant, params \\ %{}) do
-    {:ok, tenant_key} =
-      %{tenant_id: tenant.id}
+  def org_key_fixture(%Accounts.Org{} = org, params \\ %{}) do
+    {:ok, org_key} =
+      %{org_id: org.id}
       |> Enum.into(params)
-      |> Enum.into(@tenant_key_params)
+      |> Enum.into(@org_key_params)
       |> Enum.into(%{key: Ecto.UUID.generate()})
-      |> Accounts.create_tenant_key()
+      |> Accounts.create_org_key()
 
-    tenant_key
+    org_key
   end
 
-  def user_fixture(%Accounts.Tenant{} = tenant, params \\ %{}) do
+  def user_fixture(%Accounts.Org{} = org, params \\ %{}) do
     user_params =
       params
       |> Enum.into(@user_params)
 
-    {:ok, user} = Accounts.create_user(tenant, user_params)
+    {:ok, user} = Accounts.create_user(org, user_params)
     {:ok, _certificate} = Accounts.create_user_certificate(user, @user_certificate_params)
     user
   end
@@ -77,9 +82,9 @@ defmodule NervesHubCore.Fixtures do
 
   def product_fixture(a, params \\ %{})
 
-  def product_fixture(%Accounts.Tenant{} = tenant, params) do
+  def product_fixture(%Accounts.Org{} = org, params) do
     {:ok, product} =
-      %{tenant_id: tenant.id}
+      %{org_id: org.id}
       |> Enum.into(params)
       |> Enum.into(@product_params)
       |> Products.create_product()
@@ -87,9 +92,9 @@ defmodule NervesHubCore.Fixtures do
     product
   end
 
-  def product_fixture(%{assigns: %{tenant: tenant}}, params) do
+  def product_fixture(%{assigns: %{org: org}}, params) do
     {:ok, product} =
-      %{tenant_id: tenant.id}
+      %{org_id: org.id}
       |> Enum.into(params)
       |> Enum.into(@product_params)
       |> Products.create_product()
@@ -98,12 +103,12 @@ defmodule NervesHubCore.Fixtures do
   end
 
   def firmware_fixture(
-        %Accounts.TenantKey{} = tenant_key,
+        %Accounts.OrgKey{} = org_key,
         %Products.Product{} = product,
         params \\ %{}
       ) do
     {:ok, firmware} =
-      %{tenant_key_id: tenant_key.id, product_id: product.id}
+      %{org_key_id: org_key.id, product_id: product.id}
       |> Enum.into(params)
       |> Enum.into(@firmware_params)
       |> Enum.into(%{uuid: Ecto.UUID.generate()})
@@ -126,14 +131,14 @@ defmodule NervesHubCore.Fixtures do
   end
 
   def device_fixture(
-        %Accounts.Tenant{} = tenant,
+        %Accounts.Org{} = org,
         %Firmwares.Firmware{} = firmware,
         %Deployments.Deployment{} = deployment,
         params \\ %{}
       ) do
     {:ok, device} =
       %{
-        tenant_id: tenant.id,
+        org_id: org.id,
         target_deployment_id: deployment.id,
         last_known_firmware_id: firmware.id,
         tags: deployment.conditions["tags"]
@@ -146,18 +151,18 @@ defmodule NervesHubCore.Fixtures do
   end
 
   def very_fixture() do
-    tenant = tenant_fixture(%{name: "Very"})
-    user = user_fixture(tenant, %{name: "Jeff"})
-    product = product_fixture(tenant, %{name: "Hop"})
-    tenant_key = tenant_key_fixture(tenant)
-    firmware = firmware_fixture(tenant_key, product)
+    org = org_fixture(%{name: "Very"})
+    user = user_fixture(org, %{name: "Jeff"})
+    product = product_fixture(org, %{name: "Hop"})
+    org_key = org_key_fixture(org)
+    firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
-    device = device_fixture(tenant, firmware, deployment)
+    device = device_fixture(org, firmware, deployment)
 
     %{
-      tenant: tenant,
+      org: org,
       device: device,
-      tenant_key: tenant_key,
+      org_key: org_key,
       user: user,
       firmware: firmware,
       deployment: deployment,
@@ -166,17 +171,17 @@ defmodule NervesHubCore.Fixtures do
   end
 
   def smartrent_fixture() do
-    tenant = tenant_fixture(%{name: "Smart Rent"})
-    product = product_fixture(tenant, %{name: "Smart Rent Thing"})
-    tenant_key = tenant_key_fixture(tenant)
-    firmware = firmware_fixture(tenant_key, product)
+    org = org_fixture(%{name: "Smart Rent"})
+    product = product_fixture(org, %{name: "Smart Rent Thing"})
+    org_key = org_key_fixture(org)
+    firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
 
-    device = device_fixture(tenant, firmware, deployment, %{identifier: "smartrent_1234"})
+    device = device_fixture(org, firmware, deployment, %{identifier: "smartrent_1234"})
 
     %{
-      tenant: tenant,
-      tenant_key: tenant_key,
+      org: org,
+      org_key: org_key,
       device: device,
       firmware: firmware,
       deployment: deployment,

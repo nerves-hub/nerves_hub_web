@@ -5,29 +5,37 @@ defmodule NervesHubAPIWeb.Endpoint do
   #
   # You should set gzip to true if you are running phoenix.digest
   # when deploying your static files in production.
-  plug Plug.Static,
-    at: "/", from: :nerves_hub_api, gzip: false,
+  plug(
+    Plug.Static,
+    at: "/",
+    from: :nerves_hub_api,
+    gzip: false,
     only: ~w(css fonts images js favicon.ico robots.txt)
+  )
 
-  plug Plug.Logger
+  plug(Plug.Logger)
 
-  plug Plug.Parsers,
+  plug(
+    Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
     json_decoder: Jason
+  )
 
-  plug Plug.MethodOverride
-  plug Plug.Head
+  plug(Plug.MethodOverride)
+  plug(Plug.Head)
 
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
-  plug Plug.Session,
+  plug(
+    Plug.Session,
     store: :cookie,
     key: "_nerves_hub_api_key",
     signing_salt: "WVt9MTK1"
+  )
 
-  plug NervesHubAPIWeb.Router
+  plug(NervesHubAPIWeb.Router)
 
   @doc """
   Callback invoked for dynamically configuring the endpoint.

@@ -5,7 +5,7 @@ defmodule NervesHubWWWWeb.DeviceController do
   alias NervesHubCore.Devices.Device
   alias Ecto.Changeset
 
-  def index(%{assigns: %{tenant: _tenant, product: product}} = conn, _params) do
+  def index(%{assigns: %{org: _org, product: product}} = conn, _params) do
     conn
     |> render(
       "index.html",
@@ -13,15 +13,15 @@ defmodule NervesHubWWWWeb.DeviceController do
     )
   end
 
-  def index(%{assigns: %{tenant: tenant}} = conn, _params) do
+  def index(%{assigns: %{org: org}} = conn, _params) do
     conn
     |> render(
       "index.html",
-      devices: Devices.get_devices(tenant)
+      devices: Devices.get_devices(org)
     )
   end
 
-  def new(%{assigns: %{tenant: _tenant}} = conn, _params) do
+  def new(%{assigns: %{org: _org}} = conn, _params) do
     conn
     |> render(
       "new.html",
@@ -29,15 +29,15 @@ defmodule NervesHubWWWWeb.DeviceController do
     )
   end
 
-  # def new(%{assigns: %{tenant: _tenant}} = conn, _params) do
+  # def new(%{assigns: %{org: _org}} = conn, _params) do
   # conn
   # |> redirect(to: dashboard_path(conn, :index))
   # end
 
-  def create(%{assigns: %{tenant: tenant}} = conn, %{"device" => params}) do
+  def create(%{assigns: %{org: org}} = conn, %{"device" => params}) do
     params
     |> tags_to_list()
-    |> Map.put("tenant_id", tenant.id)
+    |> Map.put("org_id", org.id)
     |> Devices.create_device()
     |> case do
       {:ok, _device} ->
@@ -50,16 +50,16 @@ defmodule NervesHubWWWWeb.DeviceController do
     end
   end
 
-  def show(%{assigns: %{tenant: tenant}} = conn, %{
+  def show(%{assigns: %{org: org}} = conn, %{
         "id" => id
       }) do
-    {:ok, device} = Devices.get_device(tenant, id)
+    {:ok, device} = Devices.get_device(org, id)
 
     render(conn, "show.html", device: device)
   end
 
-  def edit(%{assigns: %{tenant: tenant}} = conn, %{"id" => id}) do
-    {:ok, device} = Devices.get_device(tenant, id)
+  def edit(%{assigns: %{org: org}} = conn, %{"id" => id}) do
+    {:ok, device} = Devices.get_device(org, id)
 
     conn
     |> render(
@@ -69,11 +69,11 @@ defmodule NervesHubWWWWeb.DeviceController do
     )
   end
 
-  def update(%{assigns: %{tenant: tenant}} = conn, %{
+  def update(%{assigns: %{org: org}} = conn, %{
         "id" => id,
         "device" => params
       }) do
-    {:ok, device} = Devices.get_device(tenant, id)
+    {:ok, device} = Devices.get_device(org, id)
 
     device
     |> Devices.update_device(params |> tags_to_list())

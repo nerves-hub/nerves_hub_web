@@ -30,7 +30,6 @@ defmodule NervesHubAPIWeb.ConnCase do
     end
   end
 
-
   setup tags do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHubCore.Repo)
 
@@ -38,13 +37,12 @@ defmodule NervesHubAPIWeb.ConnCase do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHubCore.Repo, {:shared, self()})
     end
 
-    tenant = Fixtures.tenant_fixture()
-    user = Fixtures.user_fixture(tenant)
-    product = Fixtures.product_fixture(tenant, %{name: "starter"})
+    org = Fixtures.org_fixture()
+    user = Fixtures.user_fixture(org)
+    product = Fixtures.product_fixture(org, %{name: "starter"})
 
-    {:ok, conn: build_auth_conn(), tenant: tenant, user: user, product: product}
+    {:ok, conn: build_auth_conn(), org: org, user: user, product: product}
   end
-
 
   def build_auth_conn() do
     Phoenix.ConnTest.build_conn()

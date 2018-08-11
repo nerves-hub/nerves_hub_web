@@ -4,8 +4,9 @@ defmodule NervesHubCore.Devices.Device do
   import Ecto.Changeset
   import Ecto.Query
 
-  alias NervesHubCore.Accounts.Tenant
+  alias NervesHubCore.Accounts.Org
   alias NervesHubCore.Firmwares.Firmware
+  alias NervesHubCore.Devices.DeviceCertificate
 
   alias __MODULE__
 
@@ -16,11 +17,13 @@ defmodule NervesHubCore.Devices.Device do
     :description,
     :tags
   ]
-  @required_params [:tenant_id, :identifier]
+  @required_params [:org_id, :identifier]
 
   schema "devices" do
-    belongs_to(:tenant, Tenant)
+    belongs_to(:org, Org)
     belongs_to(:last_known_firmware, Firmware)
+
+    has_many(:device_certificates, DeviceCertificate)
 
     field(:identifier, :string)
     field(:description, :string)
@@ -35,7 +38,7 @@ defmodule NervesHubCore.Devices.Device do
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
-    |> unique_constraint(:identifier, name: :devices_tenant_id_identifier_index)
+    |> unique_constraint(:identifier, name: :devices_org_id_identifier_index)
   end
 
   def with_firmware(device_query) do
@@ -43,8 +46,8 @@ defmodule NervesHubCore.Devices.Device do
     |> preload(:last_known_firmware)
   end
 
-  def with_tenant(device_query) do
+  def with_org(device_query) do
     device_query
-    |> preload(:tenant)
+    |> preload(:org)
   end
 end

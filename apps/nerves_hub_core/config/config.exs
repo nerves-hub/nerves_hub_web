@@ -5,4 +5,9 @@ use Mix.Config
 config :nerves_hub_core,
   ecto_repos: [NervesHubCore.Repo]
 
-import_config "#{Mix.env}.exs"
+config :nerves_hub_core, NervesHubWeb.PubSub,
+  name: NervesHubWeb.PubSub,
+  adapter: Phoenix.PubSub.PG2,
+  fastlane: Phoenix.Channel.Server
+
+import_config "#{Mix.env()}.exs"

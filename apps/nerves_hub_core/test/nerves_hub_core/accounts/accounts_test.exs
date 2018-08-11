@@ -7,59 +7,59 @@ defmodule NervesHubCore.AccountsTest do
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Repo
 
-  @required_tenant_params %{name: "Tenant"}
+  @required_org_params %{name: "Org"}
 
-  test "create_tenant with required params" do
-    {:ok, %Accounts.Tenant{} = result_tenant} = Accounts.create_tenant(@required_tenant_params)
+  test "create_org with required params" do
+    {:ok, %Accounts.Org{} = result_org} = Accounts.create_org(@required_org_params)
 
-    assert result_tenant.name == @required_tenant_params.name
+    assert result_org.name == @required_org_params.name
   end
 
-  test "create_tenant without required params" do
-    assert {:error, %Changeset{}} = Accounts.create_tenant(%{})
+  test "create_org without required params" do
+    assert {:error, %Changeset{}} = Accounts.create_org(%{})
   end
 
-  test "create_tenant_with_user with valid params" do
+  test "create_org_with_user with valid params" do
     params = %{
       name: "Testy McTesterson",
-      tenant_name: "mctesterson.com",
+      org_name: "mctesterson.com",
       email: "testy@mctesterson.com",
       password: "test_password"
     }
 
-    target_tenant = %Accounts.Tenant{name: params.tenant_name}
-    {:ok, %Accounts.Tenant{} = result_tenant} = Accounts.create_tenant_with_user(params)
+    target_org = %Accounts.Org{name: params.org_name}
+    {:ok, {%Accounts.Org{} = result_org, _user}} = Accounts.create_org_with_user(params)
 
-    [user | _] = result_tenant |> Repo.preload(:users) |> Map.get(:users)
+    [user | _] = result_org |> Repo.preload(:users) |> Map.get(:users)
 
-    assert result_tenant.name == target_tenant.name
+    assert result_org.name == target_org.name
     assert user.name == params.name
   end
 
-  test "create_tenant_with_user with missing params" do
+  test "create_org_with_user with missing params" do
     params = %{
       name: "Testy McTesterson",
       email: "testy@mctesterson.com",
       password: "test_password"
     }
 
-    assert {:error, %Changeset{}} = Accounts.create_tenant_with_user(params)
+    assert {:error, %Changeset{}} = Accounts.create_org_with_user(params)
   end
 
-  test "create_tenant_with_user_with_certificate with valid params" do
+  test "create_org_with_user_with_certificate with valid params" do
     params = %{
       name: "Testy McTesterson",
-      tenant_name: "mctesterson.com",
+      org_name: "mctesterson.com",
       email: "testy@mctesterson.com",
       password: "test_password"
     }
 
-    target_tenant = %Accounts.Tenant{name: params.tenant_name}
-    {:ok, %Accounts.Tenant{} = result_tenant} = Accounts.create_tenant_with_user(params)
+    target_org = %Accounts.Org{name: params.org_name}
+    {:ok, {%Accounts.Org{} = result_org, _user}} = Accounts.create_org_with_user(params)
 
-    [user | _] = result_tenant |> Repo.preload(:users) |> Map.get(:users)
+    [user | _] = result_org |> Repo.preload(:users) |> Map.get(:users)
 
-    assert result_tenant.name == target_tenant.name
+    assert result_org.name == target_org.name
     assert user.name == params.name
 
     params = %{
@@ -73,14 +73,14 @@ defmodule NervesHubCore.AccountsTest do
   test "cannot create user certificate with duplicate serial" do
     params = %{
       name: "Testy McTesterson",
-      tenant_name: "mctesterson.com",
+      org_name: "mctesterson.com",
       email: "testy@mctesterson.com",
       password: "test_password"
     }
 
-    {:ok, %Accounts.Tenant{} = result_tenant} = Accounts.create_tenant_with_user(params)
+    {:ok, {%Accounts.Org{} = result_org, _user}} = Accounts.create_org_with_user(params)
 
-    [user | _] = result_tenant |> Repo.preload(:users) |> Map.get(:users)
+    [user | _] = result_org |> Repo.preload(:users) |> Map.get(:users)
 
     params = %{
       description: "abcd",
@@ -91,34 +91,32 @@ defmodule NervesHubCore.AccountsTest do
     {:error, %Ecto.Changeset{}} = Accounts.create_user_certificate(user, params)
   end
 
-  test "tenant_key name must be unique" do
-    {:ok, tenant} = Accounts.create_tenant(@required_tenant_params)
+  test "org_key name must be unique" do
+    {:ok, org} = Accounts.create_org(@required_org_params)
 
-    {:ok, _} =
-      Accounts.create_tenant_key(%{name: "tenant's key", tenant_id: tenant.id, key: "foo"})
+    {:ok, _} = Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foo"})
 
     {:error, %Ecto.Changeset{errors: [name: {"has already been taken", []}]}} =
-      Accounts.create_tenant_key(%{name: "tenant's key", tenant_id: tenant.id, key: "foobar"})
+      Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foobar"})
   end
 
-  test "tenant_key key must be unique" do
-    {:ok, tenant} = Accounts.create_tenant(@required_tenant_params)
+  test "org_key key must be unique" do
+    {:ok, org} = Accounts.create_org(@required_org_params)
 
-    {:ok, _} =
-      Accounts.create_tenant_key(%{name: "tenant's key", tenant_id: tenant.id, key: "foo"})
+    {:ok, _} = Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foo"})
 
     {:error, %Ecto.Changeset{}} =
-      Accounts.create_tenant_key(%{name: "tenant's second key", tenant_id: tenant.id, key: "foo"})
+      Accounts.create_org_key(%{name: "org's second key", org_id: org.id, key: "foo"})
   end
 
-  test "cannot change tenant_id of a tenant_key once created" do
-    tenant = Fixtures.tenant_fixture()
-    first_id = tenant.id
-    tenant_key = Fixtures.tenant_key_fixture(tenant)
+  test "cannot change org_id of a org_key once created" do
+    org = Fixtures.org_fixture()
+    first_id = org.id
+    org_key = Fixtures.org_key_fixture(org)
 
-    other_tenant = Fixtures.tenant_fixture()
+    other_org = Fixtures.org_fixture()
 
-    assert {:ok, %Accounts.TenantKey{tenant_id: ^first_id}} =
-             Accounts.update_tenant_key(tenant_key, %{tenant_id: other_tenant.id})
+    assert {:ok, %Accounts.OrgKey{org_id: ^first_id}} =
+             Accounts.update_org_key(org_key, %{org_id: other_org.id})
   end
 end

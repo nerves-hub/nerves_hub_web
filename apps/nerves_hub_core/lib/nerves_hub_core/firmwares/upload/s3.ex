@@ -4,10 +4,10 @@ defmodule NervesHubCore.Firmwares.Upload.S3 do
   @spec upload_file(String.t(), String.t(), integer()) ::
           {:ok, map}
           | {:error, atom()}
-  def upload_file(filepath, filename, tenant_id) do
+  def upload_file(filepath, filename, org_id) do
     bucket = Application.get_env(:nerves_hub_www, __MODULE__)[:bucket]
     random_string = :crypto.strong_rand_bytes(12) |> Base.url_encode64()
-    s3_path = Path.join(["firmware", Integer.to_string(tenant_id), random_string, filename])
+    s3_path = Path.join(["firmware", Integer.to_string(org_id), random_string, filename])
 
     filepath
     |> S3.Upload.stream_file()

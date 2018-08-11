@@ -7,6 +7,6 @@ defmodule NervesHubDeviceWeb.Router do
 
   # Other scopes may use custom stacks.
   scope "/", NervesHubDeviceWeb do
-    pipe_through :api
+    pipe_through(:api)
   end
 end

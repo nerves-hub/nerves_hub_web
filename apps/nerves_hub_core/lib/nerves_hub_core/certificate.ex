@@ -5,6 +5,7 @@ defmodule NervesHubCore.Certificate do
   def get_common_name(cert) do
     cert = decode_cert(cert)
     [_, _, _ | cert] = cert
+
     cn =
       Enum.filter(cert, &Record.is_record/1)
       |> Enum.reverse()

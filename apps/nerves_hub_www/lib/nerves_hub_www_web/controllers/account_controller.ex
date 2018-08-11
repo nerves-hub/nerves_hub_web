@@ -15,16 +15,17 @@ defmodule NervesHubWWWWeb.AccountController do
 
   def create(conn, params) do
     params["user"]
-    |> Accounts.create_tenant_with_user()
+    |> Accounts.create_org_with_user()
     |> case do
-      {:ok, {_tenant, %User{id: user_id} = usr}} ->
+      {:ok, {_org, %User{id: user_id}}} ->
         conn
         |> put_session(@session_key, user_id)
         |> render_success()
 
       {:error, changeset} ->
-        conn = put_flash(conn, :error, "Sign up Failed")
-        render_error(conn, "new.html", changeset: changeset, layout: false)
+        conn
+        |> put_flash(:error, "Sign up Failed")
+        |> render_error("new.html", changeset: changeset, layout: false)
     end
   end
 
@@ -54,12 +55,12 @@ defmodule NervesHubWWWWeb.AccountController do
 
   def invite(conn, %{"token" => token} = _) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
-         {:ok, tenant} <- Accounts.get_tenant(invite.tenant_id) do
+         {:ok, org} <- Accounts.get_org(invite.org_id) do
       render(
         conn,
         "invite.html",
         changeset: %Changeset{data: invite},
-        tenant: tenant,
+        org: org,
         token: token
       )
     else
@@ -72,8 +73,8 @@ defmodule NervesHubWWWWeb.AccountController do
 
   def accept_invite(conn, %{"user" => user_params, "token" => token} = _) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
-         {:ok, tenant} <- Accounts.get_tenant(invite.tenant_id),
-         {:ok, _user} <- Accounts.create_user_from_invite(invite, tenant, user_params) do
+         {:ok, org} <- Accounts.get_org(invite.org_id),
+         {:ok, _user} <- Accounts.create_user_from_invite(invite, org, user_params) do
       conn
       |> put_flash(:info, "Account successfully created, login below")
       |> redirect(to: "/")

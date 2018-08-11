@@ -7,7 +7,7 @@ use Mix.Config
 # watchers to your application. For example, we use it
 # with brunch.io to recompile .js and .css sources.
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
-http: [ip: {0, 0, 0, 0}, port: 4000],
+  http: [ip: {0, 0, 0, 0}, port: 4000],
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
@@ -31,7 +31,7 @@ http: [ip: {0, 0, 0, 0}, port: 4000],
 
 # Watch static and templates for browser reloading.
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
-url: [scheme: "http", host: "0.0.0.0", port: 4000],
+  url: [scheme: "http", host: "0.0.0.0", port: 4000],
   live_reload: [
     patterns: [
       ~r{priv/static/js/.*(js)$},
@@ -60,11 +60,12 @@ config :phoenix, :stacktrace_depth, 20
 
 # if using NervesHubCore.Firmwares.Upload.S3, set configuration below accordingly
 config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.File
-config :nerves_hub_www, NervesHubCore.Firmwares.Upload.File, 
+
+config :nerves_hub_www, NervesHubCore.Firmwares.Upload.File,
   local_path: "/tmp/firmware",
   public_path: "/firmware"
-# config :nerves_hub_www, NervesHubCore.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
 
+# config :nerves_hub_www, NervesHubCore.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
 
 config :nerves_hub_www, NervesHubCore.CertificateAuthority,
   host: "0.0.0.0",

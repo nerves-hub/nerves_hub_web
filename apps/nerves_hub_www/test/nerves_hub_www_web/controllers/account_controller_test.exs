@@ -22,13 +22,12 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
             "name" => "Joe",
             "email" => "joe@example.com"
           },
-          conn.assigns.tenant
+          conn.assigns.org
         )
 
       conn = get(conn, account_path(conn, :invite, invite.token))
 
-      assert html_response(conn, 200) =~
-               "You will be added to the #{conn.assigns.tenant.name} tenant"
+      assert html_response(conn, 200) =~ "You will be added to the #{conn.assigns.org.name} org"
     end
   end
 
@@ -42,7 +41,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
             "name" => "Joe",
             "email" => "joe@example.com"
           },
-          conn.assigns.tenant
+          conn.assigns.org
         )
 
       conn =
@@ -139,7 +138,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
   end
 
   describe "create" do
-    test "creates a user and tenant", %{
+    test "creates a user and org", %{
       conn: conn
     } do
       conn =
@@ -148,7 +147,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
           account_path(conn, :create, %{
             "user" => %{
               "name" => "My Name",
-              "tenant_name" => "a Tenant",
+              "org_name" => "a Org",
               "email" => "joe@example.com",
               "password" => "12345678"
             }
@@ -167,7 +166,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
           account_path(conn, :create, %{
             "user" => %{
               "name" => "My Name",
-              "tenant_name" => "a Tenant",
+              "org_name" => "a Org",
               "email" => "joe@example.com",
               "password" => "12345"
             }

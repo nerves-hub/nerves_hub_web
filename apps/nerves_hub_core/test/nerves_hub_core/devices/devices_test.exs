@@ -3,21 +3,22 @@ defmodule NervesHubCore.DevicesTest do
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Devices
+  alias NervesHubCore.Devices.DeviceCertificate
   alias NervesHubCore.Deployments
   alias Ecto.Changeset
 
   setup do
-    tenant = Fixtures.tenant_fixture()
-    product = Fixtures.product_fixture(tenant)
-    tenant_key = Fixtures.tenant_key_fixture(tenant)
-    firmware = Fixtures.firmware_fixture(tenant_key, product)
+    org = Fixtures.org_fixture()
+    product = Fixtures.product_fixture(org)
+    org_key = Fixtures.org_key_fixture(org)
+    firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(firmware)
-    device = Fixtures.device_fixture(tenant, firmware, deployment)
+    device = Fixtures.device_fixture(org, firmware, deployment)
 
     {:ok,
      %{
-       tenant: tenant,
-       tenant_key: tenant_key,
+       org: org,
+       org_key: org_key,
        firmware: firmware,
        device: device,
        deployment: deployment,
@@ -25,12 +26,12 @@ defmodule NervesHubCore.DevicesTest do
      }}
   end
 
-  test 'create_device with valid parameters', %{
-    tenant: tenant,
+  test "create_device with valid parameters", %{
+    org: org,
     firmware: firmware
   } do
     params = %{
-      tenant_id: tenant.id,
+      org_id: org.id,
       last_known_firmware_id: firmware.id,
       identifier: "valid identifier"
     }
@@ -42,7 +43,7 @@ defmodule NervesHubCore.DevicesTest do
     end
   end
 
-  test 'create_device with invalid parameters', %{firmware: firmware} do
+  test "create_device with invalid parameters", %{firmware: firmware} do
     params = %{
       identifier: "valid identifier",
       architecture: firmware.architecture,
@@ -52,31 +53,69 @@ defmodule NervesHubCore.DevicesTest do
     assert {:error, %Changeset{}} = Devices.create_device(params)
   end
 
-  test 'get_device_by_identifier with existing device', %{device: target_device} do
+  test "create device certificate", %{device: device} do
+    now = DateTime.utc_now()
+    device_id = device.id
+
+    params = %{
+      serial: "12345",
+      valid_after: now,
+      valid_before: now,
+      device_id: device_id
+    }
+
+    assert {:ok, %DeviceCertificate{device_id: ^device_id}} =
+             Devices.create_device_certificate(device, params)
+  end
+
+  test "cannot create device certificates with duplicate serial numbers", %{device: device} do
+    now = DateTime.utc_now()
+
+    params = %{
+      serial: "12345",
+      valid_after: now,
+      valid_before: now,
+      device_id: device.id
+    }
+
+    assert {:ok, %DeviceCertificate{}} = Devices.create_device_certificate(device, params)
+    assert {:error, %Changeset{}} = Devices.create_device_certificate(device, params)
+  end
+
+  test "cannot create device certificates with invalid parameters", %{device: device} do
+    params = %{
+      serial: "12345",
+      device_id: device.id
+    }
+
+    assert {:error, %Changeset{}} = Devices.create_device_certificate(device, params)
+  end
+
+  test "get_device_by_identifier with existing device", %{device: target_device} do
     assert {:ok, result} = Devices.get_device_by_identifier(target_device.identifier)
 
-    for key <- [:tenant_id, :deployment_id, :device_identifier] do
+    for key <- [:org_id, :deployment_id, :device_identifier] do
       assert Map.get(target_device, key) == Map.get(result, key)
     end
   end
 
-  test 'get_device_by_identifier without existing device' do
+  test "get_device_by_identifier without existing device" do
     assert {:error, :not_found} = Devices.get_device_by_identifier("non existing identifier")
   end
 
   test "get_eligible_deployments returns proper deployments", %{
-    tenant: tenant,
-    tenant_key: tenant_key,
+    org: org,
+    org_key: org_key,
     firmware: firmware,
     deployment: old_deployment,
     product: product
   } do
     device =
-      Fixtures.device_fixture(tenant, firmware, old_deployment, %{
+      Fixtures.device_fixture(org, firmware, old_deployment, %{
         identifier: "new identifier"
       })
 
-    new_firmware = Fixtures.firmware_fixture(tenant_key, product, %{version: "1.0.1"})
+    new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
     params = %{
       firmware_id: new_firmware.id,
@@ -93,7 +132,7 @@ defmodule NervesHubCore.DevicesTest do
       |> elem(1)
       |> Deployments.update_deployment(%{is_active: true})
 
-    {:ok, device_with_firmware} = Devices.get_device(tenant, device.id)
+    {:ok, device_with_firmware} = Devices.get_device(org, device.id)
 
     [%Deployments.Deployment{id: dep_id} | _] =
       Devices.get_eligible_deployments(device_with_firmware)
@@ -102,8 +141,8 @@ defmodule NervesHubCore.DevicesTest do
   end
 
   test "get_eligible_deployment does not return incorrect devices", %{
-    tenant: tenant,
-    tenant_key: tenant_key,
+    org: org,
+    org_key: org_key,
     firmware: firmware,
     deployment: old_deployment,
     product: product
@@ -116,8 +155,8 @@ defmodule NervesHubCore.DevicesTest do
     ]
 
     for {f_params, d_params} <- incorrect_params do
-      device = Fixtures.device_fixture(tenant, firmware, old_deployment, d_params)
-      new_firmware = Fixtures.firmware_fixture(tenant_key, product, f_params)
+      device = Fixtures.device_fixture(org, firmware, old_deployment, d_params)
+      new_firmware = Fixtures.firmware_fixture(org_key, product, f_params)
 
       params = %{
         firmware_id: new_firmware.id,
@@ -134,7 +173,7 @@ defmodule NervesHubCore.DevicesTest do
         |> elem(1)
         |> Deployments.update_deployment(%{is_active: true})
 
-      {:ok, device_with_firmware} = Devices.get_device(tenant, device.id)
+      {:ok, device_with_firmware} = Devices.get_device(org, device.id)
 
       assert [] == Devices.get_eligible_deployments(device_with_firmware)
     end

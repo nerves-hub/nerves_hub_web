@@ -4,8 +4,8 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
   alias NervesHubCore.Fixtures
 
   describe "index" do
-    test "lists all firmwares", %{conn: conn, current_tenant: tenant} do
-      product = Fixtures.product_fixture(tenant)
+    test "lists all firmwares", %{conn: conn, current_org: org} do
+      product = Fixtures.product_fixture(org)
 
       conn = get(conn, product_firmware_path(conn, :index, product.id))
       assert html_response(conn, 200) =~ "Firmware"
@@ -14,8 +14,8 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
   end
 
   describe "upload firmware form" do
-    test "renders form with valid request params", %{conn: conn, current_tenant: tenant} do
-      product = Fixtures.product_fixture(tenant)
+    test "renders form with valid request params", %{conn: conn, current_org: org} do
+      product = Fixtures.product_fixture(org)
       conn = get(conn, product_firmware_path(conn, :upload, product.id))
 
       assert html_response(conn, 200) =~ "Upload Firmware"
@@ -26,9 +26,9 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
   describe "upload firmware" do
     test "redirects after successful upload", %{
       conn: conn,
-      current_tenant: tenant
+      current_org: org
     } do
-      product = Fixtures.product_fixture(tenant, %{name: "starter"})
+      product = Fixtures.product_fixture(org, %{name: "starter"})
 
       upload = %Plug.Upload{
         path: "../../test/fixtures/firmware/signed-key1.fw",
@@ -49,8 +49,8 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
       assert html_response(conn, 200) =~ "starter"
     end
 
-    test "error if corrupt firmware uploaded", %{conn: conn, current_tenant: tenant} do
-      product = Fixtures.product_fixture(tenant, %{name: "starter"})
+    test "error if corrupt firmware uploaded", %{conn: conn, current_org: org} do
+      product = Fixtures.product_fixture(org, %{name: "starter"})
 
       upload = %Plug.Upload{
         path: "../../test/fixtures/firmware/corrupt.fw",
@@ -67,8 +67,8 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
                "Firmware corrupt, signature invalid or missing public key"
     end
 
-    test "error if tenant keys do not match firmware", %{conn: conn, current_tenant: tenant} do
-      product = Fixtures.product_fixture(tenant, %{name: "starter"})
+    test "error if org keys do not match firmware", %{conn: conn, current_org: org} do
+      product = Fixtures.product_fixture(org, %{name: "starter"})
 
       upload = %Plug.Upload{
         path: "../../test/fixtures/firmware/signed-other-key.fw",
@@ -87,9 +87,9 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
     test "error if meta-product does not match product name", %{
       conn: conn,
-      current_tenant: tenant
+      current_org: org
     } do
-      product = Fixtures.product_fixture(tenant, %{name: "non-matching name"})
+      product = Fixtures.product_fixture(org, %{name: "non-matching name"})
 
       upload = %Plug.Upload{
         path: "../../test/fixtures/firmware/signed-key1.fw",

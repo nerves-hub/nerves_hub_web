@@ -4,7 +4,6 @@ defmodule NervesHubWWWWeb.FirmwareController do
   alias Ecto.Changeset
   alias NervesHubCore.Firmwares
   alias NervesHubCore.Firmwares.Firmware
-  alias NervesHubCore.Accounts.TenantKey
 
   def index(%{assigns: %{product: %{id: product_id}}} = conn, _params) do
     firmwares = Firmwares.get_firmwares_by_product(product_id)
@@ -17,10 +16,10 @@ defmodule NervesHubWWWWeb.FirmwareController do
     |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
   end
 
-  def do_upload(%{assigns: %{tenant: tenant, product: product}} = conn, %{
+  def do_upload(%{assigns: %{org: org, product: product}} = conn, %{
         "firmware" => %{"file" => %{path: filepath}}
       }) do
-    with {:ok, firmware_params} <- Firmwares.prepare_firmware_params(tenant, filepath) do
+    with {:ok, firmware_params} <- Firmwares.prepare_firmware_params(org, filepath) do
       case Firmwares.create_firmware(firmware_params) do
         {:ok, _firmware} ->
           conn
@@ -78,5 +77,4 @@ defmodule NervesHubWWWWeb.FirmwareController do
       {:error}
     end
   end
-
 end

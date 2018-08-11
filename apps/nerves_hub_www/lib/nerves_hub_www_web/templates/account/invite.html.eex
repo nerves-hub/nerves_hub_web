@@ -1,5 +1,5 @@
 <p>
-  You will be added to the <%= @tenant.name %> tenant
+  You will be added to the <%= @org.name %> org
 </p>
 
 <%= form_for @changeset, account_path(@conn, :accept_invite, @token), [as: :user], fn f -> %>

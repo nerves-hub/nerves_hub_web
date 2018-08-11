@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.LayoutView do
   use NervesHubWWWWeb, :view
 
-  alias NervesHubCore.Accounts.{User, Tenant}
+  alias NervesHubCore.Accounts.{Org, User, Tenant}
 
   def page_description(%{path_info: ["dashboard"]}) do
     "Dashboard"
@@ -16,12 +16,12 @@ defmodule NervesHubWWWWeb.LayoutView do
   end
 
 
-  def account_data(%{assigns: %{user: %User{tenant: %Tenant{} = tenant} = user}} = conn) do
+  def account_data(%{assigns: %{user: %User{org: %Org{} = org} = user}} = conn) do
       [
         "Welcome ",
         content_tag(:a, user.name, class: "", href: "#{account_path(conn, :edit)}"),
         " [",
-        content_tag(:a, tenant.name, class: "", href: "#{tenant_path(conn, :edit, tenant)}"),
+        content_tag(:a, org.name, class: "", href: "#{org_path(conn, :edit, org)}"),
         "] ",
       ]
 
