@@ -36,7 +36,7 @@ defmodule NervesHubAPI.Mixfile do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, github: "mobileoverlord/phoenix", branch: "ws_extra_params", override: true},
+      {:phoenix, github: "phoenixframework/phoenix", override: true},
       {:phoenix_pubsub, "~> 1.0"},
       {:phoenix_live_reload,
        github: "mobileoverlord/phoenix_live_reload",
