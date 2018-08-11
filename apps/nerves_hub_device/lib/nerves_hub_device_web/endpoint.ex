@@ -5,7 +5,7 @@ defmodule NervesHubDeviceWeb.Endpoint do
     "/socket",
     NervesHubDeviceWeb.UserSocket,
     websocket: [
-      extract: [:peer_data, :x_headers]
+      connect_info: [:peer_data, :x_headers]
     ]
   )
 
