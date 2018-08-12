@@ -21,6 +21,12 @@ defmodule NervesHubAPIWeb.UserController do
     end
   end
 
+  def auth(conn, %{"email" => email, "password" => password}) do
+    with {:ok, user} <- Accounts.authenticate(email, password) do
+      render(conn, "show.json", user: user)
+    end
+  end
+
   def sign(conn, %{
         "csr" => csr,
         "email" => email,
