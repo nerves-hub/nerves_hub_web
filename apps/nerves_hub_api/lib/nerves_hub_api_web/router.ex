@@ -14,6 +14,7 @@ defmodule NervesHubAPIWeb.Router do
     pipe_through(:api)
 
     post("/register", UserController, :register)
+    post("/auth", UserController, :auth)
     post("/sign", UserController, :sign)
   end
 
