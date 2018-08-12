@@ -41,6 +41,10 @@ defmodule NervesHubCore.Fixtures do
     serial: "158098897653878678601091983566405937658689714637"
   }
 
+  def path(), do: Path.expand("../fixtures", __DIR__)
+
+  def user_params(), do: @user_params
+
   def org_fixture(params \\ %{}) do
     {:ok, org} =
       params
