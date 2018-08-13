@@ -267,10 +267,26 @@ defmodule NervesHubCore.Accounts do
       )
 
     query
-    |> Repo.one!()
+    |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
-      device -> {:ok, device}
+      key -> {:ok, key}
+    end
+  end
+
+  def get_org_key_by_name(%Org{id: org_id}, name) do
+    query =
+      from(
+        k in OrgKey,
+        where: k.org_id == ^org_id,
+        where: k.name == ^name
+      )
+
+    query
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      key -> {:ok, key}
     end
   end
 
