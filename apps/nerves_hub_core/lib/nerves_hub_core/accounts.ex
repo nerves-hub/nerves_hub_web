@@ -259,19 +259,25 @@ defmodule NervesHubCore.Accounts do
   end
 
   def get_org_key(%Org{id: org_id}, tk_id) do
-    query =
-      from(
-        tk in OrgKey,
-        where: tk.org_id == ^org_id,
-        where: tk.id == ^tk_id
-      )
-
-    query
+    get_org_key_query(org_id, tk_id)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
       key -> {:ok, key}
     end
+  end
+
+  def get_org_key!(%Org{id: org_id}, tk_id) do
+    get_org_key_query(org_id, tk_id)
+    |> Repo.one!()
+  end
+
+  defp get_org_key_query(org_id, tk_id) do
+    from(
+      tk in OrgKey,
+      where: tk.org_id == ^org_id,
+      where: tk.id == ^tk_id
+    )
   end
 
   def get_org_key_by_name(%Org{id: org_id}, name) do
