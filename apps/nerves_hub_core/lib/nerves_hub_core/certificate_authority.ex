@@ -76,6 +76,6 @@ defmodule NervesHubCore.CertificateAuthority do
   end
 
   def config do
-    Application.get_env(:nerves_hub_www, __MODULE__)
+    Application.get_env(:nerves_hub_core, __MODULE__, [])
   end
 end
