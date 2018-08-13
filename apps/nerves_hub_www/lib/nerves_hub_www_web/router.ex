@@ -41,6 +41,12 @@ defmodule NervesHubWWWWeb.Router do
 
     get("/invite/:token", AccountController, :invite)
     put("/invite/:token", AccountController, :accept_invite)
+
+    scope "/policy" do
+      get("/tos", PolicyController, :tos)
+      get("/privacy", PolicyController, :privacy)
+      get("/coc", PolicyController, :coc)
+    end
   end
 
   scope "/", NervesHubWWWWeb do

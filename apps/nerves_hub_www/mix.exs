@@ -60,6 +60,7 @@ defmodule NervesHubWWW.MixProject do
        branch: "transport",
        override: true,
        only: :dev},
+      {:phoenix_markdown, "~> 1.0"},
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 2.0", override: true},
       {:hackney, "~> 1.9"},
