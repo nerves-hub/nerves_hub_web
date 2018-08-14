@@ -13,6 +13,7 @@ defmodule NervesHubCore.Devices.Device do
   @type t :: %__MODULE__{}
   @optional_params [
     :last_known_firmware_id,
+    :last_known_firmware_uuid,
     :last_communication,
     :description,
     :tags
@@ -25,6 +26,7 @@ defmodule NervesHubCore.Devices.Device do
 
     has_many(:device_certificates, DeviceCertificate)
 
+    field(:last_known_firmware_uuid, :binary_id)
     field(:identifier, :string)
     field(:description, :string)
     field(:last_communication, :utc_datetime)

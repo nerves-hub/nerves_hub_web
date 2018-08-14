@@ -9,10 +9,8 @@ commands and send updates about its current state.
 
 After booting, the client connects to NervesHub with its certificate. The
 certificate is used to determine the unique identity of the device, which is
-then stored on the socket. The device joins `device:#{device_identifier}` with a
-payload of `%{"version" => version}`. The server first verifies that the device
-is joining its own channel, by comparing the id in the channel name to the id on
-the certificate. Next, the server compares the running version of the firmware
+then stored on the socket. The device joins `device:#{firmware_uuid}`.  
+The server compares the running version of the firmware
 to the target version for that device on `NervesHub`. If those versions are
 different, then the channel queues a firmware update message to be sent as soon
 as the channel finishes the join process. The final step of the join process is
