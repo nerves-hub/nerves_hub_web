@@ -64,7 +64,6 @@ defmodule NervesHubWWW.MixProject do
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 2.0", override: true},
       {:hackney, "~> 1.9"},
-      {:sweet_xml, "~> 0.6"},
       {:bamboo, "~> 1.0"},
       {:bamboo_smtp, "~> 1.5.0"},
       {:distillery, "~> 1.5"},
