@@ -26,12 +26,10 @@ defmodule NervesHubAPIWeb.Router do
       get("/me", UserController, :me)
     end
 
-    post("/firmwares", FirmwareController, :create)
-
     scope "/firmwares" do
       get("/", FirmwareController, :index)
       get("/:uuid", FirmwareController, :show)
-
+      post("/", FirmwareController, :create)
       delete("/:uuid", FirmwareController, :delete)
     end
 
@@ -46,6 +44,13 @@ defmodule NervesHubAPIWeb.Router do
       get("/", DeploymentController, :index)
       get("/:name", DeploymentController, :show)
       put("/:name", DeploymentController, :update)
+    end
+
+    scope "/devices" do
+      post("/", DeviceController, :create)
+      get("/:identifier", DeviceController, :show)
+      get("/:identifier/certificates", DeviceCertificateController, :index)
+      post("/:identifier/certificates/sign", DeviceCertificateController, :sign)
     end
   end
 end
