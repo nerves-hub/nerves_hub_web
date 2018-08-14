@@ -91,16 +91,16 @@ defmodule NervesHubCore.DevicesTest do
     assert {:error, %Changeset{}} = Devices.create_device_certificate(device, params)
   end
 
-  test "get_device_by_identifier with existing device", %{device: target_device} do
-    assert {:ok, result} = Devices.get_device_by_identifier(target_device.identifier)
+  test "get_device_by_identifier with existing device", %{org: org, device: target_device} do
+    assert {:ok, result} = Devices.get_device_by_identifier(org, target_device.identifier)
 
     for key <- [:org_id, :deployment_id, :device_identifier] do
       assert Map.get(target_device, key) == Map.get(result, key)
     end
   end
 
-  test "get_device_by_identifier without existing device" do
-    assert {:error, :not_found} = Devices.get_device_by_identifier("non existing identifier")
+  test "get_device_by_identifier without existing device", %{org: org} do
+    assert {:error, :not_found} = Devices.get_device_by_identifier(org, "non existing identifier")
   end
 
   test "get_eligible_deployments returns proper deployments", %{

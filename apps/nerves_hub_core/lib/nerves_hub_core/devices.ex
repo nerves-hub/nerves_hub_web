@@ -49,9 +49,13 @@ defmodule NervesHubCore.Devices do
     end
   end
 
-  @spec get_device_by_identifier(String.t()) :: {:ok, Device.t()} | {:error, :not_found}
-  def get_device_by_identifier(identifier) when is_binary(identifier) do
-    query = from(d in Device, where: d.identifier == ^identifier)
+  @spec get_device_by_identifier(Org.t(), String.t()) :: {:ok, Device.t()} | {:error, :not_found}
+  def get_device_by_identifier(%Org{id: org_id}, identifier) when is_binary(identifier) do
+    query =
+      from(
+        d in Device,
+        where: d.identifier == ^identifier and d.org_id == ^org_id
+      )
 
     query
     |> Device.with_org()
@@ -79,13 +83,15 @@ defmodule NervesHubCore.Devices do
     |> Enum.filter(fn dep -> matches_deployment?(device, dep) end)
   end
 
+  def get_eligible_deployments(_), do: []
+
   def send_update_message(%Device{} = device, %Deployment{} = deployment) do
     with true <- matches_deployment?(device, deployment) do
       {:ok, url} = @uploader.download_file(deployment.firmware)
 
       Phoenix.PubSub.broadcast(
         NervesHubWeb.PubSub,
-        "device:#{device.identifier}",
+        "device_socket:#{device.id}",
         %Phoenix.Socket.Broadcast{event: "update", payload: %{firmware_url: url}}
       )
 
@@ -112,6 +118,55 @@ defmodule NervesHubCore.Devices do
     |> Ecto.build_assoc(:device_certificates)
     |> DeviceCertificate.changeset(params)
     |> Repo.insert()
+  end
+
+  def get_device_certificates(%Device{} = device) do
+    query =
+      from(
+        c in DeviceCertificate,
+        join: d in assoc(c, :device),
+        where: d.id == ^device.id
+      )
+
+    query
+    |> Repo.all()
+  end
+
+  def get_device_by_certificate(%DeviceCertificate{} = cert) do
+    query =
+      from(
+        d in Device,
+        join: c in assoc(d, :certificates),
+        where: d.id == ^cert.id
+      )
+
+    query
+    |> Device.with_org()
+    |> Device.with_firmware()
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      device -> {:ok, device}
+    end
+  end
+
+  def get_device_certificate_by_serial(serial) do
+    query =
+      from(
+        c in DeviceCertificate,
+        where: c.serial == ^serial
+      )
+
+    query
+    |> preload(:device)
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:error, :not_found}
+
+      certificate ->
+        {:ok, certificate}
+    end
   end
 
   def update_device(%Device{} = device, params) do
