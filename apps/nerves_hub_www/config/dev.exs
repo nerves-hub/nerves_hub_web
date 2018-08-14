@@ -48,23 +48,6 @@ config :logger, :console, format: "[$level] $message\n"
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20
 
-# uncomment if using NervesHubCore.Firmwares.Upload.File
-# config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.File
-
-# uncomment out lines 19-23 in endpoint.ex and update paths accordingly
-# config :nerves_hub_www, NervesHubCore.Firmwares.Upload.File,
-#   local_path: "/tmp/firmware",
-#   public_path: "/firmware"
-
-# if using NervesHubCore.Firmwares.Upload.S3, set configuration below accordingly
-config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.File
-
-config :nerves_hub_www, NervesHubCore.Firmwares.Upload.File,
-  local_path: "/tmp/firmware",
-  public_path: "/firmware"
-
-# config :nerves_hub_www, NervesHubCore.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
-
 config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.LocalAdapter
 
 config :ex_aws,

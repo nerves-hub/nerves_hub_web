@@ -9,7 +9,7 @@ defmodule NervesHubCore.Devices do
   alias NervesHubCore.Repo
   alias Ecto.Changeset
 
-  @uploader Application.get_env(:nerves_hub_www, :firmware_upload)
+  @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
 
   def get_devices(%Org{id: org_id}) do
     query = from(d in Device, where: d.org_id == ^org_id)

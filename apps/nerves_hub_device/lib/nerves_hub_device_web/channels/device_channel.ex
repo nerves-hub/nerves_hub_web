@@ -4,7 +4,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   alias NervesHubCore.{Devices, Firmwares, Deployments}
   alias NervesHubDevice.Presence
 
-  @uploader Application.get_env(:nerves_hub_www, :firmware_upload)
+  @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
 
   def join("device:" <> fw_uuid, _payload, socket) do
     with {:ok, message} <- build_message(socket, fw_uuid) do

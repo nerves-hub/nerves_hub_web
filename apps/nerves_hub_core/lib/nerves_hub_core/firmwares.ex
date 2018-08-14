@@ -169,7 +169,7 @@ defmodule NervesHubCore.Firmwares do
   end
 
   def upload_firmware(filepath, filename, org_id) do
-    if uploader = Application.get_env(:nerves_hub_www, :firmware_upload) do
+    if uploader = Application.get_env(:nerves_hub_core, :firmware_upload) do
       uploader.upload_file(filepath, filename, org_id)
     else
       {:error}

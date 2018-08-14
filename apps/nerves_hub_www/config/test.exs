@@ -9,10 +9,4 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
 # Print only warnings and errors during test
 config :logger, level: :warn
 
-config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.File
-
 config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.TestAdapter
-
-config :nerves_hub_www, NervesHubCore.Firmwares.Upload.File,
-  local_path: "/tmp/firmware",
-  public_path: "/firmware"
