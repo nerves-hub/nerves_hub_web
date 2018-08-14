@@ -36,7 +36,8 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
 
       {:ok, serial} = Certificate.get_serial_number(cert)
       {:ok, cert} = Devices.get_device_certificate_by_serial(serial)
-      assert cert.device.identifier == params.identifier
+
+      assert cert.device_id == device.id
     end
 
     test "renders errors when data is invalid", %{conn: conn} do

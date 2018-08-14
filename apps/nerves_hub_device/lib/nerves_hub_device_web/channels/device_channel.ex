@@ -17,7 +17,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   def handle_info({:after_join, %{update_available: update_available}}, socket) do
     {:ok, _} =
-      Presence.track(socket, socket.assigns.certificate.device.id, %{
+      Presence.track(socket, socket.assigns.certificate.device_id, %{
         connected_at: inspect(System.system_time(:seconds)),
         update_available: update_available
       })
@@ -25,8 +25,9 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  defp build_message(%{assigns: %{certificate: %{device: device}}}, fw_uuid) do
-    with {:ok, device} <- device_update(device, fw_uuid) do
+  defp build_message(%{assigns: %{certificate: certificate}}, fw_uuid) do
+    with {:ok, device} <- Devices.get_device_by_certificate(certificate),
+         {:ok, device} <- device_update(device, fw_uuid) do
       send_update_message(device)
     else
       {:error, message} -> {:error, %{reason: message}}
@@ -39,13 +40,10 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   end
 
   defp device_update(%Devices.Device{} = device, fw_uuid) do
-    with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(device.org, fw_uuid),
-         {:ok, device} <-
-           Devices.update_device(device, %{
-             last_known_firmware_id: firmware.id,
-             last_known_firmware_uuid: fw_uuid
-           }) do
-      {:ok, NervesHubCore.Repo.preload(device, :last_known_firmware)}
+    with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(device.org, fw_uuid) do
+      Devices.update_device(device, %{
+        last_known_firmware_id: firmware.id
+      })
     else
       _ -> {:error, :no_firmware_found}
     end
@@ -74,18 +72,25 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   defp do_update_message(_, _), do: {:error, :unknown_error}
 
-  def online?(%Devices.Device{} = device) do
-    id = to_string(device.id)
+  def online?(%Devices.Device{last_known_firmware_id: nil}), do: false
 
-    "device:#{device.last_known_firmware_uuid}"
+  def online?(%Devices.Device{id: id, last_known_firmware: %Firmwares.Firmware{uuid: fw_uuid}}) do
+    id = to_string(id)
+
+    "device:#{fw_uuid}"
     |> Presence.list()
     |> Map.has_key?(id)
   end
 
-  def update_pending?(%Devices.Device{} = device) do
-    id = to_string(device.id)
+  def online?(%Devices.Device{last_known_firmware_id: nil}), do: false
 
-    "device:#{device.last_known_firmware_uuid}"
+  def update_pending?(%Devices.Device{
+        id: id,
+        last_known_firmware: %Firmwares.Firmware{uuid: fw_uuid}
+      }) do
+    id = to_string(id)
+
+    "device:#{fw_uuid}"
     |> Presence.list()
     |> Map.get(id, %{})
     |> Map.get(:metas, [%{}])

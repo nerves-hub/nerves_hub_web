@@ -111,7 +111,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         1_000
       )
 
-      device = NervesHubCore.Repo.get(Devices.Device, device.id)
+      device =
+        NervesHubCore.Repo.get(Devices.Device, device.id)
+        |> NervesHubCore.Repo.preload(:last_known_firmware)
+
       assert DeviceChannel.online?(device)
     end
 
@@ -234,7 +237,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         1_000
       )
 
-      device = NervesHubCore.Repo.get(Devices.Device, device.id)
+      device =
+        NervesHubCore.Repo.get(Devices.Device, device.id)
+        |> NervesHubCore.Repo.preload(:last_known_firmware)
+
       assert DeviceChannel.update_pending?(device)
     end
 
@@ -277,7 +283,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> Repo.preload(:last_known_firmware)
 
       assert updated_device.last_known_firmware.uuid == query_uuid
-      refute DeviceChannel.update_pending?(device)
+      refute DeviceChannel.update_pending?(updated_device)
     end
   end
 end

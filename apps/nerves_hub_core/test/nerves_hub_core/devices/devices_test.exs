@@ -53,6 +53,17 @@ defmodule NervesHubCore.DevicesTest do
     assert {:error, %Changeset{}} = Devices.create_device(params)
   end
 
+  test "cannot create two devices with the same identifier", %{org: org, firmware: firmware} do
+    params = %{
+      org_id: org.id,
+      last_known_firmware_id: firmware.id,
+      identifier: "valid identifier"
+    }
+
+    assert {:ok, %Devices.Device{}} = Devices.create_device(params)
+    assert {:error, %Ecto.Changeset{}} = Devices.create_device(params)
+  end
+
   test "create device certificate", %{device: device} do
     now = DateTime.utc_now()
     device_id = device.id

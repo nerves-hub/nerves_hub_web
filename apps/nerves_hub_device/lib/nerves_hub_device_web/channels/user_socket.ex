@@ -34,8 +34,6 @@ defmodule NervesHubDeviceWeb.UserSocket do
 
   defp build_socket(socket, serial) do
     with {:ok, cert} <- Devices.get_device_certificate_by_serial(serial) do
-      cert = NervesHubCore.Repo.preload(cert, device: :org)
-
       new_socket =
         socket
         |> assign(:certificate, cert)
@@ -56,6 +54,6 @@ defmodule NervesHubDeviceWeb.UserSocket do
   #     NervesHubWWWWeb.Endpoint.broadcast("user_socket:#{user.id}", "disconnect", %{})
   #
   # Returning `nil` makes this socket anonymous.
-  def id(%{assigns: %{certificate: certificate}}), do: "device:#{certificate.device.id}"
+  def id(%{assigns: %{certificate: certificate}}), do: "device:#{certificate.device_id}"
   def id(_socket), do: nil
 end
