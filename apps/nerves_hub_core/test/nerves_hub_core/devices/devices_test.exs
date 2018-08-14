@@ -79,6 +79,26 @@ defmodule NervesHubCore.DevicesTest do
              Devices.create_device_certificate(device, params)
   end
 
+  test "select one device when it has two certificates", %{device: device} do
+    now = DateTime.utc_now()
+
+    params = %{
+      serial: "12345",
+      not_before: now,
+      not_after: now,
+      device_id: device.id
+    }
+
+    assert {:ok, %DeviceCertificate{} = cert1} = Devices.create_device_certificate(device, params)
+
+    assert {:ok, %DeviceCertificate{} = cert2} =
+             Devices.create_device_certificate(device, %{params | serial: "56789"})
+
+    assert {:ok, device1} = Devices.get_device_by_certificate(cert1)
+    assert {:ok, device2} = Devices.get_device_by_certificate(cert2)
+    assert device1.id == device2.id
+  end
+
   test "cannot create device certificates with duplicate serial numbers", %{device: device} do
     now = DateTime.utc_now()
 
