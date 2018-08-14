@@ -197,10 +197,10 @@ defmodule NervesHubCore.Devices do
 
   def matches_deployment?(_, _), do: false
 
-  defp version_match?("", _vsn), do: true
+  defp version_match?(_vsn, ""), do: true
 
-  defp version_match?(requirement, version) do
-    Version.match?(requirement, version)
+  defp version_match?(version, requirement) do
+    Version.match?(version, requirement)
   end
 
   defp tags_match?(device_tags, deployment_tags) do
