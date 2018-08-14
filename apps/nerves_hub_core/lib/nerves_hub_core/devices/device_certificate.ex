@@ -6,14 +6,14 @@ defmodule NervesHubCore.Devices.DeviceCertificate do
 
   @type t :: %__MODULE__{}
 
-  @required_params [:serial, :valid_before, :valid_after, :device_id]
+  @required_params [:serial, :not_after, :not_before, :device_id]
 
   schema "device_certificates" do
     belongs_to(:device, Device)
 
     field(:serial, :string)
-    field(:valid_after, :utc_datetime)
-    field(:valid_before, :utc_datetime)
+    field(:not_after, :utc_datetime)
+    field(:not_before, :utc_datetime)
 
     timestamps()
   end
