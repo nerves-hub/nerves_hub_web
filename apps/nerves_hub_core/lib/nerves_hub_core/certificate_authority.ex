@@ -37,6 +37,14 @@ defmodule NervesHubCore.CertificateAuthority do
     |> resp()
   end
 
+  def sign_device_csr(csr) do
+    body = Jason.encode!(%{csr: csr})
+    url = url("/sign_device_csr")
+
+    :hackney.request(:post, url, headers(), body, opts())
+    |> resp()
+  end
+
   def resp({:ok, 200, _headers, client_ref}) do
     case :hackney.body(client_ref) do
       {:ok, body} ->
