@@ -24,9 +24,6 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint, server: false
 
 config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: false
 
-config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.S3
-config :nerves_hub_www, NervesHubCore.Firmwares.Upload.S3, bucket: "${S3_BUCKET_NAME}"
-
 # Do not print debug messages in production
 config :logger, level: :debug
 
