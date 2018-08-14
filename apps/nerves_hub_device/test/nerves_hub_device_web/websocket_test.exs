@@ -5,7 +5,6 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
   alias NervesHubCore.{Accounts, Deployments, Devices, Repo}
   alias NervesHubDeviceWeb.DeviceChannel
 
-  @serial_header Application.get_env(:nerves_hub_device, :device_serial_header)
   @valid_serial "device-1234"
   @valid_product "test-product"
   @valid_firmware_url "http://foo.com/bar"
@@ -27,18 +26,9 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     serializer: Jason,
     ssl_verify: :verify_peer,
     socket_opts: [
-      certfile: Path.expand("../../test/fixtures/cfssl/device-1234.pem") |> to_charlist,
+      certfile: Path.expand("../../test/fixtures/cfssl/device-1234-cert.pem") |> to_charlist,
       keyfile: Path.expand("../../test/fixtures/cfssl/device-1234-key.pem") |> to_charlist,
       cacertfile: Path.expand("../../test/fixtures/cfssl/ca.pem") |> to_charlist,
-      server_name_indication: 'device.nerves-hub.org'
-    ]
-  ]
-
-  @proxy_socket_config [
-    url: "wss://127.0.0.1:4001/socket/websocket",
-    serializer: Jason,
-    extra_headers: [{@serial_header, @valid_serial}],
-    socket_opts: [
       server_name_indication: 'device.nerves-hub.org'
     ]
   ]
@@ -59,7 +49,9 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       Fixtures.deployment_fixture(firmware)
       |> Deployments.update_deployment(%{is_active: true})
 
-    Fixtures.device_fixture(org, firmware, deployment, device_params)
+    device = Fixtures.device_fixture(org, firmware, deployment, device_params)
+    Fixtures.device_certificate_fixture(device)
+    device
   end
 
   defmodule ClientSocket do
@@ -93,7 +85,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
   describe "socket auth" do
     test "Can connect and authenticate to channel using client ssl certificate" do
-      target_uuid = "foo"
+      {:ok, target_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
 
       device =
         %{identifier: @valid_serial}
@@ -108,17 +100,18 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, _channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
-          topic: "device:#{device.identifier}",
+          topic: "device:#{target_uuid}",
           caller: self()
         )
 
-      ClientChannel.join(%{"uuid" => target_uuid})
+      ClientChannel.join(%{})
 
       assert_receive(
         {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
         1_000
       )
 
+      device = NervesHubCore.Repo.get(Devices.Device, device.id)
       assert DeviceChannel.online?(device)
     end
 
@@ -132,47 +125,19 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, _channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
-          topic: "device:#{@valid_serial}",
+          topic: "device:1234",
           caller: self()
         )
 
       ClientChannel.join()
       assert_receive({:socket_closed, {:tls_alert, 'unknown ca'}}, 1_000)
     end
-
-    test "Can connect and authenticate to channel using proxy headers" do
-      target_uuid = "foo"
-
-      device =
-        %{identifier: @valid_serial, product: @valid_product}
-        |> device_fixture(target_uuid)
-
-      opts =
-        @proxy_socket_config
-        |> Keyword.put(:caller, self())
-
-      {:ok, _} = ClientSocket.start_link(opts)
-
-      {:ok, _channel} =
-        ClientChannel.start_link(
-          socket: ClientSocket,
-          topic: "device:#{device.identifier}",
-          caller: self()
-        )
-
-      ClientChannel.join(%{"uuid" => target_uuid})
-
-      assert_receive(
-        {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
-        1_000
-      )
-
-      assert DeviceChannel.online?(device)
-    end
   end
 
   describe "channel auth" do
     test "Cannot connect and authenticate to channel with non-matching serial" do
+      {:ok, fake_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
+
       opts =
         @ssl_socket_config
         |> Keyword.put(:caller, self())
@@ -182,7 +147,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, _channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
-          topic: "device:not_valid_serial",
+          topic: "device:#{fake_uuid}",
           caller: self()
         )
 
@@ -194,34 +159,37 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       )
     end
 
-    test "Cannot connect and authenticate to channel with non-existing serial" do
-      opts =
-        @ssl_socket_config
-        |> Keyword.put(:caller, self())
+    #   test "Cannot connect and authenticate to channel with non-existing serial" do
+    #     opts =
+    #       @ssl_socket_config
+    #       |> Keyword.put(:caller, self())
 
-      {:ok, _} = ClientSocket.start_link(opts)
+    #     {:ok, _} = ClientSocket.start_link(opts)
 
-      {:ok, _channel} =
-        ClientChannel.start_link(
-          socket: ClientSocket,
-          topic: "device:#{@valid_serial}",
-          caller: self()
-        )
+    #     {:ok, _channel} =
+    #       ClientChannel.start_link(
+    #         socket: ClientSocket,
+    #         topic: "device:#{@valid_serial}",
+    #         caller: self()
+    #       )
 
-      ClientChannel.join()
+    #     ClientChannel.join()
 
-      assert_receive(
-        {:socket_closed, {403, "Forbidden"}},
-        1_000
-      )
-    end
+    #     assert_receive(
+    #       {:socket_closed, {403, "Forbidden"}},
+    #       1_000
+    #     )
+    #   end
   end
 
   describe "firmware update" do
     test "receives update message when eligible deployment is available" do
+      {:ok, target_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
+      {:ok, not_target_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
+
       device =
         %{identifier: @valid_serial}
-        |> device_fixture("not_foobar")
+        |> device_fixture(target_uuid)
 
       org = %Accounts.Org{id: device.org_id}
       product = Fixtures.product_fixture(org, %{name: "new product"})
@@ -229,7 +197,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       firmware =
         Fixtures.firmware_fixture(org_key, product, %{
-          uuid: "foobar",
+          uuid: not_target_uuid,
           version: "0.0.2",
           upload_metadata: %{"public_path" => @valid_firmware_url}
         })
@@ -251,11 +219,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, _channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
-          topic: "device:#{device.identifier}",
+          topic: "device:#{target_uuid}",
           caller: self()
         )
 
-      ClientChannel.join(%{"uuid" => "not_foobar"})
+      ClientChannel.join(%{})
 
       assert_receive(
         {:ok, :join,
@@ -266,11 +234,12 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         1_000
       )
 
+      device = NervesHubCore.Repo.get(Devices.Device, device.id)
       assert DeviceChannel.update_pending?(device)
     end
 
     test "does not receive update message when current_version matches target_version" do
-      query_uuid = "foobar"
+      {:ok, query_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
 
       device =
         %{identifier: @valid_serial, product: @valid_product}
@@ -285,13 +254,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, _channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
-          topic: "device:#{device.identifier}",
+          topic: "device:#{query_uuid}",
           caller: self()
         )
 
-      ClientChannel.join(%{
-        "uuid" => query_uuid
-      })
+      ClientChannel.join(%{})
 
       assert_receive(
         {:ok, :join,
@@ -302,8 +269,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         1_000
       )
 
+      device = Repo.preload(device, :org)
+
       updated_device =
-        Devices.get_device_by_identifier(device.identifier)
+        Devices.get_device_by_identifier(device.org, device.identifier)
         |> elem(1)
         |> Repo.preload(:last_known_firmware)
 

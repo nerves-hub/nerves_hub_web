@@ -77,7 +77,7 @@ defmodule NervesHubCore.DeploymentsTest do
         is_active: false
       }
 
-      device_topic = "device:#{device.identifier}"
+      device_topic = "device_socket:#{device.id}"
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, device_topic)
 
       {:ok, _deployment} =
@@ -116,7 +116,7 @@ defmodule NervesHubCore.DeploymentsTest do
           is_active: false
         }
 
-        device_topic = "device:#{device.identifier}"
+        device_topic = "device_socket:#{device.id}"
         Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, device_topic)
 
         {:ok, _deployment} =

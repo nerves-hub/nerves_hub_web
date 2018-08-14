@@ -1,9 +1,5 @@
 use Mix.Config
 
-config :nerves_hub_device,
-  device_serial_header: "x-client-dn",
-  websocket_auth_methods: [:ssl, :header]
-
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
@@ -23,4 +19,4 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   ]
 
 # Print only warnings and errors during test
-config :logger, level: :warn
+config :logger, level: :debug
