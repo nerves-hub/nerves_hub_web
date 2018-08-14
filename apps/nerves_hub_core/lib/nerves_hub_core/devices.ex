@@ -137,7 +137,7 @@ defmodule NervesHubCore.Devices do
       from(
         d in Device,
         join: c in assoc(d, :device_certificates),
-        where: d.id == ^cert.device_id
+        where: d.id == ^cert.device_id and c.serial == ^cert.serial
       )
 
     query
