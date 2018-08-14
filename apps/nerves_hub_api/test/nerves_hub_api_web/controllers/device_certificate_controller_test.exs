@@ -19,6 +19,7 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
     end
   end
 
+  @tag :ca_integration
   describe "create device certificate" do
     test "renders key when data is valid", %{device: device, conn: conn} do
       csr =
