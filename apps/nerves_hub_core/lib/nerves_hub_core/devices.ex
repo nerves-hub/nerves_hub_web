@@ -136,8 +136,8 @@ defmodule NervesHubCore.Devices do
     query =
       from(
         d in Device,
-        join: c in assoc(d, :certificates),
-        where: d.id == ^cert.id
+        join: c in assoc(d, :device_certificates),
+        where: d.id == ^cert.device_id
       )
 
     query
@@ -158,7 +158,6 @@ defmodule NervesHubCore.Devices do
       )
 
     query
-    |> preload(:device)
     |> Repo.one()
     |> case do
       nil ->
@@ -173,7 +172,13 @@ defmodule NervesHubCore.Devices do
     device
     |> Device.changeset(params)
     |> Repo.update()
-    |> Repo.reload_assoc(:last_known_firmware)
+    |> case do
+      {:ok, device} ->
+        {:ok, Repo.preload(device, :last_known_firmware, force: true)}
+
+      error ->
+        error
+    end
   end
 
   @doc """
