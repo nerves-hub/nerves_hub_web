@@ -59,8 +59,8 @@ defmodule NervesHubCore.DevicesTest do
 
     params = %{
       serial: "12345",
-      valid_after: now,
-      valid_before: now,
+      not_before: now,
+      not_after: now,
       device_id: device_id
     }
 
@@ -73,8 +73,8 @@ defmodule NervesHubCore.DevicesTest do
 
     params = %{
       serial: "12345",
-      valid_after: now,
-      valid_before: now,
+      not_before: now,
+      not_after: now,
       device_id: device.id
     }
 

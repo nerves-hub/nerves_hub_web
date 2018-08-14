@@ -1,6 +1,8 @@
 defmodule NervesHubCore.Certificate do
   require Record
 
+  @era 2000
+
   @spec get_common_name(binary) :: {:ok, binary} | :error
   def get_common_name(cert) do
     cert = decode_cert(cert)
@@ -38,6 +40,29 @@ defmodule NervesHubCore.Certificate do
     {:ok, to_string(serial)}
   end
 
+  def get_validity(cert) do
+    cert = decode_cert(cert)
+    [_, _, _ | cert] = cert
+
+    result =
+      Enum.filter(cert, &Record.is_record/1)
+      |> Enum.reverse()
+      |> Enum.find(fn
+        {:Validity, {:utcTime, _}, {:utcTime, _}} -> true
+        _ -> false
+      end)
+
+    case result do
+      {:Validity, {:utcTime, not_before}, {:utcTime, not_after}} ->
+        not_before = to_string(not_before)
+        not_after = to_string(not_after)
+        {convert_generalized_time(not_before), convert_generalized_time(not_after)}
+
+      _ ->
+        :error
+    end
+  end
+
   defp decode_cert(<<"-----BEGIN CERTIFICATE-----", _rest::binary>> = cert) do
     [{_, cert, _}] = :public_key.pem_decode(cert)
     decode_cert(cert)
@@ -46,5 +71,27 @@ defmodule NervesHubCore.Certificate do
   defp decode_cert(cert) do
     {_, cert, _, _} = :public_key.pkix_decode_cert(cert, :otp)
     Tuple.to_list(cert)
+  end
+
+  defp convert_generalized_time(timestamp) do
+    <<year::binary-unit(8)-size(2), month::binary-unit(8)-size(2), day::binary-unit(8)-size(2),
+      hour::binary-unit(8)-size(2), minute::binary-unit(8)-size(2),
+      second::binary-unit(8)-size(2), "Z">> = timestamp
+
+    NaiveDateTime.new(
+      String.to_integer(year) + @era,
+      String.to_integer(month),
+      String.to_integer(day),
+      String.to_integer(hour),
+      String.to_integer(minute),
+      String.to_integer(second)
+    )
+    |> case do
+      {:ok, naive_date_time} ->
+        DateTime.from_naive!(naive_date_time, "Etc/UTC")
+
+      error ->
+        error
+    end
   end
 end
