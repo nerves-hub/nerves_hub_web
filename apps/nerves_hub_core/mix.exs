@@ -50,6 +50,7 @@ defmodule NervesHubCore.MixProject do
       {:plug, "~> 1.6"},
       {:jason, "~> 1.0"},
       {:phoenix, github: "phoenixframework/phoenix", override: true},
+      {:sweet_xml, "~> 0.6"},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"}
     ]
