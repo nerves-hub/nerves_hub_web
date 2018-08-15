@@ -45,7 +45,7 @@ docker_import: &docker_import
         -i /docker/$APP_NAME-$DOCKER_TAG.tar
 
 docker_push: &docker_push
-  run: 
+  run:
     name: Push docker images to dockerhub
     command: |
       docker login -u $DOCKER_USER -p $DOCKER_PASS
@@ -72,7 +72,7 @@ deploy: &deploy
         nerveshub/$APP_NAME:$DOCKER_TAG
 
 send_notifications: &send_notifications
-  run: 
+  run:
     name: Send notifications
     command: |
       rel/scripts/slack-notification.sh \
@@ -98,8 +98,8 @@ jobs:
 
     steps:
       - checkout
-      - run: wget https://github.com/fhunleth/fwup/releases/download/v1.2.0/fwup_1.2.0_amd64.deb
-      - run: sudo dpkg -i ./fwup_1.2.0_amd64.deb
+      - run: wget https://github.com/fhunleth/fwup/releases/download/v1.2.5/fwup_1.2.5_amd64.deb
+      - run: sudo dpkg -i ./fwup_1.2.5_amd64.deb
       - run: mix local.hex --force
       - run: mix local.rebar --force
 
@@ -140,7 +140,7 @@ jobs:
       - run:
           name: Verify formatting
           command: mix format --check-formatted
-  
+
   build-www:
     <<: *defaults
     steps:
@@ -179,7 +179,7 @@ jobs:
       - save_cache:
           key: docker-api-{{ .Branch }}-{{ .Revision }}
           paths: "/docker"
-  
+
   push-www:
     <<: *defaults
     steps:
@@ -205,7 +205,7 @@ jobs:
             - docker-device-{{ .Branch }}-{{ .Revision }}
       - <<: *docker_import
       - <<: *docker_push
-  
+
   push-api:
     <<: *defaults
     steps:
@@ -256,7 +256,7 @@ jobs:
           command: rel/scripts/build-locking.sh --job-name deploy-device
       - <<: *deploy
       - <<: *send_notifications
-  
+
   deploy-api:
     <<: *defaults
     steps:
