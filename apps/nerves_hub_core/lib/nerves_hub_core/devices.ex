@@ -91,8 +91,11 @@ defmodule NervesHubCore.Devices do
 
       Phoenix.PubSub.broadcast(
         NervesHubWeb.PubSub,
-        "device_socket:#{device.id}",
-        %Phoenix.Socket.Broadcast{event: "update", payload: %{firmware_url: url}}
+        "device:#{device.id}",
+        %Phoenix.Socket.Broadcast{
+          event: "update",
+          payload: %{device_id: device.id, firmware_url: url}
+        }
       )
 
       {:ok, device}
