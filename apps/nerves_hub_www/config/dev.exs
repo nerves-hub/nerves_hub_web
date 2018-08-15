@@ -49,9 +49,3 @@ config :logger, :console, format: "[$level] $message\n"
 config :phoenix, :stacktrace_depth, 20
 
 config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.LocalAdapter
-
-config :ex_aws,
-  s3_host: System.get_env("S3_HOST"),
-  access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, :instance_role],
-  secret_access_key: [{:system, "AWS_SECRET_ACCESS_KEY"}, :instance_role],
-  region: System.get_env("AWS_REGION")
