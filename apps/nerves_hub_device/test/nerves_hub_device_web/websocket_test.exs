@@ -45,9 +45,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         upload_metadata: %{"public_path" => @valid_firmware_url}
       })
 
-    {:ok, deployment} =
-      Fixtures.deployment_fixture(firmware)
-      |> Deployments.update_deployment(%{is_active: true})
+    deployment = Fixtures.deployment_fixture(firmware)
 
     device = Fixtures.device_fixture(org, firmware, deployment, device_params)
     Fixtures.device_certificate_fixture(device)
@@ -100,7 +98,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, _channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
-          topic: "device:#{target_uuid}",
+          topic: "firmware:#{target_uuid}",
           caller: self()
         )
 
@@ -150,7 +148,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, _channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
-          topic: "device:#{fake_uuid}",
+          topic: "firmware:#{fake_uuid}",
           caller: self()
         )
 
@@ -161,28 +159,6 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         1_000
       )
     end
-
-    #   test "Cannot connect and authenticate to channel with non-existing serial" do
-    #     opts =
-    #       @ssl_socket_config
-    #       |> Keyword.put(:caller, self())
-
-    #     {:ok, _} = ClientSocket.start_link(opts)
-
-    #     {:ok, _channel} =
-    #       ClientChannel.start_link(
-    #         socket: ClientSocket,
-    #         topic: "device:#{@valid_serial}",
-    #         caller: self()
-    #       )
-
-    #     ClientChannel.join()
-
-    #     assert_receive(
-    #       {:socket_closed, {403, "Forbidden"}},
-    #       1_000
-    #     )
-    #   end
   end
 
   describe "firmware update" do
@@ -222,7 +198,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, _channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
-          topic: "device:#{target_uuid}",
+          topic: "firmware:#{target_uuid}",
           caller: self()
         )
 
@@ -244,6 +220,55 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       assert DeviceChannel.update_pending?(device)
     end
 
+    test "receives update message once deployment is available" do
+      {:ok, target_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
+      {:ok, not_target_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
+
+      device =
+        %{identifier: @valid_serial}
+        |> device_fixture(target_uuid)
+        |> NervesHubCore.Repo.preload(last_known_firmware: [:org_key, :product])
+
+      firmware =
+        Fixtures.firmware_fixture(
+          device.last_known_firmware.org_key,
+          device.last_known_firmware.product,
+          %{
+            uuid: not_target_uuid,
+            version: "0.0.2",
+            upload_metadata: %{"public_path" => @valid_firmware_url}
+          }
+        )
+
+      deployment =
+        Fixtures.deployment_fixture(firmware, %{
+          conditions: %{
+            "version" => ">=0.0.1",
+            "tags" => ["beta", "beta-edge"]
+          }
+        })
+
+      opts =
+        @ssl_socket_config
+        |> Keyword.put(:caller, self())
+
+      {:ok, _} = ClientSocket.start_link(opts)
+
+      {:ok, _channel} =
+        ClientChannel.start_link(
+          socket: ClientSocket,
+          topic: "firmware:#{target_uuid}",
+          caller: self()
+        )
+
+      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "firmware:#{target_uuid}")
+      ClientChannel.join(%{})
+      :timer.sleep(500)
+      Deployments.update_deployment(deployment, %{is_active: true})
+      device_id = device.id
+      assert_receive({"update", %{"device_id" => ^device_id, "firmware_url" => _f_url}}, 1000)
+    end
+
     test "does not receive update message when current_version matches target_version" do
       {:ok, query_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
 
@@ -260,7 +285,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, _channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
-          topic: "device:#{query_uuid}",
+          topic: "firmware:#{query_uuid}",
           caller: self()
         )
 

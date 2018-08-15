@@ -6,7 +6,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
 
-  def join("device:" <> fw_uuid, _payload, socket) do
+  def join("firmware:" <> fw_uuid, _payload, socket) do
     with {:ok, message} <- build_message(socket, fw_uuid) do
       send(self(), {:after_join, message})
       {:ok, message, socket}
@@ -25,9 +25,22 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_info(
+        %{payload: %{device_id: device_id} = payload, event: event},
+        %{assigns: %{certificate: %{device_id: device_id}}} = socket
+      ) do
+    push(socket, event, payload)
+    {:noreply, socket}
+  end
+
+  def handle_info(message, socket) do
+    {:noreply, socket}
+  end
+
   defp build_message(%{assigns: %{certificate: certificate}}, fw_uuid) do
     with {:ok, device} <- Devices.get_device_by_certificate(certificate),
          {:ok, device} <- device_update(device, fw_uuid) do
+      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
       send_update_message(device)
     else
       {:error, message} -> {:error, %{reason: message}}
@@ -77,7 +90,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   def online?(%Devices.Device{id: id, last_known_firmware: %Firmwares.Firmware{uuid: fw_uuid}}) do
     id = to_string(id)
 
-    "device:#{fw_uuid}"
+    "firmware:#{fw_uuid}"
     |> Presence.list()
     |> Map.has_key?(id)
   end
@@ -90,7 +103,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
       }) do
     id = to_string(id)
 
-    "device:#{fw_uuid}"
+    "firmware:#{fw_uuid}"
     |> Presence.list()
     |> Map.get(id, %{})
     |> Map.get(:metas, [%{}])
