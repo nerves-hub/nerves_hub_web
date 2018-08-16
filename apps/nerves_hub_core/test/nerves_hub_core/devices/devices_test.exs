@@ -209,4 +209,55 @@ defmodule NervesHubCore.DevicesTest do
       assert [] == Devices.get_eligible_deployments(device_with_firmware)
     end
   end
+
+  test "deployments limit deploying by product", %{
+    org: org,
+    org_key: org_key,
+    firmware: firmware,
+    product: product
+  } do
+    old_deployment =
+      Fixtures.deployment_fixture(firmware, %{
+        conditions: %{"tags" => ["beta", "beta-edge"], "version" => ""}
+      })
+
+    firmware1 = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0"})
+
+    Deployments.update_deployment(old_deployment, %{firmware_id: firmware1.id, is_active: true})
+
+    device =
+      Fixtures.device_fixture(org, firmware, old_deployment, %{
+        identifier: "new identifier"
+      })
+
+    product2 = Fixtures.product_fixture(org, %{name: "other product"})
+    firmware2 = Fixtures.firmware_fixture(org_key, product2)
+
+    params = %{
+      firmware_id: firmware2.id,
+      name: "my deployment",
+      conditions: %{
+        "version" => "",
+        "tags" => ["beta", "beta-edge"]
+      },
+      is_active: false
+    }
+
+    {:ok, _deployment2} =
+      Deployments.create_deployment(params)
+      |> elem(1)
+      |> Deployments.update_deployment(%{is_active: true})
+
+    {:ok, device_with_firmware} = Devices.get_device(org, device.id)
+
+    deployments =
+      Devices.get_eligible_deployments(device_with_firmware)
+      |> NervesHubCore.Repo.preload(:firmware)
+
+    assert length(deployments) == 1
+
+    for deployment <- deployments do
+      assert deployment.firmware.product_id == product.id
+    end
+  end
 end
