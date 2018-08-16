@@ -15,10 +15,9 @@ RUN mix release --env=$MIX_ENV --name=nerves_hub_api
 # Release Container
 FROM nerveshub/runtime:alpine-3.8 as release
 
-RUN apk add 'fwup~=1.2.3' \
-  --no-cache \
-  --repository http://nl.alpinelinux.org/alpine/edge/testing/ \
-  --allow-untrusted
+RUN apk add 'fwup~=1.2.5' \
+  --repository http://nl.alpinelinux.org/alpine/edge/community/ \
+  --no-cache
 
 EXPOSE 443
 
