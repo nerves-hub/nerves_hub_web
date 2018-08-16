@@ -58,7 +58,8 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
         last_known_firmware_id: firmware.id
       })
     else
-      _ -> {:error, :no_firmware_found}
+      _ ->
+        {:error, :no_firmware_found}
     end
   end
 

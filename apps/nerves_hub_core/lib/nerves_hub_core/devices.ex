@@ -68,13 +68,20 @@ defmodule NervesHubCore.Devices do
   end
 
   def get_eligible_deployments(
-        %Device{last_known_firmware: %Firmware{id: f_id, architecture: arch, platform: plat}} =
-          device
+        %Device{
+          last_known_firmware: %Firmware{
+            id: f_id,
+            architecture: arch,
+            platform: plat,
+            product_id: product_id
+          }
+        } = device
       ) do
     from(
       d in Deployment,
       where: d.is_active,
       join: f in assoc(d, :firmware),
+      where: f.product_id == ^product_id,
       where: f.architecture == ^arch,
       where: f.platform == ^plat,
       where: f.id != ^f_id

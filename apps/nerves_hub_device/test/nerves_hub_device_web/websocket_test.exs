@@ -163,25 +163,24 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
   describe "firmware update" do
     test "receives update message when eligible deployment is available" do
-      {:ok, target_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
       {:ok, not_target_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
 
       device =
         %{identifier: @valid_serial}
-        |> device_fixture(target_uuid)
+        |> device_fixture()
+        |> NervesHubCore.Repo.preload(last_known_firmware: [:product])
 
       org = %Accounts.Org{id: device.org_id}
-      product = Fixtures.product_fixture(org, %{name: "new product"})
       org_key = Fixtures.org_key_fixture(org, %{name: "another key"})
 
-      firmware =
-        Fixtures.firmware_fixture(org_key, product, %{
+      firmware2 =
+        Fixtures.firmware_fixture(org_key, device.last_known_firmware.product, %{
           uuid: not_target_uuid,
           version: "0.0.2",
           upload_metadata: %{"public_path" => @valid_firmware_url}
         })
 
-      Fixtures.deployment_fixture(firmware, %{
+      Fixtures.deployment_fixture(firmware2, %{
         conditions: %{
           "version" => ">=0.0.1",
           "tags" => ["beta", "beta-edge"]
@@ -198,7 +197,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, _channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
-          topic: "firmware:#{target_uuid}",
+          topic: "firmware:#{device.last_known_firmware.uuid}",
           caller: self()
         )
 
@@ -263,7 +262,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "firmware:#{target_uuid}")
       ClientChannel.join(%{})
-      :timer.sleep(500)
+      device_id = to_string(device.id)
+      assert_receive({"presence_diff", %{"joins" => %{^device_id => %{}}, "leaves" => %{}}}, 1000)
       Deployments.update_deployment(deployment, %{is_active: true})
       device_id = device.id
       assert_receive({"update", %{"device_id" => ^device_id, "firmware_url" => _f_url}}, 1000)
