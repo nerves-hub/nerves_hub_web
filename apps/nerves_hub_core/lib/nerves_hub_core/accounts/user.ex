@@ -2,8 +2,10 @@ defmodule NervesHubCore.Accounts.User do
   use Ecto.Schema
 
   import Ecto.Changeset
+  import Ecto.Query
 
   alias NervesHubCore.Accounts.{Org, UserCertificate}
+  alias NervesHubCore.Repo
   alias Comeonin.Bcrypt
   alias Ecto.Changeset
   alias __MODULE__
@@ -17,8 +19,8 @@ defmodule NervesHubCore.Accounts.User do
   @optional_params [:password, :password_reset_token, :password_reset_token_expires]
 
   schema "users" do
-    belongs_to(:org, Org)
     has_many(:user_certificates, UserCertificate)
+    many_to_many(:orgs, Org, join_through: "users_orgs")
 
     field(:name, :string)
     field(:email, :string)
@@ -31,13 +33,23 @@ defmodule NervesHubCore.Accounts.User do
     timestamps()
   end
 
-  def creation_changeset(%User{} = user, params) do
+  defp changeset(%User{} = user, params) do
     user
     |> cast(params, @required_params ++ @optional_params)
     |> hash_password()
     |> password_validations()
     |> validate_required(@required_params)
     |> unique_constraint(:email)
+  end
+
+  def creation_changeset(%User{} = user, %{orgs: [%Org{} | _] = orgs} = params) do
+    changeset(user, params)
+    |> put_assoc(:orgs, orgs, required: true)
+  end
+
+  def creation_changeset(%User{} = user, %{orgs: [%{} | _]} = params) do
+    changeset(user, params)
+    |> cast_assoc(:orgs, required: true)
   end
 
   def password_changeset(%User{} = user, params) do
@@ -51,9 +63,48 @@ defmodule NervesHubCore.Accounts.User do
   end
 
   def update_changeset(%User{} = user, params) do
-    creation_changeset(user, params)
+    changeset(user, params)
     |> generate_password_reset_token_expires()
     |> email_password_update_valid?(user, params)
+  end
+
+  defp default_org_query() do
+    # For now just get first inserted org
+    from(o in Org) |> first(:inserted_at)
+  end
+
+  def with_default_org(%User{} = u) do
+    q = default_org_query()
+
+    u
+    |> Repo.preload(orgs: q)
+  end
+
+  def with_default_org(user_query) do
+    q = default_org_query()
+
+    user_query
+    |> preload(orgs: ^q)
+  end
+
+  def with_all_orgs(%User{} = u) do
+    u
+    |> Repo.preload(:orgs)
+  end
+
+  def with_all_orgs(user_query) do
+    user_query
+    |> preload(:orgs)
+  end
+
+  def with_org_keys(%User{} = u) do
+    u
+    |> Repo.preload(orgs: [:org_keys])
+  end
+
+  def with_org_keys(user_query) do
+    user_query
+    |> preload(orgs: [:org_keys])
   end
 
   defp password_validations(%Changeset{} = changeset) do

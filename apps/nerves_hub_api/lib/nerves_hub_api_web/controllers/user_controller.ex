@@ -6,6 +6,11 @@ defmodule NervesHubAPIWeb.UserController do
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
+  defp whitelist(params, keys) do
+    keys
+    |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
+  end
+
   def me(%{assigns: %{user: user}} = conn, _params) do
     render(conn, "show.json", user: user)
   end
@@ -13,10 +18,10 @@ defmodule NervesHubAPIWeb.UserController do
   def register(conn, params) do
     params =
       params
-      |> Map.take(["name", "email", "password"])
-      |> Map.put("org_name", params["name"])
+      |> whitelist([:name, :email, :password])
+      |> Map.put(:orgs, [%{name: params["name"]}])
 
-    with {:ok, {_org, user}} <- Accounts.create_org_with_user(params) do
+    with {:ok, user} <- Accounts.create_user(params) do
       render(conn, "show.json", user: user)
     end
   end

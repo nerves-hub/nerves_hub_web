@@ -33,7 +33,8 @@ root_org =
 if root_user = Repo.get_by(User, email: root_user_email) do
   root_user
 else
-  Accounts.create_user(root_org, %{
+  Accounts.create_user(%{
+    orgs: [root_org],
     name: root_user_name,
     email: root_user_email,
     password: "nerveshub"

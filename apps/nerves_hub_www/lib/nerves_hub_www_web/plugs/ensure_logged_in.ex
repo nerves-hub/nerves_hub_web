@@ -20,9 +20,11 @@ defmodule NervesHubWWWWeb.Plugs.EnsureLoggedIn do
     end
     |> case do
       {:ok, user} ->
+        [default_org | _] = user.orgs
+
         conn
         |> assign(:user, user)
-        |> assign(:org, user.org)
+        |> assign(:org, default_org)
 
       _ ->
         conn

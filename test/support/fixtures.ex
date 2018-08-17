@@ -1,4 +1,5 @@
 Code.compiler_options(ignore_module_conflict: true)
+
 defmodule NervesHubCore.Fixtures do
   alias NervesHubCore.{Firmwares, Accounts, Devices, Deployments, Products, Certificate}
 
@@ -67,10 +68,11 @@ defmodule NervesHubCore.Fixtures do
 
   def user_fixture(%Accounts.Org{} = org, params \\ %{}) do
     user_params =
-      params
+      %{orgs: [org]}
+      |> Enum.into(params)
       |> Enum.into(@user_params)
 
-    {:ok, user} = Accounts.create_user(org, user_params)
+    {:ok, user} = Accounts.create_user(user_params)
     {:ok, _certificate} = Accounts.create_user_certificate(user, @user_certificate_params)
     user
   end
@@ -162,6 +164,25 @@ defmodule NervesHubCore.Fixtures do
     params = %{serial: serial, not_before: not_before, not_after: not_after}
     {:ok, device_cert} = Devices.create_device_certificate(device, params)
     device_cert
+  def standard_fixture() do
+    user_name = "Jeff"
+    org = org_fixture(%{name: user_name})
+    user = user_fixture(org, %{name: user_name})
+    product = product_fixture(org, %{name: "Hop"})
+    org_key = org_key_fixture(org)
+    firmware = firmware_fixture(org_key, product)
+    deployment = deployment_fixture(firmware)
+    device = device_fixture(org, firmware, deployment)
+
+    %{
+      org: org,
+      device: device,
+      org_key: org_key,
+      user: user,
+      firmware: firmware,
+      deployment: deployment,
+      product: product
+    }
   end
 
   def very_fixture() do

@@ -49,13 +49,9 @@ defmodule NervesHubCore.Deployments.Deployment do
 
   def with_firmware(%Deployment{firmware: %Firmware{}} = d), do: d
 
-  def with_firmware(%Deployment{id: id}) do
-    from(
-      d in Deployment,
-      where: d.id == ^id
-    )
-    |> preload(:firmware)
-    |> Repo.one!()
+  def with_firmware(%Deployment{} = d) do
+    d
+    |> Repo.preload(:firmware)
   end
 
   def with_firmware(deployment_query) do

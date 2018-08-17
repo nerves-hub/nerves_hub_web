@@ -20,6 +20,6 @@
     </div>
 
     <%= submit "Send Invite", class: "btn btn-success" %>
-    <a class="btn btn-secondary" href="<%= org_path(@conn, :edit) %>">Cancel</a>
+    <a class="btn btn-secondary" href="<%= org_path(@conn, :edit, @conn.assigns.org) %>">Cancel</a>
   <% end %>
 </div>

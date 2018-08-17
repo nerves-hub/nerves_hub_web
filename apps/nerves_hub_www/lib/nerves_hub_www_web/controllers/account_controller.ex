@@ -11,12 +11,18 @@ defmodule NervesHubWWWWeb.AccountController do
     render(conn, "new.html", changeset: %Changeset{data: %User{}})
   end
 
+  defp whitelist(params, keys) do
+    keys
+    |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
+  end
+
   def create(conn, %{"user" => user_params}) do
     user_params
-    |> Map.put("org_name", user_params["name"])
-    |> Accounts.create_org_with_user()
+    |> whitelist([:password, :name, :email])
+    |> Map.put(:orgs, [%{name: user_params["name"]}])
+    |> Accounts.create_user()
     |> case do
-      {:ok, {_org, _user}} ->
+      {:ok, _user} ->
         redirect(conn, to: "/")
 
       {:error, changeset} ->
@@ -66,9 +72,11 @@ defmodule NervesHubWWWWeb.AccountController do
   end
 
   def accept_invite(conn, %{"user" => user_params, "token" => token} = _) do
+    clean_params = user_params |> whitelist([:name, :email, :password])
+
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id),
-         {:ok, _user} <- Accounts.create_user_from_invite(invite, org, user_params) do
+         {:ok, _user} <- Accounts.create_user_from_invite(invite, org, clean_params) do
       conn
       |> put_flash(:info, "Account successfully created, login below")
       |> redirect(to: "/")

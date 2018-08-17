@@ -11,10 +11,11 @@ defmodule NervesHubCore.Accounts.Org do
   @type t :: %__MODULE__{}
 
   schema "orgs" do
-    has_many(:users, User)
     has_many(:org_keys, OrgKey)
     has_many(:products, Product)
     has_many(:devices, Device)
+
+    many_to_many(:users, User, join_through: "users_orgs")
 
     field(:name, :string)
 
