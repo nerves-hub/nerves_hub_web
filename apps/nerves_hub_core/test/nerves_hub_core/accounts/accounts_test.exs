@@ -37,6 +37,25 @@ defmodule NervesHubCore.AccountsTest do
     assert user.name == params.name
   end
 
+  test "user cannot have two of the same org" do
+    params = %{
+      name: "Testy McTesterson",
+      org_name: "mctesterson.com",
+      email: "testy@mctesterson.com",
+      password: "test_password"
+    }
+
+    target_org = %Accounts.Org{name: params.org_name}
+
+    {:ok, %Accounts.User{} = user} =
+      Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
+
+    [result_org | _] = user.orgs
+
+    {:ok, user} = Accounts.update_user(user, %{orgs: [result_org, result_org]})
+    assert Enum.count(user.orgs) == 1
+  end
+
   test "create_user with no org" do
     params = %{
       name: "Testy McTesterson",
