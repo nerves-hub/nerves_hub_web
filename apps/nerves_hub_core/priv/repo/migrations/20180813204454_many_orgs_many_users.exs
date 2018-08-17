@@ -7,6 +7,8 @@ defmodule NervesHubCore.Repo.Migrations.ManyOrgsManyUsers do
       add(:org_id, references(:orgs, on_delete: :delete_all))
     end
 
+    create(unique_index(:users_orgs, [:user_id, :org_id]))
+
     alter table(:users) do
       remove(:org_id)
     end

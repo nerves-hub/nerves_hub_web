@@ -40,6 +40,7 @@ defmodule NervesHubCore.Accounts.User do
     |> password_validations()
     |> validate_required(@required_params)
     |> unique_constraint(:email)
+    |> unique_constraint(:orgs)
   end
 
   def creation_changeset(%User{} = user, %{orgs: [%Org{} | _] = orgs} = params) do
