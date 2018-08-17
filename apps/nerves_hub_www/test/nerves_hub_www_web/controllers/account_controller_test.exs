@@ -50,7 +50,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
           account_path(conn, :accept_invite, invite.token, %{
             "user" => %{
               "name" => "My Name",
-              "email" => "joe@example.com",
+              "email" => "not_joe@example.com",
               "password" => "12345678"
             }
           })
@@ -61,6 +61,8 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
       assert get_session(conn, :phoenix_flash) == %{
                "info" => "Account successfully created, login below"
              }
+
+      assert {:ok, %Accounts.User{}} = Accounts.get_user_by_email("joe@example.com")
     end
   end
 

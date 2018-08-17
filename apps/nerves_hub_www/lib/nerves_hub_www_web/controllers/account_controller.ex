@@ -72,7 +72,7 @@ defmodule NervesHubWWWWeb.AccountController do
   end
 
   def accept_invite(conn, %{"user" => user_params, "token" => token} = _) do
-    clean_params = user_params |> whitelist([:name, :email, :password])
+    clean_params = user_params |> whitelist([:password])
 
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id),

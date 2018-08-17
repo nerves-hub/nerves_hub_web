@@ -164,6 +164,8 @@ defmodule NervesHubCore.Fixtures do
     params = %{serial: serial, not_before: not_before, not_after: not_after}
     {:ok, device_cert} = Devices.create_device_certificate(device, params)
     device_cert
+  end
+
   def standard_fixture() do
     user_name = "Jeff"
     org = org_fixture(%{name: user_name})
