@@ -5,7 +5,6 @@ defmodule NervesHubCore.AccountsTest do
 
   alias NervesHubCore.Accounts
   alias NervesHubCore.Fixtures
-  alias NervesHubCore.Repo
 
   @required_org_params %{name: "Org"}
 
@@ -19,77 +18,82 @@ defmodule NervesHubCore.AccountsTest do
     assert {:error, %Changeset{}} = Accounts.create_org(%{})
   end
 
-  # test "create_org_with_user with valid params" do
-  # params = %{
-  # name: "Testy McTesterson",
-  # org_name: "mctesterson.com",
-  # email: "testy@mctesterson.com",
-  # password: "test_password"
-  # }
+  test "create_user with org" do
+    params = %{
+      name: "Testy McTesterson",
+      org_name: "mctesterson.com",
+      email: "testy@mctesterson.com",
+      password: "test_password"
+    }
 
-  # target_org = %Accounts.Org{name: params.org_name}
-  # {:ok, {%Accounts.Org{} = result_org, _user}} = Accounts.create_org_with_user(params)
+    target_org = %Accounts.Org{name: params.org_name}
 
-  # [user | _] = result_org |> Repo.preload(:users) |> Map.get(:users)
+    {:ok, %Accounts.User{} = user} =
+      Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
 
-  # assert result_org.name == target_org.name
-  # assert user.name == params.name
-  # end
+    [result_org | _] = user.orgs
 
-  # test "create_org_with_user with missing params" do
-  # params = %{
-  # name: "Testy McTesterson",
-  # email: "testy@mctesterson.com",
-  # password: "test_password"
-  # }
+    assert result_org.name == target_org.name
+    assert user.name == params.name
+  end
 
-  # assert {:error, %Changeset{}} = Accounts.create_org_with_user(params)
-  # end
+  test "create_user with no org" do
+    params = %{
+      name: "Testy McTesterson",
+      email: "testy@mctesterson.com",
+      password: "test_password"
+    }
 
-  # test "create_org_with_user_with_certificate with valid params" do
-  # params = %{
-  # name: "Testy McTesterson",
-  # org_name: "mctesterson.com",
-  # email: "testy@mctesterson.com",
-  # password: "test_password"
-  # }
+    assert {:error, %Changeset{}} = Accounts.create_user(params)
+  end
 
-  # target_org = %Accounts.Org{name: params.org_name}
-  # {:ok, {%Accounts.Org{} = result_org, _user}} = Accounts.create_org_with_user(params)
+  test "create_org_with_user_with_certificate with valid params" do
+    params = %{
+      name: "Testy McTesterson",
+      org_name: "mctesterson.com",
+      email: "testy@mctesterson.com",
+      password: "test_password"
+    }
 
-  # [user | _] = result_org |> Repo.preload(:users) |> Map.get(:users)
+    target_org = %Accounts.Org{name: params.org_name}
 
-  # assert result_org.name == target_org.name
-  # assert user.name == params.name
+    {:ok, %Accounts.User{} = user} =
+      Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
 
-  # params = %{
-  # description: "abcd",
-  # serial: "12345"
-  # }
+    [result_org | _] = user.orgs
 
-  # assert {:ok, _cert} = Accounts.create_user_certificate(user, params)
-  # end
+    assert result_org.name == target_org.name
+    assert user.name == params.name
 
-  # test "cannot create user certificate with duplicate serial" do
-  # params = %{
-  # name: "Testy McTesterson",
-  # org_name: "mctesterson.com",
-  # email: "testy@mctesterson.com",
-  # password: "test_password"
-  # }
+    params = %{
+      description: "abcd",
+      serial: "12345"
+    }
 
-  # {:ok, {%Accounts.Org{} = result_org, _user}} = Accounts.create_org_with_user(params)
+    assert {:ok, _cert} = Accounts.create_user_certificate(user, params)
+  end
 
-  # [user | _] = result_org |> Repo.preload(:users) |> Map.get(:users)
+  test "cannot create user certificate with duplicate serial" do
+    params = %{
+      name: "Testy McTesterson",
+      org_name: "mctesterson.com",
+      email: "testy@mctesterson.com",
+      password: "test_password"
+    }
 
-  # params = %{
-  # description: "abcd",
-  # serial: "12345"
-  # }
+    target_org = %Accounts.Org{name: params.org_name}
 
-  # {:ok, _cert} = Accounts.create_user_certificate(user, params)
-  # {:error, %Ecto.Changeset{}} = Accounts.create_user_certificate(user, params)
-  # end
+    {:ok, %Accounts.User{} = user} =
+      Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
+
+    params = %{
+      description: "abcd",
+      serial: "12345"
+    }
+
+    {:ok, _cert} = Accounts.create_user_certificate(user, params)
+    {:error, %Ecto.Changeset{}} = Accounts.create_user_certificate(user, params)
+  end
 
   test "org_key name must be unique" do
     {:ok, org} = Accounts.create_org(@required_org_params)

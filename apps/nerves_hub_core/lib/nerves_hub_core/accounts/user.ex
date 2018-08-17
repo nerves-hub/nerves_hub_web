@@ -47,7 +47,7 @@ defmodule NervesHubCore.Accounts.User do
     |> put_assoc(:orgs, orgs, required: true)
   end
 
-  def creation_changeset(%User{} = user, %{orgs: [%{} | _]} = params) do
+  def creation_changeset(%User{} = user, params) do
     changeset(user, params)
     |> cast_assoc(:orgs, required: true)
   end
