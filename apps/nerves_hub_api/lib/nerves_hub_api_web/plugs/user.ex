@@ -23,7 +23,7 @@ defmodule NervesHubAPIWeb.Plugs.User do
           |> :public_key.pem_encode()
 
         {:ok, serial} = Certificate.get_serial_number(cert)
-        Accounts.get_user_with_certificate_serial(serial)
+        Accounts.get_user_by_certificate_serial(serial)
     end
     |> case do
       nil ->
@@ -33,11 +33,11 @@ defmodule NervesHubAPIWeb.Plugs.User do
         |> halt()
 
       %User{} = user ->
-        user = NervesHubCore.Repo.preload(user, org: [:org_keys])
+        [org | _] = user.orgs
 
         conn
         |> assign(:user, user)
-        |> assign(:org, user.org)
+        |> assign(:org, org)
     end
   end
 end

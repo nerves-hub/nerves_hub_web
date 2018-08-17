@@ -19,7 +19,7 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
           firmware: firmware,
           deployment: deployment,
           product: product
-        } = NervesHubCore.Fixtures.very_fixture()
+        } = NervesHubCore.Fixtures.standard_fixture()
 
         {:ok, org_key} =
           Accounts.create_org_key(%{

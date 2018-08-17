@@ -19,7 +19,8 @@
             <%= @conn.assigns.org.name %>
           </a>
           <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-            <a class="dropdown-item" href="<%= account_path(@conn, :edit)%>">Account settings</a>
+            <a class="dropdown-item" href="<%= org_path(@conn, :edit, @conn.assigns.org)%>">Org settings</a>
+            <a class="dropdown-item" href="<%= account_path(@conn, :edit)%>">User settings</a>
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="<%= session_path(@conn, :delete)%>">Logout</a>
           </div>

@@ -61,7 +61,7 @@ defmodule NervesHubAPIWeb.UserControllerTest do
 
     {:ok, serial} = Certificate.get_serial_number(cert)
 
-    user = Accounts.get_user_with_certificate_serial(serial)
+    user = Accounts.get_user_by_certificate_serial(serial)
     assert user.email == params.email
   end
 end

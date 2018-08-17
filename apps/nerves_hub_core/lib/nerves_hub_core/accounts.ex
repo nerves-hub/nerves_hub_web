@@ -25,81 +25,8 @@ defmodule NervesHubCore.Accounts do
     User.update_changeset(org_key, params)
   end
 
-  @doc """
-  Create a org. Expects `params` to contain fields for both the user and org.
-  """
-  @spec create_org_with_user(map) ::
-          {:ok, Org.t()}
-          | {:error, Changeset.t()}
-  def create_org_with_user(params) do
-    types = %{
-      name: :string,
-      org_name: :string,
-      email: :string,
-      password: :string
-    }
-
-    changeset =
-      {%{}, types}
-      |> Changeset.cast(params, Map.keys(types))
-      |> Changeset.validate_required([
-        :name,
-        :org_name,
-        :email,
-        :password
-      ])
-
-    # Ensure Phoenix.Form shows errors
-    changeset = %{changeset | action: :insert}
-
-    changeset
-    |> case do
-      %Changeset{valid?: false} = changeset ->
-        {:error, changeset}
-
-      %Changeset{valid?: true} = changeset ->
-        do_create_org_with_user(changeset)
-    end
-  end
-
-  @spec do_create_org_with_user(Changeset.t()) ::
-          {:ok, Org.t()}
-          | {:error, Changeset.t()}
-  defp do_create_org_with_user(org_user_changeset) do
-    field = fn field_name -> Changeset.get_field(org_user_changeset, field_name) end
-
-    org_params = %{
-      name: field.(:org_name)
-    }
-
-    user_params = %{
-      name: field.(:name),
-      email: field.(:email),
-      password: field.(:password)
-    }
-
-    Repo.transaction(fn ->
-      with {:ok, org} <- create_org(org_params),
-           {:ok, user} <- create_user(org, user_params) do
-        {org, user}
-      else
-        {:error, changeset} ->
-          # Merge errors into original changeset
-          changeset.errors
-          |> Enum.reduce(org_user_changeset, fn {key, {message, data}}, changeset ->
-            Changeset.add_error(changeset, key, message, data)
-          end)
-          |> Repo.rollback()
-      end
-    end)
-  end
-
-  @spec create_user(Org.t(), map) ::
-          {:ok, User.t()}
-          | {:error, Changeset.t()}
-  def create_user(%Org{} = org, params) do
-    org
-    |> Ecto.build_assoc(:users)
+  def create_user(params) do
+    %User{}
     |> change_user(params)
     |> Repo.insert()
   end
@@ -144,12 +71,7 @@ defmodule NervesHubCore.Accounts do
           | {:error, :not_found}
   def get_user(user_id) do
     query =
-      from(
-        u in User,
-        join: t in assoc(u, :org),
-        where: u.id == ^user_id,
-        preload: [org: {t, :org_keys}]
-      )
+      from(u in User, where: u.id == ^user_id) |> User.with_default_org() |> User.with_org_keys()
 
     query
     |> Repo.one()
@@ -186,7 +108,7 @@ defmodule NervesHubCore.Accounts do
     Repo.delete(cert)
   end
 
-  def get_user_with_certificate_serial(serial) do
+  def get_user_by_certificate_serial(serial) do
     query =
       from(
         uc in UserCertificate,
@@ -198,7 +120,7 @@ defmodule NervesHubCore.Accounts do
     |> Repo.one()
     |> case do
       nil -> nil
-      %{user: user} -> user
+      %{user: user} -> user |> User.with_default_org()
     end
   end
 
@@ -351,10 +273,10 @@ defmodule NervesHubCore.Accounts do
           {:ok, User.t()}
           | {:error}
   def create_user_from_invite(invite, org, user_params) do
-    user_params = %{user_params | "email" => invite.email}
+    user_params = %{user_params | email: invite.email}
 
     Repo.transaction(fn ->
-      with {:ok, user} <- create_user(org, user_params),
+      with {:ok, user} <- create_user(%{orgs: [org]} |> Enum.into(user_params)),
            {:ok, _invite} <- set_invite_accepted(invite) do
         {:ok, user}
       else
