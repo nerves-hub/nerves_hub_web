@@ -81,6 +81,17 @@ defmodule NervesHubCore.Accounts do
     end
   end
 
+  def get_user_by_email(email) do
+    query = from(u in User, where: u.email == ^email)
+
+    query
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      user -> {:ok, user}
+    end
+  end
+
   @spec get_user_certificates(User.t()) ::
           {:ok, [UserCertificate.t()]}
           | {:error, :not_found}
@@ -273,7 +284,9 @@ defmodule NervesHubCore.Accounts do
           {:ok, User.t()}
           | {:error}
   def create_user_from_invite(invite, org, user_params) do
-    user_params = %{user_params | email: invite.email}
+    user_params =
+      %{email: invite.email, name: invite.name}
+      |> Enum.into(user_params)
 
     Repo.transaction(fn ->
       with {:ok, user} <- create_user(%{orgs: [org]} |> Enum.into(user_params)),
