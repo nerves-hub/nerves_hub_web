@@ -4,9 +4,9 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
   alias NervesHubCore.Fixtures
 
   describe "index" do
-    test "lists all deployments", %{conn: conn, product: product} do
+    test "lists all deployments", %{conn: conn, org: org, product: product} do
       qp = URI.encode_query(%{product_name: product.name})
-      path = deployment_path(conn, :index) <> "?" <> qp
+      path = deployment_path(conn, :index, org.name, product.name) <> "?" <> qp
       conn = get(conn, path)
       assert json_response(conn, 200)["data"] == []
     end
@@ -18,15 +18,16 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
     test "renders deployment when data is valid", %{
       conn: conn,
       deployment: deployment,
+      org: org,
       product: product
     } do
       qp = URI.encode_query(%{product_name: product.name})
-      path = deployment_path(conn, :update, deployment.name) <> "?" <> qp
+      path = deployment_path(conn, :update, org.name, product.name, deployment.name) <> "?" <> qp
       conn = put(conn, path, deployment: %{"is_active" => true})
       assert %{"is_active" => true} = json_response(conn, 200)["data"]
 
       conn = build_auth_conn()
-      path = deployment_path(conn, :show, deployment.name) <> "?" <> qp
+      path = deployment_path(conn, :show, org.name, product.name, deployment.name) <> "?" <> qp
       conn = get(conn, path)
       assert json_response(conn, 200)["data"]["is_active"]
     end
@@ -34,10 +35,11 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
     test "renders errors when data is invalid", %{
       conn: conn,
       deployment: deployment,
+      org: org,
       product: product
     } do
       qp = URI.encode_query(%{product_name: product.name})
-      path = deployment_path(conn, :update, deployment.name) <> "?" <> qp
+      path = deployment_path(conn, :update, org.name, product.name, deployment.name) <> "?" <> qp
       conn = put(conn, path, deployment: %{is_active: "1234"})
       assert json_response(conn, 422)["errors"] != %{}
     end
