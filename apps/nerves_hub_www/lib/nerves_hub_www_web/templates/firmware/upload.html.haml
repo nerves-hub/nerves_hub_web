@@ -1,0 +1,18 @@
+.modal-content
+  = form_for @changeset, product_firmware_path(@conn, :do_upload, @product.id), [multipart: true], fn f -> 
+    .modal-header.panel-title.text-left
+      Upload Firmware
+
+    .modal-body{style: "padding-top: 0px;"}
+      = render(NervesHubWWWWeb.SharedView, "show_flash.html", conn: @conn)
+      .form-group.text-left
+        %label{for: "file_input"}
+          Select Firmware
+        = file_input f, :file, class: "form-control", id: "file_input"
+        = error_tag f, :file
+
+    .modal-footer
+      .pull-right
+        = submit "Upload Firmware", class: "btn btn-primary"
+
+    <% end %>

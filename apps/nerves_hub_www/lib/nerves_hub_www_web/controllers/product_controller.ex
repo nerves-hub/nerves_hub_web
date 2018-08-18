@@ -25,7 +25,8 @@ defmodule NervesHubWWWWeb.ProductController do
   end
 
   def show(%{assigns: %{org: org}} = conn, %{"id" => id}) do
-    product = Products.get_product_with_org(org, id)
+    {:ok, product} = Products.get_product_with_org(org, id)
+    product = NervesHubCore.Repo.preload(product, :firmwares)
     render(conn, "show.html", product: product)
   end
 

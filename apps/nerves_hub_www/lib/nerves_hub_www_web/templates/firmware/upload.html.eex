@@ -1,9 +1,0 @@
-<%= form_for @changeset, product_firmware_path(@conn, :do_upload, @product.id), [multipart: true], fn f -> %>
-  <div class="form-group">
-    <label for="file_input">Select File</label>
-    <%= file_input f, :file, required: true, id: "file_input" %>
-    <div class="has-error"><%= error_tag f, :file %></div>
-  </div>
-
-  <%= submit "Upload Firmware", class: "btn btn-primary" %>
-<% end %>

@@ -1,0 +1,24 @@
+%h2
+  .row
+    .col-6
+      = @product.name
+
+      %a.btn.btn-lg.btn-primary{href: "#{device_path(@conn, :new)}"}
+        Add Device
+
+
+    .col-3
+
+    .col-3.nhw_chooser
+      .row      
+        .nhw_list_header
+          .row
+            .col-8
+              Firmware
+            .col-4.text-right
+              %a.action_btn{data-modal-src-url: "#{product_firmware_path(@conn, :upload, @product)}", data-success-dom-dest: "#firmware_listing"}
+                %span.fa.fa-plus-circle
+      .row
+        %ul.nhw_list.list-group#firmware_listing
+          = render("_listing.html", conn: @conn, products: @product.firmwares)
+

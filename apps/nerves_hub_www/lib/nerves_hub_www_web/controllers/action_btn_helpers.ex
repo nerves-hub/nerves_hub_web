@@ -11,7 +11,7 @@ defmodule NervesHubWWWWeb.Controllers.ActionBtnHelpers do
   end
 
   def render_error(conn, template, assigns) do
-    form_html = Phoenix.View.render_to_string(conn.private.phoenix_view, template, Keyword.merge([conn: conn], assigns))
+    form_html = Phoenix.View.render_to_string(conn.private.phoenix_view, template, Keyword.merge([conn: conn, layout: false], assigns))
 
     conn
     |> put_view(ActionBtnView)

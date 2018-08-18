@@ -62,7 +62,7 @@ config :phoenix, :stacktrace_depth, 20
 config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.File
 
 config :nerves_hub_www, NervesHubCore.Firmwares.Upload.File,
-  local_path: "/tmp/firmware",
+  local_path: "/Users/stwf/firmware",
   public_path: "/firmware"
 
 # config :nerves_hub_www, NervesHubCore.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")

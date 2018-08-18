@@ -4,17 +4,10 @@
       .nhw_list_header
         .row
           .col-8
-            %a{href: "#{product_path(@conn, :index)}"}
-              PRODUCTS
+            All Products
           .col-4.text-right
             %a.action_btn{data-modal-src-url: "#{product_path(@conn, :new)}", data-success-dom-dest: "#product_listing"}
               %span.fa.fa-plus-circle
       .row
       %ul.nhw_list.list-group#product_listing
-        = render(NervesHubWWWWeb.ProductView, "_listing.html", conn: @conn, products: @products)
-
-  .col-8
-
-
-:javascript
-  var my_csrf_token = "#{get_csrf_token()}";
+        = render("_listing.html", conn: @conn, products: @products)

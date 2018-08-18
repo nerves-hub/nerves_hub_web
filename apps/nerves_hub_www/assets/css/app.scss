@@ -18,11 +18,14 @@ html, body {
 logo-font {
   font-family: 'Varela Round', sans-serif;
 }
+
 .tall {
   height: 100%;
 }
+
 .wrapper {
     overflow-x:hidden;
+    background-image: url("../images/index_bg.png");
 }
 .modal-header {
   background-color: $dark_background;

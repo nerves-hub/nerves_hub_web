@@ -32,8 +32,7 @@ defmodule NervesHubWWWWeb.SessionController do
       {:error, :authentication_failed} ->
         conn
         |> put_flash(:error, "Login Failed")
-        |> render_error("new.html", changeset: %Changeset{data: %User{}},
-                                    layout: false)
+        |> render_error("new.html", changeset: %Changeset{data: %User{}})
     end
   end
 
