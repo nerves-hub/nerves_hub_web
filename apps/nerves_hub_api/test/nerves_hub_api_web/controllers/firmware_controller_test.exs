@@ -10,16 +10,16 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
   @fw_key_path Path.join(@test_firmware_path, "fwup-key1.pub")
 
   describe "index" do
-    test "lists all firmwares", %{conn: conn, product: product} do
+    test "lists all firmwares", %{conn: conn, org: org, product: product} do
       qp = URI.encode_query(%{product_name: product.name})
-      path = firmware_path(conn, :index) <> "?" <> qp
+      path = firmware_path(conn, :index, org.name, product.name) <> "?" <> qp
       conn = get(conn, path)
       assert json_response(conn, 200)["data"] == []
     end
   end
 
   describe "create firmware" do
-    test "renders firmware when data is valid", %{org: org} do
+    test "renders firmware when data is valid", %{org: org, product: product} do
       %{name: "test", key: File.read!(@fw_key_path), org_id: org.id}
       |> NervesHubCore.Accounts.create_org_key()
 
@@ -34,16 +34,16 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
         |> Plug.Conn.put_req_header("content-type", "application/octet-stream")
         |> Plug.Conn.put_req_header("content-length", "#{length}")
 
-      path = firmware_path(conn, :create)
+      path = firmware_path(conn, :create, org.name, product.name)
       conn = post(conn, path, body)
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, firmware_path(conn, :show, uuid))
+      conn = get(conn, firmware_path(conn, :show, org.name, product.name, uuid))
       assert json_response(conn, 200)["data"]["uuid"] == uuid
     end
 
-    test "renders errors when data is invalid", %{conn: conn} do
-      conn = post(conn, firmware_path(conn, :create))
+    test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do
+      conn = post(conn, firmware_path(conn, :create, org.name, product.name))
       assert json_response(conn, 500)["errors"] != %{}
     end
   end
@@ -51,11 +51,11 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
   describe "delete firmware" do
     setup [:create_firmware]
 
-    test "deletes chosen firmware", %{conn: conn, firmware: firmware} do
-      conn = delete(conn, firmware_path(conn, :delete, firmware.uuid))
+    test "deletes chosen firmware", %{conn: conn, org: org, product: product, firmware: firmware} do
+      conn = delete(conn, firmware_path(conn, :delete, org.name, product.name, firmware.uuid))
       assert response(conn, 204)
 
-      conn = get(conn, firmware_path(conn, :show, firmware.uuid))
+      conn = get(conn, firmware_path(conn, :show, org.name, product.name, firmware.uuid))
 
       assert response(conn, 404)
     end

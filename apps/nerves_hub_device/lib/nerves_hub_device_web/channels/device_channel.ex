@@ -33,7 +33,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(message, socket) do
+  def handle_info(_message, socket) do
     {:noreply, socket}
   end
 

@@ -33,11 +33,8 @@ defmodule NervesHubAPIWeb.Plugs.User do
         |> halt()
 
       %User{} = user ->
-        [org | _] = user.orgs
-
         conn
         |> assign(:user, user)
-        |> assign(:org, org)
     end
   end
 end
