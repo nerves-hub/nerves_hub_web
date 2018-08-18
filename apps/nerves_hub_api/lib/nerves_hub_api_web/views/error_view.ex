@@ -7,6 +7,12 @@ defmodule NervesHubAPIWeb.ErrorView do
     %{errors: %{detail: error}}
   end
 
+  # If you want to customize a particular status code
+  # for a certain format, you may uncomment below.
+  def render("400.json", %{error: error}) do
+    %{errors: %{detail: error}}
+  end
+
   # By default, Phoenix returns the status message from
   # the template name. For example, "404.json" becomes
   # "Not Found".

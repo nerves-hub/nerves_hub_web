@@ -5,14 +5,14 @@ defmodule NervesHubAPIWeb.DeviceCertificateController do
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
-  def index(%{assigns: %{org: org}} = conn, %{"identifier" => identifier}) do
+  def index(%{assigns: %{org: org}} = conn, %{"device_identifier" => identifier}) do
     with {:ok, device} <- Devices.get_device_by_identifier(org, identifier) do
       device_certificates = Devices.get_device_certificates(device)
       render(conn, "index.json", device_certificates: device_certificates)
     end
   end
 
-  def sign(%{assigns: %{org: org}} = conn, %{"csr" => csr, "identifier" => identifier}) do
+  def sign(%{assigns: %{org: org}} = conn, %{"csr" => csr, "device_identifier" => identifier}) do
     with {:ok, device} <- Devices.get_device_by_identifier(org, identifier),
          {:ok, %{"cert" => cert}} <- CertificateAuthority.sign_device_csr(csr),
          {:ok, serial} <- Certificate.get_serial_number(cert),

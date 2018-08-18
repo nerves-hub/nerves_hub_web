@@ -166,6 +166,21 @@ defmodule NervesHubCore.Accounts do
     end
   end
 
+  def get_org_by_name_and_user(org_name, %User{id: user_id}) do
+    query =
+      from(
+        o in Org,
+        join: u in assoc(o, :users),
+        where: u.id == ^user_id and o.name == ^org_name
+      )
+
+    Repo.one(query)
+    |> case do
+      nil -> {:error, :not_found}
+      org -> {:ok, org}
+    end
+  end
+
   @spec update_org(Org.t(), map) ::
           {:ok, Org.t()}
           | {:error, Changeset.t()}

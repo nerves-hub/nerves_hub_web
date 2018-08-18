@@ -5,9 +5,16 @@ defmodule NervesHubAPIWeb.Router do
     plug(:accepts, ["json"])
   end
 
-  pipeline :authenticated do
+  pipeline :user do
     plug(NervesHubAPIWeb.Plugs.User)
-    plug(NervesHubCore.Plugs.Product)
+  end
+
+  pipeline :org do
+    plug(NervesHubAPIWeb.Plugs.Org)
+  end
+
+  pipeline :product do
+    plug(NervesHubAPIWeb.Plugs.Product)
   end
 
   scope "/users", NervesHubAPIWeb do
@@ -20,37 +27,55 @@ defmodule NervesHubAPIWeb.Router do
 
   scope "/", NervesHubAPIWeb do
     pipe_through(:api)
-    pipe_through(:authenticated)
+    pipe_through(:user)
 
     scope "/users" do
       get("/me", UserController, :me)
     end
 
-    scope "/firmwares" do
-      get("/", FirmwareController, :index)
-      get("/:uuid", FirmwareController, :show)
-      post("/", FirmwareController, :create)
-      delete("/:uuid", FirmwareController, :delete)
-    end
+    scope "/orgs" do
+      scope "/:org_name" do
+        pipe_through(:org)
 
-    scope "/keys" do
-      get("/", KeyController, :index)
-      post("/", KeyController, :create)
-      get("/:name", KeyController, :show)
-      delete("/:name", KeyController, :delete)
-    end
+        scope "/keys" do
+          get("/", KeyController, :index)
+          post("/", KeyController, :create)
+          get("/:name", KeyController, :show)
+          delete("/:name", KeyController, :delete)
+        end
 
-    scope "/deployments" do
-      get("/", DeploymentController, :index)
-      get("/:name", DeploymentController, :show)
-      put("/:name", DeploymentController, :update)
-    end
+        scope "/devices" do
+          post("/", DeviceController, :create)
 
-    scope "/devices" do
-      post("/", DeviceController, :create)
-      get("/:identifier", DeviceController, :show)
-      get("/:identifier/certificates", DeviceCertificateController, :index)
-      post("/:identifier/certificates/sign", DeviceCertificateController, :sign)
+          scope "/:device_identifier" do
+            get("/", DeviceController, :show)
+
+            scope "/certificates" do
+              get("/", DeviceCertificateController, :index)
+              post("/sign", DeviceCertificateController, :sign)
+            end
+          end
+        end
+
+        scope "/products" do
+          scope "/:product_name" do
+            pipe_through(:product)
+
+            scope "/firmwares" do
+              get("/", FirmwareController, :index)
+              get("/:uuid", FirmwareController, :show)
+              post("/", FirmwareController, :create)
+              delete("/:uuid", FirmwareController, :delete)
+            end
+
+            scope "/deployments" do
+              get("/", DeploymentController, :index)
+              get("/:name", DeploymentController, :show)
+              put("/:name", DeploymentController, :update)
+            end
+          end
+        end
+      end
     end
   end
 end

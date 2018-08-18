@@ -11,13 +11,13 @@ defmodule NervesHubAPIWeb.FirmwareController do
     render(conn, "index.json", firmwares: firmwares)
   end
 
-  def create(%{assigns: %{org: org}} = conn, _params) do
+  def create(%{assigns: %{org: org, product: product}} = conn, _params) do
     with {:ok, filepath, conn} <- read_firmware(conn),
          {:ok, firmware_params} <- Firmwares.prepare_firmware_params(org, filepath),
          {:ok, firmware} <- Firmwares.create_firmware(firmware_params) do
       conn
       |> put_status(:created)
-      |> put_resp_header("location", firmware_path(conn, :show, firmware))
+      |> put_resp_header("location", firmware_path(conn, :show, org, product, firmware))
       |> render("show.json", firmware: firmware)
     end
   end

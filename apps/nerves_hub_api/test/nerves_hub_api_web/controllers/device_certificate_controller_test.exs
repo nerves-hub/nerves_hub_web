@@ -13,15 +13,15 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
   end
 
   describe "index" do
-    test "lists all certificates", %{device: device, conn: conn} do
-      conn = get(conn, device_certificate_path(conn, :index, device.identifier))
+    test "lists all certificates", %{conn: conn, org: org, device: device} do
+      conn = get(conn, device_certificate_path(conn, :index, org.name, device.identifier))
       assert json_response(conn, 200)["data"] == []
     end
   end
 
   @tag :ca_integration
   describe "create device certificate" do
-    test "renders key when data is valid", %{device: device, conn: conn} do
+    test "renders key when data is valid", %{conn: conn, org: org, device: device} do
       csr =
         Fixtures.path()
         |> Path.join("cfssl/device-1234-csr.pem")
@@ -30,7 +30,7 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
 
       params = %{identifier: device.identifier, csr: csr}
 
-      conn = post(conn, device_certificate_path(conn, :sign, device.identifier), params)
+      conn = post(conn, device_certificate_path(conn, :sign, org.name, device.identifier), params)
       resp_data = json_response(conn, 200)["data"]
       assert %{"cert" => cert} = resp_data
 
@@ -40,9 +40,11 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
       assert cert.device_id == device.id
     end
 
-    test "renders errors when data is invalid", %{conn: conn} do
-      conn = post(conn, key_path(conn, :create))
-      assert json_response(conn, 422)["errors"] != %{}
+    test "renders errors when data is invalid", %{conn: conn, org: org, device: device} do
+      conn =
+        post(conn, device_certificate_path(conn, :sign, org.name, device.identifier), csr: "")
+
+      assert json_response(conn, 500)["errors"] != %{}
     end
   end
 end
