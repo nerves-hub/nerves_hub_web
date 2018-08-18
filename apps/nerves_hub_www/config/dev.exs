@@ -39,11 +39,7 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
       ~r{priv/static/images/.*(png|jpeg|jpg|gif|svg)$},
       ~r{priv/gettext/.*(po)$},
       ~r{lib/nerves_hub_www_web/views/.*(ex)$},
-<<<<<<< HEAD
-      ~r{lib/nerves_hub_www_web/templates/.*(eex|haml)$}
-=======
-      ~r{lib/nerves_hub_www_web/templates/.*(eex|md)$}
->>>>>>> master
+      ~r{lib/nerves_hub_www_web/templates/.*(eex|haml|md)$}
     ]
   ]
 
@@ -54,7 +50,6 @@ config :logger, :console, format: "[$level] $message\n"
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20
 
-<<<<<<< HEAD
 # uncomment if using NervesHubCore.Firmwares.Upload.File
 # config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.File
 
@@ -67,7 +62,7 @@ config :phoenix, :stacktrace_depth, 20
 config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.File
 
 config :nerves_hub_www, NervesHubCore.Firmwares.Upload.File,
-  local_path: "/Users/stwf/firmware",
+  local_path: "/Users/steve/firmware",
   public_path: "/firmware"
 
 # config :nerves_hub_www, NervesHubCore.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
@@ -82,6 +77,5 @@ config :nerves_hub_www, NervesHubCore.CertificateAuthority,
     server_name_indication: 'ca.nerves-hub.org'
   ]
 
-=======
->>>>>>> master
+
 config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.LocalAdapter
