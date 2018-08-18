@@ -30,12 +30,7 @@
       <span class="logo-letter logo-font">NervesHub</span>
     </div>
     <div class="navbar-nav mr-3">
-      <%= if permit_uninvited_signups() do %>
-        <a class="btn btn-outline-primary ml-3" href="<%= account_path(@conn, :new) %>">
-          Create Account
-        </a>
-      <% end %>
-      <a class="btn btn-outline-success ml-3" href="<%= session_path(@conn, :new)%>">Login</a>
+      <%= session_buttons(@conn) %>
     </div>
   <% end %>
   </div>

@@ -1,9 +1,0 @@
-<div class="jumbotron bg-dark">
-  <h1 class="display-4 text-left">Welcome, <%= @conn.assigns.user.name %>!</h1>
-  <p class="lead text-left">NervesHub helps you manage firmware updates for Nerves devices.</p>
-  <hr class="my-4">
-  <p class="text-left">To get started, add a product by clicking the button below.</p>
-  <p class="text-left">
-    <a class="btn btn-primary btn-lg" href="<%= product_path(@conn, :new) %>" role="button">Add a Product</a>
-  </p>
-</div>

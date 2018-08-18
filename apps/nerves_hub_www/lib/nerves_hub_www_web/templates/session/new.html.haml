@@ -1,0 +1,28 @@
+.modal-content
+  = form_for @changeset, session_path(@conn, :create), fn f ->
+    .modal-header.panel-title.text-left
+      Log in
+
+  
+    .modal-body{style: "padding-top: 0px;"}
+      = render(NervesHubWWWWeb.SharedView, "show_flash.html", conn: @conn)
+      .form-group.text-left
+        %label{for: "email_input"}
+          Email
+        = email_input f, :email, class: "form-control", id: "email_input"
+        = error_tag f, :email
+
+      .form-group.text-left
+        %label{for: "password_input"}
+          Password
+        = password_input f, :password, class: "form-control", id: "password_input"
+        = error_tag f, :password
+    .modal-footer
+      .pull-left
+        %a.btn{href: "#{password_reset_path(@conn, :new)}"}
+          Forgot Password
+
+      .pull-right
+        = submit "Login", class: "btn btn-primary"
+
+    <% end %>

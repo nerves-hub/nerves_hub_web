@@ -1,6 +1,5 @@
-const CopyWebpackPlugin = require('copy-webpack-plugin');
-
-var ExtractTextPlugin = require("extract-text-webpack-plugin");
+const ExtractTextPlugin = require("extract-text-webpack-plugin");
+var CopyWebpackPlugin = require("copy-webpack-plugin");
 var merge = require("webpack-merge");
 var webpack = require("webpack");
 
@@ -15,7 +14,10 @@ var plugins = [
   new webpack.ProvidePlugin({
     $: "jquery",
     jQuery: "jquery"
-  })
+  }),
+  new CopyWebpackPlugin([
+      { from: 'images', to: "images" }
+  ])
 ]
 
 if (production) {
@@ -68,6 +70,13 @@ var common = {
         })
       },
       {
+        test: /font-awesome\.config\.js/,
+        use: [
+          { loader: 'style-loader' },
+          { loader: 'font-awesome-loader' }
+        ]
+      },
+      {
         test: /\.(png|jpg|gif|svg)$/,
         loader: "file-loader?name=../priv/static/images/[name].[ext]"
       },
@@ -94,7 +103,9 @@ module.exports = [
       modules: [
         node_modules_dir,
         __dirname + "/js",
-        __dirname + "/css"
+        __dirname + "/css",
+        "~font-awesome/scss/font-awesome.scss",
+        __dirname + "/images"
       ]
     }
   })

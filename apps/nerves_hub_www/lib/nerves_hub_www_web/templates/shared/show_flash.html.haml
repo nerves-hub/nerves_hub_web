@@ -1,0 +1,8 @@
+- if get_flash(@conn, :info) do
+  %p.alert.alert-success
+    = get_flash(@conn, :info)
+
+- if get_flash(@conn, :error) do
+  %p.alert.alert-danger
+    = get_flash(@conn, :error)
+

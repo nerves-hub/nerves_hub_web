@@ -13,7 +13,7 @@ defmodule NervesHubWWWWeb.FirmwareController do
 
   def upload(conn, _params) do
     conn
-    |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
+    |> render("upload.html", changeset: %Changeset{data: %Firmware{}}, layout: false)
   end
 
   def do_upload(%{assigns: %{org: org, product: product}} = conn, %{
@@ -32,12 +32,12 @@ defmodule NervesHubWWWWeb.FirmwareController do
          } = changeset} ->
           conn
           |> put_flash(:error, "No matching product could be found.")
-          |> render("upload.html", changeset: changeset)
+          |> render_error("upload.html", changeset: changeset, product: product)
 
         {:error, changeset} ->
           conn
           |> put_flash(:error, "Unknown error uploading firmware.")
-          |> render("upload.html", changeset: changeset)
+          |> render_error("upload.html", changeset: changeset, product: product)
       end
     else
       {:error, :no_public_keys} ->
@@ -46,17 +46,17 @@ defmodule NervesHubWWWWeb.FirmwareController do
           :error,
           "Please register public keys for verifying firmware signatures first"
         )
-        |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
+        |> render_error("upload.html", changeset: %Changeset{data: %Firmware{}}, product: product)
 
       {:error, :invalid_signature} ->
         conn
         |> put_flash(:error, "Firmware corrupt, signature invalid or missing public key")
-        |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
+        |> render_error("upload.html", changeset: %Changeset{data: %Firmware{}}, product: product)
 
       _ ->
         conn
         |> put_flash(:error, "Unknown error uploading firmware")
-        |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
+        |> render_error("upload.html", changeset: %Changeset{data: %Firmware{}}, product: product)
     end
   end
 

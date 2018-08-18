@@ -1,0 +1,11 @@
+- for product <- @products do
+  %li.list-group-item
+    .row
+      .col-8
+        %a{href: "#{product_path(@conn, :show, product)}"}
+          = product.name
+      .col-4.text-right
+        %a.action_btn{href: "#", data-modal-src-url: "#{product_path(@conn, :edit, product)}", data-success-dom-dest: "#product_listing"}
+          %span.fa.fa-pencil
+        %a.action_btn{href: "#", data-modal-delete-url: "#{product_path(@conn, :delete, product)}", data-success-dom-dest: "#product_listing"}
+          %span.fa.fa-trash-o

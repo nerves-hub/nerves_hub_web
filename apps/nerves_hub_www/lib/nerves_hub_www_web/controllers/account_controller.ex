@@ -5,10 +5,12 @@ defmodule NervesHubWWWWeb.AccountController do
   alias NervesHubCore.Accounts
   alias NervesHubCore.Accounts.User
 
+  @session_key "auth_user_id"
+
   plug(NervesHubWWWWeb.Plugs.AllowUninvitedSignups when action in [:new, :create])
 
   def new(conn, _params) do
-    render(conn, "new.html", changeset: %Changeset{data: %User{}})
+    render(conn, "new.html", changeset: %Changeset{data: %User{}}, layout: false)
   end
 
   def create(conn, %{"user" => user_params}) do
@@ -16,13 +18,18 @@ defmodule NervesHubWWWWeb.AccountController do
     |> Map.put("org_name", user_params["name"])
     |> Accounts.create_org_with_user()
     |> case do
-      {:ok, {_org, _user}} ->
-        redirect(conn, to: "/")
+      {:ok, {_org, %User{id: user_id}}} ->
+        conn
+        |> put_session(@session_key, user_id)
+        |> render_success()
 
       {:error, changeset} ->
-        render(conn, "new.html", changeset: changeset)
+        conn
+        |> put_flash(:error, "Sign up Failed")
+        |> render_error("new.html", changeset: changeset, layout: false)
     end
   end
+
 
   def edit(conn, _params) do
     conn
@@ -37,13 +44,13 @@ defmodule NervesHubWWWWeb.AccountController do
     |> Accounts.update_user(params["user"])
     |> case do
       {:ok, _user} ->
-        conn
-        |> put_flash(:info, "Account updated")
-        |> redirect(to: account_path(conn, :edit))
+        render_success(conn)
 
       {:error, changeset} ->
         conn
-        |> render("edit.html", changeset: changeset)
+        |> put_flash(:error, "Signup Failed")
+        |> render_error("edit.html", changeset: changeset,
+                                           layout: false)
     end
   end
 
@@ -79,4 +86,5 @@ defmodule NervesHubWWWWeb.AccountController do
         |> redirect(to: "/")
     end
   end
+
 end

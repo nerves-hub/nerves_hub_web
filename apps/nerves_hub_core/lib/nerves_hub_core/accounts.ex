@@ -62,6 +62,7 @@ defmodule NervesHubCore.Accounts do
     end
   end
 
+
   @spec do_create_org_with_user(Changeset.t()) ::
           {:ok, Org.t()}
           | {:error, Changeset.t()}

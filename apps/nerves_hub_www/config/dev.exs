@@ -34,10 +34,12 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   url: [scheme: "http", host: "0.0.0.0", port: 4000],
   live_reload: [
     patterns: [
-      ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
+      ~r{priv/static/js/.*(js)$},
+      ~r{priv/static/css/.*(css)$},
+      ~r{priv/static/images/.*(png|jpeg|jpg|gif|svg)$},
       ~r{priv/gettext/.*(po)$},
       ~r{lib/nerves_hub_www_web/views/.*(ex)$},
-      ~r{lib/nerves_hub_www_web/templates/.*(eex|md)$}
+      ~r{lib/nerves_hub_www_web/templates/.*(eex|haml|md)$}
     ]
   ]
 
@@ -47,5 +49,33 @@ config :logger, :console, format: "[$level] $message\n"
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20
+
+# uncomment if using NervesHubCore.Firmwares.Upload.File
+# config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.File
+
+# uncomment out lines 19-23 in endpoint.ex and update paths accordingly
+# config :nerves_hub_www, NervesHubCore.Firmwares.Upload.File,
+#   local_path: "/tmp/firmware",
+#   public_path: "/firmware"
+
+# if using NervesHubCore.Firmwares.Upload.S3, set configuration below accordingly
+config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.File
+
+config :nerves_hub_www, NervesHubCore.Firmwares.Upload.File,
+  local_path: "/Users/steve/firmware",
+  public_path: "/firmware"
+
+# config :nerves_hub_www, NervesHubCore.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
+
+config :nerves_hub_www, NervesHubCore.CertificateAuthority,
+  host: "0.0.0.0",
+  port: 8443,
+  ssl: [
+    keyfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/ca-client-key.pem"]),
+    certfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/ca-client.pem"]),
+    cacertfile: Path.join([__DIR__, "../../../test/fixtures/cfssl/ca.pem"]),
+    server_name_indication: 'ca.nerves-hub.org'
+  ]
+
 
 config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.LocalAdapter
