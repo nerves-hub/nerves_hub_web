@@ -8,8 +8,7 @@ use Mix.Config
 # General application configuration
 config :nerves_hub_device,
   ecto_repos: [NervesHubCore.Repo],
-  namespace: NervesHubDevice,
-  websocket_auth_methods: [:ssl]
+  namespace: NervesHubDevice
 
 # Configures the endpoint
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,

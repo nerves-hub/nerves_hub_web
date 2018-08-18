@@ -1,6 +1,7 @@
 defmodule NervesHubCore.Accounts do
   import Ecto.Query
   alias Ecto.Changeset
+  alias Ecto.UUID
   alias NervesHubCore.Accounts.{Org, User, UserCertificate, Invite, OrgKey}
   alias NervesHubCore.Repo
   alias Comeonin.Bcrypt
@@ -12,6 +13,16 @@ defmodule NervesHubCore.Accounts do
     %Org{}
     |> Org.changeset(params)
     |> Repo.insert()
+  end
+
+  def change_user(user, params \\ %{})
+
+  def change_user(%User{id: nil} = user, params) do
+    User.creation_changeset(user, params)
+  end
+
+  def change_user(%User{} = org_key, params) do
+    User.update_changeset(org_key, params)
   end
 
   @doc """
@@ -90,7 +101,7 @@ defmodule NervesHubCore.Accounts do
   def create_user(%Org{} = org, params) do
     org
     |> Ecto.build_assoc(:users)
-    |> User.creation_changeset(params)
+    |> change_user(params)
     |> Repo.insert()
   end
 
@@ -249,18 +260,40 @@ defmodule NervesHubCore.Accounts do
   end
 
   def get_org_key(%Org{id: org_id}, tk_id) do
+    get_org_key_query(org_id, tk_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      key -> {:ok, key}
+    end
+  end
+
+  def get_org_key!(%Org{id: org_id}, tk_id) do
+    get_org_key_query(org_id, tk_id)
+    |> Repo.one!()
+  end
+
+  defp get_org_key_query(org_id, tk_id) do
+    from(
+      tk in OrgKey,
+      where: tk.org_id == ^org_id,
+      where: tk.id == ^tk_id
+    )
+  end
+
+  def get_org_key_by_name(%Org{id: org_id}, name) do
     query =
       from(
-        tk in OrgKey,
-        where: tk.org_id == ^org_id,
-        where: tk.id == ^tk_id
+        k in OrgKey,
+        where: k.org_id == ^org_id,
+        where: k.name == ^name
       )
 
     query
-    |> Repo.one!()
+    |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
-      device -> {:ok, device}
+      key -> {:ok, key}
     end
   end
 
@@ -274,13 +307,7 @@ defmodule NervesHubCore.Accounts do
     Repo.delete(org_key)
   end
 
-  def change_org_key(%OrgKey{id: nil} = org_key) do
-    OrgKey.changeset(org_key, %{})
-  end
-
-  def change_org_key(%OrgKey{id: _id} = org_key) do
-    OrgKey.update_changeset(org_key, %{})
-  end
+  def change_org_key(org_key, params \\ %{})
 
   def change_org_key(%OrgKey{id: nil} = org_key, params) do
     OrgKey.changeset(org_key, params)
@@ -342,7 +369,7 @@ defmodule NervesHubCore.Accounts do
           | {:error, Changeset.t()}
   def update_user(%User{} = user, user_params) do
     user
-    |> User.update_changeset(user_params)
+    |> change_user(user_params)
     |> Repo.update()
   end
 
@@ -364,7 +391,7 @@ defmodule NervesHubCore.Accounts do
 
       %User{} = user ->
         user
-        |> User.generate_password_reset_token_changeset()
+        |> change_user(%{password_reset_token: UUID.generate()})
         |> Repo.update()
     end
   end
@@ -378,7 +405,7 @@ defmodule NervesHubCore.Accounts do
     |> case do
       {:ok, user} ->
         user
-        |> User.reset_password_changeset(params)
+        |> User.password_changeset(params)
         |> Repo.update()
 
       {:error, :not_found} ->

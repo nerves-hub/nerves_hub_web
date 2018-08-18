@@ -1,5 +1,5 @@
-<div class="container-fullwidth"> 
-  
+<div class="container-fullwidth">
+
   <div class="d-flex flex-row bd-highlight mb-3 justify-content-around footer-nav">
     <div class="p-2 bd-highlight">
       <h6 class="text-dark logo-font">
@@ -20,8 +20,9 @@
       <h6 class="text-dark logo-font">
         Terms and Conditions
       </h6>
-      <a href="#">Code of conduct</a>
-      <a href="#">Terms of service</a>
+      <a href="<%= policy_path(@conn, :coc) %>">Code of Conduct</a>
+      <a href="<%= policy_path(@conn, :tos) %>">Terms of Service</a>
+      <a href="<%= policy_path(@conn, :privacy) %>">Privacy Policy</a>
     </div>
   </div>
 </div>

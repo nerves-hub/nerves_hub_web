@@ -29,7 +29,7 @@ defmodule NervesHubWWWWeb.OrgKeyController do
   end
 
   def show(%{assigns: %{org: org}} = conn, %{"id" => id}) do
-    {:ok, org_key} = Accounts.get_org_key(org, id)
+    org_key = Accounts.get_org_key!(org, id)
     render(conn, "show.html", org_key: org_key)
   end
 

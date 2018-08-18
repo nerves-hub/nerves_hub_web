@@ -2,11 +2,9 @@ defmodule NervesHubDeviceWeb.UserSocket do
   use Phoenix.Socket
   alias NervesHubCore.{Certificate, Devices}
 
-  @websocket_auth_methods Application.get_env(:nerves_hub_device, :websocket_auth_methods)
-
   ## Channels
   # channel "room:*", NervesHubWWWWeb.RoomChannel
-  channel("device:*", NervesHubDeviceWeb.DeviceChannel)
+  channel("firmware:*", NervesHubDeviceWeb.DeviceChannel)
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After
@@ -20,31 +18,13 @@ defmodule NervesHubDeviceWeb.UserSocket do
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
 
-  if Enum.member?(@websocket_auth_methods, :header) do
-    @serial_header Application.get_env(:nerves_hub_device, :device_serial_header)
+  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) do
+    case Certificate.get_serial_number(ssl_cert) do
+      {:ok, serial} ->
+        build_socket(socket, serial)
 
-    def connect(_params, socket, %{x_headers: x_headers, peer_data: %{ssl_cert: nil}}) do
-      case Enum.find(x_headers, fn {x_header, _} ->
-             String.equivalent?(x_header, @serial_header)
-           end) do
-        {_, serial} ->
-          build_socket(socket, serial)
-
-        _ ->
-          :error
-      end
-    end
-  end
-
-  if Enum.member?(@websocket_auth_methods, :ssl) do
-    def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) do
-      case Certificate.get_common_name(ssl_cert) do
-        {:ok, serial} ->
-          build_socket(socket, serial)
-
-        error ->
-          error
-      end
+      error ->
+        error
     end
   end
 
@@ -53,11 +33,10 @@ defmodule NervesHubDeviceWeb.UserSocket do
   end
 
   defp build_socket(socket, serial) do
-    with {:ok, device} <- Devices.get_device_by_identifier(serial) do
+    with {:ok, cert} <- Devices.get_device_certificate_by_serial(serial) do
       new_socket =
         socket
-        |> assign(:device, device)
-        |> assign(:org, device.org)
+        |> assign(:certificate, cert)
 
       {:ok, new_socket}
     else
@@ -75,6 +54,6 @@ defmodule NervesHubDeviceWeb.UserSocket do
   #     NervesHubWWWWeb.Endpoint.broadcast("user_socket:#{user.id}", "disconnect", %{})
   #
   # Returning `nil` makes this socket anonymous.
-  def id(%{assigns: %{device: %Devices.Device{identifier: d_id}}}), do: "device_socket:#{d_id}"
+  def id(%{assigns: %{certificate: certificate}}), do: "device_socket:#{certificate.device_id}"
   def id(_socket), do: nil
 end

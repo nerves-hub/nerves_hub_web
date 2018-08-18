@@ -39,7 +39,11 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
       ~r{priv/static/images/.*(png|jpeg|jpg|gif|svg)$},
       ~r{priv/gettext/.*(po)$},
       ~r{lib/nerves_hub_www_web/views/.*(ex)$},
+<<<<<<< HEAD
       ~r{lib/nerves_hub_www_web/templates/.*(eex|haml)$}
+=======
+      ~r{lib/nerves_hub_www_web/templates/.*(eex|md)$}
+>>>>>>> master
     ]
   ]
 
@@ -50,6 +54,7 @@ config :logger, :console, format: "[$level] $message\n"
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20
 
+<<<<<<< HEAD
 # uncomment if using NervesHubCore.Firmwares.Upload.File
 # config :nerves_hub_www, firmware_upload: NervesHubCore.Firmwares.Upload.File
 
@@ -77,10 +82,6 @@ config :nerves_hub_www, NervesHubCore.CertificateAuthority,
     server_name_indication: 'ca.nerves-hub.org'
   ]
 
+=======
+>>>>>>> master
 config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.LocalAdapter
-
-config :ex_aws,
-  s3_host: System.get_env("S3_HOST"),
-  access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, :instance_role],
-  secret_access_key: [{:system, "AWS_SECRET_ACCESS_KEY"}, :instance_role],
-  region: System.get_env("AWS_REGION")

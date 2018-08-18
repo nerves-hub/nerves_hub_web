@@ -12,8 +12,11 @@ defmodule NervesHubCore.Repo do
   def reload_assoc({:ok, schema}, assoc) do
     schema =
       case Map.get(schema, assoc) do
-        %Ecto.Association.NotLoaded{} -> schema
-        _ -> preload(schema, assoc, force: true)
+        %Ecto.Association.NotLoaded{} ->
+          schema
+
+        _ ->
+          preload(schema, assoc, force: true)
       end
 
     {:ok, schema}

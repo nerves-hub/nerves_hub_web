@@ -63,7 +63,7 @@ defmodule NervesHubWWWWeb.FirmwareController do
   def download(conn, %{"id" => id}) do
     firmware = NervesHubCore.Repo.get(Firmware, id)
 
-    if uploader = Application.get_env(:nerves_hub_www, :firmware_upload) do
+    if uploader = Application.get_env(:nerves_hub_core, :firmware_upload) do
       uploader.download_file(firmware)
       |> case do
         {:ok, url} ->

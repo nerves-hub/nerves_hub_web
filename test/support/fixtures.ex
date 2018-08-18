@@ -1,6 +1,6 @@
 Code.compiler_options(ignore_module_conflict: true)
 defmodule NervesHubCore.Fixtures do
-  alias NervesHubCore.{Firmwares, Accounts, Devices, Deployments, Products}
+  alias NervesHubCore.{Firmwares, Accounts, Devices, Deployments, Products, Certificate}
 
   @after_compile {__MODULE__, :compiler_options}
 
@@ -40,6 +40,10 @@ defmodule NervesHubCore.Fixtures do
     description: "my test cert",
     serial: "158098897653878678601091983566405937658689714637"
   }
+
+  def path(), do: Path.expand("../fixtures", __DIR__)
+
+  def user_params(), do: @user_params
 
   def org_fixture(params \\ %{}) do
     {:ok, org} =
@@ -148,6 +152,16 @@ defmodule NervesHubCore.Fixtures do
       |> Devices.create_device()
 
     device
+  end
+
+  def device_certificate_fixture(%Devices.Device{} = device) do
+    cert_file = Path.join(path(), "cfssl/device-1234-cert.pem")
+    {:ok, cert} = File.read(cert_file)
+    {not_before, not_after} = Certificate.get_validity(cert)
+    {:ok, serial} = Certificate.get_serial_number(cert)
+    params = %{serial: serial, not_before: not_before, not_after: not_after}
+    {:ok, device_cert} = Devices.create_device_certificate(device, params)
+    device_cert
   end
 
   def very_fixture() do

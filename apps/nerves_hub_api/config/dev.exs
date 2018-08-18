@@ -17,7 +17,6 @@ config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
     otp_app: :nerves_hub_api,
     # Enable client SSL
     verify: :verify_peer,
-    fail_if_no_peer_cert: true,
     keyfile: Path.expand("./test/fixtures/cfssl/api.nerves-hub.org-key.pem"),
     certfile: Path.expand("./test/fixtures/cfssl/api.nerves-hub.org.pem"),
     cacertfile: Path.expand("./test/fixtures/cfssl/ca.pem")

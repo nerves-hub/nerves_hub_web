@@ -38,7 +38,6 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
       conn = post(conn, path, body)
       assert json_response(conn, 201)["data"]
 
-      conn = build_auth_conn()
       conn = get(conn, firmware_path(conn, :show, uuid))
       assert json_response(conn, 200)["data"]["uuid"] == uuid
     end
@@ -56,9 +55,7 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
       conn = delete(conn, firmware_path(conn, :delete, firmware.uuid))
       assert response(conn, 204)
 
-      conn =
-        build_auth_conn()
-        |> get(firmware_path(conn, :show, firmware.uuid))
+      conn = get(conn, firmware_path(conn, :show, firmware.uuid))
 
       assert response(conn, 404)
     end
