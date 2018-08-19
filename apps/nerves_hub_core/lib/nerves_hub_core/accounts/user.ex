@@ -20,7 +20,7 @@ defmodule NervesHubCore.Accounts.User do
 
   schema "users" do
     has_many(:user_certificates, UserCertificate)
-    many_to_many(:orgs, Org, join_through: "users_orgs")
+    many_to_many(:orgs, Org, join_through: "users_orgs", on_replace: :delete)
 
     field(:name, :string)
     field(:email, :string)
