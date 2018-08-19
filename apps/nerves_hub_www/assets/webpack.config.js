@@ -15,7 +15,7 @@ var plugins = [
   new webpack.ProvidePlugin({
     $: "jquery",
     jQuery: "jquery"
-  })
+  }),
 ]
 
 if (production) {
@@ -94,7 +94,9 @@ module.exports = [
       modules: [
         node_modules_dir,
         __dirname + "/js",
-        __dirname + "/css"
+        __dirname + "/css",
+        "~font-awesome/scss/font-awesome.scss",
+        __dirname + "/images"
       ]
     }
   })

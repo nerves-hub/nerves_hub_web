@@ -1,0 +1,36 @@
+.modal-content
+  = form_for @changeset, account_path(@conn, :create), [as: :user], fn f ->
+    .modal-header.text-left
+      Create an Account  
+    .modal-body{style: "padding-top: 0px;"}
+      .form-group.text-left
+        %label{for: "name"}
+          Name
+        = text_input f, :name, class: "form-control", id: "name_input"
+        = error_tag f, :name
+
+      .form-group.text-left
+        %label{for: "tenant_name"}
+          Organization Name
+        = text_input f, :org_name, class: "form-control", id: "name_input"
+        = error_tag f, :org_name
+
+      .form-group.text-left
+        %label{for: "email"}
+          Email
+        = email_input f, :email, class: "form-control", id: "email_input"
+        = error_tag f, :email
+
+      .form-group.text-left
+        %label{for: "password"}
+          password
+        = password_input f, :password, class: "form-control", id: "password_input"
+        = error_tag f, :password
+    .modal-footer
+      .col-4
+        %a.btn.btn-dark{href: "#{home_path(@conn, :index)}"}
+          Cancel
+
+      .col-8.text-right
+        = submit "Create Account", class: "btn btn-success"
+    <% end %>

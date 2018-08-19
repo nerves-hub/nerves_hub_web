@@ -63,6 +63,7 @@ defmodule NervesHubWWW.MixProject do
       {:phoenix_markdown, "~> 1.0"},
       {:gettext, "~> 0.11"},
       {:cowboy, "~> 2.0", override: true},
+      {:phoenix_haml, "~> 0.2.3"},
       {:hackney, "~> 1.9"},
       {:bamboo, "~> 1.0"},
       {:bamboo_smtp, "~> 1.5.0"},

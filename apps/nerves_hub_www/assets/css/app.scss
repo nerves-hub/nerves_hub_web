@@ -22,6 +22,25 @@ main {
   margin-top: 20px;
 }
 
+.modal-header {
+  background-color: $dark_background;
+  font-family: 'Varela Round', sans-serif;
+  font-size: 18px;
+  color: white;
+}
+
+.modal-body {
+  margin-top:12px;
+  font-family: 'Varela Round', sans-serif;
+  color: $dark_background;
+}
+
+.modal-footer {
+  font-family: 'Varela Round', sans-serif;
+  font-size: 18px;
+  background-color: whitesmoke;
+}
+
 .footer {
   padding: 0px 5%;
   margin-top: 10px;
