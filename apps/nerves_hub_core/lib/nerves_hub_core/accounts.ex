@@ -21,8 +21,8 @@ defmodule NervesHubCore.Accounts do
     User.creation_changeset(user, params)
   end
 
-  def change_user(%User{} = org_key, params) do
-    User.update_changeset(org_key, params)
+  def change_user(%User{} = user, params) do
+    User.update_changeset(user, params)
   end
 
   def create_user(params) do
