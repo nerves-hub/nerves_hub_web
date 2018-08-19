@@ -10,24 +10,13 @@ logo-font {
 
 body {
   background-color: #595551;
+  margin-bottom: 120px; /* Margin bottom by footer height */
 }
 
 html {
   position: relative;
   min-height: 100%;
 }
-
-body {
-  margin-bottom: 120px; /* Margin bottom by footer height */
-}
-
-.footer {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  height: 122px; /* Set the fixed height of the footer here */
-}
-
 
 main {
   background-color: #595551;
@@ -86,9 +75,13 @@ main {
   }
 }
 .footer {
+  position: absolute;
   background-color: #827f7d;
   padding: 0px 5%;
   margin-top: 10px;
+  bottom: 0;
+  width: 100%;
+  height: 122px; /* Set the fixed height of the footer here */
 }
 
 .footer a {
