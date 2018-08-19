@@ -37,7 +37,7 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
       ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
       ~r{priv/gettext/.*(po)$},
       ~r{lib/nerves_hub_www_web/views/.*(ex)$},
-      ~r{lib/nerves_hub_www_web/templates/.*(eex|md)$}
+      ~r{lib/nerves_hub_www_web/templates/.*(eex|md|haml)$}
     ]
   ]
 

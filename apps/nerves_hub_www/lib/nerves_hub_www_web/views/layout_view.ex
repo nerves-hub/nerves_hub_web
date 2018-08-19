@@ -5,6 +5,7 @@ defmodule NervesHubWWWWeb.LayoutView do
 
   def navigation_links(conn) do
     [
+      {"Dashboard", dashboard_path(conn, :index)},
       {"Products", product_path(conn, :index)},
       {"All Devices", device_path(conn, :index)}
     ]

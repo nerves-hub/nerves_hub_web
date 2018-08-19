@@ -1,0 +1,30 @@
+.modal-content
+  = form_for @changeset, session_path(@conn, :create), fn f ->
+    .modal-header.panel-title.text-left
+      Log in to your NervesHub account
+
+  
+    .modal-body{style: "padding-top: 0px;"}
+      .form-group.text-left
+        %label{for: "email_input"}
+          Email
+        = email_input f, :email, class: "form-control", id: "email_input"
+        = error_tag f, :email
+
+      .form-group.text-left
+        %label{for: "password_input"}
+          Password
+        = password_input f, :password, class: "form-control", id: "password_input"
+        = error_tag f, :password
+    .modal-footer
+      .col-4
+        %a.btn.btn-dark{href: "#{home_path(@conn, :index)}"}
+          Cancel
+
+      .col-8.text-right
+        %a.btn{href: "#{password_reset_path(@conn, :new)}"}
+          Forgot Password
+
+        = submit "Login", class: "btn btn-primary"
+
+    <% end %>

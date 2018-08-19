@@ -15,7 +15,7 @@ var plugins = [
   new webpack.ProvidePlugin({
     $: "jquery",
     jQuery: "jquery"
-  })
+  }),
 ]
 
 if (production) {
@@ -68,6 +68,13 @@ var common = {
         })
       },
       {
+        test: /font-awesome\.config\.js/,
+        use: [
+          { loader: 'style-loader' },
+          { loader: 'font-awesome-loader' }
+        ]
+      },
+      {
         test: /\.(png|jpg|gif|svg)$/,
         loader: "file-loader?name=../priv/static/images/[name].[ext]"
       },
@@ -94,7 +101,9 @@ module.exports = [
       modules: [
         node_modules_dir,
         __dirname + "/js",
-        __dirname + "/css"
+        __dirname + "/css",
+        "~font-awesome/scss/font-awesome.scss",
+        __dirname + "/images"
       ]
     }
   })

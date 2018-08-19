@@ -1,0 +1,15 @@
+.modal-content
+  = form_for @changeset, product_path(@conn, :update, @product), fn f ->
+    .modal-header.panel-title.text-left
+      Edit Product
+   
+    .modal-body{style: "padding-top: 0px;"}
+      .form-group.text-left
+        %label{for: "name_input"}
+          Name
+        = text_input f, :name, class: "form-control", id: "email_input"
+        = error_tag f, :name
+     .modal-footer
+      .pull-right
+        = submit "Save", class: "btn btn-primary"
+     <% end %>

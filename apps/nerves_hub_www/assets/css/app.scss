@@ -1,3 +1,4 @@
+@import '~font-awesome/scss/font-awesome.scss';
 @import "custom";
 @import "navigation";
 @import "home";
@@ -8,12 +9,19 @@ logo-font {
 }
 
 body {
-  background-color: #827f7d;
+  background-color: #595551;
+  margin-bottom: 120px; /* Margin bottom by footer height */
+}
+
+html {
+  position: relative;
+  min-height: 100%;
 }
 
 main {
   background-color: #595551;
-  padding: 140px 5%;
+  padding: 40px 5%;
+  margin-top: 80px;
   font-family: 'Varela', sans-serif;
   color: whitesmoke;
 }
@@ -22,10 +30,58 @@ main {
   margin-top: 20px;
 }
 
+.modal-header {
+  background-color: $dark_background;
+  font-family: 'Varela Round', sans-serif;
+  font-size: 18px;
+  color: white;
+}
+
+.modal-body {
+  margin-top:12px;
+  font-family: 'Varela Round', sans-serif;
+  color: $dark_background;
+}
+
+.modal-footer {
+  font-family: 'Varela Round', sans-serif;
+  font-size: 18px;
+  background-color: whitesmoke;
+}
+
+.nhw_list_header {
+  @include  make-col(12);
+  margin-left: 10px;
+  padding-left: 10px;
+  background-color: #DADEBC;
+  color: whitesmoke;
+  a {
+    @extend .text-dark;
+    font-variant: small-caps;
+  }
+  line-height: 30px;
+  height: 26px;
+  padding-right: 5px;
+  flex-basis: 100%;
+}
+
+.nhw_list {
+  @include  make-col(12);
+  margin-left: 10px;
+  border: 2px solid #DADEBC;
+  flex-basis: 100%;
+  a {
+    @extend .text-dark;
+  }
+}
 .footer {
+  position: absolute;
+  background-color: #827f7d;
   padding: 0px 5%;
   margin-top: 10px;
-  height: 80px;
+  bottom: 0;
+  width: 100%;
+  height: 122px; /* Set the fixed height of the footer here */
 }
 
 .footer a {
