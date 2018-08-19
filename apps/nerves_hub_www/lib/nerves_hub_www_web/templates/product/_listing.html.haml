@@ -1,0 +1,10 @@
+- for product <- @products do
+  %li.list-group-item
+    .row
+      .col-8
+        %a{href: "#{product_path(@conn, :show, product)}"}
+          = product.name
+      .col-4.text-right
+        %a{href: "#{product_path(@conn, :edit, product)}"}
+          %span.fa.fa-pencil
+        = link raw("<span class='fa fa-trash-o'></span>"), to: product_path(@conn, :delete, product), method: :delete, data: [confirm: "Really?"]

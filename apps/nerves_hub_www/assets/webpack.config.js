@@ -68,6 +68,13 @@ var common = {
         })
       },
       {
+        test: /font-awesome\.config\.js/,
+        use: [
+          { loader: 'style-loader' },
+          { loader: 'font-awesome-loader' }
+        ]
+      },
+      {
         test: /\.(png|jpg|gif|svg)$/,
         loader: "file-loader?name=../priv/static/images/[name].[ext]"
       },
