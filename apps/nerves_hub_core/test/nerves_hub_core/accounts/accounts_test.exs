@@ -66,6 +66,37 @@ defmodule NervesHubCore.AccountsTest do
     assert {:error, %Changeset{}} = Accounts.create_user(params)
   end
 
+  test "add user and remove user from an org" do
+    {:ok, %Accounts.Org{} = org_1} = Accounts.create_org(%{name: "org1"})
+    {:ok, %Accounts.Org{} = org_2} = Accounts.create_org(%{name: "org2"})
+
+    user_params = %{
+      orgs: [org_1],
+      name: "Testy McTesterson",
+      email: "testy@mctesterson.com",
+      password: "test_password"
+    }
+
+    {:ok, %Accounts.User{} = user} = Accounts.create_user(user_params)
+
+    [result_org_1 | _] = user.orgs
+
+    assert result_org_1.name == org_1.name
+    assert user.name == user_params.name
+
+    changeset = Accounts.change_user(user, %{}) |> Ecto.Changeset.put_assoc(:orgs, [org_1, org_2])
+
+    {:ok, user} = NervesHubCore.Repo.update(changeset)
+    assert [^org_1, ^org_2 | _] = user.orgs
+
+    changeset = Accounts.change_user(user, %{}) |> Ecto.Changeset.put_assoc(:orgs, [org_1])
+    {:ok, user} = NervesHubCore.Repo.update(changeset)
+
+    assert length(user.orgs) == 1
+    result_org_2 = NervesHubCore.Repo.get_by(Accounts.Org, name: "org2")
+    assert result_org_2.name == org_2.name
+  end
+
   test "create_org_with_user_with_certificate with valid params" do
     params = %{
       name: "Testy McTesterson",
