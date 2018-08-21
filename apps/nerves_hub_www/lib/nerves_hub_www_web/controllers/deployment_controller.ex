@@ -6,12 +6,12 @@ defmodule NervesHubWWWWeb.DeploymentController do
   alias NervesHubCore.Deployments.Deployment
   alias Ecto.Changeset
 
-  def index(%{assigns: %{org: _org, product: %{id: product_id}}} = conn, _params) do
+  def index(%{assigns: %{current_org: _org, product: %{id: product_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product_id)
     render(conn, "index.html", deployments: deployments)
   end
 
-  def new(%{assigns: %{org: org, product: product}} = conn, %{
+  def new(%{assigns: %{current_org: org, product: product}} = conn, %{
         "deployment" => %{"firmware_id" => firmware_id}
       }) do
     case Firmwares.get_firmware(org, firmware_id) do
@@ -44,7 +44,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
     end
   end
 
-  def new(%{assigns: %{org: _org, product: product}} = conn, _params) do
+  def new(%{assigns: %{current_org: _org, product: product}} = conn, _params) do
     firmwares = Firmwares.get_firmwares_by_product(product.id)
 
     if Enum.empty?(firmwares) do
@@ -57,7 +57,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
     end
   end
 
-  def create(%{assigns: %{org: org, product: product}} = conn, %{"deployment" => params}) do
+  def create(%{assigns: %{current_org: org, product: product}} = conn, %{"deployment" => params}) do
     org
     |> Firmwares.get_firmware(params["firmware_id"])
     |> case do
@@ -97,7 +97,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
     end
   end
 
-  def show(%{assigns: %{org: _org, product: product}} = conn, %{"id" => deployment_id}) do
+  def show(%{assigns: %{current_org: _org, product: product}} = conn, %{"id" => deployment_id}) do
     {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
 
     conn
@@ -107,7 +107,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
     )
   end
 
-  def edit(%{assigns: %{org: _org, product: product}} = conn, %{"id" => deployment_id}) do
+  def edit(%{assigns: %{current_org: _org, product: product}} = conn, %{"id" => deployment_id}) do
     {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
 
     conn
@@ -147,7 +147,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
     end
   end
 
-  def delete(%{assigns: %{org: _org, product: product}} = conn, %{"id" => id}) do
+  def delete(%{assigns: %{current_org: _org, product: product}} = conn, %{"id" => id}) do
     {:ok, deployment} = product |> Deployments.get_deployment(id)
 
     Deployments.delete_deployment(deployment)

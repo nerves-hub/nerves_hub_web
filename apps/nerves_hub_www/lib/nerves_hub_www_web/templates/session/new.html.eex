@@ -5,16 +5,18 @@
         <h3>Log in to your NervesHub account</h3>
       </div>
       <div class="panel-body" style="padding-top: 0px;">
-        <%= form_for @changeset, session_path(@conn, :create), fn f -> %>
+        <%= form_for @conn, session_path(@conn, :create), [as: :login],fn f -> %>
           <div class="form-group text-left">
             <label for="email_input">Email</label>
             <%= email_input f, :email, class: "form-control", id: "email_input" %>
+            <%= label(:login, :email, "Email") %>
             <%= error_tag f, :email %>
           </p>
 
           <div class="form-group text-left">
             <label for="password_input">Password</label>
             <%= password_input f, :password, class: "form-control", id: "password_input" %>
+            <%= label(:login, :password, "Password") %>
             <%= error_tag f, :password %>
           </p>
 

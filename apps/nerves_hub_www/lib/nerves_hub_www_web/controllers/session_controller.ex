@@ -12,7 +12,7 @@ defmodule NervesHubWWWWeb.SessionController do
     |> get_session(@session_key)
     |> case do
       nil ->
-        render(conn, "new.html", changeset: %Changeset{data: %User{}})
+        render(conn, "new.html")
 
       _ ->
         conn
@@ -20,13 +20,14 @@ defmodule NervesHubWWWWeb.SessionController do
     end
   end
 
-  def create(conn, %{"user" => %{"email" => email, "password" => password}}) do
+  def create(conn, %{"login" => %{"email" => email, "password" => password}}) do
     email
     |> Accounts.authenticate(password)
     |> case do
-      {:ok, %User{id: user_id}} ->
+      {:ok, %User{id: user_id, orgs: [def_org | _]}} ->
         conn
         |> put_session(@session_key, user_id)
+        |> put_session("current_org_id", def_org.id)
         |> redirect(to: dashboard_path(conn, :index))
 
       {:error, :authentication_failed} ->

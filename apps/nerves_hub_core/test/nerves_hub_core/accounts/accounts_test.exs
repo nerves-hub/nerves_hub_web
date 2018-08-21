@@ -52,8 +52,7 @@ defmodule NervesHubCore.AccountsTest do
 
     [result_org | _] = user.orgs
 
-    {:ok, user} = Accounts.update_user(user, %{orgs: [result_org, result_org]})
-    assert Enum.count(user.orgs) == 1
+    assert {:error, %Changeset{}} = Accounts.update_user(user, %{orgs: [result_org, result_org]})
   end
 
   test "create_user with no org" do

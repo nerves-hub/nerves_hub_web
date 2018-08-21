@@ -13,6 +13,7 @@ defmodule NervesHubWWWWeb.AccountController do
 
   defp whitelist(params, keys) do
     keys
+    |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
     |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
   end
 
@@ -39,8 +40,12 @@ defmodule NervesHubWWWWeb.AccountController do
   end
 
   def update(conn, params) do
+    cleaned =
+      params["user"]
+      |> whitelist([:current_password, :password, :name, :email, :orgs])
+
     conn.assigns.user
-    |> Accounts.update_user(params["user"])
+    |> Accounts.update_user(cleaned)
     |> case do
       {:ok, _user} ->
         conn

@@ -16,15 +16,16 @@ defmodule NervesHubWWWWeb.Plugs.EnsureLoggedIn do
     |> Conn.get_session(@session_key)
     |> case do
       nil -> nil
-      user_id -> Accounts.get_user(user_id)
+      user_id -> Accounts.get_user_with_all_orgs(user_id)
     end
     |> case do
       {:ok, user} ->
-        [default_org | _] = user.orgs
+        {:ok, current_org} =
+          get_session(conn, "current_org_id") |> Accounts.get_org_with_org_keys()
 
         conn
         |> assign(:user, user)
-        |> assign(:org, default_org)
+        |> assign(:current_org, current_org)
 
       _ ->
         conn

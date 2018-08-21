@@ -20,7 +20,7 @@ defmodule NervesHubCore.Accounts.User do
 
   schema "users" do
     has_many(:user_certificates, UserCertificate)
-    many_to_many(:orgs, Org, join_through: "users_orgs", on_replace: :delete)
+    many_to_many(:orgs, Org, join_through: "users_orgs", on_replace: :delete, unique: true)
 
     field(:name, :string)
     field(:email, :string)
@@ -39,18 +39,40 @@ defmodule NervesHubCore.Accounts.User do
     |> hash_password()
     |> password_validations()
     |> validate_required(@required_params)
+    |> handle_orgs(params)
     |> unique_constraint(:email)
-    |> unique_constraint(:orgs)
+    |> unique_constraint(:orgs, name: :users_orgs_user_id_org_id_index)
   end
 
-  def creation_changeset(%User{} = user, %{orgs: [%Org{} | _] = orgs} = params) do
-    changeset(user, params)
-    |> put_assoc(:orgs, orgs, required: true)
+  defp handle_orgs(changeset, %{orgs: nil}) do
+    changeset |> cast_assoc(:orgs, required: true)
+  end
+
+  defp handle_orgs(changeset, %{orgs: orgs}) do
+    changeset
+    |> put_assoc(:orgs, get_orgs(orgs), required: true)
+  end
+
+  defp handle_orgs(changeset, _params) do
+    changeset
+    |> cast_assoc(:orgs, required: true)
+  end
+
+  defp get_orgs(orgs) do
+    orgs
+    |> Enum.map(fn x -> do_get_org(x) end)
+  end
+
+  defp do_get_org(%Org{} = org) do
+    org
+  end
+
+  defp do_get_org(org) do
+    struct(Org, org)
   end
 
   def creation_changeset(%User{} = user, params) do
     changeset(user, params)
-    |> cast_assoc(:orgs, required: true)
   end
 
   def password_changeset(%User{} = user, params) do
@@ -64,7 +86,11 @@ defmodule NervesHubCore.Accounts.User do
   end
 
   def update_changeset(%User{} = user, params) do
-    changeset(user, params)
+    with_orgs = user |> Repo.preload(:orgs)
+    existing_orgs = with_orgs |> Map.get(:orgs, [])
+    new_orgs = params |> Map.get(:orgs, [])
+
+    changeset(with_orgs, params |> Map.put(:orgs, existing_orgs ++ new_orgs))
     |> generate_password_reset_token_expires()
     |> email_password_update_valid?(user, params)
   end
@@ -118,7 +144,7 @@ defmodule NervesHubCore.Accounts.User do
   end
 
   defp email_password_update_valid?(%Changeset{} = changeset, %User{} = user, %{
-         "current_password" => curr_pass
+         current_password: curr_pass
        }) do
     if Bcrypt.checkpw(curr_pass, user.password_hash) do
       changeset

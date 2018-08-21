@@ -9,6 +9,19 @@
     <div class="collapse navbar-collapse" id="navbarToggler">
     <%= if logged_in?(@conn) do %>
       <div class="navbar-nav mr-auto">
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <%= @conn.assigns.current_org.name %>
+          </a>
+          <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+            <%= for org <- @conn.assigns.user.orgs do %>
+              <%= if org.id != @conn.assigns.current_org.id do %>
+                <a class="dropdown-item" href="<%= org_path(@conn, :edit, org)%>"><%= org.name %></a>
+                <% end %>
+        <% end %>
+            <a class="dropdown-item" href="#">New Org</a>
+          </div>
+        </li>
         <%= for {name, path} <- navigation_links(@conn) do %>
             <a class="<%= if @conn.request_path == path, do: "active nav-item nav-link", else: "nav-item nav-link" %>" href="<%= path %>"><%= name %></a>
         <% end %>
@@ -16,10 +29,10 @@
       <div class="navbar-nav mr-3">
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            <%= @conn.assigns.org.name %>
+            Settings
           </a>
           <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-            <a class="dropdown-item" href="<%= org_path(@conn, :edit, @conn.assigns.org)%>">Org settings</a>
+            <a class="dropdown-item" href="<%= org_path(@conn, :edit, @conn.assigns.current_org)%>">Org settings</a>
             <a class="dropdown-item" href="<%= account_path(@conn, :edit)%>">User settings</a>
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="<%= session_path(@conn, :delete)%>">Logout</a>

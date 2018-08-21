@@ -7,7 +7,7 @@ defmodule NervesHubWWWWeb.OrgController do
   alias NervesHubCore.Accounts.{Invite, OrgKey}
   alias NervesHubWWW.Mailer
 
-  def edit(%{assigns: %{org: %{id: _conn_id} = org}} = conn, _params) do
+  def edit(%{assigns: %{current_org: %{id: _conn_id} = org}} = conn, _params) do
     render(
       conn,
       "edit.html",
@@ -17,7 +17,7 @@ defmodule NervesHubWWWWeb.OrgController do
     )
   end
 
-  def update(%{assigns: %{org: org}} = conn, %{"org" => org_params}) do
+  def update(%{assigns: %{current_org: org}} = conn, %{"org" => org_params}) do
     org
     |> Accounts.update_org(org_params)
     |> case do
@@ -37,11 +37,11 @@ defmodule NervesHubWWWWeb.OrgController do
     end
   end
 
-  def invite(%{assigns: %{org: org}} = conn, _params) do
+  def invite(%{assigns: %{current_org: org}} = conn, _params) do
     render(conn, "invite.html", changeset: %Changeset{data: %Invite{}}, org: org)
   end
 
-  def send_invite(%{assigns: %{org: org}} = conn, %{"invite" => invite_params}) do
+  def send_invite(%{assigns: %{current_org: org}} = conn, %{"invite" => invite_params}) do
     invite_params
     |> Accounts.invite(org)
     |> case do

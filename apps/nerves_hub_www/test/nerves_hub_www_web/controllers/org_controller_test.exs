@@ -28,7 +28,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
       new_conn =
         build_conn()
         |> Map.put(:assigns, %{org: new_org})
-        |> init_test_session(%{"auth_user_id" => user.id})
+        |> init_test_session(%{"auth_user_id" => user.id, "current_org_id" => new_org.id})
 
       updated_conn = get(new_conn, org_path(conn, :edit, new_org))
 
