@@ -50,7 +50,7 @@ defmodule NervesHubCore.Accounts do
           | {:error, :authentication_failed}
   def authenticate(email, password) do
     email = String.downcase(email)
-    user = Repo.get_by(User, email: email)
+    user = Repo.get_by(User, email: email) |> User.with_default_org() |> User.with_org_keys()
 
     with %User{} <- user,
          true <- Bcrypt.checkpw(password, user.password_hash) do
@@ -70,8 +70,18 @@ defmodule NervesHubCore.Accounts do
           {:ok, User.t()}
           | {:error, :not_found}
   def get_user(user_id) do
-    query =
-      from(u in User, where: u.id == ^user_id) |> User.with_default_org() |> User.with_org_keys()
+    query = from(u in User, where: u.id == ^user_id)
+
+    query
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      user -> {:ok, user}
+    end
+  end
+
+  def get_user_with_all_orgs(user_id) do
+    query = from(u in User, where: u.id == ^user_id) |> User.with_all_orgs()
 
     query
     |> Repo.one()
@@ -163,6 +173,15 @@ defmodule NervesHubCore.Accounts do
     |> case do
       nil -> {:error, :not_found}
       org -> {:ok, org}
+    end
+  end
+
+  def get_org_with_org_keys(id) do
+    Org
+    |> Repo.get(id)
+    |> case do
+      nil -> {:error, :not_found}
+      org -> {:ok, org |> Org.with_org_keys()}
     end
   end
 

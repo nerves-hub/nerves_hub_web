@@ -5,7 +5,7 @@ defmodule NervesHubWWWWeb.DeviceController do
   alias NervesHubCore.Devices.Device
   alias Ecto.Changeset
 
-  def index(%{assigns: %{org: _org, product: product}} = conn, _params) do
+  def index(%{assigns: %{current_org: _org, product: product}} = conn, _params) do
     conn
     |> render(
       "index.html",
@@ -13,7 +13,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     )
   end
 
-  def index(%{assigns: %{org: org}} = conn, _params) do
+  def index(%{assigns: %{current_org: org}} = conn, _params) do
     conn
     |> render(
       "index.html",
@@ -21,7 +21,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     )
   end
 
-  def new(%{assigns: %{org: _org}} = conn, _params) do
+  def new(%{assigns: %{current_org: _org}} = conn, _params) do
     conn
     |> render(
       "new.html",
@@ -34,7 +34,7 @@ defmodule NervesHubWWWWeb.DeviceController do
   # |> redirect(to: dashboard_path(conn, :index))
   # end
 
-  def create(%{assigns: %{org: org}} = conn, %{"device" => params}) do
+  def create(%{assigns: %{current_org: org}} = conn, %{"device" => params}) do
     params
     |> tags_to_list()
     |> Map.put("org_id", org.id)
@@ -50,7 +50,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     end
   end
 
-  def show(%{assigns: %{org: org}} = conn, %{
+  def show(%{assigns: %{current_org: org}} = conn, %{
         "id" => id
       }) do
     {:ok, device} = Devices.get_device(org, id)
@@ -58,7 +58,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     render(conn, "show.html", device: device)
   end
 
-  def edit(%{assigns: %{org: org}} = conn, %{"id" => id}) do
+  def edit(%{assigns: %{current_org: org}} = conn, %{"id" => id}) do
     {:ok, device} = Devices.get_device(org, id)
 
     conn
@@ -69,7 +69,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     )
   end
 
-  def update(%{assigns: %{org: org}} = conn, %{
+  def update(%{assigns: %{current_org: org}} = conn, %{
         "id" => id,
         "device" => params
       }) do

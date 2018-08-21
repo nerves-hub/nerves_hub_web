@@ -22,12 +22,13 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
             "name" => "Joe",
             "email" => "joe@example.com"
           },
-          conn.assigns.org
+          conn.assigns.current_org
         )
 
       conn = get(conn, account_path(conn, :invite, invite.token))
 
-      assert html_response(conn, 200) =~ "You will be added to the #{conn.assigns.org.name} org"
+      assert html_response(conn, 200) =~
+               "You will be added to the #{conn.assigns.current_org.name} org"
     end
   end
 
@@ -41,7 +42,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
             "name" => "Joe",
             "email" => "joe@example.com"
           },
-          conn.assigns.org
+          conn.assigns.current_org
         )
 
       conn =

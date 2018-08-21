@@ -4,7 +4,7 @@ defmodule NervesHubWWWWeb.ProductController do
   alias NervesHubCore.Products
   alias NervesHubCore.Products.Product
 
-  def index(%{assigns: %{org: org}} = conn, _params) do
+  def index(%{assigns: %{current_org: org}} = conn, _params) do
     products = Products.list_products(org)
     render(conn, "index.html", products: products)
   end
@@ -14,7 +14,7 @@ defmodule NervesHubWWWWeb.ProductController do
     render(conn, "new.html", changeset: changeset)
   end
 
-  def create(%{assigns: %{org: org}} = conn, %{"product" => product_params}) do
+  def create(%{assigns: %{current_org: org}} = conn, %{"product" => product_params}) do
     case Products.create_product(product_params |> Enum.into(%{"org_id" => org.id})) do
       {:ok, product} ->
         conn
@@ -37,7 +37,7 @@ defmodule NervesHubWWWWeb.ProductController do
     render(conn, "edit.html", product: product, changeset: changeset)
   end
 
-  def update(%{assigns: %{org: org}} = conn, %{"id" => id, "product" => product_params}) do
+  def update(%{assigns: %{current_org: org}} = conn, %{"id" => id, "product" => product_params}) do
     product = Products.get_product!(id)
 
     case Products.update_product(

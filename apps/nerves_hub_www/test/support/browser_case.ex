@@ -28,10 +28,15 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
             key: File.read!("../../test/fixtures/firmware/fwup-key1.pub")
           })
 
+        {:ok, org_with_org_keys} = org.id |> Accounts.get_org_with_org_keys()
+
         conn =
           build_conn()
-          |> Map.put(:assigns, %{org: org})
-          |> init_test_session(%{"auth_user_id" => user.id})
+          |> Map.put(:assigns, %{current_org: org_with_org_keys})
+          |> init_test_session(%{
+            "auth_user_id" => user.id,
+            "current_org_id" => org.id
+          })
 
         %{conn: conn, current_user: user, current_org: org, org_key: org_key}
       end

@@ -16,7 +16,7 @@ defmodule NervesHubWWWWeb.FirmwareController do
     |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
   end
 
-  def do_upload(%{assigns: %{org: org, product: product}} = conn, %{
+  def do_upload(%{assigns: %{current_org: org, product: product}} = conn, %{
         "firmware" => %{"file" => %{path: filepath}}
       }) do
     with {:ok, firmware_params} <- Firmwares.prepare_firmware_params(org, filepath) do

@@ -64,7 +64,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       conn =
         build_conn()
         |> Map.put(:assigns, %{org: org})
-        |> init_test_session(%{"auth_user_id" => user.id})
+        |> init_test_session(%{"auth_user_id" => user.id, "current_org_id" => org.id})
 
       conn = get(conn, product_deployment_path(conn, :new, product.id))
 
