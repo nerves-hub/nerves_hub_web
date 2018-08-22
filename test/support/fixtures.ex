@@ -16,7 +16,7 @@ defmodule NervesHubCore.Fixtures do
     author: "test_author",
     description: "test_description",
     platform: "rpi0",
-    upload_metadata: %{"public_url" => "http://example.com"},
+    upload_metadata: %{"public_url" => "http://example.com", "local_path" => ""},
     version: "1.0.0",
     vcs_identifier: "test_vcs_identifier",
     misc: "test_misc"
@@ -45,6 +45,7 @@ defmodule NervesHubCore.Fixtures do
   def path(), do: Path.expand("../fixtures", __DIR__)
 
   def user_params(), do: @user_params
+  def firmware_params(), do: @firmware_params
 
   def org_fixture(params \\ %{}) do
     {:ok, org} =

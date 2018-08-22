@@ -33,6 +33,7 @@ defmodule NervesHubCore.FirmwaresTest do
     {:ok,
      %{
        org: org,
+       org_key: org_key,
        firmware: firmware,
        deployment: deployment,
        matching_device: device,
@@ -51,7 +52,7 @@ defmodule NervesHubCore.FirmwaresTest do
     |> Repo.update!()
   end
 
-  describe "create_firmware" do
+  describe "firmware storage" do
     test "enforces uuid uniqueness within a product", %{firmware: existing} do
       new_params = %{
         architecture: "arm",
@@ -65,6 +66,27 @@ defmodule NervesHubCore.FirmwaresTest do
 
       assert {:error, %Ecto.Changeset{errors: [uuid: {"has already been taken", []}]}} =
                Firmwares.create_firmware(new_params)
+    end
+
+    test "delete firmware", %{org: org, org_key: org_key, product: product} do
+      orig_path = @signed_key1_firmware_path
+      firmware_name = Path.basename(@signed_key1_firmware_path)
+
+      tmp_path = Path.expand("../../tmp", __DIR__)
+      File.rm_rf(tmp_path)
+      File.mkdir(tmp_path)
+      tmp_file = Path.join(tmp_path, firmware_name)
+      File.cp(orig_path, tmp_path)
+      assert File.exists?(tmp_path)
+
+      params =
+        Fixtures.firmware_params()
+        |> Map.put(:upload_metadata, %{"local_path" => tmp_file})
+
+      firmware = Fixtures.firmware_fixture(org_key, product, params)
+      Firmwares.delete_firmware(firmware)
+      refute File.exists?(tmp_file)
+      assert {:error, :not_found} = Firmwares.get_firmware(org, firmware.id)
     end
   end
 
