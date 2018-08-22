@@ -18,7 +18,7 @@ defmodule NervesHubCore.Firmwares.Upload.File do
           (Path.join([config[:public_path], path, filename])
            |> String.trim("/"))
 
-      {:ok, %{public_path: public_path}}
+      {:ok, %{local_path: local_path, public_path: public_path}}
     end
   end
 
@@ -27,5 +27,12 @@ defmodule NervesHubCore.Firmwares.Upload.File do
           | {:error, String.t()}
   def download_file(firmware) do
     {:ok, firmware.upload_metadata["public_path"]}
+  end
+
+  @spec delete_file(Firmware.t()) ::
+          {:ok, any()}
+          | {:error, any()}
+  def delete_file(%{upload_metadata: %{"local_path" => path}}) do
+    File.rm(path)
   end
 end

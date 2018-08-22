@@ -126,6 +126,10 @@ defmodule NervesHubCore.Firmwares do
   end
 
   def delete_firmware(%Firmware{} = firmware) do
+    if uploader = Application.get_env(:nerves_hub_core, :firmware_upload) do
+      uploader.delete_file(firmware)
+    end
+
     Repo.delete(firmware)
   end
 

@@ -35,4 +35,14 @@ defmodule NervesHubCore.Firmwares.Upload.S3 do
         error
     end
   end
+
+  @spec delete_file(Firmware.t()) ::
+          {:ok, any()}
+          | {:error, any()}
+  def delete_file(firmware) do
+    s3_key = firmware.upload_metadata["s3_key"]
+    bucket = Application.get_env(:nerves_hub_core, __MODULE__)[:bucket]
+
+    S3.delete_object(bucket, s3_key)
+  end
 end
