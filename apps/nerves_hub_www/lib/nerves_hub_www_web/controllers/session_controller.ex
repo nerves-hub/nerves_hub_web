@@ -1,7 +1,6 @@
 defmodule NervesHubWWWWeb.SessionController do
   use NervesHubWWWWeb, :controller
 
-  alias Ecto.Changeset
   alias NervesHubCore.Accounts
   alias NervesHubCore.Accounts.User
 
