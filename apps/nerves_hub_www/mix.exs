@@ -54,6 +54,7 @@ defmodule NervesHubWWW.MixProject do
       {:phoenix, github: "phoenixframework/phoenix", override: true},
       {:phoenix_pubsub, "~> 1.1"},
       {:phoenix_ecto, github: "phoenixframework/phoenix_ecto"},
+      {:phoenix_haml, "~> 0.2.3"},
       {:phoenix_html, "~> 2.10"},
       {:phoenix_live_reload,
        github: "mobileoverlord/phoenix_live_reload",

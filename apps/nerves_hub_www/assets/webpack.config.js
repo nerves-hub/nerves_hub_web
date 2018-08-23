@@ -69,7 +69,7 @@ var common = {
       },
       {
         test: /\.(png|jpg|gif|svg)$/,
-        loader: "file-loader?name=../priv/static/images/[name].[ext]"
+        loader: "file-loader?name=/images/[name].[ext]"
       },
       {
         test: /\.(ttf|otf|eot|svg|woff2?)$/,
@@ -94,7 +94,9 @@ module.exports = [
       modules: [
         node_modules_dir,
         __dirname + "/js",
-        __dirname + "/css"
+        __dirname + "/css",
+        "~font-awesome/scss/font-awesome.scss",
+        __dirname + "/images"
       ]
     }
   })
