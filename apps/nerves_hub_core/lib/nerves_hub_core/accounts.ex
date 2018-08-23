@@ -341,6 +341,24 @@ defmodule NervesHubCore.Accounts do
     |> Repo.update()
   end
 
+  def add_user_to_org(%User{} = user, %Org{} = org) do
+    all_orgs = user |> User.with_all_orgs() |> Map.get(:orgs, [])
+    params = %{orgs: all_orgs ++ [org]}
+
+    user
+    |> User.update_orgs_changeset(params)
+    |> Repo.update()
+  end
+
+  def remove_user_from_org(%User{} = user, %Org{} = org) do
+    all_orgs = user |> User.with_all_orgs() |> Map.get(:orgs, [])
+    params = %{orgs: all_orgs -- [org]}
+
+    user
+    |> User.update_orgs_changeset(params)
+    |> Repo.update()
+  end
+
   defp set_invite_accepted(invite) do
     invite
     |> Invite.changeset(%{accepted: true})

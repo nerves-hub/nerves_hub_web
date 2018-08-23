@@ -39,7 +39,6 @@ defmodule NervesHubCore.Accounts.User do
     |> hash_password()
     |> password_validations()
     |> validate_required(@required_params)
-    |> handle_orgs(params)
     |> unique_constraint(:email)
     |> unique_constraint(:orgs, name: :users_orgs_user_id_org_id_index)
   end
@@ -73,6 +72,8 @@ defmodule NervesHubCore.Accounts.User do
 
   def creation_changeset(%User{} = user, params) do
     changeset(user, params)
+    |> handle_orgs(params)
+    |> unique_constraint(:orgs, name: :users_orgs_user_id_org_id_index)
   end
 
   def password_changeset(%User{} = user, params) do
@@ -85,14 +86,21 @@ defmodule NervesHubCore.Accounts.User do
     |> expire_password_reset_token()
   end
 
-  def update_changeset(%User{} = user, params) do
-    with_orgs = user |> Repo.preload(:orgs)
-    existing_orgs = with_orgs |> Map.get(:orgs, [])
-    new_orgs = params |> Map.get(:orgs, [])
+  def update_changeset(%User{} = user, %{orgs: _} = params) do
+    changeset(user, params)
+    |> add_error(:orgs, "update user orgs with update_orgs_changeset/2")
+  end
 
-    changeset(with_orgs, params |> Map.put(:orgs, existing_orgs ++ new_orgs))
+  def update_changeset(%User{} = user, params) do
+    changeset(user, params)
     |> generate_password_reset_token_expires()
     |> email_password_update_valid?(user, params)
+  end
+
+  def update_orgs_changeset(%User{} = user, params) do
+    user
+    |> changeset(params)
+    |> handle_orgs(params)
   end
 
   defp default_org_query() do
