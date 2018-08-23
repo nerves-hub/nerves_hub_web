@@ -343,7 +343,7 @@ defmodule NervesHubCore.Accounts do
 
   def add_user_to_org(%User{} = user, %Org{} = org) do
     all_orgs = user |> User.with_all_orgs() |> Map.get(:orgs, [])
-    params = %{orgs: all_orgs ++ [org]}
+    params = %{orgs: [org | all_orgs]}
 
     user
     |> User.update_orgs_changeset(params)
@@ -352,7 +352,9 @@ defmodule NervesHubCore.Accounts do
 
   def remove_user_from_org(%User{} = user, %Org{} = org) do
     all_orgs = user |> User.with_all_orgs() |> Map.get(:orgs, [])
-    params = %{orgs: all_orgs -- [org]}
+
+    {_, remaining_orgs} = Enum.split_with(all_orgs, fn x -> x == org end)
+    params = %{orgs: remaining_orgs}
 
     user
     |> User.update_orgs_changeset(params)
