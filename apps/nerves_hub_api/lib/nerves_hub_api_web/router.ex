@@ -58,8 +58,15 @@ defmodule NervesHubAPIWeb.Router do
         end
 
         scope "/products" do
+          get("/", ProductController, :index)
+          post("/", ProductController, :create)
+
           scope "/:product_name" do
             pipe_through(:product)
+
+            get("/", ProductController, :show)
+            delete("/", ProductController, :delete)
+            put("/", ProductController, :update)
 
             scope "/firmwares" do
               get("/", FirmwareController, :index)
