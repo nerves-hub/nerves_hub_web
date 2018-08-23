@@ -52,7 +52,7 @@ defmodule NervesHubCore.AccountsTest do
 
     [result_org | _] = user.orgs
 
-    assert {:error, %Changeset{}} = Accounts.update_user(user, %{orgs: [result_org, result_org]})
+    assert {:error, %Changeset{}} = Accounts.add_user_to_org(user, result_org)
   end
 
   test "create_user with no org" do
@@ -63,6 +63,16 @@ defmodule NervesHubCore.AccountsTest do
     }
 
     assert {:error, %Changeset{}} = Accounts.create_user(params)
+  end
+
+  test "cannot change orgs with update_user/2" do
+    org = Fixtures.org_fixture()
+    user = Fixtures.user_fixture(org)
+
+    new_org = Fixtures.org_fixture(%{name: "new org"})
+
+    assert {:error, %Changeset{errors: [orgs: _]}} =
+             Accounts.update_user(user, %{orgs: [org, new_org]})
   end
 
   test "add user and remove user from an org" do
@@ -83,17 +93,12 @@ defmodule NervesHubCore.AccountsTest do
     assert result_org_1.name == org_1.name
     assert user.name == user_params.name
 
-    changeset = Accounts.change_user(user, %{}) |> Ecto.Changeset.put_assoc(:orgs, [org_1, org_2])
-
-    {:ok, user} = NervesHubCore.Repo.update(changeset)
+    {:ok, user} = Accounts.add_user_to_org(user, org_2)
     assert [^org_1, ^org_2 | _] = user.orgs
 
-    changeset = Accounts.change_user(user, %{}) |> Ecto.Changeset.put_assoc(:orgs, [org_1])
-    {:ok, user} = NervesHubCore.Repo.update(changeset)
+    {:ok, user} = Accounts.remove_user_from_org(user, org_2)
 
-    assert length(user.orgs) == 1
-    result_org_2 = NervesHubCore.Repo.get_by(Accounts.Org, name: "org2")
-    assert result_org_2.name == org_2.name
+    assert user.orgs == [org_1]
   end
 
   test "create_org_with_user_with_certificate with valid params" do
