@@ -94,7 +94,9 @@ defmodule NervesHubCore.AccountsTest do
     assert user.name == user_params.name
 
     {:ok, user} = Accounts.add_user_to_org(user, org_2)
-    assert [^org_1, ^org_2 | _] = user.orgs
+    assert org_1 in user.orgs
+    assert org_2 in user.orgs
+    assert Enum.count(user.orgs) == 2
 
     {:ok, user} = Accounts.remove_user_from_org(user, org_2)
 
