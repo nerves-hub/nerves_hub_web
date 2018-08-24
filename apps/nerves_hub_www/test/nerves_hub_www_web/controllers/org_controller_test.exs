@@ -3,6 +3,31 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
 
   alias NervesHubCore.Fixtures
 
+  describe "new org" do
+    test "renders form", %{conn: conn} do
+      conn = get(conn, org_path(conn, :new))
+      assert html_response(conn, 200) =~ "New Org"
+    end
+  end
+
+  describe "create org" do
+    test "redirects to edit when data is valid", %{conn: conn, current_org: org} do
+      conn = post(conn, org_path(conn, :create), org: %{name: "An Org"})
+
+      assert %{id: id} = redirected_params(conn)
+      assert redirected_to(conn) == org_path(conn, :edit, id)
+
+      conn = get(conn, org_path(conn, :edit, id))
+      assert html_response(conn, 200) =~ "Org Settings"
+      assert html_response(conn, 200) =~ org.name
+    end
+
+    test "renders errors when data is invalid", %{conn: conn} do
+      conn = post(conn, org_path(conn, :create), org: %{})
+      assert html_response(conn, 200) =~ "New Org"
+    end
+  end
+
   describe "edit org" do
     test "renders form for editing org on conn", %{conn: conn, current_org: org} do
       conn = get(conn, org_path(conn, :edit, org))

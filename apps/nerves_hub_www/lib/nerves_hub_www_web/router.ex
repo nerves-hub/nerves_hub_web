@@ -52,8 +52,10 @@ defmodule NervesHubWWWWeb.Router do
   scope "/", NervesHubWWWWeb do
     pipe_through([:browser, :logged_in])
 
+    put("/set_org", SessionController, :set_org)
+
     resources("/dashboard", DashboardController, only: [:index])
-    resources("/org", OrgController, only: [:edit, :update])
+    resources("/org", OrgController)
 
     resources("/org_keys", OrgKeyController)
 

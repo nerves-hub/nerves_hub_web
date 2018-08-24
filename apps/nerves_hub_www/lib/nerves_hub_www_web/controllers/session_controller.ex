@@ -1,7 +1,6 @@
 defmodule NervesHubWWWWeb.SessionController do
   use NervesHubWWWWeb, :controller
 
-  alias Ecto.Changeset
   alias NervesHubCore.Accounts
   alias NervesHubCore.Accounts.User
 
@@ -41,5 +40,18 @@ defmodule NervesHubWWWWeb.SessionController do
     conn
     |> delete_session(@session_key)
     |> redirect(to: "/")
+  end
+
+  def set_org(%{assigns: %{current_org: _, user: user}} = conn, %{"org" => id}) do
+    {org_id, _} = Integer.parse(id)
+
+    if org_id in (user.orgs |> Enum.map(fn x -> x.id end)) do
+      conn
+      |> put_session("current_org_id", org_id)
+      |> redirect(to: dashboard_path(conn, :index))
+    else
+      conn
+      |> redirect(to: dashboard_path(conn, :index))
+    end
   end
 end
