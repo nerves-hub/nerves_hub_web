@@ -32,21 +32,28 @@ defmodule NervesHubCore.Devices do
     |> Repo.all()
   end
 
-  def get_device(%Org{id: org_id}, device_id) do
-    query =
-      from(
-        d in Device,
-        where: d.org_id == ^org_id,
-        where: d.id == ^device_id
-      )
+  defp device_by_org_query(org_id, device_id) do
+    from(
+      d in Device,
+      where: d.org_id == ^org_id,
+      where: d.id == ^device_id
+    )
+  end
 
-    query
+  def get_device_by_org(%Org{id: org_id}, device_id) do
+    device_by_org_query(org_id, device_id)
     |> Device.with_firmware()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
       device -> {:ok, device}
     end
+  end
+
+  def get_device_by_org!(%Org{id: org_id}, device_id) do
+    device_by_org_query(org_id, device_id)
+    |> Device.with_firmware()
+    |> Repo.one!()
   end
 
   @spec get_device_by_identifier(Org.t(), String.t()) :: {:ok, Device.t()} | {:error, :not_found}
@@ -118,6 +125,10 @@ defmodule NervesHubCore.Devices do
     %Device{}
     |> Device.changeset(params)
     |> Repo.insert()
+  end
+
+  def delete_device(%Device{} = device) do
+    Repo.delete(device)
   end
 
   @spec create_device_certificate(Device.t(), map) ::

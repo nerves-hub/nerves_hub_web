@@ -101,4 +101,16 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
       assert html_response(show_conn, 200) =~ "new_identifier"
     end
   end
+
+  describe "delete device" do
+    test "deletes chosen device", %{conn: conn, current_org: org} do
+      [to_delete | _] = Devices.get_devices(org)
+      conn = delete(conn, device_path(conn, :delete, to_delete))
+      assert redirected_to(conn) == device_path(conn, :index)
+
+      assert_error_sent(404, fn ->
+        get(conn, device_path(conn, :show, to_delete))
+      end)
+    end
+  end
 end

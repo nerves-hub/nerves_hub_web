@@ -29,11 +29,6 @@ defmodule NervesHubWWWWeb.DeviceController do
     )
   end
 
-  # def new(%{assigns: %{org: _org}} = conn, _params) do
-  # conn
-  # |> redirect(to: dashboard_path(conn, :index))
-  # end
-
   def create(%{assigns: %{current_org: org}} = conn, %{"device" => params}) do
     params
     |> tags_to_list()
@@ -53,13 +48,12 @@ defmodule NervesHubWWWWeb.DeviceController do
   def show(%{assigns: %{current_org: org}} = conn, %{
         "id" => id
       }) do
-    {:ok, device} = Devices.get_device(org, id)
-
+    device = Devices.get_device_by_org!(org, id)
     render(conn, "show.html", device: device)
   end
 
   def edit(%{assigns: %{current_org: org}} = conn, %{"id" => id}) do
-    {:ok, device} = Devices.get_device(org, id)
+    {:ok, device} = Devices.get_device_by_org(org, id)
 
     conn
     |> render(
@@ -73,7 +67,7 @@ defmodule NervesHubWWWWeb.DeviceController do
         "id" => id,
         "device" => params
       }) do
-    {:ok, device} = Devices.get_device(org, id)
+    {:ok, device} = Devices.get_device_by_org(org, id)
 
     device
     |> Devices.update_device(params |> tags_to_list())
@@ -87,6 +81,17 @@ defmodule NervesHubWWWWeb.DeviceController do
         conn
         |> render("edit.html", changeset: changeset)
     end
+  end
+
+  def delete(%{assigns: %{current_org: org}} = conn, %{
+        "id" => id
+      }) do
+    {:ok, device} = Devices.get_device_by_org(org, id)
+    {:ok, _device} = Devices.delete_device(device)
+
+    conn
+    |> put_flash(:info, "device deleted successfully.")
+    |> redirect(to: device_path(conn, :index))
   end
 
   @doc """
