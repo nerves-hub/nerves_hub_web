@@ -1,6 +1,6 @@
-<div class="modal-content">
+<div class="modal-content shadow">
   <%= form_for @changeset, account_path(@conn, :create), [as: :user], fn f -> %>
-    <div class="modal-header panel-title">
+    <div class="modal-header panel-title rounded-top">
       Create an Account
     </div>
     <div class="modal-body">
