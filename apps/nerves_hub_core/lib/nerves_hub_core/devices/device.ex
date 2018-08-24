@@ -23,7 +23,7 @@ defmodule NervesHubCore.Devices.Device do
     belongs_to(:org, Org)
     belongs_to(:last_known_firmware, Firmware)
 
-    has_many(:device_certificates, DeviceCertificate)
+    has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
 
     field(:identifier, :string)
     field(:description, :string)

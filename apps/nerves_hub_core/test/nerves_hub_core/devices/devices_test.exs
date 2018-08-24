@@ -14,6 +14,7 @@ defmodule NervesHubCore.DevicesTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(firmware)
     device = Fixtures.device_fixture(org, firmware, deployment)
+    Fixtures.device_certificate_fixture(device)
 
     {:ok,
      %{
@@ -43,13 +44,23 @@ defmodule NervesHubCore.DevicesTest do
     end
   end
 
-  test "delete_device with valid parameters", %{
+  test "delete_device", %{
     org: org,
     device: device
   } do
     {:ok, _device} = Devices.delete_device(device)
 
     assert {:error, _} = Devices.get_device_by_org(org, device.id)
+  end
+
+  test "delete_device deletes its certificates", %{
+    device: device
+  } do
+    [cert] = Devices.get_device_certificates(device)
+
+    {:ok, _device} = Devices.delete_device(device)
+
+    assert {:error, _} = Devices.get_device_certificate_by_serial(cert.serial)
   end
 
   test "create_device with invalid parameters", %{firmware: firmware} do
