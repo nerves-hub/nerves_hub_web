@@ -1,6 +1,6 @@
-<div class="modal-content">
+<div class="modal-content shadow">
   <%= form_for @conn, session_path(@conn, :create), [as: :login],fn f -> %>
-    <div class="modal-header panel-title">
+    <div class="modal-header panel-title rounded-top">
       Log in to your NervesHub account
     </div>
     <div class="modal-body">
