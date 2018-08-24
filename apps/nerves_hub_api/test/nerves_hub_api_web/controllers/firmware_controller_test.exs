@@ -11,8 +11,7 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
 
   describe "index" do
     test "lists all firmwares", %{conn: conn, org: org, product: product} do
-      qp = URI.encode_query(%{product_name: product.name})
-      path = firmware_path(conn, :index, org.name, product.name) <> "?" <> qp
+      path = firmware_path(conn, :index, org.name, product.name)
       conn = get(conn, path)
       assert json_response(conn, 200)["data"] == []
     end
