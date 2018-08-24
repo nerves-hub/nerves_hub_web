@@ -11,6 +11,26 @@ defmodule NervesHubAPIWeb.DeploymentController do
     render(conn, "index.json", deployments: deployments)
   end
 
+  def create(%{assigns: %{org: org, product: product}} = conn, params) do
+    case Map.get(params, "firmware") do
+      nil ->
+        {:error, :no_firmware_uuid}
+
+      uuid ->
+        with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(org, uuid),
+             params <- Map.put(params, "firmware_id", firmware.id),
+             {:ok, deployment} <- Deployments.create_deployment(params) do
+          conn
+          |> put_status(:created)
+          |> put_resp_header(
+            "location",
+            deployment_path(conn, :show, org.name, product.name, deployment.name)
+          )
+          |> render("show.json", deployment: %{deployment | firmware: firmware})
+        end
+    end
+  end
+
   def show(%{assigns: %{org: _org, product: product}} = conn, %{"name" => name}) do
     with {:ok, deployment} <- Deployments.get_deployment_by_name(product, name) do
       render(conn, "show.json", deployment: deployment)
