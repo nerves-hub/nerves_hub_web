@@ -73,7 +73,6 @@ defmodule NervesHubCore.Accounts.User do
   def creation_changeset(%User{} = user, params) do
     changeset(user, params)
     |> handle_orgs(params)
-    |> unique_constraint(:orgs, name: :users_orgs_user_id_org_id_index)
   end
 
   def password_changeset(%User{} = user, params) do

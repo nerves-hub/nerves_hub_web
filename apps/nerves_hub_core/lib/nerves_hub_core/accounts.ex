@@ -11,7 +11,7 @@ defmodule NervesHubCore.Accounts do
           | {:error, Changeset.t()}
   def create_org(params) do
     %Org{}
-    |> Org.changeset(params)
+    |> Org.creation_changeset(params)
     |> Repo.insert()
   end
 
@@ -205,7 +205,7 @@ defmodule NervesHubCore.Accounts do
           | {:error, Changeset.t()}
   def update_org(%Org{} = org, attrs) do
     org
-    |> Org.changeset(attrs)
+    |> Org.update_changeset(attrs)
     |> Repo.update()
   end
 

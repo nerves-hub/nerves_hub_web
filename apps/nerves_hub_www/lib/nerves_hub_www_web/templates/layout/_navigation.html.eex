@@ -16,10 +16,10 @@
           <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
             <%= for org <- @conn.assigns.user.orgs do %>
               <%= if org.id != @conn.assigns.current_org.id do %>
-                <a class="dropdown-item" href="<%= org_path(@conn, :edit, org)%>"><%= org.name %></a>
+              <%= link org.name, class: "dropdown-item", to: session_path(@conn, :set_org, org: org), method: :put%>
                 <% end %>
         <% end %>
-            <a class="dropdown-item" href="#">New Org</a>
+        <a class="dropdown-item" href="<%= org_path(@conn, :new) %>">New Org</a>
           </div>
         </li>
         <%= for {name, path} <- navigation_links(@conn) do %>

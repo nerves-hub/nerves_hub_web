@@ -14,8 +14,23 @@ defmodule NervesHubCore.AccountsTest do
     assert result_org.name == @required_org_params.name
   end
 
+  test "create_org with user" do
+    {:ok, %Accounts.Org{} = org1} = Accounts.create_org(%{name: "An Org"})
+    user = Fixtures.user_fixture(org1)
+
+    {:ok, %Accounts.Org{} = org2} = Accounts.create_org(%{name: "Another Org", users: [user]})
+    {:ok, user_with_orgs} = Accounts.get_user_with_all_orgs(user.id)
+
+    assert org2.id in (user_with_orgs.orgs |> Enum.map(fn x -> x.id end))
+  end
+
   test "create_org without required params" do
     assert {:error, %Changeset{}} = Accounts.create_org(%{})
+  end
+
+  test "cannot modify users_orgs through Org.update_changeset" do
+    {:ok, org} = Accounts.create_org(%{name: "foo"})
+    assert {:error, %Changeset{}} = Accounts.update_org(org, %{users: []})
   end
 
   test "create_user with org" do

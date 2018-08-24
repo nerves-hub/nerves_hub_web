@@ -7,6 +7,30 @@ defmodule NervesHubWWWWeb.OrgController do
   alias NervesHubCore.Accounts.{Invite, OrgKey}
   alias NervesHubWWW.Mailer
 
+  defp whitelist(params, keys) do
+    keys
+    |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
+    |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
+  end
+
+  def new(conn, _params) do
+    changeset = Accounts.Org.creation_changeset(%Accounts.Org{}, %{})
+    render(conn, "new.html", changeset: changeset)
+  end
+
+  def create(%{assigns: %{current_org: _, user: user}} = conn, %{"org" => org_params}) do
+    with_user_params = org_params |> whitelist([:name]) |> Enum.into(%{users: [user]})
+
+    with {:ok, org} <- Accounts.create_org(with_user_params) do
+      conn
+      |> put_flash(:info, "Org created successfully.")
+      |> redirect(to: org_path(conn, :edit, org))
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render(conn, "new.html", changeset: changeset)
+    end
+  end
+
   def edit(%{assigns: %{current_org: %{id: _conn_id} = org}} = conn, _params) do
     render(
       conn,

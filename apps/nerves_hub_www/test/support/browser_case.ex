@@ -32,7 +32,7 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
 
         conn =
           build_conn()
-          |> Map.put(:assigns, %{current_org: org_with_org_keys})
+          |> Map.put(:assigns, %{current_org: org_with_org_keys, user: user})
           |> init_test_session(%{
             "auth_user_id" => user.id,
             "current_org_id" => org.id
