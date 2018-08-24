@@ -39,4 +39,23 @@ main {
   }  
 }  
  
+.modal-content {
+  font-family: 'Varela Round', sans-serif;
+  font-size: 18px;
+  background-color: white;
+  width: 70%;
+  color: #343a40;
+  margin: auto;
+  min-width: 600px;
+  box-shadow: 5px 5px 5px #333;
+}
 
+.modal-header {
+  background-color: #343a40;
+  color: white;
+}
+
+.modal-footer {
+  background-color: whitesmoke;
+  padding-top: 14px;
+}
