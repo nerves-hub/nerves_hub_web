@@ -43,6 +43,15 @@ defmodule NervesHubCore.DevicesTest do
     end
   end
 
+  test "delete_device with valid parameters", %{
+    org: org,
+    device: device
+  } do
+    {:ok, _device} = Devices.delete_device(device)
+
+    assert {:error, _} = Devices.get_device_by_org(org, device.id)
+  end
+
   test "create_device with invalid parameters", %{firmware: firmware} do
     params = %{
       identifier: "valid identifier",
@@ -163,7 +172,7 @@ defmodule NervesHubCore.DevicesTest do
       |> elem(1)
       |> Deployments.update_deployment(%{is_active: true})
 
-    {:ok, device_with_firmware} = Devices.get_device(org, device.id)
+    {:ok, device_with_firmware} = Devices.get_device_by_org(org, device.id)
 
     [%Deployments.Deployment{id: dep_id} | _] =
       Devices.get_eligible_deployments(device_with_firmware)
@@ -204,7 +213,7 @@ defmodule NervesHubCore.DevicesTest do
         |> elem(1)
         |> Deployments.update_deployment(%{is_active: true})
 
-      {:ok, device_with_firmware} = Devices.get_device(org, device.id)
+      {:ok, device_with_firmware} = Devices.get_device_by_org(org, device.id)
 
       assert [] == Devices.get_eligible_deployments(device_with_firmware)
     end
@@ -248,7 +257,7 @@ defmodule NervesHubCore.DevicesTest do
       |> elem(1)
       |> Deployments.update_deployment(%{is_active: true})
 
-    {:ok, device_with_firmware} = Devices.get_device(org, device.id)
+    {:ok, device_with_firmware} = Devices.get_device_by_org(org, device.id)
 
     deployments =
       Devices.get_eligible_deployments(device_with_firmware)

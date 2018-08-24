@@ -353,7 +353,7 @@ defmodule NervesHubCore.Accounts do
   def remove_user_from_org(%User{} = user, %Org{} = org) do
     all_orgs = user |> User.with_all_orgs() |> Map.get(:orgs, [])
 
-    {_, remaining_orgs} = Enum.split_with(all_orgs, fn x -> x == org end)
+    {_, remaining_orgs} = Enum.split_with(all_orgs, fn x -> x.id == org.id end)
     params = %{orgs: remaining_orgs}
 
     user

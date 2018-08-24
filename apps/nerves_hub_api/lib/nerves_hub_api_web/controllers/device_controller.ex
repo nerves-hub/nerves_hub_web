@@ -21,4 +21,15 @@ defmodule NervesHubAPIWeb.DeviceController do
       render(conn, "show.json", device: device)
     end
   end
+
+  def delete(%{assigns: %{org: org}} = conn, %{
+        "device_identifier" => identifier
+      }) do
+    {:ok, device} = Devices.get_device_by_identifier(org, identifier)
+    {:ok, _device} = Devices.delete_device(device)
+
+    conn
+    |> put_status(204)
+    |> render("show.json", device: device)
+  end
 end

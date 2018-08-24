@@ -12,7 +12,7 @@ defmodule NervesHubWWWWeb.Plugs.FetchDevice do
         _opts
       ) do
     org
-    |> Devices.get_device(device_id)
+    |> Devices.get_device_by_org(device_id)
     |> case do
       {:ok, device} ->
         conn
