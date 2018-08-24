@@ -70,6 +70,7 @@ defmodule NervesHubAPIWeb.Router do
 
             scope "/deployments" do
               get("/", DeploymentController, :index)
+              post("/", DeploymentController, :create)
               get("/:name", DeploymentController, :show)
               put("/:name", DeploymentController, :update)
             end
