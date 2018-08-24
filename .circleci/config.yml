@@ -84,7 +84,7 @@ version: 2
 jobs:
   test:
     docker:
-      - image: circleci/elixir:1.6
+      - image: circleci/elixir:1.7
         environment:
           MIX_ENV: test
           DATABASE_URL: postgres://db:db@localhost:5432/db
