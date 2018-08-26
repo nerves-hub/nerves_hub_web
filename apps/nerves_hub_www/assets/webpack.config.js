@@ -95,7 +95,7 @@ module.exports = [
         node_modules_dir,
         __dirname + "/js",
         __dirname + "/css",
-        "~font-awesome/scss/font-awesome.scss",
+        "~font-awesome/fontawesome-free/scss/fontawesome.scss",
         __dirname + "/images"
       ]
     }
