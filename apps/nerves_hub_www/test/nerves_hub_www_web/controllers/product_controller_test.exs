@@ -16,7 +16,7 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   describe "index" do
     test "lists all products", %{conn: conn} do
       conn = get(conn, product_path(conn, :index))
-      assert html_response(conn, 200) =~ "ALL PRODUCTS"
+      assert html_response(conn, 200) =~ "All Products"
     end
   end
 
