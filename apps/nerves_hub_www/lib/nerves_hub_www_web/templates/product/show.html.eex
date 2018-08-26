@@ -18,5 +18,4 @@
   </a>
 </ul>
 
-<span><%= link "Edit", to: product_path(@conn, :edit, @product) %></span>
 <span><%= link "Back", to: product_path(@conn, :index) %></span>
