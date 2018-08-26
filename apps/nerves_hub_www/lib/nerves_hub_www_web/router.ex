@@ -72,7 +72,7 @@ defmodule NervesHubWWWWeb.Router do
 
     resources("/devices", DeviceController)
 
-    resources "/products", ProductController do
+    resources "/products", ProductController, except: [:edit] do
       pipe_through(:product_level)
 
       get("/firmware", FirmwareController, :index)

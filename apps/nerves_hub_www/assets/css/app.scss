@@ -1,5 +1,9 @@
-$fa-font-path: "~font-awesome/fonts";
-@import "~font-awesome/scss/font-awesome";
+$fa-font-path: '~@fortawesome/fontawesome-free/webfonts'; 
+@import '~@fortawesome/fontawesome-free/scss/fontawesome'; 
+@import '~@fortawesome/fontawesome-free/scss/solid'; 
+@import '~@fortawesome/fontawesome-free/scss/regular'; 
+@import '~@fortawesome/fontawesome-free/scss/brands'; 
+
 @import "custom";
 @import "navigation";
 @import "home";
@@ -10,14 +14,16 @@ logo-font {
 }
 
 body {
-  background-color: #827f7d;
+  background-color: $light-background;
+  margin-bottom: 120px; /* Margin bottom by footer height */
+  min-height: 100%;
 }
 
 main {
-  background-color: #595551;
   padding: 140px 5%;
   font-family: 'Varela', sans-serif;
   color: whitesmoke;
+  bottom: 122px;
 }
 
 .panel-body {
@@ -25,9 +31,13 @@ main {
 }
 
 .footer {
+  background-color: #827f7d;
   padding: 0px 5%;
   margin-top: 10px;
-  height: 80px;
+  width: 100%;
+  position: absolute;
+  height: 122px;
+  bottom: 0px;
 }
 
 .footer a {
@@ -40,17 +50,16 @@ main {
 }  
  
 .modal-content {
-  font-family: 'Varela Round', sans-serif;
+  @extend .text-dark;
   font-size: 18px;
   background-color: white;
   width: 70%;
-  color: #343a40;
   margin: auto;
   min-width: 600px;
 }
 
 .modal-header {
-  background-color: #343a40;
+  @extend .bg-dark;
   color: white;
 }
 
@@ -58,3 +67,29 @@ main {
   background-color: whitesmoke;
   padding-top: 14px;
 }
+
+.nhw_list {
+  @extend .text-dark;
+  background-color: $accent-color;
+  padding: 0 0 6px 0;
+  a {
+    @extend .text-dark;
+  }
+  .header {
+    @include  make-col(12);
+    padding: 0 5px 0 10px;
+    line-height: 30px;
+    height: 26px;
+  }
+  ul {
+    @include  make-col(12);
+    li {
+      margin: 2px;
+      padding: 15px 0 15px 5px;
+      span {
+        margin-right: 3px;
+      }
+    }
+  }
+}
+
