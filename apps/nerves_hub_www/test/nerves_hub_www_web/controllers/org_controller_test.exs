@@ -7,6 +7,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
     test "renders form", %{conn: conn} do
       conn = get(conn, org_path(conn, :new))
       assert html_response(conn, 200) =~ "New Org"
+      refute html_response(conn, 200) =~ "href=\"" <> org_path(conn, :index) <> "\""
     end
   end
 
