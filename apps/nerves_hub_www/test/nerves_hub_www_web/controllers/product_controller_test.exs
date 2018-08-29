@@ -5,7 +5,6 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   alias NervesHubCore.Products
 
   @create_attrs %{name: "some name"}
-  @update_attrs %{name: "some updated name"}
   @invalid_attrs %{name: nil}
 
   def fixture(:product) do

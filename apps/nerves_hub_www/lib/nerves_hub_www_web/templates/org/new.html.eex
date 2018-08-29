@@ -2,4 +2,4 @@
 
 <%= render "form.html", Map.put(assigns, :action, org_path(@conn, :create)) %>
 
-<span><%= link "Back", to: org_path(@conn, :index) %></span>
+<span><%= link "Back", to: dashboard_path(@conn, :index) %></span>
