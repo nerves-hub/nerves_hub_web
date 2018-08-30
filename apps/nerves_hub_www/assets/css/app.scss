@@ -107,15 +107,21 @@ main {
     }
   }
   table {
-    th {
-      font-size: 14px;
+    margin-bottom: 0px;
+    tr {
+      th {
+        padding: 5px 12px;
+        font-size: 14px;
+      }
     }
-    tr.item {
+    td.item {
       font-size: 14px;
-      height: 44px;
-      background-color: whitesmoke;
-      border-bottom: 5px solid $accent-color;
+      background-color: whitesmoke !important;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.125);
     }
+    span {
+      vertical-align: -webkit-baseline-middle;
+    }  
   }
 }
 
