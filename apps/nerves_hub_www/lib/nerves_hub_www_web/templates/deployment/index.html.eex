@@ -13,21 +13,22 @@
         </div>
       </div>
     </div>
-    <table id="deployment_listing">
+    <div class="card">
+    <table id="deployment_listing" class="table">
       <thead>
-        <tr>
-          <th class="col-2">Name</th>
+        <tr class="d-flex">
+          <th class="col-3">Name</th>
           <th class="col-2">Firmware</th>
-          <th class="col-5">Conditions</th>
+          <th class="col-4">Conditions</th>
           <th class="col-2">Status</th>
           <th class="col-1"></th>
         </tr>
       </thead>
       <%= for deployment <- @deployments do %>
-        <tr class="item">
-          <td class="col-2"><%= deployment.name %></td>
-          <td class="col-2"><%= firmware_display_name(deployment.firmware) %></td>
-          <td class="col-5"><span class="pre-scrollable"><%= deployment.conditions |> Poison.encode!() %></pre></td>
+        <tr class="item d-flex">
+          <td class="col-3"><span><%= deployment.name %></span></td>
+          <td class="col-2"><span><%= firmware_display_name(deployment.firmware) %></span></td>
+          <td class="col-4"><span class="pre-scrollable"><%= deployment.conditions |> Poison.encode!() %></pre></td>
           <td class="col-2">
             <span class="label label-<%= if deployment.is_active, do: "success", else: "default" %>">
               <%= if deployment.is_active, do: "Active", else: "Inactive" %>
@@ -37,5 +38,6 @@
         </tr>
       <% end %>
     </table>
+    </div>
   </div>
 </div>
