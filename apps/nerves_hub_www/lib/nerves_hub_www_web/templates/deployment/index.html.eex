@@ -1,32 +1,41 @@
-<h1>
-  Deployments
 
-  <a class="btn btn-lg btn-primary pull-right" href="<%= product_deployment_path(@conn, :new, @product.id) %>">
-    Create Deployment
-  </a>
-</h1>
-
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Firmware</th>
-      <th>Conditions</th>
-      <th>Status</th>
-      <th></th>
-    </tr>
-  </thead>
-  <%= for deployment <- @deployments do %>
-    <tr>
-      <td><%= deployment.name %></td>
-      <td><%= firmware_display_name(deployment.firmware) %></td>
-      <td><pre class="pre-scrollable"><%= deployment.conditions |> Poison.encode!() %></pre></td>
-      <td>
-        <span class="label label-<%= if deployment.is_active, do: "success", else: "default" %>">
-          <%= if deployment.is_active, do: "Active", else: "Inactive" %>
-        </span>
-      </td>
-      <td><a class="btn btn-secondary" href="<%= product_deployment_path(@conn, :show, @product.id, deployment.id) %>">Details</a></td>
-    </tr>
-  <% end %>
-</table>
+<div class="row">
+  <div class="w-100 shadow nhw_list">
+    <div class="header">
+      <div class="row">
+        <div class="col-8">
+          Deployments for <strong><%= @product.name %></strong>
+        </div>
+        <div class="col-4 text-right">
+          <a href="<%= product_deployment_path(@conn, :new, @product.id)%>">
+            <span class="fa fa-plus-circle">
+          </a>
+        </div>
+      </div>
+    </div>
+    <table id="deployment_listing">
+      <thead>
+        <tr>
+          <th class="col-2">Name</th>
+          <th class="col-2">Firmware</th>
+          <th class="col-5">Conditions</th>
+          <th class="col-2">Status</th>
+          <th class="col-1"></th>
+        </tr>
+      </thead>
+      <%= for deployment <- @deployments do %>
+        <tr class="item">
+          <td class="col-2"><%= deployment.name %></td>
+          <td class="col-2"><%= firmware_display_name(deployment.firmware) %></td>
+          <td class="col-5"><span class="pre-scrollable"><%= deployment.conditions |> Poison.encode!() %></pre></td>
+          <td class="col-2">
+            <span class="label label-<%= if deployment.is_active, do: "success", else: "default" %>">
+              <%= if deployment.is_active, do: "Active", else: "Inactive" %>
+            </span>
+          </td>
+          <td class="col-1"><a class="btn btn-sm btn-secondary" href="<%= product_deployment_path(@conn, :show, @product.id, deployment.id) %>">Details</a></td>
+        </tr>
+      <% end %>
+    </table>
+  </div>
+</div>
