@@ -57,7 +57,7 @@ main {
     color: whitesmoke;
   }  
 }  
- 
+
 .modal-content {
   @extend .text-dark;
   font-size: 18px;
@@ -69,7 +69,12 @@ main {
 
 .modal-header {
   @extend .bg-dark;
+  display: block;
+  text-align: left;
   color: white;
+  strong {
+    color: $accent-color;
+  }
 }
 
 .modal-footer {
@@ -99,6 +104,17 @@ main {
       span {
         margin-right: 3px;
       }
+    }
+  }
+  table {
+    th {
+      font-size: 14px;
+    }
+    tr.item {
+      font-size: 14px;
+      height: 44px;
+      background-color: whitesmoke;
+      border-bottom: 5px solid $accent-color;
     }
   }
 }

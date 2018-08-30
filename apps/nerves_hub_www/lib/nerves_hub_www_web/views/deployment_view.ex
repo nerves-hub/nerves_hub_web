@@ -9,10 +9,29 @@ defmodule NervesHubWWWWeb.DeploymentView do
     |> Enum.map(&[value: &1.id, key: firmware_display_name(&1)])
   end
 
+  def firmware_summary(%Firmware{version: nil} = f) do
+    [
+      f.product.name,
+      f.platform,
+      f.architecture
+    ]
+    |> Enum.join(" - ")
+  end
+
+  def firmware_summary(%Firmware{} = f) do
+    [
+      f.product.name,
+      "v:#{firmware_display_name(f)}",
+      f.platform,
+      f.architecture
+    ]
+    |> Enum.join(" - ")
+  end
+
   def firmware_display_name(%Firmware{} = f) do
     case f.version do
-      nil -> f.version
-      version -> "#{version} (#{f.version})"
+      nil -> "--"
+      version -> "#{version}"
     end
   end
 
