@@ -118,6 +118,38 @@ defmodule NervesHubCore.AccountsTest do
     assert user.orgs == [org_1]
   end
 
+  describe "authenticate" do
+    setup do
+      user_params = %{
+        orgs: [%{name: "test org 1"}],
+        name: "Testy McTesterson",
+        email: "testy@mctesterson.com",
+        password: "test_password"
+      }
+
+      {:ok, user} = Accounts.create_user(user_params)
+
+      {:ok, %{user: user}}
+    end
+
+    test "with valid credentials", %{user: user} do
+      target_email = user.email
+
+      assert {:ok, %Accounts.User{email: ^target_email, orgs: [%Accounts.Org{}]}} =
+               Accounts.authenticate(user.email, user.password)
+    end
+
+    test "with invalid credentials", %{user: user} do
+      assert {:error, :authentication_failed} =
+               Accounts.authenticate(user.email, "wrong password")
+    end
+
+    test "with non existent user email" do
+      assert {:error, :authentication_failed} =
+               Accounts.authenticate("non existent email", "wrong password")
+    end
+  end
+
   test "create_org_with_user_with_certificate with valid params" do
     params = %{
       name: "Testy McTesterson",

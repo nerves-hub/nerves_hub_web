@@ -50,11 +50,11 @@ defmodule NervesHubCore.Accounts do
           | {:error, :authentication_failed}
   def authenticate(email, password) do
     email = String.downcase(email)
-    user = Repo.get_by(User, email: email) |> User.with_default_org() |> User.with_org_keys()
+    user = Repo.get_by(User, email: email)
 
     with %User{} <- user,
          true <- Bcrypt.checkpw(password, user.password_hash) do
-      {:ok, user}
+      {:ok, user |> User.with_default_org() |> User.with_org_keys()}
     else
       nil ->
         # User wasn't found; do dummy check to make user enumeration more difficult
