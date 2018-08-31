@@ -211,7 +211,7 @@ defmodule NervesHubCore.DevicesTest do
 
       params = %{
         firmware_id: new_firmware.id,
-        name: "my deployment",
+        name: "my deployment #{d_params.identifier}",
         conditions: %{
           "version" => "< 1.0.0",
           "tags" => ["beta", "beta-edge"]
@@ -238,6 +238,7 @@ defmodule NervesHubCore.DevicesTest do
   } do
     old_deployment =
       Fixtures.deployment_fixture(firmware, %{
+        name: "a different name",
         conditions: %{"tags" => ["beta", "beta-edge"], "version" => ""}
       })
 

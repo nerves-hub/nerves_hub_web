@@ -5,16 +5,18 @@ defmodule NervesHubCore.Deployments.Deployment do
   import Ecto.Query
 
   alias NervesHubCore.Firmwares.Firmware
+  alias NervesHubCore.Products.Product
   alias NervesHubCore.Repo
 
   alias __MODULE__
 
   @type t :: %__MODULE__{}
-  @required_fields [:firmware_id, :name, :conditions, :is_active]
+  @required_fields [:firmware_id, :name, :conditions, :is_active, :product_id]
   @optional_fields []
 
   schema "deployments" do
     belongs_to(:firmware, Firmware)
+    belongs_to(:product, Product)
 
     field(:name, :string)
     field(:conditions, :map)
@@ -24,9 +26,13 @@ defmodule NervesHubCore.Deployments.Deployment do
   end
 
   def creation_changeset(%Deployment{} = deployment, params) do
+    # set product_id by getting it from firmware
+    with_product_id = handle_product_id(deployment, params)
+
     deployment
-    |> cast(params, @required_fields ++ @optional_fields)
+    |> cast(with_product_id, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
+    |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> validate_change(:is_active, fn :is_active, is_active ->
       creation_errors(:is_active, is_active)
     end)
@@ -40,10 +46,34 @@ defmodule NervesHubCore.Deployments.Deployment do
     end
   end
 
+  defp handle_product_id(%Deployment{}, %{firmware: %Firmware{product_id: p_id}} = params) do
+    params |> Map.put(:product_id, p_id)
+  end
+
+  defp handle_product_id(%Deployment{firmware: %Firmware{product_id: p_id}}, params) do
+    params |> Map.put(:product_id, p_id)
+  end
+
+  defp handle_product_id(%Deployment{} = d, %{firmware_id: f_id} = params) do
+    handle_product_id(d, params |> Map.put(:firmware, Firmware |> Repo.get!(f_id)))
+  end
+
+  defp handle_product_id(%Deployment{firmware_id: nil}, params) do
+    params
+  end
+
+  defp handle_product_id(%Deployment{} = d, params) do
+    handle_product_id(d |> with_firmware(), params)
+  end
+
   def changeset(%Deployment{} = deployment, params) do
+    # set product_id by getting it from firmware
+    with_product_id = handle_product_id(deployment, params)
+
     deployment
-    |> cast(params, @required_fields ++ @optional_fields)
+    |> cast(with_product_id, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
+    |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> validate_conditions()
   end
 

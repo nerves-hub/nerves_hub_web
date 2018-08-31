@@ -6,6 +6,12 @@ defmodule NervesHubWWWWeb.DeploymentController do
   alias NervesHubCore.Deployments.Deployment
   alias Ecto.Changeset
 
+  defp whitelist(params, keys) do
+    keys
+    |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
+    |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
+  end
+
   def index(%{assigns: %{current_org: _org, product: %{id: product_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product_id)
     render(conn, "index.html", deployments: deployments)
@@ -64,10 +70,10 @@ defmodule NervesHubWWWWeb.DeploymentController do
       {:ok, firmware} ->
         params =
           params
-          |> Map.put("org_id", org.id)
-          |> Map.put("product_id", product.id)
-          |> Map.put("is_active", false)
           |> inject_conditions_map()
+          |> whitelist([:name, :conditions, :firmware_id])
+          |> Map.put(:org_id, org.id)
+          |> Map.put(:is_active, false)
 
         result = Deployments.create_deployment(params)
 
@@ -125,7 +131,10 @@ defmodule NervesHubWWWWeb.DeploymentController do
         %{assigns: %{product: product}} = conn,
         %{"id" => deployment_id, "deployment" => deployment_params}
       ) do
-    params = inject_conditions_map(deployment_params)
+    params =
+      deployment_params
+      |> inject_conditions_map()
+      |> whitelist([:name, :conditions, :firmware_id, :is_active])
 
     {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
 
