@@ -2,15 +2,16 @@ defmodule NervesHubCore.Repo.Migrations.UniqueDeploymentNameProductId do
   use Ecto.Migration
 
   alias NervesHubCore.Repo
-  alias NervesHubCore.Deployments
   alias NervesHubCore.Deployments.Deployment
 
   def up do
     deployments = Repo.all(Deployment)
 
     for deployment <- deployments do
-      dep = Repo.preload(deployment, :firmware)
-      Deployments.update_deployment(dep, %{})
+      deployment
+      |> Repo.preload(:firmware)
+      |> Deployment.changeset(%{})
+      |> Repo.update()
     end
 
     alter table(:deployments) do
@@ -21,10 +22,6 @@ defmodule NervesHubCore.Repo.Migrations.UniqueDeploymentNameProductId do
   end
 
   def down do
-    alter table(:deployments) do
-      drop(:product_id)
-    end
-
     drop(unique_index(:deployments, [:product_id, :name]))
   end
 end
