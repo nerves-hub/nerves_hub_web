@@ -80,12 +80,8 @@ defmodule NervesHubCore.Deployments.Deployment do
   def with_firmware(%Deployment{firmware: %Firmware{}} = d), do: d
 
   def with_firmware(%Deployment{} = d) do
-    # IO.puts("LOADING FIRMWARE")
-
     d
     |> Repo.preload(:firmware)
-
-    # |> IO.inspect()
   end
 
   def with_firmware(deployment_query) do
