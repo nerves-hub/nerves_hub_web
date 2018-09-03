@@ -4,6 +4,7 @@ defmodule NervesHubCore.Devices.Device do
   import Ecto.Changeset
   import Ecto.Query
 
+  alias NervesHubCore.Repo
   alias NervesHubCore.Accounts.Org
   alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Devices.DeviceCertificate
@@ -38,7 +39,29 @@ defmodule NervesHubCore.Devices.Device do
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
+    |> validate_device_limit()
     |> unique_constraint(:identifier, name: :devices_org_id_identifier_index)
+  end
+
+  defp validate_device_limit(%Ecto.Changeset{changes: %{org_id: org_id}} = cs) do
+    if too_many_devices?(org_id) do
+      cs |> add_error(:org, "device limit reached")
+    else
+      cs
+    end
+  end
+
+  defp validate_device_limit(%Ecto.Changeset{} = cs) do
+    cs
+  end
+
+  defp too_many_devices?(org_id) do
+    device_count =
+      from(d in Device, where: d.org_id == ^org_id, select: count(d.id))
+      |> Repo.one()
+
+    org_device_limit = Application.get_env(:nerves_hub_core, :org_device_limit)
+    device_count + 1 > org_device_limit
   end
 
   def with_firmware(device_query) do

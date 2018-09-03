@@ -44,6 +44,33 @@ defmodule NervesHubCore.DevicesTest do
     end
   end
 
+  test "org cannot have too many devices" do
+    org = Fixtures.org_fixture()
+    product = Fixtures.product_fixture(org)
+    org_key = Fixtures.org_key_fixture(org)
+    firmware = Fixtures.firmware_fixture(org_key, product)
+
+    org_device_limit = Application.get_env(:nerves_hub_core, :org_device_limit)
+
+    for i <- 1..org_device_limit do
+      params = %{
+        org_id: org.id,
+        last_known_firmware_id: firmware.id,
+        identifier: "id #{i}"
+      }
+
+      {:ok, %Devices.Device{}} = Devices.create_device(params)
+    end
+
+    params = %{
+      org_id: org.id,
+      last_known_firmware_id: firmware.id,
+      identifier: "too many"
+    }
+
+    assert {:error, %Changeset{}} = Devices.create_device(params)
+  end
+
   test "delete_device", %{
     org: org,
     device: device

@@ -4,7 +4,8 @@ use Mix.Config
 
 config :nerves_hub_core,
   ecto_repos: [NervesHubCore.Repo],
-  product_firmware_limit: 5
+  product_firmware_limit: 5,
+  org_device_limit: 5
 
 config :nerves_hub_core, NervesHubWeb.PubSub,
   name: NervesHubWeb.PubSub,
