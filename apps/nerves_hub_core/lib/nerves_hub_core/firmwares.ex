@@ -130,7 +130,9 @@ defmodule NervesHubCore.Firmwares do
       uploader.delete_file(firmware)
     end
 
-    Repo.delete(firmware)
+    firmware
+    |> Firmware.changeset(%{})
+    |> Repo.delete()
   end
 
   @spec verify_signature(String.t(), [OrgKey.t()]) ::
