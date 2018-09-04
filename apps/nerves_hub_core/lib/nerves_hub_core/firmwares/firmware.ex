@@ -7,6 +7,7 @@ defmodule NervesHubCore.Firmwares.Firmware do
   alias NervesHubCore.Accounts.OrgKey
   alias NervesHubCore.Deployments.Deployment
   alias NervesHubCore.Products.Product
+  alias NervesHubCore.Repo
 
   alias __MODULE__
 
@@ -49,7 +50,30 @@ defmodule NervesHubCore.Firmwares.Firmware do
     firmware
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
+    |> validate_firmware_limit()
     |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
+    |> foreign_key_constraint(:deployments, name: :deployments_firmware_id_fkey)
+  end
+
+  defp validate_firmware_limit(%Ecto.Changeset{changes: %{product_id: product_id}} = cs) do
+    if too_many_firmwares?(product_id) do
+      cs |> add_error(:product, "firmware limit reached")
+    else
+      cs
+    end
+  end
+
+  defp validate_firmware_limit(%Ecto.Changeset{} = cs) do
+    cs
+  end
+
+  defp too_many_firmwares?(product_id) do
+    firmware_count =
+      from(f in Firmware, where: f.product_id == ^product_id, select: count(f.id))
+      |> Repo.one()
+
+    product_firmware_limit = Application.get_env(:nerves_hub_core, :product_firmware_limit)
+    firmware_count + 1 > product_firmware_limit
   end
 
   def with_product(firmware_query) do

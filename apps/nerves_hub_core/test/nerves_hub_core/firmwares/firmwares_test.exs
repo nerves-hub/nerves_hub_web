@@ -68,6 +68,31 @@ defmodule NervesHubCore.FirmwaresTest do
                Firmwares.create_firmware(new_params)
     end
 
+    test "enforces firmware limit within product" do
+      org = Fixtures.org_fixture()
+      product = Fixtures.product_fixture(org)
+      org_key = Fixtures.org_key_fixture(org)
+
+      product_firmware_limit = Application.get_env(:nerves_hub_core, :product_firmware_limit)
+
+      for _ <- 1..product_firmware_limit do
+        _firmware = Fixtures.firmware_fixture(org_key, product)
+      end
+
+      params = %{
+        org_key_id: org_key.id,
+        product_id: product.id,
+        platform: "foo",
+        architecture: "bar",
+        uuid: Ecto.UUID.generate(),
+        upload_metadata: %{"public_url" => "http://example.com", "local_path" => ""},
+        version: "0.0.2"
+      }
+
+      assert {:error, %Changeset{errors: [product: {"firmware limit reached", []}]}} =
+               Firmwares.create_firmware(params)
+    end
+
     test "delete firmware", %{org: org, org_key: org_key, product: product} do
       orig_path = @signed_key1_firmware_path
       firmware_name = Path.basename(@signed_key1_firmware_path)
@@ -88,6 +113,30 @@ defmodule NervesHubCore.FirmwaresTest do
       refute File.exists?(tmp_file)
       assert {:error, :not_found} = Firmwares.get_firmware(org, firmware.id)
     end
+  end
+
+  test "cannot delete firmware when it is referenced by deployment", %{
+    org_key: org_key,
+    product: product
+  } do
+    orig_path = @signed_key1_firmware_path
+    firmware_name = Path.basename(@signed_key1_firmware_path)
+
+    tmp_path = Path.expand("../../tmp", __DIR__)
+    File.rm_rf(tmp_path)
+    File.mkdir(tmp_path)
+    tmp_file = Path.join(tmp_path, firmware_name)
+    File.cp(orig_path, tmp_path)
+    assert File.exists?(tmp_path)
+
+    params =
+      Fixtures.firmware_params()
+      |> Map.put(:upload_metadata, %{"local_path" => tmp_file})
+
+    firmware = Fixtures.firmware_fixture(org_key, product, params)
+    Fixtures.deployment_fixture(firmware, %{name: "a deployment"})
+
+    assert {:error, %Changeset{}} = Firmwares.delete_firmware(firmware)
   end
 
   describe "NervesHubWWW.Firmwares.get_firmwares_by_product/2" do
