@@ -34,7 +34,6 @@
         <td>
           <a href="<%= device_path(@conn, :edit, device.id) %>" class="btn btn-info">Edit</a>
           <%= link "Delete", class: "btn btn-danger", to: device_path(@conn, :delete, device), method: :delete, data: [confirm: "Are you sure?"]%>
-          <a href="#" class="btn btn-warning">Disable</a>
         </td>
       </tr>
     <% end %>
