@@ -18,8 +18,8 @@ defmodule NervesHubAPIWeb.UserController do
   def register(conn, params) do
     params =
       params
-      |> whitelist([:name, :email, :password])
-      |> Map.put(:orgs, [%{name: params["name"]}])
+      |> whitelist([:username, :email, :password])
+      |> Map.put(:orgs, [%{name: params["username"]}])
 
     with {:ok, user} <- Accounts.create_user(params) do
       render(conn, "show.json", user: user)

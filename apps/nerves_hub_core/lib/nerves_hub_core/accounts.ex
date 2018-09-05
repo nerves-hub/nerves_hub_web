@@ -194,12 +194,12 @@ defmodule NervesHubCore.Accounts do
 
   @spec get_org(integer()) ::
           {:ok, Org.t()}
-          | {:error, :not_found}
+          | {:error, :org_not_found}
   def get_org(id) do
     Org
     |> Repo.get(id)
     |> case do
-      nil -> {:error, :not_found}
+      nil -> {:error, :org_not_found}
       org -> {:ok, org}
     end
   end
@@ -311,7 +311,7 @@ defmodule NervesHubCore.Accounts do
     OrgKey.update_changeset(org_key, params)
   end
 
-  @spec invite(%{name: String.t(), email: String.t()}, Org.t()) ::
+  @spec invite(%{email: String.t()}, Org.t()) ::
           {:ok, Invite.t()}
           | {:error, Changeset.t()}
   def invite(params, org) do
@@ -324,7 +324,7 @@ defmodule NervesHubCore.Accounts do
 
   @spec get_valid_invite(String.t()) ::
           {:ok, Invite.t()}
-          | {:error, :not_found}
+          | {:error, :invite_not_found}
   def get_valid_invite(token) do
     query =
       from(
@@ -337,25 +337,24 @@ defmodule NervesHubCore.Accounts do
     query
     |> Repo.one()
     |> case do
-      nil -> {:error, :not_found}
+      nil -> {:error, :invite_not_found}
       invite -> {:ok, invite}
     end
   end
 
-  @spec create_user_from_invite(Invite.t(), Org.t(), map) ::
+  @spec create_user_from_invite(Invite.t(), Org.t(), map()) ::
           {:ok, User.t()}
           | {:error}
   def create_user_from_invite(invite, org, user_params) do
-    user_params =
-      %{email: invite.email, name: invite.name}
-      |> Enum.into(user_params)
+    user_params = Map.put(user_params, :email, invite.email)
+    user_org = %{name: user_params.username}
 
     Repo.transaction(fn ->
-      with {:ok, user} <- create_user(%{orgs: [org]} |> Enum.into(user_params)),
+      with {:ok, user} <- create_user(%{orgs: [user_org, org]} |> Enum.into(user_params)),
            {:ok, _invite} <- set_invite_accepted(invite) do
         {:ok, user}
       else
-        _ -> {:error}
+        {:error, error} -> Repo.rollback(error)
       end
     end)
   end

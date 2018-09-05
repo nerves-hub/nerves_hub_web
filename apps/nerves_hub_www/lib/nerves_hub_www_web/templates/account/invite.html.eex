@@ -2,7 +2,14 @@
   You will be added to the <%= @org.name %> org
 </p>
 
-<%= form_for @changeset, account_path(@conn, :accept_invite, @token), [as: :user], fn f -> %>
+<%= form_for @changeset, account_path(@conn, :accept_invite, @token), [as: :user, method: "post"], fn f -> %>
+  <p>
+    <label>
+      Username:
+      <%= text_input f, :username %>
+      <%= error_tag f, :username %>
+    </label>
+  </p>
   <p>
     <label>
       Password:

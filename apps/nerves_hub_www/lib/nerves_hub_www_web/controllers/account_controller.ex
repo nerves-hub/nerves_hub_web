@@ -19,8 +19,8 @@ defmodule NervesHubWWWWeb.AccountController do
 
   def create(conn, %{"user" => user_params}) do
     user_params
-    |> whitelist([:password, :name, :email])
-    |> Map.put(:orgs, [%{name: user_params["name"]}])
+    |> whitelist([:password, :username, :email])
+    |> Map.put(:orgs, [%{name: user_params["username"]}])
     |> Accounts.create_user()
     |> case do
       {:ok, _user} ->
@@ -42,7 +42,7 @@ defmodule NervesHubWWWWeb.AccountController do
   def update(conn, params) do
     cleaned =
       params["user"]
-      |> whitelist([:current_password, :password, :name, :email, :orgs])
+      |> whitelist([:current_password, :password, :username, :email, :orgs])
 
     conn.assigns.user
     |> Accounts.update_user(cleaned)
@@ -77,18 +77,33 @@ defmodule NervesHubWWWWeb.AccountController do
   end
 
   def accept_invite(conn, %{"user" => user_params, "token" => token} = _) do
-    clean_params = user_params |> whitelist([:password])
+    clean_params = whitelist(user_params, [:password, :username])
 
     with {:ok, invite} <- Accounts.get_valid_invite(token),
-         {:ok, org} <- Accounts.get_org(invite.org_id),
-         {:ok, _user} <- Accounts.create_user_from_invite(invite, org, clean_params) do
-      conn
-      |> put_flash(:info, "Account successfully created, login below")
-      |> redirect(to: "/")
+         {:ok, org} <- Accounts.get_org(invite.org_id) do
+      with {:ok, _user} <- Accounts.create_user_from_invite(invite, org, clean_params) do
+        conn
+        |> put_flash(:info, "Account successfully created, login below")
+        |> redirect(to: "/login")
+      else
+        {:error, %Changeset{} = changeset} ->
+          render(
+            conn,
+            "invite.html",
+            changeset: changeset,
+            org: org,
+            token: token
+          )
+      end
     else
-      _ ->
+      {:error, :invite_not_found} ->
         conn
         |> put_flash(:error, "Invalid or expired invite")
+        |> redirect(to: "/")
+
+      {:error, :org_not_found} ->
+        conn
+        |> put_flash(:error, "Invalid org")
         |> redirect(to: "/")
     end
   end

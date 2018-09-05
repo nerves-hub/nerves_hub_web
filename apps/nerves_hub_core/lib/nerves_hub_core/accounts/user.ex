@@ -15,14 +15,14 @@ defmodule NervesHubCore.Accounts.User do
 
   @password_min_length 8
 
-  @required_params [:name, :email, :password_hash]
+  @required_params [:username, :email, :password_hash]
   @optional_params [:password, :password_reset_token, :password_reset_token_expires]
 
   schema "users" do
     has_many(:user_certificates, UserCertificate)
     many_to_many(:orgs, Org, join_through: "users_orgs", on_replace: :delete, unique: true)
 
-    field(:name, :string)
+    field(:username, :string)
     field(:email, :string)
     field(:password, :string, virtual: true)
     field(:password_confirmation, :string, virtual: true)
@@ -39,7 +39,9 @@ defmodule NervesHubCore.Accounts.User do
     |> hash_password()
     |> password_validations()
     |> validate_required(@required_params)
+    |> validate_username()
     |> unique_constraint(:email)
+    |> unique_constraint(:username)
     |> unique_constraint(:orgs, name: :users_orgs_user_id_org_id_index)
   end
 
@@ -72,6 +74,7 @@ defmodule NervesHubCore.Accounts.User do
 
   def creation_changeset(%User{} = user, params) do
     changeset(user, params)
+    |> validate_required([:password])
     |> handle_orgs(params)
   end
 
@@ -101,6 +104,15 @@ defmodule NervesHubCore.Accounts.User do
     |> changeset(params)
     |> handle_orgs(params)
   end
+
+  defp validate_username(%Changeset{changes: %{username: username}} = changeset) do
+    case Regex.match?(~r/^[A-Z,a-z,\d,\-,.,_,~]*$/, username) do
+      true -> changeset
+      false -> add_error(changeset, :username, "invalid character(s) in username")
+    end
+  end
+
+  defp validate_username(changeset), do: changeset
 
   defp default_org_query() do
     # For now just get first inserted org
@@ -150,14 +162,20 @@ defmodule NervesHubCore.Accounts.User do
     )
   end
 
-  defp email_password_update_valid?(%Changeset{} = changeset, %User{} = user, %{
+  defp email_password_update_valid?(%Changeset{changes: changes} = changeset, %User{} = user, %{
          current_password: curr_pass
        }) do
-    if Bcrypt.checkpw(curr_pass, user.password_hash) do
-      changeset
-    else
-      changeset
-      |> add_error(:current_password, "Current password is incorrect.")
+    case Map.has_key?(changes, :email) or Map.has_key?(changes, :password) do
+      true ->
+        if Bcrypt.checkpw(curr_pass, user.password_hash) do
+          changeset
+        else
+          changeset
+          |> add_error(:current_password, "Current password is incorrect.")
+        end
+
+      false ->
+        changeset
     end
   end
 
