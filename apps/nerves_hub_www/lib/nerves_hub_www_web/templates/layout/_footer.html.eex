@@ -6,7 +6,7 @@
         NervesHub
       </h6>
       <a href="https://github.com/nerves-hub">Source code</a>
-      <a href="#">Sponsors</a>
+      <a href="<%= sponsor_path(@conn, :index) %>">Sponsors</a>
     </div>
     <div class="p-2 bd-highlight">
       <h6 class="text-dark logo-font">

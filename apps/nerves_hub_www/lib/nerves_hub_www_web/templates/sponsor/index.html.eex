@@ -1,0 +1,17 @@
+<h1 class="text-center mb-5">Sponsors</h1>
+
+<div class="row mb-5">
+    <a href="https://www.smartrent.com/" class="mx-auto">
+    <%= img_tag(static_path(@conn, "/images/sponsors/smartrent.svg"), style: "height:50px") %>
+    </a>
+</div>
+<div class="row mb-5">
+    <a href="https://www.verypossible.com/services/iot-development" class="mx-auto">
+    <%= img_tag(static_path(@conn, "/images/sponsors/very_logo.svg"), style: "height:80px") %>
+    </a>
+</div>
+<div class="row mb-5">
+    <a href="https://www.letote.com/careers" class="mx-auto">
+      <%= img_tag(static_path(@conn, "/images/sponsors/letote.svg"), style: "height:50px") %>
+    </a>
+</div>
