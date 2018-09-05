@@ -33,6 +33,8 @@ companies.
 ### Starting App
 
 * Start the database (if not started): `docker-compose up -d`
+* Compile web assets (this only needs to be done once):
+`cd apps/nerves_hub_web/assets && npm install`
 * Start web app: `make server` or `make iex-server` to start the server with the
   interactive shell
   * The whole app will need to be compiled the first time you run this, so
@@ -74,4 +76,3 @@ for development and test.
 See the
 [nerves_hub_client/README.md](https://github.com/nerves-hub/nerves_hub_client/blob/master/README.md)
 for more information.
-
