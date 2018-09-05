@@ -89,6 +89,18 @@ defmodule NervesHubCore.Deployments.Deployment do
     |> preload(:firmware)
   end
 
+  def with_product(%Deployment{product: %Product{}} = d), do: d
+
+  def with_product(%Deployment{} = d) do
+    d
+    |> Repo.preload(:product)
+  end
+
+  def with_product(deployment_query) do
+    deployment_query
+    |> preload(:product)
+  end
+
   defp validate_conditions(changeset, _options \\ []) do
     validate_change(changeset, :conditions, fn :conditions, conditions ->
       types = %{tags: {:array, :string}, version: :string}
