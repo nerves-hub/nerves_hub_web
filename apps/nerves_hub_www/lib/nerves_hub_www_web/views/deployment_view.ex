@@ -11,7 +11,6 @@ defmodule NervesHubWWWWeb.DeploymentView do
 
   def firmware_summary(%Firmware{version: nil} = f) do
     [
-      f.product.name,
       f.platform,
       f.architecture
     ]
@@ -20,7 +19,6 @@ defmodule NervesHubWWWWeb.DeploymentView do
 
   def firmware_summary(%Firmware{} = f) do
     [
-      f.product.name,
       "v:#{firmware_display_name(f)}",
       f.platform,
       f.architecture

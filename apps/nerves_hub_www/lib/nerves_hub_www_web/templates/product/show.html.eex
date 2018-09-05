@@ -16,6 +16,9 @@
   <a class="btn btn-lg btn-primary pull-right" href="<%= device_path(@conn, :index) %>">
  View Devices
   </a>
+  <a class="btn btn-lg btn-primary pull-right" href="<%= product_deployment_path(@conn, :index, @product) %>">
+ View Deployments
+  </a>
 </ul>
 
 <span><%= link "Back", to: product_path(@conn, :index) %></span>
