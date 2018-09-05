@@ -8,12 +8,6 @@
 
   <%= form_for @changeset, org_path(@conn, :send_invite), fn f -> %>
     <div class="form-group">
-      <label for="name_input">Name</label>
-      <%= text_input f, :name, class: "form-control", id: "name_input" %>
-      <div class="has-error"><%= error_tag f, :name %></div>
-    </div>
-
-    <div class="form-group">
       <label for="email_input">Email</label>
       <%= email_input f, :email, class: "form-control", id: "email_input" %>
       <div class="has-error"><%= error_tag f, :email %></div>

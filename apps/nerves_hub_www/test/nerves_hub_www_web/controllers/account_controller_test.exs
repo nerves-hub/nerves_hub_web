@@ -16,14 +16,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
     test "renders invite creation form", %{
       conn: conn
     } do
-      {:ok, invite} =
-        Accounts.invite(
-          %{
-            "name" => "Joe",
-            "email" => "joe@example.com"
-          },
-          conn.assigns.current_org
-        )
+      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com"}, conn.assigns.current_org)
 
       conn = get(conn, account_path(conn, :invite, invite.token))
 
@@ -36,21 +29,14 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
     test "accepts submitted invitation", %{
       conn: conn
     } do
-      {:ok, invite} =
-        Accounts.invite(
-          %{
-            "name" => "Joe",
-            "email" => "joe@example.com"
-          },
-          conn.assigns.current_org
-        )
+      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com"}, conn.assigns.current_org)
 
       conn =
-        put(
+        post(
           conn,
           account_path(conn, :accept_invite, invite.token, %{
             "user" => %{
-              "name" => "My Name",
+              "username" => "MyName",
               "email" => "not_joe@example.com",
               "password" => "12345678"
             }
@@ -63,7 +49,8 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
                "info" => "Account successfully created, login below"
              }
 
-      assert {:ok, %Accounts.User{}} = Accounts.get_user_by_email("joe@example.com")
+      assert {:ok, %Accounts.User{username: "MyName"}} =
+               Accounts.get_user_by_email("joe@example.com")
     end
   end
 
@@ -88,7 +75,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
         |> put(
           account_path(conn, :update, %{
             "user" => %{
-              "name" => "My Newest Name",
+              "username" => "MyNewestName",
               "password" => "foobarbaz",
               "current_password" => user.password
             }
@@ -110,7 +97,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
         |> put(
           account_path(conn, :update, %{
             "user" => %{
-              "name" => "My Newest Name",
+              "username" => "MyNewestName",
               "password" => "12345678",
               "current_password" => ""
             }
@@ -128,7 +115,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
         |> put(
           account_path(conn, :update, %{
             "user" => %{
-              "name" => "My Newest Name",
+              "username" => "MyNewestName",
               "password" => "12345678",
               "current_password" => "not the current password"
             }
@@ -148,7 +135,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
           conn,
           account_path(conn, :create, %{
             "user" => %{
-              "name" => "My Name",
+              "username" => "MyName",
               "email" => "joe@example.com",
               "password" => "12345678"
             }
@@ -166,7 +153,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
           conn,
           account_path(conn, :create, %{
             "user" => %{
-              "name" => "My Name",
+              "username" => "MyName",
               "org_name" => "a Org",
               "email" => "joe@example.com",
               "password" => "12345"

@@ -40,7 +40,7 @@ defmodule NervesHubWWWWeb.Router do
     put("/password-reset/:token", PasswordResetController, :reset)
 
     get("/invite/:token", AccountController, :invite)
-    put("/invite/:token", AccountController, :accept_invite)
+    post("/invite/:token", AccountController, :accept_invite)
 
     scope "/policy" do
       get("/tos", PolicyController, :tos)
@@ -57,12 +57,12 @@ defmodule NervesHubWWWWeb.Router do
     put("/set_org", SessionController, :set_org)
 
     resources("/dashboard", DashboardController, only: [:index])
-    resources("/org", OrgController)
-
-    resources("/org_keys", OrgKeyController)
 
     get("/org/invite", OrgController, :invite)
     post("/org/invite", OrgController, :send_invite)
+    resources("/org", OrgController)
+
+    resources("/org_keys", OrgKeyController)
 
     get("/settings", AccountController, :edit)
     put("/settings", AccountController, :update)

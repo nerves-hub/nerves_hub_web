@@ -32,7 +32,7 @@ defmodule NervesHubCore.Fixtures do
   @device_params %{identifier: "device-1234"}
   @product_params %{name: "valid product"}
   @user_params %{
-    name: "Testy McTesterson",
+    username: "Testy-McTesterson",
     org_name: "mctesterson.com",
     email: "testy@mctesterson.com",
     password: "test_password"
@@ -170,7 +170,7 @@ defmodule NervesHubCore.Fixtures do
   def standard_fixture() do
     user_name = "Jeff"
     org = org_fixture(%{name: user_name})
-    user = user_fixture(org, %{name: user_name})
+    user = user_fixture(org, %{username: user_name})
     product = product_fixture(org, %{name: "Hop"})
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
@@ -190,7 +190,7 @@ defmodule NervesHubCore.Fixtures do
 
   def very_fixture() do
     org = org_fixture(%{name: "Very"})
-    user = user_fixture(org, %{name: "Jeff"})
+    user = user_fixture(org, %{username: "Jeff"})
     product = product_fixture(org, %{name: "Hop"})
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)

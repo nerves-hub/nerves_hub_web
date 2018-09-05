@@ -9,28 +9,38 @@ defmodule NervesHubAPIWeb.UserControllerTest do
     conn = get(conn, user_path(conn, :me))
 
     assert json_response(conn, 200)["data"] == %{
-             "name" => user.name,
+             "username" => user.username,
              "email" => user.email
            }
   end
 
   test "register new account" do
     conn = build_conn()
-    body = %{name: "test", password: "12345678", email: "new_test@test.com"}
+    body = %{username: "test", password: "12345678", email: "new_test@test.com"}
     conn = post(conn, user_path(conn, :register), body)
 
     assert json_response(conn, 200)["data"] == %{
-             "name" => body.name,
+             "username" => body.username,
              "email" => body.email
            }
   end
 
-  test "authenticate existing accounts", %{user: %{password: password} = user} do
+  test "authenticate existing accounts" do
+    password = "12345678"
+    org = Fixtures.org_fixture()
+
+    user =
+      Fixtures.user_fixture(org, %{
+        username: "Bob-Smith",
+        email: "account_test@test.com",
+        password: password
+      })
+
     conn = build_conn()
     conn = post(conn, user_path(conn, :auth), %{email: user.email, password: password})
 
     assert json_response(conn, 200)["data"] == %{
-             "name" => user.name,
+             "username" => user.username,
              "email" => user.email
            }
   end
