@@ -47,6 +47,8 @@ defmodule NervesHubWWWWeb.Router do
       get("/privacy", PolicyController, :privacy)
       get("/coc", PolicyController, :coc)
     end
+
+    get("/sponsors", SponsorController, :index)
   end
 
   scope "/", NervesHubWWWWeb do
