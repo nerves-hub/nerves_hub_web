@@ -1,41 +1,48 @@
-<h1>
-  Devices
-</h1>
-
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Identifier</th>
-      <th>Version</th>
-      <th>Status</th>
-      <th>Tags</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <%= for device <- @devices do %>
-      <tr>
-        <td><%= device.identifier %></td>
-        <td>
-          <%= if is_nil(device.last_known_firmware) do %>
-          no firmware
-        <% else %>
-          <%= device.last_known_firmware.version %>
-        <% end %>
-        </td>
-        <td><%= device_status(device) %></td>
-        <td>
-          <%= for tag <- (device.tags || []) do %>
-            <span class="badge">
-              <%= tag %>
-            </span>
-          <% end %>
-        </td>
-        <td>
-          <a href="<%= device_path(@conn, :edit, device.id) %>" class="btn btn-info">Edit</a>
-          <%= link "Delete", class: "btn btn-danger", to: device_path(@conn, :delete, device), method: :delete, data: [confirm: "Are you sure?"]%>
-        </td>
-      </tr>
-    <% end %>
-  </tbody>
-</table>
+<div class="row">
+  <div class="w-100 shadow nhw_list">
+    <div class="header">
+      <div class="row">
+        <div class="col-8">
+          Devices
+        </div>
+      </div>
+    </div>
+    <div class="card">
+    <table id="deployment_listing" class="table">
+      <thead>
+        <tr class="d-flex">
+          <th class="col-3">Identifier</th>
+          <th class="col-2">Version</th>
+          <th class="col-3">Status</th>
+          <th class="col-2">Tags</th>
+          <th class="col-2"></th>
+        </tr>
+      </thead>
+      <%= for device <- @devices do %>
+        <tr class="item d-flex">
+          <td class="col-3"><%= device.identifier %></td>
+          <td class="col-2">
+            <%= if is_nil(device.last_known_firmware) do %>
+              no firmware
+            <% else %>
+              <%= device.last_known_firmware.version %>
+            <% end %>
+          </td>
+          <td class="col-3"><%= device_status(device) %></td>
+          <td class="col-2">
+            <%= for tag <- (device.tags || []) do %>
+              <span class="badge">
+                <%= tag %>
+              </span>
+            <% end %>
+          </td>
+          <td class="col-2">
+            <a href="<%= device_path(@conn, :edit, device.id) %>" class="btn btn-info">Edit</a>
+            <%= link "Delete", class: "btn btn-danger", to: device_path(@conn, :delete, device), method: :delete, data: [confirm: "Are you sure?"]%>
+          </td>
+        </tr>
+      <% end %>
+    </table>
+    </div>
+  </div>
+</div>
