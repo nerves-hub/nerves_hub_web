@@ -100,7 +100,8 @@ defmodule NervesHubCore.Deployments do
         join: f in assoc(d, :last_known_firmware),
         where: f.product_id == ^deployment.firmware.product_id,
         where: f.architecture == ^deployment.firmware.architecture,
-        where: f.platform == ^deployment.firmware.platform
+        where: f.platform == ^deployment.firmware.platform,
+        where: f.uuid != ^deployment.firmware.uuid
       )
       |> Devices.Device.with_firmware()
       |> Repo.all()

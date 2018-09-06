@@ -65,7 +65,7 @@ defmodule NervesHubAPIWeb.DeploymentController do
 
   defp update_params(org, %{"firmware" => uuid} = params) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(org, uuid) do
-      {:ok, Map.put(params, :firmware_id, firmware.id)}
+      {:ok, Map.put(params, "firmware_id", firmware.id)}
     end
   end
 
