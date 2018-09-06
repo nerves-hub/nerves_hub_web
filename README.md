@@ -27,6 +27,8 @@ companies.
 * Copy `dev.env` to `.env` and customize as needed
 * Run command `mix deps.get`
 * Run command `make reset-db`
+* Compile web assets (this only needs to be done once and requires python2):
+  `cd apps/nerves_hub_www/assets && npm install`
 * Start web app: `make server` or `make iex-server` to start the server with the
   interactive shell
 
