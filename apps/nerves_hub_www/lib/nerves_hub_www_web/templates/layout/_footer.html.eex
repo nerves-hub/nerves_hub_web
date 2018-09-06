@@ -12,7 +12,7 @@
       <h6 class="text-dark logo-font">
         Help
       </h6>
-      <a href="#">Documentation</a>
+      <a href="https://hexdocs.pm/nerves_hub/readme.html#content">Documentation</a>
       <a href="https://github.com/nerves-hub/nerves_hub_web/issues">Report an issue</a>
       <a href="mailto:support@nerves-hub.org">Support</a>
     </div>
