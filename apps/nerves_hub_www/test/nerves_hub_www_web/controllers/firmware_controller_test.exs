@@ -3,6 +3,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Accounts
+  alias NervesHubCore.Support.Fwup
 
   describe "index" do
     test "lists all firmwares", %{conn: conn, current_org: org} do
@@ -27,13 +28,18 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
   describe "upload firmware" do
     test "redirects after successful upload", %{
       conn: conn,
-      current_org: org
+      current_org: org,
+      org_key: org_key
     } do
-      product = Fixtures.product_fixture(org, %{name: "starter"})
+      product_name = "cool product"
+      product = Fixtures.product_fixture(org, %{name: product_name})
+
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: product_name})
 
       upload = %Plug.Upload{
-        path: "../../test/fixtures/firmware/signed-key1.fw",
-        filename: "signed-key1.fw"
+        path: signed_firmware_path,
+        filename: "doesnt_matter.fw"
       }
 
       # check that we end up in the right place
@@ -47,15 +53,20 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
       # check that the proper creation side effects took place
       conn = get(conn, product_firmware_path(conn, :index, product.id))
       # starter is the product for the test firmware
-      assert html_response(conn, 200) =~ "starter"
+      assert html_response(conn, 200) =~ product_name
     end
 
-    test "error if corrupt firmware uploaded", %{conn: conn, current_org: org} do
+    test "error if corrupt firmware uploaded", %{conn: conn, current_org: org, org_key: org_key} do
       product = Fixtures.product_fixture(org, %{name: "starter"})
 
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: "starter"})
+
+      {:ok, corrupt_firmware_path} = Fwup.corrupt_firmware_file(signed_firmware_path)
+
       upload = %Plug.Upload{
-        path: "../../test/fixtures/firmware/corrupt.fw",
-        filename: "corrupt.fw"
+        path: corrupt_firmware_path,
+        filename: "doesnt_matter.fw"
       }
 
       # check for the error message
@@ -71,9 +82,14 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
     test "error if org keys do not match firmware", %{conn: conn, current_org: org} do
       product = Fixtures.product_fixture(org, %{name: "starter"})
 
+      Fwup.gen_key_pair("wrong")
+
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware("wrong", "unsigned", "signed", %{product: "starter"})
+
       upload = %Plug.Upload{
-        path: "../../test/fixtures/firmware/signed-other-key.fw",
-        filename: "signed-other-key.fw"
+        path: signed_firmware_path,
+        filename: "doesnt_matter.fw"
       }
 
       # check for the error message
@@ -88,13 +104,17 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
     test "error if meta-product does not match product name", %{
       conn: conn,
-      current_org: org
+      current_org: org,
+      org_key: org_key
     } do
       product = Fixtures.product_fixture(org, %{name: "non-matching name"})
 
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: "name"})
+
       upload = %Plug.Upload{
-        path: "../../test/fixtures/firmware/signed-key1.fw",
-        filename: "signed-key1.fw"
+        path: signed_firmware_path,
+        filename: "doesnt_matter.fw"
       }
 
       # check for the error message

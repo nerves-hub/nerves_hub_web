@@ -20,7 +20,6 @@ defmodule NervesHubWWWWeb.AccountController do
   def create(conn, %{"user" => user_params}) do
     user_params
     |> whitelist([:password, :username, :email])
-    |> Map.put(:orgs, [%{name: user_params["username"]}])
     |> Accounts.create_user()
     |> case do
       {:ok, _user} ->

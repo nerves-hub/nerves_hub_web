@@ -45,7 +45,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
   describe "update org" do
     test "cannot update wrong org", %{conn: conn, current_org: org} do
       new_org = Fixtures.org_fixture(%{name: "Secret Org Name"})
-      user = Fixtures.user_fixture(new_org, %{email: "new@org.com"})
+      user = Fixtures.user_fixture(%{orgs: [new_org], email: "new@org.com"})
 
       conn = put(conn, org_path(conn, :update, new_org), org: %{name: "Nefarious Name"})
 

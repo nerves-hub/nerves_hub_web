@@ -2,25 +2,11 @@ defmodule NervesHubCore.FirmwaresTest do
   use NervesHubCore.DataCase, async: true
 
   alias NervesHubCore.Fixtures
+  alias NervesHubCore.Support.Fwup
   alias NervesHubCore.{Firmwares, Repo}
   alias NervesHubCore.Deployments.Deployment
-  alias NervesHubCore.Accounts.OrgKey
 
   alias Ecto.Changeset
-
-  @test_firmware_path "../../test/fixtures/firmware"
-  @unsigned_firmware_path Path.join(@test_firmware_path, "unsigned.fw")
-  @signed_key1_firmware_path Path.join(@test_firmware_path, "signed-key1.fw")
-  @signed_other_key_firmware_path Path.join(@test_firmware_path, "signed-other-key.fw")
-  @corrupt_firmware_path Path.join(@test_firmware_path, "signed-other-key.fw")
-  @firmware_pub_key1 %OrgKey{
-    id: "key1",
-    key: File.read!(Path.join(@test_firmware_path, "fwup-key1.pub"))
-  }
-  @firmware_pub_key2 %OrgKey{
-    id: "key2",
-    key: File.read!(Path.join(@test_firmware_path, "fwup-key2.pub"))
-  }
 
   setup do
     org = Fixtures.org_fixture()
@@ -94,23 +80,10 @@ defmodule NervesHubCore.FirmwaresTest do
     end
 
     test "delete firmware", %{org: org, org_key: org_key, product: product} do
-      orig_path = @signed_key1_firmware_path
-      firmware_name = Path.basename(@signed_key1_firmware_path)
+      firmware = Fixtures.firmware_fixture(org_key, product)
 
-      tmp_path = Path.expand("../../tmp", __DIR__)
-      File.rm_rf(tmp_path)
-      File.mkdir(tmp_path)
-      tmp_file = Path.join(tmp_path, firmware_name)
-      File.cp(orig_path, tmp_path)
-      assert File.exists?(tmp_path)
-
-      params =
-        Fixtures.firmware_params()
-        |> Map.put(:upload_metadata, %{"local_path" => tmp_file})
-
-      firmware = Fixtures.firmware_fixture(org_key, product, params)
-      Firmwares.delete_firmware(firmware)
-      refute File.exists?(tmp_file)
+      {:ok, _} = Firmwares.delete_firmware(firmware)
+      refute File.exists?(firmware.upload_metadata[:local_path])
       assert {:error, :not_found} = Firmwares.get_firmware(org, firmware.id)
     end
   end
@@ -119,21 +92,9 @@ defmodule NervesHubCore.FirmwaresTest do
     org_key: org_key,
     product: product
   } do
-    orig_path = @signed_key1_firmware_path
-    firmware_name = Path.basename(@signed_key1_firmware_path)
+    firmware = Fixtures.firmware_fixture(org_key, product)
+    assert File.exists?(firmware.upload_metadata[:local_path])
 
-    tmp_path = Path.expand("../../tmp", __DIR__)
-    File.rm_rf(tmp_path)
-    File.mkdir(tmp_path)
-    tmp_file = Path.join(tmp_path, firmware_name)
-    File.cp(orig_path, tmp_path)
-    assert File.exists?(tmp_path)
-
-    params =
-      Fixtures.firmware_params()
-      |> Map.put(:upload_metadata, %{"local_path" => tmp_file})
-
-    firmware = Fixtures.firmware_fixture(org_key, product, params)
     Fixtures.deployment_fixture(firmware, %{name: "a deployment"})
 
     assert {:error, %Changeset{}} = Firmwares.delete_firmware(firmware)
@@ -157,47 +118,49 @@ defmodule NervesHubCore.FirmwaresTest do
 
   describe "NervesHubCore.Firmwares.verify_signature/2" do
     test "returns {:error, :no_public_keys} when no public keys are passed" do
-      assert Firmwares.verify_signature(@unsigned_firmware_path, []) == {:error, :no_public_keys}
-
-      assert Firmwares.verify_signature(@signed_key1_firmware_path, []) ==
-               {:error, :no_public_keys}
-
-      assert Firmwares.verify_signature(@signed_other_key_firmware_path, []) ==
-               {:error, :no_public_keys}
+      assert Firmwares.verify_signature("/fake/path", []) == {:error, :no_public_keys}
     end
 
-    test "returns {:ok, key} when signature passes" do
-      assert Firmwares.verify_signature(@signed_key1_firmware_path, [@firmware_pub_key1]) ==
-               {:ok, @firmware_pub_key1}
+    test "returns {:ok, key} when signature passes", %{
+      org: org,
+      org_key: org_key
+    } do
+      {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
 
-      assert Firmwares.verify_signature(@signed_key1_firmware_path, [
-               @firmware_pub_key1,
-               @firmware_pub_key2
-             ]) == {:ok, @firmware_pub_key1}
+      assert Firmwares.verify_signature(signed_path, [org_key]) == {:ok, org_key}
+      other_org_key = Fixtures.org_key_fixture(org, %{name: "other key"})
 
-      assert Firmwares.verify_signature(@signed_key1_firmware_path, [
-               @firmware_pub_key2,
-               @firmware_pub_key1
-             ]) == {:ok, @firmware_pub_key1}
+      assert Firmwares.verify_signature(signed_path, [
+               org_key,
+               other_org_key
+             ]) == {:ok, org_key}
+
+      assert Firmwares.verify_signature(signed_path, [
+               other_org_key,
+               org_key
+             ]) == {:ok, org_key}
     end
 
-    test "returns {:error, :invalid_signature} when signature fails" do
-      assert Firmwares.verify_signature(@signed_key1_firmware_path, [@firmware_pub_key2]) ==
-               {:error, :invalid_signature}
+    test "returns {:error, :invalid_signature} when signature fails", %{
+      org: org,
+      org_key: org_key
+    } do
+      {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
+      other_org_key = Fixtures.org_key_fixture(org, %{name: "other key"})
 
-      assert Firmwares.verify_signature(@signed_other_key_firmware_path, [
-               @firmware_pub_key1,
-               @firmware_pub_key2
-             ]) == {:error, :invalid_signature}
-
-      assert Firmwares.verify_signature(@unsigned_firmware_path, [@firmware_pub_key1]) ==
+      assert Firmwares.verify_signature(signed_path, [other_org_key]) ==
                {:error, :invalid_signature}
     end
 
-    test "returns {:error, :invalid_signature} on corrupt files" do
-      assert Firmwares.verify_signature(@corrupt_firmware_path, [
-               @firmware_pub_key1,
-               @firmware_pub_key2
+    test "returns {:error, :invalid_signature} on corrupt files", %{
+      org_key: org_key
+    } do
+      {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
+
+      {:ok, corrupt_path} = Fwup.corrupt_firmware_file(signed_path)
+
+      assert Firmwares.verify_signature(corrupt_path, [
+               org_key
              ]) == {:error, :invalid_signature}
     end
   end

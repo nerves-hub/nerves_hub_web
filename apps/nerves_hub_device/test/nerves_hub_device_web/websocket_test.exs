@@ -7,7 +7,6 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
   @valid_serial "device-1234"
   @valid_product "test-product"
-  @valid_firmware_url "http://foo.com/bar"
 
   @fake_ssl_socket_config [
     url: "wss://127.0.0.1:4001/socket/websocket",
@@ -33,23 +32,22 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     ]
   ]
 
-  def device_fixture(device_params \\ %{}, firmware_uuid \\ "foo") do
+  def device_fixture(device_params \\ %{}) do
     org = Fixtures.org_fixture()
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
 
     firmware =
       Fixtures.firmware_fixture(org_key, product, %{
-        uuid: firmware_uuid,
-        version: "0.0.1",
-        upload_metadata: %{"public_path" => @valid_firmware_url}
+        version: "0.0.1"
       })
 
     deployment = Fixtures.deployment_fixture(firmware)
 
     device = Fixtures.device_fixture(org, firmware, deployment, device_params)
     Fixtures.device_certificate_fixture(device)
-    device
+
+    {device, firmware}
   end
 
   defmodule ClientSocket do
@@ -83,11 +81,9 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
   describe "socket auth" do
     test "Can connect and authenticate to channel using client ssl certificate" do
-      {:ok, target_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
-
-      device =
+      {device, firmware} =
         %{identifier: @valid_serial}
-        |> device_fixture(target_uuid)
+        |> device_fixture()
 
       opts =
         @ssl_socket_config
@@ -98,7 +94,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, _channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
-          topic: "firmware:#{target_uuid}",
+          topic: "firmware:#{firmware.uuid}",
           caller: self()
         )
 
@@ -164,11 +160,12 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
   describe "firmware update" do
     test "receives update message when eligible deployment is available" do
-      {:ok, not_target_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
-
-      device =
+      {device, _firmware} =
         %{identifier: @valid_serial}
         |> device_fixture()
+
+      device =
+        device
         |> NervesHubCore.Repo.preload(last_known_firmware: [:product])
 
       org = %Accounts.Org{id: device.org_id}
@@ -176,9 +173,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       firmware2 =
         Fixtures.firmware_fixture(org_key, device.last_known_firmware.product, %{
-          uuid: not_target_uuid,
-          version: "0.0.2",
-          upload_metadata: %{"public_path" => @valid_firmware_url}
+          version: "0.0.2"
         })
 
       Fixtures.deployment_fixture(firmware2, %{
@@ -208,11 +203,13 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       assert_receive(
         {:ok, :join,
          %{
-           "response" => %{"update_available" => true, "firmware_url" => @valid_firmware_url},
+           "response" => %{"update_available" => true, "firmware_url" => _},
            "status" => "ok"
          }, _ref},
         1_000
       )
+
+      device = NervesHubCore.Repo.get(Devices.Device, device.id)
 
       device =
         Device
@@ -223,12 +220,14 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     end
 
     test "receives update message once deployment is available" do
-      {:ok, target_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
-      {:ok, not_target_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
+      {device, firmware} =
+        %{identifier: @valid_serial}
+        |> device_fixture()
+
+      target_uuid = firmware.uuid
 
       device =
-        %{identifier: @valid_serial}
-        |> device_fixture(target_uuid)
+        device
         |> NervesHubCore.Repo.preload(last_known_firmware: [:org_key, :product])
 
       firmware =
@@ -236,9 +235,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
           device.last_known_firmware.org_key,
           device.last_known_firmware.product,
           %{
-            uuid: not_target_uuid,
-            version: "0.0.2",
-            upload_metadata: %{"public_path" => @valid_firmware_url}
+            version: "0.0.2"
           }
         )
 
@@ -277,11 +274,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     end
 
     test "does not receive update message when current_version matches target_version" do
-      {:ok, query_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
-
-      device =
+      {device, firmware} =
         %{identifier: @valid_serial, product: @valid_product}
-        |> device_fixture(query_uuid)
+        |> device_fixture()
+
+      query_uuid = firmware.uuid
 
       {:ok, _} =
         @ssl_socket_config

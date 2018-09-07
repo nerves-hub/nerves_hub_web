@@ -2,13 +2,10 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
   alias NervesHubCore.Fixtures
+  alias NervesHubCore.Support.Fwup
   alias NervesHubCore.Firmwares
   alias NervesHubCore.Accounts
   alias NervesHubCore.Firmwares.Firmware
-
-  @test_firmware_path Path.expand("../../../../../test/fixtures/firmware", __DIR__)
-  @signed_firmware_path Path.join(@test_firmware_path, "signed-key1.fw")
-  @fw_key_path Path.join(@test_firmware_path, "fwup-key1.pub")
 
   describe "index" do
     test "lists all firmwares", %{conn: conn, org: org, product: product} do
@@ -20,13 +17,15 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
 
   describe "create firmware" do
     test "renders firmware when data is valid", %{org: org, product: product} do
-      %{name: "test", key: File.read!(@fw_key_path), org_id: org.id}
-      |> NervesHubCore.Accounts.create_org_key()
+      Fixtures.org_key_fixture(org, %{name: "test"})
 
-      {:ok, metadata} = Firmwares.extract_metadata(@signed_firmware_path)
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware("test", "unsigned", "signed", %{product: product.name})
+
+      {:ok, metadata} = Firmwares.extract_metadata(signed_firmware_path)
       uuid = Firmware.get_metadata_item(metadata, "meta-uuid")
 
-      body = File.read!(@signed_firmware_path)
+      body = File.read!(signed_firmware_path)
       length = byte_size(body)
 
       conn =
