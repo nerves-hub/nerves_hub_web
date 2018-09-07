@@ -3,7 +3,7 @@ use Mix.Config
 config :nerves_hub_core, firmware_upload: NervesHubCore.Firmwares.Upload.File
 
 config :nerves_hub_core, NervesHubCore.Firmwares.Upload.File,
-  local_path: "/tmp/firmware",
+  local_path: System.tmp_dir(),
   public_path: "/firmware"
 
 # config :nerves_hub_core, NervesHubCore.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")

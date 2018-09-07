@@ -2,9 +2,11 @@ defmodule NervesHubCore.Accounts.OrgKey do
   use Ecto.Schema
 
   import Ecto.Changeset
+  import Ecto.Query
 
   alias NervesHubCore.Accounts.Org
   alias NervesHubCore.Firmwares.Firmware
+  alias NervesHubCore.Repo
   alias __MODULE__
 
   @type t :: %__MODULE__{}
@@ -37,5 +39,15 @@ defmodule NervesHubCore.Accounts.OrgKey do
     |> validate_required(@required_params)
     |> unique_constraint(:name, name: :org_keys_org_id_name_index)
     |> unique_constraint(:key)
+  end
+
+  def with_org(%OrgKey{} = o) do
+    o
+    |> Repo.preload(:org)
+  end
+
+  def with_org(org_key_query) do
+    org_key_query
+    |> preload(:org)
   end
 end

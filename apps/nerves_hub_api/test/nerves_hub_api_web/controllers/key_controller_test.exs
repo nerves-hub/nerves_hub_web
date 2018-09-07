@@ -2,9 +2,7 @@ defmodule NervesHubAPIWeb.KeyControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
   alias NervesHubCore.Fixtures
-
-  @test_firmware_path Path.expand("../../../../../test/fixtures/firmware", __DIR__)
-  @fw_key_path Path.join(@test_firmware_path, "fwup-key1.pub")
+  alias NervesHubCore.Support.Fwup
 
   describe "index" do
     test "lists all keys", %{conn: conn, org: org} do
@@ -16,7 +14,9 @@ defmodule NervesHubAPIWeb.KeyControllerTest do
   describe "create keys" do
     test "renders key when data is valid", %{conn: conn, org: org} do
       name = "test"
-      key = %{name: name, key: File.read!(@fw_key_path), org_id: org.id}
+      Fwup.gen_key_pair(name)
+      pub_key = Fwup.get_public_key(name)
+      key = %{name: name, key: pub_key, org_id: org.id}
 
       conn = post(conn, key_path(conn, :create, org.name), key)
       assert json_response(conn, 201)["data"]

@@ -15,26 +15,17 @@
 # has been run yet.
 
 alias NervesHubCore.{Repo, Accounts}
-alias NervesHubCore.Accounts.{Org, User}
+alias NervesHubCore.Accounts.User
 
 # Create the root org and user
 root_user_name = "nerveshub"
 root_user_email = "nerveshub@nerves-hub.org"
-
-root_org =
-  if root_org = Repo.get_by(Org, name: root_user_name) do
-    root_org
-  else
-    {:ok, root_org} = Accounts.create_org(%{name: root_user_name})
-    root_org
-  end
 
 # Add a default user
 if root_user = Repo.get_by(User, email: root_user_email) do
   root_user
 else
   Accounts.create_user(%{
-    orgs: [root_org],
     username: root_user_name,
     email: root_user_email,
     password: "nerveshub"

@@ -21,13 +21,6 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
           product: product
         } = Fixtures.standard_fixture()
 
-        {:ok, org_key} =
-          Accounts.create_org_key(%{
-            org_id: org.id,
-            name: "test_key",
-            key: File.read!("../../test/fixtures/firmware/fwup-key1.pub")
-          })
-
         {:ok, org_with_org_keys} = org.id |> Accounts.get_org_with_org_keys()
 
         conn =

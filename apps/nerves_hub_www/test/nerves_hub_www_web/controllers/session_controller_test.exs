@@ -7,7 +7,12 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
     org = Fixtures.org_fixture(%{name: "my test org 1"})
 
     user =
-      Fixtures.user_fixture(org, %{name: "Foo Bar", email: "foo@bar.com", password: "password"})
+      Fixtures.user_fixture(%{
+        orgs: [org],
+        name: "Foo Bar",
+        email: "foo@bar.com",
+        password: "password"
+      })
 
     {:ok, %{user: user, org: org}}
   end

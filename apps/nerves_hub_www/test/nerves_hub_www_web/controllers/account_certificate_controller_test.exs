@@ -18,7 +18,7 @@ defmodule NervesHubWWWWeb.AccountCertificateControllerTest do
       foo_cert = Fixtures.user_certificate_fixture(user, %{description: "foo", serial: "abc123"})
       bar_cert = Fixtures.user_certificate_fixture(user, %{description: "bar", serial: "321cba"})
 
-      other_user = Fixtures.user_fixture(org, %{email: "test@email.com"})
+      other_user = Fixtures.user_fixture(%{orgs: [org], email: "test@email.com"})
 
       Fixtures.user_certificate_fixture(other_user, %{description: "baz", serial: "anotherserial"})
 

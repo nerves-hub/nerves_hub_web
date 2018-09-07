@@ -54,8 +54,16 @@ defmodule NervesHubCore.Accounts do
   end
 
   def create_user(params) do
+    user_org_params = %{name: params[:username]}
+
+    with_default_org =
+      params
+      |> Map.update(:orgs, [user_org_params], fn p ->
+        [user_org_params | p]
+      end)
+
     %User{}
-    |> change_user(params)
+    |> change_user(with_default_org)
     |> Repo.insert()
   end
 
