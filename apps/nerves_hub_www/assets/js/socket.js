@@ -6,7 +6,7 @@
 //
 // Pass the token on params as below. Or remove it
 // from the params if you are not using authentication.
-import {Socket} from "phoenix"
+import {Presence, Socket} from "phoenix"
 
 let socket = new Socket("/socket", {params: {token: window.userToken}})
 
@@ -55,9 +55,29 @@ let socket = new Socket("/socket", {params: {token: window.userToken}})
 socket.connect()
 
 // Now that you are connected, you can join channels with a topic:
-let channel = socket.channel("topic:subtopic", {})
+let channel = socket.channel(`devices:${window.orgId}`, {})
+
+let presences = {}
+
+let updateStatuses = (presences) => {
+  document.querySelectorAll(".device").forEach((d) => {
+    const {[d.dataset.deviceId]: {status} = {status: 'offline'}} = presences
+    d.innerHTML = status
+  })
+}
+
+channel.on("presence_state", state => {
+  presences = Presence.syncState(presences, state)
+  updateStatuses(presences)
+})
+
+channel.on("presence_diff", diff => {
+  presences = Presence.syncDiff(presences, diff)
+  updateStatuses(presences)
+})
+
 channel.join()
-  .receive("ok", resp => { console.log("Joined successfully", resp) })
-  .receive("error", resp => { console.log("Unable to join", resp) })
+  .receive("ok", resp => {})
+  .receive("error", resp => {})
 
 export default socket

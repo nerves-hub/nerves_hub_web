@@ -26,6 +26,7 @@ defmodule NervesHubWWWWeb.Plugs.EnsureLoggedIn do
         conn
         |> assign(:user, user)
         |> assign(:current_org, current_org)
+        |> assign(:user_token, Phoenix.Token.sign(conn, "user salt", user.id))
 
       _ ->
         conn

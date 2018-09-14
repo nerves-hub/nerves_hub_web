@@ -28,7 +28,7 @@
               <%= device.last_known_firmware.version %>
             <% end %>
           </td>
-          <td class="col-3"><%= device_status(device) %></td>
+          <td class="col-3 device" data-device-id=<%= "#{device.id}" %>><%= device_status(device) %></td>
           <td class="col-2">
             <%= for tag <- (device.tags || []) do %>
               <span class="badge">

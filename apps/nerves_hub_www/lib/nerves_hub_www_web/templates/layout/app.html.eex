@@ -53,6 +53,10 @@
     <footer class="footer">
       <%= render("_footer.html", conn: @conn) %>
     </footer>
+    <script>
+      window.userToken = "<%= assigns[:user_token] %>"
+      window.orgId = "<%= assigns[:current_org] && Map.get(assigns[:current_org], :id) %>"
+    </script>
     <script src="<%= static_path(@conn, "/js/app.js") %>"></script>
   </body>
 </html>

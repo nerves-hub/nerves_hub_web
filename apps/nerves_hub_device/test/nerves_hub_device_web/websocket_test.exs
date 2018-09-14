@@ -2,8 +2,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
   use ExUnit.Case
   use NervesHubDeviceWeb.ChannelCase
   alias NervesHubCore.Fixtures
-  alias NervesHubCore.{Accounts, Deployments, Devices, Repo}
-  alias NervesHubDeviceWeb.DeviceChannel
+  alias NervesHubCore.{Accounts, Deployments, Devices, Devices.Device, Repo}
+  alias NervesHubDevice.Presence
 
   @valid_serial "device-1234"
   @valid_product "test-product"
@@ -110,10 +110,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       )
 
       device =
-        NervesHubCore.Repo.get(Devices.Device, device.id)
-        |> NervesHubCore.Repo.preload(:last_known_firmware)
+        NervesHubCore.Repo.get(Device, device.id)
+        |> NervesHubCore.Repo.preload(:org)
 
-      assert DeviceChannel.online?(device)
+      assert Presence.device_status(device) == "online"
+      refute_receive({"presence_diff", _})
     end
 
     test "authentication rejected to channel using incorrect client ssl certificate" do
@@ -214,10 +215,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       )
 
       device =
-        NervesHubCore.Repo.get(Devices.Device, device.id)
-        |> NervesHubCore.Repo.preload(:last_known_firmware)
+        Device
+        |> NervesHubCore.Repo.get(device.id)
+        |> NervesHubCore.Repo.preload(:org)
 
-      assert DeviceChannel.update_pending?(device)
+      assert Presence.device_status(device) == "update pending"
     end
 
     test "receives update message once deployment is available" do
@@ -249,11 +251,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
           }
         })
 
-      opts =
+      {:ok, _} =
         @ssl_socket_config
         |> Keyword.put(:caller, self())
-
-      {:ok, _} = ClientSocket.start_link(opts)
+        |> ClientSocket.start_link()
 
       {:ok, _channel} =
         ClientChannel.start_link(
@@ -264,8 +265,12 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "firmware:#{target_uuid}")
       ClientChannel.join(%{})
-      device_id = to_string(device.id)
-      assert_receive({"presence_diff", %{"joins" => %{^device_id => %{}}, "leaves" => %{}}}, 1000)
+
+      assert_receive(
+        {:ok, :join, %{"response" => %{"update_available" => false}, "status" => "ok"}, _ref},
+        1000
+      )
+
       Deployments.update_deployment(deployment, %{is_active: true})
       device_id = device.id
       assert_receive({"update", %{"device_id" => ^device_id, "firmware_url" => _f_url}}, 1000)
@@ -278,11 +283,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         %{identifier: @valid_serial, product: @valid_product}
         |> device_fixture(query_uuid)
 
-      opts =
+      {:ok, _} =
         @ssl_socket_config
         |> Keyword.put(:caller, self())
-
-      {:ok, _} = ClientSocket.start_link(opts)
+        |> ClientSocket.start_link()
 
       {:ok, _channel} =
         ClientChannel.start_link(
@@ -307,10 +311,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       updated_device =
         Devices.get_device_by_identifier(device.org, device.identifier)
         |> elem(1)
-        |> Repo.preload(:last_known_firmware)
+        |> Repo.preload(:org)
 
       assert updated_device.last_known_firmware.uuid == query_uuid
-      refute DeviceChannel.update_pending?(updated_device)
+      assert "online" == Presence.device_status(updated_device)
     end
   end
 end
