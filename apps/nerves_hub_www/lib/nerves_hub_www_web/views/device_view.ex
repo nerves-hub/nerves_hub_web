@@ -1,15 +1,6 @@
 defmodule NervesHubWWWWeb.DeviceView do
   use NervesHubWWWWeb, :view
-
-  alias NervesHubDeviceWeb.DeviceChannel
-
-  def device_status(device) do
-    cond do
-      not DeviceChannel.online?(device) -> "offline"
-      DeviceChannel.update_pending?(device) -> "update pending"
-      DeviceChannel.online?(device) -> "online"
-    end
-  end
+  alias NervesHubDevice.Presence
 
   def architecture_options do
     [
@@ -35,4 +26,6 @@ defmodule NervesHubWWWWeb.DeviceView do
       "x86_64"
     ]
   end
+
+  defdelegate device_status(device), to: Presence
 end

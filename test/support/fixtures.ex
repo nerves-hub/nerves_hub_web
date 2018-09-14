@@ -196,15 +196,17 @@ defmodule NervesHubCore.Fixtures do
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
     device = device_fixture(org, firmware, deployment)
+    device_certificate = device_certificate_fixture(device)
 
     %{
-      org: org,
-      device: device,
-      org_key: org_key,
-      user: user,
-      firmware: firmware,
       deployment: deployment,
-      product: product
+      device: device,
+      device_certificate: device_certificate,
+      firmware: firmware,
+      org: org,
+      org_key: org_key,
+      product: product,
+      user: user
     }
   end
 
@@ -214,15 +216,16 @@ defmodule NervesHubCore.Fixtures do
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
-
     device = device_fixture(org, firmware, deployment, %{identifier: "smartrent_1234"})
+    device_certificate = device_certificate_fixture(device)
 
     %{
+      deployment: deployment,
+      device: device,
+      device_certificate: device_certificate,
+      firmware: firmware,
       org: org,
       org_key: org_key,
-      device: device,
-      firmware: firmware,
-      deployment: deployment,
       product: product
     }
   end

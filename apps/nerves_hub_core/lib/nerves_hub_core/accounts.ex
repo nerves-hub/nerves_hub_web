@@ -400,4 +400,17 @@ defmodule NervesHubCore.Accounts do
         {:error, :not_found}
     end
   end
+
+  @spec user_in_org?(integer(), integer()) :: boolean()
+  def user_in_org?(user_id, org_id) do
+    from(row in "users_orgs",
+      select: %{},
+      where: row.user_id == ^user_id and row.org_id == ^org_id
+    )
+    |> Repo.one()
+    |> case do
+      nil -> false
+      _ -> true
+    end
+  end
 end

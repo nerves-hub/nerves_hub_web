@@ -2,6 +2,8 @@ defmodule NervesHubWWWWeb.Endpoint do
   @env Mix.env()
   use Phoenix.Endpoint, otp_app: :nerves_hub_www
 
+  socket("/socket", NervesHubWWWWeb.UserSocket, websocket: true)
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # You should set gzip to true if you are running phoenix.digest

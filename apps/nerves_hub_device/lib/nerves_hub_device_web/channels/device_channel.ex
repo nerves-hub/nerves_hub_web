@@ -1,26 +1,46 @@
 defmodule NervesHubDeviceWeb.DeviceChannel do
-  use NervesHubDeviceWeb, :channel
+  @moduledoc """
+  The channel over which firmware updates are communicated to devices.
 
-  alias NervesHubCore.{Devices, Firmwares, Deployments}
+  After joining, devices will subsequently join a `Phoenix.Presence` topic scoped by organization.
+  """
+
+  use NervesHubDeviceWeb, :channel
+  alias NervesHubCore.{Accounts.Org, Devices, Devices.Device, Firmwares, Deployments}
   alias NervesHubDevice.Presence
 
   @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
 
+  intercept(["presence_diff"])
+
   def join("firmware:" <> fw_uuid, _payload, socket) do
-    with {:ok, message} <- build_message(socket, fw_uuid) do
-      send(self(), {:after_join, message})
-      {:ok, message, socket}
+    with {:ok, certificate} <- get_certificate(socket),
+         {:ok, device} <- Devices.get_device_by_certificate(certificate),
+         {:ok, device} <- Devices.update_last_known_firmware(device, fw_uuid) do
+      deployments = Devices.get_eligible_deployments(device)
+      join_reply = resolve_update(device.org, deployments)
+      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
+      send(self(), {:after_join, device, join_reply.update_available})
+      {:ok, join_reply, socket}
     else
-      {:error, reply} -> {:error, reply}
+      {:error, _} = err -> err
     end
   end
 
-  def handle_info({:after_join, %{update_available: update_available}}, socket) do
+  def handle_info({:after_join, device, update_available}, socket) do
+    %Device{id: device_id, last_known_firmware_id: firmware_id, org: %Org{id: org_id}} = device
+
     {:ok, _} =
-      Presence.track(socket, socket.assigns.certificate.device_id, %{
-        connected_at: inspect(System.system_time(:seconds)),
-        update_available: update_available
-      })
+      Presence.track(
+        socket.channel_pid,
+        "devices:#{org_id}",
+        device_id,
+        %{
+          connected_at: inspect(System.system_time(:seconds)),
+          update_available: update_available,
+          last_known_firmware_id: firmware_id
+        }
+      )
 
     {:noreply, socket}
   end
@@ -33,82 +53,22 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(_message, socket) do
+  def handle_out("presence_diff", _msg, socket) do
     {:noreply, socket}
   end
 
-  defp build_message(%{assigns: %{certificate: certificate}}, fw_uuid) do
-    with {:ok, device} <- Devices.get_device_by_certificate(certificate),
-         {:ok, device} <- device_update(device, fw_uuid) do
-      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
-      send_update_message(device)
-    else
-      {:error, message} -> {:error, %{reason: message}}
-      _ -> {:error, %{reason: :unknown_error}}
-    end
-  end
+  defp resolve_update(_org, _deployments = []), do: %{update_available: false}
 
-  defp build_message(_, _) do
-    {:error, %{reason: :no_device_or_org}}
-  end
-
-  defp device_update(%Devices.Device{} = device, fw_uuid) do
-    with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(device.org, fw_uuid) do
-      Devices.update_device(device, %{
-        last_known_firmware_id: firmware.id
-      })
-    else
-      _ ->
-        {:error, :no_firmware_found}
-    end
-  end
-
-  defp device_update(_, _), do: {:error, :no_firmware_uuid}
-
-  defp send_update_message(%Devices.Device{} = device) do
-    device
-    |> Devices.get_eligible_deployments()
-    |> do_update_message(device.org)
-  end
-
-  defp do_update_message([%Deployments.Deployment{} = deployment | _], org) do
+  defp resolve_update(org, [%Deployments.Deployment{} = deployment | _]) do
     with {:ok, firmware} <- Firmwares.get_firmware(org, deployment.firmware_id),
          {:ok, url} <- @uploader.download_file(firmware) do
-      {:ok, %{update_available: true, firmware_url: url}}
+      %{update_available: true, firmware_url: url}
     else
-      _ -> {:error, :no_firmware_url}
+      _ -> %{update_available: false}
     end
   end
 
-  defp do_update_message([], _) do
-    {:ok, %{update_available: false}}
-  end
+  defp get_certificate(%{assigns: %{certificate: certificate}}), do: {:ok, certificate}
 
-  defp do_update_message(_, _), do: {:error, :unknown_error}
-
-  def online?(%Devices.Device{last_known_firmware_id: nil}), do: false
-
-  def online?(%Devices.Device{id: id, last_known_firmware: %Firmwares.Firmware{uuid: fw_uuid}}) do
-    id = to_string(id)
-
-    "firmware:#{fw_uuid}"
-    |> Presence.list()
-    |> Map.has_key?(id)
-  end
-
-  def online?(%Devices.Device{last_known_firmware_id: nil}), do: false
-
-  def update_pending?(%Devices.Device{
-        id: id,
-        last_known_firmware: %Firmwares.Firmware{uuid: fw_uuid}
-      }) do
-    id = to_string(id)
-
-    "firmware:#{fw_uuid}"
-    |> Presence.list()
-    |> Map.get(id, %{})
-    |> Map.get(:metas, [%{}])
-    |> List.first()
-    |> Map.get(:update_available, false)
-  end
+  defp get_certificate(_), do: {:error, :no_device_or_org}
 end
