@@ -1,5 +1,5 @@
 defmodule NervesHubCore.FirmwaresTest do
-  use NervesHubCore.DataCase
+  use NervesHubCore.DataCase, async: true
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.{Firmwares, Repo}
