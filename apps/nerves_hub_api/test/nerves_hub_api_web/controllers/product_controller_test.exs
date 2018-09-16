@@ -1,5 +1,5 @@
 defmodule NervesHubAPIWeb.ProductControllerTest do
-  use NervesHubAPIWeb.ConnCase
+  use NervesHubAPIWeb.ConnCase, async: true
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Accounts

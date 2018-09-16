@@ -1,5 +1,8 @@
 use Mix.Config
 
+config :bcrypt_elixir,
+  log_rounds: 4
+
 config :nerves_hub_core, firmware_upload: NervesHubCore.Firmwares.Upload.File
 
 config :nerves_hub_core, NervesHubCore.Firmwares.Upload.File,

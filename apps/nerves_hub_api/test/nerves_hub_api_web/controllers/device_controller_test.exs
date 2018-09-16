@@ -1,5 +1,5 @@
 defmodule NervesHubAPIWeb.DeviceControllerTest do
-  use NervesHubAPIWeb.ConnCase
+  use NervesHubAPIWeb.ConnCase, async: true
   alias NervesHubCore.{Devices, Fixtures}
 
   describe "create devices" do

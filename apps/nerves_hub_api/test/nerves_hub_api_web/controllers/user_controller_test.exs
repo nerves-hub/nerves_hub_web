@@ -1,5 +1,5 @@
 defmodule NervesHubAPIWeb.UserControllerTest do
-  use NervesHubAPIWeb.ConnCase
+  use NervesHubAPIWeb.ConnCase, async: true
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Certificate
@@ -25,11 +25,7 @@ defmodule NervesHubAPIWeb.UserControllerTest do
            }
   end
 
-  test "authenticate existing accounts" do
-    password = "12345678"
-    org = Fixtures.org_fixture()
-    user = Fixtures.user_fixture(org, %{email: "account_test@test.com", password: password})
-
+  test "authenticate existing accounts", %{user: %{password: password} = user} do
     conn = build_conn()
     conn = post(conn, user_path(conn, :auth), %{email: user.email, password: password})
 
