@@ -1,5 +1,5 @@
 defmodule NervesHubAPIWeb.FirmwareControllerTest do
-  use NervesHubAPIWeb.ConnCase
+  use NervesHubAPIWeb.ConnCase, async: true
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Firmwares

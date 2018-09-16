@@ -1,5 +1,5 @@
 defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
-  use NervesHubAPIWeb.ConnCase
+  use NervesHubAPIWeb.ConnCase, async: true
 
   alias NervesHubCore.{Devices, Certificate}
   alias NervesHubCore.Fixtures

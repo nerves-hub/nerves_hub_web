@@ -1,5 +1,5 @@
 defmodule NervesHubAPIWeb.DeploymentControllerTest do
-  use NervesHubAPIWeb.ConnCase
+  use NervesHubAPIWeb.ConnCase, async: true
 
   alias NervesHubCore.Fixtures
 

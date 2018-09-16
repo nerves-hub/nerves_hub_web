@@ -1,5 +1,5 @@
 defmodule NervesHubAPIWebTest do
-  use NervesHubAPIWeb.ConnCase
+  use NervesHubAPIWeb.ConnCase, async: true
 
   test "conn missing certificate is rejected" do
     conn = Phoenix.ConnTest.build_conn()
