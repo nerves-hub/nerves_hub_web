@@ -1,5 +1,5 @@
 defmodule NervesHubWWWWeb.PasswordResetControllerTest do
-  use NervesHubWWWWeb.ConnCase
+  use NervesHubWWWWeb.ConnCase, async: true
   use Bamboo.Test
 
   alias NervesHubCore.Fixtures

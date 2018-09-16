@@ -1,5 +1,5 @@
 defmodule NervesHubWWW.Integration.CertificateAuthorityTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   @tag :ca_integration
   test "Can generate new device certificates" do
