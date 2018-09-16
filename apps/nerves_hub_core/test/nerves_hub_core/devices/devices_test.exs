@@ -1,5 +1,5 @@
 defmodule NervesHubCore.DevicesTest do
-  use NervesHubCore.DataCase
+  use NervesHubCore.DataCase, async: true
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Devices

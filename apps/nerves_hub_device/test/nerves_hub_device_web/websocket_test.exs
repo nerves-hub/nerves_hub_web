@@ -1,5 +1,5 @@
 defmodule NervesHubDeviceWeb.WebsocketTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case
   use NervesHubDeviceWeb.ChannelCase
   alias NervesHubCore.Fixtures
   alias NervesHubCore.{Accounts, Deployments, Devices, Repo}
