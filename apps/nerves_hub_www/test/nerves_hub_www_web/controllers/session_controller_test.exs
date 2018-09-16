@@ -1,5 +1,5 @@
 defmodule NervesHubWWWWeb.SessionControllerTest do
-  use NervesHubWWWWeb.ConnCase.Browser
+  use NervesHubWWWWeb.ConnCase.Browser, async: true
 
   alias NervesHubCore.{Accounts, Fixtures}
 

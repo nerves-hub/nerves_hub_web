@@ -1,5 +1,5 @@
 defmodule NervesHubWWWWeb.SponsorControllerTest do
-  use NervesHubWWWWeb.ConnCase.Browser
+  use NervesHubWWWWeb.ConnCase.Browser, async: true
 
   test "renders sponsors", %{
     conn: conn

@@ -1,5 +1,5 @@
 defmodule NervesHubWWWWeb.AccountCertificateControllerTest do
-  use NervesHubWWWWeb.ConnCase.Browser
+  use NervesHubWWWWeb.ConnCase.Browser, async: true
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Accounts

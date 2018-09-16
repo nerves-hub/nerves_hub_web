@@ -1,5 +1,5 @@
 defmodule NervesHubWWWWeb.Plugs.AllowUninvitedSignupsTest do
-  use NervesHubWWWWeb.ConnCase.Browser
+  use NervesHubWWWWeb.ConnCase.Browser, async: true
   use Plug.Test
 
   test "user is redirected when signups are disabled", %{conn: conn} do

@@ -1,5 +1,5 @@
 defmodule NervesHubWWWWeb.PolicyControllerTest do
-  use NervesHubWWWWeb.ConnCase.Browser
+  use NervesHubWWWWeb.ConnCase.Browser, async: true
 
   describe "policies" do
     test "renders terms of service", %{
