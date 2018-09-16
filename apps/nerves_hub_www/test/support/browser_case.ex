@@ -2,14 +2,14 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
   @moduledoc """
   conn case for browser related tests
   """
-  use ExUnit.CaseTemplate
+  alias NervesHubCore.{Accounts, Fixtures}
+  alias NervesHubWWWWeb.ConnCase
+  alias Plug.Test
 
-  alias NervesHubCore.Accounts
-
-  using do
+  defmacro __using__(opts) do
     quote do
-      use NervesHubWWWWeb.ConnCase
-      import Plug.Test
+      use ConnCase, unquote(opts)
+      import Test
 
       setup do
         %{
@@ -19,7 +19,7 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
           firmware: firmware,
           deployment: deployment,
           product: product
-        } = NervesHubCore.Fixtures.standard_fixture()
+        } = Fixtures.standard_fixture()
 
         {:ok, org_key} =
           Accounts.create_org_key(%{
