@@ -12,6 +12,7 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   check_origin: false,
   watchers: [],
   https: [
+    ip: {0, 0, 0, 0},
     port: 4001,
     otp_app: :nerves_hub_device,
     # Enable client SSL

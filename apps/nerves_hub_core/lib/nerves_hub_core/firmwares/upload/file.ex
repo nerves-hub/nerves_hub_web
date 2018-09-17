@@ -10,7 +10,7 @@ defmodule NervesHubCore.Firmwares.Upload.File do
 
     with :ok <- File.mkdir_p(local_path),
          :ok <- File.cp(filepath, Path.join([local_path, filename])) do
-      url = Application.get_env(:nerves_hub_core, NervesHubWWWWeb.Endpoint)[:url]
+      url = Application.get_env(:nerves_hub_www, NervesHubWWWWeb.Endpoint)[:url]
       port = if Enum.member?([443, 80], url[:port]), do: "", else: ":#{url[:port]}"
 
       public_path =
