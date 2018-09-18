@@ -9,9 +9,7 @@ defmodule NervesHubCore.Fixtures do
   def compiler_options(_, _), do: Code.compiler_options(ignore_module_conflict: false)
 
   @org_params %{name: "Test Org"}
-  @org_key_params %{
-    name: "Test Key"
-  }
+
   @firmware_params %{
     architecture: "arm",
     author: "test_author",
@@ -57,16 +55,15 @@ defmodule NervesHubCore.Fixtures do
     org
   end
 
-  def org_key_fixture(%Accounts.Org{} = org, params \\ %{}) do
-    params =
-      %{org_id: org.id}
-      |> Enum.into(params)
-      |> Enum.into(@org_key_params)
+  def org_key_fixture(%Accounts.Org{} = org) do
+    params = %{org_id: org.id}
 
-    Fwup.gen_key_pair(params.name)
-    key = Fwup.get_public_key(params.name)
+    fwup_key_name = "#{Ecto.UUID.generate()}"
+    Fwup.gen_key_pair(fwup_key_name)
+    key = Fwup.get_public_key(fwup_key_name)
 
-    {:ok, org_key} = Accounts.create_org_key(params |> Map.put(:key, key))
+    {:ok, org_key} =
+      Accounts.create_org_key(params |> Map.put(:key, key) |> Map.put(:name, fwup_key_name))
 
     org_key
   end
@@ -205,7 +202,7 @@ defmodule NervesHubCore.Fixtures do
     user = user_fixture(%{name: "Jeff", orgs: [org]})
     product = product_fixture(org, %{name: "Hop"})
 
-    org_key = org_key_fixture(org, %{name: "very_key"})
+    org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
     device = device_fixture(org, firmware, deployment)
@@ -226,7 +223,7 @@ defmodule NervesHubCore.Fixtures do
   def smartrent_fixture() do
     org = org_fixture(%{name: "Smart Rent"})
     product = product_fixture(org, %{name: "Smart Rent Thing"})
-    org_key = org_key_fixture(org, %{name: "smart_rent_key"})
+    org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
     device = device_fixture(org, firmware, deployment, %{identifier: "smartrent_1234"})

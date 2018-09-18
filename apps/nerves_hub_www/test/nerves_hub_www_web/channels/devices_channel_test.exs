@@ -50,8 +50,9 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
   end
 
   describe "cannot see" do
-    setup %{fixture: %{user: %{orgs: [%{id: org_id}]}}} do
+    setup %{fixture: %{user: %{orgs: [%{id: org_id} | _]}}} do
       %{org: %{id: org_id_2}} = fixture_2 = Fixtures.smartrent_fixture()
+
       assert org_id != org_id_2
       {:ok, fixture_2: fixture_2}
     end
@@ -87,7 +88,7 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
     %{device_id: to_string(device_id), socket: socket}
   end
 
-  defp connect_www(%{user: %{id: user_id, orgs: [%{id: org_id} | _]}}) do
+  defp connect_www(%{user: %{id: user_id}, device: %{org_id: org_id}}) do
     socket =
       NervesHubWWWWeb.UserSocket
       |> socket("user_socket:#{user_id}", %{auth_user_id: user_id})
@@ -105,7 +106,7 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
     uuid = Ecto.UUID.generate()
 
     org
-    |> Fixtures.org_key_fixture(%{name: "another key"})
+    |> Fixtures.org_key_fixture()
     |> Fixtures.firmware_fixture(product, %{
       uuid: uuid,
       version: "0.0.2",
