@@ -128,7 +128,7 @@ defmodule NervesHubCore.FirmwaresTest do
       {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
 
       assert Firmwares.verify_signature(signed_path, [org_key]) == {:ok, org_key}
-      other_org_key = Fixtures.org_key_fixture(org, %{name: "other key"})
+      other_org_key = Fixtures.org_key_fixture(org)
 
       assert Firmwares.verify_signature(signed_path, [
                org_key,
@@ -146,7 +146,7 @@ defmodule NervesHubCore.FirmwaresTest do
       org_key: org_key
     } do
       {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
-      other_org_key = Fixtures.org_key_fixture(org, %{name: "other key"})
+      other_org_key = Fixtures.org_key_fixture(org)
 
       assert Firmwares.verify_signature(signed_path, [other_org_key]) ==
                {:error, :invalid_signature}

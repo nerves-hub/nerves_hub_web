@@ -17,10 +17,10 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
 
   describe "create firmware" do
     test "renders firmware when data is valid", %{org: org, product: product} do
-      Fixtures.org_key_fixture(org, %{name: "test"})
+      org_key = Fixtures.org_key_fixture(org)
 
       {:ok, signed_firmware_path} =
-        Fwup.create_signed_firmware("test", "unsigned", "signed", %{product: product.name})
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: product.name})
 
       {:ok, metadata} = Firmwares.extract_metadata(signed_firmware_path)
       uuid = Firmware.get_metadata_item(metadata, "meta-uuid")

@@ -3,7 +3,6 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
 
   alias NervesHubCore.Fixtures
 
-  @create_attrs %{name: "org's key", key: "foo"}
   @update_attrs %{name: "new org's key", key: "bar"}
   @invalid_attrs %{name: nil}
 
@@ -40,7 +39,7 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
 
   describe "edit org_keys" do
     test "renders form for editing chosen org_keys", %{conn: conn, current_org: org} do
-      org_key = Fixtures.org_key_fixture(org, @create_attrs)
+      org_key = Fixtures.org_key_fixture(org)
       conn = get(conn, org_key_path(conn, :edit, org_key))
       assert html_response(conn, 200) =~ "Edit Org Key"
     end
@@ -48,7 +47,7 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
 
   describe "update org_key" do
     test "redirects when data is valid", %{conn: conn, current_org: org} do
-      org_key = Fixtures.org_key_fixture(org, @create_attrs)
+      org_key = Fixtures.org_key_fixture(org)
       conn = put(conn, org_key_path(conn, :update, org_key), org_key: @update_attrs)
 
       assert redirected_to(conn) == org_path(conn, :edit, org)
@@ -58,7 +57,7 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
     end
 
     test "renders errors when data is invalid", %{conn: conn, current_org: org} do
-      org_key = Fixtures.org_key_fixture(org, @create_attrs)
+      org_key = Fixtures.org_key_fixture(org)
 
       conn =
         put(
@@ -73,7 +72,7 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
 
   describe "delete org_key" do
     test "deletes chosen org_key", %{conn: conn, current_org: org} do
-      org_key = Fixtures.org_key_fixture(org, @create_attrs)
+      org_key = Fixtures.org_key_fixture(org)
 
       conn = delete(conn, org_key_path(conn, :delete, org_key))
       assert redirected_to(conn) == org_path(conn, :edit, org)

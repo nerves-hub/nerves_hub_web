@@ -25,7 +25,7 @@ defmodule NervesHubAPIWeb.UserControllerTest do
            }
   end
 
-  test "authenticate existing accounts", %{user: %{password: password} = user} do
+  test "authenticate existing accounts" do
     password = "12345678"
     org = Fixtures.org_fixture()
 

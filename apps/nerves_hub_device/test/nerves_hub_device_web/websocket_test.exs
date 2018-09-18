@@ -169,7 +169,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> NervesHubCore.Repo.preload(last_known_firmware: [:product])
 
       org = %Accounts.Org{id: device.org_id}
-      org_key = Fixtures.org_key_fixture(org, %{name: "another key"})
+      org_key = Fixtures.org_key_fixture(org)
 
       firmware2 =
         Fixtures.firmware_fixture(org_key, device.last_known_firmware.product, %{
@@ -209,12 +209,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         1_000
       )
 
-      device = NervesHubCore.Repo.get(Devices.Device, device.id)
-
       device =
         Device
         |> NervesHubCore.Repo.get(device.id)
         |> NervesHubCore.Repo.preload(:org)
+        |> NervesHubCore.Repo.preload(:last_known_firmware)
 
       assert Presence.device_status(device) == "update pending"
     end
