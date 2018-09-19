@@ -39,6 +39,9 @@ main {
   margin-top: 20px;
 }
 
+.dash_charts {
+    background-color: whitesmoke;
+}
 .footer {
   background-color: #827f7d;
   padding: 0px 5%;
@@ -104,6 +107,9 @@ main {
       span {
         margin-right: 3px;
       }
+    }
+    .selected {
+      background-color: #E1CDE2 !important;
     }
   }
   table {

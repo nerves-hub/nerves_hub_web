@@ -53,7 +53,11 @@ defmodule NervesHubAPIWeb.ProductControllerTest do
 
     test "renders deployment when data is valid", %{conn: conn, org: org, product: product} do
       conn =
-        put(conn, product_path(conn, :update, org.name, product.name), product: %{"name" => "new"})
+        put(
+          conn,
+          product_path(conn, :update, org.name, product.name),
+          product: %{"name" => "new"}
+        )
 
       assert %{"name" => "new"} = json_response(conn, 200)["data"]
 

@@ -17,7 +17,7 @@
     <ul class="list-group" id="product_listing">
 
       <%= for product <- @products do %>
-        <li class="list-group-item">
+        <li class="<%= dashboard_row_class(product, @product) %>">
           <div class="row">
             <div class="col-8">
               <a href="<%= dashboard_path(@conn, :show, product) %>">
@@ -45,6 +45,7 @@
     <canvas id="chart1" class="dash_charts" width="400" height="150"></canvas>
     <canvas id="chart2" width="400" height="200"></canvas>
   </div>
+</div>
 
 <script>
     var ctx = document.getElementById("chart1");
@@ -68,7 +69,7 @@
       options: {
         title: {
           display: true,
-          text: "Devices / Product"
+          text: "Devices / Firmware for <%= @product.name %>"
         },
         legend: {
           display: false
@@ -83,4 +84,3 @@
     }
     });
 </script>
-</div>

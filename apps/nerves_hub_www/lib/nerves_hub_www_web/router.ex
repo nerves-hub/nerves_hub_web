@@ -56,7 +56,7 @@ defmodule NervesHubWWWWeb.Router do
 
     put("/set_org", SessionController, :set_org)
 
-    resources("/dashboard", DashboardController, only: [:index])
+    resources("/dashboard", DashboardController, only: [:index, :show])
     resources("/org", OrgController)
 
     resources("/org_keys", OrgKeyController)
