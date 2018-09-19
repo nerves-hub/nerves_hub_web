@@ -2,7 +2,7 @@ defmodule NervesHubCore.Accounts do
   import Ecto.Query
   alias Ecto.Changeset
   alias Ecto.UUID
-  alias NervesHubCore.Accounts.{Org, User, UserCertificate, Invite, OrgKey}
+  alias NervesHubCore.Accounts.{Org, User, UserCertificate, Invite, OrgKey, OrgLimit}
   alias NervesHubCore.Repo
   alias Comeonin.Bcrypt
 
@@ -13,6 +13,34 @@ defmodule NervesHubCore.Accounts do
     %Org{}
     |> Org.creation_changeset(params)
     |> Repo.insert()
+  end
+
+  def create_org_limit(params) do
+    %OrgLimit{}
+    |> OrgLimit.changeset(params)
+    |> Repo.insert()
+  end
+
+  def delete_org_limit(%OrgLimit{} = org_limit) do
+    org_limit
+    |> Repo.delete()
+  end
+
+  def update_org_limit(org_limit, params) do
+    org_limit
+    |> OrgLimit.update_changeset(params)
+    |> Repo.update()
+  end
+
+  def get_org_limit_by_org_id(org_id) do
+    query = from(ol in OrgLimit, where: ol.org_id == ^org_id)
+
+    query
+    |> Repo.one()
+    |> case do
+      nil -> {:ok, %OrgLimit{}}
+      org_limit -> {:ok, org_limit}
+    end
   end
 
   def change_user(user, params \\ %{})

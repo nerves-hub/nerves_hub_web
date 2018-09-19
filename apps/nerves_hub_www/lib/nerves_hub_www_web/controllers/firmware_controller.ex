@@ -53,6 +53,11 @@ defmodule NervesHubWWWWeb.FirmwareController do
         |> put_flash(:error, "Firmware corrupt, signature invalid or missing public key")
         |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
 
+      {:error, error} when is_binary(error) ->
+        conn
+        |> put_flash(:error, error)
+        |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
+
       _ ->
         conn
         |> put_flash(:error, "Unknown error uploading firmware")

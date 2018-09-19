@@ -19,7 +19,8 @@ defmodule NervesHubAPIWeb.Endpoint do
     Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
-    length: 1_073_741_824, # 1GB
+    # 1GB
+    length: 1_073_741_824,
     json_decoder: Jason
   )
 

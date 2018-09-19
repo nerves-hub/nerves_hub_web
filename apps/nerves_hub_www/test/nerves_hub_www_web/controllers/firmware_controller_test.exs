@@ -2,6 +2,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
   alias NervesHubCore.Fixtures
+  alias NervesHubCore.Accounts
 
   describe "index" do
     test "lists all firmwares", %{conn: conn, current_org: org} do
@@ -103,6 +104,27 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
         })
 
       assert html_response(conn, 200) =~ "No matching product could be found."
+    end
+
+    test "error if firmware size exceeds limit", %{
+      conn: conn,
+      current_org: org
+    } do
+      Accounts.create_org_limit(%{org_id: org.id, firmware_size: 1})
+      product = Fixtures.product_fixture(org, %{name: "starter"})
+
+      upload = %Plug.Upload{
+        path: "../../test/fixtures/firmware/signed-key1.fw",
+        filename: "signed-key1.fw"
+      }
+
+      # check for the error message
+      conn =
+        post(conn, product_firmware_path(conn, :upload, product.id), %{
+          "firmware" => %{"file" => upload}
+        })
+
+      assert html_response(conn, 200) =~ "exceeds maximum size"
     end
   end
 end

@@ -1,6 +1,7 @@
 defmodule NervesHubCore.Firmwares do
   import Ecto.Query
 
+  alias NervesHubCore.Accounts
   alias NervesHubCore.Accounts.{OrgKey, Org}
   alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Products
@@ -70,35 +71,13 @@ defmodule NervesHubCore.Firmwares do
           | {:error, :invalid_signature}
           | {:error, any}
   def prepare_firmware_params(%Org{} = org, filepath) do
-    org = NervesHubCore.Repo.preload(org, :org_keys)
+    byte_size = :filelib.file_size(filepath)
+    {:ok, %{firmware_size: firmware_size_limit}} = Accounts.get_org_limit_by_org_id(org.id)
 
-    with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
-         {:ok, metadata} <- extract_metadata(filepath),
-         {:ok, architecture} <- Firmware.fetch_metadata_item(metadata, "meta-architecture"),
-         {:ok, platform} <- Firmware.fetch_metadata_item(metadata, "meta-platform"),
-         {:ok, product_name} <- Firmware.fetch_metadata_item(metadata, "meta-product"),
-         {:ok, version} <- Firmware.fetch_metadata_item(metadata, "meta-version"),
-         author <- Firmware.get_metadata_item(metadata, "meta-author"),
-         description <- Firmware.get_metadata_item(metadata, "meta-description"),
-         misc <- Firmware.get_metadata_item(metadata, "meta-misc"),
-         uuid <- Firmware.get_metadata_item(metadata, "meta-uuid"),
-         vcs_identifier <- Firmware.get_metadata_item(metadata, "meta-vcs-identifier"),
-         {:ok, upload_metadata} <- upload_firmware(filepath, uuid <> ".fw", org.id) do
-      {:ok,
-       %{
-         architecture: architecture,
-         author: author,
-         description: description,
-         misc: misc,
-         platform: platform,
-         product_name: product_name,
-         org_id: org.id,
-         org_key_id: org_key_id,
-         upload_metadata: upload_metadata,
-         uuid: uuid,
-         vcs_identifier: vcs_identifier,
-         version: version
-       }}
+    if byte_size < firmware_size_limit do
+      do_prepare_firmware_params(org, filepath)
+    else
+      {:error, "Firmware size #{byte_size} exceeds maximum size of #{firmware_size_limit} bytes"}
     end
   end
 
@@ -179,6 +158,39 @@ defmodule NervesHubCore.Firmwares do
       uploader.upload_file(filepath, filename, org_id)
     else
       {:error}
+    end
+  end
+
+  defp do_prepare_firmware_params(org, filepath) do
+    org = NervesHubCore.Repo.preload(org, :org_keys)
+
+    with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
+         {:ok, metadata} <- extract_metadata(filepath),
+         {:ok, architecture} <- Firmware.fetch_metadata_item(metadata, "meta-architecture"),
+         {:ok, platform} <- Firmware.fetch_metadata_item(metadata, "meta-platform"),
+         {:ok, product_name} <- Firmware.fetch_metadata_item(metadata, "meta-product"),
+         {:ok, version} <- Firmware.fetch_metadata_item(metadata, "meta-version"),
+         author <- Firmware.get_metadata_item(metadata, "meta-author"),
+         description <- Firmware.get_metadata_item(metadata, "meta-description"),
+         misc <- Firmware.get_metadata_item(metadata, "meta-misc"),
+         uuid <- Firmware.get_metadata_item(metadata, "meta-uuid"),
+         vcs_identifier <- Firmware.get_metadata_item(metadata, "meta-vcs-identifier"),
+         {:ok, upload_metadata} <- upload_firmware(filepath, uuid <> ".fw", org.id) do
+      {:ok,
+       %{
+         architecture: architecture,
+         author: author,
+         description: description,
+         misc: misc,
+         platform: platform,
+         product_name: product_name,
+         org_id: org.id,
+         org_key_id: org_key_id,
+         upload_metadata: upload_metadata,
+         uuid: uuid,
+         vcs_identifier: vcs_identifier,
+         version: version
+       }}
     end
   end
 end

@@ -11,8 +11,10 @@ defmodule NervesHubAPIWeb.FirmwareController do
     render(conn, "index.json", firmwares: firmwares)
   end
 
-  def create(%{assigns: %{org: org, product: product}} = conn, _params) do
-    with {:ok, filepath, conn} <- read_firmware(conn),
+  def create(%{assigns: %{org: org, org_limit: org_limit, product: product}} = conn, _params) do
+    %{firmware_size: size_limit} = org_limit
+
+    with {:ok, filepath, conn} <- read_firmware(conn, size_limit),
          {:ok, firmware_params} <- Firmwares.prepare_firmware_params(org, filepath),
          {:ok, firmware} <- Firmwares.create_firmware(firmware_params) do
       conn
@@ -35,22 +37,35 @@ defmodule NervesHubAPIWeb.FirmwareController do
     end
   end
 
-  defp read_firmware(conn, buffer \\ "") do
+  defp read_firmware(_, _, _ \\ 0, _ \\ "")
+
+  defp read_firmware(_conn, size_limit, size, _buffer) when size >= size_limit do
+    {:error, "Firmware exceeds size limit of #{size_limit} bytes"}
+  end
+
+  defp read_firmware(conn, size_limit, size, buffer) do
     case Plug.Conn.read_body(conn) do
       {:more, data, conn} ->
-        read_firmware(conn, buffer <> data)
+        size = byte_size(data) + size
+        read_firmware(conn, size_limit, size, buffer <> data)
 
       {:ok, data, conn} ->
-        content = buffer <> data
+        size = byte_size(data) + size
 
-        case byte_size(content) do
-          0 ->
-            {:error, "invalid byte length"}
+        if size >= size_limit do
+          {:error, "Firmware exceeds size limit of #{size_limit} bytes"}
+        else
+          content = buffer <> data
 
-          _ ->
-            filepath = Plug.Upload.random_file!("firmware")
-            File.write!(filepath, content)
-            {:ok, filepath, conn}
+          case byte_size(content) do
+            0 ->
+              {:error, "invalid byte length"}
+
+            _ ->
+              filepath = Plug.Upload.random_file!("firmware")
+              File.write!(filepath, content)
+              {:ok, filepath, conn}
+          end
         end
 
       error ->
