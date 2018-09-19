@@ -4,21 +4,59 @@ defmodule NervesHubCore.AccountsTest do
   alias Ecto.Changeset
 
   alias NervesHubCore.Accounts
+  alias NervesHubCore.Accounts.{Org, OrgKey, OrgLimit, User}
   alias NervesHubCore.Fixtures
 
   @required_org_params %{name: "Org"}
 
   test "create_org with required params" do
-    {:ok, %Accounts.Org{} = result_org} = Accounts.create_org(@required_org_params)
+    {:ok, %Org{} = result_org} = Accounts.create_org(@required_org_params)
 
     assert result_org.name == @required_org_params.name
   end
 
+  test "create_org_limits with defaults" do
+    {:ok, %Org{} = result_org} = Accounts.create_org(@required_org_params)
+    {:ok, limits} = Accounts.get_org_limit_by_org_id(result_org.id)
+    assert limits == %OrgLimit{}
+  end
+
+  test "create_org_limits with custom values" do
+    org_firmware_size_limit = 1
+
+    {:ok, %Org{} = result_org} = Accounts.create_org(@required_org_params)
+
+    limit_params = %{org_id: result_org.id, firmware_size: org_firmware_size_limit}
+    {:ok, %OrgLimit{}} = Accounts.create_org_limit(limit_params)
+
+    {:ok, %{firmware_size: firmware_size_limit}} = Accounts.get_org_limit_by_org_id(result_org.id)
+
+    assert firmware_size_limit == org_firmware_size_limit
+  end
+
+  test "delete_org_limits" do
+    org_firmware_size_limit = 1
+
+    {:ok, %Org{} = result_org} = Accounts.create_org(@required_org_params)
+
+    limit_params = %{org_id: result_org.id, firmware_size: org_firmware_size_limit}
+    {:ok, %OrgLimit{}} = Accounts.create_org_limit(limit_params)
+
+    {:ok, %{firmware_size: firmware_size_limit} = limits} =
+      Accounts.get_org_limit_by_org_id(result_org.id)
+
+    assert firmware_size_limit == org_firmware_size_limit
+
+    {:ok, _} = Accounts.delete_org_limit(limits)
+    {:ok, limits} = Accounts.get_org_limit_by_org_id(result_org.id)
+    assert limits == %OrgLimit{}
+  end
+
   test "create_org with user" do
-    {:ok, %Accounts.Org{} = org1} = Accounts.create_org(%{name: "An Org"})
+    {:ok, %Org{} = org1} = Accounts.create_org(%{name: "An Org"})
     user = Fixtures.user_fixture(org1)
 
-    {:ok, %Accounts.Org{} = org2} = Accounts.create_org(%{name: "Another Org", users: [user]})
+    {:ok, %Org{} = org2} = Accounts.create_org(%{name: "Another Org", users: [user]})
     {:ok, user_with_orgs} = Accounts.get_user_with_all_orgs(user.id)
 
     assert org2.id in (user_with_orgs.orgs |> Enum.map(fn x -> x.id end))
@@ -41,10 +79,9 @@ defmodule NervesHubCore.AccountsTest do
       password: "test_password"
     }
 
-    target_org = %Accounts.Org{name: params.org_name}
+    target_org = %Org{name: params.org_name}
 
-    {:ok, %Accounts.User{} = user} =
-      Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
+    {:ok, %User{} = user} = Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
 
     [result_org | _] = user.orgs
 
@@ -60,10 +97,9 @@ defmodule NervesHubCore.AccountsTest do
       password: "test_password"
     }
 
-    target_org = %Accounts.Org{name: params.org_name}
+    target_org = %Org{name: params.org_name}
 
-    {:ok, %Accounts.User{} = user} =
-      Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
+    {:ok, %User{} = user} = Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
 
     [result_org | _] = user.orgs
 
@@ -91,8 +127,8 @@ defmodule NervesHubCore.AccountsTest do
   end
 
   test "add user and remove user from an org" do
-    {:ok, %Accounts.Org{} = org_1} = Accounts.create_org(%{name: "org1"})
-    {:ok, %Accounts.Org{} = org_2} = Accounts.create_org(%{name: "org2"})
+    {:ok, %Org{} = org_1} = Accounts.create_org(%{name: "org1"})
+    {:ok, %Org{} = org_2} = Accounts.create_org(%{name: "org2"})
 
     user_params = %{
       orgs: [org_1],
@@ -101,7 +137,7 @@ defmodule NervesHubCore.AccountsTest do
       password: "test_password"
     }
 
-    {:ok, %Accounts.User{} = user} = Accounts.create_user(user_params)
+    {:ok, %User{} = user} = Accounts.create_user(user_params)
 
     [result_org_1 | _] = user.orgs
 
@@ -135,7 +171,7 @@ defmodule NervesHubCore.AccountsTest do
     test "with valid credentials", %{user: user} do
       target_email = user.email
 
-      assert {:ok, %Accounts.User{email: ^target_email, orgs: [%Accounts.Org{}]}} =
+      assert {:ok, %User{email: ^target_email, orgs: [%Org{}]}} =
                Accounts.authenticate(user.email, user.password)
     end
 
@@ -158,10 +194,9 @@ defmodule NervesHubCore.AccountsTest do
       password: "test_password"
     }
 
-    target_org = %Accounts.Org{name: params.org_name}
+    target_org = %Org{name: params.org_name}
 
-    {:ok, %Accounts.User{} = user} =
-      Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
+    {:ok, %User{} = user} = Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
 
     [result_org | _] = user.orgs
 
@@ -184,10 +219,9 @@ defmodule NervesHubCore.AccountsTest do
       password: "test_password"
     }
 
-    target_org = %Accounts.Org{name: params.org_name}
+    target_org = %Org{name: params.org_name}
 
-    {:ok, %Accounts.User{} = user} =
-      Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
+    {:ok, %User{} = user} = Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
 
     params = %{
       description: "abcd",
@@ -223,7 +257,7 @@ defmodule NervesHubCore.AccountsTest do
 
     other_org = Fixtures.org_fixture()
 
-    assert {:ok, %Accounts.OrgKey{org_id: ^first_id}} =
+    assert {:ok, %OrgKey{org_id: ^first_id}} =
              Accounts.update_org_key(org_key, %{org_id: other_org.id})
   end
 end

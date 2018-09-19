@@ -28,6 +28,14 @@ defmodule NervesHubAPIWeb.FallbackController do
     |> send_resp(400, Jason.encode!(%{status: reason}))
   end
 
+  def call(conn, {:error, reason}) when is_binary(reason) or is_atom(reason) do
+    conn
+    |> put_resp_content_type("application/json")
+    |> put_status(500)
+    |> put_view(NervesHubAPIWeb.ErrorView)
+    |> send_resp(500, Jason.encode!(%{errors: reason}))
+  end
+
   def call(conn, {:error, reason}) do
     conn
     |> put_status(500)

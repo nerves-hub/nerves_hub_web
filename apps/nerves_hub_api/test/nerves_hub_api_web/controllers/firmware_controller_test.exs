@@ -3,6 +3,7 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Firmwares
+  alias NervesHubCore.Accounts
   alias NervesHubCore.Firmwares.Firmware
 
   @test_firmware_path Path.expand("../../../../../test/fixtures/firmware", __DIR__)
@@ -39,6 +40,25 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
 
       conn = get(conn, firmware_path(conn, :show, org.name, product.name, uuid))
       assert json_response(conn, 200)["data"]["uuid"] == uuid
+    end
+
+    test "renders error when size limit is exceeded", %{org: org, product: product} do
+      Accounts.create_org_limit(%{org_id: org.id, firmware_size: 1})
+
+      %{name: "test", key: File.read!(@fw_key_path), org_id: org.id}
+      |> NervesHubCore.Accounts.create_org_key()
+
+      body = File.read!(@signed_firmware_path)
+      length = byte_size(body)
+
+      conn =
+        build_auth_conn()
+        |> Plug.Conn.put_req_header("content-type", "application/octet-stream")
+        |> Plug.Conn.put_req_header("content-length", "#{length}")
+
+      path = firmware_path(conn, :create, org.name, product.name)
+      conn = post(conn, path, body)
+      assert json_response(conn, 500)["errors"] =~ "exceeds size limit"
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do
