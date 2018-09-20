@@ -15,6 +15,11 @@ defmodule NervesHubCore.AccountsTest do
     assert result_org.name == @required_org_params.name
   end
 
+  test "create_org with duplicate name" do
+    {:ok, %Org{}} = Accounts.create_org(@required_org_params)
+    assert {:error, %Changeset{}} = Accounts.create_org(@required_org_params)
+  end
+
   test "create_org_limits with defaults" do
     {:ok, %Org{} = result_org} = Accounts.create_org(@required_org_params)
     {:ok, limits} = Accounts.get_org_limit_by_org_id(result_org.id)
@@ -255,7 +260,7 @@ defmodule NervesHubCore.AccountsTest do
     first_id = org.id
     org_key = Fixtures.org_key_fixture(org)
 
-    other_org = Fixtures.org_fixture()
+    other_org = Fixtures.org_fixture(%{name: "another org"})
 
     assert {:ok, %OrgKey{org_id: ^first_id}} =
              Accounts.update_org_key(org_key, %{org_id: other_org.id})
