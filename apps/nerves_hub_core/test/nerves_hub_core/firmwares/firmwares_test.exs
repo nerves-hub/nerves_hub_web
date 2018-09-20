@@ -69,7 +69,7 @@ defmodule NervesHubCore.FirmwaresTest do
     end
 
     test "enforces firmware limit within product" do
-      org = Fixtures.org_fixture()
+      org = Fixtures.org_fixture(%{name: "another org"})
       product = Fixtures.product_fixture(org)
       org_key = Fixtures.org_key_fixture(org)
 

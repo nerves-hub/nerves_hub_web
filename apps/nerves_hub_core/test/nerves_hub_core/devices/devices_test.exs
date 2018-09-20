@@ -45,7 +45,7 @@ defmodule NervesHubCore.DevicesTest do
   end
 
   test "org cannot have too many devices" do
-    org = Fixtures.org_fixture()
+    org = Fixtures.org_fixture(%{name: "an org with no devices"})
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)

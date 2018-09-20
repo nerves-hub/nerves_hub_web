@@ -29,6 +29,7 @@ defmodule NervesHubCore.Accounts.Org do
     org
     |> cast(params, [:name])
     |> validate_required([:name])
+    |> unique_constraint(:name)
     |> unique_constraint(:users, name: :users_orgs_user_id_org_id_index)
   end
 
