@@ -44,10 +44,12 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
     test "renders error when size limit is exceeded", %{org: org, product: product} do
       Accounts.create_org_limit(%{org_id: org.id, firmware_size: 1})
 
-      %{name: "test", key: File.read!(@fw_key_path), org_id: org.id}
-      |> NervesHubCore.Accounts.create_org_key()
+      org_key = Fixtures.org_key_fixture(org)
 
-      body = File.read!(@signed_firmware_path)
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: product.name})
+
+      body = File.read!(signed_firmware_path)
       length = byte_size(body)
 
       conn =
