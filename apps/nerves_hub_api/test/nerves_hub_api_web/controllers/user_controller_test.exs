@@ -16,7 +16,7 @@ defmodule NervesHubAPIWeb.UserControllerTest do
 
   test "register new account" do
     conn = build_conn()
-    body = %{username: "test", password: "12345678", email: "new_test@test.com"}
+    body = %{username: "api_test", password: "12345678", email: "new_test@test.com"}
     conn = post(conn, user_path(conn, :register), body)
 
     assert json_response(conn, 200)["data"] == %{
@@ -27,7 +27,7 @@ defmodule NervesHubAPIWeb.UserControllerTest do
 
   test "authenticate existing accounts" do
     password = "12345678"
-    org = Fixtures.org_fixture()
+    org = Fixtures.org_fixture(%{name: "Bob-Smith"})
 
     user =
       Fixtures.user_fixture(org, %{
