@@ -133,9 +133,14 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
       Accounts.create_org_limit(%{org_id: org.id, firmware_size: 1})
       product = Fixtures.product_fixture(org, %{name: "starter"})
 
+      org_key = Fixtures.org_key_fixture(org)
+
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: product.name})
+
       upload = %Plug.Upload{
-        path: "../../test/fixtures/firmware/signed-key1.fw",
-        filename: "signed-key1.fw"
+        path: signed_firmware_path,
+        filename: "doesnt_matter.fw"
       }
 
       # check for the error message
