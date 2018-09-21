@@ -355,10 +355,10 @@ defmodule NervesHubCore.Accounts do
           | {:error}
   def create_user_from_invite(invite, org, user_params) do
     user_params = Map.put(user_params, :email, invite.email)
-    user_org = %{name: user_params.username}
 
     Repo.transaction(fn ->
-      with {:ok, user} <- create_user(%{orgs: [user_org, org]} |> Enum.into(user_params)),
+      with {:ok, user} <- create_user(user_params),
+           {:ok, user} <- add_user_to_org(user, org),
            {:ok, _invite} <- set_invite_accepted(invite) do
         {:ok, user}
       else
