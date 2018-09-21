@@ -25,8 +25,8 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
       product = Fixtures.product_fixture(org)
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
-      deployment = Fixtures.deployment_fixture(firmware)
-      Fixtures.device_fixture(org, firmware, deployment)
+
+      Fixtures.device_fixture(org, firmware)
 
       [to_delete | _] = Devices.get_devices(org)
       conn = delete(conn, device_path(conn, :delete, org.name, to_delete.identifier))

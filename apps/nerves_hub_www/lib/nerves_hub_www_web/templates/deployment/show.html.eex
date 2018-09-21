@@ -1,9 +1,6 @@
 <h1>
   Deployment:
-  <%= @deployment.name %> --
-  <span class="label <%= if @deployment.is_active, do: "label-success", else: "label-default" %>">
-    <%= status(@deployment) %>
-  </span>
+  <%= @deployment.name %>
 </h1>
 
 <table class="table" style="width: auto">
@@ -11,6 +8,10 @@
     <tr>
       <th>Product</th>
       <td><%= @product.name %></td>
+    </tr>
+    <tr>
+      <th>Active</th>
+      <td><%= active(@deployment) %>
     </tr>
     <tr>
       <th>Version Requirement</th>
@@ -25,10 +26,6 @@
           </span>
         <% end %>
       </td>
-    </tr>
-    <tr>
-      <th>Status</th>
-      <td><%= status(@deployment) %>
     </tr>
     <tr>
       <th>Firmware Info</th>

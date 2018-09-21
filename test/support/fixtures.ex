@@ -28,7 +28,7 @@ defmodule NervesHubCore.Fixtures do
     },
     is_active: false
   }
-  @device_params %{identifier: "device-1234"}
+  @device_params %{tags: ["beta", "test"]}
   @product_params %{name: "valid product"}
   @user_params %{
     org_name: "mctesterson.com",
@@ -45,6 +45,10 @@ defmodule NervesHubCore.Fixtures do
   def user_params(), do: @user_params
   def firmware_params(), do: @firmware_params
 
+  defp counter do
+    System.unique_integer([:positive])
+  end
+
   def org_fixture(params \\ %{}) do
     {:ok, org} =
       params
@@ -57,7 +61,7 @@ defmodule NervesHubCore.Fixtures do
   def org_key_fixture(%Accounts.Org{} = org) do
     params = %{org_id: org.id}
 
-    fwup_key_name = "#{Ecto.UUID.generate()}"
+    fwup_key_name = "org_key-#{counter()}"
     Fwup.gen_key_pair(fwup_key_name)
     key = Fwup.get_public_key(fwup_key_name)
 
@@ -70,7 +74,7 @@ defmodule NervesHubCore.Fixtures do
   def user_fixture(params \\ %{}) do
     user_params =
       params
-      |> Enum.into(%{username: "#{Ecto.UUID.generate()}"})
+      |> Enum.into(%{username: "user-#{counter()}"})
       |> Enum.into(@user_params)
 
     {:ok, user} = Accounts.create_user(user_params)
@@ -117,8 +121,8 @@ defmodule NervesHubCore.Fixtures do
     {:ok, filepath} =
       Fwup.create_signed_firmware(
         org_key.name,
-        "#{Ecto.UUID.generate()}",
-        "#{Ecto.UUID.generate()}",
+        "unsigned-#{counter()}",
+        "signed-#{counter()}",
         %{product: product.name} |> Enum.into(params)
       )
 
@@ -149,15 +153,13 @@ defmodule NervesHubCore.Fixtures do
   def device_fixture(
         %Accounts.Org{} = org,
         %Firmwares.Firmware{} = firmware,
-        %Deployments.Deployment{} = deployment,
         params \\ %{}
       ) do
     {:ok, device} =
       %{
         org_id: org.id,
-        target_deployment_id: deployment.id,
         last_known_firmware_id: firmware.id,
-        tags: deployment.conditions["tags"]
+        identifier: "device-#{counter()}"
       }
       |> Enum.into(params)
       |> Enum.into(@device_params)
@@ -184,7 +186,7 @@ defmodule NervesHubCore.Fixtures do
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
-    device = device_fixture(org, firmware, deployment)
+    device = device_fixture(org, firmware)
 
     %{
       org: org,
@@ -205,7 +207,7 @@ defmodule NervesHubCore.Fixtures do
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
-    device = device_fixture(org, firmware, deployment)
+    device = device_fixture(org, firmware, %{tags: ["beta", "beta-edge"]})
     device_certificate = device_certificate_fixture(device)
 
     %{
@@ -226,7 +228,7 @@ defmodule NervesHubCore.Fixtures do
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
-    device = device_fixture(org, firmware, deployment, %{identifier: "smartrent_1234"})
+    device = device_fixture(org, firmware, %{identifier: "smartrent_1234"})
     device_certificate = device_certificate_fixture(device)
 
     %{

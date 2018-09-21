@@ -81,10 +81,9 @@ defmodule NervesHubCore.DeploymentsTest do
       org: org,
       org_key: org_key,
       firmware: firmware,
-      deployment: old_deployment,
       product: product
     } do
-      device = Fixtures.device_fixture(org, firmware, old_deployment)
+      device = Fixtures.device_fixture(org, firmware, %{tags: ["beta", "beta-edge"]})
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
       params = %{
@@ -112,7 +111,6 @@ defmodule NervesHubCore.DeploymentsTest do
       org: org,
       org_key: org_key,
       firmware: firmware,
-      deployment: old_deployment,
       product: product
     } do
       incorrect_params = [
@@ -123,7 +121,7 @@ defmodule NervesHubCore.DeploymentsTest do
       ]
 
       for {f_params, d_params} <- incorrect_params do
-        device = Fixtures.device_fixture(org, firmware, old_deployment, d_params)
+        device = Fixtures.device_fixture(org, firmware, d_params)
         new_firmware = Fixtures.firmware_fixture(org_key, product, f_params)
 
         params = %{
