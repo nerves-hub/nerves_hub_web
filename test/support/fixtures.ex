@@ -31,7 +31,6 @@ defmodule NervesHubCore.Fixtures do
   @device_params %{identifier: "device-1234"}
   @product_params %{name: "valid product"}
   @user_params %{
-    username: "Testy-McTesterson",
     org_name: "mctesterson.com",
     email: "testy@mctesterson.com",
     password: "test_password"
@@ -71,6 +70,7 @@ defmodule NervesHubCore.Fixtures do
   def user_fixture(params \\ %{}) do
     user_params =
       params
+      |> Enum.into(%{username: "#{Ecto.UUID.generate()}"})
       |> Enum.into(@user_params)
 
     {:ok, user} = Accounts.create_user(user_params)
