@@ -42,9 +42,15 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         version: "0.0.1"
       })
 
-    deployment = Fixtures.deployment_fixture(firmware)
+    Fixtures.deployment_fixture(firmware)
 
-    device = Fixtures.device_fixture(org, firmware, deployment, device_params)
+    device =
+      Fixtures.device_fixture(
+        org,
+        firmware,
+        device_params |> Enum.into(%{tags: ["beta", "beta-edge"]})
+      )
+
     Fixtures.device_certificate_fixture(device)
 
     {device, firmware}

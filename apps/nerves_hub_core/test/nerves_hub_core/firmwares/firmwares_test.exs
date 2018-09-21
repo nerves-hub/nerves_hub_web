@@ -14,7 +14,7 @@ defmodule NervesHubCore.FirmwaresTest do
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(firmware)
-    device = Fixtures.device_fixture(org, firmware, deployment)
+    device = Fixtures.device_fixture(org, firmware)
 
     {:ok,
      %{

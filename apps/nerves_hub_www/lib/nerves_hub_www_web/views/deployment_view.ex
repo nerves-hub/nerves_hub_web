@@ -36,8 +36,8 @@ defmodule NervesHubWWWWeb.DeploymentView do
   def version(%Deployment{conditions: %{"version" => ""}}), do: "-"
   def version(%Deployment{conditions: %{"version" => version}}), do: version
 
-  def status(%Deployment{is_active: true}), do: "Active"
-  def status(%Deployment{is_active: false}), do: "Inactive"
+  def active(%Deployment{is_active: true}), do: "Yes"
+  def active(%Deployment{is_active: false}), do: "No"
 
   def opposite_status(%Deployment{is_active: true}), do: "Inactive"
   def opposite_status(%Deployment{is_active: false}), do: "Active"
