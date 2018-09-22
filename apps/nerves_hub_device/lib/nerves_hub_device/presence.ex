@@ -39,8 +39,9 @@ defmodule NervesHubDevice.Presence do
     |> Presence.list()
     |> Map.get("#{device_id}")
     |> case do
+      nil -> "offline"
       %{metas: [%{update_available: true}]} -> "update pending"
-      _ -> "online"
+      %{} -> "online"
     end
   end
 
