@@ -10,7 +10,8 @@ defmodule NervesHubCore.Accounts.Org do
   alias NervesHubCore.Repo
   alias __MODULE__
 
-  @type t :: %__MODULE__{}
+  @type id :: pos_integer() | nil
+  @type t :: %__MODULE__{id: id()}
 
   schema "orgs" do
     has_many(:org_keys, OrgKey)

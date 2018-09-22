@@ -1,11 +1,15 @@
 defmodule NervesHubCore.Firmwares do
   import Ecto.Query
-
   alias NervesHubCore.Accounts
+  alias Ecto.Changeset
   alias NervesHubCore.Accounts.{OrgKey, Org}
   alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Products
   alias NervesHubCore.Repo
+
+  @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
+
+  @uploader Application.fetch_env!(:nerves_hub_core, :firmware_upload)
 
   @spec get_firmwares_by_product(integer()) :: [Firmware.t()]
   def get_firmwares_by_product(product_id) do
@@ -65,53 +69,36 @@ defmodule NervesHubCore.Firmwares do
     end
   end
 
-  @spec prepare_firmware_params(Org.t(), binary) ::
-          {:ok, map}
-          | {:error, :no_public_keys}
-          | {:error, :invalid_signature}
-          | {:error, any}
-  def prepare_firmware_params(%Org{} = org, filepath) do
-    byte_size = :filelib.file_size(filepath)
-    {:ok, %{firmware_size: firmware_size_limit}} = Accounts.get_org_limit_by_org_id(org.id)
-
-    if byte_size < firmware_size_limit do
-      do_prepare_firmware_params(org, filepath)
-    else
-      {:error, "Firmware size #{byte_size} exceeds maximum size of #{firmware_size_limit} bytes"}
-    end
-  end
-
-  @spec create_firmware(map) ::
+  @spec create_firmware(Org.t(), String.t(), opts :: [{:upload_file_2, upload_file_2()}]) ::
           {:ok, Firmware.t()}
-          | {:error, Changeset.t()}
-  def create_firmware(%{product_name: product_name} = params) when is_binary(product_name) do
-    with {:ok, product} <- Products.get_product_by_org_id_and_name(params.org_id, product_name) do
-      params
-      |> Map.put(:product_id, product.id)
-      |> do_create_firmware()
-    else
-      _ -> do_create_firmware(params)
-    end
-  end
+          | {:error, Changeset.t() | :no_public_keys | :invalid_signature | any}
+  def create_firmware(org, filepath, opts \\ []) do
+    upload_file_2 = opts[:upload_file_2] || (&@uploader.upload_file/2)
 
-  def create_firmware(params) do
-    do_create_firmware(params)
-  end
-
-  defp do_create_firmware(params) do
-    %Firmware{}
-    |> Firmware.changeset(params)
-    |> Repo.insert()
+    Repo.transaction(fn ->
+      with {:ok, params} <- build_firmware_params(org, filepath),
+           {:ok, firmware} <- insert_firmware(params),
+           :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
+        firmware
+      else
+        {:error, error} -> Repo.rollback(error)
+      end
+    end)
   end
 
   def delete_firmware(%Firmware{} = firmware) do
-    if uploader = Application.get_env(:nerves_hub_core, :firmware_upload) do
-      uploader.delete_file(firmware)
+    Repo.transaction(fn ->
+      with {:ok, _} <- firmware |> Firmware.changeset(%{}) |> Repo.delete(),
+           :ok <- @uploader.delete_file(firmware) do
+        :ok
+      else
+        {:error, error} -> Repo.rollback(error)
+      end
+    end)
+    |> case do
+      {:ok, _} -> :ok
+      ret -> ret
     end
-
-    firmware
-    |> Firmware.changeset(%{})
-    |> Repo.delete()
   end
 
   @spec verify_signature(String.t(), [OrgKey.t()]) ::
@@ -120,10 +107,10 @@ defmodule NervesHubCore.Firmwares do
           | {:error, :no_public_keys}
   def verify_signature(_filepath, []), do: {:error, :no_public_keys}
 
-  def verify_signature(filepath, keys) do
+  def verify_signature(filepath, keys) when is_binary(filepath) do
     keys
-    |> Enum.find(fn key ->
-      case System.cmd("fwup", ["--verify", "--public-key", key.key, "-i", filepath]) do
+    |> Enum.find(fn %{key: key} ->
+      case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath]) do
         {_, 0} ->
           true
 
@@ -153,18 +140,17 @@ defmodule NervesHubCore.Firmwares do
     end
   end
 
-  def upload_firmware(filepath, filename, org_id) do
-    if uploader = Application.get_env(:nerves_hub_core, :firmware_upload) do
-      uploader.upload_file(filepath, filename, org_id)
-    else
-      {:error}
-    end
+  defp insert_firmware(params) do
+    %Firmware{}
+    |> Firmware.changeset(params)
+    |> Repo.insert()
   end
 
-  defp do_prepare_firmware_params(org, filepath) do
+  defp build_firmware_params(%{id: org_id} = org, filepath) do
     org = NervesHubCore.Repo.preload(org, :org_keys)
 
-    with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
+    with :ok <- validate_firmware_size(org_id, filepath),
+         {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
          {:ok, metadata} <- extract_metadata(filepath),
          {:ok, architecture} <- Firmware.fetch_metadata_item(metadata, "meta-architecture"),
          {:ok, platform} <- Firmware.fetch_metadata_item(metadata, "meta-platform"),
@@ -174,23 +160,60 @@ defmodule NervesHubCore.Firmwares do
          description <- Firmware.get_metadata_item(metadata, "meta-description"),
          misc <- Firmware.get_metadata_item(metadata, "meta-misc"),
          uuid <- Firmware.get_metadata_item(metadata, "meta-uuid"),
-         vcs_identifier <- Firmware.get_metadata_item(metadata, "meta-vcs-identifier"),
-         {:ok, upload_metadata} <- upload_firmware(filepath, uuid <> ".fw", org.id) do
-      {:ok,
-       %{
-         architecture: architecture,
-         author: author,
-         description: description,
-         misc: misc,
-         platform: platform,
-         product_name: product_name,
-         org_id: org.id,
-         org_key_id: org_key_id,
-         upload_metadata: upload_metadata,
-         uuid: uuid,
-         vcs_identifier: vcs_identifier,
-         version: version
-       }}
+         vcs_identifier <- Firmware.get_metadata_item(metadata, "meta-vcs-identifier") do
+      filename = uuid <> ".fw"
+
+      params =
+        resolve_product(%{
+          architecture: architecture,
+          author: author,
+          description: description,
+          filename: filename,
+          misc: misc,
+          platform: platform,
+          product_name: product_name,
+          org_id: org_id,
+          org_key_id: org_key_id,
+          upload_metadata: @uploader.metadata(org_id, filename),
+          uuid: uuid,
+          vcs_identifier: vcs_identifier,
+          version: version
+        })
+
+      {:ok, params}
+    else
+      {:error, {:firmware_size, {firmware_size, firmware_size_limit}}} ->
+        {:error,
+         "Firmware size #{firmware_size} exceeds maximum size of #{firmware_size_limit} bytes"}
+
+      error ->
+        error
+    end
+  end
+
+  defp validate_firmware_size(org_id, filepath) do
+    firmware_size = :filelib.file_size(filepath)
+    %{firmware_size: firmware_size_limit} = Accounts.get_org_limit_by_org_id(org_id)
+
+    case firmware_size <= firmware_size_limit do
+      true -> :ok
+      false -> {:error, {:firmware_size, {firmware_size, firmware_size_limit}}}
+    end
+  end
+
+  defp resolve_product(params) do
+    params.org_id
+    |> Products.get_product_by_org_id_and_name(params.product_name)
+    |> case do
+      {:ok, product} -> Map.put(params, :product_id, product.id)
+      _ -> params
+    end
+
+    with {:ok, product} <-
+           Products.get_product_by_org_id_and_name(params.org_id, params.product_name) do
+      Map.put(params, :product_id, product.id)
+    else
+      _ -> params
     end
   end
 end

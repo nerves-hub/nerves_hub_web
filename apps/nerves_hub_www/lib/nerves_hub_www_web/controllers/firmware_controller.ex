@@ -19,39 +19,34 @@ defmodule NervesHubWWWWeb.FirmwareController do
   def do_upload(%{assigns: %{current_org: org, product: product}} = conn, %{
         "firmware" => %{"file" => %{path: filepath}}
       }) do
-    with {:ok, firmware_params} <- Firmwares.prepare_firmware_params(org, filepath) do
-      case Firmwares.create_firmware(firmware_params) do
-        {:ok, _firmware} ->
-          conn
-          |> put_flash(:info, "Firmware uploaded")
-          |> redirect(to: product_firmware_path(conn, :index, product.id))
-
-        {:error,
-         %Ecto.Changeset{
-           errors: [product_id: {"can't be blank", [validation: :required]}]
-         } = changeset} ->
-          conn
-          |> put_flash(:error, "No matching product could be found.")
-          |> render("upload.html", changeset: changeset)
-
-        {:error, changeset} ->
-          conn
-          |> put_flash(:error, "Unknown error uploading firmware.")
-          |> render("upload.html", changeset: changeset)
-      end
-    else
-      {:error, :no_public_keys} ->
+    case Firmwares.create_firmware(org, filepath) do
+      {:ok, _firmware} ->
         conn
-        |> put_flash(
-          :error,
-          "Please register public keys for verifying firmware signatures first"
+        |> put_flash(:info, "Firmware uploaded")
+        |> redirect(to: product_firmware_path(conn, :index, product.id))
+
+      {:error, :no_public_keys} ->
+        render_error(
+          conn,
+          "Please register public keys for verifying firmware signatures first",
+          %Changeset{data: %Firmware{}}
         )
-        |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
 
       {:error, :invalid_signature} ->
-        conn
-        |> put_flash(:error, "Firmware corrupt, signature invalid or missing public key")
-        |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
+        render_error(
+          conn,
+          "Firmware corrupt, signature invalid or missing public key",
+          %Changeset{data: %Firmware{}}
+        )
+
+      {:error,
+       %Changeset{
+         errors: [product_id: {"can't be blank", [validation: :required]}]
+       } = changeset} ->
+        render_error(conn, "No matching product could be found.", changeset)
+
+      {:error, %Changeset{} = changeset} ->
+        render_error(conn, "Unknown error uploading firmware.", changeset)
 
       {:error, error} when is_binary(error) ->
         conn
@@ -59,10 +54,14 @@ defmodule NervesHubWWWWeb.FirmwareController do
         |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
 
       _ ->
-        conn
-        |> put_flash(:error, "Unknown error uploading firmware")
-        |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
+        render_error(conn, "Uknown error uploading firmware", %Changeset{data: %Firmware{}})
     end
+  end
+
+  defp render_error(conn, msg, changeset) do
+    conn
+    |> put_flash(:error, msg)
+    |> render("upload.html", changeset: changeset)
   end
 
   def download(conn, %{"id" => id}) do

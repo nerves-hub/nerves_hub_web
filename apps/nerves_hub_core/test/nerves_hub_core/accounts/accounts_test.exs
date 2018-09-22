@@ -22,7 +22,7 @@ defmodule NervesHubCore.AccountsTest do
 
   test "create_org_limits with defaults" do
     {:ok, %Org{} = result_org} = Accounts.create_org(@required_org_params)
-    {:ok, limits} = Accounts.get_org_limit_by_org_id(result_org.id)
+    limits = Accounts.get_org_limit_by_org_id(result_org.id)
     assert limits == %OrgLimit{}
   end
 
@@ -34,7 +34,7 @@ defmodule NervesHubCore.AccountsTest do
     limit_params = %{org_id: result_org.id, firmware_size: org_firmware_size_limit}
     {:ok, %OrgLimit{}} = Accounts.create_org_limit(limit_params)
 
-    {:ok, %{firmware_size: firmware_size_limit}} = Accounts.get_org_limit_by_org_id(result_org.id)
+    %{firmware_size: firmware_size_limit} = Accounts.get_org_limit_by_org_id(result_org.id)
 
     assert firmware_size_limit == org_firmware_size_limit
   end
@@ -47,13 +47,13 @@ defmodule NervesHubCore.AccountsTest do
     limit_params = %{org_id: result_org.id, firmware_size: org_firmware_size_limit}
     {:ok, %OrgLimit{}} = Accounts.create_org_limit(limit_params)
 
-    {:ok, %{firmware_size: firmware_size_limit} = limits} =
-      Accounts.get_org_limit_by_org_id(result_org.id)
+    %{firmware_size: firmware_size_limit} =
+      limits = Accounts.get_org_limit_by_org_id(result_org.id)
 
     assert firmware_size_limit == org_firmware_size_limit
 
     {:ok, _} = Accounts.delete_org_limit(limits)
-    {:ok, limits} = Accounts.get_org_limit_by_org_id(result_org.id)
+    limits = Accounts.get_org_limit_by_org_id(result_org.id)
     assert limits == %OrgLimit{}
   end
 
