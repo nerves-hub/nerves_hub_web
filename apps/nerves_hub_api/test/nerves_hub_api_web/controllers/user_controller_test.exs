@@ -55,7 +55,7 @@ defmodule NervesHubAPIWeb.UserControllerTest do
       |> Base.encode64()
 
     params =
-      Fixtures.user_params()
+      Fixtures.user_fixture()
       |> Map.take([:email, :password])
       |> Map.put(:csr, csr)
       |> Map.put(:description, "test-machine")

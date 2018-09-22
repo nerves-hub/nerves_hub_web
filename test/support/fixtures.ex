@@ -1,25 +1,27 @@
 Code.compiler_options(ignore_module_conflict: true)
 
 defmodule NervesHubCore.Fixtures do
-  alias NervesHubCore.{Firmwares, Accounts, Devices, Deployments, Products, Certificate}
+  alias NervesHubCore.{
+    Accounts,
+    Accounts.Org,
+    Certificate,
+    Devices,
+    Deployments,
+    Firmwares,
+    Products,
+    Repo
+  }
+
   alias NervesHubCore.Support.Fwup
 
   @after_compile {__MODULE__, :compiler_options}
 
   def compiler_options(_, _), do: Code.compiler_options(ignore_module_conflict: false)
 
+  @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
+
   @org_params %{name: "Test Org"}
 
-  @firmware_params %{
-    architecture: "arm",
-    author: "test_author",
-    description: "test_description",
-    platform: "rpi0",
-    upload_metadata: %{"public_url" => "http://example.com", "local_path" => ""},
-    version: "1.0.0",
-    vcs_identifier: "test_vcs_identifier",
-    misc: "test_misc"
-  }
   @deployment_params %{
     name: "Test Deployment",
     conditions: %{
@@ -30,11 +32,6 @@ defmodule NervesHubCore.Fixtures do
   }
   @device_params %{tags: ["beta", "test"]}
   @product_params %{name: "valid product"}
-  @user_params %{
-    org_name: "mctesterson.com",
-    email: "testy@mctesterson.com",
-    password: "test_password"
-  }
   @user_certificate_params %{
     description: "my test cert",
     serial: "158098897653878678601091983566405937658689714637"
@@ -42,11 +39,26 @@ defmodule NervesHubCore.Fixtures do
 
   def path(), do: Path.expand("../fixtures", __DIR__)
 
-  def user_params(), do: @user_params
-  def firmware_params(), do: @firmware_params
+  def user_params() do
+    %{
+      org_name: "org-#{counter()}.com",
+      email: "email-#{counter()}@mctesterson.com",
+      username: "user-#{counter()}",
+      password: "test_password"
+    }
+  end
 
-  defp counter do
-    System.unique_integer([:positive])
+  def firmware_params(org_id, filepath) do
+    %{
+      architecture: "arm",
+      author: "test_author",
+      description: "test_description",
+      platform: "rpi0",
+      version: "1.0.0",
+      vcs_identifier: "test_vcs_identifier",
+      misc: "test_misc",
+      upload_metadata: @uploader.metadata(org_id, filepath)
+    }
   end
 
   def org_fixture(params \\ %{}) do
@@ -72,12 +84,7 @@ defmodule NervesHubCore.Fixtures do
   end
 
   def user_fixture(params \\ %{}) do
-    user_params =
-      params
-      |> Enum.into(%{username: "user-#{counter()}"})
-      |> Enum.into(@user_params)
-
-    {:ok, user} = Accounts.create_user(user_params)
+    {:ok, user} = params |> Enum.into(user_params()) |> Accounts.create_user()
     {:ok, _certificate} = Accounts.create_user_certificate(user, @user_certificate_params)
     user
   end
@@ -113,7 +120,8 @@ defmodule NervesHubCore.Fixtures do
     product
   end
 
-  def firmware_fixture(
+  @spec firmware_file_fixture(OrgKey.t(), Product.t()) :: String.t()
+  def firmware_file_fixture(
         %Accounts.OrgKey{} = org_key,
         %Products.Product{} = product,
         params \\ %{}
@@ -126,14 +134,17 @@ defmodule NervesHubCore.Fixtures do
         %{product: product.name} |> Enum.into(params)
       )
 
-    org = org_key |> Accounts.OrgKey.with_org() |> Map.get(:org)
+    filepath
+  end
 
-    {:ok, firmware_params} = Firmwares.prepare_firmware_params(org, filepath)
-
-    {:ok, firmware} =
-      firmware_params
-      |> Firmwares.create_firmware()
-
+  def firmware_fixture(
+        %Accounts.OrgKey{org_id: org_id} = org_key,
+        %Products.Product{} = product,
+        params \\ %{}
+      ) do
+    org = Repo.get!(Org, org_id)
+    filepath = firmware_file_fixture(org_key, product, params)
+    {:ok, firmware} = Firmwares.create_firmware(org, filepath)
     firmware
   end
 
@@ -240,5 +251,9 @@ defmodule NervesHubCore.Fixtures do
       org_key: org_key,
       product: product
     }
+  end
+
+  defp counter do
+    System.unique_integer([:positive])
   end
 end

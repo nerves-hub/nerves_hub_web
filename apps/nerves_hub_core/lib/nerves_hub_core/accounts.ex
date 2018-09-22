@@ -32,14 +32,18 @@ defmodule NervesHubCore.Accounts do
     |> Repo.update()
   end
 
+  @doc """
+  Returns a map of limits for the org identified by `org_id`.
+  """
+  @spec get_org_limit_by_org_id(Org.id()) :: OrgLimit.t()
   def get_org_limit_by_org_id(org_id) do
     query = from(ol in OrgLimit, where: ol.org_id == ^org_id)
 
     query
     |> Repo.one()
     |> case do
-      nil -> {:ok, %OrgLimit{}}
-      org_limit -> {:ok, org_limit}
+      nil -> %OrgLimit{}
+      org_limit -> org_limit
     end
   end
 

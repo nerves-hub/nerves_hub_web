@@ -1,8 +1,6 @@
 defmodule NervesHubAPIWeb.FirmwareController do
   use NervesHubAPIWeb, :controller
-
   alias NervesHubCore.Firmwares
-  alias NervesHubCore.Firmwares.Firmware
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
@@ -15,8 +13,7 @@ defmodule NervesHubAPIWeb.FirmwareController do
     %{firmware_size: size_limit} = org_limit
 
     with {:ok, filepath, conn} <- read_firmware(conn, size_limit),
-         {:ok, firmware_params} <- Firmwares.prepare_firmware_params(org, filepath),
-         {:ok, firmware} <- Firmwares.create_firmware(firmware_params) do
+         {:ok, firmware} <- Firmwares.create_firmware(org, filepath) do
       conn
       |> put_status(:created)
       |> put_resp_header("location", firmware_path(conn, :show, org, product, firmware))
@@ -32,7 +29,7 @@ defmodule NervesHubAPIWeb.FirmwareController do
 
   def delete(%{assigns: %{org: org}} = conn, %{"uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(org, uuid),
-         {:ok, %Firmware{}} <- Firmwares.delete_firmware(firmware) do
+         :ok <- Firmwares.delete_firmware(firmware) do
       send_resp(conn, :no_content, "")
     end
   end
