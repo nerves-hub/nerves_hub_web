@@ -1,3 +1,6 @@
 import "phoenix_html"
 import 'bootstrap';
-import socket from "./socket"
+
+if(window.location.pathname === '/devices') {
+  require("./socket")
+}
