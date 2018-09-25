@@ -10,6 +10,11 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
       assert html_response(conn, 200) =~ "Devices"
     end
 
+    test "devices default to offline", %{conn: conn} do
+      conn = get(conn, device_path(conn, :index))
+      refute html_response(conn, 200) =~ "online"
+    end
+
     test "does not list devices for other orgs", %{conn: conn} do
       %{device: device} = Fixtures.smartrent_fixture()
       conn = get(conn, device_path(conn, :index))
