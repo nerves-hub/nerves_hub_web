@@ -52,7 +52,7 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
           tags: ["a", "b", "c", "d"]
         })
 
-      assert json_response(conn, 204)["data"]
+      assert json_response(conn, 201)["data"]
 
       conn = get(conn, device_path(conn, :show, org.name, to_update.identifier))
       assert json_response(conn, 200)

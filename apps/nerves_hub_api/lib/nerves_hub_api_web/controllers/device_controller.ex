@@ -37,7 +37,7 @@ defmodule NervesHubAPIWeb.DeviceController do
     with {:ok, device} <- Devices.get_device_by_identifier(org, identifier),
          {:ok, updated_device} <- Devices.update_device(device, params) do
       conn
-      |> put_status(204)
+      |> put_status(201)
       |> render("show.json", device: updated_device)
     end
   end
