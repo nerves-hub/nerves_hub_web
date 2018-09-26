@@ -36,4 +36,27 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
       assert json_response(conn, 404)
     end
   end
+
+  describe "update devices" do
+    test "updates chosen device", %{conn: conn, org: org} do
+      product = Fixtures.product_fixture(org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      Fixtures.device_fixture(org, firmware)
+
+      [to_update | _] = Devices.get_devices(org)
+
+      conn =
+        put(conn, device_path(conn, :update, org.name, to_update.identifier), %{
+          tags: ["a", "b", "c", "d"]
+        })
+
+      assert json_response(conn, 204)["data"]
+
+      conn = get(conn, device_path(conn, :show, org.name, to_update.identifier))
+      assert json_response(conn, 200)
+      assert conn.assigns.device.tags == ["a", "b", "c", "d"]
+    end
+  end
 end

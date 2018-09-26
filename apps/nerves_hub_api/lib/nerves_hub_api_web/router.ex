@@ -50,6 +50,7 @@ defmodule NervesHubAPIWeb.Router do
           scope "/:device_identifier" do
             get("/", DeviceController, :show)
             delete("/", DeviceController, :delete)
+            put("/", DeviceController, :update)
 
             scope "/certificates" do
               get("/", DeviceCertificateController, :index)
