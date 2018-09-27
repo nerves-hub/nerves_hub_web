@@ -47,9 +47,11 @@ defmodule NervesHubCore.Firmwares.Upload.S3 do
     s3_key = firmware.upload_metadata["s3_key"]
     bucket = Application.get_env(:nerves_hub_core, __MODULE__)[:bucket]
 
-    case S3.delete_object(bucket, s3_key) do
+    S3.delete_object(bucket, s3_key)
+    |> ExAws.request()
+    |> case do
       {:ok, _} -> :ok
-      {:error, _} = err -> err
+      error -> error
     end
   end
 end
