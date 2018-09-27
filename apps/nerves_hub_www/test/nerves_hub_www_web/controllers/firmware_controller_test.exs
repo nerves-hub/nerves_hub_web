@@ -3,6 +3,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
   alias NervesHubWebCore.Fixtures
   alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.Firmwares
   alias NervesHubWebCore.Support.Fwup
 
   describe "index" do
@@ -165,6 +166,22 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
         })
 
       assert html_response(conn, 200) =~ "exceeds maximum size"
+    end
+  end
+
+  describe "delete firmware" do
+    test "deletes chosen firmware", %{
+      conn: conn,
+      current_user: user,
+      current_org: org
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      conn = delete(conn, product_firmware_path(conn, :delete, product.id, firmware.id))
+      assert redirected_to(conn) == product_firmware_path(conn, :index, product.id)
+      assert Firmwares.get_firmware(org, firmware.id) == {:error, :not_found}
     end
   end
 end
