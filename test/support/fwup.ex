@@ -40,7 +40,7 @@ defmodule NervesHubCore.Support.Fwup do
       File.rm(key_path_no_extension <> ext)
     end
 
-    System.cmd("fwup", ["-g", "-o", key_path_no_extension])
+    System.cmd("fwup", ["-g", "-o", key_path_no_extension], [stderr_to_stdout: true])
   end
 
   @doc """
@@ -85,7 +85,7 @@ defmodule NervesHubCore.Support.Fwup do
       Path.join([dir, firmware_name <> ".fw"]),
       "-o",
       output_path
-    ])
+    ], [stderr_to_stdout: true])
 
     {:ok, output_path}
   end
@@ -103,7 +103,7 @@ defmodule NervesHubCore.Support.Fwup do
   """
   def corrupt_firmware_file(input_path, output_name \\ "corrupt") do
     output_path = Path.join([System.tmp_dir(), output_name <> ".fw"])
-    System.cmd("dd", ["if=" <> input_path, "of=" <> output_path, "bs=512", "count=1"])
+    System.cmd("dd", ["if=" <> input_path, "of=" <> output_path, "bs=512", "count=1"], [stderr_to_stdout: true])
 
     {:ok, output_path}
   end
