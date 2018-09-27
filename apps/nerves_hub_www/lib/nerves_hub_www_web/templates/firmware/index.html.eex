@@ -35,6 +35,11 @@
       <td><%= format_signed(firmware, @current_org) %></td>
       <td><pre class="pre-scrollable"><%= firmware.misc %></pre></td>
       <td><%= link("Download", to: product_firmware_path(@conn, :download, @product.id, firmware.id)) %></td>
+      <td>
+        <%= form_for @conn, product_firmware_path(@conn, :delete, @product.id, firmware.id), [method: :delete], fn _ -> %>
+          <%= submit "Delete Firmware", class: "btn btn-danger", onclick: "return confirm('Are you sure you want to delete this firmware? This can not be undone.')" %>
+        <% end %>
+      </td>
     </tr>
   <% end %>
 </table>

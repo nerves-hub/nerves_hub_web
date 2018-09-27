@@ -83,6 +83,7 @@ defmodule NervesHubWWWWeb.Router do
       get("/firmware/upload", FirmwareController, :upload)
       post("/firmware/upload", FirmwareController, :do_upload)
       get("/firmware/download/:id", FirmwareController, :download)
+      delete("/firmware/delete/:id", FirmwareController, :delete)
 
       resources("/deployments", DeploymentController)
     end

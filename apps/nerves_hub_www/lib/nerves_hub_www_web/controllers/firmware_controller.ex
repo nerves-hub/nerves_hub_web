@@ -87,4 +87,13 @@ defmodule NervesHubWWWWeb.FirmwareController do
       {:error}
     end
   end
+
+  def delete(%{assigns: %{current_org: org, product: product}} = conn, %{"id" => id}) do
+    with {:ok, firmware} <- Firmwares.get_firmware(org, id),
+         :ok <- Firmwares.delete_firmware(firmware) do
+      conn
+      |> put_flash(:info, "Firmware successfully deleted")
+      |> redirect(to: product_firmware_path(conn, :index, product.id))
+    end
+  end
 end
