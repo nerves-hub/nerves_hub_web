@@ -4,7 +4,7 @@ defmodule NervesHubCore.Firmwares.Upload.S3 do
   @spec upload_file(String.t(), String.t()) ::
           :ok
           | {:error, atom()}
-  def upload_file(source_path, %{"s3_key" => s3_key}) do
+  def upload_file(source_path, %{s3_key: s3_key}) do
     bucket = Application.get_env(:nerves_hub_core, __MODULE__)[:bucket]
 
     source_path

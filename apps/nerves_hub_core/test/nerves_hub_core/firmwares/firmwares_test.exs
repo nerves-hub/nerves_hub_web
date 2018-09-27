@@ -1,7 +1,7 @@
 defmodule NervesHubCore.FirmwaresTest do
   use NervesHubCore.DataCase, async: true
 
-  alias NervesHubCore.{Firmwares, Fixtures, Support.Fwup}
+  alias NervesHubCore.{Accounts, Accounts.OrgLimit, Firmwares, Fixtures, Support.Fwup}
   alias Ecto.Changeset
 
   @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
@@ -50,7 +50,7 @@ defmodule NervesHubCore.FirmwaresTest do
       org_key: org_key,
       product: %{id: product_id} = product
     } do
-      product_firmware_limit = Application.get_env(:nerves_hub_core, :product_firmware_limit)
+      %{firmware_per_product: product_firmware_limit} = %OrgLimit{}
       current = product_id |> Firmwares.get_firmwares_by_product() |> length()
 
       if current < product_firmware_limit do
@@ -61,6 +61,27 @@ defmodule NervesHubCore.FirmwaresTest do
 
       assert {:error, %Changeset{errors: [product: {"firmware limit reached", []}]}} =
                Firmwares.create_firmware(org, filepath)
+    end
+
+    test "allow firmware per product limit to be raised", %{
+      firmware: %{upload_metadata: %{local_path: filepath}},
+      org: org,
+      org_key: org_key,
+      product: %{id: product_id} = product
+    } do
+      Accounts.create_org_limit(%{org_id: org.id, firmware_per_product: 10})
+
+      %{firmware_per_product: product_firmware_limit} = %OrgLimit{}
+      current = product_id |> Firmwares.get_firmwares_by_product() |> length()
+
+      if current < product_firmware_limit do
+        for _ <- 1..(product_firmware_limit - current) do
+          _firmware = Fixtures.firmware_fixture(org_key, product)
+        end
+      end
+
+      {:error, %Changeset{errors: errors}} = Firmwares.create_firmware(org, filepath)
+      refute {"firmware limit reached", []} == Keyword.get(errors, :product)
     end
   end
 
