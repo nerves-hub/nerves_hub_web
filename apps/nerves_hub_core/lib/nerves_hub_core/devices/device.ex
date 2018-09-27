@@ -5,6 +5,7 @@ defmodule NervesHubCore.Devices.Device do
   import Ecto.Query
 
   alias NervesHubCore.Repo
+  alias NervesHubCore.Accounts
   alias NervesHubCore.Accounts.Org
   alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Devices.DeviceCertificate
@@ -60,8 +61,8 @@ defmodule NervesHubCore.Devices.Device do
       from(d in Device, where: d.org_id == ^org_id, select: count(d.id))
       |> Repo.one()
 
-    org_device_limit = Application.get_env(:nerves_hub_core, :org_device_limit)
-    device_count + 1 > org_device_limit
+    %{devices: limit} = Accounts.get_org_limit_by_org_id(org_id)
+    device_count + 1 > limit
   end
 
   def with_firmware(device_query) do
