@@ -1,6 +1,6 @@
 defmodule NervesHubCore.Firmwares do
   import Ecto.Query
-  alias NervesHubCore.Accounts
+
   alias Ecto.Changeset
   alias NervesHubCore.Accounts.{OrgKey, Org}
   alias NervesHubCore.Firmwares.Firmware
@@ -88,7 +88,7 @@ defmodule NervesHubCore.Firmwares do
 
   def delete_firmware(%Firmware{} = firmware) do
     Repo.transaction(fn ->
-      with {:ok, _} <- firmware |> Firmware.changeset(%{}) |> Repo.delete(),
+      with {:ok, _} <- firmware |> Firmware.delete_changeset(%{}) |> Repo.delete(),
            :ok <- @uploader.delete_file(firmware) do
         :ok
       else
@@ -149,8 +149,7 @@ defmodule NervesHubCore.Firmwares do
   defp build_firmware_params(%{id: org_id} = org, filepath) do
     org = NervesHubCore.Repo.preload(org, :org_keys)
 
-    with :ok <- validate_firmware_size(org_id, filepath),
-         {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
+    with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
          {:ok, metadata} <- extract_metadata(filepath),
          {:ok, architecture} <- Firmware.fetch_metadata_item(metadata, "meta-architecture"),
          {:ok, platform} <- Firmware.fetch_metadata_item(metadata, "meta-platform"),
@@ -169,35 +168,20 @@ defmodule NervesHubCore.Firmwares do
           author: author,
           description: description,
           filename: filename,
+          filepath: filepath,
           misc: misc,
-          platform: platform,
-          product_name: product_name,
           org_id: org_id,
           org_key_id: org_key_id,
+          platform: platform,
+          product_name: product_name,
           upload_metadata: @uploader.metadata(org_id, filename),
+          size: :filelib.file_size(filepath),
           uuid: uuid,
           vcs_identifier: vcs_identifier,
           version: version
         })
 
       {:ok, params}
-    else
-      {:error, {:firmware_size, {firmware_size, firmware_size_limit}}} ->
-        {:error,
-         "Firmware size #{firmware_size} exceeds maximum size of #{firmware_size_limit} bytes"}
-
-      error ->
-        error
-    end
-  end
-
-  defp validate_firmware_size(org_id, filepath) do
-    firmware_size = :filelib.file_size(filepath)
-    %{firmware_size: firmware_size_limit} = Accounts.get_org_limit_by_org_id(org_id)
-
-    case firmware_size <= firmware_size_limit do
-      true -> :ok
-      false -> {:error, {:firmware_size, {firmware_size, firmware_size_limit}}}
     end
   end
 
