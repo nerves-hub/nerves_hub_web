@@ -9,7 +9,7 @@ defmodule NervesHubCore.Accounts.OrgLimit do
   @type t :: %__MODULE__{}
 
   @required_params [:org_id]
-  @optional_params [:firmware_size, :firmware_per_product]
+  @optional_params [:firmware_size, :firmware_per_product, :devices]
 
   schema "org_limits" do
     belongs_to(:org, Org)
@@ -17,6 +17,7 @@ defmodule NervesHubCore.Accounts.OrgLimit do
     # 160 Mb
     field(:firmware_size, :integer, default: 167_772_160)
     field(:firmware_per_product, :integer, default: 5)
+    field(:devices, :integer, default: 5)
 
     timestamps()
   end

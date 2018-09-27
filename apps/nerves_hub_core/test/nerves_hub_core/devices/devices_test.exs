@@ -1,10 +1,8 @@
 defmodule NervesHubCore.DevicesTest do
   use NervesHubCore.DataCase, async: true
 
-  alias NervesHubCore.Fixtures
-  alias NervesHubCore.Devices
+  alias NervesHubCore.{Accounts, Fixtures, Devices, Deployments}
   alias NervesHubCore.Devices.DeviceCertificate
-  alias NervesHubCore.Deployments
   alias Ecto.Changeset
 
   setup do
@@ -50,7 +48,7 @@ defmodule NervesHubCore.DevicesTest do
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
 
-    org_device_limit = Application.get_env(:nerves_hub_core, :org_device_limit)
+    %{devices: org_device_limit} = Accounts.get_org_limit_by_org_id(org.id)
 
     for i <- 1..org_device_limit do
       params = %{
@@ -69,6 +67,35 @@ defmodule NervesHubCore.DevicesTest do
     }
 
     assert {:error, %Changeset{}} = Devices.create_device(params)
+  end
+
+  test "org device count limit can be raised" do
+    org = Fixtures.org_fixture(%{name: "an org with no devices"})
+    product = Fixtures.product_fixture(org)
+    org_key = Fixtures.org_key_fixture(org)
+    firmware = Fixtures.firmware_fixture(org_key, product)
+
+    %{devices: org_device_limit} = Accounts.get_org_limit_by_org_id(org.id)
+
+    for i <- 1..org_device_limit do
+      params = %{
+        org_id: org.id,
+        last_known_firmware_id: firmware.id,
+        identifier: "id #{i}"
+      }
+
+      {:ok, %Devices.Device{}} = Devices.create_device(params)
+    end
+
+    params = %{
+      org_id: org.id,
+      last_known_firmware_id: firmware.id,
+      identifier: "more than default"
+    }
+
+    Accounts.create_org_limit(%{org_id: org.id, devices: 10})
+
+    assert {:ok, %Devices.Device{}} = Devices.create_device(params)
   end
 
   test "delete_device", %{
