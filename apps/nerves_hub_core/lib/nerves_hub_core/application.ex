@@ -7,12 +7,14 @@ defmodule NervesHubCore.Application do
     import Supervisor.Spec
 
     pubsub_config = Application.get_env(:nerves_hub_core, NervesHubWeb.PubSub)
+    firmware_gc_config = Application.get_env(:nerves_hub_core, NervesHubCore.Firmwares.GC, [])
 
     # Define workers and child supervisors to be supervised
     children = [
       # Start the Ecto repository
       supervisor(NervesHubCore.Repo, []),
       supervisor(Phoenix.PubSub.PG2, [pubsub_config[:name], pubsub_config]),
+      {NervesHubCore.Firmwares.GC, firmware_gc_config},
       {Task.Supervisor, name: NervesHubCore.TaskSupervisor}
     ]
 

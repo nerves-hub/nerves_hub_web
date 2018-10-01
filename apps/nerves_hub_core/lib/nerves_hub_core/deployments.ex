@@ -2,6 +2,7 @@ defmodule NervesHubCore.Deployments do
   import Ecto.Query
 
   alias NervesHubCore.Deployments.Deployment
+  alias NervesHubCore.Firmwares
   alias NervesHubCore.Devices
   alias NervesHubCore.Products.Product
   alias NervesHubCore.Repo
@@ -68,6 +69,7 @@ defmodule NervesHubCore.Deployments do
         {:error, :not_found}
 
       {:ok, deployment} ->
+        Firmwares.update_firmware_ttl(deployment.firmware_id)
         {:ok, deployment}
     end
   end
@@ -78,8 +80,17 @@ defmodule NervesHubCore.Deployments do
     |> Deployment.with_firmware()
     |> Deployment.changeset(params)
     |> Repo.update()
-    |> Repo.reload_assoc(:firmware)
-    |> update_relevant_devices()
+    |> case do
+      {:ok, deployment} ->
+        Firmwares.update_firmware_ttl(deployment.firmware_id)
+
+        {:ok, deployment}
+        |> Repo.reload_assoc(:firmware)
+        |> update_relevant_devices()
+
+      error ->
+        error
+    end
   end
 
   @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
@@ -87,6 +98,14 @@ defmodule NervesHubCore.Deployments do
     %Deployment{}
     |> Deployment.creation_changeset(params)
     |> Repo.insert()
+    |> case do
+      {:ok, deployment} ->
+        Firmwares.update_firmware_ttl(deployment.firmware_id)
+        {:ok, deployment}
+
+      error ->
+        error
+    end
   end
 
   defp update_relevant_devices({:ok, %Deployment{is_active: false} = deployment}) do

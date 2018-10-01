@@ -57,6 +57,7 @@ defmodule NervesHubCore.Fixtures do
       version: "1.0.0",
       vcs_identifier: "test_vcs_identifier",
       misc: "test_misc",
+      ttl: 1_000_000_000,
       upload_metadata: @uploader.metadata(org_id, filepath)
     }
   end
@@ -144,7 +145,7 @@ defmodule NervesHubCore.Fixtures do
       ) do
     org = Repo.get!(Org, org_id)
     filepath = firmware_file_fixture(org_key, product, params)
-    {:ok, firmware} = Firmwares.create_firmware(org, filepath)
+    {:ok, firmware} = Firmwares.create_firmware(org, filepath, params)
     firmware
   end
 
