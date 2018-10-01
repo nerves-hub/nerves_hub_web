@@ -11,12 +11,6 @@ defmodule NervesHubWWWWeb.AccountController do
     render(conn, "new.html", changeset: %Changeset{data: %User{}})
   end
 
-  defp whitelist(params, keys) do
-    keys
-    |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-    |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
-  end
-
   def create(conn, %{"user" => user_params}) do
     user_params
     |> whitelist([:password, :username, :email])

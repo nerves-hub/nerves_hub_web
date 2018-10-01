@@ -7,12 +7,6 @@ defmodule NervesHubWWWWeb.OrgController do
   alias NervesHubCore.Accounts.{Invite, OrgKey}
   alias NervesHubWWW.Mailer
 
-  defp whitelist(params, keys) do
-    keys
-    |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-    |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
-  end
-
   def new(conn, _params) do
     changeset = Accounts.Org.creation_changeset(%Accounts.Org{}, %{})
     render(conn, "new.html", changeset: changeset)
