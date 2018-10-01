@@ -2,6 +2,7 @@ defmodule NervesHubCore.Firmwares do
   import Ecto.Query
 
   alias Ecto.Changeset
+  alias NervesHubCore.Accounts
   alias NervesHubCore.Accounts.{OrgKey, Org}
   alias NervesHubCore.Firmwares.Firmware
   alias NervesHubCore.Products
@@ -72,11 +73,12 @@ defmodule NervesHubCore.Firmwares do
   @spec create_firmware(Org.t(), String.t(), opts :: [{:upload_file_2, upload_file_2()}]) ::
           {:ok, Firmware.t()}
           | {:error, Changeset.t() | :no_public_keys | :invalid_signature | any}
-  def create_firmware(org, filepath, opts \\ []) do
+  def create_firmware(org, filepath, params \\ %{}, opts \\ []) do
     upload_file_2 = opts[:upload_file_2] || (&@uploader.upload_file/2)
 
     Repo.transaction(fn ->
-      with {:ok, params} <- build_firmware_params(org, filepath),
+      with {:ok, params} <- build_firmware_params(org, filepath, params),
+           params <- set_ttl(org, params),
            {:ok, firmware} <- insert_firmware(params),
            :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
         firmware
@@ -140,13 +142,67 @@ defmodule NervesHubCore.Firmwares do
     end
   end
 
+  def update_firmware_ttl(nil), do: :ok
+
+  def update_firmware_ttl(firmware_id) do
+    q =
+      from(f in NervesHubCore.Firmwares.Firmware,
+        left_join: d in NervesHubCore.Deployments.Deployment,
+        on: d.firmware_id == f.id,
+        left_join: dd in NervesHubCore.Devices.Device,
+        on: dd.last_known_firmware_id == f.id,
+        where:
+          f.id == ^firmware_id and
+            not (is_nil(d.firmware_id) and is_nil(dd.last_known_firmware_id)),
+        limit: 1
+      )
+
+    case Repo.one(q) do
+      # Firmware has no associations. Set ttl.
+      nil ->
+        case NervesHubCore.Repo.get(Firmware, firmware_id) do
+          %Firmware{ttl_until: nil, ttl: ttl} = firmware ->
+            ttl_until = DateTime.utc_now() |> Timex.shift(seconds: ttl)
+
+            firmware
+            |> Firmware.update_changeset(%{ttl_until: ttl_until})
+            |> Repo.update()
+
+            :set
+
+          _ ->
+            :noop
+        end
+
+      # Firmware has associations and no ttl has been set.
+      %Firmware{ttl_until: nil} ->
+        :noop
+
+      # Firmware has associations and is marked for ttl. Unset ttl.
+      %Firmware{} = firmware ->
+        firmware
+        |> Firmware.update_changeset(%{ttl_until: nil})
+        |> Repo.update()
+
+        :unset
+    end
+  end
+
+  def get_firmware_by_expired_ttl() do
+    from(
+      f in Firmware,
+      where: f.ttl_until < ^DateTime.utc_now()
+    )
+    |> Repo.all()
+  end
+
   defp insert_firmware(params) do
     %Firmware{}
-    |> Firmware.changeset(params)
+    |> Firmware.create_changeset(params)
     |> Repo.insert()
   end
 
-  defp build_firmware_params(%{id: org_id} = org, filepath) do
+  defp build_firmware_params(%{id: org_id} = org, filepath, params) do
     org = NervesHubCore.Repo.preload(org, :org_keys)
 
     with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
@@ -176,6 +232,7 @@ defmodule NervesHubCore.Firmwares do
           product_name: product_name,
           upload_metadata: @uploader.metadata(org_id, filename),
           size: :filelib.file_size(filepath),
+          ttl: Map.get(params, :ttl),
           uuid: uuid,
           vcs_identifier: vcs_identifier,
           version: version
@@ -183,6 +240,28 @@ defmodule NervesHubCore.Firmwares do
 
       {:ok, params}
     end
+  end
+
+  defp set_ttl(%{id: org_id}, params) do
+    ttl =
+      case Map.get(params, :ttl) do
+        nil ->
+          org_id
+          |> Accounts.get_org_limit_by_org_id()
+          |> Map.get(:firmware_ttl_seconds_default)
+
+        ttl when is_binary(ttl) ->
+          String.to_integer(ttl)
+
+        ttl ->
+          ttl
+      end
+
+    ttl_until = DateTime.utc_now() |> Timex.shift(seconds: ttl)
+
+    params
+    |> Map.put(:ttl, ttl)
+    |> Map.put(:ttl_until, ttl_until)
   end
 
   defp resolve_product(params) do

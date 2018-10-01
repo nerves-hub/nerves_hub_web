@@ -13,7 +13,7 @@
 # The seeds are run on every deploy. Therefore, it is important
 # that first check to see if the data you are trying to insert
 # has been run yet.
-alias NervesHubCore.{Accounts, Accounts.User, Repo}
+alias NervesHubCore.{Accounts, Accounts.User, Repo, Firmwares}
 
 defmodule NervesHubCore.SeedHelpers do
   alias NervesHubCore.Fixtures
@@ -38,10 +38,11 @@ defmodule NervesHubCore.SeedHelpers do
             })
 
     firmwares = firmwares |> List.to_tuple()
-
+      
     Fixtures.deployment_fixture(firmwares |> elem(2), %{
       conditions: %{"version" => "< 1.0.0", "tags" => ["beta"]}
     })
+    Firmwares.update_firmware_ttl(elem(firmwares, 2).id)
 
     Fixtures.device_fixture(org, firmwares |> elem(1))
     |> Fixtures.device_certificate_fixture()

@@ -18,17 +18,21 @@ defmodule NervesHubCore.Firmwares.Firmware do
     :description,
     :misc,
     :org_key_id,
+    :ttl_until,
     :vcs_identifier
   ]
   @required_params [
     :architecture,
     :platform,
-    :org_id,
-    :size,
     :product_id,
+    :ttl,
     :uuid,
     :upload_metadata,
     :version
+  ]
+  @virtual_params [
+    :org_id,
+    :size
   ]
 
   schema "firmwares" do
@@ -43,6 +47,8 @@ defmodule NervesHubCore.Firmwares.Firmware do
     field(:misc, :string)
     field(:org_id, :integer, virtual: true)
     field(:platform, :string)
+    field(:ttl, :integer)
+    field(:ttl_until, :utc_datetime)
     field(:upload_metadata, :map)
     field(:uuid, :string)
     field(:vcs_identifier, :string)
@@ -51,7 +57,16 @@ defmodule NervesHubCore.Firmwares.Firmware do
     timestamps()
   end
 
-  def changeset(%Firmware{} = firmware, params) do
+  def create_changeset(%Firmware{} = firmware, params) do
+    firmware
+    |> cast(params, @required_params ++ @virtual_params ++ @optional_params)
+    |> validate_required(@required_params ++ @virtual_params)
+    |> validate_limits()
+    |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
+    |> foreign_key_constraint(:deployments, name: :deployments_firmware_id_fkey)
+  end
+
+  def update_changeset(%Firmware{} = firmware, params) do
     firmware
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
@@ -72,6 +87,7 @@ defmodule NervesHubCore.Firmwares.Firmware do
     cs
     |> validate_firmware_size(limits)
     |> validate_firmware_limit(limits)
+    |> validate_firmware_ttl(limits)
   end
 
   defp validate_limits(cs), do: cs
@@ -104,6 +120,18 @@ defmodule NervesHubCore.Firmwares.Firmware do
   defp validate_firmware_limit(%Ecto.Changeset{} = cs, _limits) do
     cs
   end
+
+  defp validate_firmware_ttl(%Ecto.Changeset{changes: %{ttl: ttl}} = cs, %{
+         firmware_ttl_seconds: limit
+       }) do
+    if ttl > limit do
+      add_error(cs, :firmware, "cannot set ttl #{ttl} > #{limit}")
+    else
+      cs
+    end
+  end
+
+  defp validate_firmware_ttl(cs, _limits), do: cs
 
   defp too_many_firmwares?(product_id, %{firmware_per_product: limit}) do
     firmware_count =

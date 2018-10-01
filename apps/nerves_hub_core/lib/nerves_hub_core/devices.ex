@@ -130,10 +130,26 @@ defmodule NervesHubCore.Devices do
     %Device{}
     |> Device.changeset(params)
     |> Repo.insert()
+    |> case do
+      {:ok, device} ->
+        Firmwares.update_firmware_ttl(device.last_known_firmware_id)
+        {:ok, device}
+
+      error ->
+        error
+    end
   end
 
   def delete_device(%Device{} = device) do
     Repo.delete(device)
+    |> case do
+      {:ok, device} ->
+        Firmwares.update_firmware_ttl(device.last_known_firmware_id)
+        {:ok, device}
+
+      error ->
+        error
+    end
   end
 
   @spec create_device_certificate(Device.t(), map) ::
@@ -213,6 +229,7 @@ defmodule NervesHubCore.Devices do
     |> Repo.update()
     |> case do
       {:ok, device} ->
+        Firmwares.update_firmware_ttl(device.last_known_firmware_id)
         {:ok, Repo.preload(device, :last_known_firmware, force: true)}
 
       error ->

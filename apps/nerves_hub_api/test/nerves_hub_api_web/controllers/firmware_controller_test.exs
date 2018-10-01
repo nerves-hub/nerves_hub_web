@@ -3,9 +3,7 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
 
   alias NervesHubCore.Fixtures
   alias NervesHubCore.Support.Fwup
-  alias NervesHubCore.Firmwares
   alias NervesHubCore.Accounts
-  alias NervesHubCore.Firmwares.Firmware
 
   describe "index" do
     test "lists all firmwares", %{conn: conn, org: org, product: product} do
@@ -16,32 +14,28 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
   end
 
   describe "create firmware" do
-    test "renders firmware when data is valid", %{org: org, product: product} do
+    test "renders firmware when data is valid", %{conn: conn, org: org, product: product} do
       org_key = Fixtures.org_key_fixture(org)
 
       {:ok, signed_firmware_path} =
         Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: product.name})
 
-      {:ok, metadata} = Firmwares.extract_metadata(signed_firmware_path)
-      uuid = Firmware.get_metadata_item(metadata, "meta-uuid")
+      upload = %Plug.Upload{
+        path: signed_firmware_path,
+        filename: "doesnt_matter.fw"
+      }
 
-      body = File.read!(signed_firmware_path)
-      length = byte_size(body)
-
-      conn =
-        build_auth_conn()
-        |> Plug.Conn.put_req_header("content-type", "application/octet-stream")
-        |> Plug.Conn.put_req_header("content-length", "#{length}")
-
+      params = %{"firmware" => upload}
       path = firmware_path(conn, :create, org.name, product.name)
-      conn = post(conn, path, body)
-      assert json_response(conn, 201)["data"]
+      conn = post(conn, path, params)
+      assert data = json_response(conn, 201)["data"]
+      uuid = data["uuid"]
 
       conn = get(conn, firmware_path(conn, :show, org.name, product.name, uuid))
       assert json_response(conn, 200)["data"]["uuid"] == uuid
     end
 
-    test "renders error when size limit is exceeded", %{org: org, product: product} do
+    test "renders error when size limit is exceeded", %{conn: conn, org: org, product: product} do
       Accounts.create_org_limit(%{org_id: org.id, firmware_size: 1})
 
       org_key = Fixtures.org_key_fixture(org)
@@ -49,17 +43,15 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
       {:ok, signed_firmware_path} =
         Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: product.name})
 
-      body = File.read!(signed_firmware_path)
-      length = byte_size(body)
+      upload = %Plug.Upload{
+        path: signed_firmware_path,
+        filename: "doesnt_matter.fw"
+      }
 
-      conn =
-        build_auth_conn()
-        |> Plug.Conn.put_req_header("content-type", "application/octet-stream")
-        |> Plug.Conn.put_req_header("content-length", "#{length}")
-
+      params = %{"firmware" => upload}
       path = firmware_path(conn, :create, org.name, product.name)
-      conn = post(conn, path, body)
-      assert json_response(conn, 500)["errors"] =~ "exceeds size limit"
+      conn = post(conn, path, params)
+      assert json_response(conn, 422)["errors"] != %{}
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do

@@ -1,7 +1,16 @@
 defmodule NervesHubCore.FirmwaresTest do
   use NervesHubCore.DataCase, async: true
 
-  alias NervesHubCore.{Accounts, Accounts.OrgLimit, Firmwares, Fixtures, Support.Fwup}
+  alias NervesHubCore.{
+    Accounts,
+    Accounts.OrgLimit,
+    Firmwares,
+    Fixtures,
+    Support.Fwup,
+    Deployments,
+    Devices
+  }
+
   alias Ecto.Changeset
 
   @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
@@ -34,7 +43,10 @@ defmodule NervesHubCore.FirmwaresTest do
       firmwares = Firmwares.get_firmwares_by_product(product.id)
       upload_file_2 = fn _, _ -> {:error, :nope} end
       filepath = Fixtures.firmware_file_fixture(org_key, product)
-      assert {:error, _} = Firmwares.create_firmware(org, filepath, upload_file_2: upload_file_2)
+
+      assert {:error, _} =
+               Firmwares.create_firmware(org, filepath, %{}, upload_file_2: upload_file_2)
+
       assert ^firmwares = Firmwares.get_firmwares_by_product(product.id)
     end
 
@@ -179,6 +191,127 @@ defmodule NervesHubCore.FirmwaresTest do
       assert Firmwares.verify_signature(corrupt_path, [
                org_key
              ]) == {:error, :invalid_signature}
+    end
+  end
+
+  describe "firmware ttl" do
+    test "creating firmware sets ttl", %{org_key: org_key, product: product} do
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      assert firmware.ttl != nil
+      assert firmware.ttl_until != nil
+    end
+
+    test "associating firmware with deployment unsets ttl", %{
+      org: org,
+      org_key: org_key,
+      product: product
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      params = %{
+        firmware_id: firmware.id,
+        name: "firmware ttl",
+        conditions: %{
+          "version" => "",
+          "tags" => ["beta", "beta-edge"]
+        },
+        is_active: false
+      }
+
+      Deployments.create_deployment(params)
+
+      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+      assert firmware.ttl != nil
+      assert firmware.ttl_until == nil
+    end
+
+    test "disassociating firmware from deployment unsets ttl", %{
+      org: org,
+      org_key: org_key,
+      product: product
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      params = %{
+        firmware_id: firmware.id,
+        name: "firmware ttl",
+        conditions: %{
+          "version" => "",
+          "tags" => ["beta", "beta-edge"]
+        },
+        is_active: false
+      }
+
+      {:ok, deployment} = Deployments.create_deployment(params)
+
+      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+      assert firmware.ttl != nil
+      assert firmware.ttl_until == nil
+
+      Deployments.delete_deployment(deployment)
+
+      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+      assert firmware.ttl != nil
+      assert firmware.ttl_until != nil
+    end
+
+    test "associating firmware with a device unsets ttl", %{
+      org: org,
+      org_key: org_key,
+      product: product
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      params = %{
+        org_id: org.id,
+        last_known_firmware_id: firmware.id,
+        identifier: "ttl-1"
+      }
+
+      {:ok, _device} = Devices.create_device(params)
+
+      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+      assert firmware.ttl != nil
+      assert firmware.ttl_until == nil
+    end
+
+    test "disassociating firmware from a device unsets ttl", %{
+      org: org,
+      org_key: org_key,
+      product: product
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      params = %{
+        org_id: org.id,
+        last_known_firmware_id: firmware.id,
+        identifier: "ttl-1"
+      }
+
+      {:ok, device} = Devices.create_device(params)
+
+      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+      assert firmware.ttl != nil
+      assert firmware.ttl_until == nil
+
+      {:ok, _device} = Devices.delete_device(device)
+
+      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+      assert firmware.ttl != nil
+      assert firmware.ttl_until != nil
+    end
+
+    test "garbage collect old firmware", %{org_key: org_key, product: product} do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{ttl: 1})
+      :timer.sleep(1_000)
+      firmwares = Firmwares.get_firmware_by_expired_ttl()
+      assert Enum.find(firmwares, &(&1.id == firmware.id)) != nil
     end
   end
 end
