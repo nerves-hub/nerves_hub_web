@@ -6,12 +6,6 @@ defmodule NervesHubAPIWeb.DeploymentController do
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
-  defp whitelist(params, keys) do
-    keys
-    |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-    |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
-  end
-
   def index(%{assigns: %{product: product}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product.id)
     render(conn, "index.json", deployments: deployments)

@@ -6,12 +6,6 @@ defmodule NervesHubWWWWeb.DeploymentController do
   alias NervesHubCore.Deployments.Deployment
   alias Ecto.Changeset
 
-  defp whitelist(params, keys) do
-    keys
-    |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
-    |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
-  end
-
   def index(%{assigns: %{current_org: _org, product: %{id: product_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product_id)
     render(conn, "index.html", deployments: deployments)

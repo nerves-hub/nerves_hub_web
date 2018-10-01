@@ -23,6 +23,12 @@ defmodule NervesHubAPIWeb do
       import Plug.Conn
       import NervesHubAPIWeb.Router.Helpers
       import NervesHubAPIWeb.Gettext
+
+      def whitelist(params, keys) do
+        keys
+        |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
+        |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
+      end
     end
   end
 
