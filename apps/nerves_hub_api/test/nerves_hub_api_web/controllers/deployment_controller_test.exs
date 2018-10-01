@@ -34,7 +34,7 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
 
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do
       conn = post(conn, deployment_path(conn, :create, org.name, product.name))
-      assert json_response(conn, 400)["errors"] != %{}
+      assert json_response(conn, 500)["errors"] != %{}
     end
   end
 
