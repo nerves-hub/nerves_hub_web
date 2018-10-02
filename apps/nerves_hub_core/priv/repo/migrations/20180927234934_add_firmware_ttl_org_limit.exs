@@ -8,7 +8,7 @@ defmodule NervesHubCore.Repo.Migrations.AddFirmwareTtlOrgLimit do
     end
 
     alter table(:firmwares) do
-      add(:ttl, :integer, null: false)
+      add(:ttl, :integer, null: false, default: 604_800)
       add(:ttl_until, :utc_datetime)
     end
   end
