@@ -3,6 +3,22 @@ defmodule NervesHubCore.Certificate do
 
   @era 2000
 
+  def get_authority_key_id(cert) do
+    result =
+      decode_cert(cert)
+      |> List.last()
+      |> Enum.find_value(fn
+        {:Extension, {2, 5, 29, 35}, _, {:AuthorityKeyIdentifier, id, _, _}} -> id
+        _ -> false
+      end)
+
+    if result do
+      {:ok, result}
+    else
+      {:error, "Unable to parse certificate for authority_key_id"}
+    end
+  end
+
   @spec get_common_name(binary) :: {:ok, binary} | :error
   def get_common_name(cert) do
     cert = decode_cert(cert)
@@ -56,11 +72,17 @@ defmodule NervesHubCore.Certificate do
       {:Validity, {:utcTime, not_before}, {:utcTime, not_after}} ->
         not_before = to_string(not_before)
         not_after = to_string(not_after)
-        {convert_generalized_time(not_before), convert_generalized_time(not_after)}
+        {:ok, {convert_generalized_time(not_before), convert_generalized_time(not_after)}}
 
       _ ->
-        :error
+        {:error, "Unable to parse certificate for validity"}
     end
+  end
+
+  def binary_to_hex_string(binary) do
+    binary
+    |> Base.encode16()
+    |> String.downcase()
   end
 
   defp decode_cert(<<"-----BEGIN CERTIFICATE-----", _rest::binary>> = cert) do

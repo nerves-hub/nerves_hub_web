@@ -32,10 +32,6 @@ defmodule NervesHubCore.Fixtures do
   }
   @device_params %{tags: ["beta", "test"]}
   @product_params %{name: "valid product"}
-  @user_certificate_params %{
-    description: "my test cert",
-    serial: "158098897653878678601091983566405937658689714637"
-  }
 
   def path(), do: Path.expand("../fixtures", __DIR__)
 
@@ -59,6 +55,16 @@ defmodule NervesHubCore.Fixtures do
       misc: "test_misc",
       ttl: 1_000_000_000,
       upload_metadata: @uploader.metadata(org_id, filepath)
+    }
+  end
+
+  def user_certificate_params() do
+    %{
+      description: "my test cert",
+      serial: "158098897653878678601091983566405937658689714637",
+      not_before: DateTime.utc_now(),
+      not_after: Timex.shift(DateTime.utc_now(), minutes: 5),
+      authority_key_id: "27:A1:68:B5:73:7D:4D:56:9F:6F:B1:41:F7:A6:D3:4B:C7:8E:F4:43"
     }
   end
 
@@ -86,17 +92,15 @@ defmodule NervesHubCore.Fixtures do
 
   def user_fixture(params \\ %{}) do
     {:ok, user} = params |> Enum.into(user_params()) |> Accounts.create_user()
-    {:ok, _certificate} = Accounts.create_user_certificate(user, @user_certificate_params)
+    {:ok, _certificate} = user_certificate_fixture(user)
     user
   end
 
   def user_certificate_fixture(%Accounts.User{} = user, params \\ %{}) do
     cert_params =
-      params
-      |> Enum.into(@user_certificate_params)
+      Map.merge(user_certificate_params(), params)
 
-    {:ok, certificate} = user |> Accounts.create_user_certificate(cert_params)
-    certificate
+    Accounts.create_user_certificate(user, cert_params)
   end
 
   def product_fixture(a, params \\ %{})
@@ -183,9 +187,13 @@ defmodule NervesHubCore.Fixtures do
   def device_certificate_fixture(%Devices.Device{} = device) do
     cert_file = Path.join(path(), "cfssl/device-1234-cert.pem")
     {:ok, cert} = File.read(cert_file)
-    {not_before, not_after} = Certificate.get_validity(cert)
+
     {:ok, serial} = Certificate.get_serial_number(cert)
-    params = %{serial: serial, not_before: not_before, not_after: not_after}
+    {:ok, {not_before, not_after}} = Certificate.get_validity(cert)
+    {:ok, authority_key_id} = Certificate.get_authority_key_id(cert)
+    authority_key_id = Certificate.binary_to_hex_string(authority_key_id)
+    params = %{serial: serial, authority_key_id: authority_key_id, not_before: not_before, not_after: not_after}
+
     {:ok, device_cert} = Devices.create_device_certificate(device, params)
     device_cert
   end

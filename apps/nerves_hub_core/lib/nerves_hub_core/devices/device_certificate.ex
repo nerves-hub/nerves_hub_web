@@ -6,22 +6,29 @@ defmodule NervesHubCore.Devices.DeviceCertificate do
 
   @type t :: %__MODULE__{}
 
-  @required_params [:serial, :not_after, :not_before, :device_id]
+  @params [
+    :device_id,
+    :serial,
+    :authority_key_id,
+    :not_after,
+    :not_before
+  ]
 
   schema "device_certificates" do
     belongs_to(:device, Device)
 
     field(:serial, :string)
-    field(:not_after, :utc_datetime)
+    field(:authority_key_id, :string)
     field(:not_before, :utc_datetime)
+    field(:not_after, :utc_datetime)
 
     timestamps()
   end
 
   def changeset(%DeviceCertificate{} = device_certificate, params) do
     device_certificate
-    |> cast(params, @required_params)
-    |> validate_required(@required_params)
+    |> cast(params, @params)
+    |> validate_required(@params)
     |> unique_constraint(:serial, name: :device_certificates_device_id_serial_index)
   end
 end
