@@ -6,19 +6,31 @@ defmodule NervesHubCore.Accounts.UserCertificate do
 
   @type t :: %__MODULE__{}
 
+  @params [
+    :user_id,
+    :serial,
+    :description,
+    :authority_key_id,
+    :not_before,
+    :not_after
+  ]
+
   schema "user_certificates" do
     belongs_to(:user, User)
 
-    field(:description, :string)
     field(:serial, :string)
+    field(:description, :string)
+    field(:authority_key_id, :string)
+    field(:not_before, :utc_datetime)
+    field(:not_after, :utc_datetime)
 
     timestamps()
   end
 
   def changeset(%UserCertificate{} = user_certificate, params) do
     user_certificate
-    |> cast(params, [:serial, :description])
-    |> validate_required([:serial, :description])
+    |> cast(params, @params)
+    |> validate_required(@params)
     |> unique_constraint(:serial, name: :user_certificates_user_id_serial_index)
   end
 end

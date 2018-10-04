@@ -146,7 +146,8 @@ defmodule NervesHubCore.DevicesTest do
       serial: "12345",
       not_before: now,
       not_after: now,
-      device_id: device_id
+      device_id: device_id,
+      authority_key_id: "12345"
     }
 
     assert {:ok, %DeviceCertificate{device_id: ^device_id}} =
@@ -160,7 +161,8 @@ defmodule NervesHubCore.DevicesTest do
       serial: "12345",
       not_before: now,
       not_after: now,
-      device_id: device.id
+      device_id: device.id,
+      authority_key_id: "12345"
     }
 
     assert {:ok, %DeviceCertificate{} = cert1} = Devices.create_device_certificate(device, params)
@@ -180,7 +182,8 @@ defmodule NervesHubCore.DevicesTest do
       serial: "12345",
       not_before: now,
       not_after: now,
-      device_id: device.id
+      device_id: device.id,
+      authority_key_id: "12345"
     }
 
     assert {:ok, %DeviceCertificate{}} = Devices.create_device_certificate(device, params)

@@ -15,8 +15,11 @@ defmodule NervesHubWWWWeb.AccountCertificateControllerTest do
       current_org: org,
       current_user: user
     } do
-      foo_cert = Fixtures.user_certificate_fixture(user, %{description: "foo", serial: "abc123"})
-      bar_cert = Fixtures.user_certificate_fixture(user, %{description: "bar", serial: "321cba"})
+      {:ok, foo_cert} =
+        Fixtures.user_certificate_fixture(user, %{description: "foo", serial: "abc123"})
+
+      {:ok, bar_cert} =
+        Fixtures.user_certificate_fixture(user, %{description: "bar", serial: "321cba"})
 
       other_user = Fixtures.user_fixture(%{orgs: [org], email: "test@email.com"})
 
@@ -40,7 +43,11 @@ defmodule NervesHubWWWWeb.AccountCertificateControllerTest do
   @tag :ca_integration
   describe "create product" do
     test "redirects to show when data is valid", %{conn: conn} do
-      conn = post(conn, account_certificate_path(conn, :create), user_certificate: @create_attrs)
+      params =
+        Fixtures.user_certificate_params()
+        |> Map.merge(@create_attrs)
+
+      conn = post(conn, account_certificate_path(conn, :create), user_certificate: params)
 
       assert %{id: id} = redirected_params(conn)
       assert redirected_to(conn) =~ account_certificate_path(conn, :show, id)
