@@ -313,5 +313,10 @@ defmodule NervesHubCore.FirmwaresTest do
       firmwares = Firmwares.get_firmware_by_expired_ttl()
       assert Enum.find(firmwares, &(&1.id == firmware.id)) != nil
     end
+
+    test "passing an empty ttl sets defaults", %{org_key: org_key, product: product} do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{ttl: ""})
+      assert firmware.ttl != ""
+    end
   end
 end
