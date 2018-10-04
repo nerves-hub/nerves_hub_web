@@ -245,7 +245,7 @@ defmodule NervesHubCore.Firmwares do
   defp set_ttl(%{id: org_id}, params) do
     ttl =
       case Map.get(params, :ttl) do
-        nil ->
+        ttl when ttl == nil or ttl == "" ->
           org_id
           |> Accounts.get_org_limit_by_org_id()
           |> Map.get(:firmware_ttl_seconds_default)
