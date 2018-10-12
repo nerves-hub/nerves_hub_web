@@ -18,10 +18,12 @@ defmodule NervesHubWWWWeb.Endpoint do
 
   # This should only be enabled if using NervesHubCore.Firmwares.Upload.File
   if @env in [:dev, :test] do
+    @file_config Application.get_env(:nerves_hub_core, NervesHubCore.Firmwares.Upload.File)
+
     plug(
       Plug.Static,
-      at: "/firmware",
-      from: "/tmp/firmware"
+      at: @file_config[:public_path],
+      from: @file_config[:local_path]
     )
   end
 
