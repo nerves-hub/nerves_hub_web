@@ -61,10 +61,14 @@ defmodule NervesHubWWWWeb.OrgKeyController do
 
   def delete(%{assigns: %{current_org: org}} = conn, %{"id" => id}) do
     {:ok, org_key} = Accounts.get_org_key(org, id)
-    {:ok, _org_key} = Accounts.delete_org_key(org_key)
 
-    conn
-    |> put_flash(:info, "Org Key deleted successfully.")
-    |> redirect(to: org_path(conn, :edit, org))
+    with {:ok, _org_key} <- Accounts.delete_org_key(org_key) do
+      conn
+      |> put_flash(:info, "Org Key deleted successfully.")
+      |> redirect(to: org_path(conn, :edit, org))
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render(conn, "edit.html", org_key: org_key, changeset: changeset)
+    end
   end
 end

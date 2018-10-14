@@ -310,7 +310,9 @@ defmodule NervesHubCore.Accounts do
   end
 
   def delete_org_key(%OrgKey{} = org_key) do
-    Repo.delete(org_key)
+    org_key
+    |> OrgKey.delete_changeset(%{})
+    |> Repo.delete()
   end
 
   def change_org_key(org_key, params \\ %{})

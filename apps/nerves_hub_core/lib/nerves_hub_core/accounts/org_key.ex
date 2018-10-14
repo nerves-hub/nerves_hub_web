@@ -32,13 +32,19 @@ defmodule NervesHubCore.Accounts.OrgKey do
     |> unique_constraint(:key)
   end
 
-  def update_changeset(%OrgKey{id: _} = org, params) do
+  def update_changeset(%OrgKey{id: _} = org_key, params) do
     # don't allow org_id to change
-    org
+    org_key
     |> cast(params, @required_params -- [:org_id])
     |> validate_required(@required_params)
     |> unique_constraint(:name, name: :org_keys_org_id_name_index)
     |> unique_constraint(:key)
+  end
+
+  def delete_changeset(%OrgKey{id: _} = org_key, params) do
+    org_key
+    |> cast(params, @required_params ++ @optional_params)
+    |> foreign_key_constraint(:firmwares, name: :firmwares_tenant_key_id_fkey)
   end
 
   def with_org(%OrgKey{} = o) do
