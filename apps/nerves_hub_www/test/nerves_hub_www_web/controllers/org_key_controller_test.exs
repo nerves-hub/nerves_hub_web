@@ -81,5 +81,15 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
         get(conn, org_key_path(conn, :show, org_key))
       end)
     end
+
+    test "returns error when key cannot be deleted", %{conn: conn, current_org: org} do
+      org_key = Fixtures.org_key_fixture(org)
+
+      product = Fixtures.product_fixture(org)
+      Fixtures.firmware_fixture(org_key, product)
+
+      conn = delete(conn, org_key_path(conn, :delete, org_key))
+      assert html_response(conn, 200) =~ "Key is in use."
+    end
   end
 end
