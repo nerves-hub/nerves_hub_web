@@ -1,11 +1,11 @@
 defmodule NervesHubCore.Repo.Migrations.AssociateUsersAndOrgs do
   use Ecto.Migration
 
-  import Ecto.Changeset
+  # import Ecto.Changeset
 
-  alias NervesHubCore.Repo
-  alias NervesHubCore.Accounts
-  alias NervesHubCore.Accounts.{User, Org}
+  # alias NervesHubCore.Repo
+  # alias NervesHubCore.Accounts
+  # alias NervesHubCore.Accounts.{User, Org}
 
   def up do
     # This should have been done outside of a migration. If the User schema ever changes then

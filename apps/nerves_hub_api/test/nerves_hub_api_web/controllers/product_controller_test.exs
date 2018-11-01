@@ -5,7 +5,7 @@ defmodule NervesHubAPIWeb.ProductControllerTest do
   alias NervesHubCore.Accounts
 
   setup context do
-    org = Fixtures.org_fixture(%{name: "api-test"})
+    org = Fixtures.org_fixture(%{name: "api test"})
     Accounts.add_user_to_org(context.user, org)
     Map.put(context, :org, org)
   end

@@ -49,7 +49,7 @@ defmodule NervesHubCore.SeedHelpers do
   end
 
   def nerves_team_seed(root_user_params) do
-    org = Fixtures.org_fixture(%{name: "Nerves-Team"})
+    org = Fixtures.org_fixture(%{name: "Nerves Team"})
 
     for _ <- 0..2, do: Fixtures.org_key_fixture(org)
 
