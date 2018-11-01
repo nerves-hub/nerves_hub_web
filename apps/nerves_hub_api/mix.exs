@@ -36,14 +36,13 @@ defmodule NervesHubAPI.Mixfile do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, github: "phoenixframework/phoenix", override: true},
-      {:phoenix_pubsub, "~> 1.0"},
-      {:phoenix_live_reload,
-       github: "mobileoverlord/phoenix_live_reload",
-       branch: "transport",
-       override: true,
-       only: :dev},
+      {:phoenix, "~> 1.4.0-rc or ~> 1.4", override: true},
+      {:phoenix_pubsub, "~> 1.1"},
+      {:phoenix_live_reload, "~> 1.2.0-rc or ~> 1.2", only: :dev},
+      {:plug, "~> 1.7"},
+      {:plug_cowboy, "~> 2.0"},
       {:gettext, "~> 0.11"},
+      {:distillery, "~> 2.0"},
       {:cowboy, "~> 2.1", override: true},
       {:nerves_hub_core, in_umbrella: true}
     ]

@@ -227,8 +227,8 @@ defmodule NervesHubCore.AccountsTest do
 
     {:ok, _} = Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foo"})
 
-    {:error, %Ecto.Changeset{errors: [name: {"has already been taken", []}]}} =
-      Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foobar"})
+    assert {:error, %Ecto.Changeset{errors: [name: {"has already been taken", [_ | _]}]}} =
+             Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foobar"})
   end
 
   test "org_key key must be unique" do

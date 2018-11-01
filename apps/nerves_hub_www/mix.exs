@@ -50,23 +50,20 @@ defmodule NervesHubWWW.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:plug, "~> 1.6"},
-      {:phoenix, github: "phoenixframework/phoenix", override: true},
+      {:phoenix, "~> 1.4.0-rc or ~> 1.4", override: true},
       {:phoenix_pubsub, "~> 1.1"},
-      {:phoenix_ecto, github: "phoenixframework/phoenix_ecto"},
-      {:phoenix_html, "~> 2.10"},
-      {:phoenix_live_reload,
-       github: "mobileoverlord/phoenix_live_reload",
-       branch: "transport",
-       override: true,
-       only: :dev},
+      {:phoenix_live_reload, "~> 1.2.0-rc or ~> 1.2", only: :dev},
+      {:plug, "~> 1.7"},
+      {:plug_cowboy, "~> 2.0"},
+      {:phoenix_ecto, "~> 4.0"},
+      {:phoenix_html, "~> 2.12"},
       {:phoenix_markdown, "~> 1.0"},
-      {:gettext, "~> 0.11"},
       {:cowboy, "~> 2.0", override: true},
+      {:gettext, "~> 0.11"},
       {:hackney, "~> 1.9"},
       {:bamboo, "~> 1.0"},
       {:bamboo_smtp, "~> 1.5.0"},
-      {:distillery, "~> 1.5"},
+      {:distillery, "~> 2.0"},
       {:nerves_hub_core, in_umbrella: true},
       {:nerves_hub_device, in_umbrella: true}
     ]

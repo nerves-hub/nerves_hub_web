@@ -1,5 +1,7 @@
 defmodule NervesHubCore.Repo do
-  use Ecto.Repo, otp_app: :nerves_hub_core
+  use Ecto.Repo,
+    otp_app: :nerves_hub_core,
+    adapter: Ecto.Adapters.Postgres
 
   @doc """
   Dynamically loads the repository url from the

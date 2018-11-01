@@ -198,7 +198,12 @@ defmodule NervesHubCore.Accounts.User do
   defp email_password_update_valid?(%Changeset{} = changeset, _, _), do: changeset
 
   defp expire_password_reset_token(%Changeset{changes: %{password: _}} = changeset) do
-    changeset |> put_change(:password_reset_token_expires, DateTime.utc_now())
+    changeset
+    |> put_change(
+      :password_reset_token_expires,
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+    )
   end
 
   defp expire_password_reset_token(%Changeset{} = changeset), do: changeset
@@ -209,7 +214,9 @@ defmodule NervesHubCore.Accounts.User do
     changeset
     |> put_change(
       :password_reset_token_expires,
-      DateTime.utc_now() |> Timex.shift(password_reset_window())
+      DateTime.utc_now()
+      |> Timex.shift(password_reset_window())
+      |> DateTime.truncate(:second)
     )
   end
 

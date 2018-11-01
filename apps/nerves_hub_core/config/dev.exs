@@ -8,9 +8,7 @@ config :nerves_hub_core, NervesHubCore.Firmwares.Upload.File,
 
 # config :nerves_hub_core, NervesHubCore.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
 
-config :nerves_hub_core, NervesHubCore.Repo,
-  adapter: Ecto.Adapters.Postgres,
-  ssl: false
+config :nerves_hub_core, NervesHubCore.Repo, ssl: false
 
 config :nerves_hub_core, NervesHubCore.CertificateAuthority,
   host: "0.0.0.0",

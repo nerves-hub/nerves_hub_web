@@ -10,8 +10,8 @@ config :nerves_hub_core, NervesHubCore.Firmwares.Upload.File,
   public_path: "/firmware"
 
 config :nerves_hub_core, NervesHubCore.Repo,
-  adapter: Ecto.Adapters.Postgres,
   ssl: false,
+  pool_size: 100,
   pool: Ecto.Adapters.SQL.Sandbox
 
 config :nerves_hub_core, NervesHubCore.CertificateAuthority,
