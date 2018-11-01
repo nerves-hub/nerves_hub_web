@@ -52,7 +52,7 @@ defmodule NervesHubCore.FirmwaresTest do
 
     test "enforces uuid uniqueness within a product",
          %{firmware: %{upload_metadata: %{local_path: filepath}}, org: org} do
-      assert {:error, %Ecto.Changeset{errors: [uuid: {"has already been taken", []}]}} =
+      assert {:error, %Ecto.Changeset{errors: [uuid: {"has already been taken", [_ | _]}]}} =
                Firmwares.create_firmware(org, filepath)
     end
 
@@ -309,7 +309,7 @@ defmodule NervesHubCore.FirmwaresTest do
 
     test "garbage collect old firmware", %{org_key: org_key, product: product} do
       firmware = Fixtures.firmware_fixture(org_key, product, %{ttl: 1})
-      :timer.sleep(1_000)
+      :timer.sleep(2_500)
       firmwares = Firmwares.get_firmware_by_expired_ttl()
       assert Enum.find(firmwares, &(&1.id == firmware.id)) != nil
     end

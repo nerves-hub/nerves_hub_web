@@ -1,5 +1,5 @@
 defmodule NervesHubWWWWeb.SessionControllerTest do
-  use NervesHubWWWWeb.ConnCase.Browser, async: true
+  use NervesHubWWWWeb.ConnCase.Browser, async: false
 
   alias NervesHubCore.{Accounts, Fixtures}
 
@@ -28,7 +28,6 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
   describe "create session" do
     test "adds current_org_id to session", %{user: user, org: org} do
       conn = build_conn()
-      Accounts.update_user(user, %{orgs: [%{name: "another org"}]})
 
       conn =
         post(
@@ -37,6 +36,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
           login: %{email: user.email, password: user.password}
         )
 
+      conn = put(conn, session_path(conn, :set_org, org: org))
       assert redirected_to(conn) == dashboard_path(conn, :index)
       assert get_session(conn, "current_org_id") == org.id
     end

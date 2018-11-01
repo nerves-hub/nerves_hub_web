@@ -41,16 +41,18 @@ defmodule NervesHubCore.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ecto, "~> 2.2"},
-      {:postgrex, "~> 0.13"},
+      {:phoenix, "~> 1.4.0-rc or ~> 1.4", override: true},
+      {:plug, "~> 1.7"},
+      {:plug_cowboy, "~> 2.0"},
+      {:ecto, "~> 3.0"},
+      {:ecto_sql, "~> 3.0.0-rc or ~> 3.0"},
+      {:postgrex, "~> 0.14-0-rc or ~> 0.14"},
       {:bcrypt_elixir, "~> 1.0"},
       {:comeonin, "~> 4.1"},
       # poison can be removed once a new release of postgrex is made
       {:poison, "~> 3.0"},
       {:timex, "~> 3.1"},
-      {:plug, "~> 1.6"},
       {:jason, "~> 1.0"},
-      {:phoenix, github: "phoenixframework/phoenix", override: true},
       {:sweet_xml, "~> 0.6"},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"}
