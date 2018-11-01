@@ -44,7 +44,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
 
   describe "set_org" do
     test "adds org to session if user belongs to org", %{conn: conn, current_user: user} do
-      new_org = Fixtures.org_fixture(%{name: "this org"})
+      new_org = Fixtures.org_fixture(%{name: "belongs_org"})
       {:ok, _user} = Accounts.add_user_to_org(user, new_org)
 
       result_conn = put(conn, session_path(conn, :set_org, org: new_org))
@@ -57,7 +57,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
       conn: conn,
       current_org: org
     } do
-      new_org = Fixtures.org_fixture(%{name: "this org"})
+      new_org = Fixtures.org_fixture(%{name: "this_org"})
       conn = put(conn, session_path(conn, :set_org, org: new_org))
 
       assert redirected_to(conn) == dashboard_path(conn, :index)

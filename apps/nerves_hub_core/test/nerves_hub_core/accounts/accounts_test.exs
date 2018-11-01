@@ -111,7 +111,7 @@ defmodule NervesHubCore.AccountsTest do
     org = Fixtures.org_fixture()
     user = Fixtures.user_fixture(%{orgs: [org]})
 
-    new_org = Fixtures.org_fixture(%{name: "new org"})
+    new_org = Fixtures.org_fixture(%{name: "new-org"})
 
     assert {:error, %Changeset{errors: [orgs: _]}} =
              Accounts.update_user(user, %{orgs: [org, new_org]})
@@ -245,7 +245,7 @@ defmodule NervesHubCore.AccountsTest do
     first_id = org.id
     org_key = Fixtures.org_key_fixture(org)
 
-    other_org = Fixtures.org_fixture(%{name: "another org"})
+    other_org = Fixtures.org_fixture(%{name: "another-org"})
 
     assert {:ok, %OrgKey{org_id: ^first_id}} =
              Accounts.update_org_key(org_key, %{org_id: other_org.id})

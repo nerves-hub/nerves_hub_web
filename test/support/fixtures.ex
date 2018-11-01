@@ -20,7 +20,7 @@ defmodule NervesHubCore.Fixtures do
 
   @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
 
-  @org_params %{name: "Test Org"}
+  @org_params %{name: "Test-Org"}
 
   @deployment_params %{
     name: "Test Deployment",
@@ -243,7 +243,7 @@ defmodule NervesHubCore.Fixtures do
   end
 
   def smartrent_fixture() do
-    org = org_fixture(%{name: "Smart Rent"})
+    org = org_fixture(%{name: "SmartRent"})
     product = product_fixture(org, %{name: "Smart Rent Thing"})
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
