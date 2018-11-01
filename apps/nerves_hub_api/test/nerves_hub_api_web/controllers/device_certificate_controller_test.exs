@@ -2,7 +2,6 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
   alias NervesHubCore.{Devices, Certificate}
-  alias NervesHubCore.Fixtures
 
   setup context do
     org = context.org
@@ -19,13 +18,15 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
     end
   end
 
-  @tag :ca_integration
   describe "create device certificate" do
+    @tag :ca_integration
     test "renders key when data is valid", %{conn: conn, org: org, device: device} do
+      subject = "/O=NervesHub/CN=device-1234"
+      key = X509.PrivateKey.new_ec(:secp256r1)
+
       csr =
-        Fixtures.path()
-        |> Path.join("cfssl/device-1234-csr.pem")
-        |> File.read!()
+        X509.CSR.new(key, subject)
+        |> X509.CSR.to_pem()
         |> Base.encode64()
 
       params = %{identifier: device.identifier, csr: csr}
@@ -34,12 +35,14 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
       resp_data = json_response(conn, 200)["data"]
       assert %{"cert" => cert} = resp_data
 
-      {:ok, serial} = Certificate.get_serial_number(cert)
+      cert = X509.Certificate.from_pem!(cert)
+      serial = Certificate.get_serial_number(cert)
       {:ok, cert} = Devices.get_device_certificate_by_serial(serial)
 
       assert cert.device_id == device.id
     end
 
+    @tag :ca_integration
     test "renders errors when data is invalid", %{conn: conn, org: org, device: device} do
       conn =
         post(conn, device_certificate_path(conn, :sign, org.name, device.identifier), csr: "")

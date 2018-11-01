@@ -40,8 +40,8 @@ defmodule NervesHubWWWWeb.AccountCertificateControllerTest do
     end
   end
 
-  @tag :ca_integration
   describe "create product" do
+    @tag :ca_integration
     test "redirects to show when data is valid", %{conn: conn} do
       params =
         Fixtures.user_certificate_params()

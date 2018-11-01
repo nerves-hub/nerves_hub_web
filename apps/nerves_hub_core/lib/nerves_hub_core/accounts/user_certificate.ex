@@ -10,7 +10,8 @@ defmodule NervesHubCore.Accounts.UserCertificate do
     :user_id,
     :serial,
     :description,
-    :authority_key_id,
+    :aki,
+    :ski,
     :not_before,
     :not_after
   ]
@@ -20,7 +21,8 @@ defmodule NervesHubCore.Accounts.UserCertificate do
 
     field(:serial, :string)
     field(:description, :string)
-    field(:authority_key_id, :string)
+    field(:aki, :binary)
+    field(:ski, :binary)
     field(:not_before, :utc_datetime)
     field(:not_after, :utc_datetime)
 

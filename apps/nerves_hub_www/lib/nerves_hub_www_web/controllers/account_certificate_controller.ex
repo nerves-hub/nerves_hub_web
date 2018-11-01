@@ -4,7 +4,7 @@ defmodule NervesHubWWWWeb.AccountCertificateController do
   require Logger
 
   alias Ecto.Changeset
-  alias NervesHubCore.CertificateAuthority
+  alias NervesHubCore.{Certificate, CertificateAuthority}
   alias NervesHubCore.Accounts
   alias NervesHubCore.Accounts.UserCertificate
 
@@ -41,14 +41,14 @@ defmodule NervesHubWWWWeb.AccountCertificateController do
     username = user.email
 
     with {:ok, resp} <- CertificateAuthority.create_user_certificate(username),
-         cert <- Map.get(resp, "certificate"),
-         key <- Map.get(resp, "private_key"),
-         {:ok, %{"success" => true, "result" => %{"serial_number" => serial_number}}} <-
-           CertificateAuthority.get_certificate_info(cert) do
+         cert_pem <- Map.get(resp, "cert"),
+         key <- Map.get(resp, "key"),
+         {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
+         serial_number <- Certificate.get_serial_number(cert) do
       user_certificate_params = Map.put(user_certificate_params, "serial", serial_number)
 
       archive =
-        create_certificate_archive(cert, key)
+        create_certificate_archive(cert_pem, key)
         |> Base.encode64()
 
       {:ok, db_cert} = Accounts.create_user_certificate(user, user_certificate_params)

@@ -9,7 +9,8 @@ defmodule NervesHubCore.Devices.DeviceCertificate do
   @params [
     :device_id,
     :serial,
-    :authority_key_id,
+    :aki,
+    :ski,
     :not_after,
     :not_before
   ]
@@ -18,7 +19,8 @@ defmodule NervesHubCore.Devices.DeviceCertificate do
     belongs_to(:device, Device)
 
     field(:serial, :string)
-    field(:authority_key_id, :string)
+    field(:aki, :binary)
+    field(:ski, :binary)
     field(:not_before, :utc_datetime)
     field(:not_after, :utc_datetime)
 

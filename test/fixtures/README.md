@@ -8,11 +8,11 @@ this file if you need to generate them again.
 On Mac OS:
 
 ```sh
-brew install cfssl
+brew install ssl
 ```
 
-On other platforms `cfssl` can be installed from their github repo
-https://github.com/cloudflare/cfssl
+On other platforms `ssl` can be installed from their github repo
+https://github.com/cloudflare/ssl
 
 ## Generate SSL certificates
 
@@ -20,7 +20,7 @@ https://github.com/cloudflare/cfssl
 
 ```sh
 cd certs
-cfssl gencert -initca ../cert_config/ca-csr.json | cfssljson -bare ca -
+ssl gencert -initca ../cert_config/ca-csr.json | ssljson -bare ca -
 ```
 
 > If this were a real CA, `ca-key.pem` file should be kept in a safe place (i.e.
@@ -30,7 +30,7 @@ cfssl gencert -initca ../cert_config/ca-csr.json | cfssljson -bare ca -
 
 ```sh
 cd certs
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=../cert_config/ca-config.json -profile=www ../cert_config/server.json | cfssljson -bare server
+ssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=../cert_config/ca-config.json -profile=www ../cert_config/server.json | ssljson -bare server
 ```
 
 ### Client certificate(s)
@@ -40,7 +40,7 @@ device's serial number.
 
 ```sh
 cd certs
-echo '{"CN":"device-1234","hosts":[""],"key":{"algo":"ecdsa","size":256}}' | cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=../cert_config/ca-config.json -profile=client - | cfssljson -bare device-1234
+echo '{"CN":"device-1234","hosts":[""],"key":{"algo":"ecdsa","size":256}}' | ssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=../cert_config/ca-config.json -profile=client - | ssljson -bare device-1234
 ```
 
 ## Generate SSL certificates for negative unit tests
@@ -51,12 +51,12 @@ These certificates are used to verify that bogus certificates are not allowed.
 
 ```sh
 cd certs
-cfssl gencert -initca ../cert_config/ca-csr.json | cfssljson -bare ca-fake -
+ssl gencert -initca ../cert_config/ca-csr.json | ssljson -bare ca-fake -
 ```
 
 ### Create fake client certificate
 
 ```sh
 cd certs
-echo '{"CN":"device-fake","hosts":[""],"key":{"algo":"ecdsa","size":256}}' | cfssl gencert -ca=ca-fake.pem -ca-key=ca-fake-key.pem -config=../cert_config/ca-config.json -profile=client - | cfssljson -bare device-fake
+echo '{"CN":"device-fake","hosts":[""],"key":{"algo":"ecdsa","size":256}}' | ssl gencert -ca=ca-fake.pem -ca-key=ca-fake-key.pem -config=../cert_config/ca-config.json -profile=client - | ssljson -bare device-fake
 ```

@@ -3,9 +3,10 @@ defmodule NervesHubWWW.Integration.CertificateAuthorityTest do
 
   @tag :ca_integration
   test "Can generate new device certificates" do
-    serial = "12345"
+    serial = "device-1234"
     {:ok, resp} = NervesHubCore.CertificateAuthority.create_device_certificate(serial)
-    %{"certificate" => cert} = resp
-    assert {:ok, ^serial} = NervesHubCore.Certificate.get_common_name(cert)
+    assert %{"cert" => cert, "key" => key} = resp
+    cert = X509.Certificate.from_pem!(cert)
+    assert ^serial = NervesHubCore.Certificate.get_common_name(cert)
   end
 end

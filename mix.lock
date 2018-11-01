@@ -53,4 +53,5 @@
   "tzdata": {:hex, :tzdata, "0.5.19", "7962a3997bf06303b7d1772988ede22260f3dae1bf897408ebdac2b4435f4e6a", [:mix], [{:hackney, "~> 1.0", [hex: :hackney, repo: "hexpm", optional: false]}], "hexpm"},
   "unicode_util_compat": {:hex, :unicode_util_compat, "0.3.1", "a1f612a7b512638634a603c8f401892afbf99b8ce93a45041f8aaca99cadb85e", [:rebar3], [], "hexpm"},
   "websocket_client": {:hex, :websocket_client, "1.3.0", "2275d7daaa1cdacebf2068891c9844b15f4fdc3de3ec2602420c2fb486db59b6", [:rebar3], [], "hexpm"},
+  "x509": {:hex, :x509, "0.4.0", "7af40e355a6021a0fa85173cf3f5529c31fa3847e2b9e896d228e91b5eff2f65", [:mix], [], "hexpm"},
 }

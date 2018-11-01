@@ -147,7 +147,8 @@ defmodule NervesHubCore.DevicesTest do
       not_before: now,
       not_after: now,
       device_id: device_id,
-      authority_key_id: "12345"
+      aki: "1234",
+      ski: "5678"
     }
 
     assert {:ok, %DeviceCertificate{device_id: ^device_id}} =
@@ -158,11 +159,11 @@ defmodule NervesHubCore.DevicesTest do
     now = DateTime.utc_now()
 
     params = %{
-      serial: "12345",
+      serial: "67890",
       not_before: now,
       not_after: now,
-      device_id: device.id,
-      authority_key_id: "12345"
+      aki: "1234",
+      ski: "5678"
     }
 
     assert {:ok, %DeviceCertificate{} = cert1} = Devices.create_device_certificate(device, params)
@@ -183,7 +184,8 @@ defmodule NervesHubCore.DevicesTest do
       not_before: now,
       not_after: now,
       device_id: device.id,
-      authority_key_id: "12345"
+      aki: "1234",
+      ski: "5678"
     }
 
     assert {:ok, %DeviceCertificate{}} = Devices.create_device_certificate(device, params)
