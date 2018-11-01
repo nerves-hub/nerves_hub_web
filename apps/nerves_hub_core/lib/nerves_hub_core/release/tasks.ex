@@ -22,7 +22,7 @@ defmodule NervesHubCore.Release.Tasks do
 
   defp init(app, start_apps) do
     IO.puts("Loading nerves_hub_www app for migrations...")
-    :ok = Application.load(app)
+    Application.load(app)
 
     IO.puts("Starting dependencies...")
     Enum.each(start_apps, &Application.ensure_all_started/1)
