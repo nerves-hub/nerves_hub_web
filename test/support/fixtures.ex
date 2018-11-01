@@ -64,7 +64,8 @@ defmodule NervesHubCore.Fixtures do
       serial: "158098897653878678601091983566405937658689714637",
       not_before: DateTime.utc_now(),
       not_after: Timex.shift(DateTime.utc_now(), minutes: 5),
-      authority_key_id: "27:A1:68:B5:73:7D:4D:56:9F:6F:B1:41:F7:A6:D3:4B:C7:8E:F4:43"
+      aki: "1234",
+      ski: "5678"
     }
   end
 
@@ -185,14 +186,15 @@ defmodule NervesHubCore.Fixtures do
   end
 
   def device_certificate_fixture(%Devices.Device{} = device) do
-    cert_file = Path.join(path(), "cfssl/device-1234-cert.pem")
+    cert_file = Path.join(path(), "ssl/device-1234-cert.pem")
     {:ok, cert} = File.read(cert_file)
+    {:ok, cert} = X509.Certificate.from_pem(cert)
 
-    {:ok, serial} = Certificate.get_serial_number(cert)
-    {:ok, {not_before, not_after}} = Certificate.get_validity(cert)
-    {:ok, authority_key_id} = Certificate.get_authority_key_id(cert)
-    authority_key_id = Certificate.binary_to_hex_string(authority_key_id)
-    params = %{serial: serial, authority_key_id: authority_key_id, not_before: not_before, not_after: not_after}
+    serial = Certificate.get_serial_number(cert)
+    {not_before, not_after} = Certificate.get_validity(cert)
+    aki = Certificate.get_aki(cert)
+    ski = Certificate.get_ski(cert)
+    params = %{serial: serial, aki: aki, ski: ski, not_before: not_before, not_after: not_after}
 
     {:ok, device_cert} = Devices.create_device_certificate(device, params)
     device_cert

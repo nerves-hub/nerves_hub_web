@@ -14,19 +14,21 @@ defmodule NervesHubAPIWeb.DeviceCertificateController do
 
   def sign(%{assigns: %{org: org}} = conn, %{"csr" => csr, "device_identifier" => identifier}) do
     with {:ok, device} <- Devices.get_device_by_identifier(org, identifier),
-         {:ok, %{"cert" => cert}} <- CertificateAuthority.sign_device_csr(csr),
-         {:ok, serial} <- Certificate.get_serial_number(cert),
-         {:ok, authority_key_id} <- Certificate.get_authority_key_id(cert),
-         authority_key_id <- Certificate.binary_to_hex_string(authority_key_id),
-         {:ok, {not_before, not_after}} <- Certificate.get_validity(cert),
+         {:ok, %{"cert" => cert_pem}} <- CertificateAuthority.sign_device_csr(csr),
+         {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
+         serial <- Certificate.get_serial_number(cert),
+         aki <- Certificate.get_aki(cert),
+         ski <- Certificate.get_ski(cert),
+         {not_before, not_after} <- Certificate.get_validity(cert),
          params <- %{
            serial: serial,
-           authority_key_id: authority_key_id,
+           aki: aki,
+           ski: ski,
            not_before: not_before,
            not_after: not_after
          },
          {:ok, _db_cert} <- Devices.create_device_certificate(device, params) do
-      render(conn, "cert.json", cert: cert, device_certificate: cert)
+      render(conn, "cert.json", cert: cert_pem, device_certificate: cert_pem)
     end
   end
 end

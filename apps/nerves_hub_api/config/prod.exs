@@ -9,9 +9,9 @@ config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
     otp_app: :nerves_hub_api,
     # Enable client SSL
     verify: :verify_peer,
-    keyfile: "/etc/cfssl/api.nerves-hub.org-key.pem",
-    certfile: "/etc/cfssl/api.nerves-hub.org.pem",
-    cacertfile: "/etc/cfssl/ca.pem"
+    keyfile: "/etc/ssl/api.nerves-hub.org-key.pem",
+    certfile: "/etc/ssl/api.nerves-hub.org.pem",
+    cacertfile: "/etc/ssl/ca.pem"
   ]
 
 # Do not print debug messages in production

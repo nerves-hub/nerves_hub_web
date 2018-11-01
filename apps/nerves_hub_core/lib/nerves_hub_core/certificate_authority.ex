@@ -6,32 +6,40 @@ defmodule NervesHubCore.CertificateAuthority do
   end
 
   def create_device_certificate(serial) do
-    body = Jason.encode!(%{serial: serial})
-    url = url("/create_device_certificate")
+    subject = "/O=NervesHub/CN=" <> serial
+    key = X509.PrivateKey.new_ec(:secp256r1)
+    key_pem = X509.PrivateKey.to_pem(key)
 
-    :hackney.request(:post, url, headers(), body, opts())
-    |> resp()
+    csr =
+      X509.CSR.new(key, subject)
+      |> X509.CSR.to_pem()
+      |> Base.encode64()
+
+    case sign_device_csr(csr) do
+      {:ok, resp} -> {:ok, Map.put(resp, "key", key_pem)}
+      error -> error
+    end
   end
 
   def create_user_certificate(username) do
-    body = Jason.encode!(%{username: username})
-    url = url("/create_user_certificate")
+    subject = "/O=NervesHub/CN=" <> username
+    key = X509.PrivateKey.new_ec(:secp256r1)
+    key_pem = X509.PrivateKey.to_pem(key)
 
-    :hackney.request(:post, url, headers(), body, opts())
-    |> resp()
+    csr =
+      X509.CSR.new(key, subject)
+      |> X509.CSR.to_pem()
+      |> Base.encode64()
+
+    case sign_user_csr(csr) do
+      {:ok, resp} -> {:ok, Map.put(resp, "key", key_pem)}
+      error -> error
+    end
   end
 
   def sign_user_csr(csr) do
     body = Jason.encode!(%{csr: csr})
     url = url("/sign_user_csr")
-
-    :hackney.request(:post, url, headers(), body, opts())
-    |> resp()
-  end
-
-  def get_certificate_info(cert) do
-    body = Jason.encode!(%{certificate: cert})
-    url = url("/certinfo")
 
     :hackney.request(:post, url, headers(), body, opts())
     |> resp()

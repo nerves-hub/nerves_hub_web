@@ -1,9 +1,3 @@
-opts =
-  case System.get_env("CI") do
-    nil -> []
-    _ -> [exclude: [:ca_integration]]
-  end
-
-ExUnit.start(opts)
+ExUnit.start(exclude: [:ca_integration])
 
 Ecto.Adapters.SQL.Sandbox.mode(NervesHubCore.Repo, :manual)

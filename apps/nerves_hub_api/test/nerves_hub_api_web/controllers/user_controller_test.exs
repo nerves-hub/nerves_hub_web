@@ -48,14 +48,16 @@ defmodule NervesHubAPIWeb.UserControllerTest do
 
   @tag :ca_integration
   test "sign new registration certificates" do
+    subject = "/O=NervesHub/CN=username"
+    key = X509.PrivateKey.new_ec(:secp256r1)
+
     csr =
-      Fixtures.path()
-      |> Path.join("cfssl/user-csr.pem")
-      |> File.read!()
+      X509.CSR.new(key, subject)
+      |> X509.CSR.to_pem()
       |> Base.encode64()
 
     params =
-      Fixtures.user_fixture()
+      Fixtures.user_fixture(name: "username")
       |> Map.take([:email, :password])
       |> Map.put(:csr, csr)
       |> Map.put(:description, "test-machine")
@@ -66,7 +68,8 @@ defmodule NervesHubAPIWeb.UserControllerTest do
     resp_data = json_response(conn, 200)["data"]
     assert %{"cert" => cert} = resp_data
 
-    {:ok, serial} = Certificate.get_serial_number(cert)
+    cert = X509.Certificate.from_pem!(cert)
+    serial = Certificate.get_serial_number(cert)
 
     user = Accounts.get_user_by_certificate_serial(serial)
     assert user.email == params.email

@@ -19,29 +19,17 @@ defmodule NervesHubDeviceWeb.UserSocket do
   # performing token verification on connect.
 
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) do
-    case Certificate.get_serial_number(ssl_cert) do
-      {:ok, serial} ->
-        build_socket(socket, serial)
-
-      error ->
-        error
+    with {:ok, cert} <- X509.Certificate.from_der(ssl_cert),
+         serial <- Certificate.get_serial_number(cert),
+         {:ok, cert} <- Devices.get_device_certificate_by_serial(serial) do
+      {:ok, assign(socket, :certificate, cert)}
+    else
+      _ -> :error
     end
   end
 
   def connect(_params, _socket, _connect_info) do
     :error
-  end
-
-  defp build_socket(socket, serial) do
-    with {:ok, cert} <- Devices.get_device_certificate_by_serial(serial) do
-      new_socket =
-        socket
-        |> assign(:certificate, cert)
-
-      {:ok, new_socket}
-    else
-      _ -> :error
-    end
   end
 
   # Socket id's are topics that allow you to identify all sockets for a given user:

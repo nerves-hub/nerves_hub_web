@@ -13,9 +13,9 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     serializer: Jason,
     ssl_verify: :verify_peer,
     socket_opts: [
-      certfile: Path.expand("../../test/fixtures/cfssl/device-fake.pem") |> to_charlist,
-      keyfile: Path.expand("../../test/fixtures/cfssl/device-fake-key.pem") |> to_charlist,
-      cacertfile: Path.expand("../../test/fixtures/cfssl/ca-fake.pem") |> to_charlist,
+      certfile: Path.expand("../../test/fixtures/ssl/device-fake.pem") |> to_charlist,
+      keyfile: Path.expand("../../test/fixtures/ssl/device-fake-key.pem") |> to_charlist,
+      cacertfile: Path.expand("../../test/fixtures/ssl/ca-fake.pem") |> to_charlist,
       server_name_indication: 'device.nerves-hub.org'
     ]
   ]
@@ -25,9 +25,9 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     serializer: Jason,
     ssl_verify: :verify_peer,
     socket_opts: [
-      certfile: Path.expand("../../test/fixtures/cfssl/device-1234-cert.pem") |> to_charlist,
-      keyfile: Path.expand("../../test/fixtures/cfssl/device-1234-key.pem") |> to_charlist,
-      cacertfile: Path.expand("../../test/fixtures/cfssl/ca.pem") |> to_charlist,
+      certfile: Path.expand("../../test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
+      keyfile: Path.expand("../../test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
+      cacertfile: Path.expand("../../test/fixtures/ssl/ca.pem") |> to_charlist,
       server_name_indication: 'device.nerves-hub.org'
     ]
   ]

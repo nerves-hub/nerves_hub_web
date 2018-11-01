@@ -10,8 +10,9 @@ defmodule NervesHubDeviceWeb.Plugs.Device do
   def call(conn, _opts) do
     peer_data = Plug.Conn.get_peer_data(conn)
 
-    with {:ok, ssl_cert} <- Map.fetch(peer_data, :ssl_cert),
-         {:ok, serial} <- Certificate.get_serial_number(ssl_cert),
+    with {:ok, cert} <- Map.fetch(peer_data, :ssl_cert),
+         {:ok, cert} <- X509.Certificate.from_der(cert),
+         serial <- Certificate.get_serial_number(cert),
          {:ok, cert} <- Devices.get_device_certificate_by_serial(serial),
          {:ok, device} <- Devices.get_device_by_certificate(cert) do
       assign(conn, :device, device)

@@ -1,98 +1,69 @@
 defmodule NervesHubCore.Certificate do
-  require Record
+  import X509.ASN1,
+    only: [
+      extension: 1,
+      authority_key_identifier: 1,
+      validity: 1,
+      oid: 1,
+      attribute_type_and_value: 1
+    ]
 
   @era 2000
 
-  def get_authority_key_id(cert) do
-    result =
-      decode_cert(cert)
-      |> List.last()
-      |> Enum.find_value(fn
-        {:Extension, {2, 5, 29, 35}, _, {:AuthorityKeyIdentifier, id, _, _}} -> id
-        _ -> false
-      end)
+  def get_aki(otp_certificate) do
+    otp_certificate
+    |> X509.Certificate.extensions()
+    |> X509.Certificate.Extension.find(:authority_key_identifier)
+    |> extension()
+    |> Keyword.get(:extnValue)
+    |> authority_key_identifier()
+    |> Keyword.get(:keyIdentifier)
+  end
 
-    if result do
-      {:ok, result}
-    else
-      {:error, "Unable to parse certificate for authority_key_id"}
+  def get_ski(otp_certificate) do
+    otp_certificate
+    |> X509.Certificate.extensions()
+    |> X509.Certificate.Extension.find(:subject_key_identifier)
+    |> extension()
+    |> Keyword.get(:extnValue)
+  end
+
+  def get_common_name(otp_certificate) do
+    {:rdnSequence, attributes} = X509.Certificate.subject(otp_certificate)
+
+    common_name_oid = oid(:"id-at-commonName")
+
+    attributes
+    |> List.flatten()
+    |> Enum.map(&attribute_type_and_value/1)
+    |> Enum.find(&(&1[:type] == common_name_oid))
+    |> case do
+      nil ->
+        nil
+
+      common_name ->
+        Keyword.get(common_name, :value)
+        |> elem(1)
+        |> to_string
     end
   end
 
-  @spec get_common_name(binary) :: {:ok, binary} | :error
-  def get_common_name(cert) do
-    cert = decode_cert(cert)
-    [_, _, _ | cert] = cert
-
-    cn =
-      Enum.filter(cert, &Record.is_record/1)
-      |> Enum.reverse()
-      |> Enum.reduce(nil, fn
-        {:rdnSequence, attributes}, nil ->
-          List.flatten(attributes)
-          |> Enum.reduce(nil, fn
-            {:AttributeTypeAndValue, {2, 5, 4, 10}, cn}, nil ->
-              cn
-
-            _, cn ->
-              cn
-          end)
-
-        _, cn ->
-          cn
-      end)
-
-    case cn do
-      {_, cn} when is_list(cn) ->
-        {:ok, to_string(cn)}
-
-      _res ->
-        :error
-    end
+  def get_serial_number(otp_certificate) do
+    X509.Certificate.serial(otp_certificate)
+    |> to_string
   end
 
-  def get_serial_number(cert) do
-    [_, _, serial | _cert] = decode_cert(cert)
-    {:ok, to_string(serial)}
-  end
+  def get_validity(otp_certificate) do
+    validity =
+      X509.Certificate.validity(otp_certificate)
+      |> validity()
 
-  def get_validity(cert) do
-    cert = decode_cert(cert)
-    [_, _, _ | cert] = cert
+    {:utcTime, not_before} = Keyword.get(validity, :notBefore)
+    {:utcTime, not_after} = Keyword.get(validity, :notAfter)
 
-    result =
-      Enum.filter(cert, &Record.is_record/1)
-      |> Enum.reverse()
-      |> Enum.find(fn
-        {:Validity, {:utcTime, _}, {:utcTime, _}} -> true
-        _ -> false
-      end)
-
-    case result do
-      {:Validity, {:utcTime, not_before}, {:utcTime, not_after}} ->
-        not_before = to_string(not_before)
-        not_after = to_string(not_after)
-        {:ok, {convert_generalized_time(not_before), convert_generalized_time(not_after)}}
-
-      _ ->
-        {:error, "Unable to parse certificate for validity"}
-    end
-  end
-
-  def binary_to_hex_string(binary) do
-    binary
-    |> Base.encode16()
-    |> String.downcase()
-  end
-
-  defp decode_cert(<<"-----BEGIN CERTIFICATE-----", _rest::binary>> = cert) do
-    [{_, cert, _}] = :public_key.pem_decode(cert)
-    decode_cert(cert)
-  end
-
-  defp decode_cert(cert) do
-    {_, cert, _, _} = :public_key.pkix_decode_cert(cert, :otp)
-    Tuple.to_list(cert)
+    not_before = to_string(not_before) |> convert_generalized_time()
+    not_after = to_string(not_after) |> convert_generalized_time()
+    {not_before, not_after}
   end
 
   defp convert_generalized_time(timestamp) do

@@ -2,7 +2,7 @@
 
 set -e
 
-WORKING_DIR=${WORKING_DIR:-/etc/cfssl}
+WORKING_DIR=${WORKING_DIR:-/etc/ssl}
 S3_BUCKET=${S3_BUCKET:-'nerves-hub'}
 
 mkdir -p $WORKING_DIR

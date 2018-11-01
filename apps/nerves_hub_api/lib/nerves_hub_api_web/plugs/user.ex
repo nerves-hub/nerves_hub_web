@@ -17,12 +17,8 @@ defmodule NervesHubAPIWeb.Plugs.User do
         nil
 
       cert ->
-        cert =
-          {:Certificate, cert, :not_encrypted}
-          |> List.wrap()
-          |> :public_key.pem_encode()
-
-        {:ok, serial} = Certificate.get_serial_number(cert)
+        cert = X509.Certificate.from_der!(cert)
+        serial = Certificate.get_serial_number(cert)
         Accounts.get_user_by_certificate_serial(serial)
     end
     |> case do

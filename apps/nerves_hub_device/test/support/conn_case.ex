@@ -13,7 +13,7 @@ defmodule NervesHubDeviceWeb.ConnCase do
   of the test unless the test case is marked as async.
   """
 
-  @certificate Path.join([__DIR__, "../../../../test/fixtures/cfssl/device-1234-cert.pem"])
+  @certificate Path.join([__DIR__, "../../../../test/fixtures/ssl/device-1234-cert.pem"])
 
   use ExUnit.CaseTemplate
   alias NervesHubCore.Fixtures
