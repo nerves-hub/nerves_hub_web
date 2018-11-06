@@ -2,7 +2,7 @@ defmodule NervesHubCore.Release.Tasks do
   alias Ecto.Migrator
 
   @otp_app :nerves_hub_core
-  @start_apps [:logger, :ssl, :postgrex, :ecto]
+  @start_apps [:logger, :ssl, :postgrex, :ecto_sql]
 
   def migrate do
     init(@otp_app, @start_apps)
@@ -21,7 +21,7 @@ defmodule NervesHubCore.Release.Tasks do
   end
 
   defp init(app, start_apps) do
-    IO.puts("Loading nerves_hub_www app for migrations...")
+    IO.puts("Loading nerves_hub_core app for migrations...")
     Application.load(app)
 
     IO.puts("Starting dependencies...")
@@ -31,7 +31,7 @@ defmodule NervesHubCore.Release.Tasks do
 
     app
     |> Application.get_env(:ecto_repos, [])
-    |> Enum.each(& &1.start_link(pool_size: 2))
+    |> Enum.each(& &1.start_link(pool_size: 10))
   end
 
   defp stop do

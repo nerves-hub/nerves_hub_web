@@ -44,9 +44,8 @@ defmodule NervesHubCore.MixProject do
       {:phoenix, "~> 1.4.0-rc or ~> 1.4", override: true},
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.0"},
-      {:ecto, "~> 3.0"},
-      {:ecto_sql, "~> 3.0.0-rc or ~> 3.0"},
-      {:postgrex, "~> 0.14-0-rc or ~> 0.14"},
+      {:ecto_sql, "~> 3.0"},
+      {:postgrex, "~> 0.14"},
       {:bcrypt_elixir, "~> 1.0"},
       {:comeonin, "~> 4.1"},
       # poison can be removed once a new release of postgrex is made
