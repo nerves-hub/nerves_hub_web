@@ -11,7 +11,7 @@ config :nerves_hub_core, NervesHubCore.Firmwares.Upload.File,
 
 config :nerves_hub_core, NervesHubCore.Repo,
   ssl: false,
-  pool_size: 100,
+  pool_size: 30,
   pool: Ecto.Adapters.SQL.Sandbox
 
 config :nerves_hub_core, NervesHubCore.CertificateAuthority,
