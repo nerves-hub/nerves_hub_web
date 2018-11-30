@@ -12,7 +12,7 @@ defmodule NervesHubCore.Devices do
     Repo
   }
 
-  alias NervesHubCore.Devices.{Device, DeviceCertificate}
+  alias NervesHubCore.Devices.{Device, DeviceCertificate, CACertificate}
 
   @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
 
@@ -209,6 +209,34 @@ defmodule NervesHubCore.Devices do
 
       certificate ->
         {:ok, certificate}
+    end
+  end
+
+  @spec create_ca_certificate(Org.t(), any()) ::
+          {:ok, CACertificate.t()}
+          | {:error, Changeset.t()}
+  def create_ca_certificate(%Org{} = org, params) do
+    org
+    |> Ecto.build_assoc(:ca_certificates)
+    |> CACertificate.changeset(params)
+    |> Repo.insert()
+  end
+
+  @spec get_ca_certificate_by_aki(binary) :: CACertificate.t() | nil
+  def get_ca_certificate_by_aki(aki) do
+    Repo.get_by(CACertificate, aki: aki)
+    |> case do
+      nil -> {:error, :not_found}
+      ca_cert -> {:ok, ca_cert}
+    end
+  end
+
+  @spec get_ca_certificate_by_serial(binary) :: CACertificate.t() | nil
+  def get_ca_certificate_by_serial(serial) do
+    Repo.get_by(CACertificate, serial: serial)
+    |> case do
+      nil -> {:error, :not_found}
+      ca_cert -> {:ok, ca_cert}
     end
   end
 

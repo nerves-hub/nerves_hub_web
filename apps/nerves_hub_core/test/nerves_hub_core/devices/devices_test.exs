@@ -1,7 +1,7 @@
 defmodule NervesHubCore.DevicesTest do
   use NervesHubCore.DataCase, async: true
 
-  alias NervesHubCore.{Accounts, Fixtures, Devices, Deployments}
+  alias NervesHubCore.{Accounts, Fixtures, Devices, Devices.CACertificate, Deployments}
   alias NervesHubCore.Devices.DeviceCertificate
   alias Ecto.Changeset
 
@@ -199,6 +199,71 @@ defmodule NervesHubCore.DevicesTest do
     }
 
     assert {:error, %Changeset{}} = Devices.create_device_certificate(device, params)
+  end
+
+  test "create ca certificate with valid params", %{org: org} do
+    org_id = org.id
+
+    ca_key = X509.PrivateKey.new_ec(:secp256r1)
+    ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+    {not_before, not_after} = NervesHubCore.Certificate.get_validity(ca)
+
+    params = %{
+      serial: NervesHubCore.Certificate.get_serial_number(ca),
+      aki: NervesHubCore.Certificate.get_aki(ca),
+      ski: NervesHubCore.Certificate.get_ski(ca),
+      not_before: not_before,
+      not_after: not_after,
+      der: X509.Certificate.to_der(ca)
+    }
+
+    assert {:ok, %CACertificate{org_id: ^org_id}} = Devices.create_ca_certificate(org, params)
+  end
+
+  test "cannot create ca certificates with duplicate serial numbers", %{org: org} do
+    org_id = org.id
+
+    ca_key = X509.PrivateKey.new_ec(:secp256r1)
+    ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+    {not_before, not_after} = NervesHubCore.Certificate.get_validity(ca)
+
+    params = %{
+      serial: NervesHubCore.Certificate.get_serial_number(ca),
+      aki: NervesHubCore.Certificate.get_aki(ca),
+      ski: NervesHubCore.Certificate.get_ski(ca),
+      not_before: not_before,
+      not_after: not_after,
+      der: X509.Certificate.to_der(ca)
+    }
+
+    assert {:ok, %CACertificate{org_id: ^org_id}} = Devices.create_ca_certificate(org, params)
+    assert {:error, %Changeset{}} = Devices.create_ca_certificate(org, params)
+  end
+
+  test "can get certificate by aki", %{org: org} do
+    org_id = org.id
+
+    ca_key = X509.PrivateKey.new_ec(:secp256r1)
+    ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+    {not_before, not_after} = NervesHubCore.Certificate.get_validity(ca)
+
+    serial = NervesHubCore.Certificate.get_serial_number(ca)
+    aki = NervesHubCore.Certificate.get_aki(ca)
+
+    params = %{
+      serial: serial,
+      aki: aki,
+      ski: NervesHubCore.Certificate.get_ski(ca),
+      not_before: not_before,
+      not_after: not_after,
+      der: X509.Certificate.to_der(ca)
+    }
+
+    assert {:ok, %CACertificate{org_id: ^org_id}} = Devices.create_ca_certificate(org, params)
+    assert {:ok, %CACertificate{serial: ^serial}} = Devices.get_ca_certificate_by_aki(aki)
   end
 
   test "get_device_by_identifier with existing device", %{org: org, device: target_device} do

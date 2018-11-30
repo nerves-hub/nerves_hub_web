@@ -32,8 +32,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     ]
   ]
 
-  def device_fixture(device_params \\ %{}) do
-    org = Fixtures.org_fixture()
+  def device_fixture(device_params \\ %{}, org \\ nil) do
+    org = org || Fixtures.org_fixture()
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
 
@@ -50,8 +50,6 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         firmware,
         device_params |> Enum.into(%{tags: ["beta", "beta-edge"]})
       )
-
-    Fixtures.device_certificate_fixture(device)
 
     {device, firmware}
   end
@@ -90,6 +88,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {device, firmware} =
         %{identifier: @valid_serial}
         |> device_fixture()
+
+      Fixtures.device_certificate_fixture(device)
 
       opts =
         @ssl_socket_config
@@ -170,6 +170,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         %{identifier: @valid_serial}
         |> device_fixture()
 
+      Fixtures.device_certificate_fixture(device)
+
       device =
         device
         |> NervesHubCore.Repo.preload(last_known_firmware: [:product])
@@ -229,6 +231,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         %{identifier: @valid_serial}
         |> device_fixture()
 
+      Fixtures.device_certificate_fixture(device)
+
       target_uuid = firmware.uuid
 
       device =
@@ -283,6 +287,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         %{identifier: @valid_serial, product: @valid_product}
         |> device_fixture()
 
+      Fixtures.device_certificate_fixture(device)
+
       query_uuid = firmware.uuid
 
       {:ok, _} =
@@ -317,6 +323,83 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       assert updated_device.last_known_firmware.uuid == query_uuid
       assert "online" == Presence.device_status(updated_device)
+    end
+  end
+
+  describe "Custom CA Signers" do
+    test "vaild certificate can connect" do
+      org = Fixtures.org_fixture(%{name: "custom ca test"})
+
+      {device, firmware} =
+        %{identifier: @valid_serial}
+        |> device_fixture(org)
+
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+      {not_before, not_after} = NervesHubCore.Certificate.get_validity(ca)
+
+      serial = NervesHubCore.Certificate.get_serial_number(ca)
+      aki = NervesHubCore.Certificate.get_aki(ca)
+
+      params = %{
+        serial: serial,
+        aki: aki,
+        ski: NervesHubCore.Certificate.get_ski(ca),
+        not_before: not_before,
+        not_after: not_after,
+        der: X509.Certificate.to_der(ca)
+      }
+
+      {:ok, _cert_record} = Devices.create_ca_certificate(org, params)
+
+      key = X509.PrivateKey.new_ec(:secp256r1)
+
+      cert =
+        key
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("CN=#{device.identifier}", ca, ca_key)
+
+      nerves_hub_ca_cert =
+        Path.expand("../../test/fixtures/ssl/ca.pem")
+        |> File.read!()
+        |> X509.Certificate.from_pem!()
+
+      opts = [
+        url: "wss://127.0.0.1:4001/socket/websocket",
+        serializer: Jason,
+        ssl_verify: :verify_peer,
+        socket_opts: [
+          cert: X509.Certificate.to_der(cert),
+          key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
+          cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
+          server_name_indication: 'device.nerves-hub.org'
+        ],
+        caller: self()
+      ]
+
+      {:ok, _} = ClientSocket.start_link(opts)
+
+      {:ok, _channel} =
+        ClientChannel.start_link(
+          socket: ClientSocket,
+          topic: "firmware:#{firmware.uuid}",
+          caller: self()
+        )
+
+      ClientChannel.join(%{})
+
+      assert_receive(
+        {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
+        1_000
+      )
+
+      device =
+        NervesHubCore.Repo.get(Device, device.id)
+        |> NervesHubCore.Repo.preload(:org)
+
+      assert Presence.device_status(device) == "online"
+      refute_receive({"presence_diff", _})
     end
   end
 end
