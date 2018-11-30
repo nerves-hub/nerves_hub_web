@@ -1,6 +1,5 @@
 defmodule NervesHubDeviceWeb.UserSocket do
   use Phoenix.Socket
-  alias NervesHubCore.{Certificate, Devices}
 
   ## Channels
   # channel "room:*", NervesHubWWWWeb.RoomChannel
@@ -19,12 +18,11 @@ defmodule NervesHubDeviceWeb.UserSocket do
   # performing token verification on connect.
 
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) do
-    with {:ok, cert} <- X509.Certificate.from_der(ssl_cert),
-         serial <- Certificate.get_serial_number(cert),
-         {:ok, cert} <- Devices.get_device_certificate_by_serial(serial) do
-      {:ok, assign(socket, :certificate, cert)}
-    else
-      _ -> :error
+    certificate = X509.Certificate.from_der!(ssl_cert)
+
+    case NervesHubDevice.SSL.verify_device(certificate) do
+      {:ok, db_cert} -> {:ok, assign(socket, :certificate, db_cert)}
+      _e -> :error
     end
   end
 

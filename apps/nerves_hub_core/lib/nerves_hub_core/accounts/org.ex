@@ -5,7 +5,7 @@ defmodule NervesHubCore.Accounts.Org do
   import Ecto.Query
 
   alias NervesHubCore.Accounts.{User, OrgKey, OrgLimit}
-  alias NervesHubCore.Devices.Device
+  alias NervesHubCore.Devices.{Device, CACertificate}
   alias NervesHubCore.Products.Product
   alias NervesHubCore.Repo
   alias __MODULE__
@@ -17,6 +17,7 @@ defmodule NervesHubCore.Accounts.Org do
     has_many(:org_keys, OrgKey)
     has_many(:products, Product)
     has_many(:devices, Device)
+    has_many(:ca_certificates, CACertificate)
     has_one(:org_limits, OrgLimit)
 
     many_to_many(:users, User, join_through: "users_orgs", on_replace: :delete, unique: true)
