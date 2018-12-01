@@ -33,6 +33,6 @@ defmodule NervesHubCore.Devices.CACertificate do
     ca_certificate
     |> cast(params, @params)
     |> validate_required(@params)
-    |> unique_constraint(:serial, name: :ca_certificates_org_id_serial_index)
+    |> unique_constraint(:serial, name: :ca_certificates_serial_index)
   end
 end
