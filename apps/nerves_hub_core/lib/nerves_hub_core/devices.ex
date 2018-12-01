@@ -222,7 +222,12 @@ defmodule NervesHubCore.Devices do
     |> Repo.insert()
   end
 
-  @spec get_ca_certificate_by_aki(binary) :: CACertificate.t() | nil
+  def get_ca_certificates(%Org{id: org_id}) do
+    from(ca in CACertificate, where: ca.org_id == ^org_id)
+    |> Repo.all()
+  end
+
+  @spec get_ca_certificate_by_aki(binary) :: {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_aki(aki) do
     Repo.get_by(CACertificate, aki: aki)
     |> case do
@@ -231,13 +236,37 @@ defmodule NervesHubCore.Devices do
     end
   end
 
-  @spec get_ca_certificate_by_serial(binary) :: CACertificate.t() | nil
+  @spec get_ca_certificate_by_serial(binary) :: {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_serial(serial) do
     Repo.get_by(CACertificate, serial: serial)
     |> case do
       nil -> {:error, :not_found}
       ca_cert -> {:ok, ca_cert}
     end
+  end
+
+  @spec get_ca_certificate_by_org_and_serial(Org.t(), binary) ::
+          {:ok, CACertificate.t()} | {:error, any()}
+  def get_ca_certificate_by_org_and_serial(%Org{id: org_id}, serial) do
+    query =
+      from(
+        ca in CACertificate,
+        where: ca.serial == ^serial and ca.org_id == ^org_id
+      )
+
+    query
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:error, :not_found}
+
+      ca_certificate ->
+        {:ok, ca_certificate}
+    end
+  end
+
+  def delete_ca_certificate(%CACertificate{} = ca_certificate) do
+    Repo.delete(ca_certificate)
   end
 
   @doc """

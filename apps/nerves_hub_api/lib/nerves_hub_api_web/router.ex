@@ -44,6 +44,13 @@ defmodule NervesHubAPIWeb.Router do
           delete("/:name", KeyController, :delete)
         end
 
+        scope "/ca_certificates" do
+          get("/", CACertificateController, :index)
+          post("/", CACertificateController, :create)
+          get("/:serial", CACertificateController, :show)
+          delete("/:serial", CACertificateController, :delete)
+        end
+
         scope "/devices" do
           post("/", DeviceController, :create)
 
