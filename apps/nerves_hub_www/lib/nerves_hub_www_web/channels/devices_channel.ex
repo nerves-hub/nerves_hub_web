@@ -1,6 +1,6 @@
 defmodule NervesHubWWWWeb.DevicesChannel do
   use NervesHubWWWWeb, :channel
-  alias NervesHubCore.Accounts
+  alias NervesHubWebCore.Accounts
   alias NervesHubDevice.Presence
 
   def join("devices:" <> org_id, _payload, socket) do

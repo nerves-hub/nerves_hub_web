@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.CACertificateControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
-  alias NervesHubCore.{Devices, Certificate}
+  alias NervesHubWebCore.{Devices, Certificate}
 
   describe "index" do
     test "lists all ca certificates", %{conn: conn, org: org} do

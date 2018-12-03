@@ -6,10 +6,10 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   """
 
   use NervesHubDeviceWeb, :channel
-  alias NervesHubCore.{Accounts.Org, Devices, Devices.Device, Firmwares, Deployments}
+  alias NervesHubWebCore.{Accounts.Org, Devices, Devices.Device, Firmwares, Deployments}
   alias NervesHubDevice.Presence
 
-  @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
+  @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
 
   intercept(["presence_diff"])
 

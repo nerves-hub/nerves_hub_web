@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.Plugs.FetchDeployment do
   import Plug.Conn
 
-  alias NervesHubCore.Deployments
+  alias NervesHubWebCore.Deployments
 
   def init(_), do: nil
 

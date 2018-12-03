@@ -1,8 +1,8 @@
 defmodule NervesHubAPIWeb.ProductControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
-  alias NervesHubCore.Fixtures
-  alias NervesHubCore.Accounts
+  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.Accounts
 
   setup context do
     org = Fixtures.org_fixture(%{name: "api test"})

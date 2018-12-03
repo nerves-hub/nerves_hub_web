@@ -1,9 +1,9 @@
 defmodule NervesHubWWWWeb.DeploymentController do
   use NervesHubWWWWeb, :controller
 
-  alias NervesHubCore.Firmwares
-  alias NervesHubCore.Deployments
-  alias NervesHubCore.Deployments.Deployment
+  alias NervesHubWebCore.Firmwares
+  alias NervesHubWebCore.Deployments
+  alias NervesHubWebCore.Deployments.Deployment
   alias Ecto.Changeset
 
   def index(%{assigns: %{current_org: _org, product: %{id: product_id}}} = conn, _params) do

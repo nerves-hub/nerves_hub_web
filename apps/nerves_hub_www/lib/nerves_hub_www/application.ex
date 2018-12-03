@@ -7,7 +7,7 @@ defmodule NervesHubWWW.Application do
     import Supervisor.Spec
 
     # Start the hackney pool for connections to NervesHubCA
-    NervesHubCore.CertificateAuthority.start_pool()
+    NervesHubWebCore.CertificateAuthority.start_pool()
 
     # Define workers and child supervisors to be supervised
     children = [

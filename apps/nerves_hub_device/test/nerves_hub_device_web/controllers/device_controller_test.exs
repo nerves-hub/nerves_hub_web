@@ -1,6 +1,6 @@
 defmodule NervesHubDeviceWeb.DeviceControllerTest do
   use NervesHubDeviceWeb.ConnCase, async: true
-  alias NervesHubCore.{Deployments, Fixtures}
+  alias NervesHubWebCore.{Deployments, Fixtures}
 
   describe "device" do
     test "identify a device", %{conn: conn, device: device} do

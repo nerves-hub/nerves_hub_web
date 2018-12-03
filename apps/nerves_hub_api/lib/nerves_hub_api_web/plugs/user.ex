@@ -1,8 +1,8 @@
 defmodule NervesHubAPIWeb.Plugs.User do
   import Plug.Conn
 
-  alias NervesHubCore.{Accounts, Certificate}
-  alias NervesHubCore.Accounts.User
+  alias NervesHubWebCore.{Accounts, Certificate}
+  alias NervesHubWebCore.Accounts.User
 
   def init(opts) do
     opts

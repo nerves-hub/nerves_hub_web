@@ -3,8 +3,8 @@ defmodule NervesHubWWWWeb.OrgController do
 
   alias Ecto.Changeset
   alias NervesHubWWW.Accounts.Email
-  alias NervesHubCore.Accounts
-  alias NervesHubCore.Accounts.{Invite, OrgKey}
+  alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.Accounts.{Invite, OrgKey}
   alias NervesHubWWW.Mailer
 
   def new(conn, _params) do

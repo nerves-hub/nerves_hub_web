@@ -35,7 +35,7 @@ defmodule NervesHubUmbrella.MixProject do
       "ecto.setup": [
         "ecto.create",
         "ecto.migrate",
-        "run apps/nerves_hub_core/priv/repo/seeds.exs"
+        "run apps/nerves_hub_web_core/priv/repo/seeds.exs"
       ],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate", "test"]

@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.CACertificateController do
   use NervesHubAPIWeb, :controller
 
-  alias NervesHubCore.{Devices, Certificate}
+  alias NervesHubWebCore.{Devices, Certificate}
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 

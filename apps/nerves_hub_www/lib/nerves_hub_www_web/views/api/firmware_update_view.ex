@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.Api.FirmwareUpdateView do
   use NervesHubWWWWeb, :api_view
 
-  alias NervesHubCore.Firmwares.Firmware
+  alias NervesHubWebCore.Firmwares.Firmware
 
   def render("show.json", %{firmware: nil}) do
     %{"eligible_firmware_update" => nil}

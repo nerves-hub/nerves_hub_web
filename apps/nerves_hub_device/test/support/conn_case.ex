@@ -16,7 +16,7 @@ defmodule NervesHubDeviceWeb.ConnCase do
   @certificate Path.join([__DIR__, "../../../../test/fixtures/ssl/device-1234-cert.pem"])
 
   use ExUnit.CaseTemplate
-  alias NervesHubCore.Fixtures
+  alias NervesHubWebCore.Fixtures
 
   using do
     quote do
@@ -30,10 +30,10 @@ defmodule NervesHubDeviceWeb.ConnCase do
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHubCore.Repo)
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHubWebCore.Repo)
 
     unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHubCore.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(NervesHubWebCore.Repo, {:shared, self()})
     end
 
     org = Fixtures.org_fixture()

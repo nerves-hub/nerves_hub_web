@@ -1,8 +1,8 @@
 defmodule NervesHubWWWWeb.ProductController do
   use NervesHubWWWWeb, :controller
 
-  alias NervesHubCore.Products
-  alias NervesHubCore.Products.Product
+  alias NervesHubWebCore.Products
+  alias NervesHubWebCore.Products.Product
 
   def index(%{assigns: %{current_org: org}} = conn, _params) do
     products = Products.list_products(org)

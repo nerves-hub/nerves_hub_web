@@ -11,7 +11,7 @@ defmodule NervesHubAPIWeb.FirmwareView do
   end
 
   def render("firmware.json", %{firmware: %{product: %Ecto.Association.NotLoaded{}} = firmware}) do
-    firmware = NervesHubCore.Repo.preload(firmware, :product)
+    firmware = NervesHubWebCore.Repo.preload(firmware, :product)
     render("firmware.json", %{firmware: firmware})
   end
 

@@ -1,6 +1,6 @@
 defmodule NervesHubAPIWeb.FirmwareController do
   use NervesHubAPIWeb, :controller
-  alias NervesHubCore.Firmwares
+  alias NervesHubWebCore.Firmwares
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 

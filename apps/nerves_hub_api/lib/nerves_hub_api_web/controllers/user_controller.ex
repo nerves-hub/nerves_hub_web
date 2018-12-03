@@ -1,8 +1,8 @@
 defmodule NervesHubAPIWeb.UserController do
   use NervesHubAPIWeb, :controller
 
-  alias NervesHubCore.Accounts
-  alias NervesHubCore.{CertificateAuthority, Certificate}
+  alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.{CertificateAuthority, Certificate}
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 

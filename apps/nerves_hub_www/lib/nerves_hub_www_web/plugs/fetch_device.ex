@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.Plugs.FetchDevice do
   import Plug.Conn
 
-  alias NervesHubCore.Devices
+  alias NervesHubWebCore.Devices
 
   def init(opts) do
     opts

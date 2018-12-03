@@ -1,8 +1,8 @@
 defmodule NervesHubWWWWeb.AccountCertificateControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
-  alias NervesHubCore.Fixtures
-  alias NervesHubCore.Accounts
+  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.Accounts
 
   @create_attrs %{
     description: "test cert",

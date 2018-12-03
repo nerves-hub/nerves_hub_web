@@ -1,8 +1,8 @@
 defmodule NervesHubWWWWeb.DeploymentView do
   use NervesHubWWWWeb, :view
 
-  alias NervesHubCore.Firmwares.Firmware
-  alias NervesHubCore.Deployments.Deployment
+  alias NervesHubWebCore.Firmwares.Firmware
+  alias NervesHubWebCore.Deployments.Deployment
 
   def firmware_dropdown_options(firmwares) do
     firmwares

@@ -1,9 +1,9 @@
 defmodule NervesHubWWWWeb.FirmwareControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
-  alias NervesHubCore.Fixtures
-  alias NervesHubCore.Accounts
-  alias NervesHubCore.Support.Fwup
+  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.Support.Fwup
 
   describe "index" do
     test "lists all firmwares", %{conn: conn, current_org: org} do

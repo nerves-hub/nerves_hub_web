@@ -1,8 +1,8 @@
 defmodule NervesHubAPIWeb.ProductController do
   use NervesHubAPIWeb, :controller
 
-  alias NervesHubCore.Products
-  alias NervesHubCore.Products.Product
+  alias NervesHubWebCore.Products
+  alias NervesHubWebCore.Products.Product
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 

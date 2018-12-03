@@ -16,9 +16,9 @@ defmodule NervesHubWWWWeb.Endpoint do
     only: ~w(css fonts images js favicon.ico robots.txt)
   )
 
-  # This should only be enabled if using NervesHubCore.Firmwares.Upload.File
+  # This should only be enabled if using NervesHubWebCore.Firmwares.Upload.File
   if @env in [:dev, :test] do
-    @file_config Application.get_env(:nerves_hub_core, NervesHubCore.Firmwares.Upload.File)
+    @file_config Application.get_env(:nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.File)
 
     plug(
       Plug.Static,

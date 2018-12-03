@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.DeploymentControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
-  alias NervesHubCore.Fixtures
+  alias NervesHubWebCore.Fixtures
 
   describe "index" do
     test "lists all deployments", %{conn: conn, org: org, product: product} do

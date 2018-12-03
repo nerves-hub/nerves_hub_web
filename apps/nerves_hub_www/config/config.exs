@@ -7,7 +7,7 @@ use Mix.Config
 
 # General application configuration
 config :nerves_hub_www,
-  ecto_repos: [NervesHubCore.Repo],
+  ecto_repos: [NervesHubWebCore.Repo],
   # Options are :ssl or :header
   websocket_auth_methods: [:ssl]
 

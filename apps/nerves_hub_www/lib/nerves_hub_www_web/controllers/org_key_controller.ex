@@ -1,8 +1,8 @@
 defmodule NervesHubWWWWeb.OrgKeyController do
   use NervesHubWWWWeb, :controller
 
-  alias NervesHubCore.Accounts
-  alias NervesHubCore.Accounts.OrgKey
+  alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.Accounts.OrgKey
 
   def index(%{assigns: %{current_org: org}} = conn, _params) do
     org_keys = Accounts.list_org_keys(org)

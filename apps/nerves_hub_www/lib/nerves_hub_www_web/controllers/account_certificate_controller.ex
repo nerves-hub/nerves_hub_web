@@ -4,9 +4,9 @@ defmodule NervesHubWWWWeb.AccountCertificateController do
   require Logger
 
   alias Ecto.Changeset
-  alias NervesHubCore.{Certificate, CertificateAuthority}
-  alias NervesHubCore.Accounts
-  alias NervesHubCore.Accounts.UserCertificate
+  alias NervesHubWebCore.{Certificate, CertificateAuthority}
+  alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.Accounts.UserCertificate
 
   def index(%{assigns: %{user: user}} = conn, _params) do
     conn

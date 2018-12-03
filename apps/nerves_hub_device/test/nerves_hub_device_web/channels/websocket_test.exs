@@ -1,8 +1,8 @@
 defmodule NervesHubDeviceWeb.WebsocketTest do
   use ExUnit.Case
   use NervesHubDeviceWeb.ChannelCase
-  alias NervesHubCore.Fixtures
-  alias NervesHubCore.{Accounts, Deployments, Devices, Devices.Device, Repo}
+  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.{Accounts, Deployments, Devices, Devices.Device, Repo}
   alias NervesHubDevice.Presence
 
   @valid_serial "device-1234"
@@ -112,8 +112,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       )
 
       device =
-        NervesHubCore.Repo.get(Device, device.id)
-        |> NervesHubCore.Repo.preload(:org)
+        NervesHubWebCore.Repo.get(Device, device.id)
+        |> NervesHubWebCore.Repo.preload(:org)
 
       assert Presence.device_status(device) == "online"
       refute_receive({"presence_diff", _})
@@ -174,7 +174,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       device =
         device
-        |> NervesHubCore.Repo.preload(last_known_firmware: [:product])
+        |> NervesHubWebCore.Repo.preload(last_known_firmware: [:product])
 
       org = %Accounts.Org{id: device.org_id}
       org_key = Fixtures.org_key_fixture(org)
@@ -219,9 +219,9 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       device =
         Device
-        |> NervesHubCore.Repo.get(device.id)
-        |> NervesHubCore.Repo.preload(:org)
-        |> NervesHubCore.Repo.preload(:last_known_firmware)
+        |> NervesHubWebCore.Repo.get(device.id)
+        |> NervesHubWebCore.Repo.preload(:org)
+        |> NervesHubWebCore.Repo.preload(:last_known_firmware)
 
       assert Presence.device_status(device) == "update pending"
     end
@@ -237,7 +237,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       device =
         device
-        |> NervesHubCore.Repo.preload(last_known_firmware: [:org_key, :product])
+        |> NervesHubWebCore.Repo.preload(last_known_firmware: [:org_key, :product])
 
       firmware =
         Fixtures.firmware_fixture(
@@ -337,15 +337,15 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       ca_key = X509.PrivateKey.new_ec(:secp256r1)
       ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
 
-      {not_before, not_after} = NervesHubCore.Certificate.get_validity(ca)
+      {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(ca)
 
-      serial = NervesHubCore.Certificate.get_serial_number(ca)
-      aki = NervesHubCore.Certificate.get_aki(ca)
+      serial = NervesHubWebCore.Certificate.get_serial_number(ca)
+      aki = NervesHubWebCore.Certificate.get_aki(ca)
 
       params = %{
         serial: serial,
         aki: aki,
-        ski: NervesHubCore.Certificate.get_ski(ca),
+        ski: NervesHubWebCore.Certificate.get_ski(ca),
         not_before: not_before,
         not_after: not_after,
         der: X509.Certificate.to_der(ca)
@@ -395,8 +395,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       )
 
       device =
-        NervesHubCore.Repo.get(Device, device.id)
-        |> NervesHubCore.Repo.preload(:org)
+        NervesHubWebCore.Repo.get(Device, device.id)
+        |> NervesHubWebCore.Repo.preload(:org)
 
       assert Presence.device_status(device) == "online"
       refute_receive({"presence_diff", _})

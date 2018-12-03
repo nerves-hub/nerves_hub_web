@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.DeviceController do
   use NervesHubAPIWeb, :controller
 
-  alias NervesHubCore.Devices
+  alias NervesHubWebCore.Devices
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 

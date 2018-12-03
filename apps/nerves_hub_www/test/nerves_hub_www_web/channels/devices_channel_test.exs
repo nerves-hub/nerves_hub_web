@@ -1,6 +1,6 @@
 defmodule NervesHubWWWWeb.DevicesChannelTest do
   use NervesHubWWWWeb.ChannelCase
-  alias NervesHubCore.{Deployments, Devices.Device, Firmwares.Firmware, Fixtures}
+  alias NervesHubWebCore.{Deployments, Devices.Device, Firmwares.Firmware, Fixtures}
 
   setup do
     {:ok, fixture: Fixtures.very_fixture()}
@@ -101,7 +101,7 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
          device: device
        }) do
     %Device{last_known_firmware: %{product: product}, org: org} =
-      NervesHubCore.Repo.preload(device, [:org, last_known_firmware: [:product]])
+      NervesHubWebCore.Repo.preload(device, [:org, last_known_firmware: [:product]])
 
     uuid = Ecto.UUID.generate()
 

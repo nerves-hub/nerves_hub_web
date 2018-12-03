@@ -1,7 +1,7 @@
 defmodule NervesHubWWW.Accounts.Email do
   use Bamboo.Phoenix, view: NervesHubWWWWeb.EmailView
 
-  alias NervesHubCore.Accounts.{Invite, Org, User}
+  alias NervesHubWebCore.Accounts.{Invite, Org, User}
 
   @from {"NervesHub", "no-reply@nerves-hub.org"}
 

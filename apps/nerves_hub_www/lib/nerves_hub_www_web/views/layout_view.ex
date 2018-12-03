@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.LayoutView do
   use NervesHubWWWWeb, :view
 
-  alias NervesHubCore.Accounts.User
+  alias NervesHubWebCore.Accounts.User
 
   def navigation_links(conn) do
     [
