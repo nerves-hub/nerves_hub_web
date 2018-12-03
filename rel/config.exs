@@ -46,7 +46,8 @@ end
 
 release :nerves_hub_www do
   set commands: [
-    "migrate": "rel/scripts/migrate-and-seed.sh"
+    migrate: "rel/scripts/migrate-and-seed.sh",
+    gc: "rel/scripts/gc.sh"
   ]
   set version: current_version(:nerves_hub_www)
   set applications: [
