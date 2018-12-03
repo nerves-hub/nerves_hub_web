@@ -52,7 +52,7 @@ release :nerves_hub_www do
   set applications: [
     :runtime_tools,
     nerves_hub_www: :permanent,
-    nerves_hub_core: :permanent
+    nerves_hub_web_core: :permanent
   ]
   set vm_args: "rel/vm.args"
   set config: "config/release/nerves_hub_www.exs"
@@ -63,7 +63,7 @@ release :nerves_hub_device do
   set applications: [
     :runtime_tools,
     nerves_hub_device: :permanent,
-    nerves_hub_core: :permanent
+    nerves_hub_web_core: :permanent
   ]
   set vm_args: "rel/vm.args"
   set config: "config/release/nerves_hub_device.exs"
@@ -74,7 +74,7 @@ release :nerves_hub_api do
   set applications: [
     :runtime_tools,
     nerves_hub_api: :permanent,
-    nerves_hub_core: :permanent
+    nerves_hub_web_core: :permanent
   ]
   set vm_args: "rel/vm.args"
   set config: "config/release/nerves_hub_api.exs"

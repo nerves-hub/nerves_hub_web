@@ -1,8 +1,8 @@
 defmodule NervesHubWWWWeb.SessionController do
   use NervesHubWWWWeb, :controller
 
-  alias NervesHubCore.Accounts
-  alias NervesHubCore.Accounts.User
+  alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.Accounts.User
 
   @session_key "auth_user_id"
 

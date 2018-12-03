@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.Plugs.Product do
   import Plug.Conn
 
-  alias NervesHubCore.Products
+  alias NervesHubWebCore.Products
 
   def init(opts) do
     opts

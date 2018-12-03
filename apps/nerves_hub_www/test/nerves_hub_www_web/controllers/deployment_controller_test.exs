@@ -1,8 +1,8 @@
 defmodule NervesHubWWWWeb.DeploymentControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
-  alias NervesHubCore.Fixtures
-  alias NervesHubCore.Deployments
+  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.Deployments
 
   describe "index" do
     test "lists all deployments", %{conn: conn, current_org: org} do

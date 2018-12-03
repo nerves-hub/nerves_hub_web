@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.Plugs.FetchFirmware do
   import Plug.Conn
 
-  alias NervesHubCore.Firmwares
+  alias NervesHubWebCore.Firmwares
 
   def init(opts) do
     opts

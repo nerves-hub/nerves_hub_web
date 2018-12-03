@@ -2,7 +2,7 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
   @moduledoc """
   conn case for browser related tests
   """
-  alias NervesHubCore.{Accounts, Fixtures}
+  alias NervesHubWebCore.{Accounts, Fixtures}
   alias NervesHubWWWWeb.ConnCase
   alias Plug.Test
 

@@ -1,8 +1,8 @@
 defmodule NervesHubDeviceWeb.DeviceController do
   use NervesHubDeviceWeb, :controller
-  alias NervesHubCore.{Devices, Firmwares, Deployments}
+  alias NervesHubWebCore.{Devices, Firmwares, Deployments}
 
-  @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
+  @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
 
   def me(%{assigns: %{device: device}} = conn, _params) do
     render(conn, "show.json", device: device)

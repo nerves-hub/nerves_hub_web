@@ -1,6 +1,6 @@
 defmodule NervesHubAPIWeb.DeviceControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
-  alias NervesHubCore.{Devices, Fixtures}
+  alias NervesHubWebCore.{Devices, Fixtures}
 
   describe "create devices" do
     test "renders device when data is valid", %{conn: conn, org: org} do

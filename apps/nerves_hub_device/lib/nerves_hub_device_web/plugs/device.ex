@@ -1,7 +1,7 @@
 defmodule NervesHubDeviceWeb.Plugs.Device do
   import Plug.Conn
 
-  alias NervesHubCore.{Devices, Certificate}
+  alias NervesHubWebCore.{Devices, Certificate}
 
   def init(opts) do
     opts

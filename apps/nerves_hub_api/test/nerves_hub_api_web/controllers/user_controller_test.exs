@@ -1,9 +1,9 @@
 defmodule NervesHubAPIWeb.UserControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
-  alias NervesHubCore.Fixtures
-  alias NervesHubCore.Certificate
-  alias NervesHubCore.Accounts
+  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.Certificate
+  alias NervesHubWebCore.Accounts
 
   test "me", %{conn: conn, user: user} do
     conn = get(conn, user_path(conn, :me))

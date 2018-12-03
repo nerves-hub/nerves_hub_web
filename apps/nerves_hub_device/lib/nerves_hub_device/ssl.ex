@@ -1,5 +1,5 @@
 defmodule NervesHubDevice.SSL do
-  alias NervesHubCore.{Devices, Devices.CACertificate, Certificate, Accounts}
+  alias NervesHubWebCore.{Devices, Devices.CACertificate, Certificate, Accounts}
 
   @spec verify_fun(X509.Certificate.t(), any(), any()) :: {:valid, any()}
   # The certificate is a valid_peer, which means it has been

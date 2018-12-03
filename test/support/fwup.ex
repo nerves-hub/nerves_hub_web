@@ -1,6 +1,6 @@
 Code.compiler_options(ignore_module_conflict: true)
 
-defmodule NervesHubCore.Support.Fwup do
+defmodule NervesHubWebCore.Support.Fwup do
   @moduledoc """
   This module is intended to help with testing and development
   by allowing for "easy" creation of firmware signing keys, and

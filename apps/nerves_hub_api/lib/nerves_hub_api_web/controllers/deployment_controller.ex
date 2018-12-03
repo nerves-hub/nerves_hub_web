@@ -1,8 +1,8 @@
 defmodule NervesHubAPIWeb.DeploymentController do
   use NervesHubAPIWeb, :controller
 
-  alias NervesHubCore.{Deployments, Firmwares}
-  alias NervesHubCore.Deployments.Deployment
+  alias NervesHubWebCore.{Deployments, Firmwares}
+  alias NervesHubWebCore.Deployments.Deployment
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 

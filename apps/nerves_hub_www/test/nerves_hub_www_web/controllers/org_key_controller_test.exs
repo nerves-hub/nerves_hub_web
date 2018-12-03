@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.OrgKeyControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
-  alias NervesHubCore.Fixtures
+  alias NervesHubWebCore.Fixtures
 
   @update_attrs %{name: "new org's key", key: "bar"}
   @invalid_attrs %{name: nil}

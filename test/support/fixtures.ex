@@ -1,7 +1,7 @@
 Code.compiler_options(ignore_module_conflict: true)
 
-defmodule NervesHubCore.Fixtures do
-  alias NervesHubCore.{
+defmodule NervesHubWebCore.Fixtures do
+  alias NervesHubWebCore.{
     Accounts,
     Accounts.Org,
     Certificate,
@@ -12,13 +12,13 @@ defmodule NervesHubCore.Fixtures do
     Repo
   }
 
-  alias NervesHubCore.Support.Fwup
+  alias NervesHubWebCore.Support.Fwup
 
   @after_compile {__MODULE__, :compiler_options}
 
   def compiler_options(_, _), do: Code.compiler_options(ignore_module_conflict: false)
 
-  @uploader Application.get_env(:nerves_hub_core, :firmware_upload)
+  @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
 
   @org_params %{name: "Test-Org"}
 

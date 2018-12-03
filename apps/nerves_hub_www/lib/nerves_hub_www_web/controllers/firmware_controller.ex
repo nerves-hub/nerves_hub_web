@@ -2,8 +2,8 @@ defmodule NervesHubWWWWeb.FirmwareController do
   use NervesHubWWWWeb, :controller
 
   alias Ecto.Changeset
-  alias NervesHubCore.Firmwares
-  alias NervesHubCore.Firmwares.Firmware
+  alias NervesHubWebCore.Firmwares
+  alias NervesHubWebCore.Firmwares.Firmware
 
   def index(%{assigns: %{product: %{id: product_id}}} = conn, _params) do
     firmwares = Firmwares.get_firmwares_by_product(product_id)
@@ -71,9 +71,9 @@ defmodule NervesHubWWWWeb.FirmwareController do
   end
 
   def download(conn, %{"id" => id}) do
-    firmware = NervesHubCore.Repo.get(Firmware, id)
+    firmware = NervesHubWebCore.Repo.get(Firmware, id)
 
-    if uploader = Application.get_env(:nerves_hub_core, :firmware_upload) do
+    if uploader = Application.get_env(:nerves_hub_web_core, :firmware_upload) do
       uploader.download_file(firmware)
       |> case do
         {:ok, url} ->

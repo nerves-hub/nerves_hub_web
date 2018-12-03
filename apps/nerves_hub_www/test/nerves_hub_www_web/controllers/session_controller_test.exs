@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.SessionControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
-  alias NervesHubCore.{Accounts, Fixtures}
+  alias NervesHubWebCore.{Accounts, Fixtures}
 
   setup do
     org = Fixtures.org_fixture(%{name: "my test org 1"})

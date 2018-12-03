@@ -3,7 +3,7 @@ defmodule NervesHubDevice.Presence do
     otp_app: :nerves_hub_device,
     pubsub_server: NervesHubWeb.PubSub
 
-  alias NervesHubCore.Devices.Device
+  alias NervesHubWebCore.Devices.Device
   alias NervesHubDevice.Presence
 
   def fetch("devices:" <> _, entries) do

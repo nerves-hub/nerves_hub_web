@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
-  alias NervesHubCore.{Devices, Certificate}
+  alias NervesHubWebCore.{Devices, Certificate}
 
   setup context do
     org = context.org

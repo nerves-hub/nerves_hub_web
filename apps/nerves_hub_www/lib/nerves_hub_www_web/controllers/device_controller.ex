@@ -1,8 +1,8 @@
 defmodule NervesHubWWWWeb.DeviceController do
   use NervesHubWWWWeb, :controller
 
-  alias NervesHubCore.Devices
-  alias NervesHubCore.Devices.Device
+  alias NervesHubWebCore.Devices
+  alias NervesHubWebCore.Devices.Device
   alias Ecto.Changeset
 
   def index(%{assigns: %{current_org: _org, product: product}} = conn, _params) do

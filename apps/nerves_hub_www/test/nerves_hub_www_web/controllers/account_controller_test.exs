@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.AccountControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
-  alias NervesHubCore.Accounts
+  alias NervesHubWebCore.Accounts
 
   describe "new" do
     test "renders account creation form", %{

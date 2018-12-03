@@ -64,7 +64,7 @@ defmodule NervesHubWWW.MixProject do
       {:bamboo, "~> 1.0"},
       {:bamboo_smtp, "~> 1.5.0"},
       {:distillery, "~> 2.0"},
-      {:nerves_hub_core, in_umbrella: true},
+      {:nerves_hub_web_core, in_umbrella: true},
       {:nerves_hub_device, in_umbrella: true}
     ]
   end
@@ -77,7 +77,11 @@ defmodule NervesHubWWW.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run ../nerves_hub_core/priv/repo/seeds.exs"],
+      "ecto.setup": [
+        "ecto.create",
+        "ecto.migrate",
+        "run ../nerves_hub_web_core/priv/repo/seeds.exs"
+      ],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate", "test"]
     ]

@@ -2,8 +2,8 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
   use NervesHubWWWWeb.ConnCase, async: true
   use Bamboo.Test
 
-  alias NervesHubCore.Fixtures
-  alias NervesHubCore.Accounts
+  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.Accounts
 
   describe "new password_reset" do
     test "renders form", %{conn: conn} do

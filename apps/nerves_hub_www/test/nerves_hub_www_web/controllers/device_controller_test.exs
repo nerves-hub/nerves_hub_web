@@ -1,8 +1,8 @@
 defmodule NervesHubWWWWeb.DeviceControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
-  alias NervesHubCore.Fixtures
-  alias NervesHubCore.Devices
+  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.Devices
 
   describe "index" do
     test "lists all devices", %{conn: conn} do

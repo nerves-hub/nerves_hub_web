@@ -7,7 +7,7 @@ use Mix.Config
 
 # General application configuration
 config :nerves_hub_device,
-  ecto_repos: [NervesHubCore.Repo],
+  ecto_repos: [NervesHubWebCore.Repo],
   namespace: NervesHubDevice
 
 # Configures the endpoint

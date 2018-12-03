@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.OrgControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
-  alias NervesHubCore.Fixtures
+  alias NervesHubWebCore.Fixtures
 
   describe "new org" do
     test "renders form", %{conn: conn} do

@@ -3,7 +3,7 @@ defmodule NervesHubWWWWeb.Plugs.EnsureLoggedIn do
 
   alias Phoenix.Controller
   alias Plug.Conn
-  alias NervesHubCore.Accounts
+  alias NervesHubWebCore.Accounts
 
   @session_key "auth_user_id"
 

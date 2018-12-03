@@ -56,7 +56,7 @@ defmodule NervesHubDevice.Mixfile do
       {:distillery, "~> 2.0"},
       {:phoenix_channel_client, "~> 0.3"},
       {:websocket_client, "~> 1.3"},
-      {:nerves_hub_core, in_umbrella: true}
+      {:nerves_hub_web_core, in_umbrella: true}
     ]
   end
 end

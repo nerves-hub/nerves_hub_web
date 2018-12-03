@@ -27,10 +27,10 @@ defmodule NervesHubWWWWeb.ConnCase do
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHubCore.Repo)
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHubWebCore.Repo)
 
     unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHubCore.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(NervesHubWebCore.Repo, {:shared, self()})
     end
 
     {:ok, conn: Phoenix.ConnTest.build_conn()}
