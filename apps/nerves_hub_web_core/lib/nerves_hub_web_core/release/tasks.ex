@@ -12,6 +12,14 @@ defmodule NervesHubWebCore.Release.Tasks do
     stop()
   end
 
+  def gc do
+    init(@otp_app, @start_apps)
+
+    NervesHubWebCore.Firmwares.GC.run()
+
+    stop()
+  end
+
   def seed do
     init(@otp_app, @start_apps)
 
