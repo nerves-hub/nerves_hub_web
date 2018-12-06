@@ -334,24 +334,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         %{identifier: @valid_serial}
         |> device_fixture(org)
 
-      ca_key = X509.PrivateKey.new_ec(:secp256r1)
-      ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
-
-      {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(ca)
-
-      serial = NervesHubWebCore.Certificate.get_serial_number(ca)
-      aki = NervesHubWebCore.Certificate.get_aki(ca)
-
-      params = %{
-        serial: serial,
-        aki: aki,
-        ski: NervesHubWebCore.Certificate.get_ski(ca),
-        not_before: not_before,
-        not_after: not_after,
-        der: X509.Certificate.to_der(ca)
-      }
-
-      {:ok, _cert_record} = Devices.create_ca_certificate(org, params)
+      %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org)
 
       key = X509.PrivateKey.new_ec(:secp256r1)
 

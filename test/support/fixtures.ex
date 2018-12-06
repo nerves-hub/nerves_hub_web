@@ -91,6 +91,28 @@ defmodule NervesHubWebCore.Fixtures do
     org_key
   end
 
+  def ca_certificate_fixture(%Accounts.Org{} = org) do
+    ca_key = X509.PrivateKey.new_ec(:secp256r1)
+    ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+    {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(ca)
+
+    serial = NervesHubWebCore.Certificate.get_serial_number(ca)
+    aki = NervesHubWebCore.Certificate.get_aki(ca)
+
+    params = %{
+      serial: serial,
+      aki: aki,
+      ski: NervesHubWebCore.Certificate.get_ski(ca),
+      not_before: not_before,
+      not_after: not_after,
+      der: X509.Certificate.to_der(ca)
+    }
+
+    {:ok, db_cert} = Devices.create_ca_certificate(org, params)
+    %{cert: ca, key: ca_key, db_cert: db_cert}
+  end
+
   def user_fixture(params \\ %{}) do
     {:ok, user} = params |> Enum.into(user_params()) |> Accounts.create_user()
     {:ok, _certificate} = user_certificate_fixture(user)
@@ -185,11 +207,14 @@ defmodule NervesHubWebCore.Fixtures do
     device
   end
 
-  def device_certificate_fixture(%Devices.Device{} = device) do
+  def device_certificate_fixture(_, _ \\ nil)
+  def device_certificate_fixture(%Devices.Device{} = device, nil) do
     cert_file = Path.join(path(), "ssl/device-1234-cert.pem")
-    {:ok, cert} = File.read(cert_file)
-    {:ok, cert} = X509.Certificate.from_pem(cert)
-
+    {:ok, cert_pem} = File.read(cert_file)
+    {:ok, cert} = X509.Certificate.from_pem(cert_pem)
+    device_certificate_fixture(device, cert)
+  end
+  def device_certificate_fixture(%Devices.Device{} = device, cert) do
     serial = Certificate.get_serial_number(cert)
     {not_before, not_after} = Certificate.get_validity(cert)
     aki = Certificate.get_aki(cert)
