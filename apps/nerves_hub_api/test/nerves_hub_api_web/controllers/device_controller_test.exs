@@ -59,4 +59,30 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
       assert conn.assigns.device.tags == ["a", "b", "c", "d"]
     end
   end
+
+  describe "authenticate devices" do
+    test "valid certificate", %{conn: conn, org: org} do
+      product = Fixtures.product_fixture(org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      device = Fixtures.device_fixture(org, firmware)
+      %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org)
+
+      cert =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("CN=#{device.identifier}", ca, ca_key)
+
+      _device_certificate = Fixtures.device_certificate_fixture(device, cert)
+
+      cert64 =
+        cert
+        |> X509.Certificate.to_pem()
+        |> Base.encode64()
+
+      conn = post(conn, device_path(conn, :auth, org.name), %{"certificate" => cert64})
+      assert json_response(conn, 200)["data"]
+    end
+  end
 end

@@ -53,6 +53,7 @@ defmodule NervesHubAPIWeb.Router do
 
         scope "/devices" do
           post("/", DeviceController, :create)
+          post("/auth", DeviceController, :auth)
 
           scope "/:device_identifier" do
             get("/", DeviceController, :show)
