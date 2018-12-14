@@ -24,8 +24,15 @@ defmodule NervesHubWebCore.Certificate do
     otp_certificate
     |> X509.Certificate.extensions()
     |> X509.Certificate.Extension.find(:subject_key_identifier)
-    |> extension()
-    |> Keyword.get(:extnValue)
+    |> case do
+      nil ->
+        nil
+
+      extension ->
+        extension
+        |> extension()
+        |> Keyword.get(:extnValue)
+    end
   end
 
   def get_common_name(otp_certificate) do

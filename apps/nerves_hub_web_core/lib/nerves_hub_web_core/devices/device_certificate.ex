@@ -6,13 +6,15 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
 
   @type t :: %__MODULE__{}
 
-  @params [
+  @required_params [
     :device_id,
     :serial,
     :aki,
-    :ski,
     :not_after,
     :not_before
+  ]
+  @optional_params [
+    :ski
   ]
 
   schema "device_certificates" do
@@ -29,8 +31,8 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
 
   def changeset(%DeviceCertificate{} = device_certificate, params) do
     device_certificate
-    |> cast(params, @params)
-    |> validate_required(@params)
+    |> cast(params, @required_params ++ @optional_params)
+    |> validate_required(@required_params)
     |> unique_constraint(:serial, name: :device_certificates_device_id_serial_index)
   end
 end
