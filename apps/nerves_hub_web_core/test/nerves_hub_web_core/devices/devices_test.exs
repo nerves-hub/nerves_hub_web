@@ -155,6 +155,22 @@ defmodule NervesHubWebCore.DevicesTest do
              Devices.create_device_certificate(device, params)
   end
 
+  test "create device certificate without subject key id", %{device: device} do
+    now = DateTime.utc_now()
+    device_id = device.id
+
+    params = %{
+      serial: "12345",
+      not_before: now,
+      not_after: now,
+      device_id: device_id,
+      aki: "1234"
+    }
+
+    assert {:ok, %DeviceCertificate{device_id: ^device_id}} =
+             Devices.create_device_certificate(device, params)
+  end
+
   test "select one device when it has two certificates", %{device: device} do
     now = DateTime.utc_now()
 
