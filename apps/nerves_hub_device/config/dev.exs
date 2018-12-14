@@ -18,6 +18,7 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
     # Enable client SSL
     verify: :verify_peer,
     verify_fun: {&NervesHubDevice.SSL.verify_fun/3, nil},
+    fail_if_no_peer_cert: true,
     keyfile: Path.expand("./test/fixtures/ssl/device.nerves-hub.org-key.pem"),
     certfile: Path.expand("./test/fixtures/ssl/device.nerves-hub.org.pem"),
     cacertfile: Path.expand("./test/fixtures/ssl/ca.pem")
