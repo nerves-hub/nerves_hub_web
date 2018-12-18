@@ -24,6 +24,12 @@ iex-server: .env
 mix:
 	iex -S mix
 
+format:
+	mix cmd mix format
+
+check-format:
+	mix cmd mix format --check-formatted
+
 reset-db: .env
 	. ./.env && \
 	make rebuild-db
