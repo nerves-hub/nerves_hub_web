@@ -282,7 +282,7 @@ defmodule NervesHubWebCore.Devices do
   def update_last_known_firmware(%Device{org: org} = device, fw_uuid) do
     case Firmwares.get_firmware_by_uuid(org, fw_uuid) do
       {:ok, firmware} -> update_device(device, %{last_known_firmware_id: firmware.id})
-      _ -> {:error, :no_firmware_found}
+      _ -> update_device(device, %{last_known_firmware_id: nil})
     end
   end
 
