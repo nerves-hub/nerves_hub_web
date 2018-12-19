@@ -25,17 +25,21 @@ defmodule NervesHubWWWWeb.OrgController do
     end
   end
 
-  def edit(%{assigns: %{current_org: %{id: _conn_id} = org}} = conn, _params) do
+  def edit(
+        %{assigns: %{current_org: %{id: _conn_id} = org, current_limit: limits}} = conn,
+        _params
+      ) do
     render(
       conn,
       "edit.html",
       org_changeset: %Changeset{data: org},
       org_key_changeset: %Changeset{data: %OrgKey{}},
-      org: org
+      org: org,
+      org_limit: limits
     )
   end
 
-  def update(%{assigns: %{current_org: org}} = conn, %{"org" => org_params}) do
+  def update(%{assigns: %{current_org: org, current_limit: limits}} = conn, %{"org" => org_params}) do
     org
     |> Accounts.update_org(org_params)
     |> case do
@@ -50,7 +54,8 @@ defmodule NervesHubWWWWeb.OrgController do
           "edit.html",
           org_changeset: changeset,
           org_key_changeset: %Changeset{data: %OrgKey{}},
-          org: org
+          org: org,
+          org_limit: limits
         )
     end
   end

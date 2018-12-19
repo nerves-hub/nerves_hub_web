@@ -6,6 +6,30 @@
   </a>
 </h1>
 
+<table class="table table-striped">
+  <div class="panel-heading">
+    Org Limits
+  </div>
+
+  <div class="panel-body">
+    <thead>
+      <tr>
+        <th>Device Limit</th>
+        <th>Firmware per Product</th>
+        <th>Firmware Size</th>
+        <th>Firmware Max Time to Live Seconds<th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <td> <%= @org_limit.devices %> </td>
+      <td> <%= @org_limit.firmware_per_product %> </td>
+      <td> <%= @org_limit.firmware_size %> </td>
+      <td> <%= @org_limit.firmware_ttl_seconds %> </td>
+    </tbody>
+  </div>
+</table>
+
 <div class="panel panel-default">
   <div class="panel-heading">
     Profile
