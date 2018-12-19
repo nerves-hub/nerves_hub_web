@@ -23,9 +23,12 @@ defmodule NervesHubWWWWeb.Plugs.EnsureLoggedIn do
         {:ok, current_org} =
           get_session(conn, "current_org_id") |> Accounts.get_org_with_org_keys()
 
+        limit = Accounts.get_org_limit_by_org_id(current_org.id)
+
         conn
         |> assign(:user, user)
         |> assign(:current_org, current_org)
+        |> assign(:current_limit, limit)
         |> assign(:user_token, Phoenix.Token.sign(conn, "user salt", user.id))
 
       _ ->
