@@ -1,6 +1,7 @@
 defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
   use NervesHubDeviceWeb.ConnCase, async: true
   alias NervesHubDeviceWeb.Plugs.Device
+  alias NervesHubWebCore.Repo
 
   test "auth failure with invalid certs" do
     conn =
@@ -28,6 +29,38 @@ defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
     refute plug_call_conn.state == :sent
     refute plug_call_conn.status == 403
     assert plug_call_conn.assigns[:device]
+
+    get_conn = get(conn, device_path(conn, :me))
+    assert json_response(get_conn, 200)
+  end
+
+  test "last known firmware updated when firmware header supplied", context do
+    context.device
+    |> Ecto.Changeset.change(%{last_known_firmware_id: nil})
+    |> Repo.update()
+
+    fetch_device_fw_id = fn ->
+      Repo.get(NervesHubWebCore.Devices.Device, context.device.id).last_known_firmware_id
+    end
+
+    assert is_nil(fetch_device_fw_id.())
+
+    conn = NervesHubDeviceWeb.ConnCase.build_auth_conn()
+
+    plug_call_conn =
+      conn
+      |> Plug.Conn.put_req_header("x-nerveshub-uuid", context.firmware.uuid)
+      |> Device.call([])
+
+    assert %NervesHubWebCore.Devices.Device{} = plug_call_conn.assigns.device
+    assert context.firmware.id == fetch_device_fw_id.()
+
+    # refute `sent` and `status` because the conn
+    # should still be alive.
+    refute plug_call_conn.state == :sent
+    refute plug_call_conn.status == 403
+    device = plug_call_conn.assigns[:device]
+    assert device
 
     get_conn = get(conn, device_path(conn, :me))
     assert json_response(get_conn, 200)
