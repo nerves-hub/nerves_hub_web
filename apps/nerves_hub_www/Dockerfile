@@ -4,7 +4,7 @@ ENV \
   LANG=C.UTF-8 \
   LC_ALL=en_US.UTF-8 \
   PATH="/app:${PATH}" \
-  FWUP_VERSION=1.2.5 \
+  FWUP_VERSION=1.2.7 \
   DATABASE_URL=postgres://db:db@localhost:5432/db \
   DATABASE_SSL="false" \
   SECRET_KEY_BASE=""
