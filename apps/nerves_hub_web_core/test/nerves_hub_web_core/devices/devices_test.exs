@@ -1,5 +1,5 @@
 defmodule NervesHubWebCore.DevicesTest do
-  use NervesHubWebCore.DataCase, async: true
+  use NervesHubWebCore.DataCase, async: false
 
   alias NervesHubWebCore.{Accounts, Fixtures, Devices, Devices.CACertificate, Deployments}
   alias NervesHubWebCore.Devices.DeviceCertificate

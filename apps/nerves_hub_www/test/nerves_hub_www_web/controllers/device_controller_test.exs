@@ -1,5 +1,5 @@
 defmodule NervesHubWWWWeb.DeviceControllerTest do
-  use NervesHubWWWWeb.ConnCase.Browser, async: true
+  use NervesHubWWWWeb.ConnCase.Browser, async: false
 
   alias NervesHubWebCore.Fixtures
   alias NervesHubWebCore.Devices

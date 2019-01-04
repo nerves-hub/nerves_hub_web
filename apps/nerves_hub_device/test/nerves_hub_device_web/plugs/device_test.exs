@@ -1,5 +1,5 @@
 defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
-  use NervesHubDeviceWeb.ConnCase, async: true
+  use NervesHubDeviceWeb.ConnCase, async: false
   alias NervesHubDeviceWeb.Plugs.Device
   alias NervesHubWebCore.Repo
 
