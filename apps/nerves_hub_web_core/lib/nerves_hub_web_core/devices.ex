@@ -105,6 +105,8 @@ defmodule NervesHubWebCore.Devices do
   def get_eligible_deployments(_), do: []
 
   def send_update_message(%Device{} = device, %Deployment{} = deployment) do
+    deployment = Repo.preload(deployment, :firmware, force: true)
+
     with true <- matches_deployment?(device, deployment) do
       {:ok, url} = @uploader.download_file(deployment.firmware)
 
@@ -287,10 +289,37 @@ defmodule NervesHubWebCore.Devices do
     |> case do
       {:ok, device} ->
         Firmwares.update_firmware_ttl(device.last_known_firmware_id)
-        {:ok, Repo.preload(device, :last_known_firmware, force: true)}
+        device = Repo.preload(device, [:last_known_firmware], force: true)
+
+        # Get deployments with new changed device. 
+        # This will dispatch an update if `tags` is updated for example.
+        task =
+          Task.Supervisor.async(NervesHubWebCore.TaskSupervisor, fn ->
+            case get_eligible_deployments(device) do
+              [%Deployment{} = deployment | _] ->
+                send_update_message(device, deployment)
+
+              _ ->
+                {:ok, device}
+            end
+          end)
+
+        Task.await(task)
+        {:ok, device}
 
       error ->
         error
+    end
+  end
+
+  def resolve_update(_org, _deployments = []), do: %{update_available: false}
+
+  def resolve_update(org, [%Deployment{} = deployment | _]) do
+    with {:ok, firmware} <- Firmwares.get_firmware(org, deployment.firmware_id),
+         {:ok, url} <- @uploader.download_file(firmware) do
+      %{update_available: true, firmware_url: url}
+    else
+      _ -> %{update_available: false}
     end
   end
 

@@ -6,10 +6,8 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   """
 
   use NervesHubDeviceWeb, :channel
-  alias NervesHubWebCore.{Accounts.Org, Devices, Devices.Device, Firmwares, Deployments}
+  alias NervesHubWebCore.{Accounts.Org, Devices, Devices.Device}
   alias NervesHubDevice.Presence
-
-  @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
 
   intercept(["presence_diff"])
 
@@ -18,7 +16,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
          {:ok, device} <- Devices.get_device_by_certificate(certificate),
          {:ok, device} <- Devices.update_last_known_firmware(device, fw_uuid) do
       deployments = Devices.get_eligible_deployments(device)
-      join_reply = resolve_update(device.org, deployments)
+      join_reply = Devices.resolve_update(device.org, deployments)
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
       send(self(), {:after_join, device, join_reply.update_available})
       {:ok, join_reply, socket}
@@ -55,17 +53,6 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   def handle_out("presence_diff", _msg, socket) do
     {:noreply, socket}
-  end
-
-  defp resolve_update(_org, _deployments = []), do: %{update_available: false}
-
-  defp resolve_update(org, [%Deployments.Deployment{} = deployment | _]) do
-    with {:ok, firmware} <- Firmwares.get_firmware(org, deployment.firmware_id),
-         {:ok, url} <- @uploader.download_file(firmware) do
-      %{update_available: true, firmware_url: url}
-    else
-      _ -> %{update_available: false}
-    end
   end
 
   defp get_certificate(%{assigns: %{certificate: certificate}}), do: {:ok, certificate}
