@@ -97,14 +97,14 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       {:ok, _} = ClientSocket.start_link(opts)
 
-      {:ok, _channel} =
+      {:ok, channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
           topic: "firmware:#{firmware.uuid}",
           caller: self()
         )
 
-      ClientChannel.join(%{})
+      PhoenixChannelClient.join(channel)
 
       assert_receive(
         {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
@@ -126,14 +126,14 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       {:ok, _} = ClientSocket.start_link(opts)
 
-      {:ok, _channel} =
+      {:ok, channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
           topic: "device:1234",
           caller: self()
         )
 
-      ClientChannel.join()
+      PhoenixChannelClient.join(channel)
       assert_receive({:socket_closed, {:tls_alert, 'unknown ca'}}, 1_000)
     end
   end
@@ -148,14 +148,14 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       {:ok, _} = ClientSocket.start_link(opts)
 
-      {:ok, _channel} =
+      {:ok, channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
           topic: "firmware:#{fake_uuid}",
           caller: self()
         )
 
-      ClientChannel.join()
+      PhoenixChannelClient.join(channel)
 
       assert_receive(
         {:socket_closed, {403, "Forbidden"}},
@@ -199,14 +199,14 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       {:ok, _} = ClientSocket.start_link(opts)
 
-      {:ok, _channel} =
+      {:ok, channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
           topic: "firmware:#{device.last_known_firmware.uuid}",
           caller: self()
         )
 
-      ClientChannel.join(%{})
+      PhoenixChannelClient.join(channel)
 
       assert_receive(
         {:ok, :join,
@@ -262,7 +262,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> Keyword.put(:caller, self())
         |> ClientSocket.start_link()
 
-      {:ok, _channel} =
+      {:ok, channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
           topic: "firmware:#{target_uuid}",
@@ -270,7 +270,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         )
 
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "firmware:#{target_uuid}")
-      ClientChannel.join(%{})
+      PhoenixChannelClient.join(channel)
 
       assert_receive(
         {:ok, :join, %{"response" => %{"update_available" => false}, "status" => "ok"}, _ref},
@@ -296,14 +296,14 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> Keyword.put(:caller, self())
         |> ClientSocket.start_link()
 
-      {:ok, _channel} =
+      {:ok, channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
           topic: "firmware:#{query_uuid}",
           caller: self()
         )
 
-      ClientChannel.join(%{})
+      PhoenixChannelClient.join(channel)
 
       assert_receive(
         {:ok, :join,
@@ -363,14 +363,14 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       {:ok, _} = ClientSocket.start_link(opts)
 
-      {:ok, _channel} =
+      {:ok, channel} =
         ClientChannel.start_link(
           socket: ClientSocket,
           topic: "firmware:#{firmware.uuid}",
           caller: self()
         )
 
-      ClientChannel.join(%{})
+      PhoenixChannelClient.join(channel)
 
       assert_receive(
         {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
