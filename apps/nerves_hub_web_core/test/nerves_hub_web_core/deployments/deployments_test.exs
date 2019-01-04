@@ -1,5 +1,5 @@
 defmodule NervesHubWebCore.DeploymentsTest do
-  use NervesHubWebCore.DataCase, async: true
+  use NervesHubWebCore.DataCase, async: false
   use Phoenix.ChannelTest
 
   alias NervesHubWebCore.Fixtures
