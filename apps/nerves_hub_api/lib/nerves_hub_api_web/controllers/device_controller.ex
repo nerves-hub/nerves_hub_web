@@ -5,6 +5,14 @@ defmodule NervesHubAPIWeb.DeviceController do
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
+  def index(%{assigns: %{org: org}} = conn, _params) do
+    conn
+    |> render(
+      "index.json",
+      devices: Devices.get_devices(org)
+    )
+  end
+
   def create(%{assigns: %{org: org}} = conn, params) do
     params = Map.put(params, "org_id", org.id)
 
