@@ -20,6 +20,20 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
     end
   end
 
+  describe "index" do
+    test "lists all devices for an org", %{conn: conn, org: org} do
+      product = Fixtures.product_fixture(org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      Fixtures.device_fixture(org, firmware)
+
+      conn = get(conn, device_path(conn, :index, org.name))
+
+      assert is_list(json_response(conn, 200)["data"])
+    end
+  end
+
   describe "delete devices" do
     test "deletes chosen device", %{conn: conn, org: org} do
       product = Fixtures.product_fixture(org)
