@@ -26,11 +26,15 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
-      Fixtures.device_fixture(org, firmware)
+      device = Fixtures.device_fixture(org, firmware)
 
       conn = get(conn, device_path(conn, :index, org.name))
 
-      assert is_list(json_response(conn, 200)["data"])
+      assert json_response(conn, 200)["data"]
+
+      assert Enum.find(conn.assigns.devices, fn %{identifier: identifier} ->
+               device.identifier == identifier
+             end)
     end
   end
 
