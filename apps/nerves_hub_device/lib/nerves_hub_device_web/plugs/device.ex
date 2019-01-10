@@ -1,7 +1,7 @@
 defmodule NervesHubDeviceWeb.Plugs.Device do
   import Plug.Conn
 
-  alias NervesHubWebCore.{Devices, Certificate}
+  alias NervesHubWebCore.Devices
 
   def init(opts) do
     opts
@@ -12,8 +12,7 @@ defmodule NervesHubDeviceWeb.Plugs.Device do
 
     with {:ok, cert} <- Map.fetch(peer_data, :ssl_cert),
          {:ok, cert} <- X509.Certificate.from_der(cert),
-         serial <- Certificate.get_serial_number(cert),
-         {:ok, cert} <- Devices.get_device_certificate_by_serial(serial),
+         {:ok, cert} <- NervesHubDevice.SSL.verify_device(cert),
          {:ok, device} <- Devices.get_device_by_certificate(cert),
          uuid_header <- get_req_header(conn, "x-nerveshub-uuid"),
          {:ok, device} <- update_last_known_firmware(uuid_header, device) do
