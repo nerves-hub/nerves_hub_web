@@ -16,31 +16,49 @@ companies.
 
 ## Project Overview and Setup
 
-### Language Versions
+### Development Environment Setup
 
-* Elixir 1.6+
+If you haven't already, make sure that your development environment has
+Elixir 1.7, Erlang 21, and NodeJS.
 
-### Initial App Setup
+Here are steps for the NodeJS setup if you're using `asdf`:
 
-* Create directory for local data storage: `mkdir ~/db`
-* Start the database (if not started): `docker-compose up -d`
-* Copy `dev.env` to `.env` and customize as needed
-* Run command `mix deps.get`
-* Run command `make reset-db`
-* Compile web assets (this only needs to be done once and requires python2):
-  `cd apps/nerves_hub_www/assets && yarn install`
-* Start web app: `make server` or `make iex-server` to start the server with the
-  interactive shell
+```sh
+asdf plugin-install nodejs
+bash ~/.asdf/plugins/nodejs/bin/import-release-team-keyring
+asdf install nodejs 8.11.3
+asdf global nodejs 8.11.3
+npm install -g yarn
+asdf reshim nodejs 8.11.3
+```
+
+On Debian/Ubuntu, you will also need to install the following packages:
+
+```sh
+sudo apt install docker-compose inotify-tools
+```
+
+### First time application setup
+
+1. Create directory for local data storage: `mkdir ~/db`
+2. Start the database (may require sudo): `docker-compose up -d`
+3. Copy `dev.env` to `.env` and customize as needed
+4. Run command `mix deps.get`
+5. Run command `make reset-db`
+6. Compile web assets (this only needs to be done once and requires python2):
+   `cd apps/nerves_hub_www/assets && yarn install`
+7. Start web app: `make server` or `make iex-server` to start the server with the
+   interactive shell
 
 ### Starting App
 
-* Start the database (if not started): `docker-compose up -d`
-* Compile web assets (this only needs to be done once):
-`cd apps/nerves_hub_web/assets && yarn install`
-* Start web app: `make server` or `make iex-server` to start the server with the
-  interactive shell
-  * The whole app will need to be compiled the first time you run this, so
-    please be patient
+1. Start the database (if not started): `docker-compose up -d`
+2. Compile web assets (this only needs to be done once):
+   `cd apps/nerves_hub_web/assets && yarn install`
+3. Start web app: `make server` or `make iex-server` to start the server with the
+   interactive shell
+   * The whole app will need to be compiled the first time you run this, so
+     please be patient
 
 ### Client-side SSL Device Authorization
 
