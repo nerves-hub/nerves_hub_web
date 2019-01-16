@@ -14,9 +14,9 @@ the time being.  We're in the process of building out main features and getting
 the project into a form where it can be used and maintained by multiple
 companies.
 
-## Project Overview and Setup
+## Project overview and setup
 
-### Development Environment Setup
+### Development environment setup
 
 If you haven't already, make sure that your development environment has
 Elixir 1.7, Erlang 21, and NodeJS.
@@ -50,7 +50,7 @@ sudo apt install docker-compose inotify-tools
 7. Start web app: `make server` or `make iex-server` to start the server with the
    interactive shell
 
-### Starting App
+### Starting the application
 
 1. Start the database (if not started): `docker-compose up -d`
 2. Compile web assets (this only needs to be done once):
@@ -60,7 +60,7 @@ sudo apt install docker-compose inotify-tools
    * The whole app will need to be compiled the first time you run this, so
      please be patient
 
-### Client-side SSL Device Authorization
+### Client-side SSL device authorization
 
 NervesHub uses Client-side SSL to authorize and identify connected devices.
 Devices are required to provide a valid certificate that was signed using the
@@ -86,7 +86,7 @@ Devices and Firmware.
 For a Device to be considered eligible for a given Deployment, it must have
 *all* the tags in the Deployment's "tags" condition.
 
-## Simulating a Device
+## Simulating a device
 
 The [nerves_hub_client](https://github.com/nerves-hub/nerves_hub_client) is an
 example OTP application that simulates a device.  It will connect to the
