@@ -28,7 +28,7 @@ companies.
 * Run command `mix deps.get`
 * Run command `make reset-db`
 * Compile web assets (this only needs to be done once and requires python2):
-  `cd apps/nerves_hub_www/assets && npm install`
+  `cd apps/nerves_hub_www/assets && yarn install`
 * Start web app: `make server` or `make iex-server` to start the server with the
   interactive shell
 
@@ -36,7 +36,7 @@ companies.
 
 * Start the database (if not started): `docker-compose up -d`
 * Compile web assets (this only needs to be done once):
-`cd apps/nerves_hub_web/assets && npm install`
+`cd apps/nerves_hub_web/assets && yarn install`
 * Start web app: `make server` or `make iex-server` to start the server with the
   interactive shell
   * The whole app will need to be compiled the first time you run this, so
