@@ -18,7 +18,7 @@ defmodule NervesHubWWWWeb.OrgKeyController do
     case Accounts.create_org_key(org_key_params |> Enum.into(%{"org_id" => org.id})) do
       {:ok, _org_key} ->
         conn
-        |> put_flash(:info, "Org keys created successfully.")
+        |> put_flash(:info, "Organization key created successfully.")
         |> redirect(to: org_path(conn, :edit, org))
 
       {:error, %Ecto.Changeset{}} ->
@@ -51,7 +51,7 @@ defmodule NervesHubWWWWeb.OrgKeyController do
          ) do
       {:ok, _org_key} ->
         conn
-        |> put_flash(:info, "Org Key updated successfully.")
+        |> put_flash(:info, "Organization key updated successfully.")
         |> redirect(to: org_path(conn, :edit, org))
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -64,7 +64,7 @@ defmodule NervesHubWWWWeb.OrgKeyController do
 
     with {:ok, _org_key} <- Accounts.delete_org_key(org_key) do
       conn
-      |> put_flash(:info, "Org Key deleted successfully.")
+      |> put_flash(:info, "Organization key deleted successfully.")
       |> redirect(to: org_path(conn, :edit, org))
     else
       {:error, %Ecto.Changeset{} = changeset} ->

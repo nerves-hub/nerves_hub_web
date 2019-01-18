@@ -6,7 +6,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
   describe "new org" do
     test "renders form", %{conn: conn} do
       conn = get(conn, org_path(conn, :new))
-      assert html_response(conn, 200) =~ "New Org"
+      assert html_response(conn, 200) =~ "New organization"
       refute html_response(conn, 200) =~ "href=\"" <> org_path(conn, :index) <> "\""
     end
   end
@@ -19,20 +19,20 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
       assert redirected_to(conn) == org_path(conn, :edit, id)
 
       conn = get(conn, org_path(conn, :edit, id))
-      assert html_response(conn, 200) =~ "Org Settings"
+      assert html_response(conn, 200) =~ "Organization settings"
       assert html_response(conn, 200) =~ org.name
     end
 
     test "renders errors when data is invalid", %{conn: conn} do
       conn = post(conn, org_path(conn, :create), org: %{})
-      assert html_response(conn, 200) =~ "New Org"
+      assert html_response(conn, 200) =~ "New organization"
     end
   end
 
   describe "edit org" do
     test "renders form for editing org on conn", %{conn: conn, current_org: org} do
       conn = get(conn, org_path(conn, :edit, org))
-      assert html_response(conn, 200) =~ "Org Settings"
+      assert html_response(conn, 200) =~ "Organization settings"
     end
 
     test "does not render form for org not on conn", %{conn: conn, current_org: _org} do
@@ -75,7 +75,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
           org: %{name: ""}
         )
 
-      assert html_response(conn, 200) =~ "Org Settings"
+      assert html_response(conn, 200) =~ "Organization settings"
       assert html_response(conn, 200) =~ "be blank"
     end
   end

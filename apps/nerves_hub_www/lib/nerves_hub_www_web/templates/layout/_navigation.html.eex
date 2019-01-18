@@ -19,7 +19,7 @@
               <%= link org.name, class: "dropdown-item", to: session_path(@conn, :set_org, org: org), method: :put%>
                 <% end %>
         <% end %>
-        <a class="dropdown-item" href="<%= org_path(@conn, :new) %>">New Org</a>
+        <a class="dropdown-item" href="<%= org_path(@conn, :new) %>">New organization</a>
           </div>
         </li>
         <%= for {name, path} <- navigation_links(@conn) do %>
@@ -32,7 +32,7 @@
             Settings
           </a>
           <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-            <a class="dropdown-item" href="<%= org_path(@conn, :edit, @conn.assigns.current_org)%>">Org settings</a>
+            <a class="dropdown-item" href="<%= org_path(@conn, :edit, @conn.assigns.current_org)%>">Organization settings</a>
             <a class="dropdown-item" href="<%= account_path(@conn, :edit)%>">User settings</a>
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" href="<%= session_path(@conn, :delete)%>">Logout</a>

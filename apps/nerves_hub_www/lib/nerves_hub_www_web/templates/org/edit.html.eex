@@ -1,14 +1,14 @@
 <h1>
-  Org Settings
+  Organization settings
 
   <a class="btn btn-lg btn-success pull-right" href="<%= org_path(@conn, :invite) %>">
-    Invite User
+    Invite user
   </a>
 </h1>
 
 <table class="table table-striped">
   <div class="panel-heading">
-    Org Limits
+    Organization limits
   </div>
 
   <div class="panel-body">
@@ -43,7 +43,7 @@
         <div class="has-error"><%= error_tag f, :name %></div>
       </div>
 
-      <%= submit "Update Org", class: "btn btn-primary" %>
+      <%= submit "Update organization", class: "btn btn-primary" %>
     <% end %>
   </div>
 </div>
