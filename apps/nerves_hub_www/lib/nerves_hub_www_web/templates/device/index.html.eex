@@ -14,7 +14,7 @@
           <th class="col-3">Identifier</th>
           <th class="col-2">Version</th>
           <th class="col-3">Status</th>
-          <th class="col-3">Last Connection (local time)</th>
+          <th class="col-3">Last Connection</th>
           <th class="col-2">Tags</th>
           <th class="col-2"></th>
         </tr>
