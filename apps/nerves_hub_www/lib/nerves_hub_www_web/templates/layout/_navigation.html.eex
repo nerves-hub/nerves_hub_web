@@ -31,7 +31,7 @@
           <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             Settings
           </a>
-          <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+          <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">
             <a class="dropdown-item" href="<%= org_path(@conn, :edit, @conn.assigns.current_org)%>">Organization settings</a>
             <a class="dropdown-item" href="<%= account_path(@conn, :edit)%>">User settings</a>
             <div class="dropdown-divider"></div>
