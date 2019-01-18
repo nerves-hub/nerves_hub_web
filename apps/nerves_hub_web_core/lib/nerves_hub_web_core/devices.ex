@@ -271,7 +271,7 @@ defmodule NervesHubWebCore.Devices do
     Repo.delete(ca_certificate)
   end
 
-  def received_communication(%Device{org: org} = device) do
+  def received_communication(%Device{org: _org} = device) do
     update_device(device, %{last_communication: DateTime.utc_now()})
   end
 
