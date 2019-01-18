@@ -224,6 +224,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> NervesHubWebCore.Repo.preload(:last_known_firmware)
 
       assert Presence.device_status(device) == "update pending"
+      assert Time.diff(DateTime.utc_now(), device.last_communication) < 2
     end
 
     test "receives update message once deployment is available" do
@@ -323,6 +324,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       assert updated_device.last_known_firmware.uuid == query_uuid
       assert "online" == Presence.device_status(updated_device)
+      assert Time.diff(DateTime.utc_now(), updated_device.last_communication) < 2
     end
   end
 

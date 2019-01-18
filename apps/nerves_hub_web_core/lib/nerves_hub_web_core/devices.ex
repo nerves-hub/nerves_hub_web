@@ -271,6 +271,10 @@ defmodule NervesHubWebCore.Devices do
     Repo.delete(ca_certificate)
   end
 
+  def received_communication(%Device{org: org} = device) do
+    update_device(device, %{last_communication: DateTime.utc_now()})
+  end
+
   @doc """
   Resolves the firmware identified by `fw_uuid` and sets that as `device`s last known firmware.
   """
@@ -291,7 +295,7 @@ defmodule NervesHubWebCore.Devices do
         Firmwares.update_firmware_ttl(device.last_known_firmware_id)
         device = Repo.preload(device, [:last_known_firmware], force: true)
 
-        # Get deployments with new changed device. 
+        # Get deployments with new changed device.
         # This will dispatch an update if `tags` is updated for example.
         task =
           Task.Supervisor.async(NervesHubWebCore.TaskSupervisor, fn ->

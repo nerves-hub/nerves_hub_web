@@ -15,7 +15,8 @@ defmodule NervesHubDeviceWeb.Plugs.Device do
          {:ok, cert} <- NervesHubDevice.SSL.verify_device(cert),
          {:ok, device} <- Devices.get_device_by_certificate(cert),
          uuid_header <- get_req_header(conn, "x-nerveshub-uuid"),
-         {:ok, device} <- update_last_known_firmware(uuid_header, device) do
+         {:ok, device} <- update_last_known_firmware(uuid_header, device),
+         {:ok, device} <- Devices.received_communication(device) do
       assign(conn, :device, device)
     else
       _err ->

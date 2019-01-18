@@ -34,6 +34,26 @@ defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
     assert json_response(get_conn, 200)
   end
 
+  test "auth success updates last_communication" do
+    conn = NervesHubDeviceWeb.ConnCase.build_auth_conn()
+
+    plug_call_conn = Device.call(conn, [])
+
+    last_communication = plug_call_conn.assigns.device.last_communication
+
+    # assert last_communication was updated
+    assert Time.diff(DateTime.utc_now(), last_communication) < 2
+
+    # refute `sent` and `status` because the conn
+    # should still be alive.
+    refute plug_call_conn.state == :sent
+    refute plug_call_conn.status == 403
+    assert plug_call_conn.assigns[:device]
+
+    get_conn = get(conn, device_path(conn, :me))
+    assert json_response(get_conn, 200)
+  end
+
   test "last known firmware updated when firmware header supplied", context do
     context.device
     |> Ecto.Changeset.change(%{last_known_firmware_id: nil})
