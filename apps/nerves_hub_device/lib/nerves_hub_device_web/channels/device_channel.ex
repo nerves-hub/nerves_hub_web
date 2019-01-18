@@ -14,7 +14,8 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   def join("firmware:" <> fw_uuid, _payload, socket) do
     with {:ok, certificate} <- get_certificate(socket),
          {:ok, device} <- Devices.get_device_by_certificate(certificate),
-         {:ok, device} <- Devices.update_last_known_firmware(device, fw_uuid) do
+         {:ok, device} <- Devices.update_last_known_firmware(device, fw_uuid),
+         {:ok, device} <- Devices.received_communication(device) do
       deployments = Devices.get_eligible_deployments(device)
       join_reply = Devices.resolve_update(device.org, deployments)
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")

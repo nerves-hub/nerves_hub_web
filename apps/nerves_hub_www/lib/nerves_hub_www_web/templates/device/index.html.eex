@@ -14,6 +14,7 @@
           <th class="col-3">Identifier</th>
           <th class="col-2">Version</th>
           <th class="col-3">Status</th>
+          <th class="col-3">Last Connection (local time)</th>
           <th class="col-2">Tags</th>
           <th class="col-2"></th>
         </tr>
@@ -29,6 +30,13 @@
             <% end %>
           </td>
           <td class="col-3 device" data-device-id=<%= "#{device.id}" %>><%= device_status(device) %></td>
+          <td class="col-3 date-time">
+            <%= if is_nil(device.last_communication) do %>
+              never
+            <% else %>
+              <%= device.last_communication %>
+            <% end %>
+          </td>
           <td class="col-2">
             <%= for tag <- (device.tags || []) do %>
               <span class="badge">

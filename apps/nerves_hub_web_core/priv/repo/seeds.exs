@@ -42,9 +42,10 @@ defmodule NervesHubWebCore.SeedHelpers do
     Fixtures.deployment_fixture(firmwares |> elem(2), %{
       conditions: %{"version" => "< 1.0.0", "tags" => ["beta"]}
     })
+
     Firmwares.update_firmware_ttl(elem(firmwares, 2).id)
 
-    Fixtures.device_fixture(org, firmwares |> elem(1))
+    Fixtures.device_fixture(org, firmwares |> elem(1), %{last_communication: DateTime.utc_now()})
     |> Fixtures.device_certificate_fixture()
   end
 
@@ -74,7 +75,11 @@ if root_user = Repo.get_by(User, email: root_user_email) do
   root_user
 else
   if Mix.env() == :dev do
-    NervesHubWebCore.SeedHelpers.nerves_team_seed(%{email: root_user_email, username: root_user_name, password: root_user_name})
+    NervesHubWebCore.SeedHelpers.nerves_team_seed(%{
+      email: root_user_email,
+      username: root_user_name,
+      password: root_user_name
+    })
   else
     Accounts.create_user(%{
       username: root_user_name,

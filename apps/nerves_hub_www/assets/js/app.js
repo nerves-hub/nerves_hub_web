@@ -3,4 +3,5 @@ import 'bootstrap';
 
 if(window.location.pathname === '/devices') {
   require("./socket")
+  require("./dates")
 }
