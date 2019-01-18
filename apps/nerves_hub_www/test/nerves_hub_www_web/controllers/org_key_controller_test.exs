@@ -9,14 +9,14 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
   describe "index" do
     test "lists all org_keys", %{conn: conn} do
       conn = get(conn, org_key_path(conn, :index))
-      assert html_response(conn, 200) =~ "Listing Org keys"
+      assert html_response(conn, 200) =~ "Listing organization keys"
     end
   end
 
   describe "new org_keys" do
     test "renders form", %{conn: conn} do
       conn = get(conn, org_key_path(conn, :new))
-      assert html_response(conn, 200) =~ "New Org keys"
+      assert html_response(conn, 200) =~ "New organization keys"
     end
   end
 
@@ -41,7 +41,7 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
     test "renders form for editing chosen org_keys", %{conn: conn, current_org: org} do
       org_key = Fixtures.org_key_fixture(org)
       conn = get(conn, org_key_path(conn, :edit, org_key))
-      assert html_response(conn, 200) =~ "Edit Org Key"
+      assert html_response(conn, 200) =~ "Edit organization key"
     end
   end
 
@@ -66,7 +66,7 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
           org_key: @invalid_attrs
         )
 
-      assert html_response(conn, 200) =~ "Edit Org Key"
+      assert html_response(conn, 200) =~ "Edit organization key"
     end
   end
 

@@ -1,4 +1,4 @@
-<h2>New Org</h2>
+<h2>New organization</h2>
 
 <%= render "form.html", Map.put(assigns, :action, org_path(@conn, :create)) %>
 

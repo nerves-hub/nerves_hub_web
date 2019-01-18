@@ -1,4 +1,4 @@
-<h2>Edit Org Key</h2>
+<h2>Edit organization key</h2>
 
 <%= render "form.html", Map.put(assigns, :action, org_key_path(@conn, :update, @org_key)) %>
 

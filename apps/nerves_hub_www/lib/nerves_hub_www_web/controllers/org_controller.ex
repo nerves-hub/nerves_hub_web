@@ -17,7 +17,7 @@ defmodule NervesHubWWWWeb.OrgController do
 
     with {:ok, org} <- Accounts.create_org(with_user_params) do
       conn
-      |> put_flash(:info, "Org created successfully.")
+      |> put_flash(:info, "Organization created successfully.")
       |> redirect(to: org_path(conn, :edit, org))
     else
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -45,7 +45,7 @@ defmodule NervesHubWWWWeb.OrgController do
     |> case do
       {:ok, _org} ->
         conn
-        |> put_flash(:info, "Org Updated")
+        |> put_flash(:info, "Organization Updated")
         |> redirect(to: org_path(conn, :edit, org))
 
       {:error, changeset} ->

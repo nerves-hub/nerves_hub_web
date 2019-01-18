@@ -1,4 +1,4 @@
-<h2>Listing Org keys</h2>
+<h2>Listing organization keys</h2>
 
 <table>
   <thead>
@@ -21,4 +21,4 @@
   </tbody>
 </table>
 
-<span><%= link "New Org keys", to: org_key_path(@conn, :new) %></span>
+<span><%= link "New organization keys", to: org_key_path(@conn, :new) %></span>
