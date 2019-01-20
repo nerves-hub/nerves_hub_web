@@ -35,7 +35,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
         "devices:#{org_id}",
         device_id,
         %{
-          connected_at: inspect(System.system_time(:seconds)),
+          connected_at: inspect(System.system_time(:second)),
           update_available: update_available,
           last_known_firmware_id: firmware_id
         }
