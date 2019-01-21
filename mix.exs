@@ -7,7 +7,11 @@ defmodule NervesHubUmbrella.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
-      aliases: aliases()
+      aliases: aliases(),
+      dialyzer: [
+        plt_add_apps: [],
+        ignore_warnings: "dialyzer.ignore-warnings"
+      ]
     ]
   end
 
@@ -19,6 +23,7 @@ defmodule NervesHubUmbrella.MixProject do
   defp deps do
     [
       {:excoveralls, "~> 0.8", only: :test},
+      {:dialyxir, "~> 1.0.0-rc.4", only: [:dev, :test], runtime: false},
       {:mix_test_watch, "~> 0.6", only: :test, runtime: false}
     ]
   end
