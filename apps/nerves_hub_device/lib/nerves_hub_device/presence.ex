@@ -28,7 +28,7 @@ defmodule NervesHubDevice.Presence do
     its presence meta includes `update_available: true`
   - `"offline"` - The device is not connected to Presence
   """
-  @spec device_status(Device.t()) :: Strint.t()
+  @spec device_status(Device.t()) :: String.t()
   def device_status(%Device{id: device_id, org_id: org_id}) do
     "devices:#{org_id}"
     |> Presence.list()
