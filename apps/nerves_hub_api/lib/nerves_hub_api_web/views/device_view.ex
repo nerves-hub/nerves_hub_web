@@ -17,7 +17,15 @@ defmodule NervesHubAPIWeb.DeviceView do
     %{
       identifier: device.identifier,
       tags: device.tags,
-      status: device_status(device)
+      version: version(device),
+      status: device_status(device),
+      last_communication: last_communication(device)
     }
   end
+
+  defp version(%{last_known_firmware_id: nil}), do: "unknown"
+  defp version(%{last_known_firmware: %{version: vsn}}), do: vsn
+
+  defp last_communication(%{last_communication: nil}), do: "never"
+  defp last_communication(%{last_communication: dt}), do: to_string(dt)
 end
