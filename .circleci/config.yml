@@ -82,7 +82,7 @@ send_notifications: &send_notifications
 
 version: 2
 jobs:
-  test:
+  test_elixir:
     docker:
       - image: circleci/elixir:1.7
         environment:
@@ -140,6 +140,40 @@ jobs:
       - run:
           name: Verify formatting
           command: mix format --check-formatted
+
+  test_javascript:
+    docker:
+      - image: circleci/node:8.11.3
+        environment:
+          SRC_PATH: "js/**/*.js"
+
+    working_directory: ~/app/apps/nerves_hub_www/assets
+
+    steps:
+      - checkout:
+          path: ~/app
+
+      - restore_cache:
+          keys:
+            - v1-node-modules-{{ checksum "yarn.lock" }}
+
+      - run: yarn install
+
+      - save_cache:
+          key: v1-node-modules-{{ checksum "yarn.lock" }}
+          paths: "node_modules"
+
+      - run:
+          name: Verify formatting
+          command: yarn prettier -c $SRC_PATH
+
+      - run:
+          name: ESLint
+          command: yarn eslint $SRC_PATH
+
+      - run:
+          name: Test
+          command: yarn jest
 
   build-www:
     <<: *defaults
@@ -274,19 +308,21 @@ workflows:
   version: 2
   pipeline:
       jobs:
-        - test
+        - test_elixir
+        - test_javascript
         - build-www:
             context: org-global
             requires:
-              - test
+              - test_elixir
+              - test_javascript
         - build-device:
             context: org-global
             requires:
-              - test
+              - test_elixir
         - build-api:
             context: org-global
             requires:
-              - test
+              - test_elixir
         - push-www:
             context: org-global
             requires:
