@@ -1,8 +1,8 @@
-$fa-font-path: '~@fortawesome/fontawesome-free/webfonts'; 
-@import '~@fortawesome/fontawesome-free/scss/fontawesome'; 
-@import '~@fortawesome/fontawesome-free/scss/solid'; 
-@import '~@fortawesome/fontawesome-free/scss/regular'; 
-@import '~@fortawesome/fontawesome-free/scss/brands'; 
+$fa-font-path: '~@fortawesome/fontawesome-free/webfonts';
+@import '~@fortawesome/fontawesome-free/scss/fontawesome';
+@import '~@fortawesome/fontawesome-free/scss/solid';
+@import '~@fortawesome/fontawesome-free/scss/regular';
+@import '~@fortawesome/fontawesome-free/scss/brands';
 
 @import "custom";
 @import "navigation";
@@ -55,8 +55,8 @@ main {
   @extend .text-dark;
   @include hover-focus {
     color: whitesmoke;
-  }  
-}  
+  }
+}
 
 .modal-content {
   @extend .text-dark;
@@ -121,7 +121,10 @@ main {
     }
     span {
       vertical-align: -webkit-baseline-middle;
-    }  
+    }
   }
 }
 
+.code-snippet {
+  overflow: unset;
+}
