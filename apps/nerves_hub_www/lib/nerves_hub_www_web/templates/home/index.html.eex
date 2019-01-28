@@ -28,7 +28,7 @@
     </div>
     <div class="d-flex flex-row justify-content-between group-bottom pad">
       <div class="d-flex terminal">
-        <pre>
+        <pre class="code-snippet">
           <%# <code class="language-bash" data-lang="bash"> %>
             <p class="prompt text-left">$ </p>mix nerves_hub.firmware publish --deploy prod
           <%# </code> %>
