@@ -4,7 +4,7 @@ ADD . /build
 WORKDIR /build
 RUN mix deps.clean --all && mix deps.get
 
-FROM node:9.11.2 as assets
+FROM node:8.11.3 as assets
 RUN mkdir -p /priv/static
 WORKDIR /build
 COPY apps/nerves_hub_www/assets apps/nerves_hub_www/assets
