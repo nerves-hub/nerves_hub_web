@@ -13,4 +13,8 @@ describe('formatLastCommunication', () => {
   test('preserves "never" value', () => {
     expect(dates.formatLastCommunication('never')).toBe('never')
   })
+
+  test('handles white space around "never" value', () => {
+    expect(dates.formatLastCommunication(' never  ')).toBe('never')
+  })
 })
