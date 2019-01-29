@@ -1,4 +1,6 @@
 let formatLastCommunication = last_communication => {
+  last_communication = last_communication.trim()
+
   if (last_communication == 'never') {
     return last_communication
   } else {
