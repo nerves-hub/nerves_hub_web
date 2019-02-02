@@ -19,7 +19,9 @@ defmodule NervesHubDevice.SSL do
     |> to_string()
     |> Devices.get_ca_certificate_by_serial()
     |> case do
-      {:ok, %CACertificate{der: ca}} ->
+      {:ok, %CACertificate{der: ca} = ca_cert} ->
+        Devices.update_ca_certificate(ca_cert, %{last_used: DateTime.utc_now()})
+
         path_validation =
           X509.Certificate.to_der(certificate)
           |> :public_key.pkix_path_validation([ca], [])
@@ -43,6 +45,7 @@ defmodule NervesHubDevice.SSL do
 
     case Devices.get_device_certificate_by_serial(serial) do
       {:ok, cert} ->
+        Devices.update_device_certificate(cert, %{last_used: DateTime.utc_now()})
         {:ok, cert}
 
       _ ->

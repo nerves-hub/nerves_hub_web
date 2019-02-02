@@ -19,18 +19,21 @@ defmodule NervesHubAPIWeb.Plugs.User do
       cert ->
         cert = X509.Certificate.from_der!(cert)
         serial = Certificate.get_serial_number(cert)
-        Accounts.get_user_by_certificate_serial(serial)
+        Accounts.get_user_certificate_by_serial(serial)
     end
     |> case do
-      nil ->
+      {:ok, %{user: user} = cert} ->
+        Accounts.update_user_certificate(cert, %{last_used: DateTime.utc_now()})
+        user = User.with_default_org(user)
+
+        conn
+        |> assign(:user, user)
+
+      _error ->
         conn
         |> put_resp_header("content-type", "application/json")
         |> send_resp(403, Jason.encode!(%{status: "forbidden"}))
         |> halt()
-
-      %User{} = user ->
-        conn
-        |> assign(:user, user)
     end
   end
 end

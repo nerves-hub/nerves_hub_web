@@ -3,6 +3,7 @@ defmodule NervesHubWebCore.Devices.CACertificate do
   import Ecto.Changeset
 
   alias NervesHubWebCore.Accounts.Org
+  alias NervesHubWebCore.Devices.CACertificate
 
   @type t :: %__MODULE__{}
 
@@ -17,7 +18,8 @@ defmodule NervesHubWebCore.Devices.CACertificate do
   ]
 
   @optional_params [
-    :description
+    :description,
+    :last_used
   ]
 
   schema "ca_certificates" do
@@ -29,6 +31,7 @@ defmodule NervesHubWebCore.Devices.CACertificate do
     field(:ski, :binary)
     field(:not_before, :utc_datetime)
     field(:not_after, :utc_datetime)
+    field(:last_used, :utc_datetime)
     field(:der, :binary)
 
     timestamps()
@@ -39,5 +42,10 @@ defmodule NervesHubWebCore.Devices.CACertificate do
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
     |> unique_constraint(:serial, name: :ca_certificates_serial_index)
+  end
+
+  def update_changeset(%CACertificate{} = ca_certificate, params) do
+    ca_certificate
+    |> cast(params, [:last_used])
   end
 end
