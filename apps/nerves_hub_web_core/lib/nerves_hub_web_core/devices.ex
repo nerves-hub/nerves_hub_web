@@ -216,6 +216,12 @@ defmodule NervesHubWebCore.Devices do
     end
   end
 
+  def update_device_certificate(%DeviceCertificate{} = certificate, params) do
+    certificate
+    |> DeviceCertificate.update_changeset(params)
+    |> Repo.update()
+  end
+
   @spec create_ca_certificate(Org.t(), any()) ::
           {:ok, CACertificate.t()}
           | {:error, Changeset.t()}
@@ -267,6 +273,12 @@ defmodule NervesHubWebCore.Devices do
       ca_certificate ->
         {:ok, ca_certificate}
     end
+  end
+
+  def update_ca_certificate(%CACertificate{} = certificate, params) do
+    certificate
+    |> CACertificate.update_changeset(params)
+    |> Repo.update()
   end
 
   def delete_ca_certificate(%CACertificate{} = ca_certificate) do

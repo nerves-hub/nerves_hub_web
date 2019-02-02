@@ -14,7 +14,8 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
     :not_before
   ]
   @optional_params [
-    :ski
+    :ski,
+    :last_used
   ]
 
   schema "device_certificates" do
@@ -25,6 +26,7 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
     field(:ski, :binary)
     field(:not_before, :utc_datetime)
     field(:not_after, :utc_datetime)
+    field(:last_used, :utc_datetime)
 
     timestamps()
   end
@@ -34,5 +36,10 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
     |> unique_constraint(:serial, name: :device_certificates_device_id_serial_index)
+  end
+
+  def update_changeset(%DeviceCertificate{} = device_certificate, params) do
+    device_certificate
+    |> cast(params, [:last_used])
   end
 end

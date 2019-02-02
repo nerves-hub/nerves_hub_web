@@ -16,13 +16,13 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     reconnect_interval: 50,
     ssl_verify: :verify_peer,
     transport_opts: [
-    socket_opts: [
-      certfile: Path.expand("../../test/fixtures/ssl/device-fake.pem") |> to_charlist,
-      keyfile: Path.expand("../../test/fixtures/ssl/device-fake-key.pem") |> to_charlist,
-      cacertfile: Path.expand("../../test/fixtures/ssl/ca-fake.pem") |> to_charlist,
-      server_name_indication: 'device.nerves-hub.org'
+      socket_opts: [
+        certfile: Path.expand("../../test/fixtures/ssl/device-fake.pem") |> to_charlist,
+        keyfile: Path.expand("../../test/fixtures/ssl/device-fake-key.pem") |> to_charlist,
+        cacertfile: Path.expand("../../test/fixtures/ssl/ca-fake.pem") |> to_charlist,
+        server_name_indication: 'device.nerves-hub.org'
+      ]
     ]
-  ]
   ]
 
   @ssl_socket_config [
@@ -31,13 +31,13 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     reconnect_interval: 50,
     ssl_verify: :verify_peer,
     transport_opts: [
-    socket_opts: [
-      certfile: Path.expand("../../test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
-      keyfile: Path.expand("../../test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
-      cacertfile: Path.expand("../../test/fixtures/ssl/ca.pem") |> to_charlist,
-      server_name_indication: 'device.nerves-hub.org'
+      socket_opts: [
+        certfile: Path.expand("../../test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
+        keyfile: Path.expand("../../test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
+        cacertfile: Path.expand("../../test/fixtures/ssl/ca.pem") |> to_charlist,
+        server_name_indication: 'device.nerves-hub.org'
+      ]
     ]
-  ]
   ]
 
   def device_fixture(device_params \\ %{}, org \\ nil) do
@@ -181,7 +181,13 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       Deployments.update_deployment(deployment, %{is_active: true})
       device_id = device.id
 
-      assert_receive(%Message{event: "update", payload: %{"device_id" => ^device_id, "firmware_url" => _f_url}}, 1000)
+      assert_receive(
+        %Message{
+          event: "update",
+          payload: %{"device_id" => ^device_id, "firmware_url" => _f_url}
+        },
+        1000
+      )
     end
 
     test "does not receive update message when current_version matches target_version" do
@@ -238,11 +244,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         serializer: Jason,
         ssl_verify: :verify_peer,
         transport_opts: [
-        socket_opts: [
-          cert: X509.Certificate.to_der(cert),
-          key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
-          cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
-          server_name_indication: 'device.nerves-hub.org'
+          socket_opts: [
+            cert: X509.Certificate.to_der(cert),
+            key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
+            cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
+            server_name_indication: 'device.nerves-hub.org'
           ]
         ]
       ]
@@ -258,6 +264,57 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       assert Presence.device_status(device) == "online"
       refute_receive({"presence_diff", _})
     end
+
+    test "ca signer last used is updated" do
+      org = Fixtures.org_fixture(%{name: "ca cert is updated"})
+
+      {device, firmware} =
+        %{identifier: @valid_serial}
+        |> device_fixture(org)
+
+      %{cert: ca, key: ca_key, db_cert: %{last_used: last_used}} =
+        Fixtures.ca_certificate_fixture(org)
+
+      key = X509.PrivateKey.new_ec(:secp256r1)
+
+      cert =
+        key
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("CN=#{device.identifier}", ca, ca_key)
+
+      nerves_hub_ca_cert =
+        Path.expand("../../test/fixtures/ssl/ca.pem")
+        |> File.read!()
+        |> X509.Certificate.from_pem!()
+
+      opts = [
+        url: "wss://127.0.0.1:4001/socket/websocket",
+        serializer: Jason,
+        ssl_verify: :verify_peer,
+        transport_opts: [
+          socket_opts: [
+            cert: X509.Certificate.to_der(cert),
+            key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
+            cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
+            server_name_indication: 'device.nerves-hub.org'
+          ]
+        ]
+      ]
+
+      {:ok, socket} = Socket.start_link(opts)
+      wait_for_socket(socket)
+      {:ok, _reply, channel} = Channel.join(socket, "firmware:#{firmware.uuid}")
+      Channel.stop(channel)
+      Socket.stop(socket)
+      {:ok, socket} = Socket.start_link(opts)
+      wait_for_socket(socket)
+      {:ok, _reply, _channel} = Channel.join(socket, "firmware:#{firmware.uuid}")
+
+      [%{last_used: updated_last_used}] = Devices.get_ca_certificates(org)
+
+      assert last_used != updated_last_used
+    end
+  end
 
   def wait_for_socket(socket) do
     unless Socket.connected?(socket) do

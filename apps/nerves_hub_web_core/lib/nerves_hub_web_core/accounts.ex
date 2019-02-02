@@ -170,6 +170,13 @@ defmodule NervesHubWebCore.Accounts do
   end
 
   def get_user_by_certificate_serial(serial) do
+    case get_user_certificate_by_serial(serial) do
+      {:ok, %{user: user}} -> User.with_default_org(user)
+      error -> error
+    end
+  end
+
+  def get_user_certificate_by_serial(serial) do
     query =
       from(
         uc in UserCertificate,
@@ -180,9 +187,15 @@ defmodule NervesHubWebCore.Accounts do
     query
     |> Repo.one()
     |> case do
-      nil -> nil
-      %{user: user} -> user |> User.with_default_org()
+      nil -> {:error, :not_found}
+      cert -> {:ok, cert}
     end
+  end
+
+  def update_user_certificate(%UserCertificate{} = certificate, params) do
+    certificate
+    |> UserCertificate.update_changeset(params)
+    |> Repo.update()
   end
 
   @spec get_user_with_password_reset_token(String.t()) ::
