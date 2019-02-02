@@ -5,13 +5,17 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
   alias NervesHubWebCore.{Accounts, Deployments, Devices, Devices.Device, Repo}
   alias NervesHubDevice.Presence
 
+  alias PhoenixClient.{Socket, Channel, Message}
+
   @valid_serial "device-1234"
   @valid_product "test-product"
 
   @fake_ssl_socket_config [
     url: "wss://127.0.0.1:4001/socket/websocket",
-    serializer: Jason,
+    json_library: Jason,
+    reconnect_interval: 50,
     ssl_verify: :verify_peer,
+    transport_opts: [
     socket_opts: [
       certfile: Path.expand("../../test/fixtures/ssl/device-fake.pem") |> to_charlist,
       keyfile: Path.expand("../../test/fixtures/ssl/device-fake-key.pem") |> to_charlist,
@@ -19,17 +23,21 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       server_name_indication: 'device.nerves-hub.org'
     ]
   ]
+  ]
 
   @ssl_socket_config [
     url: "wss://127.0.0.1:4001/socket/websocket",
-    serializer: Jason,
+    json_library: Jason,
+    reconnect_interval: 50,
     ssl_verify: :verify_peer,
+    transport_opts: [
     socket_opts: [
       certfile: Path.expand("../../test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
       keyfile: Path.expand("../../test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
       cacertfile: Path.expand("../../test/fixtures/ssl/ca.pem") |> to_charlist,
       server_name_indication: 'device.nerves-hub.org'
     ]
+  ]
   ]
 
   def device_fixture(device_params \\ %{}, org \\ nil) do
@@ -54,35 +62,6 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     {device, firmware}
   end
 
-  defmodule ClientSocket do
-    use PhoenixChannelClient.Socket
-
-    def handle_close(reason, state) do
-      send(state.opts[:caller], {:socket_closed, reason})
-      {:noreply, state}
-    end
-  end
-
-  defmodule ClientChannel do
-    use PhoenixChannelClient
-    require Logger
-
-    def handle_in(event, payload, state) do
-      send(state.opts[:caller], {event, payload})
-      {:noreply, state}
-    end
-
-    def handle_reply(payload, state) do
-      send(state.opts[:caller], payload)
-      {:noreply, state}
-    end
-
-    def handle_close(payload, state) do
-      send(state.opts[:caller], {:closed, payload})
-      {:noreply, state}
-    end
-  end
-
   describe "socket auth" do
     test "Can connect and authenticate to channel using client ssl certificate" do
       {device, firmware} =
@@ -90,26 +69,9 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> device_fixture()
 
       Fixtures.device_certificate_fixture(device)
-
-      opts =
-        @ssl_socket_config
-        |> Keyword.put(:caller, self())
-
-      {:ok, _} = ClientSocket.start_link(opts)
-
-      {:ok, channel} =
-        ClientChannel.start_link(
-          socket: ClientSocket,
-          topic: "firmware:#{firmware.uuid}",
-          caller: self()
-        )
-
-      PhoenixChannelClient.join(channel)
-
-      assert_receive(
-        {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
-        1_000
-      )
+      {:ok, socket} = Socket.start_link(@ssl_socket_config)
+      wait_for_socket(socket)
+      {:ok, _reply, _channel} = Channel.join(socket, "firmware:#{firmware.uuid}")
 
       device =
         NervesHubWebCore.Repo.get(Device, device.id)
@@ -117,50 +79,21 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       assert Presence.device_status(device) == "online"
       refute_receive({"presence_diff", _})
+      Socket.stop(socket)
     end
 
     test "authentication rejected to channel using incorrect client ssl certificate" do
-      opts =
-        @fake_ssl_socket_config
-        |> Keyword.put(:caller, self())
-
-      {:ok, _} = ClientSocket.start_link(opts)
-
-      {:ok, channel} =
-        ClientChannel.start_link(
-          socket: ClientSocket,
-          topic: "device:1234",
-          caller: self()
-        )
-
-      PhoenixChannelClient.join(channel)
-      assert_receive({:socket_closed, {:tls_alert, 'unknown ca'}}, 1_000)
+      {:ok, socket} = Socket.start_link(@fake_ssl_socket_config)
+      refute Socket.connected?(socket)
+      Socket.stop(socket)
     end
   end
 
   describe "channel auth" do
     test "Cannot connect and authenticate to channel with non-matching serial" do
-      {:ok, fake_uuid} = Ecto.UUID.bingenerate() |> Ecto.UUID.load()
-
-      opts =
-        @ssl_socket_config
-        |> Keyword.put(:caller, self())
-
-      {:ok, _} = ClientSocket.start_link(opts)
-
-      {:ok, channel} =
-        ClientChannel.start_link(
-          socket: ClientSocket,
-          topic: "firmware:#{fake_uuid}",
-          caller: self()
-        )
-
-      PhoenixChannelClient.join(channel)
-
-      assert_receive(
-        {:socket_closed, {403, "Forbidden"}},
-        1_000
-      )
+      {:ok, socket} = Socket.start_link(@ssl_socket_config)
+      refute Socket.connected?(socket)
+      Socket.stop(socket)
     end
   end
 
@@ -193,29 +126,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       })
       |> Deployments.update_deployment(%{is_active: true})
 
-      opts =
-        @ssl_socket_config
-        |> Keyword.put(:caller, self())
-
-      {:ok, _} = ClientSocket.start_link(opts)
-
-      {:ok, channel} =
-        ClientChannel.start_link(
-          socket: ClientSocket,
-          topic: "firmware:#{device.last_known_firmware.uuid}",
-          caller: self()
-        )
-
-      PhoenixChannelClient.join(channel)
-
-      assert_receive(
-        {:ok, :join,
-         %{
-           "response" => %{"update_available" => true, "firmware_url" => _},
-           "status" => "ok"
-         }, _ref},
-        1_000
-      )
+      {:ok, socket} = Socket.start_link(@ssl_socket_config)
+      wait_for_socket(socket)
+      {:ok, reply, _channel} = Channel.join(socket, "firmware:#{device.last_known_firmware.uuid}")
+      assert %{"update_available" => true, "firmware_url" => _} = reply
 
       device =
         Device
@@ -258,29 +172,16 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
           }
         })
 
-      {:ok, _} =
-        @ssl_socket_config
-        |> Keyword.put(:caller, self())
-        |> ClientSocket.start_link()
-
-      {:ok, channel} =
-        ClientChannel.start_link(
-          socket: ClientSocket,
-          topic: "firmware:#{target_uuid}",
-          caller: self()
-        )
-
+      {:ok, socket} = Socket.start_link(@ssl_socket_config)
+      wait_for_socket(socket)
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "firmware:#{target_uuid}")
-      PhoenixChannelClient.join(channel)
-
-      assert_receive(
-        {:ok, :join, %{"response" => %{"update_available" => false}, "status" => "ok"}, _ref},
-        1000
-      )
+      {:ok, reply, _channel} = Channel.join(socket, "firmware:#{target_uuid}")
+      assert %{"update_available" => false} = reply
 
       Deployments.update_deployment(deployment, %{is_active: true})
       device_id = device.id
-      assert_receive({"update", %{"device_id" => ^device_id, "firmware_url" => _f_url}}, 1000)
+
+      assert_receive(%Message{event: "update", payload: %{"device_id" => ^device_id, "firmware_url" => _f_url}}, 1000)
     end
 
     test "does not receive update message when current_version matches target_version" do
@@ -292,28 +193,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       query_uuid = firmware.uuid
 
-      {:ok, _} =
-        @ssl_socket_config
-        |> Keyword.put(:caller, self())
-        |> ClientSocket.start_link()
-
-      {:ok, channel} =
-        ClientChannel.start_link(
-          socket: ClientSocket,
-          topic: "firmware:#{query_uuid}",
-          caller: self()
-        )
-
-      PhoenixChannelClient.join(channel)
-
-      assert_receive(
-        {:ok, :join,
-         %{
-           "response" => %{"update_available" => false},
-           "status" => "ok"
-         }, _ref},
-        1_000
-      )
+      {:ok, socket} = Socket.start_link(@ssl_socket_config)
+      wait_for_socket(socket)
+      {:ok, reply, _channel} = Channel.join(socket, "firmware:#{query_uuid}")
+      assert %{"update_available" => false} = reply
 
       device = Repo.preload(device, :org)
 
@@ -354,30 +237,19 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         url: "wss://127.0.0.1:4001/socket/websocket",
         serializer: Jason,
         ssl_verify: :verify_peer,
+        transport_opts: [
         socket_opts: [
           cert: X509.Certificate.to_der(cert),
           key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
           cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
           server_name_indication: 'device.nerves-hub.org'
-        ],
-        caller: self()
+          ]
+        ]
       ]
 
-      {:ok, _} = ClientSocket.start_link(opts)
-
-      {:ok, channel} =
-        ClientChannel.start_link(
-          socket: ClientSocket,
-          topic: "firmware:#{firmware.uuid}",
-          caller: self()
-        )
-
-      PhoenixChannelClient.join(channel)
-
-      assert_receive(
-        {:ok, :join, %{"response" => %{}, "status" => "ok"}, _ref},
-        1_000
-      )
+      {:ok, socket} = Socket.start_link(opts)
+      wait_for_socket(socket)
+      {:ok, _reply, _channel} = Channel.join(socket, "firmware:#{firmware.uuid}")
 
       device =
         NervesHubWebCore.Repo.get(Device, device.id)
@@ -385,6 +257,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       assert Presence.device_status(device) == "online"
       refute_receive({"presence_diff", _})
+    end
+
+  def wait_for_socket(socket) do
+    unless Socket.connected?(socket) do
+      wait_for_socket(socket)
     end
   end
 end
