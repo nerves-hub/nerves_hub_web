@@ -16,8 +16,9 @@ defmodule NervesHubAPIWeb.CACertificateControllerTest do
       ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
       serial = X509.Certificate.serial(ca_cert) |> to_string
       ca_cert_pem = X509.Certificate.to_pem(ca_cert)
+      description = "My ca"
 
-      params = %{cert: Base.encode64(ca_cert_pem)}
+      params = %{cert: Base.encode64(ca_cert_pem), description: description}
 
       conn = post(conn, ca_certificate_path(conn, :create, org.name), params)
       resp_data = json_response(conn, 201)["data"]
@@ -55,7 +56,8 @@ defmodule NervesHubAPIWeb.CACertificateControllerTest do
       ski: Certificate.get_ski(ca),
       not_before: not_before,
       not_after: not_after,
-      der: X509.Certificate.to_der(ca)
+      der: X509.Certificate.to_der(ca),
+      description: "My CA"
     }
 
     {:ok, ca_certificate} = Devices.create_ca_certificate(org, params)
