@@ -91,6 +91,7 @@ defmodule NervesHubAPIWeb.Router do
               post("/", DeploymentController, :create)
               get("/:name", DeploymentController, :show)
               put("/:name", DeploymentController, :update)
+              delete("/:name", DeploymentController, :delete)
             end
           end
         end
