@@ -6,7 +6,7 @@ defmodule NervesHubWebCore.Devices.CACertificate do
 
   @type t :: %__MODULE__{}
 
-  @params [
+  @required_params [
     :org_id,
     :serial,
     :aki,
@@ -16,9 +16,14 @@ defmodule NervesHubWebCore.Devices.CACertificate do
     :der
   ]
 
+  @optional_params [
+    :description
+  ]
+
   schema "ca_certificates" do
     belongs_to(:org, Org)
 
+    field(:description, :string)
     field(:serial, :string)
     field(:aki, :binary)
     field(:ski, :binary)
@@ -31,8 +36,8 @@ defmodule NervesHubWebCore.Devices.CACertificate do
 
   def changeset(%__MODULE__{} = ca_certificate, params) do
     ca_certificate
-    |> cast(params, @params)
-    |> validate_required(@params)
+    |> cast(params, @required_params ++ @optional_params)
+    |> validate_required(@required_params)
     |> unique_constraint(:serial, name: :ca_certificates_serial_index)
   end
 end

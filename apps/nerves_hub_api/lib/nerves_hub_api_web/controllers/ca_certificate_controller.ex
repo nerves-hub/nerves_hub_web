@@ -16,7 +16,7 @@ defmodule NervesHubAPIWeb.CACertificateController do
     end
   end
 
-  def create(%{assigns: %{org: org}} = conn, %{"cert" => cert64}) do
+  def create(%{assigns: %{org: org}} = conn, %{"cert" => cert64} = params) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
          {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
          serial <- Certificate.get_serial_number(cert),
@@ -29,7 +29,8 @@ defmodule NervesHubAPIWeb.CACertificateController do
            ski: ski,
            not_before: not_before,
            not_after: not_after,
-           der: X509.Certificate.to_der(cert)
+           der: X509.Certificate.to_der(cert),
+           description: Map.get(params, "description")
          },
          {:ok, ca_certificate} <- Devices.create_ca_certificate(org, params) do
       conn
