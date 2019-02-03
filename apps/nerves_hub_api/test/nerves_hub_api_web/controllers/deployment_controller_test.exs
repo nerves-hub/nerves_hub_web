@@ -69,6 +69,24 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
     end
   end
 
+  describe "delete deployment" do
+    setup [:create_deployment]
+
+    test "deletes chosen deployment", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment: deployment
+    } do
+      conn = delete(conn, deployment_path(conn, :delete, org.name, product.name, deployment.name))
+      assert response(conn, 204)
+
+      conn = get(conn, deployment_path(conn, :show, org.name, product.name, deployment.name))
+
+      assert response(conn, 404)
+    end
+  end
+
   defp create_deployment(%{org: org, product: product}) do
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)

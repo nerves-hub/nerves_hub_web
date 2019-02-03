@@ -57,6 +57,13 @@ defmodule NervesHubAPIWeb.DeploymentController do
     end
   end
 
+  def delete(%{assigns: %{product: product}} = conn, %{"name" => name}) do
+    with {:ok, deployment} <- Deployments.get_deployment_by_name(product, name),
+         {:ok, _deployment} <- Deployments.delete_deployment(deployment) do
+      send_resp(conn, :no_content, "")
+    end
+  end
+
   defp update_params(org, %{"firmware" => uuid} = params) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(org, uuid) do
       {:ok, Map.put(params, "firmware_id", firmware.id)}
