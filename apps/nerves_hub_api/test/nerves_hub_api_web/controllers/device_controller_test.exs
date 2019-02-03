@@ -48,10 +48,10 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
 
       [to_delete | _] = Devices.get_devices(org)
       conn = delete(conn, device_path(conn, :delete, org.name, to_delete.identifier))
-      assert json_response(conn, 204)["data"]
+      assert response(conn, 204)
 
       conn = get(conn, device_path(conn, :show, org.name, to_delete.identifier))
-      assert json_response(conn, 404)
+      assert response(conn, 404)
     end
   end
 
