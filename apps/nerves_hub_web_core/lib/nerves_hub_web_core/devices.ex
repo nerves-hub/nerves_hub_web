@@ -21,6 +21,7 @@ defmodule NervesHubWebCore.Devices do
 
     query
     |> Device.with_firmware()
+    |> order_by(asc: :identifier)
     |> Repo.all()
   end
 
@@ -34,6 +35,7 @@ defmodule NervesHubWebCore.Devices do
 
     query
     |> Device.with_firmware()
+    |> order_by(asc: :identifier)
     |> Repo.all()
   end
 
