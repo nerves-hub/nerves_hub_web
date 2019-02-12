@@ -15,8 +15,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     with {:ok, certificate} <- get_certificate(socket),
          {:ok, device} <- Devices.get_device_by_certificate(certificate),
          params <- Map.put_new(params, "nerves_fw_uuid", fw_uuid),
-         {:ok, metadata} <- Firmwares.metadata_from_device(params),
-         {:ok, device} <- Devices.update_firmware_metadata(device, metadata),
+         {:ok, device} <- update_metadata(device, params),
          {:ok, device} <- Devices.received_communication(device) do
       deployments = Devices.get_eligible_deployments(device)
       join_reply = Devices.resolve_update(device.org, deployments)
@@ -59,4 +58,16 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   defp get_certificate(%{assigns: %{certificate: certificate}}), do: {:ok, certificate}
 
   defp get_certificate(_), do: {:error, :no_device_or_org}
+
+  def update_metadata(%Device{firmware_metadata: %{uuid: uuid}} = device, %{
+        "nerves_fw_uuid" => uuid
+      }) do
+    {:ok, device}
+  end
+
+  def update_metadata(device, params) do
+    with {:ok, metadata} <- Firmwares.metadata_from_device(params) do
+      Devices.update_firmware_metadata(device, metadata)
+    end
+  end
 end
