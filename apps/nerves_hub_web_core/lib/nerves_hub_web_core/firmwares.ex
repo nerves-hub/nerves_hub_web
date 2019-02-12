@@ -61,11 +61,7 @@ defmodule NervesHubWebCore.Firmwares do
       f in Firmware,
       where: f.uuid == ^uuid
     )
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
+    |> Repo.all()
   end
 
   @spec get_firmware_by_org_and_uuid(Org.t(), String.t()) ::
@@ -368,8 +364,8 @@ defmodule NervesHubWebCore.Firmwares do
 
           uuid ->
             case get_firmware_by_uuid(uuid) do
-              {:ok, firmware} -> metadata_from_firmware(firmware)
-              _ -> {:ok, nil}
+              [firmware | _] -> metadata_from_firmware(firmware)
+              [] -> {:ok, nil}
             end
         end
     end
