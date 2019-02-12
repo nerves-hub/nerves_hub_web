@@ -17,7 +17,7 @@ defmodule NervesHubAPIWeb.DeploymentController do
         {:error, :no_firmware_uuid}
 
       uuid ->
-        with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(org, uuid),
+        with {:ok, firmware} <- Firmwares.get_firmware_by_org_and_uuid(org, uuid),
              params <- Map.put(params, "firmware_id", firmware.id),
              {:ok, deployment} <-
                Deployments.create_deployment(
@@ -65,7 +65,7 @@ defmodule NervesHubAPIWeb.DeploymentController do
   end
 
   defp update_params(org, %{"firmware" => uuid} = params) do
-    with {:ok, firmware} <- Firmwares.get_firmware_by_uuid(org, uuid) do
+    with {:ok, firmware} <- Firmwares.get_firmware_by_org_and_uuid(org, uuid) do
       {:ok, Map.put(params, "firmware_id", firmware.id)}
     end
   end

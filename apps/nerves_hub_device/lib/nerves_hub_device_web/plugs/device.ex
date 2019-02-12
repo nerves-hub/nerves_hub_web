@@ -2,6 +2,7 @@ defmodule NervesHubDeviceWeb.Plugs.Device do
   import Plug.Conn
 
   alias NervesHubWebCore.Devices
+  alias NervesHubWebCore.Firmwares
 
   def init(opts) do
     opts
@@ -14,8 +15,8 @@ defmodule NervesHubDeviceWeb.Plugs.Device do
          {:ok, cert} <- X509.Certificate.from_der(cert),
          {:ok, cert} <- NervesHubDevice.SSL.verify_device(cert),
          {:ok, device} <- Devices.get_device_by_certificate(cert),
-         uuid_header <- get_req_header(conn, "x-nerveshub-uuid"),
-         {:ok, device} <- update_last_known_firmware(uuid_header, device),
+         {:ok, metadata} <- Firmwares.metadata_from_conn(conn),
+         {:ok, device} <- Devices.update_firmware_metadata(device, metadata),
          {:ok, device} <- Devices.received_communication(device) do
       assign(conn, :device, device)
     else
@@ -25,11 +26,5 @@ defmodule NervesHubDeviceWeb.Plugs.Device do
         |> send_resp(403, Jason.encode!(%{status: "forbidden"}))
         |> halt()
     end
-  end
-
-  defp update_last_known_firmware([], device), do: {:ok, device}
-
-  defp update_last_known_firmware([fw_uuid], device) do
-    Devices.update_last_known_firmware(device, fw_uuid)
   end
 end

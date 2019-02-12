@@ -99,21 +99,18 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
   describe "firmware update" do
     test "receives update message when eligible deployment is available" do
-      {device, _firmware} =
+      {device, firmware} =
         %{identifier: @valid_serial}
         |> device_fixture()
 
+      firmware = NervesHubWebCore.Repo.preload(firmware, :product)
       Fixtures.device_certificate_fixture(device)
-
-      device =
-        device
-        |> NervesHubWebCore.Repo.preload(last_known_firmware: [:product])
 
       org = %Accounts.Org{id: device.org_id}
       org_key = Fixtures.org_key_fixture(org)
 
       firmware2 =
-        Fixtures.firmware_fixture(org_key, device.last_known_firmware.product, %{
+        Fixtures.firmware_fixture(org_key, firmware.product, %{
           version: "0.0.2"
         })
 
@@ -128,14 +125,13 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       {:ok, socket} = Socket.start_link(@ssl_socket_config)
       wait_for_socket(socket)
-      {:ok, reply, _channel} = Channel.join(socket, "firmware:#{device.last_known_firmware.uuid}")
+      {:ok, reply, _channel} = Channel.join(socket, "firmware:#{device.firmware_metadata.uuid}")
       assert %{"update_available" => true, "firmware_url" => _} = reply
 
       device =
         Device
         |> NervesHubWebCore.Repo.get(device.id)
         |> NervesHubWebCore.Repo.preload(:org)
-        |> NervesHubWebCore.Repo.preload(:last_known_firmware)
 
       assert Presence.device_status(device) == "update pending"
       assert Time.diff(DateTime.utc_now(), device.last_communication) < 2
@@ -146,18 +142,17 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         %{identifier: @valid_serial}
         |> device_fixture()
 
+      device = NervesHubWebCore.Repo.preload(device, :org)
+      firmware = NervesHubWebCore.Repo.preload(firmware, :product)
+
       Fixtures.device_certificate_fixture(device)
-
+      org_key = Fixtures.org_key_fixture(device.org)
       target_uuid = firmware.uuid
-
-      device =
-        device
-        |> NervesHubWebCore.Repo.preload(last_known_firmware: [:org_key, :product])
 
       firmware =
         Fixtures.firmware_fixture(
-          device.last_known_firmware.org_key,
-          device.last_known_firmware.product,
+          org_key,
+          firmware.product,
           %{
             version: "0.0.2"
           }
@@ -211,7 +206,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> elem(1)
         |> Repo.preload(:org)
 
-      assert updated_device.last_known_firmware.uuid == query_uuid
+      assert updated_device.firmware_metadata.uuid == query_uuid
       assert "online" == Presence.device_status(updated_device)
       assert Time.diff(DateTime.utc_now(), updated_device.last_communication) < 2
     end
