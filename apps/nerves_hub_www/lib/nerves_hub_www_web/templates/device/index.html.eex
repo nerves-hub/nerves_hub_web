@@ -23,10 +23,10 @@
         <tr class="item d-flex">
           <td class="col-2"><%= device.identifier %></td>
           <td class="col-2">
-            <%= if is_nil(device.last_known_firmware) do %>
+            <%= if is_nil(device.firmware_metadata) do %>
               unknown
             <% else %>
-              <%= device.last_known_firmware.version %>
+              <%= device.firmware_metadata.version %>
             <% end %>
           </td>
           <td class="col-2 device" data-device-id=<%= "#{device.id}" %>><%= device_status(device) %></td>

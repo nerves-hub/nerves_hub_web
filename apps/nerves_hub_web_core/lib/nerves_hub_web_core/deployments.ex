@@ -113,16 +113,25 @@ defmodule NervesHubWebCore.Deployments do
   end
 
   defp update_relevant_devices({:ok, deployment}) do
+    deployment = Repo.preload(deployment, [:product, :firmware])
+
     relevant_devices =
       from(
         d in Devices.Device,
-        join: f in assoc(d, :last_known_firmware),
-        where: f.product_id == ^deployment.firmware.product_id,
-        where: f.architecture == ^deployment.firmware.architecture,
-        where: f.platform == ^deployment.firmware.platform,
-        where: f.uuid != ^deployment.firmware.uuid
+        where:
+          fragment(
+            """
+            (firmware_metadata->>'product' = ?) AND
+            (firmware_metadata->>'architecture' = ?) AND
+            (firmware_metadata->>'platform' = ?) AND
+            (firmware_metadata->>'uuid' != ?)
+            """,
+            ^deployment.product.name,
+            ^deployment.firmware.architecture,
+            ^deployment.firmware.platform,
+            ^deployment.firmware.uuid
+          )
       )
-      |> Devices.Device.with_firmware()
       |> Repo.all()
 
     Task.Supervisor.async_stream(NervesHubWebCore.TaskSupervisor, relevant_devices, fn device ->

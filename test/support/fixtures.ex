@@ -194,10 +194,11 @@ defmodule NervesHubWebCore.Fixtures do
         %Firmwares.Firmware{} = firmware,
         params \\ %{}
       ) do
+    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
     {:ok, device} =
       %{
         org_id: org.id,
-        last_known_firmware_id: firmware.id,
+        firmware_metadata: metadata,
         identifier: "device-#{counter()}"
       }
       |> Enum.into(params)

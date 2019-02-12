@@ -6,8 +6,9 @@ defmodule NervesHubWebCore.Devices do
   alias NervesHubWebCore.{
     Deployments.Deployment,
     Firmwares,
-    Firmwares.Firmware,
+    Firmwares.FirmwareMetadata,
     Accounts.Org,
+    Products,
     Products.Product,
     Repo
   }
@@ -20,7 +21,6 @@ defmodule NervesHubWebCore.Devices do
     query = from(d in Device, where: d.org_id == ^org_id)
 
     query
-    |> Device.with_firmware()
     |> order_by(asc: :identifier)
     |> Repo.all()
   end
@@ -34,7 +34,6 @@ defmodule NervesHubWebCore.Devices do
       )
 
     query
-    |> Device.with_firmware()
     |> order_by(asc: :identifier)
     |> Repo.all()
   end
@@ -49,7 +48,6 @@ defmodule NervesHubWebCore.Devices do
 
   def get_device_by_org(%Org{id: org_id}, device_id) do
     device_by_org_query(org_id, device_id)
-    |> Device.with_firmware()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -59,7 +57,6 @@ defmodule NervesHubWebCore.Devices do
 
   def get_device_by_org!(%Org{id: org_id}, device_id) do
     device_by_org_query(org_id, device_id)
-    |> Device.with_firmware()
     |> Repo.one!()
   end
 
@@ -73,7 +70,6 @@ defmodule NervesHubWebCore.Devices do
 
     query
     |> Device.with_org()
-    |> Device.with_firmware()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -81,24 +77,19 @@ defmodule NervesHubWebCore.Devices do
     end
   end
 
-  def get_eligible_deployments(
-        %Device{
-          last_known_firmware: %Firmware{
-            id: f_id,
-            architecture: arch,
-            platform: plat,
-            product_id: product_id
-          }
-        } = device
-      ) do
+  def get_eligible_deployments(%Device{firmware_metadata: nil}), do: []
+
+  def get_eligible_deployments(%Device{firmware_metadata: meta} = device) do
+    {:ok, product} = Products.get_product_by_org_id_and_name(device.org_id, meta.product)
+
     from(
       d in Deployment,
       where: d.is_active,
       join: f in assoc(d, :firmware),
-      where: f.product_id == ^product_id,
-      where: f.architecture == ^arch,
-      where: f.platform == ^plat,
-      where: f.id != ^f_id
+      where: f.product_id == ^product.id,
+      where: f.architecture == ^meta.architecture,
+      where: f.platform == ^meta.platform,
+      where: f.uuid != ^meta.uuid
     )
     |> Repo.all()
     |> Enum.filter(fn dep -> matches_deployment?(device, dep) end)
@@ -134,26 +125,10 @@ defmodule NervesHubWebCore.Devices do
     %Device{}
     |> Device.changeset(params)
     |> Repo.insert()
-    |> case do
-      {:ok, device} ->
-        Firmwares.update_firmware_ttl(device.last_known_firmware_id)
-        {:ok, device}
-
-      error ->
-        error
-    end
   end
 
   def delete_device(%Device{} = device) do
     Repo.delete(device)
-    |> case do
-      {:ok, device} ->
-        Firmwares.update_firmware_ttl(device.last_known_firmware_id)
-        {:ok, device}
-
-      error ->
-        error
-    end
   end
 
   @spec create_device_certificate(Device.t(), map) ::
@@ -190,7 +165,6 @@ defmodule NervesHubWebCore.Devices do
 
     query
     |> Device.with_org()
-    |> Device.with_firmware()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -285,19 +259,16 @@ defmodule NervesHubWebCore.Devices do
     Repo.delete(ca_certificate)
   end
 
-  def received_communication(%Device{org: _org} = device) do
+  def received_communication(device) do
     update_device(device, %{last_communication: DateTime.utc_now()})
   end
 
-  @doc """
-  Resolves the firmware identified by `fw_uuid` and sets that as `device`s last known firmware.
-  """
-  @spec update_last_known_firmware(Device.t(), String.t()) :: {} | {:error, :no_firmware_found}
-  def update_last_known_firmware(%Device{org: org} = device, fw_uuid) do
-    case Firmwares.get_firmware_by_uuid(org, fw_uuid) do
-      {:ok, firmware} -> update_device(device, %{last_known_firmware_id: firmware.id})
-      _ -> update_device(device, %{last_known_firmware_id: nil})
-    end
+  def update_firmware_metadata(device, nil) do
+    {:ok, device}
+  end
+
+  def update_firmware_metadata(device, metadata) do
+    update_device(device, %{firmware_metadata: metadata})
   end
 
   def update_device(%Device{} = device, params) do
@@ -306,9 +277,6 @@ defmodule NervesHubWebCore.Devices do
     |> Repo.update()
     |> case do
       {:ok, device} ->
-        Firmwares.update_firmware_ttl(device.last_known_firmware_id)
-        device = Repo.preload(device, [:last_known_firmware], force: true)
-
         # Get deployments with new changed device.
         # This will dispatch an update if `tags` is updated for example.
         task =
@@ -345,7 +313,7 @@ defmodule NervesHubWebCore.Devices do
   Returns true if Version.match? and all deployment tags are in device tags.
   """
   def matches_deployment?(
-        %Device{tags: tags, last_known_firmware: %Firmware{version: version}},
+        %Device{tags: tags, firmware_metadata: %FirmwareMetadata{version: version}},
         %Deployment{conditions: %{"version" => requirement, "tags" => dep_tags}}
       ) do
     if version_match?(version, requirement) and tags_match?(tags, dep_tags) do

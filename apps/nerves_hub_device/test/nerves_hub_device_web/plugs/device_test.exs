@@ -54,26 +54,42 @@ defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
     assert json_response(get_conn, 200)
   end
 
-  test "last known firmware updated when firmware header supplied", context do
+  test "firmware metadata updated when firmware headers are supplied", context do
     context.device
-    |> Ecto.Changeset.change(%{last_known_firmware_id: nil})
+    |> Ecto.Changeset.change(%{firmware_metadata: nil})
     |> Repo.update()
 
-    fetch_device_fw_id = fn ->
-      Repo.get(NervesHubWebCore.Devices.Device, context.device.id).last_known_firmware_id
-    end
+    device = Repo.get(NervesHubWebCore.Devices.Device, context.device.id)
+    firmware = Repo.preload(context.firmware, :product)
 
-    assert is_nil(fetch_device_fw_id.())
+    assert is_nil(device.firmware_metadata)
 
     conn = NervesHubDeviceWeb.ConnCase.build_auth_conn()
 
     plug_call_conn =
       conn
-      |> Plug.Conn.put_req_header("x-nerveshub-uuid", context.firmware.uuid)
+      |> Plug.Conn.put_req_header("x-nerveshub-uuid", firmware.uuid)
+      |> Plug.Conn.put_req_header("x-nerveshub-product", firmware.product.name)
+      |> Plug.Conn.put_req_header("x-nerveshub-version", firmware.version)
+      |> Plug.Conn.put_req_header("x-nerveshub-architecture", firmware.architecture)
+      |> Plug.Conn.put_req_header("x-nerveshub-platform", firmware.platform)
+      |> Plug.Conn.put_req_header("x-nerveshub-author", firmware.author)
+      |> Plug.Conn.put_req_header("x-nerveshub-description", firmware.description)
+      |> Plug.Conn.put_req_header("x-nerveshub-vcs-identifier", firmware.vcs_identifier || "")
+      |> Plug.Conn.put_req_header("x-nerveshub-misc", firmware.misc || "")
       |> Device.call([])
 
     assert %NervesHubWebCore.Devices.Device{} = plug_call_conn.assigns.device
-    assert context.firmware.id == fetch_device_fw_id.()
+    device = Repo.get(NervesHubWebCore.Devices.Device, context.device.id)
+    assert firmware.uuid == device.firmware_metadata.uuid
+    assert firmware.product.name == device.firmware_metadata.product
+    assert firmware.version == device.firmware_metadata.version
+    assert firmware.architecture == device.firmware_metadata.architecture
+    assert firmware.platform == device.firmware_metadata.platform
+    assert firmware.author == device.firmware_metadata.author
+    assert firmware.description == device.firmware_metadata.description
+    assert firmware.vcs_identifier == device.firmware_metadata.vcs_identifier
+    assert firmware.misc == device.firmware_metadata.misc
 
     # refute `sent` and `status` because the conn
     # should still be alive.

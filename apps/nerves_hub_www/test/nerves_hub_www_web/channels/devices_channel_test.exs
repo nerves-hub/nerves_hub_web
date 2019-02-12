@@ -97,11 +97,12 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
     %{socket: socket}
   end
 
-  defp release_deployment(%{
-         device: device
-       }) do
-    %Device{last_known_firmware: %{product: product}, org: org} =
-      NervesHubWebCore.Repo.preload(device, [:org, last_known_firmware: [:product]])
+  defp release_deployment(%{device: device}) do
+    %Device{firmware_metadata: %{product: product_name}, org: org} =
+      NervesHubWebCore.Repo.preload(device, [:org])
+
+    {:ok, product} =
+      NervesHubWebCore.Products.get_product_by_org_id_and_name(org.id, product_name)
 
     uuid = Ecto.UUID.generate()
 

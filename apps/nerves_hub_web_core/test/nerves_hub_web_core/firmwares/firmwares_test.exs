@@ -7,8 +7,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
     Firmwares,
     Fixtures,
     Support.Fwup,
-    Deployments,
-    Devices
+    Deployments
   }
 
   alias Ecto.Changeset
@@ -251,55 +250,6 @@ defmodule NervesHubWebCore.FirmwaresTest do
       assert firmware.ttl_until == nil
 
       Deployments.delete_deployment(deployment)
-
-      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
-
-      assert firmware.ttl != nil
-      assert firmware.ttl_until != nil
-    end
-
-    test "associating firmware with a device unsets ttl", %{
-      org: org,
-      org_key: org_key,
-      product: product
-    } do
-      firmware = Fixtures.firmware_fixture(org_key, product)
-
-      params = %{
-        org_id: org.id,
-        last_known_firmware_id: firmware.id,
-        identifier: "ttl-1"
-      }
-
-      {:ok, _device} = Devices.create_device(params)
-
-      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
-
-      assert firmware.ttl != nil
-      assert firmware.ttl_until == nil
-    end
-
-    test "disassociating firmware from a device unsets ttl", %{
-      org: org,
-      org_key: org_key,
-      product: product
-    } do
-      firmware = Fixtures.firmware_fixture(org_key, product)
-
-      params = %{
-        org_id: org.id,
-        last_known_firmware_id: firmware.id,
-        identifier: "ttl-1"
-      }
-
-      {:ok, device} = Devices.create_device(params)
-
-      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
-
-      assert firmware.ttl != nil
-      assert firmware.ttl_until == nil
-
-      {:ok, _device} = Devices.delete_device(device)
 
       {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
 

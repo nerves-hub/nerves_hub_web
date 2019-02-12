@@ -23,8 +23,8 @@ defmodule NervesHubDevice.Presence do
 
   ## Statuses
 
-  - `"online"` - The device has a `:last_known_firmware_id` and is connected to Presence
-  - `"update pending"` - The device has a `:last_known_firmware_id`, is connected to presence, and
+  - `"online"` - The device has `:firmware_metadata` and is connected to Presence
+  - `"update pending"` - The device has `:firmware_metadata`, is connected to presence, and
     its presence meta includes `update_available: true`
   - `"offline"` - The device is not connected to Presence
   """

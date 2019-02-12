@@ -7,14 +7,13 @@ defmodule NervesHubWebCore.Devices.Device do
   alias NervesHubWebCore.Repo
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.Org
-  alias NervesHubWebCore.Firmwares.Firmware
+  alias NervesHubWebCore.Firmwares.FirmwareMetadata
   alias NervesHubWebCore.Devices.DeviceCertificate
 
   alias __MODULE__
 
   @type t :: %__MODULE__{}
   @optional_params [
-    :last_known_firmware_id,
     :last_communication,
     :description,
     :tags
@@ -23,8 +22,7 @@ defmodule NervesHubWebCore.Devices.Device do
 
   schema "devices" do
     belongs_to(:org, Org)
-    belongs_to(:last_known_firmware, Firmware)
-
+    embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
 
     field(:identifier, :string)
@@ -38,6 +36,7 @@ defmodule NervesHubWebCore.Devices.Device do
   def changeset(%Device{} = device, params) do
     device
     |> cast(params, @required_params ++ @optional_params)
+    |> cast_embed(:firmware_metadata)
     |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
     |> validate_device_limit()
@@ -63,11 +62,6 @@ defmodule NervesHubWebCore.Devices.Device do
 
     %{devices: limit} = Accounts.get_org_limit_by_org_id(org_id)
     device_count + 1 > limit
-  end
-
-  def with_firmware(device_query) do
-    device_query
-    |> preload(:last_known_firmware)
   end
 
   def with_org(device_query) do

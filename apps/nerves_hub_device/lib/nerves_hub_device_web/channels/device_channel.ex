@@ -6,28 +6,28 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   """
 
   use NervesHubDeviceWeb, :channel
-  alias NervesHubWebCore.{Accounts.Org, Devices, Devices.Device}
+  alias NervesHubWebCore.{Accounts.Org, Devices, Devices.Device, Firmwares}
   alias NervesHubDevice.Presence
 
   intercept(["presence_diff"])
 
-  def join("firmware:" <> fw_uuid, _payload, socket) do
+  def join("firmware:" <> fw_uuid, params, socket) do
     with {:ok, certificate} <- get_certificate(socket),
          {:ok, device} <- Devices.get_device_by_certificate(certificate),
-         {:ok, device} <- Devices.update_last_known_firmware(device, fw_uuid),
+         params <- Map.put_new(params, "nerves_fw_uuid", fw_uuid),
+         {:ok, metadata} <- Firmwares.metadata_from_device(params),
+         {:ok, device} <- Devices.update_firmware_metadata(device, metadata),
          {:ok, device} <- Devices.received_communication(device) do
       deployments = Devices.get_eligible_deployments(device)
       join_reply = Devices.resolve_update(device.org, deployments)
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
       send(self(), {:after_join, device, join_reply.update_available})
       {:ok, join_reply, socket}
-    else
-      {:error, _} = err -> err
     end
   end
 
   def handle_info({:after_join, device, update_available}, socket) do
-    %Device{id: device_id, last_known_firmware_id: firmware_id, org: %Org{id: org_id}} = device
+    %Device{id: device_id, firmware_metadata: firmware_metadata, org: %Org{id: org_id}} = device
 
     {:ok, _} =
       Presence.track(
@@ -37,7 +37,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
         %{
           connected_at: System.system_time(:second),
           update_available: update_available,
-          last_known_firmware_id: firmware_id
+          firmware_metadata: firmware_metadata
         }
       )
 

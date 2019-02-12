@@ -1,7 +1,15 @@
 defmodule NervesHubWebCore.DevicesTest do
   use NervesHubWebCore.DataCase, async: false
 
-  alias NervesHubWebCore.{Accounts, Fixtures, Devices, Devices.CACertificate, Deployments}
+  alias NervesHubWebCore.{
+    Accounts,
+    Fixtures,
+    Devices,
+    Devices.CACertificate,
+    Deployments,
+    Firmwares
+  }
+
   alias NervesHubWebCore.Devices.DeviceCertificate
   alias Ecto.Changeset
 
@@ -29,15 +37,17 @@ defmodule NervesHubWebCore.DevicesTest do
     org: org,
     firmware: firmware
   } do
+    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+
     params = %{
       org_id: org.id,
-      last_known_firmware_id: firmware.id,
+      firmware_metadata: metadata,
       identifier: "valid identifier"
     }
 
     {:ok, %Devices.Device{} = device} = Devices.create_device(params)
 
-    for key <- Map.keys(params) do
+    for key <- Map.keys(metadata) do
       assert Map.get(device, key) == Map.get(params, key)
     end
   end
@@ -47,13 +57,13 @@ defmodule NervesHubWebCore.DevicesTest do
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
-
+    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
     %{devices: org_device_limit} = Accounts.get_org_limit_by_org_id(org.id)
 
     for i <- 1..org_device_limit do
       params = %{
         org_id: org.id,
-        last_known_firmware_id: firmware.id,
+        firmware_metadata: metadata,
         identifier: "id #{i}"
       }
 
@@ -62,7 +72,7 @@ defmodule NervesHubWebCore.DevicesTest do
 
     params = %{
       org_id: org.id,
-      last_known_firmware_id: firmware.id,
+      firmware_metadata: metadata,
       identifier: "too many"
     }
 
@@ -74,13 +84,13 @@ defmodule NervesHubWebCore.DevicesTest do
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
-
+    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
     %{devices: org_device_limit} = Accounts.get_org_limit_by_org_id(org.id)
 
     for i <- 1..org_device_limit do
       params = %{
         org_id: org.id,
-        last_known_firmware_id: firmware.id,
+        firmware_metadata: metadata,
         identifier: "id #{i}"
       }
 
@@ -89,7 +99,7 @@ defmodule NervesHubWebCore.DevicesTest do
 
     params = %{
       org_id: org.id,
-      last_known_firmware_id: firmware.id,
+      firmware_metadata: metadata,
       identifier: "more than default"
     }
 
@@ -128,9 +138,11 @@ defmodule NervesHubWebCore.DevicesTest do
   end
 
   test "cannot create two devices with the same identifier", %{org: org, firmware: firmware} do
+    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+
     params = %{
       org_id: org.id,
-      last_known_firmware_id: firmware.id,
+      firmware_metadata: metadata,
       identifier: "valid identifier"
     }
 
