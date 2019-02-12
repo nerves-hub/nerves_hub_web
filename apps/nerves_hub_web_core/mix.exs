@@ -50,6 +50,7 @@ defmodule NervesHubWebCore.MixProject do
       {:comeonin, "~> 4.1"},
       # poison can be removed once a new release of postgrex is made
       {:poison, "~> 3.0"},
+      {:quantum, "~> 2.3"},
       {:timex, "~> 3.1"},
       {:jason, "~> 1.0"},
       {:sweet_xml, "~> 0.6"},
