@@ -4,15 +4,13 @@ defmodule NervesHubWWW.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   def start(_type, _args) do
-    import Supervisor.Spec
-
     # Start the hackney pool for connections to NervesHubCA
     NervesHubWebCore.CertificateAuthority.start_pool()
 
     # Define workers and child supervisors to be supervised
     children = [
       # Start the endpoint when the application starts
-      supervisor(NervesHubWWWWeb.Endpoint, [])
+      NervesHubWWWWeb.Endpoint
       # Start your own worker by calling: NervesHubWWW.Worker.start_link(arg1, arg2, arg3)
       # worker(NervesHubWWW.Worker, [arg1, arg2, arg3]),
     ]
