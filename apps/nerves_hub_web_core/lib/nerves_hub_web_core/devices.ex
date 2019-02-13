@@ -80,19 +80,23 @@ defmodule NervesHubWebCore.Devices do
   def get_eligible_deployments(%Device{firmware_metadata: nil}), do: []
 
   def get_eligible_deployments(%Device{firmware_metadata: meta} = device) do
-    {:ok, product} = Products.get_product_by_org_id_and_name(device.org_id, meta.product)
+    case Products.get_product_by_org_id_and_name(device.org_id, meta.product) do
+      {:ok, product} ->
+        from(
+          d in Deployment,
+          where: d.is_active,
+          join: f in assoc(d, :firmware),
+          where: f.product_id == ^product.id,
+          where: f.architecture == ^meta.architecture,
+          where: f.platform == ^meta.platform,
+          where: f.uuid != ^meta.uuid
+        )
+        |> Repo.all()
+        |> Enum.filter(fn dep -> matches_deployment?(device, dep) end)
 
-    from(
-      d in Deployment,
-      where: d.is_active,
-      join: f in assoc(d, :firmware),
-      where: f.product_id == ^product.id,
-      where: f.architecture == ^meta.architecture,
-      where: f.platform == ^meta.platform,
-      where: f.uuid != ^meta.uuid
-    )
-    |> Repo.all()
-    |> Enum.filter(fn dep -> matches_deployment?(device, dep) end)
+      _error ->
+        []
+    end
   end
 
   def get_eligible_deployments(_), do: []
