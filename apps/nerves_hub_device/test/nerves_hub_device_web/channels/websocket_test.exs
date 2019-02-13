@@ -5,7 +5,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
   alias NervesHubWebCore.{Accounts, Deployments, Devices, Devices.Device, Repo}
   alias NervesHubDevice.Presence
 
-  alias PhoenixClient.{Socket, Channel, Message}
+  alias PhoenixClient.{Socket, Channel}
 
   @valid_serial "device-1234"
   @valid_product "test-product"
@@ -64,14 +64,14 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
   describe "socket auth" do
     test "Can connect and authenticate to channel using client ssl certificate" do
-      {device, firmware} =
+      {device, _firmware} =
         %{identifier: @valid_serial}
         |> device_fixture()
 
       Fixtures.device_certificate_fixture(device)
       {:ok, socket} = Socket.start_link(@ssl_socket_config)
       wait_for_socket(socket)
-      {:ok, _reply, _channel} = Channel.join(socket, "firmware:#{firmware.uuid}")
+      {:ok, _reply, _channel} = Channel.join(socket, "device")
 
       device =
         NervesHubWebCore.Repo.get(Device, device.id)
@@ -87,12 +87,23 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       refute Socket.connected?(socket)
       Socket.stop(socket)
     end
-  end
 
-  describe "channel auth" do
-    test "Cannot connect and authenticate to channel with non-matching serial" do
+    test "Can connect and authenticate to channel using firmware topic" do
+      {device, firmware} =
+        %{identifier: @valid_serial}
+        |> device_fixture()
+
+      Fixtures.device_certificate_fixture(device)
       {:ok, socket} = Socket.start_link(@ssl_socket_config)
-      refute Socket.connected?(socket)
+      wait_for_socket(socket)
+      {:ok, _reply, _channel} = Channel.join(socket, "firmware:#{firmware.uuid}")
+
+      device =
+        NervesHubWebCore.Repo.get(Device, device.id)
+        |> NervesHubWebCore.Repo.preload(:org)
+
+      assert Presence.device_status(device) == "online"
+      refute_receive({"presence_diff", _})
       Socket.stop(socket)
     end
   end
@@ -125,7 +136,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       {:ok, socket} = Socket.start_link(@ssl_socket_config)
       wait_for_socket(socket)
-      {:ok, reply, _channel} = Channel.join(socket, "firmware:#{device.firmware_metadata.uuid}")
+      {:ok, reply, _channel} = Channel.join(socket, "device")
       assert %{"update_available" => true, "firmware_url" => _} = reply
 
       device =
@@ -147,7 +158,6 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       Fixtures.device_certificate_fixture(device)
       org_key = Fixtures.org_key_fixture(device.org)
-      target_uuid = firmware.uuid
 
       firmware =
         Fixtures.firmware_fixture(
@@ -169,17 +179,16 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       {:ok, socket} = Socket.start_link(@ssl_socket_config)
       wait_for_socket(socket)
-      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "firmware:#{target_uuid}")
-      {:ok, reply, _channel} = Channel.join(socket, "firmware:#{target_uuid}")
+      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
+      {:ok, reply, _channel} = Channel.join(socket, "device")
       assert %{"update_available" => false} = reply
 
       Deployments.update_deployment(deployment, %{is_active: true})
-      device_id = device.id
 
       assert_receive(
-        %Message{
+        %Phoenix.Socket.Broadcast{
           event: "update",
-          payload: %{"device_id" => ^device_id, "firmware_url" => _f_url}
+          payload: %{firmware_url: _f_url}
         },
         1000
       )
@@ -196,7 +205,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       {:ok, socket} = Socket.start_link(@ssl_socket_config)
       wait_for_socket(socket)
-      {:ok, reply, _channel} = Channel.join(socket, "firmware:#{query_uuid}")
+      {:ok, reply, _channel} = Channel.join(socket, "device")
       assert %{"update_available" => false} = reply
 
       device = Repo.preload(device, :org)
@@ -216,7 +225,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     test "vaild certificate can connect" do
       org = Fixtures.org_fixture(%{name: "custom ca test"})
 
-      {device, firmware} =
+      {device, _firmware} =
         %{identifier: @valid_serial}
         |> device_fixture(org)
 
@@ -250,7 +259,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       {:ok, socket} = Socket.start_link(opts)
       wait_for_socket(socket)
-      {:ok, _reply, _channel} = Channel.join(socket, "firmware:#{firmware.uuid}")
+      {:ok, _reply, _channel} = Channel.join(socket, "device")
 
       device =
         NervesHubWebCore.Repo.get(Device, device.id)
@@ -263,7 +272,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     test "ca signer last used is updated" do
       org = Fixtures.org_fixture(%{name: "ca cert is updated"})
 
-      {device, firmware} =
+      {device, _firmware} =
         %{identifier: @valid_serial}
         |> device_fixture(org)
 
@@ -298,12 +307,12 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       {:ok, socket} = Socket.start_link(opts)
       wait_for_socket(socket)
-      {:ok, _reply, channel} = Channel.join(socket, "firmware:#{firmware.uuid}")
+      {:ok, _reply, channel} = Channel.join(socket, "device")
       Channel.stop(channel)
       Socket.stop(socket)
       {:ok, socket} = Socket.start_link(opts)
       wait_for_socket(socket)
-      {:ok, _reply, _channel} = Channel.join(socket, "firmware:#{firmware.uuid}")
+      {:ok, _reply, _channel} = Channel.join(socket, "device")
 
       [%{last_used: updated_last_used}] = Devices.get_ca_certificates(org)
 

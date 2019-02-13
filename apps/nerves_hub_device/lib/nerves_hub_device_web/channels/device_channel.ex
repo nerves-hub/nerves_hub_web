@@ -13,15 +13,27 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   def join("firmware:" <> fw_uuid, params, socket) do
     with {:ok, certificate} <- get_certificate(socket),
-         {:ok, device} <- Devices.get_device_by_certificate(certificate),
-         params <- Map.put_new(params, "nerves_fw_uuid", fw_uuid),
-         {:ok, device} <- update_metadata(device, params),
+         {:ok, device} <- Devices.get_device_by_certificate(certificate) do
+      params = Map.put_new(params, "nerves_fw_uuid", fw_uuid)
+      join("device", params, assign(socket, :device, device))
+    end
+  end
+
+  def join("device", params, %{assigns: %{device: device}} = socket) do
+    with {:ok, device} <- update_metadata(device, params),
          {:ok, device} <- Devices.received_communication(device) do
+      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
       deployments = Devices.get_eligible_deployments(device)
       join_reply = Devices.resolve_update(device.org, deployments)
-      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
       send(self(), {:after_join, device, join_reply.update_available})
       {:ok, join_reply, socket}
+    end
+  end
+
+  def join("device", params, socket) do
+    with {:ok, certificate} <- get_certificate(socket),
+         {:ok, device} <- Devices.get_device_by_certificate(certificate) do
+      join("device", params, assign(socket, :device, device))
     end
   end
 
@@ -43,10 +55,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(
-        %{payload: %{device_id: device_id} = payload, event: event},
-        %{assigns: %{certificate: %{device_id: device_id}}} = socket
-      ) do
+  def handle_info(%{payload: payload, event: event}, socket) do
     push(socket, event, payload)
     {:noreply, socket}
   end

@@ -112,7 +112,7 @@ defmodule NervesHubWebCore.Devices do
         "device:#{device.id}",
         %Phoenix.Socket.Broadcast{
           event: "update",
-          payload: %{device_id: device.id, firmware_url: url}
+          payload: %{firmware_url: url}
         }
       )
 
