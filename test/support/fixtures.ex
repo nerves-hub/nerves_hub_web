@@ -58,6 +58,17 @@ defmodule NervesHubWebCore.Fixtures do
     }
   end
 
+  def firmware_transfer_params(org_id, firmware_uuid) do
+    %{
+      org_id: org_id,
+      firmware_uuid: firmware_uuid,
+      remote_ip: "192.0.2.3",
+      bytes_sent: 300000,
+      bytes_total: 32184752,
+      timestamp: DateTime.utc_now()
+    }
+  end
+
   def user_certificate_params() do
     %{
       description: "my test cert",
@@ -174,6 +185,13 @@ defmodule NervesHubWebCore.Fixtures do
     filepath = firmware_file_fixture(org_key, product, params)
     {:ok, firmware} = Firmwares.create_firmware(org, filepath, params)
     firmware
+  end
+
+  def firmware_transfer_fixture(org_id, firmware_uuid, params \\ %{}) do
+    params =
+      firmware_transfer_params(org_id, firmware_uuid)
+      |> Map.merge(params)
+    Firmwares.create_firmware_transfer(params)
   end
 
   def deployment_fixture(

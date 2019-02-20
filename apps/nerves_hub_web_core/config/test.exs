@@ -5,6 +5,8 @@ config :bcrypt_elixir,
 
 config :nerves_hub_web_core, firmware_upload: NervesHubWebCore.Firmwares.Upload.File
 
+config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.S3, bucket: "mybucket"
+
 config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.File,
   local_path: System.tmp_dir(),
   public_path: "/firmware"
