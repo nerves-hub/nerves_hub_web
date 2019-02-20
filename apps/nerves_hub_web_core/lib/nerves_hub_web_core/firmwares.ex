@@ -4,7 +4,7 @@ defmodule NervesHubWebCore.Firmwares do
   alias Ecto.Changeset
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.{OrgKey, Org}
-  alias NervesHubWebCore.Firmwares.{Firmware, FirmwareMetadata}
+  alias NervesHubWebCore.Firmwares.{Firmware, FirmwareMetadata, FirmwareTransfer}
   alias NervesHubWebCore.Products
   alias NervesHubWebCore.Repo
 
@@ -273,6 +273,12 @@ defmodule NervesHubWebCore.Firmwares do
     }
 
     metadata_or_firmware(params)
+  end
+
+  def create_firmware_transfer(params) do
+    %FirmwareTransfer{}
+    |> FirmwareTransfer.changeset(params)
+    |> Repo.insert()
   end
 
   # Private functions
