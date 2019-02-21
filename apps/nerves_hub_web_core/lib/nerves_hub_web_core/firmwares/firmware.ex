@@ -28,11 +28,11 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
     :ttl,
     :uuid,
     :upload_metadata,
-    :version
+    :version,
+    :size
   ]
   @virtual_params [
-    :org_id,
-    :size
+    :org_id
   ]
 
   schema "firmwares" do
@@ -43,7 +43,7 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
     field(:architecture, :string)
     field(:author, :string)
     field(:description, :string)
-    field(:size, :integer, virtual: true)
+    field(:size, :integer)
     field(:misc, :string)
     field(:org_id, :integer, virtual: true)
     field(:platform, :string)

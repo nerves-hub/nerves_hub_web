@@ -128,6 +128,24 @@ defmodule NervesHubWebCore.FirmwaresTest do
     assert {:error, %Changeset{}} = Firmwares.delete_firmware(firmware)
   end
 
+  test "firmware stores size", %{
+    org: org,
+    org_key: org_key,
+    product: product
+  } do
+    firmware = Fixtures.firmware_fixture(org_key, product)
+    assert File.exists?(firmware.upload_metadata[:local_path])
+
+    expected_size =
+      firmware.upload_metadata[:local_path]
+      |> to_charlist()
+      |> :filelib.file_size()
+
+    {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
+
+    assert firmware.size == expected_size
+  end
+
   describe "get_firmwares_by_product/2" do
     test "returns firmwares", %{product: %{id: product_id} = product} do
       firmwares = Firmwares.get_firmwares_by_product(product.id)
