@@ -11,7 +11,8 @@ defmodule NervesHubWebCore.Application do
       # Start the Ecto repository
       NervesHubWebCore.Repo,
       {Phoenix.PubSub.PG2, pubsub_config},
-      {Task.Supervisor, name: NervesHubWebCore.TaskSupervisor}
+      {Task.Supervisor, name: NervesHubWebCore.TaskSupervisor},
+      NervesHubWebCore.Scheduler
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
