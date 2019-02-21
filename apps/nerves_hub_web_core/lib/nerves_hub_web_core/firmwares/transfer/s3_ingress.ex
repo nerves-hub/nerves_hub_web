@@ -34,6 +34,9 @@ defmodule NervesHubWebCore.Firmwares.Transfer.S3Ingress do
                 {:ok, _transfer} ->
                   errors
 
+                {:error, %{errors: [remote_ip: {"record already exists", _}]}} ->
+                  errors
+
                 {:error, error} ->
                   Logger.error(fn -> "Error inserting transfer: #{inspect(error)}" end)
                   [error | errors]
@@ -41,7 +44,7 @@ defmodule NervesHubWebCore.Firmwares.Transfer.S3Ingress do
             end)
 
           if errors == [] do
-            S3.delete_object(bucket, object_key)
+            S3.delete_object(bucket, object_key) |> ExAws.request()
           else
             Logger.error(fn -> "Error inserting transfers from object: #{inspect(object_key)}" end)
           end
@@ -50,8 +53,6 @@ defmodule NervesHubWebCore.Firmwares.Transfer.S3Ingress do
           Logger.error(fn ->
             "Error fetching object: #{inspect(object_key)}\n#{inspect(error)}"
           end)
-
-          :noop
       end
     end)
   end
