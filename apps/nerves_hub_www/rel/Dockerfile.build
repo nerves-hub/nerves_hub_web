@@ -31,7 +31,7 @@ RUN mix do phx.digest, release --env=$MIX_ENV --name=nerves_hub_www
 # Release Container
 FROM nerveshub/runtime:alpine-3.8 as release
 
-RUN apk add 'fwup~=1.2.7' \
+RUN apk add 'fwup~=1.3.0' \
   --repository http://nl.alpinelinux.org/alpine/edge/community/ \
   --no-cache
 
