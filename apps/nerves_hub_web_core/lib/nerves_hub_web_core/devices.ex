@@ -176,21 +176,26 @@ defmodule NervesHubWebCore.Devices do
     end
   end
 
-  def get_device_certificate_by_serial(serial) do
+  def get_device_certificate_by_x509(cert) do
+    aki = NervesHubWebCore.Certificate.get_aki(cert)
+    serial = NervesHubWebCore.Certificate.get_serial_number(cert)
+    {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(cert)
+
     query =
       from(
         c in DeviceCertificate,
-        where: c.serial == ^serial
+        where:
+          c.serial == ^serial and
+            c.aki == ^aki and
+            c.not_before == ^not_before and
+            c.not_after == ^not_after
       )
 
     query
     |> Repo.one()
     |> case do
-      nil ->
-        {:error, :not_found}
-
-      certificate ->
-        {:ok, certificate}
+      nil -> {:error, :not_found}
+      certificate -> {:ok, certificate}
     end
   end
 

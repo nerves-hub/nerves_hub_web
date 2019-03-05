@@ -41,9 +41,7 @@ defmodule NervesHubDevice.SSL do
   end
 
   def verify_device(certificate) do
-    serial = Certificate.get_serial_number(certificate)
-
-    case Devices.get_device_certificate_by_serial(serial) do
+    case Devices.get_device_certificate_by_x509(certificate) do
       {:ok, cert} ->
         Devices.update_device_certificate(cert, %{last_used: DateTime.utc_now()})
         {:ok, cert}
