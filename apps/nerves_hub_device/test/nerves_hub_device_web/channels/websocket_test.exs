@@ -320,19 +320,9 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     end
   end
 
-  def wait_for_socket(_, _ \\ nil)
-
-  def wait_for_socket(socket, nil) do
-    timeout = 2_000
-    {:ok, t_ref} = :timer.exit_after(timeout, "Timed out waiting for socket")
-    wait_for_socket(socket, t_ref)
-  end
-
-  def wait_for_socket(socket, timer) do
-    if Socket.connected?(socket) do
-      :timer.cancel(timer)
-    else
-      wait_for_socket(socket, timer)
+  def wait_for_socket(socket) do
+    unless Socket.connected?(socket) do
+      wait_for_socket(socket)
     end
   end
 end

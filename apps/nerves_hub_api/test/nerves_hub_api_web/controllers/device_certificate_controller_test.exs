@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
-  alias NervesHubWebCore.Devices
+  alias NervesHubWebCore.{Devices, Certificate}
 
   setup context do
     org = context.org
@@ -36,7 +36,8 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
       assert %{"cert" => cert} = resp_data
 
       cert = X509.Certificate.from_pem!(cert)
-      {:ok, cert} = Devices.get_device_certificate_by_x509(cert)
+      serial = Certificate.get_serial_number(cert)
+      {:ok, cert} = Devices.get_device_certificate_by_serial(serial)
 
       assert cert.device_id == device.id
     end

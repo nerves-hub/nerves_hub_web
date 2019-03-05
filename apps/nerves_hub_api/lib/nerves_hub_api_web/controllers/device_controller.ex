@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.DeviceController do
   use NervesHubAPIWeb, :controller
 
-  alias NervesHubWebCore.{Devices, Devices.DeviceCertificate}
+  alias NervesHubWebCore.{Certificate, Devices, Devices.DeviceCertificate}
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
@@ -51,8 +51,9 @@ defmodule NervesHubAPIWeb.DeviceController do
   def auth(%{assigns: %{org: org}} = conn, %{"certificate" => cert64}) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
          {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
+         serial <- Certificate.get_serial_number(cert),
          {:ok, %DeviceCertificate{device_id: device_id}} <-
-           Devices.get_device_certificate_by_x509(cert),
+           Devices.get_device_certificate_by_serial(serial),
          {:ok, device} <- Devices.get_device_by_org(org, device_id) do
       conn
       |> put_status(200)

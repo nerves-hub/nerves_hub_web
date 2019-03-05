@@ -120,10 +120,11 @@ defmodule NervesHubWebCore.DevicesTest do
   test "delete_device deletes its certificates", %{
     device: device
   } do
-    [_cert] = Devices.get_device_certificates(device)
+    [cert] = Devices.get_device_certificates(device)
 
     {:ok, _device} = Devices.delete_device(device)
-    assert [] = Devices.get_device_certificates(device)
+
+    assert {:error, _} = Devices.get_device_certificate_by_serial(cert.serial)
   end
 
   test "create_device with invalid parameters", %{firmware: firmware} do
