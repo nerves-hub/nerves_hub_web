@@ -3,6 +3,7 @@ defmodule NervesHubWebCore.Accounts.Org do
 
   import Ecto.Changeset
   import Ecto.Query
+  import EctoEnum
 
   alias NervesHubWebCore.Accounts.{User, OrgKey, OrgLimit}
   alias NervesHubWebCore.Devices.{Device, CACertificate}
@@ -10,8 +11,15 @@ defmodule NervesHubWebCore.Accounts.Org do
   alias NervesHubWebCore.Repo
   alias __MODULE__
 
+  @params [
+    :name,
+    :type
+  ]
+
   @type id :: pos_integer() | nil
   @type t :: %__MODULE__{id: id()}
+
+  defenum(Type, :type, [:user, :group])
 
   schema "orgs" do
     has_many(:org_keys, OrgKey)
@@ -23,14 +31,15 @@ defmodule NervesHubWebCore.Accounts.Org do
     many_to_many(:users, User, join_through: "users_orgs", on_replace: :delete, unique: true)
 
     field(:name, :string)
+    field(:type, Type, default: :group)
 
     timestamps()
   end
 
   defp changeset(%Org{} = org, params) do
     org
-    |> cast(params, [:name])
-    |> validate_required([:name])
+    |> cast(params, @params)
+    |> validate_required(@params)
     |> unique_constraint(:name)
     |> unique_constraint(:users, name: :users_orgs_user_id_org_id_index)
   end
