@@ -1,9 +1,10 @@
 <h1>
-  Organization settings
-
+  <%= @org.name %> settings
+  <%= if @org.type != :user do %>
   <a class="btn btn-lg btn-success pull-right" href="<%= org_path(@conn, :invite) %>">
     Invite user
   </a>
+  <% end %>
 </h1>
 
 <table class="table table-striped">
@@ -30,23 +31,25 @@
   </div>
 </table>
 
-<div class="panel panel-default">
-  <div class="panel-heading">
-    Profile
-  </div>
+<%= if @org.type != :user do %>
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      Profile
+    </div>
 
-  <div class="panel-body">
-    <%= form_for @org_changeset, org_path(@conn, :update, @org), fn f -> %>
-      <div class="form-group">
-        <label for="name_input">Name</label>
-        <%= text_input f, :name, class: "form-control", id: "name_input" %>
-        <div class="has-error"><%= error_tag f, :name %></div>
-      </div>
+    <div class="panel-body">
+        <%= form_for @org_changeset, org_path(@conn, :update, @org), fn f -> %>
+          <div class="form-group">
+            <label for="name_input">Name</label>
+            <%= text_input f, :name, class: "form-control", id: "name_input" %>
+            <div class="has-error"><%= error_tag f, :name %></div>
+          </div>
 
-      <%= submit "Update organization", class: "btn btn-primary" %>
-    <% end %>
+          <%= submit "Update organization", class: "btn btn-primary" %>
+        <% end %>
+    </div>
   </div>
-</div>
+<% end %>
 
 <div class="panel panel-default">
   <div class="panel-heading">
