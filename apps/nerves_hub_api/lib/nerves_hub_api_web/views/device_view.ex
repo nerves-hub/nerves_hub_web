@@ -19,7 +19,8 @@ defmodule NervesHubAPIWeb.DeviceView do
       tags: device.tags,
       version: version(device),
       status: device_status(device),
-      last_communication: last_communication(device)
+      last_communication: last_communication(device),
+      description: device.description
     }
   end
 
