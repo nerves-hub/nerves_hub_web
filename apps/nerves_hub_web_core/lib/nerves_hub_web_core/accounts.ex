@@ -58,7 +58,7 @@ defmodule NervesHubWebCore.Accounts do
   end
 
   def create_user(params) do
-    user_org_params = %{name: params[:username]}
+    user_org_params = %{name: params[:username], type: :user}
 
     with_default_org =
       params

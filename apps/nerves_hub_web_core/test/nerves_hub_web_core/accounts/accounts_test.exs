@@ -250,4 +250,23 @@ defmodule NervesHubWebCore.AccountsTest do
     assert {:ok, %OrgKey{org_id: ^first_id}} =
              Accounts.update_org_key(org_key, %{org_id: other_org.id})
   end
+
+  test "create_org sets type to group" do
+    assert {:ok, %Org{type: :group}} = Accounts.create_org(%{name: "group-org"})
+  end
+
+  test "create_user sets default org to type user" do
+    params = %{
+      username: "user_with_org",
+      org_name: "user_with_org.com",
+      email: "user@user_with_org.com",
+      password: "asdfasdf"
+    }
+
+    {:ok, %User{} = user} = Accounts.create_user(params)
+
+    [result_org | _] = user.orgs
+
+    assert result_org.type == :user
+  end
 end
