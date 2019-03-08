@@ -123,7 +123,9 @@ defmodule NervesHubWebCore.AccountsTest do
     assert result_org_1.name == org_1.name
     assert user.username == user_params.username
 
-    {:ok, %Org{} = org_2} = Accounts.create_org(user, %{name: "org2"})
+    tmp_user = Fixtures.user_fixture()
+    {:ok, %Org{} = org_2} = Accounts.create_org(tmp_user, %{name: "org2"})
+    {:ok, _org_user} = Accounts.add_org_user(org_2, user, %{role: :admin})
     user_orgs = Accounts.get_user_orgs(user)
 
     assert org_1 in user_orgs
@@ -134,6 +136,18 @@ defmodule NervesHubWebCore.AccountsTest do
     user_orgs = Accounts.get_user_orgs(user)
 
     assert user_orgs == [default_org, org_1]
+  end
+
+  test "Unable to remove last user from org" do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
+    assert {:error, :last_user} = Accounts.remove_org_user(org, user)
+  end
+
+  test "Unable to remove user from user org" do
+    user = Fixtures.user_fixture()
+    [org] = Accounts.get_user_orgs(user)
+    assert {:error, :user_org} = Accounts.remove_org_user(org, user)
   end
 
   describe "authenticate" do

@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddUserRoles do
+defmodule NervesHubWebCore.Repo.Migrations.AddOrgUserRoles do
   use Ecto.Migration
 
   alias NervesHubWebCore.Accounts.User.Role
@@ -13,13 +13,6 @@ defmodule NervesHubWebCore.Repo.Migrations.AddUserRoles do
       timestamps()
     end
 
-    create table(:product_users) do
-      add(:product_id, references(:products, on_delete: :delete_all))
-      add(:user_id, references(:users, on_delete: :delete_all))
-      timestamps()
-    end
-
-    create(unique_index(:product_users, [:product_id, :user_id]))
     create(unique_index(:org_users, [:org_id, :user_id], name: "org_users_index"))
   end
 end
