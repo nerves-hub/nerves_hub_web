@@ -2,11 +2,9 @@ defmodule NervesHubAPIWeb.ProductControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
   alias NervesHubWebCore.Fixtures
-  alias NervesHubWebCore.Accounts
 
   setup context do
-    org = Fixtures.org_fixture(%{name: "api test"})
-    Accounts.add_user_to_org(context.user, org)
+    org = Fixtures.org_fixture(context.user, %{name: "api test"})
     Map.put(context, :org, org)
   end
 

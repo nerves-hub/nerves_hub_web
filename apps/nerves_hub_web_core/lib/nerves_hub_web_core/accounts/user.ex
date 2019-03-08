@@ -3,8 +3,9 @@ defmodule NervesHubWebCore.Accounts.User do
 
   import Ecto.Changeset
   import Ecto.Query
+  import EctoEnum
 
-  alias NervesHubWebCore.Accounts.{Org, UserCertificate}
+  alias NervesHubWebCore.Accounts.{Org, UserCertificate, OrgUser}
   alias NervesHubWebCore.Repo
   alias Comeonin.Bcrypt
   alias Ecto.Changeset
@@ -18,9 +19,13 @@ defmodule NervesHubWebCore.Accounts.User do
   @required_params [:username, :email, :password_hash]
   @optional_params [:password, :password_reset_token, :password_reset_token_expires]
 
+  defenum(Role, :role, [:admin, :write, :read])
+
   schema "users" do
     has_many(:user_certificates, UserCertificate)
-    many_to_many(:orgs, Org, join_through: "users_orgs", on_replace: :delete, unique: true)
+
+    has_many(:org_users, OrgUser)
+    has_many(:orgs, through: [:org_users, :org])
 
     field(:username, :string)
     field(:email, :string)
@@ -42,40 +47,11 @@ defmodule NervesHubWebCore.Accounts.User do
     |> validate_username()
     |> unique_constraint(:email)
     |> unique_constraint(:username)
-    |> unique_constraint(:orgs, name: :users_orgs_user_id_org_id_index)
-  end
-
-  defp handle_orgs(changeset, %{orgs: nil}) do
-    changeset |> cast_assoc(:orgs, required: true)
-  end
-
-  defp handle_orgs(changeset, %{orgs: orgs}) do
-    changeset
-    |> put_assoc(:orgs, get_orgs(orgs), required: true)
-  end
-
-  defp handle_orgs(changeset, _params) do
-    changeset
-    |> cast_assoc(:orgs, required: true)
-  end
-
-  defp get_orgs(orgs) do
-    orgs
-    |> Enum.map(fn x -> do_get_org(x) end)
-  end
-
-  defp do_get_org(%Org{} = org) do
-    org
-  end
-
-  defp do_get_org(org) do
-    struct(Org, org)
   end
 
   def creation_changeset(%User{} = user, params) do
     changeset(user, params)
     |> validate_required([:password])
-    |> handle_orgs(params)
   end
 
   def password_changeset(%User{} = user, params) do
@@ -88,21 +64,10 @@ defmodule NervesHubWebCore.Accounts.User do
     |> expire_password_reset_token()
   end
 
-  def update_changeset(%User{} = user, %{orgs: _} = params) do
-    changeset(user, params)
-    |> add_error(:orgs, "update user orgs with update_orgs_changeset/2")
-  end
-
   def update_changeset(%User{} = user, params) do
     changeset(user, params)
     |> generate_password_reset_token_expires()
     |> email_password_update_valid?(user, params)
-  end
-
-  def update_orgs_changeset(%User{} = user, params) do
-    user
-    |> changeset(params)
-    |> handle_orgs(params)
   end
 
   defp validate_username(%Changeset{changes: %{username: username}} = changeset) do

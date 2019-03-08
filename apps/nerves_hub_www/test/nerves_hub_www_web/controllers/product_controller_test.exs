@@ -59,7 +59,8 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   end
 
   defp create_product(_) do
-    org = Fixtures.org_fixture()
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(org)
     {:ok, product: product, org: org}
   end

@@ -14,7 +14,7 @@
             <%= @conn.assigns.current_org.name %>
           </a>
           <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-            <%= for org <- @conn.assigns.user.orgs do %>
+            <%= for org <- user_orgs(@conn) do %>
               <%= if org.id != @conn.assigns.current_org.id do %>
               <%= link org.name, class: "dropdown-item", to: session_path(@conn, :set_org, org: org), method: :put%>
                 <% end %>

@@ -1,6 +1,7 @@
 defmodule NervesHubWWWWeb.LayoutView do
   use NervesHubWWWWeb, :view
 
+  alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.User
 
   def navigation_links(conn) do
@@ -9,6 +10,12 @@ defmodule NervesHubWWWWeb.LayoutView do
       {"All Devices", device_path(conn, :index)}
     ]
   end
+
+  def user_orgs(%{assigns: %{user: %User{} = user}}) do
+    Accounts.get_user_orgs(user)
+  end
+
+  def user_orgs(_conn), do: []
 
   def logged_in?(%{assigns: %{user: %User{}}}), do: true
   def logged_in?(_), do: false
