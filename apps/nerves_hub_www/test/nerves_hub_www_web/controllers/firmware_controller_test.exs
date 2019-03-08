@@ -6,8 +6,8 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
   alias NervesHubWebCore.Support.Fwup
 
   describe "index" do
-    test "lists all firmwares", %{conn: conn, current_org: org} do
-      product = Fixtures.product_fixture(org)
+    test "lists all firmwares", %{conn: conn, current_user: user, current_org: org} do
+      product = Fixtures.product_fixture(user, org)
 
       conn = get(conn, product_firmware_path(conn, :index, product.id))
       assert html_response(conn, 200) =~ "Firmware"
@@ -16,8 +16,12 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
   end
 
   describe "upload firmware form" do
-    test "renders form with valid request params", %{conn: conn, current_org: org} do
-      product = Fixtures.product_fixture(org)
+    test "renders form with valid request params", %{
+      conn: conn,
+      current_user: user,
+      current_org: org
+    } do
+      product = Fixtures.product_fixture(user, org)
       conn = get(conn, product_firmware_path(conn, :upload, product.id))
 
       assert html_response(conn, 200) =~ "Upload Firmware"
@@ -28,11 +32,12 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
   describe "upload firmware" do
     test "redirects after successful upload", %{
       conn: conn,
+      current_user: user,
       current_org: org,
       org_key: org_key
     } do
       product_name = "cool product"
-      product = Fixtures.product_fixture(org, %{name: product_name})
+      product = Fixtures.product_fixture(user, org, %{name: product_name})
 
       {:ok, signed_firmware_path} =
         Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: product_name})
@@ -56,8 +61,13 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
       assert html_response(conn, 200) =~ product_name
     end
 
-    test "error if corrupt firmware uploaded", %{conn: conn, current_org: org, org_key: org_key} do
-      product = Fixtures.product_fixture(org, %{name: "starter"})
+    test "error if corrupt firmware uploaded", %{
+      conn: conn,
+      current_user: user,
+      current_org: org,
+      org_key: org_key
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "starter"})
 
       {:ok, signed_firmware_path} =
         Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: "starter"})
@@ -79,8 +89,12 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
                "Firmware corrupt, signature invalid or missing public key"
     end
 
-    test "error if org keys do not match firmware", %{conn: conn, current_org: org} do
-      product = Fixtures.product_fixture(org, %{name: "starter"})
+    test "error if org keys do not match firmware", %{
+      conn: conn,
+      current_user: user,
+      current_org: org
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "starter"})
 
       Fwup.gen_key_pair("wrong")
 
@@ -104,10 +118,11 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
     test "error if meta-product does not match product name", %{
       conn: conn,
+      current_user: user,
       current_org: org,
       org_key: org_key
     } do
-      product = Fixtures.product_fixture(org, %{name: "non-matching name"})
+      product = Fixtures.product_fixture(user, org, %{name: "non-matching name"})
 
       {:ok, signed_firmware_path} =
         Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: "name"})
@@ -128,11 +143,11 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
     test "error if firmware size exceeds limit", %{
       conn: conn,
+      current_user: user,
       current_org: org
     } do
       Accounts.create_org_limit(%{org_id: org.id, firmware_size: 1})
-      product = Fixtures.product_fixture(org, %{name: "starter"})
-
+      product = Fixtures.product_fixture(user, org, %{name: "starter"})
       org_key = Fixtures.org_key_fixture(org)
 
       {:ok, signed_firmware_path} =

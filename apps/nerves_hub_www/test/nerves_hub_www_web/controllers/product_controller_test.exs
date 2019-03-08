@@ -2,15 +2,9 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
   alias NervesHubWebCore.Fixtures
-  alias NervesHubWebCore.Products
 
   @create_attrs %{name: "some name"}
   @invalid_attrs %{name: nil}
-
-  def fixture(:product) do
-    {:ok, product} = Products.create_product(@create_attrs)
-    product
-  end
 
   describe "index" do
     test "lists all products", %{conn: conn} do
@@ -61,7 +55,7 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   defp create_product(_) do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
-    product = Fixtures.product_fixture(org)
+    product = Fixtures.product_fixture(user, org)
     {:ok, product: product, org: org}
   end
 end

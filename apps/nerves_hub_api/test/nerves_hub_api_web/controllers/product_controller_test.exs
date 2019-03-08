@@ -61,8 +61,8 @@ defmodule NervesHubAPIWeb.ProductControllerTest do
     end
   end
 
-  defp create_product(%{org: org}) do
-    product = Fixtures.product_fixture(org, %{name: "api"})
+  defp create_product(%{user: user, org: org}) do
+    product = Fixtures.product_fixture(user, org, %{name: "api"})
     {:ok, %{product: product}}
   end
 end

@@ -14,7 +14,7 @@ defmodule NervesHubDevice.SSLTest do
 
   test "verify a certificate", %{user: user} do
     org = Fixtures.org_fixture(user, %{name: "verify_device"})
-    product = Fixtures.product_fixture(org)
+    product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
 
@@ -64,7 +64,7 @@ defmodule NervesHubDevice.SSLTest do
 
   test "refuse a certificate with same serial but unknown signer", %{user: user} do
     org = Fixtures.org_fixture(user, %{name: "refuse_device"})
-    product = Fixtures.product_fixture(org)
+    product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
 
@@ -98,7 +98,7 @@ defmodule NervesHubDevice.SSLTest do
 
   test "refuse a certificate with same serial but different validity", %{user: user} do
     org = Fixtures.org_fixture(user, %{name: "refuse_device"})
-    product = Fixtures.product_fixture(org)
+    product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
 

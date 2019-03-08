@@ -21,8 +21,8 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
   end
 
   describe "index" do
-    test "lists all devices for an org", %{conn: conn, org: org} do
-      product = Fixtures.product_fixture(org)
+    test "lists all devices for an org", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
@@ -39,8 +39,8 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
   end
 
   describe "delete devices" do
-    test "deletes chosen device", %{conn: conn, org: org} do
-      product = Fixtures.product_fixture(org)
+    test "deletes chosen device", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
@@ -56,8 +56,8 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
   end
 
   describe "update devices" do
-    test "updates chosen device", %{conn: conn, org: org} do
-      product = Fixtures.product_fixture(org)
+    test "updates chosen device", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
@@ -79,8 +79,8 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
   end
 
   describe "authenticate devices" do
-    test "valid certificate", %{conn: conn, org: org} do
-      product = Fixtures.product_fixture(org)
+    test "valid certificate", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
 

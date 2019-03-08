@@ -4,13 +4,22 @@ defmodule NervesHubWebCore.Products do
   """
 
   import Ecto.Query, warn: false
+
+  alias Ecto.Multi
   alias NervesHubWebCore.Repo
+  alias NervesHubWebCore.Products.{Product, ProductUser}
+  alias NervesHubWebCore.Accounts.{User, Org}
 
-  alias NervesHubWebCore.Products.Product
-  alias NervesHubWebCore.Accounts.Org
-
-  def list_products(%Org{id: org_id}) do
-    query = from(p in Product, where: p.org_id == ^org_id)
+  def get_products_by_user_and_org(%User{id: user_id}, %Org{id: org_id}) do
+    query =
+      from(
+        p in Product,
+        join: pu in ProductUser,
+        on: p.id == pu.product_id,
+        where:
+          p.org_id == ^org_id and
+            pu.user_id == ^user_id
+      )
 
     query
     |> Repo.all()
@@ -55,17 +64,69 @@ defmodule NervesHubWebCore.Products do
 
   ## Examples
 
-      iex> create_product(%{field: value})
+      iex> create_product(user, %{field: value})
       {:ok, %Product{}}
 
-      iex> create_product(%{field: bad_value})
+      iex> create_product(user, %{field: bad_value})
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_product(attrs \\ %{}) do
-    %Product{}
-    |> Product.changeset(attrs)
-    |> Repo.insert()
+  def create_product(user, params \\ %{}) do
+    multi =
+      Multi.new()
+      |> Multi.insert(:product, Product.changeset(%Product{}, params))
+      |> Multi.insert(:product_user, fn %{product: product} ->
+        product_user = %ProductUser{
+          product_id: product.id,
+          user_id: user.id,
+          role: :admin
+        }
+
+        Product.add_user(product_user, %{})
+      end)
+
+    case Repo.transaction(multi) do
+      {:ok, result} ->
+        {:ok, result.product}
+
+      {:error, :product, changeset, _} ->
+        {:error, changeset}
+    end
+  end
+
+  def add_product_user(%Product{} = product, %User{} = user, params) do
+    product_user = %ProductUser{product_id: product.id, user_id: user.id}
+
+    multi =
+      Multi.new()
+      |> Multi.insert(:product_user, Product.add_user(product_user, params))
+
+    case Repo.transaction(multi) do
+      {:ok, result} ->
+        {:ok, result.product_user}
+
+      {:error, :product_user, changeset, _} ->
+        {:error, changeset}
+    end
+  end
+
+  def remove_product_user(%Product{} = product, %User{} = user) do
+    count = Repo.aggregate(Ecto.assoc(product, :product_users), :count, :id)
+
+    if count == 1 do
+      {:error, :last_user}
+    else
+      product_user = Repo.get_by(Ecto.assoc(product, :product_users), user_id: user.id)
+
+      if product_user do
+        {:ok, _result} =
+          Multi.new()
+          |> Multi.delete(:product_user, product_user)
+          |> Repo.transaction()
+      end
+
+      :ok
+    end
   end
 
   @doc """

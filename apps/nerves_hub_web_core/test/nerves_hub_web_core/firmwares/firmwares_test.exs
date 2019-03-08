@@ -17,7 +17,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
   setup do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
-    product = Fixtures.product_fixture(org)
+    product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(firmware)
