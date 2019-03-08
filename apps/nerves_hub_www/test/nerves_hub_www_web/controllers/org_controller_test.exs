@@ -35,8 +35,9 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
       assert html_response(conn, 200) =~ "Organization settings"
     end
 
-    test "does not render form for org not on conn", %{conn: conn, current_org: _org} do
-      new_org = Fixtures.org_fixture(%{name: "Secret Org Name"})
+    test "does not render form for org not on conn", %{conn: conn} do
+      user = Fixtures.user_fixture(%{name: "secret-user"})
+      new_org = Fixtures.org_fixture(user, %{name: "Secret Org Name"})
       conn = get(conn, org_path(conn, :edit, new_org))
       refute html_response(conn, 200) =~ "Secret Org Name"
     end
@@ -44,8 +45,8 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
 
   describe "update org" do
     test "cannot update wrong org", %{conn: conn, current_org: org} do
-      new_org = Fixtures.org_fixture(%{name: "Secret Org Name"})
-      user = Fixtures.user_fixture(%{orgs: [new_org], email: "new@org.com"})
+      user = Fixtures.user_fixture(%{email: "new@org.com"})
+      new_org = Fixtures.org_fixture(user, %{name: "Secret Org Name"})
 
       conn = put(conn, org_path(conn, :update, new_org), org: %{name: "Nefarious Name"})
 

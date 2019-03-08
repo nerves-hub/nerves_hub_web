@@ -50,10 +50,8 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
   end
 
   describe "cannot see" do
-    setup %{fixture: %{user: %{orgs: [%{id: org_id} | _]}}} do
-      %{org: %{id: org_id_2}} = fixture_2 = Fixtures.smartrent_fixture()
-
-      assert org_id != org_id_2
+    setup do
+      fixture_2 = Fixtures.smartrent_fixture()
       {:ok, fixture_2: fixture_2}
     end
 

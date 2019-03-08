@@ -15,7 +15,8 @@ defmodule NervesHubWebCore.FirmwaresTest do
   @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
 
   setup do
-    org = Fixtures.org_fixture()
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
@@ -24,6 +25,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
 
     {:ok,
      %{
+       user: user,
        org: org,
        org_key: org_key,
        firmware: firmware,
@@ -289,13 +291,13 @@ defmodule NervesHubWebCore.FirmwaresTest do
   end
 
   describe "firmware transfers" do
-    test "create" do
-      org = Fixtures.org_fixture(%{name: "transfer-create"})
+    test "create", %{user: user} do
+      org = Fixtures.org_fixture(user, %{name: "transfer-create"})
       assert {:ok, _transfer} = Fixtures.firmware_transfer_fixture(org.id, "12345")
     end
 
-    test "cannot create same record twice" do
-      org = Fixtures.org_fixture(%{name: "transfer-dup"})
+    test "cannot create same record twice", %{user: user} do
+      org = Fixtures.org_fixture(user, %{name: "transfer-dup"})
       assert {:ok, _transfer} = Fixtures.firmware_transfer_fixture(org.id, "12345")
       assert {:error, _error} = Fixtures.firmware_transfer_fixture(org.id, "12345")
     end

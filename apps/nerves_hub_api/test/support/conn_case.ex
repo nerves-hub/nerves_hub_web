@@ -37,8 +37,8 @@ defmodule NervesHubAPIWeb.ConnCase do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHubWebCore.Repo, {:shared, self()})
     end
 
-    org = Fixtures.org_fixture()
-    user = Fixtures.user_fixture(%{orgs: [org]})
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(org, %{name: "starter"})
 
     {:ok, conn: build_auth_conn(), org: org, user: user, product: product}

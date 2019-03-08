@@ -14,7 +14,8 @@ defmodule NervesHubWebCore.DevicesTest do
   alias Ecto.Changeset
 
   setup do
-    org = Fixtures.org_fixture()
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
@@ -24,6 +25,7 @@ defmodule NervesHubWebCore.DevicesTest do
 
     {:ok,
      %{
+       user: user,
        org: org,
        org_key: org_key,
        firmware: firmware,
@@ -52,8 +54,8 @@ defmodule NervesHubWebCore.DevicesTest do
     end
   end
 
-  test "org cannot have too many devices" do
-    org = Fixtures.org_fixture(%{name: "an org with no devices"})
+  test "org cannot have too many devices", %{user: user} do
+    org = Fixtures.org_fixture(user, %{name: "an org with no devices"})
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
@@ -79,8 +81,8 @@ defmodule NervesHubWebCore.DevicesTest do
     assert {:error, %Changeset{}} = Devices.create_device(params)
   end
 
-  test "org device count limit can be raised" do
-    org = Fixtures.org_fixture(%{name: "an org with no devices"})
+  test "org device count limit can be raised", %{user: user} do
+    org = Fixtures.org_fixture(user, %{name: "an org with no devices"})
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
