@@ -119,22 +119,22 @@ defmodule NervesHubWebCore.Accounts do
   def remove_org_user(%Org{type: :user}, %User{}), do: {:error, :user_org}
 
   def remove_org_user(%Org{} = org, %User{} = user) do
-    # count = Repo.aggregate(Ecto.assoc(org, :org_users), :count, :id)
+    count = Repo.aggregate(Ecto.assoc(org, :org_users), :count, :id)
 
-    # if count == 1 do
-    #   {:error, :last_member}
-    # else
-    org_user = Repo.get_by(Ecto.assoc(org, :org_users), user_id: user.id)
+    if count == 1 do
+      {:error, :last_user}
+    else
+      org_user = Repo.get_by(Ecto.assoc(org, :org_users), user_id: user.id)
 
-    if org_user do
-      {:ok, _result} =
-        Multi.new()
-        |> Multi.delete(:org_user, org_user)
-        |> Repo.transaction()
+      if org_user do
+        {:ok, _result} =
+          Multi.new()
+          |> Multi.delete(:org_user, org_user)
+          |> Repo.transaction()
+      end
+
+      :ok
     end
-
-    :ok
-    # end
   end
 
   def get_user_orgs(%User{} = user) do
