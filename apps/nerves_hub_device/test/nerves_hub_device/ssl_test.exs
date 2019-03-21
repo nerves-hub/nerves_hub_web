@@ -3,8 +3,17 @@ defmodule NervesHubDevice.SSLTest do
 
   alias NervesHubWebCore.Fixtures
 
-  test "verify a certificate" do
-    org = Fixtures.org_fixture(%{name: "verify_device"})
+  setup do
+    user = Fixtures.user_fixture()
+
+    {:ok,
+     %{
+       user: user
+     }}
+  end
+
+  test "verify a certificate", %{user: user} do
+    org = Fixtures.org_fixture(user, %{name: "verify_device"})
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
@@ -53,8 +62,8 @@ defmodule NervesHubDevice.SSLTest do
     assert :error = NervesHubDevice.SSL.verify_device(cert)
   end
 
-  test "refuse a certificate with same serial but unknown signer" do
-    org = Fixtures.org_fixture(%{name: "refuse_device"})
+  test "refuse a certificate with same serial but unknown signer", %{user: user} do
+    org = Fixtures.org_fixture(user, %{name: "refuse_device"})
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
@@ -87,8 +96,8 @@ defmodule NervesHubDevice.SSLTest do
     assert :error = NervesHubDevice.SSL.verify_device(cert2)
   end
 
-  test "refuse a certificate with same serial but different validity" do
-    org = Fixtures.org_fixture(%{name: "refuse_device"})
+  test "refuse a certificate with same serial but different validity", %{user: user} do
+    org = Fixtures.org_fixture(user, %{name: "refuse_device"})
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)

@@ -6,13 +6,30 @@ defmodule NervesHubWebCore.Accounts do
   alias NervesHubWebCore.Repo
   alias Comeonin.Bcrypt
 
-  @spec create_org(map) ::
+  @spec create_org(User.t(), map) ::
           {:ok, Org.t()}
           | {:error, Changeset.t()}
-  def create_org(params) do
-    %Org{}
-    |> Org.creation_changeset(params)
-    |> Repo.insert()
+  def create_org(%User{} = user, params) do
+    multi =
+      Multi.new()
+      |> Multi.insert(:org, Org.creation_changeset(%Org{}, params))
+      |> Multi.insert(:org_user, fn %{org: org} ->
+        org_user = %OrgUser{
+          org_id: org.id,
+          user_id: user.id,
+          role: :admin
+        }
+
+        Org.add_user(org_user, %{})
+      end)
+
+    case Repo.transaction(multi) do
+      {:ok, result} ->
+        {:ok, result.org}
+
+      {:error, :org, changeset, _} ->
+        {:error, changeset}
+    end
   end
 
   def create_org_limit(params) do
@@ -57,18 +74,30 @@ defmodule NervesHubWebCore.Accounts do
     User.update_changeset(user, params)
   end
 
-  def create_user(params) do
-    user_org_params = %{name: params[:username], type: :user}
+  def create_user(user_params) do
+    org_params = %{name: user_params[:username], type: :user}
 
-    with_default_org =
-      params
-      |> Map.update(:orgs, [user_org_params], fn p ->
-        [user_org_params | p]
+    multi =
+      Multi.new()
+      |> Multi.insert(:user, User.creation_changeset(%User{}, user_params))
+      |> Multi.insert(:org, Org.creation_changeset(%Org{}, org_params))
+      |> Multi.insert(:org_user, fn %{user: user, org: org} ->
+        org_user = %OrgUser{
+          org_id: org.id,
+          user_id: user.id,
+          role: :admin
+        }
+
+        Org.add_user(org_user, %{})
       end)
 
-    %User{}
-    |> change_user(with_default_org)
-    |> Repo.insert()
+    case Repo.transaction(multi) do
+      {:ok, result} ->
+        {:ok, result.user}
+
+      {:error, :user, changeset, _} ->
+        {:error, changeset}
+    end
   end
 
   def add_org_user(%Org{} = org, %User{} = user, params) do
@@ -418,7 +447,7 @@ defmodule NervesHubWebCore.Accounts do
 
     Repo.transaction(fn ->
       with {:ok, user} <- create_user(user_params),
-           {:ok, user} <- add_user_to_org(user, org),
+           {:ok, user} <- add_org_user(org, user, %{role: :admin}),
            {:ok, _invite} <- set_invite_accepted(invite) do
         {:ok, user}
       else
@@ -433,26 +462,6 @@ defmodule NervesHubWebCore.Accounts do
   def update_user(%User{} = user, user_params) do
     user
     |> change_user(user_params)
-    |> Repo.update()
-  end
-
-  def add_user_to_org(%User{} = user, %Org{} = org) do
-    all_orgs = user |> User.with_all_orgs() |> Map.get(:orgs, [])
-    params = %{orgs: [org | all_orgs]}
-
-    user
-    |> User.update_orgs_changeset(params)
-    |> Repo.update()
-  end
-
-  def remove_user_from_org(%User{} = user, %Org{} = org) do
-    all_orgs = user |> User.with_all_orgs() |> Map.get(:orgs, [])
-
-    {_, remaining_orgs} = Enum.split_with(all_orgs, fn x -> x.id == org.id end)
-    params = %{orgs: remaining_orgs}
-
-    user
-    |> User.update_orgs_changeset(params)
     |> Repo.update()
   end
 
@@ -498,9 +507,9 @@ defmodule NervesHubWebCore.Accounts do
 
   @spec user_in_org?(integer(), integer()) :: boolean()
   def user_in_org?(user_id, org_id) do
-    from(row in "users_orgs",
-      select: %{},
-      where: row.user_id == ^user_id and row.org_id == ^org_id
+    from(ou in OrgUser,
+      where: ou.user_id == ^user_id and ou.org_id == ^org_id,
+      select: %{}
     )
     |> Repo.one()
     |> case do

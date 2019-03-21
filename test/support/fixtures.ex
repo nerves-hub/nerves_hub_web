@@ -80,11 +80,9 @@ defmodule NervesHubWebCore.Fixtures do
     }
   end
 
-  def org_fixture(params \\ %{}) do
-    {:ok, org} =
-      params
-      |> Enum.into(@org_params)
-      |> Accounts.create_org()
+  def org_fixture(user, params \\ %{}) do
+    params = Enum.into(params, @org_params)
+    {:ok, org} = Accounts.create_org(user, params)
 
     org
   end
@@ -246,8 +244,8 @@ defmodule NervesHubWebCore.Fixtures do
 
   def standard_fixture() do
     user_name = "Jeff"
-    org = org_fixture(%{name: user_name})
-    user = user_fixture(%{name: user_name, orgs: [org]})
+    user = user_fixture(%{name: user_name})
+    org = org_fixture(user, %{name: user_name})
     product = product_fixture(org, %{name: "Hop"})
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
@@ -266,8 +264,8 @@ defmodule NervesHubWebCore.Fixtures do
   end
 
   def very_fixture() do
-    org = org_fixture(%{name: "Very"})
-    user = user_fixture(%{name: "Jeff", orgs: [org]})
+    user = user_fixture(%{name: "Jeff"})
+    org = org_fixture(user, %{name: "Very"})
     product = product_fixture(org, %{name: "Hop"})
 
     org_key = org_key_fixture(org)
@@ -289,7 +287,8 @@ defmodule NervesHubWebCore.Fixtures do
   end
 
   def smartrent_fixture() do
-    org = org_fixture(%{name: "SmartRent"})
+    user = user_fixture(%{name: "Frank"})
+    org = org_fixture(user, %{name: "SmartRent"})
     product = product_fixture(org, %{name: "Smart Rent Thing"})
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)

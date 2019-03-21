@@ -13,9 +13,9 @@ defmodule NervesHubWWWWeb.OrgController do
   end
 
   def create(%{assigns: %{current_org: _, user: user}} = conn, %{"org" => org_params}) do
-    with_user_params = org_params |> whitelist([:name]) |> Enum.into(%{users: [user]})
+    params = org_params |> whitelist([:name])
 
-    with {:ok, org} <- Accounts.create_org(with_user_params) do
+    with {:ok, org} <- Accounts.create_org(user, params) do
       conn
       |> put_flash(:info, "Organization created successfully.")
       |> redirect(to: org_path(conn, :edit, org))

@@ -12,7 +12,8 @@ defmodule NervesHubWebCore.ProductsTest do
     @invalid_attrs %{name: nil}
 
     setup do
-      org = Fixtures.org_fixture()
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(org, %{name: "a product"})
 
       {:ok, %{product: product, org: org}}
