@@ -7,7 +7,8 @@ defmodule NervesHubWebCore.DeploymentsTest do
   alias Ecto.Changeset
 
   setup do
-    org = Fixtures.org_fixture()
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)

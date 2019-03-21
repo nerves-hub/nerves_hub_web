@@ -1,19 +1,17 @@
 defmodule NervesHubWWWWeb.SessionControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
-  alias NervesHubWebCore.{Accounts, Fixtures}
+  alias NervesHubWebCore.Fixtures
 
   setup do
-    org = Fixtures.org_fixture(%{name: "my test org 1"})
-
     user =
       Fixtures.user_fixture(%{
-        orgs: [org],
         name: "Foo Bar",
         email: "foo@bar.com",
         password: "password"
       })
 
+    org = Fixtures.org_fixture(user, %{name: "my test org 1"})
     {:ok, %{user: user, org: org}}
   end
 
@@ -44,8 +42,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
 
   describe "set_org" do
     test "adds org to session if user belongs to org", %{conn: conn, current_user: user} do
-      new_org = Fixtures.org_fixture(%{name: "belongs org"})
-      {:ok, _user} = Accounts.add_user_to_org(user, new_org)
+      new_org = Fixtures.org_fixture(user, %{name: "belongs org"})
 
       result_conn = put(conn, session_path(conn, :set_org, org: new_org))
 
@@ -57,7 +54,8 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
       conn: conn,
       current_org: org
     } do
-      new_org = Fixtures.org_fixture(%{name: "this org"})
+      new_user = Fixtures.user_fixture(%{username: "new-one"})
+      new_org = Fixtures.org_fixture(new_user, %{name: "this org"})
       conn = put(conn, session_path(conn, :set_org, org: new_org))
 
       assert redirected_to(conn) == dashboard_path(conn, :index)

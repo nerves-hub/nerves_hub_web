@@ -40,8 +40,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     ]
   ]
 
-  def device_fixture(device_params \\ %{}, org \\ nil) do
-    org = org || Fixtures.org_fixture()
+  def device_fixture(user, device_params \\ %{}, org \\ nil) do
+    org = org || Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(org)
     org_key = Fixtures.org_key_fixture(org)
 
@@ -62,11 +62,18 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     {device, firmware}
   end
 
+  setup do
+    user = Fixtures.user_fixture()
+
+    {:ok,
+     %{
+       user: user
+     }}
+  end
+
   describe "socket auth" do
-    test "Can connect and authenticate to channel using client ssl certificate" do
-      {device, _firmware} =
-        %{identifier: @valid_serial}
-        |> device_fixture()
+    test "Can connect and authenticate to channel using client ssl certificate", %{user: user} do
+      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial})
 
       Fixtures.device_certificate_fixture(device)
       {:ok, socket} = Socket.start_link(@ssl_socket_config)
@@ -88,10 +95,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       Socket.stop(socket)
     end
 
-    test "Can connect and authenticate to channel using firmware topic" do
-      {device, firmware} =
-        %{identifier: @valid_serial}
-        |> device_fixture()
+    test "Can connect and authenticate to channel using firmware topic", %{user: user} do
+      {device, firmware} = device_fixture(user, %{identifier: @valid_serial})
 
       Fixtures.device_certificate_fixture(device)
       {:ok, socket} = Socket.start_link(@ssl_socket_config)
@@ -109,10 +114,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
   end
 
   describe "firmware update" do
-    test "receives update message when eligible deployment is available" do
-      {device, firmware} =
-        %{identifier: @valid_serial}
-        |> device_fixture()
+    test "receives update message when eligible deployment is available", %{user: user} do
+      {device, firmware} = device_fixture(user, %{identifier: @valid_serial})
 
       firmware = NervesHubWebCore.Repo.preload(firmware, :product)
       Fixtures.device_certificate_fixture(device)
@@ -148,10 +151,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       assert Time.diff(DateTime.utc_now(), device.last_communication) < 2
     end
 
-    test "receives update message once deployment is available" do
-      {device, firmware} =
-        %{identifier: @valid_serial}
-        |> device_fixture()
+    test "receives update message once deployment is available", %{user: user} do
+      {device, firmware} = device_fixture(user, %{identifier: @valid_serial})
 
       device = NervesHubWebCore.Repo.preload(device, :org)
       firmware = NervesHubWebCore.Repo.preload(firmware, :product)
@@ -194,10 +195,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       )
     end
 
-    test "does not receive update message when current_version matches target_version" do
+    test "does not receive update message when current_version matches target_version", %{
+      user: user
+    } do
       {device, firmware} =
-        %{identifier: @valid_serial, product: @valid_product}
-        |> device_fixture()
+        device_fixture(user, %{identifier: @valid_serial, product: @valid_product})
 
       Fixtures.device_certificate_fixture(device)
 
@@ -222,12 +224,9 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
   end
 
   describe "Custom CA Signers" do
-    test "vaild certificate can connect" do
-      org = Fixtures.org_fixture(%{name: "custom ca test"})
-
-      {device, _firmware} =
-        %{identifier: @valid_serial}
-        |> device_fixture(org)
+    test "vaild certificate can connect", %{user: user} do
+      org = Fixtures.org_fixture(user, %{name: "custom ca test"})
+      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
 
       %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org)
 
@@ -269,12 +268,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       refute_receive({"presence_diff", _})
     end
 
-    test "ca signer last used is updated" do
-      org = Fixtures.org_fixture(%{name: "ca cert is updated"})
+    test "ca signer last used is updated", %{user: user} do
+      org = Fixtures.org_fixture(user, %{name: "ca cert is updated"})
 
-      {device, _firmware} =
-        %{identifier: @valid_serial}
-        |> device_fixture(org)
+      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
 
       %{cert: ca, key: ca_key, db_cert: %{last_used: last_used}} =
         Fixtures.ca_certificate_fixture(org)

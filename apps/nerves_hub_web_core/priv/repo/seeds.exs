@@ -50,13 +50,11 @@ defmodule NervesHubWebCore.SeedHelpers do
   end
 
   def nerves_team_seed(root_user_params) do
-    org = Fixtures.org_fixture(%{name: "Nerves Team"})
 
+    user = Fixtures.user_fixture(root_user_params)
+    [default_user_org | _] = Accounts.get_user_orgs(user)
+    org = Fixtures.org_fixture(user, %{name: "Nerves Team"})
     for _ <- 0..2, do: Fixtures.org_key_fixture(org)
-
-    %{orgs: [default_user_org | _]} =
-      Fixtures.user_fixture(root_user_params |> Enum.into(%{orgs: [org]}))
-
     for _ <- 0..2, do: Fixtures.org_key_fixture(default_user_org)
 
     ["SmartKiosk", "SmartRentHub"]

@@ -9,27 +9,36 @@ defmodule NervesHubWebCore.AccountsTest do
 
   @required_org_params %{name: "Org"}
 
-  test "create_org with required params" do
-    {:ok, %Org{} = result_org} = Accounts.create_org(@required_org_params)
+  setup do
+    user = Fixtures.user_fixture()
+
+    {:ok,
+     %{
+       user: user
+     }}
+  end
+
+  test "create_org with required params", %{user: user} do
+    {:ok, %Org{} = result_org} = Accounts.create_org(user, @required_org_params)
 
     assert result_org.name == @required_org_params.name
   end
 
-  test "create_org with duplicate name" do
-    {:ok, %Org{}} = Accounts.create_org(@required_org_params)
-    assert {:error, %Changeset{}} = Accounts.create_org(@required_org_params)
+  test "create_org with duplicate name", %{user: user} do
+    {:ok, %Org{}} = Accounts.create_org(user, @required_org_params)
+    assert {:error, %Changeset{}} = Accounts.create_org(user, @required_org_params)
   end
 
-  test "create_org_limits with defaults" do
-    {:ok, %Org{} = result_org} = Accounts.create_org(@required_org_params)
+  test "create_org_limits with defaults", %{user: user} do
+    {:ok, %Org{} = result_org} = Accounts.create_org(user, @required_org_params)
     limits = Accounts.get_org_limit_by_org_id(result_org.id)
     assert limits == %OrgLimit{}
   end
 
-  test "create_org_limits with custom values" do
+  test "create_org_limits with custom values", %{user: user} do
     org_firmware_size_limit = 1
 
-    {:ok, %Org{} = result_org} = Accounts.create_org(@required_org_params)
+    {:ok, %Org{} = result_org} = Accounts.create_org(user, @required_org_params)
 
     limit_params = %{org_id: result_org.id, firmware_size: org_firmware_size_limit}
     {:ok, %OrgLimit{}} = Accounts.create_org_limit(limit_params)
@@ -39,10 +48,10 @@ defmodule NervesHubWebCore.AccountsTest do
     assert firmware_size_limit == org_firmware_size_limit
   end
 
-  test "delete_org_limits" do
+  test "delete_org_limits", %{user: user} do
     org_firmware_size_limit = 1
 
-    {:ok, %Org{} = result_org} = Accounts.create_org(@required_org_params)
+    {:ok, %Org{} = result_org} = Accounts.create_org(user, @required_org_params)
 
     limit_params = %{org_id: result_org.id, firmware_size: org_firmware_size_limit}
     {:ok, %OrgLimit{}} = Accounts.create_org_limit(limit_params)
@@ -58,22 +67,13 @@ defmodule NervesHubWebCore.AccountsTest do
   end
 
   test "create_org with user" do
-    {:ok, %Org{} = org1} = Accounts.create_org(%{name: "An Org"})
-    user = Fixtures.user_fixture(%{orgs: [org1]})
-
-    {:ok, %Org{} = org2} = Accounts.create_org(%{name: "Another Org", users: [user]})
-    {:ok, user_with_orgs} = Accounts.get_user_with_all_orgs(user.id)
-
-    assert org2.id in (user_with_orgs.orgs |> Enum.map(fn x -> x.id end))
+    user = Fixtures.user_fixture()
+    {:ok, %Org{} = org1} = Accounts.create_org(user, %{name: "An Org"})
+    assert org1 in Accounts.get_user_orgs(user)
   end
 
-  test "create_org without required params" do
-    assert {:error, %Changeset{}} = Accounts.create_org(%{})
-  end
-
-  test "cannot modify users_orgs through Org.update_changeset" do
-    {:ok, org} = Accounts.create_org(%{name: "foo"})
-    assert {:error, %Changeset{}} = Accounts.update_org(org, %{users: []})
+  test "create_org without required params", %{user: user} do
+    assert {:error, %Changeset{}} = Accounts.create_org(user, %{})
   end
 
   test "create_user adds org with user name" do
@@ -86,7 +86,7 @@ defmodule NervesHubWebCore.AccountsTest do
 
     {:ok, %User{} = user} = Accounts.create_user(params)
 
-    [result_org | _] = user.orgs
+    [result_org | _] = Accounts.get_user_orgs(user)
 
     assert result_org.name == user.username
     assert user.username == params.username
@@ -102,48 +102,52 @@ defmodule NervesHubWebCore.AccountsTest do
 
     {:ok, %User{} = user} = Accounts.create_user(params)
 
-    [result_org | _] = user.orgs
+    [result_org | _] = Accounts.get_user_orgs(user)
 
-    assert {:error, %Changeset{}} = Accounts.add_user_to_org(user, result_org)
-  end
-
-  test "cannot change orgs with update_user/2" do
-    org = Fixtures.org_fixture()
-    user = Fixtures.user_fixture(%{orgs: [org]})
-
-    new_org = Fixtures.org_fixture(%{name: "new org"})
-
-    assert {:error, %Changeset{errors: [orgs: _]}} =
-             Accounts.update_user(user, %{orgs: [org, new_org]})
+    assert {:error, %Changeset{}} = Accounts.add_org_user(result_org, user, %{role: :admin})
   end
 
   test "add user and remove user from an org" do
-    {:ok, %Org{} = org_1} = Accounts.create_org(%{name: "org1"})
-    {:ok, %Org{} = org_2} = Accounts.create_org(%{name: "org2"})
-
     user_params = %{
-      orgs: [org_1],
       username: "Testy-McTesterson",
       email: "testy@mctesterson.com",
       password: "test_password"
     }
 
     {:ok, %User{} = user} = Accounts.create_user(user_params)
+    {:ok, %Org{} = org_1} = Accounts.create_org(user, %{name: "org1"})
 
-    [default_org, result_org_1 | _] = user.orgs
+    [default_org, result_org_1 | _] = Accounts.get_user_orgs(user)
 
     assert default_org.name == user.username
     assert result_org_1.name == org_1.name
     assert user.username == user_params.username
 
-    {:ok, user} = Accounts.add_user_to_org(user, org_2)
-    assert org_1 in user.orgs
-    assert org_2 in user.orgs
-    assert Enum.count(user.orgs) == 3
+    tmp_user = Fixtures.user_fixture()
+    {:ok, %Org{} = org_2} = Accounts.create_org(tmp_user, %{name: "org2"})
+    {:ok, _org_user} = Accounts.add_org_user(org_2, user, %{role: :admin})
+    user_orgs = Accounts.get_user_orgs(user)
 
-    {:ok, user} = Accounts.remove_user_from_org(user, org_2)
+    assert org_1 in user_orgs
+    assert org_2 in user_orgs
+    assert Enum.count(user_orgs) == 3
 
-    assert user.orgs == [default_org, org_1]
+    :ok = Accounts.remove_org_user(org_2, user)
+    user_orgs = Accounts.get_user_orgs(user)
+
+    assert user_orgs == [default_org, org_1]
+  end
+
+  test "Unable to remove last user from org" do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
+    assert {:error, :last_user} = Accounts.remove_org_user(org, user)
+  end
+
+  test "Unable to remove user from user org" do
+    user = Fixtures.user_fixture()
+    [org] = Accounts.get_user_orgs(user)
+    assert {:error, :user_org} = Accounts.remove_org_user(org, user)
   end
 
   describe "authenticate" do
@@ -187,8 +191,7 @@ defmodule NervesHubWebCore.AccountsTest do
     }
 
     {:ok, %User{} = user} = Accounts.create_user(params)
-
-    [result_org | _] = user.orgs
+    [result_org | _] = Accounts.get_user_orgs(user)
 
     assert result_org.name == user.username
     assert user.username == params.username
@@ -222,8 +225,8 @@ defmodule NervesHubWebCore.AccountsTest do
     assert {:error, %Ecto.Changeset{}} = Fixtures.user_certificate_fixture(user, params)
   end
 
-  test "org_key name must be unique" do
-    {:ok, org} = Accounts.create_org(@required_org_params)
+  test "org_key name must be unique", %{user: user} do
+    {:ok, org} = Accounts.create_org(user, @required_org_params)
 
     {:ok, _} = Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foo"})
 
@@ -231,8 +234,8 @@ defmodule NervesHubWebCore.AccountsTest do
              Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foobar"})
   end
 
-  test "org_key key must be unique" do
-    {:ok, org} = Accounts.create_org(@required_org_params)
+  test "org_key key must be unique", %{user: user} do
+    {:ok, org} = Accounts.create_org(user, @required_org_params)
 
     {:ok, _} = Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foo"})
 
@@ -240,19 +243,19 @@ defmodule NervesHubWebCore.AccountsTest do
       Accounts.create_org_key(%{name: "org's second key", org_id: org.id, key: "foo"})
   end
 
-  test "cannot change org_id of a org_key once created" do
-    org = Fixtures.org_fixture()
+  test "cannot change org_id of a org_key once created", %{user: user} do
+    org = Fixtures.org_fixture(user)
     first_id = org.id
     org_key = Fixtures.org_key_fixture(org)
 
-    other_org = Fixtures.org_fixture(%{name: "another org"})
+    other_org = Fixtures.org_fixture(user, %{name: "another org"})
 
     assert {:ok, %OrgKey{org_id: ^first_id}} =
              Accounts.update_org_key(org_key, %{org_id: other_org.id})
   end
 
-  test "create_org sets type to group" do
-    assert {:ok, %Org{type: :group}} = Accounts.create_org(%{name: "group-org"})
+  test "create_org sets type to group", %{user: user} do
+    assert {:ok, %Org{type: :group}} = Accounts.create_org(user, %{name: "group-org"})
   end
 
   test "create_user sets default org to type user" do
@@ -264,8 +267,7 @@ defmodule NervesHubWebCore.AccountsTest do
     }
 
     {:ok, %User{} = user} = Accounts.create_user(params)
-
-    [result_org | _] = user.orgs
+    [result_org | _] = Accounts.get_user_orgs(user)
 
     assert result_org.type == :user
   end
