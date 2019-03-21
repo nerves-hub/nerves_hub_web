@@ -1,8 +1,8 @@
 defmodule NervesHubWebCore.Accounts do
   import Ecto.Query
-  alias Ecto.Changeset
+  alias Ecto.{Changeset, Multi}
   alias Ecto.UUID
-  alias NervesHubWebCore.Accounts.{Org, User, UserCertificate, Invite, OrgKey, OrgLimit}
+  alias NervesHubWebCore.Accounts.{Org, User, UserCertificate, Invite, OrgKey, OrgLimit, OrgUser}
   alias NervesHubWebCore.Repo
   alias Comeonin.Bcrypt
 
@@ -69,6 +69,47 @@ defmodule NervesHubWebCore.Accounts do
     %User{}
     |> change_user(with_default_org)
     |> Repo.insert()
+  end
+
+  def add_org_user(%Org{} = org, %User{} = user, params) do
+    org_user = %OrgUser{org_id: org.id, user_id: user.id}
+
+    multi =
+      Multi.new()
+      |> Multi.insert(:org_user, Org.add_user(org_user, params))
+
+    case Repo.transaction(multi) do
+      {:ok, result} ->
+        {:ok, result.org_user}
+
+      {:error, :org_user, changeset, _} ->
+        {:error, changeset}
+    end
+  end
+
+  def remove_org_user(%Org{type: :user}, %User{}), do: {:error, :user_org}
+
+  def remove_org_user(%Org{} = org, %User{} = user) do
+    count = Repo.aggregate(Ecto.assoc(org, :org_users), :count, :id)
+
+    if count == 1 do
+      {:error, :last_user}
+    else
+      org_user = Repo.get_by(Ecto.assoc(org, :org_users), user_id: user.id)
+
+      if org_user do
+        {:ok, _result} =
+          Multi.new()
+          |> Multi.delete(:org_user, org_user)
+          |> Repo.transaction()
+      end
+
+      :ok
+    end
+  end
+
+  def get_user_orgs(%User{} = user) do
+    Repo.all(Ecto.assoc(user, :orgs))
   end
 
   @spec create_user_certificate(User.t(), map) ::

@@ -61,6 +61,16 @@ defmodule NervesHubWebCore.Accounts.Org do
     |> changeset(params)
   end
 
+  def add_user(struct, params) do
+    cast(struct, params, [:role])
+    |> validate_required([:role])
+    |> unique_constraint(
+      :org_users,
+      name: "org_users_index",
+      message: "is already member"
+    )
+  end
+
   defp handle_users(changeset, %{users: nil}) do
     changeset |> cast_assoc(:users)
   end
