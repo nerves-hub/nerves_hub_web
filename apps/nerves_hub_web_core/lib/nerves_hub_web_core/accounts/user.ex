@@ -3,6 +3,7 @@ defmodule NervesHubWebCore.Accounts.User do
 
   import Ecto.Changeset
   import Ecto.Query
+  import EctoEnum
 
   alias NervesHubWebCore.Accounts.{Org, UserCertificate}
   alias NervesHubWebCore.Repo
@@ -17,6 +18,8 @@ defmodule NervesHubWebCore.Accounts.User do
 
   @required_params [:username, :email, :password_hash]
   @optional_params [:password, :password_reset_token, :password_reset_token_expires]
+
+  defenum(Role, :role, [:admin, :write, :read])
 
   schema "users" do
     has_many(:user_certificates, UserCertificate)
