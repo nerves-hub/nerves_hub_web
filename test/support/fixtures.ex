@@ -135,25 +135,15 @@ defmodule NervesHubWebCore.Fixtures do
     Accounts.create_user_certificate(user, cert_params)
   end
 
-  def product_fixture(a, params \\ %{})
+  def product_fixture(_user, _org, params \\ %{})
 
-  def product_fixture(%Accounts.Org{} = org, params) do
-    {:ok, product} =
+  def product_fixture(%Accounts.User{} = user, %Accounts.Org{} = org, params) do
+    params =
       %{org_id: org.id}
       |> Enum.into(params)
       |> Enum.into(@product_params)
-      |> Products.create_product()
 
-    product
-  end
-
-  def product_fixture(%{assigns: %{org: org}}, params) do
-    {:ok, product} =
-      %{org_id: org.id}
-      |> Enum.into(params)
-      |> Enum.into(@product_params)
-      |> Products.create_product()
-
+    {:ok, product} = Products.create_product(user, params)
     product
   end
 
@@ -246,7 +236,7 @@ defmodule NervesHubWebCore.Fixtures do
     user_name = "Jeff"
     user = user_fixture(%{name: user_name})
     org = org_fixture(user, %{name: user_name})
-    product = product_fixture(org, %{name: "Hop"})
+    product = product_fixture(user, org, %{name: "Hop"})
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
@@ -266,7 +256,7 @@ defmodule NervesHubWebCore.Fixtures do
   def very_fixture() do
     user = user_fixture(%{name: "Jeff"})
     org = org_fixture(user, %{name: "Very"})
-    product = product_fixture(org, %{name: "Hop"})
+    product = product_fixture(user, org, %{name: "Hop"})
 
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
@@ -289,7 +279,7 @@ defmodule NervesHubWebCore.Fixtures do
   def smartrent_fixture() do
     user = user_fixture(%{name: "Frank"})
     org = org_fixture(user, %{name: "SmartRent"})
-    product = product_fixture(org, %{name: "Smart Rent Thing"})
+    product = product_fixture(user, org, %{name: "Smart Rent Thing"})
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)

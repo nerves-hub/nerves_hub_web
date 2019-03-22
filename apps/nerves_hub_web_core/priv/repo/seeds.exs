@@ -18,8 +18,8 @@ alias NervesHubWebCore.{Accounts, Accounts.User, Repo, Firmwares}
 defmodule NervesHubWebCore.SeedHelpers do
   alias NervesHubWebCore.Fixtures
 
-  def seed_product(product_name, org) do
-    product = Fixtures.product_fixture(org, %{name: product_name})
+  def seed_product(product_name, user, org) do
+    product = Fixtures.product_fixture(user, org, %{name: product_name})
 
     firmware_versions = ["0.1.0", "0.1.1", "0.1.2", "1.0.0"]
 
@@ -58,10 +58,10 @@ defmodule NervesHubWebCore.SeedHelpers do
     for _ <- 0..2, do: Fixtures.org_key_fixture(default_user_org)
 
     ["SmartKiosk", "SmartRentHub"]
-    |> Enum.map(fn name -> seed_product(name, org) end)
+    |> Enum.map(fn name -> seed_product(name, user, org) end)
 
     ["ToyProject", "ConsultingProject"]
-    |> Enum.map(fn name -> seed_product(name, default_user_org) end)
+    |> Enum.map(fn name -> seed_product(name, user, default_user_org) end)
   end
 end
 

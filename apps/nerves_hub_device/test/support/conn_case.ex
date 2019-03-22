@@ -39,7 +39,7 @@ defmodule NervesHubDeviceWeb.ConnCase do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     org_key = Fixtures.org_key_fixture(org)
-    product = Fixtures.product_fixture(org, %{name: "starter"})
+    product = Fixtures.product_fixture(user, org, %{name: "starter"})
     firmware = Fixtures.firmware_fixture(org_key, product)
     device = Fixtures.device_fixture(org, firmware)
     device_cert = Fixtures.device_certificate_fixture(device)
