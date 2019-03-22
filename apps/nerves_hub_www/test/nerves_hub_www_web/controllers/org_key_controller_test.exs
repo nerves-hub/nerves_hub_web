@@ -82,10 +82,14 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
       end)
     end
 
-    test "returns error when key cannot be deleted", %{conn: conn, current_org: org} do
+    test "returns error when key cannot be deleted", %{
+      conn: conn,
+      current_user: user,
+      current_org: org
+    } do
       org_key = Fixtures.org_key_fixture(org)
 
-      product = Fixtures.product_fixture(org)
+      product = Fixtures.product_fixture(user, org)
       Fixtures.firmware_fixture(org_key, product)
 
       conn = delete(conn, org_key_path(conn, :delete, org_key))

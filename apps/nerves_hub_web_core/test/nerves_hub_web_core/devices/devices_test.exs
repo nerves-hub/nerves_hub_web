@@ -16,7 +16,7 @@ defmodule NervesHubWebCore.DevicesTest do
   setup do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
-    product = Fixtures.product_fixture(org)
+    product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(firmware)
@@ -56,7 +56,7 @@ defmodule NervesHubWebCore.DevicesTest do
 
   test "org cannot have too many devices", %{user: user} do
     org = Fixtures.org_fixture(user, %{name: "an org with no devices"})
-    product = Fixtures.product_fixture(org)
+    product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
@@ -83,7 +83,7 @@ defmodule NervesHubWebCore.DevicesTest do
 
   test "org device count limit can be raised", %{user: user} do
     org = Fixtures.org_fixture(user, %{name: "an org with no devices"})
-    product = Fixtures.product_fixture(org)
+    product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
@@ -383,6 +383,7 @@ defmodule NervesHubWebCore.DevicesTest do
   end
 
   test "deployments limit deploying by product", %{
+    user: user,
     org: org,
     org_key: org_key,
     firmware: firmware,
@@ -404,7 +405,7 @@ defmodule NervesHubWebCore.DevicesTest do
         tags: ["beta", "beta-edge"]
       })
 
-    product2 = Fixtures.product_fixture(org, %{name: "other product"})
+    product2 = Fixtures.product_fixture(user, org, %{name: "other product"})
     firmware2 = Fixtures.firmware_fixture(org_key, product2)
 
     params = %{

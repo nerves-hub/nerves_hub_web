@@ -6,18 +6,18 @@ defmodule NervesHubAPIWeb.ProductController do
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
-  def index(%{assigns: %{org: org}} = conn, _params) do
-    products = Products.list_products(org)
+  def index(%{assigns: %{user: user, org: org}} = conn, _params) do
+    products = Products.get_products_by_user_and_org(user, org)
     render(conn, "index.json", products: products)
   end
 
-  def create(%{assigns: %{org: org}} = conn, params) do
+  def create(%{assigns: %{org: org, user: user}} = conn, params) do
     params =
       params
       |> Map.take(["name"])
       |> Map.put("org_id", org.id)
 
-    with {:ok, product} <- Products.create_product(params) do
+    with {:ok, product} <- Products.create_product(user, params) do
       conn
       |> put_status(:created)
       |> put_resp_header("location", product_path(conn, :show, org.name, product.name))

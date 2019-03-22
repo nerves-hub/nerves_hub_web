@@ -4,8 +4,8 @@ defmodule NervesHubWWWWeb.ProductController do
   alias NervesHubWebCore.Products
   alias NervesHubWebCore.Products.Product
 
-  def index(%{assigns: %{current_org: org}} = conn, _params) do
-    products = Products.list_products(org)
+  def index(%{assigns: %{user: user, current_org: org}} = conn, _params) do
+    products = Products.get_products_by_user_and_org(user, org)
     render(conn, "index.html", products: products)
   end
 
@@ -14,8 +14,10 @@ defmodule NervesHubWWWWeb.ProductController do
     render(conn, "new.html", changeset: changeset)
   end
 
-  def create(%{assigns: %{current_org: org}} = conn, %{"product" => product_params}) do
-    case Products.create_product(product_params |> Enum.into(%{"org_id" => org.id})) do
+  def create(%{assigns: %{user: user, current_org: org}} = conn, %{"product" => product_params}) do
+    params = Enum.into(product_params, %{"org_id" => org.id})
+
+    case Products.create_product(user, params) do
       {:ok, product} ->
         conn
         |> put_flash(:info, "Product created successfully.")

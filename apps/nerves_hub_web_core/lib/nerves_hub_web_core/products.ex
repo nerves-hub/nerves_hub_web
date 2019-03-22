@@ -25,13 +25,6 @@ defmodule NervesHubWebCore.Products do
     |> Repo.all()
   end
 
-  def list_products(%Org{id: org_id}) do
-    query = from(p in Product, where: p.org_id == ^org_id)
-
-    query
-    |> Repo.all()
-  end
-
   @doc """
   Gets a single product.
 
@@ -71,17 +64,34 @@ defmodule NervesHubWebCore.Products do
 
   ## Examples
 
-      iex> create_product(%{field: value})
+      iex> create_product(user, %{field: value})
       {:ok, %Product{}}
 
-      iex> create_product(%{field: bad_value})
+      iex> create_product(user, %{field: bad_value})
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_product(attrs \\ %{}) do
-    %Product{}
-    |> Product.changeset(attrs)
-    |> Repo.insert()
+  def create_product(user, params \\ %{}) do
+    multi =
+      Multi.new()
+      |> Multi.insert(:product, Product.changeset(%Product{}, params))
+      |> Multi.insert(:product_user, fn %{product: product} ->
+        product_user = %ProductUser{
+          product_id: product.id,
+          user_id: user.id,
+          role: :admin
+        }
+
+        Product.add_user(product_user, %{})
+      end)
+
+    case Repo.transaction(multi) do
+      {:ok, result} ->
+        {:ok, result.product}
+
+      {:error, :product, changeset, _} ->
+        {:error, changeset}
+    end
   end
 
   def add_product_user(%Product{} = product, %User{} = user, params) do

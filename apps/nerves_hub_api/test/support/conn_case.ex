@@ -39,7 +39,7 @@ defmodule NervesHubAPIWeb.ConnCase do
 
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
-    product = Fixtures.product_fixture(org, %{name: "starter"})
+    product = Fixtures.product_fixture(user, org, %{name: "starter"})
 
     {:ok, conn: build_auth_conn(), org: org, user: user, product: product}
   end
