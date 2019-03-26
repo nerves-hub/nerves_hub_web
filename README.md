@@ -53,6 +53,7 @@ sudo apt install docker-compose inotify-tools
      * Start the database (may require sudo): `docker-compose up -d`
 
      **Using local postgres**
+
      * Make sure your postgres is running
      * Copy `dev.env` to `.env` with `cp dev.env .env`
      * Change the `DATABASE_URL` in `.env` to match your postgres user, password, and port. Leave the database as `db`:
@@ -61,7 +62,7 @@ sudo apt install docker-compose inotify-tools
      # i.e. postgres://postgres:postgres@localhost:5432/db
      ```
 
-2. Fetch dependencies and compile: `mix do deps.get, compile`
+2. Fetch dependencies: `mix do deps.get, compile`
 3. Initialize the database: `make reset-db`
 4. Compile web assets (this only needs to be done once and requires python2):
    `yarn --cwd apps/nerves_hub_www/assets install`
@@ -73,6 +74,14 @@ sudo apt install docker-compose inotify-tools
    interactive shell
 
 > **_Note_**: The whole app may need to be compiled the first time you run this, so please be patient
+
+### Running Tests
+
+1. Make sure you've completed your [database connection setup](#development-environment-setup)
+2. Fetch and compile `test` dependencies: `MIX_ENV=test mix do deps.get, compile`
+3. Initialize the test databases: `MIX_ENV=test make reset-db`
+4. Run tests: `make test`
+
 
 ### Client-side SSL device authorization
 
