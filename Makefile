@@ -4,6 +4,7 @@ help:
 	@echo "server - start the server"
 	@echo "iex-server - start the server with the interactive shell"
 	@echo "reset-db - reinitialize the database"
+	@echo "reset-test-db - reinitialize the test database"
 	@echo "test - run the unit tests"
 
 .env:
@@ -34,6 +35,11 @@ reset-db: .env
 	. ./.env && \
 	make rebuild-db
 
+reset-test-db: .env
+	DB=db_test \
+	MIX_ENV=test \
+	make reset-db
+
 rebuild-db:
 	mix ecto.drop && \
 	mix ecto.create && \
@@ -41,15 +47,13 @@ rebuild-db:
 	mix run apps/nerves_hub_web_core/priv/repo/seeds.exs
 
 test: .env
+	DB=db_test \
 	. ./.env && \
-	DATABASE_URL=postgres://db:db@localhost:2345/nerves_hub_test \
-	MIX_ENV=test \
 	mix test
 
 test-watch: .env
+	DB=db_test \
 	. ./.env && \
-	DATABASE_URL=postgres://db:db@localhost:2345/nerves_hub_test \
-	MIX_ENV=test \
 	mix test.watch
 
-.PHONY: test rebuild-db reset-db mix iex-server server help
+.PHONY: test rebuild-db reset-db reset-test-db mix iex-server server help
