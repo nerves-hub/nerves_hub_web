@@ -37,6 +37,14 @@ defmodule NervesHubWebCore.ProductsTest do
       assert product.name == "some name"
     end
 
+    test "create_product/1 adds user to product", %{org: org, user: user} do
+      params = Enum.into(%{org_id: org.id}, @valid_attrs)
+      assert {:ok, %Product{} = product} = Products.create_product(user, params)
+
+      user_products = Products.get_products_by_user_and_org(user, org)
+      assert Enum.member?(user_products, product)
+    end
+
     test "create_product/1 with invalid data returns error changeset", %{user: user} do
       assert {:error, %Ecto.Changeset{}} = Products.create_product(user, @invalid_attrs)
     end
