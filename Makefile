@@ -41,15 +41,13 @@ rebuild-db:
 	mix run apps/nerves_hub_web_core/priv/repo/seeds.exs
 
 test: .env
+	MIX_ENV=test && \
 	. ./.env && \
-	DATABASE_URL=postgres://db:db@localhost:2345/nerves_hub_test \
-	MIX_ENV=test \
 	mix test
 
 test-watch: .env
+	MIX_ENV=test && \
 	. ./.env && \
-	DATABASE_URL=postgres://db:db@localhost:2345/nerves_hub_test \
-	MIX_ENV=test \
 	mix test.watch
 
 .PHONY: test rebuild-db reset-db mix iex-server server help

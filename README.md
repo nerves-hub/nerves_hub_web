@@ -19,17 +19,19 @@ companies.
 ### Development environment setup
 
 If you haven't already, make sure that your development environment has
-Elixir 1.7, Erlang 21, and NodeJS.
+Elixir >= 1.7, Erlang 21, and NodeJS.
+
+You'll also need `fwup` and can follow [these installation instructions](https://github.com/fhunleth/fwup#installing) for your platform if needed.
 
 Here are steps for the NodeJS setup if you're using `asdf`:
 
 ```sh
-asdf plugin-install nodejs
-bash ~/.asdf/plugins/nodejs/bin/import-release-team-keyring
-asdf install nodejs 8.11.3
-asdf global nodejs 8.11.3
+cd nerves_hub_web
+asdf plugin-add nodejs
+bash ~/.asdf/plugins/nodejs/bin/import-release-team-keyring # this requires gpg to be installed
+asdf install $(cat .tool-versions | grep nodejs)
 npm install -g yarn
-asdf reshim nodejs 8.11.3
+asdf reshim $(cat .tool-versions | grep nodejs)
 ```
 
 On Debian/Ubuntu, you will also need to install the following packages:
@@ -40,25 +42,46 @@ sudo apt install docker-compose inotify-tools
 
 ### First time application setup
 
-1. Create directory for local data storage: `mkdir ~/db`
-2. Start the database (may require sudo): `docker-compose up -d`
-3. Copy `dev.env` to `.env` and customize as needed
-4. Run command `mix deps.get`
-5. Run command `make reset-db`
-6. Compile web assets (this only needs to be done once and requires python2):
-   `cd apps/nerves_hub_www/assets && yarn install`
-7. Start web app: `make server` or `make iex-server` to start the server with the
-   interactive shell
+1. Setup database connection
+
+     NervesHub currently runs with Postgres 10.7. For development, you can use a local postgres or use the configured docker image:
+
+     **Using Docker**
+
+     * Create directory for local data storage: `mkdir ~/db`
+     * Copy `dev.env` to `.env` and customize as needed: `cp dev.env .env`
+     * Start the database (may require sudo): `docker-compose up -d`
+
+     **Using local postgres**
+
+     * Make sure your postgres is running
+     * Copy `dev.env` to `.env` with `cp dev.env .env`
+     * Change the `DATABASE_URL` in `.env` to match your postgres user, password, and port. Leave the database as `db`:
+     ```bash
+     export DATABASE_URL="postgres://YOUR_PG_USER:YOUR_PG_PASSWORD@localhost:YOUR_PG_PORT/db"
+     # i.e. postgres://postgres:postgres@localhost:5432/db
+     ```
+
+2. Fetch dependencies: `mix do deps.get, compile`
+3. Initialize the database: `make reset-db`
+4. Compile web assets (this only needs to be done once and requires python2):
+   `yarn --cwd apps/nerves_hub_www/assets install`
 
 ### Starting the application
 
-1. Start the database (if not started): `docker-compose up -d`
-2. Compile web assets (this only needs to be done once):
-   `cd apps/nerves_hub_web/assets && yarn install`
-3. Start web app: `make server` or `make iex-server` to start the server with the
+* `make server` - start the server process
+* `make iex-server` - start the server with the
    interactive shell
-   * The whole app will need to be compiled the first time you run this, so
-     please be patient
+
+> **_Note_**: The whole app may need to be compiled the first time you run this, so please be patient
+
+### Running Tests
+
+1. Make sure you've completed your [database connection setup](#development-environment-setup)
+2. Fetch and compile `test` dependencies: `MIX_ENV=test mix do deps.get, compile`
+3. Initialize the test databases: `MIX_ENV=test make reset-db`
+4. Run tests: `make test`
+
 
 ### Client-side SSL device authorization
 
@@ -88,11 +111,11 @@ For a Device to be considered eligible for a given Deployment, it must have
 
 ## Simulating a device
 
-The [nerves_hub_client](https://github.com/nerves-hub/nerves_hub_client) is an
+The [nerves_hub](https://github.com/nerves-hub/nerves_hub) is an
 example OTP application that simulates a device.  It will connect to the
 NervesHub server via a Phoenix Channel and can be used to exercise the server
 for development and test.
 
 See the
-[nerves_hub_client/README.md](https://github.com/nerves-hub/nerves_hub_client/blob/master/README.md)
+[nerves_hub/README.md](https://github.com/nerves-hub/nerves_hub/blob/master/README.md)
 for more information.
