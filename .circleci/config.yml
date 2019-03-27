@@ -98,8 +98,8 @@ jobs:
 
     steps:
       - checkout
-      - run: wget https://github.com/fhunleth/fwup/releases/download/v1.2.5/fwup_1.2.5_amd64.deb
-      - run: sudo dpkg -i ./fwup_1.2.5_amd64.deb
+      - run: wget https://github.com/fhunleth/fwup/releases/download/v1.3.1/fwup_1.3.1_amd64.deb
+      - run: sudo dpkg -i ./fwup_1.3.1_amd64.deb
       - run: mix local.hex --force
       - run: mix local.rebar --force
 

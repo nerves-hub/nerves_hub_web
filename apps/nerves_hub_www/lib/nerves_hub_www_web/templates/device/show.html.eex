@@ -1,12 +1,41 @@
 <h2>Show Device</h2>
 
+<p>
+  <strong>Identifier:</strong> <%= @device.identifier %>
+</p>
+
+<p>
+  <strong>Firmware Info:</strong>
+</p>
+
 <ul>
-
-  <li>
-    <strong>Identifier:</strong>
-    <%= @device.identifier %>
-  </li>
-
+  <%= for kv <- Map.from_struct(@device.firmware_metadata) do %>
+    <li><strong><%= elem(kv, 0) %>: </strong> <%= elem(kv, 1) %></li>
+  <% end %>
 </ul>
 
-<span><%= link "Back", to: device_path(@conn, :index) %></span>
+<p>
+  <strong>Status:</strong> <%= device_status(@device) %>
+</p>
+
+<p>
+  <strong>Last Connection:</strong>
+  <%= if is_nil(@device.last_communication) do %>
+    never
+  <% else %>
+    <%= @device.last_communication %>
+  <% end %>
+</p>
+
+<p>
+  <strong>Tags:</strong>
+  <%= for tag <- (@device.tags || []) do %>
+    <span class="badge">
+      <%= tag %>
+    </span>
+  <% end %>
+</p>
+
+<div>
+  <%= link "Back", to: device_path(@conn, :index), class: "btn btn-info"%>
+</div>
