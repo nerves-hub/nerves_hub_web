@@ -88,6 +88,7 @@ jobs:
         environment:
           MIX_ENV: test
           DATABASE_URL: postgres://db:db@localhost:5432/db
+          SECRET_KEY_BASE: ${SECRET_KEY_BASE:-super_secret_test_key}
       - image: circleci/postgres:10.1-alpine
         environment:
           POSTGRES_USER: db
@@ -98,8 +99,8 @@ jobs:
 
     steps:
       - checkout
-      - run: wget https://github.com/fhunleth/fwup/releases/download/v1.2.5/fwup_1.2.5_amd64.deb
-      - run: sudo dpkg -i ./fwup_1.2.5_amd64.deb
+      - run: wget https://github.com/fhunleth/fwup/releases/download/v1.3.1/fwup_1.3.1_amd64.deb
+      - run: sudo dpkg -i ./fwup_1.3.1_amd64.deb
       - run: mix local.hex --force
       - run: mix local.rebar --force
 
