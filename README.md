@@ -40,6 +40,12 @@ On Debian/Ubuntu, you will also need to install the following packages:
 sudo apt install docker-compose inotify-tools
 ```
 
+Local development uses the host `nerves-hub.org` for connections and cert validation. To properly map to your local running server, you'll need to add a host record for it:
+
+```sh
+echo "127.0.0.1 nerves-hub.org" | sudo tee -a /etc/hosts
+```
+
 ### First time application setup
 
 1. Setup database connection
