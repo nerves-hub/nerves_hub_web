@@ -118,4 +118,19 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
       end)
     end
   end
+
+  describe "show" do
+    test "renders show page", %{conn: conn, current_org: org} do
+      [device | _] = Devices.get_devices(org)
+      show_conn = get(conn, device_path(conn, :show, device.id))
+      assert html_response(show_conn, 200) =~ "<h2>Show Device</h2>"
+    end
+
+    test "renders show page when firmware_metadata is nil", %{conn: conn, current_org: org} do
+      [device | _] = Devices.get_devices(org)
+      {:ok, device} = Devices.update_device(device, %{firmware_metadata: nil})
+      show_conn = get(conn, device_path(conn, :show, device.id))
+      assert html_response(show_conn, 200) =~ "<h2>Show Device</h2>"
+    end
+  end
 end
