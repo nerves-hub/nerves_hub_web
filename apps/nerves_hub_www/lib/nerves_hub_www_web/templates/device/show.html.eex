@@ -9,8 +9,10 @@
 </p>
 
 <ul>
-  <%= for kv <- Map.from_struct(@device.firmware_metadata) do %>
-    <li><strong><%= elem(kv, 0) %>: </strong> <%= elem(kv, 1) %></li>
+  <% if @device.firmware_metadata do %>
+    <%= for kv <- Map.from_struct(@device.firmware_metadata) do %>
+      <li><strong><%= elem(kv, 0) %>: </strong> <%= elem(kv, 1) %></li>
+    <% end %>
   <% end %>
 </ul>
 
