@@ -31,4 +31,15 @@ defmodule NervesHubWWW.Accounts.EmailTest do
     assert email.html_body =~
              "#{EmailView.base_url()}/password-reset/#{user.password_reset_token}"
   end
+
+  test "org user created email" do
+    org = %Org{name: "My Org Name"}
+
+    email = Email.org_user_created("nunya@bidness.com", org)
+
+    assert email.to == "nunya@bidness.com"
+
+    assert email.html_body =~
+             "You've been added to the <strong>#{org.name}<strong> organization on nerves-hub.org."
+  end
 end

@@ -4,7 +4,7 @@ defmodule NervesHubWWWWeb.OrgController do
   alias Ecto.Changeset
   alias NervesHubWWW.Accounts.Email
   alias NervesHubWebCore.Accounts
-  alias NervesHubWebCore.Accounts.{Invite, OrgKey}
+  alias NervesHubWebCore.Accounts.{Invite, OrgKey, OrgUser}
   alias NervesHubWWW.Mailer
 
   def new(conn, _params) do
@@ -66,20 +66,30 @@ defmodule NervesHubWWWWeb.OrgController do
 
   def send_invite(%{assigns: %{current_org: org}} = conn, %{"invite" => invite_params}) do
     invite_params
-    |> Accounts.invite(org)
+    |> Accounts.add_or_invite_to_org(org)
     |> case do
-      {:ok, invite} ->
+      {:ok, %Invite{} = invite} ->
         Email.invite(invite, org)
         |> Mailer.deliver_later()
-
-        {:ok, invite}
 
         conn
         |> put_flash(:info, "User has been invited")
         |> redirect(to: org_path(conn, :edit, org))
 
+      {:ok, %OrgUser{}} ->
+        Email.org_user_created(invite_params["email"], org)
+        |> Mailer.deliver_later()
+
+        conn
+        |> put_flash(:info, "User has been added to #{org.name}")
+        |> redirect(to: org_path(conn, :edit, org))
+
       {:error, changeset} ->
-        render(conn, "invite.html", changeset: changeset)
+        render(conn, "invite.html",
+          changeset: %{changeset | data: %Invite{}},
+          org: org,
+          email: invite_params["email"]
+        )
     end
   end
 end

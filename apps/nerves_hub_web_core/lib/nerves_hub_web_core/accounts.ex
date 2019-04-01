@@ -408,6 +408,17 @@ defmodule NervesHubWebCore.Accounts do
     OrgKey.update_changeset(org_key, params)
   end
 
+  @spec add_or_invite_to_org(%{required(String.t()) => String.t()}, Org.t()) ::
+          {:ok, Invite.t()}
+          | {:ok, OrgUser.t()}
+          | {:error, Changeset.t()}
+  def add_or_invite_to_org(%{"email" => email} = params, org) do
+    case get_user_by_email(email) do
+      {:error, :not_found} -> invite(params, org)
+      {:ok, user} -> add_org_user(org, user, %{role: :admin})
+    end
+  end
+
   @spec invite(%{email: String.t()}, Org.t()) ::
           {:ok, Invite.t()}
           | {:error, Changeset.t()}

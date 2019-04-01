@@ -23,4 +23,13 @@ defmodule NervesHubWWW.Accounts.Email do
     |> put_layout({NervesHubWWWWeb.LayoutView, :email})
     |> render("forgot_password.html", user: user)
   end
+
+  def org_user_created(email, %Org{} = org) do
+    new_email()
+    |> from(@from)
+    |> to(email)
+    |> subject("New NervesHub Organization Added")
+    |> put_layout({NervesHubWWWWeb.LayoutView, :email})
+    |> render("org_user_created.html", org: org)
+  end
 end
