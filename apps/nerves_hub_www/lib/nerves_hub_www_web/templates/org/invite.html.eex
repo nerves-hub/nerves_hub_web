@@ -9,8 +9,9 @@
   <%= form_for @changeset, org_path(@conn, :send_invite), fn f -> %>
     <div class="form-group">
       <label for="email_input">Email</label>
-      <%= email_input f, :email, class: "form-control", id: "email_input" %>
+      <%= email_input f, :email, class: "form-control", id: "email_input", value: assigns[:email] %>
       <div class="has-error"><%= error_tag f, :email %></div>
+      <div class="has-error"><%= error_tag f, :org_users %></div>
     </div>
 
     <%= submit "Send Invite", class: "btn btn-success" %>

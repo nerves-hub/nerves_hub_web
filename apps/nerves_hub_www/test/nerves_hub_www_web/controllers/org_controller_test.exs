@@ -80,4 +80,34 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
       assert html_response(conn, 200) =~ "be blank"
     end
   end
+
+  describe "send invite" do
+    test "sends invite when user does not exist", %{conn: conn, current_org: org} do
+      conn = post(conn, org_path(conn, :send_invite), invite: %{email: "nunya@bid.ness"})
+
+      assert redirected_to(conn) == org_path(conn, :edit, org.id)
+
+      redirected_conn = get(conn, redirected_to(conn))
+
+      assert html_response(redirected_conn, 200) =~ "User has been invited"
+    end
+
+    test "creates OrgUser when user already exists", %{conn: conn, current_org: org} do
+      user = Fixtures.user_fixture(%{email: "who@der.com"})
+      conn = post(conn, org_path(conn, :send_invite), invite: %{email: user.email})
+
+      assert redirected_to(conn) == org_path(conn, :edit, org.id)
+
+      redirected_conn = get(conn, redirected_to(conn))
+
+      assert html_response(redirected_conn, 200) =~ "User has been added to #{org.name}"
+    end
+
+    test "errors when user exists and already member of org", %{conn: conn, current_user: user} do
+      conn = post(conn, org_path(conn, :send_invite), invite: %{email: user.email})
+
+      assert html_response(conn, 200) =~ user.email
+      assert html_response(conn, 200) =~ "is already member"
+    end
+  end
 end
