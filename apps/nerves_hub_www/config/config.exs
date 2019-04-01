@@ -16,7 +16,8 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   url: [host: System.get_env("HOST")],
   secret_key_base: System.get_env("SECRET_KEY_BASE"),
   render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: NervesHubWeb.PubSub]
+  pubsub: [name: NervesHubWeb.PubSub],
+  live_view: [signing_salt: System.get_env("LIVE_VIEW_SIGNING_SALT")]
 
 # Configures Elixir's Logger
 config :logger, :console,
@@ -27,7 +28,9 @@ config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.LocalAdapter
 
 config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: true
 
-config :phoenix, :template_engines, md: PhoenixMarkdown.Engine
+config :phoenix, :template_engines,
+  md: PhoenixMarkdown.Engine,
+  leex: Phoenix.LiveView.Engine
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
