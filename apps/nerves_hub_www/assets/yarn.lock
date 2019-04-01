@@ -4775,6 +4775,10 @@ phoenix_html@~2.10:
   resolved "https://registry.yarnpkg.com/phoenix_html/-/phoenix_html-2.10.4.tgz#67e337176046a8209aa41dfe5071c20a7ad48a22"
   integrity sha512-dwUTATVCgpEDLASH+viMgPoWK7SLVmz5xFNNIC+A4tW3h5msg3F/epCjLlDZJKX+wQmNF8fB3VgLoN9qRYPAcQ==
 
+phoenix_live_view@phoenixframework/phoenix_live_view:
+  version "0.1.0-dev"
+  resolved "https://codeload.github.com/phoenixframework/phoenix_live_view/tar.gz/1279f9643b1265caf32f69c8c68fe5c6558ca456"
+
 pify@^2.0.0:
   version "2.3.0"
   resolved "https://registry.yarnpkg.com/pify/-/pify-2.3.0.tgz#ed141a6ac043a849ea588498e7dca8b15330e90c"
