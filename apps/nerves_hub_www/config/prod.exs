@@ -18,7 +18,8 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   server: true,
   url: [host: "www.nerves-hub.org", port: 80],
   secret_key_base: "${SECRET_KEY_BASE}",
-  force_ssl: [rewrite_on: [:x_forwarded_proto]]
+  force_ssl: [rewrite_on: [:x_forwarded_proto]],
+  live_view: [signing_salt: "${LIVE_VIEW_SIGNING_SALT}"]
 
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint, server: false
 
