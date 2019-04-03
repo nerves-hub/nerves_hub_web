@@ -31,6 +31,11 @@ defmodule NervesHubWebCore.Products.Product do
     )
   end
 
+  def change_user_role(struct, params) do
+    cast(struct, params, ~w(role)a)
+    |> validate_required(~w(role)a)
+  end
+
   @doc false
   def changeset(product, params) do
     product

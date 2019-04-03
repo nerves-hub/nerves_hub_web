@@ -4,15 +4,21 @@ defmodule NervesHubWWWWeb.LayoutView do
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.User
 
-  def navigation_links(conn) do
-    [
-      {"Products", product_path(conn, :index)},
-      {"All Devices", device_path(conn, :index)}
-    ]
+  def navigation_links(%{assigns: %{current_org: org, user: user}} = conn) do
+    if has_org_role?(org, user, :read) do
+      [
+        {"Products", product_path(conn, :index)},
+        {"All Devices", device_path(conn, :index)}
+      ]
+    else
+      [
+        {"Products", product_path(conn, :index)}
+      ]
+    end
   end
 
   def user_orgs(%{assigns: %{user: %User{} = user}}) do
-    Accounts.get_user_orgs(user)
+    Accounts.get_user_orgs_with_product_role(user, :read)
   end
 
   def user_orgs(_conn), do: []
@@ -26,6 +32,10 @@ defmodule NervesHubWWWWeb.LayoutView do
     else
       home_path(conn, :index)
     end
+  end
+
+  def has_org_role?(org, user, role) do
+    Accounts.has_org_role?(org, user, role)
   end
 
   def permit_uninvited_signups do

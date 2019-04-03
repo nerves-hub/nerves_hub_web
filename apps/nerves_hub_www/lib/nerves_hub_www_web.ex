@@ -24,6 +24,7 @@ defmodule NervesHubWWWWeb do
       import NervesHubWWWWeb.Router.Helpers
       import NervesHubWWWWeb.Gettext
       import Phoenix.LiveView.Controller, only: [live_render: 3]
+      import NervesHubWebCore.RoleValidateHelpers
 
       def whitelist(params, keys) do
         keys

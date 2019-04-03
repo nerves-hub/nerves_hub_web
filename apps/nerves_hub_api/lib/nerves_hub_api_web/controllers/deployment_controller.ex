@@ -6,6 +6,10 @@ defmodule NervesHubAPIWeb.DeploymentController do
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
+  plug(:validate_role, [product: :delete] when action in [:delete])
+  plug(:validate_role, [product: :write] when action in [:create, :update])
+  plug(:validate_role, [product: :read] when action in [:index, :show])
+
   def index(%{assigns: %{product: product}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product.id)
     render(conn, "index.json", deployments: deployments)

@@ -5,6 +5,10 @@ defmodule NervesHubAPIWeb.CACertificateController do
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
+  plug(:validate_role, [org: :delete] when action in [:delete])
+  plug(:validate_role, [org: :write] when action in [:create])
+  plug(:validate_role, [org: :read] when action in [:index, :show])
+
   def index(%{assigns: %{org: org}} = conn, _params) do
     ca_certificates = Devices.get_ca_certificates(org)
     render(conn, "index.json", ca_certificates: ca_certificates)

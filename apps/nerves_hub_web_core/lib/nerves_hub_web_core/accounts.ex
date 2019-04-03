@@ -3,6 +3,7 @@ defmodule NervesHubWebCore.Accounts do
   alias Ecto.{Changeset, Multi}
   alias Ecto.UUID
   alias NervesHubWebCore.Accounts.{Org, User, UserCertificate, Invite, OrgKey, OrgLimit, OrgUser}
+  alias NervesHubWebCore.Products.{Product, ProductUser}
   alias NervesHubWebCore.Repo
   alias Comeonin.Bcrypt
 
@@ -109,7 +110,7 @@ defmodule NervesHubWebCore.Accounts do
 
     case Repo.transaction(multi) do
       {:ok, result} ->
-        {:ok, result.org_user}
+        {:ok, Repo.preload(result.org_user, :user)}
 
       {:error, :org_user, changeset, _} ->
         {:error, changeset}
@@ -137,8 +138,69 @@ defmodule NervesHubWebCore.Accounts do
     end
   end
 
+  def change_org_user_role(%OrgUser{} = ou, role) do
+    ou
+    |> Org.change_user_role(%{role: role})
+    |> Repo.update()
+  end
+
+  def get_org_user(org, user) do
+    from(
+      ou in OrgUser,
+      where:
+        ou.org_id == ^org.id and
+          ou.user_id == ^user.id
+    )
+    |> OrgUser.with_user()
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      org_user -> {:ok, org_user}
+    end
+  end
+
+  def get_org_users(org) do
+    from(
+      ou in OrgUser,
+      where: ou.org_id == ^org.id,
+      order_by: [desc: ou.role]
+    )
+    |> OrgUser.with_user()
+    |> Repo.all()
+  end
+
+  def has_org_role?(org, user, role) do
+    from(
+      ou in OrgUser,
+      where: ou.org_id == ^org.id,
+      where: ou.user_id == ^user.id,
+      where: ou.role in ^User.role_or_higher(role),
+      select: count(ou.id) >= 1
+    )
+    |> Repo.one()
+  end
+
   def get_user_orgs(%User{} = user) do
     Repo.all(Ecto.assoc(user, :orgs))
+  end
+
+  def get_user_orgs_with_product_role(%User{} = user, product_role) do
+    q =
+      from(
+        o in Org,
+        full_join: p in Product,
+        on: p.org_id == o.id,
+        full_join: ou in OrgUser,
+        on: ou.org_id == o.id,
+        full_join: pu in ProductUser,
+        on: pu.product_id == p.id,
+        where:
+          ou.user_id == ^user.id or
+            (pu.user_id == ^user.id and
+               pu.role in ^User.role_or_higher(product_role))
+      )
+
+    Repo.all(q)
   end
 
   @spec create_user_certificate(User.t(), map) ::
@@ -201,10 +263,15 @@ defmodule NervesHubWebCore.Accounts do
   end
 
   def get_user_by_email(email) do
-    query = from(u in User, where: u.email == ^email)
+    Repo.get_by(User, email: email)
+    |> case do
+      nil -> {:error, :not_found}
+      user -> {:ok, user}
+    end
+  end
 
-    query
-    |> Repo.one()
+  def get_user_by_username(username) do
+    Repo.get_by(User, username: username)
     |> case do
       nil -> {:error, :not_found}
       user -> {:ok, user}
@@ -221,6 +288,13 @@ defmodule NervesHubWebCore.Accounts do
     |> Repo.all()
   end
 
+  def get_user_certificate!(%User{id: user_id}, cert_id) do
+    query = from(uc in UserCertificate, where: uc.user_id == ^user_id, where: uc.id == ^cert_id)
+
+    query
+    |> Repo.one!()
+  end
+
   @spec get_user_certificate(User.t(), integer()) ::
           {:ok, UserCertificate.t()}
           | {:error, :not_found}
@@ -229,6 +303,10 @@ defmodule NervesHubWebCore.Accounts do
 
     query
     |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      cert -> {:ok, cert}
+    end
   end
 
   @spec delete_user_certificate(UserCertificate.t()) ::

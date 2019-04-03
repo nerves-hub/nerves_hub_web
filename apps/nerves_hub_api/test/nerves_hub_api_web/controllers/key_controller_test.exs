@@ -3,11 +3,19 @@ defmodule NervesHubAPIWeb.KeyControllerTest do
 
   alias NervesHubWebCore.Fixtures
   alias NervesHubWebCore.Support.Fwup
+  alias NervesHubWebCore.Accounts
 
   describe "index" do
     test "lists all keys", %{conn: conn, org: org} do
       conn = get(conn, key_path(conn, :index, org.name))
       assert json_response(conn, 200)["data"] == []
+    end
+  end
+
+  describe "index roles" do
+    test "error: missing org read", %{conn2: conn, org: org} do
+      conn = get(conn, key_path(conn, :index, org.name))
+      assert json_response(conn, 403)["status"] != ""
     end
   end
 
@@ -31,6 +39,34 @@ defmodule NervesHubAPIWeb.KeyControllerTest do
     end
   end
 
+  describe "create keys roles" do
+    test "ok: org write", %{conn2: conn, org: org, user2: user} do
+      Accounts.add_org_user(org, user, %{role: :write})
+
+      name = "test"
+      Fwup.gen_key_pair(name)
+      pub_key = Fwup.get_public_key(name)
+      key = %{name: name, key: pub_key, org_id: org.id}
+
+      conn = post(conn, key_path(conn, :create, org.name), key)
+      assert json_response(conn, 201)["data"]
+
+      conn = get(conn, key_path(conn, :show, org.name, key.name))
+      assert json_response(conn, 200)["data"]["name"] == name
+    end
+
+    test "error: org read", %{conn2: conn, org: org, user2: user} do
+      Accounts.add_org_user(org, user, %{role: :read})
+      name = "test"
+      Fwup.gen_key_pair(name)
+      pub_key = Fwup.get_public_key(name)
+      key = %{name: name, key: pub_key, org_id: org.id}
+
+      conn = post(conn, key_path(conn, :create, org.name), key)
+      assert json_response(conn, 403)["status"] != ""
+    end
+  end
+
   describe "delete key" do
     setup [:create_key]
 
@@ -41,6 +77,28 @@ defmodule NervesHubAPIWeb.KeyControllerTest do
       conn = get(conn, key_path(conn, :show, org.name, key.name))
 
       assert response(conn, 404)
+    end
+  end
+
+  describe "delete key roles" do
+    setup [:create_key]
+
+    test "ok: org delete", %{user2: user, conn2: conn, org: org, key: key} do
+      Accounts.add_org_user(org, user, %{role: :delete})
+      conn = delete(conn, key_path(conn, :delete, org.name, key.name))
+      assert response(conn, 204)
+    end
+
+    test "error: org write", %{user2: user, conn2: conn, org: org, key: key} do
+      Accounts.add_org_user(org, user, %{role: :write})
+      conn = delete(conn, key_path(conn, :delete, org.name, key.name))
+      assert json_response(conn, 403)["status"] != ""
+    end
+
+    test "error: org read", %{user2: user, conn2: conn, org: org, key: key} do
+      Accounts.add_org_user(org, user, %{role: :read})
+      conn = delete(conn, key_path(conn, :delete, org.name, key.name))
+      assert json_response(conn, 403)["status"] != ""
     end
   end
 

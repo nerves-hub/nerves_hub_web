@@ -51,7 +51,6 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
       conn = put(conn, path, deployment: %{"is_active" => true})
       assert %{"is_active" => true} = json_response(conn, 200)["data"]
 
-      conn = build_auth_conn()
       path = deployment_path(conn, :show, org.name, product.name, deployment.name)
       conn = get(conn, path)
       assert json_response(conn, 200)["data"]["is_active"]

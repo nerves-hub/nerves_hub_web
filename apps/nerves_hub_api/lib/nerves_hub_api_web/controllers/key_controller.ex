@@ -6,6 +6,10 @@ defmodule NervesHubAPIWeb.KeyController do
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
+  plug(:validate_role, [org: :delete] when action in [:delete])
+  plug(:validate_role, [org: :write] when action in [:create])
+  plug(:validate_role, [org: :read] when action in [:index, :show])
+
   def index(%{assigns: %{org: org}} = conn, _params) do
     keys = Accounts.list_org_keys(org)
     render(conn, "index.json", keys: keys)

@@ -1,8 +1,9 @@
 defmodule NervesHubWebCore.Accounts.OrgUser do
   use Ecto.Schema
 
-  alias NervesHubWebCore.Accounts.User
-  alias NervesHubWebCore.Accounts.Org
+  import Ecto.Query
+
+  alias NervesHubWebCore.Accounts.{User, Org}
 
   schema "org_users" do
     belongs_to(:org, Org)
@@ -11,5 +12,9 @@ defmodule NervesHubWebCore.Accounts.OrgUser do
     field(:role, User.Role)
 
     timestamps()
+  end
+
+  def with_user(query) do
+    preload(query, :user)
   end
 end

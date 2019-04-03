@@ -12,16 +12,15 @@ defmodule NervesHubWWWWeb.AccountCertificateControllerTest do
   describe "index" do
     test "lists all appropriate account certificates", %{
       conn: conn,
-      current_org: org,
       current_user: user
     } do
-      {:ok, foo_cert} =
+      %{db_cert: foo_cert} =
         Fixtures.user_certificate_fixture(user, %{description: "foo", serial: "abc123"})
 
-      {:ok, bar_cert} =
+      %{db_cert: bar_cert} =
         Fixtures.user_certificate_fixture(user, %{description: "bar", serial: "321cba"})
 
-      other_user = Fixtures.user_fixture(%{orgs: [org], email: "test@email.com"})
+      other_user = Fixtures.user_fixture(%{email: "test@email.com"})
 
       Fixtures.user_certificate_fixture(other_user, %{description: "baz", serial: "anotherserial"})
 
@@ -40,12 +39,10 @@ defmodule NervesHubWWWWeb.AccountCertificateControllerTest do
     end
   end
 
-  describe "create product" do
+  describe "create certificate" do
     @tag :ca_integration
-    test "redirects to show when data is valid", %{conn: conn} do
-      params =
-        Fixtures.user_certificate_params()
-        |> Map.merge(@create_attrs)
+    test "redirects to show when data is valid", %{conn: conn, current_user: user} do
+      %{params: params} = Fixtures.user_certificate_params(user, @create_attrs)
 
       conn = post(conn, account_certificate_path(conn, :create), user_certificate: params)
 
@@ -59,12 +56,13 @@ defmodule NervesHubWWWWeb.AccountCertificateControllerTest do
 
   describe "delete user_certificate" do
     test "deletes chosen certificate", %{conn: conn, current_user: user} do
-      [cert | _] = Accounts.get_user_certificates(user)
+      Fixtures.user_certificate_fixture(user, %{description: "foo", serial: "abc123"})
+      assert [cert | _] = Accounts.get_user_certificates(user)
       conn = delete(conn, account_certificate_path(conn, :delete, cert))
       assert redirected_to(conn) == account_certificate_path(conn, :index)
 
       assert_error_sent(404, fn ->
-        get(conn, product_path(conn, :show, cert))
+        get(conn, account_certificate_path(conn, :show, cert))
       end)
     end
   end

@@ -20,8 +20,8 @@ defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
     assert json_response(get_conn, 403)["status"] == "forbidden"
   end
 
-  test "auth success with valid certs" do
-    conn = NervesHubDeviceWeb.ConnCase.build_auth_conn()
+  test "auth success with valid certs", %{cert: cert} do
+    conn = NervesHubDeviceWeb.ConnCase.build_auth_conn(cert)
 
     plug_call_conn = Device.call(conn, [])
     # refute `sent` and `status` because the conn
@@ -34,8 +34,8 @@ defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
     assert json_response(get_conn, 200)
   end
 
-  test "auth success updates last_communication" do
-    conn = NervesHubDeviceWeb.ConnCase.build_auth_conn()
+  test "auth success updates last_communication", %{cert: cert} do
+    conn = NervesHubDeviceWeb.ConnCase.build_auth_conn(cert)
 
     plug_call_conn = Device.call(conn, [])
 
@@ -64,7 +64,7 @@ defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
 
     assert is_nil(device.firmware_metadata)
 
-    conn = NervesHubDeviceWeb.ConnCase.build_auth_conn()
+    conn = NervesHubDeviceWeb.ConnCase.build_auth_conn(context.cert)
 
     plug_call_conn =
       conn

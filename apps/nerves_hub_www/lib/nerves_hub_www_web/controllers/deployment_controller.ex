@@ -6,6 +6,10 @@ defmodule NervesHubWWWWeb.DeploymentController do
   alias NervesHubWebCore.Deployments.Deployment
   alias Ecto.Changeset
 
+  plug(:validate_role, [product: :delete] when action in [:delete])
+  plug(:validate_role, [product: :write] when action in [:new, :create, :edit, :update])
+  plug(:validate_role, [product: :read] when action in [:index, :show])
+
   def index(%{assigns: %{current_org: _org, product: %{id: product_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product_id)
     render(conn, "index.html", deployments: deployments)

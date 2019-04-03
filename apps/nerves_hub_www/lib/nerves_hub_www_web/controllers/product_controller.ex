@@ -4,6 +4,12 @@ defmodule NervesHubWWWWeb.ProductController do
   alias NervesHubWebCore.Products
   alias NervesHubWebCore.Products.Product
 
+  plug(:validate_role, [org: :write] when action in [:new, :create])
+  plug(:validate_role, [org: :read] when action in [:index])
+  plug(:validate_role, [org: :delete] when action in [:delete])
+
+  plug(:validate_role, [product: :write] when action in [:update])
+
   def index(%{assigns: %{user: user, current_org: org}} = conn, _params) do
     products = Products.get_products_by_user_and_org(user, org)
     render(conn, "index.html", products: products)
@@ -30,7 +36,11 @@ defmodule NervesHubWWWWeb.ProductController do
 
   def show(conn, %{"id" => id}) do
     product = Products.get_product!(id)
-    render(conn, "show.html", product: product)
+
+    conn
+    |> assign(:product, product)
+    |> validate_role(product: :read)
+    |> render("show.html", product: product)
   end
 
   def edit(conn, %{"id" => id}) do

@@ -4,6 +4,10 @@ defmodule NervesHubWWWWeb.OrgKeyController do
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.OrgKey
 
+  plug(:validate_role, [org: :read] when action in [:index, :show])
+  plug(:validate_role, [org: :write] when action in [:new, :create, :update, :edit])
+  plug(:validate_role, [org: :delete] when action in [:delete])
+
   def index(%{assigns: %{current_org: org}} = conn, _params) do
     org_keys = Accounts.list_org_keys(org)
     render(conn, "index.html", org_keys: org_keys)

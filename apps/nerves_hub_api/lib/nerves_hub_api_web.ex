@@ -23,6 +23,7 @@ defmodule NervesHubAPIWeb do
       import Plug.Conn
       import NervesHubAPIWeb.Router.Helpers
       import NervesHubAPIWeb.Gettext
+      import NervesHubWebCore.RoleValidateHelpers
 
       def whitelist(params, keys) do
         keys

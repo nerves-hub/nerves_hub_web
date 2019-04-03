@@ -1,6 +1,8 @@
 defmodule NervesHubWebCore.Products.ProductUser do
   use Ecto.Schema
 
+  import Ecto.Query
+
   alias NervesHubWebCore.Products.Product
   alias NervesHubWebCore.Accounts.User
 
@@ -11,5 +13,9 @@ defmodule NervesHubWebCore.Products.ProductUser do
     field(:role, User.Role)
 
     timestamps()
+  end
+
+  def with_user(query) do
+    preload(query, :user)
   end
 end
