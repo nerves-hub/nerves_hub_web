@@ -47,14 +47,10 @@
             <% end %>
           </td>
           <td class="col-2">
-            <%= for tag <- (device.tags || []) do %>
-              <span class="badge">
-                <%= tag %>
-              </span>
-            <% end %>
+            <span class="badge"><%= tags_to_string(device) %></span>
           </td>
           <td class="col-2">
-            <a href="<%= device_path(@conn, :edit, device.id) %>" class="btn btn-info">Edit</a>
+            <%= link "Edit", class: "btn btn-info", to: device_path(@conn, :edit, device) %>
             <%= link "Delete", class: "btn btn-danger", to: device_path(@conn, :delete, device), method: :delete, data: [confirm: "Are you sure?"]%>
           </td>
         </tr>

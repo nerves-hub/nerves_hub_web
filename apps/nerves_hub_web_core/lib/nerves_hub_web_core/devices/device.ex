@@ -28,7 +28,7 @@ defmodule NervesHubWebCore.Devices.Device do
     field(:identifier, :string)
     field(:description, :string)
     field(:last_communication, :utc_datetime)
-    field(:tags, {:array, :string})
+    field(:tags, NervesHubWebCore.Types.Tag)
 
     timestamps()
   end

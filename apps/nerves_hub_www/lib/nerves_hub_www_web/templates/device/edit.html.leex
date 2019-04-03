@@ -13,16 +13,16 @@
   </tr>
 </table>
 
-<%= form_for @changeset, device_path(@conn, :update, @device.id), fn f -> %>
+<%= form_for @changeset, "#", [phx_change: :validate, phx_submit: :save], fn f -> %>
   <div class="form-group">
     <label for="tags">Tags</label>
-    <%= text_input f, :tags, class: "form-control", id: "tags" %>
+    <%= text_input f, :tags, class: "form-control", id: "tags", value: tags_to_string(@changeset) %>
     <div class="has-error"><%= error_tag f, :tags %></div>
   </div>
 
-  <%= submit "Update Tags", class: "btn btn-primary" %>
+  <%= submit "Update Tags", class: "btn btn-primary", disabled: @changeset.errors != [] %>
 
-  <a class="btn btn-secondary" href="<%= device_path(@conn, :index) %>">
+  <a class="btn btn-secondary" href="<%= device_path(@socket, :index) %>">
     Cancel
   </a>
 <% end %>

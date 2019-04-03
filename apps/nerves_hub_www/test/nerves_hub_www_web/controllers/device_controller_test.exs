@@ -67,46 +67,6 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
     end
   end
 
-  describe "update device" do
-    test "with valid params", %{
-      conn: conn,
-      current_org: org
-    } do
-      [to_update | _] = Devices.get_devices(org)
-
-      device_params = %{
-        identifier: "new_identifier",
-        tags: "beta, beta-edge"
-      }
-
-      update_conn =
-        put(
-          conn,
-          device_path(
-            conn,
-            :update,
-            to_update.id
-          ),
-          device: device_params
-        )
-
-      assert redirected_to(update_conn) ==
-               device_path(
-                 conn,
-                 :show,
-                 to_update.id
-               )
-
-      show_conn =
-        get(
-          conn,
-          device_path(conn, :show, to_update.id)
-        )
-
-      assert html_response(show_conn, 200) =~ "new_identifier"
-    end
-  end
-
   describe "delete device" do
     test "deletes chosen device", %{conn: conn, current_org: org} do
       [to_delete | _] = Devices.get_devices(org)

@@ -31,13 +31,12 @@
 
 <p>
   <strong>Tags:</strong>
-  <%= for tag <- (@device.tags || []) do %>
     <span class="badge">
-      <%= tag %>
+      <%= tags_to_string(@device) %>
     </span>
-  <% end %>
 </p>
 
 <div>
-  <%= link "Back", to: device_path(@conn, :index), class: "btn btn-info"%>
+  <%= link "Edit", to: device_path(@conn, :edit, @device), class: "btn btn-info" %>
+  <%= link "Back", to: device_path(@conn, :index), class: "btn btn-secondary"%>
 </div>

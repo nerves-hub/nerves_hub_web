@@ -74,7 +74,8 @@ defmodule NervesHubWWWWeb.Router do
     post("/account/certificates/create", AccountCertificateController, :create)
     get("/account/certificates/:id/download", AccountCertificateController, :download)
 
-    resources("/devices", DeviceController)
+    # :update is handled by DeviceLive.Edit
+    resources("/devices", DeviceController, except: [:update])
 
     resources "/products", ProductController, except: [:edit, :update] do
       pipe_through(:product_level)
