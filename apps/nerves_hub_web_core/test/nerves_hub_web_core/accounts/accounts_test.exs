@@ -219,7 +219,9 @@ defmodule NervesHubWebCore.AccountsTest do
       serial: "12345"
     }
 
-    assert {:ok, %Accounts.UserCertificate{}} = Fixtures.user_certificate_fixture(user, params)
+    %{params: params} = Fixtures.user_certificate_params(user, params)
+
+    assert {:ok, %Accounts.UserCertificate{}} = Accounts.create_user_certificate(user, params)
   end
 
   test "cannot create user certificate with duplicate serial" do
@@ -239,8 +241,10 @@ defmodule NervesHubWebCore.AccountsTest do
       serial: "12345"
     }
 
-    assert {:ok, %Accounts.UserCertificate{}} = Fixtures.user_certificate_fixture(user, params)
-    assert {:error, %Ecto.Changeset{}} = Fixtures.user_certificate_fixture(user, params)
+    %{params: params} = Fixtures.user_certificate_params(user, params)
+
+    assert {:ok, %Accounts.UserCertificate{}} = Accounts.create_user_certificate(user, params)
+    assert {:error, %Ecto.Changeset{}} = Accounts.create_user_certificate(user, params)
   end
 
   test "org_key name must be unique", %{user: user} do

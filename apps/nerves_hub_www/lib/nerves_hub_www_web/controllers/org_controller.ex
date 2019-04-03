@@ -7,6 +7,8 @@ defmodule NervesHubWWWWeb.OrgController do
   alias NervesHubWebCore.Accounts.{Invite, OrgKey, OrgUser}
   alias NervesHubWWW.Mailer
 
+  plug(:validate_role, [org: :admin] when action in [:edit, :update, :invite])
+
   def new(conn, _params) do
     changeset = Accounts.Org.creation_changeset(%Accounts.Org{}, %{})
     render(conn, "new.html", changeset: changeset)

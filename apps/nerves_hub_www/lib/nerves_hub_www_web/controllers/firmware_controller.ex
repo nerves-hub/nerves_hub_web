@@ -5,6 +5,10 @@ defmodule NervesHubWWWWeb.FirmwareController do
   alias NervesHubWebCore.Firmwares
   alias NervesHubWebCore.Firmwares.Firmware
 
+  # plug :validate_role, [product: :delete] when action in [:delete]
+  plug(:validate_role, [product: :write] when action in [:upload, :do_upload])
+  plug(:validate_role, [product: :read] when action in [:index, :download])
+
   def index(%{assigns: %{product: %{id: product_id}}} = conn, _params) do
     firmwares = Firmwares.get_firmwares_by_product(product_id)
 

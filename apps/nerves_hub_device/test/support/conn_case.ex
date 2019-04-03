@@ -13,8 +13,6 @@ defmodule NervesHubDeviceWeb.ConnCase do
   of the test unless the test case is marked as async.
   """
 
-  @certificate Path.join([__DIR__, "../../../../test/fixtures/ssl/device-1234-cert.pem"])
-
   use ExUnit.CaseTemplate
   alias NervesHubWebCore.Fixtures
 
@@ -37,12 +35,13 @@ defmodule NervesHubDeviceWeb.ConnCase do
     end
 
     user = Fixtures.user_fixture()
+
     org = Fixtures.org_fixture(user)
     org_key = Fixtures.org_key_fixture(org)
     product = Fixtures.product_fixture(user, org, %{name: "starter"})
     firmware = Fixtures.firmware_fixture(org_key, product)
     device = Fixtures.device_fixture(org, firmware)
-    device_cert = Fixtures.device_certificate_fixture(device)
+    %{cert: cert, db_cert: device_cert} = Fixtures.device_certificate_fixture(device)
 
     deployment =
       Fixtures.deployment_fixture(firmware, %{
@@ -50,25 +49,24 @@ defmodule NervesHubDeviceWeb.ConnCase do
       })
 
     {:ok,
-     conn: build_auth_conn(),
+     conn: build_auth_conn(cert),
      org: org,
      org_key: org_key,
      product: product,
      firmware: firmware,
      device: device,
      device_cert: device_cert,
+     cert: cert,
      deployment: deployment}
   end
 
-  def build_auth_conn() do
+  def build_auth_conn(cert) do
     Phoenix.ConnTest.build_conn()
-    |> Plug.Test.put_peer_data(peer_data())
+    |> Plug.Test.put_peer_data(peer_data(cert))
     |> Plug.Conn.put_req_header("accept", "application/json")
   end
 
-  def peer_data() do
-    certificate = File.read!(@certificate)
-    [{:Certificate, certificate, _}] = :public_key.pem_decode(certificate)
-    %{address: {127, 0, 0, 1}, port: 111_317, ssl_cert: certificate}
+  def peer_data(cert) do
+    %{address: {127, 0, 0, 1}, port: 111_317, ssl_cert: X509.Certificate.to_der(cert)}
   end
 end

@@ -6,6 +6,12 @@ defmodule NervesHubAPIWeb.ProductController do
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
+  plug(:validate_role, [org: :delete] when action in [:delete])
+  plug(:validate_role, [org: :write] when action in [:create])
+
+  plug(:validate_role, [product: :admin] when action in [:update])
+  plug(:validate_role, [product: :read] when action in [:show])
+
   def index(%{assigns: %{user: user, org: org}} = conn, _params) do
     products = Products.get_products_by_user_and_org(user, org)
     render(conn, "index.json", products: products)

@@ -33,6 +33,9 @@ defmodule NervesHubWebCore.Fixtures do
   @device_params %{tags: ["beta", "test"]}
   @product_params %{name: "valid product"}
 
+  @user_ca_key Path.expand("../fixtures/ssl/user-root-ca-key.pem", __DIR__)
+  @user_ca_cert Path.expand("../fixtures/ssl/user-root-ca.pem", __DIR__)
+
   def path(), do: Path.expand("../fixtures", __DIR__)
 
   def user_params() do
@@ -42,6 +45,33 @@ defmodule NervesHubWebCore.Fixtures do
       username: "user-#{counter()}",
       password: "test_password"
     }
+  end
+
+  def user_certificate_params(%Accounts.User{} = user, params \\ %{}) do
+    ca_key = File.read!(@user_ca_key) |> X509.PrivateKey.from_pem!()
+    ca = File.read!(@user_ca_cert) |> X509.Certificate.from_pem!()
+
+    key = X509.PrivateKey.new_ec(:secp256r1)
+
+    cert =
+      key
+      |> X509.PublicKey.derive()
+      |> X509.Certificate.new("/O=#{user.username}", ca, ca_key, validity: 1)
+
+    {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(cert)
+
+    serial = Map.get(params, :serial) || NervesHubWebCore.Certificate.get_serial_number(cert)
+    aki = NervesHubWebCore.Certificate.get_aki(cert)
+
+    params = %{
+      description: Map.get(params, :description) || user.username,
+      serial: serial,
+      aki: aki,
+      ski: NervesHubWebCore.Certificate.get_ski(cert),
+      not_before: not_before,
+      not_after: not_after
+    }
+    %{cert: cert, key: key, params: params}
   end
 
   def firmware_params(org_id, filepath) do
@@ -66,17 +96,6 @@ defmodule NervesHubWebCore.Fixtures do
       bytes_sent: 300000,
       bytes_total: 32184752,
       timestamp: DateTime.utc_now()
-    }
-  end
-
-  def user_certificate_params() do
-    %{
-      description: "my test cert",
-      serial: "158098897653878678601091983566405937658689714637",
-      not_before: DateTime.utc_now(),
-      not_after: Timex.shift(DateTime.utc_now(), minutes: 5),
-      aki: "1234",
-      ski: "5678"
     }
   end
 
@@ -124,15 +143,13 @@ defmodule NervesHubWebCore.Fixtures do
 
   def user_fixture(params \\ %{}) do
     {:ok, user} = params |> Enum.into(user_params()) |> Accounts.create_user()
-    {:ok, _certificate} = user_certificate_fixture(user)
     user
   end
 
   def user_certificate_fixture(%Accounts.User{} = user, params \\ %{}) do
-    cert_params =
-      Map.merge(user_certificate_params(), params)
-
-    Accounts.create_user_certificate(user, cert_params)
+    %{cert: cert, key: key, params: params} = user_certificate_params(user, params)
+    {:ok, db_cert} = Accounts.create_user_certificate(user, params)
+    %{cert: cert, key: key, db_cert: db_cert}
   end
 
   def product_fixture(_user, _org, params \\ %{})
@@ -229,7 +246,7 @@ defmodule NervesHubWebCore.Fixtures do
     params = %{serial: serial, aki: aki, ski: ski, not_before: not_before, not_after: not_after}
 
     {:ok, device_cert} = Devices.create_device_certificate(device, params)
-    device_cert
+    %{db_cert: device_cert, cert: cert}
   end
 
   def standard_fixture() do
@@ -262,7 +279,7 @@ defmodule NervesHubWebCore.Fixtures do
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
     device = device_fixture(org, firmware, %{tags: ["beta", "beta-edge"]})
-    device_certificate = device_certificate_fixture(device)
+    %{db_cert: device_certificate} = device_certificate_fixture(device)
 
     %{
       deployment: deployment,
@@ -284,7 +301,7 @@ defmodule NervesHubWebCore.Fixtures do
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
     device = device_fixture(org, firmware, %{identifier: "smartrent_1234"})
-    device_certificate = device_certificate_fixture(device)
+    %{db_cert: device_certificate} = device_certificate_fixture(device)
 
     %{
       deployment: deployment,

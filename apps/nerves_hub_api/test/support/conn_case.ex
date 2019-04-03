@@ -13,8 +13,6 @@ defmodule NervesHubAPIWeb.ConnCase do
   of the test unless the test case is marked as async.
   """
 
-  @certificate Path.join([__DIR__, "../../../../test/fixtures/ssl/user.pem"])
-
   use ExUnit.CaseTemplate
   alias NervesHubWebCore.Fixtures
 
@@ -23,7 +21,7 @@ defmodule NervesHubAPIWeb.ConnCase do
       # Import conveniences for testing with connections
       use Phoenix.ConnTest
       import NervesHubAPIWeb.Router.Helpers
-      import NervesHubAPIWeb.ConnCase, only: [build_auth_conn: 0, peer_data: 0]
+      import NervesHubAPIWeb.ConnCase, only: [build_auth_conn: 1, peer_data: 1]
 
       # The default endpoint for testing
       @endpoint NervesHubAPIWeb.Endpoint
@@ -38,21 +36,30 @@ defmodule NervesHubAPIWeb.ConnCase do
     end
 
     user = Fixtures.user_fixture()
+    %{cert: cert} = Fixtures.user_certificate_fixture(user)
+
+    user2 = Fixtures.user_fixture(%{username: user.username <> "0"})
+    %{cert: cert2} = Fixtures.user_certificate_fixture(user2)
+
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org, %{name: "starter"})
 
-    {:ok, conn: build_auth_conn(), org: org, user: user, product: product}
+    {:ok,
+     conn: build_auth_conn(cert),
+     conn2: build_auth_conn(cert2),
+     org: org,
+     user: user,
+     user2: user2,
+     product: product}
   end
 
-  def build_auth_conn() do
+  def build_auth_conn(cert) do
     Phoenix.ConnTest.build_conn()
-    |> Plug.Test.put_peer_data(peer_data())
+    |> Plug.Test.put_peer_data(peer_data(cert))
     |> Plug.Conn.put_req_header("accept", "application/json")
   end
 
-  def peer_data() do
-    certificate = File.read!(@certificate)
-    [{:Certificate, certificate, _}] = :public_key.pem_decode(certificate)
-    %{address: {127, 0, 0, 1}, port: 111_317, ssl_cert: certificate}
+  def peer_data(cert) do
+    %{address: {127, 0, 0, 1}, port: 111_317, ssl_cert: X509.Certificate.to_der(cert)}
   end
 end

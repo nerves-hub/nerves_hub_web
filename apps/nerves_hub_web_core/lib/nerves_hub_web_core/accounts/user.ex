@@ -19,7 +19,7 @@ defmodule NervesHubWebCore.Accounts.User do
   @required_params [:username, :email, :password_hash]
   @optional_params [:password, :password_reset_token, :password_reset_token_expires]
 
-  defenum(Role, :role, [:admin, :write, :read])
+  defenum(Role, :role, [:admin, :delete, :write, :read])
 
   schema "users" do
     has_many(:user_certificates, UserCertificate)
@@ -117,6 +117,11 @@ defmodule NervesHubWebCore.Accounts.User do
     user_query
     |> preload(orgs: [:org_keys])
   end
+
+  def role_or_higher(:read), do: [:read, :write, :delete, :admin]
+  def role_or_higher(:write), do: [:write, :delete, :admin]
+  def role_or_higher(:delete), do: [:delete, :admin]
+  def role_or_higher(:admin), do: [:admin]
 
   defp password_validations(%Changeset{} = changeset) do
     changeset

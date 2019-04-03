@@ -54,6 +54,11 @@ defmodule NervesHubWebCore.Accounts.Org do
     )
   end
 
+  def change_user_role(struct, params) do
+    cast(struct, params, ~w(role)a)
+    |> validate_required(~w(role)a)
+  end
+
   def creation_changeset(%Org{} = org, params) do
     org
     |> changeset(params)

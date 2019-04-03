@@ -18,7 +18,8 @@ defmodule NervesHubWebCore.Products do
         on: p.id == pu.product_id,
         where:
           p.org_id == ^org_id and
-            pu.user_id == ^user_id
+            pu.user_id == ^user_id and
+            pu.role in ^User.role_or_higher(:read)
       )
 
     query
@@ -103,7 +104,7 @@ defmodule NervesHubWebCore.Products do
 
     case Repo.transaction(multi) do
       {:ok, result} ->
-        {:ok, result.product_user}
+        {:ok, Repo.preload(result.product_user, :user)}
 
       {:error, :product_user, changeset, _} ->
         {:error, changeset}
@@ -127,6 +128,49 @@ defmodule NervesHubWebCore.Products do
 
       :ok
     end
+  end
+
+  def change_product_user_role(%ProductUser{} = pu, role) do
+    pu
+    |> Product.change_user_role(%{role: role})
+    |> Repo.update()
+  end
+
+  def get_product_user(product, user) do
+    from(
+      pu in ProductUser,
+      where:
+        pu.product_id == ^product.id and
+          pu.user_id == ^user.id
+    )
+    |> ProductUser.with_user()
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      product_user -> {:ok, product_user}
+    end
+  end
+
+  def get_product_users(product) do
+    from(
+      pu in ProductUser,
+      where: pu.product_id == ^product.id,
+      order_by: [desc: pu.role],
+      preload: :user
+    )
+    |> ProductUser.with_user()
+    |> Repo.all()
+  end
+
+  def has_product_role?(product, user, role) do
+    from(
+      pu in ProductUser,
+      where: pu.product_id == ^product.id,
+      where: pu.user_id == ^user.id,
+      where: pu.role in ^User.role_or_higher(role),
+      select: count(pu.id) >= 1
+    )
+    |> Repo.one()
   end
 
   @doc """

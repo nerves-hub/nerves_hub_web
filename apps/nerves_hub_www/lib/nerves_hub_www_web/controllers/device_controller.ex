@@ -5,6 +5,10 @@ defmodule NervesHubWWWWeb.DeviceController do
   alias NervesHubWebCore.Devices.Device
   alias Ecto.Changeset
 
+  plug(:validate_role, [org: :delete] when action in [:delete])
+  plug(:validate_role, [org: :write] when action in [:new, :create, :edit, :update])
+  plug(:validate_role, [org: :read] when action in [:index, :show])
+
   def index(%{assigns: %{current_org: _org, product: product}} = conn, _params) do
     conn
     |> render(

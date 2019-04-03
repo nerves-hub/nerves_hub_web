@@ -21,12 +21,12 @@ defmodule NervesHubWWWWeb.AccountCertificateController do
   end
 
   def show(%{assigns: %{user: user}} = conn, %{"id" => id, "file" => file}) do
-    cert = Accounts.get_user_certificate(user, id)
+    cert = Accounts.get_user_certificate!(user, id)
     render(conn, "show.html", user_certificate: cert, file: file)
   end
 
   def show(%{assigns: %{user: user}} = conn, %{"id" => id}) do
-    cert = Accounts.get_user_certificate(user, id)
+    cert = Accounts.get_user_certificate!(user, id)
     render(conn, "show.html", user_certificate: cert, file: nil)
   end
 
@@ -66,7 +66,7 @@ defmodule NervesHubWWWWeb.AccountCertificateController do
   end
 
   def delete(%{assigns: %{user: user}} = conn, %{"id" => id}) do
-    cert = Accounts.get_user_certificate(user, id)
+    cert = Accounts.get_user_certificate!(user, id)
     {:ok, _cert} = Accounts.delete_user_certificate(cert)
 
     conn

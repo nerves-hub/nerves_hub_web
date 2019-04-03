@@ -37,6 +37,14 @@ defmodule NervesHubAPIWeb.Router do
       scope "/:org_name" do
         pipe_through(:org)
 
+        scope "/users" do
+          get("/", OrgUserController, :index)
+          post("/", OrgUserController, :add)
+          get("/:username", OrgUserController, :show)
+          put("/:username", OrgUserController, :update)
+          delete("/:username", OrgUserController, :remove)
+        end
+
         scope "/keys" do
           get("/", KeyController, :index)
           post("/", KeyController, :create)
@@ -78,6 +86,14 @@ defmodule NervesHubAPIWeb.Router do
             get("/", ProductController, :show)
             delete("/", ProductController, :delete)
             put("/", ProductController, :update)
+
+            scope "/users" do
+              get("/", ProductUserController, :index)
+              post("/", ProductUserController, :add)
+              get("/:username", ProductUserController, :show)
+              put("/:username", ProductUserController, :update)
+              delete("/:username", ProductUserController, :remove)
+            end
 
             scope "/firmwares" do
               get("/", FirmwareController, :index)

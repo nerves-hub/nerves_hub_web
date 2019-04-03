@@ -4,6 +4,10 @@ defmodule NervesHubAPIWeb.FirmwareController do
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
+  plug(:validate_role, [product: :delete] when action in [:delete])
+  plug(:validate_role, [product: :write] when action in [:create])
+  plug(:validate_role, [product: :read] when action in [:index, :show])
+
   def index(%{assigns: %{product: product}} = conn, _params) do
     firmwares = Firmwares.get_firmwares_by_product(product.id)
     render(conn, "index.json", firmwares: firmwares)
