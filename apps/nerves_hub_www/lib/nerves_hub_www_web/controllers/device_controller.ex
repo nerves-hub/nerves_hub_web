@@ -31,7 +31,6 @@ defmodule NervesHubWWWWeb.DeviceController do
 
   def create(%{assigns: %{current_org: org}} = conn, %{"device" => params}) do
     params
-    |> tags_to_list()
     |> Map.put("org_id", org.id)
     |> Devices.create_device()
     |> case do
@@ -41,7 +40,7 @@ defmodule NervesHubWWWWeb.DeviceController do
 
       {:error, changeset} ->
         conn
-        |> render("new.html", changeset: changeset |> tags_to_string())
+        |> render("new.html", changeset: changeset)
     end
   end
 
@@ -55,32 +54,14 @@ defmodule NervesHubWWWWeb.DeviceController do
   def edit(%{assigns: %{current_org: org}} = conn, %{"id" => id}) do
     {:ok, device} = Devices.get_device_by_org(org, id)
 
-    conn
-    |> render(
-      "edit.html",
-      device: device,
-      changeset: device |> Device.changeset(%{}) |> tags_to_string()
+    live_render(
+      conn,
+      NervesHubWWWWeb.DeviceLive.Edit,
+      session: %{
+        device: device,
+        changeset: Device.changeset(device, %{})
+      }
     )
-  end
-
-  def update(%{assigns: %{current_org: org}} = conn, %{
-        "id" => id,
-        "device" => params
-      }) do
-    {:ok, device} = Devices.get_device_by_org(org, id)
-
-    device
-    |> Devices.update_device(params |> tags_to_list())
-    |> case do
-      {:ok, _device} ->
-        conn
-        |> put_flash(:info, "Device updated.")
-        |> redirect(to: device_path(conn, :show, id))
-
-      {:error, changeset} ->
-        conn
-        |> render("edit.html", changeset: changeset)
-    end
   end
 
   def delete(%{assigns: %{current_org: org}} = conn, %{
@@ -92,34 +73,5 @@ defmodule NervesHubWWWWeb.DeviceController do
     conn
     |> put_flash(:info, "device deleted successfully.")
     |> redirect(to: device_path(conn, :index))
-  end
-
-  @doc """
-  Convert tags from a list to a comma-separated list (in a string)
-  """
-  def tags_to_string(%Changeset{} = changeset) do
-    tags =
-      changeset
-      |> Changeset.get_field(:tags)
-
-    tags =
-      (tags || [])
-      |> Enum.join(",")
-
-    changeset
-    |> Changeset.put_change(:tags, tags)
-  end
-
-  def tags_to_list(%{"tags" => ""} = params) do
-    %{params | "tags" => []}
-  end
-
-  def tags_to_list(params) do
-    tags =
-      params["tags"]
-      |> String.split(",")
-      |> Enum.map(&String.trim/1)
-
-    %{params | "tags" => tags}
   end
 end

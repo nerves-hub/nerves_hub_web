@@ -65,6 +65,7 @@ defmodule NervesHubWWW.MixProject do
       {:bamboo, "~> 1.0"},
       {:bamboo_smtp, "~> 1.5.0"},
       {:distillery, "~> 2.0"},
+      {:floki, "~> 0.20", only: [:test, :dev]},
       {:nerves_hub_web_core, in_umbrella: true},
       {:nerves_hub_device, in_umbrella: true}
     ]

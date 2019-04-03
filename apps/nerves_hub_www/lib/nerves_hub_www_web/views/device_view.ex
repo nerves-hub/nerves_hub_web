@@ -27,5 +27,15 @@ defmodule NervesHubWWWWeb.DeviceView do
     ]
   end
 
+  def tags_to_string(%Ecto.Changeset{} = changeset) do
+    changeset
+    |> Ecto.Changeset.get_field(:tags)
+    |> tags_to_string()
+  end
+
+  def tags_to_string(%{tags: tags}), do: tags_to_string(tags)
+  def tags_to_string(tags) when is_list(tags), do: Enum.join(tags, ",")
+  def tags_to_string(tags), do: tags
+
   defdelegate device_status(device), to: Presence
 end

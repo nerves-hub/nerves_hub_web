@@ -10,6 +10,7 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
     quote do
       use ConnCase, unquote(opts)
       import Test
+      import Phoenix.LiveViewTest
 
       setup do
         %{

@@ -23,6 +23,7 @@ defmodule NervesHubWWWWeb do
       import Plug.Conn
       import NervesHubWWWWeb.Router.Helpers
       import NervesHubWWWWeb.Gettext
+      import Phoenix.LiveView.Controller, only: [live_render: 3]
 
       def whitelist(params, keys) do
         keys
