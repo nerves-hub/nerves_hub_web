@@ -49,6 +49,8 @@ defmodule NervesHubWWWWeb.Router do
     end
 
     get("/sponsors", SponsorController, :index)
+
+    get("/nerves_key", NervesKeyController, :index)
   end
 
   scope "/", NervesHubWWWWeb do
