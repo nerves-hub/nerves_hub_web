@@ -52,10 +52,7 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
-  @spec get_firmware_by_uuid(String.t()) ::
-          {:ok, Firmware.t()}
-          | {:error, :not_found}
-
+  @spec get_firmware_by_uuid(String.t()) :: [Firmware.t()]
   def get_firmware_by_uuid(uuid) do
     from(
       f in Firmware,
@@ -67,7 +64,6 @@ defmodule NervesHubWebCore.Firmwares do
   @spec get_firmware_by_org_and_uuid(Org.t(), String.t()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
-
   def get_firmware_by_org_and_uuid(%Org{id: org_id}, uuid) do
     get_firmware_by_org_and_uuid(org_id, uuid)
   end
@@ -388,7 +384,7 @@ defmodule NervesHubWebCore.Firmwares do
   end
 
   @spec fetch_fwup_metadata_item(String.t(), String.t()) ::
-          {:ok, String.t()} | {:error, :not_found}
+          {:ok, String.t()} | {:error, {String.t(), :not_found}}
   defp fetch_fwup_metadata_item(metadata, key) when is_binary(key) do
     {:ok, regex} = "#{key}=\"(?<item>[^\n]+)\"" |> Regex.compile()
 
@@ -398,7 +394,7 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
-  @spec get_fwup_metadata_item(String.t(), String.t(), any()) :: String.t() | nil
+  @spec get_fwup_metadata_item(String.t(), String.t(), String.t() | nil) :: String.t() | nil
   defp get_fwup_metadata_item(metadata, key, default \\ nil) when is_binary(key) do
     case fetch_fwup_metadata_item(metadata, key) do
       {:ok, metadata_item} -> metadata_item
