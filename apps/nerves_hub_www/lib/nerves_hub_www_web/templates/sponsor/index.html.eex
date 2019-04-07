@@ -15,3 +15,8 @@
       <%= img_tag(static_path(@conn, "/images/sponsors/letote.svg"), style: "height:50px") %>
     </a>
 </div>
+<div class="row mb-5">
+    <a href="https://www.alliedcomponentworks.com" class="mx-auto">
+      <%= img_tag(static_path(@conn, "/images/sponsors/acw.svg"), style: "height:100px") %>
+    </a>
+</div>
