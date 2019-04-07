@@ -4,7 +4,6 @@ defmodule NervesHubWebCore.Accounts.AuditLog do
   import Ecto.Changeset
   import EctoEnum
 
-  alias NervesHubWebCore.Accounts.{Org, User}
   alias NervesHubWebCore.Types.Resource
 
   @primary_key {:id, :binary_id, autogenerate: true}
