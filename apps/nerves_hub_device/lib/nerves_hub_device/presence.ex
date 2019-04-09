@@ -11,6 +11,9 @@ defmodule NervesHubDevice.Presence do
       {key, %{metas: [%{update_available: true}]} = val}, acc ->
         Map.put(acc, key, Map.put(val, :status, "update pending"))
 
+      {key, %{metas: [%{rebooting: true}]} = val}, acc ->
+        Map.put(acc, key, Map.put(val, :status, "rebooting"))
+
       {key, val}, acc ->
         Map.put(acc, key, Map.put(val, :status, "online"))
     end)
@@ -35,8 +38,7 @@ defmodule NervesHubDevice.Presence do
     |> Map.get("#{device_id}")
     |> case do
       nil -> "offline"
-      %{metas: [%{update_available: true}]} -> "update pending"
-      %{} -> "online"
+      %{status: status} -> status
     end
   end
 

@@ -22,6 +22,17 @@ defmodule NervesHubWebCore.Accounts.AuditLog do
     timestamps(updated_at: false)
   end
 
+  def build(%actor_type{id: actor_id}, %resource_type{id: resource_id}, action, params) do
+    %__MODULE__{
+      action: action,
+      actor_id: actor_id,
+      actor_type: actor_type,
+      resource_id: resource_id,
+      resource_type: resource_type,
+      params: params
+    }
+  end
+
   def changeset(%__MODULE__{} = audit_log, params) do
     audit_log
     |> cast(params, @required_params)

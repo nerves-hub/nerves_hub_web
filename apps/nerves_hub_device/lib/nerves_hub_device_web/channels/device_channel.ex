@@ -37,6 +37,18 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     end
   end
 
+  def handle_in("rebooting", _payload, socket) do
+    # Device sends "rebooting" message back to signify ack of the request
+    Presence.update(
+      socket.channel_pid,
+      "devices:#{socket.assigns.device.org_id}",
+      socket.assigns.device.id,
+      %{rebooting: true}
+    )
+
+    {:noreply, socket}
+  end
+
   def handle_info({:after_join, device, update_available}, socket) do
     %Device{id: device_id, firmware_metadata: firmware_metadata, org: %Org{id: org_id}} = device
 

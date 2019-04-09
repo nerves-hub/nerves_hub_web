@@ -44,11 +44,11 @@ defmodule NervesHubWWWWeb.DeviceController do
     end
   end
 
-  def show(%{assigns: %{current_org: org}} = conn, %{
+  def show(%{assigns: %{current_org: org, user: user}} = conn, %{
         "id" => id
       }) do
     device = Devices.get_device_by_org!(org, id)
-    render(conn, "show.html", device: device)
+    live_render(conn, NervesHubWWWWeb.DeviceLive.Show, session: %{device: device, user: user})
   end
 
   def edit(%{assigns: %{current_org: org}} = conn, %{"id" => id}) do
