@@ -18,15 +18,15 @@
         <th>Device Limit</th>
         <th>Firmware per Product</th>
         <th>Firmware Size</th>
-        <th>Firmware Max Time to Live Seconds<th>
+        <th>Firmware Max Time to Live<th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       <td> <%= @org_limit.devices %> </td>
       <td> <%= @org_limit.firmware_per_product %> </td>
-      <td> <%= @org_limit.firmware_size %> </td>
-      <td> <%= @org_limit.firmware_ttl_seconds %> </td>
+      <td> <%= humanize_size(@org_limit.firmware_size) %> </td>
+      <td> <%= humanize_seconds(@org_limit.firmware_ttl_seconds) %> </td>
     </tbody>
   </div>
 </table>
@@ -104,4 +104,3 @@
     <% end %>
   </div>
 </div>
-

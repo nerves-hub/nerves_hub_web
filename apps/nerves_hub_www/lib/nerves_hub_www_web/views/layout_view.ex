@@ -31,4 +31,30 @@ defmodule NervesHubWWWWeb.LayoutView do
   def permit_uninvited_signups do
     Application.get_env(:nerves_hub_www, NervesHubWWWWeb.AccountController)[:allow_signups]
   end
+
+  @tib :math.pow(2, 40)
+  @gib :math.pow(2, 30)
+  @mib :math.pow(2, 20)
+  @kib :math.pow(2, 10)
+  @precision 3
+
+  def humanize_seconds(seconds) do
+    seconds
+    |> Timex.Duration.from_seconds()
+    |> Timex.Format.Duration.Formatter.format(:humanized)
+  end
+
+  @doc """
+  Note that results are in multiples of unit bytes: KiB, MiB, GiB
+  [Wikipedia](https://en.wikipedia.org/wiki/Binary_prefix)
+  """
+  def humanize_size(bytes) do
+    cond do
+      bytes > @tib -> "#{Float.round(bytes / @gib, @precision)} TiB"
+      bytes > @gib -> "#{Float.round(bytes / @gib, @precision)} GiB"
+      bytes > @mib -> "#{Float.round(bytes / @mib, @precision)} MiB"
+      bytes > @kib -> "#{Float.round(bytes / @kib, @precision)} KiB"
+      true -> "#{bytes} bytes"
+    end
+  end
 end
