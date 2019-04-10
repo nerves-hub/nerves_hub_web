@@ -1,6 +1,14 @@
 defmodule NervesHubWWWWeb.DevicesChannelTest do
   use NervesHubWWWWeb.ChannelCase
-  alias NervesHubWebCore.{Deployments, Devices.Device, Firmwares.Firmware, Fixtures}
+
+  alias NervesHubWebCore.{
+    Deployments,
+    Devices,
+    Devices.Device,
+    Firmwares.Firmware,
+    Fixtures,
+    Repo
+  }
 
   setup do
     {:ok, fixture: Fixtures.very_fixture()}
@@ -66,6 +74,21 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
       %{device_id: device_id} = connect_device(fixture_2)
       assert_push("presence_state", %{})
       refute_broadcast("presence_diff", %{joins: %{^device_id => _}, leaves: %{}})
+    end
+  end
+
+  describe "terminate" do
+    test "saves last_communication", %{fixture: fixture} do
+      %{device_id: id, socket: socket} = connect_device(fixture)
+
+      # Set to nil so we change check it gets set on disconnect
+      {:ok, device} = Devices.update_device(fixture.device, %{last_communication: nil})
+      assert device.last_communication == nil
+
+      leave(socket)
+      disconnected_device = Repo.get(Device, id)
+
+      assert disconnected_device.last_communication != nil
     end
   end
 

@@ -64,6 +64,13 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def terminate(reason, %{assigns: %{device: device}} = socket) do
+    Devices.update_device(device, %{last_communication: DateTime.utc_now()})
+    :ok
+  end
+
+  def terminate(_reason, _state), do: :ok
+
   defp get_certificate(%{assigns: %{certificate: certificate}}), do: {:ok, certificate}
 
   defp get_certificate(_), do: {:error, :no_device_or_org}
