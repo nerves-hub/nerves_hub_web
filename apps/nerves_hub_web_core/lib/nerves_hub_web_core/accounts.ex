@@ -159,7 +159,6 @@ defmodule NervesHubWebCore.Accounts do
           {:ok, User.t()}
           | {:error, :authentication_failed}
   def authenticate(email, password) do
-    email = String.downcase(email)
     user = Repo.get_by(User, email: email)
 
     with %User{} <- user,

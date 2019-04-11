@@ -182,6 +182,24 @@ defmodule NervesHubWebCore.AccountsTest do
     end
   end
 
+  test "authenticate with an email address with a capital letter" do
+    expected_email = "ThatsTesty@mctesterson.com"
+
+    params = %{
+      username: "Testy-McTesterson",
+      org_name: "mctesterson.com",
+      email: expected_email,
+      password: "test_password"
+    }
+
+    {:ok, %User{} = user} = Accounts.create_user(params)
+
+    assert user.email == expected_email
+
+    assert {:ok, %User{email: expected_email, orgs: [%Org{}]}} =
+             Accounts.authenticate(user.email, user.password)
+  end
+
   test "create_org_with_user_with_certificate with valid params" do
     params = %{
       username: "Testy-McTesterson",
