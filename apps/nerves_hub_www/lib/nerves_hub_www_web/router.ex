@@ -79,6 +79,7 @@ defmodule NervesHubWWWWeb.Router do
 
     # :update is handled by DeviceLive.Edit
     resources("/devices", DeviceController, except: [:update])
+    get("/devices/:id/console", DeviceController, :console)
 
     resources "/products", ProductController, except: [:edit, :update] do
       pipe_through(:product_level)

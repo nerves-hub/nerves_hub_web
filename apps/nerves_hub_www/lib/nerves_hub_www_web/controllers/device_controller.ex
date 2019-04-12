@@ -33,6 +33,17 @@ defmodule NervesHubWWWWeb.DeviceController do
     )
   end
 
+  def console(%{assigns: %{current_org: org, user: user}} = conn, %{
+        "id" => id
+      }) do
+    device = Devices.get_device_by_org!(org, id)
+    org_user = Enum.find(user.org_users, %{role: :read_only}, &(&1.org_id == org.id))
+
+    live_render(conn, NervesHubWWWWeb.DeviceLive.Console,
+      session: %{device: device, username: user.username, user_role: org_user.role}
+    )
+  end
+
   def create(%{assigns: %{current_org: org}} = conn, %{"device" => params}) do
     params
     |> Map.put("org_id", org.id)
