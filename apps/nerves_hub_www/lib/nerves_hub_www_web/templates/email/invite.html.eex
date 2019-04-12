@@ -1,7 +1,8 @@
+<p>Hi!</p>
 <p>You've been invited to join <%= @org.name %> on nerves-hub.org.</p>
 
 <p>To get started click on the link below to register your account and set up your password:</p>
 
 <a href="<%= "#{base_url()}/invite/#{@invite.token}" %>">Create Account</a>
 
-<p>If you do not set your password within 48 hours of receiving this email, the invite will expire and you'll have to request a new invite from <%= @org.name %>.</p>
+<%= raw(closing()) %>

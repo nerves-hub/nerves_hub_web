@@ -10,4 +10,16 @@ defmodule NervesHubWWWWeb.EmailView do
 
     "#{scheme}://#{host}#{port}"
   end
+
+  @doc """
+  Standard closing words.
+  """
+
+  def closing do
+    """
+        <p>If you run into problems, please contact support by visiting https://nerves-hub.org/contact.
+        <p>Thanks,</p>
+        <p>Your frends at NervesHub</p>
+    """
+  end
 end
