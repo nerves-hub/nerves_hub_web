@@ -3,6 +3,7 @@ defmodule NervesHubDeviceWeb.UserSocket do
 
   ## Channels
   # channel "room:*", NervesHubWWWWeb.RoomChannel
+  channel("console", NervesHubDeviceWeb.ConsoleChannel)
   channel("firmware:*", NervesHubDeviceWeb.DeviceChannel)
   channel("device", NervesHubDeviceWeb.DeviceChannel)
 

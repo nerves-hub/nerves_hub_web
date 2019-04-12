@@ -1,0 +1,18 @@
+<%= if @user_role != :admin do %>
+  <h2>Read Only!</h2>
+  <p>You can follow the feed but will be unable to send commands</p>
+<% end %>
+
+<div class="container">
+  <pre style="font-family: monospace; text-align:left; font-size: 16px; padding: 4px; background-color: black; color: white;">
+
+    <%= for line <- @lines do %>
+    <p><%= line %></p>
+    <% end %>
+    <%= form_for %Plug.Conn{}, "#", [phx_submit: :iex_submit], fn f -> %>
+      <%= if @active_line do %>
+        <%= @active_line %><%= text_input f, :iex_input %>
+      <% end %>
+    <% end %>
+  </pre>
+</div>
