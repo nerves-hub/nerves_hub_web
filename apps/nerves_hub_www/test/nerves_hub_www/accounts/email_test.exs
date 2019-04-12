@@ -40,6 +40,6 @@ defmodule NervesHubWWW.Accounts.EmailTest do
     assert email.to == "nunya@bidness.com"
 
     assert email.html_body =~
-             "You've been added to the <strong>#{org.name}<strong> organization on nerves-hub.org."
+             "You've been added to the <strong>#{org.name}</strong> organization on nerves-hub.org."
   end
 end

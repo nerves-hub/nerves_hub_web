@@ -9,7 +9,7 @@ defmodule NervesHubWWW.Accounts.Email do
     new_email()
     |> from(@from)
     |> to(invite.email)
-    |> subject("Welcome to NervesHub!")
+    |> subject("[NervesHub] Hi from NervesHub!")
     |> put_layout({NervesHubWWWWeb.LayoutView, :email})
     |> render("invite.html", invite: invite, org: org)
   end
@@ -19,7 +19,7 @@ defmodule NervesHubWWW.Accounts.Email do
     new_email()
     |> from(@from)
     |> to(email)
-    |> subject("Reset NervesHub Password")
+    |> subject("[NervesHub] Reset NervesHub Password")
     |> put_layout({NervesHubWWWWeb.LayoutView, :email})
     |> render("forgot_password.html", user: user)
   end
@@ -28,7 +28,7 @@ defmodule NervesHubWWW.Accounts.Email do
     new_email()
     |> from(@from)
     |> to(email)
-    |> subject("New NervesHub Organization Added")
+    |> subject("[NervesHub] Welcome to #{org.name}")
     |> put_layout({NervesHubWWWWeb.LayoutView, :email})
     |> render("org_user_created.html", org: org)
   end

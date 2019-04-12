@@ -1,5 +1,6 @@
-<p>You've been added to the <strong><%= @org.name %><strong> organization on nerves-hub.org.</p>
+<p>Welcome!</p>
+<p>You've been added to the <strong><%= @org.name %></strong> organization on nerves-hub.org.</p>
 
 <p><a href="<%= "#{base_url()}/login" %>">Login</a> to view it's details.</p>
 
-
+<%= raw(closing()) %>
