@@ -17,7 +17,7 @@ defmodule NervesHubWWWWeb.EmailView do
 
   def closing do
     """
-        <p>If you run into problems, please contact support by visiting https://nerves-hub.org/contact.
+        <p>If you run into problems, please file an <a href="https://github.com/nerves-hub/nerves_hub_web/issues">issue</a> or email support@nerves-hub.org.</p>
         <p>Thanks,</p>
         <p>Your frends at NervesHub</p>
     """
