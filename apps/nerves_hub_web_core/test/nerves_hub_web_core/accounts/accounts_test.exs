@@ -293,4 +293,16 @@ defmodule NervesHubWebCore.AccountsTest do
 
     assert result_org.type == :user
   end
+
+  test "get orgs for user by product role returns unique orgs", %{user: user} do
+    {:ok, org1} = Accounts.create_org(user, %{name: "org1"})
+    {:ok, org2} = Accounts.create_org(user, %{name: "org2"})
+
+    Fixtures.product_fixture(user, org1, %{name: "a product a"})
+    Fixtures.product_fixture(user, org1, %{name: "a product b"})
+    Fixtures.product_fixture(user, org2, %{name: "a product c"})
+
+    orgs = Accounts.get_user_orgs_with_product_role(user, :read)
+    assert orgs == Enum.uniq(orgs)
+  end
 end

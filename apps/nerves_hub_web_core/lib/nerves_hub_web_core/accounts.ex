@@ -197,7 +197,8 @@ defmodule NervesHubWebCore.Accounts do
         where:
           ou.user_id == ^user.id or
             (pu.user_id == ^user.id and
-               pu.role in ^User.role_or_higher(product_role))
+               pu.role in ^User.role_or_higher(product_role)),
+        group_by: o.id
       )
 
     Repo.all(q)
