@@ -76,7 +76,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def terminate(reason, %{assigns: %{device: device}} = socket) do
+  def terminate(_reason, %{assigns: %{device: device}}) do
     Devices.update_device(device, %{last_communication: DateTime.utc_now()})
     :ok
   end
