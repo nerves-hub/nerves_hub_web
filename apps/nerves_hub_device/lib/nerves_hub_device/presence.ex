@@ -6,20 +6,29 @@ defmodule NervesHubDevice.Presence do
   alias NervesHubWebCore.Devices.Device
   alias NervesHubDevice.Presence
 
+  @allowed_fields [
+    :connected_at,
+    :console_available,
+    :firmware_metadata,
+    :rebooting,
+    :update_available
+  ]
+
   def fetch("devices:" <> _, entries) do
-    Enum.reduce(entries, %{}, fn
-      {key, %{metas: [%{update_available: true}]} = val}, acc ->
-        Map.put(acc, key, Map.put(val, :status, "update pending"))
-
-      {key, %{metas: [%{rebooting: true}]} = val}, acc ->
-        Map.put(acc, key, Map.put(val, :status, "rebooting"))
-
-      {key, val}, acc ->
-        Map.put(acc, key, Map.put(val, :status, "online"))
-    end)
+    for {key, entry} <- entries, into: %{}, do: {key, merge_metas(entry)}
   end
 
   def fetch(_, entries), do: entries
+
+  def find(device, default \\ nil)
+
+  def find(%Device{id: device_id, org_id: org_id}, default) do
+    "devices:#{org_id}"
+    |> Presence.list()
+    |> Map.get("#{device_id}", default)
+  end
+
+  def find(_, default), do: default
 
   @doc """
   Return the status of a device.
@@ -32,11 +41,8 @@ defmodule NervesHubDevice.Presence do
   - `"offline"` - The device is not connected to Presence
   """
   @spec device_status(Device.t()) :: String.t()
-  def device_status(%Device{id: device_id, org_id: org_id}) do
-    "devices:#{org_id}"
-    |> Presence.list()
-    |> Map.get("#{device_id}")
-    |> case do
+  def device_status(%Device{} = device) do
+    case find(device) do
       nil -> "offline"
       %{status: status} -> status
     end
@@ -44,5 +50,17 @@ defmodule NervesHubDevice.Presence do
 
   def device_status(_) do
     "offline"
+  end
+
+  defp merge_metas(%{metas: metas}) do
+    # The most current meta is head of the list so we
+    # accumulate that first and merge everthing else into it
+    Enum.reduce(metas, %{}, &Map.merge(&1, &2))
+    |> Map.take(@allowed_fields)
+    |> case do
+      %{update_available: true} = e -> Map.put(e, :status, "update pending")
+      %{rebooting: true} = e -> Map.put(e, :status, "rebooting")
+      e -> Map.put(e, :status, "online")
+    end
   end
 end

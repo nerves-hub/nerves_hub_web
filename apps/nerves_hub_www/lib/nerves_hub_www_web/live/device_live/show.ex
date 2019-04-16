@@ -14,10 +14,13 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
   end
 
   def mount(session, socket) do
+    device_presence = Presence.find(session.device, %{status: "offline"})
+
     socket =
       socket
+      |> assign(:console_available, device_presence[:console_available])
       |> assign(:device, session.device)
-      |> assign(:device_status, device_status(session.device))
+      |> assign(:device_status, device_presence.status)
       |> assign(:user, session.user)
 
     if connected?(socket) do
