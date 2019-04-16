@@ -30,6 +30,8 @@ defmodule NervesHubWebCore.Devices.Device do
     field(:last_communication, :utc_datetime)
     field(:tags, NervesHubWebCore.Types.Tag)
 
+    field(:status, :string, default: "offline", virtual: true)
+
     timestamps()
   end
 

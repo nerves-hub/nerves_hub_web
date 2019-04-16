@@ -11,6 +11,7 @@ defmodule NervesHubDevice.Presence do
     :console_available,
     :firmware_metadata,
     :rebooting,
+    :status,
     :update_available
   ]
 
