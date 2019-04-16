@@ -9,19 +9,19 @@ defmodule NervesHubWWWWeb.DeviceController do
   plug(:validate_role, [org: :write] when action in [:new, :create, :edit, :update])
   plug(:validate_role, [org: :read] when action in [:index, :show])
 
-  def index(%{assigns: %{current_org: _org, product: product}} = conn, _params) do
+  def index(%{assigns: %{current_org: org, product: product}} = conn, _params) do
     conn
-    |> render(
-      "index.html",
-      devices: Devices.get_devices(product)
+    |> live_render(
+      NervesHubWWWWeb.DeviceLive.Index,
+      session: %{devices: Devices.get_devices(product), org_id: org.id}
     )
   end
 
   def index(%{assigns: %{current_org: org}} = conn, _params) do
     conn
-    |> render(
-      "index.html",
-      devices: Devices.get_devices(org)
+    |> live_render(
+      NervesHubWWWWeb.DeviceLive.Index,
+      session: %{devices: Devices.get_devices(org), org_id: org.id}
     )
   end
 

@@ -8,21 +8,21 @@
       </div>
     </div>
     <div class="card">
-    <table id="deployment_listing" class="table">
+    <table id="devices_table" class="table">
       <thead>
         <tr class="d-flex">
-          <th class="col-2">Identifier</th>
+          <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
           <th class="col-2">Firmware Info</th>
-          <th class="col-2">Status</th>
-          <th class="col-2">Last Connection</th>
-          <th class="col-2">Tags</th>
+          <%= devices_table_header("Status", "status", @current_sort, @sort_direction) %>
+          <%= devices_table_header("Last Connection", "last_communication", @current_sort, @sort_direction) %>
+          <%= devices_table_header("Tags", "tags", @current_sort, @sort_direction) %>
           <th class="col-2"></th>
         </tr>
       </thead>
       <%= for device <- @devices do %>
         <tr class="item d-flex">
           <td class="col-2">
-            <a href="<%= device_path(@conn, :show, device.id) %>" class="">
+            <a href="<%= device_path(@socket, :show, device.id) %>" class="">
               <%= device.identifier %>
             </a>
           </td>
@@ -38,7 +38,7 @@
               </p>
             <% end %>
           </td>
-          <td class="col-2 device" data-device-id=<%= "#{device.id}" %>><%= device_status(device) %></td>
+          <td class="col-2 device"><%= device.status %></td>
           <td class="col-2 date-time">
             <%= if is_nil(device.last_communication) do %>
               never
@@ -50,8 +50,8 @@
             <span class="badge"><%= tags_to_string(device) %></span>
           </td>
           <td class="col-2">
-            <%= link "Edit", class: "btn btn-info", to: device_path(@conn, :edit, device) %>
-            <%= link "Delete", class: "btn btn-danger", to: device_path(@conn, :delete, device), method: :delete, data: [confirm: "Are you sure?"]%>
+            <%= link "Edit", class: "btn btn-info", to: device_path(@socket, :edit, device) %>
+            <%= link "Delete", class: "btn btn-danger", to: device_path(@socket, :delete, device), method: :delete, data: [confirm: "Are you sure?"]%>
           </td>
         </tr>
       <% end %>

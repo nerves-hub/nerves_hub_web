@@ -13,6 +13,21 @@ defmodule NervesHubWWWWeb.DeviceView do
     ]
   end
 
+  def devices_table_header(title, value, current_sort, sort_direction \\ :asc)
+
+  def devices_table_header(title, value, current_sort, sort_direction)
+      when value == current_sort do
+    caret_class = if sort_direction == :asc, do: "up", else: "down"
+
+    content_tag(:th, phx_click: "sort", phx_value: value, class: "col-2 sort-selected") do
+      [title, content_tag(:i, "", class: "fa fa-caret-#{caret_class}")]
+    end
+  end
+
+  def devices_table_header(title, value, _current_sort, _sort_direction) do
+    content_tag(:th, title, phx_click: "sort", phx_value: value, class: "col-2")
+  end
+
   def platform_options do
     [
       "bbb",
