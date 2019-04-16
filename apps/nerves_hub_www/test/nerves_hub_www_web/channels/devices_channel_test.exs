@@ -18,7 +18,7 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
     test "in-org devices in initial state", %{fixture: fixture} do
       %{device_id: device_id} = connect_device(fixture)
       connect_www(fixture)
-      assert_push("presence_state", %{^device_id => %{metas: [%{}], status: "online"}})
+      assert_push("presence_state", %{^device_id => %{status: "online"}})
     end
 
     test "in-org devices as they join (online)", %{fixture: fixture} do
@@ -28,7 +28,7 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
 
       assert_broadcast(
         "presence_diff",
-        %{joins: %{^device_id => %{metas: [%{}], status: "online"}}, leaves: %{}}
+        %{joins: %{^device_id => %{status: "online"}}, leaves: %{}}
       )
     end
 
@@ -40,19 +40,19 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
 
       assert_broadcast(
         "presence_diff",
-        %{joins: %{^device_id => %{metas: [%{}], status: "update pending"}}, leaves: %{}}
+        %{joins: %{^device_id => %{status: "update pending"}}, leaves: %{}}
       )
     end
 
     test "in-org device leaving", %{fixture: fixture} do
       %{device_id: device_id, socket: device_socket} = connect_device(fixture)
       connect_www(fixture)
-      assert_push("presence_state", %{^device_id => %{metas: [%{}], status: "online"}})
+      assert_push("presence_state", %{^device_id => %{status: "online"}})
       leave(device_socket)
 
       assert_broadcast(
         "presence_diff",
-        %{joins: %{}, leaves: %{^device_id => %{metas: [%{}], status: "online"}}}
+        %{joins: %{}, leaves: %{^device_id => %{status: "online"}}}
       )
     end
   end
@@ -66,7 +66,7 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
     test "out-of-org devices in initial state", %{fixture: fixture, fixture_2: fixture_2} do
       %{device_id: device_id} = connect_device(fixture_2)
       connect_www(fixture)
-      refute_push("presence_state", %{^device_id => %{metas: [%{}], status: "online"}})
+      refute_push("presence_state", %{^device_id => %{status: "online"}})
     end
 
     test "out-of-org devices as they join", %{fixture: fixture, fixture_2: fixture_2} do

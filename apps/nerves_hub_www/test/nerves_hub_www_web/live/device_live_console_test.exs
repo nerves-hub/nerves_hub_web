@@ -4,15 +4,34 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
   import Phoenix.ChannelTest
 
   alias NervesHubWebCore.Devices
-  alias NervesHubWWWWeb.DeviceLive.Console
-  alias NervesHubWWWWeb.Endpoint
+  alias NervesHubWWWWeb.{DeviceLive.Console, Endpoint}
+  alias NervesHubDevice.Presence
 
   alias Phoenix.Socket.Broadcast
 
-  setup %{current_org: org, current_user: user} do
+  setup %{current_org: org, current_user: user} = context do
     device = Devices.get_devices(org) |> hd
     Endpoint.subscribe("console:#{device.id}")
+
+    unless context[:skip_presence] do
+      Presence.track(self(), "devices:#{device.org_id}", device.id, %{console_available: true})
+    end
+
     [device: device, user: user, username: user.username, user_role: :admin]
+  end
+
+  describe "mount" do
+    test "successful mount init IEx server on device", session do
+      {:ok, _view, _html} = mount(Endpoint, Console, session: session)
+      assert_broadcast("init", %{})
+    end
+
+    @tag skip_presence: true
+    test "redirects when device not configured for remote IEx", session do
+      {:error, %{redirect: somewhere}} = mount(Endpoint, Console, session: session)
+      refute_broadcast("init", %{})
+      assert somewhere == "/devices/#{session.device.id}"
+    end
   end
 
   describe "handle_event" do

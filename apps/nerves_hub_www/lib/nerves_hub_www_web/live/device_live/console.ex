@@ -1,6 +1,7 @@
 defmodule NervesHubWWWWeb.DeviceLive.Console do
   use Phoenix.LiveView
 
+  alias NervesHubDevice.Presence
   alias Phoenix.Socket.Broadcast
 
   @theme AnsiToHTML.Theme.new(container: :none)
@@ -12,21 +13,15 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
   def mount(session, socket) do
     if connected?(socket) do
       socket.endpoint.subscribe(console_topic(session))
-
-      if session.user_role == :admin do
-        socket.endpoint.broadcast_from!(self(), console_topic(session), "init", %{})
-      end
     end
 
-    socket =
-      socket
-      |> assign(:active_line, "iex (#{session.username})> ")
-      |> assign(:device, session.device)
-      |> assign(:lines, ["NervesHub IEx Live"])
-      |> assign(:username, session.username)
-      |> assign(:user_role, session.user_role)
-
-    {:ok, socket}
+    socket
+    |> assign(:active_line, "iex (#{session.username})> ")
+    |> assign(:device, session.device)
+    |> assign(:lines, ["NervesHub IEx Live"])
+    |> assign(:username, session.username)
+    |> assign(:user_role, session.user_role)
+    |> init_iex()
   end
 
   def handle_event("init_console", _value, socket) do
@@ -107,4 +102,22 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
   defp console_topic(%{device: device}) do
     "console:#{device.id}"
   end
+
+  defp init_iex(%{assigns: %{device: device, user_role: :admin}} = socket) do
+    case Presence.find(device) do
+      %{console_available: true} ->
+        socket.endpoint.broadcast_from!(self(), console_topic(socket), "init", %{})
+        {:ok, socket}
+
+      _ ->
+        socket =
+          socket
+          |> put_flash(:error, "Device not configured to support remote IEx console")
+          |> redirect(to: "/devices/#{device.id}")
+
+        {:stop, socket}
+    end
+  end
+
+  defp init_iex(socket), do: {:ok, socket}
 end

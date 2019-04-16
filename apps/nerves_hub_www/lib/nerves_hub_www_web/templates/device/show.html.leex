@@ -44,7 +44,7 @@
   </button>
   <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
     <%= link "Edit", to: device_path(@socket, :edit, @device), class: "dropdown-item" %>
-    <%= link "Console", to: device_path(@socket, :console, @device), class: "dropdown-item" %>
+    <%= link "Console", to: device_path(@socket, :console, @device), class: "dropdown-item #{unless @console_available, do: "disabled"}" %>
     <div class="dropdown-divider"></div>
     <button class="dropdown-item" type="button" phx-click="reboot" <%= if @device_status != "online", do: "disabled" %> data-confirm="Are you sure?">Reboot</button>
   </div>

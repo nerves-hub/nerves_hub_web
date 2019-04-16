@@ -1,5 +1,5 @@
 defmodule NervesHubDeviceWeb.ConsoleChannelTest do
-  use NervesHubWWWWeb.ChannelCase
+  use NervesHubDeviceWeb.ChannelCase
 
   alias NervesHubDeviceWeb.{ConsoleChannel, Endpoint, UserSocket}
   alias NervesHubWebCore.Fixtures

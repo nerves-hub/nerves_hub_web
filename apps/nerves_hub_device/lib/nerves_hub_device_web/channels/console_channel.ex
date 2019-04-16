@@ -1,8 +1,8 @@
 # Channel the device is connected to
 defmodule NervesHubDeviceWeb.ConsoleChannel do
   use NervesHubDeviceWeb, :channel
-  alias NervesHubWebCore.{Devices, DeviceConsole}
 
+  alias NervesHubWebCore.Devices
   alias Phoenix.Socket.Broadcast
 
   def join("console", _payload, socket) do
@@ -15,13 +15,8 @@ defmodule NervesHubDeviceWeb.ConsoleChannel do
     end
   end
 
-  def terminate(_, socket) do
+  def terminate(_, _socket) do
     {:shutdown, :closed}
-  end
-
-  def handle_info(:after_join, socket) do
-    socket.endpoint.subscribe(console_topic(socket))
-    {:noreply, socket}
   end
 
   def handle_in("init_attempt", %{"success" => success?} = payload, socket) do
@@ -39,6 +34,17 @@ defmodule NervesHubDeviceWeb.ConsoleChannel do
 
   def handle_in("get_line", payload, socket) do
     socket.endpoint.broadcast_from!(self(), console_topic(socket), "get_line", payload)
+    {:noreply, socket}
+  end
+
+  def handle_info(:after_join, %{assigns: %{device: device}} = socket) do
+    socket.endpoint.subscribe(console_topic(socket))
+
+    {:ok, _} =
+      NervesHubDevice.Presence.track(socket.channel_pid, "devices:#{device.org_id}", device.id, %{
+        console_available: true
+      })
+
     {:noreply, socket}
   end
 
