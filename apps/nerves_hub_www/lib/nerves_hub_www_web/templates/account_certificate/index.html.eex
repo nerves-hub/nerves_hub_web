@@ -1,4 +1,4 @@
-<h2><%= @user.username %> User Certificates <span><%= button "", class: "btn btn-success fa fa-plus", title: "Create New Account Certificate", to: account_certificate_path(@conn, :new), method: :get %></span></h2>
+<h2><%= @user.username %> User Certificates </h2>
 <div class="row">
   <div class="w-100 shadow nhw_list">
     <div class="card">
