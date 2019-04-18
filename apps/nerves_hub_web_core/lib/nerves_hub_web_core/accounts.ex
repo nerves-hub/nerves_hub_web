@@ -117,7 +117,8 @@ defmodule NervesHubWebCore.Accounts do
     end
   end
 
-  def remove_org_user(%Org{type: :user}, %User{}), do: {:error, :user_org}
+  def remove_org_user(%Org{type: :user, name: name}, %User{username: name}),
+    do: {:error, :user_org}
 
   def remove_org_user(%Org{} = org, %User{} = user) do
     count = Repo.aggregate(Ecto.assoc(org, :org_users), :count, :id)
