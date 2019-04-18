@@ -280,6 +280,11 @@ defmodule NervesHubWebCore.AccountsTest do
     assert {:ok, %Org{type: :group}} = Accounts.create_org(user, %{name: "group-org"})
   end
 
+  test "cannot remove user from their own org", %{user: user} do
+    {:ok, org} = Accounts.get_org_by_name_and_user(user.username, user)
+    assert {:error, _} = Accounts.remove_org_user(org, user)
+  end
+
   test "create_user sets default org to type user" do
     params = %{
       username: "user_with_org",
