@@ -2,7 +2,7 @@ defmodule NervesHubWebCore.ProductsTest do
   use NervesHubWebCore.DataCase, async: true
 
   alias NervesHubWebCore.Fixtures
-  alias NervesHubWebCore.Products
+  alias NervesHubWebCore.{Products, Accounts}
 
   describe "products" do
     alias NervesHubWebCore.Products.Product
@@ -85,6 +85,15 @@ defmodule NervesHubWebCore.ProductsTest do
 
     test "Unable to remove last user from org", %{product: product, user: user} do
       assert {:error, :last_user} = Products.remove_product_user(product, user)
+    end
+
+    test "List products from an org where the user has a comparable org role", %{
+      org: org,
+      product: product
+    } do
+      user = Fixtures.user_fixture()
+      Accounts.add_org_user(org, user, %{role: :read})
+      assert [^product] = Products.get_products_by_user_and_org(user, org)
     end
   end
 end

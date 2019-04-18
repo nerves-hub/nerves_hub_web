@@ -8,7 +8,7 @@ defmodule NervesHubWebCore.Products do
   alias Ecto.Multi
   alias NervesHubWebCore.Repo
   alias NervesHubWebCore.Products.{Product, ProductUser}
-  alias NervesHubWebCore.Accounts.{User, Org}
+  alias NervesHubWebCore.Accounts.{User, Org, OrgUser}
 
   def get_products_by_user_and_org(%User{id: user_id}, %Org{id: org_id}) do
     query =
@@ -16,10 +16,13 @@ defmodule NervesHubWebCore.Products do
         p in Product,
         join: pu in ProductUser,
         on: p.id == pu.product_id,
+        full_join: ou in OrgUser,
+        on: p.org_id == ou.org_id,
         where:
           p.org_id == ^org_id and
-            pu.user_id == ^user_id and
-            pu.role in ^User.role_or_higher(:read)
+            ((ou.user_id == ^user_id and ou.role in ^User.role_or_higher(:read)) or
+               (pu.user_id == ^user_id and pu.role in ^User.role_or_higher(:read))),
+        group_by: p.id
       )
 
     query
