@@ -3,7 +3,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
 
   alias NervesHubDevice.Presence
 
-  alias NervesHubWebCore.{Repo, Accounts.AuditLog}
+  alias NervesHubWebCore.{Repo, AuditLogs.AuditLog}
 
   alias Phoenix.Socket.Broadcast
 

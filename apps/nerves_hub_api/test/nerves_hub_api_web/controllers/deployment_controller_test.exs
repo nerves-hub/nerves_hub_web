@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.DeploymentControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
-  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.{AuditLogs, Deployments.Deployment, Fixtures}
 
   describe "index" do
     test "lists all deployments", %{conn: conn, org: org, product: product} do
@@ -11,13 +11,14 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
   end
 
   describe "create deployment" do
-    test "renders deployment when data is valid", %{conn: conn, org: org, product: product} do
-      org_key = Fixtures.org_key_fixture(org)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+    setup context do
+      org_key = Fixtures.org_key_fixture(context.org)
+      firmware = Fixtures.firmware_fixture(org_key, context.product)
 
-      deployment = %{
+      params = %{
         name: "test",
         firmware: firmware.uuid,
+        firmware_id: firmware.id,
         conditions: %{
           version: "",
           tags: ["test"]
@@ -25,11 +26,39 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
         is_active: false
       }
 
-      conn = post(conn, deployment_path(conn, :create, org.name, product.name), deployment)
+      context
+      |> Map.put(:org_key, org_key)
+      |> Map.put(:firmware, firmware)
+      |> Map.put(:params, params)
+    end
+
+    test "renders deployment when data is valid", %{
+      conn: conn,
+      org: org,
+      params: params,
+      product: product
+    } do
+      conn = post(conn, deployment_path(conn, :create, org.name, product.name), params)
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, deployment_path(conn, :show, org.name, product.name, deployment.name))
-      assert json_response(conn, 200)["data"]["name"] == deployment.name
+      conn = get(conn, deployment_path(conn, :show, org.name, product.name, params.name))
+      assert json_response(conn, 200)["data"]["name"] == params.name
+    end
+
+    test "audits on success", %{
+      conn: conn,
+      org: org,
+      params: params,
+      product: product,
+      user: user
+    } do
+      conn = post(conn, deployment_path(conn, :create, org.name, product.name), params)
+      assert json_response(conn, 201)["data"]
+
+      [audit_log] = AuditLogs.logs_by(user)
+      assert audit_log.resource_type == Deployment
+      assert audit_log.params["firmware_id"] == params.firmware_id
+      assert audit_log.params["name"] == params.name
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do
@@ -54,6 +83,16 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
       path = deployment_path(conn, :show, org.name, product.name, deployment.name)
       conn = get(conn, path)
       assert json_response(conn, 200)["data"]["is_active"]
+    end
+
+    test "audits on success", %{conn: conn, deployment: deployment, org: org, product: product} do
+      path = deployment_path(conn, :update, org.name, product.name, deployment.name)
+      conn = put(conn, path, deployment: %{"is_active" => true})
+      assert json_response(conn, 200)["data"]
+
+      [audit_log] = AuditLogs.logs_for(deployment)
+      assert audit_log.resource_type == Deployment
+      assert audit_log.changes == %{"is_active" => true}
     end
 
     test "renders errors when data is invalid", %{

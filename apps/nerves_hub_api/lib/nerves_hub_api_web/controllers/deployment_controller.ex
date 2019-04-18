@@ -10,12 +10,14 @@ defmodule NervesHubAPIWeb.DeploymentController do
   plug(:validate_role, [product: :write] when action in [:create, :update])
   plug(:validate_role, [product: :read] when action in [:index, :show])
 
+  @whitelist_fields [:name, :firmware_id, :conditions, :is_active]
+
   def index(%{assigns: %{product: product}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product.id)
     render(conn, "index.json", deployments: deployments)
   end
 
-  def create(%{assigns: %{org: org, product: product}} = conn, params) do
+  def create(%{assigns: %{org: org, product: product, user: user}} = conn, params) do
     case Map.get(params, "firmware") do
       nil ->
         {:error, :no_firmware_uuid}
@@ -23,11 +25,10 @@ defmodule NervesHubAPIWeb.DeploymentController do
       uuid ->
         with {:ok, firmware} <- Firmwares.get_firmware_by_org_and_uuid(org, uuid),
              params <- Map.put(params, "firmware_id", firmware.id),
-             {:ok, deployment} <-
-               Deployments.create_deployment(
-                 params
-                 |> whitelist([:name, :firmware_id, :conditions, :is_active])
-               ) do
+             params <- whitelist(params, @whitelist_fields),
+             {:ok, deployment} <- Deployments.create_deployment(params) do
+          audit!(user, deployment, :create, params)
+
           conn
           |> put_status(:created)
           |> put_resp_header(
@@ -45,19 +46,17 @@ defmodule NervesHubAPIWeb.DeploymentController do
     end
   end
 
-  def update(%{assigns: %{product: product, org: org}} = conn, %{
+  def update(%{assigns: %{product: product, org: org, user: user}} = conn, %{
         "name" => name,
         "deployment" => deployment_params
       }) do
     with {:ok, deployment} <- Deployments.get_deployment_by_name(product, name),
          {:ok, deployment_params} <- update_params(org, deployment_params),
-         {:ok, %Deployment{} = deployment} <-
-           Deployments.update_deployment(
-             deployment,
-             deployment_params
-             |> whitelist([:name, :firmware_id, :conditions, :is_active])
-           ) do
-      render(conn, "show.json", deployment: deployment)
+         deployment_params <- whitelist(deployment_params, @whitelist_fields),
+         {:ok, %Deployment{} = updated_deployment} <-
+           Deployments.update_deployment(deployment, deployment_params) do
+      audit!(user, deployment, :update, deployment_params)
+      render(conn, "show.json", deployment: updated_deployment)
     end
   end
 

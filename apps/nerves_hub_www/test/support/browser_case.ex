@@ -13,14 +13,9 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
       import Phoenix.LiveViewTest
 
       setup do
-        %{
-          org: org,
-          org_key: org_key,
-          user: user,
-          firmware: firmware,
-          deployment: deployment,
-          product: product
-        } = Fixtures.standard_fixture()
+        fixture = Fixtures.standard_fixture()
+
+        %{org: org, org_key: org_key, user: user} = fixture
 
         {:ok, org_with_org_keys} = org.id |> Accounts.get_org_with_org_keys()
 
@@ -32,7 +27,7 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
             "current_org_id" => org.id
           })
 
-        %{conn: conn, current_user: user, current_org: org, org_key: org_key}
+        %{conn: conn, current_user: user, current_org: org, fixture: fixture, org_key: org_key}
       end
     end
   end

@@ -61,21 +61,21 @@ defmodule NervesHubWWWWeb.DeploymentController do
     end
   end
 
-  def create(%{assigns: %{current_org: org, product: product}} = conn, %{"deployment" => params}) do
+  def create(%{assigns: %{current_org: org, product: product, user: user}} = conn, %{
+        "deployment" => params
+      }) do
+    params =
+      params
+      |> inject_conditions_map()
+      |> whitelist([:name, :conditions, :firmware_id])
+      |> Map.put(:org_id, org.id)
+      |> Map.put(:is_active, false)
+
     org
-    |> Firmwares.get_firmware(params["firmware_id"])
+    |> Firmwares.get_firmware(params[:firmware_id])
     |> case do
       {:ok, firmware} ->
-        params =
-          params
-          |> inject_conditions_map()
-          |> whitelist([:name, :conditions, :firmware_id])
-          |> Map.put(:org_id, org.id)
-          |> Map.put(:is_active, false)
-
-        result = Deployments.create_deployment(params)
-
-        {firmware, result}
+        {firmware, Deployments.create_deployment(params)}
 
       {:error, :not_found} ->
         {:error, :not_found}
@@ -86,7 +86,9 @@ defmodule NervesHubWWWWeb.DeploymentController do
         |> put_flash(:error, "Invalid firmware selected")
         |> redirect(to: product_deployment_path(conn, :new, product.id))
 
-      {_, {:ok, _deployment}} ->
+      {_, {:ok, deployment}} ->
+        audit!(user, deployment, :create, params)
+
         conn
         |> put_flash(:info, "Deployment created")
         |> redirect(to: product_deployment_path(conn, :index, product.id))
@@ -126,7 +128,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
   end
 
   def update(
-        %{assigns: %{product: product}} = conn,
+        %{assigns: %{product: product, user: user}} = conn,
         %{"id" => deployment_id, "deployment" => deployment_params}
       ) do
     params =
@@ -138,7 +140,9 @@ defmodule NervesHubWWWWeb.DeploymentController do
 
     Deployments.update_deployment(deployment, params)
     |> case do
-      {:ok, deployment} ->
+      {:ok, _deployment} ->
+        audit!(user, deployment, :update, params)
+
         conn
         |> put_flash(:info, "Deployment updated")
         |> redirect(to: product_deployment_path(conn, :show, product.id, deployment))
