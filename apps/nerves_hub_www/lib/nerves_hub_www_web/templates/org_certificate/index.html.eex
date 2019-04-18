@@ -1,8 +1,8 @@
-<h2><%= @user.username %> User Certificates <span><%= button "", class: "btn btn-success fa fa-plus", title: "Create New Account Certificate", to: account_certificate_path(@conn, :new), method: :get %></span></h2>
+<h2><%= @current_org.name %> Device (CA) Certificates <span><%= button "", class: "btn btn-success fa fa-plus", title: "Create New Account Certificate", to: account_certificate_path(@conn, :new), method: :get %></span></h2>
 <div class="row">
   <div class="w-100 shadow nhw_list">
     <div class="card">
-      <table id="account_certificates" class="table">
+      <table id="organization_certificates" class="table">
         <thead>
           <tr class="d-flex">
             <th class="col-2">Description</th>

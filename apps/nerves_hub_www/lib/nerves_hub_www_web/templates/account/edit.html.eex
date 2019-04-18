@@ -1,5 +1,5 @@
 <h1>
-  Edit Account
+  <%= @user.username %> User Settings 
   <a class="btn btn-lg btn-success pull-right" href="<%= account_certificate_path(@conn, :index)%>">
     User Certificates
   </a>
@@ -32,4 +32,3 @@
 
   <%= submit "Update", class: "btn btn-primary" %>
 <% end %>
-
