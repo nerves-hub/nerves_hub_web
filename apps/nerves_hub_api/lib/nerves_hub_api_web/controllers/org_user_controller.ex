@@ -33,6 +33,7 @@ defmodule NervesHubAPIWeb.OrgUserController do
 
   def remove(%{assigns: %{org: org}} = conn, %{"username" => username}) do
     with {:ok, user} <- Accounts.get_user_by_username(username),
+         {:ok, _org_user} <- Accounts.get_org_user(org, user),
          :ok <- Accounts.remove_org_user(org, user) do
       send_resp(conn, :no_content, "")
     end
