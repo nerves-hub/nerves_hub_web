@@ -3,7 +3,7 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
 
   import Phoenix.ChannelTest
 
-  alias NervesHubWebCore.{Devices, Repo}
+  alias NervesHubWebCore.{AuditLogs, Devices, Repo}
   alias NervesHubWWWWeb.DeviceLive.Show
   alias NervesHubWWWWeb.Endpoint
 
@@ -19,12 +19,12 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
     test "reboot allowed", session do
       {:ok, view, _html} = mount(Endpoint, Show, session: session)
 
-      before_audit_count = Devices.audit_logs_for(session.device) |> length
+      before_audit_count = AuditLogs.logs_for(session.device) |> length
 
       assert render_change(view, :reboot, %{}) =~ "reboot-requested"
       assert_broadcast("reboot", %{})
 
-      after_audit_count = Devices.audit_logs_for(session.device) |> length
+      after_audit_count = AuditLogs.logs_for(session.device) |> length
 
       assert after_audit_count == before_audit_count + 1
     end
@@ -38,11 +38,11 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
 
       {:ok, view, _html} = mount(Endpoint, Show, session: %{session | user: user})
 
-      before_audit_count = Devices.audit_logs_for(session.device) |> length
+      before_audit_count = AuditLogs.logs_for(session.device) |> length
 
       assert render_change(view, :reboot, %{}) =~ "reboot-blocked"
 
-      after_audit_count = Devices.audit_logs_for(session.device) |> length
+      after_audit_count = AuditLogs.logs_for(session.device) |> length
 
       assert after_audit_count == before_audit_count + 1
     end

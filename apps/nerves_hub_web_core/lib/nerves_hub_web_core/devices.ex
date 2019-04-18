@@ -7,7 +7,7 @@ defmodule NervesHubWebCore.Devices do
     Deployments.Deployment,
     Firmwares,
     Firmwares.FirmwareMetadata,
-    Accounts.AuditLog,
+    AuditLogs,
     Accounts.Org,
     Products,
     Products.Product,
@@ -17,17 +17,6 @@ defmodule NervesHubWebCore.Devices do
   alias NervesHubWebCore.Devices.{Device, DeviceCertificate, CACertificate}
 
   @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
-
-  def audit_logs_for(%Device{id: id}) do
-    device_type = to_string(Device)
-
-    query =
-      from(a in AuditLog, where: a.resource_type == ^device_type, where: a.resource_id == ^id)
-
-    query
-    |> order_by(desc: :inserted_at)
-    |> Repo.all()
-  end
 
   def get_devices(%Org{id: org_id}) do
     query = from(d in Device, where: d.org_id == ^org_id)
@@ -127,6 +116,8 @@ defmodule NervesHubWebCore.Devices do
           payload: %{firmware_url: url}
         }
       )
+
+      AuditLogs.audit!(deployment, device, :update, %{send_update_message: true})
 
       {:ok, device}
     else

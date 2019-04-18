@@ -2,7 +2,7 @@ defmodule NervesHubWebCore.TypesTest do
   use ExUnit.Case, async: true
 
   alias NervesHubWebCore.Types
-  alias NervesHubWebCore.Accounts.AuditLog
+  alias NervesHubWebCore.AuditLogs.AuditLog
 
   describe "resource" do
     test "type" do

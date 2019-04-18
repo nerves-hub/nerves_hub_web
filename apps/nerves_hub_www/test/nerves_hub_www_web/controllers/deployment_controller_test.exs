@@ -1,8 +1,7 @@
 defmodule NervesHubWWWWeb.DeploymentControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
-  alias NervesHubWebCore.Fixtures
-  alias NervesHubWebCore.Deployments
+  alias NervesHubWebCore.{AuditLogs, Deployments, Deployments.Deployment, Fixtures}
 
   describe "index" do
     test "lists all deployments", %{conn: conn, current_user: user, current_org: org} do
@@ -114,6 +113,38 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       assert html_response(conn, 200) =~ "Inactive"
       assert html_response(conn, 200) =~ firmware.version
     end
+
+    test "audits on success", %{conn: conn, current_org: org, fixture: fixture} do
+      %{firmware: firmware, product: product} = fixture
+
+      deployment_params = %{
+        firmware_id: firmware.id,
+        org_id: org.id,
+        name: "Test Deployment ABC",
+        tags: "beta, beta-edge",
+        version: "< 1.0.0"
+      }
+
+      create_conn =
+        post(
+          conn,
+          product_deployment_path(conn, :create, product.id),
+          deployment: deployment_params
+        )
+
+      redirect_path = product_deployment_path(create_conn, :index, product.id)
+
+      assert redirected_to(create_conn, 302) =~ redirect_path
+
+      conn = get(create_conn, redirect_path)
+      assert get_flash(conn, :info) == "Deployment created"
+
+      [%{resource_type: resource_type, params: params}] = AuditLogs.logs_by(fixture.user)
+      assert resource_type == Deployment
+      assert params["firmware_id"] == deployment_params.firmware_id
+      assert params["org_id"] == deployment_params.org_id
+      assert params["name"] == deployment_params.name
+    end
   end
 
   describe "edit deployment" do
@@ -166,6 +197,31 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       assert reloaded_deployment.name == "not original"
       assert reloaded_deployment.conditions["version"] == "4.3.2"
       assert Enum.sort(reloaded_deployment.conditions["tags"]) == Enum.sort(~w(new tags now))
+    end
+
+    test "audits on success", %{conn: conn, fixture: fixture} do
+      %{deployment: deployment, product: product} = fixture
+
+      params = %{"tags" => "new_tag", "version" => "> 0.1.0"}
+
+      update_conn =
+        put(
+          conn,
+          product_deployment_path(conn, :update, product.id, deployment),
+          deployment: params
+        )
+
+      redirect_path = product_deployment_path(update_conn, :index, product.id)
+
+      assert redirected_to(update_conn, 302) =~ redirect_path
+
+      conn = get(update_conn, redirect_path)
+      assert get_flash(conn, :info) == "Deployment updated"
+
+      [audit_log] = AuditLogs.logs_for(deployment)
+
+      assert audit_log.resource_type == Deployment
+      assert Map.has_key?(audit_log.changes, "conditions")
     end
   end
 
