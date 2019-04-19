@@ -1,0 +1,32 @@
+.audit-action-icon {
+  font-size: 0.73em;
+}
+
+.audit-log-time {
+  font-size: 12px;
+  font-style: italic;
+}
+
+.audit-log-actor {
+  padding-left: 10px;
+  color: inherit;
+}
+
+.audit-log-actor:hover {
+  color: inherit;
+  text-decoration-style: dotted;
+}
+
+.audit-log-resource {
+  color: inherit;
+}
+
+.audit-log-resource:hover {
+  color: inherit;
+  text-decoration-style: dotted;
+}
+
+#audit-log-feed {
+  height: 500px;
+  overflow: auto;
+}

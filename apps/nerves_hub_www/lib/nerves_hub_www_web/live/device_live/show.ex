@@ -3,7 +3,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
 
   alias NervesHubDevice.Presence
 
-  alias NervesHubWebCore.{Repo, AuditLogs.AuditLog}
+  alias NervesHubWebCore.{Repo, AuditLogs}
 
   alias Phoenix.Socket.Broadcast
 
@@ -22,6 +22,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
       |> assign(:device, session.device)
       |> assign(:device_status, device_presence.status)
       |> assign(:user, session.user)
+      |> audit_log_assigns()
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{session.device.id}")
@@ -62,10 +63,40 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     end
   end
 
+  def handle_event(
+        "paginate",
+        page_num,
+        %{assigns: %{audit_log_ids: ids, paginate_opts: paginate_opts}} = socket
+      ) do
+    # This LiveView stores an array of all its audit log's ids. On paginate
+    # call, it gets the the index offset based on the page it is currently on
+    # then slices out the number of ids equal to the set page_size starting
+    # at that index. Then we query AuditLogs for only those specific records
+    page_num = String.to_integer(page_num)
+    start_index = (page_num - 1) * paginate_opts.page_size
+    audit_logs = Enum.slice(ids, start_index, paginate_opts.page_size) |> AuditLogs.from_ids()
+
+    socket =
+      socket
+      |> assign(:audit_logs, audit_logs)
+      |> assign(:paginate_opts, %{paginate_opts | page_number: page_num})
+
+    {:noreply, socket}
+  end
+
+  defp audit_log_assigns(%{assigns: %{device: device}} = socket) do
+    all_logs = AuditLogs.logs_for_feed(device)
+    paginate_opts = %{page_number: 1, page_size: 10}
+
+    socket
+    |> assign(:audit_logs, Enum.slice(all_logs, 0, paginate_opts.page_size))
+    |> assign(:audit_log_ids, Enum.map(all_logs, & &1.id))
+    |> assign(:paginate_opts, paginate_opts)
+    |> assign(:resource_id, device.id)
+  end
+
   defp do_reboot(socket, :allowed) do
-    {:ok, _audit_log} =
-      AuditLog.build(socket.assigns.user, socket.assigns.device, :update, %{reboot: true})
-      |> Repo.insert()
+    AuditLogs.audit!(socket.assigns.user, socket.assigns.device, :update, %{reboot: true})
 
     socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "reboot", %{})
 
@@ -80,14 +111,10 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
   defp do_reboot(socket, :blocked) do
     msg = "User not authorized to reboot this device"
 
-    {:ok, _audit_log} =
-      AuditLog.build(
-        socket.assigns.user,
-        socket.assigns.device,
-        :update,
-        %{reboot: false, message: msg}
-      )
-      |> Repo.insert()
+    AuditLogs.audit!(socket.assigns.user, socket.assigns.device, :update, %{
+      reboot: false,
+      message: msg
+    })
 
     socket =
       socket

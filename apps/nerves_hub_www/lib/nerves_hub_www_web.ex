@@ -51,6 +51,9 @@ defmodule NervesHubWWWWeb do
       import NervesHubWWWWeb.Router.Helpers
       import NervesHubWWWWeb.ErrorHelpers
       import NervesHubWWWWeb.Gettext
+
+      alias NervesHubWWWWeb.Router.Helpers, as: Routes
+      alias NervesHubWWWWeb.Endpoint
     end
   end
 
