@@ -2,8 +2,11 @@
   <%= @org.name %> settings
   <a class="btn btn-lg btn-success pull-right" href="<%= org_certificate_path(@conn, :index)%>">
     Device (CA) Certificates
-  </a>  
+  </a>
   <%= if @org.type != :user do %>
+  <a class="btn btn-lg btn-success pull-right" href="<%= org_user_path(@conn, :index) %>">
+    Users
+  </a>
   <a class="btn btn-lg btn-success pull-right" href="<%= org_path(@conn, :invite) %>">
     Invite user
   </a>

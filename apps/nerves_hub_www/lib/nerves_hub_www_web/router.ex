@@ -64,6 +64,7 @@ defmodule NervesHubWWWWeb.Router do
     get("/org/invite", OrgController, :invite)
     post("/org/invite", OrgController, :send_invite)
     get("/org/certificates", OrgCertificateController, :index)
+    get("/org/users", OrgUserController, :index)
     resources("/org", OrgController)
 
     resources("/org_keys", OrgKeyController)
