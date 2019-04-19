@@ -1,5 +1,5 @@
 # Elixir build container
-FROM bitwalker/alpine-elixir:1.7.3 as builder
+FROM bitwalker/alpine-elixir:1.8.1 as builder
 
 ENV MIX_ENV=prod
 
