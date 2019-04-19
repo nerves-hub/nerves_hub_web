@@ -1,52 +1,59 @@
-<h2>Show Device</h2>
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-lg-7">
+      <p>
+        <strong>Identifier:</strong> <%= @device.identifier %>
+      </p>
 
-<p>
-  <strong>Identifier:</strong> <%= @device.identifier %>
-</p>
+      <p>
+        <strong>Firmware Info:</strong>
+      </p>
 
-<p>
-  <strong>Firmware Info:</strong>
-</p>
+      <ul>
+        <%= if @device.firmware_metadata do %>
+          <%= for kv <- Map.from_struct(@device.firmware_metadata) do %>
+            <li><strong><%= elem(kv, 0) %>: </strong> <%= elem(kv, 1) %></li>
+          <% end %>
+        <% end %>
+      </ul>
 
-<ul>
-  <%= if @device.firmware_metadata do %>
-    <%= for kv <- Map.from_struct(@device.firmware_metadata) do %>
-      <li><strong><%= elem(kv, 0) %>: </strong> <%= elem(kv, 1) %></li>
-    <% end %>
-  <% end %>
-</ul>
+      <p>
+        <strong>Status: </strong><%= @device_status %>
+      </p>
 
-<p>
-  <strong>Status: </strong><%= @device_status %>
-</p>
+      <p>
+        <strong>Last Connection:</strong>
+        <%= if is_nil(@device.last_communication) do %>
+          never
+        <% else %>
+          <%= @device.last_communication %>
+        <% end %>
+      </p>
 
-<p>
-  <strong>Last Connection:</strong>
-  <%= if is_nil(@device.last_communication) do %>
-    never
-  <% else %>
-    <%= @device.last_communication %>
-  <% end %>
-</p>
+      <p>
+        <strong>Tags:</strong>
+          <span class="badge">
+            <%= tags_to_string(@device) %>
+          </span>
+      </p>
 
-<p>
-  <strong>Tags:</strong>
-    <span class="badge">
-      <%= tags_to_string(@device) %>
-    </span>
-</p>
+      <div class="dropdown dropright">
+        <%= link "Back", to: device_path(@socket, :index), class: "btn btn-secondary"%>
 
-<div class="dropdown dropright">
-  <%= link "Back", to: device_path(@socket, :index), class: "btn btn-secondary"%>
-
-  <button class="btn btn-info dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-    Actions
-  </button>
-  <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-    <%= link "Edit", to: device_path(@socket, :edit, @device), class: "dropdown-item" %>
-    <%= link "Console", to: device_path(@socket, :console, @device), class: "dropdown-item #{unless @console_available, do: "disabled"}" %>
-    <div class="dropdown-divider"></div>
-    <button class="dropdown-item" type="button" phx-click="reboot" <%= if @device_status != "online", do: "disabled" %> data-confirm="Are you sure?">Reboot</button>
+        <button class="btn btn-info dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Actions
+        </button>
+        <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+          <%= link "Edit", to: device_path(@socket, :edit, @device), class: "dropdown-item" %>
+          <%= link "Console", to: device_path(@socket, :console, @device), class: "dropdown-item #{unless @console_available, do: "disabled"}" %>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item" type="button" phx-click="reboot" <%= if @device_status != "online", do: "disabled" %> data-confirm="Are you sure?">Reboot</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <%= render(NervesHubWWWWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
+    </div>
   </div>
 </div>
 

@@ -30,4 +30,21 @@ defmodule NervesHubWebCore.AuditLogs do
     |> order_by(desc: :inserted_at)
     |> Repo.all()
   end
+
+  def logs_for_feed(%resource_type{id: id}) do
+    resource_type = to_string(resource_type)
+
+    from(al in AuditLog,
+      where: [actor_type: ^resource_type, actor_id: ^id],
+      or_where: [resource_type: ^resource_type, resource_id: ^id]
+    )
+    |> order_by(desc: :inserted_at)
+    |> Repo.all()
+  end
+
+  def from_ids(ids) do
+    from(al in AuditLog, where: al.id in ^ids)
+    |> order_by(desc: :inserted_at)
+    |> Repo.all()
+  end
 end

@@ -67,4 +67,52 @@ defmodule NervesHubWWWWeb.LayoutView do
       true -> "#{bytes} bytes"
     end
   end
+
+  @doc """
+  Creates a series of pagination links to use with a Phoenix.LiveView page.
+
+  When one of the links is clicked, it sends a `"paginate"` event with the
+  expected page number for the LiveView to handle.
+
+  Requires a map with `:total_pages` key or `:total_records` and `:page_size`
+  keys to calculate `:total_pages` for you.
+
+  Likewise, you can supply your list of records and applicable options (such
+  as `:page_size`) to `pagination_links/2` which will calculate `:total_pages`
+  for you.
+  """
+  def pagination_links(%{total_pages: _} = opts) do
+    opts = Map.put_new(opts, :page_number, 1)
+
+    content_tag(:div, class: "btn-group btn-group-toggle", data: [toggle: "buttons"]) do
+      opts
+      |> Scrivener.HTML.raw_pagination_links(distance: opts[:distance] || 8)
+      |> Enum.map(fn {text, page} ->
+        text = if text == :ellipsis, do: page, else: text
+
+        content_tag(:button, text,
+          phx_click: "paginate",
+          phx_value: page,
+          class: "btn btn-secondary btn-sm #{if page == opts.page_number, do: "active"}"
+        )
+      end)
+    end
+  end
+
+  def pagination_links(%{total_records: record_count, page_size: size} = opts) do
+    opts
+    |> Map.put(:total_pages, ceil(record_count / size))
+    |> pagination_links()
+  end
+
+  @doc """
+  Like `pagination_links/1` but allows you to send a list which will be used
+  to deduce `:total_pages` required to generate the links.
+  """
+  def pagination_links(records, opts \\ []) when is_list(records) do
+    Map.new(opts)
+    |> Map.put(:total_records, length(records))
+    |> Map.put_new(:page_size, 20)
+    |> pagination_links()
+  end
 end
