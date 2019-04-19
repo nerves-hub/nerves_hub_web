@@ -1,0 +1,37 @@
+<h2><%= @current_org.name %> Device (CA) Certificates</h2>
+<div class="row">
+  <div class="w-100 shadow nhw_list">
+    <div class="card">
+      <table id="organization_certificates" class="table">
+        <thead>
+          <tr class="d-flex">
+            <th class="col-2">Description</th>
+            <th class="col-2">Serial</th>
+            <th class="col-2">Last Used</th>
+            <th class="col-2">Not Before</th>
+            <th class="col-2">Not After</th>
+          </tr>
+        </thead>
+        <%= for cert <- @certificates do %>
+          <tr class="item d-flex">
+            <td class="col-2">
+              <%= cert.description %>
+            </td>
+            <td class="col-2">
+              <%= cert.serial %>
+            </td>
+            <td class="col-2 date-time">
+              <%= cert.last_used %>
+            </td>
+            <td class="col-2 date-time">
+              <%= cert.not_before %>
+            </td>
+            <td class="col-2 date-time">
+              <%= cert.not_after %>
+            </td>
+          </tr>
+        <% end %>
+      </table>
+    </div>
+  </div>
+</div>
