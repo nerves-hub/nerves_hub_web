@@ -1,6 +1,6 @@
 defaults: &defaults
   docker:
-    - image: nerveshub/docker-build:alpine-3.8
+    - image: nerveshub/docker-build:alpine-3.9
   working_directory: ~/repo
 
 remote_docker: &remote_docker
