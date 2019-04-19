@@ -1,5 +1,6 @@
+ARG ELIXIR_VERSION=1.8.1
 # Elixir build container
-FROM bitwalker/alpine-elixir:1.8.1 as builder
+FROM bitwalker/alpine-elixir:${ELIXIR_VERSION} as builder
 
 ENV MIX_ENV=prod
 
@@ -13,7 +14,7 @@ RUN mix deps.clean --all && mix deps.get
 RUN mix release --env=$MIX_ENV --name=nerves_hub_device
 
 # Release Container
-FROM nerveshub/runtime:alpine-3.8 as release
+FROM nerveshub/runtime:alpine-3.9 as release
 
 EXPOSE 443
 

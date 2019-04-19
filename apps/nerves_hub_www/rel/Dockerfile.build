@@ -29,7 +29,7 @@ COPY --from=assets /build/apps/nerves_hub_www/priv/static apps/nerves_hub_www/pr
 RUN mix do phx.digest, release --env=$MIX_ENV --name=nerves_hub_www
 
 # Release Container
-FROM nerveshub/runtime:alpine-3.8 as release
+FROM nerveshub/runtime:alpine-3.9 as release
 
 RUN apk add 'fwup~=1.3.0' \
   --repository http://nl.alpinelinux.org/alpine/edge/community/ \
