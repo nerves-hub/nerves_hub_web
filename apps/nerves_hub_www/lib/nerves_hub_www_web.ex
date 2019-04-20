@@ -35,6 +35,18 @@ defmodule NervesHubWWWWeb do
     end
   end
 
+  def live_view do
+    quote do
+      use Phoenix.LiveView
+
+      alias NervesHubWebCore.{Repo, AuditLogs}
+      alias NervesHubWWWWeb.Router.Helpers, as: Routes
+      alias NervesHubWWWWeb.Endpoint
+
+      alias Phoenix.Socket.Broadcast
+    end
+  end
+
   def view do
     quote do
       use Phoenix.View,

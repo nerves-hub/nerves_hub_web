@@ -103,13 +103,15 @@ defmodule NervesHubWWWWeb.DeploymentController do
     end
   end
 
-  def show(%{assigns: %{current_org: _org, product: product}} = conn, %{"id" => deployment_id}) do
+  def show(%{assigns: %{current_org: _org, product: product, user: user}} = conn, %{
+        "id" => deployment_id
+      }) do
     {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
 
     conn
-    |> render(
-      "show.html",
-      deployment: deployment
+    |> live_render(
+      NervesHubWWWWeb.DeploymentLive.Show,
+      session: %{deployment: deployment, product: product, user: user}
     )
   end
 
