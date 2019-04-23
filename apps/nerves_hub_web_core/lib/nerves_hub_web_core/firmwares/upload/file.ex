@@ -24,14 +24,14 @@ defmodule NervesHubWebCore.Firmwares.Upload.File do
 
   @spec delete_file(Firmware.t()) :: :ok
   def delete_file(%{upload_metadata: %{local_path: path}}) do
-    File.rm!(path)
+    # Sometimes fw files may be stored in temporary places that
+    # get cleared on reboots, especially when using this locally.
+    # So if the file doesn't exist, don't attempt to remove
+    if File.exists?(path), do: File.rm!(path), else: :ok
   end
 
-  @spec delete_file(Firmware.t()) ::
-          {:ok, any()}
-          | {:error, any()}
   def delete_file(%{upload_metadata: %{"local_path" => path}}) do
-    File.rm!(path)
+    delete_file(%{upload_metadata: %{local_path: path}})
   end
 
   @spec metadata(Org.id(), String.t()) :: upload_metadata()

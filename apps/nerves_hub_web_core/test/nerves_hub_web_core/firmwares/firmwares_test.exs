@@ -106,8 +106,16 @@ defmodule NervesHubWebCore.FirmwaresTest do
     } do
       firmware = Fixtures.firmware_fixture(org_key, product)
       @uploader.delete_file(firmware)
+
+      # Make this path a directory will break delete_firmware/1
+      # cause it to raise
+      File.mkdir(firmware.upload_metadata.local_path)
+
       assert_raise File.Error, fn -> Firmwares.delete_firmware(firmware) end
       assert {:ok, _} = Firmwares.get_firmware(org, firmware.id)
+
+      # Cleanup bogus directory
+      File.rmdir!(firmware.upload_metadata.local_path)
     end
 
     test "delete firmware", %{org: org, org_key: org_key, product: product} do
