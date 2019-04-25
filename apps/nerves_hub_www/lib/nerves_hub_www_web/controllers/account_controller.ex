@@ -4,6 +4,8 @@ defmodule NervesHubWWWWeb.AccountController do
   alias Ecto.Changeset
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.User
+  alias NervesHubWWW.Accounts.Email
+  alias NervesHubWWW.Mailer
 
   plug(NervesHubWWWWeb.Plugs.AllowUninvitedSignups when action in [:new, :create])
 
@@ -16,7 +18,20 @@ defmodule NervesHubWWWWeb.AccountController do
     |> whitelist([:password, :username, :email])
     |> Accounts.create_user()
     |> case do
-      {:ok, _user} ->
+      {:ok, new_user} ->
+        org = conn.assigns.current_org
+        # Now let everyone in the organization - except the new guy -
+        # know about this new user.
+        instigator = conn.assigns.user.username
+
+        Email.tell_org_user_added(
+          org,
+          Accounts.get_org_users(org),
+          instigator,
+          new_user
+        )
+        |> Mailer.deliver_later()
+
         redirect(conn, to: "/")
 
       {:error, changeset} ->
@@ -74,7 +89,23 @@ defmodule NervesHubWWWWeb.AccountController do
 
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
-      with {:ok, _user} <- Accounts.create_user_from_invite(invite, org, clean_params) do
+      with {:ok, {:ok, new_org_user}} <-
+             Accounts.create_user_from_invite(invite, org, clean_params) do
+        # Now let everyone in the organization - except the new guy -
+        # know about this new user.
+        instigator = conn.assigns.user.username
+
+        email =
+          Email.tell_org_user_added(
+            org,
+            Accounts.get_org_users(org),
+            instigator,
+            new_org_user.user
+          )
+
+        email
+        |> Mailer.deliver_later()
+
         conn
         |> put_flash(:info, "Account successfully created, login below")
         |> redirect(to: "/login")

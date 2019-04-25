@@ -1,5 +1,6 @@
 defmodule NervesHubAPIWeb.OrgUserControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
+  use Bamboo.Test
 
   alias NervesHubWebCore.Fixtures
   alias NervesHubWebCore.Accounts
@@ -38,6 +39,13 @@ defmodule NervesHubAPIWeb.OrgUserControllerTest do
 
       conn = get(conn, org_user_path(conn, :show, org.name, user2.username))
       assert json_response(conn, 200)["data"]["username"] == user2.username
+
+      # An email should have been sent
+      instigator = conn.assigns.user.username
+
+      assert_email_delivered_with(
+        subject: "[NervesHub] User #{instigator} added #{user2.username} to #{org.name}"
+      )
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, user2: user2} do
@@ -66,6 +74,13 @@ defmodule NervesHubAPIWeb.OrgUserControllerTest do
     test "remove existing user", %{conn: conn, org: org, user2: user} do
       conn = delete(conn, org_user_path(conn, :remove, org.name, user.username))
       assert response(conn, 204)
+
+      # An email should have been sent
+      instigator = conn.assigns.user.username
+
+      assert_email_delivered_with(
+        subject: "[NervesHub] User #{instigator} removed #{user.username} from #{org.name}"
+      )
 
       conn = get(conn, org_user_path(conn, :show, org.name, user.username))
       assert response(conn, 404)

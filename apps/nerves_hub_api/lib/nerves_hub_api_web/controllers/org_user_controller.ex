@@ -2,6 +2,8 @@ defmodule NervesHubAPIWeb.OrgUserController do
   use NervesHubAPIWeb, :controller
 
   alias NervesHubWebCore.Accounts
+  alias NervesHubWWW.Accounts.Email
+  alias NervesHubWWW.Mailer
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
@@ -17,6 +19,13 @@ defmodule NervesHubAPIWeb.OrgUserController do
          {:ok, role} <- Map.fetch(params, "role"),
          {:ok, user} <- Accounts.get_user_by_username(username),
          {:ok, org_user} <- Accounts.add_org_user(org, user, %{role: role}) do
+      # Now let everyone in the organization - except the new guy -
+      # know about this new user.
+      instigator = conn.assigns.user.username
+
+      Email.tell_org_user_added(org, Accounts.get_org_users(org), instigator, user)
+      |> Mailer.deliver_later()
+
       conn
       |> put_status(:created)
       |> put_resp_header("location", org_user_path(conn, :show, org.name, user.username))
@@ -35,6 +44,13 @@ defmodule NervesHubAPIWeb.OrgUserController do
     with {:ok, user} <- Accounts.get_user_by_username(username),
          {:ok, _org_user} <- Accounts.get_org_user(org, user),
          :ok <- Accounts.remove_org_user(org, user) do
+      # Now let everyone in the organization know 
+      # that this user has been removed from the organization.
+      instigator = conn.assigns.user.username
+
+      Email.tell_org_user_removed(org, Accounts.get_org_users(org), instigator, user)
+      |> Mailer.deliver_later()
+
       send_resp(conn, :no_content, "")
     end
   end

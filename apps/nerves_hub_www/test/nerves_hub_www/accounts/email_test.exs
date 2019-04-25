@@ -1,9 +1,11 @@
 defmodule NervesHubWWW.Accounts.EmailTest do
   use ExUnit.Case, async: true
+  use Bamboo.Test
 
-  alias NervesHubWebCore.Accounts.{Invite, Org, User}
+  alias NervesHubWebCore.Accounts.{Invite, Org, OrgUser, User}
   alias NervesHubWWW.Accounts.Email
   alias NervesHubWWWWeb.EmailView
+  alias NervesHubWWW.Mailer
 
   test "invite email" do
     invite = %Invite{email: "foo@bar.com"}
@@ -41,5 +43,65 @@ defmodule NervesHubWWW.Accounts.EmailTest do
 
     assert email.html_body =~
              "You've been added to the <strong>#{org.name}</strong> organization on nerves-hub.org."
+  end
+
+  test "tell org about new user" do
+    org = %Org{name: "My Org Name"}
+
+    new_user = %User{
+      username: "happy_guy",
+      email: "happy_guy@knows_password.com",
+      password_reset_token: "ultrarandomresettoken"
+    }
+
+    org_users_emails = ["abc@def.com", "ghi@jkl.com", "mno@pqr.com"]
+
+    org_users =
+      org_users_emails
+      |> Enum.map(fn email -> %OrgUser{user: %User{email: email}} end)
+
+    email = Email.tell_org_user_added(org, org_users, "Instigator", new_user)
+    # Not sending new guy this email
+    refute "happy_guy@knows_password.com" in email.bcc
+
+    Enum.each(org_users_emails, fn user_email ->
+      assert user_email in email.bcc
+    end)
+
+    email |> Mailer.deliver_now()
+
+    assert_email_delivered_with(
+      subject: "[NervesHub] User Instigator added #{new_user.username} to #{org.name}"
+    )
+  end
+
+  test "tell org about removing a user" do
+    org = %Org{name: "My Org Name"}
+
+    user = %User{
+      username: "sad_guy",
+      email: "sad_guy@knows_password.com",
+      password_reset_token: "ultrarandomresettoken"
+    }
+
+    org_users_emails = ["abc@def.com", "ghi@jkl.com", "mno@pqr.com"]
+
+    org_users =
+      org_users_emails
+      |> Enum.map(fn email -> %OrgUser{user: %User{email: email}} end)
+
+    email = Email.tell_org_user_removed(org, org_users, "Instigator", user)
+    # Not sending new guy this email
+    refute "sad_guy@knows_password.com" in email.bcc
+
+    Enum.each(org_users_emails, fn user_email ->
+      assert user_email in email.bcc
+    end)
+
+    email |> Mailer.deliver_now()
+
+    assert_email_delivered_with(
+      subject: "[NervesHub] User Instigator removed #{user.username} from #{org.name}"
+    )
   end
 end
