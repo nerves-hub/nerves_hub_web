@@ -1,5 +1,6 @@
 defmodule NervesHubWWWWeb.AccountControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
+  use Bamboo.Test
 
   alias NervesHubWebCore.Accounts
 
@@ -29,7 +30,8 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
     test "accepts submitted invitation", %{
       conn: conn
     } do
-      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com"}, conn.assigns.current_org)
+      org = conn.assigns.current_org
+      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com"}, org)
 
       conn =
         post(
@@ -49,8 +51,12 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
                "info" => "Account successfully created, login below"
              }
 
-      assert {:ok, %Accounts.User{username: "MyName"}} =
-               Accounts.get_user_by_email("joe@example.com")
+      # An email should have been sent
+      instigator = conn.assigns.user.username
+
+      assert_email_delivered_with(
+        subject: "[NervesHub] User #{instigator} added MyName to #{org.name}"
+      )
     end
   end
 
