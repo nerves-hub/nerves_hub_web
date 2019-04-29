@@ -5,11 +5,10 @@ defmodule NervesHubWebCore.Devices do
 
   alias NervesHubWebCore.{
     Deployments.Deployment,
-    Firmwares,
     Firmwares.FirmwareMetadata,
     AuditLogs,
+    AuditLogs.AuditLog,
     Accounts.Org,
-    Products,
     Products.Product,
     Repo
   }
@@ -81,26 +80,32 @@ defmodule NervesHubWebCore.Devices do
   def get_eligible_deployments(%Device{firmware_metadata: nil}), do: []
 
   def get_eligible_deployments(%Device{firmware_metadata: meta} = device) do
-    case Products.get_product_by_org_id_and_name(device.org_id, meta.product) do
-      {:ok, product} ->
-        from(
-          d in Deployment,
-          join: f in assoc(d, :firmware),
-          on: f.product_id == ^product.id,
-          where: d.is_active,
-          where: f.architecture == ^meta.architecture,
-          where: f.platform == ^meta.platform,
-          where: f.uuid != ^meta.uuid
-        )
-        |> Repo.all()
-        |> Enum.filter(fn dep -> matches_deployment?(device, dep) end)
-
-      _error ->
-        []
-    end
+    from(
+      d in Deployment,
+      join: p in assoc(d, :product),
+      on: [org_id: ^device.org_id, name: ^meta.product],
+      join: f in assoc(d, :firmware),
+      on: f.product_id == p.id,
+      where: d.is_active,
+      where: d.healthy,
+      where: f.architecture == ^meta.architecture,
+      where: f.platform == ^meta.platform,
+      where: f.uuid != ^meta.uuid,
+      preload: [firmware: f]
+    )
+    |> Repo.all()
+    |> Enum.filter(fn dep -> matches_deployment?(device, dep) end)
   end
 
   def get_eligible_deployments(_), do: []
+
+  def send_update_message(%Device{healthy: false}, _delpoyment) do
+    {:error, :device_unhealthy}
+  end
+
+  def send_update_message(_device, %Deployment{healthy: false}) do
+    {:error, :deployment_unhealthy}
+  end
 
   def send_update_message(%Device{} = device, %Deployment{} = deployment) do
     deployment = Repo.preload(deployment, :firmware, force: true)
@@ -113,11 +118,9 @@ defmodule NervesHubWebCore.Devices do
         "device:#{device.id}",
         %Phoenix.Socket.Broadcast{
           event: "update",
-          payload: %{firmware_url: url}
+          payload: %{deployment_id: deployment.id, firmware_url: url}
         }
       )
-
-      AuditLogs.audit!(deployment, device, :update, %{send_update_message: true})
 
       {:ok, device}
     else
@@ -281,6 +284,9 @@ defmodule NervesHubWebCore.Devices do
     |> Device.changeset(params)
     |> Repo.update()
     |> case do
+      {:ok, %{healthy: false} = device} ->
+        {:ok, device}
+
       {:ok, device} ->
         # Get deployments with new changed device.
         # This will dispatch an update if `tags` is updated for example.
@@ -305,8 +311,17 @@ defmodule NervesHubWebCore.Devices do
 
   def resolve_update(_org, _deployments = []), do: %{update_available: false}
 
-  def resolve_update(org, [%Deployment{} = deployment | _]) do
-    with {:ok, firmware} <- Firmwares.get_firmware(org, deployment.firmware_id),
+  def resolve_update(_device, %Deployment{healthy: false}) do
+    %{update_available: false}
+  end
+
+  def resolve_update(device, [%Deployment{} = deployment | _]) do
+    resolve_update(device, deployment)
+  end
+
+  def resolve_update(%Device{} = device, %Deployment{} = deployment) do
+    with {:ok, %{healthy: true}} <- verify_update_eligibility(device, deployment),
+         %{firmware: firmware} <- Repo.preload(deployment, :firmware),
          {:ok, url} <- @uploader.download_file(firmware) do
       %{update_available: true, firmware_url: url}
     else
@@ -329,6 +344,81 @@ defmodule NervesHubWebCore.Devices do
   end
 
   def matches_deployment?(_, _), do: false
+
+  @spec failure_threshold_met?(Device.t(), Deployment.t()) :: boolean()
+  def failure_threshold_met?(
+        %Device{id: device_id},
+        %Deployment{id: deployment_id, device_failure_threshold: threshold}
+      ) do
+    from(
+      al in AuditLog,
+      where: [
+        actor_id: ^deployment_id,
+        actor_type: ^to_string(Deployment),
+        resource_type: ^to_string(Device),
+        resource_id: ^device_id
+      ],
+      where: fragment("(params->>'send_update_message' = 'true')"),
+      # Handle edge case we may make 2 audit log events at the same time
+      distinct: true,
+      select: al.inserted_at
+    )
+    |> Repo.all()
+    |> length()
+    |> Kernel.>=(threshold)
+  end
+
+  @spec failure_rate_met?(Device.t(), Deployment.t()) :: boolean()
+  def failure_rate_met?(%Device{id: device_id}, %Deployment{
+        id: deployment_id,
+        device_failure_rate_amount: rate_amount,
+        device_failure_rate_seconds: rate_seconds
+      }) do
+    from(
+      al in AuditLog,
+      where: [
+        actor_id: ^deployment_id,
+        actor_type: ^to_string(Deployment),
+        resource_type: ^to_string(Device),
+        resource_id: ^device_id
+      ],
+      where: fragment("(params->>'send_update_message' = 'true')"),
+      where: al.inserted_at >= ^Timex.shift(DateTime.utc_now(), seconds: -rate_seconds),
+      # Handle edge case we may make 2 audit log events at the same time
+      distinct: true,
+      select: al.inserted_at
+    )
+    |> Repo.all()
+    |> length()
+    |> Kernel.>=(rate_amount)
+  end
+
+  def verify_update_eligibility(%{healthy: false} = device, _deployment) do
+    {:ok, device}
+  end
+
+  def verify_update_eligibility(device, deployment) do
+    cond do
+      failure_rate_met?(device, deployment) ->
+        AuditLogs.audit!(deployment, device, :update, %{
+          healthy: false,
+          reason: "device failure rate met"
+        })
+
+        update_device(device, %{healthy: false})
+
+      failure_threshold_met?(device, deployment) ->
+        AuditLogs.audit!(deployment, device, :update, %{
+          healthy: false,
+          reason: "device failure threshold met"
+        })
+
+        update_device(device, %{healthy: false})
+
+      true ->
+        {:ok, device}
+    end
+  end
 
   defp version_match?(_vsn, ""), do: true
 

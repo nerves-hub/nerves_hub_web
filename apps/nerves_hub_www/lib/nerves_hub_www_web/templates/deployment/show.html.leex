@@ -17,6 +17,10 @@
       <td><%= active(@deployment) %>
     </tr>
     <tr>
+      <th>Healthy?</th>
+      <td><%= health_status_icon(@deployment) %>
+    </tr>
+    <tr>
       <th>Version Requirement</th>
       <td><%= version(@deployment) %></td>
     </tr>
@@ -43,6 +47,10 @@
 </a>
 
 <a class="btn btn-primary mr-3" phx-click="toggle_active" phx-value=<%= !@deployment.is_active %>>Make <%= opposite_status(@deployment) %></a>
+
+<%= form_for %Plug.Conn{}, "#", [phx_submit: "toggle_health_state"], fn _f -> %>
+  <%= submit "Mark #{if @deployment.healthy, do: "Unhealthy", else: "Healthy"}", class: "btn btn-primary mr-3" %>
+<% end %>
 
 <%= form_for %Plug.Conn{}, "#", [phx_submit: "delete"], fn _f -> %>
   <%= submit "Delete Deployment", class: "btn btn-danger", onclick: "return confirm('Are you sure you want to delete this deployment? This can not be undone.')" %>

@@ -4,6 +4,8 @@ defmodule NervesHubWWWWeb.DeploymentView do
   alias NervesHubWebCore.Firmwares.Firmware
   alias NervesHubWebCore.Deployments.Deployment
 
+  import NervesHubWWWWeb.LayoutView, only: [health_status_icon: 1]
+
   def firmware_dropdown_options(firmwares) do
     firmwares
     |> Enum.map(&[value: &1.id, key: firmware_display_name(&1)])

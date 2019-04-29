@@ -6,7 +6,16 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   """
 
   use NervesHubDeviceWeb, :channel
-  alias NervesHubWebCore.{Accounts.Org, Devices, Devices.Device, Firmwares}
+
+  alias NervesHubWebCore.{
+    Accounts.Org,
+    AuditLogs,
+    Deployments.Deployment,
+    Devices,
+    Devices.Device,
+    Firmwares
+  }
+
   alias NervesHubDevice.Presence
 
   intercept(["presence_diff"])
@@ -24,7 +33,15 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
          {:ok, device} <- Devices.received_communication(device) do
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
       deployments = Devices.get_eligible_deployments(device)
-      join_reply = Devices.resolve_update(device.org, deployments)
+      join_reply = Devices.resolve_update(device, deployments)
+
+      if join_reply.update_available do
+        AuditLogs.audit!(hd(deployments), device, :update, %{
+          from: "channel_join",
+          send_update_message: true
+        })
+      end
+
       send(self(), {:after_join, device, join_reply.update_available})
       {:ok, join_reply, socket}
     end
@@ -76,6 +93,21 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
         }
       )
 
+    {:noreply, socket}
+  end
+
+  def handle_info(%{payload: payload, event: "update"}, socket) do
+    %{deployment_id: deployment_id} = payload
+
+    # If we get here, the device is connected and high probability it receives
+    # the update message so we can Audit and later assert on this audit event
+    # as a loosely valid attempt to update
+    AuditLogs.audit!(%Deployment{id: deployment_id}, socket.assigns.device, :update, %{
+      from: "broadcast",
+      send_update_message: true
+    })
+
+    push(socket, "update", payload)
     {:noreply, socket}
   end
 

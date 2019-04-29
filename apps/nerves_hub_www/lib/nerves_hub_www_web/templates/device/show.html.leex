@@ -27,6 +27,10 @@
       </p>
 
       <p>
+        <strong>Healthy?: </strong><%= health_status_icon(@device) %>
+      </p>
+
+      <p>
         <strong>Last Connection:</strong>
         <%= if is_nil(@device.last_communication) do %>
           never
@@ -49,8 +53,11 @@
           Actions
         </button>
         <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-          <%= link "Edit", to: device_path(@socket, :edit, @device), class: "dropdown-item" %>
           <%= link "Console", to: device_path(@socket, :console, @device), class: "dropdown-item #{unless Map.has_key?(@device, :console_available) && @device.console_available, do: "disabled"}" %>
+          <%= link "Edit", to: device_path(@socket, :edit, @device), class: "dropdown-item" %>
+          <%= form_for %Plug.Conn{}, "#", [phx_submit: "toggle_health_state"], fn _f -> %>
+            <%= submit "Mark #{if @device.healthy, do: "Unhealthy", else: "Healthy"}", class: "dropdown-item" %>
+          <% end %>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item" type="button" phx-click="reboot" <%= if @device.status == "offline", do: "disabled" %> data-confirm="Are you sure?">Reboot</button>
         </div>

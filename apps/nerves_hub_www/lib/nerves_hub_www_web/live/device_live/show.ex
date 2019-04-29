@@ -3,7 +3,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
 
   alias NervesHubDevice.Presence
 
-  alias NervesHubWebCore.{AuditLogs, Devices.Device}
+  alias NervesHubWebCore.{AuditLogs, Devices, Devices.Device}
 
   alias Phoenix.Socket.Broadcast
 
@@ -60,6 +60,26 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
       socket
       |> assign(:audit_logs, audit_logs)
       |> assign(:paginate_opts, %{paginate_opts | page_number: page_num})
+
+    {:noreply, socket}
+  end
+
+  def handle_event(
+        "toggle_health_state",
+        _params,
+        %{assigns: %{device: device, user: user}} = socket
+      ) do
+    params = %{healthy: !device.healthy}
+
+    socket =
+      case Devices.update_device(device, params) do
+        {:ok, updated_device} ->
+          AuditLogs.audit!(user, device, :update, params)
+          assign(socket, :device, updated_device)
+
+        {:error, _changeset} ->
+          put_flash(socket, :error, "Failed to mark health state")
+      end
 
     {:noreply, socket}
   end

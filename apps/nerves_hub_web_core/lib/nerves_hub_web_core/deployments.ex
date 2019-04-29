@@ -109,6 +109,65 @@ defmodule NervesHubWebCore.Deployments do
     end
   end
 
+  @spec failure_rate_met?(Deployment.t()) :: boolean()
+  def failure_rate_met?(%Deployment{} = deployment) do
+    rate_seconds_ago = Timex.shift(DateTime.utc_now(), seconds: -deployment.failure_rate_seconds)
+
+    from(
+      al in NervesHubWebCore.AuditLogs.AuditLog,
+      where: [actor_type: ^to_string(Deployment), resource_type: ^to_string(Devices.Device)],
+      where: al.actor_id == ^deployment.id,
+      where: fragment("(params->>'send_update_message' = 'true')"),
+      where: al.inserted_at >= ^rate_seconds_ago,
+      group_by: :resource_id,
+      having: count(al.resource_id) > 2,
+      select: al.resource_id
+    )
+    |> Repo.all()
+    |> length()
+    |> Kernel.>=(deployment.failure_rate_amount)
+  end
+
+  @spec failure_threshold_met?(Deployment.t()) :: boolean()
+  def failure_threshold_met?(%Deployment{} = deployment) do
+    deployment = Repo.preload(deployment, [:product, :firmware])
+
+    from(
+      d in Devices.Device,
+      where:
+        fragment(
+          """
+          (firmware_metadata->>'product' = ?) AND
+          (firmware_metadata->>'architecture' = ?) AND
+          (firmware_metadata->>'platform' = ?) AND
+          (firmware_metadata->>'uuid' != ?)
+          """,
+          ^deployment.product.name,
+          ^deployment.firmware.architecture,
+          ^deployment.firmware.platform,
+          ^deployment.firmware.uuid
+        ),
+      where: d.org_id == ^deployment.product.org_id,
+      where: d.healthy == false,
+      select: count(d.id)
+    )
+    |> Repo.one()
+    |> Kernel.>=(deployment.failure_threshold)
+  end
+
+  @spec verify_eligibility(Deployment.t()) :: {:error, Ecto.Changeset.t()} | {:ok, Deployment.t()}
+  def verify_eligibility(%Deployment{healthy: false} = deployment) do
+    {:ok, deployment}
+  end
+
+  def verify_eligibility(%Deployment{} = deployment) do
+    if failure_rate_met?(deployment) || failure_threshold_met?(deployment) do
+      update_deployment(deployment, %{healthy: false})
+    else
+      {:ok, deployment}
+    end
+  end
+
   def fetch_relevant_devices(%Deployment{is_active: false}) do
     []
   end
@@ -132,7 +191,8 @@ defmodule NervesHubWebCore.Deployments do
           ^deployment.firmware.platform,
           ^deployment.firmware.uuid
         ),
-      where: d.org_id == ^org_id
+      where: d.org_id == ^org_id,
+      where: d.healthy
     )
     |> Repo.all()
   end

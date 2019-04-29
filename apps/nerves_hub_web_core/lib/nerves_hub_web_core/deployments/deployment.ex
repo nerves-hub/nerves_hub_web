@@ -12,15 +12,30 @@ defmodule NervesHubWebCore.Deployments.Deployment do
 
   @type t :: %__MODULE__{}
   @required_fields [:firmware_id, :name, :conditions, :is_active, :product_id]
-  @optional_fields []
+  @optional_fields [
+    :device_failure_threshold,
+    :device_failure_rate_seconds,
+    :device_failure_rate_amount,
+    :failure_threshold,
+    :failure_rate_seconds,
+    :failure_rate_amount,
+    :healthy
+  ]
 
   schema "deployments" do
     belongs_to(:firmware, Firmware)
     belongs_to(:product, Product)
 
-    field(:name, :string)
     field(:conditions, :map)
+    field(:device_failure_threshold, :integer, default: 3)
+    field(:device_failure_rate_seconds, :integer, default: 180)
+    field(:device_failure_rate_amount, :integer, default: 5)
+    field(:failure_threshold, :integer, default: 50)
+    field(:failure_rate_seconds, :integer, default: 300)
+    field(:failure_rate_amount, :integer, default: 5)
     field(:is_active, :boolean)
+    field(:name, :string)
+    field(:healthy, :boolean, default: true)
 
     timestamps()
   end
