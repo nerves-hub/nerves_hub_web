@@ -2,6 +2,8 @@ defmodule NervesHubWWWWeb.DeviceView do
   use NervesHubWWWWeb, :view
   alias NervesHubDevice.Presence
 
+  import NervesHubWWWWeb.LayoutView, only: [health_status_icon: 1]
+
   def architecture_options do
     [
       "aarch64",

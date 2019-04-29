@@ -3,6 +3,7 @@ defmodule NervesHubWebCore.DevicesTest do
 
   alias NervesHubWebCore.{
     Accounts,
+    AuditLogs.AuditLog,
     Fixtures,
     Devices,
     Devices.CACertificate,
@@ -434,5 +435,84 @@ defmodule NervesHubWebCore.DevicesTest do
     for deployment <- deployments do
       assert deployment.firmware.product_id == product.id
     end
+  end
+
+  describe "send_update_message" do
+    test "does not send when device needs attention", %{deployment: deployment, device: device} do
+      assert Devices.send_update_message(%{device | healthy: false}, deployment) ==
+               {:error, :device_unhealthy}
+    end
+
+    test "does not send when deployment needs attention", %{
+      deployment: deployment,
+      device: device
+    } do
+      assert Devices.send_update_message(device, %{deployment | healthy: false}) ==
+               {:error, :deployment_unhealthy}
+    end
+
+    test "does not send when deployment version mismatch", %{
+      deployment: deployment,
+      device: device
+    } do
+      conditions = %{deployment.conditions | "version" => "> 1.0.0"}
+
+      assert Devices.send_update_message(device, %{deployment | conditions: conditions}) ==
+               {:error, :invalid_deployment_for_device}
+    end
+
+    test "does not send when deployment tags mismatch", %{deployment: deployment, device: device} do
+      conditions = %{deployment.conditions | "tags" => "wat?!"}
+
+      assert Devices.send_update_message(device, %{deployment | conditions: conditions}) ==
+               {:error, :invalid_deployment_for_device}
+    end
+  end
+
+  describe "resolve_update" do
+    test "no update when device needs attention", %{deployment: deployment, device: device} do
+      assert Devices.resolve_update(%{device | healthy: false}, deployment) == %{
+               update_available: false
+             }
+    end
+
+    test "no update when deployment needs attention", %{deployment: deployment, device: device} do
+      assert Devices.resolve_update(device, %{deployment | healthy: false}) == %{
+               update_available: false
+             }
+    end
+
+    test "update message when valid", %{
+      deployment: deployment,
+      device: device,
+      firmware: firmware
+    } do
+      result = Devices.resolve_update(device, deployment)
+
+      assert result.update_available
+      assert result.firmware_url =~ firmware.uuid
+    end
+  end
+
+  test "failure_rate_met?", %{deployment: deployment, device: device} do
+    # Build a bunch of failures at quick rate
+    Enum.each(1..5, fn i ->
+      al = AuditLog.build(deployment, device, :update, %{send_update_message: true})
+      time = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second) |> Timex.shift(seconds: i)
+      Repo.insert(%{al | inserted_at: time})
+    end)
+
+    assert Devices.failure_rate_met?(device, deployment)
+  end
+
+  test "failure_threshold_met?", %{deployment: deployment, device: device} do
+    # Build a bunch of failures for the device
+    Enum.each(1..15, fn i ->
+      al = AuditLog.build(deployment, device, :update, %{send_update_message: true})
+      time = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second) |> Timex.shift(minutes: i)
+      Repo.insert(%{al | inserted_at: time})
+    end)
+
+    assert Devices.failure_threshold_met?(device, deployment)
   end
 end

@@ -16,6 +16,7 @@ defmodule NervesHubWebCore.Devices.Device do
   @optional_params [
     :last_communication,
     :description,
+    :healthy,
     :tags
   ]
   @required_params [:org_id, :identifier]
@@ -28,6 +29,7 @@ defmodule NervesHubWebCore.Devices.Device do
     field(:identifier, :string)
     field(:description, :string)
     field(:last_communication, :utc_datetime)
+    field(:healthy, :boolean, default: true)
     field(:tags, NervesHubWebCore.Types.Tag)
 
     field(:status, :string, default: "offline", virtual: true)

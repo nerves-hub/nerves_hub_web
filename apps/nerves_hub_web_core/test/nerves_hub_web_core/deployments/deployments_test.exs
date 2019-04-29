@@ -2,8 +2,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
   use NervesHubWebCore.DataCase, async: false
   use Phoenix.ChannelTest
 
-  alias NervesHubWebCore.Fixtures
-  alias NervesHubWebCore.Deployments
+  alias NervesHubWebCore.{AuditLogs.AuditLog, Deployments, Fixtures}
   alias Ecto.Changeset
 
   setup do
@@ -162,6 +161,119 @@ defmodule NervesHubWebCore.DeploymentsTest do
 
         refute_broadcast("update", %{firmware_url: _f_url})
       end
+    end
+
+    test "does not update devices if deployment in unhealthy state", %{
+      firmware: firmware,
+      org: org,
+      org_key: org_key,
+      product: product
+    } do
+      device = Fixtures.device_fixture(org, firmware, %{tags: ["beta", "beta-edge"]})
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
+
+      params = %{
+        firmware_id: new_firmware.id,
+        name: "my deployment",
+        conditions: %{
+          "version" => "< 1.0.1",
+          "tags" => ["beta", "beta-edge"]
+        },
+        is_active: false
+      }
+
+      device_topic = "device:#{device.id}"
+      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, device_topic)
+
+      {:ok, _deployment} =
+        Deployments.create_deployment(params)
+        |> elem(1)
+        |> Deployments.update_deployment(%{is_active: true, healthy: false})
+
+      refute_broadcast("update", %{firmware_url: _f_url})
+    end
+
+    test "does not update devices if device in unhealthy state", %{
+      firmware: firmware,
+      org: org,
+      org_key: org_key,
+      product: product
+    } do
+      device =
+        Fixtures.device_fixture(org, firmware, %{
+          tags: ["beta", "beta-edge"],
+          healthy: false
+        })
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
+
+      params = %{
+        firmware_id: new_firmware.id,
+        name: "my deployment",
+        conditions: %{
+          "version" => "< 1.0.1",
+          "tags" => ["beta", "beta-edge"]
+        },
+        is_active: false
+      }
+
+      device_topic = "device:#{device.id}"
+      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, device_topic)
+
+      {:ok, _deployment} =
+        Deployments.create_deployment(params)
+        |> elem(1)
+        |> Deployments.update_deployment(%{is_active: true})
+
+      refute_broadcast("update", %{firmware_url: _f_url})
+    end
+
+    test "failure_threshold_met?", %{
+      firmware: firmware,
+      org: org,
+      org_key: org_key,
+      product: product
+    } do
+      # Create many devices in error state
+      Enum.each(
+        1..4,
+        &Fixtures.device_fixture(org, firmware, %{
+          tags: ["beta", "beta-edge", "#{&1}"],
+          healthy: false
+        })
+      )
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
+
+      params = %{
+        firmware_id: new_firmware.id,
+        name: "my deployment",
+        conditions: %{
+          "version" => "< 1.0.1",
+          "tags" => ["beta", "beta-edge"]
+        },
+        is_active: false,
+        failure_threshold: 2
+      }
+
+      {:ok, deployment} = Deployments.create_deployment(params)
+
+      assert Deployments.failure_threshold_met?(deployment)
+    end
+
+    test "failure_rate_met?", %{deployment: deployment, firmware: firmware, org: org} do
+      # Create multi AuditLogs to signify same device attempting to apply
+      # the same update but failing
+      Enum.each(1..5, fn i ->
+        device = Fixtures.device_fixture(org, firmware)
+        al = AuditLog.build(deployment, device, :update, %{send_update_message: true})
+        time = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+        Repo.insert(al)
+        Repo.insert(%{al | inserted_at: Timex.shift(time, seconds: i)})
+        Repo.insert(%{al | inserted_at: Timex.shift(time, seconds: i + 5)})
+      end)
+
+      assert Deployments.failure_rate_met?(deployment)
     end
   end
 end

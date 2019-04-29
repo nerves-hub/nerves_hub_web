@@ -71,6 +71,26 @@ defmodule NervesHubWWWWeb.DeploymentLive.Show do
     {:noreply, assign(socket, :deployment, updated_deployment)}
   end
 
+  def handle_event(
+        "toggle_health_state",
+        _params,
+        %{assigns: %{deployment: deployment, user: user}} = socket
+      ) do
+    params = %{healthy: !deployment.healthy}
+
+    socket =
+      case Deployments.update_deployment(deployment, params) do
+        {:ok, updated_deployment} ->
+          AuditLogs.audit!(user, deployment, :update, params)
+          assign(socket, :deployment, updated_deployment)
+
+        {:error, _changeset} ->
+          put_flash(socket, :error, "Failed to mark health state")
+      end
+
+    {:noreply, socket}
+  end
+
   defp audit_log_assigns(%{assigns: %{deployment: deployment}} = socket) do
     all_logs = AuditLogs.logs_for_feed(deployment)
     paginate_opts = %{page_number: 1, page_size: 10}
