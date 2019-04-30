@@ -10,6 +10,7 @@ defmodule NervesHubDevice.Presence do
     :connected_at,
     :console_available,
     :firmware_metadata,
+    :last_communication,
     :rebooting,
     :status,
     :update_available
