@@ -1,19 +1,7 @@
 defmodule NervesHubWebCore.Repo.Migrations.UniqueDeploymentNameProductId do
   use Ecto.Migration
 
-  alias NervesHubWebCore.Repo
-  alias NervesHubWebCore.Deployments.Deployment
-
   def up do
-    deployments = Repo.all(Deployment)
-
-    for deployment <- deployments do
-      deployment
-      |> Repo.preload(:firmware)
-      |> Deployment.changeset(%{})
-      |> Repo.update()
-    end
-
     alter table(:deployments) do
       modify(:product_id, references(:products), null: false)
     end
