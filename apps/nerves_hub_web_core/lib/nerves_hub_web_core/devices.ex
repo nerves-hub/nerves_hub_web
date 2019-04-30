@@ -85,9 +85,9 @@ defmodule NervesHubWebCore.Devices do
       {:ok, product} ->
         from(
           d in Deployment,
-          where: d.is_active,
           join: f in assoc(d, :firmware),
-          where: f.product_id == ^product.id,
+          on: f.product_id == ^product.id,
+          where: d.is_active,
           where: f.architecture == ^meta.architecture,
           where: f.platform == ^meta.platform,
           where: f.uuid != ^meta.uuid
@@ -162,22 +162,15 @@ defmodule NervesHubWebCore.Devices do
 
   @spec get_device_by_certificate(DeviceCertificate.t()) ::
           {:ok, Device.t()} | {:error, :not_found}
-  def get_device_by_certificate(%DeviceCertificate{} = cert) do
-    query =
-      from(
-        d in Device,
-        join: c in assoc(d, :device_certificates),
-        where: d.id == ^cert.device_id and c.serial == ^cert.serial
-      )
-
-    query
-    |> Device.with_org()
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      device -> {:ok, device}
-    end
+  def get_device_by_certificate(%DeviceCertificate{device: %Ecto.Association.NotLoaded{}} = cert) do
+    Repo.preload(cert, :device)
+    |> get_device_by_certificate()
   end
+
+  def get_device_by_certificate(%DeviceCertificate{device: %Device{} = device}),
+    do: {:ok, Repo.preload(device, :org)}
+
+  def get_device_by_certificate(_), do: {:error, :not_found}
 
   def get_device_certificate_by_x509(cert) do
     aki = NervesHubWebCore.Certificate.get_aki(cert)
