@@ -3,8 +3,6 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   alias NervesHubDevice.Presence
 
-  alias NervesHubWebCore.{Repo, Accounts.AuditLog}
-
   alias Phoenix.Socket.Broadcast
 
   def render(assigns) do
@@ -29,7 +27,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   # For this case, we switch the sorting direction of same field
   def handle_event("sort", value, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
-    %{devices: devices, sort_direction: sort_direction} = socket.assigns
+    %{sort_direction: sort_direction} = socket.assigns
 
     # switch sort direction for column because
     sort_direction = if sort_direction == :desc, do: :asc, else: :desc
@@ -43,7 +41,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   end
 
   # User has clicked a new column to sort
-  def handle_event("sort", value, %{assigns: %{devices: devices}} = socket) do
+  def handle_event("sort", value, socket) do
     socket =
       socket
       |> assign(:current_sort, value)
@@ -59,7 +57,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       ) do
     socket =
       socket
-      |> assign(:devices, update_statuses(devices, payload))
+      |> assign(:devices, sync_devices(devices, payload))
       |> case do
         %{assigns: %{current_sort: "status"}} = socket -> do_sort(socket)
         socket -> socket
@@ -86,14 +84,24 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   defp sorter(%{assigns: %{sort_direction: :desc}}), do: &>=/2
   defp sorter(_), do: &<=/2
 
-  defp update_statuses(devices, %{joins: joins, leaves: leaves}) do
+  defp sync_devices(devices, %{joins: joins, leaves: leaves}) do
     for device <- devices do
       id = to_string(device.id)
 
       cond do
-        meta = joins[id] -> %{device | status: meta.status}
-        leaves[id] -> %{device | status: "offline"}
-        true -> device
+        meta = joins[id] ->
+          updates = Map.take(meta, [:firmware_metadata, :last_communication, :status])
+          Map.merge(device, updates)
+
+        leaves[id] ->
+          # We're counting a device leaving as its last_communication. This is
+          # slightly inaccurate to set here, but only by a minuscule amount
+          # and saves DB calls and broadcasts
+          disconnect_time = DateTime.truncate(DateTime.utc_now(), :second)
+          %{device | last_communication: disconnect_time, status: "offline"}
+
+        true ->
+          device
       end
     end
   end
