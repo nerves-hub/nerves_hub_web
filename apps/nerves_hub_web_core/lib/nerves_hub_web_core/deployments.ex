@@ -80,13 +80,14 @@ defmodule NervesHubWebCore.Deployments do
     |> Deployment.with_firmware()
     |> Deployment.changeset(params)
     |> Repo.update()
+    |> Repo.reload_assoc(:firmware)
     |> case do
       {:ok, deployment} ->
         Firmwares.update_firmware_ttl(deployment.firmware_id)
 
-        {:ok, deployment}
-        |> Repo.reload_assoc(:firmware)
-        |> update_relevant_devices()
+        deployment
+        |> fetch_relevant_devices()
+        |> update_relevant_devices(deployment)
 
       error ->
         error
@@ -108,39 +109,40 @@ defmodule NervesHubWebCore.Deployments do
     end
   end
 
-  defp update_relevant_devices({:ok, %Deployment{is_active: false} = deployment}) do
-    {:ok, deployment}
+  def fetch_relevant_devices(%Deployment{is_active: false}) do
+    []
   end
 
-  defp update_relevant_devices({:ok, deployment}) do
+  def fetch_relevant_devices(deployment) do
     deployment = Repo.preload(deployment, [:product, :firmware])
+    org_id = deployment.product.org_id
 
-    relevant_devices =
-      from(
-        d in Devices.Device,
-        where:
-          fragment(
-            """
-            (firmware_metadata->>'product' = ?) AND
-            (firmware_metadata->>'architecture' = ?) AND
-            (firmware_metadata->>'platform' = ?) AND
-            (firmware_metadata->>'uuid' != ?)
-            """,
-            ^deployment.product.name,
-            ^deployment.firmware.architecture,
-            ^deployment.firmware.platform,
-            ^deployment.firmware.uuid
-          )
-      )
-      |> Repo.all()
+    from(
+      d in Devices.Device,
+      where:
+        fragment(
+          """
+          (firmware_metadata->>'product' = ?) AND
+          (firmware_metadata->>'architecture' = ?) AND
+          (firmware_metadata->>'platform' = ?) AND
+          (firmware_metadata->>'uuid' != ?)
+          """,
+          ^deployment.product.name,
+          ^deployment.firmware.architecture,
+          ^deployment.firmware.platform,
+          ^deployment.firmware.uuid
+        ),
+      where: d.org_id == ^org_id
+    )
+    |> Repo.all()
+  end
 
-    Task.Supervisor.async_stream(NervesHubWebCore.TaskSupervisor, relevant_devices, fn device ->
+  defp update_relevant_devices(devices, deployment) do
+    Task.Supervisor.async_stream(NervesHubWebCore.TaskSupervisor, devices, fn device ->
       Devices.send_update_message(device, deployment)
     end)
     |> Stream.run()
 
     {:ok, deployment}
   end
-
-  defp update_relevant_devices({:error, changeset}), do: {:error, changeset}
 end
