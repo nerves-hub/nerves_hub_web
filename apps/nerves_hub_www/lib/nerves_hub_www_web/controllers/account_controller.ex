@@ -13,25 +13,16 @@ defmodule NervesHubWWWWeb.AccountController do
     render(conn, "new.html", changeset: %Changeset{data: %User{}})
   end
 
+  @doc """
+  This action is triggered by a "Create Account" UI request. There is no
+  organization involved save the one created for the user.
+  """
   def create(conn, %{"user" => user_params}) do
     user_params
     |> whitelist([:password, :username, :email])
     |> Accounts.create_user()
     |> case do
-      {:ok, new_user} ->
-        org = conn.assigns.current_org
-        # Now let everyone in the organization - except the new guy -
-        # know about this new user.
-        instigator = conn.assigns.user.username
-
-        Email.tell_org_user_added(
-          org,
-          Accounts.get_org_users(org),
-          instigator,
-          new_user
-        )
-        |> Mailer.deliver_later()
-
+      {:ok, _new_user} ->
         redirect(conn, to: "/")
 
       {:error, changeset} ->
