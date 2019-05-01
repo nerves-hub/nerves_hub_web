@@ -14,13 +14,25 @@ defmodule NervesHubWebCore.DeploymentsTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(firmware)
 
+    user2 = Fixtures.user_fixture(%{username: "user2", email: "user2@test.com"})
+    org2 = Fixtures.org_fixture(user2, %{name: "org2"})
+    product2 = Fixtures.product_fixture(user2, org2)
+    org_key2 = Fixtures.org_key_fixture(org2)
+    firmware2 = Fixtures.firmware_fixture(org_key2, product2)
+    deployment2 = Fixtures.deployment_fixture(firmware2)
+
     {:ok,
      %{
        org: org,
        org_key: org_key,
        firmware: firmware,
        deployment: deployment,
-       product: product
+       product: product,
+       org2: org2,
+       org_key2: org_key2,
+       firmware2: firmware2,
+       deployment2: deployment2,
+       product2: product2
      }}
   end
 
@@ -80,11 +92,15 @@ defmodule NervesHubWebCore.DeploymentsTest do
   describe "update_deployment" do
     test "updates correct devices", %{
       org: org,
+      org2: org2,
       org_key: org_key,
       firmware: firmware,
+      firmware2: firmware2,
       product: product
     } do
       device = Fixtures.device_fixture(org, firmware, %{tags: ["beta", "beta-edge"]})
+      _device2 = Fixtures.device_fixture(org2, firmware2, %{tags: ["beta", "beta-edge"]})
+
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
       params = %{
@@ -100,11 +116,12 @@ defmodule NervesHubWebCore.DeploymentsTest do
       device_topic = "device:#{device.id}"
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, device_topic)
 
-      {:ok, _deployment} =
+      {:ok, deployment} =
         Deployments.create_deployment(params)
         |> elem(1)
         |> Deployments.update_deployment(%{is_active: true})
 
+      assert [^device] = Deployments.fetch_relevant_devices(deployment)
       assert_broadcast("update", %{firmware_url: _f_url}, 500)
     end
 
