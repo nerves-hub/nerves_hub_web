@@ -39,3 +39,9 @@ config :nerves_hub_www, NervesHubWWW.Mailer,
   # can be `true`
   ssl: false,
   retries: 1
+
+config :rollbax,
+  access_token: "${ROLLBAR_ACCESS_TOKEN}",
+  environment: to_string(Mix.env()),
+  enabled: true,
+  enable_crash_reports: true

@@ -16,3 +16,9 @@ config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
 
 # Do not print debug messages in production
 config :logger, level: :debug
+
+config :rollbax,
+  access_token: "${ROLLBAR_ACCESS_TOKEN}",
+  environment: to_string(Mix.env()),
+  enabled: true,
+  enable_crash_reports: true
