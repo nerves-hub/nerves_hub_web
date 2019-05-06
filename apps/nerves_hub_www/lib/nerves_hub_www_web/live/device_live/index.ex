@@ -95,7 +95,11 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
           # slightly inaccurate to set here, but only by a minuscule amount
           # and saves DB calls and broadcasts
           disconnect_time = DateTime.truncate(DateTime.utc_now(), :second)
-          %{device | last_communication: disconnect_time, status: "offline", fwup_progress: nil}
+
+          device
+          |> Map.put(:last_communication, disconnect_time)
+          |> Map.put(:status, "offline")
+          |> Map.put(:fwup_progress, nil)
 
         true ->
           device
