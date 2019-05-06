@@ -37,6 +37,17 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     end
   end
 
+  def handle_in("fwup_progress", %{"value" => percent}, socket) do
+    Presence.update(
+      socket.channel_pid,
+      "devices:#{socket.assigns.device.org_id}",
+      socket.assigns.device.id,
+      %{fwup_progress: percent}
+    )
+
+    {:noreply, socket}
+  end
+
   def handle_in("rebooting", _payload, socket) do
     # Device sends "rebooting" message back to signify ack of the request
     Presence.update(

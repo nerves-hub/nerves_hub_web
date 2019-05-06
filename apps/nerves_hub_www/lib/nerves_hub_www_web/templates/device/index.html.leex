@@ -27,15 +27,21 @@
             </a>
           </td>
           <td class="col-2">
-            <%= if is_nil(device.firmware_metadata) do %>
-              unknown
+            <%= if Map.has_key?(device, :fwup_progress) && device.fwup_progress do %>
+              <div class="progress">
+                <div class="progress-bar progress-bar-striped" role="progressbar" style="width: <%= device.fwup_progress %>%"><%= device.fwup_progress %>%</div>
+              </div>
             <% else %>
-              <p>
-                <strong>Version:</strong> <%= device.firmware_metadata.version %>
-              </p>
-              <p>
-                <strong>UUID:</strong> <%= device.firmware_metadata.uuid %>
-              </p>
+              <%= if is_nil(device.firmware_metadata) do %>
+                unknown
+              <% else %>
+                <p>
+                  <strong>Version:</strong> <%= device.firmware_metadata.version %>
+                </p>
+                <p>
+                  <strong>UUID:</strong> <%= device.firmware_metadata.uuid %>
+                </p>
+              <% end %>
             <% end %>
           </td>
           <td class="col-2 device"><%= device.status %></td>

@@ -59,16 +59,18 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
     end
 
     test "presence_diff with changes", session do
-      payload = %{joins: %{"#{session.device.id}" => %{}}, leaves: %{}}
+      payload = %{joins: %{}, leaves: %{"#{session.device.id}" => %{}}}
+      session = %{device: %{session.device | status: "online"}, user: session.user}
       {:ok, view, html} = mount(Endpoint, Show, session: session)
 
-      assert html =~ "offline"
+      assert html =~ "online"
 
       {:ok, device} =
         Devices.update_device(session.device, %{last_communication: DateTime.utc_now()})
 
       send(view.pid, %Broadcast{event: "presence_diff", payload: payload})
 
+      assert render(view) =~ "offline"
       assert render(view) =~ to_string(device.last_communication)
     end
   end

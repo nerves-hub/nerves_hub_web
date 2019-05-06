@@ -68,11 +68,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   defp assign_statuses(%{devices: devices, org_id: org_id}) do
     presences = Presence.list("devices:#{org_id}")
-
-    for device <- devices do
-      status = get_in(presences, [to_string(device.id), :status]) || "offline"
-      %{device | status: status}
-    end
+    sync_devices(devices, %{joins: presences, leaves: %{}})
   end
 
   defp do_sort(%{assigns: %{devices: devices, current_sort: current_sort}} = socket) do
@@ -90,7 +86,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
       cond do
         meta = joins[id] ->
-          updates = Map.take(meta, [:firmware_metadata, :last_communication, :status])
+          fields = [:firmware_metadata, :last_communication, :status, :fwup_progress]
+          updates = Map.take(meta, fields)
           Map.merge(device, updates)
 
         leaves[id] ->
@@ -98,7 +95,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
           # slightly inaccurate to set here, but only by a minuscule amount
           # and saves DB calls and broadcasts
           disconnect_time = DateTime.truncate(DateTime.utc_now(), :second)
-          %{device | last_communication: disconnect_time, status: "offline"}
+          %{device | last_communication: disconnect_time, status: "offline", fwup_progress: nil}
 
         true ->
           device
