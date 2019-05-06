@@ -18,7 +18,12 @@
       </ul>
 
       <p>
-        <strong>Status: </strong><%= @device_status %>
+        <strong>Status: </strong><%= @device.status %>
+        <%= if Map.has_key?(@device, :fwup_progress) && @device.fwup_progress do %>
+          <div class="progress">
+            <div class="progress-bar progress-bar-striped" role="progressbar" style="width: <%= @device.fwup_progress %>%"><%= @device.fwup_progress %>%</div>
+          </div>
+        <% end %>
       </p>
 
       <p>
@@ -45,9 +50,9 @@
         </button>
         <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
           <%= link "Edit", to: device_path(@socket, :edit, @device), class: "dropdown-item" %>
-          <%= link "Console", to: device_path(@socket, :console, @device), class: "dropdown-item #{unless @console_available, do: "disabled"}" %>
+          <%= link "Console", to: device_path(@socket, :console, @device), class: "dropdown-item #{unless Map.has_key?(@device, :console_available) && @device.console_available, do: "disabled"}" %>
           <div class="dropdown-divider"></div>
-          <button class="dropdown-item" type="button" phx-click="reboot" <%= if @device_status != "online", do: "disabled" %> data-confirm="Are you sure?">Reboot</button>
+          <button class="dropdown-item" type="button" phx-click="reboot" <%= if @device.status == "offline", do: "disabled" %> data-confirm="Are you sure?">Reboot</button>
         </div>
       </div>
     </div>

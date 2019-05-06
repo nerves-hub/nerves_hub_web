@@ -3,24 +3,18 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
 
   alias NervesHubDevice.Presence
 
-  alias NervesHubWebCore.{Repo, AuditLogs}
+  alias NervesHubWebCore.{AuditLogs, Devices.Device}
 
   alias Phoenix.Socket.Broadcast
-
-  defdelegate device_status(device), to: Presence
 
   def render(assigns) do
     NervesHubWWWWeb.DeviceView.render("show.html", assigns)
   end
 
   def mount(session, socket) do
-    device_presence = Presence.find(session.device, %{status: "offline"})
-
     socket =
       socket
-      |> assign(:console_available, device_presence[:console_available])
-      |> assign(:device, session.device)
-      |> assign(:device_status, device_presence.status)
+      |> assign(:device, sync_device(session))
       |> assign(:user, session.user)
       |> audit_log_assigns()
 
@@ -36,21 +30,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
         %Broadcast{event: "presence_diff", payload: payload},
         %{assigns: %{device: device}} = socket
       ) do
-    id_keys =
-      [Map.keys(payload.joins), Map.keys(payload.leaves)]
-      |> List.flatten()
-      |> Enum.map(&String.to_integer/1)
-
-    socket =
-      if device.id in id_keys do
-        socket
-        |> assign(:device_status, device_status(device))
-        |> assign(:device, Repo.reload(device))
-      else
-        socket
-      end
-
-    {:noreply, socket}
+    {:noreply, assign(socket, :device, sync_device(device, payload))}
   end
 
   # Ignore unknown messages
@@ -103,7 +83,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     socket =
       socket
       |> put_flash(:info, "Device Reboot Requested")
-      |> assign(:device_status, "reboot-requested")
+      |> assign(:device, %{socket.assigns.device | status: "reboot-requested"})
 
     {:noreply, socket}
   end
@@ -119,8 +99,53 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     socket =
       socket
       |> put_flash(:error, msg)
-      |> assign(:device_status, "reboot-blocked")
+      |> assign(:device, %{socket.assigns.device | status: "reboot-blocked"})
 
     {:noreply, socket}
+  end
+
+  defp sync_device(device, payload \\ nil)
+  defp sync_device(%{device: device}, payload), do: sync_device(device, payload)
+  defp sync_device(%{assigns: %{device: device}}, payload), do: sync_device(device, payload)
+
+  defp sync_device(%Device{id: id} = device, nil) do
+    joins = Map.put(%{}, to_string(id), Presence.find(device))
+    sync_device(device, %{joins: joins})
+  end
+
+  defp sync_device(%Device{id: id} = device, payload) when is_map(payload) do
+    id = to_string(id)
+    joins = Map.get(payload, :joins, %{})
+    leaves = Map.get(payload, :leaves, %{})
+
+    cond do
+      meta = joins[id] ->
+        updates =
+          Map.take(meta, [
+            :console_available,
+            :firmware_metadata,
+            :fwup_progress,
+            :last_communication,
+            :status
+          ])
+
+        Map.merge(device, updates)
+
+      leaves[id] ->
+        # We're counting a device leaving as its last_communication. This is
+        # slightly inaccurate to set here, but only by a minuscule amount
+        # and saves DB calls and broadcasts
+        disconnect_time = DateTime.truncate(DateTime.utc_now(), :second)
+
+        device =
+          device
+          |> Map.put(:console_available, false)
+          |> Map.put(:fwup_progress, nil)
+          |> Map.put(:last_communication, disconnect_time)
+          |> Map.put(:status, "offline")
+
+      true ->
+        device
+    end
   end
 end

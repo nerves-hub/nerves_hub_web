@@ -10,6 +10,7 @@ defmodule NervesHubDevice.Presence do
     :connected_at,
     :console_available,
     :firmware_metadata,
+    :fwup_progress,
     :last_communication,
     :rebooting,
     :status,
@@ -62,6 +63,7 @@ defmodule NervesHubDevice.Presence do
     |> case do
       %{update_available: true} = e -> Map.put(e, :status, "update pending")
       %{rebooting: true} = e -> Map.put(e, :status, "rebooting")
+      %{fwup_progress: _progress} = e -> Map.put(e, :status, "updating")
       e -> Map.put(e, :status, "online")
     end
   end
