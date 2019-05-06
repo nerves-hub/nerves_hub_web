@@ -137,12 +137,11 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
         # and saves DB calls and broadcasts
         disconnect_time = DateTime.truncate(DateTime.utc_now(), :second)
 
-        device =
-          device
-          |> Map.put(:console_available, false)
-          |> Map.put(:fwup_progress, nil)
-          |> Map.put(:last_communication, disconnect_time)
-          |> Map.put(:status, "offline")
+        device
+        |> Map.put(:console_available, false)
+        |> Map.put(:fwup_progress, nil)
+        |> Map.put(:last_communication, disconnect_time)
+        |> Map.put(:status, "offline")
 
       true ->
         device
