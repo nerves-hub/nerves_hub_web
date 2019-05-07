@@ -133,10 +133,23 @@ defmodule NervesHubWWWWeb.DeploymentController do
         %{assigns: %{product: product, user: user}} = conn,
         %{"id" => deployment_id, "deployment" => deployment_params}
       ) do
+    allowed_fields = [
+      :conditions,
+      :device_failure_rate_amount,
+      :device_failure_rate_seconds,
+      :device_failure_threshold,
+      :failure_rate_amount,
+      :failure_rate_seconds,
+      :failure_threshold,
+      :firmware_id,
+      :name,
+      :is_active
+    ]
+
     params =
       deployment_params
       |> inject_conditions_map()
-      |> whitelist([:name, :conditions, :firmware_id, :is_active])
+      |> whitelist(allowed_fields)
 
     {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
 

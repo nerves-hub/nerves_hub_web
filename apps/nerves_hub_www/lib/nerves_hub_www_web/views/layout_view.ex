@@ -50,6 +50,14 @@ defmodule NervesHubWWWWeb.LayoutView do
     )
   end
 
+  def help_icon(message, placement \\ :top) do
+    content_tag(:i, "",
+      class: "help-icon far fa-question-circle",
+      data: [toggle: "help-tooltip", placement: placement],
+      title: message
+    )
+  end
+
   def permit_uninvited_signups do
     Application.get_env(:nerves_hub_www, NervesHubWWWWeb.AccountController)[:allow_signups]
   end

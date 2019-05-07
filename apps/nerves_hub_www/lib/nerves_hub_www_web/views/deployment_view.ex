@@ -4,7 +4,7 @@ defmodule NervesHubWWWWeb.DeploymentView do
   alias NervesHubWebCore.Firmwares.Firmware
   alias NervesHubWebCore.Deployments.Deployment
 
-  import NervesHubWWWWeb.LayoutView, only: [health_status_icon: 1]
+  import NervesHubWWWWeb.LayoutView, only: [health_status_icon: 1, help_icon: 1]
 
   def firmware_dropdown_options(firmwares) do
     firmwares
@@ -32,6 +32,22 @@ defmodule NervesHubWWWWeb.DeploymentView do
     case f.version do
       nil -> "--"
       version -> "#{version}"
+    end
+  end
+
+  def help_message_for(field) do
+    case field do
+      :failure_threshold ->
+        "Maximum number of target devices from this deployment that can be in an unhealthy state before marking the deployment unhealthy"
+
+      :failure_rate ->
+        "Maximum number of device install failures from this deployment within X seconds before being marked unhealthy"
+
+      :device_failure_rate ->
+        "Maximum number of device failures within X seconds a device can have for this deployment before being marked unhealthy"
+
+      :device_failure_threshold ->
+        "Maximum number of install attempts and/or failures a device can have for this deployment before being marked unhealthy"
     end
   end
 

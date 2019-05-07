@@ -67,5 +67,55 @@
     <div class="has-error"><%= error_tag f, :tags %></div>
   </div>
 
+  <div class="form-group">
+    <label for="failure_rate_input">Failure Threshold</label>
+    <%= help_icon(help_message_for(:failure_threshold)) %>
+    <%= number_input f, :failure_threshold,
+      class: "form-control-sm",
+      id: "failure_threshold"
+    %>
+    <div class="has-error"><%= error_tag f, :failure_threshold %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="failure_rate_input">Failure Rate</label>
+    <%= help_icon(help_message_for(:failure_rate)) %>
+    <%= number_input f, :failure_rate_amount,
+      class: "form-control-sm",
+      id: "failure_rate_amount"
+    %>
+    device failures per
+    <%= number_input f, :failure_rate_seconds,
+      class: "form-control-sm",
+      id: "failure_rate_input"
+    %> seconds
+    <div class="has-error invalid-tooltip"><%= error_tag f, :failure_rate_seconds %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="failure_rate_input">Device Failure Threshold</label>
+    <%= help_icon(help_message_for(:device_failure_threshold)) %>
+    <%= number_input f, :device_failure_threshold,
+      class: "form-control-sm",
+      id: "device_failure_threshold"
+    %>
+    <div class="has-error"><%= error_tag f, :device_failure_threshold %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="device_failure_rate_input">Device Failure Rate</label>
+    <%= help_icon(help_message_for(:device_failure_rate)) %>
+    <%= number_input f, :device_failure_rate_amount,
+      class: "form-control-sm",
+      id: "device_failure_rate_amount"
+    %>
+    failures per
+    <%= number_input f, :device_failure_rate_seconds,
+      class: "form-control-sm",
+      id: "device_failure_rate_input"
+    %> seconds
+    <div class="has-error"><%= error_tag f, :device_failure_rate_seconds %></div>
+  </div>
+
   <%= submit "Update Deployment", class: "btn btn-primary" %>
 <% end %>
