@@ -4,7 +4,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
   alias NervesHubDevice.Presence
   alias Phoenix.Socket.Broadcast
 
-  @theme AnsiToHTML.Theme.new(container: :none)
+  @theme AnsiToHTML.Theme.new(container: :none, "\e[22m": {:text, []})
 
   def render(assigns) do
     NervesHubWWWWeb.DeviceView.render("console.html", assigns)
