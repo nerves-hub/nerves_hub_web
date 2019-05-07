@@ -38,6 +38,22 @@
       <th>Firmware Info</th>
       <td><%= firmware_summary(@deployment.firmware) %></td>
     </tr>
+    <tr>
+      <th>Failure Rate <%= help_icon(help_message_for(:failure_rate)) %></th>
+      <td><%= @deployment.failure_rate_amount %> device failures per <%= @deployment.failure_rate_seconds %> seconds</td>
+    </tr>
+    <tr>
+      <th>Failure Threshold <%= help_icon(help_message_for(:failure_threshold)) %></th>
+      <td><%= @deployment.failure_threshold %></td>
+    </tr>
+    <tr>
+      <th>Device Failure Rate <%= help_icon(help_message_for(:device_failure_rate)) %></th>
+      <td><%= @deployment.device_failure_rate_amount %> failures per <%= @deployment.device_failure_rate_seconds %> seconds</td>
+    </tr>
+    <tr>
+      <th>Device Failure Threshold <%= help_icon(help_message_for(:device_failure_threshold)) %></th>
+      <td><%= @deployment.device_failure_threshold %></td>
+    </tr>
   </tbody>
 </table>
 
