@@ -1,5 +1,5 @@
 %{
-  "ansi_to_html": {:git, "https://github.com/jjcarstens/ansi_to_html", "124aeaa62f44cd0145f77808605148f9edaaa43a", []},
+  "ansi_to_html": {:git, "https://github.com/jjcarstens/ansi_to_html", "7aa02d8c425e92d876616073e26af591c189ef76", []},
   "artificery": {:hex, :artificery, "0.2.6", "f602909757263f7897130cbd006b0e40514a541b148d366ad65b89236b93497a", [:mix], [], "hexpm"},
   "bamboo": {:hex, :bamboo, "1.0.0", "446525f74eb59022ef58bc82f6c91c8e4c5a1469ab42a7f9b37c17262f872ef0", [:mix], [{:hackney, "~> 1.12.1", [hex: :hackney, repo: "hexpm", optional: false]}, {:plug, "~> 1.0", [hex: :plug, repo: "hexpm", optional: false]}, {:poison, ">= 1.5.0", [hex: :poison, repo: "hexpm", optional: false]}], "hexpm"},
   "bamboo_smtp": {:hex, :bamboo_smtp, "1.5.0", "ebc4deb64a0ff88d05edc1e5f6fd77aea563cdbeac3fcb277666af96dff309e3", [:mix], [{:bamboo, "~> 1.0.0", [hex: :bamboo, repo: "hexpm", optional: false]}, {:gen_smtp, "~> 0.12.0", [hex: :gen_smtp, repo: "hexpm", optional: false]}], "hexpm"},

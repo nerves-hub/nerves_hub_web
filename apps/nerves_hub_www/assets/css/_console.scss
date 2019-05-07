@@ -1,0 +1,28 @@
+.console {
+  font-family: monospace;
+  text-align:left;
+  font-size: 16px;
+  padding: 4px;
+  background-color: black;
+  color: white;
+}
+
+.console-active-line {
+}
+
+.console-input {
+  color: inherit;
+  font-family: inherit;
+  width: inherit;
+  border:none;
+  background-image:none;
+  background-color:transparent;
+  -webkit-box-shadow: none;
+  -moz-box-shadow: none;
+  box-shadow: none;
+  width: 75%;
+}
+
+.console-input:focus {
+  outline: none;
+}

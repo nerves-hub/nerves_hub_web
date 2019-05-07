@@ -38,7 +38,7 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
     test "iex_submit", session do
       {:ok, view, _html} = mount(Endpoint, Console, session: session)
       input = "Howdy"
-      iex_line = "iex (#{session.username})&gt; #{input}"
+      iex_line = "iex(#{session.username})&gt; #{input}"
 
       assert render_submit(view, :iex_submit, %{iex_input: input}) =~ iex_line
 

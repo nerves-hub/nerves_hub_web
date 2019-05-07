@@ -16,7 +16,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
     end
 
     socket
-    |> assign(:active_line, "iex (#{session.username})> ")
+    |> assign(:active_line, "iex(#{session.username})> ")
     |> assign(:device, session.device)
     |> assign(:lines, ["NervesHub IEx Live"])
     |> assign(:username, session.username)
@@ -76,7 +76,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
         %Broadcast{event: "get_line", payload: %{"data" => line}},
         %{assigns: %{username: username}} = socket
       ) do
-    line = String.replace(line, ~r/(iex\()\d+(\))/, "\\1#{username}\\2")
+    line = String.replace(line, ~r/(iex).*(>)/, "\\1(#{username})\\2")
     {:noreply, assign(socket, :active_line, line)}
   end
 
