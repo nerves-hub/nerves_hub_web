@@ -3,53 +3,56 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
 
   import Phoenix.ChannelTest
 
-  alias NervesHubWebCore.{AuditLogs, Devices, Repo}
+  alias NervesHubWebCore.{AuditLogs, Repo}
   alias NervesHubWWWWeb.DeviceLive.Show
   alias NervesHubWWWWeb.Endpoint
 
   alias Phoenix.Socket.Broadcast
 
-  setup %{current_org: org, current_user: user} do
-    device = Devices.get_devices(org) |> hd
+  setup %{conn: conn, fixture: %{device: device}} do
+    # TODO: Use Plug.Conn.get_session/1 when upgraded to Plug >= 1.8
+    session =
+      conn.private.plug_session
+      |> Enum.into(%{}, fn {k, v} -> {String.to_atom(k), v} end)
+      |> Map.put(:path_params, %{"id" => device.id})
+
     Endpoint.subscribe("device:#{device.id}")
-    [device: device, user: Repo.preload(user, [:org_users])]
+    [session: session]
   end
 
   describe "handle_event" do
-    test "reboot allowed", session do
+    test "reboot allowed", %{fixture: %{device: device}, session: session} do
       {:ok, view, _html} = mount(Endpoint, Show, session: session)
 
-      before_audit_count = AuditLogs.logs_for(session.device) |> length
+      before_audit_count = AuditLogs.logs_for(device) |> length
 
       assert render_change(view, :reboot, %{}) =~ "reboot-requested"
       assert_broadcast("reboot", %{})
 
-      after_audit_count = AuditLogs.logs_for(session.device) |> length
+      after_audit_count = AuditLogs.logs_for(device) |> length
 
       assert after_audit_count == before_audit_count + 1
     end
 
-    test "reboot blocked", session do
-      org_users =
-        session.user.org_users
-        |> Enum.map(&%{&1 | role: :read})
+    test "reboot blocked", %{fixture: %{device: device, user: user}, session: session} do
+      Repo.preload(user, :org_users)
+      |> Map.get(:org_users)
+      |> Enum.map(&NervesHubWebCore.Accounts.change_org_user_role(&1, :read))
 
-      user = %{session.user | org_users: org_users}
+      {:ok, view, _html} = mount(Endpoint, Show, session: session)
 
-      {:ok, view, _html} = mount(Endpoint, Show, session: %{session | user: user})
-
-      before_audit_count = AuditLogs.logs_for(session.device) |> length
+      before_audit_count = AuditLogs.logs_for(device) |> length
 
       assert render_change(view, :reboot, %{}) =~ "reboot-blocked"
 
-      after_audit_count = AuditLogs.logs_for(session.device) |> length
+      after_audit_count = AuditLogs.logs_for(device) |> length
 
       assert after_audit_count == before_audit_count + 1
     end
   end
 
   describe "handle_info" do
-    test "presence_diff with no change", session do
+    test "presence_diff with no change", %{session: session} do
       payload = %{joins: %{}, leaves: %{}}
       {:ok, view, html} = mount(Endpoint, Show, session: session)
 
@@ -58,20 +61,15 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
       assert render(view) =~ "offline"
     end
 
-    test "presence_diff with changes", session do
-      payload = %{joins: %{}, leaves: %{"#{session.device.id}" => %{}}}
-      session = %{device: %{session.device | status: "online"}, user: session.user}
+    test "presence_diff with changes", %{fixture: %{device: device}, session: session} do
+      payload = %{joins: %{"#{device.id}" => %{status: "online"}}, leaves: %{}}
       {:ok, view, html} = mount(Endpoint, Show, session: session)
 
-      assert html =~ "online"
-
-      {:ok, device} =
-        Devices.update_device(session.device, %{last_communication: DateTime.utc_now()})
+      assert html =~ "offline"
 
       send(view.pid, %Broadcast{event: "presence_diff", payload: payload})
 
-      assert render(view) =~ "offline"
-      assert render(view) =~ to_string(device.last_communication)
+      assert render(view) =~ "online"
     end
   end
 end

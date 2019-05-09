@@ -41,7 +41,12 @@ defmodule NervesHubWWWWeb do
 
       alias NervesHubWebCore.{Repo, AuditLogs}
       alias NervesHubWWWWeb.Router.Helpers, as: Routes
-      alias NervesHubWWWWeb.Endpoint
+
+      alias NervesHubWWWWeb.{
+        DeviceLive,
+        DeploymentLive,
+        Endpoint
+      }
 
       alias Phoenix.Socket.Broadcast
     end
@@ -55,7 +60,6 @@ defmodule NervesHubWWWWeb do
 
       # Import convenience functions from controllers
       import Phoenix.Controller, only: [get_flash: 2, view_module: 1]
-      import Phoenix.LiveView, only: [live_render: 2, live_render: 3]
 
       # Use all HTML functionality (forms, tags, etc)
       use Phoenix.HTML
@@ -65,7 +69,7 @@ defmodule NervesHubWWWWeb do
       import NervesHubWWWWeb.Gettext
 
       alias NervesHubWWWWeb.Router.Helpers, as: Routes
-      alias NervesHubWWWWeb.Endpoint
+      alias NervesHubWWWWeb.{DeviceLive, DeploymentLive, Endpoint}
     end
   end
 

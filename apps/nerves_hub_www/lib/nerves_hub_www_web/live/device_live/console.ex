@@ -1,7 +1,8 @@
 defmodule NervesHubWWWWeb.DeviceLive.Console do
-  use Phoenix.LiveView
+  use NervesHubWWWWeb, :live_view
 
   alias NervesHubDevice.Presence
+  alias NervesHubWebCore.{Accounts, Accounts.Org, Devices}
   alias Phoenix.Socket.Broadcast
 
   @theme AnsiToHTML.Theme.new(container: :none, "\e[22m": {:text, []})
@@ -10,18 +11,34 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
     NervesHubWWWWeb.DeviceView.render("console.html", assigns)
   end
 
-  def mount(session, socket) do
-    if connected?(socket) do
-      socket.endpoint.subscribe(console_topic(session))
-    end
+  def mount(
+        %{auth_user_id: user_id, current_org_id: org_id, path_params: %{"id" => device_id}},
+        socket
+      ) do
+    case Devices.get_device_by_org(%Org{id: org_id}, device_id) do
+      {:ok, device} ->
+        if connected?(socket) do
+          socket.endpoint.subscribe(console_topic(device))
+        end
 
-    socket
-    |> assign(:active_line, "iex(#{session.username})> ")
-    |> assign(:device, session.device)
-    |> assign(:lines, ["NervesHub IEx Live"])
-    |> assign(:username, session.username)
-    |> assign(:user_role, session.user_role)
-    |> init_iex()
+        {:ok, user} = Accounts.get_user(user_id)
+        user = Repo.preload(user, :org_users)
+        org_user = Enum.find(user.org_users, %{role: :read}, &(&1.org_id == org_id))
+
+        socket
+        |> assign(:active_line, "iex(#{user.username})> ")
+        |> assign(:device, device)
+        |> assign(:lines, ["NervesHub IEx Live"])
+        |> assign(:username, user.username)
+        |> assign(:user_role, org_user.role)
+        |> init_iex()
+
+      {:error, :not_found} ->
+        {:stop,
+         socket
+         |> put_flash(:error, "Device not found")
+         |> redirect(to: "/devices")}
+    end
   end
 
   def handle_event("init_console", _value, socket) do
@@ -99,8 +116,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
     "console:#{device.id}"
   end
 
-  defp console_topic(%{device: device}) do
-    "console:#{device.id}"
+  defp console_topic(%{id: device_id}) do
+    "console:#{device_id}"
   end
 
   defp init_iex(%{assigns: %{device: device, user_role: :admin}} = socket) do

@@ -52,6 +52,10 @@ defmodule NervesHubWWWWeb.AuditLogView do
     "/products"
   end
 
+  def path_for("device", id) do
+    Routes.device_path(Endpoint, DeviceLive.Show, id)
+  end
+
   def path_for("firmware", _id) do
     # TODO: handle product id lookup
     "/products"

@@ -22,5 +22,5 @@
   </div>
 
   <%= submit "Create", class: "btn btn-large btn-primary" %>
-  <a class="btn btn-secondary" href="<%= device_path(@conn, :index) %>">Cancel</a>
+  <a class="btn btn-secondary" href="<%= device_path(@conn, DeviceLive.Index) %>">Cancel</a>
 <% end %>

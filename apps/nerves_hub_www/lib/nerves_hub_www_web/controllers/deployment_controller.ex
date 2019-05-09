@@ -103,18 +103,6 @@ defmodule NervesHubWWWWeb.DeploymentController do
     end
   end
 
-  def show(%{assigns: %{current_org: _org, product: product, user: user}} = conn, %{
-        "id" => deployment_id
-      }) do
-    {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
-
-    conn
-    |> live_render(
-      NervesHubWWWWeb.DeploymentLive.Show,
-      session: %{deployment: deployment, product: product, user: user}
-    )
-  end
-
   def edit(%{assigns: %{current_org: _org, product: product}} = conn, %{"id" => deployment_id}) do
     {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
 
@@ -160,7 +148,15 @@ defmodule NervesHubWWWWeb.DeploymentController do
 
         conn
         |> put_flash(:info, "Deployment updated")
-        |> redirect(to: product_deployment_path(conn, :show, product.id, deployment))
+        |> redirect(
+          to:
+            product_deployment_path(
+              conn,
+              NervesHubWWWWeb.DeploymentLive.Show,
+              product.id,
+              deployment
+            )
+        )
 
       {:error, changeset} ->
         render(

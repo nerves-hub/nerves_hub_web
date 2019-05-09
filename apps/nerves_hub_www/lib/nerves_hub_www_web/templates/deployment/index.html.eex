@@ -34,7 +34,7 @@
               <%= if deployment.is_active, do: "Active", else: "Inactive" %>
             </span>
           </td>
-          <td class="col-1"><a class="btn btn-sm btn-secondary" href="<%= product_deployment_path(@conn, :show, @product.id, deployment.id) %>">Details</a></td>
+          <td class="col-1"><a class="btn btn-sm btn-secondary" href="<%= product_deployment_path(@conn, DeploymentLive.Show, @product.id, deployment.id) %>">Details</a></td>
         </tr>
       <% end %>
     </table>

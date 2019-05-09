@@ -18,8 +18,20 @@ defmodule NervesHubWWWWeb.Router do
     plug(NervesHubWWWWeb.Plugs.FetchOrg)
   end
 
+  pipeline :org_read do
+    plug(NervesHubWebCore.RoleValidateHelpers, org: :read)
+  end
+
+  pipeline :org_write do
+    plug(NervesHubWebCore.RoleValidateHelpers, org: :write)
+  end
+
   pipeline :product_level do
     plug(NervesHubWWWWeb.Plugs.FetchProduct)
+  end
+
+  pipeline :product_read do
+    plug(NervesHubWebCore.RoleValidateHelpers, product: :read)
   end
 
   scope "/", NervesHubWWWWeb do
@@ -79,9 +91,7 @@ defmodule NervesHubWWWWeb.Router do
     post("/account/certificates/create", AccountCertificateController, :create)
     get("/account/certificates/:id/download", AccountCertificateController, :download)
 
-    # :update is handled by DeviceLive.Edit
-    resources("/devices", DeviceController, except: [:update])
-    get("/devices/:id/console", DeviceController, :console)
+    resources("/devices", DeviceController, only: [:create, :delete, :new])
 
     resources "/products", ProductController, except: [:edit, :update] do
       pipe_through(:product_level)
@@ -92,8 +102,46 @@ defmodule NervesHubWWWWeb.Router do
       get("/firmware/download/:id", FirmwareController, :download)
       delete("/firmware/delete/:id", FirmwareController, :delete)
 
-      resources("/deployments", DeploymentController)
+      resources("/deployments", DeploymentController, except: [:show])
     end
+  end
+
+  # LiveView routing could probably use more research and implementation
+  # to integrate better with existing routing patterns. But for now,
+  # let's be explicit here and pipe through role checks before
+  # attempting to mount the LiveView session.
+  scope "/", NervesHubWWWWeb do
+    pipe_through([:browser, :logged_in, :org_write])
+
+    live("/devices/:id/edit", DeviceLive.Edit,
+      as: :device,
+      session: [:auth_user_id, :current_org_id, :path_params]
+    )
+  end
+
+  scope "/", NervesHubWWWWeb do
+    pipe_through([:browser, :logged_in, :org_read])
+
+    live("/devices", DeviceLive.Index, as: :device, session: [:current_org_id])
+
+    live("/devices/:id", DeviceLive.Show,
+      as: :device,
+      session: [:auth_user_id, :current_org_id, :path_params]
+    )
+
+    live("/devices/:id/console", DeviceLive.Console,
+      as: :device,
+      session: [:auth_user_id, :current_org_id, :path_params]
+    )
+  end
+
+  scope "/", NervesHubWWWWeb do
+    pipe_through([:browser, :logged_in, :product_level, :product_read])
+
+    live("/products/:product_id/deployments/:id", DeploymentLive.Show,
+      as: :product_deployment,
+      session: [:auth_user_id, :path_params]
+    )
   end
 
   if Mix.env() in [:dev] do
