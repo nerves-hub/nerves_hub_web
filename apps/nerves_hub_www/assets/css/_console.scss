@@ -5,9 +5,12 @@
   padding: 4px;
   background-color: black;
   color: white;
+  overflow: auto;
+  height: 400px;
 }
 
 .console-active-line {
+  // Somehow fix the active input line spacing here
 }
 
 .console-input {
