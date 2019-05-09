@@ -2,6 +2,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
   alias NervesHubWebCore.{AuditLogs, Deployments, Deployments.Deployment, Fixtures}
+  alias NervesHubWWWWeb.DeploymentLive
 
   describe "index" do
     test "lists all deployments", %{conn: conn, current_user: user, current_org: org} do
@@ -192,7 +193,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       {:ok, reloaded_deployment} = Deployments.get_deployment(product, deployment.id)
 
       assert redirected_to(conn, 302) =~
-               product_deployment_path(conn, :show, product.id, deployment)
+               product_deployment_path(conn, DeploymentLive.Show, product.id, deployment)
 
       assert reloaded_deployment.name == "not original"
       assert reloaded_deployment.conditions["version"] == "4.3.2"

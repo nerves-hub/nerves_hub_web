@@ -1,21 +1,37 @@
 defmodule NervesHubWWWWeb.DeploymentLive.Show do
   use NervesHubWWWWeb, :live_view
 
-  alias NervesHubWebCore.Deployments
+  alias NervesHubWebCore.{Accounts.User, Deployments, Products.Product}
 
   def render(assigns) do
     NervesHubWWWWeb.DeploymentView.render("show.html", assigns)
   end
 
-  def mount(session, socket) do
-    socket =
-      socket
-      |> assign(:deployment, session.deployment)
-      |> assign(:product, session.product)
-      |> assign(:user, session.user)
-      |> audit_log_assigns()
+  def mount(
+        %{
+          auth_user_id: user_id,
+          path_params: %{"id" => deployment_id, "product_id" => product_id}
+        },
+        socket
+      ) do
+    case Deployments.get_deployment(%Product{id: product_id}, deployment_id) do
+      {:ok, deployment} ->
+        socket =
+          socket
+          |> assign(:deployment, deployment)
+          # preloaded get_deployment/2
+          |> assign(:product, deployment.firmware.product)
+          |> assign(:user, %User{id: user_id})
+          |> audit_log_assigns()
 
-    {:ok, socket}
+        {:ok, socket}
+
+      {:error, :not_found} ->
+        {:stop,
+         socket
+         |> put_flash(:error, "Deployment not found")
+         |> redirect(to: Routes.product_deployment_path(socket, :index, product_id))}
+    end
   end
 
   def handle_event(

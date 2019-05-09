@@ -1,4 +1,8 @@
 defmodule NervesHubWebCore.RoleValidateHelpers do
+  def init(opts), do: opts
+
+  def call(conn, opts), do: validate_role(conn, opts)
+
   def validate_role(%{assigns: %{org: org, user: user}} = conn, org: role) do
     validate_org_user_role(conn, org, user, role)
   end

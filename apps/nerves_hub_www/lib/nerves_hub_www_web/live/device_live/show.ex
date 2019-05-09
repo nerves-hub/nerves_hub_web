@@ -3,7 +3,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
 
   alias NervesHubDevice.Presence
 
-  alias NervesHubWebCore.{AuditLogs, Devices, Devices.Device}
+  alias NervesHubWebCore.{Accounts, Accounts.Org, AuditLogs, Devices, Devices.Device, Repo}
 
   alias Phoenix.Socket.Broadcast
 
@@ -11,19 +11,33 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     NervesHubWWWWeb.DeviceView.render("show.html", assigns)
   end
 
-  def mount(session, socket) do
-    socket =
-      socket
-      |> assign(:device, sync_device(session))
-      |> assign(:user, session.user)
-      |> audit_log_assigns()
+  def mount(
+        %{auth_user_id: user_id, current_org_id: org_id, path_params: %{"id" => device_id}},
+        socket
+      ) do
+    case Devices.get_device_by_org(%Org{id: org_id}, device_id) do
+      {:ok, device} ->
+        if connected?(socket) do
+          socket.endpoint.subscribe("device:#{device.id}")
+          socket.endpoint.subscribe("devices:#{org_id}")
+        end
 
-    if connected?(socket) do
-      socket.endpoint.subscribe("device:#{session.device.id}")
-      socket.endpoint.subscribe("devices:#{session.device.org_id}")
+        {:ok, user} = Accounts.get_user(user_id)
+
+        socket =
+          socket
+          |> assign(:device, sync_device(device))
+          |> assign(:user, user)
+          |> audit_log_assigns()
+
+        {:ok, socket}
+
+      {:error, :not_found} ->
+        {:stop,
+         socket
+         |> put_flash(:error, "Device not found")
+         |> redirect(to: "/devices")}
     end
-
-    {:ok, socket}
   end
 
   def handle_info(
@@ -37,6 +51,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
   def handle_info(_unknown, socket), do: {:noreply, socket}
 
   def handle_event("reboot", _value, %{assigns: %{device: device, user: user}} = socket) do
+    user = Repo.preload(user, :org_users)
+
     case Enum.find(user.org_users, &(&1.org_id == device.org_id)) do
       %{role: :admin} -> do_reboot(socket, :allowed)
       _ -> do_reboot(socket, :blocked)

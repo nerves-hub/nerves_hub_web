@@ -13,7 +13,7 @@
   <a class="btn btn-lg btn-primary pull-right" href="<%= product_firmware_path(@conn, :index, @product.id) %>">
  View Firmware
   </a>
-  <a class="btn btn-lg btn-primary pull-right" href="<%= device_path(@conn, :index) %>">
+  <a class="btn btn-lg btn-primary pull-right" href="<%= device_path(@conn, DeviceLive.Index) %>">
  View Devices
   </a>
   <a class="btn btn-lg btn-primary pull-right" href="<%= product_deployment_path(@conn, :index, @product) %>">

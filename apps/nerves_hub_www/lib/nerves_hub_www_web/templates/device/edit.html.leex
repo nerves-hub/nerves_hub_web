@@ -22,7 +22,7 @@
 
   <%= submit "Update Tags", class: "btn btn-primary", disabled: @changeset.errors != [] %>
 
-  <a class="btn btn-secondary" href="<%= device_path(@socket, :index) %>">
+  <a class="btn btn-secondary" href=<%= device_path(@socket, DeviceLive.Show, @device) %>>
     Cancel
   </a>
 <% end %>

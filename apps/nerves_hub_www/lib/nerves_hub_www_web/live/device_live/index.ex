@@ -2,6 +2,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   use Phoenix.LiveView
 
   alias NervesHubDevice.Presence
+  alias NervesHubWebCore.Devices
+  alias NervesHubWebCore.Accounts.Org
 
   alias Phoenix.Socket.Broadcast
 
@@ -9,16 +11,16 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     NervesHubWWWWeb.DeviceView.render("index.html", assigns)
   end
 
-  def mount(session, socket) do
+  def mount(%{current_org_id: org_id}, socket) do
+    if connected?(socket) do
+      socket.endpoint.subscribe("devices:#{org_id}")
+    end
+
     socket =
       socket
-      |> assign(:devices, assign_statuses(session))
+      |> assign(:devices, assign_statuses(org_id))
       |> assign(:current_sort, "identifier")
       |> assign(:sort_direction, :asc)
-
-    if connected?(socket) do
-      socket.endpoint.subscribe("devices:#{session.org_id}")
-    end
 
     {:ok, socket}
   end
@@ -66,9 +68,10 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
-  defp assign_statuses(%{devices: devices, org_id: org_id}) do
-    presences = Presence.list("devices:#{org_id}")
-    sync_devices(devices, %{joins: presences, leaves: %{}})
+  defp assign_statuses(org_id) do
+    %Org{id: org_id}
+    |> Devices.get_devices()
+    |> sync_devices(%{joins: Presence.list("devices:#{org_id}"), leaves: %{}})
   end
 
   defp do_sort(%{assigns: %{devices: devices, current_sort: current_sort}} = socket) do

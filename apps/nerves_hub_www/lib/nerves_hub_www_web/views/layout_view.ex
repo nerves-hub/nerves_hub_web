@@ -8,7 +8,7 @@ defmodule NervesHubWWWWeb.LayoutView do
     if has_org_role?(org, user, :read) do
       [
         {"Products", product_path(conn, :index)},
-        {"All Devices", device_path(conn, :index)}
+        {"All Devices", device_path(conn, DeviceLive.Index)}
       ]
     else
       [
