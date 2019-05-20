@@ -4,7 +4,11 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
   import Ecto.Changeset
   import EctoEnum
 
-  alias NervesHubWebCore.Types.Resource
+  alias NervesHubWebCore.{
+    Deployments.Deployment,
+    Repo,
+    Types.Resource
+  }
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @required_params [:action, :actor_id, :actor_type, :params, :resource_id, :resource_type]
@@ -24,14 +28,14 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
     timestamps(updated_at: false)
   end
 
-  def build(%actor_type{id: actor_id}, %resource_type{id: resource_id} = resource, action, params) do
+  def build(%actor_type{} = actor, %resource_type{} = resource, action, params) do
     %__MODULE__{
       action: action,
-      actor_id: actor_id,
+      actor_id: actor.id,
       actor_type: actor_type,
-      resource_id: resource_id,
+      resource_id: resource.id,
       resource_type: resource_type,
-      params: params
+      params: format_params(actor, resource, action, params)
     }
     |> add_changes(resource)
   end
@@ -62,4 +66,17 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
   end
 
   defp add_changes(audit_log, _resource), do: audit_log
+
+  defp format_params(
+         %Deployment{} = deployment,
+         _resource,
+         _action,
+         %{send_update_message: true} = params
+       ) do
+    # preload if missing, otherwise skip
+    deployment = Repo.preload(deployment, :firmware)
+    Map.put(params, :firmware_uuid, deployment.firmware.uuid)
+  end
+
+  defp format_params(_actor, _resource, _action, params), do: params
 end
