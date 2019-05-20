@@ -260,20 +260,39 @@ defmodule NervesHubWebCore.DeploymentsTest do
 
       assert Deployments.failure_threshold_met?(deployment)
     end
+  end
 
-    test "failure_rate_met?", %{deployment: deployment, firmware: firmware, org: org} do
-      # Create multi AuditLogs to signify same device attempting to apply
+  describe "failure_rate_met?" do
+    setup context do
+      # Create multi AuditLogs for deployment 1 to signify same device attempting to apply
       # the same update but failing
       Enum.each(1..5, fn i ->
-        device = Fixtures.device_fixture(org, firmware)
-        al = AuditLog.build(deployment, device, :update, %{send_update_message: true})
+        device = Fixtures.device_fixture(context.org, context.firmware)
+        al = AuditLog.build(context.deployment, device, :update, %{send_update_message: true})
         time = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
         Repo.insert(al)
         Repo.insert(%{al | inserted_at: Timex.shift(time, seconds: i)})
         Repo.insert(%{al | inserted_at: Timex.shift(time, seconds: i + 5)})
       end)
 
+      context
+    end
+
+    test "when failure rate exceeded", %{deployment: deployment} do
       assert Deployments.failure_rate_met?(deployment)
+    end
+
+    test "skips failures that don't match deployment and firmware", %{
+      deployment: deployment,
+      firmware2: firmware2
+    } do
+      assert Deployments.failure_rate_met?(deployment)
+
+      # Simulate updating a deployment with new firmware. So existing failures
+      # tied to old firmware will not be counted in the rate check
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{firmware_id: firmware2.id})
+
+      refute Deployments.failure_rate_met?(deployment)
     end
   end
 end

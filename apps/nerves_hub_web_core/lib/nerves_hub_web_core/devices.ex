@@ -346,51 +346,23 @@ defmodule NervesHubWebCore.Devices do
   def matches_deployment?(_, _), do: false
 
   @spec failure_threshold_met?(Device.t(), Deployment.t()) :: boolean()
-  def failure_threshold_met?(
-        %Device{id: device_id},
-        %Deployment{id: deployment_id, device_failure_threshold: threshold}
-      ) do
-    from(
-      al in AuditLog,
-      where: [
-        actor_id: ^deployment_id,
-        actor_type: ^to_string(Deployment),
-        resource_type: ^to_string(Device),
-        resource_id: ^device_id
-      ],
-      where: fragment("(params->>'send_update_message' = 'true')"),
-      # Handle edge case we may make 2 audit log events at the same time
-      distinct: true,
-      select: al.inserted_at
-    )
+  def failure_threshold_met?(%Device{} = device, %Deployment{} = deployment) do
+    failures_query(device, deployment)
     |> Repo.all()
     |> length()
-    |> Kernel.>=(threshold)
+    |> Kernel.>=(deployment.device_failure_threshold)
   end
 
   @spec failure_rate_met?(Device.t(), Deployment.t()) :: boolean()
-  def failure_rate_met?(%Device{id: device_id}, %Deployment{
-        id: deployment_id,
-        device_failure_rate_amount: rate_amount,
-        device_failure_rate_seconds: rate_seconds
-      }) do
-    from(
-      al in AuditLog,
-      where: [
-        actor_id: ^deployment_id,
-        actor_type: ^to_string(Deployment),
-        resource_type: ^to_string(Device),
-        resource_id: ^device_id
-      ],
-      where: fragment("(params->>'send_update_message' = 'true')"),
-      where: al.inserted_at >= ^Timex.shift(DateTime.utc_now(), seconds: -rate_seconds),
-      # Handle edge case we may make 2 audit log events at the same time
-      distinct: true,
-      select: al.inserted_at
-    )
+  def failure_rate_met?(%Device{} = device, %Deployment{} = deployment) do
+    seconds_ago =
+      Timex.shift(DateTime.utc_now(), seconds: -deployment.device_failure_rate_seconds)
+
+    failures_query(device, deployment)
+    |> where([al], al.inserted_at >= ^seconds_ago)
     |> Repo.all()
     |> length()
-    |> Kernel.>=(rate_amount)
+    |> Kernel.>=(deployment.device_failure_rate_amount)
   end
 
   def verify_update_eligibility(%{healthy: false} = device, _deployment) do
@@ -418,6 +390,31 @@ defmodule NervesHubWebCore.Devices do
       true ->
         {:ok, device}
     end
+  end
+
+  defp failures_query(%Device{id: device_id}, %Deployment{id: deployment_id} = deployment) do
+    deployment = Repo.preload(deployment, :firmware)
+
+    from(
+      al in AuditLog,
+      where: [
+        actor_id: ^deployment_id,
+        actor_type: ^to_string(Deployment),
+        resource_type: ^to_string(Device),
+        resource_id: ^device_id
+      ],
+      where:
+        fragment(
+          """
+          (params->>'firmware_uuid' = ?) AND
+          (params->>'send_update_message' = 'true')
+          """,
+          ^deployment.firmware.uuid
+        ),
+      # Handle edge case we may make 2 audit log events at the same time
+      distinct: true,
+      select: al.inserted_at
+    )
   end
 
   defp version_match?(_vsn, ""), do: true

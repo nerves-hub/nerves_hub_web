@@ -111,13 +111,21 @@ defmodule NervesHubWebCore.Deployments do
 
   @spec failure_rate_met?(Deployment.t()) :: boolean()
   def failure_rate_met?(%Deployment{} = deployment) do
+    deployment = Repo.preload(deployment, :firmware)
     rate_seconds_ago = Timex.shift(DateTime.utc_now(), seconds: -deployment.failure_rate_seconds)
 
     from(
       al in NervesHubWebCore.AuditLogs.AuditLog,
       where: [actor_type: ^to_string(Deployment), resource_type: ^to_string(Devices.Device)],
       where: al.actor_id == ^deployment.id,
-      where: fragment("(params->>'send_update_message' = 'true')"),
+      where:
+        fragment(
+          """
+          (params->>'firmware_uuid' = ?) AND
+          (params->>'send_update_message' = 'true')
+          """,
+          ^deployment.firmware.uuid
+        ),
       where: al.inserted_at >= ^rate_seconds_ago,
       group_by: :resource_id,
       having: count(al.resource_id) > 2,
