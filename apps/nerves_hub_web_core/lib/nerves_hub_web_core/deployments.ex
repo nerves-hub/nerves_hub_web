@@ -1,6 +1,7 @@
 defmodule NervesHubWebCore.Deployments do
   import Ecto.Query
 
+  alias NervesHubWebCore.AuditLogs
   alias NervesHubWebCore.Deployments.Deployment
   alias NervesHubWebCore.Firmwares
   alias NervesHubWebCore.Devices
@@ -169,10 +170,25 @@ defmodule NervesHubWebCore.Deployments do
   end
 
   def verify_eligibility(%Deployment{} = deployment) do
-    if failure_rate_met?(deployment) || failure_threshold_met?(deployment) do
-      update_deployment(deployment, %{healthy: false})
-    else
-      {:ok, deployment}
+    cond do
+      failure_rate_met?(deployment) ->
+        AuditLogs.audit!(deployment, deployment, :update, %{
+          healthy: false,
+          reason: "failure rate met"
+        })
+
+        update_deployment(deployment, %{healthy: false})
+
+      failure_threshold_met?(deployment) ->
+        AuditLogs.audit!(deployment, deployment, :update, %{
+          healthy: false,
+          reason: "failure threshold met"
+        })
+
+        update_deployment(deployment, %{healthy: false})
+
+      true ->
+        {:ok, deployment}
     end
   end
 
