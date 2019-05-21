@@ -3,8 +3,10 @@
 }
 
 .audit-log-time {
+  color: rgb(149, 156, 166);
   font-size: 12px;
   font-style: italic;
+  margin-top: 5px;
 }
 
 .audit-log-actor {
@@ -29,4 +31,37 @@
 #audit-log-feed {
   height: 500px;
   overflow: auto;
+}
+
+.audit-log-item {
+  padding-bottom: 20px;
+  padding-left: 20px;
+  margin-left: 20px;
+  border-left-width: 1px;
+  border-left-style: solid;
+  border-left-color: rgb(223, 227, 232);
+  position: relative;
+  line-height: 1.3em;
+  cursor: pointer;
+}
+
+.audit-log-feed-icon {
+  background-color: rgb(79, 75, 71);
+  border: 3px solid rgb(232, 96, 48);
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  border-bottom-left-radius: 10px;
+  width: 10px;
+  height: 10px;
+  position: absolute;
+  top: 5px;
+  left: -5px;
+}
+
+.audit-log-date {
+  margin-top: 5px;
+  font-family: ProximaNovaRegularItalic, Helvetica, Arial, sans-serif;
+  color: rgb(149, 156, 166);
+  font-size: 11px;
 }

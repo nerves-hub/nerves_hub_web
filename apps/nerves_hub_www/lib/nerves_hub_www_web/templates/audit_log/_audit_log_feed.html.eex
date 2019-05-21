@@ -1,22 +1,11 @@
 <h4>Audit Logs</h4>
 <div id="audit-log-feed">
-  <%= for audit_log <- @audit_logs do %>
-    <div class="">
-      <div data-toggle="collapse" data-target='#<%= String.replace(audit_log.id, ~r/\d/, "") %>' aria-expanded="true">
-        <div class="card-header">
-          <%= audit_log_icon(audit_log) %>
-          <span class="audit-log-actor"><%= actor_link(audit_log, assigns[:resource_id]) %></span>
-          <i class="fas fa-long-arrow-alt-right"></i>
-          <span class="audit-log-resource"><%= resource_link(audit_log, assigns[:resource_id]) %></span>
-          <span class="audit-log-time"><%= audit_log.inserted_at %></span>
-        </div>
-      </div>
 
-      <div id='<%= String.replace(audit_log.id, ~r/\d/, "") %>' class="collapse" aria-labelledby="headingOne" data-parent="#audit-log-feed">
-        <div class="card-body">
-          <%= audit_log_info(audit_log) %>
-        </div>
-      </div>
+  <%= for audit_log <- @audit_logs do %>
+    <div class="audit-log-item" id='<%= audit_log.id %>' title='<%= inspect(audit_log.changes) %>'>
+      <div class="audit-log-feed-icon"></div>
+      <%= audit_log.description %>
+      <div class="audit-log-time"><%= audit_log.inserted_at %></div>
     </div>
   <% end %>
 </div>
