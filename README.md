@@ -23,6 +23,16 @@ Elixir >= 1.7, Erlang 21, and NodeJS.
 
 You'll also need `fwup` and can follow [these installation instructions](https://github.com/fhunleth/fwup#installing) for your platform if needed.
 
+The instructions below use `asdf` which can be installed with the
+instructions below ([copied from asdf-vm.com](https://asdf-vm.com/#/core-manage-asdf-vm))
+
+```
+git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.7.1
+# The following steps are for Bash, which is usually the default shell
+# If you’re using something else, you probably know the equivalent thing you need to do echo -e '\n. $HOME/.asdf/asdf.sh' >> ~/.bashrc
+echo -e '\n. $HOME/.asdf/completions/asdf.bash' >> ~/.bashrc
+```
+
 Here are steps for the NodeJS setup if you're using `asdf`:
 
 ```sh
