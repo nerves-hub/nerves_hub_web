@@ -72,6 +72,19 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
       assert render(view) =~ "Howdy"
     end
 
+    test "put_chars with binary list", %{session: session} do
+      list_line = [72, 111, 119, 100, 121, 32, 'Partner']
+
+      {:ok, view, html} = mount(Endpoint, Console, session: session)
+
+      refute html =~ "Howdy Partner"
+
+      msg = %Broadcast{event: "put_chars", payload: %{"data" => list_line}}
+      send(view.pid, msg)
+
+      assert render(view) =~ "Howdy Partner"
+    end
+
     test "get_line", %{current_user: user, session: session} do
       {:ok, view, html} = mount(Endpoint, Console, session: session)
 
