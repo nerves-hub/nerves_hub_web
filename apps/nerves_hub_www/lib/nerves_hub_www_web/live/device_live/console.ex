@@ -84,7 +84,13 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
         %Broadcast{event: "put_chars", payload: %{"data" => line}},
         %{assigns: %{lines: lines}} = socket
       ) do
-    line = AnsiToHTML.generate_phoenix_html(line, @theme)
+    # Lines may come in as a list of characters and/or numbers to represent
+    # a string. So call to_string here just to convert before attempting
+    # any transposing to HTML which relies on strings.
+    line =
+      IO.iodata_to_binary(line)
+      |> AnsiToHTML.generate_phoenix_html(@theme)
+
     new_lines = List.insert_at(lines, -1, line)
     {:noreply, assign(socket, :lines, new_lines)}
   end
