@@ -7,10 +7,14 @@
   color: white;
   overflow: auto;
   height: 400px;
+  line-height: 1;
+  left: auto;
 }
 
 .console-active-line {
   // Somehow fix the active input line spacing here
+  line-height: 0;
+  text-align: left;
 }
 
 .console-input {

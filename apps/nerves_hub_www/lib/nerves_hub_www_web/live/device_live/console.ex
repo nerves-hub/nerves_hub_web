@@ -87,8 +87,15 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
     # Lines may come in as a list of characters and/or numbers to represent
     # a string. So call to_string here just to convert before attempting
     # any transposing to HTML which relies on strings.
+    #
+    # Also, IO :put_chars has to explicitly add newline characters for the
+    # terminal to break each line. However, rendering each line in HTML
+    # already formats each "line" as an element, which already gets rendered
+    # on a newline. So we trim any trailing whitespace or newline here to
+    # prevent line bloat.
     line =
       IO.iodata_to_binary(line)
+      |> String.trim_trailing()
       |> AnsiToHTML.generate_phoenix_html(@theme)
 
     new_lines = List.insert_at(lines, -1, line)
