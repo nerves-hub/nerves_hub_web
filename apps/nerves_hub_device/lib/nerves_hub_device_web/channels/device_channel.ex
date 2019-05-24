@@ -13,7 +13,8 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     Deployments.Deployment,
     Devices,
     Devices.Device,
-    Firmwares
+    Firmwares,
+    Repo
   }
 
   alias NervesHubDevice.Presence
@@ -97,12 +98,13 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   end
 
   def handle_info(%{payload: payload, event: "update"}, socket) do
-    %{deployment_id: deployment_id} = payload
+    {deployment, payload} =
+      Map.pop_lazy(payload, :deployment, fn -> Repo.get(Deployment, payload.deployment_id) end)
 
     # If we get here, the device is connected and high probability it receives
     # the update message so we can Audit and later assert on this audit event
     # as a loosely valid attempt to update
-    AuditLogs.audit!(%Deployment{id: deployment_id}, socket.assigns.device, :update, %{
+    AuditLogs.audit!(deployment, socket.assigns.device, :update, %{
       from: "broadcast",
       send_update_message: true
     })
