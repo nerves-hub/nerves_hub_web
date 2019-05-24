@@ -2,6 +2,7 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
   use NervesHubWWWWeb.ChannelCase
 
   alias NervesHubWebCore.{
+    AuditLogs,
     Deployments,
     Devices,
     Devices.Device,
@@ -9,6 +10,8 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
     Fixtures,
     Repo
   }
+
+  alias Phoenix.Socket.Broadcast
 
   setup do
     {:ok, fixture: Fixtures.very_fixture()}
@@ -89,6 +92,69 @@ defmodule NervesHubWWWWeb.DevicesChannelTest do
       disconnected_device = Repo.get(Device, id)
 
       assert disconnected_device.last_communication != nil
+    end
+  end
+
+  describe "update broadcast" do
+    test "push update from deployment save broadcast", %{fixture: fixture} do
+      connect_device(fixture)
+      {:ok, %{id: deployment_id}} = release_deployment(fixture)
+      assert_push("update", %{deployment_id: ^deployment_id, firmware_url: _})
+    end
+
+    test "audits on update when deployment in payload", %{fixture: fixture} do
+      %{device: device, deployment: deployment, firmware: %{uuid: uuid}} = fixture
+      deployment_id = deployment.id
+
+      payload = %{
+        deployment: deployment,
+        deployment_id: deployment_id,
+        firmware_url: "http://hot-off-the-press-fw/download"
+      }
+
+      %{socket: %{channel_pid: channel}} = connect_device(fixture)
+
+      before_count = AuditLogs.logs_for(device) |> length
+
+      send(channel, %Broadcast{event: "update", payload: payload})
+      assert_push("update", %{deployment_id: ^deployment_id, firmware_url: _})
+
+      logs_after = AuditLogs.logs_for(device)
+
+      assert length(logs_after) == before_count + 1
+
+      assert hd(logs_after).params == %{
+               "from" => "broadcast",
+               "send_update_message" => true,
+               "firmware_uuid" => uuid
+             }
+    end
+
+    test "audits on update when only deployment_id in payload", %{fixture: fixture} do
+      %{device: device, deployment: deployment, firmware: %{uuid: uuid}} = fixture
+      deployment_id = deployment.id
+
+      payload = %{
+        deployment_id: deployment_id,
+        firmware_url: "http://hot-off-the-press-fw/download"
+      }
+
+      %{socket: %{channel_pid: channel}} = connect_device(fixture)
+
+      before_count = AuditLogs.logs_for(device) |> length
+
+      send(channel, %Broadcast{event: "update", payload: payload})
+      assert_push("update", %{deployment_id: ^deployment_id, firmware_url: _})
+
+      logs_after = AuditLogs.logs_for(device)
+
+      assert length(logs_after) == before_count + 1
+
+      assert hd(logs_after).params == %{
+               "from" => "broadcast",
+               "send_update_message" => true,
+               "firmware_uuid" => uuid
+             }
     end
   end
 
