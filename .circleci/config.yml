@@ -90,7 +90,7 @@ jobs:
           DATABASE_URL: postgres://db:db@localhost:5432/db
           SECRET_KEY_BASE: ${SECRET_KEY_BASE:-BGC824f8kh1IQPXK7bUmXDigrw404rA7rivR96vGv4bhMIRogiaFN7Z6R4duZClA}
           LIVE_VIEW_SIGNING_SALT: ${LIVE_VIEW_SIGNING_SALT:-2GiUN2NDLEnYT8I/3Q+XL6LGUGEKGogh}
-          COVERALLS_REPO_TOKEN: Nr7FBmOwSsr0nuQT6VsK3UHaet9PWM8Sk
+          COVERALLS_REPO_TOKEN: d0tv7mujBMfH2pTBsKYSWLU2ZbAcRSw63
       - image: circleci/postgres:10.1-alpine
         environment:
           POSTGRES_USER: db
