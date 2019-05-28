@@ -28,7 +28,7 @@
         <tr class="item d-flex">
           <td class="col-3"><span><%= deployment.name %></span></td>
           <td class="col-2"><span><%= firmware_display_name(deployment.firmware) %></span></td>
-          <td class="col-4"><span class="pre-scrollable"><%= deployment.conditions |> Poison.encode!() %></pre></td>
+          <td class="col-4"><span class="pre-scrollable"><%= deployment.conditions |> Jason.encode!() %></pre></td>
           <td class="col-2">
             <span class="label label-<%= if deployment.is_active, do: "success", else: "default" %>">
               <%= if deployment.is_active, do: "Active", else: "Inactive" %>

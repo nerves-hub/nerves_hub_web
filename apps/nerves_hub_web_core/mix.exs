@@ -49,8 +49,6 @@ defmodule NervesHubWebCore.MixProject do
       {:postgrex, "~> 0.14"},
       {:bcrypt_elixir, "~> 1.0"},
       {:comeonin, "~> 4.1"},
-      # poison can be removed once a new release of postgrex is made
-      {:poison, "~> 3.0"},
       {:quantum, "~> 2.3"},
       {:timex, "~> 3.1"},
       {:jason, "~> 1.0"},
