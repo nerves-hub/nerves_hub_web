@@ -467,6 +467,28 @@ defmodule NervesHubWebCore.DevicesTest do
       assert Devices.send_update_message(device, %{deployment | conditions: conditions}) ==
                {:error, :invalid_deployment_for_device}
     end
+
+    test "broadcasts update message", %{deployment: deployment, device: device} do
+      require Phoenix.ChannelTest
+      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
+
+      deployment =
+        %{deployment | conditions: %{"tags" => device.tags, "version" => "< 2.0.0"}}
+        # preload so that we can correctly match
+        |> Repo.preload(:firmware)
+
+      assert {:ok, ^device} = Devices.send_update_message(device, deployment)
+      deployment_id = deployment.id
+
+      Phoenix.ChannelTest.assert_broadcast(
+        "update",
+        %{
+          deployment: ^deployment,
+          deployment_id: ^deployment_id,
+          firmware_url: _
+        }
+      )
+    end
   end
 
   describe "resolve_update" do
