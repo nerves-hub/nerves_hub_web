@@ -45,6 +45,7 @@ defmodule NervesHubAPI.Mixfile do
       {:distillery, "~> 2.0"},
       {:cowboy, "~> 2.1", override: true},
       {:rollbax, "~> 0.10.0"},
+      {:jason, "~> 1.0"},
       {:nerves_hub_device, in_umbrella: true},
       {:nerves_hub_web_core, in_umbrella: true}
     ]

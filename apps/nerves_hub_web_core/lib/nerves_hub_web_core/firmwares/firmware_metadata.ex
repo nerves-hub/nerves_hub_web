@@ -20,6 +20,7 @@ defmodule NervesHubWebCore.Firmwares.FirmwareMetadata do
     :misc
   ]
 
+  @derive Jason.Encoder
   embedded_schema do
     field(:uuid)
     field(:product)
