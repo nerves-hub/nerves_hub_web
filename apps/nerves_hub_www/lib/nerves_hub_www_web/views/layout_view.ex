@@ -28,7 +28,7 @@ defmodule NervesHubWWWWeb.LayoutView do
 
   def logo_href(conn) do
     if logged_in?(conn) do
-      dashboard_path(conn, :index)
+      product_path(conn, :index)
     else
       home_path(conn, :index)
     end
