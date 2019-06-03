@@ -28,6 +28,8 @@ config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.LocalAdapter
 
 config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: true
 
+config :phoenix, :json_library, Jason
+
 config :phoenix, :template_engines,
   md: PhoenixMarkdown.Engine,
   leex: Phoenix.LiveView.Engine

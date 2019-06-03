@@ -67,6 +67,7 @@ defmodule NervesHubWWW.MixProject do
       {:distillery, "~> 2.0"},
       {:rollbax, "~> 0.10.0"},
       {:floki, "~> 0.20", only: [:test, :dev]},
+      {:jason, "~> 1.0"},
       {:nerves_hub_web_core, in_umbrella: true},
       {:nerves_hub_device, in_umbrella: true},
       {:ansi_to_html, git: "https://github.com/jjcarstens/ansi_to_html"},
