@@ -15,7 +15,7 @@ defmodule NervesHubWWWWeb.SessionController do
 
       _ ->
         conn
-        |> redirect(to: dashboard_path(conn, :index))
+        |> redirect(to: product_path(conn, :index))
     end
   end
 
@@ -27,7 +27,7 @@ defmodule NervesHubWWWWeb.SessionController do
         conn
         |> put_session(@session_key, user_id)
         |> put_session("current_org_id", def_org.id)
-        |> redirect(to: dashboard_path(conn, :index))
+        |> redirect(to: product_path(conn, :index))
 
       {:error, :authentication_failed} ->
         conn
@@ -49,10 +49,10 @@ defmodule NervesHubWWWWeb.SessionController do
                   |> Enum.map(fn x -> x.id end)) do
       conn
       |> put_session("current_org_id", org_id)
-      |> redirect(to: dashboard_path(conn, :index))
+      |> redirect(to: product_path(conn, :index))
     else
       conn
-      |> redirect(to: dashboard_path(conn, :index))
+      |> redirect(to: product_path(conn, :index))
     end
   end
 end

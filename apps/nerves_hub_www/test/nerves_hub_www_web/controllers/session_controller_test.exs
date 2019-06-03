@@ -35,7 +35,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
         )
 
       conn = put(conn, session_path(conn, :set_org, org: org))
-      assert redirected_to(conn) == dashboard_path(conn, :index)
+      assert redirected_to(conn) == product_path(conn, :index)
       assert get_session(conn, "current_org_id") == org.id
     end
   end
@@ -46,7 +46,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
 
       result_conn = put(conn, session_path(conn, :set_org, org: new_org))
 
-      assert redirected_to(result_conn) == dashboard_path(result_conn, :index)
+      assert redirected_to(result_conn) == product_path(result_conn, :index)
       assert get_session(result_conn, "current_org_id") == new_org.id
     end
 
@@ -58,7 +58,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
       new_org = Fixtures.org_fixture(new_user, %{name: "this org"})
       conn = put(conn, session_path(conn, :set_org, org: new_org))
 
-      assert redirected_to(conn) == dashboard_path(conn, :index)
+      assert redirected_to(conn) == product_path(conn, :index)
       assert get_session(conn, "current_org_id") == org.id
     end
   end

@@ -71,8 +71,6 @@ defmodule NervesHubWWWWeb.Router do
 
     put("/set_org", SessionController, :set_org)
 
-    resources("/dashboard", DashboardController, only: [:index])
-
     get("/org/invite", OrgController, :invite)
     post("/org/invite", OrgController, :send_invite)
     get("/org/certificates", OrgCertificateController, :index)
