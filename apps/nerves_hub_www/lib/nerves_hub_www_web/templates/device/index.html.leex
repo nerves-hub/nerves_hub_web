@@ -57,7 +57,7 @@
           </td>
           <td class="col-2">
             <%= link "Edit", class: "btn btn-info", to: device_path(@socket, DeviceLive.Edit, device) %>
-            <%= link "Delete", class: "btn btn-danger", to: device_path(@socket, :delete, device), method: :delete, data: [confirm: "Are you sure?"]%>
+            <%= link "Delete", class: "btn btn-danger", to: device_path(@socket, :delete, device), method: :delete, data: [confirm: "Are you sure?", csrf: @csrf_token] %>
           </td>
         </tr>
       <% end %>

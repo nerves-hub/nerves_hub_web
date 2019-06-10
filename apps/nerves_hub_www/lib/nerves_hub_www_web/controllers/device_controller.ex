@@ -7,6 +7,18 @@ defmodule NervesHubWWWWeb.DeviceController do
 
   plug(:validate_role, [org: :delete] when action in [:delete])
   plug(:validate_role, [org: :write] when action in [:new, :create])
+  plug(:validate_role, [org: :read] when action in [:index])
+
+  def index(%{assigns: %{current_org: org}} = conn, _params) do
+    conn
+    |> live_render(
+      NervesHubWWWWeb.DeviceLive.Index,
+      # We need to pass csrf_token here so that we can use
+      # the delete button from the index.
+      # see https://github.com/phoenixframework/phoenix_live_view/issues/111
+      session: %{org_id: org.id, csrf_token: get_csrf_token()}
+    )
+  end
 
   def new(%{assigns: %{current_org: _org}} = conn, _params) do
     conn
@@ -23,7 +35,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     |> case do
       {:ok, _device} ->
         conn
-        |> redirect(to: device_path(conn, NervesHubWWWWeb.DeviceLive.Index))
+        |> redirect(to: device_path(conn, :index))
 
       {:error, changeset} ->
         conn
@@ -39,6 +51,6 @@ defmodule NervesHubWWWWeb.DeviceController do
 
     conn
     |> put_flash(:info, "device deleted successfully.")
-    |> redirect(to: device_path(conn, NervesHubWWWWeb.DeviceLive.Index))
+    |> redirect(to: device_path(conn, :index))
   end
 end
