@@ -91,7 +91,7 @@ defmodule NervesHubWWWWeb.Router do
     post("/account/certificates/create", AccountCertificateController, :create)
     get("/account/certificates/:id/download", AccountCertificateController, :download)
 
-    resources("/devices", DeviceController, only: [:create, :delete, :new])
+    resources("/devices", DeviceController, only: [:index, :create, :delete, :new])
 
     resources "/products", ProductController, except: [:edit, :update] do
       pipe_through(:product_level)
@@ -121,8 +121,6 @@ defmodule NervesHubWWWWeb.Router do
 
   scope "/", NervesHubWWWWeb do
     pipe_through([:browser, :logged_in, :org_read])
-
-    live("/devices", DeviceLive.Index, as: :device, session: [:current_org_id])
 
     live("/devices/:id", DeviceLive.Show,
       as: :device,

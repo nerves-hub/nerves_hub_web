@@ -11,7 +11,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     NervesHubWWWWeb.DeviceView.render("index.html", assigns)
   end
 
-  def mount(%{current_org_id: org_id}, socket) do
+  def mount(%{org_id: org_id, csrf_token: csrf_token}, socket) do
     if connected?(socket) do
       socket.endpoint.subscribe("devices:#{org_id}")
     end
@@ -20,6 +20,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       socket
       |> assign(:devices, assign_statuses(org_id))
       |> assign(:current_sort, "identifier")
+      |> assign(:csrf_token, csrf_token)
       |> assign(:sort_direction, :asc)
 
     {:ok, socket}
