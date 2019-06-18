@@ -304,12 +304,6 @@ defmodule NervesHubWebCore.FirmwaresTest do
       assert {:ok, _transfer} = Fixtures.firmware_transfer_fixture(org.id, "12345")
     end
 
-    test "cannot create same record twice", %{user: user} do
-      org = Fixtures.org_fixture(user, %{name: "transfer-dup"})
-      assert {:ok, _transfer} = Fixtures.firmware_transfer_fixture(org.id, "12345")
-      assert {:error, _error} = Fixtures.firmware_transfer_fixture(org.id, "12345")
-    end
-
     test "cannot create records for orgs that do not exist" do
       assert {:error, _} = Fixtures.firmware_transfer_fixture(9_999_999_999, "12345")
     end

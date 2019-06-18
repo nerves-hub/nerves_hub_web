@@ -32,9 +32,5 @@ defmodule NervesHubWebCore.Firmwares.FirmwareTransfer do
     |> cast(params, @params)
     |> validate_required(@params)
     |> foreign_key_constraint(:org_id, name: :firmware_transfers_org_id_fkey)
-    |> unique_constraint(:remote_ip,
-      name: :firmware_transfers_unique_index,
-      message: "record already exists"
-    )
   end
 end
