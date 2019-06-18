@@ -38,6 +38,17 @@ defmodule NervesHubWebCore.Devices do
     |> Repo.all()
   end
 
+  def get_device_count_by_org_id(org_id) do
+    q =
+      from(
+        d in Device,
+        where: d.org_id == ^org_id,
+        select: count(d)
+      )
+
+    Repo.one!(q)
+  end
+
   defp device_by_org_query(org_id, device_id) do
     from(
       d in Device,

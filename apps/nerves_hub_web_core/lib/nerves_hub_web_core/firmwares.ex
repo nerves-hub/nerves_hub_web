@@ -40,6 +40,18 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
+  @spec get_firmware_by_org_id(non_neg_integer()) :: [Firmware.t()]
+  def get_firmware_by_org_id(org_id) do
+    q =
+      from(
+        f in Firmware,
+        join: p in assoc(f, :product),
+        where: p.org_id == ^org_id
+      )
+
+    Repo.all(q)
+  end
+
   @spec get_firmware_by_product_and_version(Org.t(), String.t(), String.t()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
@@ -275,6 +287,19 @@ defmodule NervesHubWebCore.Firmwares do
     %FirmwareTransfer{}
     |> FirmwareTransfer.changeset(params)
     |> Repo.insert()
+  end
+
+  def get_firmware_transfers_by_org_id_between_dates(org_id, from_datetime, to_datetime) do
+    q =
+      from(
+        ft in FirmwareTransfer,
+        where:
+          ft.org_id == ^org_id and
+            ft.timestamp >= ^from_datetime and
+            ft.timestamp <= ^to_datetime
+      )
+
+    Repo.all(q)
   end
 
   # Private functions

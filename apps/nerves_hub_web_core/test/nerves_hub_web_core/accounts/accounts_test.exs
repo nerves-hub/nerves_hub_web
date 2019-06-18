@@ -310,4 +310,58 @@ defmodule NervesHubWebCore.AccountsTest do
     orgs = Accounts.get_user_orgs_with_product_role(user, :read)
     assert orgs == Enum.uniq(orgs)
   end
+
+  describe "org_metrics" do
+    setup [:setup_org_metric]
+
+    test "create", %{org: org, firmware: firmware} do
+      to = DateTime.utc_now()
+      from = Timex.shift(to, days: -1)
+
+      assert {:ok, org_metric} = Accounts.create_org_metric(org.id, from, to)
+      assert org_metric.devices == 1
+      assert org_metric.bytes_stored == firmware.size
+      assert org_metric.bytes_transferred == firmware.size
+    end
+
+    test "firmware transfers are limited to run range", %{org: org, firmware: firmware} do
+      to = DateTime.utc_now()
+      from = Timex.shift(to, days: -1)
+
+      # Timestamp precision is seconds. Sleep for about 1
+      :timer.sleep(1100)
+
+      _ = create_firmware_transfer(org, firmware)
+
+      assert {:ok, org_metric} = Accounts.create_org_metric(org.id, from, to)
+      assert org_metric.devices == 1
+      assert org_metric.bytes_stored == firmware.size
+      assert org_metric.bytes_transferred == firmware.size
+    end
+  end
+
+  def setup_org_metric(%{user: user}) do
+    org = Fixtures.org_fixture(user)
+    product = Fixtures.product_fixture(user, org)
+    org_key = Fixtures.org_key_fixture(org)
+    firmware = Fixtures.firmware_fixture(org_key, product)
+    device = Fixtures.device_fixture(org, firmware)
+    _ = create_firmware_transfer(org, firmware)
+
+    [org: org, product: product, org_key: org_key, firmware: firmware, device: device]
+  end
+
+  def create_firmware_transfer(org, firmware) do
+    {:ok, firmware_transfer} =
+      NervesHubWebCore.Firmwares.create_firmware_transfer(%{
+        org_id: org.id,
+        firmware_uuid: firmware.uuid,
+        bytes_sent: firmware.size,
+        bytes_total: firmware.size,
+        remote_ip: "127.0.0.1",
+        timestamp: DateTime.utc_now()
+      })
+
+    firmware_transfer
+  end
 end

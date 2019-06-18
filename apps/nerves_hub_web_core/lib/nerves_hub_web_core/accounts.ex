@@ -2,7 +2,18 @@ defmodule NervesHubWebCore.Accounts do
   import Ecto.Query
   alias Ecto.{Changeset, Multi}
   alias Ecto.UUID
-  alias NervesHubWebCore.Accounts.{Org, User, UserCertificate, Invite, OrgKey, OrgLimit, OrgUser}
+
+  alias NervesHubWebCore.Accounts.{
+    Org,
+    User,
+    UserCertificate,
+    Invite,
+    OrgKey,
+    OrgLimit,
+    OrgUser,
+    OrgMetric
+  }
+
   alias NervesHubWebCore.Products.{Product, ProductUser}
   alias NervesHubWebCore.Repo
   alias Comeonin.Bcrypt
@@ -606,5 +617,54 @@ defmodule NervesHubWebCore.Accounts do
       nil -> false
       _ -> true
     end
+  end
+
+  def create_org_metrics(run_utc_time, shift) do
+    q =
+      from(
+        o in Org,
+        select: o.id
+      )
+
+    today = Date.utc_today()
+
+    case DateTime.from_iso8601("#{today}T#{run_utc_time}Z") do
+      {:ok, to_datetime, _} ->
+        from_datetime = Timex.shift(to_datetime, shift)
+
+        Repo.all(q)
+        |> Enum.each(&create_org_metric(&1, from_datetime, to_datetime))
+
+      error ->
+        error
+    end
+  end
+
+  def create_org_metric(org_id, from_datetime, to_datetime) do
+    devices = NervesHubWebCore.Devices.get_device_count_by_org_id(org_id)
+
+    bytes_transferred =
+      NervesHubWebCore.Firmwares.get_firmware_transfers_by_org_id_between_dates(
+        org_id,
+        from_datetime,
+        to_datetime
+      )
+      |> Enum.reduce(0, &(&1.bytes_sent + &2))
+
+    bytes_stored =
+      NervesHubWebCore.Firmwares.get_firmware_by_org_id(org_id)
+      |> Enum.reduce(0, &(&1.size + &2))
+
+    params = %{
+      org_id: org_id,
+      devices: devices,
+      bytes_transferred: bytes_transferred,
+      bytes_stored: bytes_stored,
+      timestamp: to_datetime
+    }
+
+    %OrgMetric{}
+    |> OrgMetric.changeset(params)
+    |> Repo.insert()
   end
 end
