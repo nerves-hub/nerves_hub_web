@@ -1,103 +1,66 @@
+const path = require('path');
+const glob = require('glob');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
+const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 
-var ExtractTextPlugin = require("extract-text-webpack-plugin");
-var merge = require("webpack-merge");
-var webpack = require("webpack");
-
-var env = process.env.NODE_ENV || "development";
-var production = env === "production";
-
-var node_modules_dir = "node_modules"
-
-var plugins = [
-  new CopyWebpackPlugin([{ from: 'static/', to: '../static' }]),
-  new ExtractTextPlugin("css/app.css"),
-  new webpack.ProvidePlugin({
-    $: "jquery",
-    jQuery: "jquery"
-  })
-]
-
-if (production) {
-  plugins.push(
-    new webpack.optimize.UglifyJsPlugin({
-      compress: {warnings: false},
-      output: {comments: false}
-    })
-  );
-} else {
-  plugins.push(
-    new webpack.EvalSourceMapDevToolPlugin()
-  );
-}
-
-var common = {
+module.exports = (env, options) => ({
+  optimization: {
+    minimizer: [
+      new UglifyJsPlugin({ cache: true, parallel: true, sourceMap: false }),
+      new OptimizeCSSAssetsPlugin({})
+    ]
+  },
+  entry: {
+    './js/app.js': glob.sync('./vendor/**/*.js').concat(['./js/app.js'])
+  },
+  output: {
+    filename: 'app.js',
+    path: path.resolve(__dirname, '../priv/static/js')
+  },
   module: {
     rules: [
       {
         test: /\.js$/,
-        exclude: [],
-        loader: "babel-loader",
-        options: {
-          presets: ["es2015"]
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader'
         }
       },
       {
-        test: /\.scss$/,
-        use: ExtractTextPlugin.extract({
-          fallback: 'style-loader',
-          use: [
-            {
-              loader: 'css-loader',
-            },
-            {
-              loader: 'postcss-loader',
-              options: {
-                plugins() {
-                  return [
-                    require("precss"),
-                    require("autoprefixer")
-                  ];
-                }
-              }
-            },
-            {
-              loader: 'sass-loader'
-            }
-          ]
-        })
+        test: /\.s?css$/,
+        use: [MiniCssExtractPlugin.loader, 'css-loader', 'sass-loader']
       },
       {
         test: /\.(png|jpg|gif|svg)$/,
-        loader: "file-loader?name=/images/[name].[ext]"
+        loader: 'file-loader',
+        options: {
+          name: '[name].[ext]',
+          outputPath: '../images'
+        }
       },
       {
         test: /\.(ttf|otf|eot|svg|woff2?)$/,
-        loader: "file-loader?name=/fonts/[name].[ext]",
+        loader: 'file-loader',
+        options: {
+          name: '[name].[ext]',
+          outputPath: '../fonts'
+        }
       }
     ]
   },
-  plugins: plugins
-};
-
-module.exports = [
-  merge(common, {
-    entry: [
-      __dirname + "/js/app.js",
-      __dirname + "/css/app.scss",
-    ],
-    output: {
-      path: __dirname + "/../priv/static",
-      filename: "js/app.js"
-    },
-    resolve: {
-      modules: [
-        node_modules_dir,
-        __dirname + "/js",
-        __dirname + "/css",
-        "~font-awesome/fontawesome-free/scss/fontawesome.scss",
-        __dirname + "/images"
-      ]
-    }
-  })
-];
+  resolve: {
+    modules: [
+      "node_modules",
+      __dirname + "/js",
+      __dirname + "/css",
+      "~font-awesome/fontawesome-free/scss/fontawesome.scss",
+      __dirname + "/images"
+    ]
+  },
+  plugins: [
+    new MiniCssExtractPlugin({ filename: '../css/app.css' }),
+    new CopyWebpackPlugin([{ from: 'static/', to: '../' }])
+  ]
+});
