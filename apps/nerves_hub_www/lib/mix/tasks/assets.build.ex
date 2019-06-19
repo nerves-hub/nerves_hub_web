@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Assets.Build do
   def run(_) do
     System.cmd(
       "yarn",
-      ["build"],
+      ["deploy"],
       cd: @assets,
       stderr_to_stdout: true,
       into: IO.stream(:stdio, :line)
