@@ -34,9 +34,6 @@ defmodule NervesHubWebCore.Firmwares.Transfer.S3Ingress do
                 {:ok, _transfer} ->
                   errors
 
-                {:error, %{errors: [remote_ip: {"record already exists", _}]}} ->
-                  errors
-
                 {:error, error} ->
                   Logger.error(fn -> "Error inserting transfer: #{inspect(error)}" end)
                   [error | errors]
