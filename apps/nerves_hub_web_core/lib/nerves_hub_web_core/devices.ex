@@ -9,7 +9,6 @@ defmodule NervesHubWebCore.Devices do
     AuditLogs,
     AuditLogs.AuditLog,
     Accounts.Org,
-    Products.Product,
     Repo
   }
 
@@ -17,20 +16,12 @@ defmodule NervesHubWebCore.Devices do
 
   @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
 
-  def get_devices(%Org{id: org_id}) do
-    query = from(d in Device, where: d.org_id == ^org_id)
-
-    query
-    |> order_by(asc: :identifier)
-    |> Repo.all()
-  end
-
-  def get_devices(%Product{id: product_id}) do
+  def get_devices_by_org_id_and_product_id(org_id, product_id) do
     query =
       from(
         d in Device,
-        join: f in assoc(d, :firmware),
-        where: f.product_id == ^product_id
+        where: d.org_id == ^org_id,
+        where: d.product_id == ^product_id
       )
 
     query

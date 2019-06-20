@@ -214,6 +214,7 @@ defmodule NervesHubWebCore.Fixtures do
 
   def device_fixture(
         %Accounts.Org{} = org,
+        %Products.Product{} = product,
         %Firmwares.Firmware{} = firmware,
         params \\ %{}
       ) do
@@ -221,6 +222,7 @@ defmodule NervesHubWebCore.Fixtures do
     {:ok, device} =
       %{
         org_id: org.id,
+        product_id: product.id,
         firmware_metadata: metadata,
         identifier: "device-#{counter()}"
       }
@@ -257,7 +259,7 @@ defmodule NervesHubWebCore.Fixtures do
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
-    device = device_fixture(org, firmware)
+    device = device_fixture(org, product, firmware)
     %{db_cert: device_certificate} = device_certificate_fixture(device)
 
     %{
@@ -280,7 +282,7 @@ defmodule NervesHubWebCore.Fixtures do
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
-    device = device_fixture(org, firmware, %{tags: ["beta", "beta-edge"]})
+    device = device_fixture(org, product, firmware, %{tags: ["beta", "beta-edge"]})
     %{db_cert: device_certificate} = device_certificate_fixture(device)
 
     %{
@@ -302,7 +304,7 @@ defmodule NervesHubWebCore.Fixtures do
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(firmware)
-    device = device_fixture(org, firmware, %{identifier: "smartrent_1234"})
+    device = device_fixture(org, product, firmware, %{identifier: "smartrent_1234"})
     %{db_cert: device_certificate} = device_certificate_fixture(device)
 
     %{

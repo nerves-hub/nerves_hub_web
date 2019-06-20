@@ -45,7 +45,7 @@ defmodule NervesHubWebCore.SeedHelpers do
 
     Firmwares.update_firmware_ttl(elem(firmwares, 2).id)
 
-    Fixtures.device_fixture(org, firmwares |> elem(1), %{last_communication: DateTime.utc_now()})
+    Fixtures.device_fixture(org, product, firmwares |> elem(1), %{last_communication: DateTime.utc_now()})
     |> Fixtures.device_certificate_fixture()
   end
 

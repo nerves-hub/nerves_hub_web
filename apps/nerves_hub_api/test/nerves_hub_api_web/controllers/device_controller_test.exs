@@ -3,14 +3,14 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
   alias NervesHubWebCore.{Devices, Fixtures}
 
   describe "create devices" do
-    test "renders device when data is valid", %{conn: conn, org: org} do
+    test "renders device when data is valid", %{conn: conn, org: org, product: product} do
       identifier = "api-device-1234"
       device = %{identifier: identifier, description: "test device", tags: ["test"]}
 
-      conn = post(conn, device_path(conn, :create, org.name), device)
+      conn = post(conn, device_path(conn, :create, org.name, product.name), device)
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, device_path(conn, :show, org.name, device.identifier))
+      conn = get(conn, device_path(conn, :show, org.name, product.name, device.identifier))
       assert json_response(conn, 200)["data"]["identifier"] == identifier
     end
 
@@ -26,9 +26,9 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
-      device = Fixtures.device_fixture(org, firmware)
+      device = Fixtures.device_fixture(org, product, firmware)
 
-      conn = get(conn, device_path(conn, :index, org.name))
+      conn = get(conn, device_path(conn, :index, org.name, product.name))
 
       assert json_response(conn, 200)["data"]
 
@@ -44,13 +44,16 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
-      Fixtures.device_fixture(org, firmware)
+      Fixtures.device_fixture(org, product, firmware)
 
-      [to_delete | _] = Devices.get_devices(org)
-      conn = delete(conn, device_path(conn, :delete, org.name, to_delete.identifier))
+      [to_delete | _] = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
+
+      conn =
+        delete(conn, device_path(conn, :delete, org.name, product.name, to_delete.identifier))
+
       assert response(conn, 204)
 
-      conn = get(conn, device_path(conn, :show, org.name, to_delete.identifier))
+      conn = get(conn, device_path(conn, :show, org.name, product.name, to_delete.identifier))
       assert response(conn, 404)
     end
   end
@@ -61,18 +64,18 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
-      Fixtures.device_fixture(org, firmware)
+      Fixtures.device_fixture(org, product, firmware)
 
-      [to_update | _] = Devices.get_devices(org)
+      [to_update | _] = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
 
       conn =
-        put(conn, device_path(conn, :update, org.name, to_update.identifier), %{
+        put(conn, device_path(conn, :update, org.name, product.name, to_update.identifier), %{
           tags: ["a", "b", "c", "d"]
         })
 
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, device_path(conn, :show, org.name, to_update.identifier))
+      conn = get(conn, device_path(conn, :show, org.name, product.name, to_update.identifier))
       assert json_response(conn, 200)
       assert conn.assigns.device.tags == ["a", "b", "c", "d"]
     end
@@ -84,7 +87,7 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
-      device = Fixtures.device_fixture(org, firmware)
+      device = Fixtures.device_fixture(org, product, firmware)
       %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org)
 
       cert =
@@ -99,7 +102,9 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
         |> X509.Certificate.to_pem()
         |> Base.encode64()
 
-      conn = post(conn, device_path(conn, :auth, org.name), %{"certificate" => cert64})
+      conn =
+        post(conn, device_path(conn, :auth, org.name, product.name), %{"certificate" => cert64})
+
       assert json_response(conn, 200)["data"]
     end
   end

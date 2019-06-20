@@ -1,5 +1,5 @@
 defmodule NervesHubWWWWeb.DeviceLive.Show do
-  use Phoenix.LiveView
+  use NervesHubWWWWeb, :live_view
 
   alias NervesHubDevice.Presence
 
@@ -12,7 +12,11 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
   end
 
   def mount(
-        %{auth_user_id: user_id, current_org_id: org_id, path_params: %{"id" => device_id}},
+        %{
+          auth_user_id: user_id,
+          current_org_id: org_id,
+          path_params: %{"product_id" => product_id, "id" => device_id}
+        },
         socket
       ) do
     case Devices.get_device_by_org(%Org{id: org_id}, device_id) do
@@ -28,6 +32,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
           socket
           |> assign(:device, sync_device(device))
           |> assign(:user, user)
+          |> assign(:product_id, product_id)
           |> audit_log_assigns()
 
         {:ok, socket}
@@ -36,7 +41,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
         {:stop,
          socket
          |> put_flash(:error, "Device not found")
-         |> redirect(to: "/devices")}
+         |> redirect(to: Routes.product_device_path(socket, :index, product_id))}
     end
   end
 

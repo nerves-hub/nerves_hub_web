@@ -52,11 +52,14 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
     Fixtures.deployment_fixture(firmware)
 
+    params = Enum.into(device_params, %{tags: ["beta", "beta-edge"]})
+
     device =
       Fixtures.device_fixture(
         org,
+        product,
         firmware,
-        device_params |> Enum.into(%{tags: ["beta", "beta-edge"]})
+        params
       )
 
     {device, firmware}

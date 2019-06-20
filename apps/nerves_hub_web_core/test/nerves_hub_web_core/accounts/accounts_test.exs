@@ -345,7 +345,7 @@ defmodule NervesHubWebCore.AccountsTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    device = Fixtures.device_fixture(org, firmware)
+    device = Fixtures.device_fixture(org, product, firmware)
     _ = create_firmware_transfer(org, firmware)
 
     [org: org, product: product, org_key: org_key, firmware: firmware, device: device]

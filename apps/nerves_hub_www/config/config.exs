@@ -26,8 +26,6 @@ config :logger, :console,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
-config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.LocalAdapter
-
 config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: true
 
 config :phoenix, :json_library, Jason

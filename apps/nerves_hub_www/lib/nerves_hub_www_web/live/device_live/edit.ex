@@ -15,7 +15,11 @@ defmodule NervesHubWWWWeb.DeviceLive.Edit do
   end
 
   def mount(
-        %{auth_user_id: user_id, current_org_id: org_id, path_params: %{"id" => device_id}},
+        %{
+          auth_user_id: user_id,
+          current_org_id: org_id,
+          path_params: %{"product_id" => product_id, "id" => device_id}
+        },
         socket
       ) do
     case Devices.get_device_by_org(%Org{id: org_id}, device_id) do
@@ -25,6 +29,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Edit do
           |> assign(:device, device)
           |> assign(:changeset, Device.changeset(device, %{}))
           |> assign(:user_id, user_id)
+          |> assign(:product_id, product_id)
 
         {:ok, socket}
 
@@ -32,7 +37,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Edit do
         {:stop,
          socket
          |> put_flash(:error, "Device not found")
-         |> redirect(to: "/devices")}
+         |> redirect(to: Routes.product_device_path(socket, :index, product_id))}
     end
   end
 
@@ -48,7 +53,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Edit do
   def handle_event(
         "save",
         %{"device" => device_params},
-        %{assigns: %{device: device, user_id: user_id}} = socket
+        %{assigns: %{device: device, product_id: product_id, user_id: user_id}} = socket
       ) do
     device
     |> Devices.update_device(device_params)
@@ -59,7 +64,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Edit do
         {:stop,
          socket
          |> put_flash(:info, "Device Updated")
-         |> redirect(to: Routes.device_path(socket, DeviceLive.Show, device))}
+         |> redirect(to: Routes.product_device_path(socket, DeviceLive.Show, product_id, device))}
 
       {:error, changeset} ->
         {:noreply, assign(socket, changeset: changeset)}

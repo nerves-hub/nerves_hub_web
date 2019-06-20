@@ -25,10 +25,11 @@ defmodule NervesHubDevice.Presence do
 
   def find(device, default \\ nil)
 
-  def find(%Device{id: device_id, org_id: org_id}, default) do
-    "devices:#{org_id}"
+  def find(%Device{id: device_id, product_id: product_id}, default) do
+    "product:#{product_id}:devices"
     |> Presence.list()
     |> Map.get("#{device_id}", default)
+    |> merge_metas
   end
 
   def find(_, default), do: default
@@ -67,4 +68,6 @@ defmodule NervesHubDevice.Presence do
       e -> Map.put(e, :status, "online")
     end
   end
+
+  defp merge_metas(unknown), do: unknown
 end

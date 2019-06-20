@@ -90,10 +90,10 @@ defmodule NervesHubWWWWeb.Router do
     post("/account/certificates/create", AccountCertificateController, :create)
     get("/account/certificates/:id/download", AccountCertificateController, :download)
 
-    resources("/devices", DeviceController, only: [:index, :create, :delete, :new])
-
     resources "/products", ProductController, except: [:edit, :update] do
       pipe_through(:product_level)
+
+      resources("/devices", DeviceController, only: [:index, :create, :delete, :new])
 
       get("/firmware", FirmwareController, :index)
       get("/firmware/upload", FirmwareController, :upload)
@@ -112,8 +112,8 @@ defmodule NervesHubWWWWeb.Router do
   scope "/", NervesHubWWWWeb do
     pipe_through([:browser, :logged_in, :org_write])
 
-    live("/devices/:id/edit", DeviceLive.Edit,
-      as: :device,
+    live("/products/:product_id/devices/:id/edit", DeviceLive.Edit,
+      as: :product_device,
       session: [:auth_user_id, :current_org_id, :path_params]
     )
   end
@@ -121,13 +121,13 @@ defmodule NervesHubWWWWeb.Router do
   scope "/", NervesHubWWWWeb do
     pipe_through([:browser, :logged_in, :org_read])
 
-    live("/devices/:id", DeviceLive.Show,
-      as: :device,
+    live("/products/:product_id/devices/:id", DeviceLive.Show,
+      as: :product_device,
       session: [:auth_user_id, :current_org_id, :path_params]
     )
 
-    live("/devices/:id/console", DeviceLive.Console,
-      as: :device,
+    live("/products/:product_id/devices/:id/console", DeviceLive.Console,
+      as: :product_device,
       session: [:auth_user_id, :current_org_id, :path_params]
     )
   end
