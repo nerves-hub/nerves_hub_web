@@ -11,20 +11,19 @@
       <div class="navbar-nav mr-auto">
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            <%= @conn.assigns.current_org.name %>
+            <%= @conn.assigns.current_org.name %><%= if product = product(@conn) do %> | <%= product.name %><% end %>
           </a>
           <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
             <%= for org <- user_orgs(@conn) do %>
-              <%= if org.id != @conn.assigns.current_org.id do %>
-              <%= link org.name, class: "dropdown-item", to: session_path(@conn, :set_org, org: org), method: :put%>
-                <% end %>
-        <% end %>
-        <a class="dropdown-item" href="<%= org_path(@conn, :new) %>">New organization</a>
+              <%= link org.name, class: "dropdown-item org", to: session_path(@conn, :set_org, org: org), method: :put%>
+              <%= for product <- user_org_products(@conn.assigns.user, org) do %>
+                <%= link product.name, class: "dropdown-item product", to: product_path(@conn, :show, product)%>
+              <% end %>
+              <div class="dropdown-divider"></div>
+            <% end %>
+            <a class="dropdown-item" href="<%= org_path(@conn, :new) %>">New organization</a>
           </div>
         </li>
-        <%= for {name, path} <- navigation_links(@conn) do %>
-            <a class="<%= if @conn.request_path == path, do: "active nav-item nav-link", else: "nav-item nav-link" %>" href="<%= path %>"><%= name %></a>
-        <% end %>
       </div>
       <div class="navbar-nav mr-3">
         <li class="nav-item dropdown">

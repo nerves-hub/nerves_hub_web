@@ -10,8 +10,12 @@
   margin: auto;
 }
 
-.navitem .dropdown {
-  border-left: 1px solid rgba(255, 255, 255, 0.5);
+.nav-item .dropdown-item.org {
+  font-weight: bold;
+}
+
+.nav-item .dropdown-item.product {
+  padding-left: 40px;
 }
 
 .logo-letter {
@@ -25,5 +29,5 @@
     background-color: whitesmoke;
     border-radius: 50%;
     width: 75px;
-    height: 75px; 
+    height: 75px;
   }
