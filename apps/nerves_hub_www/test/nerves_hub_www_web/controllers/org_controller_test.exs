@@ -12,15 +12,9 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
   end
 
   describe "create org" do
-    test "redirects to edit when data is valid", %{conn: conn, current_org: org} do
+    test "redirects to edit when data is valid", %{conn: conn} do
       conn = post(conn, org_path(conn, :create), org: %{name: "An Org"})
-
-      assert %{id: id} = redirected_params(conn)
-      assert redirected_to(conn) == org_path(conn, :edit, id)
-
-      conn = get(conn, org_path(conn, :edit, id))
-      assert html_response(conn, 200) =~ "Organization settings"
-      assert html_response(conn, 200) =~ org.name
+      assert redirected_to(conn) == product_path(conn, :index)
     end
 
     test "renders errors when data is invalid", %{conn: conn} do

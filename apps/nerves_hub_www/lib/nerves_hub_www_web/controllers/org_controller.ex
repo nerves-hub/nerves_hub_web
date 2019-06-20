@@ -20,7 +20,7 @@ defmodule NervesHubWWWWeb.OrgController do
     with {:ok, org} <- Accounts.create_org(user, params) do
       conn
       |> put_flash(:info, "Organization created successfully.")
-      |> redirect(to: org_path(conn, :edit, org))
+      |> NervesHubWWWWeb.SessionController.set_org(%{"org" => to_string(org.id)})
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "new.html", changeset: changeset)
@@ -31,6 +31,8 @@ defmodule NervesHubWWWWeb.OrgController do
         %{assigns: %{current_org: %{id: _conn_id} = org, current_limit: limits}} = conn,
         _params
       ) do
+    IO.inspect(conn)
+
     render(
       conn,
       "edit.html",

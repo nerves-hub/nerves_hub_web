@@ -3,9 +3,15 @@ defmodule NervesHubWWWWeb.LayoutView do
 
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.User
+  alias NervesHubWebCore.Products
+  alias NervesHubWebCore.Products.Product
 
-  def navigation_links(conn) do
-    [{"Products", product_path(conn, :index)}]
+  def product(%{assigns: %{product: %Product{} = product}}) do
+    product
+  end
+
+  def product(_conn) do
+    nil
   end
 
   def user_orgs(%{assigns: %{user: %User{} = user}}) do
@@ -13,6 +19,10 @@ defmodule NervesHubWWWWeb.LayoutView do
   end
 
   def user_orgs(_conn), do: []
+
+  def user_org_products(user, org) do
+    Products.get_products_by_user_and_org(user, org)
+  end
 
   def logged_in?(%{assigns: %{user: %User{}}}), do: true
   def logged_in?(_), do: false
