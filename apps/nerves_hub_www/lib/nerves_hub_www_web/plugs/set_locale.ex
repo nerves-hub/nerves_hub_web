@@ -6,13 +6,14 @@ defmodule NervesHubWWWWeb.Plugs.SetLocale do
   def call(conn, _config) do
     conn
     |> get_locale_from_header()
-    |> case  do
+    |> case do
       nil ->
         conn
         |> put_resp_header(
           "content-language",
           Application.get_env(:nerves_hub_www, NervesHubWWWWeb.Gettext)[:default_locale]
         )
+
       locale ->
         Gettext.put_locale(NervesHubWWWWeb.Gettext, locale)
 
@@ -37,8 +38,9 @@ defmodule NervesHubWWWWeb.Plugs.SetLocale do
         |> String.split(",")
         |> Enum.map(&parse_language_option/1)
         |> Enum.sort(&(&1.quality > &2.quality))
-        |> Enum.map(&(&1.tag))
+        |> Enum.map(& &1.tag)
         |> Enum.reject(&is_nil/1)
+
       _ ->
         []
     end
@@ -47,12 +49,12 @@ defmodule NervesHubWWWWeb.Plugs.SetLocale do
   defp parse_language_option(string) do
     captures = Regex.named_captures(~r/^\s?(?<tag>[\w\-]+)(?:;q=(?<quality>[\d\.]+))?$/i, string)
 
-    quality = case Float.parse(captures["quality"] || "1.0") do
-      {val, _} -> val
-      _ -> 1.0
-    end
+    quality =
+      case Float.parse(captures["quality"] || "1.0") do
+        {val, _} -> val
+        _ -> 1.0
+      end
 
     %{tag: captures["tag"], quality: quality}
   end
-
 end
