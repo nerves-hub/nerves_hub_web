@@ -1,5 +1,8 @@
 # NervesHubWWW
 
+Please note: These commands should be executed in the NervesHubWWW root dir
+and not the nerves_hub_web root dir.
+
 ## Adding translations
 
 ### Replace the current text with a call to the gettext macro
