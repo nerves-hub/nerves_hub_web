@@ -21,7 +21,7 @@ defmodule NervesHubWebCore.DevicesTest do
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(firmware)
-    device = Fixtures.device_fixture(org, firmware)
+    device = Fixtures.device_fixture(org, product, firmware)
     Fixtures.device_certificate_fixture(device)
 
     {:ok,
@@ -38,12 +38,14 @@ defmodule NervesHubWebCore.DevicesTest do
 
   test "create_device with valid parameters", %{
     org: org,
+    product: product,
     firmware: firmware
   } do
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
 
     params = %{
       org_id: org.id,
+      product_id: product.id,
       firmware_metadata: metadata,
       identifier: "valid identifier"
     }
@@ -51,7 +53,7 @@ defmodule NervesHubWebCore.DevicesTest do
     {:ok, %Devices.Device{} = device} = Devices.create_device(params)
 
     for key <- Map.keys(metadata) do
-      assert Map.get(device, key) == Map.get(params, key)
+      assert Map.get(device.firmware_metadata, key) == Map.get(metadata, key)
     end
   end
 
@@ -66,6 +68,7 @@ defmodule NervesHubWebCore.DevicesTest do
     for i <- 1..org_device_limit do
       params = %{
         org_id: org.id,
+        product_id: product.id,
         firmware_metadata: metadata,
         identifier: "id #{i}"
       }
@@ -75,6 +78,7 @@ defmodule NervesHubWebCore.DevicesTest do
 
     params = %{
       org_id: org.id,
+      product_id: product.id,
       firmware_metadata: metadata,
       identifier: "too many"
     }
@@ -93,6 +97,7 @@ defmodule NervesHubWebCore.DevicesTest do
     for i <- 1..org_device_limit do
       params = %{
         org_id: org.id,
+        product_id: product.id,
         firmware_metadata: metadata,
         identifier: "id #{i}"
       }
@@ -102,6 +107,7 @@ defmodule NervesHubWebCore.DevicesTest do
 
     params = %{
       org_id: org.id,
+      product_id: product.id,
       firmware_metadata: metadata,
       identifier: "more than default"
     }
@@ -139,11 +145,16 @@ defmodule NervesHubWebCore.DevicesTest do
     assert {:error, %Changeset{}} = Devices.create_device(params)
   end
 
-  test "cannot create two devices with the same identifier", %{org: org, firmware: firmware} do
+  test "cannot create two devices with the same identifier", %{
+    org: org,
+    product: product,
+    firmware: firmware
+  } do
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
 
     params = %{
       org_id: org.id,
+      product_id: product.id,
       firmware_metadata: metadata,
       identifier: "valid identifier"
     }
@@ -315,7 +326,7 @@ defmodule NervesHubWebCore.DevicesTest do
     product: product
   } do
     device =
-      Fixtures.device_fixture(org, firmware, %{
+      Fixtures.device_fixture(org, product, firmware, %{
         identifier: "new identifier",
         tags: ["beta", "beta-edge"]
       })
@@ -359,7 +370,7 @@ defmodule NervesHubWebCore.DevicesTest do
     ]
 
     for {f_params, d_params} <- incorrect_params do
-      device = Fixtures.device_fixture(org, firmware, d_params)
+      device = Fixtures.device_fixture(org, product, firmware, d_params)
       new_firmware = Fixtures.firmware_fixture(org_key, product, f_params)
 
       params = %{
@@ -401,7 +412,7 @@ defmodule NervesHubWebCore.DevicesTest do
     Deployments.update_deployment(old_deployment, %{firmware_id: firmware1.id, is_active: true})
 
     device =
-      Fixtures.device_fixture(org, firmware, %{
+      Fixtures.device_fixture(org, product, firmware, %{
         identifier: "new identifier",
         tags: ["beta", "beta-edge"]
       })

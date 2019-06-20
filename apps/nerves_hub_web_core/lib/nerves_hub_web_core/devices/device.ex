@@ -7,6 +7,7 @@ defmodule NervesHubWebCore.Devices.Device do
   alias NervesHubWebCore.Repo
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.Org
+  alias NervesHubWebCore.Products.Product
   alias NervesHubWebCore.Firmwares.FirmwareMetadata
   alias NervesHubWebCore.Devices.DeviceCertificate
 
@@ -19,10 +20,11 @@ defmodule NervesHubWebCore.Devices.Device do
     :healthy,
     :tags
   ]
-  @required_params [:org_id, :identifier]
+  @required_params [:org_id, :product_id, :identifier]
 
   schema "devices" do
     belongs_to(:org, Org)
+    belongs_to(:product, Product)
     embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
 

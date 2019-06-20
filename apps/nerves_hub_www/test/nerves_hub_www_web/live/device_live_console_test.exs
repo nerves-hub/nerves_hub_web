@@ -3,22 +3,26 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
 
   import Phoenix.ChannelTest
 
+  alias NervesHubWWWWeb.Router.Helpers, as: Routes
   alias NervesHubWWWWeb.{DeviceLive.Console, Endpoint}
+  alias NervesHubWWWWeb.DeviceLive.Show
   alias NervesHubDevice.Presence
 
   alias Phoenix.Socket.Broadcast
 
-  setup %{fixture: %{device: device}} = context do
+  setup %{fixture: %{device: device, product: product}} = context do
     Endpoint.subscribe("console:#{device.id}")
 
     # TODO: Use Plug.Conn.get_session/1 when upgraded to Plug >= 1.8
     session =
       context.conn.private.plug_session
       |> Enum.into(%{}, fn {k, v} -> {String.to_atom(k), v} end)
-      |> Map.put(:path_params, %{"id" => device.id})
+      |> Map.put(:path_params, %{"product_id" => product.id, "id" => device.id})
 
     unless context[:skip_presence] do
-      Presence.track(self(), "devices:#{device.org_id}", device.id, %{console_available: true})
+      Presence.track(self(), "product:#{product.id}:devices", device.id, %{
+        console_available: true
+      })
     end
 
     [session: session]
@@ -32,12 +36,13 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
 
     @tag skip_presence: true
     test "redirects when device not configured for remote IEx", %{
-      fixture: %{device: device},
+      fixture: %{product: product, device: device},
       session: session
     } do
       {:error, %{redirect: somewhere}} = mount(Endpoint, Console, session: session)
       refute_broadcast("init", %{})
-      assert somewhere == "/devices/#{device.id}"
+      path = Routes.product_device_path(Endpoint, Show, product.id, device.id)
+      assert somewhere == path
     end
   end
 

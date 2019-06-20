@@ -12,7 +12,11 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
   end
 
   def mount(
-        %{auth_user_id: user_id, current_org_id: org_id, path_params: %{"id" => device_id}},
+        %{
+          auth_user_id: user_id,
+          current_org_id: org_id,
+          path_params: %{"product_id" => product_id, "id" => device_id}
+        },
         socket
       ) do
     case Devices.get_device_by_org(%Org{id: org_id}, device_id) do
@@ -31,13 +35,14 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
         |> assign(:lines, ["NervesHub IEx Live"])
         |> assign(:username, user.username)
         |> assign(:user_role, org_user.role)
+        |> assign(:product_id, product_id)
         |> init_iex()
 
       {:error, :not_found} ->
         {:stop,
          socket
          |> put_flash(:error, "Device not found")
-         |> redirect(to: "/devices")}
+         |> redirect(to: Routes.product_device_path(socket, :index, product_id))}
     end
   end
 
@@ -133,7 +138,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
     "console:#{device_id}"
   end
 
-  defp init_iex(%{assigns: %{device: device, user_role: :admin}} = socket) do
+  defp init_iex(%{assigns: %{product_id: product_id, device: device, user_role: :admin}} = socket) do
     case Presence.find(device) do
       %{console_available: true} ->
         socket.endpoint.broadcast_from!(self(), console_topic(socket), "init", %{})
@@ -143,7 +148,15 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
         socket =
           socket
           |> put_flash(:error, "Device not configured to support remote IEx console")
-          |> redirect(to: "/devices/#{device.id}")
+          |> redirect(
+            to:
+              Routes.product_device_path(
+                socket,
+                NervesHubWWWWeb.DeviceLive.Show,
+                product_id,
+                device.id
+              )
+          )
 
         {:stop, socket}
     end

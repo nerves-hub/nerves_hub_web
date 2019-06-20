@@ -97,8 +97,8 @@ defmodule NervesHubWebCore.DeploymentsTest do
       firmware2: firmware2,
       product: product
     } do
-      device = Fixtures.device_fixture(org, firmware, %{tags: ["beta", "beta-edge"]})
-      _device2 = Fixtures.device_fixture(org2, firmware2, %{tags: ["beta", "beta-edge"]})
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "beta-edge"]})
+      _device2 = Fixtures.device_fixture(org2, product, firmware2, %{tags: ["beta", "beta-edge"]})
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
@@ -138,7 +138,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
       ]
 
       for {f_params, d_params} <- incorrect_params do
-        device = Fixtures.device_fixture(org, firmware, d_params)
+        device = Fixtures.device_fixture(org, product, firmware, d_params)
         new_firmware = Fixtures.firmware_fixture(org_key, product, f_params)
 
         params = %{
@@ -169,7 +169,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
       org_key: org_key,
       product: product
     } do
-      device = Fixtures.device_fixture(org, firmware, %{tags: ["beta", "beta-edge"]})
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "beta-edge"]})
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
       params = %{
@@ -200,7 +200,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
       product: product
     } do
       device =
-        Fixtures.device_fixture(org, firmware, %{
+        Fixtures.device_fixture(org, product, firmware, %{
           tags: ["beta", "beta-edge"],
           healthy: false
         })
@@ -237,7 +237,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
       # Create many devices in error state
       Enum.each(
         1..4,
-        &Fixtures.device_fixture(org, firmware, %{
+        &Fixtures.device_fixture(org, product, firmware, %{
           tags: ["beta", "beta-edge", "#{&1}"],
           healthy: false
         })
@@ -267,7 +267,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
       # Create multi AuditLogs for deployment 1 to signify same device attempting to apply
       # the same update but failing
       Enum.each(1..5, fn i ->
-        device = Fixtures.device_fixture(context.org, context.firmware)
+        device = Fixtures.device_fixture(context.org, context.product, context.firmware)
         al = AuditLog.build(context.deployment, device, :update, %{send_update_message: true})
         time = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
         Repo.insert(al)

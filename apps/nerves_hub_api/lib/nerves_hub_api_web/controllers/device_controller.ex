@@ -9,21 +9,27 @@ defmodule NervesHubAPIWeb.DeviceController do
   plug(:validate_role, [org: :write] when action in [:create, :update])
   plug(:validate_role, [org: :read] when action in [:index, :show, :auth])
 
-  def index(%{assigns: %{org: org}} = conn, _params) do
+  def index(%{assigns: %{org: org, product: product}} = conn, _params) do
     conn
     |> render(
       "index.json",
-      devices: Devices.get_devices(org)
+      devices: Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
     )
   end
 
-  def create(%{assigns: %{org: org}} = conn, params) do
-    params = Map.put(params, "org_id", org.id)
+  def create(%{assigns: %{org: org, product: product}} = conn, params) do
+    params =
+      params
+      |> Map.put("org_id", org.id)
+      |> Map.put("product_id", product.id)
 
     with {:ok, device} <- Devices.create_device(params) do
       conn
       |> put_status(:created)
-      |> put_resp_header("location", device_path(conn, :show, org.name, device.identifier))
+      |> put_resp_header(
+        "location",
+        device_path(conn, :show, org.name, product.name, device.identifier)
+      )
       |> render("show.json", device: device)
     end
   end

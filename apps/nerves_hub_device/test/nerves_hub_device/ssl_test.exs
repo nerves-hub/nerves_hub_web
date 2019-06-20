@@ -38,10 +38,10 @@ defmodule NervesHubDevice.SSLTest do
       |> X509.PublicKey.derive()
       |> X509.Certificate.new("CN=#{identifier}", ca2, ca2_key)
 
-    device1 = Fixtures.device_fixture(org, firmware, %{identifier: identifier})
+    device1 = Fixtures.device_fixture(org, product, firmware, %{identifier: identifier})
     %{db_cert: db_cert1} = Fixtures.device_certificate_fixture(device1, cert1)
 
-    device2 = Fixtures.device_fixture(org, firmware, %{identifier: identifier})
+    device2 = Fixtures.device_fixture(org, product, firmware, %{identifier: identifier})
     %{db_cert: db_cert2} = Fixtures.device_certificate_fixture(device2, cert2)
 
     assert {:ok, ^db_cert1} = NervesHubDevice.SSL.verify_device(cert1)
@@ -89,7 +89,7 @@ defmodule NervesHubDevice.SSLTest do
       |> X509.PublicKey.derive()
       |> X509.Certificate.new("CN=#{identifier}", ca2, ca2_key, serial: 999_999)
 
-    device1 = Fixtures.device_fixture(org, firmware, %{identifier: identifier})
+    device1 = Fixtures.device_fixture(org, product, firmware, %{identifier: identifier})
     %{db_cert: db_cert1} = Fixtures.device_certificate_fixture(device1, cert1)
 
     assert {:ok, ^db_cert1} = NervesHubDevice.SSL.verify_device(cert1)
@@ -118,7 +118,7 @@ defmodule NervesHubDevice.SSLTest do
       |> X509.PublicKey.derive()
       |> X509.Certificate.new("CN=#{identifier}", ca1, ca1_key, serial: 999_999, validity: 2)
 
-    device1 = Fixtures.device_fixture(org, firmware, %{identifier: identifier})
+    device1 = Fixtures.device_fixture(org, product, firmware, %{identifier: identifier})
     %{db_cert: db_cert1} = Fixtures.device_certificate_fixture(device1, cert1)
 
     assert {:ok, ^db_cert1} = NervesHubDevice.SSL.verify_device(cert1)

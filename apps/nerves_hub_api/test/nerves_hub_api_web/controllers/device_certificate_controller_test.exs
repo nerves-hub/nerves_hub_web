@@ -3,24 +3,41 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
 
   alias NervesHubWebCore.Devices
 
-  setup context do
-    org = context.org
+  setup %{org: org, product: product} do
     identifier = "device-1234"
-    device = %{identifier: identifier, description: "test device", tags: ["test"], org_id: org.id}
+
+    device = %{
+      identifier: identifier,
+      description: "test device",
+      tags: ["test"],
+      org_id: org.id,
+      product_id: product.id
+    }
+
     {:ok, device} = Devices.create_device(device)
-    {:ok, Map.put(context, :device, device)}
+    [device: device]
   end
 
   describe "index" do
-    test "lists all certificates", %{conn: conn, org: org, device: device} do
-      conn = get(conn, device_certificate_path(conn, :index, org.name, device.identifier))
+    test "lists all certificates", %{conn: conn, org: org, product: product, device: device} do
+      conn =
+        get(
+          conn,
+          device_certificate_path(conn, :index, org.name, product.name, device.identifier)
+        )
+
       assert json_response(conn, 200)["data"] == []
     end
   end
 
   describe "create device certificate" do
     @tag :ca_integration
-    test "renders key when data is valid", %{conn: conn, org: org, device: device} do
+    test "renders key when data is valid", %{
+      conn: conn,
+      org: org,
+      device: device,
+      product: product
+    } do
       subject = "/O=NervesHub/CN=device-1234"
       key = X509.PrivateKey.new_ec(:secp256r1)
 
@@ -31,7 +48,13 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
 
       params = %{identifier: device.identifier, csr: csr}
 
-      conn = post(conn, device_certificate_path(conn, :sign, org.name, device.identifier), params)
+      conn =
+        post(
+          conn,
+          device_certificate_path(conn, :sign, org.name, product.name, device.identifier),
+          params
+        )
+
       resp_data = json_response(conn, 200)["data"]
       assert %{"cert" => cert} = resp_data
 
@@ -42,9 +65,18 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
     end
 
     @tag :ca_integration
-    test "renders errors when data is invalid", %{conn: conn, org: org, device: device} do
+    test "renders errors when data is invalid", %{
+      conn: conn,
+      org: org,
+      device: device,
+      product: product
+    } do
       conn =
-        post(conn, device_certificate_path(conn, :sign, org.name, device.identifier), csr: "")
+        post(
+          conn,
+          device_certificate_path(conn, :sign, org.name, product.name, device.identifier),
+          csr: ""
+        )
 
       assert json_response(conn, 500)["errors"] != %{}
     end

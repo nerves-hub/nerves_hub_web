@@ -59,23 +59,6 @@ defmodule NervesHubAPIWeb.Router do
           delete("/:serial", CACertificateController, :delete)
         end
 
-        scope "/devices" do
-          get("/", DeviceController, :index)
-          post("/", DeviceController, :create)
-          post("/auth", DeviceController, :auth)
-
-          scope "/:device_identifier" do
-            get("/", DeviceController, :show)
-            delete("/", DeviceController, :delete)
-            put("/", DeviceController, :update)
-
-            scope "/certificates" do
-              get("/", DeviceCertificateController, :index)
-              post("/sign", DeviceCertificateController, :sign)
-            end
-          end
-        end
-
         scope "/products" do
           get("/", ProductController, :index)
           post("/", ProductController, :create)
@@ -86,6 +69,23 @@ defmodule NervesHubAPIWeb.Router do
             get("/", ProductController, :show)
             delete("/", ProductController, :delete)
             put("/", ProductController, :update)
+
+            scope "/devices" do
+              get("/", DeviceController, :index)
+              post("/", DeviceController, :create)
+              post("/auth", DeviceController, :auth)
+
+              scope "/:device_identifier" do
+                get("/", DeviceController, :show)
+                delete("/", DeviceController, :delete)
+                put("/", DeviceController, :update)
+
+                scope "/certificates" do
+                  get("/", DeviceCertificateController, :index)
+                  post("/sign", DeviceCertificateController, :sign)
+                end
+              end
+            end
 
             scope "/users" do
               get("/", ProductUserController, :index)

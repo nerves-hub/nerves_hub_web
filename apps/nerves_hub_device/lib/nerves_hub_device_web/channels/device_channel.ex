@@ -8,7 +8,6 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   use NervesHubDeviceWeb, :channel
 
   alias NervesHubWebCore.{
-    Accounts.Org,
     AuditLogs,
     Deployments.Deployment,
     Devices,
@@ -58,7 +57,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   def handle_in("fwup_progress", %{"value" => percent}, socket) do
     Presence.update(
       socket.channel_pid,
-      "devices:#{socket.assigns.device.org_id}",
+      "product:#{socket.assigns.device.product_id}:devices",
       socket.assigns.device.id,
       %{fwup_progress: percent}
     )
@@ -70,7 +69,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     # Device sends "rebooting" message back to signify ack of the request
     Presence.update(
       socket.channel_pid,
-      "devices:#{socket.assigns.device.org_id}",
+      "product:#{socket.assigns.device.product_id}:devices",
       socket.assigns.device.id,
       %{rebooting: true}
     )
@@ -79,12 +78,12 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   end
 
   def handle_info({:after_join, device, update_available}, socket) do
-    %Device{id: device_id, firmware_metadata: firmware_metadata, org: %Org{id: org_id}} = device
+    %Device{id: device_id, firmware_metadata: firmware_metadata, product_id: product_id} = device
 
     {:ok, _} =
       Presence.track(
         socket.channel_pid,
-        "devices:#{org_id}",
+        "product:#{product_id}:devices",
         device_id,
         %{
           connected_at: System.system_time(:second),
