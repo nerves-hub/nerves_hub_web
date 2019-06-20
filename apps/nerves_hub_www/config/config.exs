@@ -11,6 +11,8 @@ config :nerves_hub_www,
   # Options are :ssl or :header
   websocket_auth_methods: [:ssl]
 
+config :nerves_hub_www, NervesHubWWWWeb.Gettext, default_locale: "en"
+
 # Configures the endpoint
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   url: [host: System.get_env("HOST")],

@@ -5,7 +5,7 @@
     </div>
     <div class="modal-body">
       <div class="form-group">
-        <label for="username">Username</label>
+        <label for="username"><%= gettext "Username" %></label>
         <%= text_input f, :username, class: "form-control", id: "username" %>
         <div class="has-error"><%= error_tag f, :username %></div>
       </div>
