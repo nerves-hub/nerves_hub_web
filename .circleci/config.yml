@@ -112,16 +112,13 @@ jobs:
           POSTGRES_USER: db
           POSTGRES_DB: db
           POSTGRES_PASSWORD: db
-
     working_directory: ~/app
-
     steps:
       - checkout
       - run: wget https://github.com/fhunleth/fwup/releases/download/v1.3.1/fwup_1.3.1_amd64.deb
       - run: sudo dpkg -i ./fwup_1.3.1_amd64.deb
       - run: mix local.hex --force
       - run: mix local.rebar --force
-
       - restore_cache:
           keys:
             - mix-deps-{{ .Branch }}-{{ checksum "mix.lock" }}
@@ -141,21 +138,14 @@ jobs:
       - image: circleci/node:8.11.3
         environment:
           SRC_PATH: "js/**/*.js"
-
     working_directory: ~/app/apps/nerves_hub_www/assets
-
     steps:
       - checkout:
           path: ~/app
-
       - restore_cache:
           keys:
-            - node-modules-{{ checksum "yarn.lock" }}
             - mix-deps-{{ .Branch }}-{{ checksum "../../../mix.lock" }}
       - run: yarn install
-      - save_cache:
-          key: node-modules-{{ checksum "yarn.lock" }}
-          paths: "node_modules"
       - run:
           name: Verify formatting
           command: yarn prettier -c $SRC_PATH
