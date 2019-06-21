@@ -28,6 +28,12 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
 
       assert json_response(conn, 200)["data"] == []
     end
+
+    test "renders error when using deprecated api", %{conn: conn, org: org} do
+      conn = get(conn, "/orgs/#{org.name}/devices/1234/certificates")
+      {:error, reason} = NervesHubAPIWeb.DeviceController.error_deprecated(conn, %{})
+      assert json_response(conn, 500)["errors"] == reason
+    end
   end
 
   describe "create device certificate" do
@@ -79,6 +85,12 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
         )
 
       assert json_response(conn, 500)["errors"] != %{}
+    end
+
+    test "renders error when using deprecated api", %{conn: conn, org: org} do
+      conn = post(conn, "/orgs/#{org.name}/devices/1234/certificates/sign", %{})
+      {:error, reason} = NervesHubAPIWeb.DeviceController.error_deprecated(conn, %{})
+      assert json_response(conn, 500)["errors"] == reason
     end
   end
 end

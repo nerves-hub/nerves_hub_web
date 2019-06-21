@@ -16,6 +16,18 @@ defmodule NervesHubWebCore.Devices do
 
   @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
 
+  def get_devices_by_org_id(org_id) do
+    query =
+      from(
+        d in Device,
+        where: d.org_id == ^org_id
+      )
+
+    query
+    |> order_by(asc: :identifier)
+    |> Repo.all()
+  end
+
   def get_devices_by_org_id_and_product_id(org_id, product_id) do
     query =
       from(
