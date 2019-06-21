@@ -1,0 +1,24 @@
+msgid ""
+msgstr ""
+"Language: fi\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: crowdin.com\n"
+"X-Crowdin-Project: nerves-hub\n"
+"X-Crowdin-Language: fi\n"
+"X-Crowdin-File: /master/apps/nerves_hub_www/priv/gettext/en/LC_MESSAGES/default.po\n"
+"Project-Id-Version: nerves-hub\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Last-Translator: fhunleth\n"
+"Language-Team: Finnish\n"
+"PO-Revision-Date: 2019-06-21 18:39\n"
+
+#: lib/nerves_hub_www_web/templates/account/new.html.eex:8
+#, elixir-format
+msgid "Username"
+msgstr ""
+
+#: lib/nerves_hub_www_web/templates/account/invite.html.eex:2
+#, elixir-format
+msgid "You will be added to the %{organization_name} org"
+msgstr ""
+
