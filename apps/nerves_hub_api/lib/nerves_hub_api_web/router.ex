@@ -59,6 +59,24 @@ defmodule NervesHubAPIWeb.Router do
           delete("/:serial", CACertificateController, :delete)
         end
 
+        # The /org/:org_id/device* endpoints should return an error
+        scope "/devices" do
+          get("/", DeviceController, :error_deprecated)
+          post("/", DeviceController, :error_deprecated)
+          post("/auth", DeviceController, :error_deprecated)
+
+          scope "/:device_identifier" do
+            get("/", DeviceController, :error_deprecated)
+            delete("/", DeviceController, :error_deprecated)
+            put("/", DeviceController, :error_deprecated)
+
+            scope "/certificates" do
+              get("/", DeviceController, :error_deprecated)
+              post("/sign", DeviceController, :error_deprecated)
+            end
+          end
+        end
+
         scope "/products" do
           get("/", ProductController, :index)
           post("/", ProductController, :create)
