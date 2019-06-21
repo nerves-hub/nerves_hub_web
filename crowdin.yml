@@ -106,11 +106,16 @@ files: [
   #
   # Often software projects have custom names for locale directories. crowdin-cli allows you to map your own languages to be understandable by Crowdin.
   #
-  #"languages_mapping" : {
-  #  "two_letters_code" : {
-  #    "crowdin_language_code" : "local_name"
-  #   }
-  #},
+  "languages_mapping" : {
+    "two_letters_code" : {
+        "zh-CN" : "zh_CH",
+        "zh-TW" : "zh_TW",
+        "pt-PT" : "pt_PT",
+        "pt-BR" : "pt_BR",
+        "es-ES" : "es_ES",
+        "sv-SE" : "sv_SE"
+     }
+  },
 
   #
   # Is first line contains header?
