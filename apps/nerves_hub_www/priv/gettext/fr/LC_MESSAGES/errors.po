@@ -1,0 +1,89 @@
+msgid ""
+msgstr ""
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"X-Generator: crowdin.com\n"
+"X-Crowdin-Project: nerves-hub\n"
+"X-Crowdin-Language: fr\n"
+"X-Crowdin-File: /crowdin/apps/nerves_hub_www/priv/gettext/en/LC_MESSAGES/errors.po\n"
+"Project-Id-Version: nerves-hub\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Last-Translator: fhunleth\n"
+"Language-Team: French\n"
+"PO-Revision-Date: 2019-06-21 22:18\n"
+
+msgid "can't be blank"
+msgstr ""
+
+msgid "has already been taken"
+msgstr ""
+
+msgid "is invalid"
+msgstr ""
+
+msgid "must be accepted"
+msgstr ""
+
+msgid "has invalid format"
+msgstr ""
+
+msgid "has an invalid entry"
+msgstr ""
+
+msgid "is reserved"
+msgstr ""
+
+msgid "does not match confirmation"
+msgstr ""
+
+msgid "is still associated with this entry"
+msgstr ""
+
+msgid "are still associated with this entry"
+msgstr ""
+
+msgid "should be %{count} character(s)"
+msgid_plural "should be %{count} character(s)"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "should have %{count} item(s)"
+msgid_plural "should have %{count} item(s)"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "should be at least %{count} character(s)"
+msgid_plural "should be at least %{count} character(s)"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "should have at least %{count} item(s)"
+msgid_plural "should have at least %{count} item(s)"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "should be at most %{count} character(s)"
+msgid_plural "should be at most %{count} character(s)"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "should have at most %{count} item(s)"
+msgid_plural "should have at most %{count} item(s)"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "must be less than %{number}"
+msgstr ""
+
+msgid "must be greater than %{number}"
+msgstr ""
+
+msgid "must be less than or equal to %{number}"
+msgstr ""
+
+msgid "must be greater than or equal to %{number}"
+msgstr ""
+
+msgid "must be equal to %{number}"
+msgstr ""
+
