@@ -31,8 +31,6 @@ defmodule NervesHubWWWWeb.OrgController do
         %{assigns: %{current_org: %{id: _conn_id} = org, current_limit: limits}} = conn,
         _params
       ) do
-    IO.inspect(conn)
-
     render(
       conn,
       "edit.html",
