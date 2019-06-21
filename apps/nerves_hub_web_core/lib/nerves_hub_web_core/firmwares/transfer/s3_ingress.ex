@@ -101,7 +101,8 @@ defmodule NervesHubWebCore.Firmwares.Transfer.S3Ingress do
      }}
   end
 
-  def decode_record(_) do
+  def decode_record(record) do
+    Logger.error(fn -> "Invalid FirmwareTransfer record #{inspect(record)}" end)
     {:error, :invalid_transfer_record}
   end
 
