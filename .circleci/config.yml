@@ -82,6 +82,22 @@ send_notifications: &send_notifications
 
 version: 2
 jobs:
+  fetch_deps:
+    docker:
+      - image: circleci/elixir:1.8
+        environment:
+          MIX_ENV: test
+    working_directory: ~/app
+
+    steps:
+      - checkout
+      - run: mix local.hex --force
+      - run: mix local.rebar --force
+      - run: mix do deps.get
+      - save_cache:
+          key: mix-deps-{{ .Branch }}-{{ checksum "mix.lock" }}
+          paths: "deps"
+
   test_elixir:
     docker:
       - image: circleci/elixir:1.8
@@ -108,38 +124,14 @@ jobs:
 
       - restore_cache:
           keys:
-            - v1-mix-cache-{{ .Branch }}-{{ checksum "mix.lock" }}
-            - v1-mix-cache-{{ .Branch }}
-            - v1-mix-cache
-      - restore_cache:
-          keys:
-            - v1-build-cache-{{ .Branch }}
-            - v1-build-cache
-      - run: mix do deps.get, compile
-      - save_cache:
-          key: v1-mix-cache-{{ .Branch }}-{{ checksum "mix.lock" }}
-          paths: "deps"
-      - save_cache:
-          key: v1-mix-cache-{{ .Branch }}
-          paths: "deps"
-      - save_cache:
-          key: v1-mix-cache
-          paths: "deps"
-      - save_cache:
-          key: v1-build-cache-{{ .Branch }}
-          paths: "_build"
-      - save_cache:
-          key: v1-build-cache
-          paths: "_build"
-
+            - mix-deps-{{ .Branch }}-{{ checksum "mix.lock" }}
+      - run: mix compile
       - run:
           name: Wait for DB
           command: dockerize -wait tcp://localhost:5432 -timeout 1m
-
       - run:
           name: Test
           command: mix coveralls.circle --umbrella
-
       - run:
           name: Verify formatting
           command: mix format --check-formatted
@@ -158,22 +150,18 @@ jobs:
 
       - restore_cache:
           keys:
-            - v1-node-modules-{{ checksum "yarn.lock" }}
-
+            - node-modules-{{ checksum "yarn.lock" }}
+            - mix-deps-{{ .Branch }}-{{ checksum "../../../mix.lock" }}
       - run: yarn install
-
       - save_cache:
-          key: v1-node-modules-{{ checksum "yarn.lock" }}
+          key: node-modules-{{ checksum "yarn.lock" }}
           paths: "node_modules"
-
       - run:
           name: Verify formatting
           command: yarn prettier -c $SRC_PATH
-
       - run:
           name: ESLint
           command: yarn eslint $SRC_PATH
-
       - run:
           name: Test
           command: yarn jest
@@ -311,8 +299,15 @@ workflows:
   version: 2
   pipeline:
       jobs:
-        - test_elixir
-        - test_javascript
+        - fetch_deps
+        - test_elixir:
+            context: org-global
+            requires:
+              - fetch_deps
+        - test_javascript:
+            context: org-global
+            requires:
+              - fetch_deps
         - build-www:
             context: org-global
             requires:
