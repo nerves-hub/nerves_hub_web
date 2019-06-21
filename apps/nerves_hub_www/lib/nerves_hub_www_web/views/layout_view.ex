@@ -6,12 +6,20 @@ defmodule NervesHubWWWWeb.LayoutView do
   alias NervesHubWebCore.Products
   alias NervesHubWebCore.Products.Product
 
+  @gravatar_url "https://secure.gravatar.com/avatar"
+  @gravatar_size 54
+
   def product(%{assigns: %{product: %Product{} = product}}) do
     product
   end
 
   def product(_conn) do
     nil
+  end
+
+  def gravatar(%{assigns: %{user: %{email: email}}}) do
+    hash = :crypto.hash(:md5, String.downcase(email)) |> Base.encode16(case: :lower)
+    "#{@gravatar_url}/#{hash}?s=#{@gravatar_size}"
   end
 
   def user_orgs(%{assigns: %{user: %User{} = user}}) do
