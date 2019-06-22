@@ -42,17 +42,24 @@ defmodule NervesHubWWWWeb.SessionController do
     |> redirect(to: "/")
   end
 
-  def set_org(%{assigns: %{current_org: _, user: user}} = conn, %{"org" => id}) do
+  def set_org(conn, %{"org" => id} = params) do
     {org_id, _} = Integer.parse(id)
+    redirect = Map.get(params, "redirect", product_path(conn, :index))
 
-    if org_id in (Accounts.get_user_orgs_with_product_role(user, :read)
-                  |> Enum.map(fn x -> x.id end)) do
-      conn
-      |> put_session("current_org_id", org_id)
-      |> redirect(to: product_path(conn, :index))
+    conn
+    |> put_current_org(org_id)
+    |> redirect(to: redirect)
+  end
+
+  defp put_current_org(%{assigns: %{current_org: _, user: user}} = conn, org_id) do
+    user_orgs =
+      Accounts.get_user_orgs_with_product_role(user, :read)
+      |> Enum.map(fn x -> x.id end)
+
+    if org_id in user_orgs do
+      put_session(conn, "current_org_id", org_id)
     else
       conn
-      |> redirect(to: product_path(conn, :index))
     end
   end
 end

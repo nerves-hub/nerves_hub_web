@@ -10,9 +10,9 @@
           </a>
           <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
             <%= for org <- user_orgs(@conn) do %>
-              <%= link org.name, class: "dropdown-item org", to: session_path(@conn, :set_org, org: org), method: :put%>
+              <%= link org.name, class: "dropdown-item org", to: session_path(@conn, :set_org, org: org), method: :put %>
               <%= for product <- user_org_products(@conn.assigns.user, org) do %>
-                <%= link product.name, class: "dropdown-item product", to: product_path(@conn, :show, product)%>
+                <%= link product.name, class: "dropdown-item product", to: session_path(@conn, :set_org, org: org, redirect: product_path(@conn, :show, product)), method: :put %>
               <% end %>
               <div class="dropdown-divider"></div>
             <% end %>
