@@ -4,14 +4,17 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
   alias NervesHubWebCore.Fixtures
   alias NervesHubWebCore.{Accounts, Deployments, Devices, Devices.Device, Repo}
   alias NervesHubDevice.Presence
+  alias NervesHubDeviceWeb.Endpoint
 
   alias PhoenixClient.{Socket, Channel}
 
   @valid_serial "device-1234"
   @valid_product "test-product"
 
+  @device_port Application.get_env(:nerves_hub_device, Endpoint) |> get_in([:https, :port])
+
   @fake_ssl_socket_config [
-    url: "wss://127.0.0.1:4001/socket/websocket",
+    url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
     json_library: Jason,
     reconnect_interval: 50,
     ssl_verify: :verify_peer,
@@ -26,7 +29,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
   ]
 
   @ssl_socket_config [
-    url: "wss://127.0.0.1:4001/socket/websocket",
+    url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
     json_library: Jason,
     reconnect_interval: 50,
     ssl_verify: :verify_peer,
@@ -246,7 +249,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        url: "wss://127.0.0.1:4001/socket/websocket",
+        url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
         serializer: Jason,
         ssl_verify: :verify_peer,
         transport_opts: [
@@ -292,7 +295,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        url: "wss://127.0.0.1:4001/socket/websocket",
+        url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
         serializer: Jason,
         ssl_verify: :verify_peer,
         transport_opts: [
