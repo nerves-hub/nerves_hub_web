@@ -19,12 +19,8 @@ defmodule NervesHubWWWWeb.Router do
     plug(NervesHubWWWWeb.Plugs.FetchOrg)
   end
 
-  pipeline :org_read do
-    plug(NervesHubWebCore.RoleValidateHelpers, org: :read)
-  end
-
-  pipeline :org_write do
-    plug(NervesHubWebCore.RoleValidateHelpers, org: :write)
+  pipeline :product_write do
+    plug(NervesHubWebCore.RoleValidateHelpers, product: :write)
   end
 
   pipeline :product_level do
@@ -110,7 +106,7 @@ defmodule NervesHubWWWWeb.Router do
   # let's be explicit here and pipe through role checks before
   # attempting to mount the LiveView session.
   scope "/", NervesHubWWWWeb do
-    pipe_through([:browser, :logged_in, :org_write])
+    pipe_through([:browser, :logged_in, :product_level, :product_write])
 
     live("/products/:product_id/devices/:id/edit", DeviceLive.Edit,
       as: :product_device,
@@ -119,7 +115,7 @@ defmodule NervesHubWWWWeb.Router do
   end
 
   scope "/", NervesHubWWWWeb do
-    pipe_through([:browser, :logged_in, :org_read])
+    pipe_through([:browser, :logged_in, :product_level, :product_read])
 
     live("/products/:product_id/devices/:id", DeviceLive.Show,
       as: :product_device,
