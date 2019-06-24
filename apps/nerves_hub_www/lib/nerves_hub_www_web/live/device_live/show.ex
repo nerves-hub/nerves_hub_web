@@ -23,7 +23,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
       {:ok, device} ->
         if connected?(socket) do
           socket.endpoint.subscribe("device:#{device.id}")
-          socket.endpoint.subscribe("devices:#{org_id}")
+          socket.endpoint.subscribe("product:#{product_id}:devices")
         end
 
         {:ok, user} = Accounts.get_user(user_id)

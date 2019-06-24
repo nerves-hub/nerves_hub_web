@@ -17,8 +17,14 @@ defmodule NervesHubDevice.Presence do
     :update_available
   ]
 
-  def fetch("devices:" <> _, entries) do
-    for {key, entry} <- entries, into: %{}, do: {key, merge_metas(entry)}
+  def fetch("product:" <> topic, entries) do
+    case String.split(topic, ":", trim: true) do
+      [_product_id, "devices"] ->
+        for {key, entry} <- entries, into: %{}, do: {key, merge_metas(entry)}
+
+      _ ->
+        entries
+    end
   end
 
   def fetch(_, entries), do: entries
@@ -29,7 +35,6 @@ defmodule NervesHubDevice.Presence do
     "product:#{product_id}:devices"
     |> Presence.list()
     |> Map.get("#{device_id}", default)
-    |> merge_metas
   end
 
   def find(_, default), do: default

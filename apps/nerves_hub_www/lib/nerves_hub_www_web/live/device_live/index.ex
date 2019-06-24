@@ -12,7 +12,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   def mount(%{org_id: org_id, csrf_token: csrf_token, product_id: product_id}, socket) do
     if connected?(socket) do
-      socket.endpoint.subscribe("devices:#{org_id}")
+      socket.endpoint.subscribe("product:#{product_id}:devices")
     end
 
     socket =
@@ -71,7 +71,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   defp assign_statuses(org_id, product_id) do
     Devices.get_devices_by_org_id_and_product_id(org_id, product_id)
-    |> sync_devices(%{joins: Presence.list("devices:#{org_id}"), leaves: %{}})
+    |> sync_devices(%{joins: Presence.list("product:#{product_id}:devices"), leaves: %{}})
   end
 
   defp do_sort(%{assigns: %{devices: devices, current_sort: current_sort}} = socket) do
