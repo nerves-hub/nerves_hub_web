@@ -41,9 +41,14 @@ defmodule NervesHubDeviceWeb.ConsoleChannel do
     socket.endpoint.subscribe(console_topic(socket))
 
     {:ok, _} =
-      NervesHubDevice.Presence.track(socket.channel_pid, "devices:#{device.org_id}", device.id, %{
-        console_available: true
-      })
+      NervesHubDevice.Presence.track(
+        socket.channel_pid,
+        "product:#{device.product_id}:devices",
+        device.id,
+        %{
+          console_available: true
+        }
+      )
 
     {:noreply, socket}
   end
