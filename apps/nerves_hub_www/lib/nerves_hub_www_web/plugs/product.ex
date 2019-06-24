@@ -1,5 +1,5 @@
-defmodule NervesHubWebCore.Plugs.Product do
-  import Plug.Conn
+defmodule NervesHubWWWWeb.Plugs.Product do
+  use NervesHubWWWWeb, :plug
 
   alias NervesHubWebCore.Products
 
@@ -13,11 +13,12 @@ defmodule NervesHubWebCore.Plugs.Product do
       conn
       |> assign(:product, product)
     else
-      _ -> conn
+      _error ->
+        conn
+        |> put_status(:not_found)
+        |> put_view(NervesHubWWWWeb.ErrorView)
+        |> render("404.html")
+        |> halt
     end
-  end
-
-  def call(conn, _opts) do
-    conn
   end
 end

@@ -7,62 +7,62 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
   @invalid_attrs %{name: nil}
 
   describe "index" do
-    test "lists all org_keys", %{conn: conn} do
-      conn = get(conn, org_key_path(conn, :index))
+    test "lists all org_keys", %{conn: conn, org: org} do
+      conn = get(conn, org_key_path(conn, :index, org.name))
       assert html_response(conn, 200) =~ "Listing organization keys"
     end
   end
 
   describe "new org_keys" do
-    test "renders form", %{conn: conn} do
-      conn = get(conn, org_key_path(conn, :new))
+    test "renders form", %{conn: conn, org: org} do
+      conn = get(conn, org_key_path(conn, :new, org.name))
       assert html_response(conn, 200) =~ "New organization keys"
     end
   end
 
   describe "create org_keys" do
-    test "redirects to show when data is valid", %{conn: conn, current_org: org} do
+    test "redirects to show when data is valid", %{conn: conn, org: org} do
       params = %{name: "foobarbazbangpow", key: "a key"}
-      conn = post(conn, org_key_path(conn, :create), org_key: params)
+      conn = post(conn, org_key_path(conn, :create, org.name), org_key: params)
 
-      assert redirected_to(conn) == org_path(conn, :edit, org)
+      assert redirected_to(conn) == org_path(conn, :edit, org.name)
 
-      conn = get(conn, org_path(conn, :edit, org))
+      conn = get(conn, org_path(conn, :edit, org.name))
       assert html_response(conn, 200) =~ params.name
     end
 
-    test "renders errors when data is invalid", %{conn: conn, current_org: org} do
-      conn = post(conn, org_key_path(conn, :create), org_key: @invalid_attrs)
-      assert redirected_to(conn) == org_path(conn, :edit, org)
+    test "renders errors when data is invalid", %{conn: conn, org: org} do
+      conn = post(conn, org_key_path(conn, :create, org.name), org_key: @invalid_attrs)
+      assert redirected_to(conn) == org_path(conn, :edit, org.name)
     end
   end
 
   describe "edit org_keys" do
-    test "renders form for editing chosen org_keys", %{conn: conn, current_org: org} do
+    test "renders form for editing chosen org_keys", %{conn: conn, org: org} do
       org_key = Fixtures.org_key_fixture(org)
-      conn = get(conn, org_key_path(conn, :edit, org_key))
+      conn = get(conn, org_key_path(conn, :edit, org.name, org_key))
       assert html_response(conn, 200) =~ "Edit organization key"
     end
   end
 
   describe "update org_key" do
-    test "redirects when data is valid", %{conn: conn, current_org: org} do
+    test "redirects when data is valid", %{conn: conn, org: org} do
       org_key = Fixtures.org_key_fixture(org)
-      conn = put(conn, org_key_path(conn, :update, org_key), org_key: @update_attrs)
+      conn = put(conn, org_key_path(conn, :update, org.name, org_key), org_key: @update_attrs)
 
-      assert redirected_to(conn) == org_path(conn, :edit, org)
+      assert redirected_to(conn) == org_path(conn, :edit, org.name)
 
-      conn = get(conn, org_key_path(conn, :show, org_key))
+      conn = get(conn, org_key_path(conn, :show, org.name, org_key))
       assert html_response(conn, 200)
     end
 
-    test "renders errors when data is invalid", %{conn: conn, current_org: org} do
+    test "renders errors when data is invalid", %{conn: conn, org: org} do
       org_key = Fixtures.org_key_fixture(org)
 
       conn =
         put(
           conn,
-          org_key_path(conn, :update, org_key),
+          org_key_path(conn, :update, org.name, org_key),
           org_key: @invalid_attrs
         )
 
@@ -71,28 +71,28 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
   end
 
   describe "delete org_key" do
-    test "deletes chosen org_key", %{conn: conn, current_org: org} do
+    test "deletes chosen org_key", %{conn: conn, org: org} do
       org_key = Fixtures.org_key_fixture(org)
 
-      conn = delete(conn, org_key_path(conn, :delete, org_key))
-      assert redirected_to(conn) == org_path(conn, :edit, org)
+      conn = delete(conn, org_key_path(conn, :delete, org.name, org_key))
+      assert redirected_to(conn) == org_path(conn, :edit, org.name)
 
       assert_error_sent(404, fn ->
-        get(conn, org_key_path(conn, :show, org_key))
+        get(conn, org_key_path(conn, :show, org.name, org_key))
       end)
     end
 
     test "returns error when key cannot be deleted", %{
       conn: conn,
-      current_user: user,
-      current_org: org
+      user: user,
+      org: org
     } do
       org_key = Fixtures.org_key_fixture(org)
 
       product = Fixtures.product_fixture(user, org)
       Fixtures.firmware_fixture(org_key, product)
 
-      conn = delete(conn, org_key_path(conn, :delete, org_key))
+      conn = delete(conn, org_key_path(conn, :delete, org.name, org_key))
       assert html_response(conn, 200) =~ "Key is in use."
     end
   end

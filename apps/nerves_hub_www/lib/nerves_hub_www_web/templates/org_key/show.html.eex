@@ -4,5 +4,5 @@
 
 </ul>
 
-<span><%= link "Edit", to: org_key_path(@conn, :edit, @org_key) %></span>
-<span><%= link "Back", to: org_key_path(@conn, :index) %></span>
+<span><%= link "Edit", to: org_key_path(@conn, :edit, @org.name, @org_key) %></span>
+<span><%= link "Back", to: org_key_path(@conn, :index, @org.name) %></span>

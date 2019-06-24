@@ -4,10 +4,10 @@ defmodule NervesHubWWWWeb.DeviceLive.Edit do
   import NervesHubWebCore.AuditLogs, only: [audit!: 4]
 
   alias NervesHubWebCore.{
-    Accounts.Org,
-    Accounts.User,
+    Accounts,
     Devices,
-    Devices.Device
+    Devices.Device,
+    Products
   }
 
   def render(assigns) do
@@ -17,28 +17,24 @@ defmodule NervesHubWWWWeb.DeviceLive.Edit do
   def mount(
         %{
           auth_user_id: user_id,
-          current_org_id: org_id,
-          path_params: %{"product_id" => product_id, "id" => device_id}
+          org_id: org_id,
+          product_id: product_id,
+          device_id: device_id
         },
         socket
       ) do
-    case Devices.get_device_by_org(%Org{id: org_id}, device_id) do
-      {:ok, device} ->
-        socket =
-          socket
-          |> assign(:device, device)
-          |> assign(:changeset, Device.changeset(device, %{}))
-          |> assign(:user_id, user_id)
-          |> assign(:product_id, product_id)
+    socket =
+      socket
+      |> assign_new(:user, fn -> Accounts.get_user!(user_id) end)
+      |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
+      |> assign_new(:product, fn -> Products.get_product!(product_id) end)
+      |> assign_new(:device, fn -> Devices.get_device!(device_id) end)
 
-        {:ok, socket}
+    socket =
+      socket
+      |> assign(:changeset, Device.changeset(socket.assigns.device, %{}))
 
-      {:error, :not_found} ->
-        {:stop,
-         socket
-         |> put_flash(:error, "Device not found")
-         |> redirect(to: Routes.product_device_path(socket, :index, product_id))}
-    end
+    {:ok, socket}
   end
 
   def handle_event("validate", %{"device" => device_params}, socket) do
@@ -53,18 +49,27 @@ defmodule NervesHubWWWWeb.DeviceLive.Edit do
   def handle_event(
         "save",
         %{"device" => device_params},
-        %{assigns: %{device: device, product_id: product_id, user_id: user_id}} = socket
+        %{
+          assigns: %{
+            device: device,
+            org: org,
+            product: product,
+            user: user
+          }
+        } = socket
       ) do
     device
     |> Devices.update_device(device_params)
     |> case do
       {:ok, _updated_device} ->
-        audit!(%User{id: user_id}, device, :update, device_params)
+        audit!(user, device, :update, device_params)
 
         {:stop,
          socket
          |> put_flash(:info, "Device Updated")
-         |> redirect(to: Routes.product_device_path(socket, DeviceLive.Show, product_id, device))}
+         |> redirect(
+           to: Routes.device_path(socket, :show, org.name, product.name, device.identifier)
+         )}
 
       {:error, changeset} ->
         {:noreply, assign(socket, changeset: changeset)}

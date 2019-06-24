@@ -12,13 +12,13 @@
     <tr>
 
       <td>
-        <%= link "Show", to: org_key_path(@conn, :show, org_keys) %>
-        <%= link "Edit", to: org_key_path(@conn, :edit, org_keys) %>
-        <%= link "Delete", to: org_key_path(@conn, :delete, org_keys), method: :delete, data: [confirm: "Are you sure?"] %>
+        <%= link "Show", to: org_key_path(@conn, :show, @org.name, org_keys) %>
+        <%= link "Edit", to: org_key_path(@conn, :edit, @org.name, org_keys) %>
+        <%= link "Delete", to: org_key_path(@conn, :delete, @org.name, org_keys), method: :delete, data: [confirm: "Are you sure?"] %>
       </td>
     </tr>
 <% end %>
   </tbody>
 </table>
 
-<span><%= link "New organization keys", to: org_key_path(@conn, :new) %></span>
+<span><%= link "New organization keys", to: org_key_path(@conn, :new, @org.name) %></span>

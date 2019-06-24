@@ -1,5 +1,5 @@
 <h2>New organization keys</h2>
 
-<%= render "form.html", Map.put(assigns, :action, org_key_path(@conn, :create)) %>
+<%= render "form.html", Map.put(assigns, :action, org_key_path(@conn, :create, @org.name)) %>
 
-<span><%= link "Back", to: org_key_path(@conn, :index) %></span>
+<span><%= link "Back", to: org_key_path(@conn, :index, @org.name) %></span>

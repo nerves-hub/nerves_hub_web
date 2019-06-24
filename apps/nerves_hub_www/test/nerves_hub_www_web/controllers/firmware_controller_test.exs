@@ -7,34 +7,34 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
   alias NervesHubWebCore.Support.Fwup
 
   describe "index" do
-    test "lists all firmwares", %{conn: conn, current_user: user, current_org: org} do
+    test "lists all firmwares", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
 
-      conn = get(conn, product_firmware_path(conn, :index, product.id))
+      conn = get(conn, firmware_path(conn, :index, org.name, product.name))
       assert html_response(conn, 200) =~ "Firmware"
-      assert html_response(conn, 200) =~ product_firmware_path(conn, :upload, product.id)
+      assert html_response(conn, 200) =~ firmware_path(conn, :upload, org.name, product.name)
     end
   end
 
   describe "upload firmware form" do
     test "renders form with valid request params", %{
       conn: conn,
-      current_user: user,
-      current_org: org
+      user: user,
+      org: org
     } do
       product = Fixtures.product_fixture(user, org)
-      conn = get(conn, product_firmware_path(conn, :upload, product.id))
+      conn = get(conn, firmware_path(conn, :upload, org.name, product.name))
 
       assert html_response(conn, 200) =~ "Upload Firmware"
-      assert html_response(conn, 200) =~ product_firmware_path(conn, :do_upload, product.id)
+      assert html_response(conn, 200) =~ firmware_path(conn, :do_upload, org.name, product.name)
     end
   end
 
   describe "upload firmware" do
     test "redirects after successful upload", %{
       conn: conn,
-      current_user: user,
-      current_org: org,
+      user: user,
+      org: org,
       org_key: org_key
     } do
       product_name = "cool product"
@@ -50,22 +50,23 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
       # check that we end up in the right place
       create_conn =
-        post(conn, product_firmware_path(conn, :upload, product.id), %{
+        post(conn, firmware_path(conn, :upload, org.name, product.name), %{
           "firmware" => %{"file" => upload}
         })
 
-      assert redirected_to(create_conn, 302) =~ product_firmware_path(conn, :index, product.id)
+      assert redirected_to(create_conn, 302) =~
+               firmware_path(conn, :index, org.name, product.name)
 
       # check that the proper creation side effects took place
-      conn = get(conn, product_firmware_path(conn, :index, product.id))
+      conn = get(conn, firmware_path(conn, :index, org.name, product.name))
       # starter is the product for the test firmware
       assert html_response(conn, 200) =~ product_name
     end
 
     test "error if corrupt firmware uploaded", %{
       conn: conn,
-      current_user: user,
-      current_org: org,
+      user: user,
+      org: org,
       org_key: org_key
     } do
       product = Fixtures.product_fixture(user, org, %{name: "starter"})
@@ -82,7 +83,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
       # check for the error message
       conn =
-        post(conn, product_firmware_path(conn, :upload, product.id), %{
+        post(conn, firmware_path(conn, :upload, org.name, product.name), %{
           "firmware" => %{"file" => upload}
         })
 
@@ -92,8 +93,8 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
     test "error if org keys do not match firmware", %{
       conn: conn,
-      current_user: user,
-      current_org: org
+      user: user,
+      org: org
     } do
       product = Fixtures.product_fixture(user, org, %{name: "starter"})
 
@@ -109,7 +110,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
       # check for the error message
       conn =
-        post(conn, product_firmware_path(conn, :upload, product.id), %{
+        post(conn, firmware_path(conn, :upload, org.name, product.name), %{
           "firmware" => %{"file" => upload}
         })
 
@@ -119,8 +120,8 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
     test "error if meta-product does not match product name", %{
       conn: conn,
-      current_user: user,
-      current_org: org,
+      user: user,
+      org: org,
       org_key: org_key
     } do
       product = Fixtures.product_fixture(user, org, %{name: "non-matching name"})
@@ -135,7 +136,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
       # check for the error message
       conn =
-        post(conn, product_firmware_path(conn, :upload, product.id), %{
+        post(conn, firmware_path(conn, :upload, org.name, product.name), %{
           "firmware" => %{"file" => upload}
         })
 
@@ -144,8 +145,8 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
     test "error if firmware size exceeds limit", %{
       conn: conn,
-      current_user: user,
-      current_org: org
+      user: user,
+      org: org
     } do
       Accounts.create_org_limit(%{org_id: org.id, firmware_size: 1})
       product = Fixtures.product_fixture(user, org, %{name: "starter"})
@@ -161,7 +162,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
       # check for the error message
       conn =
-        post(conn, product_firmware_path(conn, :upload, product.id), %{
+        post(conn, firmware_path(conn, :upload, org.name, product.name), %{
           "firmware" => %{"file" => upload}
         })
 
@@ -172,15 +173,15 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
   describe "delete firmware" do
     test "deletes chosen firmware", %{
       conn: conn,
-      current_user: user,
-      current_org: org
+      user: user,
+      org: org
     } do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
-      conn = delete(conn, product_firmware_path(conn, :delete, product.id, firmware.id))
-      assert redirected_to(conn) == product_firmware_path(conn, :index, product.id)
+      conn = delete(conn, firmware_path(conn, :delete, org.name, product.name, firmware.uuid))
+      assert redirected_to(conn) == firmware_path(conn, :index, org.name, product.name)
       assert Firmwares.get_firmware(org, firmware.id) == {:error, :not_found}
     end
   end

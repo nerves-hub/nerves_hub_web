@@ -1,9 +1,9 @@
 <%= if @products == [] do %>
 <div class="jumbotron bg-dark">
-  <p class="lead text-left">The organization <%= @conn.assigns.current_org.name %> doesn't have any products</p>
+  <p class="lead text-left">The organization <%= @org.name %> doesn't have any products</p>
   <hr class="my-4">
   <p class="text-left">
-    <a class="btn btn-primary btn-lg" href="<%= product_path(@conn, :new) %>" role="button">Add a Product</a>
+    <a class="btn btn-primary btn-lg" href="<%= product_path(@conn, :new, @org.name) %>" role="button">Add a Product</a>
   </p>
 </div>
 <% else %>
@@ -15,14 +15,14 @@
           All Products
         </div>
         <div class="col-4 text-right">
-          <a href="<%= product_path(@conn, :new)%>">
+          <a href="<%= product_path(@conn, :new, @org.name)%>">
             <span class="fa fa-plus-circle">
           </a>
         </div>
       </div>
     </div>
     <ul class="list-group" id="product_listing">
-      <%= render(NervesHubWWWWeb.ProductView, "_listing.html", conn: @conn, products: @products) %>
+      <%= render(NervesHubWWWWeb.ProductView, "_listing.html", conn: @conn, org: @org, products: @products) %>
     </ul>
   </div>
   <div class="col-8">

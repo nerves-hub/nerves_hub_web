@@ -9,8 +9,9 @@ defmodule NervesHubWWWWeb.ProductController do
   plug(:validate_role, [org: :delete] when action in [:delete])
 
   plug(:validate_role, [product: :write] when action in [:update])
+  plug(:validate_role, [product: :read] when action in [:show])
 
-  def index(%{assigns: %{user: user, current_org: org}} = conn, _params) do
+  def index(%{assigns: %{user: user, org: org}} = conn, _params) do
     products = Products.get_products_by_user_and_org(user, org)
     render(conn, "index.html", products: products)
   end
@@ -20,38 +21,31 @@ defmodule NervesHubWWWWeb.ProductController do
     render(conn, "new.html", changeset: changeset)
   end
 
-  def create(%{assigns: %{user: user, current_org: org}} = conn, %{"product" => product_params}) do
+  def create(%{assigns: %{user: user, org: org}} = conn, %{"product" => product_params}) do
     params = Enum.into(product_params, %{"org_id" => org.id})
 
     case Products.create_product(user, params) do
       {:ok, product} ->
         conn
         |> put_flash(:info, "Product created successfully.")
-        |> redirect(to: product_path(conn, :show, product))
+        |> redirect(to: product_path(conn, :show, org.name, product.name))
 
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "new.html", changeset: changeset)
     end
   end
 
-  def show(conn, %{"id" => id}) do
-    product = Products.get_product!(id)
-
+  def show(%{assigns: %{product: product}} = conn, _params) do
     conn
-    |> assign(:product, product)
-    |> validate_role(product: :read)
     |> render("show.html", product: product)
   end
 
-  def edit(conn, %{"id" => id}) do
-    product = Products.get_product!(id)
+  def edit(%{assigns: %{product: product}} = conn, _params) do
     changeset = Products.change_product(product)
     render(conn, "edit.html", product: product, changeset: changeset)
   end
 
-  def update(%{assigns: %{current_org: org}} = conn, %{"id" => id, "product" => product_params}) do
-    product = Products.get_product!(id)
-
+  def update(%{assigns: %{org: org, product: product}} = conn, %{"product" => product_params}) do
     case Products.update_product(
            product,
            product_params |> Enum.into(%{"org_id" => org.id})
@@ -59,19 +53,18 @@ defmodule NervesHubWWWWeb.ProductController do
       {:ok, product} ->
         conn
         |> put_flash(:info, "Product updated successfully.")
-        |> redirect(to: product_path(conn, :show, product))
+        |> redirect(to: product_path(conn, :show, org.name, product.name))
 
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "edit.html", product: product, changeset: changeset)
     end
   end
 
-  def delete(conn, %{"id" => id}) do
-    product = Products.get_product!(id)
+  def delete(%{assigns: %{org: org, product: product}} = conn, _params) do
     {:ok, _product} = Products.delete_product(product)
 
     conn
     |> put_flash(:info, "Product deleted successfully.")
-    |> redirect(to: product_path(conn, :index))
+    |> redirect(to: product_path(conn, :index, org.name))
   end
 end

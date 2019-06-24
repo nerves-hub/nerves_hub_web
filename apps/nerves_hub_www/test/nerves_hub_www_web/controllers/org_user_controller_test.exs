@@ -6,10 +6,10 @@ defmodule NervesHubWWWWeb.OrgUserControllerTest do
   describe "index" do
     test "lists all users in an organization", %{
       conn: conn,
-      current_org: org
+      org: org
     } do
       org_users = Accounts.get_org_users(org)
-      conn = get(conn, org_user_path(conn, :index))
+      conn = get(conn, org_user_path(conn, :index, org.name))
       assert html_response(conn, 200) =~ "#{org.name} Users"
 
       Enum.each(org_users, fn org_user ->

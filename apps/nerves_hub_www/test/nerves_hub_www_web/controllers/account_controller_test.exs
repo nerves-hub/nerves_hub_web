@@ -17,12 +17,12 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
     test "renders invite creation form", %{
       conn: conn
     } do
-      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com"}, conn.assigns.current_org)
+      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com"}, conn.assigns.org)
 
       conn = get(conn, account_path(conn, :invite, invite.token))
 
       assert html_response(conn, 200) =~
-               "You will be added to the #{conn.assigns.current_org.name} org"
+               "You will be added to the #{conn.assigns.org.name} org"
     end
   end
 
@@ -30,7 +30,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
     test "accepts submitted invitation", %{
       conn: conn
     } do
-      org = conn.assigns.current_org
+      org = conn.assigns.org
       {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com"}, org)
 
       conn =
@@ -62,11 +62,12 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
 
   describe "edit" do
     test "renders account edit form", %{
-      conn: conn
+      conn: conn,
+      user: user
     } do
-      conn = get(conn, account_path(conn, :edit))
+      conn = get(conn, account_path(conn, :edit, user.username))
       assert html_response(conn, 200) =~ "Edit Account"
-      assert html_response(conn, 200) =~ account_certificate_path(conn, :index)
+      assert html_response(conn, 200) =~ account_certificate_path(conn, :index, user.username)
       assert html_response(conn, 200) =~ "type=\"password\""
     end
   end
@@ -74,12 +75,12 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
   describe "update" do
     test "can update an account", %{
       conn: conn,
-      current_user: user
+      user: user
     } do
       conn =
         conn
         |> put(
-          account_path(conn, :update, %{
+          account_path(conn, :update, user.username, %{
             "user" => %{
               "username" => "MyNewestName",
               "password" => "foobarbaz",
@@ -88,7 +89,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
           })
         )
 
-      assert html_response(conn, 302) =~ account_path(conn, :edit)
+      assert html_response(conn, 302) =~ account_path(conn, :edit, "MyNewestName")
 
       updated_user = Accounts.get_user(user.id) |> elem(1)
 
@@ -96,12 +97,13 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
     end
 
     test "fails with missing password", %{
-      conn: conn
+      conn: conn,
+      user: user
     } do
       conn =
         conn
         |> put(
-          account_path(conn, :update, %{
+          account_path(conn, :update, user.username, %{
             "user" => %{
               "username" => "MyNewestName",
               "password" => "12345678",
@@ -114,12 +116,13 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
     end
 
     test "fails with incorrect password", %{
-      conn: conn
+      conn: conn,
+      user: user
     } do
       conn =
         conn
         |> put(
-          account_path(conn, :update, %{
+          account_path(conn, :update, user.username, %{
             "user" => %{
               "username" => "MyNewestName",
               "password" => "12345678",

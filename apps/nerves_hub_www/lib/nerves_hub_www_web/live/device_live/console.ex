@@ -2,7 +2,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
   use NervesHubWWWWeb, :live_view
 
   alias NervesHubDevice.Presence
-  alias NervesHubWebCore.{Accounts, Accounts.Org, Devices}
+  alias NervesHubWebCore.{Accounts, Devices, Products}
   alias Phoenix.Socket.Broadcast
 
   @theme AnsiToHTML.Theme.new(container: :none, "\e[22m": {:text, []})
@@ -14,36 +14,31 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
   def mount(
         %{
           auth_user_id: user_id,
-          current_org_id: org_id,
-          path_params: %{"product_id" => product_id, "id" => device_id}
+          org_id: org_id,
+          product_id: product_id,
+          device_id: device_id
         },
         socket
       ) do
-    case Devices.get_device_by_org(%Org{id: org_id}, device_id) do
-      {:ok, device} ->
-        if connected?(socket) do
-          socket.endpoint.subscribe(console_topic(device))
-        end
+    socket =
+      socket
+      |> assign_new(:user, fn -> Accounts.get_user!(user_id) end)
+      |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
+      |> assign_new(:product, fn -> Products.get_product!(product_id) end)
+      |> assign_new(:device, fn -> Devices.get_device!(device_id) end)
 
-        {:ok, user} = Accounts.get_user(user_id)
-        user = Repo.preload(user, :org_users)
-        org_user = Enum.find(user.org_users, %{role: :read}, &(&1.org_id == org_id))
-
-        socket
-        |> assign(:active_line, "iex(#{user.username})> ")
-        |> assign(:device, device)
-        |> assign(:lines, ["NervesHub IEx Live"])
-        |> assign(:username, user.username)
-        |> assign(:user_role, org_user.role)
-        |> assign(:product_id, product_id)
-        |> init_iex()
-
-      {:error, :not_found} ->
-        {:stop,
-         socket
-         |> put_flash(:error, "Device not found")
-         |> redirect(to: Routes.product_device_path(socket, :index, product_id))}
+    if connected?(socket) do
+      socket.endpoint.subscribe(console_topic(socket.assigns.device))
     end
+
+    user = Repo.preload(socket.assigns.user, :org_users)
+    org_user = Enum.find(user.org_users, %{role: :read}, &(&1.org_id == socket.assigns.org.id))
+
+    socket
+    |> assign(:active_line, "iex(#{user.username})> ")
+    |> assign(:lines, ["NervesHub IEx Live"])
+    |> assign(:user_role, org_user.role)
+    |> init_iex()
   end
 
   def handle_event("init_console", _value, socket) do
@@ -109,7 +104,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
 
   def handle_info(
         %Broadcast{event: "get_line", payload: %{"data" => line}},
-        %{assigns: %{username: username}} = socket
+        %{assigns: %{user: %{username: username}}} = socket
       ) do
     line = String.replace(line, ~r/(iex).*(>)/, "\\1(#{username})\\2")
     {:noreply, assign(socket, :active_line, line)}
@@ -138,7 +133,16 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
     "console:#{device_id}"
   end
 
-  defp init_iex(%{assigns: %{product_id: product_id, device: device, user_role: :admin}} = socket) do
+  defp init_iex(
+         %{
+           assigns: %{
+             org: org,
+             product: product,
+             device: device,
+             user_role: :admin
+           }
+         } = socket
+       ) do
     case Presence.find(device) do
       %{console_available: true} ->
         socket.endpoint.broadcast_from!(self(), console_topic(socket), "init", %{})
@@ -150,11 +154,12 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
           |> put_flash(:error, "Device not configured to support remote IEx console")
           |> redirect(
             to:
-              Routes.product_device_path(
+              Routes.device_path(
                 socket,
-                NervesHubWWWWeb.DeviceLive.Show,
-                product_id,
-                device.id
+                :show,
+                org.name,
+                product.name,
+                device.identifier
               )
           )
 
@@ -162,5 +167,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
     end
   end
 
-  defp init_iex(socket), do: {:ok, socket}
+  defp init_iex(socket) do
+    {:ok, socket}
+  end
 end

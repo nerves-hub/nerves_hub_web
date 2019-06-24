@@ -1,7 +1,7 @@
 <h1>
   Firmware
 
-  <a class="btn btn-lg btn-primary pull-right" href="<%= product_firmware_path(@conn, :upload, @product.id) %>">
+  <a class="btn btn-lg btn-primary pull-right" href="<%= firmware_path(@conn, :upload, @org.name, @product.name) %>">
     Upload Firmware
   </a>
 </h1>
@@ -32,11 +32,11 @@
       <td><%= firmware.uuid %></td>
       <td><%= firmware.description %></td>
       <td><%= firmware.author %></td>
-      <td><%= format_signed(firmware, @current_org) %></td>
+      <td><%= format_signed(firmware, @org) %></td>
       <td><pre class="pre-scrollable"><%= firmware.misc %></pre></td>
-      <td><%= link("Download", to: product_firmware_path(@conn, :download, @product.id, firmware.id)) %></td>
+      <td><%= link("Download", to: firmware_path(@conn, :download, @org.name, @product.name, firmware.id)) %></td>
       <td>
-        <%= form_for @conn, product_firmware_path(@conn, :delete, @product.id, firmware.id), [method: :delete], fn _ -> %>
+        <%= form_for @conn, firmware_path(@conn, :delete, @org.name, @product.name, firmware.id), [method: :delete], fn _ -> %>
           <%= submit "Delete Firmware", class: "btn btn-danger", onclick: "return confirm('Are you sure you want to delete this firmware? This can not be undone.')" %>
         <% end %>
       </td>

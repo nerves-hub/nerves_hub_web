@@ -5,19 +5,20 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
 
   alias NervesHubWWWWeb.Router.Helpers, as: Routes
   alias NervesHubWWWWeb.{DeviceLive.Console, Endpoint}
-  alias NervesHubWWWWeb.DeviceLive.Show
   alias NervesHubDevice.Presence
 
   alias Phoenix.Socket.Broadcast
 
-  setup %{fixture: %{device: device, product: product}} = context do
+  setup %{fixture: %{org: org, device: device, product: product}} = context do
     Endpoint.subscribe("console:#{device.id}")
 
     # TODO: Use Plug.Conn.get_session/1 when upgraded to Plug >= 1.8
     session =
       context.conn.private.plug_session
       |> Enum.into(%{}, fn {k, v} -> {String.to_atom(k), v} end)
-      |> Map.put(:path_params, %{"product_id" => product.id, "id" => device.id})
+      |> Map.put(:org_id, org.id)
+      |> Map.put(:product_id, product.id)
+      |> Map.put(:device_id, device.id)
 
     unless context[:skip_presence] do
       Presence.track(self(), "product:#{product.id}:devices", device.id, %{
@@ -36,18 +37,18 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
 
     @tag skip_presence: true
     test "redirects when device not configured for remote IEx", %{
-      fixture: %{product: product, device: device},
+      fixture: %{org: org, product: product, device: device},
       session: session
     } do
       {:error, %{redirect: somewhere}} = mount(Endpoint, Console, session: session)
       refute_broadcast("init", %{})
-      path = Routes.product_device_path(Endpoint, Show, product.id, device.id)
+      path = Routes.device_path(Endpoint, :show, org.name, product.name, device.identifier)
       assert somewhere == path
     end
   end
 
   describe "handle_event" do
-    test "iex_submit", %{current_user: user, session: session} do
+    test "iex_submit", %{user: user, session: session} do
       {:ok, view, _html} = mount(Endpoint, Console, session: session)
       input = "Howdy"
       iex_line = "iex(#{user.username})&gt; #{input}"
@@ -90,7 +91,7 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
       assert render(view) =~ "Howdy Partner"
     end
 
-    test "get_line", %{current_user: user, session: session} do
+    test "get_line", %{user: user, session: session} do
       {:ok, view, html} = mount(Endpoint, Console, session: session)
 
       refute html =~ "Howdy"

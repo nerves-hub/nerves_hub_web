@@ -23,7 +23,7 @@ defmodule NervesHubAPIWeb.DeploymentController do
         {:error, :no_firmware_uuid}
 
       uuid ->
-        with {:ok, firmware} <- Firmwares.get_firmware_by_org_and_uuid(org, uuid),
+        with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
              params <- Map.put(params, "firmware_id", firmware.id),
              params <- whitelist(params, @whitelist_fields),
              {:ok, deployment} <- Deployments.create_deployment(params) do
@@ -46,12 +46,12 @@ defmodule NervesHubAPIWeb.DeploymentController do
     end
   end
 
-  def update(%{assigns: %{product: product, org: org, user: user}} = conn, %{
+  def update(%{assigns: %{product: product, user: user}} = conn, %{
         "name" => name,
         "deployment" => deployment_params
       }) do
     with {:ok, deployment} <- Deployments.get_deployment_by_name(product, name),
-         {:ok, deployment_params} <- update_params(org, deployment_params),
+         {:ok, deployment_params} <- update_params(product, deployment_params),
          deployment_params <- whitelist(deployment_params, @whitelist_fields),
          {:ok, %Deployment{} = updated_deployment} <-
            Deployments.update_deployment(deployment, deployment_params) do
@@ -67,8 +67,8 @@ defmodule NervesHubAPIWeb.DeploymentController do
     end
   end
 
-  defp update_params(org, %{"firmware" => uuid} = params) do
-    with {:ok, firmware} <- Firmwares.get_firmware_by_org_and_uuid(org, uuid) do
+  defp update_params(product, %{"firmware" => uuid} = params) do
+    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
       {:ok, Map.put(params, "firmware_id", firmware.id)}
     end
   end

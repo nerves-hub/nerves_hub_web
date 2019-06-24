@@ -1,5 +1,5 @@
 <div class="modal-content shadow">
-  <%= form_for @changeset, product_deployment_path(@conn, :create, @product.id), [as: :deployment], fn f -> %>
+  <%= form_for @changeset, deployment_path(@conn, :create, @org.name, @product.name), [as: :deployment], fn f -> %>
     <div class="modal-header panel-title rounded-top">
       Create Deployment for <strong><%= firmware_summary(@firmware) %></strong>
     </div>
@@ -39,7 +39,7 @@
     </div>
     <div class="modal-footer">
       <div class="col-4">
-        <a class="btn btn-secondary" href="<%= product_deployment_path(@conn, :index, @product) %>">
+        <a class="btn btn-secondary" href="<%= deployment_path(@conn, :index, @org.name, @product.name) %>">
           Cancel
         </a>
       </div>

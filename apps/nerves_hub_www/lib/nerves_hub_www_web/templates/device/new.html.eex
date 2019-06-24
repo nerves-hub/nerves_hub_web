@@ -2,7 +2,7 @@
   <h1>Create a Device</h1>
 </div>
 
-<%= form_for @changeset, product_device_path(@conn, :create, @product.id), fn f -> %>
+<%= form_for @changeset, device_path(@conn, :create, @org.name, @product.name), fn f -> %>
   <div class="form-group">
     <label for="identifier">Identifier</label>
     <%= text_input f, :identifier, class: "form-control", id: "identifier" %>
@@ -22,5 +22,5 @@
   </div>
 
   <%= submit "Create", class: "btn btn-large btn-primary" %>
-  <a class="btn btn-secondary" href="<%= product_device_path(@conn, :index, @product.id) %>">Cancel</a>
+  <a class="btn btn-secondary" href="<%= device_path(@conn, :index, @org.name, @product.name) %>">Cancel</a>
 <% end %>

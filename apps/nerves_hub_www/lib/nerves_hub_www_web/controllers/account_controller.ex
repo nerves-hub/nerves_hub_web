@@ -23,7 +23,7 @@ defmodule NervesHubWWWWeb.AccountController do
     |> Accounts.create_user()
     |> case do
       {:ok, _new_user} ->
-        redirect(conn, to: "/")
+        redirect(conn, to: "/login")
 
       {:error, changeset} ->
         render(conn, "new.html", changeset: changeset)
@@ -46,10 +46,10 @@ defmodule NervesHubWWWWeb.AccountController do
     conn.assigns.user
     |> Accounts.update_user(cleaned)
     |> case do
-      {:ok, _user} ->
+      {:ok, user} ->
         conn
         |> put_flash(:info, "Account updated")
-        |> redirect(to: account_path(conn, :edit))
+        |> redirect(to: account_path(conn, :edit, user.username))
 
       {:error, changeset} ->
         conn

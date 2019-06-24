@@ -6,6 +6,7 @@ defmodule NervesHubWebCore.Firmwares do
   alias NervesHubWebCore.Accounts.{OrgKey, Org}
   alias NervesHubWebCore.Firmwares.{Firmware, FirmwareMetadata, FirmwareTransfer}
   alias NervesHubWebCore.Products
+  alias NervesHubWebCore.Products.Product
   alias NervesHubWebCore.Repo
 
   @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
@@ -40,6 +41,8 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
+  def get_firmware!(firmware_id), do: Repo.get!(Firmware, firmware_id)
+
   @spec get_firmware_by_org_id(non_neg_integer()) :: [Firmware.t()]
   def get_firmware_by_org_id(org_id) do
     q =
@@ -73,20 +76,16 @@ defmodule NervesHubWebCore.Firmwares do
     |> Repo.all()
   end
 
-  @spec get_firmware_by_org_and_uuid(Org.t(), String.t()) ::
+  @spec get_firmware_by_product_and_uuid(Product.t(), String.t()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
-  def get_firmware_by_org_and_uuid(%Org{id: org_id}, uuid) do
-    get_firmware_by_org_and_uuid(org_id, uuid)
-  end
-
-  def get_firmware_by_org_and_uuid(org_id, uuid) do
+  def get_firmware_by_product_and_uuid(%Product{id: product_id}, uuid) do
     from(
       f in Firmware,
       where: f.uuid == ^uuid,
       join: p in assoc(f, :product),
       preload: [product: p],
-      where: p.org_id == ^org_id
+      where: p.id == ^product_id
     )
     |> Repo.one()
     |> case do

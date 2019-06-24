@@ -1,6 +1,7 @@
 defmodule NervesHubWWWWeb.DeploymentView do
   use NervesHubWWWWeb, :view
 
+  alias NervesHubWebCore.Repo
   alias NervesHubWebCore.Firmwares.Firmware
   alias NervesHubWebCore.Deployments.Deployment
 
@@ -26,6 +27,15 @@ defmodule NervesHubWWWWeb.DeploymentView do
       f.architecture
     ]
     |> Enum.join(" - ")
+  end
+
+  def firmware_summary(%Deployment{firmware: %Firmware{} = f}) do
+    firmware_summary(f)
+  end
+
+  def firmware_summary(%Deployment{firmware: %Ecto.Association.NotLoaded{}} = deployment) do
+    Repo.preload(deployment, [:firmware])
+    |> firmware_summary()
   end
 
   def firmware_display_name(%Firmware{} = f) do

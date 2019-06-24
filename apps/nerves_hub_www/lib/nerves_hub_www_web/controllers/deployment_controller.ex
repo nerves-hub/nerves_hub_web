@@ -10,12 +10,12 @@ defmodule NervesHubWWWWeb.DeploymentController do
   plug(:validate_role, [product: :write] when action in [:new, :create, :edit, :update])
   plug(:validate_role, [product: :read] when action in [:index, :show])
 
-  def index(%{assigns: %{current_org: _org, product: %{id: product_id}}} = conn, _params) do
+  def index(%{assigns: %{org: _org, product: %{id: product_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product_id)
     render(conn, "index.html", deployments: deployments)
   end
 
-  def new(%{assigns: %{current_org: org, product: product}} = conn, %{
+  def new(%{assigns: %{org: org, product: product}} = conn, %{
         "deployment" => %{"firmware_id" => firmware_id}
       }) do
     case Firmwares.get_firmware(org, firmware_id) do
@@ -44,24 +44,24 @@ defmodule NervesHubWWWWeb.DeploymentController do
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Invalid firmware selected")
-        |> redirect(to: product_deployment_path(conn, :new, product.id))
+        |> redirect(to: deployment_path(conn, :new, org.name, product.name))
     end
   end
 
-  def new(%{assigns: %{current_org: _org, product: product}} = conn, _params) do
+  def new(%{assigns: %{org: org, product: product}} = conn, _params) do
     firmwares = Firmwares.get_firmwares_by_product(product.id)
 
     if Enum.empty?(firmwares) do
       conn
       |> put_flash(:error, "You must upload a firmware version before creating a deployment")
-      |> redirect(to: product_firmware_path(conn, :upload, product.id))
+      |> redirect(to: firmware_path(conn, :upload, org.name, product.name))
     else
       conn
       |> render("select-firmware.html", firmwares: firmwares)
     end
   end
 
-  def create(%{assigns: %{current_org: org, product: product, user: user}} = conn, %{
+  def create(%{assigns: %{org: org, product: product, user: user}} = conn, %{
         "deployment" => params
       }) do
     params =
@@ -84,14 +84,14 @@ defmodule NervesHubWWWWeb.DeploymentController do
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Invalid firmware selected")
-        |> redirect(to: product_deployment_path(conn, :new, product.id))
+        |> redirect(to: deployment_path(conn, :new, org.name, product.name))
 
       {_, {:ok, deployment}} ->
         audit!(user, deployment, :create, params)
 
         conn
         |> put_flash(:info, "Deployment created")
-        |> redirect(to: product_deployment_path(conn, :index, product.id))
+        |> redirect(to: deployment_path(conn, :index, org.name, product.name))
 
       {firmware, {:error, changeset}} ->
         conn
@@ -103,9 +103,23 @@ defmodule NervesHubWWWWeb.DeploymentController do
     end
   end
 
-  def edit(%{assigns: %{current_org: _org, product: product}} = conn, %{"id" => deployment_id}) do
-    {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
+  def show(
+        %{assigns: %{user: user, org: org, product: product, deployment: deployment}} = conn,
+        _params
+      ) do
+    conn
+    |> live_render(
+      NervesHubWWWWeb.DeploymentLive.Show,
+      session: %{
+        auth_user_id: user.id,
+        org_id: org.id,
+        product_id: product.id,
+        deployment_id: deployment.id
+      }
+    )
+  end
 
+  def edit(%{assigns: %{deployment: deployment}} = conn, _params) do
     conn
     |> render(
       "edit.html",
@@ -118,8 +132,8 @@ defmodule NervesHubWWWWeb.DeploymentController do
   end
 
   def update(
-        %{assigns: %{product: product, user: user}} = conn,
-        %{"id" => deployment_id, "deployment" => deployment_params}
+        %{assigns: %{org: org, product: product, user: user, deployment: deployment}} = conn,
+        %{"deployment" => deployment_params}
       ) do
     allowed_fields = [
       :conditions,
@@ -139,8 +153,6 @@ defmodule NervesHubWWWWeb.DeploymentController do
       |> inject_conditions_map()
       |> whitelist(allowed_fields)
 
-    {:ok, deployment} = Deployments.get_deployment(product, deployment_id)
-
     Deployments.update_deployment(deployment, params)
     |> case do
       {:ok, _deployment} ->
@@ -150,11 +162,12 @@ defmodule NervesHubWWWWeb.DeploymentController do
         |> put_flash(:info, "Deployment updated")
         |> redirect(
           to:
-            product_deployment_path(
+            deployment_path(
               conn,
-              NervesHubWWWWeb.DeploymentLive.Show,
-              product.id,
-              deployment
+              :show,
+              org.name,
+              product.name,
+              deployment.name
             )
         )
 
@@ -169,14 +182,12 @@ defmodule NervesHubWWWWeb.DeploymentController do
     end
   end
 
-  def delete(%{assigns: %{current_org: _org, product: product}} = conn, %{"id" => id}) do
-    {:ok, deployment} = product |> Deployments.get_deployment(id)
-
+  def delete(%{assigns: %{org: org, product: product, deployment: deployment}} = conn, _params) do
     Deployments.delete_deployment(deployment)
 
     conn
     |> put_flash(:info, "Deployment successfully deleted")
-    |> redirect(to: product_deployment_path(conn, :index, product.id))
+    |> redirect(to: deployment_path(conn, :index, org.name, product.name))
   end
 
   @doc """

@@ -1,6 +1,6 @@
 <h1>Edit deployment</h1>
 
-<%= form_for @changeset, product_deployment_path(@conn, :update, @product.id, @deployment), [as: :deployment], fn f -> %>
+<%= form_for @changeset, deployment_path(@conn, :update, @org.name, @product.name, @deployment.name), [as: :deployment], fn f -> %>
   <h3 class="h3">Firmware Details</h3>
 
   <table class="table" style="width: auto">

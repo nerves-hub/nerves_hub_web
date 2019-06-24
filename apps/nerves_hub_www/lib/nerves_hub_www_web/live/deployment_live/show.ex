@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.DeploymentLive.Show do
   use NervesHubWWWWeb, :live_view
 
-  alias NervesHubWebCore.{Accounts.User, Deployments, Products.Product}
+  alias NervesHubWebCore.{Accounts, Deployments, Products}
 
   def render(assigns) do
     NervesHubWWWWeb.DeploymentView.render("show.html", assigns)
@@ -10,34 +10,27 @@ defmodule NervesHubWWWWeb.DeploymentLive.Show do
   def mount(
         %{
           auth_user_id: user_id,
-          path_params: %{"id" => deployment_id, "product_id" => product_id}
+          org_id: org_id,
+          product_id: product_id,
+          deployment_id: deployment_id
         },
         socket
       ) do
-    case Deployments.get_deployment(%Product{id: product_id}, deployment_id) do
-      {:ok, deployment} ->
-        socket =
-          socket
-          |> assign(:deployment, deployment)
-          # preloaded get_deployment/2
-          |> assign(:product, deployment.firmware.product)
-          |> assign(:user, %User{id: user_id})
-          |> audit_log_assigns()
+    socket =
+      socket
+      |> assign_new(:user, fn -> Accounts.get_user!(user_id) end)
+      |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
+      |> assign_new(:product, fn -> Products.get_product!(product_id) end)
+      |> assign_new(:deployment, fn -> Deployments.get_deployment!(deployment_id) end)
+      |> audit_log_assigns()
 
-        {:ok, socket}
-
-      {:error, :not_found} ->
-        {:stop,
-         socket
-         |> put_flash(:error, "Deployment not found")
-         |> redirect(to: Routes.product_deployment_path(socket, :index, product_id))}
-    end
+    {:ok, socket}
   end
 
   def handle_event(
         "delete",
         _val,
-        %{assigns: %{deployment: deployment, product: product, user: user}} = socket
+        %{assigns: %{org: org, deployment: deployment, product: product, user: user}} = socket
       ) do
     case Deployments.delete_deployment(deployment) do
       {:ok, _} ->
@@ -46,7 +39,7 @@ defmodule NervesHubWWWWeb.DeploymentLive.Show do
         socket =
           socket
           |> put_flash(:info, "Deployment deleted")
-          |> redirect(to: Routes.product_deployment_path(socket, :index, product))
+          |> redirect(to: Routes.deployment_path(socket, :index, org.name, product.name))
 
         {:stop, socket}
 

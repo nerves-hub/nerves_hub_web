@@ -7,7 +7,7 @@
           Deployments for <strong><%= @product.name %></strong>
         </div>
         <div class="col-4 text-right">
-          <a href="<%= product_deployment_path(@conn, :new, @product.id)%>">
+          <a href="<%= deployment_path(@conn, :new, @org.name, @product.name)%>">
             <span class="fa fa-plus-circle">
           </a>
         </div>
@@ -34,7 +34,7 @@
               <%= if deployment.is_active, do: "Active", else: "Inactive" %>
             </span>
           </td>
-          <td class="col-1"><a class="btn btn-sm btn-secondary" href="<%= product_deployment_path(@conn, DeploymentLive.Show, @product.id, deployment.id) %>">Details</a></td>
+          <td class="col-1"><a class="btn btn-sm btn-secondary" href="<%= deployment_path(@conn, :show, @org.name, @product.name, deployment.name) %>">Details</a></td>
         </tr>
       <% end %>
     </table>

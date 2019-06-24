@@ -1,4 +1,4 @@
-<h2><%= @current_org.name %> Users</h2>
+<h2><%= @org.name %> Users</h2>
 <div class="row">
   <div class="w-75 shadow nhw_list">
     <div class="card">

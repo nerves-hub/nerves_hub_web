@@ -16,6 +16,8 @@ defmodule NervesHubWebCore.Devices do
 
   @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
 
+  def get_device!(device_id), do: Repo.get!(Device, device_id)
+
   def get_devices_by_org_id(org_id) do
     query =
       from(
@@ -62,6 +64,21 @@ defmodule NervesHubWebCore.Devices do
 
   def get_device_by_org(%Org{id: org_id}, device_id) do
     device_by_org_query(org_id, device_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      device -> {:ok, device}
+    end
+  end
+
+  def get_device_by_org_name(org_name, device_id) do
+    from(
+      d in Device,
+      join: o in Org,
+      on: o.id == d.org_id,
+      where: o.name == ^org_name,
+      where: d.id == ^device_id
+    )
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}

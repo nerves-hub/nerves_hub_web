@@ -2,7 +2,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   use NervesHubWWWWeb, :live_view
 
   alias NervesHubDevice.Presence
-  alias NervesHubWebCore.Devices
+  alias NervesHubWebCore.{Accounts, Products, Devices}
 
   alias Phoenix.Socket.Broadcast
 
@@ -10,14 +10,19 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     NervesHubWWWWeb.DeviceView.render("index.html", assigns)
   end
 
-  def mount(%{org_id: org_id, csrf_token: csrf_token, product_id: product_id}, socket) do
+  def mount(
+        %{auth_user_id: user_id, org_id: org_id, csrf_token: csrf_token, product_id: product_id},
+        socket
+      ) do
     if connected?(socket) do
       socket.endpoint.subscribe("product:#{product_id}:devices")
     end
 
     socket =
       socket
-      |> assign(:product_id, product_id)
+      |> assign_new(:user, fn -> Accounts.get_user!(user_id) end)
+      |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
+      |> assign_new(:product, fn -> Products.get_product!(product_id) end)
       |> assign(:devices, assign_statuses(org_id, product_id))
       |> assign(:current_sort, "identifier")
       |> assign(:csrf_token, csrf_token)

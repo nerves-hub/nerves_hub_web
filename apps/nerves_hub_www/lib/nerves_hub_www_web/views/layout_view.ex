@@ -37,7 +37,7 @@ defmodule NervesHubWWWWeb.LayoutView do
 
   def logo_href(conn) do
     if logged_in?(conn) do
-      product_path(conn, :index)
+      product_path(conn, :index, conn.assigns.user.username)
     else
       home_path(conn, :index)
     end

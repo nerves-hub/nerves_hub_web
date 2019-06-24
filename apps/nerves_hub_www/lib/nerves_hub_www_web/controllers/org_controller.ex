@@ -14,23 +14,20 @@ defmodule NervesHubWWWWeb.OrgController do
     render(conn, "new.html", changeset: changeset)
   end
 
-  def create(%{assigns: %{current_org: _, user: user}} = conn, %{"org" => org_params}) do
+  def create(%{assigns: %{user: user}} = conn, %{"org" => org_params}) do
     params = org_params |> whitelist([:name])
 
     with {:ok, org} <- Accounts.create_org(user, params) do
       conn
       |> put_flash(:info, "Organization created successfully.")
-      |> NervesHubWWWWeb.SessionController.set_org(%{"org" => to_string(org.id)})
+      |> redirect(to: product_path(conn, :index, org.name))
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "new.html", changeset: changeset)
     end
   end
 
-  def edit(
-        %{assigns: %{current_org: %{id: _conn_id} = org, current_limit: limits}} = conn,
-        _params
-      ) do
+  def edit(%{assigns: %{org: org, current_limit: limits}} = conn, _params) do
     render(
       conn,
       "edit.html",
@@ -41,14 +38,14 @@ defmodule NervesHubWWWWeb.OrgController do
     )
   end
 
-  def update(%{assigns: %{current_org: org, current_limit: limits}} = conn, %{"org" => org_params}) do
+  def update(%{assigns: %{org: org, current_limit: limits}} = conn, %{"org" => org_params}) do
     org
     |> Accounts.update_org(org_params)
     |> case do
-      {:ok, _org} ->
+      {:ok, org} ->
         conn
         |> put_flash(:info, "Organization Updated")
-        |> redirect(to: org_path(conn, :edit, org))
+        |> redirect(to: org_path(conn, :edit, org.name))
 
       {:error, changeset} ->
         render(
@@ -62,11 +59,11 @@ defmodule NervesHubWWWWeb.OrgController do
     end
   end
 
-  def invite(%{assigns: %{current_org: org}} = conn, _params) do
+  def invite(%{assigns: %{org: org}} = conn, _params) do
     render(conn, "invite.html", changeset: %Changeset{data: %Invite{}}, org: org)
   end
 
-  def send_invite(%{assigns: %{current_org: org}} = conn, %{"invite" => invite_params}) do
+  def send_invite(%{assigns: %{org: org}} = conn, %{"invite" => invite_params}) do
     invite_params
     |> Accounts.add_or_invite_to_org(org)
     |> case do
@@ -76,7 +73,7 @@ defmodule NervesHubWWWWeb.OrgController do
 
         conn
         |> put_flash(:info, "User has been invited")
-        |> redirect(to: org_path(conn, :edit, org))
+        |> redirect(to: org_path(conn, :edit, org.name))
 
       {:ok, %OrgUser{}} ->
         Email.org_user_created(invite_params["email"], org)
@@ -84,7 +81,7 @@ defmodule NervesHubWWWWeb.OrgController do
 
         conn
         |> put_flash(:info, "User has been added to #{org.name}")
-        |> redirect(to: org_path(conn, :edit, org))
+        |> redirect(to: org_path(conn, :edit, org.name))
 
       {:error, changeset} ->
         render(conn, "invite.html",

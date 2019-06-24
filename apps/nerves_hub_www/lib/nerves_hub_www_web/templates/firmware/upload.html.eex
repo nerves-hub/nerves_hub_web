@@ -1,5 +1,5 @@
 <div class="modal-content shadow">
-  <%= form_for @changeset, product_firmware_path(@conn, :do_upload, @product.id), [multipart: true], fn f -> %>
+  <%= form_for @changeset, firmware_path(@conn, :do_upload, @org.name, @product.name), [multipart: true], fn f -> %>
     <div class="modal-header panel-title rounded-top">
       Upload firmware for <strong><%= @product.name %></strong>
     </div>
@@ -12,7 +12,7 @@
     </div>
     <div class="modal-footer">
       <div class="col-4">
-        <a class="btn btn-secondary" href="<%= product_path(@conn, :index) %>">
+        <a class="btn btn-secondary" href="<%= product_path(@conn, :index, @org.name) %>">
           Cancel
         </a>
       </div>
