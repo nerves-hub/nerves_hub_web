@@ -22,7 +22,7 @@
       <%= for device <- @devices do %>
         <tr class="item d-flex">
           <td class="col-2">
-            <a href="<%= product_device_path(@socket, DeviceLive.Show, @product_id, device) %>" class="">
+            <a href="<%= device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="">
               <%= device.identifier %>
             </a>
           </td>
@@ -56,8 +56,8 @@
             <span class="badge"><%= tags_to_string(device) %></span>
           </td>
           <td class="col-2">
-            <%= link "Edit", class: "btn btn-info", to: product_device_path(@socket, DeviceLive.Edit, @product_id, device) %>
-            <%= link "Delete", class: "btn btn-danger", to: product_device_path(@socket, :delete, @product_id, device), method: :delete, data: [confirm: "Are you sure?", csrf: @csrf_token] %>
+            <%= link "Edit", class: "btn btn-info", to: device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
+            <%= link "Delete", class: "btn btn-danger", to: device_path(@socket, :delete, @org.name, @product.name, device.identifier), method: :delete, data: [confirm: "Are you sure?", csrf: @csrf_token] %>
           </td>
         </tr>
       <% end %>

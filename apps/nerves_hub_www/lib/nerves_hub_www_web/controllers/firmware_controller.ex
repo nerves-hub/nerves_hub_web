@@ -20,14 +20,14 @@ defmodule NervesHubWWWWeb.FirmwareController do
     |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
   end
 
-  def do_upload(%{assigns: %{current_org: org, product: product}} = conn, %{
+  def do_upload(%{assigns: %{org: org, product: product}} = conn, %{
         "firmware" => %{"file" => %{path: filepath}}
       }) do
     case Firmwares.create_firmware(org, filepath) do
       {:ok, _firmware} ->
         conn
         |> put_flash(:info, "Firmware uploaded")
-        |> redirect(to: product_firmware_path(conn, :index, product.id))
+        |> redirect(to: firmware_path(conn, :index, org.name, product.name))
 
       {:error, :no_public_keys} ->
         render_error(
@@ -74,30 +74,30 @@ defmodule NervesHubWWWWeb.FirmwareController do
     |> render("upload.html", changeset: changeset)
   end
 
-  def download(conn, %{"id" => id}) do
-    firmware = NervesHubWebCore.Repo.get(Firmware, id)
+  def download(%{assigns: %{product: product}} = conn, %{"firmware_uuid" => uuid}) do
+    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+      if uploader = Application.get_env(:nerves_hub_web_core, :firmware_upload) do
+        uploader.download_file(firmware)
+        |> case do
+          {:ok, url} ->
+            conn
+            |> redirect(external: url)
 
-    if uploader = Application.get_env(:nerves_hub_web_core, :firmware_upload) do
-      uploader.download_file(firmware)
-      |> case do
-        {:ok, url} ->
-          conn
-          |> redirect(external: url)
-
-        error ->
-          error
+          error ->
+            error
+        end
+      else
+        {:error}
       end
-    else
-      {:error}
     end
   end
 
-  def delete(%{assigns: %{current_org: org, product: product}} = conn, %{"id" => id}) do
-    with {:ok, firmware} <- Firmwares.get_firmware(org, id),
+  def delete(%{assigns: %{org: org, product: product}} = conn, %{"firmware_uuid" => uuid}) do
+    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
          :ok <- Firmwares.delete_firmware(firmware) do
       conn
       |> put_flash(:info, "Firmware successfully deleted")
-      |> redirect(to: product_firmware_path(conn, :index, product.id))
+      |> redirect(to: firmware_path(conn, :index, org.name, product.name))
     end
   end
 end

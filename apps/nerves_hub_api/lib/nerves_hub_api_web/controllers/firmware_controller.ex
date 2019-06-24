@@ -28,14 +28,14 @@ defmodule NervesHubAPIWeb.FirmwareController do
     end
   end
 
-  def show(%{assigns: %{org: org}} = conn, %{"uuid" => uuid}) do
-    with {:ok, firmware} <- Firmwares.get_firmware_by_org_and_uuid(org, uuid) do
+  def show(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
+    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
       render(conn, "show.json", firmware: firmware)
     end
   end
 
-  def delete(%{assigns: %{org: org}} = conn, %{"uuid" => uuid}) do
-    with {:ok, firmware} <- Firmwares.get_firmware_by_org_and_uuid(org, uuid),
+  def delete(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
+    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
          :ok <- Firmwares.delete_firmware(firmware) do
       send_resp(conn, :no_content, "")
     end

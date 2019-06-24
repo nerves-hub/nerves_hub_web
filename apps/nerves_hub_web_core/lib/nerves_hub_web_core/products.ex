@@ -45,15 +45,6 @@ defmodule NervesHubWebCore.Products do
   """
   def get_product!(id), do: Repo.get!(Product, id)
 
-  def get_product_with_org(%Org{} = org, id) do
-    Product
-    |> Repo.get_by(id: id, org_id: org.id)
-    |> case do
-      nil -> {:error, :not_found}
-      product -> {:ok, product}
-    end
-  end
-
   def get_product_by_org_id_and_name(org_id, name) do
     Product
     |> Repo.get_by(org_id: org_id, name: name)

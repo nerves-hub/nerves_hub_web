@@ -3,7 +3,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
 
   alias NervesHubDevice.Presence
 
-  alias NervesHubWebCore.{Accounts, Accounts.Org, AuditLogs, Devices, Devices.Device, Repo}
+  alias NervesHubWebCore.{Accounts, AuditLogs, Devices, Devices.Device, Repo, Products}
 
   alias Phoenix.Socket.Broadcast
 
@@ -14,35 +14,30 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
   def mount(
         %{
           auth_user_id: user_id,
-          current_org_id: org_id,
-          path_params: %{"product_id" => product_id, "id" => device_id}
+          org_id: org_id,
+          product_id: product_id,
+          device_id: device_id
         },
         socket
       ) do
-    case Devices.get_device_by_org(%Org{id: org_id}, device_id) do
-      {:ok, device} ->
-        if connected?(socket) do
-          socket.endpoint.subscribe("device:#{device.id}")
-          socket.endpoint.subscribe("product:#{product_id}:devices")
-        end
+    socket =
+      socket
+      |> assign_new(:user, fn -> Accounts.get_user!(user_id) end)
+      |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
+      |> assign_new(:product, fn -> Products.get_product!(product_id) end)
+      |> assign_new(:device, fn -> Devices.get_device!(device_id) end)
 
-        {:ok, user} = Accounts.get_user(user_id)
-
-        socket =
-          socket
-          |> assign(:device, sync_device(device))
-          |> assign(:user, user)
-          |> assign(:product_id, product_id)
-          |> audit_log_assigns()
-
-        {:ok, socket}
-
-      {:error, :not_found} ->
-        {:stop,
-         socket
-         |> put_flash(:error, "Device not found")
-         |> redirect(to: Routes.product_device_path(socket, :index, product_id))}
+    if connected?(socket) do
+      socket.endpoint.subscribe("device:#{socket.assigns.device.id}")
+      socket.endpoint.subscribe("product:#{product_id}:devices")
     end
+
+    socket =
+      socket
+      |> assign(:device, sync_device(socket.assigns.device))
+      |> audit_log_assigns()
+
+    {:ok, socket}
   end
 
   def handle_info(

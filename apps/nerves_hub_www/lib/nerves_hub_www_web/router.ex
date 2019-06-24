@@ -15,20 +15,24 @@ defmodule NervesHubWWWWeb.Router do
     plug(NervesHubWWWWeb.Plugs.EnsureLoggedIn)
   end
 
-  pipeline :org_level do
-    plug(NervesHubWWWWeb.Plugs.FetchOrg)
+  pipeline :org do
+    plug(NervesHubWWWWeb.Plugs.Org)
   end
 
-  pipeline :product_write do
-    plug(NervesHubWebCore.RoleValidateHelpers, product: :write)
+  pipeline :product do
+    plug(NervesHubWWWWeb.Plugs.Product)
   end
 
-  pipeline :product_level do
-    plug(NervesHubWWWWeb.Plugs.FetchProduct)
+  pipeline :device do
+    plug(NervesHubWWWWeb.Plugs.Device)
   end
 
-  pipeline :product_read do
-    plug(NervesHubWebCore.RoleValidateHelpers, product: :read)
+  pipeline :deployment do
+    plug(NervesHubWWWWeb.Plugs.Deployment)
+  end
+
+  pipeline :firmware do
+    plug(NervesHubWWWWeb.Plugs.Firmware)
   end
 
   scope "/", NervesHubWWWWeb do
@@ -66,75 +70,98 @@ defmodule NervesHubWWWWeb.Router do
   scope "/", NervesHubWWWWeb do
     pipe_through([:browser, :logged_in])
 
-    put("/set_org", SessionController, :set_org)
+    scope "/settings/:org_name" do
+      pipe_through(:org)
 
-    get("/org/invite", OrgController, :invite)
-    post("/org/invite", OrgController, :send_invite)
-    get("/org/certificates", OrgCertificateController, :index)
-    get("/org/users", OrgUserController, :index)
-    resources("/org", OrgController)
+      get("/", OrgController, :edit)
+      put("/", OrgController, :update)
 
-    resources("/org_keys", OrgKeyController)
+      get("/invite", OrgController, :invite)
+      post("/invite", OrgController, :send_invite)
+      get("/certificates", OrgCertificateController, :index)
+      get("/users", OrgUserController, :index)
 
-    get("/settings", AccountController, :edit)
-    put("/settings", AccountController, :update)
+      resources("/keys", OrgKeyController)
 
-    get("/account/certificates", AccountCertificateController, :index)
-    get("/account/certificates/new", AccountCertificateController, :new)
-    get("/account/certificates/:id", AccountCertificateController, :show)
-    delete("/account/certificates/:id", AccountCertificateController, :delete)
-    post("/account/certificates/create", AccountCertificateController, :create)
-    get("/account/certificates/:id/download", AccountCertificateController, :download)
+      scope "/account" do
+        get("/", AccountController, :edit)
+        put("/", AccountController, :update)
 
-    resources "/products", ProductController, except: [:edit, :update] do
-      pipe_through(:product_level)
-
-      resources("/devices", DeviceController, only: [:index, :create, :delete, :new])
-
-      get("/firmware", FirmwareController, :index)
-      get("/firmware/upload", FirmwareController, :upload)
-      post("/firmware/upload", FirmwareController, :do_upload)
-      get("/firmware/download/:id", FirmwareController, :download)
-      delete("/firmware/delete/:id", FirmwareController, :delete)
-
-      resources("/deployments", DeploymentController, except: [:show])
+        scope "/certificates" do
+          get("/", AccountCertificateController, :index)
+          get("/new", AccountCertificateController, :new)
+          get("/:id", AccountCertificateController, :show)
+          delete("/:id", AccountCertificateController, :delete)
+          post("/create", AccountCertificateController, :create)
+          get("/:id/download", AccountCertificateController, :download)
+        end
+      end
     end
-  end
 
-  # LiveView routing could probably use more research and implementation
-  # to integrate better with existing routing patterns. But for now,
-  # let's be explicit here and pipe through role checks before
-  # attempting to mount the LiveView session.
-  scope "/", NervesHubWWWWeb do
-    pipe_through([:browser, :logged_in, :product_level, :product_write])
+    get("/org/new", OrgController, :new)
+    post("/org", OrgController, :create)
 
-    live("/products/:product_id/devices/:id/edit", DeviceLive.Edit,
-      as: :product_device,
-      session: [:auth_user_id, :current_org_id, :path_params]
-    )
-  end
+    scope "/org/:org_name" do
+      pipe_through(:org)
 
-  scope "/", NervesHubWWWWeb do
-    pipe_through([:browser, :logged_in, :product_level, :product_read])
+      get("/", ProductController, :index)
 
-    live("/products/:product_id/devices/:id", DeviceLive.Show,
-      as: :product_device,
-      session: [:auth_user_id, :current_org_id, :path_params]
-    )
+      get("/new", ProductController, :new)
+      post("/", ProductController, :create)
 
-    live("/products/:product_id/devices/:id/console", DeviceLive.Console,
-      as: :product_device,
-      session: [:auth_user_id, :current_org_id, :path_params]
-    )
-  end
+      scope "/:product_name" do
+        pipe_through(:product)
 
-  scope "/", NervesHubWWWWeb do
-    pipe_through([:browser, :logged_in, :product_level, :product_read])
+        get("/", ProductController, :show)
+        delete("/", ProductController, :delete)
 
-    live("/products/:product_id/deployments/:id", DeploymentLive.Show,
-      as: :product_deployment,
-      session: [:auth_user_id, :path_params]
-    )
+        scope "/devices" do
+          get("/", DeviceController, :index)
+          post("/", DeviceController, :create)
+          get("/new", DeviceController, :new)
+
+          scope "/:device_identifier" do
+            pipe_through(:device)
+
+            get("/", DeviceController, :show)
+            get("/console", DeviceController, :console)
+            get("/edit", DeviceController, :edit)
+            patch("/", DeviceController, :update)
+            put("/", DeviceController, :update)
+            delete("/", DeviceController, :delete)
+          end
+        end
+
+        scope "/firmware" do
+          get("/", FirmwareController, :index)
+          get("/upload", FirmwareController, :upload)
+          post("/upload", FirmwareController, :do_upload)
+
+          scope "/:firmware_uuid" do
+            pipe_through(:firmware)
+
+            get("/", FirmwareController, :download)
+            delete("/", FirmwareController, :delete)
+          end
+        end
+
+        scope "/deployments" do
+          get("/", DeploymentController, :index)
+          post("/", DeploymentController, :create)
+          get("/new", DeploymentController, :new)
+
+          scope "/:deployment_name" do
+            pipe_through(:deployment)
+
+            get("/show", DeploymentController, :show)
+            get("/edit", DeploymentController, :edit)
+            patch("/", DeploymentController, :update)
+            put("/", DeploymentController, :update)
+            delete("/", DeploymentController, :delete)
+          end
+        end
+      end
+    end
   end
 
   if Mix.env() in [:dev] do
@@ -143,9 +170,4 @@ defmodule NervesHubWWWWeb.Router do
       forward("/mailbox", Bamboo.SentEmailViewerPlug, base_path: "/dev/mailbox")
     end
   end
-
-  # Other scopes may use custom stacks.
-  # scope "/api", NervesHubWWWWeb do
-  #   pipe_through :api
-  # end
 end

@@ -3,7 +3,7 @@ defmodule NervesHubWWWWeb.OrgUserController do
 
   alias NervesHubWebCore.Accounts
 
-  def index(%{assigns: %{current_org: org}} = conn, _params) do
+  def index(%{assigns: %{org: org}} = conn, _params) do
     conn
     |> render(
       "index.html",

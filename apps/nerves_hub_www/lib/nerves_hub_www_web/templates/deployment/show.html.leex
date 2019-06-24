@@ -36,7 +36,7 @@
     </tr>
     <tr>
       <th>Firmware Info</th>
-      <td><%= firmware_summary(@deployment.firmware) %></td>
+      <td><%= firmware_summary(@deployment) %></td>
     </tr>
     <tr>
       <th>Failure Rate <%= help_icon(help_message_for(:failure_rate)) %></th>
@@ -58,7 +58,7 @@
 </table>
 
 <div class="row">
-<a class="btn btn-primary mr-3" href="<%= product_deployment_path(@socket, :edit, @product.id, @deployment) %>">
+<a class="btn btn-primary mr-3" href="<%= deployment_path(@socket, :edit, @org.name, @product.name, @deployment.name) %>">
   Edit Deployment
 </a>
 

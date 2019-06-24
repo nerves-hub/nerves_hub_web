@@ -264,6 +264,8 @@ defmodule NervesHubWebCore.Accounts do
     end
   end
 
+  def get_user!(user_id), do: Repo.get!(User, user_id)
+
   def get_user_with_all_orgs(user_id) do
     query = from(u in User, where: u.id == ^user_id) |> User.with_all_orgs()
 
@@ -389,12 +391,23 @@ defmodule NervesHubWebCore.Accounts do
     end
   end
 
+  def get_org!(id), do: Repo.get!(Org, id)
+
   def get_org_with_org_keys(id) do
     Org
     |> Repo.get(id)
     |> case do
       nil -> {:error, :not_found}
       org -> {:ok, org |> Org.with_org_keys()}
+    end
+  end
+
+  def get_org_by_name(org_name) do
+    Org
+    |> Repo.get_by(name: org_name)
+    |> case do
+      nil -> {:error, :org_not_found}
+      org -> {:ok, org}
     end
   end
 

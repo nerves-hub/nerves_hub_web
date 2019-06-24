@@ -3,15 +3,17 @@ defmodule NervesHubWWWWeb.DeviceLiveEditTest do
 
   alias NervesHubWWWWeb.Router.Helpers, as: Routes
 
-  alias NervesHubWWWWeb.DeviceLive.{Show, Edit}
+  alias NervesHubWWWWeb.DeviceLive.Edit
   alias NervesHubWWWWeb.Endpoint
 
-  setup %{conn: conn, fixture: %{device: device, product: product}} do
+  setup %{conn: conn, fixture: %{org: org, device: device, product: product}} do
     # TODO: Use Plug.Conn.get_session/1 when upgraded to Plug >= 1.8
     session =
       conn.private.plug_session
       |> Enum.into(%{}, fn {k, v} -> {String.to_atom(k), v} end)
-      |> Map.put(:path_params, %{"product_id" => product.id, "id" => device.id})
+      |> Map.put(:org_id, org.id)
+      |> Map.put(:product_id, product.id)
+      |> Map.put(:device_id, device.id)
 
     [session: session]
   end
@@ -41,13 +43,13 @@ defmodule NervesHubWWWWeb.DeviceLiveEditTest do
 
   describe "save" do
     test "redirects after saving valid tags", %{
-      fixture: %{device: device, product: product},
+      fixture: %{org: org, device: device, product: product},
       session: session
     } do
       params = %{"device" => %{tags: "new,tags"}}
 
       {:ok, view, _html} = mount(Endpoint, Edit, session: session)
-      path = Routes.product_device_path(Endpoint, Show, product.id, device.id)
+      path = Routes.device_path(Endpoint, :show, org.name, product.name, device.identifier)
 
       assert_redirect(view, ^path, fn ->
         assert render_submit(view, :save, params)

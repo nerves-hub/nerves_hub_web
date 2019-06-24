@@ -17,17 +17,16 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
 
         %{org: org, org_key: org_key, user: user} = fixture
 
-        {:ok, org_with_org_keys} = org.id |> Accounts.get_org_with_org_keys()
+        {:ok, org_with_org_keys} = Accounts.get_org_with_org_keys(org.id)
 
         conn =
           build_conn()
-          |> Map.put(:assigns, %{current_org: org_with_org_keys, user: user})
+          |> Map.put(:assigns, %{org: org_with_org_keys, user: user})
           |> init_test_session(%{
-            "auth_user_id" => user.id,
-            "current_org_id" => org.id
+            "auth_user_id" => user.id
           })
 
-        %{conn: conn, current_user: user, current_org: org, fixture: fixture, org_key: org_key}
+        %{conn: conn, user: user, org: org, fixture: fixture, org_key: org_key}
       end
     end
   end

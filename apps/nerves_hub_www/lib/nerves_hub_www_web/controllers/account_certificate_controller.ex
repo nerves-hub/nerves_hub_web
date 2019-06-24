@@ -54,7 +54,9 @@ defmodule NervesHubWWWWeb.AccountCertificateController do
       {:ok, db_cert} = Accounts.create_user_certificate(user, user_certificate_params)
 
       conn
-      |> redirect(to: account_certificate_path(conn, :show, db_cert, file: archive))
+      |> redirect(
+        to: account_certificate_path(conn, :show, user.username, db_cert, file: archive)
+      )
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "new.html", changeset: changeset)
@@ -71,7 +73,7 @@ defmodule NervesHubWWWWeb.AccountCertificateController do
 
     conn
     |> put_flash(:info, "Certificate deleted successfully.")
-    |> redirect(to: account_certificate_path(conn, :index))
+    |> redirect(to: account_certificate_path(conn, :index, user.username))
   end
 
   # Thanks to Hex for lending us this chunk of code.

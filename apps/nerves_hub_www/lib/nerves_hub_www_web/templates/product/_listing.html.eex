@@ -2,18 +2,18 @@
   <li class="list-group-item">
     <div class="row">
       <div class="col-8">
-        <a href="<%= product_path(@conn, :show, product) %>">
+        <a href="<%= product_path(@conn, :show, @org.name, product.name) %>">
           <%= product.name %>
         </a>
       </div>
       <div class="col-4 text-right">
-        <a href="<%= product_firmware_path(@conn, :index, product) %>" title="Firmware">
+        <a href="<%= firmware_path(@conn, :index, @org.name, product.name) %>" title="Firmware">
           <span class="fa fa-box">
         </a>
-        <a href="<%= product_deployment_path(@conn, :index, product) %>" title="Deployments">
+        <a href="<%= deployment_path(@conn, :index, @org.name, product.name) %>" title="Deployments">
           <span class="fa fa-boxes">
         </a>
-        <%= link raw("<span class='fa fa-trash-alt'></span>"), to: product_path(@conn, :delete, product), method: :delete,  title: "Delete!", data: [confirm: "Really?"] %>
+        <%= link raw("<span class='fa fa-trash-alt'></span>"), to: product_path(@conn, :delete, @org.name, product.name), method: :delete,  title: "Delete!", data: [confirm: "Really?"] %>
       </div>
     </div>
   </li>

@@ -5,12 +5,14 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
   alias NervesHubWWWWeb.{DeploymentLive.Show, Endpoint}
 
   setup %{conn: conn, fixture: fixture} do
-    %{deployment: deployment, product: product} = fixture
+    %{org: org, deployment: deployment, product: product} = fixture
     # TODO: Use Plug.Conn.get_session/1 when upgraded to Plug >= 1.8
     session =
       conn.private.plug_session
       |> Enum.into(%{}, fn {k, v} -> {String.to_atom(k), v} end)
-      |> Map.put(:path_params, %{"id" => deployment.id, "product_id" => product.id})
+      |> Map.put(:org_id, org.id)
+      |> Map.put(:product_id, product.id)
+      |> Map.put(:deployment_id, deployment.id)
 
     [session: session]
   end
@@ -50,12 +52,15 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
       assert after_audit_count == before_audit_count + 1
     end
 
-    test "delete", %{fixture: %{deployment: deployment, product: product}, session: session} do
+    test "delete", %{
+      fixture: %{org: org, deployment: deployment, product: product},
+      session: session
+    } do
       {:ok, view, _html} = mount(Endpoint, Show, session: session)
 
-      products_path = "/products/#{product.id}/deployments"
+      path = deployment_path(Endpoint, :index, org.name, product.name)
 
-      assert_redirect(view, ^products_path, fn ->
+      assert_redirect(view, ^path, fn ->
         assert render_submit(view, :delete)
       end)
 

@@ -7,34 +7,34 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   @invalid_attrs %{name: nil}
 
   describe "index" do
-    test "lists all products", %{conn: conn} do
-      conn = get(conn, product_path(conn, :index))
+    test "lists all products", %{conn: conn, org: org} do
+      conn = get(conn, product_path(conn, :index, org.name))
       assert html_response(conn, 200) =~ "All Products"
     end
   end
 
   describe "new product" do
-    test "renders form", %{conn: conn} do
-      conn = get(conn, product_path(conn, :new))
+    test "renders form", %{conn: conn, org: org} do
+      conn = get(conn, product_path(conn, :new, org.name))
       assert html_response(conn, 200) =~ "Create a Product"
     end
   end
 
   describe "create product" do
-    test "redirects to show when data is valid", %{conn: conn, current_org: org} do
-      conn = post(conn, product_path(conn, :create), product: @create_attrs)
+    test "redirects to show when data is valid", %{conn: conn, org: org} do
+      params = @create_attrs
+      conn = post(conn, product_path(conn, :create, org.name), product: params)
+      assert %{product_name: product_name} = redirected_params(conn)
+      assert redirected_to(conn) == product_path(conn, :show, org.name, params.name)
 
-      assert %{id: id} = redirected_params(conn)
-      assert redirected_to(conn) == product_path(conn, :show, id)
-
-      conn = get(conn, product_path(conn, :show, id))
+      conn = get(conn, product_path(conn, :show, org.name, params.name))
       assert html_response(conn, 200) =~ "Show Product"
       assert html_response(conn, 200) =~ org.name
-      assert html_response(conn, 200) =~ product_firmware_path(conn, :index, id)
+      assert html_response(conn, 200) =~ firmware_path(conn, :index, org.name, params.name)
     end
 
-    test "renders errors when data is invalid", %{conn: conn} do
-      conn = post(conn, product_path(conn, :create), product: @invalid_attrs)
+    test "renders errors when data is invalid", %{conn: conn, org: org} do
+      conn = post(conn, product_path(conn, :create, org.name), product: @invalid_attrs)
       assert html_response(conn, 200) =~ "Create a Product"
     end
   end
@@ -42,20 +42,17 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   describe "delete product" do
     setup [:create_product]
 
-    test "deletes chosen product", %{conn: conn, product: product} do
-      conn = delete(conn, product_path(conn, :delete, product))
-      assert redirected_to(conn) == product_path(conn, :index)
-
-      assert_error_sent(404, fn ->
-        get(conn, product_path(conn, :show, product))
-      end)
+    test "deletes chosen product", %{conn: conn, org: org, product: product} do
+      path = product_path(conn, :delete, org.name, product.name)
+      conn = delete(conn, path)
+      assert redirected_to(conn) == product_path(conn, :index, org.name)
+      conn = get(conn, path)
+      assert html_response(conn, 404)
     end
   end
 
-  defp create_product(_) do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user)
+  defp create_product(%{user: user, org: org}) do
     product = Fixtures.product_fixture(user, org)
-    {:ok, product: product, org: org}
+    [product: product]
   end
 end

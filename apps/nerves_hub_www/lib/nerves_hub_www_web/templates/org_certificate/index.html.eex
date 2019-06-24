@@ -1,4 +1,4 @@
-<h2><%= @current_org.name %> Device (CA) Certificates</h2>
+<h2><%= @org.name %> Device (CA) Certificates</h2>
 <div class="row">
   <div class="w-100 shadow nhw_list">
     <div class="card">

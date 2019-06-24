@@ -9,12 +9,14 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
 
   alias Phoenix.Socket.Broadcast
 
-  setup %{conn: conn, fixture: %{device: device, product: product}} do
+  setup %{conn: conn, fixture: %{org: org, device: device, product: product}} do
     # TODO: Use Plug.Conn.get_session/1 when upgraded to Plug >= 1.8
     session =
       conn.private.plug_session
       |> Enum.into(%{}, fn {k, v} -> {String.to_atom(k), v} end)
-      |> Map.put(:path_params, %{"product_id" => product.id, "id" => device.id})
+      |> Map.put(:org_id, org.id)
+      |> Map.put(:product_id, product.id)
+      |> Map.put(:device_id, device.id)
 
     Endpoint.subscribe("device:#{device.id}")
     [session: session]

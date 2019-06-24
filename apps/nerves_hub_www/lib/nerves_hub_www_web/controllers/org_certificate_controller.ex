@@ -3,7 +3,7 @@ defmodule NervesHubWWWWeb.OrgCertificateController do
 
   alias NervesHubWebCore.Devices
 
-  def index(%{assigns: %{current_org: org}} = conn, _params) do
+  def index(%{assigns: %{org: org}} = conn, _params) do
     conn
     |> render(
       "index.html",

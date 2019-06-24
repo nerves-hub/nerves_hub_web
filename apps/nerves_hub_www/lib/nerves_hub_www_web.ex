@@ -17,6 +17,13 @@ defmodule NervesHubWWWWeb do
   and import those modules here.
   """
 
+  def plug do
+    quote do
+      import Plug.Conn
+      import Phoenix.Controller
+    end
+  end
+
   def controller do
     quote do
       use Phoenix.Controller, namespace: NervesHubWWWWeb

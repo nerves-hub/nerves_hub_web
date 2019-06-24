@@ -7,10 +7,6 @@ defmodule NervesHubWebCore.RoleValidateHelpers do
     validate_org_user_role(conn, org, user, role)
   end
 
-  def validate_role(%{assigns: %{current_org: org, user: user}} = conn, org: role) do
-    validate_org_user_role(conn, org, user, role)
-  end
-
   def validate_role(
         %{assigns: %{product: %{org: %Ecto.Association.NotLoaded{}} = product}} = conn,
         product: role
