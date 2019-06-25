@@ -65,6 +65,17 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_in("status_update", %{"status" => status}, socket) do
+    Presence.update(
+      socket.channel_pid,
+      "product:#{socket.assigns.device.product_id}:devices",
+      socket.assigns.device.id,
+      %{status: status}
+    )
+
+    {:noreply, socket}
+  end
+
   def handle_in("rebooting", _payload, socket) do
     # Device sends "rebooting" message back to signify ack of the request
     Presence.update(
