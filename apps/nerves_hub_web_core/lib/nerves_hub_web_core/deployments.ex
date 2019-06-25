@@ -43,28 +43,6 @@ defmodule NervesHubWebCore.Deployments do
 
   def get_deployment!(deployment_id), do: Repo.get!(Deployment, deployment_id)
 
-  def get_deployment_by_product_name(product_name, deployment_name) do
-    from(
-      d in Deployment,
-      join: f in Firmware,
-      on: f.id == d.firmware_id,
-      join: p in Product,
-      on: p.id == f.product_id,
-      where: d.name == ^deployment_name,
-      where: p.name == ^product_name
-    )
-    |> Deployment.with_firmware()
-    |> Deployment.with_product()
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      deployment ->
-        {:ok, deployment}
-    end
-  end
-
   @spec get_deployment_by_name(Product.t(), String.t()) ::
           {:ok, Deployment.t()} | {:error, :not_found}
   def get_deployment_by_name(%Product{id: product_id}, deployment_name) do
@@ -72,8 +50,7 @@ defmodule NervesHubWebCore.Deployments do
       d in Deployment,
       where: d.name == ^deployment_name,
       join: f in assoc(d, :firmware),
-      where: f.product_id == ^product_id,
-      preload: [{:firmware, :product}]
+      where: f.product_id == ^product_id
     )
     |> Deployment.with_firmware()
     |> Deployment.with_product()
