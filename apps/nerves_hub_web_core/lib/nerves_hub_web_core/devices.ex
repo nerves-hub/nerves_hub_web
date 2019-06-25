@@ -71,21 +71,6 @@ defmodule NervesHubWebCore.Devices do
     end
   end
 
-  def get_device_by_org_name(org_name, device_id) do
-    from(
-      d in Device,
-      join: o in Org,
-      on: o.id == d.org_id,
-      where: o.name == ^org_name,
-      where: d.id == ^device_id
-    )
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      device -> {:ok, device}
-    end
-  end
-
   def get_device_by_org!(%Org{id: org_id}, device_id) do
     device_by_org_query(org_id, device_id)
     |> Repo.one!()
