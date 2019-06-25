@@ -45,6 +45,13 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
       path = Routes.device_path(Endpoint, :show, org.name, product.name, device.identifier)
       assert somewhere == path
     end
+
+    test "redirects on mount with unrecognized session structure" do
+      home_path = Routes.home_path(Endpoint, :index)
+
+      assert {:error, %{redirect: ^home_path}} =
+               mount(Endpoint, Console, session: "wat?! who der?!")
+    end
   end
 
   describe "handle_event" do

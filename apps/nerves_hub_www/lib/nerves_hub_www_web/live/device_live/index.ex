@@ -31,6 +31,19 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:ok, socket}
   end
 
+  # Catch-all to handle when LV sessions change.
+  # Typically this is after a deploy when the
+  # session structure in the module has changed
+  # for mount/2
+  def mount(_, socket) do
+    socket =
+      socket
+      |> put_flash(:info, "The software running on NervesHub was updated to the latest version")
+      |> redirect(to: Routes.home_path(socket, :index))
+
+    {:stop, socket}
+  end
+
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
   def handle_event("sort", value, %{assigns: %{current_sort: current_sort}} = socket)

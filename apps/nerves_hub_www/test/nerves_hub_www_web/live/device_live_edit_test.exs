@@ -18,6 +18,11 @@ defmodule NervesHubWWWWeb.DeviceLiveEditTest do
     [session: session]
   end
 
+  test "redirects on mount with unrecognized session structure" do
+    home_path = Routes.home_path(Endpoint, :index)
+    assert {:error, %{redirect: ^home_path}} = mount(Endpoint, Edit, session: "wat?! who der?!")
+  end
+
   describe "validate" do
     test "valid tags allow submit", %{session: session} do
       params = %{"device" => %{tags: "new,tags"}}
