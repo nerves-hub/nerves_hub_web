@@ -27,7 +27,7 @@ defmodule NervesHubWWWWeb.FirmwareController do
       {:ok, _firmware} ->
         conn
         |> put_flash(:info, "Firmware uploaded")
-        |> redirect(to: firmware_path(conn, :index, org.name, product.name))
+        |> redirect(to: Routes.firmware_path(conn, :index, org.name, product.name))
 
       {:error, :no_public_keys} ->
         render_error(
@@ -97,7 +97,7 @@ defmodule NervesHubWWWWeb.FirmwareController do
          :ok <- Firmwares.delete_firmware(firmware) do
       conn
       |> put_flash(:info, "Firmware successfully deleted")
-      |> redirect(to: firmware_path(conn, :index, org.name, product.name))
+      |> redirect(to: Routes.firmware_path(conn, :index, org.name, product.name))
     end
   end
 end

@@ -9,7 +9,7 @@ defmodule NervesHubWWWWeb.OrgUserControllerTest do
       org: org
     } do
       org_users = Accounts.get_org_users(org)
-      conn = get(conn, org_user_path(conn, :index, org.name))
+      conn = get(conn, Routes.org_user_path(conn, :index, org.name))
       assert html_response(conn, 200) =~ "#{org.name} Users"
 
       Enum.each(org_users, fn org_user ->

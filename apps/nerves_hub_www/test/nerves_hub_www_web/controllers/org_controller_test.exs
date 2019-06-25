@@ -5,33 +5,33 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
 
   describe "new org" do
     test "renders form", %{conn: conn} do
-      conn = get(conn, org_path(conn, :new))
+      conn = get(conn, Routes.org_path(conn, :new))
       assert html_response(conn, 200) =~ "New organization"
     end
   end
 
   describe "create org" do
     test "redirects to edit when data is valid", %{conn: conn} do
-      conn = post(conn, org_path(conn, :create), org: %{name: "An Org"})
-      assert redirected_to(conn) == product_path(conn, :index, "An Org")
+      conn = post(conn, Routes.org_path(conn, :create), org: %{name: "An Org"})
+      assert redirected_to(conn) == Routes.product_path(conn, :index, "An Org")
     end
 
     test "renders errors when data is invalid", %{conn: conn} do
-      conn = post(conn, org_path(conn, :create), org: %{})
+      conn = post(conn, Routes.org_path(conn, :create), org: %{})
       assert html_response(conn, 200) =~ "New organization"
     end
   end
 
   describe "edit org" do
     test "renders form for editing org on conn", %{conn: conn, org: org} do
-      conn = get(conn, org_path(conn, :edit, org.name))
+      conn = get(conn, Routes.org_path(conn, :edit, org.name))
       assert html_response(conn, 200)
     end
 
     test "does not render form for org not on conn", %{conn: conn} do
       user = Fixtures.user_fixture(%{name: "secret-user"})
       new_org = Fixtures.org_fixture(user, %{name: "Secret Org Name"})
-      conn = get(conn, org_path(conn, :edit, new_org.name))
+      conn = get(conn, Routes.org_path(conn, :edit, new_org.name))
       assert html_response(conn, 404)
     end
   end
@@ -41,7 +41,8 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
       user = Fixtures.user_fixture(%{email: "new@org.com"})
       new_org = Fixtures.org_fixture(user, %{name: "Secret Org Name"})
 
-      conn = put(conn, org_path(conn, :update, new_org.name), org: %{name: "Nefarious Name"})
+      conn =
+        put(conn, Routes.org_path(conn, :update, new_org.name), org: %{name: "Nefarious Name"})
 
       assert html_response(conn, 404)
 
@@ -50,22 +51,22 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
         |> Map.put(:assigns, %{org: new_org})
         |> init_test_session(%{"auth_user_id" => user.id})
 
-      updated_conn = get(new_conn, org_path(conn, :edit, new_org.name))
+      updated_conn = get(new_conn, Routes.org_path(conn, :edit, new_org.name))
 
       refute html_response(updated_conn, 200) =~ "Nefarious Name"
     end
 
     test "redirects when data is valid", %{conn: conn, org: org} do
-      conn = put(conn, org_path(conn, :update, org.name), org: %{name: "new name"})
+      conn = put(conn, Routes.org_path(conn, :update, org.name), org: %{name: "new name"})
 
-      assert redirected_to(conn) == org_path(conn, :edit, "new name")
+      assert redirected_to(conn) == Routes.org_path(conn, :edit, "new name")
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do
       conn =
         put(
           conn,
-          org_path(conn, :update, org.name),
+          Routes.org_path(conn, :update, org.name),
           org: %{name: ""}
         )
 
@@ -77,9 +78,11 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
   describe "send invite" do
     test "sends invite when user does not exist", %{conn: conn, org: org} do
       conn =
-        post(conn, org_path(conn, :send_invite, org.name), invite: %{email: "nunya@bid.ness"})
+        post(conn, Routes.org_path(conn, :send_invite, org.name),
+          invite: %{email: "nunya@bid.ness"}
+        )
 
-      assert redirected_to(conn) == org_path(conn, :edit, org.name)
+      assert redirected_to(conn) == Routes.org_path(conn, :edit, org.name)
 
       redirected_conn = get(conn, redirected_to(conn))
 
@@ -88,9 +91,11 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
 
     test "creates OrgUser when user already exists", %{conn: conn, org: org} do
       user = Fixtures.user_fixture(%{email: "who@der.com"})
-      conn = post(conn, org_path(conn, :send_invite, org.name), invite: %{email: user.email})
 
-      assert redirected_to(conn) == org_path(conn, :edit, org.name)
+      conn =
+        post(conn, Routes.org_path(conn, :send_invite, org.name), invite: %{email: user.email})
+
+      assert redirected_to(conn) == Routes.org_path(conn, :edit, org.name)
 
       redirected_conn = get(conn, redirected_to(conn))
 
@@ -102,7 +107,8 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
       org: org,
       user: user
     } do
-      conn = post(conn, org_path(conn, :send_invite, org.name), invite: %{email: user.email})
+      conn =
+        post(conn, Routes.org_path(conn, :send_invite, org.name), invite: %{email: user.email})
 
       assert html_response(conn, 200) =~ user.email
       assert html_response(conn, 200) =~ "is already member"

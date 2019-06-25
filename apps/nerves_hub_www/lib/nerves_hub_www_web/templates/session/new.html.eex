@@ -1,5 +1,5 @@
 <div class="modal-content shadow">
-  <%= form_for @conn, session_path(@conn, :create), [as: :login],fn f -> %>
+  <%= form_for @conn, Routes.session_path(@conn, :create), [as: :login],fn f -> %>
     <div class="modal-header panel-title rounded-top">
       Log in to your NervesHub account
     </div>
@@ -18,12 +18,12 @@
     </div>
     <div class="modal-footer">
       <div class="col-4">
-        <a class="btn btn-secondary" href="<%= home_path(@conn, :index) %>">
+        <a class="btn btn-secondary" href="<%= Routes.home_path(@conn, :index) %>">
           Cancel
         </a>
       </div>
       <div class="col-8 text-right">
-        <a class="btn" href="<%= password_reset_path(@conn, :new) %>">
+        <a class="btn" href="<%= Routes.password_reset_path(@conn, :new) %>">
           Forgot Password
         </a>
         <%= submit "Login", class: "btn btn-primary" %>

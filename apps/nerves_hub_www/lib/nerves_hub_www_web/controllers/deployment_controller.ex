@@ -44,7 +44,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Invalid firmware selected")
-        |> redirect(to: deployment_path(conn, :new, org.name, product.name))
+        |> redirect(to: Routes.deployment_path(conn, :new, org.name, product.name))
     end
   end
 
@@ -54,7 +54,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
     if Enum.empty?(firmwares) do
       conn
       |> put_flash(:error, "You must upload a firmware version before creating a deployment")
-      |> redirect(to: firmware_path(conn, :upload, org.name, product.name))
+      |> redirect(to: Routes.firmware_path(conn, :upload, org.name, product.name))
     else
       conn
       |> render("select-firmware.html", firmwares: firmwares)
@@ -84,14 +84,14 @@ defmodule NervesHubWWWWeb.DeploymentController do
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Invalid firmware selected")
-        |> redirect(to: deployment_path(conn, :new, org.name, product.name))
+        |> redirect(to: Routes.deployment_path(conn, :new, org.name, product.name))
 
       {_, {:ok, deployment}} ->
         audit!(user, deployment, :create, params)
 
         conn
         |> put_flash(:info, "Deployment created")
-        |> redirect(to: deployment_path(conn, :index, org.name, product.name))
+        |> redirect(to: Routes.deployment_path(conn, :index, org.name, product.name))
 
       {firmware, {:error, changeset}} ->
         conn
@@ -162,7 +162,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
         |> put_flash(:info, "Deployment updated")
         |> redirect(
           to:
-            deployment_path(
+            Routes.deployment_path(
               conn,
               :show,
               org.name,
@@ -187,7 +187,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
 
     conn
     |> put_flash(:info, "Deployment successfully deleted")
-    |> redirect(to: deployment_path(conn, :index, org.name, product.name))
+    |> redirect(to: Routes.deployment_path(conn, :index, org.name, product.name))
   end
 
   @doc """

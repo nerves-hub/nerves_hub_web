@@ -38,7 +38,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     |> case do
       {:ok, _device} ->
         conn
-        |> redirect(to: device_path(conn, :index, org.name, product.name))
+        |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
 
       {:error, changeset} ->
         conn
@@ -77,7 +77,7 @@ defmodule NervesHubWWWWeb.DeviceController do
 
     conn
     |> put_flash(:info, "device deleted successfully.")
-    |> redirect(to: device_path(conn, :index, org.name, product.name))
+    |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
   end
 
   def console(

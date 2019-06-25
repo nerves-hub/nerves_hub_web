@@ -41,7 +41,7 @@ defmodule NervesHubAPIWeb.CACertificateController do
       |> put_status(:created)
       |> put_resp_header(
         "location",
-        ca_certificate_path(conn, :show, org.name, ca_certificate.serial)
+        Routes.ca_certificate_path(conn, :show, org.name, ca_certificate.serial)
       )
       |> render("show.json", ca_certificate: ca_certificate)
     else

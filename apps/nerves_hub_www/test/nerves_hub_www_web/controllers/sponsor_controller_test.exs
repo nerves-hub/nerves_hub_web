@@ -4,7 +4,7 @@ defmodule NervesHubWWWWeb.SponsorControllerTest do
   test "renders sponsors", %{
     conn: conn
   } do
-    conn = get(conn, sponsor_path(conn, :index))
+    conn = get(conn, Routes.sponsor_path(conn, :index))
     assert html_response(conn, 200) =~ "Sponsors"
   end
 end

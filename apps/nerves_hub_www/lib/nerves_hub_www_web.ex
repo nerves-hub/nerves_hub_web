@@ -27,12 +27,14 @@ defmodule NervesHubWWWWeb do
   def controller do
     quote do
       use Phoenix.Controller, namespace: NervesHubWWWWeb
+
       import NervesHubWebCore.AuditLogs, only: [audit: 4, audit!: 4]
       import Plug.Conn
-      import NervesHubWWWWeb.Router.Helpers
       import NervesHubWWWWeb.Gettext
       import Phoenix.LiveView.Controller, only: [live_render: 3]
       import NervesHubWebCore.RoleValidateHelpers
+
+      alias NervesHubWWWWeb.Router.Helpers, as: Routes
 
       def whitelist(params, keys) do
         keys
@@ -71,7 +73,6 @@ defmodule NervesHubWWWWeb do
       # Use all HTML functionality (forms, tags, etc)
       use Phoenix.HTML
 
-      import NervesHubWWWWeb.Router.Helpers
       import NervesHubWWWWeb.ErrorHelpers
       import NervesHubWWWWeb.Gettext
 
@@ -89,9 +90,10 @@ defmodule NervesHubWWWWeb do
       # Import convenience functions from controllers
       import Phoenix.Controller, only: [get_flash: 2, view_module: 1]
 
-      import NervesHubWWWWeb.Router.Helpers
       import NervesHubWWWWeb.ErrorHelpers
       import NervesHubWWWWeb.Gettext
+
+      alias NervesHubWWWWeb.Router.Helpers, as: Routes
 
       def render("error.json", %{error: error}) do
         %{

@@ -1,5 +1,5 @@
 <h2>Show Product
-  <a class="btn btn-lg btn-primary pull-right" href="<%= device_path(@conn, :new, @org.name, @product.name) %>">
+  <a class="btn btn-lg btn-primary pull-right" href="<%= Routes.device_path(@conn, :new, @org.name, @product.name) %>">
     Add Device
   </a>
 </h2>
@@ -10,15 +10,15 @@
     <%= @product.name %>
   </li>
 
-  <a class="btn btn-lg btn-primary pull-right" href="<%= firmware_path(@conn, :index, @org.name, @product.name) %>">
+  <a class="btn btn-lg btn-primary pull-right" href="<%= Routes.firmware_path(@conn, :index, @org.name, @product.name) %>">
  View Firmware
   </a>
-  <a class="btn btn-lg btn-primary pull-right" href="<%= device_path(@conn, :index, @org.name, @product.name) %>">
+  <a class="btn btn-lg btn-primary pull-right" href="<%= Routes.device_path(@conn, :index, @org.name, @product.name) %>">
  View Devices
   </a>
-  <a class="btn btn-lg btn-primary pull-right" href="<%= deployment_path(@conn, :index, @org.name, @product.name) %>">
+  <a class="btn btn-lg btn-primary pull-right" href="<%= Routes.deployment_path(@conn, :index, @org.name, @product.name) %>">
  View Deployments
   </a>
 </ul>
 
-<span><%= link "Back", to: product_path(@conn, :index, @org.name) %></span>
+<span><%= link "Back", to: Routes.product_path(@conn, :index, @org.name) %></span>

@@ -1,5 +1,5 @@
 <div class="modal-content shadow">
-  <%= form_for @changeset, account_path(@conn, :create), [as: :user], fn f -> %>
+  <%= form_for @changeset, Routes.account_path(@conn, :create), [as: :user], fn f -> %>
     <div class="modal-header panel-title rounded-top">
       Create an Account
     </div>
@@ -24,7 +24,7 @@
     </div>
     <div class="modal-footer">
       <div class="col-4">
-        <a class="btn btn-secondary" href="<%= home_path(@conn, :index) %>">
+        <a class="btn btn-secondary" href="<%= Routes.home_path(@conn, :index) %>">
           Cancel
         </a>
       </div>

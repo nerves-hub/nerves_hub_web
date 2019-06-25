@@ -1,5 +1,5 @@
 <div class="modal-content shadow">
-  <%= form_for @changeset, product_path(@conn, :create, @org.name), fn f -> %>
+  <%= form_for @changeset, Routes.product_path(@conn, :create, @org.name), fn f -> %>
     <div class="modal-header panel-title rounded-top">
       Create a Product
     </div>
@@ -16,7 +16,7 @@
     </div>
     <div class="modal-footer">
       <div class="col-4">
-        <a class="btn btn-secondary" href="<%= product_path(@conn, :index, @org.name) %>">
+        <a class="btn btn-secondary" href="<%= Routes.product_path(@conn, :index, @org.name) %>">
           Cancel
         </a>
       </div>

@@ -23,7 +23,7 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
       conn =
         get(
           conn,
-          device_certificate_path(conn, :index, org.name, product.name, device.identifier)
+          Routes.device_certificate_path(conn, :index, org.name, product.name, device.identifier)
         )
 
       assert json_response(conn, 200)["data"] == []
@@ -57,7 +57,7 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
       conn =
         post(
           conn,
-          device_certificate_path(conn, :sign, org.name, product.name, device.identifier),
+          Routes.device_certificate_path(conn, :sign, org.name, product.name, device.identifier),
           params
         )
 
@@ -80,7 +80,7 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
       conn =
         post(
           conn,
-          device_certificate_path(conn, :sign, org.name, product.name, device.identifier),
+          Routes.device_certificate_path(conn, :sign, org.name, product.name, device.identifier),
           csr: ""
         )
 

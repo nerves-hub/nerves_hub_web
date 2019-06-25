@@ -20,7 +20,7 @@ defmodule NervesHubWWWWeb.OrgController do
     with {:ok, org} <- Accounts.create_org(user, params) do
       conn
       |> put_flash(:info, "Organization created successfully.")
-      |> redirect(to: product_path(conn, :index, org.name))
+      |> redirect(to: Routes.product_path(conn, :index, org.name))
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "new.html", changeset: changeset)
@@ -45,7 +45,7 @@ defmodule NervesHubWWWWeb.OrgController do
       {:ok, org} ->
         conn
         |> put_flash(:info, "Organization Updated")
-        |> redirect(to: org_path(conn, :edit, org.name))
+        |> redirect(to: Routes.org_path(conn, :edit, org.name))
 
       {:error, changeset} ->
         render(
@@ -73,7 +73,7 @@ defmodule NervesHubWWWWeb.OrgController do
 
         conn
         |> put_flash(:info, "User has been invited")
-        |> redirect(to: org_path(conn, :edit, org.name))
+        |> redirect(to: Routes.org_path(conn, :edit, org.name))
 
       {:ok, %OrgUser{}} ->
         Email.org_user_created(invite_params["email"], org)
@@ -81,7 +81,7 @@ defmodule NervesHubWWWWeb.OrgController do
 
         conn
         |> put_flash(:info, "User has been added to #{org.name}")
-        |> redirect(to: org_path(conn, :edit, org.name))
+        |> redirect(to: Routes.org_path(conn, :edit, org.name))
 
       {:error, changeset} ->
         render(conn, "invite.html",

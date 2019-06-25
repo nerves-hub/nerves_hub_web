@@ -22,9 +22,10 @@ defmodule NervesHubAPIWeb do
       use Phoenix.Controller, namespace: NervesHubAPIWeb
       import NervesHubWebCore.AuditLogs, only: [audit: 4, audit!: 4]
       import Plug.Conn
-      import NervesHubAPIWeb.Router.Helpers
       import NervesHubAPIWeb.Gettext
       import NervesHubWebCore.RoleValidateHelpers
+
+      alias NervesHubAPIWeb.Router.Helpers, as: Routes
 
       def whitelist(params, keys) do
         keys
@@ -42,10 +43,10 @@ defmodule NervesHubAPIWeb do
 
       # Import convenience functions from controllers
       import Phoenix.Controller, only: [get_flash: 2, view_module: 1]
-
-      import NervesHubAPIWeb.Router.Helpers
       import NervesHubAPIWeb.ErrorHelpers
       import NervesHubAPIWeb.Gettext
+
+      alias NervesHubAPIWeb.Router.Helpers, as: Routes
     end
   end
 

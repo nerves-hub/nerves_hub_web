@@ -49,7 +49,7 @@ defmodule NervesHubWWWWeb.AccountController do
       {:ok, user} ->
         conn
         |> put_flash(:info, "Account updated")
-        |> redirect(to: account_path(conn, :edit, user.username))
+        |> redirect(to: Routes.account_path(conn, :edit, user.username))
 
       {:error, changeset} ->
         conn

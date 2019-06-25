@@ -20,8 +20,9 @@ defmodule NervesHubAPIWeb.ConnCase do
     quote do
       # Import conveniences for testing with connections
       use Phoenix.ConnTest
-      import NervesHubAPIWeb.Router.Helpers
       import NervesHubAPIWeb.ConnCase, only: [build_auth_conn: 1, peer_data: 1]
+
+      alias NervesHubAPIWeb.Router.Helpers, as: Routes
 
       # The default endpoint for testing
       @endpoint NervesHubAPIWeb.Endpoint

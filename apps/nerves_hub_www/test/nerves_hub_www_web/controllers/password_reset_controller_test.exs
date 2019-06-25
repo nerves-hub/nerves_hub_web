@@ -7,7 +7,7 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
 
   describe "new password_reset" do
     test "renders form", %{conn: conn} do
-      conn = get(conn, password_reset_path(conn, :new))
+      conn = get(conn, Routes.password_reset_path(conn, :new))
       assert html_response(conn, 200) =~ "Reset Password"
     end
   end
@@ -18,9 +18,9 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
     test "with valid params", %{conn: conn, user: user} do
       params = %{"password_reset" => %{"email" => user.email}}
 
-      reset_conn = post(conn, password_reset_path(conn, :create), params)
+      reset_conn = post(conn, Routes.password_reset_path(conn, :create), params)
 
-      assert redirected_to(reset_conn) == session_path(reset_conn, :new)
+      assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
 
       {:ok, updated_user} = Accounts.get_user(user.id)
       assert_delivered_email(NervesHubWWW.Accounts.Email.forgot_password(updated_user))
@@ -29,7 +29,7 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
     test "with invalid params", %{conn: conn} do
       params = %{}
 
-      reset_conn = post(conn, password_reset_path(conn, :create), params)
+      reset_conn = post(conn, Routes.password_reset_path(conn, :create), params)
       assert html_response(reset_conn, 200) =~ "You must enter an email address."
     end
   end
@@ -41,9 +41,13 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
       params = %{"user" => %{"email" => user.email}}
 
       reset_conn =
-        get(conn, password_reset_path(conn, :new_password_form, "not a good token"), params)
+        get(
+          conn,
+          Routes.password_reset_path(conn, :new_password_form, "not a good token"),
+          params
+        )
 
-      assert redirected_to(reset_conn) == session_path(reset_conn, :new)
+      assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
     end
 
     test "new_password_form with valid token", %{conn: conn, user: user} do
@@ -54,7 +58,7 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
         |> elem(1)
         |> Map.get(:password_reset_token)
 
-      reset_conn = get(conn, password_reset_path(conn, :new_password_form, token), params)
+      reset_conn = get(conn, Routes.password_reset_path(conn, :new_password_form, token), params)
 
       assert html_response(reset_conn, 200) =~ "New Password:"
     end
@@ -69,8 +73,8 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
         |> elem(1)
         |> Map.get(:password_reset_token)
 
-      reset_conn = put(conn, password_reset_path(conn, :reset, token), params)
-      assert redirected_to(reset_conn) == session_path(reset_conn, :new)
+      reset_conn = put(conn, Routes.password_reset_path(conn, :reset, token), params)
+      assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
 
       # enforce side effect
       {:ok, updated_user} = Accounts.get_user(user.id)
@@ -78,7 +82,7 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
 
       # check token is expired
       second_params = %{"user" => %{"password" => "newer password"}}
-      put(conn, password_reset_path(conn, :reset, token), second_params)
+      put(conn, Routes.password_reset_path(conn, :reset, token), second_params)
       {:ok, second_updated_user} = Accounts.get_user(user.id)
       assert second_updated_user.password_hash == updated_user.password_hash
     end
@@ -91,7 +95,7 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
         |> elem(1)
         |> Map.get(:password_reset_token)
 
-      reset_conn = put(conn, password_reset_path(conn, :reset, token), params)
+      reset_conn = put(conn, Routes.password_reset_path(conn, :reset, token), params)
       assert html_response(reset_conn, 200) =~ "You must provide a new password."
 
       # enforce side effect
@@ -104,8 +108,8 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
 
       bad_token = Ecto.UUID.bingenerate()
 
-      reset_conn = put(conn, password_reset_path(conn, :reset, bad_token), params)
-      assert redirected_to(reset_conn) == session_path(reset_conn, :new)
+      reset_conn = put(conn, Routes.password_reset_path(conn, :reset, bad_token), params)
+      assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
 
       # enforce side effect
       {:ok, updated_user} = Accounts.get_user(user.id)

@@ -28,7 +28,7 @@ defmodule NervesHubWWWWeb.ProductController do
       {:ok, product} ->
         conn
         |> put_flash(:info, "Product created successfully.")
-        |> redirect(to: product_path(conn, :show, org.name, product.name))
+        |> redirect(to: Routes.product_path(conn, :show, org.name, product.name))
 
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "new.html", changeset: changeset)
@@ -53,7 +53,7 @@ defmodule NervesHubWWWWeb.ProductController do
       {:ok, product} ->
         conn
         |> put_flash(:info, "Product updated successfully.")
-        |> redirect(to: product_path(conn, :show, org.name, product.name))
+        |> redirect(to: Routes.product_path(conn, :show, org.name, product.name))
 
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "edit.html", product: product, changeset: changeset)
@@ -65,6 +65,6 @@ defmodule NervesHubWWWWeb.ProductController do
 
     conn
     |> put_flash(:info, "Product deleted successfully.")
-    |> redirect(to: product_path(conn, :index, org.name))
+    |> redirect(to: Routes.product_path(conn, :index, org.name))
   end
 end

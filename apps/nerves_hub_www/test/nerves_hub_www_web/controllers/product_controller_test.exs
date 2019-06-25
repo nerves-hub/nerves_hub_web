@@ -8,14 +8,14 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
 
   describe "index" do
     test "lists all products", %{conn: conn, org: org} do
-      conn = get(conn, product_path(conn, :index, org.name))
+      conn = get(conn, Routes.product_path(conn, :index, org.name))
       assert html_response(conn, 200) =~ "All Products"
     end
   end
 
   describe "new product" do
     test "renders form", %{conn: conn, org: org} do
-      conn = get(conn, product_path(conn, :new, org.name))
+      conn = get(conn, Routes.product_path(conn, :new, org.name))
       assert html_response(conn, 200) =~ "Create a Product"
     end
   end
@@ -23,18 +23,18 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   describe "create product" do
     test "redirects to show when data is valid", %{conn: conn, org: org} do
       params = @create_attrs
-      conn = post(conn, product_path(conn, :create, org.name), product: params)
+      conn = post(conn, Routes.product_path(conn, :create, org.name), product: params)
       assert %{product_name: product_name} = redirected_params(conn)
-      assert redirected_to(conn) == product_path(conn, :show, org.name, params.name)
+      assert redirected_to(conn) == Routes.product_path(conn, :show, org.name, params.name)
 
-      conn = get(conn, product_path(conn, :show, org.name, params.name))
+      conn = get(conn, Routes.product_path(conn, :show, org.name, params.name))
       assert html_response(conn, 200) =~ "Show Product"
       assert html_response(conn, 200) =~ org.name
-      assert html_response(conn, 200) =~ firmware_path(conn, :index, org.name, params.name)
+      assert html_response(conn, 200) =~ Routes.firmware_path(conn, :index, org.name, params.name)
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do
-      conn = post(conn, product_path(conn, :create, org.name), product: @invalid_attrs)
+      conn = post(conn, Routes.product_path(conn, :create, org.name), product: @invalid_attrs)
       assert html_response(conn, 200) =~ "Create a Product"
     end
   end
@@ -43,9 +43,9 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
     setup [:create_product]
 
     test "deletes chosen product", %{conn: conn, org: org, product: product} do
-      path = product_path(conn, :delete, org.name, product.name)
+      path = Routes.product_path(conn, :delete, org.name, product.name)
       conn = delete(conn, path)
-      assert redirected_to(conn) == product_path(conn, :index, org.name)
+      assert redirected_to(conn) == Routes.product_path(conn, :index, org.name)
       conn = get(conn, path)
       assert html_response(conn, 404)
     end

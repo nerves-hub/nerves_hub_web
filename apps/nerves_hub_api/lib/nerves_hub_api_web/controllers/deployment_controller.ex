@@ -33,7 +33,7 @@ defmodule NervesHubAPIWeb.DeploymentController do
           |> put_status(:created)
           |> put_resp_header(
             "location",
-            deployment_path(conn, :show, org.name, product.name, deployment.name)
+            Routes.deployment_path(conn, :show, org.name, product.name, deployment.name)
           )
           |> render("show.json", deployment: %{deployment | firmware: firmware})
         end
