@@ -47,14 +47,14 @@
       </p>
 
       <div class="dropdown dropright">
-        <%= link "Back", to: device_path(@socket, :index, @org.name, @product.name), class: "btn btn-secondary"%>
+        <%= link "Back", to: Routes.device_path(@socket, :index, @org.name, @product.name), class: "btn btn-secondary"%>
 
         <button class="btn btn-info dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           Actions
         </button>
         <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-          <%= link "Console", to: device_path(@socket, :console, @org.name, @product.name, @device.identifier), class: "dropdown-item #{unless Map.has_key?(@device, :console_available) && @device.console_available, do: "disabled"}" %>
-          <%= link "Edit", to: device_path(@socket, :edit, @org.name, @product.name, @device.identifier), class: "dropdown-item" %>
+          <%= link "Console", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier), class: "dropdown-item #{unless Map.has_key?(@device, :console_available) && @device.console_available, do: "disabled"}" %>
+          <%= link "Edit", to: Routes.device_path(@socket, :edit, @org.name, @product.name, @device.identifier), class: "dropdown-item" %>
           <%= form_for %Plug.Conn{}, "#", [phx_submit: "toggle_health_state"], fn _f -> %>
             <%= submit "Mark #{if @device.healthy, do: "Unhealthy", else: "Healthy"}", class: "dropdown-item" %>
           <% end %>

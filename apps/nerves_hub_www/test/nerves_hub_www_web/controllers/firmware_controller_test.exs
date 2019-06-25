@@ -10,9 +10,11 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
     test "lists all firmwares", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
 
-      conn = get(conn, firmware_path(conn, :index, org.name, product.name))
+      conn = get(conn, Routes.firmware_path(conn, :index, org.name, product.name))
       assert html_response(conn, 200) =~ "Firmware"
-      assert html_response(conn, 200) =~ firmware_path(conn, :upload, org.name, product.name)
+
+      assert html_response(conn, 200) =~
+               Routes.firmware_path(conn, :upload, org.name, product.name)
     end
   end
 
@@ -23,10 +25,12 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
       org: org
     } do
       product = Fixtures.product_fixture(user, org)
-      conn = get(conn, firmware_path(conn, :upload, org.name, product.name))
+      conn = get(conn, Routes.firmware_path(conn, :upload, org.name, product.name))
 
       assert html_response(conn, 200) =~ "Upload Firmware"
-      assert html_response(conn, 200) =~ firmware_path(conn, :do_upload, org.name, product.name)
+
+      assert html_response(conn, 200) =~
+               Routes.firmware_path(conn, :do_upload, org.name, product.name)
     end
   end
 
@@ -50,15 +54,15 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
       # check that we end up in the right place
       create_conn =
-        post(conn, firmware_path(conn, :upload, org.name, product.name), %{
+        post(conn, Routes.firmware_path(conn, :upload, org.name, product.name), %{
           "firmware" => %{"file" => upload}
         })
 
       assert redirected_to(create_conn, 302) =~
-               firmware_path(conn, :index, org.name, product.name)
+               Routes.firmware_path(conn, :index, org.name, product.name)
 
       # check that the proper creation side effects took place
-      conn = get(conn, firmware_path(conn, :index, org.name, product.name))
+      conn = get(conn, Routes.firmware_path(conn, :index, org.name, product.name))
       # starter is the product for the test firmware
       assert html_response(conn, 200) =~ product_name
     end
@@ -83,7 +87,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
       # check for the error message
       conn =
-        post(conn, firmware_path(conn, :upload, org.name, product.name), %{
+        post(conn, Routes.firmware_path(conn, :upload, org.name, product.name), %{
           "firmware" => %{"file" => upload}
         })
 
@@ -110,7 +114,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
       # check for the error message
       conn =
-        post(conn, firmware_path(conn, :upload, org.name, product.name), %{
+        post(conn, Routes.firmware_path(conn, :upload, org.name, product.name), %{
           "firmware" => %{"file" => upload}
         })
 
@@ -136,7 +140,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
       # check for the error message
       conn =
-        post(conn, firmware_path(conn, :upload, org.name, product.name), %{
+        post(conn, Routes.firmware_path(conn, :upload, org.name, product.name), %{
           "firmware" => %{"file" => upload}
         })
 
@@ -162,7 +166,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
 
       # check for the error message
       conn =
-        post(conn, firmware_path(conn, :upload, org.name, product.name), %{
+        post(conn, Routes.firmware_path(conn, :upload, org.name, product.name), %{
           "firmware" => %{"file" => upload}
         })
 
@@ -180,8 +184,10 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
-      conn = delete(conn, firmware_path(conn, :delete, org.name, product.name, firmware.uuid))
-      assert redirected_to(conn) == firmware_path(conn, :index, org.name, product.name)
+      conn =
+        delete(conn, Routes.firmware_path(conn, :delete, org.name, product.name, firmware.uuid))
+
+      assert redirected_to(conn) == Routes.firmware_path(conn, :index, org.name, product.name)
       assert Firmwares.get_firmware(org, firmware.id) == {:error, :not_found}
     end
   end

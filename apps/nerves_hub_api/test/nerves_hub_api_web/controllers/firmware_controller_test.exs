@@ -7,7 +7,7 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
 
   describe "index" do
     test "lists all firmwares", %{conn: conn, org: org, product: product} do
-      path = firmware_path(conn, :index, org.name, product.name)
+      path = Routes.firmware_path(conn, :index, org.name, product.name)
       conn = get(conn, path)
       assert json_response(conn, 200)["data"] == []
     end
@@ -26,12 +26,12 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
       }
 
       params = %{"firmware" => upload}
-      path = firmware_path(conn, :create, org.name, product.name)
+      path = Routes.firmware_path(conn, :create, org.name, product.name)
       conn = post(conn, path, params)
       assert data = json_response(conn, 201)["data"]
       uuid = data["uuid"]
 
-      conn = get(conn, firmware_path(conn, :show, org.name, product.name, uuid))
+      conn = get(conn, Routes.firmware_path(conn, :show, org.name, product.name, uuid))
       assert json_response(conn, 200)["data"]["uuid"] == uuid
     end
 
@@ -49,13 +49,13 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
       }
 
       params = %{"firmware" => upload}
-      path = firmware_path(conn, :create, org.name, product.name)
+      path = Routes.firmware_path(conn, :create, org.name, product.name)
       conn = post(conn, path, params)
       assert json_response(conn, 422)["errors"] != %{}
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do
-      conn = post(conn, firmware_path(conn, :create, org.name, product.name))
+      conn = post(conn, Routes.firmware_path(conn, :create, org.name, product.name))
       assert json_response(conn, 500)["errors"] != %{}
     end
   end
@@ -64,10 +64,12 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
     setup [:create_firmware]
 
     test "deletes chosen firmware", %{conn: conn, org: org, product: product, firmware: firmware} do
-      conn = delete(conn, firmware_path(conn, :delete, org.name, product.name, firmware.uuid))
+      conn =
+        delete(conn, Routes.firmware_path(conn, :delete, org.name, product.name, firmware.uuid))
+
       assert response(conn, 204)
 
-      conn = get(conn, firmware_path(conn, :show, org.name, product.name, firmware.uuid))
+      conn = get(conn, Routes.firmware_path(conn, :show, org.name, product.name, firmware.uuid))
 
       assert response(conn, 404)
     end

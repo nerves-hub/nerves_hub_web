@@ -10,7 +10,7 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
 
   describe "new device" do
     test "renders form with valid request params", %{conn: conn, org: org, product: product} do
-      new_conn = get(conn, device_path(conn, :new, org.name, product.name))
+      new_conn = get(conn, Routes.device_path(conn, :new, org.name, product.name))
 
       assert html_response(new_conn, 200) =~ "Create a Device"
     end
@@ -29,12 +29,15 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
 
       # check that we end up in the right place
       create_conn =
-        post(conn, device_path(conn, :create, org.name, product.name), device: device_params)
+        post(conn, Routes.device_path(conn, :create, org.name, product.name),
+          device: device_params
+        )
 
-      assert redirected_to(create_conn, 302) =~ device_path(conn, :index, org.name, product.name)
+      assert redirected_to(create_conn, 302) =~
+               Routes.device_path(conn, :index, org.name, product.name)
 
       # check that the proper creation side effects took place
-      conn = get(conn, device_path(conn, :index, org.name, product.name))
+      conn = get(conn, Routes.device_path(conn, :index, org.name, product.name))
       assert html_response(conn, 200) =~ device_params.identifier
     end
   end
@@ -48,11 +51,16 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
       [to_delete | _] = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
 
       conn =
-        delete(conn, device_path(conn, :delete, org.name, product.name, to_delete.identifier))
+        delete(
+          conn,
+          Routes.device_path(conn, :delete, org.name, product.name, to_delete.identifier)
+        )
 
-      assert redirected_to(conn) == device_path(conn, :index, org.name, product.name)
+      assert redirected_to(conn) == Routes.device_path(conn, :index, org.name, product.name)
 
-      conn = get(conn, device_path(conn, :show, org.name, product.name, to_delete.identifier))
+      conn =
+        get(conn, Routes.device_path(conn, :show, org.name, product.name, to_delete.identifier))
+
       assert html_response(conn, 404)
     end
   end

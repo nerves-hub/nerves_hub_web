@@ -21,7 +21,7 @@ defmodule NervesHubAPIWeb.ProductUserController do
       |> put_status(:created)
       |> put_resp_header(
         "location",
-        product_user_path(conn, :show, org.name, product.name, user.username)
+        Routes.product_user_path(conn, :show, org.name, product.name, user.username)
       )
       |> render("show.json", product_user: product_user)
     end

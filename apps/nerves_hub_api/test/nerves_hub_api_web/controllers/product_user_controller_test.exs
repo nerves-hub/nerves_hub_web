@@ -15,7 +15,7 @@ defmodule NervesHubAPIWeb.ProductUserControllerTest do
 
   describe "index" do
     test "lists all product_users", %{conn: conn, org: org, user: user, product: product} do
-      conn = get(conn, product_user_path(conn, :index, org.name, product.name))
+      conn = get(conn, Routes.product_user_path(conn, :index, org.name, product.name))
 
       assert json_response(conn, 200)["data"] ==
                [%{"email" => user.email, "role" => "admin", "username" => user.username}]
@@ -28,7 +28,7 @@ defmodule NervesHubAPIWeb.ProductUserControllerTest do
 
       test "error: product #{@role}", %{conn2: conn, org: org, user2: user, product: product} do
         Products.add_product_user(product, user, %{role: @role})
-        conn = get(conn, product_user_path(conn, :index, org.name, product.name))
+        conn = get(conn, Routes.product_user_path(conn, :index, org.name, product.name))
         assert json_response(conn, 403)["status"] != ""
       end
     end
@@ -42,10 +42,15 @@ defmodule NervesHubAPIWeb.ProductUserControllerTest do
       product: product
     } do
       product_user = %{"username" => user2.username, "role" => "write"}
-      conn = post(conn, product_user_path(conn, :add, org.name, product.name), product_user)
+
+      conn =
+        post(conn, Routes.product_user_path(conn, :add, org.name, product.name), product_user)
+
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, product_user_path(conn, :show, org.name, product.name, user2.username))
+      conn =
+        get(conn, Routes.product_user_path(conn, :show, org.name, product.name, user2.username))
+
       assert json_response(conn, 200)["data"]["username"] == user2.username
     end
 
@@ -56,7 +61,10 @@ defmodule NervesHubAPIWeb.ProductUserControllerTest do
       product: product
     } do
       product_user = %{"username" => user2.username, "role" => "bogus"}
-      conn = post(conn, product_user_path(conn, :add, org.name, product.name), product_user)
+
+      conn =
+        post(conn, Routes.product_user_path(conn, :add, org.name, product.name), product_user)
+
       assert json_response(conn, 422)["errors"] != %{}
     end
   end
@@ -68,7 +76,10 @@ defmodule NervesHubAPIWeb.ProductUserControllerTest do
       test "error: org #{@role}", %{conn2: conn, org: org, user2: user, product: product} do
         Products.add_product_user(product, user, %{role: @role})
         product_user = %{"username" => user.username, "role" => "write"}
-        conn = post(conn, product_user_path(conn, :add, org.name, product.name), product_user)
+
+        conn =
+          post(conn, Routes.product_user_path(conn, :add, org.name, product.name), product_user)
+
         assert json_response(conn, 403)["status"] != ""
       end
     end
@@ -78,10 +89,17 @@ defmodule NervesHubAPIWeb.ProductUserControllerTest do
     setup [:create_product_user]
 
     test "remove existing user", %{conn: conn, org: org, user2: user, product: product} do
-      conn = delete(conn, product_user_path(conn, :remove, org.name, product.name, user.username))
+      conn =
+        delete(
+          conn,
+          Routes.product_user_path(conn, :remove, org.name, product.name, user.username)
+        )
+
       assert response(conn, 204)
 
-      conn = get(conn, product_user_path(conn, :show, org.name, product.name, user.username))
+      conn =
+        get(conn, Routes.product_user_path(conn, :show, org.name, product.name, user.username))
+
       assert response(conn, 404)
     end
   end
@@ -92,7 +110,10 @@ defmodule NervesHubAPIWeb.ProductUserControllerTest do
 
       test "error: org #{@role}", %{conn2: conn, org: org, user2: user, product: product} do
         Products.add_product_user(product, user, %{role: @role})
-        conn = delete(conn, product_user_path(conn, :remove, org.name, product.name, "1234"))
+
+        conn =
+          delete(conn, Routes.product_user_path(conn, :remove, org.name, product.name, "1234"))
+
         assert json_response(conn, 403)["status"] != ""
       end
     end
@@ -108,13 +129,13 @@ defmodule NervesHubAPIWeb.ProductUserControllerTest do
       product: product
     } do
       conn =
-        put(conn, product_user_path(conn, :update, org.name, product.name, user.username),
+        put(conn, Routes.product_user_path(conn, :update, org.name, product.name, user.username),
           role: "write"
         )
 
       assert json_response(conn, 200)["data"]["role"] == "write"
 
-      path = product_user_path(conn, :show, org.name, product.name, user.username)
+      path = Routes.product_user_path(conn, :show, org.name, product.name, user.username)
       conn = get(conn, path)
       assert json_response(conn, 200)["data"]["role"] == "write"
     end
@@ -128,7 +149,9 @@ defmodule NervesHubAPIWeb.ProductUserControllerTest do
         Products.add_product_user(product, user, %{role: @role})
 
         conn =
-          put(conn, product_user_path(conn, :update, org.name, product.name, user.username),
+          put(
+            conn,
+            Routes.product_user_path(conn, :update, org.name, product.name, user.username),
             role: "write"
           )
 

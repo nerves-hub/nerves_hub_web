@@ -6,7 +6,7 @@ defmodule NervesHubAPIWeb.UserControllerTest do
   alias NervesHubWebCore.Accounts
 
   test "me", %{conn: conn, user: user} do
-    conn = get(conn, user_path(conn, :me))
+    conn = get(conn, Routes.user_path(conn, :me))
 
     assert json_response(conn, 200)["data"] == %{
              "username" => user.username,
@@ -17,7 +17,7 @@ defmodule NervesHubAPIWeb.UserControllerTest do
   test "register new account" do
     conn = build_conn()
     body = %{username: "api_test", password: "12345678", email: "new_test@test.com"}
-    conn = post(conn, user_path(conn, :register), body)
+    conn = post(conn, Routes.user_path(conn, :register), body)
 
     assert json_response(conn, 200)["data"] == %{
              "username" => body.username,
@@ -36,7 +36,7 @@ defmodule NervesHubAPIWeb.UserControllerTest do
       })
 
     conn = build_conn()
-    conn = post(conn, user_path(conn, :auth), %{email: user.email, password: password})
+    conn = post(conn, Routes.user_path(conn, :auth), %{email: user.email, password: password})
 
     assert json_response(conn, 200)["data"] == %{
              "username" => user.username,
@@ -62,7 +62,7 @@ defmodule NervesHubAPIWeb.UserControllerTest do
 
     conn = build_conn()
 
-    conn = post(conn, user_path(conn, :sign), params)
+    conn = post(conn, Routes.user_path(conn, :sign), params)
     resp_data = json_response(conn, 200)["data"]
     assert %{"cert" => cert} = resp_data
 

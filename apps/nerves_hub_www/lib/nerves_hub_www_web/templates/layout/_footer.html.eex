@@ -6,8 +6,8 @@
         NervesHub
       </h6>
       <a href="https://github.com/nerves-hub">Source code</a>
-      <a href="<%= nerves_key_path(@conn, :index) %>">NervesKey</a>
-      <a href="<%= sponsor_path(@conn, :index) %>">Sponsors</a>
+      <a href="<%= Routes.nerves_key_path(@conn, :index) %>">NervesKey</a>
+      <a href="<%= Routes.sponsor_path(@conn, :index) %>">Sponsors</a>
     </div>
     <div class="p-2 bd-highlight">
       <h6 class="text-dark logo-font">
@@ -21,9 +21,9 @@
       <h6 class="text-dark logo-font">
         Terms and Conditions
       </h6>
-      <a href="<%= policy_path(@conn, :coc) %>">Code of Conduct</a>
-      <a href="<%= policy_path(@conn, :tos) %>">Terms of Service</a>
-      <a href="<%= policy_path(@conn, :privacy) %>">Privacy Policy</a>
+      <a href="<%= Routes.policy_path(@conn, :coc) %>">Code of Conduct</a>
+      <a href="<%= Routes.policy_path(@conn, :tos) %>">Terms of Service</a>
+      <a href="<%= Routes.policy_path(@conn, :privacy) %>">Privacy Policy</a>
     </div>
   </div>
 </div>

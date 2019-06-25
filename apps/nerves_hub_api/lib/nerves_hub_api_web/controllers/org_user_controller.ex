@@ -28,7 +28,7 @@ defmodule NervesHubAPIWeb.OrgUserController do
 
       conn
       |> put_status(:created)
-      |> put_resp_header("location", org_user_path(conn, :show, org.name, user.username))
+      |> put_resp_header("location", Routes.org_user_path(conn, :show, org.name, user.username))
       |> render("show.json", org_user: org_user)
     end
   end
@@ -44,7 +44,7 @@ defmodule NervesHubAPIWeb.OrgUserController do
     with {:ok, user} <- Accounts.get_user_by_username(username),
          {:ok, _org_user} <- Accounts.get_org_user(org, user),
          :ok <- Accounts.remove_org_user(org, user) do
-      # Now let everyone in the organization know 
+      # Now let everyone in the organization know
       # that this user has been removed from the organization.
       instigator = conn.assigns.user.username
 

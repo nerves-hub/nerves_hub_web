@@ -2,7 +2,7 @@
   <h1>Generate an Account Certificate</h1>
 </div>
 
-<%= form_for @changeset, account_certificate_path(@conn, :create, @user.username), fn f -> %>
+<%= form_for @changeset, Routes.account_certificate_path(@conn, :create, @user.username), fn f -> %>
 
   <div class="form-group">
     <label for="description">Description</label>
@@ -11,5 +11,5 @@
   </div>
 
   <%= submit "Create", class: "btn btn-large btn-primary" %>
-  <a class="btn btn-secondary" href="<%= account_certificate_path(@conn, :index, @user.username) %>">Cancel</a>
+  <a class="btn btn-secondary" href="<%= Routes.account_certificate_path(@conn, :index, @user.username) %>">Cancel</a>
 <% end %>

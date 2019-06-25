@@ -18,7 +18,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
   describe "new session" do
     test "renders form" do
       conn = build_conn()
-      conn = get(conn, session_path(conn, :new))
+      conn = get(conn, Routes.session_path(conn, :new))
       assert html_response(conn, 200) =~ "Log in to your NervesHub account"
     end
   end
@@ -30,11 +30,11 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
       conn =
         post(
           conn,
-          session_path(conn, :create),
+          Routes.session_path(conn, :create),
           login: %{email: user.email, password: user.password}
         )
 
-      assert redirected_to(conn) == product_path(conn, :index, user.username)
+      assert redirected_to(conn) == Routes.product_path(conn, :index, user.username)
     end
   end
 end

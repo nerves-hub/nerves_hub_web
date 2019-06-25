@@ -1,5 +1,5 @@
 <div class="modal-content shadow">
-  <%= form_for @conn, deployment_path(@conn, :new, @org.name, @product.name), [method: :get, as: :deployment], fn f -> %>
+  <%= form_for @conn, Routes.deployment_path(@conn, :new, @org.name, @product.name), [method: :get, as: :deployment], fn f -> %>
     <div class="modal-header panel-title rounded-top">
       Select Firmware for New Deployment
     </div>
@@ -12,7 +12,7 @@
     </div>
     <div class="modal-footer">
       <div class="col-4">
-        <a class="btn btn-secondary" href="<%= deployment_path(@conn, :index, @org.name, @product.name) %>">
+        <a class="btn btn-secondary" href="<%= Routes.deployment_path(@conn, :index, @org.name, @product.name) %>">
           Cancel
         </a>
       </div>

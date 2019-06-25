@@ -58,7 +58,7 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
     } do
       {:ok, view, _html} = mount(Endpoint, Show, session: session)
 
-      path = deployment_path(Endpoint, :index, org.name, product.name)
+      path = Routes.deployment_path(Endpoint, :index, org.name, product.name)
 
       assert_redirect(view, ^path, fn ->
         assert render_submit(view, :delete)

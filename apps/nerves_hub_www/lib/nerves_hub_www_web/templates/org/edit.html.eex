@@ -1,13 +1,13 @@
 <h1>
   <%= @org.name %> settings
-  <a class="btn btn-lg btn-success pull-right" href="<%= org_certificate_path(@conn, :index, @org.name)%>">
+  <a class="btn btn-lg btn-success pull-right" href="<%= Routes.org_certificate_path(@conn, :index, @org.name)%>">
     Device (CA) Certificates
   </a>
   <%= if @org.type != :user do %>
-  <a class="btn btn-lg btn-success pull-right" href="<%= org_user_path(@conn, :index, @org.name) %>">
+  <a class="btn btn-lg btn-success pull-right" href="<%= Routes.org_user_path(@conn, :index, @org.name) %>">
     Users
   </a>
-  <a class="btn btn-lg btn-success pull-right" href="<%= org_path(@conn, :invite, @org.name) %>">
+  <a class="btn btn-lg btn-success pull-right" href="<%= Routes.org_path(@conn, :invite, @org.name) %>">
     Invite user
   </a>
   <% end %>
@@ -44,7 +44,7 @@
     </div>
 
     <div class="panel-body">
-        <%= form_for @org_changeset, org_path(@conn, :update, @org.name), fn f -> %>
+        <%= form_for @org_changeset, Routes.org_path(@conn, :update, @org.name), fn f -> %>
           <div class="form-group">
             <label for="name_input">Name</label>
             <%= text_input f, :name, class: "form-control", id: "name_input" %>
@@ -63,7 +63,7 @@
   </div>
 
   <div class="panel-body">
-    <%= form_for @org_key_changeset, org_key_path(@conn, :create, @org.name), fn f -> %>
+    <%= form_for @org_key_changeset, Routes.org_key_path(@conn, :create, @org.name), fn f -> %>
       <div class="form-group">
         <label for="key_name_input">Name</label>
         <%= text_input f, :name, class: "form-control", id: "key_name_input" %>
@@ -101,8 +101,8 @@
         </td>
         <td><%= key.key %></td>
         <td class="text-right">
-          <%= link "Edit", to: org_key_path(@conn, :edit, @org.name, key), class: "btn btn-primary" %>
-          <%= link "Delete", to: org_key_path(@conn, :delete, @org.name, key), class: "btn btn-danger", method: :delete, data: [confirm: "Are you sure?"]  %>
+          <%= link "Edit", to: Routes.org_key_path(@conn, :edit, @org.name, key), class: "btn btn-primary" %>
+          <%= link "Delete", to: Routes.org_key_path(@conn, :delete, @org.name, key), class: "btn btn-danger", method: :delete, data: [confirm: "Are you sure?"]  %>
         </td>
       <% end %>
     <% else %>

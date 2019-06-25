@@ -8,7 +8,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
     test "renders account creation form", %{
       conn: conn
     } do
-      conn = get(conn, account_path(conn, :new))
+      conn = get(conn, Routes.account_path(conn, :new))
       assert html_response(conn, 200) =~ "Create an Account"
     end
   end
@@ -19,7 +19,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
     } do
       {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com"}, conn.assigns.org)
 
-      conn = get(conn, account_path(conn, :invite, invite.token))
+      conn = get(conn, Routes.account_path(conn, :invite, invite.token))
 
       assert html_response(conn, 200) =~
                "You will be added to the #{conn.assigns.org.name} org"
@@ -36,7 +36,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
       conn =
         post(
           conn,
-          account_path(conn, :accept_invite, invite.token, %{
+          Routes.account_path(conn, :accept_invite, invite.token, %{
             "user" => %{
               "username" => "MyName",
               "email" => "not_joe@example.com",
@@ -65,9 +65,12 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
       conn: conn,
       user: user
     } do
-      conn = get(conn, account_path(conn, :edit, user.username))
+      conn = get(conn, Routes.account_path(conn, :edit, user.username))
       assert html_response(conn, 200) =~ "Edit Account"
-      assert html_response(conn, 200) =~ account_certificate_path(conn, :index, user.username)
+
+      assert html_response(conn, 200) =~
+               Routes.account_certificate_path(conn, :index, user.username)
+
       assert html_response(conn, 200) =~ "type=\"password\""
     end
   end
@@ -80,7 +83,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
       conn =
         conn
         |> put(
-          account_path(conn, :update, user.username, %{
+          Routes.account_path(conn, :update, user.username, %{
             "user" => %{
               "username" => "MyNewestName",
               "password" => "foobarbaz",
@@ -89,7 +92,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
           })
         )
 
-      assert html_response(conn, 302) =~ account_path(conn, :edit, "MyNewestName")
+      assert html_response(conn, 302) =~ Routes.account_path(conn, :edit, "MyNewestName")
 
       updated_user = Accounts.get_user(user.id) |> elem(1)
 
@@ -103,7 +106,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
       conn =
         conn
         |> put(
-          account_path(conn, :update, user.username, %{
+          Routes.account_path(conn, :update, user.username, %{
             "user" => %{
               "username" => "MyNewestName",
               "password" => "12345678",
@@ -122,7 +125,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
       conn =
         conn
         |> put(
-          account_path(conn, :update, user.username, %{
+          Routes.account_path(conn, :update, user.username, %{
             "user" => %{
               "username" => "MyNewestName",
               "password" => "12345678",
@@ -142,7 +145,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
       conn =
         post(
           conn,
-          account_path(conn, :create, %{
+          Routes.account_path(conn, :create, %{
             "user" => %{
               "username" => "MyName",
               "email" => "joe@example.com",
@@ -160,7 +163,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
       conn =
         post(
           conn,
-          account_path(conn, :create, %{
+          Routes.account_path(conn, :create, %{
             "user" => %{
               "username" => "MyName",
               "org_name" => "a Org",

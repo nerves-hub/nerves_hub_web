@@ -15,7 +15,7 @@ defmodule NervesHubWWWWeb.SessionController do
       user_id ->
         case Accounts.get_user(user_id) do
           {:ok, user} ->
-            redirect(conn, to: product_path(conn, :index, user.username))
+            redirect(conn, to: Routes.product_path(conn, :index, user.username))
 
           _ ->
             render(conn, "new.html")
@@ -30,12 +30,12 @@ defmodule NervesHubWWWWeb.SessionController do
       {:ok, user} ->
         conn
         |> put_session(@session_key, user.id)
-        |> redirect(to: product_path(conn, :index, user.username))
+        |> redirect(to: Routes.product_path(conn, :index, user.username))
 
       {:error, :authentication_failed} ->
         conn
         |> put_flash(:error, "Login Failed")
-        |> redirect(to: session_path(conn, :new))
+        |> redirect(to: Routes.session_path(conn, :new))
     end
   end
 

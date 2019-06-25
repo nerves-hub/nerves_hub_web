@@ -31,7 +31,7 @@
               <%= cert.not_after %>
             </td>
             <td class="col-2">
-              <center><%= link "Delete", class: "btn btn-danger", to: account_certificate_path(@conn, :delete, @user.username, cert), method: :delete, data: [confirm: "Are you sure?"]%></center>
+              <center><%= link "Delete", class: "btn btn-danger", to: Routes.account_certificate_path(@conn, :delete, @user.username, cert), method: :delete, data: [confirm: "Are you sure?"]%></center>
             </td>
           </tr>
         <% end %>

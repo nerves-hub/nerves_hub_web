@@ -34,7 +34,7 @@ defmodule NervesHubWWWWeb.PasswordResetController do
 
         conn
         |> put_flash(:info, "Please check your email in order to reset your password.")
-        |> redirect(to: session_path(conn, :new))
+        |> redirect(to: Routes.session_path(conn, :new))
 
       _ ->
         conn
@@ -61,7 +61,7 @@ defmodule NervesHubWWWWeb.PasswordResetController do
           :warning,
           "We're sorry, your password reset link is expired. Please try again."
         )
-        |> redirect(to: session_path(conn, :new))
+        |> redirect(to: Routes.session_path(conn, :new))
     end
   end
 
@@ -72,7 +72,7 @@ defmodule NervesHubWWWWeb.PasswordResetController do
       {:ok, _user} ->
         conn
         |> put_flash(:info, "Password reset successfully. Please log in.")
-        |> redirect(to: session_path(conn, :new))
+        |> redirect(to: Routes.session_path(conn, :new))
 
       {:error, :not_found} ->
         conn
@@ -80,7 +80,7 @@ defmodule NervesHubWWWWeb.PasswordResetController do
           :warning,
           "We're sorry, your password reset link is expired or incorrect. Please try again."
         )
-        |> redirect(to: session_path(conn, :new))
+        |> redirect(to: Routes.session_path(conn, :new))
 
       {:error, %Changeset{} = changeset} ->
         conn

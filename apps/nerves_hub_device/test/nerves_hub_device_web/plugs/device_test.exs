@@ -16,7 +16,7 @@ defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
     assert plug_call_conn.status == 403
     refute plug_call_conn.assigns[:device]
 
-    get_conn = get(conn, device_path(conn, :me))
+    get_conn = get(conn, Routes.device_path(conn, :me))
     assert json_response(get_conn, 403)["status"] == "forbidden"
   end
 
@@ -30,7 +30,7 @@ defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
     refute plug_call_conn.status == 403
     assert plug_call_conn.assigns[:device]
 
-    get_conn = get(conn, device_path(conn, :me))
+    get_conn = get(conn, Routes.device_path(conn, :me))
     assert json_response(get_conn, 200)
   end
 
@@ -50,7 +50,7 @@ defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
     refute plug_call_conn.status == 403
     assert plug_call_conn.assigns[:device]
 
-    get_conn = get(conn, device_path(conn, :me))
+    get_conn = get(conn, Routes.device_path(conn, :me))
     assert json_response(get_conn, 200)
   end
 
@@ -98,7 +98,7 @@ defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
     device = plug_call_conn.assigns[:device]
     assert device
 
-    get_conn = get(conn, device_path(conn, :me))
+    get_conn = get(conn, Routes.device_path(conn, :me))
     assert json_response(get_conn, 200)
   end
 end

@@ -7,15 +7,15 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
       identifier = "api-device-1234"
       device = %{identifier: identifier, description: "test device", tags: ["test"]}
 
-      conn = post(conn, device_path(conn, :create, org.name, product.name), device)
+      conn = post(conn, Routes.device_path(conn, :create, org.name, product.name), device)
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, device_path(conn, :show, org.name, product.name, device.identifier))
+      conn = get(conn, Routes.device_path(conn, :show, org.name, product.name, device.identifier))
       assert json_response(conn, 200)["data"]["identifier"] == identifier
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do
-      conn = post(conn, key_path(conn, :create, org.name))
+      conn = post(conn, Routes.key_path(conn, :create, org.name))
       assert json_response(conn, 422)["errors"] != %{}
     end
 
@@ -34,7 +34,7 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
 
       device = Fixtures.device_fixture(org, product, firmware)
 
-      conn = get(conn, device_path(conn, :index, org.name, product.name))
+      conn = get(conn, Routes.device_path(conn, :index, org.name, product.name))
 
       assert json_response(conn, 200)["data"]
 
@@ -61,11 +61,16 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
       [to_delete | _] = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
 
       conn =
-        delete(conn, device_path(conn, :delete, org.name, product.name, to_delete.identifier))
+        delete(
+          conn,
+          Routes.device_path(conn, :delete, org.name, product.name, to_delete.identifier)
+        )
 
       assert response(conn, 204)
 
-      conn = get(conn, device_path(conn, :show, org.name, product.name, to_delete.identifier))
+      conn =
+        get(conn, Routes.device_path(conn, :show, org.name, product.name, to_delete.identifier))
+
       assert response(conn, 404)
     end
 
@@ -87,13 +92,19 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
       [to_update | _] = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
 
       conn =
-        put(conn, device_path(conn, :update, org.name, product.name, to_update.identifier), %{
-          tags: ["a", "b", "c", "d"]
-        })
+        put(
+          conn,
+          Routes.device_path(conn, :update, org.name, product.name, to_update.identifier),
+          %{
+            tags: ["a", "b", "c", "d"]
+          }
+        )
 
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, device_path(conn, :show, org.name, product.name, to_update.identifier))
+      conn =
+        get(conn, Routes.device_path(conn, :show, org.name, product.name, to_update.identifier))
+
       assert json_response(conn, 200)
       assert conn.assigns.device.tags == ["a", "b", "c", "d"]
     end
@@ -127,7 +138,9 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
         |> Base.encode64()
 
       conn =
-        post(conn, device_path(conn, :auth, org.name, product.name), %{"certificate" => cert64})
+        post(conn, Routes.device_path(conn, :auth, org.name, product.name), %{
+          "certificate" => cert64
+        })
 
       assert json_response(conn, 200)["data"]
     end

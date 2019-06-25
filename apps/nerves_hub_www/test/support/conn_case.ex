@@ -19,7 +19,7 @@ defmodule NervesHubWWWWeb.ConnCase do
     quote do
       # Import conveniences for testing with connections
       use Phoenix.ConnTest
-      import NervesHubWWWWeb.Router.Helpers
+      alias NervesHubWWWWeb.Router.Helpers, as: Routes
 
       # The default endpoint for testing
       @endpoint NervesHubWWWWeb.Endpoint

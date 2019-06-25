@@ -21,8 +21,9 @@ defmodule NervesHubDeviceWeb do
     quote do
       use Phoenix.Controller, namespace: NervesHubDeviceWeb
       import Plug.Conn
-      import NervesHubDeviceWeb.Router.Helpers
       import NervesHubDeviceWeb.Gettext
+
+      alias NervesHubDeviceWeb.Router.Helpers, as: Routes
     end
   end
 
@@ -35,9 +36,10 @@ defmodule NervesHubDeviceWeb do
       # Import convenience functions from controllers
       import Phoenix.Controller, only: [get_flash: 2, view_module: 1]
 
-      import NervesHubDeviceWeb.Router.Helpers
       import NervesHubDeviceWeb.ErrorHelpers
       import NervesHubDeviceWeb.Gettext
+
+      alias NervesHubDeviceWeb.Router.Helpers, as: Routes
 
       def render("error.json", %{error: error}) do
         %{

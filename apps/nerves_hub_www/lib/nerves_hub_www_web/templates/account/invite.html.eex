@@ -2,7 +2,7 @@
   <%= gettext "You will be added to the %{organization_name} org", organization_name: @org.name %>
 </p>
 
-<%= form_for @changeset, account_path(@conn, :accept_invite, @token), [as: :user, method: "post"], fn f -> %>
+<%= form_for @changeset, Routes.account_path(@conn, :accept_invite, @token), [as: :user, method: "post"], fn f -> %>
   <p>
     <label>
       Username:
