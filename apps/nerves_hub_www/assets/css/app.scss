@@ -8,6 +8,8 @@ $fa-font-path: '~@fortawesome/fontawesome-free/webfonts';
 @import "console";
 @import "custom";
 @import "navigation";
+@import "footer";
+@import "sidebar";
 @import "home";
 @import "~bootstrap/scss/bootstrap";
 
@@ -19,46 +21,36 @@ html {
   margin: 0;
   padding: 0;
   height: 100%;
-  min-height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -webkit-overflow-scrolling: auto;
 }
 
 body {
   background-color: $light-background;
-  min-height: 100%;
+  height: 100%;
   position: relative;
 }
 
 main {
-  padding: 140px 5%;
   font-family: 'Varela', sans-serif;
-  color: whitesmoke;
-  bottom: 122px;
+  color: black;
+  padding-bottom: 120px;
 }
 
-.panel-body {
-  margin-top: 20px;
+h1,h2 {
+  color: #000;
 }
 
-.footer {
-  background-color: #827f7d;
-  padding: 0px 5%;
-  margin-top: 10px;
-  width: 100%;
-  position: absolute;
-  height: 122px;
-  bottom: 0px;
+#body-row {
+  margin-left:0;
+  margin-right:0;
 }
 
-.footer a {
-  display: block;
-  font-size: 14px;
-  @extend .text-dark;
-  @include hover-focus {
-    color: whitesmoke;
-  }
-}
+// .panel-body {
+//   margin-top: 20px;
+// }
 
 .modal-content {
   @extend .text-dark;
@@ -108,7 +100,7 @@ main {
       }
     }
   }
-  table {
+  table.clean {
     margin-bottom: 0px;
     tr {
       th {
@@ -125,6 +117,82 @@ main {
       vertical-align: -webkit-baseline-middle;
     }
   }
+}
+
+.table-head-link {
+  padding-top: 5px;
+  padding-left: 40px;
+  a {
+    font-size: 14px;
+  }
+}
+
+
+table {
+  background-color: #FFF;
+  margin: 0px 15px;
+
+  th {
+    font-size: 14px;
+    border-top: none !important;
+    border-bottom: none !important;
+  }
+
+  tr.header-row {
+    background-color: red;
+  }
+
+  tr {
+    td {
+      font-size: 12px;
+    }
+
+    td.collapsable {
+      padding: 0px 5px;
+      border: none;
+      pointer-events: none;
+    }
+
+    span {
+      font-weight: bold;
+    }
+  }
+
+  tr.item:nth-child(4n+1), tr.item:nth-child(4n+2) {
+    background: rgb(248, 248, 248);
+  }
+
+  tr.item:hover:nth-child(4n+1), tr.item:hover:nth-child(4n+2) {
+    background: rgb(228, 228, 228);
+  }
+
+  td.actions {
+    text-align: right;
+    padding-right: 10px;
+    form {
+      display: inline;
+    }
+    a {
+      padding: 0px 2px;
+    }
+  }
+
+  a.fa {
+    color: inherit;
+  }
+  button.fa {
+    display: inline;
+    background-color: Transparent;
+    background-repeat:no-repeat;
+    border: none;
+    cursor:pointer;
+    overflow: hidden;
+    outline:none;
+  }
+}
+
+.pointer {
+  cursor: pointer;
 }
 
 .code-snippet {

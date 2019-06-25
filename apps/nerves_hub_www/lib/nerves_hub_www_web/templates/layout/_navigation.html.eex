@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand navbar-dark bg-dark fixed-top shadow">
+<nav class="navbar navbar-expand navbar-dark bg-dark sticky-top flex-md-nowrap p-0">
     <a class="logo navbar-brand circle d-inline-block align-top ml-3" href="<%= logo_href(@conn) %>">
       <img src="/images/logo.svg" />
     </a>
@@ -10,7 +10,7 @@
           </a>
           <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
             <%= for org <- user_orgs(@conn) do %>
-              <%= link org.name, class: "dropdown-item org", to: Routes.org_path(@conn, :edit, org.name) %>
+              <%= link org.name, class: "dropdown-item org", to: Routes.product_path(@conn, :index, org.name) %>
               <%= for product <- user_org_products(@conn.assigns.user, org) do %>
                 <%= link product.name, class: "dropdown-item product", to: Routes.product_path(@conn, :show, org.name, product.name) %>
               <% end %>

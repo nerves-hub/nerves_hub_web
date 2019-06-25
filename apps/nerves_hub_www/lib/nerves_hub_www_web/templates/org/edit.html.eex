@@ -108,5 +108,7 @@
     <% else %>
       <p>No keys added.</p>
     <% end %>
+      </tbody>
+</table>
   </div>
 </div>

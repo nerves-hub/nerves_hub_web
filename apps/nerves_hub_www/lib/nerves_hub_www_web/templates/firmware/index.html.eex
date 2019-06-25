@@ -1,45 +1,64 @@
-<h1>
-  Firmware
-
-  <a class="btn btn-lg btn-primary pull-right" href="<%= Routes.firmware_path(@conn, :upload, @org.name, @product.name) %>">
-    Upload Firmware
-  </a>
-</h1>
-
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Product</th>
-      <th>Version</th>
-      <th>Platform</th>
-      <th>Architecture</th>
-      <th>VCS Identifier</th>
-      <th>UUID</th>
-      <th>Description</th>
-      <th>Author</th>
-      <th>Signed With</th>
-      <th>Misc</th>
-      <th></th>
-    </tr>
-  </thead>
-  <%= for firmware <- @firmwares do %>
-    <tr>
-      <td><%= firmware.product.name %></td>
-      <td><%= firmware.version %></td>
-      <td><%= firmware.platform %></td>
-      <td><%= firmware.architecture %></td>
-      <td><%= firmware.vcs_identifier %></td>
-      <td><%= firmware.uuid %></td>
-      <td><%= firmware.description %></td>
-      <td><%= firmware.author %></td>
-      <td><%= format_signed(firmware, @org) %></td>
-      <td><pre class="pre-scrollable"><%= firmware.misc %></pre></td>
-      <td><%= link("Download", to: Routes.firmware_path(@conn, :download, @org.name, @product.name, firmware.uuid)) %></td>
-      <td>
-        <%= form_for @conn, Routes.firmware_path(@conn, :delete, @org.name, @product.name, firmware.uuid), [method: :delete], fn _ -> %>
-          <%= submit "Delete Firmware", class: "btn btn-danger", onclick: "return confirm('Are you sure you want to delete this firmware? This can not be undone.')" %>
-        <% end %>
-      </td>
-    </tr>
-  <% end %>
-</table>
+<div class="row">
+  <div class="col">
+    <h2>
+      Firmware
+    </h2>
+  </div>
+  <div class="col-3 mr-auto table-head-link">
+    <a href="<%= Routes.firmware_path(@conn, :upload, @org.name, @product.name) %>">
+      <span class="fa fa-plus fa-fw mr-3"></span>
+      <span class="text">Upload firmware</span>
+    </a>
+  </div>
+</div>
+<div class="row">
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th>UUID</th>
+        <th>Version</th>
+        <th>Platform</th>
+        <th>Firmware key</th>
+        <th></th>
+      </tr>
+    </thead>
+    <%= for firmware <- @firmwares do %>
+      <tr class="item clickable">
+        <td data-toggle="collapse" data-target="#firmware<%= firmware.id %>"><%= firmware.uuid %></td>
+        <td data-toggle="collapse" data-target="#firmware<%= firmware.id %>"><%= firmware.version %></td>
+        <td data-toggle="collapse" data-target="#firmware<%= firmware.id %>"><%= firmware.platform %></td>
+        <td data-toggle="collapse" data-target="#firmware<%= firmware.id %>"><%= format_signed(firmware, @org) %></td>
+        <td class="actions">
+          <%= link("", class: "fa fa-file-download", to: Routes.firmware_path(@conn, :download, @org.name, @product.name, firmware.uuid)) %>
+          <%= link "", class: "fa fa-trash-alt", to: Routes.firmware_path(@conn, :delete, @org.name, @product.name, firmware.uuid), method: :delete, data: [confirm: "Are you sure you want to delete this firmware? This can not be undone."] %>
+        </td>
+      </tr>
+      <tr class="item collapsable">
+        <td class="collapsable" colspan="5" >
+          <div id="firmware<%= firmware.id %>" class="collapse row">
+            <div class="col-2">
+              <span>VCS Identifier</span>
+              <p><%= firmware.vcs_identifier %></p>
+            </div>
+            <div class="col-3">
+              <span>Description</span>
+              <p><%= firmware.description %></p>
+            </div>
+             <div class="col-2">
+              <span>Architecture</span>
+              <p><%= firmware.architecture %></p>
+            </div>
+             <div class="col-2">
+              <span>Author</span>
+              <p><%= firmware.author %></p>
+            </div>
+             <div class="col">
+              <span>Misc</span>
+              <p><%= firmware.misc %></p>
+            </div>
+          </div>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+</div>

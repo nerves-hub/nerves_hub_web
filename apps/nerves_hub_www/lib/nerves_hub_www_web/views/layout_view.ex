@@ -144,4 +144,111 @@ defmodule NervesHubWWWWeb.LayoutView do
     |> Map.put_new(:page_size, 20)
     |> pagination_links()
   end
+
+  def sidebar_links(%{path_info: ["settings" | _tail]} = conn),
+    do: sidebar_settings(conn)
+
+  def sidebar_links(%{path_info: ["org", "new"]}),
+    do: []
+
+  def sidebar_links(%{path_info: ["org", _product_name]} = conn),
+    do: sidebar_settings(conn)
+
+  def sidebar_links(%{path_info: ["org", _product_name, "new"]} = conn),
+    do: sidebar_settings(conn)
+
+  def sidebar_links(%{path_info: ["org", _product_name | _tail]} = conn),
+    do: sidebar_org(conn)
+
+  def sidebar_links(_conn), do: []
+
+  def sidebar_settings(%{assigns: %{user: user, org: org}} = conn) do
+    ([
+       %{
+         title: "Products",
+         icon: "boxes",
+         active: "",
+         href: Routes.product_path(conn, :index, conn.assigns.org.name)
+       }
+     ] ++
+       if NervesHubWebCore.Accounts.has_org_role?(org, user, :read) do
+         [
+           %{
+             title: "Profile",
+             icon: "sliders-h",
+             active: "",
+             href: Routes.org_path(conn, :edit, conn.assigns.org.name)
+           },
+           %{
+             title: "Certificate Authorities",
+             icon: "certificate",
+             active: "",
+             href: Routes.org_certificate_path(conn, :index, conn.assigns.org.name)
+           },
+           %{
+             title: "Firmware Keys",
+             icon: "key",
+             active: "",
+             href: Routes.org_key_path(conn, :index, conn.assigns.org.name)
+           },
+           %{
+             title: "Users",
+             icon: "users",
+             active: "",
+             href: Routes.org_user_path(conn, :index, conn.assigns.org.name)
+           }
+         ]
+       else
+         []
+       end ++
+       if String.equivalent?(user.username, org.name) do
+         [
+           %{
+             title: "My Account",
+             icon: "id-card",
+             active: "",
+             href: Routes.account_path(conn, :edit, conn.assigns.user.username)
+           }
+         ]
+       else
+         []
+       end)
+    |> sidebar_active(conn)
+  end
+
+  def sidebar_org(conn) do
+    [
+      # %{title: "Dashboard", icon: "tachometer-alt", active: "", href: Routes.product_path(conn, :show, conn.assigns.org.name, conn.assigns.product.name)},
+      %{
+        title: "Devices",
+        icon: "microchip",
+        active: "",
+        href: Routes.device_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+      },
+      %{
+        title: "Firmware",
+        icon: "sd-card",
+        active: "",
+        href: Routes.firmware_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+      },
+      %{
+        title: "Deployments",
+        icon: "cloud-download-alt",
+        active: "",
+        href:
+          Routes.deployment_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+      }
+    ]
+    |> sidebar_active(conn)
+  end
+
+  def sidebar_active(links, %{request_path: request_path}) do
+    Enum.map(links, fn link ->
+      if link.href == request_path do
+        %{link | active: "active"}
+      else
+        link
+      end
+    end)
+  end
 end

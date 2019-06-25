@@ -1,33 +1,41 @@
-<h2><%= @org.name %> Users</h2>
 <div class="row">
-  <div class="w-75 shadow nhw_list">
-    <div class="card">
-      <table id="organization_users" class="table">
-        <thead>
-          <tr class="d-flex">
-            <th class="col-2">User Name</th>
-            <th class="col-3">Email</th>
-            <th class="col-3">Date Added</th>
-            <th class="col-3">Date Updated</th>
-          </tr>
-        </thead>
-        <%= for org_user <- @org_users do %>
-          <tr class="item d-flex">
-            <td class="col-2">
-              <%= org_user.user.username %>
-            </td>
-            <td class="col-3">
-              <%= org_user.user.email %>
-            </td>
-            <td class="col-3">
-              <%= org_user.user.inserted_at %>
-            </td>
-            <td class="col-3">
-              <%= org_user.user.updated_at %>
-            </td>
-          </tr>
-        <% end %>
-      </table>
-    </div>
+  <div class="col">
+    <h2>
+      User Roles
+    </h2>
   </div>
+</div>
+<div class="row">
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th>User Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Date Added</th>
+        <th>Date Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      <%= for org_user <- @org_users do %>
+        <tr class="item">
+          <td>
+            <%= org_user.user.username %>
+          </td>
+          <td>
+            <%= org_user.user.email %>
+          </td>
+          <td>
+            <%= org_user.role %>
+          </td>
+          <td>
+            <%= org_user.user.inserted_at %>
+          </td>
+          <td>
+            <%= org_user.user.updated_at %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
 </div>

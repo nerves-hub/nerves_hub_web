@@ -1,24 +1,35 @@
-<h2>Listing organization keys</h2>
-
-<table>
-  <thead>
-    <tr>
-
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-<%= for org_keys <- @org_keys do %>
-    <tr>
-
-      <td>
-        <%= link "Show", to: Routes.org_key_path(@conn, :show, @org.name, org_keys) %>
-        <%= link "Edit", to: Routes.org_key_path(@conn, :edit, @org.name, org_keys) %>
-        <%= link "Delete", to: Routes.org_key_path(@conn, :delete, @org.name, org_keys), method: :delete, data: [confirm: "Are you sure?"] %>
-      </td>
-    </tr>
-<% end %>
-  </tbody>
-</table>
-
-<span><%= link "New organization keys", to: Routes.org_key_path(@conn, :new, @org.name) %></span>
+<div class="row">
+  <div class="col">
+    <h2>
+      Firmware Keys
+    </h2>
+  </div>
+  <div class="col-3 mr-auto table-head-link">
+    <a href="<%= Routes.org_key_path(@conn, :new, @org.name) %>">
+      <span class="fa fa-plus fa-fw mr-3"></span>
+      <span class="text">New key</span>
+    </a>
+  </div>
+</div>
+<div class="row">
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Key</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    <%= for org_keys <- @org_keys do %>
+        <tr class="item">
+          <td><a href="<%= Routes.org_key_path(@conn, :edit, @org.name, org_keys) %>"><%= org_keys.name %></a></td>
+          <td><%= org_keys.key %></td>
+          <td class="actions">
+            <%= link "", class: "fa fa-trash-alt", to: Routes.org_key_path(@conn, :delete, @org.name, org_keys), method: :delete, data: [confirm: "Are you sure you want to delete this firmware key? This can not be undone."] %>
+          </td>
+        </tr>
+    <% end %>
+    </tbody>
+  </table>
+</div>
