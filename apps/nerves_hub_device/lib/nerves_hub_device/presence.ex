@@ -67,6 +67,7 @@ defmodule NervesHubDevice.Presence do
     Enum.reduce(metas, %{}, &Map.merge(&1, &2))
     |> Map.take(@allowed_fields)
     |> case do
+      %{status: _status} = e -> e
       %{update_available: true} = e -> Map.put(e, :status, "update pending")
       %{rebooting: true} = e -> Map.put(e, :status, "rebooting")
       %{fwup_progress: _progress} = e -> Map.put(e, :status, "updating")
