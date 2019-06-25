@@ -4,7 +4,6 @@ defmodule NervesHubWebCore.Deployments do
   alias NervesHubWebCore.AuditLogs
   alias NervesHubWebCore.Deployments.Deployment
   alias NervesHubWebCore.Firmwares
-  alias NervesHubWebCore.Firmwares.Firmware
   alias NervesHubWebCore.Devices
   alias NervesHubWebCore.Products.Product
   alias NervesHubWebCore.Repo
