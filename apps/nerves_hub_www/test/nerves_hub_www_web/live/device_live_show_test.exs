@@ -22,6 +22,11 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
     [session: session]
   end
 
+  test "redirects on mount with unrecognized session structure" do
+    home_path = Routes.home_path(Endpoint, :index)
+    assert {:error, %{redirect: ^home_path}} = mount(Endpoint, Show, session: "wat?! who der?!")
+  end
+
   describe "handle_event" do
     test "reboot allowed", %{fixture: %{device: device}, session: session} do
       {:ok, view, _html} = mount(Endpoint, Show, session: session)
