@@ -1,0 +1,16 @@
+<% links = sidebar_links(@conn) %>
+<%= if links != [] do %>
+<nav class="col-sm-1 col-md-2 col-lg-2 sidebar">
+  <div class="sidebar-sticky">
+    <ul class="nav flex-column">
+      <%= for link <- links do %>
+        <li class="nav-item">
+          <a class="nav-link <%= link.active %>" href="<%= link.href %>">
+            <span class="fa fa-<%= link.icon %> fa-fw mr-3"></span>
+            <span class="text"><%= link.title %></span>
+          </a>
+        </li>
+      <% end %>
+  </div>
+</nav>
+<% end %>

@@ -1,0 +1,21 @@
+@import "~bootstrap/scss/bootstrap";
+
+.footer {
+  background-color: #827f7d;
+  border-top: $nav-color solid 1px;
+  padding: 0px 5%;
+  margin-top: 10px;
+  width: 100%;
+  position: absolute;
+  height: 110px;
+  z-index: 1000; /* Behind the navbar */
+}
+
+.footer a {
+  display: block;
+  font-size: 14px;
+  @extend .text-dark;
+  @include hover-focus {
+    color: whitesmoke;
+  }
+}

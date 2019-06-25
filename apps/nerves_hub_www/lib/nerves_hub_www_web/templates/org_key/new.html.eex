@@ -1,4 +1,4 @@
-<h2>New organization keys</h2>
+<h2>New Firmware Key</h2>
 
 <%= render "form.html", Map.put(assigns, :action, Routes.org_key_path(@conn, :create, @org.name)) %>
 

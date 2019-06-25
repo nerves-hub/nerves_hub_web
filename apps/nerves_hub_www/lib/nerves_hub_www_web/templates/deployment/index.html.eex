@@ -1,43 +1,41 @@
-
 <div class="row">
-  <div class="w-100 shadow nhw_list">
-    <div class="header">
-      <div class="row">
-        <div class="col-8">
-          Deployments for <strong><%= @product.name %></strong>
-        </div>
-        <div class="col-4 text-right">
-          <a href="<%= Routes.deployment_path(@conn, :new, @org.name, @product.name)%>">
-            <span class="fa fa-plus-circle">
-          </a>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-    <table id="deployment_listing" class="table">
-      <thead>
-        <tr class="d-flex">
-          <th class="col-3">Name</th>
-          <th class="col-2">Firmware</th>
-          <th class="col-4">Conditions</th>
-          <th class="col-2">Status</th>
-          <th class="col-1"></th>
-        </tr>
-      </thead>
-      <%= for deployment <- @deployments do %>
-        <tr class="item d-flex">
-          <td class="col-3"><span><%= deployment.name %></span></td>
-          <td class="col-2"><span><%= firmware_display_name(deployment.firmware) %></span></td>
-          <td class="col-4"><span class="pre-scrollable"><%= deployment.conditions |> Jason.encode!() %></pre></td>
-          <td class="col-2">
-            <span class="label label-<%= if deployment.is_active, do: "success", else: "default" %>">
-              <%= if deployment.is_active, do: "Active", else: "Inactive" %>
-            </span>
-          </td>
-          <td class="col-1"><a class="btn btn-sm btn-secondary" href="<%= Routes.deployment_path(@conn, :show, @org.name, @product.name, deployment.name) %>">Details</a></td>
-        </tr>
-      <% end %>
-    </table>
-    </div>
+  <div class="col">
+    <h2>
+      Deployments
+    </h2>
   </div>
+  <div class="col-3 mr-auto table-head-link">
+    <a href="<%= Routes.deployment_path(@conn, :new, @org.name, @product.name)%>">
+      <span class="fa fa-plus fa-fw mr-3"></span>
+      <span class="text">Create deployment</span>
+    </a>
+  </div>
+</div>
+<div class="row">
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Firmware</th>
+        <th>Conditions</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <%= for deployment <- @deployments do %>
+      <tr class="item">
+        <td><a href="<%= Routes.deployment_path(@conn, :show, @org.name, @product.name, deployment.name) %>"><%= deployment.name %></a></td>
+        <td><span><%= firmware_display_name(deployment.firmware) %></span></td>
+        <td><span class="pre-scrollable"><%= deployment.conditions |> Jason.encode!() %></pre></td>
+        <td>
+          <span class="label label-<%= if deployment.is_active, do: "success", else: "default" %>">
+            <%= if deployment.is_active, do: "Active", else: "Inactive" %>
+          </span>
+        </td>
+        <td class="actions">
+          <%= link "", class: "fa fa-trash-alt", to: Routes.deployment_path(@conn, :delete, @org.name, @product.name, deployment.name), method: :delete, data: [confirm: "Are you sure you want to delete this deployment? This can not be undone."] %>
+        </td>
+      </tr>
+    <% end %>
+  </table>
 </div>

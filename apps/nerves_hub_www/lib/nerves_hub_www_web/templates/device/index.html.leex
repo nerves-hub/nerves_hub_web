@@ -1,32 +1,30 @@
 <div class="row">
-  <div class="w-100 shadow nhw_list">
-    <div class="header">
-      <div class="row">
-        <div class="col-12">
-          Devices
-        </div>
-      </div>
-    </div>
-    <div class="card">
-    <table id="devices_table" class="table">
-      <thead>
-        <tr class="d-flex">
-          <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
-          <th class="col-2">Firmware Info</th>
-          <%= devices_table_header("Status", "status", @current_sort, @sort_direction) %>
-          <%= devices_table_header("Last Connection", "last_communication", @current_sort, @sort_direction) %>
-          <%= devices_table_header("Tags", "tags", @current_sort, @sort_direction) %>
-          <th class="col-2"></th>
-        </tr>
-      </thead>
-      <%= for device <- @devices do %>
-        <tr class="item d-flex">
-          <td class="col-2">
+  <div class="col">
+    <h2>
+      Devices
+    </h2>
+  </div>
+</div>
+<div class="row">
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
+        <th>Firmware Info</th>
+        <%= devices_table_header("Status", "status", @current_sort, @sort_direction) %>
+        <%= devices_table_header("Last Connection", "last_communication", @current_sort, @sort_direction) %>
+        <%= devices_table_header("Tags", "tags", @current_sort, @sort_direction) %>
+        <th></th>
+      </tr>
+    </thead>
+    <%= for device <- @devices do %>
+        <tr class="item">
+          <td>
             <a href="<%= Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="">
               <%= device.identifier %>
             </a>
           </td>
-          <td class="col-2">
+          <td>
             <%= if Map.has_key?(device, :fwup_progress) && device.fwup_progress do %>
               <div class="progress">
                 <div class="progress-bar progress-bar-striped" role="progressbar" style="width: <%= device.fwup_progress %>%"><%= device.fwup_progress %>%</div>
@@ -44,24 +42,22 @@
               <% end %>
             <% end %>
           </td>
-          <td class="col-2 device"><%= device.status %></td>
-          <td class="col-2 date-time">
+          <td class="device"><%= device.status %></td>
+          <td class="date-time">
             <%= if is_nil(device.last_communication) do %>
               never
             <% else %>
               <%= device.last_communication %>
             <% end %>
           </td>
-          <td class="col-2">
+          <td>
             <span class="badge"><%= tags_to_string(device) %></span>
           </td>
-          <td class="col-2">
-            <%= link "Edit", class: "btn btn-info", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
-            <%= link "Delete", class: "btn btn-danger", to: Routes.device_path(@socket, :delete, @org.name, @product.name, device.identifier), method: :delete, data: [confirm: "Are you sure?", csrf: @csrf_token] %>
+          <td class="actions">
+            <%= link "", class: "fa fa-file-download", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
+            <%= link "", class: "fa fa-trash-alt", to: Routes.device_path(@socket, :delete, @org.name, @product.name, device.identifier), method: :delete, data: [confirm: "Are you sure?", csrf: @csrf_token] %>
           </td>
         </tr>
       <% end %>
-    </table>
-    </div>
-  </div>
+  </table>
 </div>
