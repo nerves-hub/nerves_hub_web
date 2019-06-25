@@ -191,4 +191,21 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
       assert Firmwares.get_firmware(org, firmware.id) == {:error, :not_found}
     end
   end
+
+  describe "download firmware" do
+    test "downloads chosen firmware", %{
+      conn: conn,
+      user: user,
+      org: org
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      conn =
+        get(conn, Routes.firmware_path(conn, :download, org.name, product.name, firmware.uuid))
+
+      assert redirected_to(conn) == firmware.upload_metadata.public_path
+    end
+  end
 end
