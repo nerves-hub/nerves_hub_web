@@ -1,15 +1,16 @@
-## `msgid`s in this file come from POT (.pot) files.
-##
-## Do not add, change, or remove `msgid`s manually here as
-## they're tied to the ones in the corresponding POT file
-## (with the same domain).
-##
-## Use `mix gettext.extract --merge` or `mix gettext.merge`
-## to merge POT files into PO files.
 msgid ""
 msgstr ""
 "Language: af\n"
-"Plural-Forms: nplurals=2\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: crowdin.com\n"
+"X-Crowdin-Project: nerves-hub\n"
+"X-Crowdin-Language: af\n"
+"X-Crowdin-File: /crowdin-update/apps/nerves_hub_www/priv/gettext/en/LC_MESSAGES/errors.po\n"
+"Project-Id-Version: nerves-hub\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Last-Translator: fhunleth\n"
+"Language-Team: Afrikaans\n"
+"PO-Revision-Date: 2019-06-26 19:23\n"
 
 msgid "can't be blank"
 msgstr ""
@@ -85,3 +86,4 @@ msgstr ""
 
 msgid "must be equal to %{number}"
 msgstr ""
+
