@@ -8,7 +8,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Console do
   @theme AnsiToHTML.Theme.new(container: :none, "\e[22m": {:text, []})
 
   def render(assigns) do
-    NervesHubWWWWeb.DeviceView.render("console.html", assigns)
+    NervesHubWWWWeb.DeviceView.render("console_live.html", assigns)
   end
 
   def mount(

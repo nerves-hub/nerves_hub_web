@@ -5,10 +5,10 @@ defmodule NervesHubDeviceWeb.ConsoleChannel do
   alias NervesHubWebCore.Devices
   alias Phoenix.Socket.Broadcast
 
-  def join("console", _payload, socket) do
+  def join("console", payload, socket) do
     with {:ok, certificate} <- get_certificate(socket),
          {:ok, device} <- Devices.get_device_by_certificate(certificate) do
-      send(self(), :after_join)
+      send(self(), {:after_join, payload})
       {:ok, assign(socket, :device, device)}
     else
       {:error, _} = err -> err
@@ -37,8 +37,14 @@ defmodule NervesHubDeviceWeb.ConsoleChannel do
     {:noreply, socket}
   end
 
-  def handle_info(:after_join, %{assigns: %{device: device}} = socket) do
+  def handle_in("up", payload, socket) do
+    socket.endpoint.broadcast_from!(self(), console_topic(socket), "up", payload)
+    {:noreply, socket}
+  end
+
+  def handle_info({:after_join, payload}, %{assigns: %{device: device}} = socket) do
     socket.endpoint.subscribe(console_topic(socket))
+    version = Map.get(payload, "console_version", "0.1.0")
 
     {:ok, _} =
       NervesHubDevice.Presence.track(
@@ -46,7 +52,8 @@ defmodule NervesHubDeviceWeb.ConsoleChannel do
         "product:#{device.product_id}:devices",
         device.id,
         %{
-          console_available: true
+          console_available: true,
+          console_version: version
         }
       )
 

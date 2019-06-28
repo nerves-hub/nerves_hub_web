@@ -9,6 +9,7 @@ defmodule NervesHubDevice.Presence do
   @allowed_fields [
     :connected_at,
     :console_available,
+    :console_version,
     :firmware_metadata,
     :fwup_progress,
     :last_communication,
