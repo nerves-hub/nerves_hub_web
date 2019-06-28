@@ -1,3 +1,13 @@
+<div class="alert alert-danger">
+  <h2>Deprecation Notice</h2>
+  <p>
+    This device is using an older version of the remote IEx console API which will be removed from NervesHub.
+  </p>
+  <p>
+    Please update your device firmware to use <a href="https://github.com/nerves-hub/nerves_hub_link" target="_blank">NervesHubLink</a> >= 0.9.0
+  </p>
+</div>
+
 <%= if @user_role != :admin do %>
   <h2>Read Only!</h2>
   <p>You can follow the feed but will be unable to send commands</p>
