@@ -11,8 +11,6 @@ defmodule NervesHubWebCore.Firmwares.Transfer.S3Ingress do
   alias NervesHubWebCore.Firmwares
 
   @regex ~r/(?P<bucket_owner>\S+) (?P<bucket>\S+) (?P<time>\[[^]]*\]) (?P<remote_ip>\S+) (?P<requester>\S+) (?P<request_id>\S+) (?P<operation>\S+) (?P<key>\S+) (?P<request>"[^"]*"|-) (?P<http_status>\S+) (?P<error_code>\S+) (?P<bytes_sent>\S+) (?P<object_size>\S+) (?P<total_time>\S+) (?P<turn_around_time>\S+) (?P<referrer>"[^"]*"|-) (?P<user_agent>"[^"]*"|-) (?P<version>\S)/
-  @upload_bucket NervesHubWebCore.Firmwares.Upload.S3.bucket()
-  @key_prefix NervesHubWebCore.Firmwares.Upload.S3.key_prefix()
 
   def run() do
     bucket = Application.get_env(:nerves_hub_web_core, __MODULE__)[:bucket]
@@ -74,36 +72,39 @@ defmodule NervesHubWebCore.Firmwares.Transfer.S3Ingress do
     |> decode_record
   end
 
-  def decode_record(
-        %{
-          "bucket" => @upload_bucket,
-          "key" => @key_prefix <> _key,
-          "operation" => "REST.GET.OBJECT"
-        } = record
-      ) do
-    {org_id, firmware_uuid} =
-      Map.get(record, "key")
-      |> decode_key()
-
-    remote_ip = Map.get(record, "remote_ip")
-    timestamp = Map.get(record, "time") |> decode_time()
-    bytes_sent = Map.get(record, "bytes_sent") |> String.to_integer()
-    bytes_total = Map.get(record, "object_size") |> String.to_integer()
-
-    {:ok,
-     %{
-       org_id: org_id,
-       firmware_uuid: firmware_uuid,
-       remote_ip: remote_ip,
-       bytes_sent: bytes_sent,
-       bytes_total: bytes_total,
-       timestamp: timestamp
-     }}
-  end
-
   def decode_record(record) do
-    Logger.error(fn -> "Invalid FirmwareTransfer record #{inspect(record)}" end)
-    {:error, :invalid_transfer_record}
+    bucket = NervesHubWebCore.Firmwares.Upload.S3.bucket()
+    key = NervesHubWebCore.Firmwares.Upload.S3.key_prefix()
+    key_size = byte_size(key)
+
+    case record do
+      %{
+        "bucket" => ^bucket,
+        "key" => <<^key::binary-size(key_size), _tail::binary>>,
+        "operation" => "REST.GET.OBJECT"
+      } = record ->
+        {org_id, firmware_uuid} =
+          Map.get(record, "key")
+          |> decode_key()
+
+        remote_ip = Map.get(record, "remote_ip")
+        timestamp = Map.get(record, "time") |> decode_time()
+        bytes_sent = Map.get(record, "bytes_sent") |> String.to_integer()
+        bytes_total = Map.get(record, "object_size") |> String.to_integer()
+
+        {:ok,
+         %{
+           org_id: org_id,
+           firmware_uuid: firmware_uuid,
+           remote_ip: remote_ip,
+           bytes_sent: bytes_sent,
+           bytes_total: bytes_total,
+           timestamp: timestamp
+         }}
+
+      _ ->
+        {:error, :invalid_transfer_record}
+    end
   end
 
   def decode_time(time) do
