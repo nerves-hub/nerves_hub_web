@@ -4,7 +4,7 @@ defmodule NervesHubAPI.Mixfile do
   def project do
     [
       app: :nerves_hub_api,
-      version: "0.0.1",
+      version: "0.1.0",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
@@ -42,7 +42,6 @@ defmodule NervesHubAPI.Mixfile do
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.0"},
       {:gettext, "~> 0.11"},
-      {:distillery, "~> 2.0"},
       {:cowboy, "~> 2.1", override: true},
       {:rollbax, "~> 0.10.0"},
       {:jason, "~> 1.0"},

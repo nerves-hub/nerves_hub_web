@@ -4,10 +4,11 @@ defmodule NervesHubWebCore.Release.Tasks do
   @otp_app :nerves_hub_web_core
   @start_apps [:logger, :ssl, :postgrex, :ecto_sql]
 
-  def migrate do
+  def migrate_and_seed do
     init(@otp_app, @start_apps)
 
     run_migrations_for(@otp_app)
+    run_seed_script("#{seed_path(@otp_app)}/seeds.exs")
 
     stop()
   end
@@ -16,14 +17,6 @@ defmodule NervesHubWebCore.Release.Tasks do
     init(@otp_app, @start_apps)
 
     NervesHubWebCore.Firmwares.GC.run()
-
-    stop()
-  end
-
-  def seed do
-    init(@otp_app, @start_apps)
-
-    run_seed_script("#{seed_path(@otp_app)}/seeds.exs")
 
     stop()
   end

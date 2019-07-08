@@ -26,7 +26,7 @@ WORKDIR /build
 COPY --from=deps /build/deps deps
 COPY --from=assets /build/apps/nerves_hub_www/priv/static apps/nerves_hub_www/priv/static
 
-RUN mix do phx.digest, release --env=$MIX_ENV --name=nerves_hub_www
+RUN mix do phx.digest, release nerves_hub_www --overwrite
 
 # Release Container
 FROM nerveshub/runtime:alpine-3.9 as release
@@ -40,9 +40,7 @@ EXPOSE 443
 
 ENV LOCAL_IPV4=127.0.0.1
 
-COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub_www/releases/*/nerves_hub_www.tar.gz .
-RUN tar xvfz nerves_hub_www.tar.gz > /dev/null && rm nerves_hub_www.tar.gz
-
+COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub_www/ ./
 COPY --from=builder /build/rel/scripts/docker-entrypoint.sh .
 COPY --from=builder /build/rel/scripts/s3-sync.sh .
 COPY --from=builder /build/rel/scripts/ecs-cluster.sh .

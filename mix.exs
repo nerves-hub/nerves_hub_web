@@ -3,6 +3,7 @@ defmodule NervesHubUmbrella.MixProject do
 
   def project do
     [
+      version: "0.1.0",
       apps_path: "apps",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -11,6 +12,32 @@ defmodule NervesHubUmbrella.MixProject do
       dialyzer: [
         plt_add_apps: [],
         ignore_warnings: "dialyzer.ignore-warnings"
+      ],
+      releases: [
+        nerves_hub_www: [
+          steps: [:assemble],
+          include_executables_for: [:unix],
+          runtime_config_path: "apps/nerves_hub_www/config/release.exs",
+          applications: [
+            nerves_hub_www: :permanent
+          ]
+        ],
+        nerves_hub_device: [
+          steps: [:assemble],
+          include_executables_for: [:unix],
+          runtime_config_path: "apps/nerves_hub_device/config/release.exs",
+          applications: [
+            nerves_hub_device: :permanent
+          ]
+        ],
+        nerves_hub_api: [
+          steps: [:assemble],
+          include_executables_for: [:unix],
+          runtime_config_path: "apps/nerves_hub_api/config/release.exs",
+          applications: [
+            nerves_hub_api: :permanent
+          ]
+        ]
       ]
     ]
   end

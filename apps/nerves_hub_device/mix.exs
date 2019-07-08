@@ -53,7 +53,6 @@ defmodule NervesHubDevice.Mixfile do
       {:cowboy, "~> 2.0", override: true},
       {:jason, "~> 1.0"},
       {:gettext, "~> 0.11"},
-      {:distillery, "~> 2.0"},
       {:rollbax, "~> 0.10.0"},
       {:phoenix_client, "~> 0.7", only: :test},
       {:websocket_client, "~> 1.3", only: :test},

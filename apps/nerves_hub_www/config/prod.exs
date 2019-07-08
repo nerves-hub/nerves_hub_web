@@ -17,31 +17,21 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   load_from_system_env: true,
   server: true,
   url: [host: "www.nerves-hub.org", port: 80],
-  secret_key_base: "${SECRET_KEY_BASE}",
-  force_ssl: [rewrite_on: [:x_forwarded_proto]],
-  live_view: [signing_salt: "${LIVE_VIEW_SIGNING_SALT}"]
+  force_ssl: [rewrite_on: [:x_forwarded_proto]]
 
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint, server: false
 
 config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: false
 
-# Do not print debug messages in production
 config :logger, level: :debug
 
 config :nerves_hub_www, NervesHubWWW.Mailer,
   adapter: Bamboo.SMTPAdapter,
-  server: "${SES_SERVER}",
-  port: "${SES_PORT}",
-  username: "${SMTP_USERNAME}",
-  password: "${SMTP_PASSWORD}",
-  # can be `:always` or `:never`
   tls: :always,
-  # can be `true`
   ssl: false,
   retries: 1
 
 config :rollbax,
-  access_token: "${ROLLBAR_ACCESS_TOKEN}",
   environment: to_string(Mix.env()),
   enabled: true,
   enable_crash_reports: true
