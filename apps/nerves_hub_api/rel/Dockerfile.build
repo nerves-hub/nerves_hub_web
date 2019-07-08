@@ -11,7 +11,7 @@ ADD . /build
 WORKDIR /build
 
 RUN mix deps.clean --all && mix deps.get
-RUN mix release --env=$MIX_ENV --name=nerves_hub_api
+RUN mix release nerves_hub_api --overwrite
 
 # Release Container
 FROM nerveshub/runtime:alpine-3.9 as release
@@ -24,9 +24,7 @@ EXPOSE 443
 
 WORKDIR /app
 
-COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub_api/releases/*/nerves_hub_api.tar.gz .
-RUN tar xvfz nerves_hub_api.tar.gz > /dev/null && rm nerves_hub_api.tar.gz
-
+COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub_api/ ./
 COPY --from=builder /build/rel/scripts/docker-entrypoint.sh .
 COPY --from=builder /build/rel/scripts/s3-sync.sh .
 COPY --from=builder /build/rel/scripts/ecs-cluster.sh .

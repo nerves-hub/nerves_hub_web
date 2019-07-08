@@ -64,7 +64,6 @@ defmodule NervesHubWWW.MixProject do
       {:hackney, "~> 1.9"},
       {:bamboo, "~> 1.0"},
       {:bamboo_smtp, "~> 1.5.0"},
-      {:distillery, "~> 2.0"},
       {:rollbax, "~> 0.10.0"},
       {:floki, "~> 0.20", only: [:test, :dev]},
       {:jason, "~> 1.0"},
