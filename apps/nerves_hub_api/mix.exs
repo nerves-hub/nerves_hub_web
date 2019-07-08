@@ -28,7 +28,7 @@ defmodule NervesHubAPI.Mixfile do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support", "../../test/support"]
+  defp elixirc_paths(:test), do: ["lib", "test/support", Path.expand("../../test/support")]
   defp elixirc_paths(_), do: ["lib"]
 
   # Specifies your project dependencies.
@@ -36,9 +36,9 @@ defmodule NervesHubAPI.Mixfile do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.4.0-rc or ~> 1.4", override: true},
+      {:phoenix, "~> 1.4"},
       {:phoenix_pubsub, "~> 1.1"},
-      {:phoenix_live_reload, "~> 1.2.0-rc or ~> 1.2", only: :dev},
+      {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.0"},
       {:gettext, "~> 0.11"},

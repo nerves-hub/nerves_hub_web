@@ -9,7 +9,7 @@ defmodule NervesHubDevice.Mixfile do
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
-      elixir: "~> 1.4",
+      elixir: "~> 1.6",
       elixirc_paths: elixirc_paths(Mix.env()),
       compilers: [:phoenix] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
@@ -37,7 +37,7 @@ defmodule NervesHubDevice.Mixfile do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support", "../../test/support"]
+  defp elixirc_paths(:test), do: ["lib", "test/support", Path.expand("../../test/support")]
   defp elixirc_paths(_), do: ["lib"]
 
   # Specifies your project dependencies.
@@ -45,9 +45,9 @@ defmodule NervesHubDevice.Mixfile do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.4.0-rc or ~> 1.4", override: true},
+      {:phoenix, "~> 1.4"},
       {:phoenix_pubsub, "~> 1.1"},
-      {:phoenix_live_reload, "~> 1.2.0-rc or ~> 1.2", only: :dev},
+      {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.0"},
       {:cowboy, "~> 2.0", override: true},

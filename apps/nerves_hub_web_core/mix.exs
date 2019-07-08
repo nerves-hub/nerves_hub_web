@@ -26,8 +26,7 @@ defmodule NervesHubWebCore.MixProject do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support", "../../test/support"]
-  defp elixirc_paths(:dev), do: ["lib", "test/support", "../../test/support"]
+  defp elixirc_paths(:test), do: ["lib", "test/support", Path.expand("../../test/support")]
   defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help compile.app" to learn about applications.
@@ -41,7 +40,7 @@ defmodule NervesHubWebCore.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:phoenix, "~> 1.4.0-rc or ~> 1.4", override: true},
+      {:phoenix, "~> 1.4"},
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.0"},
       {:ecto_sql, "~> 3.0"},
