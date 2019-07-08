@@ -1,4 +1,4 @@
-ARG ELIXIR_VERSION=1.8.1
+ARG ELIXIR_VERSION=1.9.0
 # Elixir build container
 FROM bitwalker/alpine-elixir:${ELIXIR_VERSION} as builder
 
