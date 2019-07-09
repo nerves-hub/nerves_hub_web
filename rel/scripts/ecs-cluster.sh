@@ -41,4 +41,4 @@ NODE_STRING="[$NODES]"
 export SYNC_NODES_OPTIONAL="$NODE_STRING"
 echo $SYNC_NODES_OPTIONAL
 
-exec /app/bin/$APP_NAME foreground
+exec /app/bin/$APP_NAME start
