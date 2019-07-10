@@ -1,5 +1,23 @@
 import Config
 
+sync_nodes_optional =
+  case System.fetch_env("SYNC_NODES_OPTIONAL") do
+    {:ok, sync_nodes_optional} ->
+      sync_nodes_optional
+      |> String.trim()
+      |> String.split(" ")
+      |> Enum.map(&String.to_atom/1)
+
+    :error ->
+      []
+  end
+
+config :kernel,
+  sync_nodes_optional: sync_nodes_optional,
+  sync_nodes_timeout: 5000,
+  inet_dist_listen_min: 9100,
+  inet_dist_listen_max: 9155
+
 config :rollbax, access_token: System.fetch_env!("ROLLBAR_ACCESS_TOKEN")
 
 config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.S3,

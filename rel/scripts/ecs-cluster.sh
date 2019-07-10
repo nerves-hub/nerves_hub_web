@@ -14,7 +14,7 @@ service_ip_addresses() {
 }
 
 format_nodes() {
-  for IP in $1; do echo "'$2@$IP'"; done
+  for IP in $1; do echo "$2@$IP"; done
 }
 
 METADATA=`curl http://169.254.170.2/v2/metadata`
@@ -30,15 +30,11 @@ DEVICE_NODES=$(format_nodes "$DEVICE_IPS" nerves_hub_device)
 API_IPS=$(service_ip_addresses nerves-hub-api)
 API_NODES=$(format_nodes "$API_IPS" nerves_hub_api)
 
-NODES="$DEVICE_NODES $WWW_NODES $API_NODES"
-
-# formatting
-NODES=$(echo $NODES | sed -e "s/ /, /g")
-NODE_STRING="[$NODES]"
+NODES=$(echo "$DEVICE_NODES $WWW_NODES $API_NODES" | tr '\n' ' ')
 
 # we should now have something that looks like
-# ['nerves_hub_www@10.0.2.120', 'nerves_hub_device@10.0.3.99', 'nerves_hub_api@10.0.3.101']
-export SYNC_NODES_OPTIONAL="$NODE_STRING"
+# nerves_hub_www@10.0.2.120 nerves_hub_device@10.0.3.99 nerves_hub_api@10.0.3.101
+export SYNC_NODES_OPTIONAL="$NODES"
 echo $SYNC_NODES_OPTIONAL
 
 exec /app/bin/$APP_NAME start
