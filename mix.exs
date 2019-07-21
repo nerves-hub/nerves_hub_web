@@ -9,6 +9,7 @@ defmodule NervesHubUmbrella.MixProject do
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
       aliases: aliases(),
+      elixirc_paths: elixirc_paths(Mix.env()),
       dialyzer: [
         plt_add_apps: [],
         ignore_warnings: "dialyzer.ignore-warnings"
@@ -73,4 +74,11 @@ defmodule NervesHubUmbrella.MixProject do
       test: ["ecto.create --quiet", "ecto.migrate", "test"]
     ]
   end
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(env) when env in [:dev, :test],
+    do: [Path.expand("test/support")]
+
+  defp elixirc_paths(_),
+    do: ["lib"]
 end
