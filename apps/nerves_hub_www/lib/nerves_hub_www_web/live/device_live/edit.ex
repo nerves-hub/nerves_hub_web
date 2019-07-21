@@ -35,6 +35,9 @@ defmodule NervesHubWWWWeb.DeviceLive.Edit do
       |> assign(:changeset, Device.changeset(socket.assigns.device, %{}))
 
     {:ok, socket}
+  rescue
+    e ->
+      socket_error(socket, live_view_error(e))
   end
 
   # Catch-all to handle when LV sessions change.
@@ -42,12 +45,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Edit do
   # session structure in the module has changed
   # for mount/2
   def mount(_, socket) do
-    socket =
-      socket
-      |> put_flash(:info, "The software running on NervesHub was updated to the latest version")
-      |> redirect(to: Routes.home_path(socket, :index))
-
-    {:stop, socket}
+    socket_error(socket, live_view_error(:update))
   end
 
   def handle_event("validate", %{"device" => device_params}, socket) do
