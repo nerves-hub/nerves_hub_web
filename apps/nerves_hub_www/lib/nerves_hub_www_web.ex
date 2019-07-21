@@ -58,6 +58,25 @@ defmodule NervesHubWWWWeb do
       }
 
       alias Phoenix.Socket.Broadcast
+
+      defp socket_error(socket, error, opts \\ []) do
+        redirect = opts[:redirect_to] || Routes.home_path(socket, :index)
+
+        socket =
+          socket
+          |> put_flash(:info, error)
+          |> redirect(to: redirect)
+
+        {:stop, socket}
+      end
+
+      defp live_view_error(:update) do
+        "The software running on NervesHub was updated to the latest version."
+      end
+
+      defp live_view_error(_) do
+        "An error occurred while loading the view."
+      end
     end
   end
 
