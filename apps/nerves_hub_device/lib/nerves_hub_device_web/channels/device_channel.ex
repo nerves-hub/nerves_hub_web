@@ -133,7 +133,10 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   end
 
   def terminate(_reason, %{assigns: %{device: device}}) do
-    Devices.update_device(device, %{last_communication: DateTime.utc_now()})
+    if device = Devices.get_device(device.id) do
+      Devices.update_device(device, %{last_communication: DateTime.utc_now()})
+    end
+
     :ok
   end
 
