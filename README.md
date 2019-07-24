@@ -6,14 +6,6 @@
 A domain independent back end solution for rolling out software updates to edge
 devices connected to IP based networking infrastructure.
 
-## This project is not ready for general use
-
-If you are interested in collaborating. please inquire on the `#nerves-dev`
-channel on the [elixir-lang slack](https://elixir-slackin.herokuapp.com/) for
-the time being.  We're in the process of building out main features and getting
-the project into a form where it can be used and maintained by multiple
-companies.
-
 ## Project overview and setup
 
 ### Development environment setup
