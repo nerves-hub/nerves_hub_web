@@ -632,7 +632,7 @@ defmodule NervesHubWebCore.Accounts do
     end
   end
 
-  def create_org_metrics(run_utc_time, shift) do
+  def create_org_metrics(run_utc_time) do
     q =
       from(
         o in Org,
@@ -642,27 +642,17 @@ defmodule NervesHubWebCore.Accounts do
     today = Date.utc_today()
 
     case DateTime.from_iso8601("#{today}T#{run_utc_time}Z") do
-      {:ok, to_datetime, _} ->
-        from_datetime = Timex.shift(to_datetime, shift)
-
+      {:ok, timestamp, _} ->
         Repo.all(q)
-        |> Enum.each(&create_org_metric(&1, from_datetime, to_datetime))
+        |> Enum.each(&create_org_metric(&1, timestamp))
 
       error ->
         error
     end
   end
 
-  def create_org_metric(org_id, from_datetime, to_datetime) do
+  def create_org_metric(org_id, timestamp) do
     devices = NervesHubWebCore.Devices.get_device_count_by_org_id(org_id)
-
-    bytes_transferred =
-      NervesHubWebCore.Firmwares.get_firmware_transfers_by_org_id_between_dates(
-        org_id,
-        from_datetime,
-        to_datetime
-      )
-      |> Enum.reduce(0, &(&1.bytes_sent + &2))
 
     bytes_stored =
       NervesHubWebCore.Firmwares.get_firmware_by_org_id(org_id)
@@ -671,9 +661,8 @@ defmodule NervesHubWebCore.Accounts do
     params = %{
       org_id: org_id,
       devices: devices,
-      bytes_transferred: bytes_transferred,
       bytes_stored: bytes_stored,
-      timestamp: to_datetime
+      timestamp: timestamp
     }
 
     %OrgMetric{}

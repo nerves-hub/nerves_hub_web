@@ -315,28 +315,9 @@ defmodule NervesHubWebCore.AccountsTest do
     setup [:setup_org_metric]
 
     test "create", %{org: org, firmware: firmware} do
-      to = DateTime.utc_now()
-      from = Timex.shift(to, days: -1)
-
-      assert {:ok, org_metric} = Accounts.create_org_metric(org.id, from, to)
+      assert {:ok, org_metric} = Accounts.create_org_metric(org.id, DateTime.utc_now())
       assert org_metric.devices == 1
       assert org_metric.bytes_stored == firmware.size
-      assert org_metric.bytes_transferred == firmware.size
-    end
-
-    test "firmware transfers are limited to run range", %{org: org, firmware: firmware} do
-      to = DateTime.utc_now()
-      from = Timex.shift(to, days: -1)
-
-      # Timestamp precision is seconds. Sleep for about 1
-      :timer.sleep(1100)
-
-      _ = create_firmware_transfer(org, firmware)
-
-      assert {:ok, org_metric} = Accounts.create_org_metric(org.id, from, to)
-      assert org_metric.devices == 1
-      assert org_metric.bytes_stored == firmware.size
-      assert org_metric.bytes_transferred == firmware.size
     end
   end
 
