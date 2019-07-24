@@ -11,7 +11,6 @@ defmodule NervesHubWebCore.Accounts.OrgMetric do
   @params [
     :org_id,
     :devices,
-    :bytes_transferred,
     :bytes_stored,
     :timestamp
   ]
@@ -20,7 +19,6 @@ defmodule NervesHubWebCore.Accounts.OrgMetric do
     belongs_to(:org, Org)
 
     field(:devices, :integer)
-    field(:bytes_transferred, :integer)
     field(:bytes_stored, :integer)
     field(:timestamp, :utc_datetime)
   end

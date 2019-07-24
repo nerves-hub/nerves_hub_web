@@ -13,7 +13,7 @@ config :nerves_hub_web_core, NervesHubWebCore.Scheduler,
     ],
     create_org_metrics: [
       schedule: "0 1 * * *",
-      task: {NervesHubWebCore.Accounts, :create_org_metrics, ["01:00:00.000000", [days: -1]]}
+      task: {NervesHubWebCore.Accounts, :create_org_metrics, ["01:00:00.000000"]}
     ]
   ]
 
