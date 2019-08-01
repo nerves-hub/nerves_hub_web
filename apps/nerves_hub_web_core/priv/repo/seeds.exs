@@ -72,7 +72,14 @@ root_user_email = "nerveshub@nerves-hub.org"
 if root_user = Repo.get_by(User, email: root_user_email) do
   root_user
 else
-  if Mix.env() == :dev do
+  env =
+    if function_exported?(Mix, :env, 0) do
+      Mix.env() |> to_string()
+    else
+      System.get_env("ENVIRONMENT")
+    end
+
+  if env == "dev" do
     NervesHubWebCore.SeedHelpers.nerves_team_seed(%{
       email: root_user_email,
       username: root_user_name,
