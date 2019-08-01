@@ -9,6 +9,8 @@ defmodule NervesHubWebCore.Firmwares do
   alias NervesHubWebCore.Products.Product
   alias NervesHubWebCore.Repo
 
+  require Logger
+
   @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
 
   @uploader Application.fetch_env!(:nerves_hub_web_core, :firmware_upload)
@@ -107,7 +109,9 @@ defmodule NervesHubWebCore.Firmwares do
            :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
         firmware
       else
-        {:error, error} -> Repo.rollback(error)
+        {:error, error} ->
+          Logger.error(fn -> "Error while publishing firmware: #{inspect(error)}" end)
+          Repo.rollback(error)
       end
     end)
   end
