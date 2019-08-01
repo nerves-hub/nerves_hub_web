@@ -40,3 +40,18 @@ config :nerves_hub_www, NervesHubWWW.Mailer,
   port: System.fetch_env!("SES_PORT"),
   username: System.fetch_env!("SMTP_USERNAME"),
   password: System.fetch_env!("SMTP_PASSWORD")
+
+host = System.fetch_env!("HOST")
+
+config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
+  url: [host: host],
+  https: [
+    port: 443,
+    otp_app: :nerves_hub_device,
+    # Enable client SSL
+    verify: :verify_peer,
+    fail_if_no_peer_cert: true,
+    keyfile: "/etc/ssl/#{host}-key.pem",
+    certfile: "/etc/ssl/#{host}.pem",
+    cacertfile: "/etc/ssl/ca.pem"
+  ]
