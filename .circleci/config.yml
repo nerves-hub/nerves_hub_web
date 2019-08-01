@@ -54,18 +54,19 @@ migrate: &migrate
   run:
     name: Run Migrations
     command: |
-      NERVES_HUB_TASK=$(rel/scripts/ecs-update-task.sh nerves_hub_www nerveshub/nerves_hub_www:$DOCKER_TAG)
+      NERVES_HUB_WWW_TASK=$(rel/scripts/ecs-update-task.sh $TASK nerveshub/nerves_hub_www:$DOCKER_TAG)
       rel/scripts/ecs-migrate.sh \
-        nerves-hub \
-        $NERVES_HUB_TASK
+        $VPC \
+        $CLUSTER \
+        $NERVES_HUB_WWW_TASK \
+        $TASK_SG
 
 deploy: &deploy
   run:
     name: Deploy to production
     command: |
-      set -euo pipefail
-      rel/scripts/ecs-deploy.sh \
-        nerves-hub \
+      /rel/scripts/ecs-deploy.sh \
+        $CLUSTER \
         $SERVICE \
         nerveshub/$APP_NAME:$DOCKER_TAG
 
@@ -76,13 +77,13 @@ send_notifications: &send_notifications
       rel/scripts/slack-notification.sh \
         $SLACK_INCOMING_WEBHOOK_URL \
         "#nerves-hub" \
-        "NervesHub Deployment" "Deployed: \`$APP_NAME:$DOCKER_TAG\`"
+        "NervesHub Deployment" "Deployed: $CLUSTER:\`$APP_NAME:$DOCKER_TAG\`"
 
 version: 2
 jobs:
   fetch_deps:
     docker:
-      - image: circleci/elixir:1.8
+      - image: circleci/elixir:1.9
         environment:
           MIX_ENV: test
     working_directory: ~/app
@@ -193,12 +194,7 @@ jobs:
           key: docker-api-{{ .Branch }}-{{ .Revision }}
           paths: "/docker"
 
-      - run:
-          name: Push docker images to dockerhub
-          command: |
-            docker login -u $DOCKER_USER -p $DOCKER_PASS
-            docker push \
-              nerveshub/$APP_NAME:$DOCKER_TAG
+  push-staging-www:
     <<: *defaults
     steps:
       - checkout
@@ -209,9 +205,34 @@ jobs:
           keys:
             - docker-www-{{ .Branch }}-{{ .Revision }}
       - <<: *docker_import
-      - <<: *docker_push
+      - run:
+          name: Push docker images to dockerhub
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker push \
+              nerveshub/$APP_NAME:$DOCKER_TAG
 
-  push-device:
+  push-production-www:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-www-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
+      - run:
+          name: Push docker images to dockerhub
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker push \
+              nerveshub/$APP_NAME:$DOCKER_TAG
+            docker push \
+              nerveshub/$APP_NAME:latest
+
+  push-staging-device:
     <<: *defaults
     steps:
       - checkout
@@ -222,9 +243,34 @@ jobs:
           keys:
             - docker-device-{{ .Branch }}-{{ .Revision }}
       - <<: *docker_import
-      - <<: *docker_push
+      - run:
+          name: Push docker images to dockerhub
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker push \
+              nerveshub/$APP_NAME:$DOCKER_TAG
 
-  push-api:
+  push-production-device:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-device-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
+      - run:
+          name: Push docker images to dockerhub
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker push \
+              nerveshub/$APP_NAME:$DOCKER_TAG
+            docker push \
+              nerveshub/$APP_NAME:latest
+
+  push-staging-api:
     <<: *defaults
     steps:
       - checkout
@@ -235,56 +281,164 @@ jobs:
           keys:
             - docker-api-{{ .Branch }}-{{ .Revision }}
       - <<: *docker_import
-      - <<: *docker_push
-
-  migrate:
-    <<: *defaults
-    steps:
-      - checkout
-      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
-      - run: echo "export SERVICE=nerves-hub-www" >> $BASH_ENV
-      - <<: *docker_env
       - run:
-          name: Lock deployments
-          command: rel/scripts/build-locking.sh --job-name migrate
-      - <<: *migrate
+          name: Push docker images to dockerhub
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker push \
+              nerveshub/$APP_NAME:$DOCKER_TAG
 
-  deploy-www:
-    <<: *defaults
-    steps:
-      - checkout
-      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
-      - run: echo "export SERVICE=nerves-hub-www" >> $BASH_ENV
-      - <<: *docker_env
-      - run:
-          name: Lock deployments
-          command: rel/scripts/build-locking.sh --job-name deploy-www
-      - <<: *deploy
-      - <<: *send_notifications
-
-  deploy-device:
-    <<: *defaults
-    steps:
-      - checkout
-      - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
-      - run: echo "export SERVICE=nerves-hub-device" >> $BASH_ENV
-      - <<: *docker_env
-      - run:
-          name: Lock deployments
-          command: rel/scripts/build-locking.sh --job-name deploy-device
-      - <<: *deploy
-      - <<: *send_notifications
-
-  deploy-api:
+  push-production-api:
     <<: *defaults
     steps:
       - checkout
       - run: echo "export APP_NAME=nerves_hub_api" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-api-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
+      - run:
+          name: Push docker images to dockerhub
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker push \
+              nerveshub/$APP_NAME:$DOCKER_TAG
+            docker push \
+              nerveshub/$APP_NAME:latest
+
+  migrate-staging:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
+      - run: echo "export VPC=nerves-hub-staging" >> $BASH_ENV
+      - run: echo "export CLUSTER=nerves-hub-staging" >> $BASH_ENV
+      - run: echo "export TASK=nerves-hub-staging-www" >> $BASH_ENV
+      - run: echo "export TASK_SG=nerves-hub-staging-web-sg" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub-www" >> $BASH_ENV
+      - <<: *docker_env
+      - run:
+          name: Lock deployments
+          command: rel/scripts/build-locking.sh --job-name migrate-production
+      - <<: *migrate
+
+  migrate-production:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
+      - run: echo "export VPC=nerves-hub" >> $BASH_ENV
+      - run: echo "export CLUSTER=nerves-hub" >> $BASH_ENV
+      - run: echo "export TASK=nerves_hub_www" >> $BASH_ENV
+      - run: echo "export TASK_SG=nerves-hub-www-sg" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub-www" >> $BASH_ENV
+      - <<: *docker_env
+      - run:
+          name: Lock deployments
+          command: rel/scripts/build-locking.sh --job-name migrate-production
+      - <<: *migrate
+
+  deploy-staging-www:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
+      - run: echo "export VPC=nerves-hub-staging" >> $BASH_ENV
+      - run: echo "export CLUSTER=nerves-hub-staging" >> $BASH_ENV
+      - run: echo "export TASK=nerves-hub-staging-www" >> $BASH_ENV
+      - run: echo "export TASK_SG=nerves-hub-staging-web-sg" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub-www" >> $BASH_ENV
+      - <<: *docker_env
+      - run:
+          name: Lock deployments
+          command: rel/scripts/build-locking.sh --job-name deploy-staging-www
+      - <<: *deploy
+      - <<: *send_notifications
+
+  deploy-production-www:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
+      - run: echo "export VPC=nerves-hub" >> $BASH_ENV
+      - run: echo "export CLUSTER=nerves-hub" >> $BASH_ENV
+      - run: echo "export TASK=nerves_hub_www" >> $BASH_ENV
+      - run: echo "export TASK_SG=nerves-hub-www-sg" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub-www" >> $BASH_ENV
+      - <<: *docker_env
+      - run:
+          name: Lock deployments
+          command: rel/scripts/build-locking.sh --job-name deploy-production-www
+      - <<: *deploy
+      - <<: *send_notifications
+
+  deploy-staging-device:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
+      - run: echo "export VPC=nerves-hub-staging" >> $BASH_ENV
+      - run: echo "export CLUSTER=nerves-hub-staging" >> $BASH_ENV
+      - run: echo "export TASK=nerves-hub-staging-device" >> $BASH_ENV
+      - run: echo "export TASK_SG=nerves-hub-web-sg" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub-device" >> $BASH_ENV
+      - <<: *docker_env
+      - run:
+          name: Lock deployments
+          command: rel/scripts/build-locking.sh --job-name deploy-production-device
+      - <<: *deploy
+      - <<: *send_notifications
+
+  deploy-production-device:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
+      - run: echo "export VPC=nerves-hub" >> $BASH_ENV
+      - run: echo "export CLUSTER=nerves-hub" >> $BASH_ENV
+      - run: echo "export TASK=nerves_hub_device" >> $BASH_ENV
+      - run: echo "export TASK_SG=nerves-hub-device-sg" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub-device" >> $BASH_ENV
+      - <<: *docker_env
+      - run:
+          name: Lock deployments
+          command: rel/scripts/build-locking.sh --job-name deploy-production-device
+      - <<: *deploy
+      - <<: *send_notifications
+
+  deploy-staging-api:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_api" >> $BASH_ENV
+      - run: echo "export VPC=nerves-hub-staging" >> $BASH_ENV
+      - run: echo "export CLUSTER=nerves-hub-staging" >> $BASH_ENV
+      - run: echo "export TASK=nerves-hub-api" >> $BASH_ENV
+      - run: echo "export TASK_SG=nerves-hub-web-sg" >> $BASH_ENV
       - run: echo "export SERVICE=nerves-hub-api" >> $BASH_ENV
       - <<: *docker_env
       - run:
           name: Lock deployments
-          command: rel/scripts/build-locking.sh --job-name deploy-api
+          command: rel/scripts/build-locking.sh --job-name deploy-production-api
+      - <<: *deploy
+      - <<: *send_notifications
+
+  deploy-production-api:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_api" >> $BASH_ENV
+      - run: echo "export VPC=nerves-hub" >> $BASH_ENV
+      - run: echo "export CLUSTER=nerves-hub" >> $BASH_ENV
+      - run: echo "export TASK=nerves_hub_api" >> $BASH_ENV
+      - run: echo "export TASK_SG=nerves-hub-api-sg" >> $BASH_ENV
+      - run: echo "export SERVICE=nerves-hub-api" >> $BASH_ENV
+      - <<: *docker_env
+      - run:
+          name: Lock deployments
+          command: rel/scripts/build-locking.sh --job-name deploy-production-api
       - <<: *deploy
       - <<: *send_notifications
 
@@ -314,54 +468,99 @@ workflows:
             context: org-global
             requires:
               - test_elixir
-        - push-www:
-            context: org-global
+        - approve-staging-deploy:
+            type: approval
             requires:
               - build-www
-            filters:
-              branches:
-                only: master
-        - push-device:
-            context: org-global
+              - build-api
+              - build-device
+        - approve-production-deploy:
+            type: approval
             requires:
+              - build-www
+              - build-api
               - build-device
             filters:
               branches:
                 only: master
-        - push-api:
+        - push-staging-www:
             context: org-global
             requires:
-              - build-api
+              - approve-staging-deploy
+        - push-production-www:
+            context: org-global
+            requires:
+              - approve-production-deploy
             filters:
               branches:
                 only: master
-        - migrate:
+        - push-staging-device:
             context: org-global
             requires:
-              - push-www
-              - push-device
-              - push-api
+              - approve-staging-deploy
+        - push-production-device:
+            context: org-global
+            requires:
+              - approve-production-deploy
             filters:
               branches:
                 only: master
-        - deploy-www:
+        - push-staging-api:
             context: org-global
             requires:
-              - migrate
+              - approve-staging-deploy
+        - push-production-api:
+            context: org-global
+            requires:
+              - approve-production-deploy
             filters:
               branches:
                 only: master
-        - deploy-device:
+        - migrate-staging:
             context: org-global
             requires:
-              - migrate
+              - push-staging-www
+              - push-staging-device
+              - push-staging-api
+        - migrate-production:
+            context: org-global
+            requires:
+              - push-production-www
+              - push-production-device
+              - push-production-api
             filters:
               branches:
                 only: master
-        - deploy-api:
+        - deploy-staging-www:
             context: org-global
             requires:
-              - migrate
+              - migrate-staging
+        - deploy-production-www:
+            context: org-global
+            requires:
+              - migrate-production
+            filters:
+              branches:
+                only: master
+        - deploy-staging-device:
+            context: org-global
+            requires:
+              - migrate-staging
+        - deploy-production-device:
+            context: org-global
+            requires:
+              - migrate-production
+            filters:
+              branches:
+                only: master
+        - deploy-staging-api:
+            context: org-global
+            requires:
+              - migrate-staging
+        - deploy-production-api:
+            context: org-global
+            requires:
+              - migrate-production
             filters:
               branches:
                 only: master

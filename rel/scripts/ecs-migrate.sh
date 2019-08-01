@@ -2,8 +2,10 @@
 
 set -e
 
-CLUSTER=$1
-TASK=$2
+VPC=$1
+CLUSTER=$2
+TASK=$3
+SG=$4
 
 task_status() {
   aws ecs describe-tasks --tasks $1 --cluster $CLUSTER | jq -r '.tasks[] .containers[0] .lastStatus'
@@ -16,7 +18,7 @@ task_exit_code() {
 SCRIPT_PATH=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
 # Construct the network configuration
-NETWORK_CONFIGURATION=$($SCRIPT_PATH/ecs-network-configuration.sh)
+NETWORK_CONFIGURATION=$($SCRIPT_PATH/ecs-network-configuration.sh $VPC $SG)
 
 # Run any pending migrations
 MIGRATION_TASK=$(aws ecs run-task \
