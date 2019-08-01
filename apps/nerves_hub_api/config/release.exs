@@ -38,3 +38,39 @@ config :nerves_hub_www, NervesHubWWW.Mailer,
   port: System.fetch_env!("SES_PORT"),
   username: System.fetch_env!("SMTP_USERNAME"),
   password: System.fetch_env!("SMTP_PASSWORD")
+
+host = System.fetch_env!("HOST")
+
+cacert_pems = [
+  "/etc/ssl/user-root-ca.pem",
+  "/etc/ssl/root-ca.pem"
+]
+
+cacerts =
+  cacert_pems
+  |> Enum.map(&File.read!/1)
+  |> Enum.map(&X509.Certificate.from_pem!/1)
+  |> Enum.map(&X509.Certificate.to_der/1)
+
+config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
+  url: [host: host],
+  https: [
+    port: 443,
+    otp_app: :nerves_hub_api,
+    # Enable client SSL
+    verify: :verify_peer,
+    keyfile: "/etc/ssl/#{host}-key.pem",
+    certfile: "/etc/ssl/#{host}.pem",
+    cacerts: cacerts ++ :certifi.cacerts()
+  ]
+
+ca_host = System.fetch_env!("CA_HOST")
+
+config :nerves_hub_web_core, NervesHubWebCore.CertificateAuthority,
+  host: ca_host,
+  port: 8443,
+  ssl: [
+    keyfile: "/etc/ssl/#{host}-key.pem",
+    certfile: "/etc/ssl/#{host}.pem",
+    cacertfile: "/etc/ssl/ca.pem"
+  ]

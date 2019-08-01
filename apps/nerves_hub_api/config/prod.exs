@@ -2,7 +2,6 @@ use Mix.Config
 
 config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
   load_from_system_env: true,
-  url: [host: "api.nerves-hub.org"],
   server: true,
   https: [
     port: 443,

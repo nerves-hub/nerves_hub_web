@@ -16,7 +16,6 @@ use Mix.Config
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   load_from_system_env: true,
   server: true,
-  url: [host: "www.nerves-hub.org", port: 80],
   force_ssl: [rewrite_on: [:x_forwarded_proto]]
 
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint, server: false

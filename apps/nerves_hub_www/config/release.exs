@@ -42,3 +42,5 @@ config :nerves_hub_www, NervesHubWWW.Mailer,
   port: System.fetch_env!("SES_PORT"),
   username: System.fetch_env!("SMTP_USERNAME"),
   password: System.fetch_env!("SMTP_PASSWORD")
+
+config :nerves_hub_www, NervesHubWWWWeb.Endpoint, url: [host: System.fetch_env!("HOST"), port: 80]
