@@ -65,7 +65,7 @@ deploy: &deploy
   run:
     name: Deploy to production
     command: |
-      /rel/scripts/ecs-deploy.sh \
+      rel/scripts/ecs-deploy.sh \
         $CLUSTER \
         $SERVICE \
         nerveshub/$APP_NAME:$DOCKER_TAG
