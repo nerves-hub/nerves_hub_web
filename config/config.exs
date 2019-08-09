@@ -1,18 +1,83 @@
-# This file is responsible for configuring your application
-# and its dependencies with the aid of the Mix.Config module.
-use Mix.Config
+import Config
 
-# By default, the umbrella project as well as each child
-# application will require this configuration file, ensuring
-# they all use the same configuration. While one could
-# configure all applications here, we prefer to delegate
-# back to each application for organization purposes.
+config :ex_aws,
+  access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, :instance_role],
+  json_codec: Jason,
+  secret_access_key: [{:system, "AWS_SECRET_ACCESS_KEY"}, :instance_role],
+  region: System.get_env("AWS_REGION")
 
-import_config "../apps/*/config/config.exs"
+config :ex_aws_s3, json_codec: Jason
 
-# Sample configuration (overrides the imported configuration above):
+# Configures Elixir's Logger
+config :logger, :console,
+  format: "$time $metadata[$level] $message\n",
+  metadata: [:user_id]
+
+config :phoenix,
+  json_library: Jason,
+  template_engines: [
+    md: PhoenixMarkdown.Engine,
+    leex: Phoenix.LiveView.Engine
+  ]
+
+config :rollbax, enabled: false
+
+##
+# NervesHub API
 #
-#     config :logger, :console,
-#       level: :info,
-#       format: "$date $time [$level] $metadata$message\n",
-#       metadata: [:user_id]
+config :nerves_hub_api,
+  namespace: NervesHubAPI,
+  ecto_repos: [NervesHubWebCore.Repo]
+
+# Configures the endpoint
+config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
+  url: [host: "localhost"],
+  render_errors: [view: NervesHubAPIWeb.ErrorView, accepts: ~w(json)],
+  pubsub: [name: NervesHubWeb.PubSub]
+
+##
+# NervesHub Device
+#
+# General application configuration
+config :nerves_hub_device,
+  ecto_repos: [NervesHubWebCore.Repo],
+  namespace: NervesHubDevice
+
+# Configures the endpoint
+config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
+  render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
+  pubsub: [name: NervesHubWeb.PubSub]
+
+##
+# NervesHubWebCore
+#
+config :nerves_hub_web_core,
+  ecto_repos: [NervesHubWebCore.Repo]
+
+config :nerves_hub_web_core, NervesHubWeb.PubSub,
+  name: NervesHubWeb.PubSub,
+  adapter: Phoenix.PubSub.PG2,
+  fastlane: Phoenix.Channel.Server
+
+##
+# NervesHubWWW
+#
+config :nerves_hub_www,
+  ecto_repos: [NervesHubWebCore.Repo],
+  # Options are :ssl or :header
+  websocket_auth_methods: [:ssl]
+
+config :nerves_hub_www, NervesHubWWWWeb.Gettext, default_locale: "en"
+
+# Configures the endpoint
+config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
+  url: [host: System.get_env("HOST")],
+  secret_key_base: System.get_env("SECRET_KEY_BASE"),
+  render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
+  pubsub: [name: NervesHubWeb.PubSub],
+  live_view: [signing_salt: System.get_env("LIVE_VIEW_SIGNING_SALT")]
+
+config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: true
+
+# Environment specific config
+import_config "#{Mix.env()}.exs"

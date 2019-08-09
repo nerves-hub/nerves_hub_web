@@ -50,7 +50,7 @@ defmodule NervesHubUmbrella.MixProject do
   # Run "mix help deps" for examples and options.
   defp deps do
     [
-      {:excoveralls, "~> 0.8", only: :test},
+      # {:excoveralls, "~> 0.8", only: :test},
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev, :test], runtime: false},
       {:mix_test_watch, "~> 0.6", only: :test, runtime: false}
     ]

@@ -1,0 +1,89 @@
+import Config
+
+config :logger, :console, format: "[$level] $message\n"
+config :phoenix, :stacktrace_depth, 20
+
+##
+# NervesHubAPI
+#
+config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
+  debug_errors: true,
+  code_reloader: false,
+  check_origin: false,
+  watchers: [],
+  pubsub: [name: NervesHubWeb.PubSub],
+  https: [
+    port: 4002,
+    otp_app: :nerves_hub_api,
+    # Enable client SSL
+    verify: :verify_peer,
+    keyfile: Path.expand("test/fixtures/ssl/api.nerves-hub.org-key.pem"),
+    certfile: Path.expand("test/fixtures/ssl/api.nerves-hub.org.pem"),
+    cacertfile: Path.expand("test/fixtures/ssl/ca.pem")
+  ]
+
+##
+# NervesHubDevice
+#
+config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
+  debug_errors: true,
+  code_reloader: false,
+  check_origin: false,
+  watchers: [],
+  https: [
+    ip: {0, 0, 0, 0},
+    port: 4001,
+    otp_app: :nerves_hub_device,
+    # Enable client SSL
+    verify: :verify_peer,
+    verify_fun: {&NervesHubDevice.SSL.verify_fun/3, nil},
+    fail_if_no_peer_cert: true,
+    keyfile: Path.expand("test/fixtures/ssl/device.nerves-hub.org-key.pem"),
+    certfile: Path.expand("test/fixtures/ssl/device.nerves-hub.org.pem"),
+    cacertfile: Path.expand("test/fixtures/ssl/ca.pem")
+  ]
+
+##
+# NervesHubWebCore
+#
+config :nerves_hub_web_core, firmware_upload: NervesHubWebCore.Firmwares.Upload.File
+
+config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.File,
+  local_path: Path.join(System.tmp_dir(), "firmware"),
+  public_path: "/firmware"
+
+# config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
+
+config :nerves_hub_web_core, NervesHubWebCore.Repo, ssl: false
+
+config :nerves_hub_web_core, NervesHubWebCore.CertificateAuthority,
+  host: "0.0.0.0",
+  port: 8443,
+  ssl: [
+    cacertfile: Path.join([__DIR__, "test/fixtures/ssl/ca.pem"]),
+    server_name_indication: 'ca.nerves-hub.org'
+  ]
+
+##
+# NervesHubWWW
+#
+config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
+  http: [ip: {0, 0, 0, 0}, port: 4000],
+  debug_errors: true,
+  code_reloader: true,
+  check_origin: false,
+  watchers: [yarn: ["run", "watch", cd: Path.expand("../apps/nerves_hub_www/assets", __DIR__)]]
+
+config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
+  url: [scheme: "http", host: "nerves-hub.org", port: 4000],
+  live_reload: [
+    patterns: [
+      ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
+      ~r{priv/gettext/.*(po)$},
+      ~r{lib/nerves_hub_www_web/views/.*(ex)$},
+      ~r{lib/nerves_hub_www_web/templates/.*(eex|md)$},
+      ~r{lib/nerves_hube_www_web/live/.*(ex)$}
+    ]
+  ]
+
+config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.LocalAdapter
