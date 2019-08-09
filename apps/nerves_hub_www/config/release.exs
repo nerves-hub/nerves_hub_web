@@ -34,7 +34,7 @@ end
 config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.S3,
   bucket: System.fetch_env!("S3_BUCKET_NAME")
 
-config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Transfer.S3Ingress,
+config :nerves_hub_web_core, NervesHubWebCore.Workers.FirmwaresTransferS3Ingress,
   bucket: System.fetch_env!("S3_LOG_BUCKET_NAME")
 
 config :ex_aws, region: System.fetch_env!("AWS_REGION")

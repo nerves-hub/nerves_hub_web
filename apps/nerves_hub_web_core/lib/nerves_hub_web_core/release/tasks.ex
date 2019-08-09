@@ -16,7 +16,7 @@ defmodule NervesHubWebCore.Release.Tasks do
   def gc do
     init(@otp_app, @start_apps)
 
-    NervesHubWebCore.Firmwares.GC.run()
+    NervesHubWebCore.Workers.FirmwaresGC.run()
 
     stop()
   end
