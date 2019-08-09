@@ -67,6 +67,8 @@ config :nerves_hub_web_core, NervesHubWebCore.CertificateAuthority,
 
 config :nerves_hub_web_core, NervesHubWebCore.Mailer, adapter: Bamboo.TestAdapter
 
+config :nerves_hub_web_core, Oban, queues: false, prune: :disabled
+
 ##
 # NervesHubWWW
 #

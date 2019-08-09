@@ -1,6 +1,6 @@
 defmodule NervesHubWebCore.Firmware.Transfer.S3Test do
   use NervesHubWebCore.DataCase, async: true
-  alias NervesHubWebCore.Firmwares.Transfer.S3Ingress, as: Ingress
+  alias NervesHubWebCore.Workers.FirmwaresTransferS3Ingress, as: Ingress
 
   @fixture Path.expand("../../../../../../test/fixtures/s3_access_log.txt", __DIR__)
 

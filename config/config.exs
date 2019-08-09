@@ -62,6 +62,10 @@ config :nerves_hub_web_core, NervesHubWeb.PubSub,
   adapter: Phoenix.PubSub.PG2,
   fastlane: Phoenix.Channel.Server
 
+config :nerves_hub_web_core, Oban,
+  repo: NervesHubWebCore.Repo,
+  verbose: false
+
 ##
 # NervesHubWWW
 #

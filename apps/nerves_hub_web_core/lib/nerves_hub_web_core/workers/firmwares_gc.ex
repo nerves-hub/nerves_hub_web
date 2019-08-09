@@ -1,7 +1,15 @@
-defmodule NervesHubWebCore.Firmwares.GC do
+defmodule NervesHubWebCore.Workers.FirmwaresGC do
+  use NervesHubWebCore.Worker,
+    max_attempts: 5,
+    queue: :garbage_collect_firmware,
+    schedule: "*/15 * * * *"
+
   require Logger
 
   alias NervesHubWebCore.Firmwares
+
+  @impl true
+  def run(_args, _job), do: run()
 
   def run() do
     Firmwares.get_firmware_by_expired_ttl()

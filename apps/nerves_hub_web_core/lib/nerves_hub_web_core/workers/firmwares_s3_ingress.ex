@@ -1,9 +1,14 @@
-defmodule NervesHubWebCore.Firmwares.Transfer.S3Ingress do
+defmodule NervesHubWebCore.Workers.FirmwaresTransferS3Ingress do
   @moduledoc """
   Parse server access logs and create firmware_transfer records
 
   https://docs.aws.amazon.com/AmazonS3/latest/dev/LogFormat.html
   """
+
+  use NervesHubWebCore.Worker,
+    max_attempts: 5,
+    queue: :collect_firmware_ingress,
+    schedule: "*/30 * * * *"
 
   require Logger
 
@@ -12,7 +17,8 @@ defmodule NervesHubWebCore.Firmwares.Transfer.S3Ingress do
 
   @regex ~r/(?P<bucket_owner>\S+) (?P<bucket>\S+) (?P<time>\[[^]]*\]) (?P<remote_ip>\S+) (?P<requester>\S+) (?P<request_id>\S+) (?P<operation>\S+) (?P<key>\S+) (?P<request>"[^"]*"|-) (?P<http_status>\S+) (?P<error_code>\S+) (?P<bytes_sent>\S+) (?P<object_size>\S+) (?P<total_time>\S+) (?P<turn_around_time>\S+) (?P<referrer>"[^"]*"|-) (?P<user_agent>"[^"]*"|-) (?P<version>\S)/
 
-  def run() do
+  @impl true
+  def run(_args, _job) do
     bucket = Application.get_env(:nerves_hub_web_core, __MODULE__)[:bucket]
 
     S3.list_objects(bucket)

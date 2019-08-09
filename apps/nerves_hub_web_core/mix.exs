@@ -37,7 +37,8 @@ defmodule NervesHubWebCore.MixProject do
   def application do
     [
       mod: {NervesHubWebCore.Application, []},
-      extra_applications: [:logger, :jason]
+      extra_applications: [:logger, :jason],
+      start_phases: [{:start_workers, []}]
     ]
   end
 
@@ -54,6 +55,7 @@ defmodule NervesHubWebCore.MixProject do
       {:bcrypt_elixir, "~> 1.0"},
       {:comeonin, "~> 4.1"},
       {:quantum, "~> 2.3"},
+      {:oban, "~> 0.5"},
       {:timex, "~> 3.1"},
       {:jason, "~> 1.0"},
       {:sweet_xml, "~> 0.6"},
