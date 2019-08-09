@@ -127,7 +127,7 @@ jobs:
           command: dockerize -wait tcp://localhost:5432 -timeout 1m
       - run:
           name: Test
-          command: mix coveralls.circle --umbrella
+          command: mix test
       - run:
           name: Verify formatting
           command: mix format --check-formatted
