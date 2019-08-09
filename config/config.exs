@@ -1,5 +1,7 @@
 import Config
 
+host = System.get_env("HOST")
+
 config :ex_aws,
   access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, :instance_role],
   json_codec: Jason,
@@ -52,7 +54,8 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
 # NervesHubWebCore
 #
 config :nerves_hub_web_core,
-  ecto_repos: [NervesHubWebCore.Repo]
+  ecto_repos: [NervesHubWebCore.Repo],
+  host: host
 
 config :nerves_hub_web_core, NervesHubWeb.PubSub,
   name: NervesHubWeb.PubSub,
@@ -71,7 +74,7 @@ config :nerves_hub_www, NervesHubWWWWeb.Gettext, default_locale: "en"
 
 # Configures the endpoint
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
-  url: [host: System.get_env("HOST")],
+  url: [host: host],
   secret_key_base: System.get_env("SECRET_KEY_BASE"),
   render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
   pubsub: [name: NervesHubWeb.PubSub],

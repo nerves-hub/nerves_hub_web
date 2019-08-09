@@ -1,5 +1,5 @@
-defmodule NervesHubWWW.Accounts.Email do
-  use Bamboo.Phoenix, view: NervesHubWWWWeb.EmailView
+defmodule NervesHubWebCore.Accounts.Email do
+  use Bamboo.Phoenix, view: NervesHubWebCore.EmailView
 
   alias NervesHubWebCore.Accounts.{Invite, Org, User, OrgUser}
 
@@ -10,7 +10,7 @@ defmodule NervesHubWWW.Accounts.Email do
     |> from(@from)
     |> to(invite.email)
     |> subject("[NervesHub] Hi from NervesHub!")
-    |> put_layout({NervesHubWWWWeb.LayoutView, :email})
+    |> put_layout({NervesHubWebCore.EmailView, :layout})
     |> render("invite.html", invite: invite, org: org)
   end
 
@@ -20,7 +20,7 @@ defmodule NervesHubWWW.Accounts.Email do
     |> from(@from)
     |> to(email)
     |> subject("[NervesHub] Reset NervesHub Password")
-    |> put_layout({NervesHubWWWWeb.LayoutView, :email})
+    |> put_layout({NervesHubWebCore.EmailView, :layout})
     |> render("forgot_password.html", user: user)
   end
 
@@ -29,7 +29,7 @@ defmodule NervesHubWWW.Accounts.Email do
     |> from(@from)
     |> to(email)
     |> subject("[NervesHub] Welcome to #{org.name}")
-    |> put_layout({NervesHubWWWWeb.LayoutView, :email})
+    |> put_layout({NervesHubWebCore.EmailView, :layout})
     |> render("org_user_created.html", org: org)
   end
 
@@ -48,7 +48,7 @@ defmodule NervesHubWWW.Accounts.Email do
     |> subject("[NervesHub] User #{instigator} added #{new_user.username} to #{org.name}")
     |> to(@from)
     |> bcc(org_users_emails)
-    |> put_layout({NervesHubWWWWeb.LayoutView, :email})
+    |> put_layout({NervesHubWebCore.EmailView, :layout})
     |> render("tell_org_user_added.html", instigator: instigator, user: new_user, org: org)
   end
 
@@ -65,7 +65,7 @@ defmodule NervesHubWWW.Accounts.Email do
     |> subject("[NervesHub] User #{instigator} removed #{user_removed.username} from #{org.name}")
     |> to(@from)
     |> bcc(org_users_emails)
-    |> put_layout({NervesHubWWWWeb.LayoutView, :email})
+    |> put_layout({NervesHubWebCore.EmailView, :layout})
     |> render("tell_org_user_removed.html", instigator: instigator, user: user_removed, org: org)
   end
 

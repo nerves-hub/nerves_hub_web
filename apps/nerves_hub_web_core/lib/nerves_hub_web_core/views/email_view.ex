@@ -1,11 +1,14 @@
-defmodule NervesHubWWWWeb.EmailView do
-  use NervesHubWWWWeb, :view
+defmodule NervesHubWebCore.EmailView do
+  use Phoenix.View,
+    root: "lib/nerves_hub_web_core/templates",
+    namespace: NervesHubWebCore
+
+  import Phoenix.HTML
 
   def base_url do
-    scheme = Application.get_env(:nerves_hub_www, NervesHubWWWWeb.Endpoint)[:url][:scheme]
-    scheme = scheme || :https
-    host = Application.get_env(:nerves_hub_www, NervesHubWWWWeb.Endpoint)[:url][:host]
-    port = Application.get_env(:nerves_hub_www, NervesHubWWWWeb.Endpoint)[:url][:port]
+    scheme = Application.get_env(:nerves_hub_web_core, :scheme, :https)
+    host = Application.get_env(:nerves_hub_web_core, :host)
+    port = Application.get_env(:nerves_hub_web_core, :port)
     port = if Enum.member?([443, 80], port), do: "", else: ":#{port}"
 
     "#{scheme}://#{host}#{port}"

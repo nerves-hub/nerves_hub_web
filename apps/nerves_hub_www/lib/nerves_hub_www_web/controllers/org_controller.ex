@@ -2,10 +2,10 @@ defmodule NervesHubWWWWeb.OrgController do
   use NervesHubWWWWeb, :controller
 
   alias Ecto.Changeset
-  alias NervesHubWWW.Accounts.Email
+  alias NervesHubWebCore.Accounts.Email
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.{Invite, OrgKey, OrgUser}
-  alias NervesHubWWW.Mailer
+  alias NervesHubWebCore.Mailer
 
   plug(:validate_role, [org: :admin] when action in [:edit, :update, :invite])
 

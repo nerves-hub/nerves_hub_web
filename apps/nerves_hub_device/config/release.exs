@@ -34,7 +34,7 @@ config :ex_aws, region: System.fetch_env!("AWS_REGION")
 
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint, server: true
 
-config :nerves_hub_www, NervesHubWWW.Mailer,
+config :nerves_hub_web_core, NervesHubWebCore.Mailer,
   adapter: Bamboo.SMTPAdapter,
   server: System.fetch_env!("SES_SERVER"),
   port: System.fetch_env!("SES_PORT"),

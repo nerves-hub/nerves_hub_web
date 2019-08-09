@@ -1,5 +1,7 @@
 import Config
 
+web_port = 5000
+
 config :bcrypt_elixir, log_rounds: 4
 
 # Print only warnings and errors during test
@@ -38,7 +40,9 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
 ##
 # NervesHubWebCore
 #
-config :nerves_hub_web_core, firmware_upload: NervesHubWebCore.Firmwares.Upload.File
+config :nerves_hub_web_core,
+  firmware_upload: NervesHubWebCore.Firmwares.Upload.File,
+  port: web_port
 
 config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.S3, bucket: "mybucket"
 
@@ -61,11 +65,11 @@ config :nerves_hub_web_core, NervesHubWebCore.CertificateAuthority,
     server_name_indication: 'ca.nerves-hub.org'
   ]
 
+config :nerves_hub_web_core, NervesHubWebCore.Mailer, adapter: Bamboo.TestAdapter
+
 ##
 # NervesHubWWW
 #
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
-  http: [port: 5000],
+  http: [port: web_port],
   server: false
-
-config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.TestAdapter

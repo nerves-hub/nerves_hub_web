@@ -4,8 +4,8 @@ defmodule NervesHubWWWWeb.AccountController do
   alias Ecto.Changeset
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.User
-  alias NervesHubWWW.Accounts.Email
-  alias NervesHubWWW.Mailer
+  alias NervesHubWebCore.Accounts.Email
+  alias NervesHubWebCore.Mailer
 
   plug(NervesHubWWWWeb.Plugs.AllowUninvitedSignups when action in [:new, :create])
 

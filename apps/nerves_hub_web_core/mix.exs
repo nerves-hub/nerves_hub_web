@@ -13,6 +13,7 @@ defmodule NervesHubWebCore.MixProject do
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
+      compilers: [:phoenix] ++ Mix.compilers(),
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
         coveralls: :test,
@@ -44,6 +45,7 @@ defmodule NervesHubWebCore.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.4"},
+      {:phoenix_html, "~> 2.12"},
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.0"},
       {:ecto_sql, "~> 3.0"},
@@ -57,7 +59,9 @@ defmodule NervesHubWebCore.MixProject do
       {:sweet_xml, "~> 0.6"},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
-      {:x509, "~> 0.5.1 or ~> 0.6"}
+      {:x509, "~> 0.5.1 or ~> 0.6"},
+      {:bamboo, "~> 1.0"},
+      {:bamboo_smtp, "~> 1.5.0"}
     ]
   end
 end

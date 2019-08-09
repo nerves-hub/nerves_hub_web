@@ -1,11 +1,9 @@
-defmodule NervesHubWWW.Accounts.EmailTest do
+defmodule NervesHubWebCore.Accounts.EmailTest do
   use ExUnit.Case, async: true
   use Bamboo.Test
 
-  alias NervesHubWebCore.Accounts.{Invite, Org, OrgUser, User}
-  alias NervesHubWWW.Accounts.Email
-  alias NervesHubWWWWeb.EmailView
-  alias NervesHubWWW.Mailer
+  alias NervesHubWebCore.Accounts.{Email, Invite, Org, OrgUser, User}
+  alias NervesHubWebCore.{EmailView, Mailer}
 
   test "invite email" do
     invite = %Invite{email: "foo@bar.com"}
