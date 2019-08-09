@@ -1,11 +1,11 @@
 defmodule NervesHubWWWWeb.PasswordResetController do
   use NervesHubWWWWeb, :controller
 
-  alias NervesHubWWW.Accounts.Email
+  alias NervesHubWebCore.Accounts.Email
   alias NervesHubWebCore.Accounts.User
   alias NervesHubWebCore.Accounts.PasswordReset
   alias NervesHubWebCore.Accounts
-  alias NervesHubWWW.Mailer
+  alias NervesHubWebCore.Mailer
 
   alias Ecto.Changeset
 

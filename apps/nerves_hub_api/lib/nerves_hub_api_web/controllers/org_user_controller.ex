@@ -2,8 +2,8 @@ defmodule NervesHubAPIWeb.OrgUserController do
   use NervesHubAPIWeb, :controller
 
   alias NervesHubWebCore.Accounts
-  alias NervesHubWWW.Accounts.Email
-  alias NervesHubWWW.Mailer
+  alias NervesHubWebCore.Accounts.Email
+  alias NervesHubWebCore.Mailer
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 

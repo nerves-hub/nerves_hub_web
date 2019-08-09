@@ -23,7 +23,7 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
       assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
 
       {:ok, updated_user} = Accounts.get_user(user.id)
-      assert_delivered_email(NervesHubWWW.Accounts.Email.forgot_password(updated_user))
+      assert_delivered_email(NervesHubWebCore.Accounts.Email.forgot_password(updated_user))
     end
 
     test "with invalid params", %{conn: conn} do

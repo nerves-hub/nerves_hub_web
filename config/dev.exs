@@ -1,5 +1,9 @@
 import Config
 
+web_host = "nerves-hub.org"
+web_port = 4000
+web_scheme = "http"
+
 config :logger, :console, format: "[$level] $message\n"
 config :phoenix, :stacktrace_depth, 20
 
@@ -46,7 +50,11 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
 ##
 # NervesHubWebCore
 #
-config :nerves_hub_web_core, firmware_upload: NervesHubWebCore.Firmwares.Upload.File
+config :nerves_hub_web_core,
+  firmware_upload: NervesHubWebCore.Firmwares.Upload.File,
+  host: web_host,
+  port: web_port,
+  scheme: web_scheme
 
 config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.File,
   local_path: Path.join(System.tmp_dir(), "firmware"),
@@ -64,18 +72,20 @@ config :nerves_hub_web_core, NervesHubWebCore.CertificateAuthority,
     server_name_indication: 'ca.nerves-hub.org'
   ]
 
+config :nerves_hub_web_core, NervesHubWebCore.Mailer, adapter: Bamboo.LocalAdapter
+
 ##
 # NervesHubWWW
 #
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
-  http: [ip: {0, 0, 0, 0}, port: 4000],
+  http: [ip: {0, 0, 0, 0}, port: web_port],
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
   watchers: [yarn: ["run", "watch", cd: Path.expand("../apps/nerves_hub_www/assets", __DIR__)]]
 
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
-  url: [scheme: "http", host: "nerves-hub.org", port: 4000],
+  url: [scheme: web_scheme, host: web_host, port: web_port],
   live_reload: [
     patterns: [
       ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
@@ -85,5 +95,3 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
       ~r{lib/nerves_hube_www_web/live/.*(ex)$}
     ]
   ]
-
-config :nerves_hub_www, NervesHubWWW.Mailer, adapter: Bamboo.LocalAdapter

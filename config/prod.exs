@@ -21,7 +21,16 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint, server: true
 ##
 # NervesHubWebCore
 #
-config :nerves_hub_web_core, firmware_upload: NervesHubWebCore.Firmwares.Upload.S3
+config :nerves_hub_web_core,
+  firmware_upload: NervesHubWebCore.Firmwares.Upload.S3,
+  host: "www.nerves-hub.org",
+  port: 80
+
+config :nerves_hub_web_core, NervesHubWebCore.Mailer,
+  adapter: Bamboo.SMTPAdapter,
+  tls: :always,
+  ssl: false,
+  retries: 1
 
 # config :nerves_hub_web_core, NervesHubWebCore.Scheduler,
 #   jobs: [
@@ -48,9 +57,3 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   force_ssl: [rewrite_on: [:x_forwarded_proto]]
 
 config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: false
-
-config :nerves_hub_www, NervesHubWWW.Mailer,
-  adapter: Bamboo.SMTPAdapter,
-  tls: :always,
-  ssl: false,
-  retries: 1
