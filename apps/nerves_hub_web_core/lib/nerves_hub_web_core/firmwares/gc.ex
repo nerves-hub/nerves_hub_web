@@ -5,7 +5,7 @@ defmodule NervesHubWebCore.Firmwares.GC do
 
   def run() do
     Logger.debug("FIRMWARE GC STARTED")
-    
+
     Firmwares.get_firmware_by_expired_ttl()
     |> Enum.each(fn firmware ->
       case Firmwares.delete_firmware(firmware) do
