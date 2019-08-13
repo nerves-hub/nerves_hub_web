@@ -61,7 +61,7 @@ defmodule NervesHubWebCore.MixProject do
       {:ex_aws_s3, "~> 2.0"},
       {:x509, "~> 0.5.1 or ~> 0.6"},
       {:bamboo, "~> 1.0"},
-      {:bamboo_smtp, "~> 1.5.0"}
+      {:bamboo_smtp, "~> 1.7.0"}
     ]
   end
 end
