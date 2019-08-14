@@ -1,5 +1,4 @@
 defmodule NervesHubWWWWeb.Endpoint do
-  @env Mix.env()
   use Phoenix.Endpoint, otp_app: :nerves_hub_www
 
   socket("/live", Phoenix.LiveView.Socket)
@@ -16,14 +15,14 @@ defmodule NervesHubWWWWeb.Endpoint do
     only: ~w(css fonts images js favicon.ico robots.txt)
   )
 
-  # This should only be enabled if using NervesHubWebCore.Firmwares.Upload.File
-  if @env in [:dev, :test] do
-    @file_config Application.get_env(:nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.File)
+  file_upload_config =
+    Application.get_env(:nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.File, [])
 
+  if Keyword.get(file_upload_config, :enabled, false) do
     plug(
       Plug.Static,
-      at: @file_config[:public_path],
-      from: @file_config[:local_path]
+      at: file_upload_config[:public_path],
+      from: file_upload_config[:local_path]
     )
   end
 
