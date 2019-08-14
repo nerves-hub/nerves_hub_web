@@ -1,5 +1,9 @@
 import Config
 
+logger_level = System.get_env("LOG_LEVEL", "warn") |> to_atom()
+
+config :logger, level: logger_level
+
 sync_nodes_optional =
   case System.fetch_env("SYNC_NODES_OPTIONAL") do
     {:ok, sync_nodes_optional} ->
