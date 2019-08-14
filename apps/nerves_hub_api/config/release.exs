@@ -1,6 +1,6 @@
 import Config
 
-logger_level = System.get_env("LOG_LEVEL", "warn") |> to_atom()
+logger_level = System.get_env("LOG_LEVEL", "warn") |> String.to_atom()
 
 config :logger, level: logger_level
 
