@@ -57,6 +57,7 @@ config :nerves_hub_web_core,
   scheme: web_scheme
 
 config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.File,
+  enabled: true,
   local_path: Path.join(System.tmp_dir(), "firmware"),
   public_path: "/firmware"
 
