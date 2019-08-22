@@ -12,7 +12,7 @@
   </div>
 </div>
 <div class="row">
-  <table class="table table-sm table-hover">
+  <table class="table table-sm table-hover collapsible">
     <thead>
       <tr>
         <th>UUID</th>
@@ -33,8 +33,8 @@
           <%= link "", class: "fa fa-trash-alt", to: Routes.firmware_path(@conn, :delete, @org.name, @product.name, firmware.uuid), method: :delete, data: [confirm: "Are you sure you want to delete this firmware? This can not be undone."] %>
         </td>
       </tr>
-      <tr class="item collapsable">
-        <td class="collapsable" colspan="5" >
+      <tr class="item collapsible">
+        <td class="collapsible" colspan="5" >
           <div id="firmware<%= firmware.id %>" class="collapse row">
             <div class="col-2">
               <span>VCS Identifier</span>

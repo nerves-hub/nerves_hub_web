@@ -34,8 +34,8 @@
 
   <body>
     <%= render("_navigation.html", conn: @conn) %>
-    <div class="container-fluid">
-      <div class="row">
+    <div class="container-fluid h-100">
+      <div class="row h-100">
         <%= render("_sidebar.html", conn: @conn) %>
         <main role="main" class="col pt-3 px-4">
           <%= if get_flash(@conn, :info) do %>
@@ -51,11 +51,9 @@
             </div>
           <% end %>
           <%= render @view_module, @view_template, assigns %>
-        </div>
+        </main>
+        <%= render("_footer.html", conn: @conn) %>
       </div>
-      <footer class="footer fixed-bottom">
-      <%= render("_footer.html", conn: @conn) %>
-    </footer>
     </div>
     <script>
       window.userToken = "<%= assigns[:user_token] %>"

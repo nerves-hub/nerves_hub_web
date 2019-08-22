@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand navbar-dark bg-dark sticky-top flex-md-nowrap p-0">
+<nav class="navbar navbar-expand navbar-dark bg-dark fixed-top flex-md-nowrap p-0">
     <a class="logo navbar-brand circle d-inline-block align-top ml-3" href="<%= logo_href(@conn) %>">
       <img src="/images/logo.svg" />
     </a>

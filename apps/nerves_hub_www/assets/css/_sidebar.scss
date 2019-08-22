@@ -1,5 +1,5 @@
 .sidebar {
-  position: fixed;
+  position: relative;
   top: 0;
   bottom: 0;
   left: 0;
@@ -9,15 +9,12 @@
   background-color: #636363;
   font-family: 'Varela', sans-serif;
   border-right: $nav-color solid 1px;
-}
+  width: 200px;
 
-.sidebar-sticky {
-  position: -webkit-sticky;
-  position: sticky;
-  top: 70px; /* Height of navbar */
-  height: calc(100vh - 70px);
-  overflow-x: hidden;
-  overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
+  nav {
+    position: fixed;
+    width: 199px;
+  }
 }
 
 .sidebar .nav-link {
@@ -41,6 +38,15 @@
     min-width: 55px;
     .text {
       display: none;
+    }
+    a {
+      padding: 8px 4px 8px 10px;
+      span {
+        margin-left: 6px;
+      }
+    }
+    nav {
+      max-width: 50px;
     }
   }
 }
