@@ -1,40 +1,39 @@
-  <div class="home-info">
-    <div class="d-flex flex-row group-top pad">
-      <h1 class="text-center">NervesHub helps you manage firmware updates for Nerves devices.</h1>
+<div class="home-info">
+  <div class="d-flex flex-row group-top pad">
+    <h1 class="text-center">NervesHub helps you manage firmware updates for Nerves devices.</h1>
+  </div>
+  <div class="d-flex flex-row build group pad">
+    <img class="device m-3" src="/images/home/device.svg" />
+    <img class="certificate m-3" src="/images/home/certificate.svg" />
+    <span class="text-right align-middle">Build and provision devices with SSL certificates</span>
+  </div>
+  <div class="group pad">
+    <div class="d-flex flex-row justify-content-center mb-5">
+      <span class="text-center ">Create device deployment groups</span>
     </div>
-    <div class="d-flex flex-row build group pad">
-      <img class="device m-3" src="/images/home/device.svg" />
-      <img class="certificate m-3" src="/images/home/certificate.svg" />
-      <span class="text-right align-middle">Build and provision devices with SSL certificates</span>
-    </div>
-    <div class="group pad">
-      <div class="d-flex flex-row justify-content-center mb-5">
-        <span class="text-center ">Create device deployment groups</span>
+    <div class="d-flex flex-row justify-content-around ">
+      <div class="">
+        <img class="deploy" src="/images/home/dev.svg" />
+        <p class="text-center">dev</p>
       </div>
-      <div class="d-flex flex-row justify-content-around ">
-        <div class="">
-          <img class="deploy" src="/images/home/dev.svg" />
-          <p class="text-center">dev</p>
-        </div>
-        <div class="">
-          <img class="deploy" src="/images/home/test.svg" />
-          <p class="text-center">test</p>
-        </div>
-        <div class="">
-          <img class="deploy" src="/images/home/prod.svg" />
-          <p class="text-center">prod</p>
-        </div>
+      <div class="">
+        <img class="deploy" src="/images/home/test.svg" />
+        <p class="text-center">test</p>
+      </div>
+      <div class="">
+        <img class="deploy" src="/images/home/prod.svg" />
+        <p class="text-center">prod</p>
       </div>
     </div>
-    <div class="d-flex flex-row justify-content-between group-bottom pad">
-      <div class="d-flex terminal">
-        <pre class="code-snippet">
-          <%# <code class="language-bash" data-lang="bash"> %>
-            <p class="prompt text-left">$ </p>mix nerves_hub.firmware publish --deploy prod
-          <%# </code> %>
-        </pre>
-      </div>
-      <span class="text-right align-middle">Publish firmware to deployment groups from Mix</span>
+  </div>
+  <div class="d-flex flex-row justify-content-between group-bottom pad">
+    <div class="d-flex terminal">
+      <pre class="code-snippet">
+        <%# <code class="language-bash" data-lang="bash"> %>
+          <p class="prompt text-left">$ </p>mix nerves_hub.firmware publish --deploy prod
+        <%# </code> %>
+      </pre>
     </div>
+    <span class="text-right align-middle">Publish firmware to deployment groups from Mix</span>
   </div>
 </div>

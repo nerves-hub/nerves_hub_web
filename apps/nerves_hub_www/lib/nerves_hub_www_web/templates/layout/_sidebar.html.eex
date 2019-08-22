@@ -1,7 +1,7 @@
 <% links = sidebar_links(@conn) %>
 <%= if links != [] do %>
-<nav class="col-sm-1 col-md-2 col-lg-2 sidebar">
-  <div class="sidebar-sticky">
+  <div class="sidebar">
+<nav class="">
     <ul class="nav flex-column">
       <%= for link <- links do %>
         <li class="nav-item">
@@ -11,6 +11,7 @@
           </a>
         </li>
       <% end %>
-  </div>
+    </ul>
 </nav>
+  </div>
 <% end %>

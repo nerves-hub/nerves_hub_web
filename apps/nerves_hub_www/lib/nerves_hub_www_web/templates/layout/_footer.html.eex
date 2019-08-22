@@ -1,29 +1,31 @@
-<div class="container-fullwidth">
-
-  <div class="d-flex flex-row bd-highlight mb-3 justify-content-around footer-nav">
-    <div class="p-2 bd-highlight">
-      <h6 class="text-dark logo-font">
-        NervesHub
-      </h6>
-      <a href="https://github.com/nerves-hub">Source code</a>
-      <a href="<%= Routes.nerves_key_path(@conn, :index) %>">NervesKey</a>
-      <a href="<%= Routes.sponsor_path(@conn, :index) %>">Sponsors</a>
-    </div>
-    <div class="p-2 bd-highlight">
-      <h6 class="text-dark logo-font">
-        Help
-      </h6>
-      <a href="https://docs.nerves-hub.org/">Documentation</a> (<a href="https://hexdocs.pm/nerves_hub/readme.html#content">HexDocs</a>)
-      <a href="https://github.com/nerves-hub/nerves_hub_web/issues">Report an issue</a>
-      <a href="mailto:support@nerves-hub.org">Support</a>
-    </div>
-    <div class="p-2 bd-highlight">
-      <h6 class="text-dark logo-font">
-        Terms and Conditions
-      </h6>
-      <a href="<%= Routes.policy_path(@conn, :coc) %>">Code of Conduct</a>
-      <a href="<%= Routes.policy_path(@conn, :tos) %>">Terms of Service</a>
-      <a href="<%= Routes.policy_path(@conn, :privacy) %>">Privacy Policy</a>
+<footer class="footer">
+  <div class="container">
+    <div class="d-flex flex-row bd-highlight mb-3 justify-content-around footer-nav">
+      <div class="p-2 bd-highlight">
+        <h6 class="text-dark logo-font">
+          NervesHub
+        </h6>
+        <a href="https://github.com/nerves-hub">Source code</a>
+        <a href="<%= Routes.nerves_key_path(@conn, :index) %>">NervesKey</a>
+        <a href="<%= Routes.sponsor_path(@conn, :index) %>">Sponsors</a>
+      </div>
+      <div class="p-2 bd-highlight">
+        <h6 class="text-dark logo-font">
+          Help
+        </h6>
+        <a href="https://docs.nerves-hub.org/">Documentation</a>
+        <a href="https://hexdocs.pm/nerves_hub/readme.html#content">HexDocs</a>
+        <a href="https://github.com/nerves-hub/nerves_hub_web/issues">Report an issue</a>
+        <a href="mailto:support@nerves-hub.org">Support</a>
+      </div>
+      <div class="p-2 bd-highlight">
+        <h6 class="text-dark logo-font">
+          Terms and Conditions
+        </h6>
+        <a href="<%= Routes.policy_path(@conn, :coc) %>">Code of Conduct</a>
+        <a href="<%= Routes.policy_path(@conn, :tos) %>">Terms of Service</a>
+        <a href="<%= Routes.policy_path(@conn, :privacy) %>">Privacy Policy</a>
+      </div>
     </div>
   </div>
-</div>
+</footer>

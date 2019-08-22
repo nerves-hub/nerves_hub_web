@@ -22,6 +22,7 @@ html {
   padding: 0;
   height: 100%;
   max-width: 100%;
+  min-height: 100%;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -webkit-overflow-scrolling: auto;
@@ -31,12 +32,14 @@ body {
   background-color: $light-background;
   height: 100%;
   position: relative;
+  margin-top: 68px;
 }
 
 main {
   font-family: 'Varela', sans-serif;
   color: black;
   padding-bottom: 120px;
+  min-height: 100%;
 }
 
 h1,h2 {
@@ -147,7 +150,7 @@ table {
       font-size: 12px;
     }
 
-    td.collapsable {
+    td.collapsible {
       padding: 0px 5px;
       border: none;
       pointer-events: none;
@@ -156,14 +159,6 @@ table {
     span {
       font-weight: bold;
     }
-  }
-
-  tr.item:nth-child(4n+1), tr.item:nth-child(4n+2) {
-    background: rgb(248, 248, 248);
-  }
-
-  tr.item:hover:nth-child(4n+1), tr.item:hover:nth-child(4n+2) {
-    background: rgb(228, 228, 228);
   }
 
   td.actions {
@@ -188,6 +183,26 @@ table {
     cursor:pointer;
     overflow: hidden;
     outline:none;
+  }
+}
+
+table:not(.collapsible) {
+  tr.item:nth-child(odd) {
+    background: rgb(248, 248, 248);
+  }
+
+  tr.item:hover:nth-child(odd) {
+    background: rgb(228, 228, 228);
+  }
+}
+
+table.collapsible {
+  tr.item:nth-child(4n+1), tr.item:nth-child(4n+2) {
+    background: rgb(248, 248, 248);
+  }
+
+  tr.item:hover:nth-child(4n+1), tr.item:hover:nth-child(4n+2) {
+    background: rgb(228, 228, 228);
   }
 }
 
