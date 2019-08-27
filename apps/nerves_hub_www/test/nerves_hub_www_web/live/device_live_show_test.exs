@@ -4,32 +4,24 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
   import Phoenix.ChannelTest
 
   alias NervesHubWebCore.{AuditLogs, Repo}
-  alias NervesHubWWWWeb.DeviceLive.Show
   alias NervesHubWWWWeb.Endpoint
 
   alias Phoenix.Socket.Broadcast
 
-  setup %{conn: conn, fixture: %{org: org, device: device, product: product}} do
-    # TODO: Use Plug.Conn.get_session/1 when upgraded to Plug >= 1.8
-    session =
-      conn.private.plug_session
-      |> Enum.into(%{}, fn {k, v} -> {String.to_atom(k), v} end)
-      |> Map.put(:org_id, org.id)
-      |> Map.put(:product_id, product.id)
-      |> Map.put(:device_id, device.id)
-
+  setup %{fixture: %{device: device}} do
     Endpoint.subscribe("device:#{device.id}")
-    [session: session]
   end
 
-  test "redirects on mount with unrecognized session structure" do
+  test "redirects on mount with unrecognized session structure", %{conn: conn, fixture: fixture} do
     home_path = Routes.home_path(Endpoint, :index)
-    assert {:error, %{redirect: ^home_path}} = mount(Endpoint, Show, session: "wat?! who der?!")
+    conn = clear_session(conn)
+    assert {:error, %{redirect: %{to: ^home_path}}} = live(conn, device_show_path(fixture))
   end
 
   describe "handle_event" do
-    test "reboot allowed", %{fixture: %{device: device}, session: session} do
-      {:ok, view, _html} = mount(Endpoint, Show, session: session)
+    test "reboot allowed", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
 
       before_audit_count = AuditLogs.logs_for(device) |> length
 
@@ -41,12 +33,14 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
       assert after_audit_count == before_audit_count + 1
     end
 
-    test "reboot blocked", %{fixture: %{device: device, user: user}, session: session} do
+    test "reboot blocked", %{conn: conn, fixture: fixture} do
+      %{device: device, user: user} = fixture
+
       Repo.preload(user, :org_users)
       |> Map.get(:org_users)
       |> Enum.map(&NervesHubWebCore.Accounts.change_org_user_role(&1, :read))
 
-      {:ok, view, _html} = mount(Endpoint, Show, session: session)
+      {:ok, view, _html} = live(conn, device_show_path(fixture))
 
       before_audit_count = AuditLogs.logs_for(device) |> length
 
@@ -59,18 +53,19 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
   end
 
   describe "handle_info" do
-    test "presence_diff with no change", %{session: session} do
+    test "presence_diff with no change", %{conn: conn, fixture: fixture} do
       payload = %{joins: %{}, leaves: %{}}
-      {:ok, view, html} = mount(Endpoint, Show, session: session)
+      {:ok, view, html} = live(conn, device_show_path(fixture))
 
       assert html =~ "offline"
       send(view.pid, %Broadcast{event: "presence_diff", payload: payload})
       assert render(view) =~ "offline"
     end
 
-    test "presence_diff with changes", %{fixture: %{device: device}, session: session} do
+    test "presence_diff with changes", %{conn: conn, fixture: fixture} do
+      %{device: device} = fixture
       payload = %{joins: %{"#{device.id}" => %{status: "online"}}, leaves: %{}}
-      {:ok, view, html} = mount(Endpoint, Show, session: session)
+      {:ok, view, html} = live(conn, device_show_path(fixture))
 
       assert html =~ "offline"
 
@@ -78,5 +73,9 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
 
       assert render(view) =~ "online"
     end
+  end
+
+  def device_show_path(%{device: device, org: org, product: product}) do
+    Routes.device_path(Endpoint, :show, org.name, product.name, device.identifier)
   end
 end

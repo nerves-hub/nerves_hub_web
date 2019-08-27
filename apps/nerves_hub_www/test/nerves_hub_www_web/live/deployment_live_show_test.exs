@@ -2,29 +2,18 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: false
 
   alias NervesHubWebCore.{AuditLogs, Repo}
-  alias NervesHubWWWWeb.{DeploymentLive.Show, Endpoint}
+  alias NervesHubWWWWeb.Endpoint
 
-  setup %{conn: conn, fixture: fixture} do
-    %{org: org, deployment: deployment, product: product} = fixture
-    # TODO: Use Plug.Conn.get_session/1 when upgraded to Plug >= 1.8
-    session =
-      conn.private.plug_session
-      |> Enum.into(%{}, fn {k, v} -> {String.to_atom(k), v} end)
-      |> Map.put(:org_id, org.id)
-      |> Map.put(:product_id, product.id)
-      |> Map.put(:deployment_id, deployment.id)
-
-    [session: session]
-  end
-
-  test "redirects on mount with unrecognized session structure" do
+  test "redirects on mount with unrecognized session structure", %{fixture: fixture, conn: conn} do
     home_path = Routes.home_path(Endpoint, :index)
-    assert {:error, %{redirect: ^home_path}} = mount(Endpoint, Show, session: "wat?! who der?!")
+    conn = clear_session(conn)
+    assert {:error, %{redirect: %{to: ^home_path}}} = live(conn, deployment_path(fixture, :show))
   end
 
   describe "handle_event" do
-    test "toggle active", %{fixture: %{deployment: deployment}, session: session} do
-      {:ok, view, _html} = mount(Endpoint, Show, session: session)
+    test "toggle active", %{fixture: fixture, conn: conn} do
+      %{deployment: deployment} = fixture
+      {:ok, view, _html} = live(conn, deployment_path(fixture, :show))
 
       before_audit_count = AuditLogs.logs_for(deployment) |> length
 
@@ -40,8 +29,9 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
       assert after_audit_count == before_audit_count + 1
     end
 
-    test "toggle inactive", %{fixture: %{deployment: deployment}, session: session} do
-      {:ok, view, _html} = mount(Endpoint, Show, session: session)
+    test "toggle inactive", %{fixture: fixture, conn: conn} do
+      %{deployment: deployment} = fixture
+      {:ok, view, _html} = live(conn, deployment_path(fixture, :show))
 
       before_audit_count = AuditLogs.logs_for(deployment) |> length
 
@@ -57,11 +47,10 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
       assert after_audit_count == before_audit_count + 1
     end
 
-    test "delete", %{
-      fixture: %{org: org, deployment: deployment, product: product},
-      session: session
-    } do
-      {:ok, view, _html} = mount(Endpoint, Show, session: session)
+    test "delete", %{fixture: fixture, conn: conn} do
+      %{org: org, deployment: deployment, product: product} = fixture
+
+      {:ok, view, _html} = live(conn, deployment_path(fixture, :show))
 
       path = Routes.deployment_path(Endpoint, :index, org.name, product.name)
 
@@ -78,5 +67,9 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
                "name" => deployment.name
              }
     end
+  end
+
+  def deployment_path(%{deployment: deployment, org: org, product: product}, type) do
+    Routes.deployment_path(Endpoint, type, org.name, product.name, deployment.name)
   end
 end

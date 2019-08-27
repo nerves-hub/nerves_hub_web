@@ -3,39 +3,27 @@ defmodule NervesHubWWWWeb.DeviceLiveEditTest do
 
   alias NervesHubWWWWeb.Router.Helpers, as: Routes
 
-  alias NervesHubWWWWeb.DeviceLive.Edit
   alias NervesHubWWWWeb.Endpoint
 
-  setup %{conn: conn, fixture: %{org: org, device: device, product: product}} do
-    # TODO: Use Plug.Conn.get_session/1 when upgraded to Plug >= 1.8
-    session =
-      conn.private.plug_session
-      |> Enum.into(%{}, fn {k, v} -> {String.to_atom(k), v} end)
-      |> Map.put(:org_id, org.id)
-      |> Map.put(:product_id, product.id)
-      |> Map.put(:device_id, device.id)
-
-    [session: session]
-  end
-
-  test "redirects on mount with unrecognized session structure" do
+  test "redirects on mount with unrecognized session structure", %{conn: conn, fixture: fixture} do
     home_path = Routes.home_path(Endpoint, :index)
-    assert {:error, %{redirect: ^home_path}} = mount(Endpoint, Edit, session: "wat?! who der?!")
+    conn = clear_session(conn)
+    assert {:error, %{redirect: %{to: ^home_path}}} = live(conn, device_path(fixture, :edit))
   end
 
   describe "validate" do
-    test "valid tags allow submit", %{session: session} do
+    test "valid tags allow submit", %{conn: conn, fixture: fixture} do
       params = %{"device" => %{tags: "new,tags"}}
 
-      {:ok, view, _html} = mount(Endpoint, Edit, session: session)
+      {:ok, view, _html} = live(conn, device_path(fixture, :edit))
 
       assert render_change(view, :validate, params) =~ "new,tags"
     end
 
-    test "invalid tags prevent submit", %{session: session} do
+    test "invalid tags prevent submit", %{conn: conn, fixture: fixture} do
       params = %{"device" => %{tags: "this is one invalid tag"}}
 
-      {:ok, view, _html} = mount(Endpoint, Edit, session: session)
+      {:ok, view, _html} = live(conn, device_path(fixture, :edit))
 
       html = render_change(view, :validate, params)
       button_disabled = Floki.attribute(html, "button[type=submit]", "disabled") |> Floki.text()
@@ -47,18 +35,19 @@ defmodule NervesHubWWWWeb.DeviceLiveEditTest do
   end
 
   describe "save" do
-    test "redirects after saving valid tags", %{
-      fixture: %{org: org, device: device, product: product},
-      session: session
-    } do
+    test "redirects after saving valid tags", %{conn: conn, fixture: fixture} do
       params = %{"device" => %{tags: "new,tags"}}
 
-      {:ok, view, _html} = mount(Endpoint, Edit, session: session)
-      path = Routes.device_path(Endpoint, :show, org.name, product.name, device.identifier)
+      {:ok, view, _html} = live(conn, device_path(fixture, :edit))
+      path = device_path(fixture, :show)
 
       assert_redirect(view, ^path, fn ->
         assert render_submit(view, :save, params)
       end)
     end
+  end
+
+  def device_path(%{device: device, org: org, product: product}, type) do
+    Routes.device_path(Endpoint, type, org.name, product.name, device.identifier)
   end
 end
