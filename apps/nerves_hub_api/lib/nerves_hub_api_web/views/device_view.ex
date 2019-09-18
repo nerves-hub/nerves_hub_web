@@ -21,7 +21,8 @@ defmodule NervesHubAPIWeb.DeviceView do
       status: device_status(device),
       last_communication: last_communication(device),
       description: device.description,
-      firmware_metadata: device.firmware_metadata
+      firmware_metadata: device.firmware_metadata,
+      healthy: device.healthy
     }
   end
 
