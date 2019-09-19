@@ -42,7 +42,11 @@
               <% end %>
             <% end %>
           </td>
-          <td class="device"><%= device.status %></td>
+          <td class="device"> 
+            <%= health_status_icon(device) %>
+            <%= device.status %> 
+          </td> 
+          
           <td class="date-time">
             <%= if is_nil(device.last_communication) do %>
               never
