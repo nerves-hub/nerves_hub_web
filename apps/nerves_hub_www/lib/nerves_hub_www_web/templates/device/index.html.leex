@@ -55,7 +55,7 @@
           </td>
           <td class="actions">
             <%= link "", class: "fa fa-pencil-alt", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
-            <%= link "", class: "fa fa-trash-alt", to: Routes.device_path(@socket, :delete, @org.name, @product.name, device.identifier), method: :delete, data: [confirm: "Are you sure?", csrf: @csrf_token] %>
+            <%= link "", class: "fa fa-trash-alt", to: Routes.device_path(@socket, :delete, @org.name, @product.name, device.identifier), csrf_token: @csrf_token, method: :delete, data: [confirm: "Are you sure?"] %>
           </td>
         </tr>
       <% end %>
