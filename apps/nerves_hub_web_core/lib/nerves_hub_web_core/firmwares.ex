@@ -102,18 +102,21 @@ defmodule NervesHubWebCore.Firmwares do
   def create_firmware(org, filepath, params \\ %{}, opts \\ []) do
     upload_file_2 = opts[:upload_file_2] || (&@uploader.upload_file/2)
 
-    Repo.transaction(fn ->
-      with {:ok, params} <- build_firmware_params(org, filepath, params),
-           params <- set_ttl(org, params),
-           {:ok, firmware} <- insert_firmware(params),
-           :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
-        firmware
-      else
-        {:error, error} ->
-          Logger.error(fn -> "Error while publishing firmware: #{inspect(error)}" end)
-          Repo.rollback(error)
-      end
-    end)
+    Repo.transaction(
+      fn ->
+        with {:ok, params} <- build_firmware_params(org, filepath, params),
+             params <- set_ttl(org, params),
+             {:ok, firmware} <- insert_firmware(params),
+             :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
+          firmware
+        else
+          {:error, error} ->
+            Logger.error(fn -> "Error while publishing firmware: #{inspect(error)}" end)
+            Repo.rollback(error)
+        end
+      end,
+      timeout: 30_000
+    )
   end
 
   def delete_firmware(%Firmware{} = firmware) do
