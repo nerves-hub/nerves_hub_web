@@ -4,6 +4,10 @@ defmodule NervesHubWebCore.Types do
 
     def type, do: {:array, :string}
 
+    def embed_as(_), do: :self
+
+    def equal?(term1, term2), do: term1 == term2
+
     def cast(tags) when is_bitstring(tags) do
       tags
       |> String.split(",", trim: true)
@@ -30,6 +34,10 @@ defmodule NervesHubWebCore.Types do
     @behaviour Ecto.Type
 
     def type, do: :string
+
+    def embed_as(_), do: :self
+
+    def equal?(term1, term2), do: term1 == term2
 
     def cast(resource) when is_atom(resource) do
       resource

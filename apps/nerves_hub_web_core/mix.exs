@@ -50,7 +50,7 @@ defmodule NervesHubWebCore.MixProject do
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.0"},
       {:ecto_sql, "~> 3.0"},
-      {:ecto_enum, "~> 1.2"},
+      {:ecto_enum, github: "dnsbty/ecto_enum"},
       {:postgrex, "~> 0.14"},
       {:bcrypt_elixir, "~> 1.0"},
       {:comeonin, "~> 4.1"},
