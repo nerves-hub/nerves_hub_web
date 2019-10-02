@@ -287,7 +287,13 @@ defmodule NervesHubWebCore.Devices do
   end
 
   def received_communication(device) do
-    update_device(device, %{last_communication: DateTime.utc_now()})
+    last_communication = DateTime.utc_now()
+
+    AuditLogs.audit!(device, device, :update, %{
+      last_communication: last_communication
+    })
+
+    update_device(device, %{last_communication: last_communication})
   end
 
   def update_firmware_metadata(device, nil) do
