@@ -2,11 +2,13 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias NervesHubWebCore.Accounts.Org
   alias NervesHubWebCore.Devices.{Device, DeviceCertificate}
 
   @type t :: %__MODULE__{}
 
   @required_params [
+    :org_id,
     :device_id,
     :serial,
     :aki,
@@ -20,6 +22,7 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
 
   schema "device_certificates" do
     belongs_to(:device, Device)
+    belongs_to(:org, Org)
 
     field(:serial, :string)
     field(:aki, :binary)

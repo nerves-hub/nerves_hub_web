@@ -200,11 +200,12 @@ defmodule NervesHubWebCore.Fixtures do
   end
 
   def deployment_fixture(
+        %Org{} = org,
         %Firmwares.Firmware{} = firmware,
         params \\ %{}
       ) do
     {:ok, deployment} =
-      %{firmware_id: firmware.id}
+      %{org_id: org.id, firmware_id: firmware.id}
       |> Enum.into(params)
       |> Enum.into(@deployment_params)
       |> Deployments.create_deployment()
@@ -258,7 +259,7 @@ defmodule NervesHubWebCore.Fixtures do
     product = product_fixture(user, org, %{name: "Hop"})
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
-    deployment = deployment_fixture(firmware)
+    deployment = deployment_fixture(org, firmware)
     device = device_fixture(org, product, firmware)
     %{db_cert: device_certificate} = device_certificate_fixture(device)
 
@@ -281,7 +282,7 @@ defmodule NervesHubWebCore.Fixtures do
 
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
-    deployment = deployment_fixture(firmware)
+    deployment = deployment_fixture(org, firmware)
     device = device_fixture(org, product, firmware, %{tags: ["beta", "beta-edge"]})
     %{db_cert: device_certificate} = device_certificate_fixture(device)
 
@@ -303,7 +304,7 @@ defmodule NervesHubWebCore.Fixtures do
     product = product_fixture(user, org, %{name: "Smart Rent Thing"})
     org_key = org_key_fixture(org)
     firmware = firmware_fixture(org_key, product)
-    deployment = deployment_fixture(firmware)
+    deployment = deployment_fixture(org, firmware)
     device = device_fixture(org, product, firmware, %{identifier: "smartrent_1234"})
     %{db_cert: device_certificate} = device_certificate_fixture(device)
 

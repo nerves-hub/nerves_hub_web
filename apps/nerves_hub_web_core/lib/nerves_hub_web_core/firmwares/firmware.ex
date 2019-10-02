@@ -5,6 +5,7 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
   import Ecto.Query
 
   alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.Accounts.Org
   alias NervesHubWebCore.Accounts.OrgKey
   alias NervesHubWebCore.Deployments.Deployment
   alias NervesHubWebCore.Products.Product
@@ -22,6 +23,7 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
     :vcs_identifier
   ]
   @required_params [
+    :org_id,
     :architecture,
     :platform,
     :product_id,
@@ -31,11 +33,9 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
     :version,
     :size
   ]
-  @virtual_params [
-    :org_id
-  ]
 
   schema "firmwares" do
+    belongs_to(:org, Org)
     belongs_to(:product, Product)
     belongs_to(:org_key, OrgKey)
     has_many(:deployments, Deployment)
@@ -45,7 +45,6 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
     field(:description, :string)
     field(:size, :integer)
     field(:misc, :string)
-    field(:org_id, :integer, virtual: true)
     field(:platform, :string)
     field(:ttl, :integer)
     field(:ttl_until, :utc_datetime)
@@ -59,8 +58,8 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
 
   def create_changeset(%Firmware{} = firmware, params) do
     firmware
-    |> cast(params, @required_params ++ @virtual_params ++ @optional_params)
-    |> validate_required(@required_params ++ @virtual_params)
+    |> cast(params, @required_params ++ @optional_params)
+    |> validate_required(@required_params)
     |> validate_limits()
     |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
     |> foreign_key_constraint(:deployments, name: :deployments_firmware_id_fkey)

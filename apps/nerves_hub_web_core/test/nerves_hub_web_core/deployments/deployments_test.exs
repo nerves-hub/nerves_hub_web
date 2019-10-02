@@ -11,14 +11,14 @@ defmodule NervesHubWebCore.DeploymentsTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    deployment = Fixtures.deployment_fixture(firmware)
+    deployment = Fixtures.deployment_fixture(org, firmware)
 
     user2 = Fixtures.user_fixture(%{username: "user2", email: "user2@test.com"})
     org2 = Fixtures.org_fixture(user2, %{name: "org2"})
     product2 = Fixtures.product_fixture(user2, org2)
     org_key2 = Fixtures.org_key_fixture(org2)
     firmware2 = Fixtures.firmware_fixture(org_key2, product2)
-    deployment2 = Fixtures.deployment_fixture(firmware2)
+    deployment2 = Fixtures.deployment_fixture(org2, firmware2)
 
     {:ok,
      %{
@@ -37,9 +37,11 @@ defmodule NervesHubWebCore.DeploymentsTest do
 
   describe "create deployment" do
     test "create_deployment with valid parameters", %{
+      org: org,
       firmware: firmware
     } do
       params = %{
+        org_id: org.id,
         firmware_id: firmware.id,
         name: "a different name",
         conditions: %{
@@ -57,11 +59,13 @@ defmodule NervesHubWebCore.DeploymentsTest do
     end
 
     test "deployments have unique names wrt product", %{
+      org: org,
       firmware: firmware,
       deployment: existing_deployment
     } do
       params = %{
         name: existing_deployment.name,
+        org_id: org.id,
         firmware_id: firmware.id,
         conditions: %{
           "version" => "< 1.0.0",
@@ -104,6 +108,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
 
       params = %{
         firmware_id: new_firmware.id,
+        org_id: org.id,
         name: "my deployment",
         conditions: %{
           "version" => "< 1.0.1",
@@ -142,6 +147,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
         new_firmware = Fixtures.firmware_fixture(org_key, product, f_params)
 
         params = %{
+          org_id: org.id,
           firmware_id: new_firmware.id,
           name: "my deployment #{d_params.identifier}",
           conditions: %{
@@ -173,6 +179,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
       params = %{
+        org_id: org.id,
         firmware_id: new_firmware.id,
         name: "my deployment",
         conditions: %{
@@ -209,6 +216,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
 
       params = %{
         firmware_id: new_firmware.id,
+        org_id: org.id,
         name: "my deployment",
         conditions: %{
           "version" => "< 1.0.1",
@@ -247,6 +255,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
 
       params = %{
         firmware_id: new_firmware.id,
+        org_id: org.id,
         name: "my deployment",
         conditions: %{
           "version" => "< 1.0.1",

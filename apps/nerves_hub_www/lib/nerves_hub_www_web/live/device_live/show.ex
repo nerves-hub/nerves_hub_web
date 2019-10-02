@@ -1,6 +1,6 @@
 defmodule NervesHubWWWWeb.DeviceLive.Show do
   use NervesHubWWWWeb, :live_view
-
+  require Logger
   alias NervesHubDevice.Presence
 
   alias NervesHubWebCore.{Accounts, AuditLogs, Devices, Devices.Device, Repo, Products}

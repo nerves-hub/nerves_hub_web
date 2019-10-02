@@ -20,7 +20,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    deployment = Fixtures.deployment_fixture(firmware)
+    deployment = Fixtures.deployment_fixture(org, firmware)
     device = Fixtures.device_fixture(org, product, firmware)
 
     {:ok,
@@ -127,13 +127,14 @@ defmodule NervesHubWebCore.FirmwaresTest do
   end
 
   test "cannot delete firmware when it is referenced by deployment", %{
+    org: org,
     org_key: org_key,
     product: product
   } do
     firmware = Fixtures.firmware_fixture(org_key, product)
     assert File.exists?(firmware.upload_metadata[:local_path])
 
-    Fixtures.deployment_fixture(firmware, %{name: "a deployment"})
+    Fixtures.deployment_fixture(org, firmware, %{name: "a deployment"})
 
     assert {:error, %Changeset{}} = Firmwares.delete_firmware(firmware)
   end
@@ -236,6 +237,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       params = %{
+        org_id: org.id,
         firmware_id: firmware.id,
         name: "firmware ttl",
         conditions: %{
@@ -261,6 +263,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       params = %{
+        org_id: org.id,
         firmware_id: firmware.id,
         name: "firmware ttl",
         conditions: %{

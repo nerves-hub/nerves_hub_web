@@ -17,6 +17,7 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
 
       params = %{
         name: "test",
+        org_id: context.org.id,
         firmware: firmware.uuid,
         firmware_id: firmware.id,
         conditions: %{
@@ -26,10 +27,7 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
         is_active: false
       }
 
-      context
-      |> Map.put(:org_key, org_key)
-      |> Map.put(:firmware, firmware)
-      |> Map.put(:params, params)
+      [params: params, firmware: firmware, org_key: org_key]
     end
 
     test "renders deployment when data is valid", %{
@@ -134,7 +132,7 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
   defp create_deployment(%{org: org, product: product}) do
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    deployment = Fixtures.deployment_fixture(firmware)
+    deployment = Fixtures.deployment_fixture(org, firmware)
     {:ok, %{deployment: deployment}}
   end
 end

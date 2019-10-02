@@ -20,7 +20,7 @@ defmodule NervesHubWebCore.DevicesTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    deployment = Fixtures.deployment_fixture(firmware)
+    deployment = Fixtures.deployment_fixture(org, firmware)
     device = Fixtures.device_fixture(org, product, firmware)
     Fixtures.device_certificate_fixture(device)
 
@@ -334,6 +334,7 @@ defmodule NervesHubWebCore.DevicesTest do
     new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
     params = %{
+      org_id: org.id,
       firmware_id: new_firmware.id,
       name: "my deployment",
       conditions: %{
@@ -374,6 +375,7 @@ defmodule NervesHubWebCore.DevicesTest do
       new_firmware = Fixtures.firmware_fixture(org_key, product, f_params)
 
       params = %{
+        org_id: org.id,
         firmware_id: new_firmware.id,
         name: "my deployment #{d_params.identifier}",
         conditions: %{
@@ -402,7 +404,7 @@ defmodule NervesHubWebCore.DevicesTest do
     product: product
   } do
     old_deployment =
-      Fixtures.deployment_fixture(firmware, %{
+      Fixtures.deployment_fixture(org, firmware, %{
         name: "a different name",
         conditions: %{"tags" => ["beta", "beta-edge"], "version" => ""}
       })
@@ -421,6 +423,7 @@ defmodule NervesHubWebCore.DevicesTest do
     firmware2 = Fixtures.firmware_fixture(org_key, product2)
 
     params = %{
+      org_id: org.id,
       firmware_id: firmware2.id,
       name: "my deployment",
       conditions: %{

@@ -4,6 +4,7 @@ defmodule NervesHubWebCore.Deployments.Deployment do
   import Ecto.Changeset
   import Ecto.Query
 
+  alias NervesHubWebCore.Accounts.Org
   alias NervesHubWebCore.Firmwares.Firmware
   alias NervesHubWebCore.Products.Product
   alias NervesHubWebCore.Repo
@@ -11,7 +12,7 @@ defmodule NervesHubWebCore.Deployments.Deployment do
   alias __MODULE__
 
   @type t :: %__MODULE__{}
-  @required_fields [:firmware_id, :name, :conditions, :is_active, :product_id]
+  @required_fields [:org_id, :firmware_id, :name, :conditions, :is_active, :product_id]
   @optional_fields [
     :device_failure_threshold,
     :device_failure_rate_seconds,
@@ -25,6 +26,7 @@ defmodule NervesHubWebCore.Deployments.Deployment do
   schema "deployments" do
     belongs_to(:firmware, Firmware)
     belongs_to(:product, Product)
+    belongs_to(:org, Org)
 
     field(:conditions, :map)
     field(:device_failure_threshold, :integer, default: 3)
