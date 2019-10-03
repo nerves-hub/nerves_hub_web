@@ -553,9 +553,9 @@ defmodule NervesHubWebCore.DevicesTest do
     assert Devices.failure_threshold_met?(device, deployment)
   end
 
-  test "received_communication adds audit log", %{device: device} do
+  test "device_connected adds audit log", %{device: device} do
     assert AuditLogs.logs_for(device) == []
-    Devices.received_communication(device)
+    Devices.device_connected(device)
     assert [%AuditLog{description: desc}] = AuditLogs.logs_for(device)
     assert desc =~ "device #{device.identifier} connected to the server"
   end
