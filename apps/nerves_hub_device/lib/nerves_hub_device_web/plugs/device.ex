@@ -17,7 +17,7 @@ defmodule NervesHubDeviceWeb.Plugs.Device do
          {:ok, device} <- Devices.get_device_by_certificate(cert),
          {:ok, metadata} <- Firmwares.metadata_from_conn(conn),
          {:ok, device} <- Devices.update_firmware_metadata(device, metadata),
-         {:ok, device} <- Devices.received_communication(device) do
+         {:ok, device} <- Devices.device_connected(device) do
       assign(conn, :device, device)
     else
       _err ->

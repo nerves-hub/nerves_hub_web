@@ -30,7 +30,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
-         {:ok, device} <- Devices.received_communication(device) do
+         {:ok, device} <- Devices.device_connected(device) do
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
       deployments = Devices.get_eligible_deployments(device)
       join_reply = Devices.resolve_update(device, deployments)

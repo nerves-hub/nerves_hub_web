@@ -286,7 +286,7 @@ defmodule NervesHubWebCore.Devices do
     Repo.delete(ca_certificate)
   end
 
-  def received_communication(device) do
+  def device_connected(device) do
     last_communication = DateTime.utc_now()
 
     AuditLogs.audit!(device, device, :update, %{
