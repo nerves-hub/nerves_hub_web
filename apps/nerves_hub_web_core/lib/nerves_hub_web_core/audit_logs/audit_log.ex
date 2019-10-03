@@ -221,6 +221,16 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
     %{audit_log | description: description}
   end
 
+  def create_description(
+        %{params: %{last_communication: _}} = audit_log,
+        %Device{} = actor,
+        %Device{}
+      ) do
+    desc = "#{identifier_for(actor)} connected to the server"
+
+    %{audit_log | description: desc}
+  end
+
   def create_description(audit_log, actor, resource) do
     desc =
       "#{identifier_for(actor)} performed unknown #{audit_log.action} on #{
