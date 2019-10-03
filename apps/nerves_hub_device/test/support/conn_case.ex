@@ -45,7 +45,7 @@ defmodule NervesHubDeviceWeb.ConnCase do
     %{cert: cert, db_cert: device_cert} = Fixtures.device_certificate_fixture(device)
 
     deployment =
-      Fixtures.deployment_fixture(firmware, %{
+      Fixtures.deployment_fixture(org, firmware, %{
         conditions: %{"tags" => device.tags, "version" => ""}
       })
 

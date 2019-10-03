@@ -162,6 +162,8 @@ defmodule NervesHubWebCore.Devices do
           {:ok, DeviceCertificate.t()}
           | {:error, Changeset.t()}
   def create_device_certificate(%Device{} = device, params) do
+    params = Map.put(params, :org_id, device.org_id)
+
     device
     |> Ecto.build_assoc(:device_certificates)
     |> DeviceCertificate.changeset(params)

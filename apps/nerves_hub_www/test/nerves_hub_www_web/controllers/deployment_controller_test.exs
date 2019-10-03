@@ -163,7 +163,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
     } do
       product = Fixtures.product_fixture(user, org)
       firmware = Fixtures.firmware_fixture(org_key, product)
-      deployment = Fixtures.deployment_fixture(firmware)
+      deployment = Fixtures.deployment_fixture(org, firmware)
 
       conn =
         get(conn, Routes.deployment_path(conn, :edit, org.name, product.name, deployment.name))
@@ -184,7 +184,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
     } do
       product = Fixtures.product_fixture(user, org)
       firmware = Fixtures.firmware_fixture(org_key, product)
-      deployment = Fixtures.deployment_fixture(firmware)
+      deployment = Fixtures.deployment_fixture(org, firmware)
 
       conn =
         put(
@@ -243,7 +243,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
     } do
       product = Fixtures.product_fixture(user, org)
       firmware = Fixtures.firmware_fixture(org_key, product)
-      deployment = Fixtures.deployment_fixture(firmware)
+      deployment = Fixtures.deployment_fixture(org, firmware)
 
       conn =
         delete(

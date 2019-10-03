@@ -22,7 +22,8 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
     :description,
     :params,
     :resource_id,
-    :resource_type
+    :resource_type,
+    :org_id
   ]
   @optional_params [:changes]
 
@@ -37,6 +38,8 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
   defenum(Action, :action, [:create, :update, :delete])
 
   schema "audit_logs" do
+    belongs_to(:org, Org)
+
     field(:action, Action)
     field(:actor_id, :id)
     field(:actor_type, Resource)
@@ -59,6 +62,7 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
       description: description,
       resource_id: resource.id,
       resource_type: resource_type,
+      org_id: resource.org_id,
       params: format_params(actor, resource, action, params)
     }
     |> add_changes(resource)

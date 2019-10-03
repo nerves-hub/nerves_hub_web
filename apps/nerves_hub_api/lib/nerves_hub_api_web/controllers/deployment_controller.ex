@@ -10,7 +10,7 @@ defmodule NervesHubAPIWeb.DeploymentController do
   plug(:validate_role, [product: :write] when action in [:create, :update])
   plug(:validate_role, [product: :read] when action in [:index, :show])
 
-  @whitelist_fields [:name, :firmware_id, :conditions, :is_active]
+  @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active]
 
   def index(%{assigns: %{product: product}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product.id)
@@ -25,6 +25,7 @@ defmodule NervesHubAPIWeb.DeploymentController do
       uuid ->
         with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
              params <- Map.put(params, "firmware_id", firmware.id),
+             params <- Map.put(params, "org_id", org.id),
              params <- whitelist(params, @whitelist_fields),
              {:ok, deployment} <- Deployments.create_deployment(params) do
           audit!(user, deployment, :create, params)
