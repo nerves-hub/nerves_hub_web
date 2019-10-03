@@ -32,8 +32,7 @@ defmodule NervesHubWWWWeb.Endpoint do
     socket(
       "/phoenix/live_reload/socket",
       Phoenix.LiveReloader.Socket,
-      websocket: true,
-      long_polling: true
+      websocket: true
     )
 
     plug(Phoenix.LiveReloader)
