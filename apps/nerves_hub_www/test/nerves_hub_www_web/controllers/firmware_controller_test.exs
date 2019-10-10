@@ -190,6 +190,25 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
       assert redirected_to(conn) == Routes.firmware_path(conn, :index, org.name, product.name)
       assert Firmwares.get_firmware(org, firmware.id) == {:error, :not_found}
     end
+
+    test "error when firmware has associated deployments", %{
+      conn: conn,
+      user: user,
+      org: org
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      # Create a deployment from the firmware
+      Fixtures.deployment_fixture(org, firmware)
+
+      conn =
+        delete(conn, Routes.firmware_path(conn, :delete, org.name, product.name, firmware.uuid))
+
+      assert redirected_to(conn) == Routes.firmware_path(conn, :index, org.name, product.name)
+      assert get_flash(conn, :error) =~ "Firmware has associated deployments"
+    end
   end
 
   describe "download firmware" do
