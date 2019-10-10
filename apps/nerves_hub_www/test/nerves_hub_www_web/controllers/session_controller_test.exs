@@ -31,7 +31,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
         post(
           conn,
           Routes.session_path(conn, :create),
-          login: %{email: user.email, password: user.password}
+          login: %{email_or_username: user.email, password: user.password}
         )
 
       assert redirected_to(conn) == Routes.product_path(conn, :index, user.username)
@@ -45,7 +45,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
         post(
           conn,
           Routes.session_path(conn, :create),
-          login: %{email: user.email, password: user.password}
+          login: %{email_or_username: user.email, password: user.password}
         )
 
       assert redirected_to(conn) == Routes.org_path(conn, :new)
