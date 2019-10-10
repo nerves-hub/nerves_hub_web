@@ -26,7 +26,23 @@ defmodule NervesHubWWWWeb.SessionController do
   def create(conn, %{"login" => %{"email" => email, "password" => password}}) do
     email
     |> Accounts.authenticate(password)
-    |> case do
+    |> render_create_session(conn)
+  end
+
+  def create(conn, %{"login" => %{"username" => username, "password" => password}}) do
+    username
+    |> Accounts.authenticate_with_username(password)
+    |> render_create_session(conn)
+  end
+
+  def delete(conn, _params) do
+    conn
+    |> delete_session(@session_key)
+    |> redirect(to: "/")
+  end
+
+  defp render_create_session(account, conn) do
+    case account do
       {:ok, user} ->
         conn
         |> put_session(@session_key, user.id)
@@ -38,6 +54,7 @@ defmodule NervesHubWWWWeb.SessionController do
         |> redirect(to: Routes.session_path(conn, :new))
     end
   end
+<<<<<<< HEAD
 
   def delete(conn, _params) do
     conn
@@ -48,4 +65,6 @@ defmodule NervesHubWWWWeb.SessionController do
   defp redirect_path_after_login(conn, user) do
     get_session(conn, :login_redirect_path) || Routes.product_path(conn, :index, user.username)
   end
+=======
+>>>>>>> Allow authenticating with username instea of email
 end

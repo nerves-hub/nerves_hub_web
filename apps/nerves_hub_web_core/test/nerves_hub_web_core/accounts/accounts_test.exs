@@ -182,6 +182,38 @@ defmodule NervesHubWebCore.AccountsTest do
     end
   end
 
+  describe "authenticate_with_username" do
+    setup do
+      user_params = %{
+        orgs: [%{name: "test org 1"}],
+        username: "Testy-McTesterson",
+        email: "testy@mctesterson.com",
+        password: "test_password"
+      }
+
+      {:ok, user} = Accounts.create_user(user_params)
+
+      {:ok, %{user: user}}
+    end
+
+    test "with valid credentials", %{user: user} do
+      target_username = user.username
+
+      assert {:ok, %User{username: ^target_username, orgs: [%Org{}]}} =
+               Accounts.authenticate_with_username(user.username, user.password)
+    end
+
+    test "with invalid credentials", %{user: user} do
+      assert {:error, :authentication_failed} =
+               Accounts.authenticate_with_username(user.username, "wrong password")
+    end
+
+    test "with non existent user username" do
+      assert {:error, :authentication_failed} =
+               Accounts.authenticate_with_username("non existent username", "wrong password")
+    end
+  end
+
   test "authenticate with an email address with a capital letter" do
     expected_email = "ThatsTesty@mctesterson.com"
 
