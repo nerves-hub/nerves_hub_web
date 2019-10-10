@@ -93,11 +93,18 @@ defmodule NervesHubWWWWeb.FirmwareController do
   end
 
   def delete(%{assigns: %{org: org, product: product}} = conn, %{"firmware_uuid" => uuid}) do
-    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
-         :ok <- Firmwares.delete_firmware(firmware) do
-      conn
-      |> put_flash(:info, "Firmware successfully deleted")
-      |> redirect(to: Routes.firmware_path(conn, :index, org.name, product.name))
+    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+      case Firmwares.delete_firmware(firmware) do
+        :ok ->
+          conn
+          |> put_flash(:info, "Firmware successfully deleted")
+          |> redirect(to: Routes.firmware_path(conn, :index, org.name, product.name))
+
+        {:error, %Ecto.Changeset{errors: [deployments: _]}} ->
+          conn
+          |> put_flash(:error, "Firmware has associated deployments")
+          |> redirect(to: Routes.firmware_path(conn, :index, org.name, product.name))
+      end
     end
   end
 end
