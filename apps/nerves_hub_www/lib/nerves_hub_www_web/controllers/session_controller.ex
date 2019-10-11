@@ -29,12 +29,6 @@ defmodule NervesHubWWWWeb.SessionController do
     |> render_create_session(conn)
   end
 
-  def create(conn, %{"login" => %{"username" => username, "password" => password}}) do
-    username
-    |> Accounts.authenticate_with_username(password)
-    |> render_create_session(conn)
-  end
-
   def delete(conn, _params) do
     conn
     |> delete_session(@session_key)

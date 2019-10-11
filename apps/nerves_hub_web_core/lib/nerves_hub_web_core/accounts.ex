@@ -227,31 +227,17 @@ defmodule NervesHubWebCore.Accounts do
   end
 
   @doc """
-  Authenticates a user by their username and password. Returns the user if the
-  user is found and the password is correct, otherwise nil.
-  """
-  @spec authenticate_with_username(String.t(), String.t()) ::
-          {:ok, User.t()}
-          | {:error, :authentication_failed}
-  def authenticate_with_username(username, password) do
-    user = Repo.get_by(User, username: username)
-
-    do_authenticate(user, password)
-  end
-
-  @doc """
   Authenticates a user by their email and password. Returns the user if the
   user is found and the password is correct, otherwise nil.
   """
   @spec authenticate(String.t(), String.t()) ::
           {:ok, User.t()}
           | {:error, :authentication_failed}
-  def authenticate(email, password) do
-    user = Repo.get_by(User, email: email)
-    do_authenticate(user, password)
-  end
+  def authenticate(email_or_username, password) do
+    user =
+      from(u in User, where: u.username == ^email_or_username or u.email == ^email_or_username)
+      |> Repo.one()
 
-  defp do_authenticate(user, password) do
     with %User{} <- user,
          true <- Bcrypt.checkpw(password, user.password_hash) do
       {:ok, user |> User.with_default_org() |> User.with_org_keys()}
