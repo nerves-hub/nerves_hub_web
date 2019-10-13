@@ -30,7 +30,7 @@ defmodule NervesHubWWWWeb.SessionController do
       {:ok, user} ->
         conn
         |> put_session(@session_key, user.id)
-        |> redirect(to: Routes.product_path(conn, :index, user.username))
+        |> redirect(to: redirect_path_after_login(conn, user))
 
       {:error, :authentication_failed} ->
         conn
@@ -43,5 +43,9 @@ defmodule NervesHubWWWWeb.SessionController do
     conn
     |> delete_session(@session_key)
     |> redirect(to: "/")
+  end
+
+  defp redirect_path_after_login(conn, user) do
+    get_session(conn, :friendly_redirect_path) || Routes.product_path(conn, :index, user.username)
   end
 end
