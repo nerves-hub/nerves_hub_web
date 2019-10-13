@@ -21,7 +21,7 @@ defmodule NervesHubWWWWeb.DeviceLiveEditTest do
     end
 
     test "invalid tags prevent submit", %{conn: conn, fixture: fixture} do
-      params = %{"device" => %{tags: "this is one invalid tag"}}
+      params = %{"device" => %{tags: " "}}
 
       {:ok, view, _html} = live(conn, device_path(fixture, :edit))
 
@@ -30,7 +30,7 @@ defmodule NervesHubWWWWeb.DeviceLiveEditTest do
       error_text = Floki.find(html, "span.help-block") |> Floki.text()
 
       assert button_disabled == "disabled"
-      assert error_text == "tags cannot contain spaces"
+      assert error_text == "should have at least 1 item(s)"
     end
   end
 
