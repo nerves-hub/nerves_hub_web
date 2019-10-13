@@ -15,7 +15,7 @@
 
 <%= form_for @changeset, "#", [phx_change: :validate, phx_submit: :save], fn f -> %>
   <div class="form-group">
-    <label for="tags"><strong>Tags</strong> <i>(comma delimited)<i/></label>
+    <label for="tags"><strong>Tags</strong> <i>(separated by spaces or commas)<i/></label>
     <%= text_input f, :tags, class: "form-control", id: "tags", value: tags_to_string(@changeset) %>
     <div class="has-error"><%= error_tag f, :tags %></div>
   </div>

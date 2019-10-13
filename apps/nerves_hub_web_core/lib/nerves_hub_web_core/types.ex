@@ -10,18 +10,14 @@ defmodule NervesHubWebCore.Types do
 
     def cast(tags) when is_bitstring(tags) do
       tags
-      |> String.split(",", trim: true)
+      |> String.split([" ", ","], trim: true)
       |> Stream.map(&String.trim/1)
       |> Enum.reject(&(byte_size(&1) == 0))
       |> cast()
     end
 
     def cast(tags) when is_list(tags) do
-      if Enum.any?(tags, &(32 in to_charlist(&1))) do
-        {:error, message: "tags cannot contain spaces"}
-      else
-        Ecto.Type.cast(type(), tags)
-      end
+      Ecto.Type.cast(type(), tags)
     end
 
     def cast(_tag), do: :error

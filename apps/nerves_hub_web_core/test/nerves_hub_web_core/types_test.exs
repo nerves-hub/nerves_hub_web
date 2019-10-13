@@ -37,4 +37,24 @@ defmodule NervesHubWebCore.TypesTest do
       assert Types.Resource.load(to_string(AuditLog)) == {:ok, AuditLog}
     end
   end
+
+  describe "tag" do
+    test "type" do
+      assert Types.Tag.type() == {:array, :string}
+    end
+
+    test "cast" do
+      # Valid cast
+      assert Types.Tag.cast("foo, bar") == {:ok, ["foo", "bar"]}
+      assert Types.Tag.cast("foo, bar baz") == {:ok, ["foo", "bar", "baz"]}
+
+      assert Types.Tag.cast("dont forget to like and subscribe") ==
+               {:ok, ["dont", "forget", "to", "like", "and", "subscribe"]}
+
+      assert Types.Tag.cast(["foo", "bar"]) == {:ok, ["foo", "bar"]}
+
+      # Invalid cast
+      assert Types.Tag.cast(:some_atom) == :error
+    end
+  end
 end
