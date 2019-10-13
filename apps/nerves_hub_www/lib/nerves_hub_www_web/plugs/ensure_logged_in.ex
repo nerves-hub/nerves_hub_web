@@ -23,9 +23,11 @@ defmodule NervesHubWWWWeb.Plugs.EnsureLoggedIn do
         conn
         |> assign(:user, user)
         |> assign(:user_token, Phoenix.Token.sign(conn, "user salt", user.id))
+        |> delete_session(:friendly_redirect_path)
 
       _ ->
         conn
+        |> put_session(:friendly_redirect_path, conn.request_path)
         |> Controller.put_flash(:error, "You must login to access this page.")
         |> Controller.redirect(to: "/")
         |> halt()
