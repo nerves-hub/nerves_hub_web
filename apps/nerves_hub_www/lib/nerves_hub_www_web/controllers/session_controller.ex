@@ -46,6 +46,6 @@ defmodule NervesHubWWWWeb.SessionController do
   end
 
   defp redirect_path_after_login(conn, user) do
-    get_session(conn, :friendly_redirect_path) || Routes.product_path(conn, :index, user.username)
+    get_session(conn, :login_redirect_path) || Routes.product_path(conn, :index, user.username)
   end
 end
