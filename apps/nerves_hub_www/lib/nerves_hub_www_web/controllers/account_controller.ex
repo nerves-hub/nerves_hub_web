@@ -76,7 +76,8 @@ defmodule NervesHubWWWWeb.AccountController do
   end
 
   def accept_invite(conn, %{"user" => user_params, "token" => token} = _) do
-    clean_params = whitelist(user_params, [:password, :username])
+    clean_params =
+      whitelist(user_params, [:password, :username]) |> IO.inspect(label: "CLEAN PARAMS")
 
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
@@ -84,7 +85,8 @@ defmodule NervesHubWWWWeb.AccountController do
              Accounts.create_user_from_invite(invite, org, clean_params) do
         # Now let everyone in the organization - except the new guy -
         # know about this new user.
-        instigator = conn.assigns.user.username
+        IO.inspect(new_org_user.user.username, label: "NEWUSER")
+        instigator = new_org_user.user.username
 
         email =
           Email.tell_org_user_added(
