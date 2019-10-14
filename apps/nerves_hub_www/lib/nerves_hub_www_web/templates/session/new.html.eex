@@ -5,9 +5,9 @@
     </div>
     <div class="modal-body">
       <div class="form-group">
-        <label for="email_input">Email</label>
-        <%= text_input f, :email, class: "form-control", id: "email_input" %>
-        <%= error_tag f, :email %>
+        <label for="email_or_username">Email/Username</label>
+        <%= text_input f, :email_or_username, class: "form-control", id: "email_or_username" %>
+        <%= error_tag f, :email_or_username %>
       </div>
 
       <div class="form-group">

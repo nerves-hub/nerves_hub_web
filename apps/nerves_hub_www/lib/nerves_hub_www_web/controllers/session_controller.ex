@@ -23,8 +23,10 @@ defmodule NervesHubWWWWeb.SessionController do
     end
   end
 
-  def create(conn, %{"login" => %{"email" => email, "password" => password}}) do
-    email
+  def create(conn, %{
+        "login" => %{"email_or_username" => email_or_username, "password" => password}
+      }) do
+    email_or_username
     |> Accounts.authenticate(password)
     |> render_create_session(conn)
   end
