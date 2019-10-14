@@ -43,13 +43,20 @@ defmodule NervesHubWebCore.Accounts.Email do
       generate_org_users_emails(org_users)
       |> Enum.filter(fn email -> email != new_user.email end)
 
+    email_subject =
+      if instigator do
+        "[NervesHub] User #{instigator} added #{new_user.username} to #{org.name}"
+      else
+        "[NervesHub] User #{new_user.username} added to #{org.name}"
+      end
+
     new_email()
     |> from(@from)
-    |> subject("[NervesHub] User #{instigator} added #{new_user.username} to #{org.name}")
+    |> subject(email_subject)
     |> to(@from)
     |> bcc(org_users_emails)
     |> put_layout({NervesHubWebCore.EmailView, :layout})
-    |> render("tell_org_user_added.html", instigator: instigator, user: new_user, org: org)
+    |> render("tell_org_user_added.html", user: new_user, org: org)
   end
 
   @doc """
