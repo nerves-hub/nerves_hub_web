@@ -22,7 +22,7 @@ defmodule NervesHubWebCore.EmailView do
     """
         <p>If you run into problems, please file an <a href="https://github.com/nerves-hub/nerves_hub_web/issues">issue</a> or email support@nerves-hub.org.</p>
         <p>Thanks,</p>
-        <p>Your frends at NervesHub</p>
+        <p>Your friends at NervesHub</p>
     """
   end
 end
