@@ -50,7 +50,6 @@ defmodule NervesHubWWWWeb.SessionController do
         |> redirect(to: Routes.session_path(conn, :new))
     end
   end
-<<<<<<< HEAD
 
   def delete(conn, _params) do
     conn
@@ -61,6 +60,4 @@ defmodule NervesHubWWWWeb.SessionController do
   defp redirect_path_after_login(conn, user) do
     get_session(conn, :login_redirect_path) || Routes.product_path(conn, :index, user.username)
   end
-=======
->>>>>>> Allow authenticating with username instea of email
 end
