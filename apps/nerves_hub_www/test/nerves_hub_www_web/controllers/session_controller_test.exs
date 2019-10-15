@@ -46,10 +46,14 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
           conn,
           Routes.session_path(conn, :create),
 <<<<<<< HEAD
+<<<<<<< HEAD
           login: %{email_or_username: user.email, password: user.password}
 =======
           login: %{email_or_username: user.username, password: user.password}
 >>>>>>> email field rename to email_or_username
+=======
+          login: %{email_or_username: user.email, password: user.password}
+>>>>>>> test fix
         )
 
       assert redirected_to(conn) == Routes.org_path(conn, :new)
