@@ -10,15 +10,15 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Last-Translator: fhunleth\n"
 "Language-Team: German\n"
-"PO-Revision-Date: 2019-06-26 23:16\n"
+"PO-Revision-Date: 2019-10-17 12:13\n"
 
 #: lib/nerves_hub_www_web/templates/account/new.html.eex:8
 #, elixir-format
 msgid "Username"
-msgstr ""
+msgstr "Benutzername"
 
 #: lib/nerves_hub_www_web/templates/account/invite.html.eex:2
 #, elixir-format
 msgid "You will be added to the %{organization_name} org"
-msgstr ""
+msgstr "Sie werden zur %{organization_name} Organisation hinzugefügt"
 
