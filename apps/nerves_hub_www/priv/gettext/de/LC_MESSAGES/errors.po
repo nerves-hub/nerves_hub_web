@@ -10,19 +10,19 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Last-Translator: fhunleth\n"
 "Language-Team: German\n"
-"PO-Revision-Date: 2019-06-26 23:16\n"
+"PO-Revision-Date: 2019-10-17 12:13\n"
 
 msgid "can't be blank"
-msgstr ""
+msgstr "muss ausgefüllt werden"
 
 msgid "has already been taken"
-msgstr ""
+msgstr "ist bereits vergeben"
 
 msgid "is invalid"
-msgstr ""
+msgstr "ist ungültig"
 
 msgid "must be accepted"
-msgstr ""
+msgstr "muss akzeptiert werden"
 
 msgid "has invalid format"
 msgstr ""
@@ -59,31 +59,31 @@ msgstr[1] ""
 
 msgid "should have at least %{count} item(s)"
 msgid_plural "should have at least %{count} item(s)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "sollte mindestens %{count} Element haben"
+msgstr[1] "sollte mindestens %{count} Elemente haben"
 
 msgid "should be at most %{count} character(s)"
 msgid_plural "should be at most %{count} character(s)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "darf höchstens %{count} Zeichen enthalten"
+msgstr[1] "darf höchstens %{count} Zeichen enthalten"
 
 msgid "should have at most %{count} item(s)"
 msgid_plural "should have at most %{count} item(s)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "darf höchstens %{count} Element haben"
+msgstr[1] "darf höchstens %{count} Elemente haben"
 
 msgid "must be less than %{number}"
-msgstr ""
+msgstr "muss kleiner als %{number} sein"
 
 msgid "must be greater than %{number}"
-msgstr ""
+msgstr "muss größer als %{number} sein"
 
 msgid "must be less than or equal to %{number}"
-msgstr ""
+msgstr "muss kleiner oder gleich %{number} sein"
 
 msgid "must be greater than or equal to %{number}"
-msgstr ""
+msgstr "muss größer oder gleich %{number} sein"
 
 msgid "must be equal to %{number}"
-msgstr ""
+msgstr "muss genau %{number} sein"
 
