@@ -73,6 +73,20 @@ defmodule NervesHubAPIWeb.FirmwareControllerTest do
 
       assert response(conn, 404)
     end
+
+    test "firmware delete with associated deployment", %{
+      conn: conn,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      Fixtures.deployment_fixture(org, firmware)
+
+      conn =
+        delete(conn, Routes.firmware_path(conn, :delete, org.name, product.name, firmware.uuid))
+
+      assert response(conn, 409)
+    end
   end
 
   defp create_firmware(%{org: org, product: product}) do
