@@ -41,6 +41,16 @@ defmodule NervesHubAPIWeb.FirmwareController do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
          :ok <- Firmwares.delete_firmware(firmware) do
       send_resp(conn, :no_content, "")
+    else
+      {:error, %Ecto.Changeset{errors: [deployments: _]}} ->
+        send_resp(conn, :conflict, "Firmware has associated deployments")
+
+      {:error, _} ->
+        send_resp(
+          conn,
+          :internal_server_error,
+          "Oops! Something went wrong.  Please try again..."
+        )
     end
   end
 end
