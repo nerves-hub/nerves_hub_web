@@ -39,7 +39,7 @@ defmodule NervesHubWebCore.Application do
 
           DateTime.diff(job.scheduled_at, DateTime.utc_now())
           |> abs()
-          # in we're right on the scheduled time
+          # right on the scheduled time
           |> Kernel.+(1)
           |> module.schedule_next!()
         end
