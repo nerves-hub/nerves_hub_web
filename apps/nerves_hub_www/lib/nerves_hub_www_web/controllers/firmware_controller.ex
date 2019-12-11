@@ -97,8 +97,8 @@ defmodule NervesHubWWWWeb.FirmwareController do
          :ok <- Firmwares.delete_firmware(firmware) do
       put_flash(conn, :info, "Firmware successfully deleted")
     else
-      {:error, %Ecto.Changeset{errors: [deployments: _]}} ->
-        put_flash(conn, :error, "Firmware has associated deployments")
+      {:error, %Ecto.Changeset{errors: [deployments: {reason, _}]}} ->
+        put_flash(conn, :error, reason)
 
       {:error, _} ->
         put_flash(conn, :error, "Oops! Something went wrong.  Please try again...")
