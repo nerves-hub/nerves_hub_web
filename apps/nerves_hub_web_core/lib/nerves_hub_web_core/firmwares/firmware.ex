@@ -77,7 +77,7 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
   def delete_changeset(%Firmware{} = firmware, params) do
     firmware
     |> cast(params, @required_params ++ @optional_params)
-    |> foreign_key_constraint(:deployments, name: :deployments_firmware_id_fkey)
+    |> no_assoc_constraint(:deployments, message: "Firmware has associated deployments")
   end
 
   defp validate_limits(%Ecto.Changeset{changes: %{org_id: org_id}} = cs) do
