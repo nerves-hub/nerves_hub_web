@@ -42,8 +42,8 @@ defmodule NervesHubAPIWeb.FirmwareController do
          :ok <- Firmwares.delete_firmware(firmware) do
       send_resp(conn, :no_content, "")
     else
-      {:error, %Ecto.Changeset{errors: [deployments: _]}} ->
-        send_resp(conn, :conflict, "Firmware has associated deployments")
+      {:error, %Ecto.Changeset{errors: [deployments: {reason, _}]}} ->
+        send_resp(conn, :conflict, reason)
 
       {:error, _} ->
         send_resp(

@@ -16,5 +16,15 @@ defmodule NervesHubWWWWeb.OrgUserControllerTest do
         assert html_response(conn, 200) =~ org_user.user.username
       end)
     end
+
+    test "user is able to invite users to org", %{conn: conn, org: org} do
+      conn = get(conn, Routes.org_user_path(conn, :index, org.name))
+      assert html_response(conn, 200) =~ "Invite user"
+    end
+
+    test "user is unable to invite users to user org", %{conn: conn, user: user} do
+      conn = get(conn, Routes.org_user_path(conn, :index, user.username))
+      refute html_response(conn, 200) =~ "Invite user"
+    end
   end
 end
