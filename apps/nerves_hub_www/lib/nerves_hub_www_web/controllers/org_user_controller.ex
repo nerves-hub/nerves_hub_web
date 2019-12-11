@@ -7,7 +7,8 @@ defmodule NervesHubWWWWeb.OrgUserController do
     conn
     |> render(
       "index.html",
-      org_users: Accounts.get_org_users(org)
+      org_users: Accounts.get_org_users(org),
+      org: org
     )
   end
 end
