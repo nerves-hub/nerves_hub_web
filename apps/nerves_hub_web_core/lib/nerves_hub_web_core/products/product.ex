@@ -43,4 +43,10 @@ defmodule NervesHubWebCore.Products.Product do
     |> validate_required(@required_params)
     |> unique_constraint(:name, name: :products_org_id_name_index)
   end
+
+  def delete_changeset(product, params \\ %{}) do
+    product
+    |> cast(params, @required_params ++ @optional_params)
+    |> no_assoc_constraint(:firmwares, message: "Product has associated firmwares")
+  end
 end

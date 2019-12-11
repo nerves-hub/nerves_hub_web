@@ -49,6 +49,21 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
       conn = get(conn, path)
       assert html_response(conn, 404)
     end
+
+    test "error when product has associated firmwares", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      # Create a firmware for the product
+      org_key = Fixtures.org_key_fixture(org)
+      Fixtures.firmware_fixture(org_key, product)
+
+      conn = delete(conn, Routes.product_path(conn, :delete, org.name, product.name))
+
+      assert redirected_to(conn) == Routes.product_path(conn, :index, org.name)
+      assert get_flash(conn, :error) =~ "Product has associated firmwares"
+    end
   end
 
   defp create_product(%{user: user, org: org}) do
