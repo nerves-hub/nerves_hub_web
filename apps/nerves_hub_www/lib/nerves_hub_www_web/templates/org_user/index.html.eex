@@ -4,6 +4,14 @@
       User Roles
     </h2>
   </div>
+  <%= if @org.type != :user do %>
+  <div class="col-3 mr-auto table-head-link">
+    <a href="<%= Routes.org_path(@conn, :invite, @org.name) %>">
+      <span class="fa fa-plus fa-fw mr-3"></span>
+      <span class="text">Invite user</span>
+    </a>
+  </div>
+  <% end %>
 </div>
 <div class="row">
   <table class="table table-sm table-hover">
