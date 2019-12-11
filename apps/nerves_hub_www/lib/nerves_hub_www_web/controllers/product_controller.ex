@@ -61,10 +61,15 @@ defmodule NervesHubWWWWeb.ProductController do
   end
 
   def delete(%{assigns: %{org: org, product: product}} = conn, _params) do
-    {:ok, _product} = Products.delete_product(product)
+    with {:ok, _product} <- Products.delete_product(product) do
+      put_flash(conn, :info, "Product deleted successfully.")
+    else
+      {:error, %Ecto.Changeset{errors: [firmwares: {reason, _}]}} ->
+        put_flash(conn, :error, reason)
 
-    conn
-    |> put_flash(:info, "Product deleted successfully.")
+      {:error, _} ->
+        put_flash(conn, :error, "Oops! Something went wrong.  Please try again...")
+    end
     |> redirect(to: Routes.product_path(conn, :index, org.name))
   end
 end

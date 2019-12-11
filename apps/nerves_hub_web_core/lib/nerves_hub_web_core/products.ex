@@ -198,7 +198,9 @@ defmodule NervesHubWebCore.Products do
 
   """
   def delete_product(%Product{} = product) do
-    Repo.delete(product)
+    product
+    |> Product.delete_changeset()
+    |> Repo.delete()
   end
 
   @doc """
