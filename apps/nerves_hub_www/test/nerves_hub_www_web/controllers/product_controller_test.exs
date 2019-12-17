@@ -59,9 +59,14 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
       org_key = Fixtures.org_key_fixture(org)
       Fixtures.firmware_fixture(org_key, product)
 
-      conn = delete(conn, Routes.product_path(conn, :delete, org.name, product.name))
+      redirect_path = Routes.product_path(conn, :index, org.name)
 
-      assert redirected_to(conn) == Routes.product_path(conn, :index, org.name)
+      conn =
+        conn
+        |> Plug.Conn.put_req_header("referer", redirect_path)
+        |> delete(Routes.product_path(conn, :delete, org.name, product.name))
+
+      assert redirected_to(conn) == redirect_path
       assert get_flash(conn, :error) =~ "Product has associated firmwares"
     end
   end
