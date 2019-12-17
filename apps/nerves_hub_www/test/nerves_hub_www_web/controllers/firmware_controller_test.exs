@@ -203,10 +203,14 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
       # Create a deployment from the firmware
       Fixtures.deployment_fixture(org, firmware)
 
-      conn =
-        delete(conn, Routes.firmware_path(conn, :delete, org.name, product.name, firmware.uuid))
+      redirect_path = Routes.firmware_path(conn, :index, org.name, product.name)
 
-      assert redirected_to(conn) == Routes.firmware_path(conn, :index, org.name, product.name)
+      conn =
+        conn
+        |> Plug.Conn.put_req_header("referer", redirect_path)
+        |> delete(Routes.firmware_path(conn, :delete, org.name, product.name, firmware.uuid))
+
+      assert redirected_to(conn) == redirect_path
       assert get_flash(conn, :error) =~ "Firmware has associated deployments"
     end
   end
