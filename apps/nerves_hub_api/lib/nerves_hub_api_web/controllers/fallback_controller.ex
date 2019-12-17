@@ -8,7 +8,7 @@ defmodule NervesHubAPIWeb.FallbackController do
 
   def call(conn, {:error, %Ecto.Changeset{} = changeset}) do
     conn
-    |> put_status(:unprocessable_entity)
+    |> put_status_from_changeset(changeset)
     |> put_view(NervesHubAPIWeb.ChangesetView)
     |> render("error.json", changeset: changeset)
   end
@@ -33,5 +33,24 @@ defmodule NervesHubAPIWeb.FallbackController do
     |> put_status(500)
     |> put_view(NervesHubAPIWeb.ErrorView)
     |> render(:"500", %{reason: reason})
+  end
+
+  defp put_status_from_changeset(conn, changeset) do
+    status = status_from_changeset_errors(changeset.errors)
+    put_status(conn, status)
+  end
+
+  defp status_from_changeset_errors(errors) do
+    [{error, _} | _] = errors
+
+    if conflict_error?(error) do
+      :conflict
+    else
+      :unprocessable_entity
+    end
+  end
+
+  defp conflict_error?(error) do
+    error in [:deployments, :firmwares]
   end
 end
