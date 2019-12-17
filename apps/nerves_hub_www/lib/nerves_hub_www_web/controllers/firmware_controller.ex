@@ -5,7 +5,9 @@ defmodule NervesHubWWWWeb.FirmwareController do
   alias NervesHubWebCore.Firmwares
   alias NervesHubWebCore.Firmwares.Firmware
 
-  # plug :validate_role, [product: :delete] when action in [:delete]
+  action_fallback(NervesHubWWWWeb.FallbackController)
+
+  # plug(:validate_role, [product: :delete] when action in [:delete])
   plug(:validate_role, [product: :write] when action in [:upload, :do_upload])
   plug(:validate_role, [product: :read] when action in [:index, :download])
 
@@ -95,14 +97,9 @@ defmodule NervesHubWWWWeb.FirmwareController do
   def delete(%{assigns: %{org: org, product: product}} = conn, %{"firmware_uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
          :ok <- Firmwares.delete_firmware(firmware) do
-      put_flash(conn, :info, "Firmware successfully deleted")
-    else
-      {:error, %Ecto.Changeset{errors: [deployments: {reason, _}]}} ->
-        put_flash(conn, :error, reason)
-
-      {:error, _} ->
-        put_flash(conn, :error, "Oops! Something went wrong.  Please try again...")
+      conn
+      |> put_flash(:info, "Firmware successfully deleted")
+      |> redirect(to: Routes.firmware_path(conn, :index, org.name, product.name))
     end
-    |> redirect(to: Routes.firmware_path(conn, :index, org.name, product.name))
   end
 end

@@ -4,6 +4,8 @@ defmodule NervesHubWWWWeb.ProductController do
   alias NervesHubWebCore.Products
   alias NervesHubWebCore.Products.Product
 
+  action_fallback(NervesHubWWWWeb.FallbackController)
+
   plug(:validate_role, [org: :write] when action in [:new, :create])
   plug(:validate_role, [org: :read] when action in [:index])
   plug(:validate_role, [org: :delete] when action in [:delete])
@@ -62,14 +64,9 @@ defmodule NervesHubWWWWeb.ProductController do
 
   def delete(%{assigns: %{org: org, product: product}} = conn, _params) do
     with {:ok, _product} <- Products.delete_product(product) do
-      put_flash(conn, :info, "Product deleted successfully.")
-    else
-      {:error, %Ecto.Changeset{errors: [firmwares: {reason, _}]}} ->
-        put_flash(conn, :error, reason)
-
-      {:error, _} ->
-        put_flash(conn, :error, "Oops! Something went wrong.  Please try again...")
+      conn
+      |> put_flash(:info, "Product deleted successfully.")
+      |> redirect(to: Routes.product_path(conn, :index, org.name))
     end
-    |> redirect(to: Routes.product_path(conn, :index, org.name))
   end
 end
