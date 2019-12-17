@@ -233,8 +233,10 @@ defmodule NervesHubWebCore.Accounts do
   @spec authenticate(String.t(), String.t()) ::
           {:ok, User.t()}
           | {:error, :authentication_failed}
-  def authenticate(email, password) do
-    user = Repo.get_by(User, email: email)
+  def authenticate(email_or_username, password) do
+    user =
+      from(u in User, where: u.username == ^email_or_username or u.email == ^email_or_username)
+      |> Repo.one()
 
     with %User{} <- user,
          true <- Bcrypt.checkpw(password, user.password_hash) do

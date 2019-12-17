@@ -4,6 +4,10 @@ web_host = "nerves-hub.org"
 web_port = 4000
 web_scheme = "http"
 
+ssl_dir =
+  (System.get_env("NERVES_HUB_CA_DIR") || Path.join([__DIR__, "../test/fixtures/ssl/"]))
+  |> Path.expand()
+
 config :logger, :console, format: "[$level] $message\n"
 config :phoenix, :stacktrace_depth, 20
 
@@ -21,9 +25,9 @@ config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
     otp_app: :nerves_hub_api,
     # Enable client SSL
     verify: :verify_peer,
-    keyfile: Path.expand("test/fixtures/ssl/api.nerves-hub.org-key.pem"),
-    certfile: Path.expand("test/fixtures/ssl/api.nerves-hub.org.pem"),
-    cacertfile: Path.expand("test/fixtures/ssl/ca.pem")
+    keyfile: Path.join(ssl_dir, "api.nerves-hub.org-key.pem"),
+    certfile: Path.join(ssl_dir, "api.nerves-hub.org.pem"),
+    cacertfile: Path.join(ssl_dir, "ca.pem")
   ]
 
 ##
@@ -42,9 +46,9 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
     verify: :verify_peer,
     verify_fun: {&NervesHubDevice.SSL.verify_fun/3, nil},
     fail_if_no_peer_cert: true,
-    keyfile: Path.expand("test/fixtures/ssl/device.nerves-hub.org-key.pem"),
-    certfile: Path.expand("test/fixtures/ssl/device.nerves-hub.org.pem"),
-    cacertfile: Path.expand("test/fixtures/ssl/ca.pem")
+    keyfile: Path.join(ssl_dir, "device.nerves-hub.org-key.pem"),
+    certfile: Path.join(ssl_dir, "device.nerves-hub.org.pem"),
+    cacertfile: Path.join(ssl_dir, "ca.pem")
   ]
 
 ##
@@ -69,7 +73,7 @@ config :nerves_hub_web_core, NervesHubWebCore.CertificateAuthority,
   host: "0.0.0.0",
   port: 8443,
   ssl: [
-    cacertfile: Path.join([__DIR__, "test/fixtures/ssl/ca.pem"]),
+    cacertfile: Path.join(ssl_dir, "ca.pem"),
     server_name_indication: 'ca.nerves-hub.org'
   ]
 

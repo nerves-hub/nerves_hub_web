@@ -44,6 +44,27 @@ defmodule NervesHubAPIWeb.UserControllerTest do
            }
   end
 
+  test "authenticate existing accounts with username instead of email" do
+    password = "12345678"
+
+    user =
+      Fixtures.user_fixture(%{
+        username: "new_user",
+        email: "account_test@test.com",
+        password: password
+      })
+
+    conn = build_conn()
+
+    conn =
+      post(conn, Routes.user_path(conn, :auth), %{username: user.username, password: password})
+
+    assert json_response(conn, 200)["data"] == %{
+             "username" => user.username,
+             "email" => user.email
+           }
+  end
+
   @tag :ca_integration
   test "sign new registration certificates" do
     subject = "/O=NervesHub/CN=username"
