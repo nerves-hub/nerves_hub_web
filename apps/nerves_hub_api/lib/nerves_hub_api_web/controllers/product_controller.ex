@@ -38,16 +38,6 @@ defmodule NervesHubAPIWeb.ProductController do
   def delete(%{assigns: %{product: product}} = conn, _params) do
     with {:ok, %Product{}} <- Products.delete_product(product) do
       send_resp(conn, :no_content, "")
-    else
-      {:error, %Ecto.Changeset{errors: [firmwares: {reason, _}]}} ->
-        send_resp(conn, :conflict, reason)
-
-      {:error, _} ->
-        send_resp(
-          conn,
-          :internal_server_error,
-          "Oops! Something went wrong.  Please try again..."
-        )
     end
   end
 
