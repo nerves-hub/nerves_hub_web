@@ -119,9 +119,10 @@ defmodule NervesHubWebCore.Fixtures do
     org_key
   end
 
-  def ca_certificate_fixture(%Accounts.Org{} = org) do
+  def ca_certificate_fixture(%Accounts.Org{} = org, opts \\ []) do
+    opts = Keyword.merge([template: :root_ca], opts)
     ca_key = X509.PrivateKey.new_ec(:secp256r1)
-    ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+    ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", opts)
 
     {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(ca)
 

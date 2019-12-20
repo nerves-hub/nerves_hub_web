@@ -274,6 +274,62 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       refute_receive({"presence_diff", _})
     end
 
+    test "vaild certificate expired signer can connect", %{user: user} do
+      org = Fixtures.org_fixture(user, %{name: "custom ca test"})
+      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
+
+      not_before = Timex.now() |> Timex.shift(days: -1)
+      not_after = Timex.now() |> Timex.shift(seconds: 1)
+
+      template =
+        X509.Certificate.Template.new(:root_ca,
+          validity: X509.Certificate.Validity.new(not_before, not_after)
+        )
+
+      %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org, template: template)
+
+      key = X509.PrivateKey.new_ec(:secp256r1)
+
+      cert =
+        key
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("CN=#{device.identifier}", ca, ca_key)
+
+      Fixtures.device_certificate_fixture(device, cert)
+
+      nerves_hub_ca_cert =
+        Path.expand("../../test/fixtures/ssl/ca.pem")
+        |> File.read!()
+        |> X509.Certificate.from_pem!()
+
+      opts = [
+        url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        serializer: Jason,
+        ssl_verify: :verify_peer,
+        transport_opts: [
+          socket_opts: [
+            cert: X509.Certificate.to_der(cert),
+            key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
+            cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
+            server_name_indication: 'device.nerves-hub.org'
+          ]
+        ]
+      ]
+
+      :timer.sleep(2_000)
+
+      {:ok, socket} = Socket.start_link(opts)
+      wait_for_socket(socket)
+      {:ok, _reply, _channel} = Channel.join(socket, "device")
+
+      device =
+        NervesHubWebCore.Repo.get(Device, device.id)
+        |> NervesHubWebCore.Repo.preload(:org)
+
+      assert Presence.device_status(device) == "online"
+      refute_receive({"presence_diff", _})
+    end
+
     test "ca signer last used is updated", %{user: user} do
       org = Fixtures.org_fixture(user, %{name: "ca cert is updated"})
 
