@@ -13,8 +13,25 @@ defmodule NervesHubDevice.SSL do
   end
 
   # The certificate failed peer validation.
-  # The next step is to check if we have a valid ca signer on file.
+  # The next step is to check what kind of cert we are validating
+  # If the authority key id and subject key id are the same, its a ca cert.
+  # Otherwise, its a device cert.
   def verify_fun(certificate, {:bad_cert, :unknown_ca}, state) do
+    aki = Certificate.get_aki(certificate)
+    ski = Certificate.get_ski(certificate)
+
+    if aki == ski do
+      verify_ca_certificate(certificate, state)
+    else
+      verify_device_certificate(certificate, state)
+    end
+  end
+
+  def verify_fun(_certificate, {:extension, _}, state) do
+    {:valid, state}
+  end
+
+  def verify_ca_certificate(certificate, state) do
     X509.Certificate.serial(certificate)
     |> to_string()
     |> Devices.get_ca_certificate_by_serial()
@@ -36,8 +53,14 @@ defmodule NervesHubDevice.SSL do
     end
   end
 
-  def verify_fun(_certificate, {:extension, _}, state) do
-    {:valid, state}
+  def verify_device_certificate(certificate, state) do
+    case Devices.get_device_certificate_by_x509(certificate) do
+      {:ok, _cert} ->
+        {:valid, state}
+
+      _ ->
+        {:fail, :unknown_ca}
+    end
   end
 
   def verify_device(certificate) do

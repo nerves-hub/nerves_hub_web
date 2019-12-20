@@ -124,4 +124,64 @@ defmodule NervesHubDevice.SSLTest do
     assert {:ok, ^db_cert1} = NervesHubDevice.SSL.verify_device(cert1)
     assert :error = NervesHubDevice.SSL.verify_device(cert2)
   end
+
+  describe "expired signer certificate" do
+    test "reject a first time use certificate", %{user: user} do
+      org = Fixtures.org_fixture(user, %{name: "verify_device"})
+
+      not_before = Timex.now() |> Timex.shift(days: -1)
+      not_after = Timex.now() |> Timex.shift(seconds: 1)
+
+      template =
+        X509.Certificate.Template.new(:root_ca,
+          validity: X509.Certificate.Validity.new(not_before, not_after)
+        )
+
+      %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org, template: template)
+
+      key = X509.PrivateKey.new_ec(:secp256r1)
+
+      cert =
+        key
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("CN=1234", ca, ca_key)
+
+      :timer.sleep(2_000)
+
+      assert {:fail, :unknown_ca} = NervesHubDevice.SSL.verify_device_certificate(cert, nil)
+    end
+
+    test "accept a (n) time use certificate", %{user: user} do
+      org = Fixtures.org_fixture(user, %{name: "verify_device"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      identifier = "1234"
+
+      not_before = Timex.now() |> Timex.shift(days: -1)
+      not_after = Timex.now() |> Timex.shift(seconds: 1)
+
+      template =
+        X509.Certificate.Template.new(:root_ca,
+          validity: X509.Certificate.Validity.new(not_before, not_after)
+        )
+
+      %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org, template: template)
+
+      key = X509.PrivateKey.new_ec(:secp256r1)
+
+      cert =
+        key
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("CN=#{identifier}", ca, ca_key)
+
+      device = Fixtures.device_fixture(org, product, firmware, %{identifier: identifier})
+      %{db_cert: _db_cert} = Fixtures.device_certificate_fixture(device, cert)
+
+      :timer.sleep(2_000)
+
+      assert {:valid, nil} = NervesHubDevice.SSL.verify_device_certificate(cert, nil)
+    end
+  end
 end
