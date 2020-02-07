@@ -231,7 +231,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
   describe "Custom CA Signers" do
     test "vaild certificate can connect", %{user: user} do
-      org = Fixtures.org_fixture(user, %{name: "custom ca test"})
+      org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
 
       %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org)
@@ -275,7 +275,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     end
 
     test "vaild certificate expired signer can connect", %{user: user} do
-      org = Fixtures.org_fixture(user, %{name: "custom ca test"})
+      org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
 
       not_before = Timex.now() |> Timex.shift(days: -1)
@@ -331,7 +331,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     end
 
     test "ca signer last used is updated", %{user: user} do
-      org = Fixtures.org_fixture(user, %{name: "ca cert is updated"})
+      org = Fixtures.org_fixture(user, %{name: "ca_cert_is_updated"})
 
       {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
 

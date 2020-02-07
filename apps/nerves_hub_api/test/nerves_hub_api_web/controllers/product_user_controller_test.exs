@@ -5,7 +5,7 @@ defmodule NervesHubAPIWeb.ProductUserControllerTest do
   alias NervesHubWebCore.Products
 
   setup context do
-    org = Fixtures.org_fixture(context.user, %{name: "api test"})
+    org = Fixtures.org_fixture(context.user, %{name: "api_test"})
     product = Fixtures.product_fixture(context.user, org, %{name: "api"})
 
     context
