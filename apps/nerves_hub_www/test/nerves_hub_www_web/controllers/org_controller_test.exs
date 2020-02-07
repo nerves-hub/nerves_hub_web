@@ -12,8 +12,8 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
 
   describe "create org" do
     test "redirects to edit when data is valid", %{conn: conn} do
-      conn = post(conn, Routes.org_path(conn, :create), org: %{name: "An Org"})
-      assert redirected_to(conn) == Routes.product_path(conn, :index, "An Org")
+      conn = post(conn, Routes.org_path(conn, :create), org: %{name: "An_Org"})
+      assert redirected_to(conn) == Routes.product_path(conn, :index, "An_Org")
     end
 
     test "renders errors when data is invalid", %{conn: conn} do
@@ -30,7 +30,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
 
     test "does not render form for org not on conn", %{conn: conn} do
       user = Fixtures.user_fixture(%{name: "secret-user"})
-      new_org = Fixtures.org_fixture(user, %{name: "Secret Org Name"})
+      new_org = Fixtures.org_fixture(user, %{name: "Secret_Org_Name"})
       conn = get(conn, Routes.org_path(conn, :edit, new_org.name))
       assert html_response(conn, 404)
     end
@@ -39,10 +39,10 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
   describe "update org" do
     test "cannot update wrong org", %{conn: conn} do
       user = Fixtures.user_fixture(%{email: "new@org.com"})
-      new_org = Fixtures.org_fixture(user, %{name: "Secret Org Name"})
+      new_org = Fixtures.org_fixture(user, %{name: "Secret_Org_Name"})
 
       conn =
-        put(conn, Routes.org_path(conn, :update, new_org.name), org: %{name: "Nefarious Name"})
+        put(conn, Routes.org_path(conn, :update, new_org.name), org: %{name: "Nefarious_Name"})
 
       assert html_response(conn, 404)
 
@@ -53,13 +53,13 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
 
       updated_conn = get(new_conn, Routes.org_path(conn, :edit, new_org.name))
 
-      refute html_response(updated_conn, 200) =~ "Nefarious Name"
+      refute html_response(updated_conn, 200) =~ "Nefarious_Name"
     end
 
     test "redirects when data is valid", %{conn: conn, org: org} do
-      conn = put(conn, Routes.org_path(conn, :update, org.name), org: %{name: "new name"})
+      conn = put(conn, Routes.org_path(conn, :update, org.name), org: %{name: "new_name"})
 
-      assert redirected_to(conn) == Routes.org_path(conn, :edit, "new name")
+      assert redirected_to(conn) == Routes.org_path(conn, :edit, "new_name")
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do

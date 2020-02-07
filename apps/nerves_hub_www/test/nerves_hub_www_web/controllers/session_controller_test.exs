@@ -11,7 +11,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
         password: "password"
       })
 
-    org = Fixtures.org_fixture(user, %{name: "my test org 1"})
+    org = Fixtures.org_fixture(user, %{name: "my_test_org_1"})
     {:ok, %{user: user, org: org}}
   end
 

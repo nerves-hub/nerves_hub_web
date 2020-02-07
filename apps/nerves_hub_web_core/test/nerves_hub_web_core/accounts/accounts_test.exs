@@ -68,7 +68,7 @@ defmodule NervesHubWebCore.AccountsTest do
 
   test "create_org with user" do
     user = Fixtures.user_fixture()
-    {:ok, %Org{} = org1} = Accounts.create_org(user, %{name: "An Org"})
+    {:ok, %Org{} = org1} = Accounts.create_org(user, %{name: "An_Org"})
     assert org1 in Accounts.get_user_orgs(user)
   end
 
@@ -283,7 +283,7 @@ defmodule NervesHubWebCore.AccountsTest do
     first_id = org.id
     org_key = Fixtures.org_key_fixture(org)
 
-    other_org = Fixtures.org_fixture(user, %{name: "another org"})
+    other_org = Fixtures.org_fixture(user, %{name: "another_org"})
 
     assert {:ok, %OrgKey{org_id: ^first_id}} =
              Accounts.update_org_key(org_key, %{org_id: other_org.id})

@@ -59,7 +59,7 @@ defmodule NervesHubWebCore.DevicesTest do
   end
 
   test "org cannot have too many devices", %{user: user} do
-    org = Fixtures.org_fixture(user, %{name: "an org with no devices"})
+    org = Fixtures.org_fixture(user, %{name: "an_org_with_no_devices"})
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
@@ -88,7 +88,7 @@ defmodule NervesHubWebCore.DevicesTest do
   end
 
   test "org device count limit can be raised", %{user: user} do
-    org = Fixtures.org_fixture(user, %{name: "an org with no devices"})
+    org = Fixtures.org_fixture(user, %{name: "an_org_with_no_devices"})
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)

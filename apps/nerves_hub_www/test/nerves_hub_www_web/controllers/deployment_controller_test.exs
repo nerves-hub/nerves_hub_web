@@ -65,7 +65,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
 
     test "redirects to firmware upload firmware_id is passed and no firmwares are found" do
       user = Fixtures.user_fixture(%{email: "new@org.com"})
-      org = Fixtures.org_fixture(user, %{name: "empty org"})
+      org = Fixtures.org_fixture(user, %{name: "empty_org"})
       product = Fixtures.product_fixture(user, org)
 
       conn =
