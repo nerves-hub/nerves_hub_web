@@ -29,6 +29,11 @@ defmodule NervesHubWebCore.AccountsTest do
     assert {:error, %Changeset{}} = Accounts.create_org(user, @required_org_params)
   end
 
+  test "create_org with invalid characters", %{user: user} do
+    assert {:error, %Changeset{}} = Accounts.create_org(user, %{name: "Org with space"})
+    assert {:error, %Changeset{}} = Accounts.create_org(user, %{name: "Org with %"})
+  end
+
   test "create_org_limits with defaults", %{user: user} do
     {:ok, %Org{} = result_org} = Accounts.create_org(user, @required_org_params)
     limits = Accounts.get_org_limit_by_org_id(result_org.id)
