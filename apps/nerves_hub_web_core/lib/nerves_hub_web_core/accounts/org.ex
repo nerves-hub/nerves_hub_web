@@ -42,6 +42,7 @@ defmodule NervesHubWebCore.Accounts.Org do
     |> cast(params, @params)
     |> validate_required(@params)
     |> unique_constraint(:name)
+    |> validate_format(:name, ~r/^[A-Za-z0-9-_]+$/)
   end
 
   def add_user(struct, params) do
