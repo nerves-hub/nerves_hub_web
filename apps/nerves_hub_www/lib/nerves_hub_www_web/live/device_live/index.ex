@@ -92,14 +92,20 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   defp do_sort(%{assigns: %{devices: devices, current_sort: current_sort}} = socket) do
     current_sort = String.to_existing_atom(current_sort)
-    devices = Enum.sort_by(devices, &Map.get(&1, current_sort), sorter(socket))
+    sorter = sorter(current_sort, socket.assigns.sort_direction)
+    devices = Enum.sort_by(devices, &Map.get(&1, current_sort), sorter)
     assign(socket, :devices, devices)
   end
 
-  defp sorter(%{assigns: %{sort_direction: :desc, current_sort: "last_communication"}}), do: &(DateTime.compare(&1, &2) != :lt)
-  defp sorter(%{assigns: %{current_sort: "last_communication"}}), do: &(DateTime.compare(&1, &2) == :lt)
-  defp sorter(%{assigns: %{sort_direction: :desc}}), do: &>=/2
-  defp sorter(_), do: &<=/2
+  defp sorter(:last_communication, :desc), do: &(date_order(&1, &2) != :lt)
+  defp sorter(:last_communication, :asc), do: &(date_order(&1, &2) == :lt)
+  defp sorter(_, :desc), do: &>=/2
+  defp sorter(_, :asc), do: &<=/2
+
+  defp date_order(nil, nil), do: :eq
+  defp date_order(_, nil), do: :gt
+  defp date_order(nil, _), do: :lt
+  defp date_order(a, b), do: DateTime.compare(a, b)
 
   defp sync_devices(devices, %{joins: joins, leaves: leaves}) do
     for device <- devices do
