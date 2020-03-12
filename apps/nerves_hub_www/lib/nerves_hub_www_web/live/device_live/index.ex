@@ -98,7 +98,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   end
 
   defp sorter(:last_communication, :desc), do: &(date_order(&1, &2) != :lt)
-  defp sorter(:last_communication, :asc), do: &(date_order(&1, &2) == :lt)
+  defp sorter(:last_communication, :asc), do: &(date_order(&1, &2) != :gt)
   defp sorter(_, :desc), do: &>=/2
   defp sorter(_, :asc), do: &<=/2
 
