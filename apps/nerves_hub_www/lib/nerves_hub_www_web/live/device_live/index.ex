@@ -96,6 +96,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     assign(socket, :devices, devices)
   end
 
+  defp sorter(%{assigns: %{sort_direction: :desc, current_sort: "last_communication"}}), do: &(DateTime.compare(&1, &2) != :lt)
+  defp sorter(%{assigns: %{current_sort: "last_communication"}}), do: &(DateTime.compare(&1, &2) == :lt)
   defp sorter(%{assigns: %{sort_direction: :desc}}), do: &>=/2
   defp sorter(_), do: &<=/2
 
