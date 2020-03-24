@@ -26,8 +26,12 @@ defmodule NervesHubWWWWeb.DeviceLiveEditTest do
       {:ok, view, _html} = live(conn, device_path(fixture, :edit))
 
       html = render_change(view, :validate, params)
-      button_disabled = Floki.attribute(html, "button[type=submit]", "disabled") |> Floki.text()
-      error_text = Floki.find(html, "span.help-block") |> Floki.text()
+      {:ok, document} = Floki.parse_document(html)
+
+      button_disabled =
+        Floki.attribute(document, "button[type=submit]", "disabled") |> Floki.text()
+
+      error_text = Floki.find(document, "span.help-block") |> Floki.text()
 
       assert button_disabled == "disabled"
       assert error_text == "tags cannot contain spaces"

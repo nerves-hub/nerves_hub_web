@@ -87,7 +87,7 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
-  watchers: [yarn: ["run", "watch", cd: Path.expand("../apps/nerves_hub_www/assets", __DIR__)]]
+  watchers: [npm: ["run", "watch", cd: Path.expand("../apps/nerves_hub_www/assets", __DIR__)]]
 
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   url: [scheme: web_scheme, host: web_host, port: web_port],

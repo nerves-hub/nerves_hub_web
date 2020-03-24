@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Assets.Install do
 
   def run(_) do
     System.cmd(
-      "yarn",
+      "npm",
       ["install"],
       cd: @assets,
       stderr_to_stdout: true,

@@ -32,8 +32,6 @@ cd nerves_hub_web
 asdf plugin-add nodejs
 bash ~/.asdf/plugins/nodejs/bin/import-release-team-keyring # this requires gpg to be installed
 asdf install $(cat .tool-versions | grep nodejs)
-npm install -g yarn
-asdf reshim $(cat .tool-versions | grep nodejs)
 ```
 
 On Debian/Ubuntu, you will also need to install the following packages:
@@ -75,7 +73,7 @@ echo "127.0.0.1 nerves-hub.org" | sudo tee -a /etc/hosts
 2. Fetch dependencies: `mix do deps.get, compile`
 3. Initialize the database: `make reset-db`
 4. Compile web assets (this only needs to be done once and requires python2):
-   `yarn --cwd apps/nerves_hub_www/assets install`
+   `mix assets.install`
 
 ### Starting the application
 
