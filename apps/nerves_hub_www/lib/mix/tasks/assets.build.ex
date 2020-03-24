@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Assets.Build do
 
   def run(_) do
     System.cmd(
-      "yarn",
+      "npm",
       ["deploy"],
       cd: @assets,
       stderr_to_stdout: true,

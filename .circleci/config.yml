@@ -135,8 +135,6 @@ jobs:
   test_javascript:
     docker:
       - image: circleci/node:8.11.3
-        environment:
-          SRC_PATH: "js/**/*.js"
     working_directory: ~/app/apps/nerves_hub_www/assets
     steps:
       - checkout:
@@ -144,16 +142,16 @@ jobs:
       - restore_cache:
           keys:
             - mix-deps-{{ .Branch }}-{{ checksum "../../../mix.lock" }}
-      - run: yarn install
+      - run: npm install
       - run:
           name: Verify formatting
-          command: yarn prettier -c $SRC_PATH
+          command: npm run format
       - run:
           name: ESLint
-          command: yarn eslint $SRC_PATH
+          command: npm run lint
       - run:
           name: Test
-          command: yarn jest
+          command: npm run test
 
   build-www:
     <<: *defaults

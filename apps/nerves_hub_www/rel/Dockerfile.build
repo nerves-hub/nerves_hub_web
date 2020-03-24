@@ -10,8 +10,8 @@ WORKDIR /build
 COPY apps/nerves_hub_www/assets apps/nerves_hub_www/assets
 COPY --from=deps /build/deps deps
 RUN cd apps/nerves_hub_www/assets \
-  && yarn install \
-  && yarn run deploy
+  && npm install \
+  && npm run deploy
 
 # Elixir build container
 FROM bitwalker/alpine-elixir:${ELIXIR_VERSION} as builder

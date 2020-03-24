@@ -17,12 +17,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <div class="col-4">
-        <a class="btn btn-secondary" href="<%= Routes.home_path(@conn, :index) %>">
-          Cancel
-        </a>
-      </div>
-      <div class="col-8 text-right">
+      <div class="col-12 text-right">
         <a class="btn" href="<%= Routes.password_reset_path(@conn, :new) %>">
           Forgot Password
         </a>
