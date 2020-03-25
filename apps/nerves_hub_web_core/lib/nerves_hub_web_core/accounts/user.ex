@@ -7,7 +7,7 @@ defmodule NervesHubWebCore.Accounts.User do
 
   alias NervesHubWebCore.Accounts.{Org, UserCertificate, OrgUser}
   alias NervesHubWebCore.Repo
-  alias Comeonin.Bcrypt
+
   alias Ecto.Changeset
   alias __MODULE__
   alias Ecto.UUID
@@ -137,7 +137,7 @@ defmodule NervesHubWebCore.Accounts.User do
        }) do
     case Map.has_key?(changes, :email) or Map.has_key?(changes, :password) do
       true ->
-        if Bcrypt.checkpw(curr_pass, user.password_hash) do
+        if Bcrypt.verify_pass(curr_pass, user.password_hash) do
           changeset
         else
           changeset
@@ -193,7 +193,7 @@ defmodule NervesHubWebCore.Accounts.User do
   defp generate_password_reset_token_expires(%Changeset{} = changeset), do: changeset
 
   defp hash_password(%Ecto.Changeset{valid?: true, changes: %{password: password}} = changeset) do
-    password_hash = Bcrypt.hashpwsalt(password)
+    password_hash = Bcrypt.hash_pwd_salt(password)
 
     changeset
     |> put_change(:password_hash, password_hash)

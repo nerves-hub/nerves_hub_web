@@ -111,10 +111,10 @@ defmodule NervesHubWWWWeb.DeploymentController do
     |> live_render(
       NervesHubWWWWeb.DeploymentLive.Show,
       session: %{
-        auth_user_id: user.id,
-        org_id: org.id,
-        product_id: product.id,
-        deployment_id: deployment.id
+        "auth_user_id" => user.id,
+        "org_id" => org.id,
+        "product_id" => product.id,
+        "deployment_id" => deployment.id
       }
     )
   end

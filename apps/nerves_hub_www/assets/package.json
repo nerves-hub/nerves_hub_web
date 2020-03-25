@@ -6,7 +6,8 @@
     "watch": "webpack --mode development --watch",
     "test": "jest",
     "lint": "eslint js/**/*.js",
-    "format": "prettier -c js/**/*.js"
+    "format": "prettier --write js/**/*.js",
+    "check_formatting": "prettier -c js/**/*.js"
   },
   "dependencies": {
     "bootstrap": "^4.4.1",

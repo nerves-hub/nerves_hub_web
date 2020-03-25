@@ -16,7 +16,6 @@ defmodule NervesHubWebCore.Accounts do
 
   alias NervesHubWebCore.Products.{Product, ProductUser}
   alias NervesHubWebCore.Repo
-  alias Comeonin.Bcrypt
 
   @spec create_org(User.t(), map) ::
           {:ok, Org.t()}
@@ -239,12 +238,12 @@ defmodule NervesHubWebCore.Accounts do
       |> Repo.one()
 
     with %User{} <- user,
-         true <- Bcrypt.checkpw(password, user.password_hash) do
+         true <- Bcrypt.verify_pass(password, user.password_hash) do
       {:ok, user |> User.with_default_org() |> User.with_org_keys()}
     else
       nil ->
         # User wasn't found; do dummy check to make user enumeration more difficult
-        Bcrypt.dummy_checkpw()
+        Bcrypt.no_user_verify()
         {:error, :authentication_failed}
 
       false ->

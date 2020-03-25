@@ -3,6 +3,7 @@ defmodule NervesHubWWWWeb.DeviceController do
 
   alias NervesHubWebCore.Devices
   alias NervesHubWebCore.Devices.Device
+  alias NervesHubWWWWeb.DeviceLive
   alias Ecto.Changeset
 
   plug(:validate_role, [product: :delete] when action in [:delete])
@@ -12,15 +13,11 @@ defmodule NervesHubWWWWeb.DeviceController do
   def index(%{assigns: %{user: user, org: org, product: product}} = conn, _params) do
     conn
     |> live_render(
-      NervesHubWWWWeb.DeviceLive.Index,
-      # We need to pass csrf_token here so that we can use
-      # the delete button from the index.
-      # see https://github.com/phoenixframework/phoenix_live_view/issues/111
+      DeviceLive.Index,
       session: %{
-        auth_user_id: user.id,
-        org_id: org.id,
-        product_id: product.id,
-        csrf_token: get_csrf_token()
+        "auth_user_id" => user.id,
+        "org_id" => org.id,
+        "product_id" => product.id
       }
     )
   end
@@ -49,12 +46,12 @@ defmodule NervesHubWWWWeb.DeviceController do
   def show(%{assigns: %{user: user, org: org, product: product, device: device}} = conn, _params) do
     conn
     |> live_render(
-      NervesHubWWWWeb.DeviceLive.Show,
+      DeviceLive.Show,
       session: %{
-        auth_user_id: user.id,
-        org_id: org.id,
-        product_id: product.id,
-        device_id: device.id
+        "auth_user_id" => user.id,
+        "org_id" => org.id,
+        "product_id" => product.id,
+        "device_id" => device.id
       }
     )
   end
@@ -62,12 +59,12 @@ defmodule NervesHubWWWWeb.DeviceController do
   def edit(%{assigns: %{user: user, org: org, product: product, device: device}} = conn, _params) do
     conn
     |> live_render(
-      NervesHubWWWWeb.DeviceLive.Edit,
+      DeviceLive.Edit,
       session: %{
-        auth_user_id: user.id,
-        org_id: org.id,
-        product_id: product.id,
-        device_id: device.id
+        "auth_user_id" => user.id,
+        "org_id" => org.id,
+        "product_id" => product.id,
+        "device_id" => device.id
       }
     )
   end
@@ -86,12 +83,12 @@ defmodule NervesHubWWWWeb.DeviceController do
       ) do
     conn
     |> live_render(
-      NervesHubWWWWeb.DeviceLive.Console,
+      DeviceLive.Console,
       session: %{
-        auth_user_id: user.id,
-        org_id: org.id,
-        product_id: product.id,
-        device_id: device.id
+        "auth_user_id" => user.id,
+        "org_id" => org.id,
+        "product_id" => product.id,
+        "device_id" => device.id
       }
     )
   end

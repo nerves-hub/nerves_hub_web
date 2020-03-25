@@ -55,10 +55,8 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
       {:ok, view, _html} = live(conn, deployment_path(fixture, :show))
 
       path = Routes.deployment_path(Endpoint, :index, org.name, product.name)
-
-      assert_redirect(view, ^path, fn ->
-        assert render_submit(view, :delete)
-      end)
+      render_submit(view, :delete)
+      assert_redirect(view, ^path)
 
       [audit_log | _tail] = AuditLogs.logs_for(deployment)
 
