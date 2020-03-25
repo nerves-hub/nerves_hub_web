@@ -2,7 +2,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
   use NervesHubWebCore.DataCase, async: false
   use Phoenix.ChannelTest
 
-  alias NervesHubWebCore.{AuditLogs.AuditLog, Deployments, Fixtures}
+  alias NervesHubWebCore.{AuditLogs.AuditLog, Deployments, Fixtures, Firmwares}
   alias Ecto.Changeset
 
   setup do
@@ -125,8 +125,10 @@ defmodule NervesHubWebCore.DeploymentsTest do
         |> elem(1)
         |> Deployments.update_deployment(%{is_active: true})
 
+      {:ok, meta} = Firmwares.metadata_from_firmware(new_firmware)
+
       assert [^device] = Deployments.fetch_relevant_devices(deployment)
-      assert_broadcast("update", %{firmware_url: _f_url}, 500)
+      assert_broadcast("update", %{firmware_url: _f_url, firmware_meta: ^meta}, 500)
     end
 
     test "does not update incorrect devices", %{
@@ -165,7 +167,9 @@ defmodule NervesHubWebCore.DeploymentsTest do
           |> elem(1)
           |> Deployments.update_deployment(%{is_active: true})
 
-        refute_broadcast("update", %{firmware_url: _f_url})
+        {:ok, meta} = Firmwares.metadata_from_firmware(new_firmware)
+
+        refute_broadcast("update", %{firmware_url: _f_url, firmware_meta: ^meta})
       end
     end
 
@@ -197,7 +201,9 @@ defmodule NervesHubWebCore.DeploymentsTest do
         |> elem(1)
         |> Deployments.update_deployment(%{is_active: true, healthy: false})
 
-      refute_broadcast("update", %{firmware_url: _f_url})
+      {:ok, meta} = Firmwares.metadata_from_firmware(new_firmware)
+
+      refute_broadcast("update", %{firmware_url: _f_url, firmware_meta: ^meta})
     end
 
     test "does not update devices if device in unhealthy state", %{
@@ -233,7 +239,9 @@ defmodule NervesHubWebCore.DeploymentsTest do
         |> elem(1)
         |> Deployments.update_deployment(%{is_active: true})
 
-      refute_broadcast("update", %{firmware_url: _f_url})
+      {:ok, meta} = Firmwares.metadata_from_firmware(new_firmware)
+
+      refute_broadcast("update", %{firmware_url: _f_url, firmware_meta: ^meta})
     end
 
     test "failure_threshold_met?", %{

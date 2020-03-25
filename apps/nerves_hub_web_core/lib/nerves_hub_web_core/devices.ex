@@ -5,6 +5,7 @@ defmodule NervesHubWebCore.Devices do
 
   alias NervesHubWebCore.{
     Deployments.Deployment,
+    Firmwares,
     Firmwares.FirmwareMetadata,
     AuditLogs,
     AuditLogs.AuditLog,
@@ -129,13 +130,19 @@ defmodule NervesHubWebCore.Devices do
 
     with true <- matches_deployment?(device, deployment) do
       {:ok, url} = @uploader.download_file(deployment.firmware)
+      {:ok, meta} = Firmwares.metadata_from_firmware(deployment.firmware)
 
       Phoenix.PubSub.broadcast(
         NervesHubWeb.PubSub,
         "device:#{device.id}",
         %Phoenix.Socket.Broadcast{
           event: "update",
-          payload: %{deployment: deployment, deployment_id: deployment.id, firmware_url: url}
+          payload: %{
+            deployment: deployment,
+            deployment_id: deployment.id,
+            firmware_url: url,
+            firmware_meta: meta
+          }
         }
       )
 
@@ -347,8 +354,9 @@ defmodule NervesHubWebCore.Devices do
   def resolve_update(%Device{} = device, %Deployment{} = deployment) do
     with {:ok, %{healthy: true}} <- verify_update_eligibility(device, deployment),
          %{firmware: firmware} <- Repo.preload(deployment, :firmware),
-         {:ok, url} <- @uploader.download_file(firmware) do
-      %{update_available: true, firmware_url: url}
+         {:ok, url} <- @uploader.download_file(firmware),
+         {:ok, meta} <- Firmwares.metadata_from_firmware(firmware) do
+      %{update_available: true, firmware_url: url, firmware_meta: meta}
     else
       _ -> %{update_available: false}
     end

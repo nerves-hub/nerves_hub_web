@@ -500,7 +500,8 @@ defmodule NervesHubWebCore.DevicesTest do
         %{
           deployment: ^deployment,
           deployment_id: ^deployment_id,
-          firmware_url: _
+          firmware_url: _,
+          firmware_meta: %{}
         }
       )
     end
@@ -525,9 +526,10 @@ defmodule NervesHubWebCore.DevicesTest do
       firmware: firmware
     } do
       result = Devices.resolve_update(device, deployment)
-
+      {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
       assert result.update_available
       assert result.firmware_url =~ firmware.uuid
+      assert result.firmware_meta.uuid == meta.uuid
     end
   end
 

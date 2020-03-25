@@ -146,7 +146,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {:ok, socket} = Socket.start_link(@ssl_socket_config)
       wait_for_socket(socket)
       {:ok, reply, _channel} = Channel.join(socket, "device")
-      assert %{"update_available" => true, "firmware_url" => _} = reply
+      assert %{"update_available" => true, "firmware_url" => _, "firmware_meta" => %{}} = reply
 
       device =
         Device
@@ -195,7 +195,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       assert_receive(
         %Phoenix.Socket.Broadcast{
           event: "update",
-          payload: %{firmware_url: _f_url}
+          payload: %{firmware_url: _f_url, firmware_meta: %{}}
         },
         1000
       )
