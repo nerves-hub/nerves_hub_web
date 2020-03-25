@@ -44,10 +44,8 @@ defmodule NervesHubWWWWeb.DeviceLiveEditTest do
 
       {:ok, view, _html} = live(conn, device_path(fixture, :edit))
       path = device_path(fixture, :show)
-
-      assert_redirect(view, ^path, fn ->
-        assert render_submit(view, :save, params)
-      end)
+      render_submit(view, :save, params)
+      assert_redirect(view, ^path)
     end
   end
 

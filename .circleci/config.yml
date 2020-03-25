@@ -145,7 +145,7 @@ jobs:
       - run: npm install
       - run:
           name: Verify formatting
-          command: npm run format
+          command: npm run check_formatting
       - run:
           name: ESLint
           command: npm run lint

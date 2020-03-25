@@ -46,24 +46,25 @@ defmodule NervesHubWebCore.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.4"},
-      {:phoenix_html, "~> 2.12"},
+      {:phoenix_html, "~> 2.14"},
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.0"},
       {:ecto_sql, "~> 3.0"},
       {:ecto_enum, github: "mobileoverlord/ecto_enum"},
       {:postgrex, "~> 0.14"},
-      {:bcrypt_elixir, "~> 1.0"},
-      {:comeonin, "~> 4.1"},
-      {:quantum, "~> 2.3"},
-      {:oban, "~> 0.5"},
+      {:bcrypt_elixir, "~> 2.0"},
+      {:comeonin, "~> 5.3"},
+      {:oban, "~> 1.2"},
+      {:crontab, "~> 1.1"},
       {:timex, "~> 3.1"},
-      {:jason, "~> 1.0"},
       {:sweet_xml, "~> 0.6"},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
       {:x509, "~> 0.5.1 or ~> 0.6"},
       {:bamboo, "~> 1.0"},
-      {:bamboo_smtp, "~> 1.7.0"}
+      {:bamboo_smtp, "~> 2.1.0"},
+      {:jason, "~> 1.2", override: true},
+      {:ecto, "~> 3.4", override: true}
     ]
   end
 end

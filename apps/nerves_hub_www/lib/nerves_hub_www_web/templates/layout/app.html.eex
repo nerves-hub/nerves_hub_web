@@ -59,6 +59,7 @@
       window.userToken = "<%= assigns[:user_token] %>"
       window.orgId = "<%= assigns[:org] && Map.get(assigns[:org], :id) %>"
     </script>
-    <script src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
+    <%= csrf_meta_tag() %>
+    <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
   </body>
 </html>

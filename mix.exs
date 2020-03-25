@@ -51,8 +51,8 @@ defmodule NervesHubUmbrella.MixProject do
   defp deps do
     [
       # {:excoveralls, "~> 0.8", only: :test},
-      {:dialyxir, "~> 1.0.0-rc.4", only: [:dev, :test], runtime: false},
-      {:mix_test_watch, "~> 0.6", only: :test, runtime: false}
+      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:mix_test_watch, "~> 1.0", only: :test, runtime: false}
     ]
   end
 

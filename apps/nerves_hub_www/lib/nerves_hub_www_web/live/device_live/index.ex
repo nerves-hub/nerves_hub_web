@@ -3,15 +3,21 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   alias NervesHubDevice.Presence
   alias NervesHubWebCore.{Accounts, Products, Devices}
+  alias NervesHubWWWWeb.DeviceView
 
   alias Phoenix.Socket.Broadcast
 
   def render(assigns) do
-    NervesHubWWWWeb.DeviceView.render("index.html", assigns)
+    DeviceView.render("index.html", assigns)
   end
 
   def mount(
-        %{auth_user_id: user_id, org_id: org_id, csrf_token: csrf_token, product_id: product_id},
+        _params,
+        %{
+          "auth_user_id" => user_id,
+          "org_id" => org_id,
+          "product_id" => product_id
+        },
         socket
       ) do
     if connected?(socket) do
@@ -25,7 +31,6 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign_new(:product, fn -> Products.get_product!(product_id) end)
       |> assign(:devices, assign_statuses(org_id, product_id))
       |> assign(:current_sort, "identifier")
-      |> assign(:csrf_token, csrf_token)
       |> assign(:sort_direction, :asc)
 
     {:ok, socket}
@@ -37,10 +42,20 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   # Catch-all to handle when LV sessions change.
   # Typically this is after a deploy when the
   # session structure in the module has changed
-  # for mount/2
-  def mount(_, socket) do
+  # for mount/3
+  def mount(_params, _session, socket) do
     socket_error(socket, live_view_error(:update))
   end
+
+  # def handle_params(%{"org_name"}, _url, socket) do
+  #   IO.puts "Params: #{inspect params}"
+  #   socket =
+  #     socket
+  #     # |> assign_new(:user, fn -> Accounts.get_user!(user_id) end)
+  #     # |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
+  #     # |> assign_new(:product, fn -> Products.get_product!(product_id) end)
+  #   {:noreply, socket}
+  # end/
 
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field

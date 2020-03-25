@@ -1,7 +1,13 @@
 defmodule NervesHubWWWWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub_www
 
-  socket("/live", Phoenix.LiveView.Socket)
+  @session_options [
+    store: :cookie,
+    key: "_nerves_hub_key",
+    signing_salt: "1CPjriVa"
+  ]
+
+  socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
   # Serve at "/" the static files from "priv/static" directory.
   #
@@ -59,9 +65,7 @@ defmodule NervesHubWWWWeb.Endpoint do
   # Set :encryption_salt if you would also like to encrypt it.
   plug(
     Plug.Session,
-    store: :cookie,
-    key: "_nerves_hub_key",
-    signing_salt: "1CPjriVa"
+    @session_options
   )
 
   plug(NervesHubWWWWeb.Router)

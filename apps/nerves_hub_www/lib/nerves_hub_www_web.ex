@@ -31,7 +31,7 @@ defmodule NervesHubWWWWeb do
       import NervesHubWebCore.AuditLogs, only: [audit: 4, audit!: 4]
       import Plug.Conn
       import NervesHubWWWWeb.Gettext
-      import Phoenix.LiveView.Controller, only: [live_render: 3]
+      import Phoenix.LiveView.Controller
       import NervesHubWebCore.RoleValidateHelpers
 
       alias NervesHubWWWWeb.Router.Helpers, as: Routes
@@ -67,7 +67,7 @@ defmodule NervesHubWWWWeb do
           |> put_flash(:info, error)
           |> redirect(to: redirect)
 
-        {:stop, socket}
+        {:ok, socket}
       end
 
       defp live_view_error(:update) do
@@ -94,6 +94,7 @@ defmodule NervesHubWWWWeb do
 
       import NervesHubWWWWeb.ErrorHelpers
       import NervesHubWWWWeb.Gettext
+      import Phoenix.LiveView.Helpers
 
       alias NervesHubWWWWeb.Router.Helpers, as: Routes
       alias NervesHubWWWWeb.{DeviceLive, DeploymentLive, Endpoint}

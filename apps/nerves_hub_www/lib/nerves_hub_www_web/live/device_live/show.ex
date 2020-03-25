@@ -12,11 +12,12 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
   end
 
   def mount(
+        _params,
         %{
-          auth_user_id: user_id,
-          org_id: org_id,
-          product_id: product_id,
-          device_id: device_id
+          "auth_user_id" => user_id,
+          "org_id" => org_id,
+          "product_id" => product_id,
+          "device_id" => device_id
         },
         socket
       ) do
@@ -46,8 +47,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
   # Catch-all to handle when LV sessions change.
   # Typically this is after a deploy when the
   # session structure in the module has changed
-  # for mount/2
-  def mount(_, socket) do
+  # for mount/3
+  def mount(_, _, socket) do
     socket_error(socket, live_view_error(:update))
   end
 
