@@ -63,7 +63,7 @@ defmodule NervesHubWWWWeb.DeploymentLive.Show do
 
   def handle_event(
         "paginate",
-        page_num,
+        %{"page" => page_num},
         %{assigns: %{audit_log_ids: ids, paginate_opts: paginate_opts}} = socket
       ) do
     # This LiveView stores an array of all its audit log's ids. On paginate
