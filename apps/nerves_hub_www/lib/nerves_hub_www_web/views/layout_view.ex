@@ -121,7 +121,7 @@ defmodule NervesHubWWWWeb.LayoutView do
 
         content_tag(:button, text,
           phx_click: "paginate",
-          phx_value: page,
+          phx_value_page: page,
           class: "btn btn-secondary btn-sm #{if page == opts.page_number, do: "active"}"
         )
       end)
