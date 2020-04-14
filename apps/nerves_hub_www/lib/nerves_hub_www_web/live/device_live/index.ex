@@ -59,7 +59,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
-  def handle_event("sort", value, %{assigns: %{current_sort: current_sort}} = socket)
+  def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
     %{sort_direction: sort_direction} = socket.assigns
 
@@ -75,7 +75,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   end
 
   # User has clicked a new column to sort
-  def handle_event("sort", value, socket) do
+  def handle_event("sort", %{"sort" => value}, socket) do
     socket =
       socket
       |> assign(:current_sort, value)
