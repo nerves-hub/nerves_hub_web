@@ -62,7 +62,7 @@
   Edit Deployment
 </a>
 
-<a class="btn btn-primary mr-3" phx-click="toggle_active" phx-value=<%= !@deployment.is_active %>>Make <%= opposite_status(@deployment) %></a>
+<a class="btn btn-primary mr-3" phx-click="toggle_active" phx-value-isactive=<%= !@deployment.is_active %>>Make <%= opposite_status(@deployment) %></a>
 
 <%= form_for %Plug.Conn{}, "#", [phx_submit: "toggle_health_state"], fn _f -> %>
   <%= submit "Mark #{if @deployment.healthy, do: "Unhealthy", else: "Healthy"}", class: "btn btn-primary mr-3" %>
