@@ -17,7 +17,7 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
 
       before_audit_count = AuditLogs.logs_for(deployment) |> length
 
-      assert render_click(view, :toggle_active, "true") =~ "Make Inactive"
+      assert render_click(view, :toggle_active, %{"isactive" => "true"}) =~ "Make Inactive"
 
       # assert_broadcast("reboot", %{})
 
@@ -36,7 +36,7 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
 
       before_audit_count = AuditLogs.logs_for(deployment) |> length
 
-      assert render_click(view, :toggle_active, "false") =~ "Make Active"
+      assert render_click(view, :toggle_active, %{"isactive" => "false"}) =~ "Make Active"
 
       # assert_broadcast("reboot", %{})
 
