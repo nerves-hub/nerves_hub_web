@@ -2,15 +2,13 @@ msgid ""
 msgstr ""
 "Language: sr\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"X-Generator: crowdin.com\n"
 "X-Crowdin-Project: nerves-hub\n"
 "X-Crowdin-Language: sr\n"
 "X-Crowdin-File: /master/apps/nerves_hub_www/priv/gettext/en/LC_MESSAGES/default.po\n"
 "Project-Id-Version: nerves-hub\n"
 "Content-Type: text/plain; charset=UTF-8\n"
-"Last-Translator: fhunleth\n"
 "Language-Team: Serbian (Cyrillic)\n"
-"PO-Revision-Date: 2019-06-26 23:16\n"
+"PO-Revision-Date: 2020-04-23 23:23\n"
 
 #: lib/nerves_hub_www_web/templates/account/new.html.eex:8
 #, elixir-format
