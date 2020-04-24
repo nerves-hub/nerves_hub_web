@@ -5,9 +5,7 @@ defmodule NervesHubDeviceWeb.Endpoint do
     "/socket",
     NervesHubDeviceWeb.UserSocket,
     websocket: [
-      connect_info: [:peer_data, :x_headers],
-      # Force all websocket messages to go through V2 serializer
-      serializer: [{Phoenix.Socket.V2.JSONSerializer, ">= 1.0.0"}]
+      connect_info: [:peer_data, :x_headers]
     ]
   )
 
