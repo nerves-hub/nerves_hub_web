@@ -35,6 +35,8 @@ config :nerves_hub_web_core, NervesHubWebCore.Mailer,
 
 config :nerves_hub_web_core, Oban, prune: {:maxage, 60 * 60 * 24 * 7 * 2}
 
+config :nerves_hub_web_core, NervesHubWebCore.Repo, pool_size: 20
+
 ##
 # NervesHubWWW
 #
