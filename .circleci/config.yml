@@ -134,7 +134,7 @@ jobs:
 
   test_javascript:
     docker:
-      - image: circleci/node:8.11.3
+      - image: circleci/node:14.4.0
     working_directory: ~/app/apps/nerves_hub_www/assets
     steps:
       - checkout:

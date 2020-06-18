@@ -7,7 +7,7 @@ defmodule Mix.Tasks.Assets.Build do
   def run(_) do
     System.cmd(
       "npm",
-      ["deploy"],
+      ["run", "deploy"],
       cd: @assets,
       stderr_to_stdout: true,
       into: IO.stream(:stdio, :line)
