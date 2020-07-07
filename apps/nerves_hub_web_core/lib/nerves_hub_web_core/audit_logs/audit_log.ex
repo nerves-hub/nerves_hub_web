@@ -98,7 +98,7 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
   end
 
   def create_description(%{description: description} = audit_log, _, _)
-      when not is_nil(description) or not description == "" do
+      when byte_size(description) > 0 do
     # use description that was already provided
     audit_log
   end
