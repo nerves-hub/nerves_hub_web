@@ -50,7 +50,7 @@ Any questions about this Privacy Policy should be addressed to <support@nerves-h
 
 ### Changes
 
-Although most changes are likely to be minor, nerves-hub.org may change its Privacy Policy from time to time, and at nerves-hub.org's sole discretion. The detailed history of changes can be found in the [git repository](https://github.com/nerves-hub/nerves_hub_web/tree/master/apps/nerves_hub_www/lib/nerves_hub_www_web/templates/policy/privacy.html.md) history for this document.
+Although most changes are likely to be minor, nerves-hub.org may change its Privacy Policy from time to time, and at nerves-hub.org's sole discretion. The detailed history of changes can be found in the [git repository](https://github.com/nerves-hub/nerves_hub_web/tree/main/apps/nerves_hub_www/lib/nerves_hub_www_web/templates/policy/privacy.html.md) history for this document.
 
 nerves-hub.org encourages visitors to frequently check this page for any changes to its Privacy Policy. Your continued use of the nerves-hub.org websites and the repository after any change in this Privacy Policy will constitute your acceptance of such change.
 

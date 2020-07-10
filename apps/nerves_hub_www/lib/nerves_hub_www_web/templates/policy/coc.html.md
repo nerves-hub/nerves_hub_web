@@ -82,7 +82,7 @@ You are also encouraged to contact us if you are curious about something that mi
 
 ### Changes
 
-This is a living document and may be updated from time to time. Please refer to the [git history](https://github.com/nerves-hub/nerves_hub_web/tree/master/apps/nerves_hub_www/lib/nerves_hub_www_web/templates/policy/coc.html.md) for this document to view the changes.
+This is a living document and may be updated from time to time. Please refer to the [git history](https://github.com/nerves-hub/nerves_hub_web/tree/main/apps/nerves_hub_www/lib/nerves_hub_www_web/templates/policy/coc.html.md) for this document to view the changes.
 
 ### Credit and License
 

@@ -5,7 +5,7 @@ msgstr ""
 "X-Generator: crowdin.com\n"
 "X-Crowdin-Project: nerves-hub\n"
 "X-Crowdin-Language: ko\n"
-"X-Crowdin-File: /master/apps/nerves_hub_www/priv/gettext/en/LC_MESSAGES/default.po\n"
+"X-Crowdin-File: /main/apps/nerves_hub_www/priv/gettext/en/LC_MESSAGES/default.po\n"
 "Project-Id-Version: nerves-hub\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Last-Translator: fhunleth\n"
@@ -21,4 +21,3 @@ msgstr ""
 #, elixir-format
 msgid "You will be added to the %{organization_name} org"
 msgstr ""
-
