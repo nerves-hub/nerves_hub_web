@@ -29,6 +29,8 @@ export default class IEx {
       .join()
       .receive('ok', () => {
         console.log('JOINED')
+        // Push CTL-L to refresh form line
+        channel.push('dn', { data: '\f' })
       })
       .receive('error', () => {
         console.log('ERROR')
