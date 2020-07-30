@@ -53,7 +53,7 @@ defmodule NervesHubWebCore.SeedHelpers do
 
     user = Fixtures.user_fixture(root_user_params)
     [default_user_org | _] = Accounts.get_user_orgs(user)
-    org = Fixtures.org_fixture(user, %{name: "Nerves Team"})
+    org = Fixtures.org_fixture(user, %{name: "NervesTeam"})
     for _ <- 0..2, do: Fixtures.org_key_fixture(org)
     for _ <- 0..2, do: Fixtures.org_key_fixture(default_user_org)
 
