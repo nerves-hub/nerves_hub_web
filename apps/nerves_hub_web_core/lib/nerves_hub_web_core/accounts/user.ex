@@ -16,8 +16,8 @@ defmodule NervesHubWebCore.Accounts.User do
 
   @password_min_length 8
 
-  @required_params [:username, :email, :password_hash, :password]
-  @optional_params [:password_reset_token, :password_reset_token_expires]
+  @required_params [:username, :email, :password_hash]
+  @optional_params [:password, :password_reset_token, :password_reset_token_expires]
 
   defenum(Role, :role, [:admin, :delete, :write, :read])
 
