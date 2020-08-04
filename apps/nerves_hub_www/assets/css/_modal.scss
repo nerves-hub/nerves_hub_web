@@ -1,0 +1,20 @@
+.modal-content {
+  @extend .text-dark;
+  font-size: 18px;
+  background-color: white;
+  width: 70%;
+  margin: auto;
+  min-width: 600px;
+}
+
+.modal-header {
+  @extend .bg-dark;
+  display: block;
+  text-align: left;
+  color: white;
+}
+
+.modal-footer {
+  background-color: whitesmoke;
+  padding-top: 14px;
+}

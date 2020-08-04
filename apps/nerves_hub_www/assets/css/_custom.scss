@@ -1,4 +1,11 @@
-$accent-color: #cfdbe7;
-$light-background: #CACACA;
-$dark-background: #595551;
-$nav-color: #343A40
+.no-results-blowup-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  margin-top: 10vh;
+}
+
+.opacity-1 {
+  opacity: 1;
+}

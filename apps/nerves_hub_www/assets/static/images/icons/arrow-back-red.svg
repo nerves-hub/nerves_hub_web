@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="13px" height="13px" viewBox="0 0 13 13" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>icon/arrow/back</title>
+    <g id="Workspace" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Workspace-/-Switch-workspace" transform="translate(-672.000000, -143.000000)" fill="#C43131">
+            <g id="Dropdown" transform="translate(383.000000, 71.000000)">
+                <g id="Stacked-Group" transform="translate(24.000000, 24.000000)">
+                    <g id="Group" transform="translate(0.000000, 43.000000)">
+                        <g transform="translate(260.000000, 0.000000)" id="icon/arrow/back">
+                            <path d="M11,17.707 C11.3904653,18.0974653 12.0235347,18.0974653 12.414,17.707 L17.7068932,12.4141068 C18.0974175,12.0235825 18.0974175,11.3904175 17.7068932,10.9998932 L12.414,5.707 C12.0235347,5.31653468 11.3904653,5.31653468 11,5.707 C10.6095347,6.09746532 10.6095347,6.73053468 11,7.121 L14.586,10.707 L14.586,10.707 L6,10.707 C5.44771525,10.707 5,11.1547153 5,11.707 C5,12.2592847 5.44771525,12.707 6,12.707 L14.586,12.707 L14.586,12.707 L11,16.293 C10.6095347,16.6834653 10.6095347,17.3165347 11,17.707 Z" id="Path" transform="translate(11.707000, 11.707000) scale(-1, 1) rotate(180.000000) translate(-11.707000, -11.707000) "></path>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

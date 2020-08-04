@@ -1,0 +1,26 @@
+html {
+  .table {
+    color: white;
+
+    thead {
+      th {
+        border: none;
+        color: var(--white-50);
+        font-weight: 500;
+        font-size: 12px;
+        padding: 0 .3rem 1rem;
+      }
+    }
+
+    td {
+      border-bottom: 1px solid var(--border-dark);
+      border-top: none;
+      height: 60px;
+      vertical-align: middle;
+    }
+  }
+
+  .table-hover tbody tr:hover {
+    color: white;
+  }
+}
