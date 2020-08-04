@@ -1,11 +1,25 @@
-<div class="row">
-  <div class="col">
-    <h2>
-      Devices
-    </h2>
+<%= if @devices == [] do %>
+  <div class="no-results-blowup-wrapper">
+    <img src="/images/device.svg" alt="No devices" />
+    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any devices yet</h3>
+    <div class="flex-row align-items-center mt-3">
+      <a class="btn btn-lg btn-outline-light" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
+        <div class="button-icon left-icon add"></div>
+        Add Device
+      </a>
+    </div>
+    <p class="mt-3">Or follow <a class="strong" href="/">these steps</a> to add a device using the terminal.</p>
   </div>
-</div>
-<div class="row">
+<% else %>
+  <div class="flex-row justify-content-between">
+    <h1>
+      Devices
+    </h1>
+    <a class="btn btn-lg btn-outline-light" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
+      <div class="button-icon left-icon add"></div>
+      Add Device
+    </a>
+  </div>
   <table class="table table-sm table-hover">
     <thead>
       <tr>
@@ -18,50 +32,50 @@
       </tr>
     </thead>
     <%= for device <- @devices do %>
-        <tr class="item">
-          <td>
-            <a href="<%= Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="">
-              <%= device.identifier %>
-            </a>
-          </td>
-          <td>
-            <%= if Map.has_key?(device, :fwup_progress) && device.fwup_progress do %>
-              <div class="progress">
-                <div class="progress-bar progress-bar-striped" role="progressbar" style="width: <%= device.fwup_progress %>%"><%= device.fwup_progress %>%</div>
-              </div>
+      <tr class="item">
+        <td>
+          <a href="<%= Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="">
+            <%= device.identifier %>
+          </a>
+        </td>
+        <td>
+          <%= if Map.has_key?(device, :fwup_progress) && device.fwup_progress do %>
+            <div class="progress">
+              <div class="progress-bar progress-bar-striped" role="progressbar" style="width: <%= device.fwup_progress %>%"><%= device.fwup_progress %>%</div>
+            </div>
+          <% else %>
+            <%= if is_nil(device.firmware_metadata) do %>
+              unknown
             <% else %>
-              <%= if is_nil(device.firmware_metadata) do %>
-                unknown
-              <% else %>
-                <p>
-                  <strong>Version:</strong> <%= device.firmware_metadata.version %>
-                </p>
-                <p>
-                  <strong>UUID:</strong> <%= device.firmware_metadata.uuid %>
-                </p>
-              <% end %>
+              <p>
+                <strong>Version:</strong> <%= device.firmware_metadata.version %>
+              </p>
+              <p>
+                <strong>UUID:</strong> <%= device.firmware_metadata.uuid %>
+              </p>
             <% end %>
-          </td>
-          <td class="device">
-            <%= health_status_icon(device) %>
-            <%= device.status %>
-          </td>
+          <% end %>
+        </td>
+        <td class="device">
+          <%= health_status_icon(device) %>
+          <%= device.status %>
+        </td>
 
-          <td class="date-time">
-            <%= if is_nil(device.last_communication) do %>
-              never
-            <% else %>
-              <%= device.last_communication %>
-            <% end %>
-          </td>
-          <td>
-            <span class="badge"><%= tags_to_string(device) %></span>
-          </td>
-          <td class="actions">
-            <%= link "", class: "fa fa-pencil-alt", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
-            <%= link "", class: "fa fa-trash-alt", to: Routes.device_path(@socket, :delete, @org.name, @product.name, device.identifier), method: :delete, data: [confirm: "Are you sure?"] %>
-          </td>
-        </tr>
-      <% end %>
+        <td class="date-time">
+          <%= if is_nil(device.last_communication) do %>
+            never
+          <% else %>
+            <%= device.last_communication %>
+          <% end %>
+        </td>
+        <td>
+          <span class="badge"><%= tags_to_string(device) %></span>
+        </td>
+        <td class="actions">
+          <%= link "edit", class: "fa fa-pencil-alt", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
+          <%= link "delete", class: "fa fa-trash-alt", to: Routes.device_path(@socket, :delete, @org.name, @product.name, device.identifier), method: :delete, data: [confirm: "Are you sure?"] %>
+        </td>
+      </tr>
+    <% end %>
   </table>
-</div>
+<% end %>

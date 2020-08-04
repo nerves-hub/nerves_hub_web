@@ -1,0 +1,16 @@
+<% links = sidebar_links(@conn) %>
+<%= if links != [] do %>
+  <div class="tab-bar">
+    <nav>
+      <ul class="nav flex-row">
+        <%= for link <- links do %>
+          <li class="nav-item">
+            <a class="nav-link <%= link.active %>" href="<%= link.href %>">
+              <span class="text"><%= link.title %></span>
+            </a>
+          </li>
+        <% end %>
+      </ul>
+    </nav>
+  </div>
+<% end %>

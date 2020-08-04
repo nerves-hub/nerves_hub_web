@@ -15,7 +15,8 @@ defmodule NervesHubWWWWeb.ProductController do
 
   def index(%{assigns: %{user: user, org: org}} = conn, _params) do
     products = Products.get_products_by_user_and_org(user, org)
-    render(conn, "index.html", products: products)
+    changeset = Products.change_product(%Product{})
+    render(conn, "index.html", products: products, changeset: changeset)
   end
 
   def new(conn, _params) do

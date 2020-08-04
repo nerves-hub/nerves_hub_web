@@ -1,17 +1,25 @@
-<div class="row">
-  <div class="col">
-    <h2>
-      Firmware
-    </h2>
+<%= if @firmwares == [] do %>
+  <div class="no-results-blowup-wrapper">
+    <img src="/images/firmware.svg" alt="No products" />
+    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any firmware yet</h3>
+    <div class="flex-row align-items-center mt-3">
+      <a class="btn btn-outline-light" href="<%= Routes.firmware_path(@conn, :upload, @org.name, @product.name) %>">
+        <div class="button-icon left-icon add"></div>
+        Upload Firmware
+      </a>
+    </div>
   </div>
-  <div class="col-3 mr-auto table-head-link">
-    <a href="<%= Routes.firmware_path(@conn, :upload, @org.name, @product.name) %>">
-      <span class="fa fa-plus fa-fw mr-3"></span>
-      <span class="text">Upload firmware</span>
+<% else %>
+  <div class="flex-row justify-content-between">
+    <h1>
+      Firmware
+    </h1>
+    <a class="btn btn-outline-light" href="<%= Routes.firmware_path(@conn, :upload, @org.name, @product.name) %>">
+      <div class="button-icon left-icon add"></div>
+      Upload Firmware
     </a>
   </div>
-</div>
-<div class="row">
+
   <table class="table table-sm table-hover collapsible">
     <thead>
       <tr>
@@ -61,4 +69,4 @@
       </tr>
     <% end %>
   </table>
-</div>
+<% end %>

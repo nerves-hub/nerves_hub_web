@@ -1,5 +1,5 @@
 <div class="page-header">
-  <h1>Create a Device</h1>
+  <h1>Add Device</h1>
 </div>
 
 <%= form_for @changeset, Routes.device_path(@conn, :create, @org.name, @product.name), fn f -> %>

@@ -1,20 +1,21 @@
 <%= if @products == [] do %>
-<div class="jumbotron bg-dark">
-  <p class="lead text-left">The organization <%= @org.name %> doesn't have any products</p>
-  <hr class="my-4">
-  <p class="text-left">
-    <a class="btn btn-primary btn-lg" href="<%= Routes.product_path(@conn, :new, @org.name) %>" role="button">Add a Product</a>
-  </p>
-</div>
-<% else %>
-<div class="row">
-  <div class="col">
-    <h2>
-      Products
-    </h2>
+  <div class="no-results-blowup-wrapper">
+    <img src="/images/product.svg" alt="No products" />
+    <h3 style="margin-top: 2.75rem"><%= @org.name %> doesn’t have any products yet</h3>
+    <div class="flex-row align-items-center mt-3">
+      <a class="btn btn-outline-light" href="<%= Routes.product_path(@conn, :new, @org.name) %>" role="button" data-toggle="modal" data-target="#product-create-modal">
+        <div class="button-icon left-icon add"></div>
+        Create New
+      </a>
+    </div>
+    <%= render("new.html", conn: @conn, changeset: @changeset, org: @org) %>
   </div>
-</div>
-<div class="row">
+<% else %>
+  <div class="flex-row justify-content-between">
+    <h1>
+      Products
+    </h1>
+  </div>
   <table class="table table-sm table-hover">
     <thead>
       <tr>
@@ -38,5 +39,4 @@
       <% end %>
     </tbody>
   </table>
-</div>
 <% end %>
