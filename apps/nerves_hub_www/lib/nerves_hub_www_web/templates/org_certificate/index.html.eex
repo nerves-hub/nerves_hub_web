@@ -1,41 +1,38 @@
-<div class="row">
-  <div class="col">
-    <h2>
-      Certificate Authorities
-    </h2>
-  </div>
+<div class="flex-row justify-content-between">
+  <h1>
+    Certificate Authorities
+  </h1>
 </div>
-<div class="row">
-  <table class="table table-sm table-hover">
-    <thead>
-      <tr>
-        <th>Description</th>
-        <th>Serial</th>
-        <th>Last Used</th>
-        <th>Not Before</th>
-        <th>Not After</th>
+
+<table class="table table-sm table-hover">
+  <thead>
+    <tr>
+      <th>Description</th>
+      <th>Serial</th>
+      <th>Last Used</th>
+      <th>Not Before</th>
+      <th>Not After</th>
+    </tr>
+  </thead>
+  <tbody>
+    <%= for cert <- @certificates do %>
+      <tr class="item">
+        <td>
+          <%= cert.description %>
+        </td>
+        <td>
+          <%= cert.serial %>
+        </td>
+        <td class="date-time">
+          <%= cert.last_used %>
+        </td>
+        <td class="date-time">
+          <%= cert.not_before %>
+        </td>
+        <td class="date-time">
+          <%= cert.not_after %>
+        </td>
       </tr>
-    </thead>
-    <tbody>
-      <%= for cert <- @certificates do %>
-        <tr class="item">
-          <td>
-            <%= cert.description %>
-          </td>
-          <td>
-            <%= cert.serial %>
-          </td>
-          <td class="date-time">
-            <%= cert.last_used %>
-          </td>
-          <td class="date-time">
-            <%= cert.not_before %>
-          </td>
-          <td class="date-time">
-            <%= cert.not_after %>
-          </td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
-</div>
+    <% end %>
+  </tbody>
+</table>

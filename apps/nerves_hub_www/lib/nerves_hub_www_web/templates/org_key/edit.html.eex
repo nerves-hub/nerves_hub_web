@@ -1,4 +1,4 @@
-<h2>Edit Firmware Key</h2>
+<h1>Edit Firmware Key</h1>
 
 <%= render "form.html", Map.put(assigns, :action, Routes.org_key_path(@conn, :update, @org.name, @org_key)) %>
 

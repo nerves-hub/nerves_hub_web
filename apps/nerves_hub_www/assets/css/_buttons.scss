@@ -1,0 +1,50 @@
+html {
+  .btn {
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    height: 44px;
+    padding: .5rem 1rem;
+    font-size: 14px;
+    min-width: 80px;
+    justify-content: center;
+
+    &.btn-outline-light {
+      color: white;
+
+      &:hover {
+        background-color: transparent;
+        border-color: white;
+      }
+    }
+  }
+
+  .btn-lg {
+    height: 54px;
+    font-size: 1.125rem;
+  }
+
+  .button-icon {
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center;
+    width: 16px;
+    height: 16px;
+    margin-left: .75rem;
+
+    &.left-icon {
+      margin-left: 0;
+      margin-right: .75rem;
+    }
+
+    &.add {
+      background-image: url("/images/icons/add-75.svg");
+    }
+  }
+
+  .button-submit-wrapper {
+    margin-top: 2rem;
+    display: flex;
+    align-items: center;
+  }
+}

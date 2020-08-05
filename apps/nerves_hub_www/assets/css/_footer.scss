@@ -1,19 +1,22 @@
-@import "~bootstrap/scss/bootstrap";
-
 .footer {
-  background-color: #827f7d;
-  border-top: $nav-color solid 1px;
-  padding: 0px 5%;
+  background-color: var(--backgroundDark);
   width: 100%;
-  height: 148px;
-  z-index: 100; /* Behind the navbar */
-}
+  z-index: 100;
+  padding: 4rem 0;
+  display: flex;
+  justify-content: center;
 
-.footer a {
-  display: block;
-  font-size: 14px;
-  @extend .text-dark;
-  @include hover-focus {
-    color: whitesmoke;
+  & > div {
+    padding: 0 1.25rem;
+    max-width: 780px;
+  }
+
+  a {
+    color: white;
+    margin: .35rem 0;
+
+    &:hover {
+      color: var(--primary-25)
+    }
   }
 }

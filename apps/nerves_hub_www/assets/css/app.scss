@@ -3,20 +3,24 @@ $fa-font-path: '~@fortawesome/fontawesome-free/webfonts';
 @import '~@fortawesome/fontawesome-free/scss/solid';
 @import '~@fortawesome/fontawesome-free/scss/regular';
 @import '~@fortawesome/fontawesome-free/scss/brands';
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap');
 
+@import "~xterm/css/xterm.css";
 @import "audit_log_feed";
 @import "console";
-@import "custom";
+@import "layout";
+@import "colors";
+@import "typography";
+@import "buttons";
+@import "form";
 @import "navigation";
-@import "footer";
 @import "sidebar";
 @import "home";
+@import "custom";
+@import "footer";
+@import "table";
+@import "modal";
 @import "~bootstrap/scss/bootstrap";
-@import "~xterm/css/xterm.css";
-
-logo-font {
-  font-family: 'Varela Round', sans-serif;
-}
 
 html {
   margin: 0;
@@ -30,202 +34,49 @@ html {
 }
 
 body {
-  background-color: $light-background;
+  background-color: var(--background);
+  font-family: 'Montserrat', sans-serif;
+  color: white;
   height: 100%;
   position: relative;
-  margin-top: 68px;
+  margin-top: 80px;
+
+  &.modal-open {
+    padding-right: 0 !important;
+  }
 }
 
 main {
-  font-family: 'Varela', sans-serif;
-  color: black;
   padding-bottom: 120px;
   min-height: 100%;
 }
 
-h1,h2 {
-  color: #000;
+.badge {
+  height: 36px;
+  background: rgba(255,255,255,0.05);
+  padding: 10px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 16px;
 }
 
-#body-row {
-  margin-left:0;
-  margin-right:0;
-}
-
-// .panel-body {
-//   margin-top: 20px;
-// }
-
-.modal-content {
-  @extend .text-dark;
-  font-size: 18px;
-  background-color: white;
-  width: 70%;
-  margin: auto;
-  min-width: 600px;
-}
-
-.modal-header {
-  @extend .bg-dark;
-  display: block;
-  text-align: left;
+.alert {
+  margin: 2rem 0;
+  border-color: transparent;
   color: white;
-  strong {
-    color: $accent-color;
-  }
-}
+  font-weight: 500;
 
-.modal-footer {
-  background-color: whitesmoke;
-  padding-top: 14px;
-}
-
-.nhw_list {
-  @extend .text-dark;
-  background-color: $accent-color;
-  border-radius: 8px;
-  padding: 10px 10px;
-  a {
-    @extend .text-dark;
-  }
-  .header {
-    @include  make-col(12);
-    padding: 0 5px 35px 10px;
-    line-height: 30px;
-    height: 26px;
-  }
-  ul {
-    @include  make-col(12);
-    li {
-      margin: 0px;
-      padding: 15px;
-      span {
-        margin-right: 3px;
-      }
-    }
-  }
-  table.clean {
-    margin-bottom: 0px;
-    tr {
-      th {
-        padding: 5px 12px;
-        font-size: 14px;
-      }
-    }
-    td.item {
-      font-size: 14px;
-      background-color: whitesmoke !important;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.125);
-    }
-    span {
-      vertical-align: -webkit-baseline-middle;
-    }
-  }
-}
-
-.table-head-link {
-  padding-top: 5px;
-  padding-left: 40px;
-  a {
-    font-size: 14px;
-  }
-}
-
-
-table {
-  background-color: #FFF;
-  margin: 0px 15px;
-
-  th {
-    font-size: 14px;
-    border-top: none !important;
-    border-bottom: none !important;
+  &.alert-info {
+    background-color: var(--info);
   }
 
-  tr.header-row {
-    background-color: red;
+  &.alert-danger {
+    background-color: var(--danger);
   }
 
-  tr {
-    td {
-      font-size: 12px;
-    }
-
-    td.collapsible {
-      padding: 0px 5px;
-      border: none;
-      pointer-events: none;
-    }
-
-    span {
-      font-weight: bold;
-    }
+  &.alert-warning {
+    background-color: var(--warning);
   }
-
-  td.actions {
-    text-align: right;
-    padding-right: 10px;
-    form {
-      display: inline;
-    }
-    a {
-      padding: 0px 2px;
-    }
-  }
-
-  a.fa {
-    color: inherit;
-  }
-  button.fa {
-    display: inline;
-    background-color: Transparent;
-    background-repeat:no-repeat;
-    border: none;
-    cursor:pointer;
-    overflow: hidden;
-    outline:none;
-  }
-}
-
-table:not(.collapsible) {
-  tr.item:nth-child(odd) {
-    background: rgb(248, 248, 248);
-  }
-
-  tr.item:hover:nth-child(odd) {
-    background: rgb(228, 228, 228);
-  }
-}
-
-table.collapsible {
-  tr.item:nth-child(4n+1), tr.item:nth-child(4n+2) {
-    background: rgb(248, 248, 248);
-  }
-
-  tr.item:hover:nth-child(4n+1), tr.item:hover:nth-child(4n+2) {
-    background: rgb(228, 228, 228);
-  }
-}
-
-.pointer {
-  cursor: pointer;
-}
-
-.code-snippet {
-  overflow: unset;
-}
-
-.sort-selected {
-  text-decoration-line: underline;
-  text-decoration-style: dotted;
-}
-
-.help-icon {
-  font-size: 10px;
-  position: relative;
-  bottom: 1em;
-}
-
-div .row {
-  padding-right: 15px;
 }

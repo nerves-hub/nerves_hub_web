@@ -14,7 +14,10 @@
       <div class="has-error"><%= error_tag f, :org_users %></div>
     </div>
 
-    <%= submit "Send Invite", class: "btn btn-success" %>
-    <a class="btn btn-secondary" href="<%= Routes.org_path(@conn, :edit, @org.name) %>">Cancel</a>
+    <div class="button-submit-wrapper">
+      <a class="btn btn-secondary" href="<%= Routes.org_path(@conn, :edit, @org.name) %>">Cancel</a>
+      <%= submit "Send Invite", class: "btn btn-primary ml-2" %>
+    </div>
+
   <% end %>
 </div>

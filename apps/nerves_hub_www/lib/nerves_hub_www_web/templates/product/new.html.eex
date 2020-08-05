@@ -1,28 +1,32 @@
-<div class="modal-content shadow">
-  <%= form_for @changeset, Routes.product_path(@conn, :create, @org.name), fn f -> %>
-    <div class="modal-header panel-title rounded-top">
-      Create a Product
-    </div>
-    <div class="modal-body">
-      <%= if @changeset.action do %>
-        <div class="alert alert-danger">
-          <p>Oops, something went wrong! Please check the errors below.</p>
+<div class="modal fade" id="product-create-modal">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <%= form_for @changeset, Routes.product_path(@conn, :create, @org.name), fn f -> %>
+        <div class="modal-header panel-title rounded-top">
+          Create New Product
+        </div>
+        <div class="modal-body">
+          <%= if @changeset.action do %>
+            <div class="alert alert-danger">
+              <p>Oops, something went wrong! Please check the errors below.</p>
+            </div>
+          <% end %>
+
+          <%= label f, :name %>
+          <%= text_input f, :name , size: 56 %>
+          <%= error_tag f, :name %>
+        </div>
+        <div class="modal-footer">
+          <div class="col-4">
+            <a class="btn btn-secondary" href="<%= Routes.product_path(@conn, :index, @org.name) %>">
+              Cancel
+            </a>
+          </div>
+          <div class="col-8 text-right">
+            <%= submit "Create", class: "btn btn-primary" %>
+          </div>
         </div>
       <% end %>
-
-      <%= label f, :name %>
-      <%= text_input f, :name , size: 56 %>
-      <%= error_tag f, :name %>
     </div>
-    <div class="modal-footer">
-      <div class="col-4">
-        <a class="btn btn-secondary" href="<%= Routes.product_path(@conn, :index, @org.name) %>">
-          Cancel
-        </a>
-      </div>
-      <div class="col-8 text-right">
-        <%= submit "Create", class: "btn btn-primary" %>
-      </div>
-    </div>
-  <% end %>
+  </div>
 </div>

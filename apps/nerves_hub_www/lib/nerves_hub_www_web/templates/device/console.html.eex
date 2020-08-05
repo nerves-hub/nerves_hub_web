@@ -3,5 +3,5 @@
   <div id="terminal" class="console"></div>
   <button class="btn btn-danger" id="restart_button">Restart</button>
 <% else %>
-  <h2>Console disabled or unavailable
+  <h1>Console disabled or unavailable
 <% end %>

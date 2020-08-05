@@ -1,17 +1,25 @@
-<div class="row">
-  <div class="col">
-    <h2>
-      Deployments
-    </h2>
+<%= if @deployments == [] do %>
+  <div class="no-results-blowup-wrapper">
+    <img src="/images/deployment.svg" alt="No products" />
+    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any deployments yet</h3>
+    <div class="flex-row align-items-center mt-3">
+      <a class="btn btn-outline-light" href="<%= Routes.deployment_path(@conn, :new, @org.name, @product.name)%>">
+        <div class="button-icon left-icon add"></div>
+        Create Deployment
+      </a>
+    </div>
   </div>
-  <div class="col-3 mr-auto table-head-link">
-    <a href="<%= Routes.deployment_path(@conn, :new, @org.name, @product.name)%>">
-      <span class="fa fa-plus fa-fw mr-3"></span>
-      <span class="text">Create deployment</span>
+<% else %>
+  <div class="flex-row justify-content-between">
+    <h1>
+      Deployments
+    </h1>
+    <a class="btn btn-outline-light" href="<%= Routes.deployment_path(@conn, :new, @org.name, @product.name)%>">
+      <div class="button-icon left-icon add"></div>
+      Create Deployment
     </a>
   </div>
-</div>
-<div class="row">
+
   <table class="table table-sm table-hover">
     <thead>
       <tr>
@@ -26,7 +34,7 @@
       <tr class="item">
         <td><a href="<%= Routes.deployment_path(@conn, :show, @org.name, @product.name, deployment.name) %>"><%= deployment.name %></a></td>
         <td><span><%= firmware_display_name(deployment.firmware) %></span></td>
-        <td><span class="pre-scrollable"><%= deployment.conditions |> Jason.encode!() %></pre></td>
+        <td><span class="pre-scrollable"><%= deployment.conditions |> Jason.encode!() %></span></td>
         <td>
           <span class="label label-<%= if deployment.is_active, do: "success", else: "default" %>">
             <%= if deployment.is_active, do: "Active", else: "Inactive" %>
@@ -38,4 +46,4 @@
       </tr>
     <% end %>
   </table>
-</div>
+<% end %>

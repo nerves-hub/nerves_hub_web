@@ -6,20 +6,12 @@ defmodule NervesHubWWWWeb.LayoutView do
   alias NervesHubWebCore.Products
   alias NervesHubWebCore.Products.Product
 
-  @gravatar_url "https://secure.gravatar.com/avatar"
-  @gravatar_size 54
-
   def product(%{assigns: %{product: %Product{} = product}}) do
     product
   end
 
   def product(_conn) do
     nil
-  end
-
-  def gravatar(%{assigns: %{user: %{email: email}}}) do
-    hash = :crypto.hash(:md5, String.downcase(email)) |> Base.encode16(case: :lower)
-    "#{@gravatar_url}/#{hash}?s=#{@gravatar_size}"
   end
 
   def user_orgs(%{assigns: %{user: %User{} = user}}) do
@@ -166,7 +158,6 @@ defmodule NervesHubWWWWeb.LayoutView do
     ([
        %{
          title: "Products",
-         icon: "boxes",
          active: "",
          href: Routes.product_path(conn, :index, conn.assigns.org.name)
        }
@@ -175,25 +166,21 @@ defmodule NervesHubWWWWeb.LayoutView do
          [
            %{
              title: "Profile",
-             icon: "sliders-h",
              active: "",
              href: Routes.org_path(conn, :edit, conn.assigns.org.name)
            },
            %{
              title: "Certificate Authorities",
-             icon: "certificate",
              active: "",
              href: Routes.org_certificate_path(conn, :index, conn.assigns.org.name)
            },
            %{
              title: "Firmware Keys",
-             icon: "key",
              active: "",
              href: Routes.org_key_path(conn, :index, conn.assigns.org.name)
            },
            %{
              title: "Users",
-             icon: "users",
              active: "",
              href: Routes.org_user_path(conn, :index, conn.assigns.org.name)
            }
@@ -205,7 +192,6 @@ defmodule NervesHubWWWWeb.LayoutView do
          [
            %{
              title: "My Account",
-             icon: "id-card",
              active: "",
              href: Routes.account_path(conn, :edit, conn.assigns.user.username)
            }
@@ -221,19 +207,16 @@ defmodule NervesHubWWWWeb.LayoutView do
       # %{title: "Dashboard", icon: "tachometer-alt", active: "", href: Routes.product_path(conn, :show, conn.assigns.org.name, conn.assigns.product.name)},
       %{
         title: "Devices",
-        icon: "microchip",
         active: "",
         href: Routes.device_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
       },
       %{
         title: "Firmware",
-        icon: "sd-card",
         active: "",
         href: Routes.firmware_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
       },
       %{
         title: "Deployments",
-        icon: "cloud-download-alt",
         active: "",
         href:
           Routes.deployment_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
