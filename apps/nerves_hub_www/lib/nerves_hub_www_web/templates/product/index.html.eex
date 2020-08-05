@@ -3,12 +3,11 @@
     <img src="/images/product.svg" alt="No products" />
     <h3 style="margin-top: 2.75rem"><%= @org.name %> doesn’t have any products yet</h3>
     <div class="flex-row align-items-center mt-3">
-      <a class="btn btn-outline-light" href="<%= Routes.product_path(@conn, :new, @org.name) %>" role="button" data-toggle="modal" data-target="#product-create-modal">
+      <a class="btn btn-outline-light" href="<%= Routes.product_path(@conn, :new, @org.name) %>" role="button">
         <div class="button-icon left-icon add"></div>
         Create New
       </a>
     </div>
-    <%= render("new.html", conn: @conn, changeset: @changeset, org: @org) %>
   </div>
 <% else %>
   <div class="flex-row justify-content-between">
