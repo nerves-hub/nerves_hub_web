@@ -119,4 +119,8 @@ body {
   .color-white {
     color: white !important;
   }
+
+  .color-white-50 {
+    color: var(--white-50);
+  }
 }

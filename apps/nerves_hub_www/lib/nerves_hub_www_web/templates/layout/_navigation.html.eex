@@ -9,23 +9,43 @@
           <a class="nav-link dropdown-toggle org-select arrow-primary" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <%= if org = get_in(@conn.assigns, [:org]), do: org.name, else: @conn.assigns.user.username %><%= if product = product(@conn) do %> <span class="workspace-divider">:</span> <%= product.name %><% end %>
           </a>
-          <div class="dropdown-menu workspace-dropdown" aria-labelledby="navbarDropdownMenuLink">
-            <div class="help-text mt-3">Select a workspace</div>
+          <ul class="dropdown-menu workspace-dropdown" aria-labelledby="navbarDropdownMenuLink">
+            <div class="help-text mt-3 pl-3 pr-3">Select a workspace</div>
             <%= for org <- user_orgs(@conn) do %>
-              <%= active_link(@conn, to: Routes.product_path(@conn, :index, org.name), class_active: "active dropdown-item org", class_inactive: "dropdown-item org") do %>
-                <%= org.name %>
-                <div class="active-checkmark"></div>
-              <% end %>
-              <%= for product <- user_org_products(@conn.assigns.user, org) do %>
-                <%= active_link(@conn, to: Routes.product_path(@conn, :show, org.name, product.name), class_active: "active dropdown-item product", class_inactive: "dropdown-item product") do %>
-                  <%= product.name %>
+              <li class="dropdown-submenu">
+                <%= active_link(@conn, to: Routes.product_path(@conn, :index, org.name), class_active: "active dropdown-item org", class_inactive: "dropdown-item org dropdown-toggle", aria_haspopup: "true") do %>
+                  <%= org.name %>
                   <div class="active-checkmark"></div>
                 <% end %>
-              <% end %>
-              <div class="dropdown-divider"></div>
+                <ul class="dropdown-menu">
+                  <div class="help-text mt-3 pl-3 pr-3">Select a product</div>
+                  <%= if user_org_products(@conn.assigns.user, org) !== [] do %>
+                    <%= for product <- user_org_products(@conn.assigns.user, org) do %>
+                      <li>
+                        <%= active_link(@conn, to: Routes.product_path(@conn, :show, org.name, product.name), class_active: "active dropdown-item product", class_inactive: "dropdown-item product") do %>
+                          <%= product.name %>
+                          <div class="active-checkmark"></div>
+                        <% end %>
+                        <div class="dropdown-divider"></div>
+                      </li>
+                    <% end %>
+                  <% else %>
+                    <li class="downdown-item product color-white-50 p-3">No Products have been created</li>
+                    <div class="dropdown-divider"></div>
+                  <% end %>
+                  <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" href="<%= Routes.product_path(@conn, :new, org.name) %>">
+                    Create Product
+                    <div class="button-icon add"></div>
+                  </a>
+                </ul>
+                <div class="dropdown-divider"></div>
+              </li>
             <% end %>
-            <a class="btn btn-outline-light mt-2 mb-3" href="<%= Routes.org_path(@conn, :new) %>">Create Workspace <div class="button-icon add"></div></a>
-          </div>
+            <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" href="<%= Routes.org_path(@conn, :new) %>">
+              Create Workspace
+              <div class="button-icon add"></div>
+            </a>
+          </ul>
         </li>
       </ul>
       <ul class="navbar-nav">
