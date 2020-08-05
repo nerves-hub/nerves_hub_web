@@ -14,7 +14,7 @@ nav.navbar {
   background-color: var(--black);
   border-radius: 0;
   box-shadow: none;
-  padding: 0 1.5rem;
+  padding: 0;
   border: 1px solid var(--white-25);
   width: 100%;
   margin-top: -2px;
@@ -50,6 +50,9 @@ nav.navbar {
   transition: color 200ms ease;
   display: flex;
   align-items: center;
+  padding: 1.5rem;
+  font-weight: bold;
+  text-transform: capitalize;
 
   &:hover {
     color: white;
@@ -72,25 +75,14 @@ nav.navbar {
   }
 
   &.org {
-    font-weight: bold;
-    text-transform: capitalize;
-    padding: 1.5rem 0;
     background-image: url("/images/icons/arrow-back-red.svg");
     background-repeat: no-repeat;
     background-size: 13.41px;
-    background-position: right center;
+    background-position: right 1.5rem center;
   }
 
-  &.product {
-    padding: 1.5rem 0 1.5rem 1rem;
-    font-weight: bold;
-    text-transform: capitalize;
-  }
-
-  &.user {
-    font-weight: bold;
-    text-transform: capitalize;
-    padding: 1.5rem 0;
+  &.dropdown-toggle:after {
+    display: none;
   }
 }
 
@@ -176,4 +168,17 @@ nav.navbar {
       }
     }
   }
+}
+
+.navbar-nav li.dropdown-submenu:hover > ul.dropdown-menu {
+  display: block;
+}
+
+.dropdown-submenu {
+  position: relative;
+}
+
+.dropdown-submenu > .dropdown-menu {
+  top: -44px;
+  left: 100%;
 }
