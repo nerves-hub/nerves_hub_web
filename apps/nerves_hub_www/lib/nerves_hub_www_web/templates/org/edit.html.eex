@@ -2,25 +2,26 @@
   Workspace Settings
 </h1>
 
-<table class="table table-striped mb-4">
-  <thead>
-    <tr>
-      <th>Device Limit</th>
-      <th>Firmware per Product</th>
-      <th>Firmware Size</th>
-      <th>Firmware Max Time to Live<th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td> <%= @org_limit.devices %> </td>
-      <td> <%= @org_limit.firmware_per_product %> </td>
-      <td> <%= humanize_size(@org_limit.firmware_size) %> </td>
-      <td> <%= humanize_seconds(@org_limit.firmware_ttl_seconds) %> </td>
-    </tr>
-  </tbody>
-</table>
+<div class="x4-grid">
+  <div>
+    <div class="help-text mb-1">Device Limit</div>
+    <p><%= @org_limit.devices %></p>
+  </div>
+  <div>
+    <div class="help-text mb-1">Firmware per Product</div>
+    <p><%= @org_limit.firmware_per_product %></p>
+  </div>
+  <div>
+    <div class="help-text mb-1">Firmware Size</div>
+    <p><%= humanize_size(@org_limit.firmware_size) %></p>
+  </div>
+  <div>
+    <div class="help-text mb-1">Firmware Max Time to Live</div>
+    <p><%= humanize_seconds(@org_limit.firmware_ttl_seconds) %></p>
+  </div>
+</div>
+
+<div class="divider"></div>
 
 <%= if @org.type != :user do %>
   <%= form_for @org_changeset, Routes.org_path(@conn, :update, @org.name), fn f -> %>
