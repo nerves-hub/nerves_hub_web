@@ -17,6 +17,10 @@ html {
         border-color: white;
       }
     }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
   }
 
   .btn-lg {

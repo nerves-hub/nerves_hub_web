@@ -2,12 +2,19 @@ defmodule NervesHubWWWWeb.OrgController do
   use NervesHubWWWWeb, :controller
 
   alias Ecto.Changeset
-  alias NervesHubWebCore.Accounts.Email
   alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.Accounts.Email
+  alias NervesHubWebCore.Accounts.User
   alias NervesHubWebCore.Accounts.{Invite, OrgKey, OrgUser}
   alias NervesHubWebCore.Mailer
 
   plug(:validate_role, [org: :admin] when action in [:edit, :update, :invite])
+  
+  def index(conn, _params) do
+    orgs = Accounts.get_user_orgs(conn.assigns.user)
+#    orgs = Repo.all(Ecto.assoc(_params["user"], :orgs))
+    render(conn, "index.html", orgs: orgs)
+  end
 
   def new(conn, _params) do
     changeset = Accounts.Org.creation_changeset(%Accounts.Org{}, %{})
@@ -19,7 +26,7 @@ defmodule NervesHubWWWWeb.OrgController do
 
     with {:ok, org} <- Accounts.create_org(user, params) do
       conn
-      |> put_flash(:info, "Organization created successfully.")
+      |> put_flash(:info, "Workspace created successfully.")
       |> redirect(to: Routes.product_path(conn, :index, org.name))
     else
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -44,7 +51,7 @@ defmodule NervesHubWWWWeb.OrgController do
     |> case do
       {:ok, org} ->
         conn
-        |> put_flash(:info, "Organization Updated")
+        |> put_flash(:info, "Workspace Updated")
         |> redirect(to: Routes.org_path(conn, :edit, org.name))
 
       {:error, changeset} ->
