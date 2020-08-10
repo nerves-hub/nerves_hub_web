@@ -140,6 +140,9 @@ defmodule NervesHubWWWWeb.LayoutView do
   def sidebar_links(%{path_info: ["settings" | _tail]} = conn),
     do: sidebar_settings(conn)
 
+  def sidebar_links(%{path_info: ["account" | _tail]} = conn),
+    do: sidebar_account(conn)
+
   def sidebar_links(%{path_info: ["org", "new"]}),
     do: []
 
@@ -165,16 +168,6 @@ defmodule NervesHubWWWWeb.LayoutView do
        if NervesHubWebCore.Accounts.has_org_role?(org, user, :read) do
          [
            %{
-             title: "Profile",
-             active: "",
-             href: Routes.org_path(conn, :edit, conn.assigns.org.name)
-           },
-           %{
-             title: "Certificate Authorities",
-             active: "",
-             href: Routes.org_certificate_path(conn, :index, conn.assigns.org.name)
-           },
-           %{
              title: "Firmware Keys",
              active: "",
              href: Routes.org_key_path(conn, :index, conn.assigns.org.name)
@@ -183,17 +176,16 @@ defmodule NervesHubWWWWeb.LayoutView do
              title: "Users",
              active: "",
              href: Routes.org_user_path(conn, :index, conn.assigns.org.name)
-           }
-         ]
-       else
-         []
-       end ++
-       if String.equivalent?(user.username, org.name) do
-         [
+           },
            %{
-             title: "My Account",
+             title: "Certificates",
              active: "",
-             href: Routes.account_path(conn, :edit, conn.assigns.user.username)
+             href: Routes.org_certificate_path(conn, :index, conn.assigns.org.name)
+           },
+           %{
+             title: "Settings",
+             active: "",
+             href: Routes.org_path(conn, :edit, conn.assigns.org.name)
            }
          ]
        else
@@ -221,6 +213,22 @@ defmodule NervesHubWWWWeb.LayoutView do
         href:
           Routes.deployment_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
       }
+    ]
+    |> sidebar_active(conn)
+  end
+
+  def sidebar_account(conn) do
+    [
+      %{
+        title: "Personal Info",
+        active: "",
+        href: Routes.account_path(conn, :edit, conn.assigns.user.username)
+      },
+      %{
+        title: "My Workspaces",
+        active: "",
+        href: Routes.org_path(conn, :index, conn.assigns.user.username)
+      },
     ]
     |> sidebar_active(conn)
   end

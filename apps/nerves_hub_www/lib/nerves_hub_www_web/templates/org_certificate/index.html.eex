@@ -1,7 +1,7 @@
 <div class="flex-row justify-content-between">
-  <h1>
+  <h3 class="mb-4">
     Certificate Authorities
-  </h1>
+  </h3>
 </div>
 
 <table class="table table-sm table-hover">
