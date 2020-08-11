@@ -116,6 +116,7 @@ defmodule NervesHubWWWWeb.Router do
         pipe_through(:product)
 
         get("/", ProductController, :show)
+        get("/edit", ProductController, :edit)
         delete("/", ProductController, :delete)
 
         scope "/devices" do

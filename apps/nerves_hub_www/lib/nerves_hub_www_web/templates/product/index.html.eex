@@ -14,28 +14,17 @@
     <h1>
       Products
     </h1>
+    <a class="btn btn-outline-light" href="<%= Routes.product_path(@conn, :new, @org.name) %>" role="button">
+      <div class="button-icon left-icon add"></div>
+      Create New
+    </a>
   </div>
-  <table class="table table-sm table-hover">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      <%= for product <- @products do %>
-        <tr class="item">
-          <td>
-            <a href="<%= Routes.device_path(@conn, :index, @org.name, product.name) %>"><%= product.name %></a>
-          </td>
-          <td class="md-left-auto actions">
-            <%= link "", class: "fa fa-microchip", to: Routes.device_path(@conn, :index, @org.name, product.name) %>
-            <%= link "", class: "fa fa-sd-card", to: Routes.firmware_path(@conn, :index, @org.name, product.name) %>
-            <%= link "", class: "fa fa-cloud-download-alt", to: Routes.deployment_path(@conn, :index, @org.name, product.name) %>
-            <%= link "", class: "fa fa-trash-alt", to: Routes.product_path(@conn, :delete, @org.name, product.name), method: :delete, data: [confirm: "Are you sure you want to delete this product? This can not be undone."] %>
-          </td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
+
+  <div class="x3-grid">
+    <%= for product <- @products do %>
+      <a class="grid-item" href="<%= Routes.device_path(@conn, :index, @org.name, product.name) %>">
+        <h3><%= product.name %></h3>
+      </a>
+    <% end %>
+  </div>
 <% end %>
