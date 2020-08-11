@@ -24,6 +24,11 @@ html {
       outline: none;
       box-shadow: none;
     }
+
+    &:disabled {
+      background-color: var(--white-25);
+      cursor: not-allowed;
+    }
   }
 
   label {

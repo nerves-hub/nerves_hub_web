@@ -1,6 +1,6 @@
 <div class="flex-row justify-content-between">
   <h1>
-    User Roles
+    Users
   </h1>
   <%= if @org.type != :user do %>
     <a class="btn btn-outline-light" href="<%= Routes.org_path(@conn, :invite, @org.name) %>">

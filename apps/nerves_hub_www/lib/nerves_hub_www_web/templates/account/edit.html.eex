@@ -1,9 +1,12 @@
 <h1>
-  My Account
-  <a class="btn btn-lg btn-success pull-right" href="<%= Routes.account_certificate_path(@conn, :index, @user.username)%>">
-    User Certificates
-  </a>
+  Personal Info
 </h1>
+
+<div class="mb-4">
+  <a class="btn btn-outline-light" href="<%= Routes.account_certificate_path(@conn, :index, @user.username)%>">
+      User Certificates
+  </a>
+</div>
 
 <%= form_for @changeset, Routes.account_path(@conn, :update, @user.username), fn f -> %>
   <div class="form-group">
@@ -33,7 +36,7 @@
   </div>
 
   <div class="button-submit-wrapper">
-    <%= submit "Update", class: "btn btn-primary" %>
+    <%= submit "Save Changes", class: "btn btn-primary" %>
   </div>
 <% end %>
 

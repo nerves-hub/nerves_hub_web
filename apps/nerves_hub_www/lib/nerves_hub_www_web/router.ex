@@ -82,22 +82,25 @@ defmodule NervesHubWWWWeb.Router do
       get("/users", OrgUserController, :index)
 
       resources("/keys", OrgKeyController)
-
-      scope "/account" do
-        get("/", AccountController, :edit)
-        put("/", AccountController, :update)
-
-        scope "/certificates" do
-          get("/", AccountCertificateController, :index)
-          get("/new", AccountCertificateController, :new)
-          get("/:id", AccountCertificateController, :show)
-          delete("/:id", AccountCertificateController, :delete)
-          post("/create", AccountCertificateController, :create)
-          get("/:id/download", AccountCertificateController, :download)
-        end
-      end
     end
 
+    scope "/account/:user_name" do
+      get("/", AccountController, :edit)
+      put("/", AccountController, :update)
+  
+      scope "/certificates" do
+        get("/", AccountCertificateController, :index)
+        get("/new", AccountCertificateController, :new)
+        get("/:id", AccountCertificateController, :show)
+        delete("/:id", AccountCertificateController, :delete)
+        post("/create", AccountCertificateController, :create)
+        get("/:id/download", AccountCertificateController, :download)
+      end
+
+      get("/workspaces", OrgController, :index)
+    end
+
+    
     get("/org/new", OrgController, :new)
     post("/org", OrgController, :create)
 

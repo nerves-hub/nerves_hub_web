@@ -303,4 +303,42 @@ html {
   .p-8 {
     padding: 4rem !important;
   }
+
+  .x3-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-column-gap: 2rem;
+    grid-row-gap: 2rem;
+
+    @media (max-width: 1100px) {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .grid-item {
+      border: 1px solid var(--white-50);
+      border-radius: 4px;
+      height: 216px;
+      padding: 2rem;
+      display: flex;
+      transition: all 200ms ease;
+      flex-direction: column;
+      justify-content: space-between;
+
+      &:hover {
+        border-color: white;
+      }
+
+      .icon {
+
+      }
+    }
+  }
+
+  .x4-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-column-gap: 2rem;
+    grid-row-gap: 2rem;
+  }
 }
+

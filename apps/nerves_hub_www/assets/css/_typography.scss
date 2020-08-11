@@ -64,6 +64,10 @@ body {
     font-weight: 500;
     color: white;
     line-height: 24px;
+
+    &:last-child {
+      margin: 0;
+    }
   }
 
   .body-text-small,
@@ -76,7 +80,8 @@ body {
 
   .help-text {
     font-size: 14px;
-    color: var(--white-25);
+    color: var(--white-50);
+    font-weight: 300;
 
     &.large {
       font-size: 18px;
