@@ -22,13 +22,13 @@ defmodule NervesHubWWWWeb.OrgKeyController do
     case Accounts.create_org_key(org_key_params |> Enum.into(%{"org_id" => org.id})) do
       {:ok, _org_key} ->
         conn
-        |> put_flash(:info, "Organization key created successfully.")
-        |> redirect(to: Routes.org_path(conn, :edit, org.name))
+        |> put_flash(:info, "Firmware key created successfully.")
+        |> redirect(to: Routes.org_key_path(conn, :index, org.name))
 
       {:error, %Ecto.Changeset{}} ->
         conn
         |> put_flash(:error, "Failed to create key -- it must have a unique name and value")
-        |> redirect(to: Routes.org_path(conn, :edit, org.name))
+        |> redirect(to: Routes.org_key_path(conn, :index, org.name))
     end
   end
 
@@ -55,8 +55,8 @@ defmodule NervesHubWWWWeb.OrgKeyController do
          ) do
       {:ok, _org_key} ->
         conn
-        |> put_flash(:info, "Organization key updated successfully.")
-        |> redirect(to: Routes.org_path(conn, :edit, org.name))
+        |> put_flash(:info, "Firmware key updated successfully.")
+        |> redirect(to: Routes.org_key_path(conn, :index, org.name))
 
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "edit.html", org_key: org_key, changeset: changeset)
@@ -68,8 +68,8 @@ defmodule NervesHubWWWWeb.OrgKeyController do
 
     with {:ok, _org_key} <- Accounts.delete_org_key(org_key) do
       conn
-      |> put_flash(:info, "Organization key deleted successfully.")
-      |> redirect(to: Routes.org_path(conn, :edit, org.name))
+      |> put_flash(:info, "Firmware key deleted successfully.")
+      |> redirect(to: Routes.org_key_path(conn, :index, org.name))
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "edit.html", org_key: org_key, changeset: changeset)

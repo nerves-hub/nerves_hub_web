@@ -19,6 +19,14 @@ defmodule NervesHubWWWWeb.LayoutView do
   end
 
   def user_orgs(_conn), do: []
+  
+  def count_user_orgs(conn) do
+    Enum.count(user_orgs(conn))
+  end
+  
+  def take_user_orgs(conn, amount) do
+    Enum.take(user_orgs(conn), amount)
+  end
 
   def user_org_products(user, org) do
     Products.get_products_by_user_and_org(user, org)

@@ -1,5 +1,3 @@
 <h1>Edit Firmware Key</h1>
 
 <%= render "form.html", Map.put(assigns, :action, Routes.org_key_path(@conn, :update, @org.name, @org_key)) %>
-
-<span><%= link "Back", to: Routes.org_key_path(@conn, :index, @org.name) %></span>
