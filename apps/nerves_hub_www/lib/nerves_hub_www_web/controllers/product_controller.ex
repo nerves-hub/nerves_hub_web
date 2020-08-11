@@ -55,7 +55,7 @@ defmodule NervesHubWWWWeb.ProductController do
       {:ok, product} ->
         conn
         |> put_flash(:info, "Product updated successfully.")
-        |> redirect(to: Routes.product_path(conn, :show, org.name, product.name))
+        |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
 
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "edit.html", product: product, changeset: changeset)
