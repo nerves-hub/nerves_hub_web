@@ -3,16 +3,18 @@
     <a class="logo" href="<%= logo_href(@conn) %>">
       <img src="/images/logo.svg" alt="logo" />
     </a>
+
     <%= if logged_in?(@conn) do %>
       <ul class="navbar-nav mr-auto flex-grow">
         <li class="nav-item dropdown switcher">
           <a class="nav-link dropdown-toggle org-select arrow-primary" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <%= if org = get_in(@conn.assigns, [:org]), do: org.name, else: @conn.assigns.user.username %><%= if product = product(@conn) do %> <span class="workspace-divider">:</span> <%= product.name %><% end %>
           </a>
-          <ul class="dropdown-menu workspace-dropdown" aria-labelledby="navbarDropdownMenuLink">
+
+          <div class="dropdown-menu workspace-dropdown" aria-labelledby="navbarDropdownMenuLink">
             <div class="help-text mt-3 pl-3 pr-3">Select a workspace</div>
-            <%= for org <- user_orgs(@conn) do %>
-              <li class="dropdown-submenu">
+            <%= for org <- take_user_orgs(@conn, 5) do %>
+              <div class="dropdown-submenu">
                 <%= active_link(@conn, to: Routes.product_path(@conn, :index, org.name), class_active: "active dropdown-item org", class_inactive: "dropdown-item org dropdown-toggle", aria_haspopup: "true") do %>
                   <%= org.name %>
                   <div class="active-checkmark"></div>
@@ -39,13 +41,18 @@
                   </a>
                 </ul>
                 <div class="dropdown-divider"></div>
-              </li>
+              </div>
             <% end %>
+
+            <%= if count_user_orgs(@conn) > 5 do %>
+            <a class="all-workspaces" href="<%= Routes.org_path(@conn, :index, @conn.assigns.user.username) %>">View All Workspaces (<%= count_user_orgs(@conn) %>)</a>
+            <% end %>
+
             <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" href="<%= Routes.org_path(@conn, :new) %>">
               Create Workspace
               <div class="button-icon add"></div>
             </a>
-          </ul>
+          </div>
         </li>
       </ul>
       <ul class="navbar-nav">

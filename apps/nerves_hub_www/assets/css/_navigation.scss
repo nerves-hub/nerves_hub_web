@@ -170,7 +170,7 @@ nav.navbar {
   }
 }
 
-.navbar-nav li.dropdown-submenu:hover > ul.dropdown-menu {
+.navbar-nav .dropdown-submenu:hover > ul.dropdown-menu {
   display: block;
 }
 
@@ -181,4 +181,10 @@ nav.navbar {
 .dropdown-submenu > .dropdown-menu {
   top: -44px;
   left: 100%;
+}
+
+.all-workspaces {
+  padding: 1.5rem 1.5rem .5rem;
+  display: block;
+  font-size: 14px;
 }

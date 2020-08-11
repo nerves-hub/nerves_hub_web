@@ -74,7 +74,7 @@ body {
   .p-small {
     font-size: 14px;
     font-weight: 400;
-    color: var(--text-dark);
+    color: var(--white-75);
     line-height: 19px;
   }
 
@@ -92,7 +92,7 @@ body {
 
   a {
     color: white;
-    transition: color 150ms ease;
+    transition: color 200ms ease;
     font-weight: 500;
 
     &.inline {
