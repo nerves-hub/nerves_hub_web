@@ -12,7 +12,6 @@ defmodule NervesHubWWWWeb.OrgController do
   
   def index(conn, _params) do
     orgs = Accounts.get_user_orgs(conn.assigns.user)
-#    orgs = Repo.all(Ecto.assoc(_params["user"], :orgs))
     render(conn, "index.html", orgs: orgs)
   end
 
