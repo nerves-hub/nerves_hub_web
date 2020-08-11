@@ -21,7 +21,10 @@
     <%= link "Back", to: Routes.org_key_path(@conn, :index, @org.name), class: "btn btn-outline-light mr-3" %>
     <%= if assigns[:org_key] do %>
       <%= link "Remove", to: Routes.org_key_path(@conn, :delete, @org.name, @org_key), method: :delete, data: [confirm: "Are you sure you want to delete this firmware key? This can not be undone."], class: "btn btn-secondary mr-3" %>
+      <%= submit "Save Changes", class: "btn btn-primary" %>
+    <% else %>
+      <%= submit "Create Key", class: "btn btn-primary" %>
     <% end %>
-    <%= submit "Save", class: "btn btn-primary" %>
+
   </div>
 <% end %>

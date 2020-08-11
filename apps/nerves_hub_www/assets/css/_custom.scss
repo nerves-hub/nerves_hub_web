@@ -52,8 +52,8 @@
 }
 
 .dropdown-toggle.options {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -73,8 +73,11 @@
     padding: 1rem;
     border-radius: 4px;
     background-color: var(--background);
+    border: 1px solid var(--white-75);
 
     li {
+      color: white;
+
       &:after {
         display: block;
         margin: 1rem 0;
