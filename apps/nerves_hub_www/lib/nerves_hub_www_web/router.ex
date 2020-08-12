@@ -108,7 +108,7 @@ defmodule NervesHubWWWWeb.Router do
       pipe_through(:org)
 
       get("/", ProductController, :index)
-
+      put("/", ProductController, :update)
       get("/new", ProductController, :new)
       post("/", ProductController, :create)
 
@@ -116,6 +116,7 @@ defmodule NervesHubWWWWeb.Router do
         pipe_through(:product)
 
         get("/", ProductController, :show)
+        get("/edit", ProductController, :edit)
         delete("/", ProductController, :delete)
 
         scope "/devices" do

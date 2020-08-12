@@ -32,6 +32,14 @@ defmodule NervesHubWWWWeb.LayoutView do
     Products.get_products_by_user_and_org(user, org)
   end
 
+  def count_user_org_products(user, org) do
+    Enum.count(user_org_products(user, org))
+  end
+
+  def take_user_org_products(user, org, amount) do
+    Enum.take(user_org_products(user, org), amount)
+  end
+
   def logged_in?(%{assigns: %{user: %User{}}}), do: true
   def logged_in?(_), do: false
 
@@ -191,7 +199,7 @@ defmodule NervesHubWWWWeb.LayoutView do
              href: Routes.org_certificate_path(conn, :index, conn.assigns.org.name)
            },
            %{
-             title: "Settings",
+             title: "Workspace Settings",
              active: "",
              href: Routes.org_path(conn, :edit, conn.assigns.org.name)
            }
@@ -220,6 +228,12 @@ defmodule NervesHubWWWWeb.LayoutView do
         active: "",
         href:
           Routes.deployment_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+      },
+      %{
+        title: "Product Settings",
+        active: "",
+        href:
+          Routes.product_path(conn, :edit, conn.assigns.org.name, conn.assigns.product.name)
       }
     ]
     |> sidebar_active(conn)
