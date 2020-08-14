@@ -25,7 +25,7 @@ defmodule NervesHubWWWWeb.AccountCertificateControllerTest do
       Fixtures.user_certificate_fixture(other_user, %{description: "baz", serial: "anotherserial"})
 
       conn = get(conn, Routes.account_certificate_path(conn, :index, user.username))
-      assert html_response(conn, 200) =~ "Account Certificates"
+      assert html_response(conn, 200) =~ "User Certificates"
 
       assert html_response(conn, 200) =~
                Routes.account_certificate_path(conn, :delete, user.username, foo_cert)

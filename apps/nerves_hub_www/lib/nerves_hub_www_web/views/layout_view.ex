@@ -19,11 +19,11 @@ defmodule NervesHubWWWWeb.LayoutView do
   end
 
   def user_orgs(_conn), do: []
-  
+
   def count_user_orgs(conn) do
     Enum.count(user_orgs(conn))
   end
-  
+
   def take_user_orgs(conn, amount) do
     Enum.take(user_orgs(conn), amount)
   end
@@ -232,8 +232,7 @@ defmodule NervesHubWWWWeb.LayoutView do
       %{
         title: "Product Settings",
         active: "",
-        href:
-          Routes.product_path(conn, :edit, conn.assigns.org.name, conn.assigns.product.name)
+        href: Routes.product_path(conn, :edit, conn.assigns.org.name, conn.assigns.product.name)
       }
     ]
     |> sidebar_active(conn)
@@ -250,7 +249,7 @@ defmodule NervesHubWWWWeb.LayoutView do
         title: "My Workspaces",
         active: "",
         href: Routes.org_path(conn, :index, conn.assigns.user.username)
-      },
+      }
     ]
     |> sidebar_active(conn)
   end

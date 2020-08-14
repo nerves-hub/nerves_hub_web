@@ -19,7 +19,7 @@ defmodule NervesHubWWWWeb.SessionControllerTest do
     test "renders form" do
       conn = build_conn()
       conn = get(conn, Routes.session_path(conn, :new))
-      assert html_response(conn, 200) =~ "Log in to your NervesHub account"
+      assert html_response(conn, 200) =~ "Login"
     end
   end
 

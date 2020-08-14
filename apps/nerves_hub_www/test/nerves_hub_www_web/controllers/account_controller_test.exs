@@ -9,7 +9,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
       conn: conn
     } do
       conn = get(conn, Routes.account_path(conn, :new))
-      assert html_response(conn, 200) =~ "Create an Account"
+      assert html_response(conn, 200) =~ "Create your free account"
     end
   end
 
@@ -66,7 +66,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
       user: user
     } do
       conn = get(conn, Routes.account_path(conn, :edit, user.username))
-      assert html_response(conn, 200) =~ "Edit Account"
+      assert html_response(conn, 200) =~ "Personal Info"
 
       assert html_response(conn, 200) =~
                Routes.account_certificate_path(conn, :index, user.username)
