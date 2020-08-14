@@ -16,7 +16,7 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   describe "new product" do
     test "renders form", %{conn: conn, org: org} do
       conn = get(conn, Routes.product_path(conn, :new, org.name))
-      assert html_response(conn, 200) =~ "Create a Product"
+      assert html_response(conn, 200) =~ "Create Product"
     end
   end
 
@@ -25,7 +25,7 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
       params = @create_attrs
       conn = post(conn, Routes.product_path(conn, :create, org.name), product: params)
       assert %{product_name: product_name} = redirected_params(conn)
-      assert redirected_to(conn) == Routes.product_path(conn, :show, org.name, params.name)
+      assert redirected_to(conn) == Routes.device_path(conn, :index, org.name, params.name)
 
       conn = get(conn, Routes.product_path(conn, :show, org.name, params.name))
       assert html_response(conn, 200) =~ "Show Product"
@@ -35,7 +35,7 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do
       conn = post(conn, Routes.product_path(conn, :create, org.name), product: @invalid_attrs)
-      assert html_response(conn, 200) =~ "Create a Product"
+      assert html_response(conn, 200) =~ "Create Product"
     end
   end
 

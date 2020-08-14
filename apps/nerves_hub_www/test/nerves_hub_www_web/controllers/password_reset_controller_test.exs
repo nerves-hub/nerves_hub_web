@@ -60,7 +60,7 @@ defmodule NervesHubWWWWeb.PasswordResetControllerTest do
 
       reset_conn = get(conn, Routes.password_reset_path(conn, :new_password_form, token), params)
 
-      assert html_response(reset_conn, 200) =~ "New Password:"
+      assert html_response(reset_conn, 200) =~ "New Password"
     end
 
     test "with valid params", %{conn: conn, user: user} do

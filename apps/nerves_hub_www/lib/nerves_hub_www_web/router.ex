@@ -87,7 +87,7 @@ defmodule NervesHubWWWWeb.Router do
     scope "/account/:user_name" do
       get("/", AccountController, :edit)
       put("/", AccountController, :update)
-  
+
       scope "/certificates" do
         get("/", AccountCertificateController, :index)
         get("/new", AccountCertificateController, :new)
@@ -100,7 +100,6 @@ defmodule NervesHubWWWWeb.Router do
       get("/workspaces", OrgController, :index)
     end
 
-    
     get("/org/new", OrgController, :new)
     post("/org", OrgController, :create)
 

@@ -21,19 +21,19 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
   end
 
   describe "create org_keys" do
-    test "redirects to show when data is valid", %{conn: conn, org: org} do
+    test "redirects to index when data is valid", %{conn: conn, org: org} do
       params = %{name: "foobarbazbangpow", key: "a key"}
       conn = post(conn, Routes.org_key_path(conn, :create, org.name), org_key: params)
 
-      assert redirected_to(conn) == Routes.org_path(conn, :edit, org.name)
+      assert redirected_to(conn) == Routes.org_key_path(conn, :index, org.name)
 
-      conn = get(conn, Routes.org_path(conn, :edit, org.name))
+      conn = get(conn, Routes.org_key_path(conn, :index, org.name))
       assert html_response(conn, 200) =~ params.name
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do
       conn = post(conn, Routes.org_key_path(conn, :create, org.name), org_key: @invalid_attrs)
-      assert redirected_to(conn) == Routes.org_path(conn, :edit, org.name)
+      assert redirected_to(conn) == Routes.org_key_path(conn, :index, org.name)
     end
   end
 
@@ -52,7 +52,7 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
       conn =
         put(conn, Routes.org_key_path(conn, :update, org.name, org_key), org_key: @update_attrs)
 
-      assert redirected_to(conn) == Routes.org_path(conn, :edit, org.name)
+      assert redirected_to(conn) == Routes.org_key_path(conn, :index, org.name)
 
       conn = get(conn, Routes.org_key_path(conn, :show, org.name, org_key))
       assert html_response(conn, 200)
@@ -77,7 +77,7 @@ defmodule NervesHubWWWWeb.OrgKeyControllerTest do
       org_key = Fixtures.org_key_fixture(org)
 
       conn = delete(conn, Routes.org_key_path(conn, :delete, org.name, org_key))
-      assert redirected_to(conn) == Routes.org_path(conn, :edit, org.name)
+      assert redirected_to(conn) == Routes.org_key_path(conn, :index, org.name)
 
       assert_error_sent(404, fn ->
         get(conn, Routes.org_key_path(conn, :show, org.name, org_key))

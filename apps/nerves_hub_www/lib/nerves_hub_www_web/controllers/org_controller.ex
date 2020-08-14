@@ -9,7 +9,7 @@ defmodule NervesHubWWWWeb.OrgController do
   alias NervesHubWebCore.Mailer
 
   plug(:validate_role, [org: :admin] when action in [:edit, :update, :invite])
-  
+
   def index(conn, _params) do
     orgs = Accounts.get_user_orgs(conn.assigns.user)
     render(conn, "index.html", orgs: orgs)
