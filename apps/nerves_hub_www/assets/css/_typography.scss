@@ -109,14 +109,6 @@ body {
     }
   }
 
-  .strong {
-    font-weight: bold;
-  }
-
-  .align-center {
-    text-align: center;
-  }
-
   .color-primary {
     color: var(--primary) !important;
   }
@@ -127,5 +119,21 @@ body {
 
   .color-white-50 {
     color: var(--white-50);
+  }
+
+  .fw-b {
+    font-weight: bold;
+  }
+
+  .ta-c {
+    text-align: center;
+  }
+
+  .tt-u {
+    text-transform: uppercase;
+  }
+
+  .tt-c {
+    text-transform: capitalize;
   }
 }

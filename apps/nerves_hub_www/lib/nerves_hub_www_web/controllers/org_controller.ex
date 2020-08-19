@@ -79,7 +79,7 @@ defmodule NervesHubWWWWeb.OrgController do
 
         conn
         |> put_flash(:info, "User has been invited")
-        |> redirect(to: Routes.org_path(conn, :edit, org.name))
+        |> redirect(to: Routes.org_user_path(conn, :index, conn.assigns.org.name))
 
       {:ok, %OrgUser{}} ->
         Email.org_user_created(invite_params["email"], org)
@@ -87,7 +87,7 @@ defmodule NervesHubWWWWeb.OrgController do
 
         conn
         |> put_flash(:info, "User has been added to #{org.name}")
-        |> redirect(to: Routes.org_path(conn, :edit, org.name))
+        |> redirect(to: Routes.org_user_path(conn, :index, conn.assigns.org.name))
 
       {:error, changeset} ->
         render(conn, "invite.html",

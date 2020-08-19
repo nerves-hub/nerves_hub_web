@@ -4,11 +4,15 @@
   </h1>
   <%= if @org.type != :user do %>
     <a class="btn btn-outline-light" href="<%= Routes.org_path(@conn, :invite, @org.name) %>">
-      <div class="button-icon left-icon add"></div>
-      Invite User
+      Add New User
+      <div class="button-icon add"></div>
     </a>
   <% end %>
 </div>
+
+<%= if @org.type == :user do %>
+<h5 class="mb-6">This is your own personal workspace, additional users cannot be invited. <a class="inline" href="<%= Routes.org_path(@conn, :new) %>">Create a new workspace</a> to collaborate with others.</h5>
+<% end %>
 
 <table class="table table-sm table-hover">
   <thead>
@@ -16,8 +20,7 @@
       <th>User Name</th>
       <th>Email</th>
       <th>Role</th>
-      <th>Date Added</th>
-      <th>Date Updated</th>
+      <th>Added On</th>
     </tr>
   </thead>
   <tbody>
@@ -29,14 +32,11 @@
         <td>
           <%= org_user.user.email %>
         </td>
-        <td>
+        <td class="tt-c">
           <%= org_user.role %>
         </td>
         <td>
-          <%= org_user.user.inserted_at %>
-        </td>
-        <td>
-          <%= org_user.user.updated_at %>
+          <%= DateTimeFormat.format(org_user.user.inserted_at) %>
         </td>
       </tr>
     <% end %>

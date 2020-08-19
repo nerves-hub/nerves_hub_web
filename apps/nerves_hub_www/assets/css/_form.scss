@@ -1,8 +1,14 @@
 html {
+  .small-form {
+    width: 260px;
+    margin: auto;
+  }
+
   .form-group {
     max-width: 360px;
     width: 100%;
     margin: 0 0 2rem;
+    position: relative;
 
     &:first-child {
       margin-top: 0;
@@ -27,6 +33,7 @@ html {
 
     &:disabled {
       background-color: var(--white-25);
+      opacity: .8;
       cursor: not-allowed;
     }
   }
@@ -121,5 +128,31 @@ html {
         margin-top: 0;
       }
     }
+  }
+
+  select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    & + .select-icon {
+      pointer-events: none;
+      width: 1.5rem;
+      height: 1.5rem;
+      background-image: url("/images/icons/dropdown-red.svg");
+      background-position: center;
+      background-repeat: no-repeat;
+      position: absolute;
+      right: .75rem;
+      bottom: .75rem;
+      margin: auto;
+    }
+  }
+
+  .has-error {
+    color: var(--danger);
+    margin-top: .25rem;
+    font-weight: 500;
+    font-size: 1rem;
+    text-transform: capitalize;
   }
 }

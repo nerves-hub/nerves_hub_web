@@ -4,8 +4,8 @@
     <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any firmware yet</h3>
     <div class="flex-row align-items-center mt-3">
       <a class="btn btn-outline-light" href="<%= Routes.firmware_path(@conn, :upload, @org.name, @product.name) %>">
-        <div class="button-icon left-icon add"></div>
         Upload Firmware
+        <div class="button-icon add"></div>
       </a>
     </div>
   </div>
@@ -15,8 +15,8 @@
       Firmware
     </h1>
     <a class="btn btn-outline-light" href="<%= Routes.firmware_path(@conn, :upload, @org.name, @product.name) %>">
-      <div class="button-icon left-icon add"></div>
       Upload Firmware
+      <div class="button-icon add"></div>
     </a>
   </div>
 

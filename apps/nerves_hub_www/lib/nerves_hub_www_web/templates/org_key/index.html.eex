@@ -3,8 +3,8 @@
     Firmware Keys
   </h1>
   <a class="btn btn-outline-light" href="<%= Routes.org_key_path(@conn, :new, @org.name) %>">
-    <div class="button-icon left-icon add"></div>
     Add Key
+    <div class="button-icon add"></div>
   </a>
 </div>
 

@@ -4,8 +4,8 @@
     <h3 style="margin-top: 2.75rem"><%= @org.name %> doesn’t have any products yet</h3>
     <div class="flex-row align-items-center mt-3">
       <a class="btn btn-outline-light" href="<%= Routes.product_path(@conn, :new, @org.name) %>" role="button">
-        <div class="button-icon left-icon add"></div>
         Create New
+        <div class="button-icon add"></div>
       </a>
     </div>
   </div>
@@ -15,8 +15,8 @@
       Products
     </h1>
     <a class="btn btn-outline-light" href="<%= Routes.product_path(@conn, :new, @org.name) %>" role="button">
-      <div class="button-icon left-icon add"></div>
       Create New
+      <div class="button-icon add"></div>
     </a>
   </div>
 
