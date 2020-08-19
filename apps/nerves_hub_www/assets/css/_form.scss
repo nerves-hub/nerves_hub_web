@@ -42,6 +42,10 @@ html {
     font-size: 18px;
     color: var(--white-50);
     font-weight: 500;
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    cursor: pointer;
   }
 
   input:-webkit-autofill,

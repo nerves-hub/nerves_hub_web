@@ -6,14 +6,14 @@
   <% end %>
 
   <div class="form-group">
-    <%= label f, :name %>
-    <%= text_input f, :name , class: "form-control", id: "identifier" %>
+    <%= label f, :name, for: "name_input" %>
+    <%= text_input f, :name , class: "form-control", id: "name_input" %>
     <div class="has-error"><%= error_tag f, :name %></div>
   </div>
 
   <div class="form-group">
-    <%= label f, :key %>
-    <%= text_input f, :key , class: "form-control", id: "identifier" %>
+    <%= label f, :key, for: "key_input" %>
+    <%= text_input f, :key , class: "form-control", id: "key_input" %>
     <div class="has-error"><%= error_tag f, :key %></div>
   </div>
 
