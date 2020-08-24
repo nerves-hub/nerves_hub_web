@@ -9,6 +9,10 @@ html {
         font-weight: 500;
         font-size: 12px;
         padding: 0 .3rem 1rem;
+
+        &.pointer {
+          cursor: pointer;
+        }
       }
     }
 

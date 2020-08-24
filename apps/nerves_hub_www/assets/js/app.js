@@ -24,7 +24,7 @@ document.querySelectorAll('.date-time').forEach(d => {
 })
 
 $(function() {
-  $('[data-toggle="tooltip"]').tooltip()
+  $('[data-toggle="tooltip"]').tooltip();
 })
 
 if (window.location.pathname.endsWith('console')) {

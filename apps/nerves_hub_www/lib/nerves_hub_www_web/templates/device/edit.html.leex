@@ -2,27 +2,38 @@
   Device Details
 </h1>
 
-<table class="table" style="width: auto">
-  <tr>
-    <th>ID</th>
-    <td><%= @device.id %></td>
-  </tr>
-  <tr>
-    <th>Description</th>
-    <td><%= @device.description %></td>
-  </tr>
-</table>
-
 <%= form_for @changeset, "#", [phx_change: :validate, phx_submit: :save], fn f -> %>
   <div class="form-group">
-    <label for="tags"><strong>Tags</strong> <i>(comma delimited)<i/></label>
-    <%= text_input f, :tags, class: "form-control", id: "tags", value: tags_to_string(@changeset) %>
+    <label for="identifier_input" data-toggle="tooltip" data-placement="right" title="Device ID cannot be changed once created" class="tooltip-label h3 mb-1" data-offset="0, 8">
+      ID
+      <div class="tooltip-info"></div>
+    </label>
+    <%= text_input f, :identifier, class: "form-control", id: "identifier_input", disabled: "true" %>
+    <div class="has-error"><%= error_tag f, :identifier %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="description_input" data-toggle="tooltip" data-placement="right" title="Description for this device (not required)" class="tooltip-label h3 mb-1" data-offset="0, 8">
+      Description
+      <div class="tooltip-info"></div>
+    </label>
+    <%= text_input f, :description, class: "form-control", id: "description_input" %>
+    <div class="has-error"><%= error_tag f, :description %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="tags" data-toggle="tooltip" data-placement="right" title="TEMP description for groups" class="tooltip-label h3 mb-1" data-offset="0, 8">
+      Group(s)
+      <div class="tooltip-info"></div>
+    </label>
+    <%= text_input f, :tags, class: "form-control", id: "group_input" %>
+    <small class="form-text text-muted">
+      Every device is added to the 'all' group, you can have multiple groups separated by commas.
+    </small>
     <div class="has-error"><%= error_tag f, :tags %></div>
   </div>
 
-  <%= submit "Update Tags", class: "btn btn-primary", disabled: @changeset.errors != [] %>
-
-  <a class="btn btn-secondary" href=<%= Routes.device_path(@socket, :show, @org.name, @product.name, @device.identifier) %>>
-    Cancel
-  </a>
+  <div class="button-submit-wrapper">
+    <%= submit "Save Changes", class: "btn btn-primary", disabled: @changeset.errors != [] %>
+  </div>
 <% end %>

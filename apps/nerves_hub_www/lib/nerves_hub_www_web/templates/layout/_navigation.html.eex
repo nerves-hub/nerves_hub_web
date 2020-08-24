@@ -24,7 +24,7 @@
                   <%= if user_org_products(@conn.assigns.user, org) !== [] do %>
                     <%= for product <- take_user_org_products(@conn.assigns.user, org, 5) do %>
                       <li>
-                        <%= active_link(@conn, to: Routes.product_path(@conn, :show, org.name, product.name), class_active: "active dropdown-item product", class_inactive: "dropdown-item product") do %>
+                        <%= active_link(@conn, to: Routes.device_path(@conn, :index, org.name, product.name), class_active: "active dropdown-item product", class_inactive: "dropdown-item product") do %>
                           <%= product.name %>
                           <div class="active-checkmark"></div>
                         <% end %>
