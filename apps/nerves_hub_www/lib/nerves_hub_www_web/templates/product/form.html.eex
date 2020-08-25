@@ -6,9 +6,10 @@
   <% end %>
 
   <div class="form-group">
-    <label for="name_input" data-toggle="tooltip" data-placement="right" title="Once created, a product name cannot be changed" class="tooltip-label" data-offset="0, 8">
-      Name
-      <div class="tooltip-info"></div>
+    <label for="name_input" class="tooltip-label">
+      <span>Name</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">Once created, a product name cannot be changed</span>
     </label>
     <%= if assigns[:product] do %>
       <%= text_input f, :name, class: "form-control", disabled: "true", id: "name_input" %>

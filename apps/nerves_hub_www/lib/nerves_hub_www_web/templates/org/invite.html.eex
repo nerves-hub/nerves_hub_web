@@ -13,9 +13,10 @@
   </div>
 
   <div class="form-group">
-    <label for="role_input" data-toggle="tooltip" data-placement="right" title="User role can be changed from the command line" class="tooltip-label h3 mb-1" data-offset="0, 8">
-      Role
-      <div class="tooltip-info"></div>
+    <label for="role_input" class="tooltip-label h3 mb-1">
+      <span>Role</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">User role can be changed from the command line</span>
     </label>
     <select class="form-control" disabled id="role_input">
       <option value="Admin">Admin</option>

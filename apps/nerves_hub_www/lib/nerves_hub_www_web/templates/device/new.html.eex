@@ -2,18 +2,20 @@
 
 <%= form_for @changeset, Routes.device_path(@conn, :create, @org.name, @product.name), fn f -> %>
   <div class="form-group">
-    <label for="identifier_input" data-toggle="tooltip" data-placement="right" title="Device ID cannot be changed once created" class="tooltip-label h3 mb-1" data-offset="0, 8">
-      ID
-      <div class="tooltip-info"></div>
+    <label for="identifier_input" class="tooltip-label h3 mb-1">
+      <span>ID</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">Device ID cannot be changed once created</span>
     </label>
     <%= text_input f, :identifier, class: "form-control", id: "identifier_input" %>
     <div class="has-error"><%= error_tag f, :identifier %></div>
   </div>
 
   <div class="form-group">
-    <label for="description_input" data-toggle="tooltip" data-placement="right" title="Description for this device (not required)" class="tooltip-label h3 mb-1" data-offset="0, 8">
-      Description
-      <div class="tooltip-info"></div>
+    <label for="description_input" class="tooltip-label h3 mb-1">
+      <span>Description</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">Description for this device (not required)</span>
     </label>
     <%= text_input f, :description, class: "form-control", id: "description_input" %>
     <div class="has-error"><%= error_tag f, :description %></div>

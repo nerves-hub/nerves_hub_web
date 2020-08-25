@@ -73,7 +73,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     {:ok, _device} = Devices.delete_device(device)
 
     conn
-    |> put_flash(:info, "device deleted successfully.")
+    |> put_flash(:info, "Device deleted successfully.")
     |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
   end
 

@@ -23,10 +23,31 @@ html {
       vertical-align: middle;
       font-size: 1rem;
       line-height: 1.3rem;
+
+      &.actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
     }
   }
 
   .table-hover tbody tr:hover {
     color: white;
+  }
+
+  .icon-caret {
+    background-image: url("/images/icons/chevron-down-white.svg");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    display: inline-block;
+    height: 9px;
+    margin-left: .5rem;
+    width: 16px;
+
+    &.icon-caret-up {
+      transform: rotate(180deg);
+    }
   }
 }

@@ -24,20 +24,39 @@
     <thead>
       <tr>
         <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
-        <th>Firmware Info</th>
-        <%= devices_table_header("Status", "status", @current_sort, @sort_direction) %>
-        <%= devices_table_header("Last Connection", "last_communication", @current_sort, @sort_direction) %>
-        <%= devices_table_header("Tags", "tags", @current_sort, @sort_direction) %>
+        <%= devices_table_header("Connection", "status", @current_sort, @sort_direction) %>
+        <%= devices_table_header("Last Handshake", "last_communication", @current_sort, @sort_direction) %>
+        <th>Firmware</th>
+        <%= devices_table_header("Groups", "tags", @current_sort, @sort_direction) %>
         <th></th>
       </tr>
     </thead>
     <%= for device <- @devices do %>
       <tr class="item">
         <td>
-          <a href="<%= Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="">
+          <a href="<%= Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="badge healthy-<%= device.healthy %>">
             <%= device.identifier %>
           </a>
         </td>
+
+        <td>
+          <div class="ml-3">
+          <%= if device.status == "offline" do %>
+            <img src="/images/icons/cross.svg" alt="offline" />
+          <% else %>
+            <img src="/images/icons/check.svg" alt="connected" />
+          <% end %>
+          </div>
+        </td>
+
+        <td class="date-time">
+          <%= if is_nil(device.last_communication) do %>
+            <span class="color-white-50">Never</span>
+          <% else %>
+            <%= device.last_communication %>
+          <% end %>
+        </td>
+
         <td>
           <%= if Map.has_key?(device, :fwup_progress) && device.fwup_progress do %>
             <div class="progress">
@@ -45,35 +64,37 @@
             </div>
           <% else %>
             <%= if is_nil(device.firmware_metadata) do %>
-              unknown
+              <span class="color-white-50">Unknown</span>
             <% else %>
-              <p>
-                <strong>Version:</strong> <%= device.firmware_metadata.version %>
-              </p>
-              <p>
-                <strong>UUID:</strong> <%= device.firmware_metadata.uuid %>
-              </p>
+              <span class="badge">
+                <%= device.firmware_metadata.version %>
+              </span>
             <% end %>
           <% end %>
         </td>
-        <td class="device">
-          <%= health_status_icon(device) %>
-          <%= device.status %>
-        </td>
 
-        <td class="date-time">
-          <%= if is_nil(device.last_communication) do %>
-            never
-          <% else %>
-            <%= device.last_communication %>
+        <td>
+          <%= if !is_nil(device.tags) do %>
+            <%= for tag <- take_device_tags(device, 2) do %>
+              <span class="badge"><%= tag %></span>
+            <% end %>
+            <%= if count_device_tags(device) > 2 do %>
+              <span class="badge">+<%= count_device_tags(device) - 2%></span>
+            <% end %>
           <% end %>
         </td>
-        <td>
-          <span class="badge"><%= tags_to_string(device) %></span>
-        </td>
+
         <td class="actions">
-          <%= link "edit", class: "fa fa-pencil-alt", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
-          <%= link "delete", class: "fa fa-trash-alt", to: Routes.device_path(@socket, :delete, @org.name, @product.name, device.identifier), method: :delete, data: [confirm: "Are you sure?"] %>
+          <div class="dropdown options">
+            <a class="dropdown-toggle options" href="#" id="<%= device.identifier %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <img src="/images/icons/more.svg" alt="options" />
+            </a>
+            <div class="dropdown-menu dropdown-menu-right">
+              <%= link "edit", class: "dropdown-item", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
+              <div class="dropdown-divider"></div>
+              <%= link "delete", class: "dropdown-item", to: Routes.device_path(@socket, :delete, @org.name, @product.name, device.identifier), method: :delete, data: [confirm: "Are you sure?"] %>
+            </div>
+          </div>
         </td>
       </tr>
     <% end %>

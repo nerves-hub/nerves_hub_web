@@ -50,6 +50,20 @@
     margin-top: .5rem;
   }
 }
+.options .dropdown-item {
+  color: var(--white-50);
+  transition: color 200ms ease;
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  font-weight: bold;
+  text-transform: capitalize;
+
+  &:hover {
+    color: white;
+    background-color: transparent;
+  }
+}
 
 .dropdown-toggle.options {
   width: 2.5rem;
@@ -70,7 +84,7 @@
   }
 
   & + .dropdown-menu {
-    padding: 1rem;
+    padding: 0;
     border-radius: 4px;
     background-color: var(--background);
     border: 1px solid var(--white-75);
@@ -99,19 +113,30 @@
     .tooltip-info {
       opacity: 1;
     }
+
+    .tooltip-text {
+      display: block;
+    }
   }
 
   .tooltip-text {
     padding: .5rem;
     background: var(--backgroundDark);
     position: absolute;
-    right: -10px;
+    left: calc(100% + .5rem);
     top: 0;
-    transition: all 200ms ease;
+    display: none;
+    width: 13rem;
+    text-transform: none;
+    z-index: 1;
+    border-radius: 4px;
+    color: white;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 19px;
   }
 
-  .tooltip-info,
-  .tooltip-icon {
+  .tooltip-info {
     width: 1rem;
     height: 1rem;
     opacity: .5;

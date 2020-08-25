@@ -6,7 +6,11 @@
   <% end %>
 
   <div class="form-group">
-    <label for="name_input" data-toggle="tooltip" data-placement="right" title="Must be one word" class="tooltip-label" data-offset="0, 8">Workspace Name <div class="tooltip-info"></div></label>
+    <label for="name_input" class="tooltip-label">
+      <span>Workspace Name</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">Must be one word</span>
+    </label>
     <%= text_input f, :name, class: "form-control", id: "name_input" %>
     <div class="has-error">
       <%= error_tag f, :name %>

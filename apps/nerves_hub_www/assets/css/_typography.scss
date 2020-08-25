@@ -96,15 +96,15 @@ body {
     font-weight: 500;
 
     &.inline {
-      color: var(--primary-50);
+      color: var(--primary-light);
 
       &:hover {
-        color: var(--primary-75);
+        color: var(--primary-medium);
       }
     }
 
     &:hover {
-      color: var(--primary-50);
+      color: var(--primary-light);
       text-decoration: none;
     }
   }

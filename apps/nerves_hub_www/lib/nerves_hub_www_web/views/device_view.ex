@@ -23,7 +23,7 @@ defmodule NervesHubWWWWeb.DeviceView do
     caret_class = if sort_direction == :asc, do: "up", else: "down"
 
     content_tag(:th, phx_click: "sort", phx_value_sort: value, class: "pointer sort-selected") do
-      [title, content_tag(:i, "", class: "fa fa-caret-#{caret_class}")]
+      [title, content_tag(:i, "", class: "icon-caret icon-caret-#{caret_class}")]
     end
   end
 
@@ -56,4 +56,12 @@ defmodule NervesHubWWWWeb.DeviceView do
   def tags_to_string(tags), do: tags
 
   defdelegate device_status(device), to: Presence
+  
+  def take_device_tags(device, amount) do
+    Enum.take(device.tags, amount)
+  end
+  
+  def count_device_tags(device) do
+    Enum.count(device.tags)
+  end
 end
