@@ -56,11 +56,11 @@ defmodule NervesHubWWWWeb.DeviceView do
   def tags_to_string(tags), do: tags
 
   defdelegate device_status(device), to: Presence
-  
+
   def take_device_tags(device, amount) do
     Enum.take(device.tags, amount)
   end
-  
+
   def count_device_tags(device) do
     Enum.count(device.tags)
   end
