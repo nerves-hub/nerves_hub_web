@@ -224,10 +224,37 @@ defmodule NervesHubWebCore.Devices do
     end
   end
 
+  @spec get_device_certificate_by_device_and_serial(Device.t(), binary) ::
+          {:ok, DeviceCertificate.t()} | {:error, any()}
+  def get_device_certificate_by_device_and_serial(%Device{id: device_id}, serial) do
+    query =
+      from(
+        dc in DeviceCertificate,
+        where: dc.serial == ^serial and dc.device_id == ^device_id
+      )
+
+    query
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:error, :not_found}
+
+      device_certificate ->
+        {:ok, device_certificate}
+    end
+  end
+
   def update_device_certificate(%DeviceCertificate{} = certificate, params) do
     certificate
     |> DeviceCertificate.update_changeset(params)
     |> Repo.update()
+  end
+
+  @spec delete_device_certificate(DeviceCertificate.t()) ::
+          {:ok, DeviceCertificate.t()}
+          | {:error, Changeset.t()}
+  def delete_device_certificate(%DeviceCertificate{} = device_certificate) do
+    Repo.delete(device_certificate)
   end
 
   @spec create_ca_certificate(Org.t(), any()) ::
