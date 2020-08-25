@@ -82,7 +82,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
           invite: %{email: "nunya@bid.ness"}
         )
 
-      assert redirected_to(conn) == Routes.org_path(conn, :edit, org.name)
+      assert redirected_to(conn) == Routes.org_user_path(conn, :index, org.name)
 
       redirected_conn = get(conn, redirected_to(conn))
 
@@ -95,7 +95,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
       conn =
         post(conn, Routes.org_path(conn, :send_invite, org.name), invite: %{email: user.email})
 
-      assert redirected_to(conn) == Routes.org_path(conn, :edit, org.name)
+      assert redirected_to(conn) == Routes.org_user_path(conn, :index, org.name)
 
       redirected_conn = get(conn, redirected_to(conn))
 
