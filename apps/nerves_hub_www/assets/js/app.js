@@ -23,10 +23,6 @@ document.querySelectorAll('.date-time').forEach(d => {
   d.innerHTML = dates.formatDateTime(d.innerHTML)
 })
 
-$(function() {
-  $('[data-toggle="tooltip"]').tooltip();
-})
-
 if (window.location.pathname.endsWith('console')) {
   iex.start(socket)
 }
