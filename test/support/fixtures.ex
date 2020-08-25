@@ -235,11 +235,15 @@ defmodule NervesHubWebCore.Fixtures do
     device
   end
 
+  def device_certificate_pem() do
+    path()
+    |> Path.join("ssl/device-1234-cert.pem")
+    |> File.read!()
+  end
+
   def device_certificate_fixture(_, _ \\ nil)
   def device_certificate_fixture(%Devices.Device{} = device, nil) do
-    cert_file = Path.join(path(), "ssl/device-1234-cert.pem")
-    {:ok, cert_pem} = File.read(cert_file)
-    {:ok, cert} = X509.Certificate.from_pem(cert_pem)
+    cert = device_certificate_pem() |> X509.Certificate.from_pem!()
     device_certificate_fixture(device, cert)
   end
   def device_certificate_fixture(%Devices.Device{} = device, cert) do

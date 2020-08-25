@@ -17,6 +17,10 @@ defmodule NervesHubAPIWeb.Router do
     plug(NervesHubAPIWeb.Plugs.Product)
   end
 
+  pipeline :device do
+    plug(NervesHubAPIWeb.Plugs.Device)
+  end
+
   scope "/users", NervesHubAPIWeb do
     pipe_through(:api)
 
@@ -94,13 +98,17 @@ defmodule NervesHubAPIWeb.Router do
               post("/auth", DeviceController, :auth)
 
               scope "/:device_identifier" do
+                pipe_through(:device)
                 get("/", DeviceController, :show)
                 delete("/", DeviceController, :delete)
                 put("/", DeviceController, :update)
 
                 scope "/certificates" do
                   get("/", DeviceCertificateController, :index)
+                  get("/:serial", DeviceCertificateController, :show)
+                  post("/", DeviceCertificateController, :create)
                   post("/sign", DeviceCertificateController, :sign)
+                  delete("/:serial", DeviceCertificateController, :delete)
                 end
               end
             end

@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
-  alias NervesHubWebCore.Devices
+  alias NervesHubWebCore.{Devices, Fixtures}
 
   setup %{org: org, product: product} do
     identifier = "device-1234"
@@ -37,6 +37,71 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
   end
 
   describe "create device certificate" do
+    test "renders cert when data is valid", %{
+      conn: conn,
+      org: org,
+      device: device,
+      product: product
+    } do
+      pem = Fixtures.device_certificate_pem()
+      encoded_pem = Base.encode64(pem)
+
+      conn =
+        post(
+          conn,
+          Routes.device_certificate_path(
+            conn,
+            :create,
+            org.name,
+            product.name,
+            device.identifier
+          ),
+          %{"cert" => encoded_pem}
+        )
+
+      resp = json_response(conn, 201)
+      assert serial = resp["data"]["serial"]
+
+      conn =
+        get(
+          conn,
+          Routes.device_certificate_path(
+            conn,
+            :show,
+            org.name,
+            product.name,
+            device.identifier,
+            serial
+          )
+        )
+
+      assert json_response(conn, 200)["data"]["serial"] == serial
+    end
+
+    test "renders errors when data is invalid", %{
+      conn: conn,
+      org: org,
+      device: device,
+      product: product
+    } do
+      conn =
+        post(
+          conn,
+          Routes.device_certificate_path(
+            conn,
+            :create,
+            org.name,
+            product.name,
+            device.identifier
+          ),
+          cert: ""
+        )
+
+      assert json_response(conn, 500)["errors"] != %{}
+    end
+  end
+
+  describe "sign device certificate" do
     @tag :ca_integration
     test "renders key when data is valid", %{
       conn: conn,
@@ -91,6 +156,47 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
       conn = post(conn, "/orgs/#{org.name}/devices/1234/certificates/sign", %{})
       {:error, reason} = NervesHubAPIWeb.DeviceController.error_deprecated(conn, %{})
       assert json_response(conn, 500)["errors"] == reason
+    end
+  end
+
+  describe "delete device_certificate" do
+    test "deletes chosen ca_certificate", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      %{db_cert: cert} = Fixtures.device_certificate_fixture(device)
+
+      conn =
+        delete(
+          conn,
+          Routes.device_certificate_path(
+            conn,
+            :delete,
+            org.name,
+            product.name,
+            device.identifier,
+            cert.serial
+          )
+        )
+
+      assert response(conn, 204)
+
+      conn =
+        get(
+          conn,
+          Routes.device_certificate_path(
+            conn,
+            :show,
+            org.name,
+            product.name,
+            device.identifier,
+            cert.serial
+          )
+        )
+
+      assert response(conn, 404)
     end
   end
 end
