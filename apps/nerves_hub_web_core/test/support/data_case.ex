@@ -32,6 +32,8 @@ defmodule NervesHubWebCore.DataCase do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHubWebCore.Repo, {:shared, self()})
     end
 
+    Mox.stub_with(NervesHubWebCore.UploadMock, NervesHubWebCore.Firmwares.Upload.File)
+
     :ok
   end
 

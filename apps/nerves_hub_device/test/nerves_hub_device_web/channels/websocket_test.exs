@@ -68,7 +68,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     {device, firmware}
   end
 
-  setup do
+  setup context do
+    Mox.set_mox_from_context(context)
     user = Fixtures.user_fixture()
 
     {:ok,
@@ -134,6 +135,8 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
           version: "0.0.2"
         })
 
+      Fixtures.firmware_patch_fixture(firmware, firmware2)
+
       Fixtures.deployment_fixture(org, firmware2, %{
         name: "a different name",
         conditions: %{
@@ -166,7 +169,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       Fixtures.device_certificate_fixture(device)
       org_key = Fixtures.org_key_fixture(device.org)
 
-      firmware =
+      firmware2 =
         Fixtures.firmware_fixture(
           org_key,
           firmware.product,
@@ -175,8 +178,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
           }
         )
 
+      Fixtures.firmware_patch_fixture(firmware, firmware2)
+
       deployment =
-        Fixtures.deployment_fixture(device.org, firmware, %{
+        Fixtures.deployment_fixture(device.org, firmware2, %{
           name: "a different name",
           conditions: %{
             "version" => ">=0.0.1",

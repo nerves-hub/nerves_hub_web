@@ -13,6 +13,8 @@ defmodule NervesHubWWWWeb.ConnCase.Browser do
       import Phoenix.LiveViewTest
 
       setup do
+        Mox.stub_with(NervesHubWebCore.UploadMock, NervesHubWebCore.Firmwares.Upload.File)
+
         fixture = Fixtures.standard_fixture()
 
         %{org: org, org_key: org_key, user: user} = fixture

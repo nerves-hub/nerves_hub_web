@@ -1,9 +1,11 @@
 defmodule NervesHubWebCore.Firmwares.Upload.S3 do
   alias ExAws.S3
 
-  @spec upload_file(String.t(), String.t()) ::
-          :ok
-          | {:error, atom()}
+  @behaviour NervesHubWebCore.Firmwares.Upload
+
+  @type upload_metadata :: %{s3_key: String.t()}
+
+  @impl NervesHubWebCore.Firmwares.Upload
   def upload_file(source_path, %{"s3_key" => s3_key}) do
     source_path
     |> S3.Upload.stream_file()
@@ -15,14 +17,7 @@ defmodule NervesHubWebCore.Firmwares.Upload.S3 do
     end
   end
 
-  @spec metadata(Org.id(), String.t()) :: %{String.t() => binary()}
-  def metadata(org_id, filename) do
-    %{"s3_key" => Path.join([key_prefix(), Integer.to_string(org_id), filename])}
-  end
-
-  @spec download_file(Firmware.t()) ::
-          {:ok, String.t()}
-          | {:error, String.t()}
+  @impl NervesHubWebCore.Firmwares.Upload
   def download_file(firmware) do
     s3_key = firmware.upload_metadata["s3_key"]
 
@@ -37,9 +32,7 @@ defmodule NervesHubWebCore.Firmwares.Upload.S3 do
     end
   end
 
-  @spec delete_file(Firmware.t()) ::
-          :ok
-          | {:error, any()}
+  @impl NervesHubWebCore.Firmwares.Upload
   def delete_file(firmware) do
     s3_key = firmware.upload_metadata["s3_key"]
 
@@ -49,6 +42,11 @@ defmodule NervesHubWebCore.Firmwares.Upload.S3 do
       {:ok, _} -> :ok
       error -> error
     end
+  end
+
+  @impl NervesHubWebCore.Firmwares.Upload
+  def metadata(org_id, filename) do
+    %{"s3_key" => Path.join([key_prefix(), Integer.to_string(org_id), filename])}
   end
 
   def bucket do

@@ -4,7 +4,7 @@ defmodule NervesHubWebCore.Firmwares do
   alias Ecto.Changeset
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.{OrgKey, Org}
-  alias NervesHubWebCore.Firmwares.{Firmware, FirmwareMetadata, FirmwareTransfer}
+  alias NervesHubWebCore.Firmwares.{Firmware, FirmwareMetadata, FirmwarePatch, FirmwareTransfer}
   alias NervesHubWebCore.Products
   alias NervesHubWebCore.Products.Product
   alias NervesHubWebCore.Repo
@@ -308,6 +308,92 @@ defmodule NervesHubWebCore.Firmwares do
     Repo.all(q)
   end
 
+  @spec get_patch(integer()) ::
+          {:ok, FirmwarePatch.t()}
+          | {:error, :not_found}
+
+  def get_patch(patch_id) do
+    case Repo.get(FirmwarePatch, patch_id) do
+      nil -> {:error, :not_found}
+      patch -> {:ok, patch}
+    end
+  end
+
+  @spec get_patch_by_source_and_target(Firmware.t(), Firmware.t()) ::
+          {:ok, FirmwarePatch.t()}
+          | {:error, :not_found}
+
+  def get_patch_by_source_and_target(%Firmware{id: source_id}, %Firmware{id: target_id}) do
+    q =
+      from(
+        fp in FirmwarePatch,
+        where:
+          fp.source_id == ^source_id and
+            fp.target_id >= ^target_id
+      )
+
+    case Repo.one(q) do
+      nil -> {:error, :not_found}
+      patch -> {:ok, patch}
+    end
+  end
+
+  @spec get_firmware_url(Firmware.t(), Firmware.t()) ::
+          {:ok, String.t()}
+          | {:error, :failure}
+
+  def get_firmware_url(nil, target), do: @uploader.download_file(target)
+
+  def get_firmware_url(source, target) do
+    {:ok, patch} =
+      case get_patch_by_source_and_target(source, target) do
+        {:error, :not_found} -> create_patch(source, target)
+        patch -> patch
+      end
+
+    @uploader.download_file(patch)
+  end
+
+  @spec create_patch(Firmware.t(), Firmware.t()) ::
+          {:ok, FirmwarePatch.t()}
+          | {:error, Changeset.t()}
+
+  def create_patch(source_firmware, target_firmware) do
+    %Firmware{org: org} = source_firmware |> Repo.preload(:org)
+    {:ok, source_url} = @uploader.download_file(source_firmware)
+    {:ok, target_url} = @uploader.download_file(target_firmware)
+
+    patch_path = patcher().create_patch_file(source_url, target_url)
+    patch_filename = Path.basename(patch_path)
+
+    Repo.transaction(
+      fn ->
+        with upload_metadata <- @uploader.metadata(org.id, patch_filename),
+             {:ok, patch} <-
+               insert_patch(%{
+                 source_id: source_firmware.id,
+                 target_id: target_firmware.id,
+                 upload_metadata: upload_metadata
+               }),
+             {:ok, patch} <- get_patch(patch.id),
+             :ok <- @uploader.upload_file(patch_path, upload_metadata),
+             :ok <- patcher().cleanup_patch_files(patch_path) do
+          patch
+        else
+          {:error, error} ->
+            Repo.rollback(error)
+        end
+      end,
+      timeout: 30_000
+    )
+  end
+
+  def insert_patch(params) do
+    %FirmwarePatch{}
+    |> FirmwarePatch.changeset(params)
+    |> Repo.insert()
+  end
+
   # Private functions
 
   defp insert_firmware(params) do
@@ -439,5 +525,13 @@ defmodule NervesHubWebCore.Firmwares do
       ["" | _] -> nil
       [value | _] -> value
     end
+  end
+
+  defp patcher() do
+    Application.get_env(
+      :nerves_hub_web_core,
+      :patcher,
+      NervesHubWebCore.Firmwares.Patcher.Default
+    )
   end
 end

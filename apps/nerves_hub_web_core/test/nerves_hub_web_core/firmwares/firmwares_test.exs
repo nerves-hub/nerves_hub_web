@@ -7,14 +7,17 @@ defmodule NervesHubWebCore.FirmwaresTest do
     Firmwares,
     Fixtures,
     Support.Fwup,
-    Deployments
+    Deployments,
+    PatcherMock,
+    UploadMock
   }
 
   alias Ecto.Changeset
 
   @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
 
-  setup do
+  setup context do
+    Mox.verify_on_exit!(context)
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
@@ -309,6 +312,124 @@ defmodule NervesHubWebCore.FirmwaresTest do
 
     test "cannot create records for orgs that do not exist" do
       assert {:error, _} = Fixtures.firmware_transfer_fixture(9_999_999_999, "12345")
+    end
+  end
+
+  describe "get_patch/1" do
+    test "a patch is returned for the id", %{
+      firmware: firmware,
+      org_key: org_key,
+      product: product
+    } do
+      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      patch = Fixtures.firmware_patch_fixture(firmware, new_firmware)
+      id = patch.id
+
+      assert {:ok, %{id: ^id}} = Firmwares.get_patch(patch.id)
+    end
+  end
+
+  describe "get_patch_by_source_and_target/2" do
+    test "a patch is returned matching source and target", %{
+      firmware: firmware,
+      org_key: org_key,
+      product: product
+    } do
+      new_firmware = Fixtures.firmware_fixture(org_key, product)
+      patch = Fixtures.firmware_patch_fixture(firmware, new_firmware)
+      id = patch.id
+
+      assert {:ok, %{id: ^id}} = Firmwares.get_patch_by_source_and_target(firmware, new_firmware)
+    end
+
+    test ":not_found is returned when there is no match", %{
+      firmware: firmware,
+      org_key: org_key,
+      product: product
+    } do
+      new_firmware = Fixtures.firmware_fixture(org_key, product)
+
+      assert {:error, :not_found} =
+               Firmwares.get_patch_by_source_and_target(firmware, new_firmware)
+    end
+  end
+
+  describe "get_firmware_url/2" do
+    test "returns target download_file when there is no source", %{firmware: target} do
+      url = "http://somefilestore.com/firmware.fw"
+      Mox.expect(UploadMock, :download_file, fn ^target -> {:ok, url} end)
+
+      assert {:ok, url} = Firmwares.get_firmware_url(nil, target)
+    end
+
+    test "returns patch download_file when one exists", %{
+      firmware: source,
+      org_key: org_key,
+      product: product
+    } do
+      target = Fixtures.firmware_fixture(org_key, product)
+      patch = Fixtures.firmware_patch_fixture(source, target)
+      patch_id = patch.id
+      url = "http://somefilestore.com/firmware.fw"
+      Mox.expect(UploadMock, :download_file, fn %{id: ^patch_id} -> {:ok, url} end)
+
+      assert {:ok, url} = Firmwares.get_firmware_url(source, target)
+    end
+
+    test "returns download_file for a new patch", %{
+      firmware: source,
+      org_key: org_key,
+      product: product
+    } do
+      target = Fixtures.firmware_fixture(org_key, product)
+      url = "http://somefilestore.com/firmware.fw"
+      patch_path = "/path/to/firmware.fw"
+      Mox.expect(UploadMock, :download_file, 3, fn _ -> {:ok, url} end)
+      Mox.expect(PatcherMock, :create_patch_file, fn ^url, ^url -> patch_path end)
+      Mox.expect(UploadMock, :upload_file, fn ^patch_path, _ -> :ok end)
+      Mox.expect(PatcherMock, :cleanup_patch_files, fn ^patch_path -> :ok end)
+
+      assert {:ok, url} = Firmwares.get_firmware_url(source, target)
+    end
+  end
+
+  describe "create_patch/2" do
+    test "creates a new patch when one doesn't exist", %{
+      firmware: source,
+      org_key: org_key,
+      product: product
+    } do
+      target = Fixtures.firmware_fixture(org_key, product)
+      source_url = "http://somefilestore.com/source.fw"
+      target_url = "http://somefilestore.com/target.fw"
+      patch_path = "/path/to/patch.fw"
+
+      UploadMock
+      |> Mox.expect(:download_file, fn ^source -> {:ok, source_url} end)
+      |> Mox.expect(:download_file, fn ^target -> {:ok, target_url} end)
+
+      Mox.expect(PatcherMock, :create_patch_file, fn ^source_url, ^target_url -> patch_path end)
+      Mox.expect(UploadMock, :upload_file, fn ^patch_path, _ -> :ok end)
+      Mox.expect(PatcherMock, :cleanup_patch_files, fn ^patch_path -> :ok end)
+
+      Firmwares.create_patch(source, target)
+
+      assert {:ok, patch} = Firmwares.get_patch_by_source_and_target(source, target)
+    end
+
+    test "new patch is not created if there is an error", %{
+      firmware: source,
+      org_key: org_key,
+      product: product
+    } do
+      target = Fixtures.firmware_fixture(org_key, product)
+
+      Mox.expect(PatcherMock, :create_patch_file, fn _s, _t -> "path/to/firmware.fw" end)
+      Mox.expect(UploadMock, :upload_file, fn _p, _m -> {:error, :failed} end)
+
+      Firmwares.create_patch(source, target)
+
+      assert {:error, :not_found} = Firmwares.get_patch_by_source_and_target(source, target)
     end
   end
 end

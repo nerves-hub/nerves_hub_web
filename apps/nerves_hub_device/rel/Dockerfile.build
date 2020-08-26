@@ -4,7 +4,7 @@ FROM bitwalker/alpine-elixir:${ELIXIR_VERSION} as builder
 
 ENV MIX_ENV=prod
 
-RUN apk --no-cache add make gcc musl-dev
+RUN apk --no-cache add make gcc musl-dev xdelta3 zip unzip
 RUN mix local.hex --force && mix local.rebar --force
 RUN mkdir /build
 ADD . /build

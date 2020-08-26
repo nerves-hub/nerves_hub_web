@@ -36,6 +36,8 @@ defmodule NervesHubAPIWeb.ConnCase do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHubWebCore.Repo, {:shared, self()})
     end
 
+    Mox.stub_with(NervesHubWebCore.UploadMock, NervesHubWebCore.Firmwares.Upload.File)
+
     user = Fixtures.user_fixture()
     %{cert: cert} = Fixtures.user_certificate_fixture(user)
 
