@@ -15,6 +15,8 @@ Elixir >= 1.7, Erlang 21, and NodeJS.
 
 You'll also need `fwup` and can follow [these installation instructions](https://github.com/fhunleth/fwup#installing) for your platform if needed.
 
+Additionally you will need to install [xdelta3](https://github.com/jmacd/xdelta).
+
 The instructions below use `asdf` which can be installed with the
 instructions below ([copied from asdf-vm.com](https://asdf-vm.com/#/core-manage-asdf-vm))
 

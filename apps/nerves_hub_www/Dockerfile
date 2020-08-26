@@ -4,7 +4,7 @@ ENV \
   LANG=C.UTF-8 \
   LC_ALL=en_US.UTF-8 \
   PATH="/app:${PATH}" \
-  FWUP_VERSION=1.3.2 \
+  FWUP_VERSION=1.8.1 \
   DATABASE_URL=postgres://db:db@localhost:5432/db \
   DATABASE_SSL="false" \
   SECRET_KEY_BASE=""
@@ -14,7 +14,7 @@ WORKDIR /app
 
 RUN apt-get update -y -qq \
   && apt-get -qq -y install \
-    locales \
+    locales xdelta3 unzip zip \
   && export LANG=en_US.UTF-8 \
   && echo $LANG UTF-8 > /etc/locale.gen \
   && locale-gen \

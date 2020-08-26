@@ -224,9 +224,14 @@ defmodule NervesHubWebCore.Deployments do
   end
 
   defp update_relevant_devices(devices, deployment) do
-    Task.Supervisor.async_stream(NervesHubWebCore.TaskSupervisor, devices, fn device ->
-      Devices.send_update_message(device, deployment)
-    end)
+    Task.Supervisor.async_stream(
+      NervesHubWebCore.TaskSupervisor,
+      devices,
+      fn device ->
+        Devices.send_update_message(device, deployment)
+      end,
+      timeout: 15000
+    )
     |> Stream.run()
 
     {:ok, deployment}

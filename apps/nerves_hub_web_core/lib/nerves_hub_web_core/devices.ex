@@ -15,8 +15,6 @@ defmodule NervesHubWebCore.Devices do
 
   alias NervesHubWebCore.Devices.{Device, DeviceCertificate, CACertificate}
 
-  @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
-
   def get_device(device_id), do: Repo.get(Device, device_id)
   def get_device!(device_id), do: Repo.get!(Device, device_id)
 
@@ -117,20 +115,35 @@ defmodule NervesHubWebCore.Devices do
 
   def get_eligible_deployments(_), do: []
 
-  def send_update_message(%Device{healthy: false}, _delpoyment) do
+  def send_update_message(%Device{healthy: false}, _deployment) do
     {:error, :device_unhealthy}
+  end
+
+  def send_update_message(%Device{firmware_metadata: nil}, _deployment) do
+    {:error, :invalid_firmware_metadata}
   end
 
   def send_update_message(_device, %Deployment{healthy: false}) do
     {:error, :deployment_unhealthy}
   end
 
-  def send_update_message(%Device{} = device, %Deployment{} = deployment) do
+  def send_update_message(
+        %Device{firmware_metadata: %{uuid: uuid}} = device,
+        %Deployment{} = deployment
+      ) do
     deployment = Repo.preload(deployment, :firmware, force: true)
 
-    with true <- matches_deployment?(device, deployment) do
-      {:ok, url} = @uploader.download_file(deployment.firmware)
-      {:ok, meta} = Firmwares.metadata_from_firmware(deployment.firmware)
+    with true <- matches_deployment?(device, deployment),
+         %Device{product: product} <- Repo.preload(device, :product),
+         %{firmware: target} <- Repo.preload(deployment, :firmware) do
+      source =
+        case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+          {:ok, source} -> source
+          {:error, :not_found} -> nil
+        end
+
+      {:ok, url} = Firmwares.get_firmware_url(source, target)
+      {:ok, meta} = Firmwares.metadata_from_firmware(target)
 
       Phoenix.PubSub.broadcast(
         NervesHubWeb.PubSub,
@@ -360,7 +373,7 @@ defmodule NervesHubWebCore.Devices do
             end
           end)
 
-        Task.await(task)
+        Task.await(task, 15000)
         {:ok, device}
 
       error ->
@@ -374,15 +387,30 @@ defmodule NervesHubWebCore.Devices do
     %{update_available: false}
   end
 
+  def resolve_update(%Device{firmware_metadata: nil}, _deployment) do
+    %{update_available: false}
+  end
+
   def resolve_update(device, [%Deployment{} = deployment | _]) do
     resolve_update(device, deployment)
   end
 
-  def resolve_update(%Device{} = device, %Deployment{} = deployment) do
+  def resolve_update(
+        %Device{firmware_metadata: %{uuid: uuid}} = device,
+        %Deployment{} = deployment
+      ) do
     with {:ok, %{healthy: true}} <- verify_update_eligibility(device, deployment),
-         %{firmware: firmware} <- Repo.preload(deployment, :firmware),
-         {:ok, url} <- @uploader.download_file(firmware),
-         {:ok, meta} <- Firmwares.metadata_from_firmware(firmware) do
+         %Device{product: product} <- Repo.preload(device, :product),
+         %{firmware: target} <- Repo.preload(deployment, :firmware) do
+      source =
+        case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+          {:ok, source} -> source
+          {:error, :not_found} -> nil
+        end
+
+      {:ok, url} = Firmwares.get_firmware_url(source, target)
+      {:ok, meta} = Firmwares.metadata_from_firmware(target)
+
       %{update_available: true, firmware_url: url, firmware_meta: meta}
     else
       _ -> %{update_available: false}

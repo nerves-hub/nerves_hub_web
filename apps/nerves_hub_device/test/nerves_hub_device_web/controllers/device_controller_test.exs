@@ -10,6 +10,7 @@ defmodule NervesHubDeviceWeb.DeviceControllerTest do
 
     test "gets available update", %{
       conn: conn,
+      firmware: firmware,
       org_key: org_key,
       deployment: deployment,
       product: product
@@ -20,6 +21,7 @@ defmodule NervesHubDeviceWeb.DeviceControllerTest do
 
       # Create a new firmware and active deployment for the device
       new_firmware = Fixtures.firmware_fixture(org_key, product)
+      Fixtures.firmware_patch_fixture(firmware, new_firmware)
       params = %{firmware_id: new_firmware.id, is_active: true}
       {:ok, _} = Deployments.update_deployment(deployment, params)
 

@@ -333,6 +333,7 @@ defmodule NervesHubWebCore.DevicesTest do
       })
 
     new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
+    Fixtures.firmware_patch_fixture(firmware, new_firmware)
 
     params = %{
       org_id: org.id,
@@ -466,6 +467,14 @@ defmodule NervesHubWebCore.DevicesTest do
                {:error, :deployment_unhealthy}
     end
 
+    test "does not send when firmware_meta is not present", %{
+      deployment: deployment,
+      device: device
+    } do
+      assert Devices.send_update_message(%{device | firmware_metadata: nil}, deployment) ==
+               {:error, :invalid_firmware_metadata}
+    end
+
     test "does not send when deployment version mismatch", %{
       deployment: deployment,
       device: device
@@ -483,7 +492,11 @@ defmodule NervesHubWebCore.DevicesTest do
                {:error, :invalid_deployment_for_device}
     end
 
-    test "broadcasts update message", %{deployment: deployment, device: device} do
+    test "broadcasts update message", %{
+      deployment: deployment,
+      device: device,
+      firmware: firmware
+    } do
       require Phoenix.ChannelTest
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
 
@@ -491,6 +504,8 @@ defmodule NervesHubWebCore.DevicesTest do
         %{deployment | conditions: %{"tags" => device.tags, "version" => "< 2.0.0"}}
         # preload so that we can correctly match
         |> Repo.preload(:firmware)
+
+      Fixtures.firmware_patch_fixture(firmware, deployment.firmware)
 
       assert {:ok, ^device} = Devices.send_update_message(device, deployment)
       deployment_id = deployment.id
@@ -520,11 +535,20 @@ defmodule NervesHubWebCore.DevicesTest do
              }
     end
 
+    test "no update when firmware_meta is not present", %{deployment: deployment, device: device} do
+      assert Devices.resolve_update(%{device | firmware_metadata: nil}, deployment) == %{
+               update_available: false
+             }
+    end
+
     test "update message when valid", %{
       deployment: deployment,
       device: device,
       firmware: firmware
     } do
+      deployment = deployment |> Repo.preload(:firmware)
+      Fixtures.firmware_patch_fixture(firmware, deployment.firmware)
+
       result = Devices.resolve_update(device, deployment)
       {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
       assert result.update_available

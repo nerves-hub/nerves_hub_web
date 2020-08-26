@@ -3,11 +3,11 @@ defmodule NervesHubWebCore.Firmwares.Upload.File do
   Local file adapter for CRUDing firmware files.
   """
 
+  @behaviour NervesHubWebCore.Firmwares.Upload
+
   @type upload_metadata :: %{local_path: String.t(), public_path: String.t()}
 
-  @spec upload_file(String.t(), upload_metadata()) ::
-          :ok
-          | {:error, atom()}
+  @impl NervesHubWebCore.Firmwares.Upload
   def upload_file(source, %{local_path: local_path}) do
     with :ok <- local_path |> Path.dirname() |> File.mkdir_p(),
          :ok <- File.cp(source, local_path) do
@@ -15,14 +15,12 @@ defmodule NervesHubWebCore.Firmwares.Upload.File do
     end
   end
 
-  @spec download_file(Firmware.t()) ::
-          {:ok, String.t()}
-          | {:error, String.t()}
+  @impl NervesHubWebCore.Firmwares.Upload
   def download_file(firmware) do
     {:ok, firmware.upload_metadata["public_path"]}
   end
 
-  @spec delete_file(Firmware.t()) :: :ok
+  @impl NervesHubWebCore.Firmwares.Upload
   def delete_file(%{upload_metadata: %{local_path: path}}) do
     # Sometimes fw files may be stored in temporary places that
     # get cleared on reboots, especially when using this locally.
@@ -34,7 +32,7 @@ defmodule NervesHubWebCore.Firmwares.Upload.File do
     delete_file(%{upload_metadata: %{local_path: path}})
   end
 
-  @spec metadata(Org.id(), String.t()) :: upload_metadata()
+  @impl NervesHubWebCore.Firmwares.Upload
   def metadata(org_id, filename) do
     config = Application.get_env(:nerves_hub_web_core, __MODULE__)
     common_path = "#{org_id}"

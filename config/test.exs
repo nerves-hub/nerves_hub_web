@@ -41,8 +41,11 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
 # NervesHubWebCore
 #
 config :nerves_hub_web_core,
-  firmware_upload: NervesHubWebCore.Firmwares.Upload.File,
+  firmware_upload: NervesHubWebCore.UploadMock,
   port: web_port
+
+config :nerves_hub_web_core,
+  patcher: NervesHubWebCore.PatcherMock
 
 config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.S3, bucket: "mybucket"
 
