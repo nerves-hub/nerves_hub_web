@@ -3,7 +3,8 @@ defmodule NervesHubWebCore.Accounts.Email do
 
   alias NervesHubWebCore.Accounts.{Invite, Org, User, OrgUser}
 
-  @from {"NervesHub", "no-reply@nerves-hub.org"}
+  @from_email Application.fetch_env!(:nerves_hub_web_core, :from_email)
+  @from {"NervesHub", @from_email}
 
   def invite(%Invite{} = invite, %Org{} = org) do
     new_email()
