@@ -13,7 +13,7 @@
     </label>
     <%= if assigns[:product] do %>
       <%= text_input f, :name, class: "form-control", disabled: "true", id: "name_input" %>
-    <%= else %>
+    <% else %>
       <%= text_input f, :name, class: "form-control", id: "name_input" %>
     <% end %>
     <div class="has-error"><%= error_tag f, :name %></div>

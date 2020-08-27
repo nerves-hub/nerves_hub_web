@@ -26,5 +26,5 @@
 
 <%= link to: "https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys", class: "mt-3", target: "_blank", rel: "noopener noreferrer" do %>
   <span>How to generate a firmware key</span>
-  <img src="/images/icons/arrow-back-red.svg" alt="arrow" class="ml-2" />
+  <img src="/images/icons/arrow-forward-red.svg" alt="arrow" class="ml-2" />
 <% end %>

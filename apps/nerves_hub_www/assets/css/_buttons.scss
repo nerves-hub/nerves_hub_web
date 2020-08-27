@@ -18,8 +18,15 @@ html {
       }
     }
 
-    &:disabled {
+    &:disabled,
+    &.disabled {
+      opacity: .5;
       cursor: not-allowed;
+      pointer-events: none;
+
+      * {
+        pointer-events: none;
+      }
     }
   }
 
@@ -35,6 +42,7 @@ html {
     width: 16px;
     height: 16px;
     margin-left: .75rem;
+    display: inline-block;
 
     &.left-icon {
       margin-left: 0;
@@ -44,11 +52,29 @@ html {
     &.add {
       background-image: url("/images/icons/add-75.svg");
     }
+
+    &.power {
+      background-image: url("/images/icons/power.svg");
+    }
+
+    &.console-icon {
+      background-image: url("/images/icons/console.svg");
+    }
+
+    &.edit {
+      background-image: url("/images/icons/edit.svg");
+    }
   }
 
   .button-submit-wrapper {
     margin-top: 2rem;
     display: flex;
     align-items: center;
+  }
+
+  .btn-sm {
+    padding: 0.25rem 0.5rem;
+    height: auto;
+    min-width: 2.5rem;
   }
 }

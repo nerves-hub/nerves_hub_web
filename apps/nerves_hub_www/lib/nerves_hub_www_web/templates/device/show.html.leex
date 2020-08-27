@@ -1,71 +1,101 @@
-<div class="container-fluid">
-  <div class="row">
-    <div class="col-lg-7">
-      <p>
-        <strong>Identifier:</strong> <%= @device.identifier %>
-      </p>
+<div class="flex-row justify-content-between align-items-center">
+  <%= link "All Devices", to: Routes.device_path(@socket, :index, @org.name, @product.name), class: "back-link"%>
+  <div class="btn-group" role="group" aria-label="Device Actions">
+    <button class="btn btn-outline-light" type="button" phx-click="reboot" <%= if @device.status == "offline", do: "disabled" %> data-confirm="Are you sure?">
+      <span class="button-icon left-icon power"></span>
+      <span>Reboot</span>
+    </button>
+    <%= link to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier), class: "btn btn-outline-light #{unless Map.has_key?(@device, :console_available) && @device.console_available, do: "disabled"}" do %>
+      <span class="button-icon left-icon console-icon"></span>
+      <span>Console</span>
+    <% end %>
+    <%= link to: Routes.device_path(@socket, :edit, @org.name, @product.name, @device.identifier), class: "btn btn-outline-light" do %>
+      <span class="button-icon left-icon edit opacity-75"></span>
+      <span>Edit</span>
+    <% end %>
+  </div>
+</div>
 
-      <p>
-        <strong>Firmware Info:</strong>
-      </p>
+<h1><%= @device.identifier %></h1>
 
-      <ul>
-        <%= if @device.firmware_metadata do %>
-          <%= for kv <- Map.from_struct(@device.firmware_metadata) do %>
-            <li><strong><%= elem(kv, 0) %>: </strong> <%= elem(kv, 1) %></li>
-          <% end %>
-        <% end %>
-      </ul>
-
-      <p>
-        <strong>Status: </strong><%= @device.status %>
-        <%= if Map.has_key?(@device, :fwup_progress) && @device.fwup_progress do %>
-          <div class="progress">
-            <div class="progress-bar progress-bar-striped" role="progressbar" style="width: <%= @device.fwup_progress %>%"><%= @device.fwup_progress %>%</div>
-          </div>
-        <% end %>
-      </p>
-
-      <p>
-        <strong>Healthy?: </strong><%= health_status_icon(@device) %>
-      </p>
-
-      <p>
-        <strong>Last Connection:</strong>
-        <%= if is_nil(@device.last_communication) do %>
-          never
+<div class="device-meta-grid">
+  <div>
+    <div class="help-text mb-1">Connection</div>
+    <p class="flex-row align-items-center tt-c">
+      <span><%= @device.status %></span>
+      <span class="ml-1">
+        <%= if @device.status == "offline" do %>
+          <img src="/images/icons/cross.svg" alt="offline" />
         <% else %>
-          <%= @device.last_communication %>
+          <img src="/images/icons/check.svg" alt="connected" />
         <% end %>
-      </p>
+      </span>
+    </p>
+  </div>
+  <div>
+    <div class="help-text mb-1">Last Handshake</div>
+    <p>
+      <%= if is_nil(@device.last_communication) do %>
+        Never
+      <% else %>
+        <%= @device.last_communication %>
+      <% end %>
+    </p>
+  </div>
+  <div>
+    <div class="help-text mb-1">Health</div>
+    <p>
+      <%= if health_status_icon(@device) do %>
+        Good
+      <% else %>
+        <span>Quarantined</span>
+        <span class="ml-1"><img src="/images/icons/error.svg" alt="Quarantined icon"/></span>
+      <% end %>
+    </p>
+  </div>
+  <div>
+    <div class="help-text mb-1">Description</div>
+    <p>
+      <%= if is_nil(@device.description) do %>
+        -
+      <% else %>
+        <%= @device.description %>
+      <% end %>
+    </p>
+  </div>
+</div>
 
-      <p>
-        <strong>Tags:</strong>
-          <span class="badge">
-            <%= tags_to_string(@device) %>
-          </span>
-      </p>
+<div class="divider"></div>
 
-      <div class="dropdown dropright">
-        <%= link "Back", to: Routes.device_path(@socket, :index, @org.name, @product.name), class: "btn btn-secondary"%>
-
-        <button class="btn btn-info dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-          Actions
-        </button>
-        <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-          <%= link "Console", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier), class: "dropdown-item #{unless Map.has_key?(@device, :console_available) && @device.console_available, do: "disabled"}" %>
-          <%= link "Edit", to: Routes.device_path(@socket, :edit, @org.name, @product.name, @device.identifier), class: "dropdown-item" %>
-          <%= form_for %Plug.Conn{}, "#", [phx_submit: "toggle_health_state"], fn _f -> %>
-            <%= submit "Mark #{if @device.healthy, do: "Unhealthy", else: "Healthy"}", class: "dropdown-item" %>
-          <% end %>
-          <div class="dropdown-divider"></div>
-          <button class="dropdown-item" type="button" phx-click="reboot" <%= if @device.status == "offline", do: "disabled" %> data-confirm="Are you sure?">Reboot</button>
-        </div>
-      </div>
+<div class="row">
+  <div class="col-lg-7">
+    <h3 class="mb-2">Deployments</h3>
+    <div class="display-box">
+      <div class="help-text mb-1">Groups</div>
+      <%= if !is_nil(@device.tags) do %>
+        <%= for tag <- @device.tags do %>
+          <span class="badge"><%= tag %></span>
+        <% end %>
+      <% else %>
+        <p>No Groups</p>
+      <% end %>
     </div>
-    <div class="col-lg-5">
-      <%= render(NervesHubWWWWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
+
+    <h3 class="mb-2">Firmware</h3>
+    <div class="display-box">
+      <div class="help-text mb-1">Version</div>
+        <%= if is_nil(@device.firmware_metadata) do %>
+          <p>Unknown</p>
+        <% else %>
+        <span class="badge">
+          <%= @device.firmware_metadata.version %>
+        </span>
+      <% end %>
     </div>
+  </div>
+
+  <div class="col-lg-5">
+    <%= render(NervesHubWWWWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
   </div>
 </div>
 

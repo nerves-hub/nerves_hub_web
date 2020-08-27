@@ -10,6 +10,22 @@
   opacity: 1;
 }
 
+.opacity-75 {
+  opacity: .75;
+}
+
+.opacity-50 {
+  opacity: .5;
+}
+
+.opacity-25 {
+  opacity: .25;
+}
+
+.opacity-0 {
+  opacity: 0;
+}
+
 .divider {
   height: 1px;
   background-color: rgba(255, 255, 255, 0.10);
@@ -148,4 +164,29 @@
   }
 }
 
+.display-box {
+  background: var(--backgroundLight);
+  padding: 2.5rem;
+  border-radius: 4px;
+  margin-bottom: 2rem;
+}
 
+.back-link {
+  padding-left: 1.5rem;
+  background-image: url("/images/icons/arrow-back-red.svg");
+  background-position: left 4px;
+  background-repeat: no-repeat;
+  font-weight: bold;
+}
+
+.device-meta-grid {
+  display: grid;
+  grid-template-columns: max-content max-content max-content 1fr;
+  grid-column-gap: 7.5rem;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr 1fr;
+    grid-column-gap: 3.5rem;
+    grid-row-gap: 2rem;
+  }
+}
