@@ -16,6 +16,7 @@ defmodule NervesHubWebCore.DataCase do
 
   using do
     quote do
+      use DefaultMocks
       alias NervesHubWebCore.Repo
 
       import Ecto
@@ -31,8 +32,6 @@ defmodule NervesHubWebCore.DataCase do
     unless tags[:async] do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHubWebCore.Repo, {:shared, self()})
     end
-
-    Mox.stub_with(NervesHubWebCore.UploadMock, NervesHubWebCore.Firmwares.Upload.File)
 
     :ok
   end

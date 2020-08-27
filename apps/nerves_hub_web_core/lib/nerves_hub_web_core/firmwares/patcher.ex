@@ -17,4 +17,9 @@ defmodule NervesHubWebCore.Firmwares.Patcher do
   The return value of this function is not checked.
   """
   @callback cleanup_patch_files(String.t()) :: :ok
+
+  @doc """
+  Checks a firmware file's meta.conf to see if delta patching is enabled
+  """
+  @callback patchable?(String.t()) :: boolean()
 end

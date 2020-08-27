@@ -66,4 +66,10 @@ defmodule NervesHubWebCore.Firmwares.Patcher.Default do
 
     :ok
   end
+
+  @impl NervesHubWebCore.Firmwares.Patcher
+  def patchable?(file_path) do
+    {meta, 0} = System.cmd("unzip", ["-qqp", file_path, "meta.conf"])
+    meta =~ "delta-source-raw-offset" && meta =~ "delta-source-raw-count"
+  end
 end

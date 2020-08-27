@@ -17,7 +17,8 @@ defmodule NervesHubWebCore.Firmwares.FirmwareMetadata do
     :author,
     :description,
     :vcs_identifier,
-    :misc
+    :misc,
+    :patchable
   ]
 
   @derive Jason.Encoder
@@ -26,6 +27,7 @@ defmodule NervesHubWebCore.Firmwares.FirmwareMetadata do
     field(:product)
     field(:version)
     field(:architecture)
+    field(:patchable)
     field(:platform)
     field(:author)
     field(:description)

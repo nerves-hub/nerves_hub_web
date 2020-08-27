@@ -342,9 +342,7 @@ defmodule NervesHubWebCore.Firmwares do
           {:ok, String.t()}
           | {:error, :failure}
 
-  def get_firmware_url(nil, target), do: @uploader.download_file(target)
-
-  def get_firmware_url(source, target) do
+  def get_firmware_url(%Firmware{patchable: true} = source, %Firmware{patchable: true} = target) do
     {:ok, patch} =
       case get_patch_by_source_and_target(source, target) do
         {:error, :not_found} -> create_patch(source, target)
@@ -353,6 +351,8 @@ defmodule NervesHubWebCore.Firmwares do
 
     @uploader.download_file(patch)
   end
+
+  def get_firmware_url(_, target), do: @uploader.download_file(target)
 
   @spec create_patch(Firmware.t(), Firmware.t()) ::
           {:ok, FirmwarePatch.t()}
@@ -388,13 +388,13 @@ defmodule NervesHubWebCore.Firmwares do
     )
   end
 
+  # Private functions
+
   def insert_patch(params) do
     %FirmwarePatch{}
     |> FirmwarePatch.changeset(params)
     |> Repo.insert()
   end
-
-  # Private functions
 
   defp insert_firmware(params) do
     %Firmware{}
@@ -419,6 +419,7 @@ defmodule NervesHubWebCore.Firmwares do
           misc: metadata.misc,
           org_id: org_id,
           org_key_id: org_key_id,
+          patchable: patcher().patchable?(filepath),
           platform: metadata.platform,
           product_name: metadata.product,
           upload_metadata: @uploader.metadata(org_id, filename),

@@ -1,4 +1,5 @@
 defmodule NervesHubDeviceWeb.DeviceControllerTest do
+  use DefaultMocks
   use NervesHubDeviceWeb.ConnCase, async: false
   alias NervesHubWebCore.{Deployments, Fixtures, Devices}
 
