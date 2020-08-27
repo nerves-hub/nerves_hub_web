@@ -5,6 +5,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
     Accounts,
     Accounts.OrgLimit,
     Firmwares,
+    Firmwares.Firmware,
     Fixtures,
     Support.Fwup,
     Deployments,
@@ -362,12 +363,37 @@ defmodule NervesHubWebCore.FirmwaresTest do
       assert {:ok, url} = Firmwares.get_firmware_url(nil, target)
     end
 
+    test "returns target download_file when source does not support patching", %{
+      firmware: source,
+      org_key: org_key,
+      product: product
+    } do
+      target = Fixtures.firmware_fixture(org_key, product, %{patchable: true})
+      url = "http://somefilestore.com/firmware.fw"
+      Mox.expect(UploadMock, :download_file, fn ^target -> {:ok, url} end)
+
+      assert {:ok, url} = Firmwares.get_firmware_url(source, target)
+    end
+
+    test "returns target download_file when target does not support patching", %{
+      firmware: target,
+      org_key: org_key,
+      product: product
+    } do
+      source = Fixtures.firmware_fixture(org_key, product, %{patchable: true})
+      url = "http://somefilestore.com/firmware.fw"
+      Mox.expect(UploadMock, :download_file, fn ^target -> {:ok, url} end)
+
+      assert {:ok, url} = Firmwares.get_firmware_url(source, target)
+    end
+
     test "returns patch download_file when one exists", %{
       firmware: source,
       org_key: org_key,
       product: product
     } do
-      target = Fixtures.firmware_fixture(org_key, product)
+      source = %Firmware{source | patchable: true}
+      target = Fixtures.firmware_fixture(org_key, product, %{patchable: true})
       patch = Fixtures.firmware_patch_fixture(source, target)
       patch_id = patch.id
       url = "http://somefilestore.com/firmware.fw"
@@ -381,7 +407,8 @@ defmodule NervesHubWebCore.FirmwaresTest do
       org_key: org_key,
       product: product
     } do
-      target = Fixtures.firmware_fixture(org_key, product)
+      source = %Firmware{source | patchable: true}
+      target = Fixtures.firmware_fixture(org_key, product, %{patchable: true})
       url = "http://somefilestore.com/firmware.fw"
       patch_path = "/path/to/firmware.fw"
       Mox.expect(UploadMock, :download_file, 3, fn _ -> {:ok, url} end)

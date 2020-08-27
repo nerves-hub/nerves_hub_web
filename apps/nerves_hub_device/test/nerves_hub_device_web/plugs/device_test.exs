@@ -1,4 +1,5 @@
 defmodule NervesHubDeviceWeb.Plugs.DeviceTest do
+  use DefaultMocks
   use NervesHubDeviceWeb.ConnCase, async: false
   alias NervesHubDeviceWeb.Plugs.Device
   alias NervesHubWebCore.Repo

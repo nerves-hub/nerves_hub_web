@@ -20,6 +20,7 @@ defmodule NervesHubAPIWeb.ConnCase do
     quote do
       # Import conveniences for testing with connections
       use Phoenix.ConnTest
+      use DefaultMocks
       import NervesHubAPIWeb.ConnCase, only: [build_auth_conn: 1, peer_data: 1]
 
       alias NervesHubAPIWeb.Router.Helpers, as: Routes
@@ -35,8 +36,6 @@ defmodule NervesHubAPIWeb.ConnCase do
     unless tags[:async] do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHubWebCore.Repo, {:shared, self()})
     end
-
-    Mox.stub_with(NervesHubWebCore.UploadMock, NervesHubWebCore.Firmwares.Upload.File)
 
     user = Fixtures.user_fixture()
     %{cert: cert} = Fixtures.user_certificate_fixture(user)

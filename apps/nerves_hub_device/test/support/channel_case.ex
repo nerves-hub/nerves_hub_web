@@ -19,6 +19,7 @@ defmodule NervesHubDeviceWeb.ChannelCase do
     quote do
       # Import conveniences for testing with channels
       use Phoenix.ChannelTest
+      use DefaultMocks
 
       # The default endpoint for testing
       @endpoint NervesHubDeviceWeb.Endpoint
@@ -31,8 +32,6 @@ defmodule NervesHubDeviceWeb.ChannelCase do
     unless tags[:async] do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHubWebCore.Repo, {:shared, self()})
     end
-
-    Mox.stub_with(NervesHubWebCore.UploadMock, NervesHubWebCore.Firmwares.Upload.File)
 
     :ok
   end
