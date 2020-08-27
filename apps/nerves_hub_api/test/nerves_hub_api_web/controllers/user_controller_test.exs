@@ -31,7 +31,9 @@ defmodule NervesHubAPIWeb.UserControllerTest do
       body = %{username: "api.test", password: "12345678", email: "new_test@test.com"}
       conn = post(conn, Routes.user_path(conn, :register), body)
 
-      assert json_response(conn, 422) == %{"errors" => %{"username" => ["invalid character(s) in username"]}}
+      assert json_response(conn, 422) == %{
+               "errors" => %{"username" => ["invalid character(s) in username"]}
+             }
     end
   end
 

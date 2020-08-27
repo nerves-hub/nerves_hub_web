@@ -10,7 +10,6 @@ defmodule NervesHubWebCore.Accounts.UserTest do
       %Changeset{errors: errors} =
         User.creation_changeset(%NervesHubWebCore.Accounts.User{}, %{username: "username#{char}"})
 
-        IO.inspect(errors)
       assert {"invalid character(s) in username", []} = errors[:username]
     end)
 
