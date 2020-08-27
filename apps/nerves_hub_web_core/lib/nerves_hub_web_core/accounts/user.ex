@@ -71,7 +71,7 @@ defmodule NervesHubWebCore.Accounts.User do
   end
 
   defp validate_username(%Changeset{changes: %{username: username}} = changeset) do
-    case Regex.match?(~r/^[A-Z,a-z,\d,\-,.,_,~]*$/, username) do
+    case Regex.match?(~r/^[A-Za-z0-9-_]+$/, username) do
       true -> changeset
       false -> add_error(changeset, :username, "invalid character(s) in username")
     end
