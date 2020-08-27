@@ -83,14 +83,25 @@
 
     <h3 class="mb-2">Firmware</h3>
     <div class="display-box">
-      <div class="help-text mb-1">Version</div>
-        <%= if is_nil(@device.firmware_metadata) do %>
-          <p>Unknown</p>
-        <% else %>
-        <span class="badge">
-          <%= @device.firmware_metadata.version %>
-        </span>
-      <% end %>
+      <div class="flex-row justify-content-between">
+        <div>
+          <div class="help-text mb-1">Version</div>
+          <%= if is_nil(@device.firmware_metadata) do %>
+            <p>Unknown</p>
+          <% else %>
+            <span class="badge">
+              <%= @device.firmware_metadata.version %>
+            </span>
+          <% end %>
+        </div>
+        <%= if !is_nil(@device.firmware_metadata) do %>
+          <div>
+            <div class="help-text mb-1">UUID</div>
+            <p><%= @device.firmware_metadata.uuid %></p>
+          </div>
+        <% end %>
+      </div>
+
     </div>
   </div>
 
