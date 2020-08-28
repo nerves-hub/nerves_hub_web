@@ -135,6 +135,7 @@ defmodule NervesHubWebCore.Devices do
 
     with true <- matches_deployment?(device, deployment),
          %Device{product: product} <- Repo.preload(device, :product),
+         fwup_version <- Map.get(device.firmware_metadata, :fwup_version),
          %{firmware: target} <- Repo.preload(deployment, :firmware) do
       source =
         case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
@@ -142,7 +143,7 @@ defmodule NervesHubWebCore.Devices do
           {:error, :not_found} -> nil
         end
 
-      {:ok, url} = Firmwares.get_firmware_url(source, target)
+      {:ok, url} = Firmwares.get_firmware_url(source, target, fwup_version)
       {:ok, meta} = Firmwares.metadata_from_firmware(target)
 
       Phoenix.PubSub.broadcast(
@@ -401,6 +402,7 @@ defmodule NervesHubWebCore.Devices do
       ) do
     with {:ok, %{healthy: true}} <- verify_update_eligibility(device, deployment),
          %Device{product: product} <- Repo.preload(device, :product),
+         fwup_version <- Map.get(device.firmware_metadata, :fwup_version),
          %{firmware: target} <- Repo.preload(deployment, :firmware) do
       source =
         case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
@@ -408,7 +410,7 @@ defmodule NervesHubWebCore.Devices do
           {:error, :not_found} -> nil
         end
 
-      {:ok, url} = Firmwares.get_firmware_url(source, target)
+      {:ok, url} = Firmwares.get_firmware_url(source, target, fwup_version)
       {:ok, meta} = Firmwares.metadata_from_firmware(target)
 
       %{update_available: true, firmware_url: url, firmware_meta: meta}

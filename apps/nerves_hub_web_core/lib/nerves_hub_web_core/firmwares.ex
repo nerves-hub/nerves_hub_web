@@ -11,6 +11,8 @@ defmodule NervesHubWebCore.Firmwares do
 
   require Logger
 
+  @min_fwup_patchable_version ">=1.6.0"
+
   @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
 
   @uploader Application.fetch_env!(:nerves_hub_web_core, :firmware_upload)
@@ -221,6 +223,7 @@ defmodule NervesHubWebCore.Firmwares do
       version: get_metadata_req_header(conn, "version"),
       author: get_metadata_req_header(conn, "author"),
       description: get_metadata_req_header(conn, "description"),
+      fwup_version: get_metadata_req_header(conn, "fwup_version"),
       vcs_identifier: get_metadata_req_header(conn, "vcs-identifier"),
       misc: get_metadata_req_header(conn, "misc")
     }
@@ -282,6 +285,7 @@ defmodule NervesHubWebCore.Firmwares do
       version: Map.get(metadata, "nerves_fw_version"),
       author: Map.get(metadata, "nerves_fw_author"),
       description: Map.get(metadata, "nerves_fw_description"),
+      fwup_version: Map.get(metadata, "nerves_fw_fwup_version"),
       vcs_identifier: Map.get(metadata, "nerves_fw_vcs_identifier"),
       misc: Map.get(metadata, "nerves_fw_misc")
     }
@@ -338,21 +342,19 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
-  @spec get_firmware_url(Firmware.t(), Firmware.t()) ::
+  @spec get_firmware_url(Firmware.t(), Firmware.t(), String.t()) ::
           {:ok, String.t()}
           | {:error, :failure}
 
-  def get_firmware_url(%Firmware{patchable: true} = source, %Firmware{patchable: true} = target) do
-    {:ok, patch} =
-      case get_patch_by_source_and_target(source, target) do
-        {:error, :not_found} -> create_patch(source, target)
-        patch -> patch
-      end
-
-    @uploader.download_file(patch)
+  def get_firmware_url(source, target, fwup_version) when is_binary(fwup_version) do
+    if Version.match?(fwup_version, @min_fwup_patchable_version) do
+      do_get_firmware_url(source, target)
+    else
+      @uploader.download_file(target)
+    end
   end
 
-  def get_firmware_url(_, target), do: @uploader.download_file(target)
+  def get_firmware_url(_source, target, _fwup_version), do: @uploader.download_file(target)
 
   @spec create_patch(Firmware.t(), Firmware.t()) ::
           {:ok, FirmwarePatch.t()}
@@ -395,6 +397,21 @@ defmodule NervesHubWebCore.Firmwares do
     |> FirmwarePatch.changeset(params)
     |> Repo.insert()
   end
+
+  defp do_get_firmware_url(
+         %Firmware{patchable: true} = source,
+         %Firmware{patchable: true} = target
+       ) do
+    {:ok, patch} =
+      case get_patch_by_source_and_target(source, target) do
+        {:error, :not_found} -> create_patch(source, target)
+        patch -> patch
+      end
+
+    @uploader.download_file(patch)
+  end
+
+  defp do_get_firmware_url(_, target), do: @uploader.download_file(target)
 
   defp insert_firmware(params) do
     %Firmware{}
