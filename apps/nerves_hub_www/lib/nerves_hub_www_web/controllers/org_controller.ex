@@ -4,7 +4,6 @@ defmodule NervesHubWWWWeb.OrgController do
   alias Ecto.Changeset
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.Email
-  alias NervesHubWebCore.Accounts.User
   alias NervesHubWebCore.Accounts.{Invite, OrgKey, OrgUser}
   alias NervesHubWebCore.Mailer
 
