@@ -1,5 +1,6 @@
 defmodule NervesHubWWWWeb.LayoutView do
   use NervesHubWWWWeb, :view
+  use Timex
 
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.User
@@ -282,6 +283,10 @@ defmodule NervesHubWWWWeb.LayoutView do
 
     def format(timestamp) do
       '#{@months[timestamp.month]} #{timestamp.day}, #{timestamp.year}'
+    end
+
+    def from_now(timestamp) do
+      Timex.from_now(timestamp)
     end
   end
 end

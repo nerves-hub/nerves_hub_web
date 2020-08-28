@@ -3,4 +3,35 @@
   background: var(--backgroundLight);
   border-radius: 4px;
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+
+  .audit-description {
+    margin: 0;
+
+    &:first-letter {
+      text-transform: capitalize;
+    }
+  }
+
+  .audit-action-icon {
+    width: 3rem;
+    height: 3rem;
+    margin-right: 1.5rem;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 1.75rem 1.5rem;
+
+    &.icon-create {
+      background-image: url("/images/icons/activity-create.svg");
+    }
+
+    &.icon-update {
+      background-image: url("/images/icons/activity-update.svg");
+    }
+
+    &.icon-delete {
+      background-image: url("/images/icons/activity-delete.svg");
+    }
+  }
 }

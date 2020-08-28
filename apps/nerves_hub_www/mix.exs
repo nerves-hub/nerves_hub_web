@@ -72,7 +72,8 @@ defmodule NervesHubWWW.MixProject do
       {:nerves_hub_web_core, in_umbrella: true},
       {:nerves_hub_device, in_umbrella: true},
       {:ansi_to_html, git: "https://github.com/jjcarstens/ansi_to_html"},
-      {:scrivener_html, "~> 1.8"}
+      {:scrivener_html, "~> 1.8"},
+      {:timex, "~> 3.5"}
     ]
   end
 

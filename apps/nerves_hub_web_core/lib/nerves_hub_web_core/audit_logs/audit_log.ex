@@ -206,9 +206,14 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
     changed_fields =
       Map.keys(changes)
       |> case do
-        [key] -> "#{to_string(key)} field"
-        [key1, key2] -> "#{key1} and #{key2} fields"
-        [last_key | rem] -> Enum.join(rem, ", ") <> ", and #{last_key} fields"
+        [key] ->
+          "#{tags_to_groups(key)} field"
+
+        [key1, key2] ->
+          "#{tags_to_groups(key1)} and #{tags_to_groups(key2)} fields"
+
+        [last_key | rem] ->
+          Enum.join(rem, ", ") <> ", and #{tags_to_groups(last_key)} fields"
       end
 
     # i.e.
@@ -276,5 +281,13 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
     #   user ron.swanson
     #   deployment Awesome Deployment
     "#{simple_type} #{identifier}"
+  end
+
+  defp tags_to_groups(key) do
+    if to_string(key) == "tags" do
+      "groups"
+    else
+      to_string(key)
+    end
   end
 end
