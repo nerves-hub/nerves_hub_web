@@ -3,12 +3,9 @@ defmodule NervesHubWebCore.Accounts.Email do
 
   alias NervesHubWebCore.Accounts.{Invite, Org, User, OrgUser}
 
-  @from_email Application.fetch_env!(:nerves_hub_web_core, :from_email)
-  @from {"NervesHub", @from_email}
-
   def invite(%Invite{} = invite, %Org{} = org) do
     new_email()
-    |> from(@from)
+    |> from(from_address())
     |> to(invite.email)
     |> subject("[NervesHub] Hi from NervesHub!")
     |> put_layout({NervesHubWebCore.EmailView, :layout})
@@ -18,7 +15,7 @@ defmodule NervesHubWebCore.Accounts.Email do
   def forgot_password(%User{email: email, password_reset_token: token} = user)
       when is_binary(token) do
     new_email()
-    |> from(@from)
+    |> from(from_address())
     |> to(email)
     |> subject("[NervesHub] Reset NervesHub Password")
     |> put_layout({NervesHubWebCore.EmailView, :layout})
@@ -27,7 +24,7 @@ defmodule NervesHubWebCore.Accounts.Email do
 
   def org_user_created(email, %Org{} = org) do
     new_email()
-    |> from(@from)
+    |> from(from_address())
     |> to(email)
     |> subject("[NervesHub] Welcome to #{org.name}")
     |> put_layout({NervesHubWebCore.EmailView, :layout})
@@ -52,9 +49,9 @@ defmodule NervesHubWebCore.Accounts.Email do
       end
 
     new_email()
-    |> from(@from)
+    |> from(from_address())
     |> subject(email_subject)
-    |> to(@from)
+    |> to(from_address())
     |> bcc(org_users_emails)
     |> put_layout({NervesHubWebCore.EmailView, :layout})
     |> render("tell_org_user_added.html", user: new_user, org: org)
@@ -69,9 +66,9 @@ defmodule NervesHubWebCore.Accounts.Email do
     org_users_emails = generate_org_users_emails(org_users)
 
     new_email()
-    |> from(@from)
+    |> from(from_address())
     |> subject("[NervesHub] User #{instigator} removed #{user_removed.username} from #{org.name}")
-    |> to(@from)
+    |> to(from_address())
     |> bcc(org_users_emails)
     |> put_layout({NervesHubWebCore.EmailView, :layout})
     |> render("tell_org_user_removed.html", instigator: instigator, user: user_removed, org: org)
@@ -87,5 +84,10 @@ defmodule NervesHubWebCore.Accounts.Email do
         [email | acc]
       end
     )
+  end
+
+  defp from_address do
+    email = Application.fetch_env!(:nerves_hub_web_core, :nerves_hub_from_email)
+    {"NervesHub", email}
   end
 end
