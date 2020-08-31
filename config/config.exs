@@ -55,7 +55,7 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
 #
 config :nerves_hub_web_core,
   ecto_repos: [NervesHubWebCore.Repo],
-  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
+  nerves_hub_from_email: System.get_env("NERVES_HUB_FROM_EMAIL", "no-reply@nerves-hub.org"),
   host: host
 
 config :nerves_hub_web_core, NervesHubWeb.PubSub,
