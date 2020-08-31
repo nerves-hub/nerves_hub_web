@@ -223,7 +223,7 @@ defmodule NervesHubWebCore.Firmwares do
       version: get_metadata_req_header(conn, "version"),
       author: get_metadata_req_header(conn, "author"),
       description: get_metadata_req_header(conn, "description"),
-      fwup_version: get_metadata_req_header(conn, "fwup_version"),
+      fwup_version: get_metadata_req_header(conn, "fwup-version"),
       vcs_identifier: get_metadata_req_header(conn, "vcs-identifier"),
       misc: get_metadata_req_header(conn, "misc")
     }
@@ -285,7 +285,7 @@ defmodule NervesHubWebCore.Firmwares do
       version: Map.get(metadata, "nerves_fw_version"),
       author: Map.get(metadata, "nerves_fw_author"),
       description: Map.get(metadata, "nerves_fw_description"),
-      fwup_version: Map.get(metadata, "nerves_fw_fwup_version"),
+      fwup_version: Map.get(metadata, "fwup_version"),
       vcs_identifier: Map.get(metadata, "nerves_fw_vcs_identifier"),
       misc: Map.get(metadata, "nerves_fw_misc")
     }
