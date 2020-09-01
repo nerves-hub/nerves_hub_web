@@ -37,8 +37,8 @@
         <td data-toggle="collapse" data-target="#firmware<%= firmware.id %>"><%= firmware.platform %></td>
         <td data-toggle="collapse" data-target="#firmware<%= firmware.id %>"><%= format_signed(firmware, @org) %></td>
         <td class="actions">
-          <%= link("", class: "fa fa-file-download", to: Routes.firmware_path(@conn, :download, @org.name, @product.name, firmware.uuid)) %>
-          <%= link "", class: "fa fa-trash-alt", to: Routes.firmware_path(@conn, :delete, @org.name, @product.name, firmware.uuid), method: :delete, data: [confirm: "Are you sure you want to delete this firmware? This can not be undone."] %>
+          <%= link("", class: "fa fa-file-download color-white", to: Routes.firmware_path(@conn, :download, @org.name, @product.name, firmware.uuid)) %>
+          <%= link "", class: "fa fa-trash-alt color-white", to: Routes.firmware_path(@conn, :delete, @org.name, @product.name, firmware.uuid), method: :delete, data: [confirm: "Are you sure you want to delete this firmware? This can not be undone."] %>
         </td>
       </tr>
       <tr class="item collapsible">

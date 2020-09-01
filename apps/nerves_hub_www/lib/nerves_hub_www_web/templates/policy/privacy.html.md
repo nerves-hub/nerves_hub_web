@@ -1,4 +1,6 @@
-## Privacy Policy
+<div class="pb-6"></div>
+
+# Privacy Policy
 
 We store information about access to and users on the [nerves-hub.org](https://nerves-hub.org/) website, the nerves-hub.org API and repository. This data is stored in the US on Amazon AWS servers.
 

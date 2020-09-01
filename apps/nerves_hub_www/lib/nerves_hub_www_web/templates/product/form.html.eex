@@ -21,7 +21,7 @@
 
   <div class="button-submit-wrapper">
     <%= if assigns[:product] do %>
-      <%= link "Remove Product", class: "btn btn-secondary mr-3", to: Routes.product_path(@conn, :delete, @org.name, @product.name), method: :delete, data: [confirm: "Are you sure you want to delete this product? This can not be undone."] %>
+      <%= link "Remove Product", class: "btn btn-secondary", to: Routes.product_path(@conn, :delete, @org.name, @product.name), method: :delete, data: [confirm: "Are you sure you want to delete this product? This can not be undone."] %>
       <%= submit "Save Changes", class: "btn btn-primary", disabled: "true" %>
     <% else %>
       <%= submit "Create Product", class: "btn btn-primary" %>

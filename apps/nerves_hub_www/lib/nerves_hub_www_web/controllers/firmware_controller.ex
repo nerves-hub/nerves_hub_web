@@ -41,7 +41,7 @@ defmodule NervesHubWWWWeb.FirmwareController do
       {:error, :invalid_signature} ->
         render_error(
           conn,
-          "Firmware corrupt, signature invalid or missing public key",
+          "Firmware corrupt, signature invalid, or missing public key",
           %Changeset{data: %Firmware{}}
         )
 

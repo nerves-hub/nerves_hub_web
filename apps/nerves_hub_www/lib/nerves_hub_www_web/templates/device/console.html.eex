@@ -1,7 +1,7 @@
 <%= if @console_available == true do %>
-  <input id="device_id" hidden type="text" value="<%= @device.id %>">
+  <input id="device_id" hidden type="text" value="<%= @device.id %>" />
   <div id="terminal" class="console"></div>
   <button class="btn btn-danger" id="restart_button">Restart</button>
 <% else %>
-  <h1>Console disabled or unavailable
+  <h1>Console disabled or unavailable</h1>
 <% end %>

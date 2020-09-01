@@ -1,40 +1,36 @@
-<h1>Edit deployment</h1>
+<h1>Edit Deployment</h1>
+
+<h3 class="h3 mb-1">Firmware Details</h3>
+<div class="x4-grid">
+  <div>
+    <div class="help-text mb-1">Product</div>
+    <p><%= @product.name %></p>
+  </div>
+  <div>
+    <div class="help-text mb-1">Version</div>
+    <p>
+      <%=
+          case @firmware.version do
+            nil -> "--"
+            version -> version
+          end
+        %>
+    </p>
+  </div>
+  <div>
+    <div class="help-text mb-1">Platform</div>
+    <p><%= @firmware.platform %></p>
+  </div>
+  <div>
+    <div class="help-text mb-1">Architecture</div>
+    <p><%= @firmware.architecture %></p>
+  </div>
+</div>
+
+<div class="divider"></div>
 
 <%= form_for @changeset, Routes.deployment_path(@conn, :update, @org.name, @product.name, @deployment.name), [as: :deployment], fn f -> %>
-  <h3 class="h3">Firmware Details</h3>
-
-  <table class="table" style="width: auto">
-    <tbody>
-      <tr>
-        <th>Product</th>
-        <td><%= @product.name %></td>
-      </tr>
-      <tr>
-        <th>Version</th>
-        <td>
-          <%=
-            case @firmware.version do
-              nil -> "--"
-              version -> version
-            end
-          %>
-        </td>
-      </tr>
-      <tr>
-        <th>Platform</th>
-        <td><%= @firmware.platform %></td>
-      </tr>
-      <tr>
-        <th>Architecture</th>
-        <td><%= @firmware.architecture %></td>
-      </tr>
-    </tbody>
-  </table>
-
   <%= hidden_input f, :firmware_id, value: @firmware.id %>
-
-  <h3 class="h3">Deployment</h3>
-
   <div class="form-group">
     <label for="name_input">Name</label>
     <%= text_input f, :name, class: "form-control", id: "name_input" %>
@@ -117,5 +113,7 @@
     <div class="has-error"><%= error_tag f, :device_failure_rate_seconds %></div>
   </div>
 
-  <%= submit "Update Deployment", class: "btn btn-primary" %>
+  <div class="button-submit-wrapper">
+    <%= submit "Update Deployment", class: "btn btn-primary" %>
+  </div>
 <% end %>

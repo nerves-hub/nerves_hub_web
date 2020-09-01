@@ -6,17 +6,16 @@
   padding: 4rem 0;
   justify-content: center;
 
+  h6 {
+    margin-bottom: .35rem;
+  }
+
   & > div {
     padding: 0 1.25rem;
     max-width: 780px;
   }
 
   a {
-    color: white;
     margin: .35rem 0;
-
-    &:hover {
-      color: var(--primary-25)
-    }
   }
 }

@@ -70,6 +70,10 @@ html {
     margin-top: 2rem;
     display: flex;
     align-items: center;
+
+    .btn + .btn {
+      margin-left: 1.5rem;
+    }
   }
 
   .btn-sm {

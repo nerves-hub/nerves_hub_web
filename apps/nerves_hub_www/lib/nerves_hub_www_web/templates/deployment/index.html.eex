@@ -41,7 +41,7 @@
           </span>
         </td>
         <td class="actions">
-          <%= link "", class: "fa fa-trash-alt", to: Routes.deployment_path(@conn, :delete, @org.name, @product.name, deployment.name), method: :delete, data: [confirm: "Are you sure you want to delete this deployment? This can not be undone."] %>
+          <%= link "delete", class: "fa fa-trash-alt color-white", to: Routes.deployment_path(@conn, :delete, @org.name, @product.name, deployment.name), method: :delete, data: [confirm: "Are you sure you want to delete this deployment? This can not be undone."] %>
         </td>
       </tr>
     <% end %>

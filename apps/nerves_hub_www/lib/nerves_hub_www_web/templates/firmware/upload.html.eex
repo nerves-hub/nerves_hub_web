@@ -1,24 +1,13 @@
-<div class="modal-content shadow">
-  <%= form_for @changeset, Routes.firmware_path(@conn, :do_upload, @org.name, @product.name), [multipart: true], fn f -> %>
-    <div class="modal-header panel-title rounded-top">
-      Upload firmware for <strong><%= @product.name %></strong>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label for="file_input">Select File</label>
-        <%= file_input f, :file, required: true, id: "file_input" %>
-        <div class="has-error"><%= error_tag f, :file %></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <div class="col-4">
-        <a class="btn btn-secondary" href="<%= Routes.product_path(@conn, :index, @org.name) %>">
-          Cancel
-        </a>
-      </div>
-      <div class="col-8 text-right">
-        <%= submit "Upload Firmware", class: "btn btn-primary" %>
-      </div>
-    </div>
-  <% end %>
-</div>
+<h1>Add Firmware</h1>
+
+<%= form_for @changeset, Routes.firmware_path(@conn, :do_upload, @org.name, @product.name), [multipart: true], fn f -> %>
+  <div class="form-group">
+    <label for="file_input">Select File</label>
+    <%= file_input f, :file, required: true, id: "file_input" %>
+    <div class="has-error"><%= error_tag f, :file %></div>
+  </div>
+  <div class="button-submit-wrapper">
+    <a class="btn btn-secondary" href="<%= Routes.product_path(@conn, :index, @org.name) %>">Cancel</a>
+    <%= submit "Upload Firmware", class: "btn btn-primary" %>
+  </div>
+<% end %>

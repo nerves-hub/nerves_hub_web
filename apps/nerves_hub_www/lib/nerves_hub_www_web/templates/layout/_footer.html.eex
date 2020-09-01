@@ -1,9 +1,7 @@
 <footer class="footer">
   <div class="flex-row justify-content-between w-100">
     <div class="flex-column">
-      <h6>
-        NervesHub
-      </h6>
+      <h6>NervesHub</h6>
       <a href="https://github.com/nerves-hub">Source code</a>
       <a href="<%= Routes.nerves_key_path(@conn, :index) %>">NervesKey</a>
       <a href="<%= Routes.sponsor_path(@conn, :index) %>">Sponsors</a>

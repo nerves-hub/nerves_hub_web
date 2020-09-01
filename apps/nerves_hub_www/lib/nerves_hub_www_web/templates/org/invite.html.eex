@@ -26,7 +26,7 @@
   </div>
 
   <div class="button-submit-wrapper">
-    <a class="btn btn-outline-light mr-3" href="<%= Routes.org_user_path(@conn, :index, @org.name) %>">Cancel</a>
+    <a class="btn btn-outline-light" href="<%= Routes.org_user_path(@conn, :index, @org.name) %>">Cancel</a>
     <%= submit "Send Invitation", class: "btn btn-primary" %>
   </div>
 <% end %>

@@ -28,6 +28,10 @@ body {
     color: white;
     line-height: 30px;
     margin: 0;
+
+    & + p {
+      margin-top: 1rem;
+    }
   }
 
   h4,
@@ -67,6 +71,10 @@ body {
 
     &:last-child {
       margin: 0;
+    }
+
+    & + h3 {
+      margin-top: 2rem;
     }
   }
 

@@ -46,9 +46,12 @@ body {
   }
 }
 
-html main.content-container {
-  margin-bottom: 8rem;
-  min-height: 100%;
+html {
+  main.content-container {
+    margin: 0 auto;
+    padding-bottom: 8rem;
+    min-height: calc(100vh - 80px);
+  }
 }
 
 .badge {

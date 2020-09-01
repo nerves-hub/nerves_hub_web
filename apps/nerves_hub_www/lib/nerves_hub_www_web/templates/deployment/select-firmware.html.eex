@@ -1,24 +1,15 @@
-<div class="modal-content shadow">
-  <%= form_for @conn, Routes.deployment_path(@conn, :new, @org.name, @product.name), [method: :get, as: :deployment], fn f -> %>
-    <div class="modal-header panel-title rounded-top">
-      Select Firmware for New Deployment
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label for="firmware_id">Firmware</label>
-        <%= select f, :firmware_id, firmware_dropdown_options(@firmwares), required: true, id: "firmware_id", class: "form-control" %>
-        <div class="has-error"><%= error_tag f, :firmware_id %></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <div class="col-4">
-        <a class="btn btn-secondary" href="<%= Routes.deployment_path(@conn, :index, @org.name, @product.name) %>">
-          Cancel
-        </a>
-      </div>
-      <div class="col-8 text-right">
-        <%= submit "Select", class: "btn btn-primary" %>
-      </div>
-    </div>
-  <% end %>
-</div>
+<h1>Select Firmware</h1>
+<%= form_for @conn, Routes.deployment_path(@conn, :new, @org.name, @product.name), [method: :get, as: :deployment], fn f -> %>
+  <div class="form-group">
+    <label for="firmware_id">Firmware</label>
+    <%= select f, :firmware_id, firmware_dropdown_options(@firmwares), required: true, id: "firmware_id", class: "form-control" %>
+    <div class="has-error"><%= error_tag f, :firmware_id %></div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <a class="btn btn-secondary" href="<%= Routes.deployment_path(@conn, :index, @org.name, @product.name) %>">
+      Cancel
+    </a>
+    <%= submit "Select", class: "btn btn-primary" %>
+  </div>
+<% end %>
