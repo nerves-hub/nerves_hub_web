@@ -4,6 +4,7 @@ defmodule NervesHubWWWWeb.LayoutView do
 
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.User
+  alias NervesHubWebCore.Devices
   alias NervesHubWebCore.Products
   alias NervesHubWebCore.Products.Product
 
@@ -39,6 +40,10 @@ defmodule NervesHubWWWWeb.LayoutView do
 
   def take_user_org_products(user, org, amount) do
     Enum.take(user_org_products(user, org), amount)
+  end
+
+  def org_device_limit(%{assigns: %{current_limit: limits, org: %{id: org_id}}}) do
+    "#{Devices.get_device_count_by_org_id(org_id)}/#{Map.get(limits, :devices)}"
   end
 
   def logged_in?(%{assigns: %{user: %User{}}}), do: true

@@ -11,6 +11,9 @@
           </li>
         <% end %>
       </ul>
+      <div>
+      <%= org_device_limit(@conn) %>
+      </div>
     </nav>
   </div>
 <% end %>
