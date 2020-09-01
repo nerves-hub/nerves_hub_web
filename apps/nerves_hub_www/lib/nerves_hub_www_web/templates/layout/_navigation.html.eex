@@ -78,9 +78,7 @@
       <div class="navbar-nav">
         <a class="btn btn-outline-light ml-3" href="<%= Routes.session_path(@conn, :new)%>">Login</a>
         <%= if permit_uninvited_signups() do %>
-          <a class="btn btn-primary ml-3" href="<%= Routes.account_path(@conn, :new) %>">
-            Create Account
-          </a>
+          <a class="btn btn-primary ml-3" href="<%= Routes.account_path(@conn, :new) %>">Create Account</a>
         <% end %>
       </div>
     <% end %>
