@@ -57,7 +57,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       Fixtures.firmware_fixture(org_key, product)
       conn = get(conn, Routes.deployment_path(conn, :new, org.name, product.name))
 
-      assert html_response(conn, 200) =~ "Select Firmware for New Deployment"
+      assert html_response(conn, 200) =~ "Select Firmware"
 
       assert html_response(conn, 200) =~
                Routes.deployment_path(conn, :create, org.name, product.name)
