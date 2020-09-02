@@ -134,6 +134,12 @@ nav.navbar {
   border-bottom: 1px solid rgba(255,255,255,.1);
   margin-bottom: 1.5rem;
 
+  nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
   .nav-item {
     margin-right: 3rem;
 
