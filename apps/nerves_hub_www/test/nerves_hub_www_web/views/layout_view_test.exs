@@ -33,8 +33,11 @@ defmodule NervesHubWWWWeb.LayoutViewTest do
 
       conn = Map.put(conn, :assigns, %{org: org, current_limit: limits})
 
-      org_device_limit(conn)
       assert org_device_limit(conn) == "1/3"
+    end
+
+    test "nil is returned when conn doesn't have org/limits", %{conn: conn} do
+      refute org_device_limit(conn)
     end
   end
 end

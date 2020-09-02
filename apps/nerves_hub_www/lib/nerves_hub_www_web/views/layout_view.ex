@@ -46,6 +46,10 @@ defmodule NervesHubWWWWeb.LayoutView do
     "#{Devices.get_device_count_by_org_id(org_id)}/#{Map.get(limits, :devices)}"
   end
 
+  def org_device_limit(_conn) do
+    nil
+  end
+
   def logged_in?(%{assigns: %{user: %User{}}}), do: true
   def logged_in?(_), do: false
 
