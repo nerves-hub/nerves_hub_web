@@ -11,9 +11,11 @@
           </li>
         <% end %>
       </ul>
-      <div class="device-limit-indicator">
-        <%= org_device_limit(@conn) %>
-      </div>
+      <%= if !is_nil(org_device_limit(@conn)) do %>
+        <div class="device-limit-indicator" title="Device Limit">
+          <%= org_device_limit(@conn) %>
+        </div>
+      <% end %>
     </nav>
   </div>
 <% end %>
