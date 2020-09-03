@@ -17,10 +17,7 @@ defmodule NervesHubWWWWeb.FirmwareController do
     render(conn, "index.html", firmwares: firmwares)
   end
 
-  def show(%{assigns: %{org: org, product: product, firmware: firmware}} = conn, %{
-        "firmware_uuid" => uuid
-      }) do
-    IO.inspect(firmware)
+  def show(%{assigns: %{firmware: firmware}} = conn, _params) do
     render(conn, "show.html", firmware: firmware)
   end
 

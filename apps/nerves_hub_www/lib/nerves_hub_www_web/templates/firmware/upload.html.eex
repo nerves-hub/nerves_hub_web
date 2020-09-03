@@ -3,7 +3,7 @@
 
 <%= form_for @changeset, Routes.firmware_path(@conn, :do_upload, @org.name, @product.name), [multipart: true], fn f -> %>
   <div class="form-group custom-upload-group">
-    <label for="file_input" class="custom-upload-label not-selected">Browse Files</label>
+    <label for="file_input" class="custom-upload-label not-selected">Click to upload file</label>
     <%= file_input f, :file, required: true, id: "file_input", class: "custom-upload-input hidden" %>
     <div class="has-error"><%= error_tag f, :file %></div>
   </div>
