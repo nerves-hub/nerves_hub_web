@@ -4,7 +4,6 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   alias NervesHubDevice.Presence
   alias NervesHubWebCore.{Accounts, Products, Devices}
   alias NervesHubWWWWeb.DeviceView
-  alias NervesHubWWWWeb.DeviceLive.Show
 
   alias Phoenix.Socket.Broadcast
 
