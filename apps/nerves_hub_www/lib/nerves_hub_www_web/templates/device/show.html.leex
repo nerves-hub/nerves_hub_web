@@ -20,7 +20,7 @@
 
 <div class="device-meta-grid">
   <div>
-    <div class="help-text mb-1">Connection</div>
+    <div class="help-text">Connection</div>
     <p class="flex-row align-items-center tt-c">
       <span><%= @device.status %></span>
       <span class="ml-1">
@@ -33,17 +33,17 @@
     </p>
   </div>
   <div>
-    <div class="help-text mb-1">Last Handshake</div>
+    <div class="help-text">Last Handshake</div>
     <p>
       <%= if is_nil(@device.last_communication) do %>
         Never
       <% else %>
-        <%= @device.last_communication %>
+        <%= DateTimeFormat.from_now(@device.last_communication) %>
       <% end %>
     </p>
   </div>
   <div>
-    <div class="help-text mb-1">Health</div>
+    <div class="help-text">Health</div>
     <p>
       <%= if health_status_icon(@device) do %>
         Good
@@ -54,7 +54,7 @@
     </p>
   </div>
   <div>
-    <div class="help-text mb-1">Description</div>
+    <div class="help-text">Description</div>
     <p>
       <%= if is_nil(@device.description) do %>
         -

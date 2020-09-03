@@ -36,7 +36,7 @@
           <%= org_user.role %>
         </td>
         <td>
-          <%= DateTimeFormat.format(org_user.user.inserted_at) %>
+          <%= DateTimeFormat.format_date(org_user.user.inserted_at) %>
         </td>
       </tr>
     <% end %>

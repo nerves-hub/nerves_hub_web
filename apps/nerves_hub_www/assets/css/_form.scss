@@ -163,4 +163,50 @@ html {
     font-size: 1rem;
     text-transform: capitalize;
   }
+
+  .custom-upload-group {
+    max-width: 100%;
+
+    label {
+      width: 35rem;
+      height: 12rem;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px dashed var(--white-50);
+      border-radius: 4px;
+      background: none;
+      position: static;
+      transition: border-color 200ms ease;
+      text-align: center;
+      color: white;
+      margin: 0;
+
+      &.selected {
+        color: var(--white-50);
+
+        .file-name {
+          color: white;
+          padding-top: .5rem;
+        }
+      }
+
+      &:after {
+        display: none;
+      }
+
+      &:hover {
+        border-color: white;
+      }
+    }
+
+    input {
+      height: 0;
+      opacity: 0;
+      margin: 0;
+      position: absolute;
+    }
+  }
 }

@@ -53,7 +53,7 @@
           <%= if is_nil(device.last_communication) do %>
             <span class="color-white-50">Never</span>
           <% else %>
-            <%= device.last_communication %>
+            <%= DateTimeFormat.from_now(device.last_communication) %>
           <% end %>
         </td>
 

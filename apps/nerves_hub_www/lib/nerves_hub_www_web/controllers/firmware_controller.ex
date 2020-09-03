@@ -17,6 +17,13 @@ defmodule NervesHubWWWWeb.FirmwareController do
     render(conn, "index.html", firmwares: firmwares)
   end
 
+  def show(%{assigns: %{org: org, product: product, firmware: firmware}} = conn, %{
+        "firmware_uuid" => uuid
+      }) do
+    IO.inspect(firmware)
+    render(conn, "show.html", firmware: firmware)
+  end
+
   def upload(conn, _params) do
     conn
     |> render("upload.html", changeset: %Changeset{data: %Firmware{}})

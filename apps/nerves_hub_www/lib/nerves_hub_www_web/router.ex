@@ -143,7 +143,8 @@ defmodule NervesHubWWWWeb.Router do
           scope "/:firmware_uuid" do
             pipe_through(:firmware)
 
-            get("/", FirmwareController, :download)
+            get("/", FirmwareController, :show)
+            get("/download", FirmwareController, :download)
             delete("/", FirmwareController, :delete)
           end
         end

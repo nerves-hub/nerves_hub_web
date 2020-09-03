@@ -2,6 +2,7 @@ import '../css/app.scss'
 
 import 'phoenix_html'
 import 'bootstrap'
+import $ from 'jquery'
 import { Socket } from 'phoenix'
 import LiveSocket from 'phoenix_live_view'
 import IEx from './console'
@@ -20,6 +21,13 @@ liveSocket.connect()
 
 document.querySelectorAll('.date-time').forEach(d => {
   d.innerHTML = dates.formatDateTime(d.innerHTML)
+})
+
+$(function() {
+  $(".custom-upload-input").on("change", function() {
+    let fileName = $(this).val().split("\\").pop();
+    $(this).siblings(".custom-upload-label").removeClass("not-selected").addClass("selected").html("Selected File: <div class='file-name'>" + fileName + "</div>");
+  });
 })
 
 if (window.location.pathname.endsWith('console')) {

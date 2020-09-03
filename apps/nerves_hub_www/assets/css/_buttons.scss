@@ -64,6 +64,16 @@ html {
     &.edit {
       background-image: url("/images/icons/edit.svg");
     }
+
+    &.download {
+      background-image: url("/images/icons/download.svg");
+      opacity: .75;
+    }
+
+    &.delete {
+      background-image: url("/images/icons/trash.svg");
+      opacity: .75;
+    }
   }
 
   .button-submit-wrapper {

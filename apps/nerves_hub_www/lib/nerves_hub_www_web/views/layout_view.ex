@@ -290,12 +290,37 @@ defmodule NervesHubWWWWeb.LayoutView do
       12 => "Dec"
     }
 
-    def format(timestamp) do
-      '#{@months[timestamp.month]} #{timestamp.day}, #{timestamp.year}'
+    def format_date(timestamp) do
+      localTimestamp = Timex.local(timestamp)
+      '#{@months[localTimestamp.month]} #{localTimestamp.day}, #{localTimestamp.year}'
+    end
+
+    def date_at_time(timestamp) do
+      localTimestamp = Timex.local(timestamp)
+      minute = localTimestamp.minute
+      {hour, label} = Timex.Time.to_12hour_clock(localTimestamp.hour)
+      compareDates = Date.compare(localTimestamp, DateTime.utc_now())
+
+      if compareDates == :eq do
+        'Today at #{hour}:#{render_minute(minute)}#{label}'
+      else
+        '#{@months[localTimestamp.month]} #{localTimestamp.day}, #{localTimestamp.year} at #{hour}:#{
+          render_minute(minute)
+        }#{label}'
+      end
+    end
+
+    def render_minute(minute) do
+      if minute == 0 do
+        '00'
+      else
+        minute
+      end
     end
 
     def from_now(timestamp) do
-      Timex.from_now(timestamp)
+      localTimestamp = Timex.local(timestamp)
+      Timex.from_now(localTimestamp)
     end
   end
 end

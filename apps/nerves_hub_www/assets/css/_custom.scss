@@ -189,6 +189,25 @@
     grid-column-gap: 3.5rem;
     grid-row-gap: 2rem;
   }
+
+  .help-text {
+    margin-bottom: .5rem;
+  }
+}
+
+.firmware-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-column-gap: 3rem;
+  grid-row-gap: 2rem;
+
+  & > div:first-child {
+    grid-column: span 2;
+  }
+
+  .help-text {
+    margin-bottom: .5rem;
+  }
 }
 
 .device-limit-indicator {
