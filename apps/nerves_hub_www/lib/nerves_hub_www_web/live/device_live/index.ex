@@ -4,6 +4,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   alias NervesHubDevice.Presence
   alias NervesHubWebCore.{Accounts, Products, Devices}
   alias NervesHubWWWWeb.DeviceView
+  alias NervesHubWWWWeb.DeviceLive.Show
 
   alias Phoenix.Socket.Broadcast
 
@@ -100,6 +101,21 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
+  def handle_event(
+        "reboot",
+        %{"device-id" => device_id},
+        %{assigns: %{devices: devices, user: user}} = socket
+      ) do
+    user = Repo.preload(user, :org_users)
+
+    device = Enum.find(devices, fn device -> device.id == String.to_integer(device_id) end)
+
+    case Enum.find(user.org_users, &(&1.org_id == device.org_id)) do
+      %{role: :admin} -> do_reboot(socket, :allowed, device)
+      _ -> do_reboot(socket, :blocked)
+    end
+  end
+
   defp assign_statuses(org_id, product_id) do
     Devices.get_devices_by_org_id_and_product_id(org_id, product_id)
     |> sync_devices(%{joins: Presence.list("product:#{product_id}:devices"), leaves: %{}})
@@ -147,5 +163,34 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
           device
       end
     end
+  end
+
+  defp do_reboot(socket, :allowed, device) do
+    AuditLogs.audit!(socket.assigns.user, device, :update, %{reboot: true})
+
+    socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
+
+    socket =
+      socket
+      |> put_flash(:info, "Device Reboot Requested")
+      |> assign(:device, %{device | status: "reboot-requested"})
+
+    {:noreply, socket}
+  end
+
+  defp do_reboot(socket, :blocked) do
+    msg = "User not authorized to reboot this device"
+
+    AuditLogs.audit!(socket.assigns.user, socket.assigns.device, :update, %{
+      reboot: false,
+      message: msg
+    })
+
+    socket =
+      socket
+      |> put_flash(:error, msg)
+      |> assign(:device, %{socket.assigns.device | status: "reboot-blocked"})
+
+    {:noreply, socket}
   end
 end

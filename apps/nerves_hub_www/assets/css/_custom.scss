@@ -79,6 +79,11 @@
     color: white;
     background-color: transparent;
   }
+
+  &:focus {
+    background-color: transparent;
+    outline: none;
+  }
 }
 
 .dropdown-toggle.options {
