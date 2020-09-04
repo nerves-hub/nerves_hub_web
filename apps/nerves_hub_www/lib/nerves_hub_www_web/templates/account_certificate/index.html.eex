@@ -2,34 +2,34 @@
 
 <table id="account_certificates" class="table table-sm table-hover">
   <thead>
-  <tr class="d-flex">
-    <th class="col-2">Description</th>
-    <th class="col-2">Serial</th>
-    <th class="col-2">Last Used</th>
-    <th class="col-2">Not Before</th>
-    <th class="col-2">Not After</th>
-    <th class="col-2"></th>
+  <tr>
+    <th>Description</th>
+    <th>Serial</th>
+    <th>Last Used</th>
+    <th>Not Before</th>
+    <th>Not After</th>
+    <th></th>
   </tr>
   </thead>
   <%= for cert <- @certificates do %>
-  <tr class="item d-flex">
-    <td class="col-2">
+  <tr class="item">
+    <td>
       <%= cert.description %>
     </td>
-    <td class="col-2">
+    <td>
       <%= cert.serial %>
     </td>
-    <td class="col-2 date-time">
-      <%= cert.last_used %>
+    <td>
+      <%= DateTimeFormat.date_at_time(cert.last_used) %>
     </td>
-    <td class="col-2 date-time">
-      <%= cert.not_before %>
+    <td>
+      <%= DateTimeFormat.format_date(cert.not_before) %>
     </td>
-    <td class="col-2 date-time">
-      <%= cert.not_after %>
+    <td>
+      <%= DateTimeFormat.format_date(cert.not_after) %>
     </td>
-    <td class="col-2">
-      <center><%= link "Delete", class: "btn btn-danger", to: Routes.account_certificate_path(@conn, :delete, @user.username, cert), method: :delete, data: [confirm: "Are you sure?"]%></center>
+    <td>
+      <%= link "Delete", class: "btn btn-danger", to: Routes.account_certificate_path(@conn, :delete, @user.username, cert), method: :delete, data: [confirm: "Are you sure?"]%>
     </td>
   </tr>
   <% end %>

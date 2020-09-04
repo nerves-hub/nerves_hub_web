@@ -1,14 +1,14 @@
 <div class="flex-row justify-content-between">
-  <h3 class="mb-4">
+  <h1 class="mb-4">
     Certificate Authorities
-  </h3>
+  </h1>
 </div>
 
 <table class="table table-sm table-hover">
   <thead>
     <tr>
-      <th>Description</th>
       <th>Serial</th>
+      <th>Description</th>
       <th>Last Used</th>
       <th>Not Before</th>
       <th>Not After</th>
@@ -18,19 +18,23 @@
     <%= for cert <- @certificates do %>
       <tr class="item">
         <td>
+          <%= cert.serial %>
+        </td>
+        <td>
           <%= cert.description %>
         </td>
         <td>
-          <%= cert.serial %>
+          <%= if !is_nil(cert.last_used) do %>
+            <%= DateTimeFormat.from_now(cert.last_used) %>
+          <% else %>
+            <span class="text-muted">Never</span>
+          <% end %>
         </td>
-        <td class="date-time">
-          <%= cert.last_used %>
+        <td>
+          <%= DateTimeFormat.format_date(cert.not_before) %>
         </td>
-        <td class="date-time">
-          <%= cert.not_before %>
-        </td>
-        <td class="date-time">
-          <%= cert.not_after %>
+        <td>
+          <%= DateTimeFormat.format_date(cert.not_after) %>
         </td>
       </tr>
     <% end %>
