@@ -20,7 +20,11 @@
       <%= cert.serial %>
     </td>
     <td>
-      <%= DateTimeFormat.date_at_time(cert.last_used) %>
+      <%= if !is_nil(cert.last_used) do %>
+        <%= DateTimeFormat.from_now(cert.last_used) %>
+      <% else %>
+        <span class="text-muted">Never</span>
+      <% end %>
     </td>
     <td>
       <%= DateTimeFormat.format_date(cert.not_before) %>
