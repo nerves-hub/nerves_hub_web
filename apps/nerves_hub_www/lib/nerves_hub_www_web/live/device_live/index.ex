@@ -107,7 +107,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       ) do
     user = Repo.preload(user, :org_users)
 
-    device = Enum.find(devices, fn device -> device.id == String.to_integer(device_id) end)
+    device_id = String.to_integer(device_id)
+    device = Enum.find(devices, fn device -> device.id == device_id end)
 
     case Enum.find(user.org_users, &(&1.org_id == device.org_id)) do
       %{role: :admin} -> do_reboot(socket, :allowed, device)
