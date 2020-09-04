@@ -24,10 +24,17 @@ document.querySelectorAll('.date-time').forEach(d => {
 })
 
 $(function() {
-  $(".custom-upload-input").on("change", function() {
-    let fileName = $(this).val().split("\\").pop();
-    $(this).siblings(".custom-upload-label").removeClass("not-selected").addClass("selected").html("Selected File: <div class='file-name'>" + fileName + "</div>");
-  });
+  $('.custom-upload-input').on('change', function() {
+    let fileName = $(this)
+      .val()
+      .split('\\')
+      .pop()
+    $(this)
+      .siblings('.custom-upload-label')
+      .removeClass('not-selected')
+      .addClass('selected')
+      .html("Selected File: <div class='file-name'>" + fileName + '</div>')
+  })
 })
 
 if (window.location.pathname.endsWith('console')) {
