@@ -74,14 +74,14 @@
           <% end %>
         </td>
 
-        <td style="text-transform: capitalize;">
-        <%= cond do %>
-          <% device.status == "offline" -> %>
-            <span class="color-white-50">Unknown</span>
-          <% device.status == "online" -> %>
-            Up to date
-          <% true -> %>
-            <%= device.status %>
+        <td class="tt-c-first-letter">
+          <%= cond do %>
+            <% device.status == "offline" -> %>
+              <span class="color-white-50">Unknown</span>
+            <% device.status == "online" -> %>
+              Up to date
+            <% true -> %>
+              <%= device.status %>
           <% end %>
         </td>
 
