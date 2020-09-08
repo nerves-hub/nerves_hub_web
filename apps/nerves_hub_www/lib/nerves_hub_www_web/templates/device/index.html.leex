@@ -81,7 +81,7 @@
             <% device.status == "online" -> %>
               Up to date
             <% true -> %>
-              <%= device.status %>
+              <%= display_status(device.status) %>
           <% end %>
         </td>
 

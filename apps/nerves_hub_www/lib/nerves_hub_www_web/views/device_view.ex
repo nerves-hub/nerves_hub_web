@@ -32,6 +32,14 @@ defmodule NervesHubWWWWeb.DeviceView do
     content_tag(:th, title, phx_click: "sort", phx_value_sort: value, class: "pointer")
   end
 
+  def display_status(status) when is_binary(status) do
+    status
+    |> String.split("-")
+    |> Enum.join(" ")
+  end
+
+  def display_status(_), do: nil
+
   def platform_options do
     [
       "bbb",

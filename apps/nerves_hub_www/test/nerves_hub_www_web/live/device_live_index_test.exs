@@ -17,7 +17,7 @@ defmodule NervesHubWWWWeb.DeviceLiveIndexTest do
 
       before_audit_count = AuditLogs.logs_for(device) |> length
 
-      assert render_change(view, :reboot, %{"device-id" => device.id}) =~ "reboot-requested"
+      assert render_change(view, :reboot, %{"device-id" => device.id}) =~ "reboot requested"
       assert_broadcast("reboot", %{})
 
       after_audit_count = AuditLogs.logs_for(device) |> length
@@ -36,7 +36,7 @@ defmodule NervesHubWWWWeb.DeviceLiveIndexTest do
 
       before_audit_count = AuditLogs.logs_for(device) |> length
 
-      assert render_change(view, :reboot, %{"device-id" => device.id}) =~ "reboot-blocked"
+      assert render_change(view, :reboot, %{"device-id" => device.id}) =~ "reboot blocked"
 
       after_audit_count = AuditLogs.logs_for(device) |> length
 
