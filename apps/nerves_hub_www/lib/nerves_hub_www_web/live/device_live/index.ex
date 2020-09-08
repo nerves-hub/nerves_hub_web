@@ -145,7 +145,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
       cond do
         meta = joins[id] ->
-          fields = [:firmware_metadata, :last_communication, :status, :fwup_progress]
+          fields = [:firmware_metadata, :last_communication, :status, :fwup_progress, :console_available]
           updates = Map.take(meta, fields)
           Map.merge(device, updates)
 
