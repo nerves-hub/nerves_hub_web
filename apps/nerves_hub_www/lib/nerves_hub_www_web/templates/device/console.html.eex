@@ -1,7 +1,17 @@
+<div class="flex-row justify-content-between align-items-center">
+  <%= link "Back to device", to: Routes.device_path(@conn, :show, @org.name, @product.name, @device.identifier), class: "back-link" %>
+  <button class="btn btn-outline-light" id="restart_button" <%= if @console_available != true do "disabled" end%>>
+    <span class="button-icon left-icon power"></span>
+    <span>Restart Console</span>
+  </button>
+</div>
+<h1>Console</h1>
+
 <%= if @console_available == true do %>
   <input id="device_id" hidden type="text" value="<%= @device.id %>" />
-  <div id="terminal" class="console"></div>
-  <button class="btn btn-danger" id="restart_button">Restart</button>
+  <div class="console-wrapper">
+    <div id="terminal" class="console"></div>
+  </div>
 <% else %>
-  <h1>Console disabled or unavailable</h1>
+  <h5>Console disabled or unavailable.</h5>
 <% end %>

@@ -9,13 +9,12 @@
 </div>
 
 <%= if @user_role != :admin do %>
-  <h1>Read Only!</h1>
+  <h5>Read Only!</h5>
   <p>You can follow the feed but will be unable to send commands</p>
 <% end %>
 
 <div class="container">
   <pre class="console">
-
     <%= for line <- @lines do %>
     <p><%= line %></p>
     <% end %>

@@ -43,6 +43,7 @@ html {
     height: 16px;
     margin-left: .75rem;
     display: inline-block;
+    opacity: .75;
 
     &.left-icon {
       margin-left: 0;
@@ -67,12 +68,10 @@ html {
 
     &.download {
       background-image: url("/images/icons/download.svg");
-      opacity: .75;
     }
 
     &.delete {
       background-image: url("/images/icons/trash.svg");
-      opacity: .75;
     }
   }
 
