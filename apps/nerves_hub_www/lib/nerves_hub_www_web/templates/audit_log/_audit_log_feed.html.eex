@@ -7,9 +7,9 @@
         <div class="audit-action-icon icon-<%= audit_log.action %>"></div>
         <div>
           <p class="audit-description"><%= audit_log.description %></p>
-          <div class="help-text">
-            <%= DateTimeFormat.from_now(audit_log.inserted_at) %>
-          </div>
+            <div class="help-text">
+              <%= if !is_nil(audit_log.inserted_at) do DateTimeFormat.from_now(audit_log.inserted_at) end %>
+            </div>
         </div>
       </div>
     <% end %>

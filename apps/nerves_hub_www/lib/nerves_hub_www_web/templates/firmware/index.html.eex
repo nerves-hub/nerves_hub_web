@@ -37,7 +37,13 @@
         </td>
         <td><%= firmware.version %></td>
         <td><span class="badge"><%= format_signed(firmware, @org) %></span></td>
-        <td><%= DateTimeFormat.date_at_time(firmware.inserted_at) %></td>
+        <td>
+          <%= if is_nil(firmware.inserted_at) do %>
+            <span class="color-white-50">Never</span>
+          <% else %>
+            <%= DateTimeFormat.date_at_time(firmware.inserted_at) %>
+          <% end %>
+        </td>
         <td class="actions">
           <div class="dropdown options">
             <a class="dropdown-toggle options" href="#" id="<%= firmware.uuid %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

@@ -30,7 +30,9 @@
   </div>
   <div>
     <div class="help-text">Created On</div>
-    <p><%= DateTimeFormat.date_at_time(@firmware.inserted_at) %></p>
+    <p>
+      <%= if !is_nil(@firmware.inserted_at) do DateTimeFormat.date_at_time(@firmware.inserted_at) end %>
+    </p>
   </div>
   <div>
     <div class="help-text">VCS ID</div>

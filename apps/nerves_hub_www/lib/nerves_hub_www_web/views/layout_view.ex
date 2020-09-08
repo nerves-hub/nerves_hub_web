@@ -291,22 +291,30 @@ defmodule NervesHubWWWWeb.LayoutView do
     }
 
     def format_date(timestamp) do
-      localTimestamp = Timex.local(timestamp)
-      '#{@months[localTimestamp.month]} #{localTimestamp.day}, #{localTimestamp.year}'
+      if Timex.is_valid?(timestamp) do
+        localTimestamp = Timex.local(timestamp)
+        '#{@months[localTimestamp.month]} #{localTimestamp.day}, #{localTimestamp.year}'
+      else
+        timestamp
+      end
     end
 
     def date_at_time(timestamp) do
-      localTimestamp = Timex.local(timestamp)
-      minute = localTimestamp.minute
-      {hour, label} = Timex.Time.to_12hour_clock(localTimestamp.hour)
-      compareDates = Date.compare(localTimestamp, DateTime.utc_now())
+      if Timex.is_valid?(timestamp) do
+        localTimestamp = Timex.local(timestamp)
+        minute = localTimestamp.minute
+        {hour, label} = Timex.Time.to_12hour_clock(localTimestamp.hour)
+        compareDates = Date.compare(localTimestamp, DateTime.utc_now())
 
-      if compareDates == :eq do
-        'Today at #{hour}:#{render_minute(minute)}#{label}'
+        if compareDates == :eq do
+          'Today at #{hour}:#{render_minute(minute)}#{label}'
+        else
+          '#{@months[localTimestamp.month]} #{localTimestamp.day}, #{localTimestamp.year} at #{hour}:#{
+            render_minute(minute)
+          }#{label}'
+        end
       else
-        '#{@months[localTimestamp.month]} #{localTimestamp.day}, #{localTimestamp.year} at #{hour}:#{
-          render_minute(minute)
-        }#{label}'
+        timestamp
       end
     end
 
@@ -319,8 +327,12 @@ defmodule NervesHubWWWWeb.LayoutView do
     end
 
     def from_now(timestamp) do
-      localTimestamp = Timex.local(timestamp)
-      Timex.from_now(localTimestamp)
+      if Timex.is_valid?(timestamp) do
+        localTimestamp = Timex.local(timestamp)
+        Timex.from_now(localTimestamp)
+      else
+        timestamp
+      end
     end
   end
 end

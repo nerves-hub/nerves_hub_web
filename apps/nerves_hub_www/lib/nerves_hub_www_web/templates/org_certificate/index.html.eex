@@ -31,10 +31,10 @@
           <% end %>
         </td>
         <td>
-          <%= DateTimeFormat.format_date(cert.not_before) %>
+          <%= if !is_nil(cert.not_before) do DateTimeFormat.format_date(cert.not_before) end %>
         </td>
         <td>
-          <%= DateTimeFormat.format_date(cert.not_after) %>
+          <%= if !is_nil(cert.not_after) do DateTimeFormat.format_date(cert.not_after) end %>
         </td>
       </tr>
     <% end %>
