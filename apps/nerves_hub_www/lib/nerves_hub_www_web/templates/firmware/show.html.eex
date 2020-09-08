@@ -31,7 +31,7 @@
   <div>
     <div class="help-text">Created On</div>
     <p>
-      <%= if !is_nil(@firmware.inserted_at) do @firmware.inserted_at end %>
+      <%= @firmware.inserted_at %>
     </p>
   </div>
   <div>

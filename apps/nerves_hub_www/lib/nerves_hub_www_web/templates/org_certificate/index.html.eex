@@ -31,10 +31,10 @@
           <% end %>
         </td>
         <td>
-          <%= if !is_nil(cert.not_before) do cert.not_before end %>
+          <%= cert.not_before %>
         </td>
         <td>
-          <%= if !is_nil(cert.not_after) do cert.not_after end %>
+          <%= cert.not_after %>
         </td>
       </tr>
     <% end %>
