@@ -41,7 +41,7 @@
           <%= if is_nil(firmware.inserted_at) do %>
             <span class="color-white-50">Never</span>
           <% else %>
-            <%= DateTimeFormat.date_at_time(firmware.inserted_at) %>
+            <%= firmware.inserted_at %>
           <% end %>
         </td>
         <td class="actions">
