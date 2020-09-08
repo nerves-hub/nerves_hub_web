@@ -1,4 +1,4 @@
-defmodule NervesHubWWWWeb.DeviceLiveShowTest do
+defmodule NervesHubWWWWeb.DeviceLiveIndexTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: false
 
   import Phoenix.ChannelTest
