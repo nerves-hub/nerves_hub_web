@@ -15,7 +15,7 @@
     <label for="description_input" class="tooltip-label h3 mb-1">
       <span>Description</span>
       <span class="tooltip-info"></span>
-      <span class="tooltip-text">Description for this device (not required)</span>
+      <span class="tooltip-text">Description for this device</span>
     </label>
     <%= text_input f, :description, class: "form-control", id: "description_input" %>
     <div class="has-error"><%= error_tag f, :description %></div>

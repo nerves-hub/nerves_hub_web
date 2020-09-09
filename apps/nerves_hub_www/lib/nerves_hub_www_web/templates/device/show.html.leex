@@ -25,9 +25,9 @@
       <span><%= @device.status %></span>
       <span class="ml-1">
         <%= if @device.status == "offline" do %>
-          <img src="/images/icons/cross.svg" alt="offline" />
+          <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
         <% else %>
-          <img src="/images/icons/check.svg" alt="connected" />
+          <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
         <% end %>
       </span>
     </p>

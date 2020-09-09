@@ -26,6 +26,10 @@ nav.navbar {
   }
 }
 
+.dropdown-toggle:focus {
+  outline: none;
+}
+
 .dropdown-toggle.nav-link {
   &:after {
     background-image: url("/images/icons/dropdown-25.svg");

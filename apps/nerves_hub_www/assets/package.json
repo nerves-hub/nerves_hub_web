@@ -12,6 +12,7 @@
   "dependencies": {
     "bootstrap": "^4.4.1",
     "jquery": "^3.5.1",
+    "moment": "^2.27.0",
     "phoenix": "file:../../../deps/phoenix",
     "phoenix_html": "file:../../../deps/phoenix_html",
     "phoenix_live_view": "file:../../../deps/phoenix_live_view",

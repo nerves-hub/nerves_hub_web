@@ -1,4 +1,4 @@
-const moment = require('moment')
+let moment = require('moment')
 
 const formatDateTime = datetime => {
   /*
@@ -14,6 +14,7 @@ const formatDateTime = datetime => {
   if (datetime === 'never' || datetime === '') {
     return datetime
   } else {
+    console.log('hello')
     return moment
       .utc(datetime)
       .local()
