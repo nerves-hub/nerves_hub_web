@@ -26,10 +26,10 @@
         <span class="text-muted">Never</span>
       <% end %>
     </td>
-    <td>
+    <td class="date-time">
       <%= cert.not_before %>
     </td>
-    <td>
+    <td class="date-time">
       <%= cert.not_after %>
     </td>
     <td>

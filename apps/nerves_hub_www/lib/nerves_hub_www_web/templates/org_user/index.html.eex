@@ -35,7 +35,7 @@
         <td class="tt-c">
           <%= org_user.role %>
         </td>
-        <td>
+        <td class="date-time">
           <%= org_user.user.inserted_at %>
         </td>
       </tr>

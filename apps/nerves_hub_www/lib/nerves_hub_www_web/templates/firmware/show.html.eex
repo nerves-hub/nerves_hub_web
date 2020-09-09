@@ -30,7 +30,7 @@
   </div>
   <div>
     <div class="help-text">Created On</div>
-    <p>
+    <p class="date-time">
       <%= @firmware.inserted_at %>
     </p>
   </div>
