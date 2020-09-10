@@ -23,7 +23,7 @@
   </div>
 
   <div class="form-group">
-    <label for="verion_input">Tag(s)*</label>
+    <label for="verion_input">Group(s)</label>
     <%= text_input f, :tags,
           class: "form-control",
           id: "version_input",

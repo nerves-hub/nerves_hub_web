@@ -57,6 +57,7 @@ html {
 .badge {
   height: 36px;
   background-color: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.05);
   padding: .75rem;
   border-radius: 4px;
   display: inline-flex;
@@ -65,14 +66,12 @@ html {
   font-size: 16px;
   overflow: hidden;
   position: relative;
+  margin-right: .5rem;
+  margin-top: .5rem;
+  margin-bottom: .5rem;
 
   &.healthy-false {
     background-color: var(--primary-25);
-    background-image: url("/images/icons/error.svg");
-    background-size: 1.5rem;
-    background-repeat: no-repeat;
-    background-position: right .5rem center;
-    padding-right: 2.5rem;
 
     &:hover {
       color: white;
@@ -91,9 +90,17 @@ html {
     background: white;
   }
 
-  & + .badge {
-    margin-left: .5rem;
+  &:last-child {
+    margin-right: 0;
   }
+}
+
+.quarantined {
+  background-image: url("/images/icons/error.svg");
+  background-size: 1.5rem;
+  background-repeat: no-repeat;
+  background-position: right .5rem center;
+  padding-right: 2.5rem;
 }
 
 .alert {

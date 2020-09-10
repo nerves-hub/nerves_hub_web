@@ -4,8 +4,6 @@ defmodule NervesHubWWWWeb.DeviceView do
   alias NervesHubDevice.Presence
   alias NervesHubWWWWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
 
-  import NervesHubWWWWeb.LayoutView, only: [health_status_icon: 1]
-
   def architecture_options do
     [
       "aarch64",
@@ -65,12 +63,4 @@ defmodule NervesHubWWWWeb.DeviceView do
   def tags_to_string(tags), do: tags
 
   defdelegate device_status(device), to: Presence
-
-  def take_device_tags(device, amount) do
-    Enum.take(device.tags, amount)
-  end
-
-  def count_device_tags(device) do
-    Enum.count(device.tags)
-  end
 end
