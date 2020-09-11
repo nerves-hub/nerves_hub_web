@@ -141,6 +141,7 @@ html {
   select {
     -webkit-appearance: none;
     -moz-appearance: none;
+    cursor: pointer;
 
     & + .select-icon {
       pointer-events: none;

@@ -65,18 +65,6 @@ defmodule NervesHubWWWWeb.LayoutView do
     Accounts.has_org_role?(org, user, role)
   end
 
-  def health_status_icon(%{healthy: healthy?}) do
-    {icon, color} = if healthy?, do: {"check-circle", "green"}, else: {"times-circle", "red"}
-    content_tag(:i, "", class: "fas fa-#{icon}", style: "color:#{color}")
-  end
-
-  def health_status_icon(_) do
-    content_tag(:i, "",
-      class: "fas fa-question-circle",
-      title: "Don't know how to tell health status"
-    )
-  end
-
   def help_icon(message, placement \\ :top) do
     content_tag(:i, "",
       class: "help-icon far fa-question-circle",

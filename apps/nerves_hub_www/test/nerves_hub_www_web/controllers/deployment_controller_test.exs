@@ -117,7 +117,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       # check that the proper creation side effects took place
       conn = get(conn, Routes.deployment_path(conn, :index, org.name, product.name))
       assert html_response(conn, 200) =~ deployment_params.name
-      assert html_response(conn, 200) =~ "Inactive"
+      assert html_response(conn, 200) =~ "Off"
       assert html_response(conn, 200) =~ firmware.version
     end
 
