@@ -12,7 +12,7 @@
           </a>
 
           <div class="dropdown-menu workspace-dropdown" aria-labelledby="navbarDropdownMenuLink">
-            <div class="help-text mt-3 pl-3 pr-3">Select organization</div>
+            <div class="help-text mt-3 pl-3 pr-3">Select an organization</div>
             <%= for org <- take_user_orgs(@conn, 5) do %>
               <div class="dropdown-submenu">
                 <%= active_link(@conn, to: Routes.product_path(@conn, :index, org.name), class_active: "active dropdown-item org", class_inactive: "dropdown-item org dropdown-toggle", aria_haspopup: "true") do %>
