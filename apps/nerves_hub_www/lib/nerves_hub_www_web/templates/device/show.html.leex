@@ -71,13 +71,13 @@
   <div class="col-lg-7">
     <h3 class="mb-2">Deployments</h3>
     <div class="display-box">
-      <div class="help-text mb-1">Groups</div>
+      <div class="help-text mb-1">Tags</div>
       <%= if !is_nil(@device.tags) do %>
         <%= for tag <- @device.tags do %>
           <span class="badge"><%= tag %></span>
         <% end %>
       <% else %>
-        <p>No Groups</p>
+        <p>No Tags</p>
       <% end %>
     </div>
 

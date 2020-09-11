@@ -22,7 +22,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
       conn = get(conn, Routes.account_path(conn, :invite, invite.token))
 
       assert html_response(conn, 200) =~
-               "You will be added to the #{conn.assigns.org.name} workspace"
+               "You will be added to the #{conn.assigns.org.name} organization"
     end
   end
 

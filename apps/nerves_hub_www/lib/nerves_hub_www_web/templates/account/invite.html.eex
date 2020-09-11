@@ -2,7 +2,7 @@
   <h2 class="form-title">
     Create New Account
   </h2>
-  <h5 class="mt-2"><%= gettext "You will be added to the %{organization_name} workspace", organization_name: @org.name %></h5>
+  <h5 class="mt-2"><%= gettext "You will be added to the %{organization_name} organization", organization_name: @org.name %></h5>
 
   <%= form_for @changeset, Routes.account_path(@conn, :accept_invite, @token), [as: :user, method: "post", class: "form-page"], fn f -> %>
     <div class="form-group">

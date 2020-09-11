@@ -1,4 +1,4 @@
-<h1>My Workspaces</h1>
+<h1>My Organizations</h1>
 <div class="x3-grid">
   <%= for org <- @orgs do %>
     <%= link to: Routes.product_path(@conn, :index, org.name), class: "grid-item" do %>

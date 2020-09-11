@@ -12,7 +12,7 @@
           </a>
 
           <div class="dropdown-menu workspace-dropdown" aria-labelledby="navbarDropdownMenuLink">
-            <div class="help-text mt-3 pl-3 pr-3">Select a workspace</div>
+            <div class="help-text mt-3 pl-3 pr-3">Select an organization</div>
             <%= for org <- take_user_orgs(@conn, 5) do %>
               <div class="dropdown-submenu">
                 <%= active_link(@conn, to: Routes.product_path(@conn, :index, org.name), class_active: "active dropdown-item org", class_inactive: "dropdown-item org dropdown-toggle", aria_haspopup: "true") do %>
@@ -50,11 +50,11 @@
             <% end %>
 
             <%= if count_user_orgs(@conn) > 5 do %>
-            <a class="all-nav-link" href="<%= Routes.org_path(@conn, :index, @conn.assigns.user.username) %>">View All Workspaces (<%= count_user_orgs(@conn) %>)</a>
+            <a class="all-nav-link" href="<%= Routes.org_path(@conn, :index, @conn.assigns.user.username) %>">View All Organizations (<%= count_user_orgs(@conn) %>)</a>
             <% end %>
 
             <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" href="<%= Routes.org_path(@conn, :new) %>">
-              Create Workspace
+              Create Organization
               <div class="button-icon add"></div>
             </a>
           </div>

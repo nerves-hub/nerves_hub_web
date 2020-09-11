@@ -79,10 +79,10 @@ defmodule NervesHubWebCore.AuditLogs.AuditLogTest do
       two_changes = AuditLog.build(user, device, :update, %{description: "howdy", tags: ["wat"]})
 
       assert one_change.description ==
-               "user #{user.username} changed the groups field"
+               "user #{user.username} changed the tags field"
 
       assert two_changes.description ==
-               "user #{user.username} changed the description and groups fields"
+               "user #{user.username} changed the description and tags fields"
     end
 
     test "description for health changes", context do

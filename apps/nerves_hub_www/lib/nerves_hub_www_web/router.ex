@@ -97,7 +97,7 @@ defmodule NervesHubWWWWeb.Router do
         get("/:id/download", AccountCertificateController, :download)
       end
 
-      get("/workspaces", OrgController, :index)
+      get("/organizations", OrgController, :index)
     end
 
     get("/org/new", OrgController, :new)

@@ -197,7 +197,7 @@ defmodule NervesHubWWWWeb.LayoutView do
              href: Routes.org_certificate_path(conn, :index, conn.assigns.org.name)
            },
            %{
-             title: "Workspace Settings",
+             title: "Organization Settings",
              active: "",
              href: Routes.org_path(conn, :edit, conn.assigns.org.name)
            }
@@ -244,7 +244,7 @@ defmodule NervesHubWWWWeb.LayoutView do
         href: Routes.account_path(conn, :edit, conn.assigns.user.username)
       },
       %{
-        title: "My Workspaces",
+        title: "My Organizations",
         active: "",
         href: Routes.org_path(conn, :index, conn.assigns.user.username)
       }
