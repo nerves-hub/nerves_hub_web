@@ -62,8 +62,8 @@ defmodule NervesHubWWWWeb.DeploymentView do
   def active(%Deployment{is_active: true}), do: "Yes"
   def active(%Deployment{is_active: false}), do: "No"
 
-  def opposite_status(%Deployment{is_active: true}), do: "Inactive"
-  def opposite_status(%Deployment{is_active: false}), do: "Active"
+  def opposite_status(%Deployment{is_active: true}), do: "Off"
+  def opposite_status(%Deployment{is_active: false}), do: "On"
 
   def tags(%Deployment{conditions: %{"tags" => tags}}), do: tags
 end

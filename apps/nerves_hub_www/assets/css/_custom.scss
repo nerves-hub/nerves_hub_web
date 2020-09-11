@@ -129,6 +129,9 @@
 
 .tooltip-label {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
 
   &:hover {
     .tooltip-info {
@@ -167,6 +170,12 @@
     background-size: 1rem;
     margin-left: .5rem;
   }
+
+  &.help-tooltip {
+    .tooltip-info {
+      margin-top: -2px;
+    }
+  }
 }
 
 .display-box {
@@ -174,14 +183,6 @@
   padding: 2.5rem;
   border-radius: 4px;
   margin-bottom: 2rem;
-
-  .item {
-    margin-bottom: 2.5rem;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
 }
 
 .back-link {
@@ -250,3 +251,4 @@ html {
     border-bottom-left-radius: 0;
   }
 }
+
