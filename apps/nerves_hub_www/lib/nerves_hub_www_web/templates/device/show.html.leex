@@ -37,6 +37,10 @@
       <span class="button-icon edit"></span>
       <span class="action-text">Edit</span>
     <% end %>
+    <%= link class: "btn btn-outline-light", to: Routes.device_path(@socket, :delete, @org.name, @product.name, @device.identifier), method: :delete, data: [confirm: "Are you sure?"] do %>
+      <span class="button-icon left-icon delete"></span>
+      <span>Delete</span>
+    <% end %>
   </div>
 </div>
 
