@@ -28,6 +28,9 @@ else
   config :rollbax, enabled: false
 end
 
+config :nerves_hub_web_core,
+  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
+
 config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.S3,
   bucket: System.fetch_env!("S3_BUCKET_NAME")
 
