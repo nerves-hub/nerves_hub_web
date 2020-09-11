@@ -52,6 +52,7 @@ config :nerves_hub_web_core, NervesHubWebCore.Mailer,
 
 config :nerves_hub_web_core,
   host: host,
-  port: port
+  port: port,
+  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
 
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint, url: [host: host, port: port]
