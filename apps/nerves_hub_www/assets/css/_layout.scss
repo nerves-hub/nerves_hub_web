@@ -344,5 +344,16 @@ html {
     grid-column-gap: 2rem;
     grid-row-gap: 2rem;
   }
+
+  .x2-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-column-gap: 2rem;
+    grid-row-gap: 2rem;
+  }
+
+  .gc-span-2 {
+    grid-column: span 2;
+  }
 }
 
