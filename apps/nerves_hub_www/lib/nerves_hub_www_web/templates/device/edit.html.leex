@@ -25,13 +25,13 @@
 
   <div class="form-group">
     <label for="tags" class="tooltip-label h3 mb-1">
-      <span>Group(s)</span>
+      <span>Tag(s)</span>
       <span class="tooltip-info"></span>
-      <span class="tooltip-text">Use groups to manage firmware deployments for different sets of devices.</span>
+      <span class="tooltip-text">Use tags to manage firmware deployments for different sets of devices.</span>
     </label>
     <%= text_input f, :tags, class: "form-control", id: "tags", value: tags_to_string(@changeset) %>
     <small class="form-text text-muted mt-1">
-      Every device is added to the 'all' group by default. You can have multiple groups separated by commas.
+      Every device is added to the 'all' tag by default. You can have multiple tags separated by commas.
     </small>
     <div class="has-error"><%= error_tag f, :tags %></div>
   </div>

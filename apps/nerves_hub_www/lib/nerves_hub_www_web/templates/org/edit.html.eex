@@ -1,6 +1,4 @@
-<h1>
-  Workspace Settings
-</h1>
+<h1>Organization Settings</h1>
 
 <div class="x4-grid">
   <div>
@@ -27,7 +25,7 @@
   <%= form_for @org_changeset, Routes.org_path(@conn, :update, @org.name), fn f -> %>
     <div class="form-group">
       <label for="name_input" class="tooltip-label">
-        <span>Workspace Name</span>
+        <span>Organization Name</span>
         <span class="tooltip-info"></span>
         <span class="tooltip-text">Must be one word</span>
       </label>
@@ -40,9 +38,9 @@
   <%= form_for @org_changeset, Routes.org_path(@conn, :update, @org.name), fn f -> %>
   <div class="form-group">
     <label for="name_input" class="tooltip-label">
-      <span>Workspace Name</span>
+      <span>Organization Name</span>
       <span class="tooltip-info"></span>
-      <span class="tooltip-text">Your personal workspace matches your username</span>
+      <span class="tooltip-text">Your personal organization matches your username</span>
     </label>
     <%= text_input f, :name, class: "form-control", id: "name_input", disabled: "true" %>
     <div class="has-error"><%= error_tag f, :name %></div>

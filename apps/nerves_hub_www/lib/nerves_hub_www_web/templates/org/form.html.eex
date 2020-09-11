@@ -7,7 +7,7 @@
 
   <div class="form-group">
     <label for="name_input" class="tooltip-label">
-      <span>Workspace Name</span>
+      <span>Organization Name</span>
       <span class="tooltip-info"></span>
       <span class="tooltip-text">Must be one word</span>
     </label>
@@ -18,7 +18,7 @@
   </div>
 
   <div class="button-submit-wrapper">
-    <%= submit "Create Workspace", class: "btn btn-primary" %>
+    <%= submit "Create Organization", class: "btn btn-primary" %>
   </div>
 
 <% end %>
