@@ -1,9 +1,20 @@
 <div class="flex-row justify-content-between align-items-center">
   <%= link "All Deployments", to: Routes.deployment_path(@socket, :index, @org.name, @product.name), class: "back-link"%>
   <div class="btn-group" role="group" aria-label="Deployment Actions">
-    <a class="btn btn-outline-light" href="<%= Routes.deployment_path(@socket, :edit, @org.name, @product.name, @deployment.name) %>">
-      Edit Deployment
+    <a class="btn btn-outline-light" phx-click="toggle_active" phx-value-isactive=<%= !@deployment.is_active %>>
+      <span class="button-icon left-icon power"></span>
+      <span>Turn <%= opposite_status(@deployment) %></span>
     </a>
+    <a class="btn btn-outline-light" href="<%= Routes.deployment_path(@socket, :edit, @org.name, @product.name, @deployment.name) %>">
+      <span class="button-icon left-icon edit"></span>
+      <span>Edit</span>
+    </a>
+    <%= form_for %Plug.Conn{}, "#", [phx_submit: "delete"], fn _f -> %>
+      <%= submit class: "btn btn-outline-light", onclick: "return confirm('Are you sure you want to delete this deployment? This can not be undone.')" do %>
+        <span class="button-icon left-icon delete"></span>
+        <span>Delete</span>
+      <% end %>
+    <% end %>
   </div>
 </div>
 
@@ -24,61 +35,69 @@
   <div class="col-lg-7">
     <h3 class="mb-2">Deployment Details</h3>
     <div class="display-box">
-      <div class="item">
-        <div class="help-text mb-1">Distributed to</div>
-        <%= if Enum.count(tags(@deployment)) > 0 do %>
-          <%= for tag <- tags(@deployment) do %>
-            <span class="badge">
-              <%= tag %>
-            </span>
+      <div class="x2-grid">
+        <div class="gc-span-2">
+          <div class="help-text mb-1">Distributed to</div>
+          <%= if Enum.count(tags(@deployment)) > 0 do %>
+            <%= for tag <- tags(@deployment) do %>
+              <span class="badge">
+                <%= tag %>
+              </span>
+            <% end %>
+          <% else %>
+            <p>No tags selected, not being distributed</p>
           <% end %>
-        <% else %>
-          <p>No Groups</p>
-        <% end %>
-      </div>
-      <div class="item">
-        <div class="help-text mb-1">Firmware version</div>
-        <span class="badge"><%= firmware_summary(@deployment) %></span>
-      </div>
-      <div class="item">
-        <div class="help-text mb-1">Version requirement</div>
-        <p><%= version(@deployment) %></p>
+        </div>
+        <div>
+          <div class="help-text mb-1">Firmware version</div>
+          <span class="badge"><%= firmware_summary(@deployment) %></span>
+        </div>
+        <div>
+          <div class="help-text mb-1">UUID</div>
+          <p><%= @deployment.id %></p>
+        </div>
+        <div class="gc-span-2">
+          <div class="help-text mb-1">Version requirement</div>
+          <p><%= version(@deployment) %></p>
+        </div>
+        <div>
+          <div class="help-text mb-1">Failure Rate</div>
+          <p><%= @deployment.failure_rate_amount %> devices per <%= @deployment.failure_rate_seconds %> seconds</p>
+        </div>
+        <div>
+          <div class="help-text mb-1">Failure Threshold</div>
+          <p><%= @deployment.failure_threshold %></p>
+        </div>
+        <div>
+          <div class="help-text mb-1 tooltip-label">
+            <span>Device Failure Rate</span>
+            <span class="tooltip-info"></span>
+            <span class="tooltip-text"><%= help_message_for(:device_failure_rate) %></span>
+          </div>
+          <p><%= @deployment.device_failure_rate_amount %> failures per <%= @deployment.device_failure_rate_seconds %> seconds</p>
+        </div>
+        <div>
+          <div class="help-text mb-1 tooltip-label help-tooltip">
+            <span>Device Failure Threshold</span>
+            <span class="tooltip-info"></span>
+            <span class="tooltip-text"><%= help_message_for(:device_failure_threshold) %></span>
+          </div>
+          <p><%= @deployment.device_failure_threshold %></p>
+        </div>
       </div>
     </div>
     <table class="table" style="width: auto">
       <tbody>
         <tr>
-          <th>Product</th>
-          <td><%= @product.name %></td>
-        </tr>
-        <tr>
           <th>Failure Rate <%= help_icon(help_message_for(:failure_rate)) %></th>
-          <td><%= @deployment.failure_rate_amount %> device failures per <%= @deployment.failure_rate_seconds %> seconds</td>
+          <td></td>
         </tr>
         <tr>
           <th>Failure Threshold <%= help_icon(help_message_for(:failure_threshold)) %></th>
-          <td><%= @deployment.failure_threshold %></td>
-        </tr>
-        <tr>
-          <th>Device Failure Rate <%= help_icon(help_message_for(:device_failure_rate)) %></th>
-          <td><%= @deployment.device_failure_rate_amount %> failures per <%= @deployment.device_failure_rate_seconds %> seconds</td>
-        </tr>
-        <tr>
-          <th>Device Failure Threshold <%= help_icon(help_message_for(:device_failure_threshold)) %></th>
-          <td><%= @deployment.device_failure_threshold %></td>
+          <td></td>
         </tr>
       </tbody>
     </table>
-
-    <div class="button-submit-wrapper">
-      <a class="btn btn-outline-light" phx-click="toggle_active" phx-value-isactive=<%= !@deployment.is_active %>>Make <%= opposite_status(@deployment) %></a>
-      <%= form_for %Plug.Conn{}, "#", [phx_submit: "toggle_health_state"], fn _f -> %>
-      <%= submit "Mark #{if @deployment.healthy, do: "Unhealthy", else: "Healthy"}", class: "btn btn-outline-light" %>
-      <% end %>
-      <%= form_for %Plug.Conn{}, "#", [phx_submit: "delete"], fn _f -> %>
-      <%= submit "Delete Deployment", class: "btn btn-outline-light", onclick: "return confirm('Are you sure you want to delete this deployment? This can not be undone.')" %>
-      <% end %>
-    </div>
   </div>
 
   <div class="col-lg-5">

@@ -18,6 +18,8 @@ defmodule NervesHubWWWWeb.DeploymentController do
   def new(%{assigns: %{org: org, product: product}} = conn, %{
         "deployment" => %{"firmware_id" => firmware_id}
       }) do
+    firmwares = Firmwares.get_firmwares_by_product(product.id)
+
     case Firmwares.get_firmware(org, firmware_id) do
       {:ok, firmware} ->
         data = %{
@@ -38,6 +40,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
           "new.html",
           changeset: changeset,
           firmware: firmware,
+          firmwares: firmwares,
           firmware_options: []
         )
 
@@ -57,7 +60,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
       |> redirect(to: Routes.firmware_path(conn, :upload, org.name, product.name))
     else
       conn
-      |> render("select-firmware.html", firmwares: firmwares)
+      |> render("new.html", firmwares: firmwares, changeset: %Changeset{data: %Deployment{}})
     end
   end
 
@@ -70,6 +73,8 @@ defmodule NervesHubWWWWeb.DeploymentController do
       |> whitelist([:name, :conditions, :firmware_id])
       |> Map.put(:org_id, org.id)
       |> Map.put(:is_active, false)
+
+    firmwares = Firmwares.get_firmwares_by_product(product.id)
 
     org
     |> Firmwares.get_firmware(params[:firmware_id])
@@ -98,7 +103,8 @@ defmodule NervesHubWWWWeb.DeploymentController do
         |> render(
           "new.html",
           changeset: changeset |> tags_to_string(),
-          firmware: firmware
+          firmware: firmware,
+          firmwares: firmwares
         )
     end
   end
