@@ -252,3 +252,9 @@ html {
   }
 }
 
+.failure-rate-grid {
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  justify-content: space-between;
+  align-items: center;
+}

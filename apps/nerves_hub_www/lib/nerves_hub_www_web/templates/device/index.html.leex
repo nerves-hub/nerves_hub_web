@@ -12,9 +12,7 @@
   </div>
 <% else %>
   <div class="flex-row justify-content-between">
-    <h1>
-      Devices
-    </h1>
+    <h1>Devices</h1>
     <a class="btn btn-outline-light" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
       Add Device
       <div class="button-icon add"></div>

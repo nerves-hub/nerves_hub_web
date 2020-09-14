@@ -1,6 +1,7 @@
+<%= link "Back to Deployment", to: Routes.deployment_path(@conn, :show, @org.name, @product.name, @deployment.name), class: "back-link"%>
 <h1>Edit Deployment</h1>
 
-<h3 class="h3 mb-1">Firmware Details</h3>
+<h5 class="mb-2">Firmware version details</h5>
 <div class="x4-grid">
   <div>
     <div class="help-text mb-1">Product</div>
@@ -31,89 +32,122 @@
 
 <%= form_for @changeset, Routes.deployment_path(@conn, :update, @org.name, @product.name, @deployment.name), [as: :deployment], fn f -> %>
   <%= hidden_input f, :firmware_id, value: @firmware.id %>
+
   <div class="form-group">
-    <label for="name_input">Name</label>
+    <label for="name_input">Deployment name</label>
     <%= text_input f, :name, class: "form-control", id: "name_input" %>
     <div class="has-error"><%= error_tag f, :name %></div>
   </div>
 
   <div class="form-group">
-    <label for="verion_input">Version</label>
-    <%= text_input f, :version,
-      class: "form-control",
-      id: "version_input",
-      value:
-        @changeset
-        |> Ecto.Changeset.get_change(:conditions, %{})
-        |> Map.get("version", "")
-    %>
-    <div class="has-error"><%= error_tag f, :version %></div>
-  </div>
-
-  <div class="form-group">
-    <label for="verion_input">Tag(s)*</label>
+    <label for="tags_input">Tag(s) distributed to</label>
     <%= text_input f, :tags,
-      class: "form-control",
-      id: "version_input",
-      value:
-        @changeset
-        |> Ecto.Changeset.get_change(:conditions, %{})
-        |> Map.get("tags", "")
-    %>
+        class: "form-control",
+        id: "tags_input",
+        value:
+          @changeset
+          |> Ecto.Changeset.get_change(:conditions, %{})
+          |> Map.get("tags", "")
+      %>
     <div class="has-error"><%= error_tag f, :tags %></div>
   </div>
 
   <div class="form-group">
-    <label for="failure_rate_input">Failure Threshold</label>
-    <%= help_icon(help_message_for(:failure_threshold)) %>
-    <%= number_input f, :failure_threshold,
-      class: "form-control-sm",
-      id: "failure_threshold"
-    %>
-    <div class="has-error"><%= error_tag f, :failure_threshold %></div>
+    <label for="firmware_id">Firmware version</label>
+    <%= select f, :firmware_id, firmware_dropdown_options(@firmwares), required: true, id: "firmware_id", class: "form-control" %>
+    <div class="select-icon"></div>
+    <div class="has-error"><%= error_tag f, :firmware_id %></div>
   </div>
 
-  <div class="form-group">
-    <label for="failure_rate_input">Failure Rate</label>
-    <%= help_icon(help_message_for(:failure_rate)) %>
-    <%= number_input f, :failure_rate_amount,
-      class: "form-control-sm",
-      id: "failure_rate_amount"
-    %>
-    device failures per
-    <%= number_input f, :failure_rate_seconds,
-      class: "form-control-sm",
-      id: "failure_rate_input"
-    %> seconds
-    <div class="has-error invalid-tooltip"><%= error_tag f, :failure_rate_seconds %></div>
-  </div>
+  <!-- Advanced Options -->
+  <button class="btn btn-outline-light mb-4" type="button" data-toggle="collapse" data-target="#advancedOptionsToggle" aria-expanded="false" aria-controls="advancedOptionsToggle">
+    Show Advanced Options
+  </button>
 
-  <div class="form-group">
-    <label for="failure_rate_input">Device Failure Threshold</label>
-    <%= help_icon(help_message_for(:device_failure_threshold)) %>
-    <%= number_input f, :device_failure_threshold,
-      class: "form-control-sm",
-      id: "device_failure_threshold"
-    %>
-    <div class="has-error"><%= error_tag f, :device_failure_threshold %></div>
-  </div>
+  <div class="x2-grid form collapse" id="advancedOptionsToggle">
+    <div class="form-group gc-span-2">
+      <label for="version_requirement">Version requirement</label>
+      <%= text_input f, :version,
+        class: "form-control",
+        id: "version_requirement",
+        value:
+          @changeset
+          |> Ecto.Changeset.get_change(:conditions, %{})
+          |> Map.get("version", "")
+      %>
+      <div class="has-error"><%= error_tag f, :version %></div>
+    </div>
 
-  <div class="form-group">
-    <label for="device_failure_rate_input">Device Failure Rate</label>
-    <%= help_icon(help_message_for(:device_failure_rate)) %>
-    <%= number_input f, :device_failure_rate_amount,
-      class: "form-control-sm",
-      id: "device_failure_rate_amount"
-    %>
-    failures per
-    <%= number_input f, :device_failure_rate_seconds,
-      class: "form-control-sm",
-      id: "device_failure_rate_input"
-    %> seconds
-    <div class="has-error"><%= error_tag f, :device_failure_rate_seconds %></div>
+    <div class="form-group">
+      <label for="failure_rate_amount" class="tooltip-label">
+        <span>Failure rate</span>
+        <span class="tooltip-info"></span>
+        <span class="tooltip-text"><%= help_message_for(:failure_rate) %></span>
+      </label>
+      <div class="failure-rate-grid">
+        <%= number_input f, :failure_rate_amount,
+          class: "form-control form-control-sm",
+          id: "failure_rate_amount"
+        %>
+        <span class="help-text">devices per</span>
+        <%= number_input f, :failure_rate_seconds,
+          class: "form-control form-control-sm",
+          id: "failure_rate_input"
+        %>
+        <span class="help-text">sec</span>
+      </div>
+      <div class="has-error invalid-tooltip"><%= error_tag f, :failure_rate_seconds %></div>
+    </div>
+
+    <div class="form-group">
+      <label for="failure_threshold" class="tooltip-label">
+        <span>Failure threshold</span>
+        <span class="tooltip-info"></span>
+        <span class="tooltip-text"><%= help_message_for(:failure_threshold) %></span>
+      </label>
+      <%= number_input f, :failure_threshold,
+        class: "form-control",
+        id: "failure_threshold"
+      %>
+      <div class="has-error"><%= error_tag f, :failure_threshold %></div>
+    </div>
+
+    <div class="form-group">
+      <label for="device_failure_rate_amount" class="tooltip-label">
+        <span>Device failure rate</span>
+        <span class="tooltip-info"></span>
+        <span class="tooltip-text"><%= help_message_for(:device_failure_rate) %></span>
+      </label>
+      <div class="failure-rate-grid">
+        <%= number_input f, :device_failure_rate_amount,
+          class: "form-control form-control-sm",
+          id: "device_failure_rate_amount"
+        %>
+        <span class="help-text">failures per</span>
+        <%= number_input f, :device_failure_rate_seconds,
+          class: "form-control form-control-sm",
+          id: "device_failure_rate_input"
+        %>
+        <span class="help-text">sec</span>
+      </div>
+      <div class="has-error"><%= error_tag f, :device_failure_rate_seconds %></div>
+    </div>
+
+    <div class="form-group">
+      <label for="device_failure_threshold" class="tooltip-label">
+        <span>Device failure threshold</span>
+        <span class="tooltip-info"></span>
+        <span class="tooltip-text"><%= help_message_for(:device_failure_threshold) %></span>
+      </label>
+      <%= number_input f, :device_failure_threshold,
+        class: "form-control",
+        id: "device_failure_threshold"
+      %>
+      <div class="has-error"><%= error_tag f, :device_failure_threshold %></div>
+    </div>
   </div>
 
   <div class="button-submit-wrapper">
-    <%= submit "Update Deployment", class: "btn btn-primary" %>
+    <%= submit "Save Changes", class: "btn btn-primary" %>
   </div>
 <% end %>

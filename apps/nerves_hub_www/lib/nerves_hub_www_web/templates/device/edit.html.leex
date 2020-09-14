@@ -1,6 +1,5 @@
-<h1>
-  Edit Device
-</h1>
+<%= link "Back to Device", to: Routes.device_path(@socket, :show, @org.name, @product.name, @device.identifier), class: "back-link"%>
+<h1>Edit Device</h1>
 
 <%= form_for @changeset, "#", [phx_change: :validate, phx_submit: :save], fn f -> %>
   <div class="form-group">

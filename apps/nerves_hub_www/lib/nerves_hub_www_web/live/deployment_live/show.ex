@@ -114,7 +114,7 @@ defmodule NervesHubWWWWeb.DeploymentLive.Show do
 
   defp audit_log_assigns(%{assigns: %{deployment: deployment}} = socket) do
     all_logs = AuditLogs.logs_for_feed(deployment)
-    paginate_opts = %{page_number: 1, page_size: 10}
+    paginate_opts = %{page_number: 1, page_size: 5}
 
     socket
     |> assign(:audit_logs, Enum.slice(all_logs, 0, paginate_opts.page_size))
