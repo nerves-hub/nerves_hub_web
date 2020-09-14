@@ -45,7 +45,7 @@
               </span>
             <% end %>
           <% else %>
-            <p>No tags selected, not being distributed</p>
+            <p class="text-muted">No tags selected, not being distributed</p>
           <% end %>
         </div>
         <div>
@@ -53,23 +53,27 @@
           <span class="badge"><%= firmware_summary(@deployment) %></span>
         </div>
         <div>
-          <div class="help-text mb-1">UUID</div>
-          <p><%= @deployment.id %></p>
-        </div>
-        <div class="gc-span-2">
           <div class="help-text mb-1">Version requirement</div>
           <p><%= version(@deployment) %></p>
         </div>
         <div>
-          <div class="help-text mb-1">Failure Rate</div>
+          <div class="help-text mb-1 tooltip-label help-tooltip">
+            <span>Failure Rate</span>
+            <span class="tooltip-info"></span>
+            <span class="tooltip-text"><%= help_message_for(:failure_rate) %></span>
+          </div>
           <p><%= @deployment.failure_rate_amount %> devices per <%= @deployment.failure_rate_seconds %> seconds</p>
         </div>
         <div>
-          <div class="help-text mb-1">Failure Threshold</div>
+          <div class="help-text mb-1 tooltip-label help-tooltip">
+            <span>Failure Threshold</span>
+            <span class="tooltip-info"></span>
+            <span class="tooltip-text"><%= help_message_for(:failure_threshold) %></span>
+          </div>
           <p><%= @deployment.failure_threshold %></p>
         </div>
         <div>
-          <div class="help-text mb-1 tooltip-label">
+          <div class="help-text mb-1 tooltip-label help-tooltip">
             <span>Device Failure Rate</span>
             <span class="tooltip-info"></span>
             <span class="tooltip-text"><%= help_message_for(:device_failure_rate) %></span>
@@ -86,18 +90,6 @@
         </div>
       </div>
     </div>
-    <table class="table" style="width: auto">
-      <tbody>
-        <tr>
-          <th>Failure Rate <%= help_icon(help_message_for(:failure_rate)) %></th>
-          <td></td>
-        </tr>
-        <tr>
-          <th>Failure Threshold <%= help_icon(help_message_for(:failure_threshold)) %></th>
-          <td></td>
-        </tr>
-      </tbody>
-    </table>
   </div>
 
   <div class="col-lg-5">

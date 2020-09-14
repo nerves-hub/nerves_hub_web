@@ -47,7 +47,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
                Routes.deployment_path(conn, :new, org.name, product.name)
     end
 
-    test "renders select firmware when no firmware_id is passed", %{
+    test "renders create deployment when no firmware_id is passed", %{
       conn: conn,
       user: user,
       org: org,
@@ -57,7 +57,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       Fixtures.firmware_fixture(org_key, product)
       conn = get(conn, Routes.deployment_path(conn, :new, org.name, product.name))
 
-      assert html_response(conn, 200) =~ "Select Firmware"
+      assert html_response(conn, 200) =~ "Add Deployment"
 
       assert html_response(conn, 200) =~
                Routes.deployment_path(conn, :create, org.name, product.name)
