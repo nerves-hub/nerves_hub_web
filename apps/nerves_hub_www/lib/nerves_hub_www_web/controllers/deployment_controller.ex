@@ -125,12 +125,15 @@ defmodule NervesHubWWWWeb.DeploymentController do
     )
   end
 
-  def edit(%{assigns: %{deployment: deployment}} = conn, _params) do
+  def edit(%{assigns: %{deployment: deployment, product: product}} = conn, _params) do
+    firmwares = Firmwares.get_firmwares_by_product(product.id)
+
     conn
     |> render(
       "edit.html",
       deployment: deployment,
       firmware: deployment.firmware,
+      firmwares: firmwares,
       changeset:
         Deployment.changeset(deployment, %{})
         |> tags_to_string()

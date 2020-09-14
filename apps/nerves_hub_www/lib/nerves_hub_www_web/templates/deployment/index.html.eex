@@ -11,9 +11,7 @@
   </div>
 <% else %>
   <div class="flex-row justify-content-between">
-    <h1>
-      Deployments
-    </h1>
+    <h1>Deployments</h1>
     <a class="btn btn-outline-light" href="<%= Routes.deployment_path(@conn, :new, @org.name, @product.name)%>">
       Create Deployment
       <div class="button-icon add"></div>

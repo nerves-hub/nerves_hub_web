@@ -10,6 +10,10 @@ html {
     margin: 0 0 2rem;
     position: relative;
 
+    &.full {
+      max-width: 100%;
+    }
+
     &:first-child {
       margin-top: 0;
     }
@@ -26,6 +30,8 @@ html {
     height: 48px;
     font-size: 16px;
     font-weight: 400;
+    display: block;
+    border-radius: 4px;
 
     &:focus {
       background: transparent;
@@ -40,6 +46,14 @@ html {
       opacity: .8;
       cursor: not-allowed;
     }
+  }
+
+  .form-control-md {
+    max-width: 180px;
+  }
+
+  .form-control-sm {
+    max-width: 100px;
   }
 
   label {
