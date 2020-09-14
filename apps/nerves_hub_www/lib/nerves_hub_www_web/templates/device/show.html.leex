@@ -101,7 +101,19 @@
           </div>
         <% end %>
       </div>
-
+      <div class="mt-4">
+        <div class="help-text mb-1">Status</div>
+        <div class="tt-c-first-letter">
+          <%= cond do %>
+            <% @device.status == "offline" -> %>
+              <span class="color-white-50">Unknown</span>
+            <% @device.status == "online" -> %>
+              Up to date
+            <% true -> %>
+              <%= display_status(@device.status) %>
+          <% end %>
+        </div>
+      </div>
     </div>
   </div>
 
