@@ -1,0 +1,22 @@
+<h1>New Certificate Authority</h1>
+
+<%= form_for @changeset, Routes.org_certificate_path(@conn, :create, @org.name), [multipart: true], fn f -> %>
+  <div class="form-group">
+    <%= label f, :description, for: "description_input" %>
+    <%= text_input f, :description , class: "form-control", id: "description_input" %>
+    <div class="has-error"><%= error_tag f, :description %></div>
+  </div>
+
+  <label for="cert_input">Upload a Certificate Authority file (.pem)</label>
+
+  <div class="form-group custom-upload-group">
+    <%= label f, :cert, "Click to upload file", class: "custom-upload-label not-selected", for: "cert_input" %>
+    <%= file_input f, :cert, required: true, class: "custom-upload-input hidden", id: "cert_input" %>
+    <div class="has-error"><%= error_tag f, :cert %></div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <%= link "Back", to: Routes.org_certificate_path(@conn, :index, @org.name), class: "btn btn-outline-light" %>    
+    <%= submit "Create Certificate", class: "btn btn-primary" %>
+  </div>
+<% end %>

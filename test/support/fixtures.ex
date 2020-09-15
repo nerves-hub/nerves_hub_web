@@ -71,6 +71,7 @@ defmodule NervesHubWebCore.Fixtures do
       not_before: not_before,
       not_after: not_after
     }
+
     %{cert: cert, key: key, params: params}
   end
 
@@ -93,8 +94,8 @@ defmodule NervesHubWebCore.Fixtures do
       org_id: org_id,
       firmware_uuid: firmware_uuid,
       remote_ip: "192.0.2.3",
-      bytes_sent: 300000,
-      bytes_total: 32184752,
+      bytes_sent: 300_000,
+      bytes_total: 32_184_752,
       timestamp: DateTime.utc_now()
     }
   end
@@ -197,6 +198,7 @@ defmodule NervesHubWebCore.Fixtures do
     params =
       firmware_transfer_params(org_id, firmware_uuid)
       |> Map.merge(params)
+
     Firmwares.create_firmware_transfer(params)
   end
 
@@ -221,6 +223,7 @@ defmodule NervesHubWebCore.Fixtures do
         params \\ %{}
       ) do
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+
     {:ok, device} =
       %{
         org_id: org.id,
@@ -241,11 +244,23 @@ defmodule NervesHubWebCore.Fixtures do
     |> File.read!()
   end
 
+  def device_certificate_authority_file() do
+    path()
+    |> Path.join("ssl/device-root-ca.pem")
+  end
+
+  def bad_device_certificate_authority_file() do
+    path()
+    |> Path.join("ssl/device-root-ca-key.pem")
+  end
+
   def device_certificate_fixture(_, _ \\ nil)
+
   def device_certificate_fixture(%Devices.Device{} = device, nil) do
     cert = device_certificate_pem() |> X509.Certificate.from_pem!()
     device_certificate_fixture(device, cert)
   end
+
   def device_certificate_fixture(%Devices.Device{} = device, cert) do
     serial = Certificate.get_serial_number(cert)
     {not_before, not_after} = Certificate.get_validity(cert)

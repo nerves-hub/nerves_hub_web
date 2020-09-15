@@ -2,6 +2,10 @@
   <h1 class="mb-4">
     Certificate Authorities
   </h1>
+  <a class="btn btn-outline-light" href="<%= Routes.org_certificate_path(@conn, :new, @org.name) %>">
+    Add Certificate Authority
+    <div class="button-icon add"></div>
+  </a>
 </div>
 
 <table class="table table-sm table-hover">
@@ -35,6 +39,16 @@
         </td>
         <td>
           <%= cert.not_after %>
+        </td>
+        <td class="actions">
+          <div class="dropdown options">
+            <a class="dropdown-toggle options" href="#" id="<%= cert.id %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <img src="/images/icons/more.svg" alt="options" />
+            </a>
+            <div class="dropdown-menu dropdown-menu-right">
+              <%= link "Delete", class: "dropdown-item", to: Routes.org_certificate_path(@conn, :delete, @org.name, cert.serial), method: :delete, data: [confirm: "Are you sure you want to delete this certificate? This can not be undone."] %>
+            </div>
+          </div>
         </td>
       </tr>
     <% end %>
