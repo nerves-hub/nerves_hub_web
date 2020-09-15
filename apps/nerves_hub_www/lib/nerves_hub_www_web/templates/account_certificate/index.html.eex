@@ -1,41 +1,40 @@
-<h2>Account Certificates</h2>
-<div class="row">
-  <div class="w-100 shadow nhw_list">
-    <div class="card">
-      <table id="account_certificates" class="table">
-        <thead>
-          <tr class="d-flex">
-            <th class="col-2">Description</th>
-            <th class="col-2">Serial</th>
-            <th class="col-2">Last Used</th>
-            <th class="col-2">Not Before</th>
-            <th class="col-2">Not After</th>
-            <th class="col-2"></th>
-          </tr>
-        </thead>
-        <%= for cert <- @certificates do %>
-          <tr class="item d-flex">
-            <td class="col-2">
-              <%= cert.description %>
-            </td>
-            <td class="col-2">
-              <%= cert.serial %>
-            </td>
-            <td class="col-2 date-time">
-              <%= cert.last_used %>
-            </td>
-            <td class="col-2 date-time">
-              <%= cert.not_before %>
-            </td>
-            <td class="col-2 date-time">
-              <%= cert.not_after %>
-            </td>
-            <td class="col-2">
-              <center><%= link "Delete", class: "btn btn-danger", to: Routes.account_certificate_path(@conn, :delete, @user.username, cert), method: :delete, data: [confirm: "Are you sure?"]%></center>
-            </td>
-          </tr>
-        <% end %>
-      </table>
-    </div>
-  </div>
-</div>
+<h1>User Certificates</h1>
+
+<table id="account_certificates" class="table table-sm table-hover">
+  <thead>
+  <tr>
+    <th>Description</th>
+    <th>Serial</th>
+    <th>Last Used</th>
+    <th>Not Before</th>
+    <th>Not After</th>
+    <th></th>
+  </tr>
+  </thead>
+  <%= for cert <- @certificates do %>
+  <tr class="item">
+    <td>
+      <%= cert.description %>
+    </td>
+    <td>
+      <%= cert.serial %>
+    </td>
+    <td>
+      <%= if !is_nil(cert.last_used) do %>
+        <%= DateTimeFormat.from_now(cert.last_used) %>
+      <% else %>
+        <span class="text-muted">Never</span>
+      <% end %>
+    </td>
+    <td class="date-time">
+      <%= cert.not_before %>
+    </td>
+    <td class="date-time">
+      <%= cert.not_after %>
+    </td>
+    <td>
+      <%= link "Delete", class: "btn btn-danger", to: Routes.account_certificate_path(@conn, :delete, @user.username, cert), method: :delete, data: [confirm: "Are you sure?"]%>
+    </td>
+  </tr>
+  <% end %>
+</table>

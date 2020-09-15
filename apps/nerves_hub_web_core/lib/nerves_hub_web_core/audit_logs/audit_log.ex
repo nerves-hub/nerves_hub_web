@@ -194,29 +194,32 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
     %{audit_log | description: description}
   end
 
-  def create_description(%{changes: changes} = audit_log, %User{} = actor, resource)
+  def create_description(%{changes: changes} = audit_log, %User{} = actor, _resource)
       when map_size(changes) == 0 do
-    description =
-      "#{identifier_for(actor)} submitted update without changes for #{identifier_for(resource)}"
+    description = "#{identifier_for(actor)} submitted update without changes"
 
     %{audit_log | description: description}
   end
 
-  def create_description(%{changes: changes} = audit_log, %User{} = actor, resource) do
+  def create_description(%{changes: changes} = audit_log, %User{} = actor, _resource) do
     changed_fields =
       Map.keys(changes)
       |> case do
-        [key] -> "#{to_string(key)} field"
-        [key1, key2] -> "#{key1} and #{key2} fields"
-        [last_key | rem] -> Enum.join(rem, ", ") <> ", and #{last_key} fields"
+        [key] ->
+          "#{key} field"
+
+        [key1, key2] ->
+          "#{key1} and #{key2} fields"
+
+        [last_key | rem] ->
+          Enum.join(rem, ", ") <> ", and #{last_key} fields"
       end
 
     # i.e.
-    #   user Ron changed tags field on device 1234
-    #   user Sam changed tags and description fields on device 1234
-    #   user Julie changed tags, description, and version fields on deployment For Cool Kids
-    description =
-      "#{identifier_for(actor)} changed #{changed_fields} on #{identifier_for(resource)}"
+    #   user Ron changed tags field
+    #   user Sam changed tags and description fields
+    #   user Julie changed tags, description, and version fields
+    description = "#{identifier_for(actor)} changed the #{changed_fields}"
 
     %{audit_log | description: description}
   end

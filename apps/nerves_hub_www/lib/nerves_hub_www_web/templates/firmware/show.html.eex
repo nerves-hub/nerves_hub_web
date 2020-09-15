@@ -1,0 +1,50 @@
+<div class="flex-row justify-content-between align-items-center">
+  <%= link "All Firmware", to: Routes.firmware_path(@conn, :index, @org.name, @product.name), class: "back-link"%>
+  <div class="btn-group" role="group" aria-label="Device Actions">
+    <%= link(class: "btn btn-outline-light", to: Routes.firmware_path(@conn, :download, @org.name, @product.name, @firmware.uuid)) do %>
+      <span class="button-icon left-icon download"></span>
+      <span>Download</span>
+    <% end %>
+    <%= link class: "btn btn-outline-light", to: Routes.firmware_path(@conn, :delete, @org.name, @product.name, @firmware.uuid), method: :delete, data: [confirm: "Are you sure you want to delete this firmware? This can not be undone."] do %>
+      <span class="button-icon left-icon delete"></span>
+      <span>Delete</span>
+    <% end %>
+  </div>
+</div>
+
+<h1>Firmware <%= @firmware.version %></h1>
+
+<div class="firmware-meta-grid">
+  <div>
+    <div class="help-text">UUID</div>
+    <p><%= @firmware.uuid %></p>
+  </div>
+  <div>
+    <div class="help-text">Architecture</div>
+    <p><%= @firmware.architecture %></p>
+  </div>
+  <div></div>
+  <div>
+    <div class="help-text">Author</div>
+    <p><%= @firmware.author %></p>
+  </div>
+  <div>
+    <div class="help-text">Created On</div>
+    <p class="date-time">
+      <%= @firmware.inserted_at %>
+    </p>
+  </div>
+  <div>
+    <div class="help-text">VCS ID</div>
+    <p>
+      <%= if is_nil(@firmware.vcs_identifier) do %>
+        -
+      <% else %>
+        <%= @firmware.vcs_identifier %>
+      <% end %>
+    </p>
+  </div>
+</div>
+
+<div class="divider"></div>
+

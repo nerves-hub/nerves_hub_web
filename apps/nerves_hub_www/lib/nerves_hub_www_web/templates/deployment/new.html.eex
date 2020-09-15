@@ -1,19 +1,17 @@
-<div class="modal-content shadow">
-  <%= form_for @changeset, Routes.deployment_path(@conn, :create, @org.name, @product.name), [as: :deployment], fn f -> %>
-    <div class="modal-header panel-title rounded-top">
-      Create Deployment for <strong><%= firmware_summary(@firmware) %></strong>
-    </div>
-    <div class="modal-body">
-      <%= hidden_input f, :firmware_id, value: @firmware.id %>
-      <div class="form-group">
-        <label for="name_input">Name</label>
-        <%= text_input f, :name, class: "form-control", id: "name_input" %>
-        <div class="has-error"><%= error_tag f, :name %></div>
-      </div>
+<h1>Add Deployment</h1>
 
-      <div class="form-group">
-        <label for="verion_input">Version Requirement</label>
-        <%= text_input f, :version,
+<%= form_for @changeset, Routes.deployment_path(@conn, :create, @org.name, @product.name), [as: :deployment], fn f -> %>
+
+  <%= hidden_input f, :firmware_id, value: @firmware.id %>
+  <div class="form-group">
+    <label for="name_input">Name</label>
+    <%= text_input f, :name, class: "form-control", id: "name_input" %>
+    <div class="has-error"><%= error_tag f, :name %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="verion_input">Version Requirement</label>
+    <%= text_input f, :version,
           class: "form-control",
           id: "version_input",
           value:
@@ -21,12 +19,12 @@
             |> Ecto.Changeset.get_change(:conditions, %{})
             |> Map.get("version", "")
         %>
-        <div class="has-error"><%= error_tag f, :version %></div>
-      </div>
+    <div class="has-error"><%= error_tag f, :version %></div>
+  </div>
 
-      <div class="form-group">
-        <label for="verion_input">Tag(s)*</label>
-        <%= text_input f, :tags,
+  <div class="form-group">
+    <label for="verion_input">Group(s)</label>
+    <%= text_input f, :tags,
           class: "form-control",
           id: "version_input",
           value:
@@ -34,18 +32,11 @@
             |> Ecto.Changeset.get_change(:conditions, %{})
             |> Map.get("tags", "")
         %>
-        <div class="has-error"><%= error_tag f, :tags %></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <div class="col-4">
-        <a class="btn btn-secondary" href="<%= Routes.deployment_path(@conn, :index, @org.name, @product.name) %>">
-          Cancel
-        </a>
-      </div>
-      <div class="col-8 text-right">
-        <%= submit "Create Deployment", class: "btn btn-primary" %>
-      </div>
-    </div>
-  <% end %>
-</div>
+    <div class="has-error"><%= error_tag f, :tags %></div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <a class="btn btn-secondary" href="<%= Routes.deployment_path(@conn, :index, @org.name, @product.name) %>">Cancel</a>
+    <%= submit "Create Deployment", class: "btn btn-primary" %>
+  </div>
+<% end %>

@@ -1,13 +1,12 @@
 defmodule NervesHubWWWWeb.LayoutView do
   use NervesHubWWWWeb, :view
+  use Timex
 
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.User
+  alias NervesHubWebCore.Devices
   alias NervesHubWebCore.Products
   alias NervesHubWebCore.Products.Product
-
-  @gravatar_url "https://secure.gravatar.com/avatar"
-  @gravatar_size 54
 
   def product(%{assigns: %{product: %Product{} = product}}) do
     product
@@ -17,19 +16,38 @@ defmodule NervesHubWWWWeb.LayoutView do
     nil
   end
 
-  def gravatar(%{assigns: %{user: %{email: email}}}) do
-    hash = :crypto.hash(:md5, String.downcase(email)) |> Base.encode16(case: :lower)
-    "#{@gravatar_url}/#{hash}?s=#{@gravatar_size}"
-  end
-
   def user_orgs(%{assigns: %{user: %User{} = user}}) do
     Accounts.get_user_orgs_with_product_role(user, :read)
   end
 
   def user_orgs(_conn), do: []
 
+  def count_user_orgs(conn) do
+    Enum.count(user_orgs(conn))
+  end
+
+  def take_user_orgs(conn, amount) do
+    Enum.take(user_orgs(conn), amount)
+  end
+
   def user_org_products(user, org) do
     Products.get_products_by_user_and_org(user, org)
+  end
+
+  def count_user_org_products(user, org) do
+    Enum.count(user_org_products(user, org))
+  end
+
+  def take_user_org_products(user, org, amount) do
+    Enum.take(user_org_products(user, org), amount)
+  end
+
+  def org_device_limit(%{assigns: %{current_limit: limits, org: %{id: org_id}}}) do
+    "#{Devices.get_device_count_by_org_id(org_id)}/#{Map.get(limits, :devices)}"
+  end
+
+  def org_device_limit(_conn) do
+    nil
   end
 
   def logged_in?(%{assigns: %{user: %User{}}}), do: true
@@ -45,18 +63,6 @@ defmodule NervesHubWWWWeb.LayoutView do
 
   def has_org_role?(org, user, role) do
     Accounts.has_org_role?(org, user, role)
-  end
-
-  def health_status_icon(%{healthy: healthy?}) do
-    {icon, color} = if healthy?, do: {"check-circle", "green"}, else: {"times-circle", "red"}
-    content_tag(:i, "", class: "fas fa-#{icon}", style: "color:#{color}")
-  end
-
-  def health_status_icon(_) do
-    content_tag(:i, "",
-      class: "fas fa-question-circle",
-      title: "Don't know how to tell health status"
-    )
   end
 
   def help_icon(message, placement \\ :top) do
@@ -148,6 +154,9 @@ defmodule NervesHubWWWWeb.LayoutView do
   def sidebar_links(%{path_info: ["settings" | _tail]} = conn),
     do: sidebar_settings(conn)
 
+  def sidebar_links(%{path_info: ["account" | _tail]} = conn),
+    do: sidebar_account(conn)
+
   def sidebar_links(%{path_info: ["org", "new"]}),
     do: []
 
@@ -166,7 +175,6 @@ defmodule NervesHubWWWWeb.LayoutView do
     ([
        %{
          title: "Products",
-         icon: "boxes",
          active: "",
          href: Routes.product_path(conn, :index, conn.assigns.org.name)
        }
@@ -174,40 +182,24 @@ defmodule NervesHubWWWWeb.LayoutView do
        if NervesHubWebCore.Accounts.has_org_role?(org, user, :read) do
          [
            %{
-             title: "Profile",
-             icon: "sliders-h",
-             active: "",
-             href: Routes.org_path(conn, :edit, conn.assigns.org.name)
-           },
-           %{
-             title: "Certificate Authorities",
-             icon: "certificate",
-             active: "",
-             href: Routes.org_certificate_path(conn, :index, conn.assigns.org.name)
-           },
-           %{
              title: "Firmware Keys",
-             icon: "key",
              active: "",
              href: Routes.org_key_path(conn, :index, conn.assigns.org.name)
            },
            %{
              title: "Users",
-             icon: "users",
              active: "",
              href: Routes.org_user_path(conn, :index, conn.assigns.org.name)
-           }
-         ]
-       else
-         []
-       end ++
-       if String.equivalent?(user.username, org.name) do
-         [
+           },
            %{
-             title: "My Account",
-             icon: "id-card",
+             title: "Certificates",
              active: "",
-             href: Routes.account_path(conn, :edit, conn.assigns.user.username)
+             href: Routes.org_certificate_path(conn, :index, conn.assigns.org.name)
+           },
+           %{
+             title: "Organization Settings",
+             active: "",
+             href: Routes.org_path(conn, :edit, conn.assigns.org.name)
            }
          ]
        else
@@ -221,22 +213,40 @@ defmodule NervesHubWWWWeb.LayoutView do
       # %{title: "Dashboard", icon: "tachometer-alt", active: "", href: Routes.product_path(conn, :show, conn.assigns.org.name, conn.assigns.product.name)},
       %{
         title: "Devices",
-        icon: "microchip",
         active: "",
         href: Routes.device_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
       },
       %{
         title: "Firmware",
-        icon: "sd-card",
         active: "",
         href: Routes.firmware_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
       },
       %{
         title: "Deployments",
-        icon: "cloud-download-alt",
         active: "",
         href:
           Routes.deployment_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+      },
+      %{
+        title: "Product Settings",
+        active: "",
+        href: Routes.product_path(conn, :edit, conn.assigns.org.name, conn.assigns.product.name)
+      }
+    ]
+    |> sidebar_active(conn)
+  end
+
+  def sidebar_account(conn) do
+    [
+      %{
+        title: "Personal Info",
+        active: "",
+        href: Routes.account_path(conn, :edit, conn.assigns.user.username)
+      },
+      %{
+        title: "My Organizations",
+        active: "",
+        href: Routes.org_path(conn, :index, conn.assigns.user.username)
       }
     ]
     |> sidebar_active(conn)
@@ -250,5 +260,15 @@ defmodule NervesHubWWWWeb.LayoutView do
         link
       end
     end)
+  end
+
+  defmodule DateTimeFormat do
+    def from_now(timestamp) do
+      if Timex.is_valid?(timestamp) do
+        Timex.from_now(timestamp)
+      else
+        timestamp
+      end
+    end
   end
 end

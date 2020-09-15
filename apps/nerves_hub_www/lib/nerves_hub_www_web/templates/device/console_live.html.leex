@@ -1,5 +1,5 @@
 <div class="alert alert-danger">
-  <h2>Deprecation Notice</h2>
+  <h1>Deprecation Notice</h1>
   <p>
     This device is using an older version of the remote IEx console API which will be removed from NervesHub.
   </p>
@@ -9,13 +9,12 @@
 </div>
 
 <%= if @user_role != :admin do %>
-  <h2>Read Only!</h2>
+  <h5>Read Only!</h5>
   <p>You can follow the feed but will be unable to send commands</p>
 <% end %>
 
 <div class="container">
   <pre class="console">
-
     <%= for line <- @lines do %>
     <p><%= line %></p>
     <% end %>

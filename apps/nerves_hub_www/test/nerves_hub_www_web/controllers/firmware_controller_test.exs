@@ -92,7 +92,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
         })
 
       assert html_response(conn, 200) =~
-               "Firmware corrupt, signature invalid or missing public key"
+               "Firmware corrupt, signature invalid, or missing public key"
     end
 
     test "error if org keys do not match firmware", %{
@@ -119,7 +119,7 @@ defmodule NervesHubWWWWeb.FirmwareControllerTest do
         })
 
       assert html_response(conn, 200) =~
-               "Firmware corrupt, signature invalid or missing public key"
+               "Firmware corrupt, signature invalid, or missing public key"
     end
 
     test "error if meta-product does not match product name", %{

@@ -6,7 +6,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
   describe "new org" do
     test "renders form", %{conn: conn} do
       conn = get(conn, Routes.org_path(conn, :new))
-      assert html_response(conn, 200) =~ "New organization"
+      assert html_response(conn, 200) =~ "Create New Organization"
     end
   end
 
@@ -18,7 +18,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
 
     test "renders errors when data is invalid", %{conn: conn} do
       conn = post(conn, Routes.org_path(conn, :create), org: %{})
-      assert html_response(conn, 200) =~ "New organization"
+      assert html_response(conn, 200) =~ "Create New Organization"
     end
   end
 
@@ -70,7 +70,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
           org: %{name: ""}
         )
 
-      assert html_response(conn, 200) =~ "#{org.name} settings"
+      assert html_response(conn, 200) =~ "Organization Settings"
       assert html_response(conn, 200) =~ "be blank"
     end
   end
@@ -82,7 +82,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
           invite: %{email: "nunya@bid.ness"}
         )
 
-      assert redirected_to(conn) == Routes.org_path(conn, :edit, org.name)
+      assert redirected_to(conn) == Routes.org_user_path(conn, :index, org.name)
 
       redirected_conn = get(conn, redirected_to(conn))
 
@@ -95,7 +95,7 @@ defmodule NervesHubWWWWeb.OrgControllerTest do
       conn =
         post(conn, Routes.org_path(conn, :send_invite, org.name), invite: %{email: user.email})
 
-      assert redirected_to(conn) == Routes.org_path(conn, :edit, org.name)
+      assert redirected_to(conn) == Routes.org_user_path(conn, :index, org.name)
 
       redirected_conn = get(conn, redirected_to(conn))
 

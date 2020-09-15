@@ -70,9 +70,7 @@ defmodule NervesHubWebCore.AuditLogs.AuditLogTest do
       al = AuditLog.build(user, device, :update, %{})
 
       assert al.description ==
-               "user #{user.username} submitted update without changes for device #{
-                 device.identifier
-               }"
+               "user #{user.username} submitted update without changes"
     end
 
     test "description when user changes one or more fields on resource", context do
@@ -80,25 +78,11 @@ defmodule NervesHubWebCore.AuditLogs.AuditLogTest do
       one_change = AuditLog.build(user, device, :update, %{tags: ["wat"]})
       two_changes = AuditLog.build(user, device, :update, %{description: "howdy", tags: ["wat"]})
 
-      many_changes =
-        AuditLog.build(user, device, :update, %{
-          description: "howdy",
-          identifier: "1",
-          tags: ["wat"]
-        })
-
       assert one_change.description ==
-               "user #{user.username} changed tags field on device #{device.identifier}"
+               "user #{user.username} changed the tags field"
 
       assert two_changes.description ==
-               "user #{user.username} changed description and tags fields on device #{
-                 device.identifier
-               }"
-
-      assert many_changes.description ==
-               "user #{user.username} changed identifier, tags, and description fields on device #{
-                 device.identifier
-               }"
+               "user #{user.username} changed the description and tags fields"
     end
 
     test "description for health changes", context do

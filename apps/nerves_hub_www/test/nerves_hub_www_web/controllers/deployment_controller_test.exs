@@ -57,7 +57,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       Fixtures.firmware_fixture(org_key, product)
       conn = get(conn, Routes.deployment_path(conn, :new, org.name, product.name))
 
-      assert html_response(conn, 200) =~ "Select Firmware for New Deployment"
+      assert html_response(conn, 200) =~ "Select Firmware"
 
       assert html_response(conn, 200) =~
                Routes.deployment_path(conn, :create, org.name, product.name)
@@ -117,7 +117,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       # check that the proper creation side effects took place
       conn = get(conn, Routes.deployment_path(conn, :index, org.name, product.name))
       assert html_response(conn, 200) =~ deployment_params.name
-      assert html_response(conn, 200) =~ "Inactive"
+      assert html_response(conn, 200) =~ "Off"
       assert html_response(conn, 200) =~ firmware.version
     end
 

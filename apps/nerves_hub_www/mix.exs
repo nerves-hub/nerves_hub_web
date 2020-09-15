@@ -54,6 +54,7 @@ defmodule NervesHubWWW.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.4"},
+      {:phoenix_active_link, "~> 0.2.1"},
       {:phoenix_pubsub, "~> 1.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 0.10"},

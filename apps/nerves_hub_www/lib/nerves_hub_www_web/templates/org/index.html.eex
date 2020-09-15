@@ -1,0 +1,18 @@
+<h1>My Organizations</h1>
+<div class="x3-grid">
+  <%= for org <- @orgs do %>
+    <%= link to: Routes.product_path(@conn, :index, org.name), class: "grid-item" do %>
+      <h3><%= org.name %></h3>
+      <div class="flex-row">
+        <div>
+          <div class="help-text">Total Products</div>
+          <div class="flex-row mt-1 align-items-center">
+            <img src="/images/icons/product.svg" alt="products" class="mr-1" style="margin-top: -1px" />
+            <p><%= count_org_products(@conn.assigns.user, org) %></p>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+</div>
+

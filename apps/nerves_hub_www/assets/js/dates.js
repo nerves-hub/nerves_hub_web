@@ -1,4 +1,6 @@
-let formatDateTime = datetime => {
+const moment = require('moment')
+
+const formatDateTime = datetime => {
   /*
     Safari wants strict iso8601 format "YYYY-MM-DDTHH:MM:SSZ",
     but elixir to_string default supplies as "YYYY-MM-DD HH:MM:SSZ".
@@ -9,11 +11,13 @@ let formatDateTime = datetime => {
     .split(' ')
     .join('T')
 
-  if (datetime == 'never' || datetime == '') {
+  if (datetime === 'never' || datetime === '') {
     return datetime
   } else {
-    const date = new Date(datetime)
-    return date.toLocaleString('en-US', { timeZoneName: 'short' })
+    return moment
+      .utc(datetime)
+      .local()
+      .format('MMM Do, YYYY [at] h:mma')
   }
 }
 

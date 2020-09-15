@@ -1,14 +1,36 @@
+.console-wrapper {
+  background: black;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
 .console {
   font-family: monospace;
-  text-align:left;
+  text-align: left;
   font-size: 16px;
-  padding: 4px;
+  padding: 0;
   background-color: black;
   color: white;
   overflow: auto;
   height: 400px;
   line-height: 1;
   left: auto;
+
+  .xterm {
+    height: 100%;
+  }
+
+  .xterm-viewport {
+    overflow: auto;
+  }
+
+  .xterm-screen,
+  .xterm-text-layer,
+  .xterm-selection-layer,
+  .xterm-link-layer,
+  .xterm-cursor-layer {
+    height: 100% !important;
+  }
 }
 
 .console-active-line {
@@ -20,8 +42,7 @@
 .console-input {
   color: inherit;
   font-family: inherit;
-  width: inherit;
-  border:none;
+  border: none;
   background-image:none;
   background-color:transparent;
   -webkit-box-shadow: none;

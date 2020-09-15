@@ -45,4 +45,4 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   server: true,
   force_ssl: [rewrite_on: [:x_forwarded_proto]]
 
-config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: false
+config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: true

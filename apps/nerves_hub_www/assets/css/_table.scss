@@ -1,0 +1,74 @@
+html {
+  .table {
+    color: white;
+
+    thead {
+      th {
+        border: none;
+        color: var(--white-50);
+        font-weight: 500;
+        font-size: 12px;
+        padding: 0 .3rem 1rem;
+
+        &.pointer {
+          cursor: pointer;
+        }
+      }
+    }
+
+    td {
+      border-bottom: 1px solid var(--border-dark);
+      border-top: none;
+      height: 60px;
+      vertical-align: middle;
+      font-size: 1rem;
+      line-height: 1.3rem;
+
+      &.actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+    }
+  }
+
+  .table-hover tbody tr:hover {
+    color: white;
+  }
+
+  .icon-caret {
+    background-image: url("/images/icons/chevron-down-white.svg");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    display: inline-block;
+    height: 9px;
+    margin-left: .5rem;
+    width: 16px;
+
+    &.icon-caret-up {
+      transform: rotate(180deg);
+    }
+  }
+
+  .table-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .deployment-state {
+    background-size: 1.5rem;
+    background-repeat: no-repeat;
+    background-position: left center;
+    padding-left: 2rem;
+    line-height: 1.5rem;
+
+    &.state-on {
+      background-image: url("/images/icons/check.svg");
+    }
+
+    &.state-off {
+      background-image: url("/images/icons/cross.svg");
+    }
+  }
+}

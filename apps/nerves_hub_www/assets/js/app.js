@@ -19,12 +19,22 @@ let socket = new Socket('/socket', { params: { token: window.userToken } })
 
 liveSocket.connect()
 
-document.querySelectorAll('.date-time').forEach(d => {
-  d.innerHTML = dates.formatDateTime(d.innerHTML)
+$(function() {
+  $('.custom-upload-input').on('change', function() {
+    let fileName = $(this)
+      .val()
+      .split('\\')
+      .pop()
+    $(this)
+      .siblings('.custom-upload-label')
+      .removeClass('not-selected')
+      .addClass('selected')
+      .html("Selected File: <div class='file-name'>" + fileName + '</div>')
+  })
 })
 
-$(function() {
-  $('[data-toggle="help-tooltip"]').tooltip()
+document.querySelectorAll('.date-time').forEach(d => {
+  d.innerHTML = dates.formatDateTime(d.innerHTML)
 })
 
 if (window.location.pathname.endsWith('console')) {

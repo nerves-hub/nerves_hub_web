@@ -1,4 +1,6 @@
-## Terms of Service
+<div class="pb-6"></div>
+
+# Terms of Service
 
 By accessing or using the nerves-hub.org websites, HTTP API, repository or associated services (collectively, the "Services") of nerves-hub.org ("NervesHub") you are agreeing to be bound by this Terms of Service ("Terms"). Any information, text, graphics or other material on Services (collectively, the "Content") is also covered by the Terms.
 

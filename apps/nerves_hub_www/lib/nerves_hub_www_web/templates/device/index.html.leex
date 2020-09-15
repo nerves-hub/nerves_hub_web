@@ -1,67 +1,126 @@
-<div class="row">
-  <div class="col">
-    <h2>
-      Devices
-    </h2>
+<%= if @devices == [] do %>
+  <div class="no-results-blowup-wrapper">
+    <img src="/images/device.svg" alt="No devices" />
+    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any devices yet</h3>
+    <div class="flex-row align-items-center mt-3">
+      <a class="btn btn-outline-light" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
+        Add Device
+        <div class="button-icon add"></div>
+      </a>
+    </div>
+    <p class="mt-3">Or follow <a class="strong inline" href="/">these steps</a> to add a device using the terminal.</p>
   </div>
-</div>
-<div class="row">
+<% else %>
+  <div class="flex-row justify-content-between">
+    <h1>
+      Devices
+    </h1>
+    <a class="btn btn-outline-light" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
+      Add Device
+      <div class="button-icon add"></div>
+    </a>
+  </div>
   <table class="table table-sm table-hover">
     <thead>
       <tr>
         <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
-        <th>Firmware Info</th>
-        <%= devices_table_header("Status", "status", @current_sort, @sort_direction) %>
-        <%= devices_table_header("Last Connection", "last_communication", @current_sort, @sort_direction) %>
+        <%= devices_table_header("Health", "healthy", @current_sort, @sort_direction) %>
+        <th>Connection</th>
+        <%= devices_table_header("Last Handshake", "last_communication", @current_sort, @sort_direction) %>
+        <th>Firmware</th>
+        <%= devices_table_header("Firmware Status", "status", @current_sort, @sort_direction) %>
         <%= devices_table_header("Tags", "tags", @current_sort, @sort_direction) %>
         <th></th>
       </tr>
     </thead>
     <%= for device <- @devices do %>
-        <tr class="item">
-          <td>
-            <a href="<%= Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="">
-              <%= device.identifier %>
-            </a>
-          </td>
-          <td>
-            <%= if Map.has_key?(device, :fwup_progress) && device.fwup_progress do %>
-              <div class="progress">
-                <div class="progress-bar progress-bar-striped" role="progressbar" style="width: <%= device.fwup_progress %>%"><%= device.fwup_progress %>%</div>
-              </div>
-            <% else %>
-              <%= if is_nil(device.firmware_metadata) do %>
-                unknown
-              <% else %>
-                <p>
-                  <strong>Version:</strong> <%= device.firmware_metadata.version %>
-                </p>
-                <p>
-                  <strong>UUID:</strong> <%= device.firmware_metadata.uuid %>
-                </p>
-              <% end %>
-            <% end %>
-          </td>
-          <td class="device">
-            <%= health_status_icon(device) %>
-            <%= device.status %>
-          </td>
+      <tr class="item">
+        <td>
+          <a href="<%= Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="badge healthy-<%= device.healthy %>">
+            <%= device.identifier %>
+          </a>
+        </td>
 
-          <td class="date-time">
-            <%= if is_nil(device.last_communication) do %>
-              never
+        <td>
+          <%= if device.healthy do %>
+            <span>Good</span>
+          <% else %>
+            <span class="quarantined">Quarantined</span>
+          <% end %>
+        </td>
+
+        <td>
+          <div class="ml-3">
+          <%= if device.status == "offline" do %>
+            <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
+          <% else %>
+            <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
+          <% end %>
+          </div>
+        </td>
+
+        <td>
+          <%= if is_nil(device.last_communication) do %>
+            <span class="color-white-50">Never</span>
+          <% else %>
+            <%= DateTimeFormat.from_now(device.last_communication) %>
+          <% end %>
+        </td>
+
+        <td>
+          <%= if Map.has_key?(device, :fwup_progress) && device.fwup_progress do %>
+            <div class="progress">
+              <div class="progress-bar progress-bar-striped" role="progressbar" style="width: <%= device.fwup_progress %>%"><%= device.fwup_progress %>%</div>
+            </div>
+          <% else %>
+            <%= if is_nil(device.firmware_metadata) do %>
+              <span class="color-white-50">Unknown</span>
             <% else %>
-              <%= device.last_communication %>
+              <span class="badge">
+                <%= device.firmware_metadata.version %>
+              </span>
             <% end %>
-          </td>
-          <td>
-            <span class="badge"><%= tags_to_string(device) %></span>
-          </td>
-          <td class="actions">
-            <%= link "", class: "fa fa-pencil-alt", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
-            <%= link "", class: "fa fa-trash-alt", to: Routes.device_path(@socket, :delete, @org.name, @product.name, device.identifier), method: :delete, data: [confirm: "Are you sure?"] %>
-          </td>
-        </tr>
-      <% end %>
+          <% end %>
+        </td>
+
+        <td class="tt-c-first-letter">
+          <%= cond do %>
+            <% device.status == "offline" -> %>
+              <span class="color-white-50">Unknown</span>
+            <% device.status == "online" -> %>
+              Up to date
+            <% true -> %>
+              <%= display_status(device.status) %>
+          <% end %>
+        </td>
+
+        <td>
+          <%= if !is_nil(device.tags) do %>
+            <%= for tag <- device.tags do %>
+              <span class="badge"><%= tag %></span>
+            <% end %>
+          <% end %>
+        </td>
+
+        <td class="actions">
+          <div class="dropdown options">
+            <a class="dropdown-toggle options" href="#" id="<%= device.identifier %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <img src="/images/icons/more.svg" alt="options" />
+            </a>
+            <div class="dropdown-menu dropdown-menu-right">
+              <%= link "details", class: "dropdown-item", to: Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" type="button" phx-click="reboot" phx-value-device-id="<%= device.id %>" <%= if device.status == "offline", do: "disabled" %> data-confirm="Are you sure?">
+                <span>Reboot</span>
+              </button>
+              <div class="dropdown-divider"></div>
+              <%= link "Console", to: Routes.device_path(@socket, :console, @org.name, @product.name, device.identifier), class: "dropdown-item #{unless Map.has_key?(device, :console_available) && device.console_available, do: "disabled"}" %>
+              <div class="dropdown-divider"></div>
+              <%= link "edit", class: "dropdown-item", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
+            </div>
+          </div>
+        </td>
+      </tr>
+    <% end %>
   </table>
-</div>
+<% end %>

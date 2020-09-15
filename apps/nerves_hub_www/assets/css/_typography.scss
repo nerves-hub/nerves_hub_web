@@ -1,0 +1,155 @@
+body {
+  h1,
+  .h1 {
+    font-size: 46px;
+    font-weight: 900;
+    text-transform: capitalize;
+    color: white;
+    line-height: 59px;
+    margin: 0 0 1.5rem;
+  }
+
+  h2,
+  .h2 {
+    font-size: 34px;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--text-dark);
+    opacity: .4;
+    line-height: 43px;
+    margin: 0;
+  }
+
+  h3,
+  .h3 {
+    font-size: 24px;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: white;
+    line-height: 30px;
+    margin: 0;
+
+    & + p {
+      margin-top: 1rem;
+    }
+  }
+
+  h4,
+  .h4,
+  .subtitle {
+    font-size: 24px;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--text-dark);
+    line-height: 30px;
+    margin: 0;
+  }
+
+  h5,
+  .h5 {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--white-50);
+  }
+
+  h6,
+  .h6,
+  .label {
+    color: var(--white-50);
+    font-size: .75rem;
+    font-weight: 300;
+    margin: 0;
+  }
+
+  p,
+  .body-text,
+  .p {
+    font-size: 18px;
+    font-weight: 500;
+    color: white;
+    line-height: 24px;
+
+    &:last-child {
+      margin: 0;
+    }
+
+    & + h3 {
+      margin-top: 2rem;
+    }
+  }
+
+  .body-text-small,
+  .p-small {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--white-75);
+    line-height: 19px;
+  }
+
+  .help-text {
+    font-size: 14px;
+    color: var(--white-50);
+    font-weight: 300;
+
+    &.large {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--white-50);
+    }
+  }
+
+  a {
+    color: white;
+    transition: color 200ms ease;
+    font-weight: 500;
+
+    &.inline {
+      color: var(--primary-light);
+
+      &:hover {
+        color: var(--primary-medium);
+      }
+    }
+
+    &:hover {
+      color: var(--primary-light);
+      text-decoration: none;
+    }
+  }
+
+  .color-primary {
+    color: var(--primary) !important;
+  }
+
+  .color-white {
+    color: white !important;
+  }
+
+  .color-white-50 {
+    color: var(--white-50);
+  }
+
+  .text-muted {
+    color: var(--white-50) !important;
+  }
+
+  .fw-b {
+    font-weight: bold;
+  }
+
+  .ta-c {
+    text-align: center;
+  }
+
+  .tt-u {
+    text-transform: uppercase;
+  }
+
+  .tt-c {
+    text-transform: capitalize;
+  }
+
+  .tt-c-first-letter:first-letter {
+    text-transform: capitalize;
+  }
+}

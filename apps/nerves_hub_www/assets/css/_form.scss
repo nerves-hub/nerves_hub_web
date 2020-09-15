@@ -1,0 +1,213 @@
+html {
+  .small-form {
+    width: 260px;
+    margin: auto;
+  }
+
+  .form-group {
+    max-width: 360px;
+    width: 100%;
+    margin: 0 0 2rem;
+    position: relative;
+
+    &:first-child {
+      margin-top: 0;
+    }
+
+    &.hidden {
+      display: none;
+    }
+  }
+
+  .form-control {
+    background: transparent;
+    color: white;
+    border: 1px solid var(--white-25);
+    height: 48px;
+    font-size: 16px;
+    font-weight: 400;
+
+    &:focus {
+      background: transparent;
+      border-color: white;
+      color: white;
+      outline: none;
+      box-shadow: none;
+    }
+
+    &:disabled {
+      background-color: var(--white-25);
+      opacity: .8;
+      cursor: not-allowed;
+    }
+  }
+
+  label {
+    font-size: 18px;
+    color: var(--white-50);
+    font-weight: 500;
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:hover,
+  textarea:-webkit-autofill:focus,
+  select:-webkit-autofill,
+  select:-webkit-autofill:hover,
+  select:-webkit-autofill:focus {
+    border: 1px solid var(--primary-50);
+    -webkit-text-fill-color: white;
+    -webkit-box-shadow: none;
+    transition: background-color 5000s ease-in-out 0s;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 16px;
+  }
+
+  .form-page-wrapper {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-top: 72px;
+    width: 100%;
+
+    .form-page {
+      display: flex;
+      flex-direction: column;
+      margin-top: 72px;
+      max-width: 360px;
+      width: 100%;
+    }
+
+    .form-title {
+      opacity: 1;
+      text-align: center;
+      color: white;
+    }
+
+    .forgot-password {
+      margin-top: 2px;
+    }
+
+    .help-text {
+      color: var(--white-50);
+      margin: 3.25rem 0 .75rem;
+      font-weight: 500;
+    }
+  }
+
+  .password-validation-wrapper {
+    list-style: none;
+    margin: -1rem 0 2rem;
+    padding: 0;
+
+    li {
+      margin: .5rem 0 0;
+      padding: 0 0 0 24px;
+      position: relative;
+
+      &:before {
+        background-color: #5B5D5F;
+        border-radius: 100%;
+        content: '';
+        display: inline-block;
+        height: .5rem;
+        left: 0;
+        position: absolute;
+        width: .5rem;
+        top: 7px;
+      }
+
+      &.validated:before {
+        background-color: transparent;
+        background-image: url("/images/icons/check.svg");
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: 20px;
+      }
+
+      &:last-child {
+        margin-top: 0;
+      }
+    }
+  }
+
+  select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+
+    & + .select-icon {
+      pointer-events: none;
+      width: 1.5rem;
+      height: 1.5rem;
+      background-image: url("/images/icons/dropdown-red.svg");
+      background-position: center;
+      background-repeat: no-repeat;
+      position: absolute;
+      right: .75rem;
+      bottom: .75rem;
+      margin: auto;
+    }
+  }
+
+  .has-error {
+    color: var(--danger);
+    margin-top: .25rem;
+    font-weight: 500;
+    font-size: 1rem;
+    text-transform: capitalize;
+  }
+
+  .custom-upload-group {
+    max-width: 100%;
+
+    label {
+      width: 35rem;
+      height: 12rem;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px dashed var(--white-50);
+      border-radius: 4px;
+      background: none;
+      position: static;
+      transition: border-color 200ms ease;
+      text-align: center;
+      color: white;
+      margin: 0;
+
+      &.selected {
+        color: var(--white-50);
+
+        .file-name {
+          color: white;
+          padding-top: .5rem;
+        }
+      }
+
+      &:after {
+        display: none;
+      }
+
+      &:hover {
+        border-color: white;
+      }
+    }
+
+    input {
+      height: 0;
+      opacity: 0;
+      margin: 0;
+      position: absolute;
+    }
+  }
+}

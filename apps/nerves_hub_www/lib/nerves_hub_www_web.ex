@@ -49,7 +49,6 @@ defmodule NervesHubWWWWeb do
       use Phoenix.LiveView
 
       alias NervesHubWebCore.{Repo, AuditLogs}
-      alias NervesHubWWWWeb.Router.Helpers, as: Routes
 
       alias NervesHubWWWWeb.{
         DeviceLive,
@@ -77,6 +76,16 @@ defmodule NervesHubWWWWeb do
       defp live_view_error(_) do
         "An error occurred while loading the view."
       end
+
+      unquote(view_helpers())
+    end
+  end
+
+  def live_component do
+    quote do
+      use Phoenix.LiveComponent
+
+      unquote(view_helpers())
     end
   end
 
@@ -86,18 +95,16 @@ defmodule NervesHubWWWWeb do
         root: "lib/nerves_hub_www_web/templates",
         namespace: NervesHubWWWWeb
 
-      # Import convenience functions from controllers
-      import Phoenix.Controller, only: [get_flash: 2, view_module: 1]
+      import PhoenixActiveLink
 
-      # Use all HTML functionality (forms, tags, etc)
-      use Phoenix.HTML
-
-      import NervesHubWWWWeb.ErrorHelpers
-      import NervesHubWWWWeb.Gettext
-      import Phoenix.LiveView.Helpers
-
-      alias NervesHubWWWWeb.Router.Helpers, as: Routes
       alias NervesHubWWWWeb.{DeviceLive, DeploymentLive, Endpoint}
+
+      # Import convenience functions from controllers
+      import Phoenix.Controller,
+        only: [get_flash: 1, get_flash: 2, view_module: 1, view_template: 1]
+
+      # Include shared imports and aliases for views
+      unquote(view_helpers())
     end
   end
 
@@ -136,6 +143,23 @@ defmodule NervesHubWWWWeb do
     quote do
       use Phoenix.Channel
       import NervesHubWWWWeb.Gettext
+    end
+  end
+
+  defp view_helpers do
+    quote do
+      # Use all HTML functionality (forms, tags, etc)
+      use Phoenix.HTML
+
+      # Import LiveView helpers (live_render, live_component, live_patch, etc)
+      import Phoenix.LiveView.Helpers
+
+      # Import basic rendering functionality (render, render_layout, etc)
+      import Phoenix.View
+
+      import NervesHubWWWWeb.ErrorHelpers
+      import NervesHubWWWWeb.Gettext
+      alias NervesHubWWWWeb.Router.Helpers, as: Routes
     end
   end
 

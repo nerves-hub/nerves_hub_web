@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="211px" height="230px" viewBox="0 0 211 230" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Group 2</title>
+    <g id="Workspace" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Workspace-/-Products-empty-state" transform="translate(-615.000000, -317.000000)" fill-rule="nonzero">
+            <g id="Group-2" transform="translate(615.000000, 317.000000)">
+                <path d="M105.003829,0 L0,62.1817778 L0,167.815667 L105.003829,230 L210,167.818222 L210,62.1817778 L105.003829,0 Z M199.22802,64.2594444 L105.003829,120.057444 L10.7745323,64.2594444 L105.003829,8.45888889 L199.22802,64.2594444 Z M7.26981001,70.6381111 L101.368924,126.362 L101.368924,219.386778 L7.26981001,163.665444 L7.26981001,70.6381111 Z" id="Shape" fill="#444849"></path>
+                <polygon id="Path" fill="#303234" transform="translate(155.319367, 145.012444) scale(-1, 1) translate(-155.319367, -145.012444) " points="108.26981 70.6381111 202.368924 126.362 202.368924 219.386778 108.26981 163.665444"></polygon>
+                <circle id="Oval" fill="#D41F1D" cx="105.5" cy="124.5" r="4.5"></circle>
+                <circle id="Oval-Copy" fill="#D41F1D" cx="206.5" cy="64.5" r="4.5"></circle>
+                <circle id="Oval-Copy-2" fill="#D41F1D" cx="105.5" cy="4.5" r="4.5"></circle>
+                <circle id="Oval-Copy-3" fill="#D41F1D" cx="4.5" cy="64.5" r="4.5"></circle>
+                <circle id="Oval-Copy-4" fill="#D41F1D" cx="4.5" cy="166.5" r="4.5"></circle>
+                <circle id="Oval-Copy-5" fill="#D41F1D" cx="105.5" cy="225.5" r="4.5"></circle>
+                <circle id="Oval-Copy-6" fill="#D41F1D" cx="205.5" cy="166.5" r="4.5"></circle>
+            </g>
+        </g>
+    </g>
+</svg>

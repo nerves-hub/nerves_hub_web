@@ -1,114 +1,54 @@
-<h1>
-  <%= @org.name %> settings
-  <a class="btn btn-lg btn-success pull-right" href="<%= Routes.org_certificate_path(@conn, :index, @org.name)%>">
-    Device (CA) Certificates
-  </a>
-  <%= if @org.type != :user do %>
-  <a class="btn btn-lg btn-success pull-right" href="<%= Routes.org_user_path(@conn, :index, @org.name) %>">
-    Users
-  </a>
-  <a class="btn btn-lg btn-success pull-right" href="<%= Routes.org_path(@conn, :invite, @org.name) %>">
-    Invite user
-  </a>
-  <% end %>
-</h1>
+<h1>Organization Settings</h1>
 
-<table class="table table-striped">
-  <div class="panel-heading">
-    Organization limits
+<div class="x4-grid">
+  <div>
+    <div class="help-text mb-1">Device Limit</div>
+    <p><%= @org_limit.devices %></p>
   </div>
-
-  <div class="panel-body">
-    <thead>
-      <tr>
-        <th>Device Limit</th>
-        <th>Firmware per Product</th>
-        <th>Firmware Size</th>
-        <th>Firmware Max Time to Live<th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      <td> <%= @org_limit.devices %> </td>
-      <td> <%= @org_limit.firmware_per_product %> </td>
-      <td> <%= humanize_size(@org_limit.firmware_size) %> </td>
-      <td> <%= humanize_seconds(@org_limit.firmware_ttl_seconds) %> </td>
-    </tbody>
+  <div>
+    <div class="help-text mb-1">Firmware per Product</div>
+    <p><%= @org_limit.firmware_per_product %></p>
   </div>
-</table>
-
-<%= if @org.type != :user do %>
-  <div class="panel panel-default">
-    <div class="panel-heading">
-      Profile
-    </div>
-
-    <div class="panel-body">
-        <%= form_for @org_changeset, Routes.org_path(@conn, :update, @org.name), fn f -> %>
-          <div class="form-group">
-            <label for="name_input">Name</label>
-            <%= text_input f, :name, class: "form-control", id: "name_input" %>
-            <div class="has-error"><%= error_tag f, :name %></div>
-          </div>
-
-          <%= submit "Update organization", class: "btn btn-primary" %>
-        <% end %>
-    </div>
+  <div>
+    <div class="help-text mb-1">Firmware Size</div>
+    <p><%= humanize_size(@org_limit.firmware_size) %></p>
   </div>
-<% end %>
-
-<div class="panel panel-default">
-  <div class="panel-heading">
-    Keys
-  </div>
-
-  <div class="panel-body">
-    <%= form_for @org_key_changeset, Routes.org_key_path(@conn, :create, @org.name), fn f -> %>
-      <div class="form-group">
-        <label for="key_name_input">Name</label>
-        <%= text_input f, :name, class: "form-control", id: "key_name_input" %>
-        <div class="has-error"><%= error_tag f, :name %></div>
-      </div>
-
-      <div class="form-group">
-        <label for="key_input">Key</label>
-        <%= textarea f, :key, rows: "8", class: "form-control", id: "key_input" %>
-        <div class="has-error"><%= error_tag f, :key %></div>
-      </div>
-
-      <%= submit "Create New Key", class: "btn btn-primary" %>
-    <% end %>
-
-    <hr>
-
-    <h3>Added Keys</h3>
-
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Key</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <%= if length(@org.org_keys) > 0 do %>
-      <%= for key <- @org.org_keys do %>
-        <tr>
-
-        <td>
-          <strong><%= key.name %></strong>
-        </td>
-        <td><%= key.key %></td>
-        <td class="text-right">
-          <%= link "Edit", to: Routes.org_key_path(@conn, :edit, @org.name, key), class: "btn btn-primary" %>
-          <%= link "Delete", to: Routes.org_key_path(@conn, :delete, @org.name, key), class: "btn btn-danger", method: :delete, data: [confirm: "Are you sure?"]  %>
-        </td>
-      <% end %>
-    <% else %>
-      <p>No keys added.</p>
-    <% end %>
-      </tbody>
-</table>
+  <div>
+    <div class="help-text mb-1">Firmware Max Time to Live</div>
+    <p><%= humanize_seconds(@org_limit.firmware_ttl_seconds) %></p>
   </div>
 </div>
+
+<div class="divider"></div>
+
+<%= if @org.type != :user do %>
+  <%= form_for @org_changeset, Routes.org_path(@conn, :update, @org.name), fn f -> %>
+    <div class="form-group">
+      <label for="name_input" class="tooltip-label">
+        <span>Organization Name</span>
+        <span class="tooltip-info"></span>
+        <span class="tooltip-text">Must be one word</span>
+      </label>
+      <%= text_input f, :name, class: "form-control", id: "name_input" %>
+      <div class="has-error"><%= error_tag f, :name %></div>
+    </div>
+    <%= submit "Save Changes", class: "btn btn-primary" %>
+  <% end %>
+<% else %>
+  <%= form_for @org_changeset, Routes.org_path(@conn, :update, @org.name), fn f -> %>
+  <div class="form-group">
+    <label for="name_input" class="tooltip-label">
+      <span>Organization Name</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">Your personal organization matches your username</span>
+    </label>
+    <%= text_input f, :name, class: "form-control", id: "name_input", disabled: "true" %>
+    <div class="has-error"><%= error_tag f, :name %></div>
+  </div>
+  <%= submit "Save Changes", class: "btn btn-primary", disabled: "true" %>
+  <% end %>
+<% end %>
+
+
+
+

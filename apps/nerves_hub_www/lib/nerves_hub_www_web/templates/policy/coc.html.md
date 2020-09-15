@@ -1,4 +1,6 @@
-## Code of Conduct
+<div class="pb-6"></div>
+
+# Code of Conduct
 
 NervesHub exists to facilitate sharing firmware, by making it easy for Nerves  developers to publish firmware and manage embedded devices.
 

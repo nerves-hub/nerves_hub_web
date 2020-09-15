@@ -1,49 +1,44 @@
-<div class="row">
-  <div class="col">
-    <h2>
-      User Roles
-    </h2>
-  </div>
+<div class="flex-row justify-content-between">
+  <h1>
+    Users
+  </h1>
   <%= if @org.type != :user do %>
-  <div class="col-3 mr-auto table-head-link">
-    <a href="<%= Routes.org_path(@conn, :invite, @org.name) %>">
-      <span class="fa fa-plus fa-fw mr-3"></span>
-      <span class="text">Invite user</span>
+    <a class="btn btn-outline-light" href="<%= Routes.org_path(@conn, :invite, @org.name) %>">
+      Add New User
+      <div class="button-icon add"></div>
     </a>
-  </div>
   <% end %>
 </div>
-<div class="row">
-  <table class="table table-sm table-hover">
-    <thead>
-      <tr>
-        <th>User Name</th>
-        <th>Email</th>
-        <th>Role</th>
-        <th>Date Added</th>
-        <th>Date Updated</th>
+
+<%= if @org.type == :user do %>
+  <h5 class="mb-6">This is your own personal organization, additional users cannot be invited. <a class="inline" href="<%= Routes.org_path(@conn, :new) %>">Create a new organization</a> to collaborate with others.</h5>
+<% end %>
+
+<table class="table table-sm table-hover">
+  <thead>
+    <tr>
+      <th>User Name</th>
+      <th>Email</th>
+      <th>Role</th>
+      <th>Added On</th>
+    </tr>
+  </thead>
+  <tbody>
+    <%= for org_user <- @org_users do %>
+      <tr class="item">
+        <td>
+          <%= org_user.user.username %>
+        </td>
+        <td>
+          <%= org_user.user.email %>
+        </td>
+        <td class="tt-c">
+          <%= org_user.role %>
+        </td>
+        <td class="date-time">
+          <%= org_user.user.inserted_at %>
+        </td>
       </tr>
-    </thead>
-    <tbody>
-      <%= for org_user <- @org_users do %>
-        <tr class="item">
-          <td>
-            <%= org_user.user.username %>
-          </td>
-          <td>
-            <%= org_user.user.email %>
-          </td>
-          <td>
-            <%= org_user.role %>
-          </td>
-          <td>
-            <%= org_user.user.inserted_at %>
-          </td>
-          <td>
-            <%= org_user.user.updated_at %>
-          </td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
-</div>
+    <% end %>
+  </tbody>
+</table>

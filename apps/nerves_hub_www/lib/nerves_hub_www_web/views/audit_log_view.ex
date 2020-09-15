@@ -1,21 +1,11 @@
 defmodule NervesHubWWWWeb.AuditLogView do
   use NervesHubWWWWeb, :view
 
+  alias NervesHubWWWWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
   import NervesHubWWWWeb.LayoutView, only: [pagination_links: 2]
 
   def actor_link(%{actor_id: id, actor_type: type}, current_id) do
     link_to_resource(type, id, current_id, "audit-log-actor")
-  end
-
-  def audit_log_icon(%{action: action}) do
-    icon_name =
-      case action do
-        :update -> "pencil-alt"
-        :create -> "plus-circle"
-        :delete -> "trash-alt"
-      end
-
-    content_tag(:i, "", class: "fas fa-#{icon_name} audit-action-icon", title: action)
   end
 
   def audit_log_info(audit_log) do

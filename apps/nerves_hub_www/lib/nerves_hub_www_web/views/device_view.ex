@@ -2,8 +2,7 @@ defmodule NervesHubWWWWeb.DeviceView do
   use NervesHubWWWWeb, :view
 
   alias NervesHubDevice.Presence
-
-  import NervesHubWWWWeb.LayoutView, only: [health_status_icon: 1]
+  alias NervesHubWWWWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
 
   def architecture_options do
     [
@@ -23,13 +22,21 @@ defmodule NervesHubWWWWeb.DeviceView do
     caret_class = if sort_direction == :asc, do: "up", else: "down"
 
     content_tag(:th, phx_click: "sort", phx_value_sort: value, class: "pointer sort-selected") do
-      [title, content_tag(:i, "", class: "fa fa-caret-#{caret_class}")]
+      [title, content_tag(:i, "", class: "icon-caret icon-caret-#{caret_class}")]
     end
   end
 
   def devices_table_header(title, value, _current_sort, _sort_direction) do
     content_tag(:th, title, phx_click: "sort", phx_value_sort: value, class: "pointer")
   end
+
+  def display_status(status) when is_binary(status) do
+    status
+    |> String.split("-")
+    |> Enum.join(" ")
+  end
+
+  def display_status(_), do: nil
 
   def platform_options do
     [

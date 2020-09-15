@@ -1,26 +1,31 @@
-<div class="page-header">
-  <h1>Create a Device</h1>
-</div>
+<h1>Add Device</h1>
 
 <%= form_for @changeset, Routes.device_path(@conn, :create, @org.name, @product.name), fn f -> %>
   <div class="form-group">
-    <label for="identifier">Identifier</label>
-    <%= text_input f, :identifier, class: "form-control", id: "identifier" %>
+    <label for="identifier_input" class="tooltip-label h3 mb-1">
+      <span>ID</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">Device ID cannot be changed once created</span>
+    </label>
+    <%= text_input f, :identifier, class: "form-control", id: "identifier_input" %>
     <div class="has-error"><%= error_tag f, :identifier %></div>
   </div>
 
   <div class="form-group">
-    <label for="description">Description</label>
-    <%= text_input f, :description, class: "form-control", id: "description" %>
+    <label for="description_input" class="tooltip-label h3 mb-1">
+      <span>Description</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">Description for this device</span>
+    </label>
+    <%= text_input f, :description, class: "form-control", id: "description_input" %>
     <div class="has-error"><%= error_tag f, :description %></div>
   </div>
 
-  <div class="form-group">
-    <label for="tags">Tags</label>
-    <%= text_input f, :tags, class: "form-control", id: "tags" %>
-    <div class="has-error"><%= error_tag f, :tags %></div>
+  <div class="form-group hidden" aria-hidden="true">
+    <%= text_input f, :tags, class: "form-control", id: "group_input", value: "all" %>
   </div>
 
-  <%= submit "Create", class: "btn btn-large btn-primary" %>
-  <a class="btn btn-secondary" href="<%= Routes.device_path(@conn, :index, @org.name, @product.name) %>">Cancel</a>
+  <div class="button-submit-wrapper">
+    <%= submit "Add Device", class: "btn btn-primary" %>
+  </div>
 <% end %>

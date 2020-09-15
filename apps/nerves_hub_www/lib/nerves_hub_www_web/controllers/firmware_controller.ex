@@ -17,6 +17,10 @@ defmodule NervesHubWWWWeb.FirmwareController do
     render(conn, "index.html", firmwares: firmwares)
   end
 
+  def show(%{assigns: %{firmware: firmware}} = conn, _params) do
+    render(conn, "show.html", firmware: firmware)
+  end
+
   def upload(conn, _params) do
     conn
     |> render("upload.html", changeset: %Changeset{data: %Firmware{}})
@@ -41,7 +45,7 @@ defmodule NervesHubWWWWeb.FirmwareController do
       {:error, :invalid_signature} ->
         render_error(
           conn,
-          "Firmware corrupt, signature invalid or missing public key",
+          "Firmware corrupt, signature invalid, or missing public key",
           %Changeset{data: %Firmware{}}
         )
 

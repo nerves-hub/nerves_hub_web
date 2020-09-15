@@ -1,15 +1,14 @@
-<h2>Show Product
+<h1>Show Product
   <a class="btn btn-lg btn-primary pull-right" href="<%= Routes.device_path(@conn, :new, @org.name, @product.name) %>">
     Add Device
   </a>
-</h2>
-<ul>
+</h1>
 
+<ul>
   <li>
     <strong>Name:</strong>
     <%= @product.name %>
   </li>
-
   <a class="btn btn-lg btn-primary pull-right" href="<%= Routes.firmware_path(@conn, :index, @org.name, @product.name) %>">
  View Firmware
   </a>

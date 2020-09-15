@@ -12,7 +12,7 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
     test "renders form with valid request params", %{conn: conn, org: org, product: product} do
       new_conn = get(conn, Routes.device_path(conn, :new, org.name, product.name))
 
-      assert html_response(new_conn, 200) =~ "Create a Device"
+      assert html_response(new_conn, 200) =~ "Add Device"
     end
   end
 

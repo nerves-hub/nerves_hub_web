@@ -82,20 +82,22 @@ defmodule NervesHubWWWWeb.Router do
       get("/users", OrgUserController, :index)
 
       resources("/keys", OrgKeyController)
+    end
 
-      scope "/account" do
-        get("/", AccountController, :edit)
-        put("/", AccountController, :update)
+    scope "/account/:user_name" do
+      get("/", AccountController, :edit)
+      put("/", AccountController, :update)
 
-        scope "/certificates" do
-          get("/", AccountCertificateController, :index)
-          get("/new", AccountCertificateController, :new)
-          get("/:id", AccountCertificateController, :show)
-          delete("/:id", AccountCertificateController, :delete)
-          post("/create", AccountCertificateController, :create)
-          get("/:id/download", AccountCertificateController, :download)
-        end
+      scope "/certificates" do
+        get("/", AccountCertificateController, :index)
+        get("/new", AccountCertificateController, :new)
+        get("/:id", AccountCertificateController, :show)
+        delete("/:id", AccountCertificateController, :delete)
+        post("/create", AccountCertificateController, :create)
+        get("/:id/download", AccountCertificateController, :download)
       end
+
+      get("/organizations", OrgController, :index)
     end
 
     get("/org/new", OrgController, :new)
@@ -105,7 +107,7 @@ defmodule NervesHubWWWWeb.Router do
       pipe_through(:org)
 
       get("/", ProductController, :index)
-
+      put("/", ProductController, :update)
       get("/new", ProductController, :new)
       post("/", ProductController, :create)
 
@@ -113,6 +115,7 @@ defmodule NervesHubWWWWeb.Router do
         pipe_through(:product)
 
         get("/", ProductController, :show)
+        get("/edit", ProductController, :edit)
         delete("/", ProductController, :delete)
 
         scope "/devices" do
@@ -140,7 +143,8 @@ defmodule NervesHubWWWWeb.Router do
           scope "/:firmware_uuid" do
             pipe_through(:firmware)
 
-            get("/", FirmwareController, :download)
+            get("/", FirmwareController, :show)
+            get("/download", FirmwareController, :download)
             delete("/", FirmwareController, :delete)
           end
         end

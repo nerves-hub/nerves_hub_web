@@ -85,6 +85,23 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
+  def handle_event(
+        "reboot",
+        %{"device-id" => device_id},
+        %{assigns: %{devices: devices, user: user}} = socket
+      ) do
+    user = Repo.preload(user, :org_users)
+
+    device_id = String.to_integer(device_id)
+    device_index = Enum.find_index(devices, fn device -> device.id == device_id end)
+    device = Enum.at(devices, device_index)
+
+    case Enum.find(user.org_users, &(&1.org_id == device.org_id)) do
+      %{role: :admin} -> do_reboot(socket, :allowed, device, device_index)
+      _ -> do_reboot(socket, :blocked, device, device_index)
+    end
+  end
+
   def handle_info(
         %Broadcast{event: "presence_diff", payload: payload},
         %{assigns: %{devices: devices}} = socket
@@ -128,7 +145,14 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
       cond do
         meta = joins[id] ->
-          fields = [:firmware_metadata, :last_communication, :status, :fwup_progress]
+          fields = [
+            :firmware_metadata,
+            :last_communication,
+            :status,
+            :fwup_progress,
+            :console_available
+          ]
+
           updates = Map.take(meta, fields)
           Map.merge(device, updates)
 
@@ -147,5 +171,40 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
           device
       end
     end
+  end
+
+  defp do_reboot(socket, :allowed, device, device_index) do
+    AuditLogs.audit!(socket.assigns.user, device, :update, %{reboot: true})
+
+    socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
+
+    devices =
+      List.replace_at(socket.assigns.devices, device_index, %{device | status: "reboot-requested"})
+
+    socket =
+      socket
+      |> put_flash(:info, "Device Reboot Requested")
+      |> assign(:devices, devices)
+
+    {:noreply, socket}
+  end
+
+  defp do_reboot(socket, :blocked, device, device_index) do
+    msg = "User not authorized to reboot this device"
+
+    AuditLogs.audit!(socket.assigns.user, device, :update, %{
+      reboot: false,
+      message: msg
+    })
+
+    devices =
+      List.replace_at(socket.assigns.devices, device_index, %{device | status: "reboot-blocked"})
+
+    socket =
+      socket
+      |> put_flash(:error, msg)
+      |> assign(:devices, devices)
+
+    {:noreply, socket}
   end
 end

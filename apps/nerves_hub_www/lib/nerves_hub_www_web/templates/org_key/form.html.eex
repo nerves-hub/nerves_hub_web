@@ -6,16 +6,25 @@
   <% end %>
 
   <div class="form-group">
-    <%= label f, :name %>
-    <%= text_input f, :name , class: "form-control", id: "identifier" %>
+    <%= label f, :name, for: "name_input" %>
+    <%= text_input f, :name , class: "form-control", id: "name_input" %>
     <div class="has-error"><%= error_tag f, :name %></div>
   </div>
+
   <div class="form-group">
-    <%= label f, :key %>
-    <%= text_input f, :key , class: "form-control", id: "identifier" %>
+    <%= label f, :key, for: "key_input" %>
+    <%= text_input f, :key , class: "form-control", id: "key_input" %>
     <div class="has-error"><%= error_tag f, :key %></div>
   </div>
-  <div>
-    <%= submit "Save", class: "btn btn-primary" %>
+
+  <div class="button-submit-wrapper">
+    <%= link "Back", to: Routes.org_key_path(@conn, :index, @org.name), class: "btn btn-outline-light" %>
+    <%= if assigns[:org_key] do %>
+      <%= link "Remove", to: Routes.org_key_path(@conn, :delete, @org.name, @org_key), method: :delete, data: [confirm: "Are you sure you want to delete this firmware key? This can not be undone."], class: "btn btn-secondary" %>
+      <%= submit "Save Changes", class: "btn btn-primary" %>
+    <% else %>
+      <%= submit "Create Key", class: "btn btn-primary" %>
+    <% end %>
+
   </div>
 <% end %>

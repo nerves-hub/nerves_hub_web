@@ -1,0 +1,31 @@
+<%= form_for @changeset, Routes.product_path(@conn, :create, @org.name), fn f -> %>
+  <%= if @changeset.action do %>
+    <div class="alert alert-danger">
+      <p>Oops, something went wrong! Please check the errors below.</p>
+    </div>
+  <% end %>
+
+  <div class="form-group">
+    <label for="name_input" class="tooltip-label">
+      <span>Name</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">Once created, a product name cannot be changed</span>
+    </label>
+    <%= if assigns[:product] do %>
+      <%= text_input f, :name, class: "form-control", disabled: "true", id: "name_input" %>
+    <% else %>
+      <%= text_input f, :name, class: "form-control", id: "name_input" %>
+    <% end %>
+    <div class="has-error"><%= error_tag f, :name %></div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <%= if assigns[:product] do %>
+      <%= link "Remove Product", class: "btn btn-secondary", to: Routes.product_path(@conn, :delete, @org.name, @product.name), method: :delete, data: [confirm: "Are you sure you want to delete this product? This can not be undone."] %>
+      <%= submit "Save Changes", class: "btn btn-primary", disabled: "true" %>
+    <% else %>
+      <%= submit "Create Product", class: "btn btn-primary" %>
+    <% end %>
+
+  </div>
+<% end %>

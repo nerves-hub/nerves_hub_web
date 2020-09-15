@@ -2,12 +2,17 @@ defmodule NervesHubWWWWeb.OrgController do
   use NervesHubWWWWeb, :controller
 
   alias Ecto.Changeset
-  alias NervesHubWebCore.Accounts.Email
   alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.Accounts.Email
   alias NervesHubWebCore.Accounts.{Invite, OrgKey, OrgUser}
   alias NervesHubWebCore.Mailer
 
   plug(:validate_role, [org: :admin] when action in [:edit, :update, :invite])
+
+  def index(conn, _params) do
+    orgs = Accounts.get_user_orgs(conn.assigns.user)
+    render(conn, "index.html", orgs: orgs)
+  end
 
   def new(conn, _params) do
     changeset = Accounts.Org.creation_changeset(%Accounts.Org{}, %{})
@@ -73,7 +78,7 @@ defmodule NervesHubWWWWeb.OrgController do
 
         conn
         |> put_flash(:info, "User has been invited")
-        |> redirect(to: Routes.org_path(conn, :edit, org.name))
+        |> redirect(to: Routes.org_user_path(conn, :index, conn.assigns.org.name))
 
       {:ok, %OrgUser{}} ->
         Email.org_user_created(invite_params["email"], org)
@@ -81,7 +86,7 @@ defmodule NervesHubWWWWeb.OrgController do
 
         conn
         |> put_flash(:info, "User has been added to #{org.name}")
-        |> redirect(to: Routes.org_path(conn, :edit, org.name))
+        |> redirect(to: Routes.org_user_path(conn, :index, conn.assigns.org.name))
 
       {:error, changeset} ->
         render(conn, "invite.html",
