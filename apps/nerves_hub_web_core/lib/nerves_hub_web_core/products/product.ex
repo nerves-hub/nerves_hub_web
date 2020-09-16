@@ -2,6 +2,7 @@ defmodule NervesHubWebCore.Products.Product do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias NervesHubWebCore.Devices.Device
   alias NervesHubWebCore.Accounts.Org
   alias NervesHubWebCore.Firmwares.Firmware
   alias NervesHubWebCore.Products.ProductUser
@@ -10,6 +11,7 @@ defmodule NervesHubWebCore.Products.Product do
   @optional_params []
 
   schema "products" do
+    has_many(:devices, Device)
     has_many(:firmwares, Firmware)
     has_many(:product_users, ProductUser)
     has_many(:users, through: [:product_users, :user])
@@ -47,6 +49,7 @@ defmodule NervesHubWebCore.Products.Product do
   def delete_changeset(product, params \\ %{}) do
     product
     |> cast(params, @required_params ++ @optional_params)
+    |> no_assoc_constraint(:devices, message: "Product has associated devices")
     |> no_assoc_constraint(:firmwares, message: "Product has associated firmwares")
   end
 end
