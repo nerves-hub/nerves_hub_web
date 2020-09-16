@@ -83,6 +83,9 @@ defmodule NervesHubWWWWeb.Router do
       get("/certificates/new", OrgCertificateController, :new)
       delete("/certificates/:serial", OrgCertificateController, :delete)
       get("/users", OrgUserController, :index)
+      get("/users/:user_id", OrgUserController, :edit)
+      put("/users/:user_id", OrgUserController, :update)
+      delete("/users/:user_id", OrgUserController, :delete)
 
       resources("/keys", OrgKeyController)
     end
