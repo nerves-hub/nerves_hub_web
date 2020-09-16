@@ -38,6 +38,20 @@
         <td class="date-time">
           <%= org_user.user.inserted_at %>
         </td>
+        <%= if org_user.user.id != assigns.user.id do %>
+          <td class="actions">
+            <div class="dropdown options">
+              <a class="dropdown-toggle options" href="#" id="<%= org_user.id %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <img src="/images/icons/more.svg" alt="options" />
+              </a>
+              <div class="dropdown-menu dropdown-menu-right">
+                <%= link "edit", class: "dropdown-item", to: Routes.org_user_path(@conn, :edit, @org.name, org_user.user_id) %>
+                <div class="dropdown-divider"></div>
+                <%= link "Delete", class: "dropdown-item", to: Routes.org_user_path(@conn, :delete, @org.name, org_user.user_id), method: :delete, data: [confirm: "Are you sure you want to remove this user? This can not be undone."] %>
+              </div>
+            </div>
+          </td>
+        <% end %>
       </tr>
     <% end %>
   </tbody>
