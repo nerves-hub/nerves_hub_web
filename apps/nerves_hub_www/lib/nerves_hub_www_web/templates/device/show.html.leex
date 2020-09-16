@@ -9,8 +9,18 @@
       <span class="button-icon left-icon console-icon"></span>
       <span>Console</span>
     <% end %>
+    <%= form_for %Plug.Conn{}, "#", [phx_submit: "toggle_health_state"], fn _f -> %>
+      <%= submit class: "btn btn-outline-light" do %>
+        <span class="button-icon left-icon quarantine"></span>
+        <span><%= if @device.healthy, do: "Quarantine", else: "Unquarantine" %></span>
+      <% end %>
+    <% end %>
+    <%= link class: "btn btn-outline-light", to: Routes.device_path(@socket, :delete, @org.name, @product.name, @device.identifier), method: :delete, data: [confirm: "Are you sure?"] do %>
+      <span class="button-icon left-icon delete"></span>
+      <span>Delete</span>
+    <% end %>
     <%= link to: Routes.device_path(@socket, :edit, @org.name, @product.name, @device.identifier), class: "btn btn-outline-light" do %>
-      <span class="button-icon left-icon edit opacity-75"></span>
+      <span class="button-icon left-icon edit"></span>
       <span>Edit</span>
     <% end %>
   </div>

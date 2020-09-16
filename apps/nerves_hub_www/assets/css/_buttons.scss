@@ -39,8 +39,8 @@ html {
     background-repeat: no-repeat;
     background-size: contain;
     background-position: center;
-    width: 16px;
-    height: 16px;
+    width: 1rem;
+    height: 1rem;
     margin-left: .75rem;
     display: inline-block;
     opacity: .75;
@@ -72,6 +72,10 @@ html {
 
     &.delete {
       background-image: url("/images/icons/trash.svg");
+    }
+
+    &.quarantine {
+      background-image: url("/images/icons/quarantine.svg");
     }
   }
 
