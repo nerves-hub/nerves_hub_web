@@ -21,8 +21,8 @@
   <tbody>
     <%= for cert <- @certificates do %>
       <tr class="item">
-        <td>
-          <%= cert.serial %>
+        <td style="max-width: 200px;">
+          <code class="color-white wb-ba"><%= cert.serial %></code>
         </td>
         <td>
           <%= cert.description %>
@@ -34,10 +34,10 @@
             <span class="text-muted">Never</span>
           <% end %>
         </td>
-        <td>
+        <td class="date-time">
           <%= cert.not_before %>
         </td>
-        <td>
+        <td class="date-time">
           <%= cert.not_after %>
         </td>
         <td class="actions">

@@ -50,6 +50,7 @@ body {
     font-size: 18px;
     font-weight: 500;
     color: var(--white-50);
+    line-height: 28px;
   }
 
   h6,
@@ -151,5 +152,9 @@ body {
 
   .tt-c-first-letter:first-letter {
     text-transform: capitalize;
+  }
+
+  .wb-ba {
+    word-break: break-all;
   }
 }
