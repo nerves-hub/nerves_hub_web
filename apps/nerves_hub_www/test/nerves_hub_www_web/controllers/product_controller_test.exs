@@ -50,24 +50,31 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
       assert html_response(conn, 404)
     end
 
-    test "error when product has associated firmwares", %{
+    test "error when product has associated firmwares and devices", %{
       conn: conn,
       org: org,
       product: product
     } do
       # Create a firmware for the product
       org_key = Fixtures.org_key_fixture(org)
-      Fixtures.firmware_fixture(org_key, product)
-
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      Fixtures.device_fixture(org, product, firmware)
       redirect_path = Routes.product_path(conn, :index, org.name)
 
-      conn =
+      do_delete = fn ->
         conn
         |> Plug.Conn.put_req_header("referer", redirect_path)
         |> delete(Routes.product_path(conn, :delete, org.name, product.name))
+      end
 
-      assert redirected_to(conn) == redirect_path
-      assert get_flash(conn, :error) =~ "Product has associated firmwares"
+      result = do_delete.()
+      assert redirected_to(result) == redirect_path
+      assert get_flash(result, :error) =~ "Product has associated firmwares"
+
+      NervesHubWebCore.Firmwares.delete_firmware(firmware)
+      result = do_delete.()
+      assert redirected_to(result) == redirect_path
+      assert get_flash(result, :error) =~ "Product has associated devices"
     end
   end
 
