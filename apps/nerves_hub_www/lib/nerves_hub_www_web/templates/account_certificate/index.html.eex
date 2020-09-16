@@ -16,8 +16,8 @@
     <td>
       <%= cert.description %>
     </td>
-    <td>
-      <%= cert.serial %>
+    <td style="max-width: 200px;">
+      <code class="color-white wb-ba"><%= cert.serial %></code>
     </td>
     <td>
       <%= if !is_nil(cert.last_used) do %>
