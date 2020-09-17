@@ -56,6 +56,8 @@ defmodule NervesHubWWWWeb do
         Endpoint
       }
 
+      alias NervesHubWWWWeb.Router.Helpers, as: Routes
+
       alias Phoenix.Socket.Broadcast
 
       defp socket_error(socket, error, opts \\ []) do
