@@ -35,23 +35,25 @@ html {
     font-size: 1.125rem;
   }
 
+  .action-text + .button-icon {
+    margin-left: .75rem;
+  }
+
   .button-icon {
     background-repeat: no-repeat;
     background-size: contain;
     background-position: center;
     width: 1rem;
     height: 1rem;
-    margin-left: .75rem;
     display: inline-block;
     opacity: .75;
 
-    &.left-icon {
-      margin-left: 0;
-      margin-right: .75rem;
+    & + .action-text {
+      margin-left: .75rem;
     }
 
     &.add {
-      background-image: url("/images/icons/add-75.svg");
+      background-image: url("/images/icons/add.svg");
     }
 
     &.power {
@@ -93,5 +95,21 @@ html {
     padding: 0.25rem 0.5rem;
     height: auto;
     min-width: 2rem;
+  }
+
+  .btn-action {
+
+    @media (max-width: 860px) {
+      min-width: 3.5rem;
+
+      .action-text {
+        display: none;
+      }
+
+      .button-icon {
+        margin: 0 !important;
+        opacity: 1;
+      }
+    }
   }
 }

@@ -3,18 +3,18 @@
     <img src="/images/deployment.svg" alt="No products" />
     <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any deployments yet</h3>
     <div class="flex-row align-items-center mt-3">
-      <a class="btn btn-outline-light" href="<%= Routes.deployment_path(@conn, :new, @org.name, @product.name)%>">
-        Create Deployment
-        <div class="button-icon add"></div>
+      <a class="btn btn-outline-light" aria-label="Create deployment" href="<%= Routes.deployment_path(@conn, :new, @org.name, @product.name)%>">
+        <span class="action-text">Create Deployment</span>
+        <span class="button-icon add"></span>
       </a>
     </div>
   </div>
 <% else %>
-  <div class="flex-row justify-content-between">
+  <div class="action-row">
     <h1>Deployments</h1>
-    <a class="btn btn-outline-light" href="<%= Routes.deployment_path(@conn, :new, @org.name, @product.name)%>">
-      Create Deployment
-      <div class="button-icon add"></div>
+    <a class="btn btn-outline-light btn-action" aria-label="Create deployment" href="<%= Routes.deployment_path(@conn, :new, @org.name, @product.name)%>">
+      <span class="button-icon add"></span>
+      <span class="action-text">Create Deployment</span>
     </a>
   </div>
 
@@ -30,24 +30,47 @@
     </thead>
     <%= for deployment <- @deployments do %>
       <tr class="item">
-        <td><a href="<%= Routes.deployment_path(@conn, :show, @org.name, @product.name, deployment.name) %>"><%= deployment.name %></a></td>
         <td>
+          <div class="mobile-label help-text">Name</div>
+          <div>
+            <a href="<%= Routes.deployment_path(@conn, :show, @org.name, @product.name, deployment.name) %>"><%= deployment.name %></a>
+          </div>
+        </td>
+        <td>
+          <div class="mobile-label help-text">State</div>
           <div class="deployment-state state-<%= if deployment.is_active, do: "on", else: "off" %>">
             <%= if deployment.is_active, do: "On", else: "Off" %>
           </div>
         </td>
-        <td><span class="badge"><%= firmware_display_name(deployment.firmware) %></span></td>
         <td>
-          <%= for tag <- tags(deployment) do %>
-            <span class="badge">
-              <%= tag %>
-            </span>
-          <% end %>
+          <div class="mobile-label help-text">Firmware version</div>
+          <div>
+            <span class="badge"><%= firmware_display_name(deployment.firmware) %></span>
+          </div>
         </td>
-        <td><%= version(deployment) %></td>
+        <td>
+          <div class="mobile-label help-text">Distributed to</div>
+          <div>
+            <%= if Enum.count(tags(deployment)) > 0 do %>
+              <%= for tag <- tags(deployment) do %>
+                <span class="badge">
+                  <%= tag %>
+                </span>
+              <% end %>
+            <% else %>
+              -
+            <% end %>
+          </div>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Version requirement</div>
+          <%= version(deployment) %>
+        </td>
         <td class="actions">
+          <div class="mobile-label help-text">Actions</div>
           <div class="dropdown options">
             <a class="dropdown-toggle options" href="#" id="<%= deployment.id %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <div class="mobile-label pr-2">Open</div>
               <img src="/images/icons/more.svg" alt="options" />
             </a>
             <div class="dropdown-menu dropdown-menu-right">

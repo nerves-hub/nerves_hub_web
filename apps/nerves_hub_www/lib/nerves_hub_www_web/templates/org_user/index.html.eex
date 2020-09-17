@@ -1,11 +1,9 @@
-<div class="flex-row justify-content-between">
-  <h1>
-    Users
-  </h1>
+<div class="action-row">
+  <h1>Users</h1>
   <%= if @org.type != :user do %>
-    <a class="btn btn-outline-light" href="<%= Routes.org_path(@conn, :invite, @org.name) %>">
-      Add New User
-      <div class="button-icon add"></div>
+    <a class="btn btn-outline-light btn-action" aria-label="Add new user" href="<%= Routes.org_path(@conn, :invite, @org.name) %>">
+      <span class="button-icon add"></span>
+      <span class="action-text">Add New User</span>
     </a>
   <% end %>
 </div>
@@ -17,26 +15,30 @@
 <table class="table table-sm table-hover">
   <thead>
     <tr>
-      <th>User Name</th>
+      <th>User name</th>
       <th>Email</th>
       <th>Role</th>
-      <th>Added On</th>
+      <th>Added on</th>
     </tr>
   </thead>
   <tbody>
     <%= for org_user <- @org_users do %>
       <tr class="item">
         <td>
+          <div class="mobile-label help-text">User name</div>
           <%= org_user.user.username %>
         </td>
         <td>
+          <div class="mobile-label help-text">Email</div>
           <%= org_user.user.email %>
         </td>
         <td class="tt-c">
+          <div class="mobile-label help-text">Role</div>
           <%= org_user.role %>
         </td>
-        <td class="date-time">
-          <%= org_user.user.inserted_at %>
+        <td>
+          <div class="mobile-label help-text">Added on</div>
+          <div class="date-time"><%= org_user.user.inserted_at %></div>
         </td>
       </tr>
     <% end %>

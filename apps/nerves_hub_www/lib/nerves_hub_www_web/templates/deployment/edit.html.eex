@@ -64,8 +64,8 @@
     Show Advanced Options
   </button>
 
-  <div class="x2-grid form collapse" id="advancedOptionsToggle">
-    <div class="form-group gc-span-2">
+  <div class="x2-grid deployment-form collapse" id="advancedOptionsToggle">
+    <div class="form-group">
       <label for="version_requirement">Version requirement</label>
       <%= text_input f, :version,
         class: "form-control",

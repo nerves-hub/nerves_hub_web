@@ -318,6 +318,10 @@ html {
       grid-template-columns: 1fr 1fr;
     }
 
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+    }
+
     .grid-item {
       border: 1px solid var(--white-50);
       border-radius: 4px;
@@ -332,8 +336,8 @@ html {
         border-color: white;
       }
 
-      .icon {
-
+      h3 {
+        word-break: break-all;
       }
     }
   }
@@ -343,6 +347,14 @@ html {
     grid-template-columns: 1fr 1fr 1fr 1fr;
     grid-column-gap: 2rem;
     grid-row-gap: 2rem;
+
+    @media (max-width: 860px) {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+    }
   }
 
   .x2-grid {
@@ -351,15 +363,35 @@ html {
     grid-column-gap: 2rem;
     grid-row-gap: 2rem;
 
-    &.form {
+    &.deployment-form {
       grid-template-columns: 360px 360px;
       grid-row-gap: 0;
       grid-column-gap: 3rem;
+
+      .form-group:first-child {
+        grid-column: span 2;
+      }
+
+      @media (max-width: 860px) {
+        grid-template-columns: 360px;
+
+        .form-group:first-child {
+          grid-column: 1;
+        }
+      }
+    }
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
     }
   }
 
   .gc-span-2 {
     grid-column: span 2;
+  }
+
+  .gr-2 {
+    grid-row: 2;
   }
 }
 
