@@ -197,7 +197,7 @@ defmodule NervesHubWWWWeb.LayoutView do
              href: Routes.org_certificate_path(conn, :index, conn.assigns.org.name)
            },
            %{
-             title: "Organization Settings",
+             title: "Settings",
              active: "",
              href: Routes.org_path(conn, :edit, conn.assigns.org.name)
            }
@@ -228,7 +228,7 @@ defmodule NervesHubWWWWeb.LayoutView do
           Routes.deployment_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
       },
       %{
-        title: "Product Settings",
+        title: "Settings",
         active: "",
         href: Routes.product_path(conn, :edit, conn.assigns.org.name, conn.assigns.product.name)
       }

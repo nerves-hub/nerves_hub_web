@@ -1,10 +1,8 @@
-<div class="flex-row justify-content-between">
-  <h1>
-    Firmware Keys
-  </h1>
-  <a class="btn btn-outline-light" href="<%= Routes.org_key_path(@conn, :new, @org.name) %>">
-    Add Key
-    <div class="button-icon add"></div>
+<div class="action-row">
+  <h1>Firmware Keys</h1>
+  <a class="btn btn-outline-light btn-action" aria-label="Add new firmware key" href="<%= Routes.org_key_path(@conn, :new, @org.name) %>">
+    <span class="button-icon add"></span>
+    <span class="action-text">Add Key</span>
   </a>
 </div>
 

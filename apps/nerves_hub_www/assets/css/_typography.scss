@@ -1,56 +1,71 @@
 body {
   h1,
   .h1 {
-    font-size: 46px;
+    font-size: 2.875rem;
     font-weight: 900;
     text-transform: capitalize;
     color: white;
-    line-height: 59px;
+    line-height: 3.7rem;
     margin: 0 0 1.5rem;
+
+    @media (max-width: 860px) {
+      font-size: 2.5rem;
+      line-height: 3.2rem;
+    }
   }
 
   h2,
   .h2 {
-    font-size: 34px;
+    font-size: 2.125rem;
     font-weight: 900;
     text-transform: uppercase;
     color: var(--text-dark);
     opacity: .4;
-    line-height: 43px;
+    line-height: 2.7rem;
     margin: 0;
   }
 
   h3,
   .h3 {
-    font-size: 24px;
+    font-size: 1.5rem;
     font-weight: 900;
     text-transform: uppercase;
     color: white;
-    line-height: 30px;
+    line-height: 1.9rem;
     margin: 0;
 
     & + p {
       margin-top: 1rem;
+    }
+
+    @media (max-width: 860px) {
+      font-size: 1.25rem;
+      line-height: 1.625rem;
     }
   }
 
   h4,
   .h4,
   .subtitle {
-    font-size: 24px;
+    font-size: 1.5rem;
     font-weight: 900;
     text-transform: uppercase;
     color: var(--text-dark);
-    line-height: 30px;
+    line-height: 1.9rem;
     margin: 0;
+
+    @media (max-width: 860px) {
+      font-size: 1.25rem;
+      line-height: 1.625rem;
+    }
   }
 
   h5,
   .h5 {
-    font-size: 18px;
+    font-size: 1.125rem;
     font-weight: 500;
     color: var(--white-50);
-    line-height: 28px;
+    line-height: 1.75rem;
   }
 
   h6,
@@ -65,10 +80,10 @@ body {
   p,
   .body-text,
   .p {
-    font-size: 18px;
+    font-size: 1.125rem;
     font-weight: 500;
     color: white;
-    line-height: 24px;
+    line-height: 1.5rem;
 
     &:last-child {
       margin: 0;
@@ -81,19 +96,19 @@ body {
 
   .body-text-small,
   .p-small {
-    font-size: 14px;
+    font-size: 0.875rem;
     font-weight: 400;
     color: var(--white-75);
-    line-height: 19px;
+    line-height: 1.2rem;
   }
 
   .help-text {
-    font-size: 14px;
+    font-size: 0.875rem;
     color: var(--white-50);
     font-weight: 300;
 
     &.large {
-      font-size: 18px;
+      font-size: 1.125rem;
       font-weight: 500;
       color: var(--white-50);
     }
