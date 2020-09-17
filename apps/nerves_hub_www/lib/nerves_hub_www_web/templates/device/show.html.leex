@@ -1,31 +1,41 @@
-<div class="flex-row justify-content-between align-items-center">
+<div class="action-row">
   <%= link "All Devices", to: Routes.device_path(@socket, :index, @org.name, @product.name), class: "back-link"%>
   <div class="btn-group" role="group" aria-label="Device Actions">
-    <button class="btn btn-outline-light" type="button" phx-click="reboot" <%= if @device.status == "offline", do: "disabled" %> data-confirm="Are you sure?">
-      <span class="button-icon left-icon power"></span>
-      <span>Reboot</span>
+    <button class="btn btn-outline-light btn-action"  aria-label="Reboot device" type="button" phx-click="reboot" <%= if @device.status == "offline", do: "disabled" %> data-confirm="Are you sure?">
+      <span class="button-icon power"></span>
+      <span class="action-text">Reboot</span>
     </button>
-    <%= link to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier), class: "btn btn-outline-light #{unless Map.has_key?(@device, :console_available) && @device.console_available, do: "disabled"}" do %>
-      <span class="button-icon left-icon console-icon"></span>
-      <span>Console</span>
+    <%= link(
+      class: "btn btn-outline-light btn-action #{unless Map.has_key?(@device, :console_available) && @device.console_available, do: "disabled"}",
+      aria_label: "Console",
+      to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier))
+      do %>
+      <span class="button-icon console-icon"></span>
+      <span class="action-text">Console</span>
     <% end %>
     <%= form_for %Plug.Conn{}, "#", [phx_submit: "toggle_health_state"], fn _f -> %>
-      <%= submit class: "btn btn-outline-light" do %>
-        <span class="button-icon left-icon quarantine"></span>
-        <span><%= if @device.healthy, do: "Quarantine", else: "Unquarantine" %></span>
+      <%= submit class: "btn btn-outline-light btn-action", aria_label: (if @device.healthy, do: "Quarantine", else: "Unquarantine") do %>
+        <span class="button-icon quarantine"></span>
+        <span class="action-text"><%= if @device.healthy, do: "Quarantine", else: "Unquarantine" %></span>
       <% end %>
     <% end %>
-    <%= link class: "btn btn-outline-light", to: Routes.device_path(@socket, :delete, @org.name, @product.name, @device.identifier), method: :delete, data: [confirm: "Are you sure?"] do %>
-      <span class="button-icon left-icon delete"></span>
-      <span>Delete</span>
+    <%= link(
+      class: "btn btn-outline-light btn-action",
+      aria_label: "Delete",
+      to: Routes.device_path(@socket, :delete, @org.name, @product.name, @device.identifier),
+      method: :delete,
+      data: [confirm: "Are you sure?"])
+      do %>
+      <span class="button-icon delete"></span>
+      <span class="action-text">Delete</span>
     <% end %>
-    <%= link to: Routes.device_path(@socket, :edit, @org.name, @product.name, @device.identifier), class: "btn btn-outline-light" do %>
-      <span class="button-icon left-icon edit"></span>
-      <span>Edit</span>
-    <% end %>
-    <%= link class: "btn btn-outline-light", to: Routes.device_path(@socket, :delete, @org.name, @product.name, @device.identifier), method: :delete, data: [confirm: "Are you sure?"] do %>
-      <span class="button-icon left-icon delete"></span>
-      <span>Delete</span>
+    <%= link(
+      class: "btn btn-outline-light btn-action",
+      aria_label: "Edit",
+      to: Routes.device_path(@socket, :edit, @org.name, @product.name, @device.identifier))
+      do %>
+      <span class="button-icon edit"></span>
+      <span class="action-text">Edit</span>
     <% end %>
   </div>
 </div>
@@ -34,11 +44,11 @@
 
 <div class="device-meta-grid">
   <div>
-    <div class="help-text">Connection</div>
+    <div class="help-text">Status</div>
     <p class="flex-row align-items-center tt-c">
       <span><%= @device.status %></span>
       <span class="ml-1">
-        <%= if @device.status == "offline" do %>
+        <%= if @device.status != "connected" do %>
           <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
         <% else %>
           <img src="/images/icons/check.svg" alt="connected" class="table-icon" />

@@ -1,18 +1,18 @@
-<div class="flex-row justify-content-between align-items-center">
+<div class="action-row">
   <%= link "All Deployments", to: Routes.deployment_path(@socket, :index, @org.name, @product.name), class: "back-link"%>
   <div class="btn-group" role="group" aria-label="Deployment Actions">
-    <a class="btn btn-outline-light" phx-click="toggle_active" phx-value-isactive=<%= !@deployment.is_active %>>
-      <span class="button-icon left-icon power"></span>
-      <span>Turn <%= opposite_status(@deployment) %></span>
+    <a class="btn btn-outline-light btn-action" aria-label="Turn <%= opposite_status(@deployment) %> deployment" phx-click="toggle_active" phx-value-isactive=<%= !@deployment.is_active %>>
+      <span class="button-icon power"></span>
+      <span class="action-text">Turn <%= opposite_status(@deployment) %></span>
     </a>
-    <a class="btn btn-outline-light" href="<%= Routes.deployment_path(@socket, :edit, @org.name, @product.name, @deployment.name) %>">
-      <span class="button-icon left-icon edit"></span>
-      <span>Edit</span>
+    <a class="btn btn-outline-light btn-action" aria-label="Edit" href="<%= Routes.deployment_path(@socket, :edit, @org.name, @product.name, @deployment.name) %>">
+      <span class="button-icon edit"></span>
+      <span class="action-text">Edit</span>
     </a>
     <%= form_for %Plug.Conn{}, "#", [phx_submit: "delete"], fn _f -> %>
-      <%= submit class: "btn btn-outline-light", onclick: "return confirm('Are you sure you want to delete this deployment? This can not be undone.')" do %>
-        <span class="button-icon left-icon delete"></span>
-        <span>Delete</span>
+      <%= submit class: "btn btn-outline-light btn-action", aria_label: "Delete", onclick: "return confirm('Are you sure you want to delete this deployment? This can not be undone.')" do %>
+        <span class="button-icon delete"></span>
+        <span class="action-text">Delete</span>
       <% end %>
     <% end %>
   </div>

@@ -3,20 +3,18 @@
     <img src="/images/product.svg" alt="No products" />
     <h3 style="margin-top: 2.75rem"><%= @org.name %> doesn’t have any products yet</h3>
     <div class="flex-row align-items-center mt-3">
-      <a class="btn btn-outline-light" href="<%= Routes.product_path(@conn, :new, @org.name) %>" role="button">
-        Create New
-        <div class="button-icon add"></div>
+      <a class="btn btn-outline-light" aria-label="Create new product" href="<%= Routes.product_path(@conn, :new, @org.name) %>" role="button">
+        <span class="button-icon add"></span>
+        <span class="action-text">Create New</span>
       </a>
     </div>
   </div>
 <% else %>
-  <div class="flex-row justify-content-between">
-    <h1>
-      Products
-    </h1>
-    <a class="btn btn-outline-light" href="<%= Routes.product_path(@conn, :new, @org.name) %>" role="button">
-      Create New
+  <div class="action-row">
+    <h1>Products</h1>
+    <a class="btn btn-outline-light btn-action" aria-label="Create new product" href="<%= Routes.product_path(@conn, :new, @org.name) %>" role="button">
       <div class="button-icon add"></div>
+      <span class="action-text">Create New</span>
     </a>
   </div>
 
