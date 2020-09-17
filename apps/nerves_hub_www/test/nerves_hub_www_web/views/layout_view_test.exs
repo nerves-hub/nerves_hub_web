@@ -1,5 +1,6 @@
 defmodule NervesHubWWWWeb.LayoutViewTest do
   use ExUnit.Case
+  use DefaultMocks
   use NervesHubWWWWeb.ConnCase, async: true
 
   import NervesHubWWWWeb.LayoutView,
