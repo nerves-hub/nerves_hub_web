@@ -39,10 +39,14 @@ body {
   color: white;
   height: 100%;
   position: relative;
-  padding-top: 80px;
+  padding-top: 5rem;
 
   &.modal-open {
     padding-right: 0 !important;
+  }
+
+  @media (max-width: 860px) {
+    padding-top: 4rem;
   }
 }
 

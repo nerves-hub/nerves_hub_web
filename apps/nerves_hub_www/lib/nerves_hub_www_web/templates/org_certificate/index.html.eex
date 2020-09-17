@@ -1,10 +1,8 @@
-<div class="flex-row justify-content-between">
-  <h1 class="mb-4">
-    Certificate Authorities
-  </h1>
-  <a class="btn btn-outline-light" href="<%= Routes.org_certificate_path(@conn, :new, @org.name) %>">
-    Add Certificate Authority
-    <div class="button-icon add"></div>
+<div class="action-row">
+  <h1>Certificate Authorities</h1>
+  <a class="btn btn-outline-light btn-action" aria-label="Add certificate authority" href="<%= Routes.org_certificate_path(@conn, :new, @org.name) %>">
+    <span class="button-icon add"></span>
+    <span class="action-text">Add Certificate Authority</span>
   </a>
 </div>
 
@@ -13,36 +11,47 @@
     <tr>
       <th>Serial</th>
       <th>Description</th>
-      <th>Last Used</th>
-      <th>Not Before</th>
-      <th>Not After</th>
+      <th>Last used</th>
+      <th>Not before</th>
+      <th>Not after</th>
     </tr>
   </thead>
   <tbody>
     <%= for cert <- @certificates do %>
       <tr class="item">
-        <td style="max-width: 200px;">
+        <td>
+          <div class="mobile-label help-text">Serial</div>
           <code class="color-white wb-ba"><%= cert.serial %></code>
         </td>
         <td>
-          <%= cert.description %>
+          <div class="mobile-label help-text">Description</div>
+          <%= if is_nil(cert.description) do %>
+            -
+          <% else %>
+            <%= cert.description %>
+          <% end %>
         </td>
         <td>
+          <div class="mobile-label help-text">Last used</div>
           <%= if !is_nil(cert.last_used) do %>
             <%= DateTimeFormat.from_now(cert.last_used) %>
           <% else %>
             <span class="text-muted">Never</span>
           <% end %>
         </td>
-        <td class="date-time">
-          <%= cert.not_before %>
+        <td>
+          <div class="mobile-label help-text">Not before</div>
+          <div class="date-time"><%= cert.not_before %></div>
         </td>
-        <td class="date-time">
-          <%= cert.not_after %>
+        <td>
+          <div class="mobile-label help-text">Not after</div>
+          <div class="date-time"><%= cert.not_after %></div>
         </td>
         <td class="actions">
+          <div class="mobile-label help-text">Actions</div>
           <div class="dropdown options">
             <a class="dropdown-toggle options" href="#" id="<%= cert.id %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <div class="mobile-label pr-2">Open</div>
               <img src="/images/icons/more.svg" alt="options" />
             </a>
             <div class="dropdown-menu dropdown-menu-right">
