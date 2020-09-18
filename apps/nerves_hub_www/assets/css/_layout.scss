@@ -308,6 +308,10 @@ html {
     padding: 4rem !important;
   }
 
+  .pos-rel {
+    position: relative;
+  }
+
   .x3-grid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
