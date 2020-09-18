@@ -1,4 +1,4 @@
-<%= if @devices == [] do %>
+<%= if @devices == [] && !@currently_filtering do %>
   <div class="no-results-blowup-wrapper">
     <img src="/images/device.svg" alt="No devices" />
     <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any devices yet</h3>
@@ -15,11 +15,43 @@
     <h1>
       Devices
     </h1>
+    <button class="btn btn-outline-light" type="button" phx-click="toggle-filters" phx-value-toggle="<%= @show_filters %>"><%=if @show_filters, do: "Hide", else: "Show"%> Filters</button>
     <a class="btn btn-outline-light" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
       Add Device
       <div class="button-icon add"></div>
     </a>
   </div>
+  <%= if @show_filters do%>
+    <div>
+      <h2>Filters</h2>
+      <form id="filter-form" phx-change="update-filters">
+        <label>ID</label>
+        <input type="text" name="id" value="<%= @current_filters["id"] %>" phx-debounce="500" />
+        <label>Health</label>
+        <select name="healthy">
+          <option <%= selected?(@current_filters, "healthy", "") %>></option>
+          <option <%= selected?(@current_filters, "healthy", "1") %> value="1">Healthy</option>
+          <option <%= selected?(@current_filters, "healthy", "0") %> value="0">Unhealthy</option>
+        </select>
+        <label>Connection</label>
+        <select name="connection">
+          <option <%= selected?(@current_filters, "connection", "") %>></option>
+          <option <%= selected?(@current_filters, "connection", "1") %> value="1">Connected</option>
+          <option <%= selected?(@current_filters, "connection", "0") %> value="0">Disconnected</option>
+        </select>
+        <label>Firmware</label>
+        <select name="firmware_version">
+          <option <%= selected?(@current_filters, "firmware_version", "") %>></option>
+          <%= for version <- @firmware_versions do %>
+            <option <%= selected?(@current_filters, "firmware_version", version) %>><%= version %></option>
+          <% end %>
+        </select>
+        <label>Tags</label>
+        <input type="text" name="tag" value="<%= @current_filters["tag"] %>" phx-debounce="500" />
+      </form>
+      <button class="btn btn-outline-light" type="button" phx-click="reset-filters">Reset Filters</button>
+    </div>
+  <% end %>
   <table class="table table-sm table-hover">
     <thead>
       <tr>

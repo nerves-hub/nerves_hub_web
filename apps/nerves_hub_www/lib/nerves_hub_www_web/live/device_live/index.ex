@@ -2,10 +2,18 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   use NervesHubWWWWeb, :live_view
 
   alias NervesHubDevice.Presence
-  alias NervesHubWebCore.{Accounts, Products, Devices}
+  alias NervesHubWebCore.{Accounts, Devices, Firmwares, Products}
   alias NervesHubWWWWeb.DeviceView
 
   alias Phoenix.Socket.Broadcast
+
+  @default_filters %{
+    "connection" => "",
+    "firmware_version" => "",
+    "healthy" => "",
+    "id" => "",
+    "tag" => ""
+  }
 
   def render(assigns) do
     DeviceView.render("index.html", assigns)
@@ -32,6 +40,10 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:devices, assign_statuses(org_id, product_id))
       |> assign(:current_sort, "identifier")
       |> assign(:sort_direction, :asc)
+      |> assign(:firmware_versions, firmware_versions(product_id))
+      |> assign(:show_filters, false)
+      |> assign(:current_filters, @default_filters)
+      |> assign(:currently_filtering, false)
 
     {:ok, socket}
   rescue
@@ -81,6 +93,37 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:current_sort, value)
       |> assign(:sort_direction, :asc)
       |> do_sort()
+
+    {:noreply, socket}
+  end
+
+  def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
+    socket =
+      socket
+      |> assign(:show_filters, toggle != "true")
+
+    {:noreply, socket}
+  end
+
+  def handle_event("update-filters", params, %{assigns: %{org: org, product: product}} = socket) do
+    socket =
+      socket
+      |> assign(:devices, assign_statuses(org.id, product.id))
+      |> assign(:current_filters, params)
+      |> assign(:currently_filtering, params != @default_filters)
+      |> do_filter(parse_filters(params))
+      |> do_sort
+
+    {:noreply, socket}
+  end
+
+  def handle_event("reset-filters", _, %{assigns: %{org: org, product: product}} = socket) do
+    socket =
+      socket
+      |> assign(:devices, assign_statuses(org.id, product.id))
+      |> assign(:current_filters, @default_filters)
+      |> assign(:currently_filtering, false)
+      |> do_sort
 
     {:noreply, socket}
   end
@@ -138,6 +181,71 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   defp date_order(_, nil), do: :gt
   defp date_order(nil, _), do: :lt
   defp date_order(a, b), do: DateTime.compare(a, b)
+
+  defp do_filter(socket, %{"connection" => connection} = filters) do
+    connection_status_match =
+      &Enum.filter(&1, fn device ->
+        if connection == "1" do
+          device.status != "offline"
+        else
+          device.status == "offline"
+        end
+      end)
+
+    apply_filter(socket, filters, "connection", connection_status_match)
+  end
+
+  defp do_filter(socket, %{"firmware_version" => version} = filters) do
+    version_match =
+      &Enum.filter(&1, fn device ->
+        !is_nil(device.firmware_metadata) && device.firmware_metadata.version == version
+      end)
+
+    apply_filter(socket, filters, "firmware_version", version_match)
+  end
+
+  defp do_filter(socket, %{"healthy" => healthy} = filters) do
+    healthy_match = &Enum.filter(&1, fn device -> device.healthy == (healthy == "1") end)
+
+    apply_filter(socket, filters, "healthy", healthy_match)
+  end
+
+  defp do_filter(socket, %{"id" => id} = filters) do
+    id_match = &Enum.filter(&1, fn device -> device.identifier =~ id end)
+
+    apply_filter(socket, filters, "id", id_match)
+  end
+
+  defp do_filter(socket, %{"tag" => tag} = filters) do
+    tag_match = &Enum.filter(&1, fn device -> Enum.any?(device.tags, fn t -> t =~ tag end) end)
+
+    apply_filter(socket, filters, "tag", tag_match)
+  end
+
+  defp do_filter(socket, _) do
+    socket
+  end
+
+  defp apply_filter(
+         %{assigns: %{devices: devices}} = socket,
+         filters,
+         filter_key,
+         filter_function
+       ) do
+    filters = Map.delete(filters, filter_key)
+
+    devices = filter_function.(devices)
+
+    socket
+    |> assign(:devices, devices)
+    |> do_filter(filters)
+  end
+
+  defp parse_filters(filter) do
+    keys = @default_filters |> Map.keys()
+    filters = Map.take(filter, keys)
+    :maps.filter(fn _, v -> v != "" end, filters)
+  end
 
   defp sync_devices(devices, %{joins: joins, leaves: leaves}) do
     for device <- devices do
@@ -206,5 +314,9 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:devices, devices)
 
     {:noreply, socket}
+  end
+
+  defp firmware_versions(product_id) do
+    Firmwares.get_firmwares_by_product(product_id) |> Enum.map(& &1.version)
   end
 end

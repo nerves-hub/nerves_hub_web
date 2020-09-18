@@ -63,4 +63,6 @@ defmodule NervesHubWWWWeb.DeviceView do
   def tags_to_string(tags), do: tags
 
   defdelegate device_status(device), to: Presence
+
+  def selected?(filters, field, value), do: if(filters[field] == value, do: "selected")
 end
