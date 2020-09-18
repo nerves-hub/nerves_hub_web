@@ -5,6 +5,7 @@ defmodule NervesHubWWWWeb.OrgUserController do
   alias NervesHubWebCore.Accounts.{Email, Org}
   alias NervesHubWebCore.Mailer
 
+  plug(NervesHubWWWWeb.Plugs.OrgUser when action in [:delete, :edit, :update])
   plug(:validate_role, org: :admin)
 
   def index(%{assigns: %{org: org}} = conn, _params) do
@@ -16,47 +17,37 @@ defmodule NervesHubWWWWeb.OrgUserController do
     )
   end
 
-  def edit(%{assigns: %{org: org}} = conn, %{"user_id" => user_id}) do
-    {:ok, user} = Accounts.get_user(user_id)
-    {:ok, org_user} = Accounts.get_org_user(org, user)
-
+  def edit(%{assigns: %{org_user: org_user}} = conn, _params) do
     conn
     |> render("edit.html",
-      changeset: Org.change_user_role(org_user, %{}),
-      org_user: org_user
+      changeset: Org.change_user_role(org_user, %{})
     )
   end
 
-  def update(%{assigns: %{org: org}} = conn, %{"user_id" => user_id} = params) do
-    {:ok, user} = Accounts.get_user(user_id)
-    {:ok, org_user} = Accounts.get_org_user(org, user)
-    {:ok, role} = Map.fetch(params["org_user"], "role")
+  def update(%{assigns: %{org: org, org_user: org_user}} = conn, %{"org_user" => params}) do
+    {:ok, role} = Map.fetch(params, "role")
 
-    case Accounts.change_org_user_role(org_user, role) do
-      {:ok, _org_user} ->
-        conn
-        |> put_flash(:info, "Role updated")
-        |> redirect(to: Routes.org_user_path(conn, :index, org.name))
-
+    with {:ok, _org_user} <- Accounts.change_org_user_role(org_user, role) do
+      conn
+      |> put_flash(:info, "Role updated")
+      |> redirect(to: Routes.org_user_path(conn, :index, org.name))
+    else
       {:error, changeset} ->
         conn
         |> put_flash(:error, "Error updating role")
         |> render(
           "edit.html",
-          changeset: changeset,
-          org_user: org_user
+          changeset: changeset
         )
     end
   end
 
-  def delete(%{assigns: %{org: org, user: current_user}} = conn, %{"user_id" => user_id}) do
-    {:ok, user} = Accounts.get_user(user_id)
-
-    case Accounts.remove_org_user(org, user) do
+  def delete(%{assigns: %{org: org, org_user: org_user, user: current_user}} = conn, _params) do
+    case Accounts.remove_org_user(org, org_user.user) do
       :ok ->
         instigator = current_user.username
 
-        Email.tell_org_user_removed(org, Accounts.get_org_users(org), instigator, user)
+        Email.tell_org_user_removed(org, Accounts.get_org_users(org), instigator, org_user.user)
         |> Mailer.deliver_later()
 
         conn
