@@ -3,7 +3,7 @@ defmodule NervesHubWWWWeb.DeviceLiveIndexTest do
 
   import Phoenix.ChannelTest
 
-  alias NervesHubWebCore.{AuditLogs, Repo}
+  alias NervesHubWebCore.{AuditLogs, Fixtures, Repo}
   alias NervesHubWWWWeb.Endpoint
 
   setup %{fixture: %{device: device}} do
@@ -41,6 +41,18 @@ defmodule NervesHubWWWWeb.DeviceLiveIndexTest do
       after_audit_count = AuditLogs.logs_for(device) |> length
 
       assert after_audit_count == before_audit_count + 1
+    end
+
+    test "filters devices by field", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ device2.identifier
+
+      refute render_change(view, "update-filters", %{"id" => device.identifier}) =~
+               device2.identifier
     end
   end
 
