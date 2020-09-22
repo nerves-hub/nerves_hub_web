@@ -15,6 +15,9 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     "tag" => ""
   }
 
+  @default_page 1
+  @default_page_size 1
+
   def render(assigns) do
     DeviceView.render("index.html", assigns)
   end
@@ -40,10 +43,17 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:devices, assign_statuses(org_id, product_id))
       |> assign(:current_sort, "identifier")
       |> assign(:sort_direction, :asc)
+      |> assign(:paginate_opts, %{
+        page_number: @default_page,
+        page_size: @default_page_size,
+        total_pages: 0
+      })
+      |> assign_page_count()
       |> assign(:firmware_versions, firmware_versions(product_id))
       |> assign(:show_filters, false)
       |> assign(:current_filters, @default_filters)
       |> assign(:currently_filtering, false)
+      |> do_paginate
 
     {:ok, socket}
   rescue
@@ -82,6 +92,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       socket
       |> assign(sort_direction: sort_direction)
       |> do_sort()
+      |> assign_page_count()
+      |> do_paginate()
 
     {:noreply, socket}
   end
@@ -93,6 +105,44 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:current_sort, value)
       |> assign(:sort_direction, :asc)
       |> do_sort()
+      |> assign_page_count()
+      |> do_paginate()
+
+    {:noreply, socket}
+  end
+
+  def handle_event(
+        "paginate",
+        %{"page" => page_num},
+        %{assigns: %{org: org, paginate_opts: paginate_opts, product: product}} = socket
+      ) do
+    devices = assign_statuses(org.id, product.id)
+    page_num = String.to_integer(page_num)
+
+    socket =
+      socket
+      |> assign(:devices, devices)
+      |> assign(:paginate_opts, %{paginate_opts | page_number: page_num})
+      |> assign_page_count()
+      |> do_paginate()
+
+    {:noreply, socket}
+  end
+
+  def handle_event(
+        "set-paginate-opts",
+        %{"page_size" => page_size},
+        %{assigns: %{org: org, paginate_opts: paginate_opts, product: product}} = socket
+      ) do
+    devices = assign_statuses(org.id, product.id)
+    page_size = String.to_integer(page_size)
+
+    socket =
+      socket
+      |> assign(:devices, devices)
+      |> assign(:paginate_opts, %{paginate_opts | page_size: page_size})
+      |> assign_page_count()
+      |> do_paginate()
 
     {:noreply, socket}
   end
@@ -105,22 +155,38 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
-  def handle_event("update-filters", params, %{assigns: %{org: org, product: product}} = socket) do
+  def handle_event(
+        "update-filters",
+        params,
+        %{assigns: %{org: org, paginate_opts: paginate_opts, product: product}} = socket
+      ) do
+    devices = assign_statuses(org.id, product.id)
+
     socket =
       socket
-      |> assign(:devices, assign_statuses(org.id, product.id))
+      |> assign(:devices, devices)
+      |> assign(:paginate_opts, %{paginate_opts | page_number: @default_page})
       |> assign(:current_filters, params)
       |> assign(:currently_filtering, params != @default_filters)
       |> do_filter(parse_filters(params))
+      |> assign_page_count()
       |> do_sort
 
     {:noreply, socket}
   end
 
-  def handle_event("reset-filters", _, %{assigns: %{org: org, product: product}} = socket) do
+  def handle_event(
+        "reset-filters",
+        _,
+        %{assigns: %{org: org, paginate_opts: paginate_opts, product: product}} = socket
+      ) do
+    devices = assign_statuses(org.id, product.id)
+
     socket =
       socket
-      |> assign(:devices, assign_statuses(org.id, product.id))
+      |> assign(:devices, devices)
+      |> assign(:paginate_opts, %{paginate_opts | page_number: @default_page})
+      |> assign_page_count()
       |> assign(:current_filters, @default_filters)
       |> assign(:currently_filtering, false)
       |> do_sort
@@ -147,15 +213,17 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   def handle_info(
         %Broadcast{event: "presence_diff", payload: payload},
-        %{assigns: %{devices: devices}} = socket
+        %{assigns: %{current_filters: filters, org: org, product: product}} = socket
       ) do
+    devices = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
+
     socket =
       socket
       |> assign(:devices, sync_devices(devices, payload))
-      |> case do
-        %{assigns: %{current_sort: "status"}} = socket -> do_sort(socket)
-        socket -> socket
-      end
+      |> do_filter(filters)
+      |> assign_page_count()
+      |> do_sort()
+      |> do_paginate()
 
     {:noreply, socket}
   end
@@ -181,6 +249,12 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   defp date_order(_, nil), do: :gt
   defp date_order(nil, _), do: :lt
   defp date_order(a, b), do: DateTime.compare(a, b)
+
+  defp do_paginate(%{assigns: %{devices: devices, paginate_opts: paginate_opts}} = socket) do
+    start_index = (paginate_opts.page_number - 1) * paginate_opts.page_size
+    devices = Enum.slice(devices, start_index, paginate_opts.page_size)
+    assign(socket, :devices, devices)
+  end
 
   defp do_filter(socket, %{"connection" => connection} = filters) do
     connection_status_match =
@@ -314,6 +388,12 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:devices, devices)
 
     {:noreply, socket}
+  end
+
+  defp assign_page_count(%{assigns: %{devices: devices, paginate_opts: paginate_opts}} = socket) do
+    page_count = Float.ceil(length(devices) / paginate_opts.page_size) |> trunc
+
+    assign(socket, :paginate_opts, %{paginate_opts | total_pages: page_count})
   end
 
   defp firmware_versions(product_id) do

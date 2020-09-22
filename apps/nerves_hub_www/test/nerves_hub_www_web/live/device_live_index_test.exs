@@ -54,6 +54,22 @@ defmodule NervesHubWWWWeb.DeviceLiveIndexTest do
       refute render_change(view, "update-filters", %{"id" => device.identifier}) =~
                device2.identifier
     end
+
+    test "paginates devices", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, view, _html} = live(conn, device_index_path(fixture))
+      html = render_change(view, "set-paginate-opts", %{"page_size" => "1"})
+
+      assert html =~ device.identifier
+      refute html =~ device2.identifier
+
+      html = render_change(view, "paginate", %{"page" => "2"})
+      assert html =~ device2.identifier
+      refute html =~ device.identifier
+    end
   end
 
   def device_index_path(%{org: org, product: product}) do
