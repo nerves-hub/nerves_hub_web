@@ -59,25 +59,25 @@
     <div class="has-error"><%= error_tag f, :firmware_id %></div>
   </div>
 
+  <div class="form-group">
+    <label for="version_requirement">Version requirement</label>
+    <%= text_input f, :version,
+          class: "form-control",
+          id: "version_requirement",
+          value:
+            @changeset
+            |> Ecto.Changeset.get_change(:conditions, %{})
+            |> Map.get("version", "")
+        %>
+    <div class="has-error"><%= error_tag f, :version %></div>
+  </div>
+
   <!-- Advanced Options -->
   <button class="btn btn-outline-light mb-4" type="button" data-toggle="collapse" data-target="#advancedOptionsToggle" aria-expanded="false" aria-controls="advancedOptionsToggle">
     Show Advanced Options
   </button>
 
   <div class="x2-grid deployment-form collapse" id="advancedOptionsToggle">
-    <div class="form-group">
-      <label for="version_requirement">Version requirement</label>
-      <%= text_input f, :version,
-        class: "form-control",
-        id: "version_requirement",
-        value:
-          @changeset
-          |> Ecto.Changeset.get_change(:conditions, %{})
-          |> Map.get("version", "")
-      %>
-      <div class="has-error"><%= error_tag f, :version %></div>
-    </div>
-
     <div class="form-group">
       <label for="failure_rate_amount" class="tooltip-label">
         <span>Failure rate</span>
