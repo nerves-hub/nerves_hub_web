@@ -13,7 +13,7 @@
 <% else %>
   <div class="flex-row justify-content-between mb-3 align-items-center">
     <div class="flex-row align-items-center">
-      <h1 class="mr-2 mb-0">Devices</h1>
+      <h1 class="mr-3 mb-0">Devices</h1>
       <button class="btn btn-outline-light <%= if @show_filters, do: "btn-filter-hide", else: "btn-filter-show" %>" type="button" phx-click="toggle-filters" phx-value-toggle="<%= @show_filters %>">
         <%=if @show_filters, do: "Hide Filters", else: "Show Filters" %>
         <div class="button-icon filter"></div>
@@ -36,7 +36,7 @@
           <label for="input_health">Health</label>
           <div class="pos-rel">
             <select name="healthy" id="input_health" class="form-control">
-              <option <%= selected?(@current_filters, "healthy", "") %>>All</option>
+              <option <%= selected?(@current_filters, "healthy", "") %> value="">All</option>
               <option <%= selected?(@current_filters, "healthy", "1") %> value="1">Healthy</option>
               <option <%= selected?(@current_filters, "healthy", "0") %> value="0">Unhealthy</option>
             </select>
@@ -47,7 +47,7 @@
           <label for="input_connection">Connection</label>
           <div class="pos-rel">
             <select name="connection" id="input_connection" class="form-control">
-              <option <%= selected?(@current_filters, "connection", "") %>>All</option>
+              <option <%= selected?(@current_filters, "connection", "") %> value="">All</option>
               <option <%= selected?(@current_filters, "connection", "1") %> value="1">Connected</option>
               <option <%= selected?(@current_filters, "connection", "0") %> value="0">Disconnected</option>
             </select>
@@ -58,9 +58,9 @@
           <label for="input_firmware">Firmware</label>
           <div class="pos-rel">
             <select name="firmware_version" id="input_firmware" class="form-control">
-              <option <%= selected?(@current_filters, "firmware_version", "") %>>All</option>
+              <option <%= selected?(@current_filters, "firmware_version", "") %> value="">All</option>
               <%= for version <- @firmware_versions do %>
-              <option <%= selected?(@current_filters, "firmware_version", version) %>><%= version %></option>
+                <option <%= selected?(@current_filters, "firmware_version", version) %>><%= version %></option>
               <% end %>
             </select>
             <div class="select-icon"></div>
