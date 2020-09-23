@@ -33,28 +33,40 @@ html {
   -webkit-overflow-scrolling: auto;
 }
 
-body {
-  background-color: var(--background);
+html body {
   font-family: 'Montserrat', sans-serif;
-  color: white;
-  height: 100%;
-  position: relative;
-  padding-top: 5rem;
 
-  &.modal-open {
-    padding-right: 0 !important;
+  .normal-wrapper {
+    background-color: var(--background);
+    color: white;
+    height: 100%;
+    position: relative;
+    padding-top: 5rem;
+
+    &.modal-open {
+      padding-right: 0 !important;
+    }
+
+    @media (max-width: 860px) {
+      padding-top: 4rem;
+    }
+
+    main.content-container {
+      margin: 0 auto;
+      padding-bottom: 8rem;
+      min-height: calc(100vh - 5rem);
+    }
   }
 
-  @media (max-width: 860px) {
-    padding-top: 4rem;
-  }
-}
+  .home-wrapper {
+    height: 100%;
+    color: #24282A;
 
-html {
-  main.content-container {
-    margin: 0 auto;
-    padding-bottom: 8rem;
-    min-height: calc(100vh - 80px);
+    main {
+      margin: 0 auto;
+      padding-bottom: 8rem;
+      min-height: calc(100vh);
+    }
   }
 }
 

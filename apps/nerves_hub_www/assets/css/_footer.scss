@@ -1,21 +1,103 @@
 .footer {
-  background-color: var(--backgroundDark);
+  background-color: var(--background);
+  border-top: 1px solid rgba(255, 255, 255, 0.20);
   width: 100%;
   z-index: 100;
+  padding: 6rem 1.5rem;
   display: flex;
-  padding: 4rem 0;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
 
   h6 {
-    margin-bottom: .35rem;
+    font-size: .875rem;
+    text-transform: uppercase;
+    font-weight: bold;
+    line-height: 1.4rem;
   }
 
-  & > div {
-    padding: 0 1.25rem;
-    max-width: 780px;
+  .grid {
+    display: grid;
+    grid-template-columns: 10.25rem 1fr 1fr 1fr;
+    grid-column-gap: 4rem;
+    width: 100%;
+    max-width: 66.875rem;
+
+    @media (max-width: 970px) {
+      grid-template-columns: 1fr 1fr 1fr;
+
+      .footer-logo {
+        grid-column: 2;
+        grid-row: 1;
+        margin-bottom: 4rem;
+      }
+
+      .footer-nav {
+        grid-row: 2;
+      }
+    }
+
+    @media (max-width: 750px) {
+      grid-template-columns: 1fr 1fr;
+
+      .footer-logo {
+        grid-column: span 2;
+      }
+
+      .footer-nav.very {
+        margin-top: 4rem;
+        grid-column: span 2;
+        grid-row: 3;
+      }
+    }
   }
 
-  a {
-    margin: .35rem 0;
+  .footer-nav {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    a {
+      margin-top: 1.25rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+
+      .arrow {
+        position: relative;
+        left: .5rem;
+        top: -2px;
+        transition: all 200ms ease;
+      }
+
+      &:hover .arrow {
+        left: .75rem;
+      }
+    }
+  }
+
+  .tos-grid {
+    display: grid;
+    grid-column-gap: 4rem;
+    grid-template-columns: 10.25rem 1fr 1fr 1fr;
+    margin-top: 5rem;
+    max-width: 66.875rem;
+    width: 100%;
+
+    @media (max-width: 970px) {
+      grid-template-columns: 1fr 1fr 1fr;
+
+      & > div:first-child {
+        display: none;
+      }
+    }
+
+    a {
+      font-size: .75rem;
+      color: var(--white-50);
+
+      &:hover {
+        color: white;
+      }
+    }
   }
 }

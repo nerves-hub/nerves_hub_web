@@ -1,28 +1,39 @@
 <footer class="footer">
-  <div class="flex-row justify-content-between w-100">
-    <div class="flex-column">
-      <h6>NervesHub</h6>
-      <a href="https://github.com/nerves-hub">Source code</a>
+  <div class="grid">
+    <img src="/images/logo.svg" alt="NervesHub Logo" class="footer-logo" />
+    <div class="footer-nav resources">
+      <h6>Resources</h6>
+      <a href="https://docs.nerves-hub.org/" target="_blank" rel="noopener noreferrer">Documentation</a>
+      <a href="https://github.com/nerves-hub" target="_blank" rel="noopener noreferrer">Source code</a>
+      <a href="https://hexdocs.pm/nerves_hub/readme.html#content" target="_blank" rel="noopener noreferrer">HexDocs</a>
       <a href="<%= Routes.nerves_key_path(@conn, :index) %>">NervesKey</a>
-      <a href="<%= Routes.sponsor_path(@conn, :index) %>">Sponsors</a>
-      <a href="https://status.nerves-hub.org/">Status</a>
+      <a href="https://status.nerves-hub.org/" target="_blank" rel="noopener noreferrer">Status</a>
     </div>
-    <div class="flex-column">
-      <h6>
-        Help
-      </h6>
-      <a href="https://docs.nerves-hub.org/">Documentation</a>
-      <a href="https://hexdocs.pm/nerves_hub/readme.html#content">HexDocs</a>
-      <a href="https://github.com/nerves-hub/nerves_hub_web/issues">Report an issue</a>
-      <a href="mailto:support@nerves-hub.org">Support</a>
+    <div class="footer-nav help">
+      <h6>Help</h6>
+      <a href="https://github.com/nerves-hub/nerves_hub_web/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
+      <a href="mailto:support@nerves-hub.org" target="_blank" rel="noopener noreferrer">Contact support</a>
     </div>
-    <div class="flex-column">
-      <h6>
-        Terms and Conditions
-      </h6>
-      <a href="<%= Routes.policy_path(@conn, :coc) %>">Code of Conduct</a>
-      <a href="<%= Routes.policy_path(@conn, :tos) %>">Terms of Service</a>
-      <a href="<%= Routes.policy_path(@conn, :privacy) %>">Privacy Policy</a>
+    <div class="footer-nav very">
+      <h6>Need help using NervesHub for your project?</h6>
+      <a href="https://www.verypossible.com/" target="_blank" rel="noopener noreferrer">
+        <img src="/images/home/very-logo-colored.svg" alt="Very logo" />
+      </a>
+      <p class="p-small mt-2 mb-0">Very delivers high-impact IoT solutions with Nerves and offers expert consulting.</p>
+      <a href="https://www.verypossible.com/" target="_blank" rel="noopener noreferrer">
+        Visit Very's website
+        <img src="/images/icons/arrow-forward-red.svg" alt=""  class="arrow" />
+      </a>
+      <a href="https://www.verypossible.com/contact" target="_blank" rel="noopener noreferrer">
+        Get in touch
+        <img src="/images/icons/arrow-forward-red.svg" alt=""  class="arrow" /></a>
     </div>
   </div>
+  <div class="tos-grid">
+    <div></div>
+    <div><a href="<%= Routes.policy_path(@conn, :coc) %>">Code of Conduct</a></div>
+    <div><a href="<%= Routes.policy_path(@conn, :tos) %>">Terms of Service</a></div>
+    <div><a href="<%= Routes.policy_path(@conn, :privacy) %>">Privacy Policy</a></div>
+  </div>
+
 </footer>
