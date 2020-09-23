@@ -16,7 +16,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   }
 
   @default_page 1
-  @default_page_size 1
+  @default_page_size 25
 
   def render(assigns) do
     DeviceView.render("index.html", assigns)
