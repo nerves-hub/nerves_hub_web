@@ -14,9 +14,11 @@
   <div class="action-row">
     <div class="flex-row align-items-center">
       <h1 class="mr-3 mb-0">Devices</h1>
-      <button class="btn btn-outline-light <%= if @show_filters, do: "btn-filter-hide", else: "btn-filter-show" %>" type="button" phx-click="toggle-filters" phx-value-toggle="<%= @show_filters %>">
-        <%=if @show_filters, do: "Hide Filters", else: "Show Filters" %>
-        <div class="button-icon filter"></div>
+      <button class="btn btn-outline-light btn-action <%= if @show_filters, do: "btn-filter-hide", else: "btn-filter-show" %>" type="button" phx-click="toggle-filters" phx-value-toggle="<%= @show_filters %>">
+        <span class="action-text">
+          <%=if @show_filters, do: "Hide Filters", else: "Show Filters" %>
+        </span>
+        <span class="button-icon filter"></span>
       </button>
     </div>
     <a class="btn btn-outline-light btn-action" aria-label="Add new device" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
