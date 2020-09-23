@@ -35,6 +35,10 @@ html {
     font-size: 1.125rem;
   }
 
+  .btn:hover .button-icon {
+    opacity: 1;
+  }
+
   .button-icon {
     background-repeat: no-repeat;
     background-size: contain;
@@ -44,6 +48,7 @@ html {
     margin-left: .75rem;
     display: inline-block;
     opacity: .75;
+    transition: opacity 200ms ease;
 
     &.left-icon {
       margin-left: 0;
@@ -76,6 +81,28 @@ html {
 
     &.quarantine {
       background-image: url("/images/icons/quarantine.svg");
+    }
+
+    &.filter {
+      background-image: url("/images/icons/filter.svg");
+    }
+  }
+
+  .btn-filter-show {
+    &:focus {
+      box-shadow: none;
+    }
+  }
+
+  .btn-filter-hide {
+    border: 2px solid var(--primary);
+
+    &:hover {
+      border-color: var(--primary) !important;
+    }
+
+    &:focus {
+      box-shadow: none;
     }
   }
 

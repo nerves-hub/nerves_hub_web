@@ -11,45 +11,67 @@
     <p class="mt-3">Or follow <a class="strong inline" href="/">these steps</a> to add a device using the terminal.</p>
   </div>
 <% else %>
-  <div class="flex-row justify-content-between">
-    <h1>
-      Devices
-    </h1>
-    <button class="btn btn-outline-light" type="button" phx-click="toggle-filters" phx-value-toggle="<%= @show_filters %>"><%=if @show_filters, do: "Hide", else: "Show"%> Filters</button>
+  <div class="flex-row justify-content-between mb-3 align-items-center">
+    <div class="flex-row align-items-center">
+      <h1 class="mr-2 mb-0">Devices</h1>
+      <button class="btn btn-outline-light <%= if @show_filters, do: "btn-filter-hide", else: "btn-filter-show" %>" type="button" phx-click="toggle-filters" phx-value-toggle="<%= @show_filters %>">
+        <%=if @show_filters, do: "Hide Filters", else: "Show Filters" %>
+        <div class="button-icon filter"></div>
+      </button>
+    </div>
     <a class="btn btn-outline-light" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
       Add Device
       <div class="button-icon add"></div>
     </a>
   </div>
   <%= if @show_filters do%>
-    <div>
-      <h2>Filters</h2>
-      <form id="filter-form" phx-change="update-filters">
-        <label>ID</label>
-        <input type="text" name="id" value="<%= @current_filters["id"] %>" phx-debounce="500" />
-        <label>Health</label>
-        <select name="healthy">
-          <option <%= selected?(@current_filters, "healthy", "") %>></option>
-          <option <%= selected?(@current_filters, "healthy", "1") %> value="1">Healthy</option>
-          <option <%= selected?(@current_filters, "healthy", "0") %> value="0">Unhealthy</option>
-        </select>
-        <label>Connection</label>
-        <select name="connection">
-          <option <%= selected?(@current_filters, "connection", "") %>></option>
-          <option <%= selected?(@current_filters, "connection", "1") %> value="1">Connected</option>
-          <option <%= selected?(@current_filters, "connection", "0") %> value="0">Disconnected</option>
-        </select>
-        <label>Firmware</label>
-        <select name="firmware_version">
-          <option <%= selected?(@current_filters, "firmware_version", "") %>></option>
-          <%= for version <- @firmware_versions do %>
-            <option <%= selected?(@current_filters, "firmware_version", version) %>><%= version %></option>
-          <% end %>
-        </select>
-        <label>Tags</label>
-        <input type="text" name="tag" value="<%= @current_filters["tag"] %>" phx-debounce="500" />
+    <div class="filter-wrapper">
+      <h4 class="color-white mb-2">Filters</h4>
+      <form id="filter-form" phx-change="update-filters" class="filter-form device-filters">
+        <div class="form-group">
+          <label for="input_id">ID</label>
+          <input type="text" name="id" id="input_id" class="form-control" value="<%= @current_filters["id"] %>" phx-debounce="500" />
+        </div>
+        <div class="form-group">
+          <label for="input_health">Health</label>
+          <div class="pos-rel">
+            <select name="healthy" id="input_health" class="form-control">
+              <option <%= selected?(@current_filters, "healthy", "") %>>All</option>
+              <option <%= selected?(@current_filters, "healthy", "1") %> value="1">Healthy</option>
+              <option <%= selected?(@current_filters, "healthy", "0") %> value="0">Unhealthy</option>
+            </select>
+            <div class="select-icon"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="input_connection">Connection</label>
+          <div class="pos-rel">
+            <select name="connection" id="input_connection" class="form-control">
+              <option <%= selected?(@current_filters, "connection", "") %>>All</option>
+              <option <%= selected?(@current_filters, "connection", "1") %> value="1">Connected</option>
+              <option <%= selected?(@current_filters, "connection", "0") %> value="0">Disconnected</option>
+            </select>
+            <div class="select-icon"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="input_firmware">Firmware</label>
+          <div class="pos-rel">
+            <select name="firmware_version" id="input_firmware" class="form-control">
+              <option <%= selected?(@current_filters, "firmware_version", "") %>>All</option>
+              <%= for version <- @firmware_versions do %>
+              <option <%= selected?(@current_filters, "firmware_version", version) %>><%= version %></option>
+              <% end %>
+            </select>
+            <div class="select-icon"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="input_tags">Tags</label>
+          <input type="text" name="tag" id="input_tags" class="form-control" value="<%= @current_filters["tag"] %>" phx-debounce="500" />
+        </div>
       </form>
-      <button class="btn btn-outline-light" type="button" phx-click="reset-filters">Reset Filters</button>
+      <button class="btn btn-secondary" type="button" phx-click="reset-filters">Reset Filters</button>
     </div>
   <% end %>
   <table class="table table-sm table-hover">
