@@ -19,6 +19,8 @@ let socket = new Socket('/socket', { params: { token: window.userToken } })
 
 liveSocket.connect()
 
+const josh = new Josh();
+
 $(function() {
   $('.custom-upload-input').on('change', function() {
     let fileName = $(this)
