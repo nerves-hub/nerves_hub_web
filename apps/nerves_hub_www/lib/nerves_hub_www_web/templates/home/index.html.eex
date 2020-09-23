@@ -18,7 +18,7 @@
   </div>
 </div>
 
-<div class="home-sponsors content-container">
+<div class="home-sponsors content-container josh-js" data-josh-anim-name="fadeIn">
   <h6>Sponsored by</h6>
   <div class="grid">
     <img src="/images/home/le-tote-logo.jpg" alt="Le Tote" />
@@ -30,11 +30,11 @@
 
 <div class="home-about">
   <div class="content-container">
-    <div class="section-header">
+    <div class="section-header josh-js" data-josh-anim-name="fadeIn">
       <h2 class="ta-c">Archieve IoT agility with NervesHub</h2>
       <p class="ta-c">Once you have a host of IoT devices in production — out in the field — how do you manage firmware updates? With NervesHub, keep your connected products up-to-date without sacrificing security or speed.</p>
     </div>
-    <div class="features">
+    <div class="features josh-js" data-josh-anim-name="fadeIn">
       <div>
         <img src="/images/home/secure.svg" alt="secure" />
         <h5>Secure</h5>
@@ -93,7 +93,7 @@
   </div>
 </div>
 
-<div class="home-get-started content-container">
+<div class="home-get-started content-container josh-js" data-josh-anim-name="fadeIn">
   <h2 class="ta-c">Get Started with NervesHub</h2>
   <div class="grid">
     <div class="item">
@@ -111,7 +111,7 @@
   </div>
 </div>
 
-<div class="home-case-studies content-container">
+<div class="home-case-studies content-container josh-js" data-josh-anim-name="fadeIn">
   <h2 class="ta-c"><span class="color-primary">Nerves</span> in Action</h2>
   <div class="grid">
     <div class="item">

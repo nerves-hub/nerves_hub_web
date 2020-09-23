@@ -5,6 +5,7 @@ $fa-font-path: '~@fortawesome/fontawesome-free/webfonts';
 @import '~@fortawesome/fontawesome-free/scss/brands';
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap');
 
+@import "_animate.css";
 @import "~xterm/css/xterm.css";
 @import "audit_log_feed";
 @import "console";
