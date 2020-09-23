@@ -83,6 +83,23 @@ defmodule NervesHubAPIWeb.DeploymentControllerTest do
       assert json_response(conn, 200)["data"]["is_active"]
     end
 
+    test "can use state to set is_active", %{
+      conn: conn,
+      deployment: deployment,
+      org: org,
+      product: product
+    } do
+      path = Routes.deployment_path(conn, :update, org.name, product.name, deployment.name)
+      refute deployment.is_active
+      conn = put(conn, path, deployment: %{"state" => "on"})
+      assert %{"is_active" => true, "state" => "on"} = json_response(conn, 200)["data"]
+
+      path = Routes.deployment_path(conn, :show, org.name, product.name, deployment.name)
+      conn = get(conn, path)
+      assert json_response(conn, 200)["data"]["is_active"]
+      assert json_response(conn, 200)["data"]["state"] == "on"
+    end
+
     test "audits on success", %{conn: conn, deployment: deployment, org: org, product: product} do
       path = Routes.deployment_path(conn, :update, org.name, product.name, deployment.name)
       conn = put(conn, path, deployment: %{"is_active" => true})

@@ -68,11 +68,28 @@ defmodule NervesHubAPIWeb.DeploymentController do
     end
   end
 
-  defp update_params(product, %{"firmware" => uuid} = params) do
-    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
-      {:ok, Map.put(params, "firmware_id", firmware.id)}
+  defp update_params(product, params) do
+    params
+    |> maybe_active_from_state()
+    |> maybe_firmware_id(product)
+    |> case do
+      %{} = params -> {:ok, params}
+      err -> err
     end
   end
 
-  defp update_params(_, params), do: {:ok, params}
+  defp maybe_active_from_state(%{"state" => state} = params) do
+    active? = if String.downcase(state) == "on", do: true, else: false
+    Map.put(params, "is_active", active?)
+  end
+
+  defp maybe_active_from_state(params), do: params
+
+  defp maybe_firmware_id(%{"firmware" => uuid} = params, product) do
+    with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+      Map.put(params, "firmware_id", firmware.id)
+    end
+  end
+
+  defp maybe_firmware_id(params, _product), do: params
 end

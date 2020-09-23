@@ -14,6 +14,7 @@ defmodule NervesHubAPIWeb.DeploymentView do
     %{
       name: deployment.name,
       is_active: deployment.is_active,
+      state: if(deployment.is_active, do: "on", else: "off"),
       firmware_uuid: deployment.firmware.uuid,
       conditions: deployment.conditions
     }
