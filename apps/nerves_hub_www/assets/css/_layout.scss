@@ -398,35 +398,6 @@ html {
     grid-row: 2;
   }
 
-  .x2-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-column-gap: 2rem;
-    grid-row-gap: 2rem;
-
-    &.deployment-form {
-      grid-template-columns: 360px 360px;
-      grid-row-gap: 0;
-      grid-column-gap: 3rem;
-
-      .form-group:first-child {
-        grid-column: span 2;
-      }
-
-      @media (max-width: 860px) {
-        grid-template-columns: 360px;
-
-        .form-group:first-child {
-          grid-column: 1;
-        }
-      }
-    }
-
-    @media (max-width: 600px) {
-      grid-template-columns: 1fr;
-    }
-  }
-
   .gc-span-2 {
     grid-column: span 2;
   }
