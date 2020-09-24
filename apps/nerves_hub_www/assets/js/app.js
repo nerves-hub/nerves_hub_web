@@ -6,6 +6,7 @@ import $ from 'jquery'
 import { Socket } from 'phoenix'
 import LiveSocket from 'phoenix_live_view'
 import IEx from './console'
+import Josh from 'joshjs'
 
 let dates = require('./dates')
 const iex = new IEx()
@@ -19,7 +20,8 @@ let socket = new Socket('/socket', { params: { token: window.userToken } })
 
 liveSocket.connect()
 
-const josh = new Josh()
+new Josh()
+
 
 $(function() {
   $('.custom-upload-input').on('change', function() {
