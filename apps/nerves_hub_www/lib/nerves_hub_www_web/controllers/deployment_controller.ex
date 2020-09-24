@@ -164,7 +164,9 @@ defmodule NervesHubWWWWeb.DeploymentController do
 
     Deployments.update_deployment(deployment, params)
     |> case do
-      {:ok, deployment} ->
+      {:ok, updated} ->
+        # Use original deployment so changes will get
+        # marked in audit log
         audit!(user, deployment, :update, params)
 
         conn
@@ -176,7 +178,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
               :show,
               org.name,
               product.name,
-              deployment.name
+              updated.name
             )
         )
 
