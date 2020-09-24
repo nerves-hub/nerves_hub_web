@@ -397,30 +397,5 @@ html {
   .gr-2 {
     grid-row: 2;
   }
-
-  .gc-span-2 {
-    grid-column: span 2;
-  }
-
-  .gr-2 {
-    grid-row: 2;
-  }
-
-  .x2-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-column-gap: 2rem;
-    grid-row-gap: 2rem;
-
-    &.form {
-      grid-template-columns: 360px 360px;
-      grid-row-gap: 0;
-      grid-column-gap: 3rem;
-    }
-  }
-
-  .gc-span-2 {
-    grid-column: span 2;
-  }
 }
 
