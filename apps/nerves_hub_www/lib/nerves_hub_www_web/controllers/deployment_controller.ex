@@ -164,7 +164,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
 
     Deployments.update_deployment(deployment, params)
     |> case do
-      {:ok, _deployment} ->
+      {:ok, deployment} ->
         audit!(user, deployment, :update, params)
 
         conn
