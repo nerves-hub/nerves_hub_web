@@ -37,6 +37,10 @@
       <span class="button-icon edit"></span>
       <span class="action-text">Edit</span>
     <% end %>
+    <%= link class: "btn btn-outline-light", to: Routes.device_path(@socket, :delete, @org.name, @product.name, @device.identifier), method: :delete, data: [confirm: "Are you sure?"] do %>
+      <span class="button-icon left-icon delete"></span>
+      <span>Delete</span>
+    <% end %>
   </div>
 </div>
 
@@ -73,9 +77,7 @@
         Good
       <% else %>
         <span>Quarantined</span>
-        <span class="ml-1">
-          <img src="/images/icons/quarantine-red.svg" alt="Quarantined icon" style="width: 1.3rem; margin-top: -4px;"/>
-        </span>
+        <span class="ml-1"><img src="/images/icons/error.svg" alt="Quarantined icon"/></span>
       <% end %>
     </p>
   </div>
