@@ -89,6 +89,11 @@ html body {
 
   &.healthy-false {
     background-color: var(--primary-25);
+    padding-right: 2.5rem;
+    background-image: url("/images/icons/quarantine-red.svg");
+    background-position: right .5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.1rem;
 
     &:hover {
       color: white;
