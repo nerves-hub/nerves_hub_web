@@ -4,7 +4,7 @@ FROM bitwalker/alpine-elixir:${ELIXIR_VERSION} as builder
 
 ENV MIX_ENV=prod
 
-RUN apk --no-cache add make gcc musl-dev xdelta3 zip unzip
+RUN apk --no-cache add make gcc musl-dev
 RUN mix local.hex --force && mix local.rebar --force
 RUN mkdir /build
 ADD . /build
@@ -15,6 +15,12 @@ RUN mix release nerves_hub_device  --overwrite
 
 # Release Container
 FROM nerveshub/runtime:alpine-3.9 as release
+
+RUN apk add 'fwup~=1.8.1' \
+  --repository http://nl.alpinelinux.org/alpine/edge/community/ \
+  --no-cache
+
+RUN apk --no-cache add xdelta3 zip unzip
 
 EXPOSE 443
 
