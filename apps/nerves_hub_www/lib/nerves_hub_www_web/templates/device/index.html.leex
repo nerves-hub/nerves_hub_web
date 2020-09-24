@@ -80,6 +80,7 @@
     <thead>
       <tr>
         <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
+        <%= devices_table_header("Health", "healthy", @current_sort, @sort_direction) %>
         <th>Connection</th>
         <%= devices_table_header("Last handshake", "last_communication", @current_sort, @sort_direction) %>
         <th>Firmware</th>
@@ -96,6 +97,17 @@
             <a href="<%= Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="badge healthy-<%= device.healthy %>">
               <%= device.identifier %>
             </a>
+          </div>
+        </td>
+
+        <td>
+          <div class="mobile-label help-text">Health</div>
+          <div>
+            <%= if device.healthy do %>
+              <span>Good</span>
+            <% else %>
+              <span class="quarantined">Quarantined</span>
+            <% end %>
           </div>
         </td>
 
