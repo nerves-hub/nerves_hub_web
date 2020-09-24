@@ -201,7 +201,13 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       {:ok, reloaded_deployment} = Deployments.get_deployment(product, deployment.id)
 
       assert redirected_to(conn, 302) =~
-               Routes.deployment_path(conn, :show, org.name, product.name, reloaded_deployment.name)
+               Routes.deployment_path(
+                 conn,
+                 :show,
+                 org.name,
+                 product.name,
+                 reloaded_deployment.name
+               )
 
       assert reloaded_deployment.name == "not original"
       assert reloaded_deployment.conditions["version"] == "4.3.2"
