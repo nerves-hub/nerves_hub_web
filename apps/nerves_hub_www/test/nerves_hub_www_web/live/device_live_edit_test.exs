@@ -8,7 +8,7 @@ defmodule NervesHubWWWWeb.DeviceLiveEditTest do
   test "redirects on mount with unrecognized session structure", %{conn: conn, fixture: fixture} do
     home_path = Routes.home_path(Endpoint, :index)
     conn = clear_session(conn)
-    assert {:error, %{redirect: %{to: ^home_path}}} = live(conn, device_path(fixture, :edit))
+    assert {:error, {:redirect, %{flash: _flash, to: ^home_path}}} = live(conn, device_path(fixture, :edit))
   end
 
   describe "validate" do
@@ -45,7 +45,7 @@ defmodule NervesHubWWWWeb.DeviceLiveEditTest do
       {:ok, view, _html} = live(conn, device_path(fixture, :edit))
       path = device_path(fixture, :show)
       render_submit(view, :save, params)
-      assert_redirect(view, ^path)
+      assert_redirect(view, path)
     end
   end
 
