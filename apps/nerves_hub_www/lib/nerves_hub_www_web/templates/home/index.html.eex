@@ -115,7 +115,7 @@
   <h2 class="ta-c"><span class="color-primary">Nerves</span> in Action</h2>
   <div class="grid">
     <div class="item">
-      <img src="/images/home/le%20tote.webp" alt="le tote">
+      <img src="/images/home/le-tote.jpg" alt="le tote">
       <div class="item-text">
         <div>
           <h5>Le Tote</h5>
@@ -125,7 +125,7 @@
       </div>
     </div>
     <div class="item">
-      <img src="/images/home/hop.webp" alt="hop">
+      <img src="/images/home/hop.jpg" alt="hop">
       <div class="item-text">
         <div>
           <h5>Hop</h5>
@@ -135,7 +135,7 @@
       </div>
     </div>
     <div class="item">
-      <img src="/images/home/farmbot.webp" alt="farmbot">
+      <img src="/images/home/farmbot.jpg" alt="farmbot">
       <div class="item-text">
         <div>
           <h5>Farmbot</h5>
