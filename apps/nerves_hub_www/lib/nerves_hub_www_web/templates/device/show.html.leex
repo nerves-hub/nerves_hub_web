@@ -52,10 +52,10 @@
     <p class="flex-row align-items-center tt-c">
       <span><%= @device.status %></span>
       <span class="ml-1">
-        <%= if @device.status != "connected" do %>
+        <%= if @device.status != "online" do %>
           <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
         <% else %>
-          <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
+          <img src="/images/icons/check.svg" alt="online" class="table-icon" />
         <% end %>
       </span>
     </p>
