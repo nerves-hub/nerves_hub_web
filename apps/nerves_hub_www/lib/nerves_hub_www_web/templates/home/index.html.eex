@@ -31,7 +31,7 @@
 <div class="home-about">
   <div class="content-container">
     <div class="section-header josh-js" data-josh-anim-name="fadeIn">
-      <h2 class="ta-c">Archieve IoT agility with NervesHub</h2>
+      <h2 class="ta-c">Achieve IoT agility with NervesHub</h2>
       <p class="ta-c">Once you have a host of IoT devices in production — out in the field — how do you manage firmware updates? With NervesHub, keep your connected products up-to-date without sacrificing security or speed.</p>
     </div>
     <div class="features josh-js" data-josh-anim-name="fadeIn">
