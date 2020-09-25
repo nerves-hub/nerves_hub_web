@@ -75,7 +75,7 @@
       <h4>Manage Devices with Remote Console Monitoring</h4>
       <p>Interact with your device remotely and securely through an intuitively designed console. See device connection status and health, recent activity and deployments, current firmware versions, and more.</p>
     </div>
-    <img src="/images/home/manage-devices.png" alt="Manage devices" />
+    <img src="/images/home/manage-devices.jpg" alt="Manage devices" />
   </div>
   <div class="screen-item">
     <img src="/images/home/send-updates.png" alt="Delta updates" />
