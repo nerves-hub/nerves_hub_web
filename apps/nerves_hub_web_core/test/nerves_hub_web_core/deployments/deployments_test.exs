@@ -1,6 +1,6 @@
 defmodule NervesHubWebCore.DeploymentsTest do
   use NervesHubWebCore.DataCase, async: false
-  use Phoenix.ChannelTest
+  import Phoenix.ChannelTest
 
   alias NervesHubWebCore.{AuditLogs.AuditLog, Deployments, Fixtures, Firmwares}
   alias Ecto.Changeset

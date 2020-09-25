@@ -12,7 +12,7 @@ defmodule NervesHubWebCore.Application do
     children = [
       # Start the Ecto repository
       NervesHubWebCore.Repo,
-      {Phoenix.PubSub.PG2, pubsub_config},
+      {Phoenix.PubSub, name: NervesHubWeb.PubSub},
       {Task.Supervisor, name: NervesHubWebCore.TaskSupervisor},
       {Oban, configure_oban()}
     ]

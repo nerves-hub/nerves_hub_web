@@ -35,7 +35,7 @@ config :nerves_hub_api,
 config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
   url: [host: "localhost"],
   render_errors: [view: NervesHubAPIWeb.ErrorView, accepts: ~w(json)],
-  pubsub: [name: NervesHubWeb.PubSub]
+  pubsub_server: NervesHubWeb.PubSub
 
 ##
 # NervesHub Device
@@ -48,7 +48,7 @@ config :nerves_hub_device,
 # Configures the endpoint
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: NervesHubWeb.PubSub]
+  pubsub_server: NervesHubWeb.PubSub
 
 ##
 # NervesHubWebCore
@@ -58,6 +58,7 @@ config :nerves_hub_web_core,
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   host: host
 
+# this may be deprecated
 config :nerves_hub_web_core, NervesHubWeb.PubSub,
   name: NervesHubWeb.PubSub,
   adapter: Phoenix.PubSub.PG2,
@@ -82,7 +83,7 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   url: [host: host],
   secret_key_base: System.get_env("SECRET_KEY_BASE"),
   render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: NervesHubWeb.PubSub],
+  pubsub_server: NervesHubWeb.PubSub,
   live_view: [signing_salt: System.get_env("LIVE_VIEW_SIGNING_SALT")]
 
 config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: true
