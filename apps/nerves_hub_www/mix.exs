@@ -53,26 +53,26 @@ defmodule NervesHubWWW.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.4"},
+      {:phoenix, "~> 1.5"},
       {:phoenix_active_link, "~> 0.2.1"},
-      {:phoenix_pubsub, "~> 1.1"},
+      {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 0.10"},
+      {:phoenix_live_view, "~> 0.14"},
       {:plug, "~> 1.7"},
-      {:plug_cowboy, "~> 2.0"},
+      {:plug_cowboy, "~> 2.1"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 2.14"},
       {:phoenix_markdown, "~> 1.0"},
       {:cowboy, "~> 2.0", override: true},
       {:gettext, "~> 0.11"},
-      {:hackney, "~> 1.9"},
+      {:hackney, "~> 1.16"},
       {:rollbax, "~> 0.11.0"},
-      {:floki, "~> 0.20", only: [:test, :dev]},
+      {:floki, ">= 0.27.0", only: :test},
       {:jason, "~> 1.2", override: true},
       {:nerves_hub_web_core, in_umbrella: true},
       {:nerves_hub_device, in_umbrella: true},
       {:ansi_to_html, git: "https://github.com/jjcarstens/ansi_to_html"},
-      {:scrivener_html, "~> 1.8"}
+      {:scrivener_html, git: "https://github.com/nerves-hub/scrivener_html", branch: "phx-1.5"}
     ]
   end
 
