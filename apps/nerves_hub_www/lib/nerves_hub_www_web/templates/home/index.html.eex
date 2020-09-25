@@ -80,7 +80,7 @@
   <div class="screen-item">
     <img src="/images/home/send-updates.png" alt="Delta updates" />
     <div class="screen-description josh-js" data-josh-anim-name="fadeIn">
-      <h4>Send Smaller Files with Delta Updates</h4>
+      <h4>Send Smaller Files with Delta Updates (Coming Soon)</h4>
       <p>Reduce the size — and cost — of your over-the-air firmware updates by up to 95%. Delta updates compare two binary files and only update the pieces of the firmware that changed, consuming less bandwidth every time.</p>
     </div>
   </div>
