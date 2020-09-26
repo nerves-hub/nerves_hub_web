@@ -22,7 +22,6 @@ liveSocket.connect()
 
 new Josh()
 
-
 $(function() {
   $('.custom-upload-input').on('change', function() {
     let fileName = $(this)
