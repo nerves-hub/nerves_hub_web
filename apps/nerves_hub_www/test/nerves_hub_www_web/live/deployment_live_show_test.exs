@@ -7,7 +7,7 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
   test "redirects on mount with unrecognized session structure", %{fixture: fixture, conn: conn} do
     home_path = Routes.home_path(Endpoint, :index)
     conn = clear_session(conn)
-    assert {:error, %{redirect: %{to: ^home_path}}} = live(conn, deployment_path(fixture, :show))
+    assert {:error, {:redirect, %{flash: _flash, to: ^home_path}}} = live(conn, deployment_path(fixture, :show))
   end
 
   describe "handle_event" do
@@ -56,7 +56,7 @@ defmodule NervesHubWWWWeb.DeploymentLiveShowTest do
 
       path = Routes.deployment_path(Endpoint, :index, org.name, product.name)
       render_submit(view, :delete)
-      assert_redirect(view, ^path)
+      assert_redirect(view, path)
 
       [audit_log | _tail] = AuditLogs.logs_for(deployment)
 

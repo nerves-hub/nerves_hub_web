@@ -6,13 +6,12 @@ defmodule NervesHubWebCore.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   def start(_type, _args) do
-    pubsub_config = Application.get_env(:nerves_hub_web_core, NervesHubWeb.PubSub)
 
     # Define workers and child supervisors to be supervised
     children = [
       # Start the Ecto repository
       NervesHubWebCore.Repo,
-      {Phoenix.PubSub.PG2, pubsub_config},
+      {Phoenix.PubSub, name: NervesHubWeb.PubSub},
       {Task.Supervisor, name: NervesHubWebCore.TaskSupervisor},
       {Oban, configure_oban()}
     ]

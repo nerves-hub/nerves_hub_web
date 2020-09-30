@@ -48,13 +48,13 @@ defmodule NervesHubDevice.Mixfile do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.4"},
-      {:phoenix_pubsub, "~> 1.1"},
+      {:phoenix, "~> 1.5"},
+      {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:plug, "~> 1.7"},
       {:gettext, "~> 0.11"},
       {:rollbax, "~> 0.11.0"},
-      {:plug_cowboy, "~> 2.0"},
+      {:plug_cowboy, "~> 2.1"},
       {:cowboy, "~> 2.0", override: true},
       {:jason, "~> 1.2", override: true},
       {:phoenix_client, "~> 0.7", only: :test},

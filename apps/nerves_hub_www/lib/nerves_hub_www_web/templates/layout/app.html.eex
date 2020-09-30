@@ -1,84 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
-    <meta name="author" content="">
 
-    <title>NervesHub</title>
-    <link rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>">
+<%= if @view_module == NervesHubWWWWeb.HomeView do %>
+  <div class="home-wrapper">
+    <main role="main" class="flex-column">
+      <%= if get_flash(@conn, :info) do %>
+        <div class="alert alert-info alert-dismissible">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          <%= get_flash(@conn, :info) %>
+        </div>
+      <% end %>
+      <%= if get_flash(@conn, :error) do %>
+        <div class="alert alert-danger alert-dismissible">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          <%= get_flash(@conn, :error) %>
+        </div>
+      <% end %>
+      <%= @inner_content %>
+    </main>
+  </div>
+<% else %>
+  <div class="normal-wrapper">
+    <%= render("_navigation.html", conn: @conn) %>
+    <main role="main" class="flex-column content-container">
+      <%= if get_flash(@conn, :info) do %>
+        <div class="alert alert-info alert-dismissible">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          <%= get_flash(@conn, :info) %>
+        </div>
+      <% end %>
+      <%= if get_flash(@conn, :error) do %>
+        <div class="alert alert-danger alert-dismissible">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          <%= get_flash(@conn, :error) %>
+        </div>
+      <% end %>
+      <%= render("_tabnav.html", conn: @conn) %>
+      <%= @inner_content %>
+    </main>
+  </div>
+<% end %>
 
-    <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/cookieconsent2/3.1.0/cookieconsent.min.css" />
-    <script src="//cdnjs.cloudflare.com/ajax/libs/cookieconsent2/3.1.0/cookieconsent.min.js"></script>
-    <script>
-    window.addEventListener("load", function(){
-    window.cookieconsent.initialise({
-      "palette": {
-        "popup": {
-          "background": "#343a40"
-        },
-        "button": {
-          "background": "#f1d600"
-        }
-      },
-      "position": "bottom",
-      "content": {
-        "message": "NervesHub uses cookies to ensure you get the best experience we can provide."
-      }
-    })});
-    </script>
-    <link href="https://fonts.googleapis.com/css?family=Audiowide" rel="stylesheet">
-  </head>
-
-  <body>
-    <%= if @view_module == NervesHubWWWWeb.HomeView do %>
-      <div class="home-wrapper">
-        <main role="main" class="flex-column">
-          <%= if get_flash(@conn, :info) do %>
-            <div class="alert alert-info alert-dismissible">
-              <button type="button" class="close" data-dismiss="alert">&times;</button>
-              <%= get_flash(@conn, :info) %>
-            </div>
-          <% end %>
-          <%= if get_flash(@conn, :error) do %>
-            <div class="alert alert-danger alert-dismissible">
-              <button type="button" class="close" data-dismiss="alert">&times;</button>
-              <%= get_flash(@conn, :error) %>
-            </div>
-          <% end %>
-          <%= render @view_module, @view_template, assigns %>
-        </main>
-      </div>
-    <% else %>
-      <div class="normal-wrapper">
-        <%= render("_navigation.html", conn: @conn) %>
-        <main role="main" class="flex-column content-container">
-          <%= if get_flash(@conn, :info) do %>
-            <div class="alert alert-info alert-dismissible">
-              <button type="button" class="close" data-dismiss="alert">&times;</button>
-              <%= get_flash(@conn, :info) %>
-            </div>
-          <% end %>
-          <%= if get_flash(@conn, :error) do %>
-            <div class="alert alert-danger alert-dismissible">
-              <button type="button" class="close" data-dismiss="alert">&times;</button>
-              <%= get_flash(@conn, :error) %>
-            </div>
-          <% end %>
-          <%= render("_tabnav.html", conn: @conn) %>
-          <%= render @view_module, @view_template, assigns %>
-        </main>
-      </div>
-    <% end %>
-
-    <%= render("_footer.html", conn: @conn) %>
-    <script>
-      window.userToken = "<%= assigns[:user_token] %>"
-      window.orgId = "<%= assigns[:org] && Map.get(assigns[:org], :id) %>"
-    </script>
-    <%= csrf_meta_tag() %>
-    <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
-  </body>
-</html>
+<%= render("_footer.html", conn: @conn) %>
+<script>
+  window.userToken = "<%= assigns[:user_token] %>"
+  window.orgId = "<%= assigns[:org] && Map.get(assigns[:org], :id) %>"
+</script>
+<%= csrf_meta_tag() %>
+<script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>

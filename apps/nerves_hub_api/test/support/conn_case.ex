@@ -19,7 +19,9 @@ defmodule NervesHubAPIWeb.ConnCase do
   using do
     quote do
       # Import conveniences for testing with connections
-      use Phoenix.ConnTest
+      import Plug.Conn
+      import Phoenix.ConnTest
+
       use DefaultMocks
       import NervesHubAPIWeb.ConnCase, only: [build_auth_conn: 1, peer_data: 1]
 

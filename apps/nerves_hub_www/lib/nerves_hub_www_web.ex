@@ -34,6 +34,8 @@ defmodule NervesHubWWWWeb do
       import Phoenix.LiveView.Controller
       import NervesHubWebCore.RoleValidateHelpers
 
+      import Phoenix.LiveView.Controller
+
       alias NervesHubWWWWeb.Router.Helpers, as: Routes
 
       def whitelist(params, keys) do
@@ -104,6 +106,8 @@ defmodule NervesHubWWWWeb do
       # Import convenience functions from controllers
       import Phoenix.Controller,
         only: [get_flash: 1, get_flash: 2, view_module: 1, view_template: 1]
+
+      import Phoenix.LiveView.Helpers
 
       # Include shared imports and aliases for views
       unquote(view_helpers())
