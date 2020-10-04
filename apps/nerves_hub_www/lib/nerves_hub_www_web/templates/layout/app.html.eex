@@ -48,7 +48,7 @@
               <%= get_flash(@conn, :error) %>
             </div>
           <% end %>
-          <%= render @view_module, @view_template, assigns %>
+          <%= @inner_content %>
         </main>
       </div>
     <% else %>
@@ -68,7 +68,7 @@
             </div>
           <% end %>
           <%= render("_tabnav.html", conn: @conn) %>
-          <%= render @view_module, @view_template, assigns %>
+          <%= @inner_content %>
         </main>
       </div>
     <% end %>

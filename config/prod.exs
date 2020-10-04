@@ -33,8 +33,6 @@ config :nerves_hub_web_core, NervesHubWebCore.Mailer,
   ssl: false,
   retries: 1
 
-config :nerves_hub_web_core, Oban, prune: {:maxage, 60 * 60 * 24 * 7 * 2}
-
 config :nerves_hub_web_core, NervesHubWebCore.Repo, pool_size: 20
 
 ##

@@ -66,7 +66,7 @@ config :nerves_hub_web_core, NervesHubWeb.PubSub,
 
 config :nerves_hub_web_core, Oban,
   repo: NervesHubWebCore.Repo,
-  verbose: false
+  log: false
 
 ##
 # NervesHubWWW

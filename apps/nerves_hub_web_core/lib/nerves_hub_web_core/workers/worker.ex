@@ -42,7 +42,7 @@ defmodule NervesHubWebCore.Worker do
   find all modules using this behaviour then call `schedule_next!/0`.
   This will ensure there is always a scheduled job to start the loop.
   """
-  @callback run(map(), Oban.Job.t()) :: any()
+  @callback run(Oban.Job.t()) :: any()
   @callback schedule_next!() :: Oban.Job.t() | no_return()
 
   alias Crontab.CronExpression, as: Cron
@@ -63,14 +63,14 @@ defmodule NervesHubWebCore.Worker do
 
       def config(), do: unquote(config)
 
-      def perform(args, %{attempt: 1} = job) do
+      def perform(%{attempt: 1} = job) do
         # Recursively schedule out the next job
         schedule_next!()
 
-        run(args, job)
+        run(job)
       end
 
-      def perform(args, job), do: run(args, job)
+      def perform(job), do: run(job)
 
       def schedule_next!(time_offset \\ 1) do
         args = config()[:args] || %{}
