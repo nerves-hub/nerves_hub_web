@@ -30,7 +30,10 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
     @tag skip_presence: true
     test "redirects when device not configured for remote IEx", %{conn: conn, fixture: fixture} do
       path = device_path(fixture, :show)
-      assert {:error, {:redirect, %{flash: _flash, to: ^path}}} = live(conn, device_path(fixture, :console))
+
+      assert {:error, {:redirect, %{flash: _flash, to: ^path}}} =
+               live(conn, device_path(fixture, :console))
+
       refute_broadcast("init", %{})
     end
 
@@ -38,7 +41,8 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
       home_path = Routes.home_path(Endpoint, :index)
       conn = clear_session(conn)
 
-      assert {:error, {:redirect, %{flash: _flash, to: ^home_path}}} = live(conn, device_path(fixture, :console))
+      assert {:error, {:redirect, %{flash: _flash, to: ^home_path}}} =
+               live(conn, device_path(fixture, :console))
     end
   end
 
