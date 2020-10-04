@@ -58,10 +58,9 @@ config :nerves_hub_web_core,
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   host: host
 
-# this may be deprecated
 config :nerves_hub_web_core, NervesHubWeb.PubSub,
   name: NervesHubWeb.PubSub,
-  adapter: Phoenix.PubSub.PG2,
+  adapter_name: Phoenix.PubSub.PG2,
   fastlane: Phoenix.Channel.Server
 
 config :nerves_hub_web_core, Oban,
