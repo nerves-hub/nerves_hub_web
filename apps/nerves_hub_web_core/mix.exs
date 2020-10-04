@@ -54,7 +54,7 @@ defmodule NervesHubWebCore.MixProject do
       {:postgrex, "~> 0.14"},
       {:bcrypt_elixir, "~> 2.0"},
       {:comeonin, "~> 5.3"},
-      {:oban, "~> 1.2"},
+      {:oban, "~> 2.1"},
       {:crontab, "~> 1.1"},
       {:timex, "~> 3.1"},
       {:sweet_xml, "~> 0.6"},
@@ -62,10 +62,10 @@ defmodule NervesHubWebCore.MixProject do
       {:ex_aws_s3, "~> 2.0"},
       {:x509, "~> 0.5.1 or ~> 0.6"},
       {:bamboo, "~> 1.0"},
-      {:bamboo_smtp, "~> 2.1.0"},
+      {:bamboo_smtp, "~> 3.0.0"},
       {:jason, "~> 1.2", override: true},
       {:ecto, "~> 3.4", override: true},
-      {:mox, "~> 0.5", only: [:test, :dev]}
+      {:mox, "~> 1.0", only: [:test, :dev]}
     ]
   end
 end

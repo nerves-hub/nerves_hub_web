@@ -6,7 +6,7 @@ defmodule NervesHubWebCore.Workers.OrgMetrics do
     schedule: "0 1 * * *"
 
   @impl true
-  def run(%{"run_utc_time" => run_utc_time}, _job) do
+  def run(%{args: %{"run_utc_time" => run_utc_time}}) do
     NervesHubWebCore.Accounts.create_org_metrics(run_utc_time)
   end
 end

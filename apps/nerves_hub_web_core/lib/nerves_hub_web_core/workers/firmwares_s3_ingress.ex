@@ -18,7 +18,7 @@ defmodule NervesHubWebCore.Workers.FirmwaresTransferS3Ingress do
   @regex ~r/(?P<bucket_owner>\S+) (?P<bucket>\S+) (?P<time>\[[^]]*\]) (?P<remote_ip>\S+) (?P<requester>\S+) (?P<request_id>\S+) (?P<operation>\S+) (?P<key>\S+) (?P<request>"[^"]*"|-) (?P<http_status>\S+) (?P<error_code>\S+) (?P<bytes_sent>\S+) (?P<object_size>\S+) (?P<total_time>\S+) (?P<turn_around_time>\S+) (?P<referrer>"[^"]*"|-) (?P<user_agent>"[^"]*"|-) (?P<version>\S)/
 
   @impl true
-  def run(_args, _job) do
+  def run(_job) do
     bucket = Application.get_env(:nerves_hub_web_core, __MODULE__)[:bucket]
 
     S3.list_objects(bucket)

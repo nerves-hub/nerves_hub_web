@@ -9,7 +9,7 @@ defmodule NervesHubWebCore.Workers.FirmwaresGC do
   alias NervesHubWebCore.Firmwares
 
   @impl true
-  def run(_args, _job), do: run()
+  def run(_job), do: run()
 
   def run() do
     Firmwares.get_firmware_by_expired_ttl()
