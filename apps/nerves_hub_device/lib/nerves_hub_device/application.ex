@@ -6,7 +6,6 @@ defmodule NervesHubDevice.Application do
   def start(_type, _args) do
     # Define workers and child supervisors to be supervised
     children = [
-      # {Phoenix.PubSub, name: NervesHubWeb.PubSub},
       # Start the endpoint when the application starts
       NervesHubDeviceWeb.Endpoint,
       NervesHubDevice.Presence
