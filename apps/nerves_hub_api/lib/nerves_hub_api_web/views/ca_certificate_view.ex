@@ -14,7 +14,8 @@ defmodule NervesHubAPIWeb.CACertificateView do
     %{
       serial: ca_certificate.serial,
       not_before: ca_certificate.not_before,
-      not_after: ca_certificate.not_after
+      not_after: ca_certificate.not_after,
+      description: ca_certificate.description
     }
   end
 end
