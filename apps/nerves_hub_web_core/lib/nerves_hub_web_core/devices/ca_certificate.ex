@@ -45,7 +45,6 @@ defmodule NervesHubWebCore.Devices.CACertificate do
   end
 
   def update_changeset(%CACertificate{} = ca_certificate, params) do
-    ca_certificate
-    |> cast(params, [:last_used])
+    cast(ca_certificate, params, [:description, :last_used])
   end
 end
