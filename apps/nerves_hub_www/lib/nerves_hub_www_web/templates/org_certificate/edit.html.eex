@@ -1,0 +1,14 @@
+<h1>Edit Certificate Authority</h1>
+
+<%= form_for @changeset, Routes.org_certificate_path(@conn, :update, @org.name, @cert.serial), fn f -> %>
+  <div class="form-group">
+    <%= label f, :description, for: "description_input" %>
+    <%= text_input f, :description , class: "form-control", id: "description_input" %>
+    <div class="has-error"><%= error_tag f, :description %></div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <%= link "Back", to: Routes.org_certificate_path(@conn, :index, @org.name), class: "btn btn-outline-light" %>
+    <%= submit "Update Certificate", class: "btn btn-primary" %>
+  </div>
+<% end %>

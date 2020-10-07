@@ -79,6 +79,37 @@ defmodule NervesHubWWWWeb.OrgCertificateControllerTest do
     end
   end
 
+  describe "edit" do
+    test "renders form", %{conn: conn, org: org} do
+      %{db_cert: ca} = Fixtures.ca_certificate_fixture(org)
+      conn = get(conn, Routes.org_certificate_path(conn, :edit, org.name, ca.serial))
+      assert html_response(conn, 200) =~ "Edit Certificate Authority"
+    end
+
+    test "redirects to index when not found", %{conn: conn, org: org} do
+      conn = get(conn, Routes.org_certificate_path(conn, :edit, org.name, "unknown-serial"))
+      assert redirected_to(conn, 302) =~ Routes.org_certificate_path(conn, :index, org.name)
+    end
+  end
+
+  describe "update" do
+    test "CA is updated on success", %{conn: conn, org: org} do
+      %{db_cert: %{serial: serial}} = Fixtures.ca_certificate_fixture(org)
+      params = %{ca_certificate: %{description: "test"}}
+      conn = put(conn, Routes.org_certificate_path(conn, :update, org.name, serial), params)
+      assert redirected_to(conn) == Routes.org_certificate_path(conn, :index, org.name)
+
+      assert {:ok, %{description: "test", serial: ^serial}} =
+               Devices.get_ca_certificate_by_serial(serial)
+    end
+
+    test "updated fails when ca not found", %{conn: conn, org: org} do
+      conn = put(conn, Routes.org_certificate_path(conn, :update, org.name, "unknown-serial"), %{ca_certificate: %{}})
+      assert redirected_to(conn) == Routes.org_certificate_path(conn, :index, org.name)
+    end
+  end
+
+
   describe "delete certificate authority" do
     test "deletes chosen resource", %{
       conn: conn,

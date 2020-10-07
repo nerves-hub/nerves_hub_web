@@ -18,8 +18,38 @@ defmodule NervesHubWWWWeb.OrgCertificateController do
   end
 
   def new(conn, _params) do
-    conn
-    |> render("new.html", changeset: %Changeset{data: %CACertificate{}})
+    render(conn, "new.html", changeset: %Changeset{data: %CACertificate{}})
+  end
+
+  def edit(%{assigns: %{org: org}} = conn, %{"serial" => serial}) do
+    with {:ok, cert} <- Devices.get_ca_certificate_by_serial(serial),
+         changeset <- Devices.CACertificate.changeset(cert, %{}) do
+      render(conn, "edit.html", changeset: changeset, org: org, cert: cert)
+    else
+      {:error, :not_found} ->
+        conn
+        |> put_flash(:error, "Certificate Authority not found")
+        |> redirect(to: Routes.org_certificate_path(conn, :index, org.name))
+    end
+  end
+
+  def update(%{assigns: %{org: org}} = conn, %{"ca_certificate" => params, "serial" => serial}) do
+    with {:ok, cert} <- Devices.get_ca_certificate_by_serial(serial),
+         {:ok, _cert} <- Devices.update_ca_certificate(cert, params) do
+      conn
+      |> put_flash(:info, "Certificate Authority updated")
+      |> redirect(to: Routes.org_certificate_path(conn, :index, org.name))
+    else
+      {:error, :not_found} ->
+        conn
+        |> put_flash(:error, "Error decoding certificate")
+        |> redirect(to: Routes.org_certificate_path(conn, :index, org.name))
+
+      {:error, changeset} ->
+        conn
+        |> put_flash(:error, "Error updating certificate")
+        |> render("edit.html", changeset: changeset)
+    end
   end
 
   def create(
