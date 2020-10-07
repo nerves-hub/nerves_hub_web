@@ -104,11 +104,14 @@ defmodule NervesHubWWWWeb.OrgCertificateControllerTest do
     end
 
     test "updated fails when ca not found", %{conn: conn, org: org} do
-      conn = put(conn, Routes.org_certificate_path(conn, :update, org.name, "unknown-serial"), %{ca_certificate: %{}})
+      conn =
+        put(conn, Routes.org_certificate_path(conn, :update, org.name, "unknown-serial"), %{
+          ca_certificate: %{}
+        })
+
       assert redirected_to(conn) == Routes.org_certificate_path(conn, :index, org.name)
     end
   end
-
 
   describe "delete certificate authority" do
     test "deletes chosen resource", %{
