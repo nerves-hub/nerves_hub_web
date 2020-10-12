@@ -1,0 +1,52 @@
+<h1><%= @device.identifier %></h1>
+
+<div class="device-meta-grid">
+  <div>
+    <div class="help-text">Status</div>
+    <p class="flex-row align-items-center tt-c">
+      <span><%= @device.status %></span>
+      <span class="ml-1">
+        <%= if @device.status != "online" do %>
+          <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
+        <% else %>
+          <img src="/images/icons/check.svg" alt="online" class="table-icon" />
+        <% end %>
+      </span>
+    </p>
+  </div>
+  <div>
+    <div class="help-text">Last Handshake</div>
+    <p>
+      <%= if is_nil(@device.last_communication) do %>
+        Never
+      <% else %>
+        <%= DateTimeFormat.from_now(@device.last_communication) %>
+      <% end %>
+    </p>
+  </div>
+  <div>
+    <div class="help-text">Health</div>
+    <p>
+      <%= if @device.healthy do %>
+        Good
+      <% else %>
+        <span>Quarantined</span>
+        <span class="ml-1">
+          <img src="/images/icons/quarantine-red.svg" alt="Quarantined icon" style="width: 1.3rem; margin-top: -4px;"/>
+        </span>
+      <% end %>
+    </p>
+  </div>
+  <div>
+    <div class="help-text">Description</div>
+    <p>
+      <%= if is_nil(@device.description) do %>
+        -
+      <% else %>
+        <%= @device.description %>
+      <% end %>
+    </p>
+  </div>
+</div>
+
+<div class="divider"></div>

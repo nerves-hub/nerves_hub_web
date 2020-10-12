@@ -5,7 +5,8 @@
     <span>Restart Console</span>
   </button>
 </div>
-<h1>Console</h1>
+
+<%= render("_header.html", device: @device) %>
 
 <%= if @console_available do %>
   <input id="device_id" hidden type="text" value="<%= @device.id %>" />
