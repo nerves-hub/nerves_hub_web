@@ -3,6 +3,7 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
 
   alias NervesHubWebCore.Devices
   alias NervesHubWebCore.Fixtures
+  alias NervesHubDevice.Presence
 
   setup %{user: user, org: org} do
     [product: Fixtures.product_fixture(user, org)]
@@ -62,6 +63,24 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
         get(conn, Routes.device_path(conn, :show, org.name, product.name, to_delete.identifier))
 
       assert html_response(conn, 404)
+    end
+  end
+
+  describe "console" do
+    test "shows information about device", %{conn: conn, org: org, product: product} do
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      Presence.track(self(), "product:#{product.id}:devices", device.id, %{
+        console_available: true,
+        console_version: "0.9.0",
+      })
+
+      result = get(conn, Routes.device_path(conn, :console, org.name, product.name, device.identifier))
+      assert html_response(result, 200) =~ "<h1>#{device.identifier}</h1>"
+      assert html_response(result, 200) =~ "Health"
+      assert html_response(result, 200) =~ "Status"
     end
   end
 end
