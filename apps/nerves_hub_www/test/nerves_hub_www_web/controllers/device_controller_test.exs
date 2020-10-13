@@ -74,10 +74,12 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
 
       Presence.track(self(), "product:#{product.id}:devices", device.id, %{
         console_available: true,
-        console_version: "0.9.0",
+        console_version: "0.9.0"
       })
 
-      result = get(conn, Routes.device_path(conn, :console, org.name, product.name, device.identifier))
+      result =
+        get(conn, Routes.device_path(conn, :console, org.name, product.name, device.identifier))
+
       assert html_response(result, 200) =~ "<h1>#{device.identifier}</h1>"
       assert html_response(result, 200) =~ "Health"
       assert html_response(result, 200) =~ "Status"
