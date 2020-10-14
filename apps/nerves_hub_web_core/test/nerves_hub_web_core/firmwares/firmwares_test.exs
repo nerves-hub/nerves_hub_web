@@ -404,6 +404,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
       assert {:ok, url} = Firmwares.get_firmware_url(source, target, "1.5.999")
     end
 
+    @tag :skip
     test "returns patch download_file when one exists", %{
       firmware: source,
       org_key: org_key,
@@ -420,6 +421,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
       assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version)
     end
 
+    @tag :skip
     test "returns download_file for a new patch", %{
       firmware: source,
       org_key: org_key,
