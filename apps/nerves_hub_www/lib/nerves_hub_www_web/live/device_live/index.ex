@@ -53,6 +53,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:show_filters, false)
       |> assign(:current_filters, @default_filters)
       |> assign(:currently_filtering, false)
+      |> assign(:page_size_valid, true)
       |> assign_display_devices()
 
     {:ok, socket}
@@ -122,17 +123,36 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
+  def handle_event("validate-paginate-opts", %{"page-size" => page_size}, socket) do
+    socket =
+      case Integer.parse(page_size) do
+        {_, _} ->
+          socket
+          |> assign(:page_size_valid, true)
+        :error ->
+          socket
+          |> assign(:page_size_valid, false)
+      end
+    {:noreply, socket}
+  end
+
   def handle_event(
         "set-paginate-opts",
         %{"page-size" => page_size},
         %{assigns: %{paginate_opts: paginate_opts}} = socket
       ) do
-    page_size = String.to_integer(page_size)
 
     socket =
-      socket
-      |> assign(:paginate_opts, %{paginate_opts | page_size: page_size, page_number: 1})
-      |> assign_display_devices()
+      case Integer.parse(page_size) do
+        {page_size, _} ->
+          socket
+          |> assign(:paginate_opts, %{paginate_opts | page_size: page_size, page_number: 1})
+          |> assign(:page_size_valid, true)
+          |> assign_display_devices()
+        :error ->
+          socket
+          |> assign(:page_size_valid, false)
+      end
 
     {:noreply, socket}
   end

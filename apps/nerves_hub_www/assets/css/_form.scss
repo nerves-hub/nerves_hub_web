@@ -46,6 +46,10 @@ html {
       opacity: .8;
       cursor: not-allowed;
     }
+
+    &.invalid {
+      border: 1px solid var(--warning);
+    }
   }
 
   .form-control-md {
