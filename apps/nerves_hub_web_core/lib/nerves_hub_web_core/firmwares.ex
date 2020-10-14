@@ -346,13 +346,17 @@ defmodule NervesHubWebCore.Firmwares do
           {:ok, String.t()}
           | {:error, :failure}
 
-  def get_firmware_url(source, target, fwup_version) when is_binary(fwup_version) do
-    if Version.match?(fwup_version, @min_fwup_patchable_version) do
-      do_get_firmware_url(source, target)
-    else
-      @uploader.download_file(target)
-    end
-  end
+  ##
+  # TODO: Put this check back in once delta updates has been fixed
+  # Until then, skip attempting any patches for now ¬
+  #
+  # def get_firmware_url(source, target, fwup_version) when is_binary(fwup_version) do
+  #   if Version.match?(fwup_version, @min_fwup_patchable_version) do
+  #     do_get_firmware_url(source, target)
+  #   else
+  #     @uploader.download_file(target)
+  #   end
+  # end
 
   def get_firmware_url(_source, target, _fwup_version), do: @uploader.download_file(target)
 
