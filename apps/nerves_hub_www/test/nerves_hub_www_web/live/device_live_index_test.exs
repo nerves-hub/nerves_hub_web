@@ -69,7 +69,12 @@ defmodule NervesHubWWWWeb.DeviceLiveIndexTest do
       html = render_change(view, "paginate", %{"page" => "2"})
       assert html =~ device2.identifier
       refute html =~ device.identifier
+
+      html = render_change(view, "set-paginate-opts", %{"page-size" => "2"})
+      assert html =~ device.identifier
+      assert html =~ device2.identifier
     end
+
   end
 
   def device_index_path(%{org: org, product: product}) do
