@@ -131,7 +131,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
     socket =
       socket
-      |> assign(:paginate_opts, %{paginate_opts | page_size: page_size})
+      |> assign(:paginate_opts, %{paginate_opts | page_size: page_size, page_number: 1})
       |> assign_display_devices()
 
     {:noreply, socket}
