@@ -17,6 +17,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   @default_page 1
   @default_page_size 25
+  @default_page_sizes [25, 50, 75]
 
   def render(assigns) do
     DeviceView.render("index.html", assigns)
@@ -45,6 +46,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:paginate_opts, %{
         page_number: @default_page,
         page_size: @default_page_size,
+        page_sizes: @default_page_sizes,
         total_pages: 0
       })
       |> assign(:firmware_versions, firmware_versions(product_id))
@@ -122,7 +124,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   def handle_event(
         "set-paginate-opts",
-        %{"page_size" => page_size},
+        %{"page-size" => page_size},
         %{assigns: %{paginate_opts: paginate_opts}} = socket
       ) do
     page_size = String.to_integer(page_size)

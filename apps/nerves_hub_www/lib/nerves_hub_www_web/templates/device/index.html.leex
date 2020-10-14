@@ -26,6 +26,13 @@
       <span class="action-text">Add Device</span>
     </a>
   </div>
+  <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex;">
+    <%= for size <- @paginate_opts.page_sizes do %>
+      <button phx-click="set-paginate-opts" phx-value-page-size="<%= size %>" class="btn btn-secondary btn-sm <%= if size == @paginate_opts.page_size, do: "active" %>">
+        <%= size %>
+      </button>
+    <% end %>
+  </div>
   <%= if @show_filters do%>
     <div class="filter-wrapper">
       <h4 class="color-white mb-2">Filters</h4>
