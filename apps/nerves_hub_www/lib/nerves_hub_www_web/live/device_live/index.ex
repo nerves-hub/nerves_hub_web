@@ -139,11 +139,13 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   def handle_event(
         "set-paginate-opts",
         %{"page-size" => page_size},
-        %{assigns: %{paginate_opts: paginate_opts}} = socket
+        %{assigns: %{paginate_opts: %{page_size: current} = paginate_opts}} = socket
       ) do
 
     socket =
       case Integer.parse(page_size) do
+        {^current, _} ->
+          socket
         {page_size, _} ->
           socket
           |> assign(:paginate_opts, %{paginate_opts | page_size: page_size, page_number: 1})
