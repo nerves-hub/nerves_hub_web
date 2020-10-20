@@ -27,14 +27,14 @@
     </a>
   </div>
   <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex;">
-    <form phx-change="validate-paginate-opts" phx-submit="set-paginate-opts">
-      <input type="number" min="1" style="height: auto;"class="form-control form-control-sm <%= unless @page_size_valid, do: "invalid" %>" name="page-size" value="<%= @paginate_opts.page_size %>" />
-    </form>
     <%= for size <- @paginate_opts.page_sizes do %>
       <button phx-click="set-paginate-opts" phx-value-page-size="<%= size %>" class="btn btn-secondary btn-sm <%= if size == @paginate_opts.page_size, do: "active" %>">
         <%= size %>
       </button>
     <% end %>
+    <form phx-change="validate-paginate-opts" phx-submit="set-paginate-opts">
+      <input type="text" value="<%= @paginate_opts.page_size %>" class="form-control small <%= unless @page_size_valid, do: "invalid" %>" name="page-size" />
+    </form>
   </div>
   <%= if @show_filters do%>
     <div class="filter-wrapper">
