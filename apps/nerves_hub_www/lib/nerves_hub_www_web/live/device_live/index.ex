@@ -222,12 +222,14 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   end
 
   def handle_info(
-        %Broadcast{event: "presence_diff", payload: payload},
+        %Broadcast{event: "presence_diff", payload: %{leaves: leaves}},
         %{assigns: %{org: org, product: product}} = socket
       ) do
     devices = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
+    joins = Presence.list("product:#{product.id}:devices")
 
-    socket = assign_display_devices(socket, sync_devices(devices, payload))
+    socket =
+      assign_display_devices(socket, sync_devices(devices, %{joins: joins, leaves: leaves}))
 
     {:noreply, socket}
   end
