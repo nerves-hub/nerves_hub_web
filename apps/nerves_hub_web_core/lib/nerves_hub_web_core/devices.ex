@@ -295,6 +295,15 @@ defmodule NervesHubWebCore.Devices do
     end
   end
 
+  @spec get_ca_certificate_by_ski(binary) :: {:ok, CACertificate.t()} | {:error, any()}
+  def get_ca_certificate_by_ski(ski) do
+    Repo.get_by(CACertificate, ski: ski)
+    |> case do
+      nil -> {:error, :not_found}
+      ca_cert -> {:ok, ca_cert}
+    end
+  end
+
   @spec get_ca_certificate_by_serial(binary) :: {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_serial(serial) do
     Repo.get_by(CACertificate, serial: serial)
