@@ -1,10 +1,18 @@
 ARG ELIXIR_VERSION=1.10.4
-FROM bitwalker/alpine-elixir:${ELIXIR_VERSION} as deps
+ARG ERLANG_VERSION=23.0.4
+ARG ALPINE_VERSION=3.12.0
+ARG NODE_VERSION=12.19.0
+
+# Fetch deps for building web assets
+FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-alpine-${ALPINE_VERSION} as deps
+RUN apk --no-cache add git
+RUN mix local.hex --force && mix local.rebar --force
 ADD . /build
 WORKDIR /build
 RUN mix deps.clean --all && mix deps.get
 
-FROM node:8.11.3 as assets
+# Build web assets
+FROM node:${NODE_VERSION} as assets
 RUN mkdir -p /priv/static
 WORKDIR /build
 COPY apps/nerves_hub_www/assets apps/nerves_hub_www/assets
@@ -14,11 +22,11 @@ RUN cd apps/nerves_hub_www/assets \
   && npm run deploy
 
 # Elixir build container
-FROM bitwalker/alpine-elixir:${ELIXIR_VERSION} as builder
+FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-alpine-${ALPINE_VERSION} as builder
 
 ENV MIX_ENV=prod
 
-RUN apk --no-cache add make gcc musl-dev
+RUN apk --no-cache add make gcc musl-dev git
 RUN mix local.hex --force && mix local.rebar --force
 RUN mkdir /build
 ADD . /build
@@ -29,7 +37,7 @@ COPY --from=assets /build/apps/nerves_hub_www/priv/static apps/nerves_hub_www/pr
 RUN mix do phx.digest, release nerves_hub_www --overwrite
 
 # Release Container
-FROM nerveshub/runtime:alpine-3.9 as release
+FROM nerveshub/runtime:alpine-${ALPINE_VERSION} as release
 
 RUN apk add 'fwup~=1.8.1' \
   --repository http://nl.alpinelinux.org/alpine/edge/community/ \
