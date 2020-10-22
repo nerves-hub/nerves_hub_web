@@ -71,7 +71,7 @@ defmodule NervesHubDevice.SSL do
 
       _ ->
         with aki <- Certificate.get_aki(certificate),
-             {:ok, %CACertificate{org_id: org_id}} <- Devices.get_ca_certificate_by_aki(aki),
+             {:ok, %CACertificate{org_id: org_id}} <- Devices.get_ca_certificate_by_ski(aki),
              {:ok, org} <- Accounts.get_org(org_id),
              identifier <- Certificate.get_common_name(certificate),
              {:ok, device} <- Devices.get_device_by_identifier(org, identifier) do
