@@ -38,14 +38,18 @@
         <main role="main" class="flex-column">
           <%= if get_flash(@conn, :info) do %>
             <div class="alert alert-info alert-dismissible">
-              <button type="button" class="close" data-dismiss="alert">&times;</button>
-              <%= get_flash(@conn, :info) %>
+              <div class="content-container">
+                <%= get_flash(@conn, :info) %>
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+              </div>
             </div>
           <% end %>
           <%= if get_flash(@conn, :error) do %>
             <div class="alert alert-danger alert-dismissible">
-              <button type="button" class="close" data-dismiss="alert">&times;</button>
-              <%= get_flash(@conn, :error) %>
+              <div class="content-container">
+                <%= get_flash(@conn, :error) %>
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+              </div>
             </div>
           <% end %>
           <%= @inner_content %>
