@@ -48,6 +48,27 @@ $primary: #A72B2A;
     line-height: 1.75rem;
   }
 
+  .alert {
+    border-radius: 0;
+    margin: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 99;
+    padding: 0;
+
+    .content-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .close {
+      position: static;
+      padding: .75rem;
+    }
+  }
+
   .btn-home {
     max-width: 264px;
     width: 100%;
