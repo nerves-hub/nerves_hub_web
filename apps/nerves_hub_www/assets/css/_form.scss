@@ -43,7 +43,7 @@ html {
 
     &:disabled {
       background-color: var(--white-25);
-      opacity: .8;
+      opacity: 0.8;
       cursor: not-allowed;
     }
 
@@ -104,6 +104,13 @@ html {
     font-size: 16px;
   }
 
+  .checkbox {
+    display: inline-block;
+    height: 25px;
+    width: 25px;
+    -webkit-filter: grayscale(100%);
+  }
+
   .form-page-wrapper {
     align-items: center;
     display: flex;
@@ -132,7 +139,7 @@ html {
 
     .help-text {
       color: var(--white-50);
-      margin: 3.25rem 0 .75rem;
+      margin: 3.25rem 0 0.75rem;
       font-weight: 500;
     }
   }
@@ -143,25 +150,25 @@ html {
     padding: 0;
 
     li {
-      margin: .5rem 0 0;
+      margin: 0.5rem 0 0;
       padding: 0 0 0 24px;
       position: relative;
 
       &:before {
-        background-color: #5B5D5F;
+        background-color: #5b5d5f;
         border-radius: 100%;
         content: '';
         display: inline-block;
-        height: .5rem;
+        height: 0.5rem;
         left: 0;
         position: absolute;
-        width: .5rem;
+        width: 0.5rem;
         top: 7px;
       }
 
       &.validated:before {
         background-color: transparent;
-        background-image: url("/images/icons/check.svg");
+        background-image: url('/images/icons/check.svg');
         background-position: center;
         background-repeat: no-repeat;
         background-size: 20px;
@@ -182,19 +189,19 @@ html {
       pointer-events: none;
       width: 1.5rem;
       height: 1.5rem;
-      background-image: url("/images/icons/dropdown-red.svg");
+      background-image: url('/images/icons/dropdown-red.svg');
       background-position: center;
       background-repeat: no-repeat;
       position: absolute;
-      right: .75rem;
-      bottom: .75rem;
+      right: 0.75rem;
+      bottom: 0.75rem;
       margin: auto;
     }
   }
 
   .has-error {
     color: var(--danger);
-    margin-top: .25rem;
+    margin-top: 0.25rem;
     font-weight: 500;
     font-size: 1rem;
     text-transform: capitalize;
@@ -225,7 +232,7 @@ html {
 
         .file-name {
           color: white;
-          padding-top: .5rem;
+          padding-top: 0.5rem;
         }
       }
 
@@ -254,7 +261,6 @@ html {
   }
 
   .filter-form {
-
     &.device-filters {
       display: grid;
       grid-template-columns: 3fr 3fr 3fr 2fr 2fr;
@@ -271,7 +277,7 @@ html {
     }
 
     label {
-      font-size: .875rem;
+      font-size: 0.875rem;
     }
   }
 }

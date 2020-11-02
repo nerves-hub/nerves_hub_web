@@ -342,23 +342,21 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
-  @spec get_firmware_url(Firmware.t(), Firmware.t(), String.t()) ::
+  @spec get_firmware_url(Firmware.t(), Firmware.t(), String.t(), Product.t()) ::
           {:ok, String.t()}
           | {:error, :failure}
 
-  ##
-  # TODO: Put this check back in once delta updates has been fixed
-  # Until then, skip attempting any delta updates for now ¬
-  #
-  # def get_firmware_url(source, target, fwup_version) when is_binary(fwup_version) do
-  #   if Version.match?(fwup_version, @min_fwup_delta_updatable_version) do
-  #     do_get_firmware_url(source, target)
-  #   else
-  #     @uploader.download_file(target)
-  #   end
-  # end
+  def get_firmware_url(source, target, fwup_version, %Product{delta_updatable: true})
+      when is_binary(fwup_version) do
+    if Version.match?(fwup_version, @min_fwup_delta_updatable_version) do
+      do_get_firmware_url(source, target)
+    else
+      @uploader.download_file(target)
+    end
+  end
 
-  def get_firmware_url(_source, target, _fwup_version), do: @uploader.download_file(target)
+  def get_firmware_url(_source, target, _fwup_version, _product),
+    do: @uploader.download_file(target)
 
   @spec create_firmware_delta(Firmware.t(), Firmware.t()) ::
           {:ok, FirmwareDelta.t()}

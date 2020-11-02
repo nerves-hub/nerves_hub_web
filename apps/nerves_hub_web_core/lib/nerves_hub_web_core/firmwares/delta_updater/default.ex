@@ -59,8 +59,8 @@ defmodule NervesHubWebCore.Firmwares.DeltaUpdater.Default do
   end
 
   @impl NervesHubWebCore.Firmwares.DeltaUpdater
-  def cleanup_firmware_delta_files(patch_path) do
-    patch_path
+  def cleanup_firmware_delta_files(firmware_delta_path) do
+    firmware_delta_path
     |> Path.dirname()
     |> File.rm_rf!()
 
