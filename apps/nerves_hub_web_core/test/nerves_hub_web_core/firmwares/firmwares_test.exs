@@ -10,6 +10,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
     Support.Fwup,
     Deployments,
     DeltaUpdaterMock,
+    Products,
     UploadMock
   }
 
@@ -357,12 +358,15 @@ defmodule NervesHubWebCore.FirmwaresTest do
     end
   end
 
-  describe "get_firmware_url/3" do
-    test "returns target download_file when there is no source", %{firmware: target} do
+  describe "get_firmware_url/4" do
+    test "returns target download_file when there is no source", %{
+      firmware: target,
+      product: product
+    } do
       url = "http://somefilestore.com/firmware.fw"
       Mox.expect(UploadMock, :download_file, fn ^target -> {:ok, url} end)
 
-      assert {:ok, url} = Firmwares.get_firmware_url(nil, target, @valid_fwup_version)
+      assert {:ok, url} = Firmwares.get_firmware_url(nil, target, @valid_fwup_version, product)
     end
 
     test "returns target download_file when source does not support delta updating", %{
@@ -375,7 +379,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
       url = "http://somefilestore.com/firmware.fw"
       Mox.expect(UploadMock, :download_file, fn ^target -> {:ok, url} end)
 
-      assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version)
+      assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version, product)
     end
 
     test "returns target download_file when target does not support delta updating", %{
@@ -388,7 +392,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
       url = "http://somefilestore.com/firmware.fw"
       Mox.expect(UploadMock, :download_file, fn ^target -> {:ok, url} end)
 
-      assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version)
+      assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version, product)
     end
 
     test "returns target download_file when fwup version is too old", %{
@@ -402,10 +406,24 @@ defmodule NervesHubWebCore.FirmwaresTest do
       url = "http://somefilestore.com/firmware.fw"
       Mox.expect(UploadMock, :download_file, fn ^target -> {:ok, url} end)
 
-      assert {:ok, url} = Firmwares.get_firmware_url(source, target, "1.5.999")
+      assert {:ok, url} = Firmwares.get_firmware_url(source, target, "1.5.999", product)
     end
 
-    @tag :skip
+    test "returns target download_file when product does not support delta updating", %{
+      firmware: source,
+      org_key: org_key,
+      product: product
+    } do
+      {:ok, product} = Products.update_product(product, %{delta_updatable: false})
+      source = %Firmware{source | delta_updatable: true}
+      Mox.stub(NervesHubWebCore.DeltaUpdaterMock, :delta_updatable?, fn _ -> true end)
+      target = Fixtures.firmware_fixture(org_key, product)
+      url = "http://somefilestore.com/firmware.fw"
+      Mox.expect(UploadMock, :download_file, fn ^target -> {:ok, url} end)
+
+      assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version, product)
+    end
+
     test "returns firmware delta download_file when one exists", %{
       firmware: source,
       org_key: org_key,
@@ -419,10 +437,9 @@ defmodule NervesHubWebCore.FirmwaresTest do
       url = "http://somefilestore.com/firmware.fw"
       Mox.expect(UploadMock, :download_file, fn %{id: ^firmware_delta_id} -> {:ok, url} end)
 
-      assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version)
+      assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version, product)
     end
 
-    @tag :skip
     test "returns download_file for a new firmware delta", %{
       firmware: source,
       org_key: org_key,
@@ -445,7 +462,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
         :ok
       end)
 
-      assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version)
+      assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version, product)
     end
   end
 

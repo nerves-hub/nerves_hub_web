@@ -1,9 +1,10 @@
 defmodule NervesHubWWWWeb.ProductControllerTest do
   use NervesHubWWWWeb.ConnCase.Browser, async: true
 
-  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.{Fixtures, Products}
 
   @create_attrs %{name: "some name"}
+  @update_attrs %{delta_updatable: false}
   @invalid_attrs %{name: nil}
 
   describe "index" do
@@ -24,7 +25,6 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
     test "redirects to show when data is valid", %{conn: conn, org: org} do
       params = @create_attrs
       conn = post(conn, Routes.product_path(conn, :create, org.name), product: params)
-      assert %{product_name: product_name} = redirected_params(conn)
       assert redirected_to(conn) == Routes.device_path(conn, :index, org.name, params.name)
 
       conn = get(conn, Routes.product_path(conn, :show, org.name, params.name))
@@ -36,6 +36,22 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
     test "renders errors when data is invalid", %{conn: conn, org: org} do
       conn = post(conn, Routes.product_path(conn, :create, org.name), product: @invalid_attrs)
       assert html_response(conn, 200) =~ "Create Product"
+    end
+  end
+
+  describe "update product" do
+    test "redirects to show when data is valid", %{
+      conn: conn,
+      fixture: %{product: product},
+      org: org
+    } do
+      params = @update_attrs
+
+      conn =
+        put(conn, Routes.product_path(conn, :update, org.name, product.name), product: params)
+
+      assert redirected_to(conn) == Routes.device_path(conn, :index, org.name, product.name)
+      assert %{delta_updatable: false} = Products.get_product!(product.id)
     end
   end
 

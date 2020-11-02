@@ -12,7 +12,8 @@ defmodule NervesHubAPIWeb.ProductView do
 
   def render("product.json", %{product: product}) do
     %{
-      name: product.name
+      name: product.name,
+      delta_updatable: product.delta_updatable
     }
   end
 end

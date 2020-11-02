@@ -8,7 +8,7 @@ defmodule NervesHubWebCore.Products.Product do
   alias NervesHubWebCore.Products.ProductUser
 
   @required_params [:name, :org_id]
-  @optional_params []
+  @optional_params [:delta_updatable]
 
   schema "products" do
     has_many(:devices, Device)
@@ -19,6 +19,7 @@ defmodule NervesHubWebCore.Products.Product do
     belongs_to(:org, Org)
 
     field(:name, :string)
+    field(:delta_updatable, :boolean, default: true)
 
     timestamps()
   end
