@@ -143,3 +143,25 @@ html body {
     background-color: var(--warning);
   }
 }
+
+.progress {
+  background: rgba(255, 255, 255, 0.1);
+
+  .progress-bar {
+    background-color: var(--primary);
+    font-weight: 700;
+  }
+
+  &.device-show {
+    height: 1.5rem;
+    margin-top: .5rem;
+
+    .progress-bar {
+      height: 1.5rem;
+      font-size: .875rem;
+      text-align: right;
+      padding: 0 .5rem;
+      min-width: 2rem;
+    }
+  }
+}
