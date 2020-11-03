@@ -19,7 +19,7 @@ defmodule NervesHubWebCore.Products.Product do
     belongs_to(:org, Org)
 
     field(:name, :string)
-    field(:delta_updatable, :boolean, default: true)
+    field(:delta_updatable, :boolean, default: false)
 
     timestamps()
   end
