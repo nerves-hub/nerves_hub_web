@@ -31,7 +31,7 @@ defmodule NervesHubWebCore.Fixtures do
     is_active: false
   }
   @device_params %{tags: ["beta", "test"]}
-  @product_params %{name: "valid product"}
+  @product_params %{name: "valid product", patchable: true}
 
   @user_ca_key Path.expand("../fixtures/ssl/user-root-ca-key.pem", __DIR__)
   @user_ca_cert Path.expand("../fixtures/ssl/user-root-ca.pem", __DIR__)

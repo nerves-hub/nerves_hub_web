@@ -3,7 +3,7 @@ defmodule NervesHubWebCore.Repo.Migrations.AddPatchableFlagToProducts do
 
   def change do
     alter table(:products) do
-      add(:delta_updatable, :boolean, default: true)
+      add(:delta_updatable, :boolean, default: false)
     end
   end
 end
