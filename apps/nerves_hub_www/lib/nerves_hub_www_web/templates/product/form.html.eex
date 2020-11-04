@@ -21,16 +21,20 @@
 
   <div class="form-group">
       <label for="delta_updatable_input" class="tooltip-label">
-      <span>Generate delta firmware updates</span>
+      <span>Firmware updates</span>
       <span class="tooltip-info"></span>
       <span class="tooltip-text">
-        Check out the documentation at 
-        <a href="https://docs.nerves-hub.org" target="_blank">https://docs.nerves-hub.org </a> 
-        for more information about 
-        <a href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank">delta updates</a>
+        Check out the documentation at
+        <a href="https://docs.nerves-hub.org" target="_blank" class="inline">https://docs.nerves-hub.org </a>
+        for more information about
+        <a href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank" class="inline">delta updates</a>
       </span>
     </label>
-    <%= checkbox f, :delta_updatable, class: "form-control checkbox", id: "delta_updatable_input" %>    
+    <div class="flex-row align-items-center">
+      <%= checkbox f, :delta_updatable, class: "form-control checkbox", id: "delta_updatable_input" %>
+      <label for="delta_updatable_input" class="color-white pl-1 m-0">Enable delta firmware updates</label>
+    </div>
+
     <div class="has-error"><%= error_tag f, :delta_updatable %></div>
   </div>
 
@@ -41,6 +45,5 @@
     <% else %>
       <%= submit "Create Product", class: "btn btn-primary" %>
     <% end %>
-
   </div>
 <% end %>
