@@ -20,7 +20,16 @@
   </div>
 
   <div class="form-group">
-    <label for="delta_updatable_input">Patchable</label>    
+      <label for="delta_updatable_input" class="tooltip-label">
+      <span>Generate delta firmware updates</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">
+        Check out the documentation at 
+        <a href="https://docs.nerves-hub.org" target="_blank">https://docs.nerves-hub.org </a> 
+        for more information about 
+        <a href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank">delta updates</a>
+      </span>
+    </label>
     <%= checkbox f, :delta_updatable, class: "form-control checkbox", id: "delta_updatable_input" %>    
     <div class="has-error"><%= error_tag f, :delta_updatable %></div>
   </div>
