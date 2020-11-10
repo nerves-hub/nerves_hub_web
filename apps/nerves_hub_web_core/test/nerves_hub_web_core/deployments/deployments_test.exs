@@ -106,7 +106,7 @@ defmodule NervesHubWebCore.DeploymentsTest do
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
-      Fixtures.firmware_patch_fixture(firmware, new_firmware)
+      Fixtures.firmware_delta_fixture(firmware, new_firmware)
 
       params = %{
         firmware_id: new_firmware.id,

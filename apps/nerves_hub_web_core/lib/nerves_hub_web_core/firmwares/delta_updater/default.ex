@@ -1,12 +1,12 @@
-defmodule NervesHubWebCore.Firmwares.Patcher.Default do
+defmodule NervesHubWebCore.Firmwares.DeltaUpdater.Default do
   @moduledoc """
-  Default NervesHubWebCore.Firmwares.Patcher implementation
+  Default NervesHubWebCore.Firmwares.DeltaUpdater implementation
   """
 
-  @behaviour NervesHubWebCore.Firmwares.Patcher
+  @behaviour NervesHubWebCore.Firmwares.DeltaUpdater
 
-  @impl NervesHubWebCore.Firmwares.Patcher
-  def create_patch_file(source_url, target_url) do
+  @impl NervesHubWebCore.Firmwares.DeltaUpdater
+  def create_firmware_delta_file(source_url, target_url) do
     uuid = Ecto.UUID.generate()
     work_dir = Path.join(System.tmp_dir(), uuid) |> Path.expand()
     File.mkdir_p(work_dir)
@@ -58,8 +58,8 @@ defmodule NervesHubWebCore.Firmwares.Patcher.Default do
     output
   end
 
-  @impl NervesHubWebCore.Firmwares.Patcher
-  def cleanup_patch_files(patch_path) do
+  @impl NervesHubWebCore.Firmwares.DeltaUpdater
+  def cleanup_firmware_delta_files(patch_path) do
     patch_path
     |> Path.dirname()
     |> File.rm_rf!()
@@ -67,8 +67,8 @@ defmodule NervesHubWebCore.Firmwares.Patcher.Default do
     :ok
   end
 
-  @impl NervesHubWebCore.Firmwares.Patcher
-  def patchable?(file_path) do
+  @impl NervesHubWebCore.Firmwares.DeltaUpdater
+  def delta_updatable?(file_path) do
     {meta, 0} = System.cmd("unzip", ["-qqp", file_path, "meta.conf"])
     meta =~ "delta-source-raw-offset" && meta =~ "delta-source-raw-count"
   end

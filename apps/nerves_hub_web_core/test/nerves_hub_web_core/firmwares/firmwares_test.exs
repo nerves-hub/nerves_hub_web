@@ -9,7 +9,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
     Fixtures,
     Support.Fwup,
     Deployments,
-    PatcherMock,
+    DeltaUpdaterMock,
     UploadMock
   }
 
@@ -317,31 +317,32 @@ defmodule NervesHubWebCore.FirmwaresTest do
     end
   end
 
-  describe "get_patch/1" do
-    test "a patch is returned for the id", %{
+  describe "get_firmware_delta/1" do
+    test "a firmware delta is returned for the id", %{
       firmware: firmware,
       org_key: org_key,
       product: product
     } do
       new_firmware = Fixtures.firmware_fixture(org_key, product)
-      patch = Fixtures.firmware_patch_fixture(firmware, new_firmware)
-      id = patch.id
+      firmware_delta = Fixtures.firmware_delta_fixture(firmware, new_firmware)
+      id = firmware_delta.id
 
-      assert {:ok, %{id: ^id}} = Firmwares.get_patch(patch.id)
+      assert {:ok, %{id: ^id}} = Firmwares.get_firmware_delta(firmware_delta.id)
     end
   end
 
-  describe "get_patch_by_source_and_target/2" do
-    test "a patch is returned matching source and target", %{
+  describe "get_firmware_delta_by_source_and_target/2" do
+    test "a firmware delta is returned matching source and target", %{
       firmware: firmware,
       org_key: org_key,
       product: product
     } do
       new_firmware = Fixtures.firmware_fixture(org_key, product)
-      patch = Fixtures.firmware_patch_fixture(firmware, new_firmware)
-      id = patch.id
+      firmware_delta = Fixtures.firmware_delta_fixture(firmware, new_firmware)
+      id = firmware_delta.id
 
-      assert {:ok, %{id: ^id}} = Firmwares.get_patch_by_source_and_target(firmware, new_firmware)
+      assert {:ok, %{id: ^id}} =
+               Firmwares.get_firmware_delta_by_source_and_target(firmware, new_firmware)
     end
 
     test ":not_found is returned when there is no match", %{
@@ -352,7 +353,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
       new_firmware = Fixtures.firmware_fixture(org_key, product)
 
       assert {:error, :not_found} =
-               Firmwares.get_patch_by_source_and_target(firmware, new_firmware)
+               Firmwares.get_firmware_delta_by_source_and_target(firmware, new_firmware)
     end
   end
 
@@ -364,12 +365,12 @@ defmodule NervesHubWebCore.FirmwaresTest do
       assert {:ok, url} = Firmwares.get_firmware_url(nil, target, @valid_fwup_version)
     end
 
-    test "returns target download_file when source does not support patching", %{
+    test "returns target download_file when source does not support delta updating", %{
       firmware: source,
       org_key: org_key,
       product: product
     } do
-      Mox.stub(NervesHubWebCore.PatcherMock, :patchable?, fn _ -> true end)
+      Mox.stub(NervesHubWebCore.DeltaUpdaterMock, :delta_updatable?, fn _ -> true end)
       target = Fixtures.firmware_fixture(org_key, product)
       url = "http://somefilestore.com/firmware.fw"
       Mox.expect(UploadMock, :download_file, fn ^target -> {:ok, url} end)
@@ -377,12 +378,12 @@ defmodule NervesHubWebCore.FirmwaresTest do
       assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version)
     end
 
-    test "returns target download_file when target does not support patching", %{
+    test "returns target download_file when target does not support delta updating", %{
       firmware: target,
       org_key: org_key,
       product: product
     } do
-      Mox.stub(NervesHubWebCore.PatcherMock, :patchable?, fn _ -> true end)
+      Mox.stub(NervesHubWebCore.DeltaUpdaterMock, :delta_updatable?, fn _ -> true end)
       source = Fixtures.firmware_fixture(org_key, product)
       url = "http://somefilestore.com/firmware.fw"
       Mox.expect(UploadMock, :download_file, fn ^target -> {:ok, url} end)
@@ -395,8 +396,8 @@ defmodule NervesHubWebCore.FirmwaresTest do
       org_key: org_key,
       product: product
     } do
-      source = %Firmware{source | patchable: true}
-      Mox.stub(NervesHubWebCore.PatcherMock, :patchable?, fn _ -> true end)
+      source = %Firmware{source | delta_updatable: true}
+      Mox.stub(NervesHubWebCore.DeltaUpdaterMock, :delta_updatable?, fn _ -> true end)
       target = Fixtures.firmware_fixture(org_key, product)
       url = "http://somefilestore.com/firmware.fw"
       Mox.expect(UploadMock, :download_file, fn ^target -> {:ok, url} end)
@@ -405,44 +406,51 @@ defmodule NervesHubWebCore.FirmwaresTest do
     end
 
     @tag :skip
-    test "returns patch download_file when one exists", %{
+    test "returns firmware delta download_file when one exists", %{
       firmware: source,
       org_key: org_key,
       product: product
     } do
-      source = %Firmware{source | patchable: true}
-      Mox.stub(NervesHubWebCore.PatcherMock, :patchable?, fn _ -> true end)
+      source = %Firmware{source | delta_updatable: true}
+      Mox.stub(NervesHubWebCore.DeltaUpdaterMock, :delta_updatable?, fn _ -> true end)
       target = Fixtures.firmware_fixture(org_key, product)
-      patch = Fixtures.firmware_patch_fixture(source, target)
-      patch_id = patch.id
+      firmware_delta = Fixtures.firmware_delta_fixture(source, target)
+      firmware_delta_id = firmware_delta.id
       url = "http://somefilestore.com/firmware.fw"
-      Mox.expect(UploadMock, :download_file, fn %{id: ^patch_id} -> {:ok, url} end)
+      Mox.expect(UploadMock, :download_file, fn %{id: ^firmware_delta_id} -> {:ok, url} end)
 
       assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version)
     end
 
     @tag :skip
-    test "returns download_file for a new patch", %{
+    test "returns download_file for a new firmware delta", %{
       firmware: source,
       org_key: org_key,
       product: product
     } do
-      source = %Firmware{source | patchable: true}
-      Mox.stub(NervesHubWebCore.PatcherMock, :patchable?, fn _ -> true end)
+      source = %Firmware{source | delta_updatable: true}
+      Mox.stub(NervesHubWebCore.DeltaUpdaterMock, :delta_updatable?, fn _ -> true end)
       target = Fixtures.firmware_fixture(org_key, product)
       url = "http://somefilestore.com/firmware.fw"
-      patch_path = "/path/to/firmware.fw"
+      firmware_delta_path = "/path/to/firmware.fw"
       Mox.expect(UploadMock, :download_file, 3, fn _ -> {:ok, url} end)
-      Mox.expect(PatcherMock, :create_patch_file, fn ^url, ^url -> patch_path end)
-      Mox.expect(UploadMock, :upload_file, fn ^patch_path, _ -> :ok end)
-      Mox.expect(PatcherMock, :cleanup_patch_files, fn ^patch_path -> :ok end)
+
+      Mox.expect(DeltaUpdaterMock, :create_firmware_delta_file, fn ^url, ^url ->
+        firmware_delta_path
+      end)
+
+      Mox.expect(UploadMock, :upload_file, fn ^firmware_delta_path, _ -> :ok end)
+
+      Mox.expect(DeltaUpdaterMock, :cleanup_firmware_delta_files, fn ^firmware_delta_path ->
+        :ok
+      end)
 
       assert {:ok, url} = Firmwares.get_firmware_url(source, target, @valid_fwup_version)
     end
   end
 
-  describe "create_patch/2" do
-    test "creates a new patch when one doesn't exist", %{
+  describe "create_firmware_delta/2" do
+    test "creates a new firmware delta when one doesn't exist", %{
       firmware: source,
       org_key: org_key,
       product: product
@@ -450,34 +458,45 @@ defmodule NervesHubWebCore.FirmwaresTest do
       target = Fixtures.firmware_fixture(org_key, product)
       source_url = "http://somefilestore.com/source.fw"
       target_url = "http://somefilestore.com/target.fw"
-      patch_path = "/path/to/patch.fw"
+      firmware_delta_path = "/path/to/firmware_delta.fw"
 
       UploadMock
       |> Mox.expect(:download_file, fn ^source -> {:ok, source_url} end)
       |> Mox.expect(:download_file, fn ^target -> {:ok, target_url} end)
 
-      Mox.expect(PatcherMock, :create_patch_file, fn ^source_url, ^target_url -> patch_path end)
-      Mox.expect(UploadMock, :upload_file, fn ^patch_path, _ -> :ok end)
-      Mox.expect(PatcherMock, :cleanup_patch_files, fn ^patch_path -> :ok end)
+      Mox.expect(DeltaUpdaterMock, :create_firmware_delta_file, fn ^source_url, ^target_url ->
+        firmware_delta_path
+      end)
 
-      Firmwares.create_patch(source, target)
+      Mox.expect(UploadMock, :upload_file, fn ^firmware_delta_path, _ -> :ok end)
 
-      assert {:ok, patch} = Firmwares.get_patch_by_source_and_target(source, target)
+      Mox.expect(DeltaUpdaterMock, :cleanup_firmware_delta_files, fn ^firmware_delta_path ->
+        :ok
+      end)
+
+      Firmwares.create_firmware_delta(source, target)
+
+      assert {:ok, firmware_delta} =
+               Firmwares.get_firmware_delta_by_source_and_target(source, target)
     end
 
-    test "new patch is not created if there is an error", %{
+    test "new firmware delta is not created if there is an error", %{
       firmware: source,
       org_key: org_key,
       product: product
     } do
       target = Fixtures.firmware_fixture(org_key, product)
 
-      Mox.expect(PatcherMock, :create_patch_file, fn _s, _t -> "path/to/firmware.fw" end)
+      Mox.expect(DeltaUpdaterMock, :create_firmware_delta_file, fn _s, _t ->
+        "path/to/firmware.fw"
+      end)
+
       Mox.expect(UploadMock, :upload_file, fn _p, _m -> {:error, :failed} end)
 
-      Firmwares.create_patch(source, target)
+      Firmwares.create_firmware_delta(source, target)
 
-      assert {:error, :not_found} = Firmwares.get_patch_by_source_and_target(source, target)
+      assert {:error, :not_found} =
+               Firmwares.get_firmware_delta_by_source_and_target(source, target)
     end
   end
 end

@@ -45,7 +45,7 @@ config :nerves_hub_web_core,
   port: web_port
 
 config :nerves_hub_web_core,
-  patcher: NervesHubWebCore.PatcherMock
+  delta_updater: NervesHubWebCore.DeltaUpdaterMock
 
 config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.S3, bucket: "mybucket"
 

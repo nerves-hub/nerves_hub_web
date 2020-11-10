@@ -16,7 +16,7 @@ defmodule NervesHubWebCore.Firmwares.Upload do
   @doc """
   Called to retrieve a user accessible URL for the file.
   """
-  @callback download_file(Firmware.t() | FirmwarePatch.t()) ::
+  @callback download_file(Firmware.t() | FirmwareDelta.t()) ::
               {:ok, String.t()}
               | {:error, String.t()}
 
