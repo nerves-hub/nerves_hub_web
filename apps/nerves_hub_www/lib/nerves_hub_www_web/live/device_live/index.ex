@@ -17,6 +17,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   @default_page 1
   @default_page_size 25
+  @default_page_sizes [25, 50, 75]
 
   def render(assigns) do
     DeviceView.render("index.html", assigns)
@@ -45,12 +46,14 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:paginate_opts, %{
         page_number: @default_page,
         page_size: @default_page_size,
+        page_sizes: @default_page_sizes,
         total_pages: 0
       })
       |> assign(:firmware_versions, firmware_versions(product_id))
       |> assign(:show_filters, false)
       |> assign(:current_filters, @default_filters)
       |> assign(:currently_filtering, false)
+      |> assign(:page_size_valid, true)
       |> assign_display_devices()
 
     {:ok, socket}
@@ -120,17 +123,53 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
+  def handle_event("validate-paginate-opts", %{"page-size" => page_size}, socket) do
+    socket =
+      case Integer.parse(page_size) do
+        {_, _} ->
+          socket
+          |> assign(:page_size_valid, true)
+
+        :error ->
+          socket
+          |> assign(:page_size_valid, false)
+      end
+
+    {:noreply, socket}
+  end
+
   def handle_event(
         "set-paginate-opts",
-        %{"page_size" => page_size},
-        %{assigns: %{paginate_opts: paginate_opts}} = socket
+        %{"page-size" => page_size},
+        %{
+          assigns: %{
+            paginate_opts:
+              %{page_size: current_size, page_number: current_page_number} = paginate_opts
+          }
+        } = socket
       ) do
-    page_size = String.to_integer(page_size)
-
     socket =
-      socket
-      |> assign(:paginate_opts, %{paginate_opts | page_size: page_size})
-      |> assign_display_devices()
+      case Integer.parse(page_size) do
+        {^current_size, _} ->
+          socket
+
+        {page_size, _} ->
+          start_idx = current_size * (current_page_number - 1)
+          page_number = floor(start_idx / page_size) + 1
+
+          socket
+          |> assign(:paginate_opts, %{
+            paginate_opts
+            | page_size: page_size,
+              page_number: page_number
+          })
+          |> assign(:page_size_valid, true)
+          |> assign_display_devices()
+
+        :error ->
+          socket
+          |> assign(:page_size_valid, false)
+      end
 
     {:noreply, socket}
   end
