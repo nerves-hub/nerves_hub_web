@@ -19,7 +19,7 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
     :description,
     :misc,
     :org_key_id,
-    :patchable,
+    :delta_updatable,
     :ttl_until,
     :vcs_identifier
   ]
@@ -46,7 +46,7 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
     field(:description, :string)
     field(:size, :integer)
     field(:misc, :string)
-    field(:patchable, :boolean, default: false)
+    field(:delta_updatable, :boolean, default: false)
     field(:platform, :string)
     field(:ttl, :integer)
     field(:ttl_until, :utc_datetime)

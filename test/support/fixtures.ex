@@ -194,19 +194,19 @@ defmodule NervesHubWebCore.Fixtures do
     firmware
   end
 
-  def firmware_patch_fixture(%Firmwares.Firmware{id: source_id}, %Firmwares.Firmware{
+  def firmware_delta_fixture(%Firmwares.Firmware{id: source_id}, %Firmwares.Firmware{
         id: target_id,
         org_id: org_id,
         uuid: uuid
       }) do
-    {:ok, patch} =
-      Firmwares.insert_patch(%{
+    {:ok, firmware_delta} =
+      Firmwares.insert_firmware_delta(%{
         source_id: source_id,
         target_id: target_id,
         upload_metadata: @uploader.metadata(org_id, "#{uuid}.fw")
       })
 
-    patch
+    firmware_delta
   end
 
   def firmware_transfer_fixture(org_id, firmware_uuid, params \\ %{}) do

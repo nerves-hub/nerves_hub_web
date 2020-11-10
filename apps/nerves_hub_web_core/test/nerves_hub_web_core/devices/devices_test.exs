@@ -333,7 +333,7 @@ defmodule NervesHubWebCore.DevicesTest do
       })
 
     new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
-    Fixtures.firmware_patch_fixture(firmware, new_firmware)
+    Fixtures.firmware_delta_fixture(firmware, new_firmware)
 
     params = %{
       org_id: org.id,
@@ -505,7 +505,7 @@ defmodule NervesHubWebCore.DevicesTest do
         # preload so that we can correctly match
         |> Repo.preload(:firmware)
 
-      Fixtures.firmware_patch_fixture(firmware, deployment.firmware)
+      Fixtures.firmware_delta_fixture(firmware, deployment.firmware)
 
       assert {:ok, ^device} = Devices.send_update_message(device, deployment)
       deployment_id = deployment.id
@@ -547,7 +547,7 @@ defmodule NervesHubWebCore.DevicesTest do
       firmware: firmware
     } do
       deployment = deployment |> Repo.preload(:firmware)
-      Fixtures.firmware_patch_fixture(firmware, deployment.firmware)
+      Fixtures.firmware_delta_fixture(firmware, deployment.firmware)
 
       result = Devices.resolve_update(device, deployment)
       {:ok, meta} = Firmwares.metadata_from_firmware(firmware)

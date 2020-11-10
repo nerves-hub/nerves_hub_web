@@ -5,7 +5,7 @@ defmodule DefaultMocks do
 
   setup do
     Mox.stub_with(NervesHubWebCore.UploadMock, NervesHubWebCore.Firmwares.Upload.File)
-    Mox.stub(NervesHubWebCore.PatcherMock, :patchable?, fn _ -> false end)
+    Mox.stub(NervesHubWebCore.DeltaUpdaterMock, :delta_updatable?, fn _ -> false end)
 
     :ok
   end

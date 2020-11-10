@@ -4,14 +4,14 @@ defmodule NervesHubWebCore.Firmwares do
   alias Ecto.Changeset
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.Accounts.{OrgKey, Org}
-  alias NervesHubWebCore.Firmwares.{Firmware, FirmwareMetadata, FirmwarePatch, FirmwareTransfer}
+  alias NervesHubWebCore.Firmwares.{Firmware, FirmwareMetadata, FirmwareDelta, FirmwareTransfer}
   alias NervesHubWebCore.Products
   alias NervesHubWebCore.Products.Product
   alias NervesHubWebCore.Repo
 
   require Logger
 
-  @min_fwup_patchable_version ">=1.6.0"
+  @min_fwup_delta_updatable_version ">=1.6.0"
 
   @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
 
@@ -312,25 +312,25 @@ defmodule NervesHubWebCore.Firmwares do
     Repo.all(q)
   end
 
-  @spec get_patch(integer()) ::
-          {:ok, FirmwarePatch.t()}
+  @spec get_firmware_delta(integer()) ::
+          {:ok, FirmwareDelta.t()}
           | {:error, :not_found}
 
-  def get_patch(patch_id) do
-    case Repo.get(FirmwarePatch, patch_id) do
+  def get_firmware_delta(firmware_delta_id) do
+    case Repo.get(FirmwareDelta, firmware_delta_id) do
       nil -> {:error, :not_found}
-      patch -> {:ok, patch}
+      firmware_delta -> {:ok, firmware_delta}
     end
   end
 
-  @spec get_patch_by_source_and_target(Firmware.t(), Firmware.t()) ::
-          {:ok, FirmwarePatch.t()}
+  @spec get_firmware_delta_by_source_and_target(Firmware.t(), Firmware.t()) ::
+          {:ok, FirmwareDelta.t()}
           | {:error, :not_found}
 
-  def get_patch_by_source_and_target(%Firmware{id: source_id}, %Firmware{id: target_id}) do
+  def get_firmware_delta_by_source_and_target(%Firmware{id: source_id}, %Firmware{id: target_id}) do
     q =
       from(
-        fp in FirmwarePatch,
+        fp in FirmwareDelta,
         where:
           fp.source_id == ^source_id and
             fp.target_id >= ^target_id
@@ -338,7 +338,7 @@ defmodule NervesHubWebCore.Firmwares do
 
     case Repo.one(q) do
       nil -> {:error, :not_found}
-      patch -> {:ok, patch}
+      firmware_delta -> {:ok, firmware_delta}
     end
   end
 
@@ -348,10 +348,10 @@ defmodule NervesHubWebCore.Firmwares do
 
   ##
   # TODO: Put this check back in once delta updates has been fixed
-  # Until then, skip attempting any patches for now ¬
+  # Until then, skip attempting any delta updates for now ¬
   #
   # def get_firmware_url(source, target, fwup_version) when is_binary(fwup_version) do
-  #   if Version.match?(fwup_version, @min_fwup_patchable_version) do
+  #   if Version.match?(fwup_version, @min_fwup_delta_updatable_version) do
   #     do_get_firmware_url(source, target)
   #   else
   #     @uploader.download_file(target)
@@ -360,31 +360,31 @@ defmodule NervesHubWebCore.Firmwares do
 
   def get_firmware_url(_source, target, _fwup_version), do: @uploader.download_file(target)
 
-  @spec create_patch(Firmware.t(), Firmware.t()) ::
-          {:ok, FirmwarePatch.t()}
+  @spec create_firmware_delta(Firmware.t(), Firmware.t()) ::
+          {:ok, FirmwareDelta.t()}
           | {:error, Changeset.t()}
 
-  def create_patch(source_firmware, target_firmware) do
+  def create_firmware_delta(source_firmware, target_firmware) do
     %Firmware{org: org} = source_firmware |> Repo.preload(:org)
     {:ok, source_url} = @uploader.download_file(source_firmware)
     {:ok, target_url} = @uploader.download_file(target_firmware)
 
-    patch_path = patcher().create_patch_file(source_url, target_url)
-    patch_filename = Path.basename(patch_path)
+    firmware_delta_path = delta_updater().create_firmware_delta_file(source_url, target_url)
+    firmware_delta_filename = Path.basename(firmware_delta_path)
 
     Repo.transaction(
       fn ->
-        with upload_metadata <- @uploader.metadata(org.id, patch_filename),
-             {:ok, patch} <-
-               insert_patch(%{
+        with upload_metadata <- @uploader.metadata(org.id, firmware_delta_filename),
+             {:ok, firmware_delta} <-
+               insert_firmware_delta(%{
                  source_id: source_firmware.id,
                  target_id: target_firmware.id,
                  upload_metadata: upload_metadata
                }),
-             {:ok, patch} <- get_patch(patch.id),
-             :ok <- @uploader.upload_file(patch_path, upload_metadata),
-             :ok <- patcher().cleanup_patch_files(patch_path) do
-          patch
+             {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
+             :ok <- @uploader.upload_file(firmware_delta_path, upload_metadata),
+             :ok <- delta_updater().cleanup_firmware_delta_files(firmware_delta_path) do
+          firmware_delta
         else
           {:error, error} ->
             Repo.rollback(error)
@@ -396,23 +396,23 @@ defmodule NervesHubWebCore.Firmwares do
 
   # Private functions
 
-  def insert_patch(params) do
-    %FirmwarePatch{}
-    |> FirmwarePatch.changeset(params)
+  def insert_firmware_delta(params) do
+    %FirmwareDelta{}
+    |> FirmwareDelta.changeset(params)
     |> Repo.insert()
   end
 
   defp do_get_firmware_url(
-         %Firmware{patchable: true} = source,
-         %Firmware{patchable: true} = target
+         %Firmware{delta_updatable: true} = source,
+         %Firmware{delta_updatable: true} = target
        ) do
-    {:ok, patch} =
-      case get_patch_by_source_and_target(source, target) do
-        {:error, :not_found} -> create_patch(source, target)
-        patch -> patch
+    {:ok, firmware_delta} =
+      case get_firmware_delta_by_source_and_target(source, target) do
+        {:error, :not_found} -> create_firmware_delta(source, target)
+        firmware_delta -> firmware_delta
       end
 
-    @uploader.download_file(patch)
+    @uploader.download_file(firmware_delta)
   end
 
   defp do_get_firmware_url(_, target), do: @uploader.download_file(target)
@@ -440,7 +440,7 @@ defmodule NervesHubWebCore.Firmwares do
           misc: metadata.misc,
           org_id: org_id,
           org_key_id: org_key_id,
-          patchable: patcher().patchable?(filepath),
+          delta_updatable: delta_updater().delta_updatable?(filepath),
           platform: metadata.platform,
           product_name: metadata.product,
           upload_metadata: @uploader.metadata(org_id, filename),
@@ -549,11 +549,11 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
-  defp patcher() do
+  defp delta_updater() do
     Application.get_env(
       :nerves_hub_web_core,
-      :patcher,
-      NervesHubWebCore.Firmwares.Patcher.Default
+      :delta_updater,
+      NervesHubWebCore.Firmwares.DeltaUpdater.Default
     )
   end
 end

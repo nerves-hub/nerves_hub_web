@@ -135,7 +135,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
           version: "0.0.2"
         })
 
-      Fixtures.firmware_patch_fixture(firmware, firmware2)
+      Fixtures.firmware_delta_fixture(firmware, firmware2)
 
       Fixtures.deployment_fixture(org, firmware2, %{
         name: "a different name",
@@ -178,7 +178,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
           }
         )
 
-      Fixtures.firmware_patch_fixture(firmware, firmware2)
+      Fixtures.firmware_delta_fixture(firmware, firmware2)
 
       deployment =
         Fixtures.deployment_fixture(device.org, firmware2, %{
