@@ -129,28 +129,43 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
         {_, _} ->
           socket
           |> assign(:page_size_valid, true)
+
         :error ->
           socket
           |> assign(:page_size_valid, false)
       end
+
     {:noreply, socket}
   end
 
   def handle_event(
         "set-paginate-opts",
         %{"page-size" => page_size},
-        %{assigns: %{paginate_opts: %{page_size: current} = paginate_opts}} = socket
+        %{
+          assigns: %{
+            paginate_opts:
+              %{page_size: current_size, page_number: current_page_number} = paginate_opts
+          }
+        } = socket
       ) do
-
     socket =
       case Integer.parse(page_size) do
-        {^current, _} ->
+        {^current_size, _} ->
           socket
+
         {page_size, _} ->
+          start_idx = current_size * (current_page_number - 1)
+          page_number = floor(start_idx / page_size) + 1
+
           socket
-          |> assign(:paginate_opts, %{paginate_opts | page_size: page_size, page_number: 1})
+          |> assign(:paginate_opts, %{
+            paginate_opts
+            | page_size: page_size,
+              page_number: page_number
+          })
           |> assign(:page_size_valid, true)
           |> assign_display_devices()
+
         :error ->
           socket
           |> assign(:page_size_valid, false)
