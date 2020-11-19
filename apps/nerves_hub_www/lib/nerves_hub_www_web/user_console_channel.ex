@@ -3,8 +3,11 @@ defmodule NervesHubWWWWeb.UserConsoleChannel do
 
   alias Phoenix.Socket.Broadcast
 
-  def join("user_console", %{"device_id" => device_id}, socket) do
+  # intercept(["presence_diff"])
+
+  def join("user_console", %{"device_id" => device_id, "product_id" => product_id}, socket) do
     socket.endpoint.subscribe(console_topic(device_id))
+    socket.endpoint.subscribe("product:#{product_id}:devices")
     {:ok, assign(socket, :device_id, device_id)}
   end
 
@@ -12,6 +15,30 @@ defmodule NervesHubWWWWeb.UserConsoleChannel do
     # Keypresses are coming in here raw
     # Send them to the device
     socket.endpoint.broadcast_from!(self(), console_topic(device_id), event, payload)
+    {:noreply, socket}
+  end
+
+  def handle_info(%Broadcast{payload: payload, event: "presence_diff"}, socket) do
+    cond do
+      meta = payload.joins[socket.assigns.device_id] ->
+        push(socket, "meta_update", meta)
+
+      payload.leaves[socket.assigns.device_id] ->
+        # We're counting a device leaving as its last_communication. This is
+        # slightly inaccurate to set here, but only by a minuscule amount
+        # and saves DB calls and broadcasts
+        disconnect_time = DateTime.truncate(DateTime.utc_now(), :second)
+
+        meta = %{
+          console_available: false,
+          fwup_progress: nil,
+          last_communication: disconnect_time,
+          status: "offline"
+        }
+
+        push(socket, "meta_update", meta)
+    end
+
     {:noreply, socket}
   end
 
@@ -24,4 +51,39 @@ defmodule NervesHubWWWWeb.UserConsoleChannel do
   defp console_topic(device_id) do
     "console:#{device_id}"
   end
+
+  # defp sync_device(%Device{id: id} = device, payload) when is_map(payload) do
+  #   id = to_string(id)
+  #   joins = Map.get(payload, :joins, %{})
+  #   leaves = Map.get(payload, :leaves, %{})
+
+  #   cond do
+  #     meta = joins[id] ->
+  #       updates =
+  #         Map.take(meta, [
+  #           :console_available,
+  #           :firmware_metadata,
+  #           :fwup_progress,
+  #           :last_communication,
+  #           :status
+  #         ])
+
+  #       Map.merge(device, updates)
+
+  #     leaves[id] ->
+  #       # We're counting a device leaving as its last_communication. This is
+  #       # slightly inaccurate to set here, but only by a minuscule amount
+  #       # and saves DB calls and broadcasts
+  #       disconnect_time = DateTime.truncate(DateTime.utc_now(), :second)
+
+  #       device
+  #       |> Map.put(:console_available, false)
+  #       |> Map.put(:fwup_progress, nil)
+  #       |> Map.put(:last_communication, disconnect_time)
+  #       |> Map.put(:status, "offline")
+
+  #     true ->
+  #       device
+  #   end
+  # end
 end

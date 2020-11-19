@@ -91,7 +91,13 @@ defmodule NervesHubWWWWeb.DeviceController do
     # be cleaned up once it is no longer used
     cond do
       Version.match?(version, ">= 0.9.0") ->
-        render(conn, "console.html", device: device, console_available: meta[:console_available])
+        conn
+        |> put_root_layout({NervesHubWWWWeb.LayoutView, :console})
+        |> put_layout(false)
+        |> render("console.html",
+          device: Map.merge(device, meta),
+          console_available: meta[:console_available]
+        )
 
       true ->
         conn
