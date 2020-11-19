@@ -64,6 +64,11 @@
 #console-html, #console-body {
   background-color: black;
   height: 100%;
+  border: solid gray;
+  border-width: 2px;
+  .xterm {
+    height: 100%;
+  }
 }
 
 .console-details-row {
@@ -76,10 +81,7 @@
 }
 
 .console-v2 {
-  border-radius: 4px;
-  padding-bottom: 20px;
   height: 100%;
-  padding-left: 1.5rem;
   color: white;
 }
 

@@ -1,42 +1,7 @@
 <input id="device_id" hidden type="text" value="<%= @device.id %>" />
 <input id="product_id" hidden type="text" value="<%= @device.product_id %>" />
-<div class="console-details-row">
-  <%= link @device.identifier, to: Routes.device_path(@conn, :show, @org.name, @product.name, @device.identifier), class: "back-link" %>
-  <div>
-    <div class="help-text">Status</div>
-    <p class="flex-row align-items-center tt-c" id="status-deets">
-      <%= if Map.has_key?(@device, :fwup_progress) && @device.fwup_progress do %>
-        <div class="progress console-progress">
-          <div class="progress-bar" role="progressbar" style="width: <%= @device.fwup_progress %>%">
-            <%= @device.fwup_progress %>%
-          </div>
-        </div>
-      <% else %>
-        <span><%= @device.status %></span>
-        <span class="ml-1">
-          <img alt="<%= @device.status %>" class="table-icon <%= @device.status %>" />
-        </span>
-      <% end %>
-    </p>
-  </div>
-  <div>
-    <div class="help-text">Last Handshake</div>
-    <p id="last_communication">
-      <%= if is_nil(@device.last_communication) do %>
-        Never
-      <% else %>
-        <%= @device.last_communication %>
-      <% end %>
-    </p>
-  </div>
-  <button class="btn btn-outline-light" id="restart_button" <%= if !@console_available do "disabled" end%>>
-    <span class="button-icon power"></span>
-    <span>Restart Console</span>
-  </button>
-</div>
-
 <%= if @console_available do %>
-    <div id="terminal" class="console-v2"></div>
+  <div id="terminal" class="console-v2"></div>
 <% else %>
   <h5>Console disabled or unavailable.</h5>
 <% end %>

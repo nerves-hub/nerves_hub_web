@@ -81,7 +81,6 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
         get(conn, Routes.device_path(conn, :console, org.name, product.name, device.identifier))
 
       assert html_response(result, 200) =~ device.identifier
-      assert html_response(result, 200) =~ "Status"
     end
   end
 end
