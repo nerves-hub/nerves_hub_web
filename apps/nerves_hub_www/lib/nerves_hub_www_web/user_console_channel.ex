@@ -37,6 +37,11 @@ defmodule NervesHubWWWWeb.UserConsoleChannel do
         }
 
         push(socket, "meta_update", meta)
+
+      # happens when a device leaves or joins but not the device this particular
+      # process is concerned with
+      true ->
+        :noop
     end
 
     {:noreply, socket}
