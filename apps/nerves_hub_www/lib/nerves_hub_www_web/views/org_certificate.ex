@@ -10,4 +10,9 @@ defmodule NervesHubWWWWeb.OrgCertificateView do
     |> Enum.chunk_every(2)
     |> Enum.join(":")
   end
+
+  def format_serial(serial_str) when is_bitstring(serial_str) do
+    String.to_integer(serial_str)
+    |> format_serial()
+  end
 end
