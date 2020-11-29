@@ -21,8 +21,14 @@
     <div class="has-error"><%= error_tag f, :description %></div>
   </div>
 
-  <div class="form-group hidden" aria-hidden="true">
-    <%= text_input f, :tags, class: "form-control", id: "group_input", value: "all" %>
+  <div class="form-group" aria-hidden="true">
+    <label for="tag_input" class="tooltip-label h3 mb-1">
+      <span>Tags</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">Tags are used by deployments to target a device. A device must have matching tag(s) for the deployment to update it</span>
+    </label>
+    <%= text_input f, :tags, class: "form-control", id: "tag_input" %>
+    <div class="has-error"><%= error_tag f, :tags %></div>
   </div>
 
   <div class="button-submit-wrapper">
