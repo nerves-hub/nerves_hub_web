@@ -25,7 +25,7 @@
         <th>Version</th>
         <th>Platform</th>
         <th>Firmware key</th>
-        <th>Created on</th>
+        <th>Uploaded on</th>
         <th></th>
       </tr>
     </thead>
@@ -52,7 +52,7 @@
           </div>
         </td>
         <td>
-          <div class="mobile-label help-text">Created on</div>
+          <div class="mobile-label help-text">Uploaded on</div>
           <div>
             <%= if is_nil(firmware.inserted_at) do %>
               <span class="color-white-50">Never</span>
