@@ -23,6 +23,7 @@
       <tr>
         <th>UUID</th>
         <th>Version</th>
+        <th>Platform</th>
         <th>Firmware key</th>
         <th>Created on</th>
         <th></th>
@@ -39,6 +40,10 @@
         <td>
           <div class="mobile-label help-text">Version</div>
           <%= firmware.version %>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Platform</div>
+          <%= firmware.platform %>
         </td>
         <td>
           <div class="mobile-label help-text">Firmware key</div>

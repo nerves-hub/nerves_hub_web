@@ -30,6 +30,10 @@
     <p><%= @firmware.uuid %></p>
   </div>
   <div>
+    <div class="help-text">Platform</div>
+    <p><%= @firmware.platform %></p>
+  </div>
+  <div>
     <div class="help-text">Architecture</div>
     <p><%= @firmware.architecture %></p>
   </div>
