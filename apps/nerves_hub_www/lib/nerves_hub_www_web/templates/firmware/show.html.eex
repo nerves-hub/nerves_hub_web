@@ -42,7 +42,7 @@
     <p><%= @firmware.author %></p>
   </div>
   <div class="gr-2">
-    <div class="help-text">Created On</div>
+    <div class="help-text">Uploaded On</div>
     <p class="date-time">
       <%= @firmware.inserted_at %>
     </p>
@@ -60,4 +60,3 @@
 </div>
 
 <div class="divider"></div>
-
