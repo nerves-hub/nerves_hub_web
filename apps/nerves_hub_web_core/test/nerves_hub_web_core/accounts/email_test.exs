@@ -40,7 +40,9 @@ defmodule NervesHubWebCore.Accounts.EmailTest do
     assert email.to == "nunya@bidness.com"
 
     assert email.html_body =~
-             "You've been added to the <strong>#{org.name}</strong> organization on nerves-hub.org."
+             "You've been added to the <strong>#{org.name}</strong> organization on #{
+               EmailView.base_url()
+             }."
   end
 
   test "tell org about new user" do
