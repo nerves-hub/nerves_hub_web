@@ -1,5 +1,5 @@
 <p>Hi!</p>
-<p>You've been invited to join <%= @org.name %> on nerves-hub.org.</p>
+<p>You've been invited to join <%= @org.name %> on <%= base_url() %></p>
 
 <p>To get started click on the link below to register your account and set up your password:</p>
 
