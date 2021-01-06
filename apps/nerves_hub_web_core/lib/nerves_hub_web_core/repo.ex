@@ -3,6 +3,11 @@ defmodule NervesHubWebCore.Repo do
     otp_app: :nerves_hub_web_core,
     adapter: Ecto.Adapters.Postgres
 
+  @type transaction ::
+          {:ok, any()}
+          | {:error, any()}
+          | {:error, Ecto.Multi.name(), any(), %{required(Ecto.Multi.name()) => any()}}
+
   @doc """
   Dynamically loads the repository url from the
   DATABASE_URL environment variable.
