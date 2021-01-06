@@ -3,7 +3,8 @@ defmodule NervesHubWWWWeb.DeviceView do
 
   alias NervesHubDevice.Presence
   alias NervesHubWWWWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
-  import NervesHubWWWWeb.LayoutView, only: [pagination_links: 1]
+  import NervesHubWWWWeb.LayoutView,
+    only: [pagination_links: 1, user_orgs: 1, user_org_products: 2]
   import NervesHubWWWWeb.OrgCertificateView, only: [format_serial: 1]
 
   def architecture_options do
@@ -67,4 +68,16 @@ defmodule NervesHubWWWWeb.DeviceView do
   defdelegate device_status(device), to: Presence
 
   def selected?(filters, field, value), do: if(filters[field] == value, do: "selected")
+
+  def move_alert(product_name) do
+    """
+    This will move the selected device(s) to the #{product_name} product
+
+    Any existing firmware keys the devices may use will attempt to be migrated if they do not exist on the target organization.
+
+    Moving devices may also trigger an update if there are matching deployments on the new product. It is up to the user to ensure any required firmware keys are on the device before migrating them to a new product with a new firmware or the device may fail to update.
+
+    Do you wish to continue?
+    """
+  end
 end
