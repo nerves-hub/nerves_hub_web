@@ -17,6 +17,10 @@ defmodule NervesHubWWWWeb.LayoutView do
   end
 
   def user_orgs(%{assigns: %{user: %User{} = user}}) do
+    user_orgs(user)
+  end
+
+  def user_orgs(%User{} = user) do
     Accounts.get_user_orgs_with_product_role(user, :read)
   end
 

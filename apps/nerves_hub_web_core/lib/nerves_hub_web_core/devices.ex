@@ -568,9 +568,7 @@ defmodule NervesHubWebCore.Devices do
 
     audit_params = %{
       log_description:
-        "user #{user.username} moved device #{device.identifier} to #{product.org.name} : #{
-          product.name
-        }"
+        "user #{user.username} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
     }
 
     source_product = %Product{id: device.product_id, org_id: device.org_id}
