@@ -8,27 +8,25 @@ defmodule NervesHubWebCore.Devices do
     Devices.UpdatePayload,
     Deployments.Deployment,
     Firmwares,
+    Firmwares.Firmware,
     Firmwares.FirmwareMetadata,
     AuditLogs,
     AuditLogs.AuditLog,
+    Accounts,
     Accounts.Org,
     Repo,
+    Accounts.OrgKey,
+    Products.Product,
     Workers
   }
 
   alias NervesHubWebCore.Devices.{Device, DeviceCertificate, CACertificate}
+  alias NervesHubWebCore.TaskSupervisor, as: Tasks
 
   @min_fwup_delta_updatable_version ">=1.6.0"
 
-  def get_device(device_id) do
-    Device
-    |> Repo.get(device_id)
-  end
-
-  def get_device!(device_id) do
-    Device
-    |> Repo.get!(device_id)
-  end
+  def get_device(device_id), do: Repo.get(Device, device_id)
+  def get_device!(device_id), do: Repo.get!(Device, device_id)
 
   def get_devices_by_org_id(org_id) do
     query =
@@ -150,14 +148,7 @@ defmodule NervesHubWebCore.Devices do
     %UpdatePayload{} = update_payload = resolve_update(device, deployment)
 
     if update_payload.update_available do
-      Phoenix.PubSub.broadcast(
-        NervesHubWeb.PubSub,
-        "device:#{device.id}",
-        %Phoenix.Socket.Broadcast{
-          event: "update",
-          payload: update_payload
-        }
-      )
+      broadcast(device, "update", update_payload)
     end
 
     update_payload
@@ -589,6 +580,86 @@ defmodule NervesHubWebCore.Devices do
     update_device(device, %{deleted_at: nil})
   end
 
+  @doc """
+  Move a device to a different product
+
+  If the new target product is in a different organization, this will
+  attempt to also copy any firmware keys the device might be expecting
+  to the new organization. However, it is best effort only.
+
+  Moving a device will also trigger a deployment check to see if there
+  is an update available from the new product/org for the device. It is
+  up to the user to ensure the new device is configured with any new/different
+  firmware keys from the new org before moving otherwise the device
+  might fail to update because of an unknown key.
+  """
+  @spec move(Device.t() | [Device.t()], Product.t(), User.t()) :: Repo.transaction()
+  def move(%Device{} = device, product, user) do
+    product = Repo.preload(product, :org)
+    attrs = %{org_id: product.org_id, product_id: product.id}
+
+    _ = maybe_copy_firmware_keys(device, product.org)
+
+    audit_params = %{
+      log_description:
+        "user #{user.username} moved device #{device.identifier} to #{product.org.name} : #{
+          product.name
+        }"
+    }
+
+    source_product = %Product{id: device.product_id, org_id: device.org_id}
+
+    Multi.new()
+    |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
+    |> Multi.run(:audit_device, fn _, _ ->
+      AuditLogs.audit(user, device, :update, audit_params)
+    end)
+    |> Multi.run(:audit_target, fn _, _ ->
+      AuditLogs.audit(user, product, :update, audit_params)
+    end)
+    |> Multi.run(:audit_source, fn _, _ ->
+      AuditLogs.audit(user, source_product, :update, audit_params)
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{move: updated}} ->
+        broadcast(updated, "moved")
+        {:ok, updated}
+
+      err ->
+        err
+    end
+  end
+
+  @spec move_many([Device.t()], Product.t(), User.t()) :: %{
+          ok: [Device.t()],
+          error: [{Ecto.Multi.name(), any()}]
+        }
+  def move_many(devices, product, user) do
+    product = Repo.preload(product, :org)
+
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :move, [&1, product, user]))
+    |> Task.await_many(20_000)
+    |> Enum.reduce(%{ok: [], error: []}, fn
+      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
+      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
+    end)
+  end
+
+  @spec get_devices_by_id([non_neg_integer()]) :: [Device.t()]
+  def get_devices_by_id(ids) when is_list(ids) do
+    from(d in Device, where: d.id in ^ids)
+    |> Repo.all()
+  end
+
+  def broadcast(%Device{id: id}, event, payload \\ %{}) do
+    Phoenix.PubSub.broadcast(
+      NervesHubWeb.PubSub,
+      "device:#{id}",
+      %Phoenix.Socket.Broadcast{event: event, payload: payload}
+    )
+  end
+
   defp failures_query(%Device{id: device_id}, %Deployment{id: deployment_id} = deployment) do
     deployment = Repo.preload(deployment, :firmware)
 
@@ -623,4 +694,26 @@ defmodule NervesHubWebCore.Devices do
   defp tags_match?(device_tags, deployment_tags) do
     Enum.all?(deployment_tags, fn tag -> tag in device_tags end)
   end
+
+  def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{
+        id: target
+      }) do
+    existing_target_keys = from(k in OrgKey, where: [org_id: ^target], select: k.key)
+
+    from(
+      k in OrgKey,
+      join: f in Firmware,
+      on: [org_key_id: k.id],
+      where: f.uuid == ^uuid and k.org_id == ^source,
+      where: k.key not in subquery(existing_target_keys),
+      select: %{name: k.name, key: k.key, org_id: type(^target, :integer)}
+    )
+    |> Repo.one()
+    |> case do
+      %{} = attrs -> Accounts.create_org_key(attrs)
+      _ -> :ignore
+    end
+  end
+
+  def maybe_copy_firmware_keys(_old, _updated), do: :ignore
 end
