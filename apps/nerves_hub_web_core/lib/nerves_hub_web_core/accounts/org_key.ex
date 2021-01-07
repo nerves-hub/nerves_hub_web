@@ -29,7 +29,7 @@ defmodule NervesHubWebCore.Accounts.OrgKey do
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
     |> unique_constraint(:name, name: :org_keys_org_id_name_index)
-    |> unique_constraint(:key)
+    |> unique_constraint(:key, name: :org_keys_org_id_key_index)
   end
 
   def update_changeset(%OrgKey{id: _} = org_key, params) do
@@ -38,7 +38,7 @@ defmodule NervesHubWebCore.Accounts.OrgKey do
     |> cast(params, @required_params -- [:org_id])
     |> validate_required(@required_params)
     |> unique_constraint(:name, name: :org_keys_org_id_name_index)
-    |> unique_constraint(:key)
+    |> unique_constraint(:key, name: :org_keys_org_id_key_index)
   end
 
   def delete_changeset(%OrgKey{id: _} = org_key, params) do
