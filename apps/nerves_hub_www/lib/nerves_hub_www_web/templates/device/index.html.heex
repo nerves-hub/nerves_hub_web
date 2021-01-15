@@ -102,39 +102,26 @@
   <% end %>
   <%= if length(@selected_devices) > 0 do %>
     <div class="filter-wrapper">
-      <h4 class="color-white mb-2">Bulk Actions <span class="help-text"><%= length(@selected_devices) %> selected</span></h4>
-
-      <button class="btn btn-primary" type="button" phx-click="deselect-all">Deselect All</button>
-      <button class="btn btn-secondary" type="button">
-        <ul class="navbar-nav mr-auto flex-grow">
-          <li class="nav-item dropdown switcher">
-            <a class="nav-link dropdown-toggle org-select arrow-primary" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              Move
-            </a>
-
-            <div class="dropdown-menu workspace-dropdown" aria-labelledby="navbarDropdownMenuLink">
-              <div class="help-text">Select an organization</div>
-              <div class="dropdown-divider"></div>
-              <%= for org <- user_orgs(@user), products = user_org_products(@user, org), length(products) > 0 do %>
-                <div class="dropdown-submenu">
-                  <a aria-haspopup="true" class="dropdown-item org dropdown-toggle"><%= org.name %></a>
-                  <ul class="dropdown-menu">
-                    <div class="help-text">Select a product</div>
-                    <div class="dropdown-divider"></div>
-                      <%= for product <- products, product.id != @product.id do %>
-                        <li>
-                          <a class="dropdown-item product" phx-click="move-devices" phx-value-product="<%= product.id %>" phx-value-org="<%= product.org_id %>" phx-value-name="<%= product.name %>" data-confirm="<%= move_alert(product.name) %>"><%= product.name %></a>
-                          <div class="dropdown-divider"></div>
-                        </li>
-                      <% end %>
-                  </ul>
-                  <div class="dropdown-divider"></div>
-                </div>
-              <% end %>
-            </div>
-          </li>
-        </ul>
-      </button>
+      <h4 class="color-white mb-2 flex-row align-items-center">Bulk Actions <span class="help-text ml-2"><%= length(@selected_devices) %> selected</span></h4>
+      <div class="form-group">
+        <label for="input_transfer">Transfer device</label>
+        <div class="pos-rel">
+          <select name="transfer device" id="input_transfer" class="form-control">
+            <%= for org <- user_orgs(@user), products = user_org_products(@user, org), length(products) > 0 do %>
+              <optgroup label=<%= org.name %>>
+                <%= for product <- products, product.id != @product.id do %>
+                  <option><%= product.name %></option>
+                <% end %>
+              </optgroup>
+            <% end %>
+          </select>
+          <div class="select-icon"></div>
+        </div>
+      </div>
+      <div class="flex-row align-items-center">
+        <button class="btn btn-secondary" type="button" phx-click="deselect-all">Deselect All</button>
+        <button class="btn btn-primary ml-3" type="button">Apply</button>
+      </div>
     </div>
   <% end %>
   <table class="table table-sm table-hover">
