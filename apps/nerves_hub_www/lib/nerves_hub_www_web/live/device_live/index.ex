@@ -55,6 +55,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:currently_filtering, false)
       |> assign(:page_size_valid, true)
       |> assign(:selected_devices, [])
+      |> assign(:target_product, nil)
       |> assign_display_devices()
 
     {:ok, socket}
@@ -225,18 +226,32 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, assign(socket, :selected_devices, [id | socket.assigns.selected_devices])}
   end
 
-  def handle_event("move-devices", attrs, socket) do
-    %{"product" => pid_str, "org" => org_id_str, "name" => name} = attrs
+  def handle_event("deselect-all", _, socket) do
+    {:noreply, assign(socket, selected_devices: [])}
+  end
 
-    product = %Product{
-      id: String.to_integer(pid_str),
-      org_id: String.to_integer(org_id_str),
-      name: name
-    }
+  def handle_event("target-product", %{"product" => attrs}, socket) do
+    target =
+      case String.split(attrs, ":") do
+        [org_id_str, pid_str, name] ->
+          %Product{
+            id: String.to_integer(pid_str),
+            org_id: String.to_integer(org_id_str),
+            name: name
+          }
 
+        _ ->
+          # ignore attempted move if no product/org selected
+          nil
+      end
+
+    {:noreply, assign(socket, target_product: target)}
+  end
+
+  def handle_event("move-devices", _, socket) do
     %{ok: successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
-      |> Devices.move_many(product, socket.assigns.user)
+      |> Devices.move_many(socket.assigns.target_product, socket.assigns.user)
 
     success_ids = Enum.map(successfuls, & &1.id)
 
