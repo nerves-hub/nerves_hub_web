@@ -69,7 +69,7 @@ defmodule NervesHubWWWWeb.DeviceView do
 
   def selected?(filters, field, value), do: if(filters[field] == value, do: "selected")
 
-  def move_alert(product_name) do
+  def move_alert(%{name: product_name}) do
     """
     This will move the selected device(s) to the #{product_name} product
 
