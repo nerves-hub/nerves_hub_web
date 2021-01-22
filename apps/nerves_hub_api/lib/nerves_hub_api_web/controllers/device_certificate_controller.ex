@@ -71,7 +71,8 @@ defmodule NervesHubAPIWeb.DeviceCertificateController do
            aki: aki,
            ski: ski,
            not_before: not_before,
-           not_after: not_after
+           not_after: not_after,
+           der: Certificate.to_der(cert)
          },
          {:ok, _db_cert} <- Devices.create_device_certificate(device, params) do
       render(conn, "cert.json", cert: cert_pem, device_certificate: cert_pem)
