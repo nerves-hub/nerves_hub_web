@@ -76,6 +76,11 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
         )
 
       assert json_response(conn, 200)["data"]["serial"] == serial
+
+      otp_certificate = X509.Certificate.from_pem!(pem)
+      {:ok, db_cert} = Devices.get_device_certificate_by_x509(otp_certificate)
+
+      assert db_cert.der == X509.Certificate.to_der(otp_certificate)
     end
 
     test "renders errors when data is invalid", %{
@@ -129,10 +134,11 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
       resp_data = json_response(conn, 200)["data"]
       assert %{"cert" => cert} = resp_data
 
-      cert = X509.Certificate.from_pem!(cert)
-      {:ok, cert} = Devices.get_device_certificate_by_x509(cert)
+      otp_cert = X509.Certificate.from_pem!(cert)
+      {:ok, db_cert} = Devices.get_device_certificate_by_x509(cert)
 
-      assert cert.device_id == device.id
+      assert db_cert.device_id == device.id
+      assert db_cert.der == X509.Certificate.to_der(otp_cert)
     end
 
     @tag :ca_integration

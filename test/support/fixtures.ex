@@ -36,6 +36,8 @@ defmodule NervesHubWebCore.Fixtures do
   @user_ca_key Path.expand("../fixtures/ssl/user-root-ca-key.pem", __DIR__)
   @user_ca_cert Path.expand("../fixtures/ssl/user-root-ca.pem", __DIR__)
 
+  defdelegate reload(record), to: Repo
+
   def path(), do: Path.expand("../fixtures", __DIR__)
 
   def user_params() do
@@ -277,6 +279,18 @@ defmodule NervesHubWebCore.Fixtures do
   end
 
   def device_certificate_fixture(%Devices.Device{} = device, cert) do
+    serial = Certificate.get_serial_number(cert)
+    {not_before, not_after} = Certificate.get_validity(cert)
+    aki = Certificate.get_aki(cert)
+    ski = Certificate.get_ski(cert)
+    der = Certificate.to_der(cert)
+    params = %{serial: serial, aki: aki, ski: ski, not_before: not_before, not_after: not_after, der: der}
+
+    {:ok, device_cert} = Devices.create_device_certificate(device, params)
+    %{db_cert: device_cert, cert: cert}
+  end
+
+  def device_certificate_fixture_without_der(%Devices.Device{} = device, cert) do
     serial = Certificate.get_serial_number(cert)
     {not_before, not_after} = Certificate.get_validity(cert)
     aki = Certificate.get_aki(cert)

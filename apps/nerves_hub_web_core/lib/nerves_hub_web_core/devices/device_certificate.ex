@@ -14,10 +14,13 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
     :aki,
     :not_after,
     :not_before
+    # TODO: Require this field once DERs have been captured in field
+    # :der
   ]
   @optional_params [
     :ski,
-    :last_used
+    :last_used,
+    :der
   ]
 
   schema "device_certificates" do
@@ -30,6 +33,7 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
     field(:not_before, :utc_datetime)
     field(:not_after, :utc_datetime)
     field(:last_used, :utc_datetime)
+    field(:der, :binary)
 
     timestamps()
   end
@@ -43,6 +47,18 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
 
   def update_changeset(%DeviceCertificate{} = device_certificate, params) do
     device_certificate
-    |> cast(params, [:last_used])
+    # Allowing the DER here is temporary while we backfill device connections
+    |> cast(params, [:last_used, :der])
+    |> remove_der_change_if_exists()
   end
+
+  defp remove_der_change_if_exists(%{data: %{der: der}, changes: %{der: _}} = changeset)
+       when is_binary(der) do
+    # We only want to save the DER once.
+    # If it already exists on the record, ignore it
+    # TODO: Remove this updatable field when confident enough have been captured
+    delete_change(changeset, :der)
+  end
+
+  defp remove_der_change_if_exists(changeset), do: changeset
 end
