@@ -1,6 +1,8 @@
 defmodule NervesHubDeviceWeb.DeviceSocket do
   use Phoenix.Socket
 
+  alias NervesHubWebCore.Devices
+
   ## Channels
   # channel "room:*", NervesHubWWWWeb.RoomChannel
   channel("console", NervesHubDeviceWeb.ConsoleChannel)
@@ -20,9 +22,11 @@ defmodule NervesHubDeviceWeb.DeviceSocket do
   # performing token verification on connect.
 
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) do
-    certificate = X509.Certificate.from_der!(ssl_cert)
-
-    case NervesHubDevice.SSL.verify_device(certificate) do
+    # By this point, SSL verification has already been completed.
+    # We just need to get the DB cert
+    X509.Certificate.from_der!(ssl_cert)
+    |> Devices.get_device_certificate_by_x509()
+    |> case do
       {:ok, db_cert} -> {:ok, assign(socket, :certificate, db_cert)}
       _e -> :error
     end

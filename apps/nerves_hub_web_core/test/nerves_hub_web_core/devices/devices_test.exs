@@ -23,10 +23,18 @@ defmodule NervesHubWebCore.DevicesTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(org, firmware)
     device = Fixtures.device_fixture(org, product, firmware)
-    Fixtures.device_certificate_fixture(device)
+    ca_fix = Fixtures.ca_certificate_fixture(org)
+    %{db_cert: db_cert} = Fixtures.device_certificate_fixture(device)
+
+    cert =
+      X509.PrivateKey.new_ec(:secp256r1)
+      |> X509.PublicKey.derive()
+      |> X509.Certificate.new("/CN=#{device.identifier}", ca_fix.cert, ca_fix.key)
 
     {:ok,
      %{
+       cert: cert,
+       db_cert: db_cert,
        user: user,
        org: org,
        org_key: org_key,
@@ -164,7 +172,7 @@ defmodule NervesHubWebCore.DevicesTest do
     assert {:error, %Ecto.Changeset{}} = Devices.create_device(params)
   end
 
-  test "create device certificate", %{device: device} do
+  test "create device certificate", %{device: device, cert: cert} do
     now = DateTime.utc_now()
     device_id = device.id
 
@@ -174,14 +182,15 @@ defmodule NervesHubWebCore.DevicesTest do
       not_after: now,
       device_id: device_id,
       aki: "1234",
-      ski: "5678"
+      ski: "5678",
+      der: X509.Certificate.to_der(cert)
     }
 
     assert {:ok, %DeviceCertificate{device_id: ^device_id}} =
              Devices.create_device_certificate(device, params)
   end
 
-  test "create device certificate without subject key id", %{device: device} do
+  test "create device certificate without subject key id", %{device: device, cert: cert} do
     now = DateTime.utc_now()
     device_id = device.id
 
@@ -190,14 +199,19 @@ defmodule NervesHubWebCore.DevicesTest do
       not_before: now,
       not_after: now,
       device_id: device_id,
-      aki: "1234"
+      aki: "1234",
+      der: X509.Certificate.to_der(cert)
     }
 
     assert {:ok, %DeviceCertificate{device_id: ^device_id}} =
              Devices.create_device_certificate(device, params)
   end
 
-  test "select one device when it has two certificates", %{device: device} do
+  test "select one device when it has two certificates", %{
+    device: device,
+    db_cert: db_cert,
+    cert: cert
+  } do
     now = DateTime.utc_now()
 
     params = %{
@@ -205,20 +219,23 @@ defmodule NervesHubWebCore.DevicesTest do
       not_before: now,
       not_after: now,
       aki: "1234",
-      ski: "5678"
+      ski: "5678",
+      der: X509.Certificate.to_der(cert)
     }
 
-    assert {:ok, %DeviceCertificate{} = cert1} = Devices.create_device_certificate(device, params)
+    expected_id = device.id
 
-    assert {:ok, %DeviceCertificate{} = cert2} =
-             Devices.create_device_certificate(device, %{params | serial: "56789"})
+    assert {:ok, %DeviceCertificate{} = db_cert2} =
+             Devices.create_device_certificate(device, params)
 
-    assert {:ok, device1} = Devices.get_device_by_certificate(cert1)
-    assert {:ok, device2} = Devices.get_device_by_certificate(cert2)
-    assert device1.id == device2.id
+    assert {:ok, %{id: ^expected_id}} = Devices.get_device_by_certificate(db_cert2)
+    assert {:ok, %{id: ^expected_id}} = Devices.get_device_by_certificate(db_cert)
   end
 
-  test "cannot create device certificates with duplicate serial numbers", %{device: device} do
+  test "cannot create device certificates with duplicate serial numbers", %{
+    device: device,
+    cert: cert
+  } do
     now = DateTime.utc_now()
 
     params = %{
@@ -227,7 +244,8 @@ defmodule NervesHubWebCore.DevicesTest do
       not_after: now,
       device_id: device.id,
       aki: "1234",
-      ski: "5678"
+      ski: "5678",
+      der: X509.Certificate.to_der(cert)
     }
 
     assert {:ok, %DeviceCertificate{}} = Devices.create_device_certificate(device, params)

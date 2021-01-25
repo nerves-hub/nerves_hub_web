@@ -4,6 +4,7 @@ defmodule NervesHubWebCore.Devices do
   alias Ecto.Changeset
 
   alias NervesHubWebCore.{
+    Certificate,
     Devices.UpdatePayload,
     Deployments.Deployment,
     Firmwares,
@@ -195,6 +196,7 @@ defmodule NervesHubWebCore.Devices do
   def get_device_by_certificate(_), do: {:error, :not_found}
 
   def get_device_certificate_by_x509(cert) do
+    fingerprint = NervesHubWebCore.Certificate.fingerprint(cert)
     aki = NervesHubWebCore.Certificate.get_aki(cert)
     serial = NervesHubWebCore.Certificate.get_serial_number(cert)
     {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(cert)
@@ -202,8 +204,19 @@ defmodule NervesHubWebCore.Devices do
     query =
       from(
         c in DeviceCertificate,
-        where:
-          c.serial == ^serial and
+        where: [fingerprint: ^fingerprint],
+        # TODO: Remove lookup by other fields when DER and
+        # fingerprints have been captured
+        #
+        # finerprint == nil is important because an altered cert
+        # may still contain the same serial, aki, and validity.
+        # However, the fingerprint would be different and not
+        # match on the lookup above. So this fallback query
+        # should only be considered if we dont already have
+        # the fingerprint
+        or_where:
+          is_nil(c.fingerprint) and
+            c.serial == ^serial and
             c.aki == ^aki and
             c.not_before == ^not_before and
             c.not_after == ^not_after
@@ -215,6 +228,16 @@ defmodule NervesHubWebCore.Devices do
       nil -> {:error, :not_found}
       certificate -> {:ok, certificate}
     end
+  end
+
+  def get_device_certificates_by_public_key(otp_cert) do
+    pk_fingerprint = NervesHubWebCore.Certificate.public_key_fingerprint(otp_cert)
+
+    from(c in DeviceCertificate,
+      where: [public_key_fingerprint: ^pk_fingerprint],
+      preload: [:device]
+    )
+    |> Repo.all()
   end
 
   @spec get_device_certificate_by_device_and_serial(Device.t(), binary) ::
@@ -250,7 +273,7 @@ defmodule NervesHubWebCore.Devices do
     Repo.delete(device_certificate)
   end
 
-  @spec create_ca_certificate(Org.t(), any()) ::
+  @spec create_ca_certificate(Org.t(), map()) ::
           {:ok, CACertificate.t()}
           | {:error, Changeset.t()}
   def create_ca_certificate(%Org{} = org, params) do
@@ -258,6 +281,25 @@ defmodule NervesHubWebCore.Devices do
     |> Ecto.build_assoc(:ca_certificates)
     |> CACertificate.changeset(params)
     |> Repo.insert()
+  end
+
+  @spec create_ca_certificate_from_x509(Org.t(), X509.Certificate.t(), binary() | nil) ::
+          {:ok, CACertificate.t()} | {:error, Ecto.Changeset.t()}
+  def create_ca_certificate_from_x509(%Org{} = org, otp_cert, description \\ nil)
+      when is_tuple(otp_cert) do
+    {not_before, not_after} = Certificate.get_validity(otp_cert)
+
+    params = %{
+      serial: Certificate.get_serial_number(otp_cert),
+      aki: Certificate.get_aki(otp_cert),
+      ski: Certificate.get_ski(otp_cert),
+      not_before: not_before,
+      not_after: not_after,
+      der: X509.Certificate.to_der(otp_cert),
+      description: description
+    }
+
+    create_ca_certificate(org, params)
   end
 
   def get_ca_certificates(%Org{id: org_id}) do
