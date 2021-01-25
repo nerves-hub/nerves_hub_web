@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
   use NervesHubAPIWeb.ConnCase, async: true
 
-  alias NervesHubWebCore.{Devices, Fixtures}
+  alias NervesHubWebCore.{Certificate, Devices, Fixtures}
 
   setup %{org: org, product: product} do
     identifier = "device-1234"
@@ -80,7 +80,9 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
       otp_certificate = X509.Certificate.from_pem!(pem)
       {:ok, db_cert} = Devices.get_device_certificate_by_x509(otp_certificate)
 
-      assert db_cert.der == X509.Certificate.to_der(otp_certificate)
+      assert db_cert.der == Certificate.to_der(otp_certificate)
+      assert db_cert.fingerprint == Certificate.fingerprint(otp_certificate)
+      assert db_cert.public_key_fingerprint == Certificate.public_key_fingerprint(otp_certificate)
     end
 
     test "renders errors when data is invalid", %{
@@ -138,7 +140,9 @@ defmodule NervesHubAPIWeb.DeviceCertificateControllerTest do
       {:ok, db_cert} = Devices.get_device_certificate_by_x509(cert)
 
       assert db_cert.device_id == device.id
-      assert db_cert.der == X509.Certificate.to_der(otp_cert)
+      assert db_cert.der == Certificate.to_der(otp_cert)
+      assert db_cert.fingerprint == Certificate.fingerprint(otp_cert)
+      assert db_cert.public_key_fingerprint == Certificate.public_key_fingerprint(otp_cert)
     end
 
     @tag :ca_integration

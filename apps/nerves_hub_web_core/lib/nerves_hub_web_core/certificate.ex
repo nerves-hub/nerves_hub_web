@@ -77,6 +77,26 @@ defmodule NervesHubWebCore.Certificate do
     {not_before, not_after}
   end
 
+  @doc """
+  Base16 encoded fingerprint of a certificate
+  """
+  @spec fingerprint(X509.Certificate.t()) :: binary()
+  def fingerprint(otp_certificate) do
+    otp_certificate
+    |> to_der()
+    |> hash_der()
+  end
+
+  @doc """
+  Base16 encoded fingerprint of a certificate public key
+  """
+  @spec public_key_fingerprint(X509.Certificate.t()) :: binary()
+  def public_key_fingerprint(otp_cert) do
+    X509.Certificate.public_key(otp_cert)
+    |> X509.PublicKey.to_der()
+    |> hash_der()
+  end
+
   defp convert_timestamp({:utcTime, timestamp}) do
     <<year::binary-unit(8)-size(2), month::binary-unit(8)-size(2), day::binary-unit(8)-size(2),
       hour::binary-unit(8)-size(2), minute::binary-unit(8)-size(2),
@@ -119,5 +139,10 @@ defmodule NervesHubWebCore.Certificate do
       error ->
         error
     end
+  end
+
+  defp hash_der(der) do
+    :crypto.hash(:sha, der)
+    |> Base.encode16()
   end
 end

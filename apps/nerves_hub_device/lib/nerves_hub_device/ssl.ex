@@ -1,11 +1,38 @@
 defmodule NervesHubDevice.SSL do
-  alias NervesHubWebCore.{Devices, Devices.CACertificate, Certificate, Accounts}
+  alias NervesHubWebCore.{Devices, Certificate}
 
-  @spec verify_fun(X509.Certificate.t(), any(), any()) :: {:valid, any()}
+  @type pkix_path_validation_reason ::
+          :cert_expired
+          | :invalid_issuer
+          | :invalid_signature
+          | :name_not_permitted
+          | :missing_basic_constraint
+          | :invalid_key_usage
+          | {:revoked, :public_key.crl_reason()}
+  @type reason ::
+          :unknown_ca
+          | :unknown_server_error
+          | :registration_failed
+          | :unknown_device_certificate
+          | :mismatched_cert
+          | :mismatched_org
+          | :missing_common_name
+          | :device_not_registered
+          | pkix_path_validation_reason()
+  @type event ::
+          {:bad_cert, reason()}
+          | {:extension, X509.Certificate.Extension.t()}
+          | :valid
+          | :valid_peer
+
+  @spec verify_fun(X509.Certificate.t(), event(), any()) ::
+          {:valid, any()} | {:fail, reason()} | {:unknown, any()}
   # The certificate is a valid_peer, which means it has been
-  # signed by the NervesHub CA and the signer cert is still valid.
-  def verify_fun(_certificate, :valid_peer, state) do
-    {:valid, state}
+  # signed by the NervesHub CA and the signer cert is still valid
+  # or the signer cert was included by the client and is valid
+  # for the peer (device) cert
+  def verify_fun(otp_cert, :valid_peer, state) do
+    do_verify(otp_cert, state)
   end
 
   def verify_fun(_certificate, :valid, state) do
@@ -13,17 +40,19 @@ defmodule NervesHubDevice.SSL do
   end
 
   # The certificate failed peer validation.
-  # The next step is to check what kind of cert we are validating
-  # If the authority key id and subject key id are the same, its a ca cert.
-  # Otherwise, its a device cert.
-  def verify_fun(certificate, {:bad_cert, :unknown_ca}, state) do
-    aki = Certificate.get_aki(certificate)
-    ski = Certificate.get_ski(certificate)
+  # This can happen if the Signer CA is not included in the request
+  # and only the device cert/key is. Or if some other unknown CA
+  # was included.
+  def verify_fun(otp_cert, {:bad_cert, :unknown_ca}, state) do
+    aki = Certificate.get_aki(otp_cert)
+    ski = Certificate.get_ski(otp_cert)
 
     if aki == ski do
-      verify_ca_certificate(certificate, state)
+      # Because Signer CAs are required to be registered first, we don't
+      # really care about it coming in here
+      {:valid, state}
     else
-      verify_device_certificate(certificate, state)
+      do_verify(otp_cert, state)
     end
   end
 
@@ -31,81 +60,140 @@ defmodule NervesHubDevice.SSL do
     {:valid, state}
   end
 
-  def verify_ca_certificate(certificate, state) do
-    X509.Certificate.serial(certificate)
-    |> to_string()
-    |> Devices.get_ca_certificate_by_serial()
-    |> case do
-      {:ok, %CACertificate{der: ca} = ca_cert} ->
-        Devices.update_ca_certificate(ca_cert, %{last_used: DateTime.utc_now()})
-
-        path_validation =
-          X509.Certificate.to_der(certificate)
-          |> :public_key.pkix_path_validation([ca], [])
-
-        case path_validation do
-          {:ok, _} -> {:valid, state}
-          {:error, {_, reason}} -> {:fail, reason}
-        end
-
-      _ ->
-        {:fail, :unknown_ca}
+  defp do_verify(otp_cert, state) do
+    case verify_cert(otp_cert) do
+      {:ok, _db_cert} -> {:valid, state}
+      {:error, {:bad_cert, reason}} -> {:fail, reason}
+      {:error, _} -> {:fail, :registration_failed}
+      reason when is_atom(reason) -> {:fail, reason}
+      _ -> {:fail, :unknown_server_error}
     end
   end
 
-  def verify_device_certificate(certificate, state) do
-    case Devices.get_device_certificate_by_x509(certificate) do
-      {:ok, cert} ->
-        # TODO: Remove once enough time has allowed existing DERs to be captured ¬
-        Devices.update_device_certificate(cert, %{der: Certificate.to_der(certificate)})
-        {:valid, state}
-
-      _ ->
-        {:fail, :unknown_ca}
-    end
-  end
-
-  def verify_device(certificate) do
-    case Devices.get_device_certificate_by_x509(certificate) do
-      {:ok, cert} ->
-        # TODO: Remove once enough time has allowed existing DERs to be captured ¬
-        Devices.update_device_certificate(cert, %{
+  defp verify_cert(otp_cert) do
+    # TODO: Maybe check for cert expiration
+    #
+    # We have always been ignoring expiration if we already have
+    # the certificate stored, but in the future there might be reasons
+    # to consider expirations for existing
+    case Devices.get_device_certificate_by_x509(otp_cert) do
+      {:ok, db_cert} ->
+        Devices.update_device_certificate(db_cert, %{
           last_used: DateTime.utc_now(),
-          der: Certificate.to_der(certificate)
+          # TODO: Remove once enough time has allowed existing DERs to be captured ¬
+          der: Certificate.to_der(otp_cert)
         })
 
       _ ->
-        with aki <- Certificate.get_aki(certificate),
-             {:ok, %CACertificate{org_id: org_id}} <- Devices.get_ca_certificate_by_ski(aki),
-             {:ok, org} <- Accounts.get_org(org_id),
-             identifier <- Certificate.get_common_name(certificate),
-             {:ok, device} <- Devices.get_device_by_identifier(org, identifier) do
-          attempt_registration(device, certificate)
-        else
-          _e -> :error
-        end
+        maybe_register(otp_cert)
     end
   end
 
-  defp attempt_registration(device, certificate) do
-    with [] <- Devices.get_device_certificates(device),
-         serial <- Certificate.get_serial_number(certificate),
-         aki <- Certificate.get_aki(certificate),
-         ski <- Certificate.get_ski(certificate),
-         der <- Certificate.to_der(certificate),
-         {not_before, not_after} <- Certificate.get_validity(certificate),
-         params <- %{
-           serial: serial,
-           aki: aki,
-           ski: ski,
-           not_before: not_before,
-           not_after: not_after,
-           der: der
-         },
-         {:ok, db_cert} <- Devices.create_device_certificate(device, params) do
-      {:ok, db_cert}
-    else
-      _e -> :error
+  defp maybe_register(otp_cert) do
+    case Devices.get_device_certificates_by_public_key(otp_cert) do
+      [] -> maybe_register_from_new_public_key(otp_cert)
+      [%{device: device} | _] -> maybe_register_from_existing_public_key(otp_cert, device)
     end
+  end
+
+  # Registration attempt when public key is unknown
+  defp maybe_register_from_new_public_key(otp_cert) do
+    with {:ok, cn} <- check_common_name(otp_cert),
+         {:ok, db_ca} <- check_known_ca(otp_cert),
+         :ok <- check_expiration(db_ca),
+         der = Certificate.to_der(otp_cert),
+         {:ok, _} <- :public_key.pkix_path_validation(db_ca.der, [der], []),
+         {:ok, device} <- check_device_exists(cn, db_ca.org_id),
+         :ok <- check_new_public_key_allowed(device),
+         params = params_from_otp_cert(otp_cert) do
+      Devices.create_device_certificate(device, params)
+    end
+  end
+
+  # Registration checks when device is known
+  # This happens when public_key is matched in the DB,
+  # but no DB certs matches the incoming OTP Cert der
+  defp maybe_register_from_existing_public_key(otp_cert, device) do
+    with {:ok, cn} <- check_common_name(otp_cert),
+         true <- cn == device.identifier || :mismatched_cert,
+         {:ok, db_ca} <- check_known_ca(otp_cert),
+         :ok <- check_expiration(db_ca),
+         true <- db_ca.org_id == device.org_id || :mismatched_org,
+         der = Certificate.to_der(otp_cert),
+         {:ok, _} <- :public_key.pkix_path_validation(db_ca.der, [der], []),
+         params = params_from_otp_cert(otp_cert) do
+      Devices.create_device_certificate(device, params)
+    end
+  end
+
+  defp check_common_name(otp_cert) do
+    case Certificate.get_common_name(otp_cert) do
+      cn when is_binary(cn) and byte_size(cn) > 0 ->
+        {:ok, cn}
+
+      _ ->
+        :missing_common_name
+    end
+  end
+
+  defp check_known_ca(otp_cert) do
+    Certificate.get_aki(otp_cert)
+    |> Devices.get_ca_certificate_by_ski()
+    |> case do
+      {:ok, db_ca} ->
+        # Mark that this CA cert was used
+        Devices.update_ca_certificate(db_ca, %{last_used: DateTime.utc_now()})
+
+      _ ->
+        :unknown_ca
+    end
+  end
+
+  defp check_expiration(db_cert) do
+    now = DateTime.utc_now()
+    is_after? = DateTime.compare(now, db_cert.not_after) == :gt
+    is_before? = DateTime.compare(now, db_cert.not_before) != :gt
+
+    if is_before? or is_after? do
+      # Maybe should be :cert_expired ?
+      :invalid_issuer
+    else
+      :ok
+    end
+  end
+
+  defp check_device_exists(cn, org_id) do
+    case Devices.get_device_by(identifier: cn, org_id: org_id) do
+      {:ok, _d} = resp -> resp
+      _ -> :device_not_registered
+    end
+  end
+
+  defp check_new_public_key_allowed(device) do
+    case Devices.get_device_certificates(device) do
+      [] ->
+        # First time device connection. Allow
+        :ok
+
+      _ ->
+        # TODO: Support device allowing multiple public keys?
+        #
+        # For now, expect that a device will only use one public key
+        :unexpected_pubkey
+    end
+  end
+
+  defp params_from_otp_cert(otp_cert) do
+    {not_before, not_after} = Certificate.get_validity(otp_cert)
+
+    %{
+      aki: Certificate.get_aki(otp_cert),
+      der: Certificate.to_der(otp_cert),
+      last_used: DateTime.utc_now(),
+      not_after: not_after,
+      not_before: not_before,
+      serial: Certificate.get_serial_number(otp_cert),
+      ski: Certificate.get_ski(otp_cert)
+    }
   end
 end

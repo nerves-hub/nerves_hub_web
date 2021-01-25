@@ -293,14 +293,14 @@ defmodule NervesHubWebCore.Fixtures do
   end
 
   def device_certificate_fixture_without_der(%Devices.Device{} = device, cert) do
-    serial = Certificate.get_serial_number(cert)
-    {not_before, not_after} = Certificate.get_validity(cert)
-    aki = Certificate.get_aki(cert)
-    ski = Certificate.get_ski(cert)
-    params = %{serial: serial, aki: aki, ski: ski, not_before: not_before, not_after: not_after}
+    fixture = device_certificate_fixture(device, cert)
 
-    {:ok, device_cert} = Devices.create_device_certificate(device, params)
-    %{db_cert: device_cert, cert: cert}
+    {:ok, db_cert} =
+      fixture.db_cert
+      |> Ecto.Changeset.change(%{der: nil, fingerprint: nil, public_key_fingerprint: nil})
+      |> Repo.update()
+
+    %{fixture | db_cert: db_cert}
   end
 
   def standard_fixture() do
