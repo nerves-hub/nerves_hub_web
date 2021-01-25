@@ -21,10 +21,16 @@
         <span class="button-icon filter"></span>
       </button>
     </div>
-    <a class="btn btn-outline-light btn-action" aria-label="Add new device" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
-      <div class="button-icon add"></div>
-      <span class="action-text">Add Device</span>
-    </a>
+    <div>
+      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href="<%= Routes.product_path(@socket, :devices_export, @org.name, @product.name) %>">
+        <div class="button-icon download"></div>
+        <span class="action-text">Export</span>
+      </a>
+      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
+        <div class="button-icon add"></div>
+        <span class="action-text">Add Device</span>
+      </a>
+    </div>
   </div>
   <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex;">
     <%= for size <- @paginate_opts.page_sizes do %>
