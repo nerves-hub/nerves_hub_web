@@ -10,6 +10,10 @@ defmodule NervesHubWebCore.Products do
   alias NervesHubWebCore.Products.{Product, ProductUser}
   alias NervesHubWebCore.Accounts.{User, Org, OrgUser}
 
+  alias NimbleCSV.RFC4180, as: CSV
+
+  @csv_header [:identifier, :description, :tags, :product, :org, :certificates]
+
   def get_products_by_user_and_org(%User{id: user_id}, %Org{id: org_id}) do
     query =
       from(
@@ -214,5 +218,40 @@ defmodule NervesHubWebCore.Products do
   """
   def change_product(%Product{} = product) do
     Product.changeset(product, %{})
+  end
+
+  def devices_csv(%Product{} = product) do
+    product = Repo.preload(product, [:org, devices: :device_certificates])
+    data = Enum.map(product.devices, &device_csv_line(&1, product))
+
+    [@csv_header | data]
+    |> CSV.dump_to_iodata()
+    |> IO.iodata_to_binary()
+  end
+
+  defp device_csv_line(device, product) do
+    [
+      device.identifier,
+      device.description,
+      "#{Enum.join(device.tags || [], ",")}",
+      product.name,
+      product.org.name,
+      format_device_certificates(device)
+    ]
+  end
+
+  defp format_device_certificates(device) do
+    # TODO: Prefer DER format when available
+    for db_cert <- device.device_certificates, into: "" do
+      %{
+        serial: db_cert.serial,
+        aki: Base.encode16(db_cert.aki),
+        ski: Base.encode16(db_cert.ski),
+        not_before: db_cert.not_before,
+        not_after: db_cert.not_after
+      }
+      |> Jason.encode!()
+      |> Kernel.<>("\n\n")
+    end
   end
 end
