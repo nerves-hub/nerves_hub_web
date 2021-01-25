@@ -102,6 +102,20 @@ defmodule NervesHubWebCore.ProductsTest do
       product: product,
       org: org
     } do
+      ##
+      # Need to create a second certificate without a DER saved to test JSON
+      # TODO: Remove when DERs are saved
+      %{cert: ca1, key: ca1_key} = Fixtures.ca_certificate_fixture(org)
+
+      otp_cert =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("CN=#{device.identifier}", ca1, ca1_key)
+
+      %{db_cert: db_cert_no_der} =
+        Fixtures.device_certificate_fixture_without_der(device, otp_cert)
+
+      # Generate CSV
       csv_io = Products.devices_csv(product)
 
       [[id, desc, tags, pname, oname, cert_io] | _] = NimbleCSV.RFC4180.parse_string(csv_io)
@@ -112,14 +126,24 @@ defmodule NervesHubWebCore.ProductsTest do
       assert pname == product.name
       assert oname == org.name
 
-      [cert_json | _] = String.split(cert_io, "\n\n")
-      parsed_cert = Jason.decode!(cert_json)
+      String.split(cert_io, "\n\n")
+      |> Enum.each(fn
+        "{" <> _ = cert_json ->
+          # TODO: Remove testing JSON when DERs saved
+          parsed_cert = Jason.decode!(cert_json)
 
-      assert parsed_cert["serial"] == db_cert.serial
-      assert parsed_cert["not_before"] == DateTime.to_iso8601(db_cert.not_before)
-      assert parsed_cert["not_after"] == DateTime.to_iso8601(db_cert.not_after)
-      assert Base.decode16!(parsed_cert["aki"]) == db_cert.aki
-      assert Base.decode16!(parsed_cert["ski"]) == db_cert.ski
+          assert parsed_cert["serial"] == db_cert_no_der.serial
+          assert parsed_cert["not_before"] == DateTime.to_iso8601(db_cert_no_der.not_before)
+          assert parsed_cert["not_after"] == DateTime.to_iso8601(db_cert_no_der.not_after)
+          assert Base.decode16!(parsed_cert["aki"]) == db_cert_no_der.aki
+          assert Base.decode16!(parsed_cert["ski"]) == db_cert_no_der.ski
+
+        "---" <> _ = cert_pem ->
+          assert X509.Certificate.from_pem!(cert_pem) == X509.Certificate.from_der!(db_cert.der)
+
+        _ ->
+          :ignore
+      end)
     end
   end
 end

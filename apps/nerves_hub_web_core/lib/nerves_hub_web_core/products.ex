@@ -241,17 +241,22 @@ defmodule NervesHubWebCore.Products do
   end
 
   defp format_device_certificates(device) do
-    # TODO: Prefer DER format when available
     for db_cert <- device.device_certificates, into: "" do
-      %{
-        serial: db_cert.serial,
-        aki: Base.encode16(db_cert.aki),
-        ski: Base.encode16(db_cert.ski),
-        not_before: db_cert.not_before,
-        not_after: db_cert.not_after
-      }
-      |> Jason.encode!()
-      |> Kernel.<>("\n\n")
+      if db_cert.der do
+        db_cert.der
+        |> X509.Certificate.from_der!()
+        |> X509.Certificate.to_pem()
+      else
+        %{
+          serial: db_cert.serial,
+          aki: Base.encode16(db_cert.aki),
+          ski: Base.encode16(db_cert.ski),
+          not_before: db_cert.not_before,
+          not_after: db_cert.not_after
+        }
+        |> Jason.encode!()
+        |> Kernel.<>("\n\n")
+      end
     end
   end
 end

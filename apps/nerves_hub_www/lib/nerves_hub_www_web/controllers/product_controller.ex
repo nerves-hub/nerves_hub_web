@@ -69,4 +69,9 @@ defmodule NervesHubWWWWeb.ProductController do
       |> redirect(to: Routes.product_path(conn, :index, org.name))
     end
   end
+
+  def devices_export(%{assigns: %{product: product}} = conn, _params) do
+    filename = "#{product.name}-devices.csv"
+    send_download(conn, {:binary, Products.devices_csv(product)}, filename: filename)
+  end
 end
