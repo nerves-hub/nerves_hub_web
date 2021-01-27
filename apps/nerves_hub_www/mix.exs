@@ -57,7 +57,7 @@ defmodule NervesHubWWW.MixProject do
       {:phoenix_active_link, "~> 0.3.1"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 0.14"},
+      {:phoenix_live_view, "~> 0.15"},
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.1"},
       {:phoenix_ecto, "~> 4.0"},
