@@ -3,6 +3,9 @@ defmodule NervesHubWebCore.Firmwares.Upload.S3 do
 
   @behaviour NervesHubWebCore.Firmwares.Upload
 
+  # Provide URLs to devices that are valid for a day
+  @firmware_url_validity_time 60 * 60 * 24
+
   @type upload_metadata :: %{s3_key: String.t()}
 
   @impl NervesHubWebCore.Firmwares.Upload
@@ -22,7 +25,7 @@ defmodule NervesHubWebCore.Firmwares.Upload.S3 do
     s3_key = firmware.upload_metadata["s3_key"]
 
     ExAws.Config.new(:s3)
-    |> S3.presigned_url(:get, bucket(), s3_key, expires_in: 600)
+    |> S3.presigned_url(:get, bucket(), s3_key, expires_in: @firmware_url_validity_time)
     |> case do
       {:ok, url} ->
         {:ok, url}
