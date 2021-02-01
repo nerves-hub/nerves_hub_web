@@ -250,7 +250,7 @@ defmodule NervesHubWebCore.Products do
         %{
           serial: db_cert.serial,
           aki: Base.encode16(db_cert.aki),
-          ski: Base.encode16(db_cert.ski),
+          ski: if(db_cert.ski, do: Base.encode16(db_cert.ski)),
           not_before: db_cert.not_before,
           not_after: db_cert.not_after
         }
