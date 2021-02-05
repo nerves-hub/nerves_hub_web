@@ -132,6 +132,7 @@ defmodule NervesHubWWWWeb.Router do
           post("/", DeviceController, :create)
           get("/new", DeviceController, :new)
           get("/export", ProductController, :devices_export)
+          get("/import", ProductController, :devices_import)
 
           scope "/:device_identifier" do
             pipe_through(:device)

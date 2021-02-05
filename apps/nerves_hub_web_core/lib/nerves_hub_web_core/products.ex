@@ -6,13 +6,16 @@ defmodule NervesHubWebCore.Products do
   import Ecto.Query, warn: false
 
   alias Ecto.Multi
-  alias NervesHubWebCore.Repo
+  alias NervesHubWebCore.{Certificate, Repo}
   alias NervesHubWebCore.Products.{Product, ProductUser}
   alias NervesHubWebCore.Accounts.{User, Org, OrgUser}
 
   alias NimbleCSV.RFC4180, as: CSV
 
-  @csv_header [:identifier, :description, :tags, :product, :org, :certificates]
+  @csv_certs_sep "\n\n"
+  @csv_header ["identifier", "description", "tags", "product", "org", "certificates"]
+
+  def __csv_header__, do: @csv_header
 
   def get_products_by_user_and_org(%User{id: user_id}, %Org{id: org_id}) do
     query =
@@ -229,6 +232,60 @@ defmodule NervesHubWebCore.Products do
     |> IO.iodata_to_binary()
   end
 
+  def parse_csv_line(line) do
+    parsed =
+      for {k_str, v} <- Enum.zip(@csv_header, line),
+          key = String.to_existing_atom(k_str),
+          into: %{} do
+        val = if key == :certificates, do: parse_csv_device_certs(v), else: v
+        {key, val}
+      end
+
+    if length(line) == length(@csv_header) do
+      parsed
+    else
+      {:malformed, line, parsed}
+    end
+  end
+
+  defp parse_csv_device_certs(certs_str) do
+    for str <- String.split(certs_str, ~r/#{@csv_certs_sep}|\r\n\r\n/, trim: true) do
+      parse_cert_type(str)
+    end
+  end
+
+  defp parse_cert_type("{" <> _ = str) do
+    case Jason.decode(str) do
+      {:ok, attrs} ->
+        for {k, v} <- attrs, key = String.to_existing_atom(k), into: %{} do
+          val = if key in [:ski, :aki], do: decode(v), else: v
+          {key, val}
+        end
+
+      _ ->
+        :malformed_json
+    end
+  end
+
+  defp parse_cert_type(str) do
+    case Certificate.from_pem(str) do
+      {:ok, otp_cert} ->
+        {nb, na} = Certificate.get_validity(otp_cert)
+
+        %{
+          serial: Certificate.get_serial_number(otp_cert),
+          aki: Certificate.get_aki(otp_cert),
+          ski: Certificate.get_ski(otp_cert),
+          not_before: nb,
+          not_after: na,
+          der: Certificate.to_der(otp_cert)
+        }
+
+      _ ->
+        :malformed_pem
+    end
+  end
+
   defp device_csv_line(device, product) do
     [
       device.identifier,
@@ -255,8 +312,11 @@ defmodule NervesHubWebCore.Products do
           not_after: db_cert.not_after
         }
         |> Jason.encode!()
-        |> Kernel.<>("\n\n")
+        |> Kernel.<>(@csv_certs_sep)
       end
     end
   end
+
+  defp decode(val) when is_binary(val), do: Base.decode16!(val)
+  defp decode(val), do: val
 end

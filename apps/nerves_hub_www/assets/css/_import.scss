@@ -1,0 +1,64 @@
+html {
+  .import-csv {
+    // input[type=file] {
+    //   color: transparent;
+    // }
+    
+    ::-webkit-file-upload-button {
+      display: none;
+    }
+
+    width: 100%;
+    height: 6rem;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed var(--white-50);
+    border-radius: 4px;
+    background: none;
+    position: static;
+    transition: border-color 200ms ease;
+    text-align: center;
+    color: white;
+    margin: 0;
+
+    &:after {
+      display: none;
+    }
+
+    &:hover {
+      border-color: white;
+    }
+    
+    .upload-select {
+      width: 100%;
+    height: 100%;
+    max-width: 100%;
+    
+    background: none;
+    position: static;
+    margin: 0;
+    }
+  }
+
+  td.import-warning {
+    border: 2px dashed var(--primary);
+
+    &:hover {
+      .tooltip-text {
+        display: block;
+      }
+    }
+  }
+
+  td.import-updating {
+    border: 2px dashed green;
+  }
+
+  tr.import-malformed {
+    background-color: var(--primary-75);
+  }
+
+}

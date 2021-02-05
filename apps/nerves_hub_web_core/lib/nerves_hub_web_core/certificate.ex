@@ -10,6 +10,7 @@ defmodule NervesHubWebCore.Certificate do
 
   @era 2000
 
+  defdelegate from_pem(pem), to: X509.Certificate
   defdelegate to_der(otp_certificate), to: X509.Certificate
 
   def get_aki(otp_certificate) do
