@@ -93,6 +93,14 @@ defmodule NervesHubWebCore.Devices do
     end
   end
 
+  def get_device_by(filters) do
+    Repo.get_by(Device, filters)
+    |> case do
+      nil -> {:error, :not_found}
+      device -> {:ok, device}
+    end
+  end
+
   def get_eligible_deployments(%Device{firmware_metadata: nil}), do: []
 
   def get_eligible_deployments(%Device{firmware_metadata: meta} = device) do

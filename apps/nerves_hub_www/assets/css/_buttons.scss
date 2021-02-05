@@ -88,6 +88,10 @@ html {
     &.filter {
       background-image: url("/images/icons/filter.svg");
     }
+
+    &.upload {
+      background-image: url("/images/icons/upload.svg");
+    }
   }
 
   .btn-filter-show {

@@ -7,6 +7,10 @@
         <span class="button-icon add"></span>
         <span class="action-text">Add Device</span>
       </a>
+      <a class="btn btn-outline-light" aria-label="Add new device" href="<%= Routes.product_path(@socket, :devices_import, @org.name, @product.name) %>">
+        <div class="button-icon upload"></div>
+        <span class="action-text">Import</span>
+      </a>
     </div>
     <p class="mt-3">Or follow <a class="strong inline" target="_blank" rel="noopener noreferrer" href="https://docs.nerves-hub.org/nerves-hub/setup/devices">these steps</a> to add a device using the terminal.</p>
   </div>
@@ -22,6 +26,10 @@
       </button>
     </div>
     <div>
+      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href="<%= Routes.product_path(@socket, :devices_import, @org.name, @product.name) %>">
+        <div class="button-icon upload"></div>
+        <span class="action-text">Import</span>
+      </a>
       <a class="btn btn-outline-light btn-action" aria-label="Add new device" href="<%= Routes.product_path(@socket, :devices_export, @org.name, @product.name) %>">
         <div class="button-icon download"></div>
         <span class="action-text">Export</span>

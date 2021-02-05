@@ -47,6 +47,7 @@ defmodule NervesHubWebCore.Devices.Device do
     |> validate_length(:tags, min: 1)
     |> validate_device_limit()
     |> unique_constraint(:identifier, name: :devices_org_id_identifier_index)
+    |> prepare_changes(&validate_device_limit/1)
   end
 
   defp validate_device_limit(%Ecto.Changeset{changes: %{org_id: org_id}} = cs) do
