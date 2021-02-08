@@ -36,6 +36,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     socket =
       socket
       |> assign(:device, sync_device(socket.assigns.device))
+      |> assign(:page_title, socket.assigns.device.identifier)
       |> audit_log_assigns()
 
     {:ok, socket}
