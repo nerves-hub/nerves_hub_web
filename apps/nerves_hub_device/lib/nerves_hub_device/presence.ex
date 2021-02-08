@@ -1,4 +1,18 @@
 defmodule NervesHubDevice.Presence do
+  @moduledoc """
+  Implementation of Phoenix.Presence for Devices connected to NervesHub.
+
+  # Example Usage
+
+  ## List all connected devices for a product
+
+      iex> NervesHubDevice.Presence.list("product:#\{product_id}:devices")
+
+  ## Get a particular device's presence
+      iex> device = %NervesHubWebCore.Devices.Device{...}
+      iex> NervesHubDevice.Presence.find(device)
+  """
+
   use Phoenix.Presence,
     otp_app: :nerves_hub_device,
     pubsub_server: NervesHubWeb.PubSub
@@ -17,6 +31,29 @@ defmodule NervesHubDevice.Presence do
     :status,
     :update_available
   ]
+
+  @typedoc """
+  Status of the current connection.
+  Human readable string, should not be used
+  pragmatically
+  """
+  @type status :: String.t()
+
+  @type device_id_string :: String.t()
+
+  @type device_presence :: %{
+          connected_at: :os.timestamp(),
+          console_available: boolean(),
+          console_version: Version.build(),
+          firmware_metadata: NervesHubWebCore.Firmwares.FirmwareMetadata.t(),
+          last_communication: DateTime.t(),
+          status: status(),
+          update_available: boolean()
+        }
+
+  @type presence_list :: %{optional(device_id_string) => device_presence}
+
+  @spec list(String.t()) :: presence_list()
 
   def fetch("product:" <> topic, entries) do
     case String.split(topic, ":", trim: true) do
@@ -50,7 +87,7 @@ defmodule NervesHubDevice.Presence do
     its presence meta includes `update_available: true`
   - `"offline"` - The device is not connected to Presence
   """
-  @spec device_status(Device.t()) :: String.t()
+  @spec device_status(Device.t()) :: status()
   def device_status(%Device{} = device) do
     case find(device) do
       nil -> "offline"

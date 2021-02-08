@@ -3,8 +3,6 @@ defmodule NervesHubWebCore.Firmwares.FirmwareMetadata do
 
   import Ecto.Changeset
 
-  @type t :: %__MODULE__{}
-
   @required_params [
     :uuid,
     :product,
@@ -20,6 +18,25 @@ defmodule NervesHubWebCore.Firmwares.FirmwareMetadata do
     :vcs_identifier,
     :misc
   ]
+
+  @typedoc """
+  fwup meta data about firmware
+
+  [read more here](https://github.com/fwup-home/fwup#global-scope)
+  """
+  @type t :: %__MODULE__{
+          architecture: String.t(),
+          author: String.t() | nil,
+          description: String.t() | nil,
+          fwup_version: Version.build() | nil,
+          id: Ecto.UUID.t(),
+          misc: String.t() | nil,
+          platform: String.t(),
+          product: String.t(),
+          uuid: Ecto.UUID.t(),
+          vcs_identifier: String.t() | nil,
+          version: Version.build()
+        }
 
   @derive Jason.Encoder
   embedded_schema do

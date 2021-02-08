@@ -85,6 +85,10 @@ defmodule NervesHubWebCore.Accounts do
     User.update_changeset(user, params)
   end
 
+  @doc """
+  Creates a new user, and an org if one does not exist yet
+  """
+  @spec create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def create_user(user_params) do
     org_params = %{name: user_params[:username], type: :user}
 
@@ -111,6 +115,11 @@ defmodule NervesHubWebCore.Accounts do
     end
   end
 
+  @doc """
+  Adds a user to an org.
+  `params` are passed to `Org.add_user/2`.
+  """
+  @spec add_org_user(Org.t(), User.t(), map()) :: Org.t() | {:error, Ecto.Changeset.t()}
   def add_org_user(%Org{} = org, %User{} = user, params) do
     org_user = %OrgUser{org_id: org.id, user_id: user.id}
 
@@ -361,6 +370,10 @@ defmodule NervesHubWebCore.Accounts do
     |> Repo.update()
   end
 
+  @doc """
+  Gets a user via a password reset token string.
+  Checks validity and equivelence, returning `{:ok, %User{}}` or `{:error, :not_found}`
+  """
   @spec get_user_with_password_reset_token(String.t()) ::
           {:ok, User.t()}
           | {:error, :not_found}
@@ -534,6 +547,11 @@ defmodule NervesHubWebCore.Accounts do
     |> Repo.insert()
   end
 
+  @doc """
+  Gets an invite via it's token, checking validity within 48 hours.
+
+  Returns `{:ok, %Invite{}}` or `{:error, :invite_not_found}`
+  """
   @spec get_valid_invite(String.t()) ::
           {:ok, Invite.t()}
           | {:error, :invite_not_found}
@@ -554,9 +572,12 @@ defmodule NervesHubWebCore.Accounts do
     end
   end
 
+  @doc """
+  Inserts a new user record, creating a org and adding a user to
+  that new org if needed
+  """
   @spec create_user_from_invite(Invite.t(), Org.t(), map()) ::
-          {:ok, User.t()}
-          | {:error}
+          {:ok, {:ok, OrgUser.t()}} | {:ok, {:error, Ecto.Changeset.t()}}
   def create_user_from_invite(invite, org, user_params) do
     user_params = Map.put(user_params, :email, invite.email)
 
@@ -580,13 +601,23 @@ defmodule NervesHubWebCore.Accounts do
     |> Repo.update()
   end
 
+  @spec set_invite_accepted(Invite.t()) :: {:ok, Invite.t()} | {:error, Ecto.Changeset.t()}
   defp set_invite_accepted(invite) do
     invite
     |> Invite.changeset(%{accepted: true})
     |> Repo.update()
   end
 
-  @spec update_password_reset_token(String.t()) :: :ok
+  @doc """
+  Sets the `password_reset_token` field on the user struct
+
+  returns one of:
+    * `{:error, :no_user}` if the user couldn't be found by `email`
+    * `{:ok, %User{}}` if the `update` was successful
+    * `{:error, %Ecto.Changeset{}}` if the `update` failed
+  """
+  @spec update_password_reset_token(String.t()) ::
+          {:ok, User.t()} | {:error, :no_user} | {:error, Ecto.Changeset.t()}
   def update_password_reset_token(email) when is_binary(email) do
     query = from(u in User, where: u.email == ^email)
 
@@ -603,20 +634,21 @@ defmodule NervesHubWebCore.Accounts do
     end
   end
 
-  @spec reset_password(String.t(), map) ::
-          {:ok, User.t()}
-          | {:error, :not_found}
-  def reset_password(reset_password_token, params) do
-    reset_password_token
-    |> get_user_with_password_reset_token()
-    |> case do
-      {:ok, user} ->
-        user
-        |> User.password_changeset(params)
-        |> Repo.update()
+  @doc """
+  Updates a users password via the `User.password_changeset`
 
-      {:error, :not_found} ->
-        {:error, :not_found}
+  returns one of:
+    * `{:error, :no_user}` if the user couldn't be found by `email`
+    * `{:ok, %User{}}` if the `update` was successful
+    * `{:error, %Ecto.Changeset{}}` if the `update` failed
+  """
+  @spec reset_password(String.t(), map) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()} | {:error, :not_found}
+  def reset_password(reset_password_token, params) do
+    with {:ok, user} <- get_user_with_password_reset_token(reset_password_token) do
+      user
+      |> User.password_changeset(params)
+      |> Repo.update()
     end
   end
 

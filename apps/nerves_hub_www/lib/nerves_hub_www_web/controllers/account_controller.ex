@@ -80,43 +80,7 @@ defmodule NervesHubWWWWeb.AccountController do
 
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
-      with {:ok, {:ok, new_org_user}} <-
-             Accounts.create_user_from_invite(invite, org, clean_params) do
-        # Now let everyone in the organization - except the new guy -
-        # know about this new user.
-
-        # TODO: Fix this - We don't have the instigating user in the conn
-        # anymore, and the new user is not always the instigator.
-        instigator =
-          case conn.assigns do
-            %{user: %{username: username}} -> username
-            _ -> nil
-          end
-
-        email =
-          Email.tell_org_user_added(
-            org,
-            Accounts.get_org_users(org),
-            instigator,
-            new_org_user.user
-          )
-
-        email
-        |> Mailer.deliver_later()
-
-        conn
-        |> put_flash(:info, "Account successfully created, login below")
-        |> redirect(to: "/login")
-      else
-        {:error, %Changeset{} = changeset} ->
-          render(
-            conn,
-            "invite.html",
-            changeset: changeset,
-            org: org,
-            token: token
-          )
-      end
+      _accept_invite(conn, token, clean_params, invite, org)
     else
       {:error, :invite_not_found} ->
         conn
@@ -127,6 +91,45 @@ defmodule NervesHubWWWWeb.AccountController do
         conn
         |> put_flash(:error, "Invalid org")
         |> redirect(to: "/")
+    end
+  end
+
+  defp _accept_invite(conn, token, clean_params, invite, org) do
+    with {:ok, {:ok, new_org_user}} <- Accounts.create_user_from_invite(invite, org, clean_params) do
+      # Now let everyone in the organization - except the new guy -
+      # know about this new user.
+
+      # TODO: Fix this - We don't have the instigating user in the conn
+      # anymore, and the new user is not always the instigator.
+      instigator =
+        case conn.assigns do
+          %{user: %{username: username}} -> username
+          _ -> nil
+        end
+
+      email =
+        Email.tell_org_user_added(
+          org,
+          Accounts.get_org_users(org),
+          instigator,
+          new_org_user.user
+        )
+
+      email
+      |> Mailer.deliver_later()
+
+      conn
+      |> put_flash(:info, "Account successfully created, login below")
+      |> redirect(to: "/login")
+    else
+      {:error, %Changeset{} = changeset} ->
+        render(
+          conn,
+          "invite.html",
+          changeset: changeset,
+          org: org,
+          token: token
+        )
     end
   end
 end
