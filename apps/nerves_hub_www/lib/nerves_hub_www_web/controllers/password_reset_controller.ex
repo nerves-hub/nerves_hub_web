@@ -14,33 +14,29 @@ defmodule NervesHubWWWWeb.PasswordResetController do
     |> render("new.html", changeset: PasswordReset.changeset(%PasswordReset{}, %{}))
   end
 
-  def create(conn, params) do
-    params
-    |> Map.get("password_reset", %{})
-    |> Map.get("email")
-    |> case do
-      e when is_binary(e) and e != "" ->
-        Accounts.update_password_reset_token(e)
-        |> case do
-          {:ok, user} ->
-            Email.forgot_password(user)
-            |> Mailer.deliver_later()
+  def create(conn, %{"password_reset" => %{"email" => email}})
+      when is_binary(email) and email != "" do
+    case Accounts.update_password_reset_token(email) do
+      {:ok, user} ->
+        user
+        |> Email.forgot_password()
+        |> Mailer.deliver_later()
 
-            :ok
+        :ok
 
-          {:error, _} ->
-            :ok
-        end
-
-        conn
-        |> put_flash(:info, "Please check your email in order to reset your password.")
-        |> redirect(to: Routes.session_path(conn, :new))
-
-      _ ->
-        conn
-        |> put_flash(:error, "You must enter an email address.")
-        |> render("new.html", changeset: PasswordReset.changeset(%PasswordReset{}, %{}))
+      {:error, _} ->
+        :ok
     end
+
+    conn
+    |> put_flash(:info, "Please check your email in order to reset your password.")
+    |> redirect(to: Routes.session_path(conn, :new))
+  end
+
+  def create(conn, _params) do
+    conn
+    |> put_flash(:error, "You must enter an email address.")
+    |> render("new.html", changeset: PasswordReset.changeset(%PasswordReset{}, %{}))
   end
 
   def new_password_form(conn, params) do
@@ -65,10 +61,8 @@ defmodule NervesHubWWWWeb.PasswordResetController do
     end
   end
 
-  def reset(conn, params) do
-    params["token"]
-    |> Accounts.reset_password(params["user"])
-    |> case do
+  def reset(conn, %{"token" => token, "user" => user}) do
+    case Accounts.reset_password(token, user) do
       {:ok, _user} ->
         conn
         |> put_flash(:info, "Password reset successfully. Please log in.")
@@ -85,7 +79,7 @@ defmodule NervesHubWWWWeb.PasswordResetController do
       {:error, %Changeset{} = changeset} ->
         conn
         |> put_flash(:error, "You must provide a new password.")
-        |> render("new_password_form.html", token: params["token"], changeset: changeset)
+        |> render("new_password_form.html", token: token, changeset: changeset)
     end
   end
 end
