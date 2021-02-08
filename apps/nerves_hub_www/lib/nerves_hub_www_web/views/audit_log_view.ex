@@ -8,13 +8,6 @@ defmodule NervesHubWWWWeb.AuditLogView do
     link_to_resource(type, id, current_id, "audit-log-actor")
   end
 
-  def audit_log_info(audit_log) do
-    audit_log
-    |> Map.take([:changes, :params])
-    |> inspect(IEx.inspect_opts())
-    |> AnsiToHTML.generate_phoenix_html(%AnsiToHTML.Theme{container: :none})
-  end
-
   def resource_link(%{resource_id: id, resource_type: type}, current_id) do
     link_to_resource(type, id, current_id, "audit-log-resource")
   end
