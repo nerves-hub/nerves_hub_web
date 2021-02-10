@@ -3,7 +3,7 @@ defmodule NervesHubDeviceWeb.Endpoint do
 
   socket(
     "/socket",
-    NervesHubDeviceWeb.UserSocket,
+    NervesHubDeviceWeb.DeviceSocket,
     websocket: [
       connect_info: [:peer_data, :x_headers]
     ]

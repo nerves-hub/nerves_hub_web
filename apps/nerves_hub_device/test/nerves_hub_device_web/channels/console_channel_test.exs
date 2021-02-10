@@ -1,7 +1,7 @@
 defmodule NervesHubDeviceWeb.ConsoleChannelTest do
   use NervesHubDeviceWeb.ChannelCase
 
-  alias NervesHubDeviceWeb.{ConsoleChannel, Endpoint, UserSocket}
+  alias NervesHubDeviceWeb.{ConsoleChannel, Endpoint, DeviceSocket}
   alias NervesHubWebCore.Fixtures
   alias Phoenix.Socket.Broadcast
 
@@ -62,10 +62,8 @@ defmodule NervesHubDeviceWeb.ConsoleChannelTest do
 
   defp connect_device(%{device: device, device_certificate: device_certificate}) do
     {:ok, _, socket} =
-      UserSocket
-      |> socket("device_socket:#{device.id}", %{
-        certificate: device_certificate
-      })
+      DeviceSocket
+      |> socket("device_socket:#{device.id}", %{certificate: device_certificate})
       |> Map.put(:endpoint, Endpoint)
       |> subscribe_and_join(ConsoleChannel, "console")
 

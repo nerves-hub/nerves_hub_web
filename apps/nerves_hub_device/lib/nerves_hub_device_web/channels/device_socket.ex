@@ -1,4 +1,4 @@
-defmodule NervesHubDeviceWeb.UserSocket do
+defmodule NervesHubDeviceWeb.DeviceSocket do
   use Phoenix.Socket
 
   ## Channels
