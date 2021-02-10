@@ -95,7 +95,7 @@ defmodule NervesHubWWWWeb.AccountController do
   end
 
   defp _accept_invite(conn, token, clean_params, invite, org) do
-    with {:ok, {:ok, new_org_user}} <- Accounts.create_user_from_invite(invite, org, clean_params) do
+    with {:ok, new_org_user} <- Accounts.create_user_from_invite(invite, org, clean_params) do
       # Now let everyone in the organization - except the new guy -
       # know about this new user.
 

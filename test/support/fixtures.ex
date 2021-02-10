@@ -4,11 +4,13 @@ defmodule NervesHubWebCore.Fixtures do
   alias NervesHubWebCore.{
     Accounts,
     Accounts.Org,
+    Accounts.OrgKey,
     Certificate,
     Devices,
     Deployments,
     Firmwares,
     Products,
+    Products.Product,
     Repo
   }
 

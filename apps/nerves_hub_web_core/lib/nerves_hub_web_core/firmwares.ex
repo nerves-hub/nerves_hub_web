@@ -98,7 +98,12 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
-  @spec create_firmware(Org.t(), String.t(), opts :: [{:upload_file_2, upload_file_2()}]) ::
+  @spec create_firmware(
+          Org.t(),
+          String.t(),
+          params :: map(),
+          opts :: [{:upload_file_2, upload_file_2()}]
+        ) ::
           {:ok, Firmware.t()}
           | {:error, Changeset.t() | :no_public_keys | :invalid_signature | any}
   def create_firmware(org, filepath, params \\ %{}, opts \\ []) do

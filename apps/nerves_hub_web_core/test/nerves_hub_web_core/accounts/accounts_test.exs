@@ -4,7 +4,7 @@ defmodule NervesHubWebCore.AccountsTest do
   alias Ecto.Changeset
 
   alias NervesHubWebCore.Accounts
-  alias NervesHubWebCore.Accounts.{Org, OrgKey, OrgLimit, User}
+  alias NervesHubWebCore.Accounts.{Org, OrgKey, OrgLimit, OrgUser, User, Invite}
   alias NervesHubWebCore.Fixtures
 
   @required_org_params %{name: "Org"}
@@ -337,6 +337,39 @@ defmodule NervesHubWebCore.AccountsTest do
       assert org_metric.devices == 1
       assert org_metric.bytes_stored == firmware.size
     end
+  end
+
+  test "accept invite", %{user: user} do
+    org = Fixtures.org_fixture(user)
+
+    {:ok, %Invite{} = invite} =
+      Accounts.add_or_invite_to_org(%{"email" => "accepted_invite@test.org"}, org)
+
+    assert {:ok, %OrgUser{} = user} =
+             Accounts.create_user_from_invite(invite, org, %{
+               password: "password123",
+               username: "invited_user"
+             })
+  end
+
+  test "accept invite with invalid params", %{user: user} do
+    org = Fixtures.org_fixture(user)
+
+    {:ok, %Invite{} = invite} =
+      Accounts.add_or_invite_to_org(%{"email" => "failed_accepted_invite@test.org"}, org)
+
+    {:error, changeset} = Accounts.create_user_from_invite(invite, org, %{invalid: "params"})
+    assert "can't be blank" in errors_on(changeset).password
+    assert "can't be blank" in errors_on(changeset).username
+  end
+
+  test "invite existing user", %{user: user} do
+    org = Fixtures.org_fixture(user)
+    new_user = Fixtures.user_fixture()
+    assert {:ok, %OrgUser{}} = Accounts.add_or_invite_to_org(%{"email" => new_user.email}, org)
+
+    {:error, changeset} = Accounts.add_or_invite_to_org(%{"email" => new_user.email}, org)
+    assert "is already member" in errors_on(changeset).org_users
   end
 
   def setup_org_metric(%{user: user}) do

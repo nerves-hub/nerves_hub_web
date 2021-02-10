@@ -10,6 +10,8 @@ defmodule NervesHubWebCore.Products.Product do
   @required_params [:name, :org_id]
   @optional_params [:delta_updatable]
 
+  @type t :: %__MODULE__{}
+
   schema "products" do
     has_many(:devices, Device)
     has_many(:firmwares, Firmware)
