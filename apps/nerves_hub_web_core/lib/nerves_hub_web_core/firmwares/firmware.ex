@@ -13,26 +13,38 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
 
   alias __MODULE__
 
-  @type t :: %__MODULE__{}
+  @type t :: %Firmware{
+          architecture: String.t(),
+          author: String.t() | nil,
+          description: String.t() | nil,
+          misc: String.t() | nil,
+          platform: String.t(),
+          product: Ecto.Association.NotLoaded.t() | Product.t(),
+          uuid: Ecto.UUID.t(),
+          vcs_identifier: String.t() | nil,
+          version: Version.build()
+        }
+
   @optional_params [
     :author,
+    :delta_updatable,
     :description,
     :misc,
     :org_key_id,
-    :delta_updatable,
     :ttl_until,
     :vcs_identifier
   ]
+
   @required_params [
-    :org_id,
     :architecture,
+    :org_id,
     :platform,
     :product_id,
+    :size,
     :ttl,
-    :uuid,
     :upload_metadata,
-    :version,
-    :size
+    :uuid,
+    :version
   ]
 
   schema "firmwares" do
@@ -43,13 +55,13 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
 
     field(:architecture, :string)
     field(:author, :string)
-    field(:description, :string)
-    field(:size, :integer)
-    field(:misc, :string)
     field(:delta_updatable, :boolean, default: false)
+    field(:description, :string)
+    field(:misc, :string)
     field(:platform, :string)
-    field(:ttl, :integer)
+    field(:size, :integer)
     field(:ttl_until, :utc_datetime)
+    field(:ttl, :integer)
     field(:upload_metadata, :map)
     field(:uuid, :string)
     field(:vcs_identifier, :string)

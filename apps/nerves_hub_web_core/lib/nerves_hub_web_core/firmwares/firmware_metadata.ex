@@ -38,6 +38,19 @@ defmodule NervesHubWebCore.Firmwares.FirmwareMetadata do
           version: Version.build()
         }
 
+  @type metadata :: %{
+          :architecture => String.t(),
+          :author => String.t() | nil,
+          :description => String.t() | nil,
+          optional(:fwup_version) => Version.build() | nil,
+          :misc => String.t() | nil,
+          :platform => String.t(),
+          :product => String.t(),
+          :uuid => Ecto.UUID.t(),
+          :vcs_identifier => String.t() | nil,
+          :version => Version.build()
+        }
+
   @derive Jason.Encoder
   embedded_schema do
     field(:uuid)

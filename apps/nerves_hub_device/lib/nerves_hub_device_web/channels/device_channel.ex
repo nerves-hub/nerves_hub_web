@@ -18,6 +18,8 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   alias NervesHubDevice.Presence
 
+  alias Phoenix.Socket.Broadcast
+
   intercept(["presence_diff"])
 
   def join("firmware:" <> fw_uuid, params, socket) do
@@ -31,7 +33,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
          {:ok, device} <- Devices.device_connected(device) do
-      Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
+      socket.endpoint.subscribe("device:#{device.id}")
       deployments = Devices.get_eligible_deployments(device)
       join_reply = Devices.resolve_update(device, deployments)
 
@@ -107,7 +109,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(%{payload: payload, event: "update"}, socket) do
+  def handle_info(%Broadcast{event: "update", payload: payload}, socket) do
     {deployment, payload} =
       Map.pop_lazy(payload, :deployment, fn -> Repo.get(Deployment, payload.deployment_id) end)
 
@@ -123,7 +125,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(%{payload: payload, event: event}, socket) do
+  def handle_info(%Broadcast{event: event, payload: payload}, socket) do
     push(socket, event, payload)
     {:noreply, socket}
   end

@@ -99,8 +99,8 @@ defmodule NervesHubWebCore.Firmwares do
   end
 
   @spec create_firmware(
-          Org.t(),
-          String.t(),
+          org :: Org.t(),
+          filepath :: Path.t(),
           params :: map(),
           opts :: [{:upload_file_2, upload_file_2()}]
         ) ::
@@ -236,45 +236,53 @@ defmodule NervesHubWebCore.Firmwares do
     metadata_or_firmware(params)
   end
 
+  @doc """
+  Returns metadata for a Firmware struct
+  """
+  @spec metadata_from_firmware(Firmware.t()) :: {:ok, FirmwareMetadata.metadata()}
   def metadata_from_firmware(%Firmware{} = firmware) do
     firmware = Repo.preload(firmware, [:product])
 
     metadata = %{
-      uuid: firmware.uuid,
       architecture: firmware.architecture,
-      platform: firmware.platform,
-      product: firmware.product.name,
-      version: firmware.version,
       author: firmware.author,
       description: firmware.description,
+      misc: firmware.misc,
+      platform: firmware.platform,
+      product: firmware.product.name,
+      uuid: firmware.uuid,
       vcs_identifier: firmware.vcs_identifier,
-      misc: firmware.misc
+      version: firmware.version
     }
 
     {:ok, metadata}
   end
 
+  @doc """
+  Same as `metadata_from_firmware/1` but takes a file path instead of a firmware struct
+  """
+  @spec metadata_from_fwup(Path.t()) :: {:ok, FirmwareMetadata.metadata()} | {:error, any()}
   def metadata_from_fwup(firmware_file) do
     with {:ok, fwup_metadata} <- get_fwup_metadata(firmware_file),
-         {:ok, uuid} <- fetch_fwup_metadata_item(fwup_metadata, "meta-uuid"),
-         {:ok, architecture} <- fetch_fwup_metadata_item(fwup_metadata, "meta-architecture"),
-         {:ok, platform} <- fetch_fwup_metadata_item(fwup_metadata, "meta-platform"),
-         {:ok, product} <- fetch_fwup_metadata_item(fwup_metadata, "meta-product"),
-         {:ok, version} <- fetch_fwup_metadata_item(fwup_metadata, "meta-version"),
-         author <- get_fwup_metadata_item(fwup_metadata, "meta-author"),
-         description <- get_fwup_metadata_item(fwup_metadata, "meta-description"),
-         misc <- get_fwup_metadata_item(fwup_metadata, "meta-misc"),
-         vcs_identifier <- get_fwup_metadata_item(fwup_metadata, "meta-vcs-identifier") do
+         {:ok, uuid} <- fetch_fwup_metadata_value(fwup_metadata, "meta-uuid"),
+         {:ok, architecture} <- fetch_fwup_metadata_value(fwup_metadata, "meta-architecture"),
+         {:ok, platform} <- fetch_fwup_metadata_value(fwup_metadata, "meta-platform"),
+         {:ok, product} <- fetch_fwup_metadata_value(fwup_metadata, "meta-product"),
+         {:ok, version} <- fetch_fwup_metadata_value(fwup_metadata, "meta-version"),
+         author <- get_fwup_metadata_value(fwup_metadata, "meta-author"),
+         description <- get_fwup_metadata_value(fwup_metadata, "meta-description"),
+         misc <- get_fwup_metadata_value(fwup_metadata, "meta-misc"),
+         vcs_identifier <- get_fwup_metadata_value(fwup_metadata, "meta-vcs-identifier") do
       metadata = %{
-        uuid: uuid,
         architecture: architecture,
-        platform: platform,
-        product: product,
-        version: version,
         author: author,
         description: description,
+        misc: misc,
+        platform: platform,
+        product: product,
+        uuid: uuid,
         vcs_identifier: vcs_identifier,
-        misc: misc
+        version: version
       }
 
       {:ok, metadata}
@@ -426,6 +434,7 @@ defmodule NervesHubWebCore.Firmwares do
     |> Repo.insert()
   end
 
+  @spec build_firmware_params(Org.t(), Path.t(), map()) :: {:ok, map()} | {:error, any()}
   defp build_firmware_params(%{id: org_id} = org, filepath, params) do
     org = NervesHubWebCore.Repo.preload(org, :org_keys)
 
@@ -496,6 +505,7 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
+  @spec metadata_or_firmware(map()) :: {:ok, FirmwareMetadata.t() | nil}
   def metadata_or_firmware(metadata) do
     case FirmwareMetadata.changeset(%FirmwareMetadata{}, metadata).valid? do
       true ->
@@ -515,32 +525,37 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
+  @typep metadata_string() :: String.t()
+  @typep metadata_key() :: String.t()
+  @typep metadata_value() :: String.t() | nil
+
+  @spec get_fwup_metadata(Path.t()) :: {:ok, metadata_string()} | {:error, String.t()}
   defp get_fwup_metadata(filepath) do
     case System.cmd("fwup", ["-m", "-i", filepath]) do
       {metadata, 0} ->
         {:ok, metadata}
 
-      _error ->
-        {:error}
+      {error, _} ->
+        {:error, error}
     end
   end
 
-  @spec fetch_fwup_metadata_item(String.t(), String.t()) ::
-          {:ok, String.t()} | {:error, {String.t(), :not_found}}
-  defp fetch_fwup_metadata_item(metadata, key) when is_binary(key) do
-    {:ok, regex} = "#{key}=\"(?<item>[^\n]+)\"" |> Regex.compile()
+  @spec fetch_fwup_metadata_value(metadata_string(), metadata_key()) ::
+          {:ok, metadata_value()} | {:error, {metadata_key(), :not_found}}
+  defp fetch_fwup_metadata_value(metadata, key) when is_binary(key) do
+    {:ok, regex} = "#{key}=\"(?<value>[^\n]+)\"" |> Regex.compile()
 
     case Regex.named_captures(regex, metadata) do
-      %{"item" => item} -> {:ok, item}
+      %{"value" => value} -> {:ok, value}
       _ -> {:error, {key, :not_found}}
     end
   end
 
-  @spec get_fwup_metadata_item(String.t(), String.t(), String.t() | nil) :: String.t() | nil
-  defp get_fwup_metadata_item(metadata, key, default \\ nil) when is_binary(key) do
-    case fetch_fwup_metadata_item(metadata, key) do
+  @spec get_fwup_metadata_value(metadata_string(), metadata_key()) :: metadata_value()
+  defp get_fwup_metadata_value(metadata, key) when is_binary(key) do
+    case fetch_fwup_metadata_value(metadata, key) do
       {:ok, metadata_item} -> metadata_item
-      {:error, {_, :not_found}} -> default
+      {:error, {_, :not_found}} -> nil
     end
   end
 
