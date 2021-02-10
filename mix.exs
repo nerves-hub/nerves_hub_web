@@ -11,7 +11,7 @@ defmodule NervesHubUmbrella.MixProject do
       aliases: aliases(),
       elixirc_paths: elixirc_paths(Mix.env()),
       dialyzer: [
-        plt_add_apps: [],
+        plt_add_apps: [:ex_unit, :mix],
         ignore_warnings: "dialyzer.ignore-warnings"
       ],
       releases: [

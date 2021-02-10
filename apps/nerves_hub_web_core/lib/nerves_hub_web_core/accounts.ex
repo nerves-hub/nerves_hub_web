@@ -119,7 +119,8 @@ defmodule NervesHubWebCore.Accounts do
   Adds a user to an org.
   `params` are passed to `Org.add_user/2`.
   """
-  @spec add_org_user(Org.t(), User.t(), map()) :: Org.t() | {:error, Ecto.Changeset.t()}
+  @spec add_org_user(Org.t(), User.t(), map()) ::
+          {:ok, OrgUser.t()} | {:error, Ecto.Changeset.t()}
   def add_org_user(%Org{} = org, %User{} = user, params) do
     org_user = %OrgUser{org_id: org.id, user_id: user.id}
 
@@ -577,7 +578,7 @@ defmodule NervesHubWebCore.Accounts do
   that new org if needed
   """
   @spec create_user_from_invite(Invite.t(), Org.t(), map()) ::
-          {:ok, {:ok, OrgUser.t()}} | {:ok, {:error, Ecto.Changeset.t()}}
+          {:ok, OrgUser.t()} | {:error, Ecto.Changeset.t()}
   def create_user_from_invite(invite, org, user_params) do
     user_params = Map.put(user_params, :email, invite.email)
 
@@ -585,7 +586,8 @@ defmodule NervesHubWebCore.Accounts do
       with {:ok, user} <- create_user(user_params),
            {:ok, user} <- add_org_user(org, user, %{role: :admin}),
            {:ok, _invite} <- set_invite_accepted(invite) do
-        {:ok, user}
+        # Repo.transaction will wrap this in an {:ok, user}
+        user
       else
         {:error, error} -> Repo.rollback(error)
       end

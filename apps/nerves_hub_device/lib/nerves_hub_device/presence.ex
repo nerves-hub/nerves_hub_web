@@ -42,7 +42,7 @@ defmodule NervesHubDevice.Presence do
   @type device_id_string :: String.t()
 
   @type device_presence :: %{
-          connected_at: :os.timestamp(),
+          connected_at: pos_integer(),
           console_available: boolean(),
           console_version: Version.build(),
           firmware_metadata: NervesHubWebCore.Firmwares.FirmwareMetadata.t(),
@@ -53,7 +53,12 @@ defmodule NervesHubDevice.Presence do
 
   @type presence_list :: %{optional(device_id_string) => device_presence}
 
-  @spec list(String.t()) :: presence_list()
+  # because of how the `use` statement defines this function
+  # and how the elaborate callback system works for presence,
+  # this spec is not accepted by dialyzer, however when
+  # one calls `list(product:#{product_id}:devices)` it will
+  # return the `presence_list` value
+  # @spec list(String.t()) :: presence_list()
 
   def fetch("product:" <> topic, entries) do
     case String.split(topic, ":", trim: true) do

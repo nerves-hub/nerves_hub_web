@@ -5,6 +5,8 @@ defmodule NervesHubWebCore.Accounts.OrgUser do
 
   alias NervesHubWebCore.Accounts.{User, Org}
 
+  @type t :: %__MODULE__{}
+
   schema "org_users" do
     belongs_to(:org, Org)
     belongs_to(:user, User)

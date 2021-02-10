@@ -69,9 +69,7 @@ defmodule NervesHubWWWWeb.OrgController do
   end
 
   def send_invite(%{assigns: %{org: org}} = conn, %{"invite" => invite_params}) do
-    invite_params
-    |> Accounts.add_or_invite_to_org(org)
-    |> case do
+    case Accounts.add_or_invite_to_org(invite_params, org) do
       {:ok, %Invite{} = invite} ->
         Email.invite(invite, org)
         |> Mailer.deliver_later()

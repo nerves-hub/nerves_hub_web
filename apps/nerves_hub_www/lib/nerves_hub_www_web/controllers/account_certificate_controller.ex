@@ -91,7 +91,7 @@ defmodule NervesHubWWWWeb.AccountCertificateController do
       try do
         add_files(tar, files)
       after
-        :erl_tar.close(fd)
+        :erl_tar.close(tar)
       end
 
       {:ok, size} = :file.position(fd, :cur)
