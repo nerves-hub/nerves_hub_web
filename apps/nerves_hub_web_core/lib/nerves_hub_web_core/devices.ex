@@ -4,6 +4,7 @@ defmodule NervesHubWebCore.Devices do
   alias Ecto.Changeset
 
   alias NervesHubWebCore.{
+    Devices.UpdatePayload,
     Deployments.Deployment,
     Firmwares,
     Firmwares.FirmwareMetadata,
@@ -123,56 +124,23 @@ defmodule NervesHubWebCore.Devices do
 
   def get_eligible_deployments(_), do: []
 
-  def send_update_message(%Device{healthy: false}, _deployment) do
-    {:error, :device_unhealthy}
-  end
+  @doc """
+  resolves an update with `resolve_update/2` then dispatches
+  the payload over Phoenix PubSub
+  """
+  def send_update_message(%Device{} = device, %Deployment{} = deployment) do
+    %UpdatePayload{} = update_available = resolve_update(device, deployment)
 
-  def send_update_message(%Device{firmware_metadata: nil}, _deployment) do
-    {:error, :invalid_firmware_metadata}
-  end
+    Phoenix.PubSub.broadcast(
+      NervesHubWeb.PubSub,
+      "device:#{device.id}",
+      %Phoenix.Socket.Broadcast{
+        event: "update",
+        payload: update_available
+      }
+    )
 
-  def send_update_message(_device, %Deployment{healthy: false}) do
-    {:error, :deployment_unhealthy}
-  end
-
-  def send_update_message(
-        %Device{firmware_metadata: %{uuid: uuid}} = device,
-        %Deployment{} = deployment
-      ) do
-    deployment = Repo.preload(deployment, :firmware, force: true)
-
-    with true <- matches_deployment?(device, deployment),
-         %Device{product: product} <- Repo.preload(device, :product),
-         fwup_version <- Map.get(device.firmware_metadata, :fwup_version),
-         %{firmware: target} <- Repo.preload(deployment, :firmware) do
-      source =
-        case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
-          {:ok, source} -> source
-          {:error, :not_found} -> nil
-        end
-
-      {:ok, url} = Firmwares.get_firmware_url(source, target, fwup_version, product)
-      {:ok, meta} = Firmwares.metadata_from_firmware(target)
-
-      Phoenix.PubSub.broadcast(
-        NervesHubWeb.PubSub,
-        "device:#{device.id}",
-        %Phoenix.Socket.Broadcast{
-          event: "update",
-          payload: %{
-            update_available: true,
-            deployment: deployment,
-            deployment_id: deployment.id,
-            firmware_url: url,
-            firmware_meta: meta
-          }
-        }
-      )
-
-      {:ok, device}
-    else
-      _ -> {:error, :invalid_deployment_for_device}
-    end
+    update_available
   end
 
   @spec create_device(map) ::
@@ -400,14 +368,20 @@ defmodule NervesHubWebCore.Devices do
     end
   end
 
-  def resolve_update(_org, _deployments = []), do: %{update_available: false}
+  @doc """
+  Finds a matching deployment for a device based on it's current firmware meta and
+  health status.
+  """
+  @spec resolve_update(Device.t(), deployments :: [Deployment.t()] | Deployment.t()) ::
+          UpdatePayload.t()
+  def resolve_update(_device, _deployments = []), do: %UpdatePayload{update_available: false}
 
   def resolve_update(_device, %Deployment{healthy: false}) do
-    %{update_available: false}
+    %UpdatePayload{update_available: false}
   end
 
   def resolve_update(%Device{firmware_metadata: nil}, _deployment) do
-    %{update_available: false}
+    %UpdatePayload{update_available: false}
   end
 
   def resolve_update(device, [%Deployment{} = deployment | _]) do
@@ -419,6 +393,7 @@ defmodule NervesHubWebCore.Devices do
         %Deployment{} = deployment
       ) do
     with {:ok, %{healthy: true}} <- verify_update_eligibility(device, deployment),
+         true <- matches_deployment?(device, deployment),
          %Device{product: product} <- Repo.preload(device, :product),
          fwup_version <- Map.get(device.firmware_metadata, :fwup_version),
          %{firmware: target} <- Repo.preload(deployment, :firmware) do
@@ -431,9 +406,15 @@ defmodule NervesHubWebCore.Devices do
       {:ok, url} = Firmwares.get_firmware_url(source, target, fwup_version, product)
       {:ok, meta} = Firmwares.metadata_from_firmware(target)
 
-      %{update_available: true, firmware_url: url, firmware_meta: meta}
+      %UpdatePayload{
+        update_available: true,
+        firmware_url: url,
+        firmware_meta: meta,
+        deployment: deployment,
+        deployment_id: deployment.id
+      }
     else
-      _ -> %{update_available: false}
+      _ -> %UpdatePayload{update_available: false}
     end
   end
 

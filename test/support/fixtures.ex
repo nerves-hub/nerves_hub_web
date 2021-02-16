@@ -27,12 +27,12 @@ defmodule NervesHubWebCore.Fixtures do
   @deployment_params %{
     name: "Test Deployment",
     conditions: %{
-      "version" => "< 1.0.0",
+      "version" => "<= 1.0.0",
       "tags" => ["beta", "beta-edge"]
     },
     is_active: false
   }
-  @device_params %{tags: ["beta", "test"]}
+  @device_params %{tags: ["beta", "beta-edge"]}
   @product_params %{name: "valid product", delta_updatable: true}
 
   @user_ca_key Path.expand("../fixtures/ssl/user-root-ca-key.pem", __DIR__)

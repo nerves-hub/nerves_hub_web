@@ -12,7 +12,7 @@ defmodule NervesHubWebCore.DevicesTest do
     Firmwares
   }
 
-  alias NervesHubWebCore.Devices.DeviceCertificate
+  alias NervesHubWebCore.Devices.{DeviceCertificate, UpdatePayload}
   alias Ecto.Changeset
 
   setup do
@@ -456,7 +456,7 @@ defmodule NervesHubWebCore.DevicesTest do
   describe "send_update_message" do
     test "does not send when device needs attention", %{deployment: deployment, device: device} do
       assert Devices.send_update_message(%{device | healthy: false}, deployment) ==
-               {:error, :device_unhealthy}
+               %UpdatePayload{update_available: false}
     end
 
     test "does not send when deployment needs attention", %{
@@ -464,7 +464,7 @@ defmodule NervesHubWebCore.DevicesTest do
       device: device
     } do
       assert Devices.send_update_message(device, %{deployment | healthy: false}) ==
-               {:error, :deployment_unhealthy}
+               %UpdatePayload{update_available: false}
     end
 
     test "does not send when firmware_meta is not present", %{
@@ -472,7 +472,7 @@ defmodule NervesHubWebCore.DevicesTest do
       device: device
     } do
       assert Devices.send_update_message(%{device | firmware_metadata: nil}, deployment) ==
-               {:error, :invalid_firmware_metadata}
+               %UpdatePayload{update_available: false}
     end
 
     test "does not send when deployment version mismatch", %{
@@ -482,14 +482,14 @@ defmodule NervesHubWebCore.DevicesTest do
       conditions = %{deployment.conditions | "version" => "> 1.0.0"}
 
       assert Devices.send_update_message(device, %{deployment | conditions: conditions}) ==
-               {:error, :invalid_deployment_for_device}
+               %UpdatePayload{update_available: false}
     end
 
     test "does not send when deployment tags mismatch", %{deployment: deployment, device: device} do
-      conditions = %{deployment.conditions | "tags" => "wat?!"}
+      conditions = %{deployment.conditions | "tags" => ["wat?!"]}
 
       assert Devices.send_update_message(device, %{deployment | conditions: conditions}) ==
-               {:error, :invalid_deployment_for_device}
+               %UpdatePayload{update_available: false}
     end
 
     test "broadcasts update message", %{
@@ -507,7 +507,9 @@ defmodule NervesHubWebCore.DevicesTest do
 
       Fixtures.firmware_delta_fixture(firmware, deployment.firmware)
 
-      assert {:ok, ^device} = Devices.send_update_message(device, deployment)
+      assert %UpdatePayload{update_available: true} =
+               Devices.send_update_message(device, deployment)
+
       deployment_id = deployment.id
 
       Phoenix.ChannelTest.assert_broadcast(
@@ -524,21 +526,22 @@ defmodule NervesHubWebCore.DevicesTest do
 
   describe "resolve_update" do
     test "no update when device needs attention", %{deployment: deployment, device: device} do
-      assert Devices.resolve_update(%{device | healthy: false}, deployment) == %{
+      assert Devices.resolve_update(%{device | healthy: false}, deployment) == %UpdatePayload{
                update_available: false
              }
     end
 
     test "no update when deployment needs attention", %{deployment: deployment, device: device} do
-      assert Devices.resolve_update(device, %{deployment | healthy: false}) == %{
+      assert Devices.resolve_update(device, %{deployment | healthy: false}) == %UpdatePayload{
                update_available: false
              }
     end
 
     test "no update when firmware_meta is not present", %{deployment: deployment, device: device} do
-      assert Devices.resolve_update(%{device | firmware_metadata: nil}, deployment) == %{
-               update_available: false
-             }
+      assert Devices.resolve_update(%{device | firmware_metadata: nil}, deployment) ==
+               %UpdatePayload{
+                 update_available: false
+               }
     end
 
     test "update message when valid", %{
