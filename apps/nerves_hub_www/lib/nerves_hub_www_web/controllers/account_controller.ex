@@ -7,7 +7,7 @@ defmodule NervesHubWWWWeb.AccountController do
   alias NervesHubWebCore.Accounts.Email
   alias NervesHubWebCore.Mailer
 
-  plug(NervesHubWWWWeb.Plugs.AllowUninvitedSignups when action in [:new, :create])
+  plug(NervesHubWebCore.Plugs.AllowUninvitedSignups when action in [:new, :create])
 
   def new(conn, _params) do
     render(conn, "new.html", changeset: %Changeset{data: %User{}})

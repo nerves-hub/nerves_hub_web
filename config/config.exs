@@ -54,6 +54,7 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
 # NervesHubWebCore
 #
 config :nerves_hub_web_core,
+  allow_signups: false,
   ecto_repos: [NervesHubWebCore.Repo],
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   host: host
@@ -84,8 +85,6 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHubWeb.PubSub,
   live_view: [signing_salt: System.get_env("LIVE_VIEW_SIGNING_SALT")]
-
-config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: true
 
 # Environment specific config
 import_config "#{Mix.env()}.exs"

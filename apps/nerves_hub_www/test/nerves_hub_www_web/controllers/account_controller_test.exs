@@ -154,7 +154,7 @@ defmodule NervesHubWWWWeb.AccountControllerTest do
           })
         )
 
-      assert redirected_to(conn, 302) =~ "/"
+      assert redirected_to(conn, 302) =~ "/login"
     end
 
     test "requires an 8 character password", %{
