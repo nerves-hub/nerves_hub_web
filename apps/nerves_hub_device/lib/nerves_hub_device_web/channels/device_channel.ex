@@ -121,7 +121,14 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
       send_update_message: true
     })
 
-    push(socket, "update", payload)
+    # we must check for `update_available: true` here because
+    # current production nerves-hub-link as of 2021-02-17 expect
+    # that ANY payload that comes in after the initial connection
+    # contains an update
+    if(payload.update_available) do
+      push(socket, "update", payload)
+    end
+
     {:noreply, socket}
   end
 
