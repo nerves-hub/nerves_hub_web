@@ -22,6 +22,7 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint, server: true
 # NervesHubWebCore
 #
 config :nerves_hub_web_core,
+  allow_signups: true,
   enable_workers: true,
   firmware_upload: NervesHubWebCore.Firmwares.Upload.S3,
   host: "www.nerves-hub.org",
@@ -42,5 +43,3 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   load_from_system_env: true,
   server: true,
   force_ssl: [rewrite_on: [:x_forwarded_proto]]
-
-config :nerves_hub_www, NervesHubWWWWeb.AccountController, allow_signups: true

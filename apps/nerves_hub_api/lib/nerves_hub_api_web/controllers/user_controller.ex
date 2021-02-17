@@ -4,6 +4,8 @@ defmodule NervesHubAPIWeb.UserController do
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.{CertificateAuthority, Certificate}
 
+  plug(NervesHubWebCore.Plugs.AllowUninvitedSignups when action == :register)
+
   action_fallback(NervesHubAPIWeb.FallbackController)
 
   def me(%{assigns: %{user: user}} = conn, _params) do

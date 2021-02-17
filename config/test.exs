@@ -41,6 +41,7 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
 # NervesHubWebCore
 #
 config :nerves_hub_web_core,
+  allow_signups: true,
   firmware_upload: NervesHubWebCore.UploadMock,
   port: web_port
 
