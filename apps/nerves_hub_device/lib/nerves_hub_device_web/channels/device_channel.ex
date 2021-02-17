@@ -20,6 +20,8 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   alias Phoenix.Socket.Broadcast
 
+  require Logger
+
   intercept(["presence_diff"])
 
   def join("firmware:" <> fw_uuid, params, socket) do
@@ -35,7 +37,10 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
          {:ok, device} <- Devices.device_connected(device) do
       socket.endpoint.subscribe("device:#{device.id}")
       deployments = Devices.get_eligible_deployments(device)
-      join_reply = Devices.resolve_update(device, deployments)
+
+      join_reply =
+        Devices.resolve_update(device, deployments)
+        |> build_join_reply()
 
       if join_reply.update_available do
         AuditLogs.audit!(hd(deployments), device, :update, %{
@@ -121,13 +126,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
       send_update_message: true
     })
 
-    # we must check for `update_available: true` here because
-    # current production nerves-hub-link as of 2021-02-17 expect
-    # that ANY payload that comes in after the initial connection
-    # contains an update
-    if(payload.update_available) do
-      push(socket, "update", payload)
-    end
+    push(socket, "update", payload)
 
     {:noreply, socket}
   end
@@ -166,4 +165,22 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
       Devices.update_firmware_metadata(device, metadata)
     end
   end
+
+  defp build_join_reply(%{update_available: false}) do
+    # If update_available is false, firmware_url should be nil
+    # and that will crash the device. So we need to abandon
+    # %UpdatePayload{} struct here and return a single key
+    # map as is currently expected by nerves_hub_link
+    %{update_available: false}
+  end
+
+  defp build_join_reply(%{firmware_url: nil}) do
+    # This shouldn't even be possible, but a nil firmware_url
+    # will crash the device in a very destructive way
+    # so put this here to be safe
+    Logger.warn("Device has update available, but no firmware_url - Ignoring")
+    %{update_available: false}
+  end
+
+  defp build_join_reply(up), do: up
 end
