@@ -201,7 +201,7 @@ defmodule NervesHubWebCore.AccountsTest do
 
     assert user.email == expected_email
 
-    assert {:ok, %User{email: expected_email, orgs: [%Org{}]}} =
+    assert {:ok, %User{email: ^expected_email, orgs: [%Org{}]}} =
              Accounts.authenticate(user.email, user.password)
   end
 
@@ -345,7 +345,7 @@ defmodule NervesHubWebCore.AccountsTest do
     {:ok, %Invite{} = invite} =
       Accounts.add_or_invite_to_org(%{"email" => "accepted_invite@test.org"}, org)
 
-    assert {:ok, %OrgUser{} = user} =
+    assert {:ok, %OrgUser{}} =
              Accounts.create_user_from_invite(invite, org, %{
                password: "password123",
                username: "invited_user"

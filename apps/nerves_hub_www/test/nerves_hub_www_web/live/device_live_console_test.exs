@@ -54,8 +54,8 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
 
       assert render_submit(view, :iex_submit, %{iex_input: input}) =~ iex_line
 
-      assert_broadcast("add_line", %{data: iex_line})
-      assert_broadcast("io_reply", %{data: input, kind: "get_line"})
+      assert_broadcast("add_line", %{data: "iex(" <> _})
+      assert_broadcast("io_reply", %{data: ^input, kind: "get_line"})
     end
 
     test "iex_submit - clear text", %{conn: conn, fixture: fixture} do
