@@ -63,7 +63,8 @@ migrate: &migrate
 
 deploy: &deploy
   run:
-    name: Deploy to production
+    name: Deploy to env
+    no_output_timeout: 12m
     command: |
       rel/scripts/ecs-deploy.sh \
         $CLUSTER \
