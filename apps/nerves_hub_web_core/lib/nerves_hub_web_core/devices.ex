@@ -129,18 +129,20 @@ defmodule NervesHubWebCore.Devices do
   the payload over Phoenix PubSub
   """
   def send_update_message(%Device{} = device, %Deployment{} = deployment) do
-    %UpdatePayload{} = update_available = resolve_update(device, deployment)
+    %UpdatePayload{} = update_payload = resolve_update(device, deployment)
 
-    Phoenix.PubSub.broadcast(
-      NervesHubWeb.PubSub,
-      "device:#{device.id}",
-      %Phoenix.Socket.Broadcast{
-        event: "update",
-        payload: update_available
-      }
-    )
+    if update_payload.update_available do
+      Phoenix.PubSub.broadcast(
+        NervesHubWeb.PubSub,
+        "device:#{device.id}",
+        %Phoenix.Socket.Broadcast{
+          event: "update",
+          payload: update_payload
+        }
+      )
+    end
 
-    update_available
+    update_payload
   end
 
   @spec create_device(map) ::
