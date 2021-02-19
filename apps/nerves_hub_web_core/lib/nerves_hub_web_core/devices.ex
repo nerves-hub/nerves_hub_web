@@ -1,7 +1,7 @@
 defmodule NervesHubWebCore.Devices do
   import Ecto.Query
 
-  alias Ecto.Changeset
+  alias Ecto.{Changeset, Multi}
 
   alias NervesHubWebCore.{
     Devices.UpdatePayload,
@@ -16,8 +16,17 @@ defmodule NervesHubWebCore.Devices do
 
   alias NervesHubWebCore.Devices.{Device, DeviceCertificate, CACertificate}
 
-  def get_device(device_id), do: Repo.get(Device, device_id)
-  def get_device!(device_id), do: Repo.get!(Device, device_id)
+  def get_device(device_id) do
+    Device
+    |> Repo.exclude_deleted()
+    |> Repo.get(device_id)
+  end
+
+  def get_device!(device_id) do
+    Device
+    |> Repo.exclude_deleted()
+    |> Repo.get!(device_id)
+  end
 
   def get_devices_by_org_id(org_id) do
     query =
@@ -27,6 +36,7 @@ defmodule NervesHubWebCore.Devices do
       )
 
     query
+    |> Repo.exclude_deleted()
     |> order_by(asc: :identifier)
     |> Repo.all()
   end
@@ -40,6 +50,7 @@ defmodule NervesHubWebCore.Devices do
       )
 
     query
+    |> Repo.exclude_deleted()
     |> order_by(asc: :identifier)
     |> Repo.all()
   end
@@ -52,7 +63,9 @@ defmodule NervesHubWebCore.Devices do
         select: count(d)
       )
 
-    Repo.one!(q)
+    q
+    |> Repo.exclude_deleted()
+    |> Repo.one!()
   end
 
   defp device_by_org_query(org_id, device_id) do
@@ -65,6 +78,7 @@ defmodule NervesHubWebCore.Devices do
 
   def get_device_by_org(%Org{id: org_id}, device_id) do
     device_by_org_query(org_id, device_id)
+    |> Repo.exclude_deleted()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -74,6 +88,7 @@ defmodule NervesHubWebCore.Devices do
 
   def get_device_by_org!(%Org{id: org_id}, device_id) do
     device_by_org_query(org_id, device_id)
+    |> Repo.exclude_deleted()
     |> Repo.one!()
   end
 
@@ -86,6 +101,7 @@ defmodule NervesHubWebCore.Devices do
       )
 
     query
+    |> Repo.exclude_deleted()
     |> Device.with_org()
     |> Repo.one()
     |> case do
@@ -155,7 +171,13 @@ defmodule NervesHubWebCore.Devices do
   end
 
   def delete_device(%Device{} = device) do
-    Repo.delete(device)
+    device_certificates_query = from(dc in DeviceCertificate, where: dc.device_id == ^device.id)
+    changeset = Repo.soft_delete_changeset(device)
+
+    Multi.new()
+    |> Multi.delete_all(:device_certificates, device_certificates_query)
+    |> Multi.update(:device, changeset)
+    |> Repo.transaction()
   end
 
   @spec create_device_certificate(Device.t(), map) ::
@@ -178,8 +200,7 @@ defmodule NervesHubWebCore.Devices do
         where: d.id == ^device.id
       )
 
-    query
-    |> Repo.all()
+    Repo.all(query)
   end
 
   @spec get_device_by_certificate(DeviceCertificate.t()) ::

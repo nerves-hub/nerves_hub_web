@@ -38,7 +38,7 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
   defenum(Action, :action, [:create, :update, :delete])
 
   schema "audit_logs" do
-    belongs_to(:org, Org)
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     field(:action, Action)
     field(:actor_id, :id)

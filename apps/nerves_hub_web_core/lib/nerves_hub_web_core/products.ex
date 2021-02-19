@@ -33,6 +33,7 @@ defmodule NervesHubWebCore.Products do
       )
 
     query
+    |> Repo.exclude_deleted()
     |> Repo.all()
   end
 
@@ -50,10 +51,15 @@ defmodule NervesHubWebCore.Products do
       ** (Ecto.NoResultsError)
 
   """
-  def get_product!(id), do: Repo.get!(Product, id)
+  def get_product!(id) do
+    Product
+    |> Repo.exclude_deleted()
+    |> Repo.get!(id)
+  end
 
   def get_product_by_org_id_and_name(org_id, name) do
     Product
+    |> Repo.exclude_deleted()
     |> Repo.get_by(org_id: org_id, name: name)
     |> case do
       nil -> {:error, :not_found}
@@ -207,7 +213,7 @@ defmodule NervesHubWebCore.Products do
   def delete_product(%Product{} = product) do
     product
     |> Product.delete_changeset()
-    |> Repo.delete()
+    |> Repo.update()
   end
 
   @doc """

@@ -23,8 +23,8 @@ defmodule NervesHubWebCore.Devices.Device do
   @required_params [:org_id, :product_id, :identifier]
 
   schema "devices" do
-    belongs_to(:org, Org)
-    belongs_to(:product, Product)
+    belongs_to(:org, Org, where: [deleted_at: nil])
+    belongs_to(:product, Product, where: [deleted_at: nil])
     embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
 
@@ -33,6 +33,7 @@ defmodule NervesHubWebCore.Devices.Device do
     field(:last_communication, :utc_datetime)
     field(:healthy, :boolean, default: true)
     field(:tags, NervesHubWebCore.Types.Tag)
+    field(:deleted_at, :utc_datetime)
 
     field(:status, :string, default: "offline", virtual: true)
 
@@ -65,6 +66,7 @@ defmodule NervesHubWebCore.Devices.Device do
   defp too_many_devices?(org_id) do
     device_count =
       from(d in Device, where: d.org_id == ^org_id, select: count(d.id))
+      |> Repo.exclude_deleted()
       |> Repo.one()
 
     %{devices: limit} = Accounts.get_org_limit_by_org_id(org_id)

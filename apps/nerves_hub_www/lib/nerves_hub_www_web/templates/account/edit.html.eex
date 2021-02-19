@@ -6,6 +6,14 @@
   <a class="btn btn-outline-light" href="<%= Routes.account_certificate_path(@conn, :index, @user.username)%>">
       User Certificates
   </a>
+  <%=
+    link(
+      "Delete Account",
+      class: "btn btn-outline-light",
+      aria_label: "Delete Account",
+      to: Routes.account_path(@conn, :confirm_delete, @user.username)
+    )
+  %>
 </div>
 
 <%= form_for @changeset, Routes.account_path(@conn, :update, @user.username), fn f -> %>
@@ -39,4 +47,3 @@
     <%= submit "Save Changes", class: "btn btn-primary" %>
   </div>
 <% end %>
-

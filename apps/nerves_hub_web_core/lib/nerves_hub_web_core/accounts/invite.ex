@@ -9,7 +9,7 @@ defmodule NervesHubWebCore.Accounts.Invite do
   @type t :: %__MODULE__{}
 
   schema "invites" do
-    belongs_to(:org, Org)
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     field(:email, :string)
     field(:token, Ecto.UUID)

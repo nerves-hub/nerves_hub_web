@@ -25,7 +25,7 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
 
   schema "device_certificates" do
     belongs_to(:device, Device)
-    belongs_to(:org, Org)
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     field(:serial, :string)
     field(:aki, :binary)

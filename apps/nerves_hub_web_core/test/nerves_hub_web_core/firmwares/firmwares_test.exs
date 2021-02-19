@@ -1,5 +1,6 @@
 defmodule NervesHubWebCore.FirmwaresTest do
   use NervesHubWebCore.DataCase, async: true
+  use Oban.Testing, repo: NervesHubWebCore.Repo
 
   alias NervesHubWebCore.{
     Accounts,
@@ -16,7 +17,6 @@ defmodule NervesHubWebCore.FirmwaresTest do
 
   alias Ecto.Changeset
 
-  @uploader Application.get_env(:nerves_hub_web_core, :firmware_upload)
   @valid_fwup_version "1.6.0"
 
   setup context do
@@ -105,29 +105,14 @@ defmodule NervesHubWebCore.FirmwaresTest do
   end
 
   describe "delete_firmware/1" do
-    test "remote deletion failure triggers transaction rollback", %{
-      org: org,
-      org_key: org_key,
-      product: product
-    } do
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      @uploader.delete_file(firmware)
-
-      # Make this path a directory will break delete_firmware/1
-      # cause it to raise
-      File.mkdir(firmware.upload_metadata.local_path)
-
-      assert_raise File.Error, fn -> Firmwares.delete_firmware(firmware) end
-      assert {:ok, _} = Firmwares.get_firmware(org, firmware.id)
-
-      # Cleanup bogus directory
-      File.rmdir!(firmware.upload_metadata.local_path)
-    end
-
     test "delete firmware", %{org: org, org_key: org_key, product: product} do
       firmware = Fixtures.firmware_fixture(org_key, product)
-      :ok = Firmwares.delete_firmware(firmware)
-      refute File.exists?(firmware.upload_metadata[:local_path])
+      {:ok, _} = Firmwares.delete_firmware(firmware)
+
+      assert_enqueued([worker: NervesHubWebCore.Workers.DeleteFirmware, args: %{
+        "local_path" => firmware.upload_metadata[:local_path],
+        "public_path" => firmware.upload_metadata[:public_path]
+      }])
       assert {:error, :not_found} = Firmwares.get_firmware(org, firmware.id)
     end
   end

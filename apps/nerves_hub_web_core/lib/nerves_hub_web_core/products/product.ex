@@ -6,6 +6,7 @@ defmodule NervesHubWebCore.Products.Product do
   alias NervesHubWebCore.Accounts.Org
   alias NervesHubWebCore.Firmwares.Firmware
   alias NervesHubWebCore.Products.ProductUser
+  alias NervesHubWebCore.Repo
 
   @required_params [:name, :org_id]
   @optional_params [:delta_updatable]
@@ -13,14 +14,15 @@ defmodule NervesHubWebCore.Products.Product do
   @type t :: %__MODULE__{}
 
   schema "products" do
-    has_many(:devices, Device)
+    has_many(:devices, Device, where: [deleted_at: nil])
     has_many(:firmwares, Firmware)
     has_many(:product_users, ProductUser)
     has_many(:users, through: [:product_users, :user])
 
-    belongs_to(:org, Org)
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     field(:name, :string)
+    field(:deleted_at, :utc_datetime)
     field(:delta_updatable, :boolean, default: false)
 
     timestamps()
@@ -50,9 +52,30 @@ defmodule NervesHubWebCore.Products.Product do
   end
 
   def delete_changeset(product, params \\ %{}) do
+    deleted_at = DateTime.truncate(DateTime.utc_now(), :second)
+
     product
     |> cast(params, @required_params ++ @optional_params)
-    |> no_assoc_constraint(:devices, message: "Product has associated devices")
-    |> no_assoc_constraint(:firmwares, message: "Product has associated firmwares")
+    |> no_soft_deleted_assoc(:devices, message: "Product has associated devices")
+    |> no_soft_deleted_assoc(:firmwares, message: "Product has associated firmwares")
+    |> put_change(:deleted_at, deleted_at)
+  end
+
+  defp no_soft_deleted_assoc(%{data: data} = changeset, assoc, opts) do
+    default_message = "is still associated with this entry"
+    message = Keyword.get(opts, :message, default_message)
+
+    empty? =
+      data
+      |> Repo.preload(assoc)
+      |> Map.get(assoc, [])
+      |> Enum.filter(&is_nil(Map.get(&1, :deleted_at)))
+      |> Enum.empty?()
+
+    if empty? do
+      changeset
+    else
+      add_error(changeset, assoc, message)
+    end
   end
 end

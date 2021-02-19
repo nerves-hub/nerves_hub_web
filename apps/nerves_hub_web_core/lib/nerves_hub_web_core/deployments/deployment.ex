@@ -25,8 +25,8 @@ defmodule NervesHubWebCore.Deployments.Deployment do
 
   schema "deployments" do
     belongs_to(:firmware, Firmware)
-    belongs_to(:product, Product)
-    belongs_to(:org, Org)
+    belongs_to(:product, Product, where: [deleted_at: nil])
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     field(:conditions, :map)
     field(:device_failure_threshold, :integer, default: 3)

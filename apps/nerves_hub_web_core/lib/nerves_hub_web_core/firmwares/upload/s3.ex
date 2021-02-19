@@ -36,9 +36,10 @@ defmodule NervesHubWebCore.Firmwares.Upload.S3 do
   end
 
   @impl NervesHubWebCore.Firmwares.Upload
-  def delete_file(firmware) do
-    s3_key = firmware.upload_metadata["s3_key"]
+  def delete_file(%{s3_key: s3_key}), do: delete_file(s3_key)
+  def delete_file(%{"s3_key" => s3_key}), do: delete_file(s3_key)
 
+  def delete_file(s3_key) when is_binary(s3_key) do
     S3.delete_object(bucket(), s3_key)
     |> ExAws.request()
     |> case do

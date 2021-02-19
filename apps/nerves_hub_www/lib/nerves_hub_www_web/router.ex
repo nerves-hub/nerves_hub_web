@@ -96,6 +96,8 @@ defmodule NervesHubWWWWeb.Router do
     scope "/account/:user_name" do
       get("/", AccountController, :edit)
       put("/", AccountController, :update)
+      get("/delete_account", AccountController, :confirm_delete)
+      delete("/delete_account", AccountController, :delete)
 
       scope "/certificates" do
         get("/", AccountCertificateController, :index)

@@ -143,12 +143,6 @@ defmodule NervesHubWebCore.AccountsTest do
     assert user_orgs == [default_org, org_1]
   end
 
-  test "Unable to remove last user from org" do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user)
-    assert {:error, :last_user} = Accounts.remove_org_user(org, user)
-  end
-
   test "Unable to remove user from user org" do
     user = Fixtures.user_fixture()
     [org] = Accounts.get_user_orgs(user)

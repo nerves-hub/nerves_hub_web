@@ -7,8 +7,8 @@ defmodule NervesHubWebCore.Products.ProductUser do
   alias NervesHubWebCore.Accounts.User
 
   schema "product_users" do
-    belongs_to(:product, Product)
-    belongs_to(:user, User)
+    belongs_to(:product, Product, where: [deleted_at: nil])
+    belongs_to(:user, User, where: [deleted_at: nil])
 
     field(:role, User.Role)
 

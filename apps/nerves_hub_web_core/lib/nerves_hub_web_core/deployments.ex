@@ -162,6 +162,7 @@ defmodule NervesHubWebCore.Deployments do
       where: d.healthy == false,
       select: count(d.id)
     )
+    |> Repo.exclude_deleted()
     |> Repo.one()
     |> Kernel.>=(deployment.failure_threshold)
   end
@@ -220,6 +221,7 @@ defmodule NervesHubWebCore.Deployments do
       where: d.org_id == ^org_id,
       where: d.healthy
     )
+    |> Repo.exclude_deleted()
     |> Repo.all()
   end
 

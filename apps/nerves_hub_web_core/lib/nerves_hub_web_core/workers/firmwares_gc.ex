@@ -15,7 +15,7 @@ defmodule NervesHubWebCore.Workers.FirmwaresGC do
     Firmwares.get_firmware_by_expired_ttl()
     |> Enum.each(fn firmware ->
       case Firmwares.delete_firmware(firmware) do
-        :ok ->
+        {:ok, _} ->
           Logger.debug("Garbage collected firmware #{firmware.uuid}")
 
         {:error, reason} ->

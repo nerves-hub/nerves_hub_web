@@ -48,8 +48,8 @@ defmodule NervesHubWebCore.Firmwares.Firmware do
   ]
 
   schema "firmwares" do
-    belongs_to(:org, Org)
-    belongs_to(:product, Product)
+    belongs_to(:org, Org, where: [deleted_at: nil])
+    belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:org_key, OrgKey)
     has_many(:deployments, Deployment)
 

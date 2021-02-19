@@ -39,7 +39,7 @@ defmodule NervesHubAPIWeb.FirmwareController do
 
   def delete(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
-         :ok <- Firmwares.delete_firmware(firmware) do
+         {:ok, _} <- Firmwares.delete_firmware(firmware) do
       send_resp(conn, :no_content, "")
     end
   end

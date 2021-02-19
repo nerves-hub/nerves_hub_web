@@ -38,6 +38,26 @@ defmodule NervesHubWWWWeb.AccountController do
     )
   end
 
+  def confirm_delete(conn, _) do
+    render(conn, "delete.html")
+  end
+
+  def delete(conn, %{"user_name" => username, "confirm_username" => confirmed_username})
+      when username != confirmed_username do
+    conn
+    |> put_flash(:error, "Please type #{username} to confirm.")
+    |> redirect(to: Routes.account_path(conn, :confirm_delete, username))
+  end
+
+  def delete(conn, %{"user_name" => username}) do
+    with {:ok, user} <- Accounts.get_user_by_username(username),
+         {:ok, _} <- Accounts.remove_account(user.id) do
+      conn
+      |> put_flash(:info, "Success")
+      |> redirect(to: "/login")
+    end
+  end
+
   def update(conn, params) do
     cleaned =
       params["user"]

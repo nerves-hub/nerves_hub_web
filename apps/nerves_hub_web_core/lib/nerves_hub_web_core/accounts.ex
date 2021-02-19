@@ -1,5 +1,6 @@
 defmodule NervesHubWebCore.Accounts do
   import Ecto.Query
+
   alias Ecto.{Changeset, Multi}
   alias Ecto.UUID
 
@@ -11,7 +12,8 @@ defmodule NervesHubWebCore.Accounts do
     OrgKey,
     OrgLimit,
     OrgUser,
-    OrgMetric
+    OrgMetric,
+    RemoveAccount
   }
 
   alias NervesHubWebCore.Products.{Product, ProductUser}
@@ -149,10 +151,7 @@ defmodule NervesHubWebCore.Accounts do
       org_user = Repo.get_by(Ecto.assoc(org, :org_users), user_id: user.id)
 
       if org_user do
-        {:ok, _result} =
-          Multi.new()
-          |> Multi.delete(:org_user, org_user)
-          |> Repo.transaction()
+        {:ok, _result} = Repo.soft_delete(org_user)
       end
 
       :ok
@@ -173,6 +172,7 @@ defmodule NervesHubWebCore.Accounts do
           ou.user_id == ^user.id
     )
     |> OrgUser.with_user()
+    |> Repo.exclude_deleted()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -202,11 +202,14 @@ defmodule NervesHubWebCore.Accounts do
   end
 
   def get_user_orgs(%User{} = user) do
-    Repo.all(Ecto.assoc(user, :orgs))
+    user
+    |> Ecto.assoc(:orgs)
+    |> Repo.exclude_deleted()
+    |> Repo.all()
   end
 
   def get_user_orgs_with_product_role(%User{} = user, product_role) do
-    q =
+    query =
       from(
         o in Org,
         full_join: p in Product,
@@ -222,7 +225,9 @@ defmodule NervesHubWebCore.Accounts do
         group_by: o.id
       )
 
-    Repo.all(q)
+    query
+    |> Repo.exclude_deleted()
+    |> Repo.all()
   end
 
   @spec create_user_certificate(User.t(), map) ::
@@ -243,20 +248,13 @@ defmodule NervesHubWebCore.Accounts do
           {:ok, User.t()}
           | {:error, :authentication_failed}
   def authenticate(email_or_username, password) do
-    user =
-      from(u in User, where: u.username == ^email_or_username or u.email == ^email_or_username)
-      |> Repo.one()
-
-    with %User{} <- user,
+    with {:ok, user} <- get_user_by_email_or_username(email_or_username),
          true <- Bcrypt.verify_pass(password, user.password_hash) do
       {:ok, user |> User.with_default_org() |> User.with_org_keys()}
     else
-      nil ->
+      _ ->
         # User wasn't found; do dummy check to make user enumeration more difficult
         Bcrypt.no_user_verify()
-        {:error, :authentication_failed}
-
-      false ->
         {:error, :authentication_failed}
     end
   end
@@ -268,6 +266,7 @@ defmodule NervesHubWebCore.Accounts do
     query = from(u in User, where: u.id == ^user_id)
 
     query
+    |> Repo.exclude_deleted()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -275,12 +274,18 @@ defmodule NervesHubWebCore.Accounts do
     end
   end
 
-  def get_user!(user_id), do: Repo.get!(User, user_id)
+  def get_user!(user_id) do
+    User
+    |> Repo.exclude_deleted()
+    |> Repo.get!(user_id)
+  end
 
   def get_user_with_all_orgs(user_id) do
-    query = from(u in User, where: u.id == ^user_id) |> User.with_all_orgs()
+    query = from(u in User, where: u.id == ^user_id)
 
     query
+    |> Repo.exclude_deleted()
+    |> User.with_all_orgs()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -289,7 +294,9 @@ defmodule NervesHubWebCore.Accounts do
   end
 
   def get_user_by_email(email) do
-    Repo.get_by(User, email: email)
+    User
+    |> Repo.exclude_deleted()
+    |> Repo.get_by(email: email)
     |> case do
       nil -> {:error, :not_found}
       user -> {:ok, user}
@@ -297,10 +304,24 @@ defmodule NervesHubWebCore.Accounts do
   end
 
   def get_user_by_username(username) do
-    Repo.get_by(User, username: username)
+    User
+    |> Repo.exclude_deleted()
+    |> Repo.get_by(username: username)
     |> case do
       nil -> {:error, :not_found}
       user -> {:ok, user}
+    end
+  end
+
+  def get_user_by_email_or_username(email_or_username) do
+    User
+    |> Repo.exclude_deleted()
+    |> where(username: ^email_or_username)
+    |> or_where(email: ^email_or_username)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      cert -> {:ok, cert}
     end
   end
 
@@ -399,6 +420,7 @@ defmodule NervesHubWebCore.Accounts do
           | {:error, :org_not_found}
   def get_org(id) do
     Org
+    |> Repo.exclude_deleted()
     |> Repo.get(id)
     |> case do
       nil -> {:error, :org_not_found}
@@ -406,10 +428,15 @@ defmodule NervesHubWebCore.Accounts do
     end
   end
 
-  def get_org!(id), do: Repo.get!(Org, id)
+  def get_org!(id) do
+    Org
+    |> Repo.exclude_deleted()
+    |> Repo.get!(id)
+  end
 
   def get_org_with_org_keys(id) do
     Org
+    |> Repo.exclude_deleted()
     |> Repo.get(id)
     |> case do
       nil -> {:error, :not_found}
@@ -419,6 +446,7 @@ defmodule NervesHubWebCore.Accounts do
 
   def get_org_by_name(org_name) do
     Org
+    |> Repo.exclude_deleted()
     |> Repo.get_by(name: org_name)
     |> case do
       nil -> {:error, :org_not_found}
@@ -434,7 +462,9 @@ defmodule NervesHubWebCore.Accounts do
         where: u.id == ^user_id and o.name == ^org_name
       )
 
-    Repo.one(query)
+    query
+    |> Repo.exclude_deleted()
+    |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
       org -> {:ok, org}
@@ -668,7 +698,7 @@ defmodule NervesHubWebCore.Accounts do
   end
 
   def create_org_metrics(run_utc_time) do
-    q =
+    query =
       from(
         o in Org,
         select: o.id
@@ -678,7 +708,9 @@ defmodule NervesHubWebCore.Accounts do
 
     case DateTime.from_iso8601("#{today}T#{run_utc_time}Z") do
       {:ok, timestamp, _} ->
-        Repo.all(q)
+        query
+        |> Repo.exclude_deleted()
+        |> Repo.all()
         |> Enum.each(&create_org_metric(&1, timestamp))
 
       error ->
@@ -704,4 +736,6 @@ defmodule NervesHubWebCore.Accounts do
     |> OrgMetric.changeset(params)
     |> Repo.insert()
   end
+
+  defdelegate remove_account(user_id), to: RemoveAccount
 end
