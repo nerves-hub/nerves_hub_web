@@ -85,7 +85,8 @@ defmodule NervesHubAPIWeb.ProductControllerTest do
     } do
       # Create firmware for product
       org_key = Fixtures.org_key_fixture(org)
-      Fixtures.firmware_fixture(org_key, product)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      Fixtures.device_fixture(org, product, firmware)
 
       conn = delete(conn, Routes.product_path(conn, :delete, org.name, product.name))
 

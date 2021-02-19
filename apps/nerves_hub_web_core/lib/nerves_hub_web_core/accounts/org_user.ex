@@ -8,10 +8,11 @@ defmodule NervesHubWebCore.Accounts.OrgUser do
   @type t :: %__MODULE__{}
 
   schema "org_users" do
-    belongs_to(:org, Org)
-    belongs_to(:user, User)
+    belongs_to(:org, Org, where: [deleted_at: nil])
+    belongs_to(:user, User, where: [deleted_at: nil])
 
     field(:role, User.Role)
+    field(:deleted_at, :utc_datetime)
 
     timestamps()
   end

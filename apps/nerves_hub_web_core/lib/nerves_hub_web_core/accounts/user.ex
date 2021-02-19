@@ -24,8 +24,8 @@ defmodule NervesHubWebCore.Accounts.User do
   schema "users" do
     has_many(:user_certificates, UserCertificate)
 
-    has_many(:org_users, OrgUser)
-    has_many(:orgs, through: [:org_users, :org])
+    has_many(:org_users, OrgUser, where: [deleted_at: nil])
+    has_many(:orgs, through: [:org_users, :org], where: [deleted_at: nil])
 
     field(:username, :string)
     field(:email, :string)
@@ -34,6 +34,7 @@ defmodule NervesHubWebCore.Accounts.User do
     field(:password_hash, :string)
     field(:password_reset_token, UUID)
     field(:password_reset_token_expires, :utc_datetime)
+    field(:deleted_at, :utc_datetime)
 
     timestamps()
   end
@@ -81,7 +82,7 @@ defmodule NervesHubWebCore.Accounts.User do
 
   defp default_org_query() do
     # For now just get first inserted org
-    from(o in Org) |> first(:inserted_at)
+    from(o in Org) |> first(:inserted_at) |> Repo.exclude_deleted()
   end
 
   def with_default_org(%User{} = u) do

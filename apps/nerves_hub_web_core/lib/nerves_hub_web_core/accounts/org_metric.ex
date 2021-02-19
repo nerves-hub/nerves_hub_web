@@ -16,7 +16,7 @@ defmodule NervesHubWebCore.Accounts.OrgMetric do
   ]
 
   schema "org_metrics" do
-    belongs_to(:org, Org)
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     field(:devices, :integer)
     field(:bytes_stored, :integer)

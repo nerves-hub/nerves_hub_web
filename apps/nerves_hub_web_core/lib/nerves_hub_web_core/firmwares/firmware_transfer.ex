@@ -18,7 +18,7 @@ defmodule NervesHubWebCore.Firmwares.FirmwareTransfer do
   ]
 
   schema "firmware_transfers" do
-    belongs_to(:org, Org)
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     field(:firmware_uuid)
     field(:remote_ip)

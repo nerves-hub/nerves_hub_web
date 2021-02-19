@@ -15,7 +15,7 @@ defmodule NervesHubWebCore.Accounts.OrgKey do
   @optional_params []
 
   schema "org_keys" do
-    belongs_to(:org, Org)
+    belongs_to(:org, Org, where: [deleted_at: nil])
     has_many(:firmwares, Firmware)
 
     field(:name, :string)

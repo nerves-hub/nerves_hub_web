@@ -3,6 +3,8 @@ defmodule NervesHubWebCore.Repo do
     otp_app: :nerves_hub_web_core,
     adapter: Ecto.Adapters.Postgres
 
+  import Ecto.Query, only: [where: 3]
+
   @doc """
   Dynamically loads the repository url from the
   DATABASE_URL environment variable.
@@ -27,4 +29,20 @@ defmodule NervesHubWebCore.Repo do
   end
 
   def reload_assoc({:error, changeset}, _), do: {:error, changeset}
+
+  def soft_delete(struct_or_changeset) do
+    struct_or_changeset
+    |> soft_delete_changeset()
+    |> update()
+  end
+
+  def soft_delete_changeset(struct_or_changeset) do
+    deleted_at = DateTime.truncate(DateTime.utc_now(), :second)
+
+    Ecto.Changeset.change(struct_or_changeset, deleted_at: deleted_at)
+  end
+
+  def exclude_deleted(query) do
+    where(query, [o], is_nil(o.deleted_at))
+  end
 end

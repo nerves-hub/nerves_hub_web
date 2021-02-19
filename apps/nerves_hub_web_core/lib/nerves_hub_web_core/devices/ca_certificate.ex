@@ -23,7 +23,7 @@ defmodule NervesHubWebCore.Devices.CACertificate do
   ]
 
   schema "ca_certificates" do
-    belongs_to(:org, Org)
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     field(:description, :string)
     field(:serial, :string)

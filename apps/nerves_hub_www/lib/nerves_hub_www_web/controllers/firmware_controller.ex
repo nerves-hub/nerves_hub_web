@@ -100,7 +100,7 @@ defmodule NervesHubWWWWeb.FirmwareController do
 
   def delete(%{assigns: %{org: org, product: product}} = conn, %{"firmware_uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
-         :ok <- Firmwares.delete_firmware(firmware) do
+         {:ok, _} <- Firmwares.delete_firmware(firmware) do
       conn
       |> put_flash(:info, "Firmware successfully deleted")
       |> redirect(to: Routes.firmware_path(conn, :index, org.name, product.name))

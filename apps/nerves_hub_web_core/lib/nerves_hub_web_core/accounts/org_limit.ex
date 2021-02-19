@@ -31,7 +31,7 @@ defmodule NervesHubWebCore.Accounts.OrgLimit do
   ]
 
   schema "org_limits" do
-    belongs_to(:org, Org)
+    belongs_to(:org, Org, where: [deleted_at: nil])
 
     field(:devices, :integer, default: @defaults[:devices])
     field(:firmware_per_product, :integer, default: @defaults[:firmware_per_product])

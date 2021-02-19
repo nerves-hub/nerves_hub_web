@@ -21,15 +21,14 @@ defmodule NervesHubWebCore.Firmwares.Upload.File do
   end
 
   @impl NervesHubWebCore.Firmwares.Upload
-  def delete_file(%{upload_metadata: %{local_path: path}}) do
+  def delete_file(%{local_path: path}), do: delete_file(path)
+  def delete_file(%{"local_path" => path}), do: delete_file(path)
+
+  def delete_file(path) when is_binary(path) do
     # Sometimes fw files may be stored in temporary places that
     # get cleared on reboots, especially when using this locally.
     # So if the file doesn't exist, don't attempt to remove
     if File.exists?(path), do: File.rm!(path), else: :ok
-  end
-
-  def delete_file(%{upload_metadata: %{"local_path" => path}}) do
-    delete_file(%{upload_metadata: %{local_path: path}})
   end
 
   @impl NervesHubWebCore.Firmwares.Upload

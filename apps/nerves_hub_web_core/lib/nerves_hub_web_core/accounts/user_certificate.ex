@@ -21,7 +21,7 @@ defmodule NervesHubWebCore.Accounts.UserCertificate do
   ]
 
   schema "user_certificates" do
-    belongs_to(:user, User)
+    belongs_to(:user, User, where: [deleted_at: nil])
 
     field(:serial, :string)
     field(:description, :string)

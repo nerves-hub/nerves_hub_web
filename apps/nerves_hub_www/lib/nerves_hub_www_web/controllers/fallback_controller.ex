@@ -7,7 +7,7 @@ defmodule NervesHubWWWWeb.FallbackController do
   use NervesHubWWWWeb, :controller
 
   def call(conn, {:error, %Ecto.Changeset{} = changeset}) do
-    [{_, {reason, _}}] = changeset.errors
+    [{_, {reason, _}} | _] = changeset.errors
 
     conn
     |> put_flash(:error, reason)

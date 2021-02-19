@@ -127,18 +127,26 @@ defmodule NervesHubWebCore.Firmwares do
   end
 
   def delete_firmware(%Firmware{} = firmware) do
+    do_delete_firmware = fn ->
+      firmware
+      |> Firmware.delete_changeset(%{})
+      |> Repo.delete()
+    end
+
+    do_delete_from_s3 = fn ->
+      firmware.upload_metadata
+      |> Oban.Job.new(queue: :delete_firmware, worker: NervesHubWebCore.Workers.DeleteFirmware)
+      |> Oban.insert()
+    end
+
     Repo.transaction(fn ->
-      with {:ok, _} <- firmware |> Firmware.delete_changeset(%{}) |> Repo.delete(),
-           :ok <- @uploader.delete_file(firmware) do
-        :ok
+      with {:ok, firmware} <- do_delete_firmware.(),
+           {:ok, _} <- do_delete_from_s3.() do
+        {:ok, firmware}
       else
         {:error, error} -> Repo.rollback(error)
       end
     end)
-    |> case do
-      {:ok, _} -> :ok
-      ret -> ret
-    end
   end
 
   @spec verify_signature(String.t(), [OrgKey.t()]) ::

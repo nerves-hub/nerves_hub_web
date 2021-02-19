@@ -24,15 +24,16 @@ defmodule NervesHubWebCore.Accounts.Org do
   schema "orgs" do
     has_many(:org_keys, OrgKey)
     has_many(:products, Product)
-    has_many(:devices, Device)
+    has_many(:devices, Device, where: [deleted_at: nil])
     has_many(:ca_certificates, CACertificate)
     has_one(:org_limits, OrgLimit)
 
-    has_many(:org_users, OrgUser)
+    has_many(:org_users, OrgUser, where: [deleted_at: nil])
     has_many(:users, through: [:org_users, :user])
 
     field(:name, :string)
     field(:type, Type, default: :group)
+    field(:deleted_at, :utc_datetime)
 
     timestamps()
   end
