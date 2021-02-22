@@ -83,7 +83,8 @@ defmodule NervesHubWebCore.Devices do
     query =
       from(
         d in Device,
-        where: d.identifier == ^identifier and d.org_id == ^org_id
+        where: d.identifier == ^identifier and d.org_id == ^org_id,
+        preload: [:device_certificates]
       )
 
     query
