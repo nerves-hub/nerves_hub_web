@@ -113,6 +113,23 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     {:noreply, socket}
   end
 
+  def handle_event(
+        "delete-certificate",
+        %{"serial" => serial},
+        %{assigns: %{device: device}} = socket
+      ) do
+    certs = device.device_certificates
+
+    with db_cert <- Enum.find(certs, &(&1.serial == serial)),
+         {:ok, _db_cert} <- Devices.delete_device_certificate(db_cert),
+         updated_certs = Enum.reject(certs, &(&1.serial == serial)) do
+      {:noreply, assign(socket, device: %{device | device_certificates: updated_certs})}
+    else
+      _ ->
+        {:noreply, put_flash(socket, :error, "Failed to delete certificate #{serial}")}
+    end
+  end
+
   defp audit_log_assigns(%{assigns: %{device: device}} = socket) do
     all_logs = AuditLogs.logs_for_feed(device)
     paginate_opts = %{page_number: 1, page_size: 5}
@@ -166,6 +183,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     id = to_string(id)
     joins = Map.get(payload, :joins, %{})
     leaves = Map.get(payload, :leaves, %{})
+
+    device = Repo.preload(device, :device_certificates, force: true)
 
     cond do
       meta = joins[id] ->

@@ -143,6 +143,7 @@ defmodule NervesHubWWWWeb.Router do
             patch("/", DeviceController, :update)
             put("/", DeviceController, :update)
             delete("/", DeviceController, :delete)
+            get("/certificate/:cert_serial/download", DeviceController, :download_certificate)
           end
         end
 

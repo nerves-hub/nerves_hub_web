@@ -97,3 +97,57 @@
     <%= render(NervesHubWWWWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
   </div>
 </div>
+
+<h3 class="mb-2">Certificates</h3>
+<table class="table table-sm table-hover">
+  <thead>
+    <tr>
+      <th>Serial</th>
+      <th>Last used</th>
+      <th>Not before</th>
+      <th>Not after</th>
+    </tr>
+  </thead>
+  <tbody>
+    <%= for cert <- @device.device_certificates do %>
+      <tr class="item">
+        <td>
+          <div class="mobile-label help-text">Serial</div>
+          <code class="color-white wb-ba"><%= format_serial(cert.serial) %></code>
+        </td>
+        <td title="<%= cert.last_used %>">
+          <div class="mobile-label help-text">Last used</div>
+          <%= if !is_nil(cert.last_used) do %>
+            <%= DateTimeFormat.from_now(cert.last_used) %>
+          <% else %>
+            <span class="text-muted">Never</span>
+          <% end %>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Not before</div>
+          <div class="date-time"><%= cert.not_before %></div>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Not after</div>
+          <div class="date-time"><%= cert.not_after %></div>
+        </td>
+
+        <td class="actions">
+          <div class="mobile-label help-text">Actions</div>
+          <div class="dropdown options">
+            <%= if cert.der do %>
+              <a class="dropdown-toggle options" href="#" id="<%= cert.id %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <div class="mobile-label pr-2">Open</div>
+                <img src="/images/icons/more.svg" alt="options" />
+              </a>
+            <% end %>
+            <div class="dropdown-menu dropdown-menu-right">
+              <%= link("Download", class: "dropdown-item", aria_label: "Download Device Certificate", to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)) %>
+              <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial="<%= cert.serial %>" data-confirm="Delete <%= format_serial(cert.serial) %>?">Delete</a>
+            </div>
+          </div>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

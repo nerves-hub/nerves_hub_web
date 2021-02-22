@@ -8,7 +8,11 @@ defmodule NervesHubWWWWeb.DeviceController do
 
   plug(:validate_role, [product: :delete] when action in [:delete])
   plug(:validate_role, [product: :write] when action in [:new, :create, :edit])
-  plug(:validate_role, [product: :read] when action in [:index, :console, :show])
+
+  plug(
+    :validate_role,
+    [product: :read] when action in [:index, :console, :show, :download_certificate]
+  )
 
   def index(%{assigns: %{user: user, org: org, product: product}} = conn, _params) do
     conn
@@ -110,6 +114,18 @@ defmodule NervesHubWWWWeb.DeviceController do
             "device_id" => device.id
           }
         )
+    end
+  end
+
+  def download_certificate(%{assigns: %{device: device}} = conn, %{"cert_serial" => serial}) do
+    case Enum.find(device.device_certificates, &(&1.serial == serial)) do
+      %{der: der} ->
+        filename = "#{device.identifier}-cert.pem"
+        pem = X509.Certificate.from_der!(der) |> X509.Certificate.to_pem()
+        send_download(conn, {:binary, pem}, filename: filename)
+
+      _ ->
+        conn
     end
   end
 end
