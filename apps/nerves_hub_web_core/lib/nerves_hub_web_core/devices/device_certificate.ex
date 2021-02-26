@@ -23,6 +23,13 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
     :last_used
   ]
 
+  @nerves_hub_ca_skis [
+    # prod
+    <<217, 207, 36, 210, 12, 5, 144, 101, 188, 29, 178, 0, 0, 232, 112, 114, 75, 213, 233, 145>>,
+    # staging
+    <<40, 117, 24, 41, 252, 84, 254, 212, 72, 54, 173, 127, 169, 9, 229, 111, 184, 184, 156, 115>>
+  ]
+
   schema "device_certificates" do
     belongs_to(:device, Device)
     belongs_to(:org, Org)
@@ -110,6 +117,16 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
 
     case Devices.get_ca_certificate_by_ski(aki) do
       {:ok, %{org_id: ^org_id}} ->
+        changeset
+
+      {:ok, %{ski: ski}} when ski in @nerves_hub_ca_skis ->
+        # TODO: Remove this
+        #
+        # Device signer CA provided by NervesHubCA are added to the DB
+        # and used when user does not supply their own Signer CA.
+        # Adding to the DB prevents someone else from claiming ownership.
+        #
+        # Remove this when https://github.com/nerves-hub/nerves_hub_web/issues/316 implemented
         changeset
 
       {:ok, _ca} ->
