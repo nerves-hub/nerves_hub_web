@@ -27,7 +27,7 @@
 <div class="firmware-meta-grid">
   <div>
     <div class="help-text">UUID</div>
-    <p><%= @firmware.uuid %></p>
+    <p class="ff-m"><%= @firmware.uuid %></p>
   </div>
   <div>
     <div class="help-text">Platform</div>
@@ -49,7 +49,7 @@
   </div>
   <div class="gr-2">
     <div class="help-text">VCS ID</div>
-    <p>
+    <p class="ff-m">
       <%= if is_nil(@firmware.vcs_identifier) do %>
         -
       <% else %>

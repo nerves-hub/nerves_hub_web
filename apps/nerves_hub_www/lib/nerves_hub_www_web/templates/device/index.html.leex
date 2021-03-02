@@ -117,7 +117,7 @@
         <td>
           <div class="mobile-label help-text">Identifier</div>
           <div>
-            <a href="<%= Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="badge healthy-<%= device.healthy %>">
+            <a href="<%= Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="badge ff-m healthy-<%= device.healthy %>">
               <%= device.identifier %>
             </a>
           </div>

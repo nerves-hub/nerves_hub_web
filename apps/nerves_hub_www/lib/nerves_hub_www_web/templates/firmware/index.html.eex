@@ -34,7 +34,7 @@
         <td>
           <div class="mobile-label help-text">UUID</div>
           <div>
-            <a href="<%= Routes.firmware_path(@conn, :show, @org.name, @product.name, firmware.uuid) %>" class="badge"><%= firmware.uuid %></a>
+            <a href="<%= Routes.firmware_path(@conn, :show, @org.name, @product.name, firmware.uuid) %>" class="badge ff-m"><%= firmware.uuid %></a>
           </div>
         </td>
         <td>
