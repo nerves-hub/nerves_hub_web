@@ -45,7 +45,7 @@
         <td>
           <div class="mobile-label help-text">Firmware version</div>
           <div>
-            <span class="badge"><%= firmware_display_name(deployment.firmware) %></span>
+            <span class="badge ff-m"><%= firmware_display_name(deployment.firmware) %></span>
           </div>
         </td>
         <td>

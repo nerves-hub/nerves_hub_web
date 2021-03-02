@@ -73,7 +73,7 @@
         <%= if !is_nil(@device.firmware_metadata) do %>
           <div>
             <div class="help-text mb-1">UUID</div>
-            <p><%= @device.firmware_metadata.uuid %></p>
+            <p class="ff-m"><%= @device.firmware_metadata.uuid %></p>
           </div>
         <% end %>
       </div>
@@ -113,7 +113,7 @@
       <tr class="item">
         <td>
           <div class="mobile-label help-text">Serial</div>
-          <code class="color-white wb-ba"><%= format_serial(cert.serial) %></code>
+          <code class="color-white wb-ba ff-m"><%= format_serial(cert.serial) %></code>
         </td>
         <td title="<%= cert.last_used %>">
           <div class="mobile-label help-text">Last used</div>
