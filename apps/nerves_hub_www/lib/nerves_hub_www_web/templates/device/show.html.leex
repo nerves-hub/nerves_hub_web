@@ -135,14 +135,14 @@
         <td class="actions">
           <div class="mobile-label help-text">Actions</div>
           <div class="dropdown options">
-            <%= if cert.der do %>
               <a class="dropdown-toggle options" href="#" id="<%= cert.id %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <div class="mobile-label pr-2">Open</div>
                 <img src="/images/icons/more.svg" alt="options" />
               </a>
-            <% end %>
             <div class="dropdown-menu dropdown-menu-right">
-              <%= link("Download", class: "dropdown-item", aria_label: "Download Device Certificate", to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)) %>
+              <%= if cert.der do %>
+                <%= link("Download", class: "dropdown-item", aria_label: "Download Device Certificate", to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)) %>
+              <% end %>
               <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial="<%= cert.serial %>" data-confirm="Delete <%= format_serial(cert.serial) %>?">Delete</a>
             </div>
           </div>
