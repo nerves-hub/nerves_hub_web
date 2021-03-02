@@ -188,6 +188,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
           "edit.html",
           deployment: deployment,
           firmware: deployment.firmware,
+          firmwares: Firmwares.get_firmwares_by_product(product.id),
           changeset: changeset |> tags_to_string()
         )
     end

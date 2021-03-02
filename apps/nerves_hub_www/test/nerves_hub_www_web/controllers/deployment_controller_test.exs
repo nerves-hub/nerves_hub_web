@@ -214,6 +214,24 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       assert Enum.sort(reloaded_deployment.conditions["tags"]) == Enum.sort(~w(new tags now))
     end
 
+    test "failed update shows errors", %{
+      conn: conn,
+      user: user,
+      org: org,
+      org_key: org_key
+    } do
+      product = Fixtures.product_fixture(user, org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      deployment = Fixtures.deployment_fixture(org, firmware)
+
+      conn =
+        put(conn, Routes.deployment_path(conn, :update, org.name, product.name, deployment.name),
+          deployment: %{"tags" => "", "version" => ""}
+        )
+
+      assert response(conn, 200) =~ "should have at least 1 item(s)"
+    end
+
     test "audits on success", %{conn: conn, fixture: fixture} do
       %{org: org, deployment: deployment, product: product} = fixture
 
