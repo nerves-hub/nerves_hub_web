@@ -42,7 +42,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
         Devices.resolve_update(device, deployments)
         |> build_join_reply()
 
-      if join_reply.update_available do
+      if should_audit_log?(join_reply, params) do
         AuditLogs.audit!(hd(deployments), device, :update, %{
           from: "channel_join",
           send_update_message: true
@@ -183,4 +183,14 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   end
 
   defp build_join_reply(up), do: up
+
+  defp should_audit_log?(%{update_available: false}, _), do: false
+
+  defp should_audit_log?(%{deployment: %{firmware: %{uuid: uuid}}}, %{
+         "currently_downloading_uuid" => uuid
+       }) do
+    false
+  end
+
+  defp should_audit_log?(_join_reply, _params), do: true
 end
