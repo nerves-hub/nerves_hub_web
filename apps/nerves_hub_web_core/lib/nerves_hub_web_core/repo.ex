@@ -13,8 +13,6 @@ defmodule NervesHubWebCore.Repo do
     {:ok, Keyword.put(opts, :url, System.get_env("DATABASE_URL"))}
   end
 
-  def reload(%module{id: id}), do: get(module, id)
-
   def reload_assoc({:ok, schema}, assoc) do
     schema =
       case Map.get(schema, assoc) do

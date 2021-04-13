@@ -77,4 +77,6 @@ config :nerves_hub_web_core, Oban, queues: false, plugins: false
 #
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   http: [port: web_port],
-  server: false
+  server: false,
+  secret_key_base: "x7Vj9rmmRke//ctlapsPNGHXCRTnArTPbfsv6qX4PChFT9ARiNR5Ua8zoRilNCmX",
+  live_view: [signing_salt: "FnV9rP_c2BL11dvh"]
