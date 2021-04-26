@@ -109,10 +109,14 @@ defmodule NervesHubWebCore.FirmwaresTest do
       firmware = Fixtures.firmware_fixture(org_key, product)
       {:ok, _} = Firmwares.delete_firmware(firmware)
 
-      assert_enqueued([worker: NervesHubWebCore.Workers.DeleteFirmware, args: %{
-        "local_path" => firmware.upload_metadata[:local_path],
-        "public_path" => firmware.upload_metadata[:public_path]
-      }])
+      assert_enqueued(
+        worker: NervesHubWebCore.Workers.DeleteFirmware,
+        args: %{
+          "local_path" => firmware.upload_metadata[:local_path],
+          "public_path" => firmware.upload_metadata[:public_path]
+        }
+      )
+
       assert {:error, :not_found} = Firmwares.get_firmware(org, firmware.id)
     end
   end
