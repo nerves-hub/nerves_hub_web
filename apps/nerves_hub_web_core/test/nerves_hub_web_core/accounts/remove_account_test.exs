@@ -17,14 +17,14 @@ defmodule NervesHubWebCore.Accounts.RemoveAccountTest do
   end
 
   test "remove_account with org_users" do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user)
-    org_key = Fixtures.org_key_fixture(org)
-    product = Fixtures.product_fixture(user, org)
-    firmware1 = Fixtures.firmware_fixture(org_key, product)
-    Fixtures.deployment_fixture(org, firmware1)
-    device = Fixtures.device_fixture(org, product, firmware1)
-    Fixtures.device_certificate_fixture(device)
+    %{
+      firmware: firmware1,
+      user: user,
+      org: org,
+      org_key: org_key,
+      product: product
+    } = Fixtures.standard_fixture()
+
     firmware2 = Fixtures.firmware_fixture(org_key, product)
     Fixtures.firmware_delta_fixture(firmware1, firmware2)
 
@@ -38,7 +38,6 @@ defmodule NervesHubWebCore.Accounts.RemoveAccountTest do
     org2_firmware = Fixtures.firmware_fixture(org2_key, org2_product)
     Fixtures.deployment_fixture(org, org2_firmware)
 
-    %{firmware: firmware1, org_key: org_key, product: product} = Fixtures.standard_fixture()
     firmware2 = Fixtures.firmware_fixture(org_key, product)
     Fixtures.firmware_delta_fixture(firmware1, firmware2)
 
