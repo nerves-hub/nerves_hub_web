@@ -13,6 +13,16 @@ defmodule NervesHubWebCore.Release.Tasks do
     stop()
   end
 
+  def create do
+    init(@otp_app, @start_apps)
+
+    run_create_for(@otp_app)
+    run_migrations_for(@otp_app)
+    run_seed_script("#{seed_path(@otp_app)}/seeds.exs")
+
+    stop()
+  end
+
   def gc do
     init(@otp_app, @start_apps)
 
@@ -40,17 +50,30 @@ defmodule NervesHubWebCore.Release.Tasks do
     :init.stop()
   end
 
+  defp run_create_for(app) do
+    IO.puts("Creating Database for #{app}")
+
+    ecto_repos(app) |> Enum.each(&create_repo(&1))
+  end
+
+  defp create_repo(repo) do
+    repo.__adapter__.storage_up(repo.config)
+  end
+
   defp run_migrations_for(app) do
     IO.puts("Running migrations for #{app}")
 
-    app
-    |> Application.get_env(:ecto_repos, [])
+    ecto_repos(app)
     |> Enum.each(&Migrator.run(&1, migrations_path(app), :up, all: true))
   end
 
   def run_seed_script(seed_script) do
     IO.puts("Running seed script #{seed_script}...")
     Code.eval_file(seed_script)
+  end
+
+  defp ecto_repos(app) do
+    Application.get_env(app, :ecto_repos, [])
   end
 
   defp migrations_path(app), do: priv_dir(app, ["repo", "migrations"])
