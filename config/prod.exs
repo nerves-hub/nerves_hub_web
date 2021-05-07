@@ -34,7 +34,7 @@ config :nerves_hub_web_core, NervesHubWebCore.Mailer,
   ssl: false,
   retries: 1
 
-config :nerves_hub_web_core, NervesHubWebCore.Repo, pool_size: 20
+config :nerves_hub_web_core, NervesHubWebCore.Repo, pool_size: 10
 
 ##
 # NervesHubWWW
