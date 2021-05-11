@@ -268,6 +268,38 @@ defmodule NervesHubWebCore.Fixtures do
     |> Path.join("ssl/device-root-ca.pem")
   end
 
+  def device_certificate_authority_key_file() do
+    path()
+    |> Path.join("ssl/device-root-ca-key.pem")
+  end
+
+  def generate_certificate_authority_csr(ca_file, ca_key_file, code, dir) do
+    verification_key_pem = Path.expand("verification-key.pem", dir)
+    verification_csr_pem = Path.expand("verification-csr.pem", dir)
+    verification_cert_pem = Path.expand("verification-cert.pem", dir)
+    openssl(~w(genrsa -out #{verification_key_pem} 2048), dir)
+
+    openssl(
+      ~w(req -new -key #{verification_key_pem} -out #{verification_csr_pem} -subj /CN=#{code}),
+      dir
+    )
+
+    openssl(
+      ~w(x509 -req -in #{verification_csr_pem} -CA #{ca_file} -CAkey #{ca_key_file} -CAcreateserial -out #{verification_cert_pem} -days 500 -sha256),
+      dir
+    )
+
+    %{
+      verification_key_pem: verification_key_pem,
+      verification_cert_pem: verification_cert_pem,
+      verification_csr_pem: verification_csr_pem
+    }
+  end
+
+  defp openssl(args, dir) do
+    {_, 0} = System.cmd("openssl", args, cd: dir, stderr_to_stdout: true)
+  end
+
   def bad_device_certificate_authority_file() do
     path()
     |> Path.join("ssl/device-root-ca-key.pem")

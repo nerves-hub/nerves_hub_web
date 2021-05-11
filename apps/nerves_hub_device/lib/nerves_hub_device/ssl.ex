@@ -103,7 +103,7 @@ defmodule NervesHubDevice.SSL do
          :ok <- check_expiration(db_ca),
          der = Certificate.to_der(otp_cert),
          {:ok, _} <- :public_key.pkix_path_validation(db_ca.der, [der], []),
-         {:ok, device} <- check_device_exists(cn, db_ca.org_id),
+         {:ok, device} <- maybe_jitp_device(cn, db_ca),
          :ok <- check_new_public_key_allowed(device),
          params = params_from_otp_cert(otp_cert) do
       Devices.create_device_certificate(device, params)
@@ -162,10 +162,29 @@ defmodule NervesHubDevice.SSL do
     end
   end
 
-  defp check_device_exists(cn, org_id) do
+  defp maybe_jitp_device(cn, %{org_id: org_id, jitp: nil}) do
     case Devices.get_device_by(identifier: cn, org_id: org_id) do
       {:ok, _d} = resp -> resp
       _ -> :device_not_registered
+    end
+  end
+
+  defp maybe_jitp_device(cn, %{org_id: org_id, jitp: %Devices.CACertificate.JITP{} = jitp}) do
+    case Devices.get_device_by(identifier: cn, org_id: org_id) do
+      {:ok, _d} = resp ->
+        resp
+
+      _ ->
+        case Devices.create_device(%{
+               identifier: cn,
+               org_id: org_id,
+               product_id: jitp.product_id,
+               tags: jitp.tags,
+               description: jitp.description
+             }) do
+          {:ok, _d} = resp -> resp
+          _ -> :device_registration_failed
+        end
     end
   end
 

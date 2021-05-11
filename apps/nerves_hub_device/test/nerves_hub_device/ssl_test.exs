@@ -79,6 +79,44 @@ defmodule NervesHubDevice.SSLTest do
       assert reloaded.public_key_fingerprint ==
                Certificate.public_key_fingerprint(context.unknown_cert)
     end
+
+    test "jitp", _ do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "jitp_verify_device"})
+      product = Fixtures.product_fixture(user, org)
+      ca = Fixtures.ca_certificate_fixture(org)
+      identifier = "jitp_device"
+
+      subject_rdn = "/O=#{org.name}/CN=#{identifier}"
+
+      public_key =
+        X509.PrivateKey.new_ec(:secp256r1)
+        |> X509.PublicKey.derive()
+
+      otp_cert = X509.Certificate.new(public_key, subject_rdn, ca.cert, ca.key)
+
+      # Enable JITP
+      jitp =
+        %Devices.CACertificate.JITP{
+          product_id: product.id,
+          tags: ["hello", "jitp"],
+          description: "jitp"
+        }
+        |> NervesHubWebCore.Repo.insert!()
+
+      ca.db_cert
+      |> NervesHubWebCore.Repo.preload([:org, :jitp])
+      |> Ecto.Changeset.change(%{jitp_id: jitp.id})
+      |> NervesHubWebCore.Repo.update!()
+
+      assert Devices.get_device_by_identifier(org, identifier) == {:error, :not_found}
+      assert {:valid, _state} = run_verify(otp_cert, {:bad_cert, :unknown_ca})
+      assert {:ok, device} = Devices.get_device_by_identifier(org, identifier)
+      assert device.identifier == identifier
+      assert device.description == "jitp"
+      assert device.product_id == product.id
+      assert device.tags == ["hello", "jitp"]
+    end
   end
 
   describe "known public key" do

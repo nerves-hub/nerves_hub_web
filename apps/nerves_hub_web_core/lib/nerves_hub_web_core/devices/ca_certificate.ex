@@ -4,6 +4,7 @@ defmodule NervesHubWebCore.Devices.CACertificate do
 
   alias NervesHubWebCore.Accounts.Org
   alias NervesHubWebCore.Devices.CACertificate
+  alias NervesHubWebCore.Devices.CACertificate.JITP
 
   @type t :: %__MODULE__{}
 
@@ -24,6 +25,7 @@ defmodule NervesHubWebCore.Devices.CACertificate do
 
   schema "ca_certificates" do
     belongs_to(:org, Org, where: [deleted_at: nil])
+    belongs_to(:jitp, JITP)
 
     field(:description, :string)
     field(:serial, :string)
@@ -42,6 +44,7 @@ defmodule NervesHubWebCore.Devices.CACertificate do
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
     |> unique_constraint(:serial, name: :ca_certificates_serial_index)
+    |> cast_assoc(:jitp)
   end
 
   def update_changeset(%CACertificate{} = ca_certificate, params) do

@@ -22,3 +22,4 @@ erl_crash.dump
 
 node_modules/
 assets/*.log
+tmp
