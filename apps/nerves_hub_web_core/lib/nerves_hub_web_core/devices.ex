@@ -325,7 +325,7 @@ defmodule NervesHubWebCore.Devices do
   end
 
   def get_ca_certificates(%Org{id: org_id}) do
-    from(ca in CACertificate, where: ca.org_id == ^org_id)
+    from(ca in CACertificate, where: ca.org_id == ^org_id, preload: :jitp)
     |> Repo.all()
   end
 
@@ -334,7 +334,7 @@ defmodule NervesHubWebCore.Devices do
     Repo.get_by(CACertificate, aki: aki)
     |> case do
       nil -> {:error, :not_found}
-      ca_cert -> {:ok, ca_cert}
+      ca_cert -> preload_cert(ca_cert)
     end
   end
 
@@ -343,7 +343,7 @@ defmodule NervesHubWebCore.Devices do
     Repo.get_by(CACertificate, ski: ski)
     |> case do
       nil -> {:error, :not_found}
-      ca_cert -> {:ok, ca_cert}
+      ca_cert -> preload_cert(ca_cert)
     end
   end
 
@@ -352,7 +352,7 @@ defmodule NervesHubWebCore.Devices do
     Repo.get_by(CACertificate, serial: serial)
     |> case do
       nil -> {:error, :not_found}
-      ca_cert -> {:ok, ca_cert}
+      ca_cert -> preload_cert(ca_cert)
     end
   end
 
@@ -371,9 +371,13 @@ defmodule NervesHubWebCore.Devices do
       nil ->
         {:error, :not_found}
 
-      ca_certificate ->
-        {:ok, ca_certificate}
+      ca_cert ->
+        preload_cert(ca_cert)
     end
+  end
+
+  def preload_cert(%CACertificate{} = certificate) do
+    {:ok, Repo.preload(certificate, [:jitp])}
   end
 
   def update_ca_certificate(%CACertificate{} = certificate, params) do

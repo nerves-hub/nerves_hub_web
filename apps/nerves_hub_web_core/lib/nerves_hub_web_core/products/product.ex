@@ -6,6 +6,7 @@ defmodule NervesHubWebCore.Products.Product do
   alias NervesHubWebCore.Accounts.Org
   alias NervesHubWebCore.Firmwares.Firmware
   alias NervesHubWebCore.Products.ProductUser
+  alias NervesHubWebCore.Devices.CACertificate
   alias NervesHubWebCore.Repo
 
   @required_params [:name, :org_id]
@@ -18,6 +19,7 @@ defmodule NervesHubWebCore.Products.Product do
     has_many(:firmwares, Firmware)
     has_many(:product_users, ProductUser)
     has_many(:users, through: [:product_users, :user])
+    has_one(:jitp, CACertificate.JITP)
 
     belongs_to(:org, Org, where: [deleted_at: nil])
 

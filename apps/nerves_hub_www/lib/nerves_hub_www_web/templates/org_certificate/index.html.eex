@@ -14,6 +14,7 @@
       <th>Last used</th>
       <th>Not before</th>
       <th>Not after</th>
+      <th>JITP Enabled? </th>
     </tr>
   </thead>
   <tbody>
@@ -46,6 +47,9 @@
         <td>
           <div class="mobile-label help-text">Not after</div>
           <div class="date-time"><%= cert.not_after %></div>
+        </td>
+        <td>
+          <span class="text-muted"><%= if is_nil(cert.jitp), do: "no", else: "yes" %></span>
         </td>
         <td class="actions">
           <div class="mobile-label help-text">Actions</div>
