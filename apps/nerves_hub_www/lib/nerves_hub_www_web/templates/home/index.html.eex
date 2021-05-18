@@ -13,7 +13,9 @@
   <div class="hero-text">
     <h1>Manage OTA firmware updates across your devices</h1>
     <p>NervesHub is an extensible web service that allows you to manage over-the-air (OTA) firmware updates of devices in the field. Built with Phoenix, NervesHub delivers first-class support for hardware deployments directly from the command line.</p>
-    <a class="btn btn-primary btn-lg btn-home josh-js" data-josh-anim-name="pulse" href="<%= Routes.account_path(@conn, :new) %>">Get Started</a>
+    <%= if permit_uninvited_signups() do %>
+      <a class="btn btn-primary btn-lg btn-home josh-js" data-josh-anim-name="pulse" href="<%= Routes.account_path(@conn, :new) %>">Get Started</a>
+    <% end %>
   </div>
   <div class="hero-image">
     <img src="/images/home/hero.svg" alt="hero image"/>
