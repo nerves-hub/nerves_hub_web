@@ -300,7 +300,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   end
 
   defp do_filter(socket, %{"tag" => tag} = filters) do
-    tag_match = &Enum.filter(&1, fn device -> Enum.any?(device.tags, fn t -> t =~ tag end) end)
+    tag_match =
+      &Enum.filter(&1, fn device -> Enum.any?(device.tags || [], fn t -> t =~ tag end) end)
 
     apply_filter(socket, filters, "tag", tag_match)
   end
