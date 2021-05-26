@@ -44,7 +44,7 @@ config :ex_aws, :s3, host: System.get_env("AWS_HOST", "amazonaws.com")
 config :nerves_hub_web_core, NervesHubWebCore.Mailer,
   adapter: Bamboo.SMTPAdapter,
   server: System.fetch_env!("SES_SERVER"),
-  port: System.fetch_env!("SES_PORT"),
+  port: System.fetch_env!("SES_PORT") |> String.to_integer(),
   username: System.fetch_env!("SMTP_USERNAME"),
   password: System.fetch_env!("SMTP_PASSWORD")
 

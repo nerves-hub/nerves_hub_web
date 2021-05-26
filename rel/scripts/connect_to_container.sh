@@ -48,8 +48,6 @@ CONNECT_TASK_ARN=$(echo $CONNECT_TASK | jq -r '.tasks[0] .taskArn')
 wait_for_container $CONNECT_TASK_ARN
 sleep 30
 
-set -x
-
 aws ecs execute-command  \
     --cluster $CLUSTER \
     --task $CONNECT_TASK_ARN \
