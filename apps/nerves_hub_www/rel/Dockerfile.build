@@ -55,12 +55,14 @@ COPY --from=builder /build/rel/scripts/docker-entrypoint.sh .
 COPY --from=builder /build/rel/scripts/s3-sync.sh .
 COPY --from=builder /build/rel/scripts/ecs-sync-nodes.sh .
 COPY --from=builder /build/rel/scripts/ecs-cluster.sh .
+COPY --from=builder /build/rel/scripts/ecs-local-ipv4.sh .
 COPY --from=builder /build/rel/scripts/update-org-limits.sh .
 
 RUN ["chmod", "+x", "/app/docker-entrypoint.sh"]
 RUN ["chmod", "+x", "/app/s3-sync.sh"]
 RUN ["chmod", "+x", "/app/ecs-sync-nodes.sh"]
 RUN ["chmod", "+x", "/app/ecs-cluster.sh"]
+RUN ["chmod", "+x", "/app/ecs-local-ipv4.sh"]
 RUN ["chmod", "+x", "/app/update-org-limits.sh"]
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

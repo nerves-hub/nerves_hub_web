@@ -1,9 +1,12 @@
 #!/bin/bash
 
+APP=${1:-"www"}
+
 VPC=nerves-hub-production
 CLUSTER=nerves-hub-production
 SG=nerves-hub-production-web-sg
-TASK=nerves-hub-production-www
+TASK="nerves-hub-production-$APP"
+CONTAINER="nerves_hub_$APP"
 
 task_status() {
   aws ecs describe-tasks --tasks $1 --cluster $CLUSTER | jq -r '.tasks[] .containers[0] .lastStatus'
@@ -47,12 +50,12 @@ CONNECT_TASK_ARN=$(echo $CONNECT_TASK | jq -r '.tasks[0] .taskArn')
 
 wait_for_container $CONNECT_TASK_ARN
 sleep 30
-
+set -x
 aws ecs execute-command  \
     --cluster $CLUSTER \
     --task $CONNECT_TASK_ARN \
     --command "/bin/bash" \
-    --container nerves_hub_www \
+    --container $CONTAINER \
     --interactive
 
 aws ecs stop-task \

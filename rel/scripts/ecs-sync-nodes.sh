@@ -19,8 +19,6 @@ format_nodes() {
   for IP in $1; do echo "$2@$IP"; done
 }
 
-METADATA=`curl -s $ECS_CONTAINER_METADATA_URI`
-export LOCAL_IPV4=$(echo $METADATA | jq -r '.Networks[0] .IPv4Addresses[0]')
 export AWS_REGION_NAME=us-east-1
 
 WWW_IPS=$(service_ip_addresses nerves-hub-www)
