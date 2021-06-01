@@ -148,8 +148,12 @@ defmodule NervesHubWWWWeb.OrgCertificateControllerTest do
       csr_upload = %Plug.Upload{path: verification_cert_pem}
 
       params = %{
-        ca_certificate: %{cert: cert_upload, csr: csr_upload, description: description},
-        jitp: %{tags: ["prod"], description: "jitp"}
+        ca_certificate: %{
+          cert: cert_upload,
+          csr: csr_upload,
+          description: description,
+          jitp: %{tags: ["prod"], description: "jitp"}
+        }
       }
 
       conn = post(conn, Routes.org_certificate_path(conn, :create, org.name), params)
