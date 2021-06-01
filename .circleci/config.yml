@@ -80,27 +80,30 @@ send_notifications: &send_notifications
         "#nerves-hub" \
         "NervesHub Deployment" "Deployed: $CLUSTER:\`$APP_NAME:$DOCKER_TAG\`"
 
-version: 2
+version: 2.1
+orbs:
+  docker: circleci/docker@1.6.0
 jobs:
   fetch_deps:
     docker:
-      - image: circleci/elixir:1.10
+      - image: hexpm/elixir:1.11.4-erlang-23.0.4-alpine-3.13.1
         environment:
           MIX_ENV: test
     working_directory: ~/app
 
     steps:
       - checkout
+      - run: apk add build-base git
       - run: mix local.hex --force
       - run: mix local.rebar --force
       - run: mix do deps.get
       - save_cache:
-          key: mix-deps-{{ .Branch }}-{{ checksum "mix.lock" }}
+          key: mix-deps-v1-{{ .Branch }}-{{ checksum "mix.lock" }}
           paths: "deps"
 
   test_elixir:
     docker:
-      - image: circleci/elixir:1.10
+      - image: hexpm/elixir:1.11.4-erlang-23.0.4-alpine-3.13.1
         environment:
           MIX_ENV: test
           DATABASE_URL: postgres://db:db@localhost:5432/db
@@ -115,13 +118,13 @@ jobs:
     working_directory: ~/app
     steps:
       - checkout
-      - run: wget https://github.com/fhunleth/fwup/releases/download/v1.3.2/fwup_1.3.2_amd64.deb
-      - run: sudo dpkg -i ./fwup_1.3.2_amd64.deb
+      - run: apk add build-base git fwup curl sudo
+      - docker/install-dockerize
       - run: mix local.hex --force
       - run: mix local.rebar --force
       - restore_cache:
           keys:
-            - mix-deps-{{ .Branch }}-{{ checksum "mix.lock" }}
+            - mix-deps-v1-{{ .Branch }}-{{ checksum "mix.lock" }}
       - run: mix compile
       - run:
           name: Wait for DB
@@ -142,7 +145,7 @@ jobs:
           path: ~/app
       - restore_cache:
           keys:
-            - mix-deps-{{ .Branch }}-{{ checksum "../../../mix.lock" }}
+            - mix-deps-v1-{{ .Branch }}-{{ checksum "../../../mix.lock" }}
       - run: npm install
       - run:
           name: Verify formatting
