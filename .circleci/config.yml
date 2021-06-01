@@ -453,15 +453,15 @@ workflows:
             context: org-global
             requires:
               - fetch_deps
-        - test_javascript:
-            context: org-global
-            requires:
-              - fetch_deps
+        # - test_javascript:
+        #     context: org-global
+        #     requires:
+        #       - fetch_deps
         - build-www:
             context: org-global
             requires:
               - test_elixir
-              - test_javascript
+              # - test_javascript
         - build-device:
             context: org-global
             requires:
