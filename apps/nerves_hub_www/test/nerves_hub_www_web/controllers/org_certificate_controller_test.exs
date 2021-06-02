@@ -130,12 +130,13 @@ defmodule NervesHubWWWWeb.OrgCertificateControllerTest do
 
     @tag :tmp_dir
     @tag timeout: :infinity
-    test "create with JITP", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+    test "create with JITP", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       conn = get(conn, Routes.org_certificate_path(conn, :new, org.name))
       session = Plug.Conn.get_session(conn)
       code = session["registration_code"]
       ca_file_path = Fixtures.device_certificate_authority_file()
       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
+      product = Fixtures.product_fixture(user, org)
 
       %{verification_cert_pem: verification_cert_pem} =
         Fixtures.generate_certificate_authority_csr(ca_file_path, ca_key_file_path, code, tmp_dir)
@@ -152,7 +153,7 @@ defmodule NervesHubWWWWeb.OrgCertificateControllerTest do
           cert: cert_upload,
           csr: csr_upload,
           description: description,
-          jitp: %{tags: ["prod"], description: "jitp"}
+          jitp: %{tags: ["prod"], description: "jitp", product_id: product.id}
         }
       }
 

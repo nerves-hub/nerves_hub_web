@@ -14,9 +14,13 @@ defmodule NervesHubWebCore.Devices.CACertificate.JITP do
     timestamps()
   end
 
+  def changeset(jitp, %{"delete" => "true"}) do
+    %{change(jitp) | action: :delete}
+  end
+
   def changeset(jitp, params) do
     jitp
-    |> cast(params, [:tags, :description])
-    |> validate_required([:tags, :description])
+    |> cast(params, [:tags, :description, :product_id])
+    |> validate_required([:tags, :description, :product_id])
   end
 end

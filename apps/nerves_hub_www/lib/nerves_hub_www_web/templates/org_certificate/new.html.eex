@@ -44,7 +44,7 @@
 
   <%= inputs_for f, :jitp, fn fp -> %>
     <label for="jitp_toggle"> Enable Just In Time Provisioning </label>
-    <input type="checkbox" name="jitp_toggle" id="jitp_toggle">
+    <%= checkbox fp, :jitp_toggle, id: "jitp_toggle" %>
     <div hidden id="jitp_form">
       <div class="form-group">
         <label for="description_input" class="tooltip-label h3 mb-1">
@@ -72,7 +72,7 @@
           <span class="tooltip-info"></span>
           <span class="tooltip-text">JITP must be configured to use a particular product</span>
         </label>
-        <%= select fp, :product_id, Enum.map(@products, &{&1.name, &1.id}), class: "form-control", id: "product_input" %>
+        <%= select fp, :product_id, Enum.map(@products, &{&1.name, &1.id}), class: "form-control", id: "product_input", prompt: "Select Product" %>
         <div class="has-error"><%= error_tag fp, :product_id %></div>
       </div>
     </div>
