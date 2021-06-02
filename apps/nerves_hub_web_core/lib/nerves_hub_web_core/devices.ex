@@ -241,7 +241,8 @@ defmodule NervesHubWebCore.Devices do
             c.serial == ^serial and
             c.aki == ^aki and
             c.not_before == ^not_before and
-            c.not_after == ^not_after
+            c.not_after == ^not_after,
+        preload: :device
       )
 
     query

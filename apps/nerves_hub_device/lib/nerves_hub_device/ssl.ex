@@ -77,12 +77,15 @@ defmodule NervesHubDevice.SSL do
     # the certificate stored, but in the future there might be reasons
     # to consider expirations for existing
     case Devices.get_device_certificate_by_x509(otp_cert) do
-      {:ok, db_cert} ->
+      {:ok, %{device: %{deleted_at: nil}} = db_cert} ->
         Devices.update_device_certificate(db_cert, %{
           last_used: DateTime.utc_now(),
           # TODO: Remove once enough time has allowed existing DERs to be captured ¬
           der: Certificate.to_der(otp_cert)
         })
+
+      {:ok, _db_cert} ->
+        :ignore_deleted_device
 
       _ ->
         maybe_register(otp_cert)
@@ -91,8 +94,14 @@ defmodule NervesHubDevice.SSL do
 
   defp maybe_register(otp_cert) do
     case Devices.get_device_certificates_by_public_key(otp_cert) do
-      [] -> maybe_register_from_new_public_key(otp_cert)
-      [%{device: device} | _] -> maybe_register_from_existing_public_key(otp_cert, device)
+      [] ->
+        maybe_register_from_new_public_key(otp_cert)
+
+      [%{device: %{deleted_at: nil} = device} | _] ->
+        maybe_register_from_existing_public_key(otp_cert, device)
+
+      _ ->
+        :ignore_deleted_device
     end
   end
 
@@ -164,15 +173,19 @@ defmodule NervesHubDevice.SSL do
 
   defp maybe_jitp_device(cn, %{org_id: org_id, jitp: nil}) do
     case Devices.get_device_by(identifier: cn, org_id: org_id) do
-      {:ok, _d} = resp -> resp
+      {:ok, %{deleted_at: nil}} = resp -> resp
+      {:ok, _d} -> :ignore_deleted_device
       _ -> :device_not_registered
     end
   end
 
   defp maybe_jitp_device(cn, %{org_id: org_id, jitp: %Devices.CACertificate.JITP{} = jitp}) do
     case Devices.get_device_by(identifier: cn, org_id: org_id) do
-      {:ok, _d} = resp ->
+      {:ok, %{deleted_at: nil}} = resp ->
         resp
+
+      {:ok, _deleted} ->
+        :ignore_deleted_device
 
       _ ->
         case Devices.create_device(%{
