@@ -26,10 +26,10 @@ defmodule NervesHubWebCore.Plugs.AllowUninvitedSignupsTest do
     end
 
     test "user is not redirected when signups are enabled", %{conn: conn} do
-      conn = NervesHubWebCore.Plugs.AllowUninvitedSignups.call(conn, allow_signups: true)
+      conn_through = NervesHubWebCore.Plugs.AllowUninvitedSignups.call(conn, allow_signups: true)
 
-      assert conn.status != 302
-      assert conn == conn
+      assert conn_through.status != 302
+      assert conn_through == conn
     end
   end
 
@@ -52,8 +52,8 @@ defmodule NervesHubWebCore.Plugs.AllowUninvitedSignupsTest do
     end
 
     test "passes conn when signups are allowed", %{conn: conn} do
-      conn = NervesHubWebCore.Plugs.AllowUninvitedSignups.call(conn, allow_signups: false)
-      assert conn == conn
+      conn_through = NervesHubWebCore.Plugs.AllowUninvitedSignups.call(conn, allow_signups: true)
+      assert conn_through == conn
     end
   end
 end
