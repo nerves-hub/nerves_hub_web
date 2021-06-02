@@ -49,5 +49,6 @@ defmodule NervesHubWebCore.Devices.CACertificate do
 
   def update_changeset(%CACertificate{} = ca_certificate, params) do
     cast(ca_certificate, params, [:description, :last_used])
+    |> cast_assoc(:jitp)
   end
 end

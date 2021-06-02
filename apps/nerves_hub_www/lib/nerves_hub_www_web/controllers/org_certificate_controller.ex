@@ -30,10 +30,15 @@ defmodule NervesHubWWWWeb.OrgCertificateController do
     )
   end
 
-  def edit(%{assigns: %{org: org}} = conn, %{"serial" => serial}) do
+  def edit(%{assigns: %{org: org, user: user}} = conn, %{"serial" => serial}) do
     with {:ok, cert} <- Devices.get_ca_certificate_by_serial(serial),
          changeset <- Devices.CACertificate.changeset(cert, %{}) do
-      render(conn, "edit.html", changeset: changeset, org: org, cert: cert)
+      render(conn, "edit.html",
+        changeset: changeset,
+        org: org,
+        serial: cert.serial,
+        products: NervesHubWebCore.Products.get_products_by_user_and_org(user, org)
+      )
     else
       {:error, :not_found} ->
         conn
@@ -42,8 +47,12 @@ defmodule NervesHubWWWWeb.OrgCertificateController do
     end
   end
 
-  def update(%{assigns: %{org: org}} = conn, %{"ca_certificate" => params, "serial" => serial}) do
+  def update(%{assigns: %{org: org, user: user}} = conn, %{
+        "ca_certificate" => params,
+        "serial" => serial
+      }) do
     with {:ok, cert} <- Devices.get_ca_certificate_by_serial(serial),
+         {:ok, params} <- maybe_delete_jitp(params),
          {:ok, _cert} <- Devices.update_ca_certificate(cert, params) do
       conn
       |> put_flash(:info, "Certificate Authority updated")
@@ -57,20 +66,24 @@ defmodule NervesHubWWWWeb.OrgCertificateController do
       {:error, changeset} ->
         conn
         |> put_flash(:error, "Error updating certificate")
-        |> render("edit.html", changeset: changeset)
+        |> render(conn, "edit.html",
+          changeset: changeset,
+          org: org,
+          serial: serial,
+          products: NervesHubWebCore.Products.get_products_by_user_and_org(user, org)
+        )
     end
   end
-
-  require IEx
 
   def create(
         %{assigns: %{org: org, user: user}} = conn,
         %{
-          "ca_certificate" => %{
-            "cert" => %{path: cert_upload_path},
-            "csr" => %{path: csr_upload_path}
-          }
-        } = params
+          "ca_certificate" =>
+            %{
+              "cert" => %{path: cert_upload_path},
+              "csr" => %{path: csr_upload_path}
+            } = params
+        }
       ) do
     with {:ok, cert_pem} <- File.read(cert_upload_path),
          {:ok, csr_pem} <- File.read(csr_upload_path),
@@ -84,6 +97,7 @@ defmodule NervesHubWWWWeb.OrgCertificateController do
          {_csr_not_before, _csr_not_after} = csr_validity <- Certificate.get_validity(csr),
          :ok <- check_validity(cert_validity),
          :ok <- check_validity(csr_validity),
+         {:ok, params} <- maybe_delete_jitp(params),
          params <- %{
            serial: serial,
            aki: aki,
@@ -91,8 +105,8 @@ defmodule NervesHubWWWWeb.OrgCertificateController do
            not_before: cert_not_before,
            not_after: cert_not_after,
            der: X509.Certificate.to_der(cert),
-           description: Map.get(params["ca_certificate"], "description"),
-           jitp: Map.get(params["ca_certificate"], "jitp")
+           description: params["description"],
+           jitp: params["jitp"]
          },
          {:ok, _ca_certificate} <- Devices.create_ca_certificate(org, params) do
       conn
@@ -163,4 +177,22 @@ defmodule NervesHubWWWWeb.OrgCertificateController do
       :ok
     end
   end
+
+  defp maybe_delete_jitp(%{"jitp" => %{"delete" => "", "id" => _id_str}} = params) do
+    # View was loaded with existing JITP, but was unchanged
+    {:ok, params}
+  end
+
+  defp maybe_delete_jitp(%{"jitp" => %{"delete" => ""}} = params) do
+    # View was loaded but JITP not changed and will be missing pieces
+    # so make sure not to include it in update
+    {:ok, Map.delete(params, "jitp")}
+  end
+
+  defp maybe_delete_jitp(%{"jitp" => %{"jitp_toggle" => "false"}} = params) do
+    # JITP is toggled off when creating cert
+    {:ok, Map.delete(params, "jitp")}
+  end
+
+  defp maybe_delete_jitp(params), do: {:ok, params}
 end
