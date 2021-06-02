@@ -12,7 +12,7 @@ defmodule NervesHubWebCore.Repo.Migrations.AddJitpToCaCertificates do
     create unique_index(:jitp, [:product_id])
 
     alter table(:ca_certificates) do
-      add :jitp_id, references(:jitp, on_delete: :delete_all)
+      add :jitp_id, references(:jitp, on_delete: :nilify_all)
     end
 
     create unique_index(:ca_certificates, [:jitp_id])
