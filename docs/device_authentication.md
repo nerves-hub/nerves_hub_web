@@ -26,7 +26,10 @@ device's certificate on file.
 Devices connect to NervesHub over TLS. NervesHub requests a certificate from the
 device. After the TLS stack receives the certificate, it does some processing
 and then passes it on to NervesHub code that does the following.  Note that
-nothing in the X.509 certificate from the device is trusted at the beginning.
+nothing in the X.509 certificate from the device is trusted at the beginning and
+if the device has been soft deleted, all certificate validation is skipped and
+authentication halted. The device record will need to be restored (or completely
+deleted) to authenticate again.
 
 1. Compute a SHA-1 hash on the device certificate in DER form. This is
    called the certificate fingerprint.

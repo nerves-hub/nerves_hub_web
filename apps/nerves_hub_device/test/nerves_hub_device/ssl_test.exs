@@ -117,6 +117,12 @@ defmodule NervesHubDevice.SSLTest do
       assert device.product_id == product.id
       assert device.tags == ["hello", "jitp"]
     end
+
+    test "rejects a deleted device", context do
+      assert {:ok, device} = Repo.soft_delete(context.device)
+      assert device.deleted_at
+      assert {:fail, :ignore_deleted_device} = run_verify(context.cert)
+    end
   end
 
   describe "known public key" do
@@ -178,6 +184,12 @@ defmodule NervesHubDevice.SSLTest do
       assert is_nil(db_ca.last_used)
       assert {:fail, :invalid_issuer} = run_verify(context.cert2)
       refute is_nil(Fixtures.reload(db_ca).last_used)
+    end
+
+    test "rejects a deleted device", context do
+      assert {:ok, device} = Repo.soft_delete(context.device)
+      assert device.deleted_at
+      assert {:fail, :ignore_deleted_device} = run_verify(context.cert2)
     end
 
     # TODO: Test registering with expired signer if allowed
@@ -252,6 +264,34 @@ defmodule NervesHubDevice.SSLTest do
 
       # Use known CA which is a different public key
       assert {:fail, :unexpected_pubkey} = run_verify(context.unknown_cert)
+    end
+
+    test "rejects deleted device without JITP profile", context do
+      refute context.ca_db_cert.jitp_id
+      assert {:ok, device} = Repo.soft_delete(context.device)
+      assert device.deleted_at
+      assert {:fail, :ignore_deleted_device} = run_verify(context.cert)
+    end
+
+    test "rejects deleted device with JITP profile", context do
+      # Add JITP profile to CA db cert
+      jitp =
+        %Devices.CACertificate.JITP{
+          product_id: context.product.id,
+          tags: ["hello", "jitp"],
+          description: "jitp"
+        }
+        |> NervesHubWebCore.Repo.insert!()
+
+      context.ca_db_cert
+      |> NervesHubWebCore.Repo.preload([:org, :jitp])
+      |> Ecto.Changeset.change(%{jitp_id: jitp.id})
+      |> NervesHubWebCore.Repo.update!()
+
+      # Soft delete device and attempt verify
+      assert {:ok, device} = Repo.soft_delete(context.device)
+      assert device.deleted_at
+      assert {:fail, :ignore_deleted_device} = run_verify(context.cert)
     end
 
     test "registers a valid certificate", context do
