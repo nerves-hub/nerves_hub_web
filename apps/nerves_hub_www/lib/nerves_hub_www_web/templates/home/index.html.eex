@@ -3,7 +3,9 @@
   <img src="/images/logo.svg" alt="logo" />
   <div>
     <a class="btn btn-nav btn-outline-light ml-3" href="<%= Routes.session_path(@conn, :new)%>">Log In</a>
-    <a class="btn btn-nav btn-white ml-3" href="<%= Routes.account_path(@conn, :new) %>">Try For Free</a>
+    <%= if permit_uninvited_signups() do %>
+      <a class="btn btn-nav btn-white ml-3" href="<%= Routes.account_path(@conn, :new) %>">Try For Free</a>
+    <% end %>
   </div>
 </div>
 
