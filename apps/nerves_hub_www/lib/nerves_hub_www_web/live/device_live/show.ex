@@ -130,6 +130,39 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     end
   end
 
+  def handle_event("restore", _, socket) do
+    case Devices.restore_device(socket.assigns.device) do
+      {:ok, device} ->
+        {:noreply, assign(socket, device: device)}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Failed to restore device")}
+    end
+  end
+
+  def handle_event("destroy", _, socket) do
+    case Repo.destroy(socket.assigns.device) do
+      {:ok, _device} ->
+        path =
+          Routes.device_path(socket, :index, socket.assigns.org.name, socket.assigns.product.name)
+
+        {:noreply, redirect(socket, to: path)}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Failed to destroy device")}
+    end
+  end
+
+  def handle_event("delete", _, socket) do
+    case Devices.delete_device(socket.assigns.device) do
+      {:ok, %{device: device}} ->
+        {:noreply, assign(socket, device: device)}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Failed to delete device")}
+    end
+  end
+
   defp audit_log_assigns(%{assigns: %{device: device}} = socket) do
     all_logs = AuditLogs.logs_for_feed(device)
     paginate_opts = %{page_number: 1, page_size: 5}

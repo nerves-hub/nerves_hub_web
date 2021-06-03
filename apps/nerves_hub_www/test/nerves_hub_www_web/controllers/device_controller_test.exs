@@ -62,7 +62,8 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
       conn =
         get(conn, Routes.device_path(conn, :show, org.name, product.name, to_delete.identifier))
 
-      assert html_response(conn, 404)
+      # Can still show soft deleted device
+      assert html_response(conn, 200)
     end
   end
 

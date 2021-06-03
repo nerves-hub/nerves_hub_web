@@ -43,4 +43,6 @@ defmodule NervesHubWebCore.Repo do
   def exclude_deleted(query) do
     where(query, [o], is_nil(o.deleted_at))
   end
+
+  def destroy(struct_or_changeset), do: delete(struct_or_changeset)
 end
