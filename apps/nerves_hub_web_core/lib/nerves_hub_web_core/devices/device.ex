@@ -18,7 +18,8 @@ defmodule NervesHubWebCore.Devices.Device do
     :last_communication,
     :description,
     :healthy,
-    :tags
+    :tags,
+    :deleted_at
   ]
   @required_params [:org_id, :product_id, :identifier]
 

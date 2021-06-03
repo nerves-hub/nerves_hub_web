@@ -1,6 +1,24 @@
+<%= if @device.deleted_at do %>
+  <div class="alert alert-danger">
+    <div class="content-container">
+      <center>Device is deleted and must be restored to use</center>
+    </div>
+  </div>
+<% end %>
+
 <div class="action-row">
   <%= link "All Devices", to: Routes.device_path(@socket, :index, @org.name, @product.name), class: "back-link"%>
   <div class="btn-group" role="group" aria-label="Device Actions">
+  <%= if @device.deleted_at do %>
+    <button class="btn btn-outline-light btn-action"  aria-label="Restore" type="button" phx-click="restore">
+      <span class="button-icon power"></span>
+      <span class="action-text">Restore</span>
+    </button>
+    <button class="btn btn-outline-light btn-action btn-primary" aria-label="Destroy" type="button" phx-click="destroy" data-confirm="Are you sure?">
+      <span class="button-icon delete"></span>
+      <span class="action-text">Destroy</span>
+    </button>
+  <% else %>
     <button class="btn btn-outline-light btn-action"  aria-label="Reboot device" type="button" phx-click="reboot" <%= if @device.status == "offline", do: "disabled" %> data-confirm="Are you sure?">
       <span class="button-icon power"></span>
       <span class="action-text">Reboot</span>
@@ -20,16 +38,10 @@
         <span class="action-text"><%= if @device.healthy, do: "Quarantine", else: "Unquarantine" %></span>
       <% end %>
     <% end %>
-    <%= link(
-      class: "btn btn-outline-light btn-action",
-      aria_label: "Delete",
-      to: Routes.device_path(@socket, :delete, @org.name, @product.name, @device.identifier),
-      method: :delete,
-      data: [confirm: "Are you sure?"])
-      do %>
+    <button class="btn btn-outline-light btn-action" aria-label="Delete" type="button" phx-click="delete" data-confirm="Are you sure?">
       <span class="button-icon delete"></span>
       <span class="action-text">Delete</span>
-    <% end %>
+    </button>
     <%= link(
       class: "btn btn-outline-light btn-action",
       aria_label: "Edit",
@@ -38,6 +50,7 @@
       <span class="button-icon edit"></span>
       <span class="action-text">Edit</span>
     <% end %>
+  <% end %>
   </div>
 </div>
 

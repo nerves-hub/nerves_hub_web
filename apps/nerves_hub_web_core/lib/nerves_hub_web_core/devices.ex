@@ -19,13 +19,11 @@ defmodule NervesHubWebCore.Devices do
 
   def get_device(device_id) do
     Device
-    |> Repo.exclude_deleted()
     |> Repo.get(device_id)
   end
 
   def get_device!(device_id) do
     Device
-    |> Repo.exclude_deleted()
     |> Repo.get!(device_id)
   end
 
@@ -103,7 +101,6 @@ defmodule NervesHubWebCore.Devices do
       )
 
     query
-    |> Repo.exclude_deleted()
     |> Device.with_org()
     |> Repo.one()
     |> case do
@@ -550,6 +547,10 @@ defmodule NervesHubWebCore.Devices do
       true ->
         {:ok, device}
     end
+  end
+
+  def restore_device(%Device{} = device) do
+    update_device(device, %{deleted_at: nil})
   end
 
   defp failures_query(%Device{id: device_id}, %Deployment{id: deployment_id} = deployment) do
