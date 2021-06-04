@@ -53,17 +53,7 @@ config :nerves_hub_web_core, NervesHubWebCore.Mailer,
 config :nerves_hub_web_core,
   host: host,
   port: port,
-  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
+  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
+  allow_signups?: System.get_env("ALLOW_SIGNUPS", "true") |> String.to_atom()
 
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint, url: [host: host, port: port]
-
-to_boolean = fn
-  "true" -> true
-  "1" -> true
-  _ -> false
-end
-
-if allow_signups = System.get_env("ALLOW_SIGNUPS", "1") do
-  config :nerves_hub_www, NervesHubWWWWeb.AccountController,
-    allow_signups: to_boolean.(allow_signups)
-end

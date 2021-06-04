@@ -9,7 +9,7 @@ defmodule NervesHubWebCore.Plugs.AllowUninvitedSignups do
   def init(opts), do: opts
 
   def call(%{private: %{phoenix_router: APIRouter}} = conn, _opts) do
-    if allow_signups() do
+    if allow_signups?() do
       conn
     else
       conn
@@ -23,7 +23,7 @@ defmodule NervesHubWebCore.Plugs.AllowUninvitedSignups do
   end
 
   def call(%{private: %{phoenix_router: WebRouter}} = conn, _opts) do
-    if allow_signups() do
+    if allow_signups?() do
       conn
     else
       conn
@@ -33,7 +33,7 @@ defmodule NervesHubWebCore.Plugs.AllowUninvitedSignups do
     end
   end
 
-  defp allow_signups() do
-    Application.get_env(:nerves_hub_web_core, :allow_signups)
+  defp allow_signups?() do
+    Application.get_env(:nerves_hub_web_core, :allow_signups?)
   end
 end

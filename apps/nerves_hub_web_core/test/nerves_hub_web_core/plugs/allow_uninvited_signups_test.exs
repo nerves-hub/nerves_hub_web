@@ -16,7 +16,7 @@ defmodule NervesHubWebCore.Plugs.AllowUninvitedSignupsTest do
     end
 
     test "user is redirected when signups are disabled", %{conn: conn} do
-      Application.put_env(:nerves_hub_web_core, :allow_signups, false)
+      Application.put_env(:nerves_hub_web_core, :allow_signups?, false)
       conn = NervesHubWebCore.Plugs.AllowUninvitedSignups.call(conn, [])
 
       assert redirected_to(conn) == "/"
@@ -27,7 +27,7 @@ defmodule NervesHubWebCore.Plugs.AllowUninvitedSignupsTest do
     end
 
     test "user is not redirected when signups are enabled", %{conn: conn} do
-      Application.put_env(:nerves_hub_web_core, :allow_signups, true)
+      Application.put_env(:nerves_hub_web_core, :allow_signups?, true)
       conn_through = NervesHubWebCore.Plugs.AllowUninvitedSignups.call(conn, [])
 
       assert conn_through.status != 302
@@ -46,7 +46,7 @@ defmodule NervesHubWebCore.Plugs.AllowUninvitedSignupsTest do
     end
 
     test "fails registration when signups are disabled", %{conn: conn} do
-      Application.put_env(:nerves_hub_web_core, :allow_signups, false)
+      Application.put_env(:nerves_hub_web_core, :allow_signups?, false)
       conn = NervesHubWebCore.Plugs.AllowUninvitedSignups.call(conn, [])
 
       assert json_response(conn, 403) == %{
@@ -55,7 +55,7 @@ defmodule NervesHubWebCore.Plugs.AllowUninvitedSignupsTest do
     end
 
     test "passes conn when signups are allowed", %{conn: conn} do
-      Application.put_env(:nerves_hub_web_core, :allow_signups, true)
+      Application.put_env(:nerves_hub_web_core, :allow_signups?, true)
       conn_through = NervesHubWebCore.Plugs.AllowUninvitedSignups.call(conn, [])
 
       assert conn_through == conn
