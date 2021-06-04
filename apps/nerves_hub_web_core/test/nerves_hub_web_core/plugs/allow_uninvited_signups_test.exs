@@ -1,5 +1,5 @@
 defmodule NervesHubWebCore.Plugs.AllowUninvitedSignupsTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   import Phoenix.ConnTest
   import Plug.Conn
 
@@ -11,6 +11,8 @@ defmodule NervesHubWebCore.Plugs.AllowUninvitedSignupsTest do
         |> fetch_flash
         |> bypass_through(NervesHubWWWWeb.Router)
         |> dispatch(NervesHubWWWWeb.Endpoint, :get, "/")
+
+      on_exit(fn -> Application.put_env(:nerves_hub_web_core, :allow_signups?, true) end)
 
       %{conn: conn}
     end
@@ -41,6 +43,8 @@ defmodule NervesHubWebCore.Plugs.AllowUninvitedSignupsTest do
         build_conn()
         |> bypass_through(NervesHubAPIWeb.Router)
         |> dispatch(NervesHubAPIWeb.Endpoint, :post, "/users/register")
+
+      on_exit(fn -> Application.put_env(:nerves_hub_web_core, :allow_signups?, true) end)
 
       %{conn: conn}
     end
