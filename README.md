@@ -48,6 +48,13 @@ Local development uses the host `nerves-hub.org` for connections and cert valida
 echo "127.0.0.1 nerves-hub.org" | sudo tee -a /etc/hosts
 ```
 
+### Dependent application setup
+
+NervesHub is designed to run in conjunction with another application [nerves_hub_ca](https://github.com/nerves-hub/nerves_hub_ca).
+This application runs on port `8443` and it handles user's certificates. It can also be used to create a suit of certificates that
+is needed in order to run both applications. When you create certificates from `nerves_hub_ca` place them in dir:
+`nerves_hub_web/test/fixtures/ssl`.
+
 ### First time application setup
 
 1. Setup database connection
