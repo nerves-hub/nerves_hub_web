@@ -118,6 +118,8 @@ defmodule NervesHubWWWWeb.ProductLive.Import do
     {line_num, :warning, c, updated_attrs}
   end
 
+  defp maybe_update_certs(result, _, _), do: result
+
   defp handle_progress(:csv, entry, socket) do
     socket =
       if entry.done? do

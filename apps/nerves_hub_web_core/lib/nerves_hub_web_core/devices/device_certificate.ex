@@ -15,12 +15,12 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
     :serial,
     :aki,
     :not_after,
-    :not_before,
-    :der
+    :not_before
   ]
   @optional_params [
     :ski,
-    :last_used
+    :last_used,
+    :der
   ]
 
   @nerves_hub_ca_skis [
@@ -51,6 +51,7 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
     device_certificate
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
+    |> maybe_require_der(params)
     |> add_fingerprints()
     |> unique_constraint(:serial, name: :device_certificates_device_id_serial_index)
     |> unique_constraint(:fingerprint, name: :device_certificates_fingerprint_index)
@@ -141,4 +142,18 @@ defmodule NervesHubWebCore.Devices.DeviceCertificate do
 
   # AKI is missing and already reported
   defp validate_aki(changeset), do: changeset
+
+  defp maybe_require_der(changeset, %{from_json: true}) do
+    # This is set when cert is from a CSV that was exported as JSON
+    # which only occurs when the device connected before DERs were
+    # being saved but havent connected since. In that case, we still want
+    # to import the cert details to consider it valid which will also
+    # store the DER on next connect as well, but we have to remove then
+    # DER field requirement to do so
+    changeset
+  end
+
+  defp maybe_require_der(changeset, _params) do
+    validate_required(changeset, :der)
+  end
 end
