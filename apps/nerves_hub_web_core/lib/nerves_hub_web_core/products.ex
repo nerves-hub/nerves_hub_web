@@ -263,7 +263,11 @@ defmodule NervesHubWebCore.Products do
   defp parse_cert_type("{" <> _ = str) do
     case Jason.decode(str) do
       {:ok, attrs} ->
-        for {k, v} <- attrs, key = String.to_existing_atom(k), into: %{} do
+        # We have a hard requirement for DERs to be included with the cert,
+        # but this JSON only appears when there was no DER to export.
+        # So mark it with from_json: true that can then be used later
+        # on to still allow cert creation in the import
+        for {k, v} <- attrs, key = String.to_existing_atom(k), into: %{from_json: true} do
           val = if key in [:ski, :aki], do: decode(v), else: v
           {key, val}
         end
