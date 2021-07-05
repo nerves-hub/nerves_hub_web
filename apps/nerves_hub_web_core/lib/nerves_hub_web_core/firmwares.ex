@@ -135,7 +135,7 @@ defmodule NervesHubWebCore.Firmwares do
 
     do_delete_from_s3 = fn ->
       firmware.upload_metadata
-      |> Oban.Job.new(queue: :delete_firmware, worker: NervesHubWebCore.Workers.DeleteFirmware)
+      |> NervesHubWebCore.Workers.DeleteFirmware.new()
       |> Oban.insert()
     end
 
