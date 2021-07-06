@@ -498,13 +498,6 @@ defmodule NervesHubWebCore.Firmwares do
   end
 
   defp resolve_product(params) do
-    params.org_id
-    |> Products.get_product_by_org_id_and_name(params.product_name)
-    |> case do
-      {:ok, product} -> Map.put(params, :product_id, product.id)
-      _ -> params
-    end
-
     with {:ok, product} <-
            Products.get_product_by_org_id_and_name(params.org_id, params.product_name) do
       Map.put(params, :product_id, product.id)
@@ -515,21 +508,13 @@ defmodule NervesHubWebCore.Firmwares do
 
   @spec metadata_or_firmware(map()) :: {:ok, FirmwareMetadata.t() | nil}
   def metadata_or_firmware(metadata) do
-    case FirmwareMetadata.changeset(%FirmwareMetadata{}, metadata).valid? do
-      true ->
-        {:ok, metadata}
-
-      false ->
-        case Map.get(metadata, :uuid) do
-          nil ->
-            {:ok, nil}
-
-          uuid ->
-            case get_firmware_by_uuid(uuid) do
-              [firmware | _] -> metadata_from_firmware(firmware)
-              [] -> {:ok, nil}
-            end
-        end
+    if FirmwareMetadata.changeset(%FirmwareMetadata{}, metadata).valid? do
+      {:ok, metadata}
+    else
+      case get_firmware_by_uuid(metadata[:uuid]) do
+        [firmware | _] -> metadata_from_firmware(firmware)
+        [] -> {:ok, nil}
+      end
     end
   end
 
