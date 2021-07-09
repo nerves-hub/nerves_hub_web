@@ -201,6 +201,28 @@ defmodule NervesHubWWWWeb.OrgCertificateControllerTest do
 
       assert redirected_to(conn) == Routes.org_certificate_path(conn, :index, org.name)
     end
+
+    test "updated fails when description is blank", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      %{db_cert: %{serial: serial}} = Fixtures.ca_certificate_fixture(org)
+
+      params = %{
+        "ca_certificate" => %{
+          "description" => "signer cert",
+          "jitp" => %{
+            "delete" => "false",
+            "description" => "",
+            "product_id" => product.id,
+            "tags" => "jitp"
+          }
+        }
+      }
+
+      conn = put(conn, Routes.org_certificate_path(conn, :update, org.name, serial), params)
+
+      assert html_response(conn, 200) =~ "can&#39;t be blank"
+      assert get_flash(conn, :error) != nil
+    end
   end
 
   describe "delete certificate authority" do
