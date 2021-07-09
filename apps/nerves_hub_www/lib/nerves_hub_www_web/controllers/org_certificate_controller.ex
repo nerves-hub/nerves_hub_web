@@ -66,7 +66,7 @@ defmodule NervesHubWWWWeb.OrgCertificateController do
       {:error, changeset} ->
         conn
         |> put_flash(:error, "Error updating certificate")
-        |> render(conn, "edit.html",
+        |> render("edit.html",
           changeset: changeset,
           org: org,
           serial: serial,
