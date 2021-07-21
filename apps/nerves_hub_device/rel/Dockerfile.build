@@ -19,7 +19,7 @@ RUN mix release nerves_hub_device  --overwrite
 # Release Container
 FROM nerveshub/runtime:alpine-${ALPINE_VERSION} as release
 
-RUN apk add 'fwup~=1.8' \
+RUN apk add 'fwup~=1.9' \
   --repository http://nl.alpinelinux.org/alpine/edge/community/ \
   --no-cache
 
