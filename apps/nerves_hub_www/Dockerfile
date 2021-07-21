@@ -4,7 +4,7 @@ ENV \
   LANG=C.UTF-8 \
   LC_ALL=en_US.UTF-8 \
   PATH="/app:${PATH}" \
-  FWUP_VERSION=1.8.1 \
+  FWUP_VERSION=1.9.0 \
   DATABASE_URL=postgres://db:db@localhost:5432/db \
   DATABASE_SSL="false" \
   SECRET_KEY_BASE=""
@@ -19,7 +19,7 @@ RUN apt-get update -y -qq \
   && echo $LANG UTF-8 > /etc/locale.gen \
   && locale-gen \
   && update-locale LANG=$LANG
-RUN wget https://github.com/fhunleth/fwup/releases/download/v${FWUP_VERSION}/fwup_${FWUP_VERSION}_amd64.deb \
+RUN wget https://github.com/fwup-home/fwup/releases/download/v${FWUP_VERSION}/fwup_${FWUP_VERSION}_amd64.deb \
   && dpkg -i ./fwup_${FWUP_VERSION}_amd64.deb \
   && rm -f fwup_${FWUP_VERSION}_amd64.deb
 RUN mix local.hex --force && mix local.rebar --force
