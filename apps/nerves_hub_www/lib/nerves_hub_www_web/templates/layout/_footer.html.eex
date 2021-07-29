@@ -14,20 +14,6 @@
       <a href="https://github.com/nerves-hub/nerves_hub_web/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
       <a href="mailto:support@nerves-hub.org" target="_blank" rel="noopener noreferrer">Contact support</a>
     </div>
-    <div class="footer-nav very">
-      <h6>Need help using NervesHub for your project?</h6>
-      <a href="https://www.verypossible.com/" target="_blank" rel="noopener noreferrer">
-        <img src="/images/home/very-logo-colored.svg" alt="Very logo" />
-      </a>
-      <p class="p-small mt-2 mb-0">Very delivers high-impact IoT solutions with Nerves and offers expert consulting.</p>
-      <a href="https://www.verypossible.com/" target="_blank" rel="noopener noreferrer">
-        Visit Very's website
-        <img src="/images/icons/arrow-forward-red.svg" alt=""  class="arrow" />
-      </a>
-      <a href="https://www.verypossible.com/contact" target="_blank" rel="noopener noreferrer">
-        Get in touch
-        <img src="/images/icons/arrow-forward-red.svg" alt=""  class="arrow" /></a>
-    </div>
   </div>
   <div class="tos-grid">
     <div></div>
