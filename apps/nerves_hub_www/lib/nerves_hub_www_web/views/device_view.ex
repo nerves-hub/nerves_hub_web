@@ -3,8 +3,10 @@ defmodule NervesHubWWWWeb.DeviceView do
 
   alias NervesHubDevice.Presence
   alias NervesHubWWWWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
+
   import NervesHubWWWWeb.LayoutView,
     only: [pagination_links: 1, user_orgs: 1, user_org_products: 2]
+
   import NervesHubWWWWeb.OrgCertificateView, only: [format_serial: 1]
 
   def architecture_options do
