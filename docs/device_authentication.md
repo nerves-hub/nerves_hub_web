@@ -72,3 +72,5 @@ deleted) to authenticate again.
     happening.
 12. The device certificate is declared valid. Record public key and certificate
     fingerprints in the database and allow the device to proceed.
+
+![auth-flow](assets/nh_cert_validation.png)
