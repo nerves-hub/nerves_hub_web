@@ -351,10 +351,10 @@ defmodule NervesHubWebCore.Firmwares do
   def get_firmware_delta_by_source_and_target(%Firmware{id: source_id}, %Firmware{id: target_id}) do
     q =
       from(
-        fp in FirmwareDelta,
+        fd in FirmwareDelta,
         where:
-          fp.source_id == ^source_id and
-            fp.target_id >= ^target_id
+          fd.source_id == ^source_id and
+            fd.target_id == ^target_id
       )
 
     case Repo.one(q) do
