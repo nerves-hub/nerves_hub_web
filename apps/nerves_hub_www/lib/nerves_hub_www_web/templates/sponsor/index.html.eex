@@ -6,16 +6,6 @@
     </a>
 </div>
 <div class="row mb-5">
-    <a href="https://www.verypossible.com/services/iot-development" class="mx-auto">
-    <%= img_tag(Routes.static_path(@conn, "/images/sponsors/very_logo.svg"), style: "height:80px") %>
-    </a>
-</div>
-<div class="row mb-5">
-    <a href="https://www.letote.com/careers" class="mx-auto">
-      <%= img_tag(Routes.static_path(@conn, "/images/sponsors/letote.svg"), style: "height:50px") %>
-    </a>
-</div>
-<div class="row mb-5">
     <a href="https://www.alliedcomponentworks.com" class="mx-auto">
       <%= img_tag(Routes.static_path(@conn, "/images/sponsors/acw.svg"), style: "height:100px") %>
     </a>

@@ -11,7 +11,7 @@
     </div>
     <div class="footer-nav help">
       <h6>Help</h6>
-      <a href="https://github.com/nerves-hub/nerves_hub_web/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
+      <a href="https://github.com/smartrent/nerves_hub_web/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
       <a href="mailto:support@nerves-hub.org" target="_blank" rel="noopener noreferrer">Contact support</a>
     </div>
   </div>

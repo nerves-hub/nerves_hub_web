@@ -23,8 +23,6 @@
 <div class="home-sponsors content-container josh-js" data-josh-anim-name="fadeIn">
   <h6>Sponsored by</h6>
   <div class="grid">
-    <img src="/images/home/le-tote-logo.jpg" alt="Le Tote" />
-    <img src="/images/home/very-logo.png" alt="Very" />
     <img src="/images/home/smart-rent-logo.png" alt="SmartRent" />
     <img src="/images/home/allied-logo.png" alt="Allied Component Works" />
   </div>
