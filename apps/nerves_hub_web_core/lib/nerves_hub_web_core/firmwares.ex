@@ -11,8 +11,6 @@ defmodule NervesHubWebCore.Firmwares do
 
   require Logger
 
-  @min_fwup_delta_updatable_version ">=1.6.0"
-
   @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
 
   @uploader Application.fetch_env!(:nerves_hub_web_core, :firmware_upload)
@@ -345,10 +343,16 @@ defmodule NervesHubWebCore.Firmwares do
   end
 
   @spec get_firmware_delta_by_source_and_target(Firmware.t(), Firmware.t()) ::
-          {:ok, FirmwareDelta.t()}
-          | {:error, :not_found}
-
+  {:ok, FirmwareDelta.t()}
+  | {:error, :not_found}
   def get_firmware_delta_by_source_and_target(%Firmware{id: source_id}, %Firmware{id: target_id}) do
+    get_firmware_delta_by_source_and_target(source_id, target_id)
+  end
+
+  @spec get_firmware_delta_by_source_and_target(integer(), integer()) ::
+  {:ok, FirmwareDelta.t()}
+  | {:error, :not_found}
+  def get_firmware_delta_by_source_and_target(source_id, target_id) do
     q =
       from(
         fd in FirmwareDelta,
@@ -363,21 +367,12 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
-  @spec get_firmware_url(Firmware.t(), Firmware.t(), String.t(), Product.t()) ::
+  @spec get_firmware_url(Firmware.t() | FirmwareDelta.t()) ::
           {:ok, String.t()}
           | {:error, :failure}
-
-  def get_firmware_url(source, target, fwup_version, %Product{delta_updatable: true})
-      when is_binary(fwup_version) do
-    if Version.match?(fwup_version, @min_fwup_delta_updatable_version) do
-      do_get_firmware_url(source, target)
-    else
-      @uploader.download_file(target)
-    end
+  def get_firmware_url(fw_or_delta) do
+    @uploader.download_file(fw_or_delta)
   end
-
-  def get_firmware_url(_source, target, _fwup_version, _product),
-    do: @uploader.download_file(target)
 
   @spec create_firmware_delta(Firmware.t(), Firmware.t()) ::
           {:ok, FirmwareDelta.t()}
@@ -420,21 +415,6 @@ defmodule NervesHubWebCore.Firmwares do
     |> FirmwareDelta.changeset(params)
     |> Repo.insert()
   end
-
-  defp do_get_firmware_url(
-         %Firmware{delta_updatable: true} = source,
-         %Firmware{delta_updatable: true} = target
-       ) do
-    {:ok, firmware_delta} =
-      case get_firmware_delta_by_source_and_target(source, target) do
-        {:error, :not_found} -> create_firmware_delta(source, target)
-        firmware_delta -> firmware_delta
-      end
-
-    @uploader.download_file(firmware_delta)
-  end
-
-  defp do_get_firmware_url(_, target), do: @uploader.download_file(target)
 
   defp insert_firmware(params) do
     %Firmware{}

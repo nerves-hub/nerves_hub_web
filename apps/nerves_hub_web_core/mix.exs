@@ -54,7 +54,7 @@ defmodule NervesHubWebCore.MixProject do
       {:postgrex, "~> 0.14"},
       {:bcrypt_elixir, "~> 2.0"},
       {:comeonin, "~> 5.3"},
-      {:oban, "~> 2.1"},
+      {:oban, "~> 2.8"},
       {:crontab, "~> 1.1"},
       {:timex, "~> 3.1"},
       {:sweet_xml, "~> 0.6"},

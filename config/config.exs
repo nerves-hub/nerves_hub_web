@@ -67,7 +67,7 @@ config :nerves_hub_web_core, NervesHubWeb.PubSub,
 config :nerves_hub_web_core, Oban,
   repo: NervesHubWebCore.Repo,
   log: false,
-  queues: [delete_firmware: 1]
+  queues: [delete_firmware: 1, firmware_delta_builder: 2]
 
 ##
 # NervesHubWWW

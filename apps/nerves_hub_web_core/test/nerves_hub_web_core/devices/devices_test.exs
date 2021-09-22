@@ -15,6 +15,8 @@ defmodule NervesHubWebCore.DevicesTest do
   alias NervesHubWebCore.Devices.{DeviceCertificate, UpdatePayload}
   alias Ecto.Changeset
 
+  @valid_fwup_version "1.6.0"
+
   setup do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
@@ -605,5 +607,28 @@ defmodule NervesHubWebCore.DevicesTest do
     Devices.device_connected(device)
     assert [%AuditLog{description: desc}] = AuditLogs.logs_for(device)
     assert desc =~ "device #{device.identifier} connected to the server"
+  end
+
+  test "delta_updatable?", %{
+    firmware: source,
+    product: product,
+    device: device,
+    deployment: deployment
+  } do
+    assert Devices.delta_updatable?(device, deployment) == false
+
+    source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
+    %{firmware: target} = Repo.preload(deployment, :firmware)
+
+    device =
+      device
+      |> Ecto.Changeset.change(firmware_metadata: [fwup_version: @valid_fwup_version])
+      |> Repo.update!()
+
+    assert product.delta_updatable == true
+    assert source.delta_updatable == true
+    assert target.delta_updatable == true
+
+    assert Devices.delta_updatable?(device, deployment) == true
   end
 end

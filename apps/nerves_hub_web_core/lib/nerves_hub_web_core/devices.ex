@@ -12,10 +12,13 @@ defmodule NervesHubWebCore.Devices do
     AuditLogs,
     AuditLogs.AuditLog,
     Accounts.Org,
-    Repo
+    Repo,
+    Workers
   }
 
   alias NervesHubWebCore.Devices.{Device, DeviceCertificate, CACertificate}
+
+  @min_fwup_delta_updatable_version ">=1.6.0"
 
   def get_device(device_id) do
     Device
@@ -463,26 +466,63 @@ defmodule NervesHubWebCore.Devices do
     with {:ok, %{healthy: true}} <- verify_update_eligibility(device, deployment),
          true <- matches_deployment?(device, deployment),
          %Device{product: product} <- Repo.preload(device, :product),
-         fwup_version <- Map.get(device.firmware_metadata, :fwup_version),
+         {:ok, source} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
          %{firmware: target} <- Repo.preload(deployment, :firmware) do
-      source =
-        case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
-          {:ok, source} -> source
-          {:error, :not_found} -> nil
+      if delta_updatable?(device, deployment) do
+        case Firmwares.get_firmware_delta_by_source_and_target(source, target) do
+          {:ok, firmware_delta} ->
+            build_update_payload(firmware_delta, target, deployment)
+
+          {:error, :not_found} ->
+            :ok = Workers.FirmwareDeltaBuilder.start(source.id, target.id)
+            build_no_update_payload()
         end
-
-      {:ok, url} = Firmwares.get_firmware_url(source, target, fwup_version, product)
-      {:ok, meta} = Firmwares.metadata_from_firmware(target)
-
-      %UpdatePayload{
-        update_available: true,
-        firmware_url: url,
-        firmware_meta: meta,
-        deployment: deployment,
-        deployment_id: deployment.id
-      }
+      else
+        build_update_payload(source, target, deployment)
+      end
     else
-      _ -> %UpdatePayload{update_available: false}
+      _ -> build_no_update_payload()
+    end
+  end
+
+  defp build_update_payload(source, target, deployment) do
+    {:ok, url} = Firmwares.get_firmware_url(source)
+    {:ok, meta} = Firmwares.metadata_from_firmware(target)
+
+    %UpdatePayload{
+      update_available: true,
+      firmware_url: url,
+      firmware_meta: meta,
+      deployment: deployment,
+      deployment_id: deployment.id
+    }
+  end
+
+  defp build_no_update_payload() do
+    %UpdatePayload{update_available: false}
+  end
+
+  @spec delta_updatable?(Device.t(), Deployment.t()) :: boolean()
+  def delta_updatable?(
+    %Device{firmware_metadata: %{uuid: uuid, fwup_version: fwup_version}} = device,
+    deployment
+  ) do
+    %{firmware: target} = Repo.preload(deployment, :firmware)
+    %{product: product} = Repo.preload(device, :product)
+
+    source =
+      case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+        {:ok, source} -> source
+        {:error, :not_found} -> nil
+      end
+
+    cond do
+      !is_binary(fwup_version) -> false
+      !Version.match?(fwup_version, @min_fwup_delta_updatable_version) -> false
+      !product.delta_updatable -> false
+      !target.delta_updatable -> false
+      !source.delta_updatable -> false
+      true -> true
     end
   end
 

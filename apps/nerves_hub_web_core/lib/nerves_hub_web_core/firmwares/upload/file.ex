@@ -16,9 +16,9 @@ defmodule NervesHubWebCore.Firmwares.Upload.File do
   end
 
   @impl NervesHubWebCore.Firmwares.Upload
-  def download_file(firmware) do
-    {:ok, firmware.upload_metadata["public_path"]}
-  end
+  def download_file(%{upload_metadata: metadata}), do: do_download_file(metadata)
+  defp do_download_file(%{public_path: path}), do: {:ok, path}
+  defp do_download_file(%{"public_path" => path}), do: {:ok, path}
 
   @impl NervesHubWebCore.Firmwares.Upload
   def delete_file(%{local_path: path}), do: delete_file(path)
