@@ -618,23 +618,20 @@ defmodule NervesHubWebCore.DevicesTest do
   test "delta_updatable?", %{
     firmware: source,
     product: product,
-    device: device,
     deployment: deployment
   } do
-    assert Devices.delta_updatable?(device, deployment) == false
-
-    source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
+    fwup_version = @valid_fwup_version
     %{firmware: target} = Repo.preload(deployment, :firmware)
 
-    device =
-      device
-      |> Ecto.Changeset.change(firmware_metadata: [fwup_version: @valid_fwup_version])
-      |> Repo.update!()
+    assert Devices.delta_updatable?(source, target, product, fwup_version) == false
+
+    source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
+    target = Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
 
     assert product.delta_updatable == true
     assert source.delta_updatable == true
     assert target.delta_updatable == true
 
-    assert Devices.delta_updatable?(device, deployment) == true
+    assert Devices.delta_updatable?(source, target, product, fwup_version) == true
   end
 end
