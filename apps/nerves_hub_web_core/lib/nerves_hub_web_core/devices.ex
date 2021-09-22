@@ -451,7 +451,7 @@ defmodule NervesHubWebCore.Devices do
   end
 
   def resolve_update(
-        %Device{firmware_metadata: %{uuid: uuid}} = device,
+        %Device{firmware_metadata: %{uuid: uuid, fwup_version: fwup_version}} = device,
         %Deployment{} = deployment
       ) do
     with {:ok, %{healthy: true}} <- verify_update_eligibility(device, deployment),
@@ -459,7 +459,7 @@ defmodule NervesHubWebCore.Devices do
          %Device{product: product} <- Repo.preload(device, :product),
          {:ok, source} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
          %{firmware: target} <- Repo.preload(deployment, :firmware) do
-      if delta_updatable?(device, deployment) do
+      if delta_updatable?(source, target, product, fwup_version) do
         case Firmwares.get_firmware_delta_by_source_and_target(source, target) do
           {:ok, firmware_delta} ->
             build_update_payload(firmware_delta, target, deployment)
@@ -493,28 +493,12 @@ defmodule NervesHubWebCore.Devices do
     %UpdatePayload{update_available: false}
   end
 
-  @spec delta_updatable?(Device.t(), Deployment.t()) :: boolean()
-  def delta_updatable?(
-        %Device{firmware_metadata: %{uuid: uuid, fwup_version: fwup_version}} = device,
-        deployment
-      ) do
-    %{firmware: target} = Repo.preload(deployment, :firmware)
-    %{product: product} = Repo.preload(device, :product)
-
-    source =
-      case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
-        {:ok, source} -> source
-        {:error, :not_found} -> nil
-      end
-
-    cond do
-      !is_binary(fwup_version) -> false
-      !Version.match?(fwup_version, @min_fwup_delta_updatable_version) -> false
-      !product.delta_updatable -> false
-      !target.delta_updatable -> false
-      !source.delta_updatable -> false
-      true -> true
-    end
+  @spec delta_updatable?(source :: Firmware.t(), target :: Firmware.t(), Product.t(), fwup_version :: String.t()) :: boolean()
+  def delta_updatable?(source, target, product, fwup_version) do
+    product.delta_updatable
+    and target.delta_updatable
+    and source.delta_updatable
+    and Version.match?(fwup_version, @min_fwup_delta_updatable_version)
   end
 
   @doc """
