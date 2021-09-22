@@ -20,6 +20,12 @@ defmodule NervesHubWebCore.Deployments do
     |> Repo.all()
   end
 
+  @spec get_deployments_by_firmware(integer()) :: [Deployment.t()]
+  def get_deployments_by_firmware(firmware_id) do
+    from(d in Deployment, where: d.firmware_id == ^firmware_id)
+    |> Repo.all()
+  end
+
   @spec get_deployment(Product.t(), String.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
   def get_deployment(%Product{id: product_id}, deployment_id) do
     from(
@@ -87,10 +93,7 @@ defmodule NervesHubWebCore.Deployments do
     |> case do
       {:ok, deployment} ->
         Firmwares.update_firmware_ttl(deployment.firmware_id)
-
-        deployment
-        |> fetch_relevant_devices()
-        |> update_relevant_devices(deployment)
+        fetch_and_update_relevant_devices(deployment)
 
       error ->
         error
@@ -193,6 +196,12 @@ defmodule NervesHubWebCore.Deployments do
       true ->
         {:ok, deployment}
     end
+  end
+
+  def fetch_and_update_relevant_devices(deployment) do
+    deployment
+    |> fetch_relevant_devices()
+    |> update_relevant_devices(deployment)
   end
 
   def fetch_relevant_devices(%Deployment{is_active: false}) do
