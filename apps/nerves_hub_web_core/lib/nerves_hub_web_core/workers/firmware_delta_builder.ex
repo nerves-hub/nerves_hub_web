@@ -3,6 +3,7 @@ defmodule NervesHubWebCore.Workers.FirmwareDeltaBuilder do
     max_attempts: 5,
     queue: :firmware_delta_builder,
     unique: [
+      period: 60 * 10,
       states: [:available, :scheduled, :executing]
     ]
 
