@@ -200,14 +200,13 @@ defmodule NervesHubWebCore.Fixtures do
 
   def firmware_delta_fixture(%Firmwares.Firmware{id: source_id}, %Firmwares.Firmware{
         id: target_id,
-        org_id: org_id,
-        uuid: uuid
+        org_id: org_id
       }) do
     {:ok, firmware_delta} =
       Firmwares.insert_firmware_delta(%{
         source_id: source_id,
         target_id: target_id,
-        upload_metadata: @uploader.metadata(org_id, "#{uuid}.fw")
+        upload_metadata: @uploader.metadata(org_id, "#{Ecto.UUID.generate()}.fw")
       })
 
     firmware_delta

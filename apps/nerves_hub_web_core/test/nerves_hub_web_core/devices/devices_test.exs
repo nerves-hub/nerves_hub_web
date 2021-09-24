@@ -578,6 +578,72 @@ defmodule NervesHubWebCore.DevicesTest do
       assert result.firmware_url =~ firmware.uuid
       assert result.firmware_meta.uuid == meta.uuid
     end
+
+    test "update message with delta updatable device & firmware delta", %{
+      product: product,
+      org: org,
+      org_key: org_key
+    } do
+      source = Fixtures.firmware_fixture(org_key, product)
+      target = Fixtures.firmware_fixture(org_key, product)
+
+      source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
+      target = Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
+
+      deployment = Fixtures.deployment_fixture(org, target, %{name: "resolve-update"})
+      device = Fixtures.device_fixture(org, product, source)
+      {:ok, device} = Devices.update_firmware_metadata(device, %{fwup_version: "1.6.0"})
+      %{firmware_metadata: %{fwup_version: fwup_version}} = device
+
+      firmware_delta = Fixtures.firmware_delta_fixture(source, target)
+      assert Devices.delta_updatable?(source, target, product, fwup_version)
+
+      {:ok, firmware_delta_url} = Firmwares.get_firmware_url(firmware_delta)
+
+      result = Devices.resolve_update(device, deployment)
+      assert result.update_available
+      assert result.firmware_url == firmware_delta_url
+    end
+
+    test "no update message with delta updatable device & no firmware delta", %{
+      product: product,
+      org: org,
+      org_key: org_key
+    } do
+      source = Fixtures.firmware_fixture(org_key, product)
+      target = Fixtures.firmware_fixture(org_key, product)
+
+      source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
+      target = Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
+
+      deployment = Fixtures.deployment_fixture(org, target, %{name: "resolve-update"})
+      device = Fixtures.device_fixture(org, product, source)
+      {:ok, device} = Devices.update_firmware_metadata(device, %{fwup_version: "1.6.0"})
+      %{firmware_metadata: %{fwup_version: fwup_version}} = device
+
+      assert Devices.delta_updatable?(source, target, product, fwup_version)
+
+      result = Devices.resolve_update(device, deployment)
+      refute result.update_available
+    end
+
+    test "update message with non-delta-updatable device", %{
+      product: product,
+      org: org,
+      org_key: org_key
+    } do
+      source = Fixtures.firmware_fixture(org_key, product)
+      target = Fixtures.firmware_fixture(org_key, product)
+
+      deployment = Fixtures.deployment_fixture(org, target, %{name: "resolve-update"})
+      device = Fixtures.device_fixture(org, product, source)
+
+      {:ok, target_url} = Firmwares.get_firmware_url(target)
+
+      result = Devices.resolve_update(device, deployment)
+      assert result.update_available
+      assert result.firmware_url == target_url
+    end
   end
 
   test "failure_rate_met?", %{deployment: deployment, device: device} do
