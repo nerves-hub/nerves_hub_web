@@ -469,15 +469,15 @@ defmodule NervesHubWebCore.Devices do
             build_no_update_payload()
         end
       else
-        build_update_payload(source, target, deployment)
+        build_update_payload(target, target, deployment)
       end
     else
       _ -> build_no_update_payload()
     end
   end
 
-  defp build_update_payload(source, target, deployment) do
-    {:ok, url} = Firmwares.get_firmware_url(source)
+  defp build_update_payload(target_or_delta_firmware, target, deployment) do
+    {:ok, url} = Firmwares.get_firmware_url(target_or_delta_firmware)
     {:ok, meta} = Firmwares.metadata_from_firmware(target)
 
     %UpdatePayload{
