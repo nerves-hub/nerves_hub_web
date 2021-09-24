@@ -343,15 +343,15 @@ defmodule NervesHubWebCore.Firmwares do
   end
 
   @spec get_firmware_delta_by_source_and_target(Firmware.t(), Firmware.t()) ::
-  {:ok, FirmwareDelta.t()}
-  | {:error, :not_found}
+          {:ok, FirmwareDelta.t()}
+          | {:error, :not_found}
   def get_firmware_delta_by_source_and_target(%Firmware{id: source_id}, %Firmware{id: target_id}) do
     get_firmware_delta_by_source_and_target(source_id, target_id)
   end
 
   @spec get_firmware_delta_by_source_and_target(integer(), integer()) ::
-  {:ok, FirmwareDelta.t()}
-  | {:error, :not_found}
+          {:ok, FirmwareDelta.t()}
+          | {:error, :not_found}
   def get_firmware_delta_by_source_and_target(source_id, target_id) do
     q =
       from(
