@@ -579,6 +579,25 @@ defmodule NervesHubWebCore.DevicesTest do
       assert result.firmware_meta.uuid == meta.uuid
     end
 
+    test "update when source is not present", %{
+      product: product,
+      org: org,
+      org_key: org_key
+    } do
+      source = Fixtures.firmware_fixture(org_key, product)
+      target = Fixtures.firmware_fixture(org_key, product)
+
+      deployment = Fixtures.deployment_fixture(org, target, %{name: "resolve-update"})
+      device = Fixtures.device_fixture(org, product, source)
+      {:ok, _source} = Firmwares.delete_firmware(source)
+
+      {:ok, firmware_url} = Firmwares.get_firmware_url(target)
+
+      result = Devices.resolve_update(device, deployment)
+      assert result.update_available
+      assert result.firmware_url == firmware_url
+    end
+
     test "update message with delta updatable device & firmware delta", %{
       product: product,
       org: org,
@@ -693,5 +712,8 @@ defmodule NervesHubWebCore.DevicesTest do
     assert target.delta_updatable == true
 
     assert Devices.delta_updatable?(source, target, product, fwup_version) == true
+
+    # case where the source firmware does not exist
+    assert Devices.delta_updatable?(nil, target, product, fwup_version) == false
   end
 end
