@@ -457,8 +457,13 @@ defmodule NervesHubWebCore.Devices do
     with {:ok, %{healthy: true}} <- verify_update_eligibility(device, deployment),
          true <- matches_deployment?(device, deployment),
          %Device{product: product} <- Repo.preload(device, :product),
-         {:ok, source} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
          %{firmware: target} <- Repo.preload(deployment, :firmware) do
+      source =
+        case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
+          {:ok, source} -> source
+          {:error, :not_found} -> nil
+        end
+
       if delta_updatable?(source, target, product, fwup_version) do
         case Firmwares.get_firmware_delta_by_source_and_target(source, target) do
           {:ok, firmware_delta} ->
@@ -499,6 +504,8 @@ defmodule NervesHubWebCore.Devices do
           Product.t(),
           fwup_version :: String.t()
         ) :: boolean()
+  def delta_updatable?(nil, _target, _product, _fwup_version), do: false
+
   def delta_updatable?(source, target, product, fwup_version) do
     product.delta_updatable and
       target.delta_updatable and
