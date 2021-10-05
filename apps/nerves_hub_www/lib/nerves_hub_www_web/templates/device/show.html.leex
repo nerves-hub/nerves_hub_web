@@ -112,6 +112,20 @@
 </div>
 
 <h3 class="mb-2">Certificates</h3>
+<%= if Enum.any?(@device.device_certificates, & &1.org_id != @device.org_id) do %>
+  <div class="alert alert-warning">
+    <div class="content-container">
+      <center>Device was previously moved and has certificates associated with a Signer CA from another organization</center>
+      </br>
+      <center>In most cases, this should be okay (or was even intentional), but automatic device certificate creation</center>
+      <center>will not work until the Signer CA is also moved the the same organization as this device.</center>
+      </br>
+      <center>If the intention is leave the Signer CA in the other organization, then this will continue to work</center>
+      <center>so long as certificates are managed manually for this device and other metadata, such as the product</center>
+      <center>and firmware signing keys appropiately match the existing firmware as well</center>
+    </div>
+  </div>
+<% end %>
 <table class="table table-sm table-hover">
   <thead>
     <tr>
@@ -123,7 +137,8 @@
   </thead>
   <tbody>
     <%= for cert <- @device.device_certificates do %>
-      <tr class="item">
+      <% mismatch? = cert.org_id != @device.org_id %>
+      <tr class="item" style="<%= if mismatch?, do: "border: 2px dashed var(--warning)" %>">
         <td>
           <div class="mobile-label help-text">Serial</div>
           <code class="color-white wb-ba ff-m"><%= format_serial(cert.serial) %></code>
@@ -153,6 +168,9 @@
                 <img src="/images/icons/more.svg" alt="options" />
               </a>
             <div class="dropdown-menu dropdown-menu-right">
+              <%= if mismatch? do %>
+                <%= link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: Routes.product_path(@socket, :index, Repo.preload(cert, :org).org.name)) %>
+              <% end %>
               <%= if cert.der do %>
                 <%= link("Download", class: "dropdown-item", aria_label: "Download Device Certificate", to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)) %>
               <% end %>

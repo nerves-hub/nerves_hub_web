@@ -2,6 +2,7 @@ defmodule NervesHubWWWWeb.DeviceView do
   use NervesHubWWWWeb, :view
 
   alias NervesHubDevice.Presence
+  alias NervesHubWebCore.Repo
   alias NervesHubWWWWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
 
   import NervesHubWWWWeb.LayoutView,
