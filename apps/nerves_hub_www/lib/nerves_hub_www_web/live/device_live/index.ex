@@ -284,7 +284,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     |> sync_devices(%{joins: Presence.list("product:#{product_id}:devices"), leaves: %{}})
   end
 
-  defp do_sort(%{assigns: assigns} = socket) do
+  defp do_sort(%{assigns: %{current_sort: "selected"} = assigns} = socket) do
     devices =
       Enum.sort_by(assigns.devices, &(&1.id in assigns.selected_devices), assigns.sort_direction)
 
