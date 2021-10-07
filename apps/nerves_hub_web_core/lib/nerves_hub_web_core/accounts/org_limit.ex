@@ -19,11 +19,11 @@ defmodule NervesHubWebCore.Accounts.OrgLimit do
 
   @defaults [
     # Max number of devices per org
-    devices: 20_000,
+    devices: 1_000_000,
     # Max number of firmwares per product
-    firmware_per_product: 200,
-    # Max firmware size (512 MB)
-    firmware_size: 536_870_912,
+    firmware_per_product: 1_000,
+    # Max firmware size (1 GB)
+    firmware_size: 1_000_000_000,
     # Default firmwre ttl seconds (7 days)
     firmware_ttl_seconds_default: 604_800,
     # Max firmwre ttl seconds (7 days)
