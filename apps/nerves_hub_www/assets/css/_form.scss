@@ -60,13 +60,13 @@ html {
   }
 
   input[type="number"].small {
-      -moz-appearance: textfield;
+    -moz-appearance: textfield;
   }
 
   input[type="number"].small::-webkit-outer-spin-button,
   input[type="number"].small::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
+    -webkit-appearance: none;
+    margin: 0;
   }
 
   .form-control-md {
@@ -197,6 +197,10 @@ html {
       bottom: 0.75rem;
       margin: auto;
     }
+  }
+
+  option {
+    background-color: var(--background);
   }
 
   .has-error {
