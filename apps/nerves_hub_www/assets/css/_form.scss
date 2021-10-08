@@ -203,6 +203,10 @@ html {
     }
   }
 
+  option {
+    background-color: var(--bs-background);
+  }
+
   .has-error {
     color: var(--bs-danger);
     margin-top: 0.25rem;
