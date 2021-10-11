@@ -37,6 +37,6 @@ NODES=$(echo "$DEVICE_NODES $WWW_NODES $API_NODES" | tr '\n' ' ')
 # we should now have something that looks like
 # nerves_hub_www@10.0.2.120 nerves_hub_device@10.0.3.99 nerves_hub_api@10.0.3.101
 export SYNC_NODES_OPTIONAL="$NODES"
-echo $SYNC_NODES_OPTIONAL
+echo "SYNC_NODES_OPTIONAL=${SYNC_NODES_OPTIONAL}"
 
 exec /app/bin/$APP_NAME start
