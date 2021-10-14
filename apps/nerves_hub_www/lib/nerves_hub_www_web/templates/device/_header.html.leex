@@ -15,7 +15,11 @@
     </p>
   </div>
   <div>
-    <div class="help-text">Last Handshake</div>
+    <div class="help-text mb-1 tooltip-label help-tooltip">
+      <span>Last Handshake</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text"><%= @device.last_communication %></span>
+    </div>
     <p>
       <%= if is_nil(@device.last_communication) do %>
         Never
