@@ -7,6 +7,7 @@ defmodule NervesHubWebCore.FirmwaresTest do
     Accounts.OrgLimit,
     Firmwares,
     Firmwares.Firmware,
+    Repo,
     Fixtures,
     Support.Fwup,
     Deployments,
@@ -152,11 +153,42 @@ defmodule NervesHubWebCore.FirmwaresTest do
     assert firmware.size == expected_size
   end
 
-  describe "get_firmwares_by_product/2" do
-    test "returns firmwares", %{product: %{id: product_id} = product} do
+  describe "get_firmwares_by_product/1" do
+    test "returns firmwares", %{
+      product: product,
+      org_key: org_key,
+      firmware: %{id: first2_same_ver, version: version}
+    } do
+      product_id = product.id
+
+      %{id: oldest_ver} = Fixtures.firmware_fixture(org_key, product, %{version: "0.1.0"})
+
+      %{id: middle2_same_ver, inserted_at: dt} =
+        Fixtures.firmware_fixture(org_key, product, %{version: "0.5.1"})
+
+      # We need to force the inserted_at times here to be different to test
+      # correct ordering with same version, different creation time
+      %{id: middle1_same_ver} =
+        Fixtures.firmware_fixture(org_key, product, %{version: "0.5.1"})
+        |> Firmware.update_changeset(%{})
+        |> Ecto.Changeset.put_change(:inserted_at, NaiveDateTime.add(dt, 5))
+        |> Repo.update!()
+
+      %{id: first1_same_ver} =
+        Fixtures.firmware_fixture(org_key, product, %{version: version})
+        |> Firmware.update_changeset(%{})
+        |> Ecto.Changeset.put_change(:inserted_at, NaiveDateTime.add(dt, 6))
+        |> Repo.update!()
+
       firmwares = Firmwares.get_firmwares_by_product(product.id)
 
-      assert [%{product_id: ^product_id}] = firmwares
+      assert [
+               %{id: ^first1_same_ver, product_id: ^product_id},
+               %{id: ^first2_same_ver, product_id: ^product_id},
+               %{id: ^middle1_same_ver, product_id: ^product_id},
+               %{id: ^middle2_same_ver, product_id: ^product_id},
+               %{id: ^oldest_ver, product_id: ^product_id}
+             ] = firmwares
     end
   end
 
