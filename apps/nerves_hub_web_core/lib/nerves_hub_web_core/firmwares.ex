@@ -19,11 +19,11 @@ defmodule NervesHubWebCore.Firmwares do
   def get_firmwares_by_product(product_id) do
     from(
       f in Firmware,
-      where: f.product_id == ^product_id
+      where: f.product_id == ^product_id,
+      order_by: [desc: :version, desc: :inserted_at]
     )
     |> Firmware.with_product()
     |> Repo.all()
-    |> Enum.sort(:desc)
   end
 
   @spec get_firmware(Org.t(), integer()) ::
