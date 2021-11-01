@@ -24,7 +24,6 @@ defmodule NervesHubWebCore.Firmwares do
     )
     |> Firmware.with_product()
     |> Repo.all()
-    |> Enum.sort(:desc)
   end
 
   @spec get_firmware(Org.t(), integer()) ::
