@@ -280,20 +280,29 @@ defmodule NervesHubWebCore.Products do
   defp parse_cert_type(str) do
     case Certificate.from_pem(str) do
       {:ok, otp_cert} ->
-        {nb, na} = Certificate.get_validity(otp_cert)
-
-        %{
-          serial: Certificate.get_serial_number(otp_cert),
-          aki: Certificate.get_aki(otp_cert),
-          ski: Certificate.get_ski(otp_cert),
-          not_before: nb,
-          not_after: na,
-          der: Certificate.to_der(otp_cert)
-        }
+        parse_cert(otp_cert)
 
       _ ->
-        :malformed_pem
+        with {:ok, der} <- Base.decode64(str),
+             {:ok, otp_cert} <- Certificate.from_der(der) do
+          parse_cert(otp_cert)
+        else
+          _ -> :malformed
+        end
     end
+  end
+
+  defp parse_cert(otp_cert) do
+    {nb, na} = Certificate.get_validity(otp_cert)
+
+    %{
+      serial: Certificate.get_serial_number(otp_cert),
+      aki: Certificate.get_aki(otp_cert),
+      ski: Certificate.get_ski(otp_cert),
+      not_before: nb,
+      not_after: na,
+      der: Certificate.to_der(otp_cert)
+    }
   end
 
   defp device_csv_line(device, product) do
