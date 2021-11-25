@@ -172,7 +172,12 @@
           <%= if is_nil(device.last_communication) do %>
             <span class="color-white-50">Never</span>
           <% else %>
-            <%= DateTimeFormat.from_now(device.last_communication) %>
+            <div class="tooltip-label">
+              <span>
+                <%= DateTimeFormat.from_now(device.last_communication) %>
+              </span>
+              <span class="tooltip-text ml-1"><%= device.last_communication %></span>
+            </div>
           <% end %>
         </td>
 
