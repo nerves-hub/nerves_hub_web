@@ -556,26 +556,44 @@ defmodule NervesHubWebCore.Devices do
   defp failures_query(%Device{id: device_id}, %Deployment{id: deployment_id} = deployment) do
     deployment = Repo.preload(deployment, :firmware)
 
-    from(
-      al in AuditLog,
-      where: [
-        actor_id: ^deployment_id,
-        actor_type: ^to_string(Deployment),
-        resource_type: ^to_string(Device),
-        resource_id: ^device_id
-      ],
-      where:
-        fragment(
-          """
-          (params->>'firmware_uuid' = ?) AND
-          (params->>'send_update_message' = 'true')
-          """,
-          ^deployment.firmware.uuid
-        ),
-      # Handle edge case we may make 2 audit log events at the same time
-      distinct: true,
-      select: al.inserted_at
-    )
+    latest_healthy =
+      from(
+        al in AuditLog,
+        where: [resource_type: ^to_string(Device), resource_id: ^device_id],
+        where: fragment("(params->>'healthy' = 'true')"),
+        order_by: [desc: :inserted_at],
+        limit: 1,
+        select: al.inserted_at
+      )
+      |> Repo.one()
+
+    query =
+      from(
+        al in AuditLog,
+        where: [
+          actor_id: ^deployment_id,
+          actor_type: ^to_string(Deployment),
+          resource_type: ^to_string(Device),
+          resource_id: ^device_id
+        ],
+        where:
+          fragment(
+            """
+            (params->>'firmware_uuid' = ?) AND
+            (params->>'send_update_message' = 'true')
+            """,
+            ^deployment.firmware.uuid
+          ),
+        # Handle edge case we may make 2 audit log events at the same time
+        distinct: true,
+        select: al.inserted_at
+      )
+
+    if latest_healthy do
+      where(query, [al], al.inserted_at >= ^latest_healthy)
+    else
+      query
+    end
   end
 
   defp version_match?(_vsn, ""), do: true
