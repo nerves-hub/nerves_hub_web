@@ -109,6 +109,7 @@
         <th>Firmware</th>
         <%= devices_table_header("Firmware status", "status", @current_sort, @sort_direction) %>
         <%= devices_table_header("Tags", "tags", @current_sort, @sort_direction) %>
+        <%= devices_table_header("Created at", "inserted_at", @current_sort, @sort_direction) %>
         <th></th>
       </tr>
     </thead>
@@ -185,6 +186,11 @@
               <% end %>
             <% end %>
           </div>
+        </td>
+
+        <td>
+          <div class="mobile-label help-text">Created at</div>
+          <%= DateTimeFormat.format(device.inserted_at) %>
         </td>
 
         <td class="actions">

@@ -270,5 +270,9 @@ defmodule NervesHubWWWWeb.LayoutView do
         timestamp
       end
     end
+
+    def format(timestamp) do
+      Timex.format!(timestamp, "{0D}.{0M}.{YY}")
+    end
   end
 end
