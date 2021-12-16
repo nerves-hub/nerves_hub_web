@@ -246,15 +246,19 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     assign(socket, :devices, devices)
   end
 
-  defp sorter(:last_communication, :desc), do: &(date_order(&1, &2) != :lt)
-  defp sorter(:last_communication, :asc), do: &(date_order(&1, &2) != :gt)
+  defp sorter(field, :desc) when field in [:last_communication, :inserted_at],
+    do: &(date_order(&1, &2) != -1)
+
+  defp sorter(field, :asc) when field in [:last_communication, :inserted_at],
+    do: &(date_order(&1, &2) != 1)
+
   defp sorter(_, :desc), do: &>=/2
   defp sorter(_, :asc), do: &<=/2
 
-  defp date_order(nil, nil), do: :eq
-  defp date_order(_, nil), do: :gt
-  defp date_order(nil, _), do: :lt
-  defp date_order(a, b), do: DateTime.compare(a, b)
+  defp date_order(nil, nil), do: 0
+  defp date_order(_, nil), do: 1
+  defp date_order(nil, _), do: -1
+  defp date_order(a, b), do: Timex.compare(a, b)
 
   defp do_paginate(%{assigns: %{devices: devices, paginate_opts: paginate_opts}} = socket) do
     start_index = (paginate_opts.page_number - 1) * paginate_opts.page_size
