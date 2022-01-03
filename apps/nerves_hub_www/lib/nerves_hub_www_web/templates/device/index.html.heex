@@ -209,6 +209,12 @@
               <%= link "Console", to: Routes.device_path(@socket, :console, @org.name, @product.name, device.identifier), class: "dropdown-item #{unless Map.has_key?(device, :console_available) && device.console_available, do: "disabled"}" %>
               <div class="dropdown-divider"></div>
               <%= link "edit", class: "dropdown-item", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" type="button" phx-click="toggle_health_state" phx-value-device-id={device.id}>
+                <span>
+                  <%= if device.healthy, do: "Quarantine", else: "Unquarantine" %>
+                </span>
+              </button>
             </div>
           </div>
         </td>
