@@ -266,6 +266,35 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
+  def handle_event(
+        "toggle_health_state",
+        %{"device-id" => device_id},
+        %{assigns: %{devices: devices, user: user}} = socket
+      ) do
+    device = Devices.get_device(device_id)
+
+    params = %{healthy: !device.healthy}
+
+    socket =
+      case Devices.update_device(device, params) do
+        {:ok, updated_device} ->
+          AuditLogs.audit!(user, device, :update, params)
+
+          devices =
+            Enum.map(devices, fn
+              device when device.id == updated_device.id -> updated_device
+              device -> device
+            end)
+
+          assign(socket, :devices, devices)
+
+        {:error, _changeset} ->
+          put_flash(socket, :error, "Failed to mark health state")
+      end
+
+    {:noreply, socket}
+  end
+
   def handle_info(
         %Broadcast{event: "presence_diff", payload: %{leaves: leaves}},
         %{assigns: %{org: org, product: product}} = socket
