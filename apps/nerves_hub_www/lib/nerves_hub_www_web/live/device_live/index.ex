@@ -225,7 +225,16 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   def handle_event("select", %{"id" => id_str} = params, socket) do
     id = String.to_integer(id_str)
-    {:noreply, assign(socket, :selected_devices, [id | socket.assigns.selected_devices])}
+    selected_devices = socket.assigns.selected_devices
+
+    selected_devices =
+      if id in selected_devices do
+        selected_devices -- [id]
+      else
+        [id | selected_devices]
+      end
+
+    {:noreply, assign(socket, :selected_devices, selected_devices)}
   end
 
   def handle_event("deselect-all", _, socket) do
