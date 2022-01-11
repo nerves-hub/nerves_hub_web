@@ -49,7 +49,7 @@ The NervesHub web app requires several external services to function.
 
 ### SQL
 
-NervesHub and NervesHubCA both require a postgresql conneciton. The most common method of configuration for
+NervesHub and NervesHubCA both require a postgresql connection. The most common method of configuration for
 this service is to use the `DATABASE_URL` environment variable.
 
 ### Object Storage
