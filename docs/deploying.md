@@ -180,12 +180,12 @@ config :nerves_hub_ca, :api,
   verify: :verify_peer,
   fail_if_no_peer_cert: true
 
-working_dir = "/home/connor/nerves_hub_ca/ssl"
+working_dir = "/path/to/ssl"
 
 config :nerves_hub_ca, :api,
   cacertfile: Path.join(working_dir, "ca.pem"),
-  certfile: Path.join(working_dir, "ca.keeplabs.com.pem"),
-  keyfile: Path.join(working_dir, "ca.keeplabs.com-key.pem")
+  certfile: Path.join(working_dir, "ca.nerves-hub.pem"),
+  keyfile: Path.join(working_dir, "ca.nerves-hub-key.pem")
 
 config :nerves_hub_ca, CA.User,
   ca: Path.join(working_dir, "user-root-ca.pem"),
