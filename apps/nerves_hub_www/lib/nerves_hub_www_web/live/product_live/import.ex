@@ -35,6 +35,12 @@ defmodule NervesHubWWWWeb.ProductLive.Import do
         max_entries: 1,
         progress: &handle_progress/3
       )
+      |> allow_upload(:json,
+        accept: [".json"],
+        auto_upload: true,
+        max_entries: 1,
+        progress: &handle_progress/3
+      )
 
     {:ok, socket}
   rescue
@@ -96,11 +102,20 @@ defmodule NervesHubWWWWeb.ProductLive.Import do
   end
 
   def handle_cast({:parse_line, line_num, line}, socket) do
-    {:noreply, format_csv_line(socket, line_num, Products.parse_csv_line(line))}
+    {:noreply, format_upload_line(socket, line_num, Products.parse_csv_line(line))}
   end
 
   def handle_cast({:import_result, line_num, result}, socket) do
     {:noreply, update(socket, :results, &handle_import_result(result, line_num, &1))}
+  end
+
+  def handle_cast({:parse_json, index, data}, socket) do
+    attrs =
+      Products.parse_json_data(data)
+      |> Map.put(:org, socket.assigns.org.name)
+      |> Map.put(:product, socket.assigns.product.name)
+
+    {:noreply, format_upload_line(socket, index, attrs)}
   end
 
   defp maybe_update_changeset({line_num, _, _, c}, line_num, changeset) do
@@ -131,6 +146,40 @@ defmodule NervesHubWWWWeb.ProductLive.Import do
     {:noreply, socket}
   end
 
+  defp handle_progress(:json, entry, socket) do
+    socket =
+      if entry.done? do
+        consume_uploaded_entry(socket, entry, &parse_json(socket, &1.path))
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
+  def parse_json(socket, path) do
+    File.read!(path)
+    |> Jason.decode()
+    |> case do
+      {:ok, rest} when is_list(rest) when length(rest) <= @import_limit ->
+        for {entry, index} <- Enum.with_index(rest) do
+          GenServer.cast(socket.root_pid, {:parse_json, index, entry})
+        end
+
+        assign(socket, :active_tab, :all)
+
+      {:ok, rest} when is_list(rest) ->
+        put_flash(
+          socket,
+          :error,
+          "JSON exceeds #{@import_limit} import limit - Got: #{length(rest)}"
+        )
+
+      _error ->
+        put_flash(socket, :error, "Malformed JSON")
+    end
+  end
+
   defp parse_csv(socket, path) do
     expected_headers = Products.__csv_header__()
 
@@ -152,12 +201,12 @@ defmodule NervesHubWWWWeb.ProductLive.Import do
     end
   end
 
-  defp format_csv_line(socket, line_num, {:malformed, _line, parse_attempt}) do
+  defp format_upload_line(socket, line_num, {:malformed, _line, parse_attempt}) do
     labeled = {line_num, :malformed, device_changeset(socket, parse_attempt), []}
     update(socket, :results, &sort_results([labeled | &1]))
   end
 
-  defp format_csv_line(socket, line_num, attrs) do
+  defp format_upload_line(socket, line_num, attrs) do
     product = socket.assigns.product
     org = socket.assigns.org
     attrs = Map.merge(attrs, %{product_id: product.id, org_id: org.id})
