@@ -154,7 +154,7 @@ git clone https://github.com/nerves-hub/nerves_hub_ca.git
 cd nerves_hub_ca
 ```
 
-Before proceding, you will need to ensure the following environment variables are 
+Before proceeding, you will need to ensure the following environment variables are 
 exported. Make sure you update them to your environment
 
 ```bash
