@@ -229,6 +229,25 @@ defmodule NervesHubWebCore.Products do
     Product.changeset(product, %{})
   end
 
+  def parse_json_data(%{"header" => %{"uniqueId" => serial}} = data) do
+    certificate =
+      data
+      |> Map.fetch!("payload")
+      |> Base.url_decode64!(ignore: :whitespace, padding: false)
+      |> Jason.decode!()
+      |> Map.fetch!("publicKeySet")
+      |> Map.fetch!("keys")
+      |> Enum.at(0)
+      |> Map.fetch!("x5c")
+      |> Enum.at(0)
+      |> Base.decode64!(ignore: :whitespace, padding: false)
+      |> X509.Certificate.from_der!()
+      |> X509.Certificate.to_pem()
+      |> parse_cert_type()
+
+    %{identifier: serial, certificates: [certificate]}
+  end
+
   def devices_csv(%Product{} = product) do
     product = Repo.preload(product, [:org, devices: :device_certificates])
     data = Enum.map(product.devices, &device_csv_line(&1, product))

@@ -32,12 +32,24 @@
 
 <%= if @active_tab == :upload  do %>
   <form phx-change="validate" phx-drop-target="<%= @uploads.csv.ref %>">
+    <h1> Upload a CSV file: </h1>
     <div class="form-group import-csv">
       <%= for entry <- @uploads.csv.entries do %>
         <%= entry.client_name %> - <%= entry.progress %>%
       <% end %>
       <label>Drag or Click to upload</label>
       <%= live_file_input @uploads.csv, class: "upload-select"%>
+    </div>
+  </form>
+
+  <form phx-change="validate" phx-drop-target="<%= @uploads.json.ref %>">
+    <h1> Upload a JSON file: </h1>
+    <div class="form-group import-csv">
+      <%= for entry <- @uploads.json.entries do %>
+        <%= entry.client_name %> - <%= entry.progress %>%
+      <% end %>
+      <label>Drag or Click to upload</label>
+      <%= live_file_input @uploads.json, class: "upload-select"%>
     </div>
   </form>
 <% else %>
