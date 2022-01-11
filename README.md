@@ -3,8 +3,17 @@
 [![CircleCI](https://circleci.com/gh/nerves-hub/nerves_hub_web/tree/next.svg?style=svg)](https://circleci.com/gh/nerves-hub/nerves_hub_web/tree/next)
 [![Coverage Status](https://coveralls.io/repos/github/nerves-hub/nerves_hub_web/badge.svg?branch=next)](https://coveralls.io/github/nerves-hub/nerves_hub_web?branch=next)
 
-A domain independent back end solution for rolling out software updates to edge
-devices connected to IP based networking infrastructure.
+This is the source code for the NervesHub firmware update and device management
+server.
+
+*Important*
+
+The public NervesHub instance at `nerves-hub.org` will be turned off on March
+31st, 2022.  See [NervesHub Sunset](https://elixirforum.com/t/action-advised-nerveshub-sunset/42925).
+This doesn't mean NervesHub development has ended. Many of us run NervesHub
+instances internally at our companies and really like it. We will be moving our
+patches to the source code to this `next` branch. The `main` branch continues to
+deploy to `nerves-hub.org`.
 
 ## Project overview and setup
 
