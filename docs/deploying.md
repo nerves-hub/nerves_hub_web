@@ -208,7 +208,7 @@ mix release
 _build/prod/rel/nerves_hub_ca/bin/nerves_hub_ca start_iex
 ```
 
-That's it for this service. Open a new terminal and procede to the next section.
+That's it for this service. Open a new terminal and proceed to the next section.
 
 ### api.nerves-hub.org
 
