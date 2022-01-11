@@ -11,7 +11,7 @@ devices connected to IP based networking infrastructure.
 ### Development environment setup
 
 If you haven't already, make sure that your development environment has
-Elixir >= 1.7, Erlang 21, and NodeJS.
+Elixir >= 1.11, Erlang 22, and NodeJS.
 
 You'll also need `fwup` and can follow [these installation instructions](https://github.com/fhunleth/fwup#installing) for your platform if needed.
 
