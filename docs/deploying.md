@@ -54,7 +54,9 @@ this service is to use the `DATABASE_URL` environment variable.
 
 ### Object Storage
 
-The NervesHub API requires two buckets. One for logging, the other for storing firmware files. Relevent environment variables are:
+NervesHub supports local file storage and remote S3 integration for object storage which is required for storing firmware files. NervesHub uses a [`NervesHubWebCore.Firmwares.Upload`](https://github.com/nerves-hub/nerves_hub_web/blob/next/apps/nerves_hub_web_core/lib/nerves_hub_web_core/firmwares/upload.ex) behavior to define required callbacks if you wish to implement your own.
+
+By default, S3 is assumed and the NervesHub API requires two buckets. One for logging, the other for storing firmware files. Relevent environment variables are:
 
 * `AWS_REGION`
 * `AWS_ACCESS_KEY_ID`
