@@ -35,7 +35,7 @@ defmodule NervesHubWWWWeb.ProductLive.Import do
         max_entries: 1,
         progress: &handle_progress/3
       )
-      |> allow_upload(:json,
+      |> allow_upload(:jose,
         accept: [".json"],
         auto_upload: true,
         max_entries: 1,
@@ -109,9 +109,9 @@ defmodule NervesHubWWWWeb.ProductLive.Import do
     {:noreply, update(socket, :results, &handle_import_result(result, line_num, &1))}
   end
 
-  def handle_cast({:parse_json, index, data}, socket) do
+  def handle_cast({:parse_jose, index, data}, socket) do
     attrs =
-      Products.parse_json_data(data)
+      Products.parse_jose_data(data)
       |> Map.put(:org, socket.assigns.org.name)
       |> Map.put(:product, socket.assigns.product.name)
 
@@ -146,10 +146,10 @@ defmodule NervesHubWWWWeb.ProductLive.Import do
     {:noreply, socket}
   end
 
-  defp handle_progress(:json, entry, socket) do
+  defp handle_progress(:jose, entry, socket) do
     socket =
       if entry.done? do
-        consume_uploaded_entry(socket, entry, &parse_json(socket, &1.path))
+        consume_uploaded_entry(socket, entry, &parse_jose(socket, &1.path))
       else
         socket
       end
@@ -157,13 +157,13 @@ defmodule NervesHubWWWWeb.ProductLive.Import do
     {:noreply, socket}
   end
 
-  def parse_json(socket, path) do
+  def parse_jose(socket, path) do
     File.read!(path)
     |> Jason.decode()
     |> case do
       {:ok, rest} when is_list(rest) when length(rest) <= @import_limit ->
         for {entry, index} <- Enum.with_index(rest) do
-          GenServer.cast(socket.root_pid, {:parse_json, index, entry})
+          GenServer.cast(socket.root_pid, {:parse_jose, index, entry})
         end
 
         assign(socket, :active_tab, :all)
