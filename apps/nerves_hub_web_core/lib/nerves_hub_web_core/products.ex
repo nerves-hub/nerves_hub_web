@@ -229,7 +229,7 @@ defmodule NervesHubWebCore.Products do
     Product.changeset(product, %{})
   end
 
-  def parse_json_data(%{"header" => %{"uniqueId" => unique_id}} = data) do
+  def parse_jose_data(%{"header" => %{"uniqueId" => unique_id}} = data) do
     # this is how the serial in the cert is stored.
     # it must match otherwise devices will be unable to connect
     serial = "sn" <> String.upcase(unique_id)
@@ -288,15 +288,15 @@ defmodule NervesHubWebCore.Products do
       {:ok, attrs} ->
         # We have a hard requirement for DERs to be included with the cert,
         # but this JSON only appears when there was no DER to export.
-        # So mark it with from_json: true that can then be used later
+        # So mark it with from_jose: true that can then be used later
         # on to still allow cert creation in the import
-        for {k, v} <- attrs, key = String.to_existing_atom(k), into: %{from_json: true} do
+        for {k, v} <- attrs, key = String.to_existing_atom(k), into: %{from_jose: true} do
           val = if key in [:ski, :aki], do: decode(v), else: v
           {key, val}
         end
 
       _ ->
-        :malformed_json
+        :malformed_jose
     end
   end
 

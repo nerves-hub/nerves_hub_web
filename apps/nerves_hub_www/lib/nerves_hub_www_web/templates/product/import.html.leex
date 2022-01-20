@@ -42,14 +42,14 @@
     </div>
   </form>
 
-  <form phx-change="validate" phx-drop-target="<%= @uploads.json.ref %>">
-    <h1> Upload a JSON file: </h1>
+  <form phx-change="validate" phx-drop-target="<%= @uploads.jose.ref %>">
+    <h1> Upload a JOSE file (e.g., TrustPlatform Manifest File): </h1>
     <div class="form-group import-csv">
-      <%= for entry <- @uploads.json.entries do %>
+      <%= for entry <- @uploads.jose.entries do %>
         <%= entry.client_name %> - <%= entry.progress %>%
       <% end %>
       <label>Drag or Click to upload</label>
-      <%= live_file_input @uploads.json, class: "upload-select"%>
+      <%= live_file_input @uploads.jose, class: "upload-select"%>
     </div>
   </form>
 <% else %>
