@@ -229,7 +229,11 @@ defmodule NervesHubWebCore.Products do
     Product.changeset(product, %{})
   end
 
-  def parse_json_data(%{"header" => %{"uniqueId" => serial}} = data) do
+  def parse_json_data(%{"header" => %{"uniqueId" => unique_id}} = data) do
+    # this is how the serial in the cert is stored.
+    # it must match otherwise devices will be unable to connect
+    serial = "sn" <> String.upcase(unique_id)
+
     certificate =
       data
       |> Map.fetch!("payload")
