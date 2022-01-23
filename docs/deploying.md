@@ -160,7 +160,7 @@ Before proceeding, you will need to ensure the following environment variables a
 exported. Make sure you update them to your environment
 
 ```bash
-export PORT=443
+export PORT=8443
 export HOST="ca.nerves-hub.org"
 export DATABASE_URL="ecto://username:password@db-host/nerves_hub_ca"
 ```
@@ -176,16 +176,17 @@ Edit the file called `config/release.exs`:
 
 ```elixir
 config :nerves_hub_ca, :api,
-  port: 443,
+  port: System.fetch_env!("PORT"),
   verify: :verify_peer,
   fail_if_no_peer_cert: true
 
 working_dir = "/path/to/ssl"
+host = System.fetch_env!("HOST")
 
 config :nerves_hub_ca, :api,
   cacertfile: Path.join(working_dir, "ca.pem"),
-  certfile: Path.join(working_dir, "ca.nerves-hub.pem"),
-  keyfile: Path.join(working_dir, "ca.nerves-hub-key.pem")
+  certfile: Path.join(working_dir, "#{host}.pem"),
+  keyfile: Path.join(working_dir, "#{host}-key.pem")
 
 config :nerves_hub_ca, CA.User,
   ca: Path.join(working_dir, "user-root-ca.pem"),
