@@ -32,7 +32,7 @@ There are four domains required to be configured for NervesHub to work. You can 
 | --------------------- | ----------------- | -------------------------------------------------------------------------------------- |
 | nerves-hub.org        | nerves_hub_www    | Provides the primary user interface to NervesHub. Your browser connects to this domain |
 | api.nerves-hub.org    | nerves_hub_api    | Provides an HTTP/REST API to NervesHub. the mix commands use this domain               |
-| device.nerves-hub.org | nerves_hub_device | Provides a websocket API for decices to connect to                                     |
+| device.nerves-hub.org | nerves_hub_device | Provides a websocket API for devices to connect to                                     |
 | ca.nerves-hub.org     | nerves_hub_ca     | Provides a certificate authority for authorizing the api and device domains            |
 
 Please note that you will need to change the `nerves-hub.org` portion of all domains to something you control. 
