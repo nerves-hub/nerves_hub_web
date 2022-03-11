@@ -54,7 +54,7 @@ defmodule NervesHubWWWWeb.PasswordResetController do
       {:error, :not_found} ->
         conn
         |> put_flash(
-          :warning,
+          :info,
           "We're sorry, your password reset link is expired. Please try again."
         )
         |> redirect(to: Routes.session_path(conn, :new))
@@ -71,7 +71,7 @@ defmodule NervesHubWWWWeb.PasswordResetController do
       {:error, :not_found} ->
         conn
         |> put_flash(
-          :warning,
+          :info,
           "We're sorry, your password reset link is expired or incorrect. Please try again."
         )
         |> redirect(to: Routes.session_path(conn, :new))
