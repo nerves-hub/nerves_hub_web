@@ -482,9 +482,9 @@ workflows:
               - build-www
               - build-api
               - build-device
-            filters:
-              branches:
-                only: main
+            # filters:
+            #   branches:
+            #     only: main
         - push-staging-www:
             context: org-global
             requires:
@@ -493,9 +493,9 @@ workflows:
             context: org-global
             requires:
               - approve-production-deploy
-            filters:
-              branches:
-                only: main
+            # filters:
+            #   branches:
+            #     only: main
         - push-staging-device:
             context: org-global
             requires:
@@ -504,9 +504,9 @@ workflows:
             context: org-global
             requires:
               - approve-production-deploy
-            filters:
-              branches:
-                only: main
+            # filters:
+            #   branches:
+            #     only: main
         - push-staging-api:
             context: org-global
             requires:
@@ -515,9 +515,9 @@ workflows:
             context: org-global
             requires:
               - approve-production-deploy
-            filters:
-              branches:
-                only: main
+            # filters:
+            #   branches:
+            #     only: main
         - migrate-staging:
             context: org-global
             requires:
@@ -530,9 +530,9 @@ workflows:
               - push-production-www
               - push-production-device
               - push-production-api
-            filters:
-              branches:
-                only: main
+            # filters:
+            #   branches:
+            #     only: main
         - deploy-staging-www:
             context: org-global
             requires:
@@ -541,9 +541,9 @@ workflows:
             context: org-global
             requires:
               - migrate-production
-            filters:
-              branches:
-                only: main
+            # filters:
+            #   branches:
+            #     only: main
         - deploy-staging-device:
             context: org-global
             requires:
@@ -552,9 +552,9 @@ workflows:
             context: org-global
             requires:
               - migrate-production
-            filters:
-              branches:
-                only: main
+            # filters:
+            #   branches:
+            #     only: main
         - deploy-staging-api:
             context: org-global
             requires:
@@ -563,6 +563,6 @@ workflows:
             context: org-global
             requires:
               - migrate-production
-            filters:
-              branches:
-                only: main
+            # filters:
+            #   branches:
+            #     only: main
