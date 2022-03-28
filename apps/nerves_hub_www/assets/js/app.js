@@ -2,6 +2,7 @@ import '../css/app.scss'
 
 import 'phoenix_html'
 import 'bootstrap'
+import '@popperjs/core'
 import $ from 'jquery'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'

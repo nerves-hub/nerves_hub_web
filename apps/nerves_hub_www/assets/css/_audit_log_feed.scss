@@ -1,6 +1,6 @@
 .audit-log-item {
   padding: 1rem;
-  background: var(--backgroundLight);
+  background: var(--bs-backgroundLight);
   border-radius: 4px;
   margin-bottom: 1rem;
   display: grid;
@@ -22,18 +22,18 @@
     background-position: center;
     background-repeat: no-repeat;
     background-size: 1.75rem 1.5rem;
-    background-image: url("/images/icons/activity-update.svg");
+    background-image: url('/images/icons/activity-update.svg');
 
     &.icon-create {
-      background-image: url("/images/icons/activity-create.svg");
+      background-image: url('/images/icons/activity-create.svg');
     }
 
     &.icon-update {
-      background-image: url("/images/icons/activity-update.svg");
+      background-image: url('/images/icons/activity-update.svg');
     }
 
     &.icon-delete {
-      background-image: url("/images/icons/activity-delete.svg");
+      background-image: url('/images/icons/activity-delete.svg');
     }
   }
 }

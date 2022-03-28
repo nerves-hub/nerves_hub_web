@@ -1,6 +1,6 @@
 .footer {
-  background-color: var(--background);
-  border-top: 1px solid rgba(255, 255, 255, 0.20);
+  background-color: var(--bs-background);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
   width: 100%;
   z-index: 100;
   padding: 6rem 1.5rem;
@@ -9,7 +9,7 @@
   align-items: center;
 
   h6 {
-    font-size: .875rem;
+    font-size: 0.875rem;
     text-transform: uppercase;
     font-weight: bold;
     line-height: 1.4rem;
@@ -64,13 +64,13 @@
 
       .arrow {
         position: relative;
-        left: .5rem;
+        left: 0.5rem;
         top: -2px;
         transition: all 200ms ease;
       }
 
       &:hover .arrow {
-        left: .75rem;
+        left: 0.75rem;
       }
     }
   }
@@ -92,8 +92,8 @@
     }
 
     a {
-      font-size: .75rem;
-      color: var(--white-50);
+      font-size: 0.75rem;
+      color: var(--bs-white-50);
 
       &:hover {
         color: white;

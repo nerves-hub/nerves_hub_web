@@ -5,26 +5,26 @@ $fa-font-path: '~@fortawesome/fontawesome-free/webfonts';
 @import '~@fortawesome/fontawesome-free/scss/brands';
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap');
 
-@import "_animate.css";
-@import "audit_log_feed";
-@import "console";
-@import "layout";
-@import "colors";
-@import "typography";
-@import "buttons";
-@import "form";
-@import "navigation";
-@import "sidebar";
-@import "home";
-@import "custom";
-@import "footer";
-@import "table";
-@import "modal";
-@import "import";
-@import "~bootstrap/scss/bootstrap";
+@import '_animate.css';
+@import 'audit_log_feed';
+@import 'console';
+@import 'layout';
+@import 'colors';
+@import 'typography';
+@import 'buttons';
+@import 'form';
+@import 'navigation';
+@import 'sidebar';
+@import 'home';
+@import 'custom';
+@import 'footer';
+@import 'table';
+@import 'modal';
+@import 'import';
+@import '~bootstrap/scss/bootstrap';
 
 html {
-  margin: 0;
+  margin: 100;
   padding: 0;
   height: 100%;
   max-width: 100%;
@@ -38,7 +38,7 @@ html body {
   font-family: 'Montserrat', sans-serif;
 
   .normal-wrapper {
-    background-color: var(--background);
+    background-color: var(--bs-background);
     color: white;
     height: 100%;
     position: relative;
@@ -61,7 +61,7 @@ html body {
 
   .home-wrapper {
     height: 100%;
-    color: #24282A;
+    color: #24282a;
 
     main {
       margin: 0 auto;
@@ -73,9 +73,9 @@ html body {
 
 .badge {
   height: 36px;
-  background-color: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.05);
-  padding: .75rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0.75rem;
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
@@ -83,21 +83,21 @@ html body {
   font-size: 16px;
   overflow: hidden;
   position: relative;
-  margin-right: .5rem;
-  margin-top: .5rem;
-  margin-bottom: .5rem;
+  margin-right: 0.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 
   &.healthy-false {
-    background-color: var(--primary-25);
+    background-color: var(--bs-primary-25);
     padding-right: 2.5rem;
-    background-image: url("/images/icons/quarantine-red.svg");
-    background-position: right .5rem center;
+    background-image: url('/images/icons/quarantine-red.svg');
+    background-position: right 0.5rem center;
     background-repeat: no-repeat;
     background-size: 1.1rem;
 
     &:hover {
       color: white;
-      background-color: var(--primary-50);
+      background-color: var(--bs-primary-50);
     }
   }
 
@@ -118,10 +118,10 @@ html body {
 }
 
 .quarantined {
-  background-image: url("/images/icons/error.svg");
+  background-image: url('/images/icons/error.svg');
   background-size: 1.5rem;
   background-repeat: no-repeat;
-  background-position: right .5rem center;
+  background-position: right 0.5rem center;
   padding-right: 2.5rem;
 }
 
@@ -132,15 +132,15 @@ html body {
   font-weight: 500;
 
   &.alert-info {
-    background-color: var(--info);
+    background-color: var(--bs-info);
   }
 
   &.alert-danger {
-    background-color: var(--danger);
+    background-color: var(--bs-danger);
   }
 
   &.alert-warning {
-    background-color: var(--warning);
+    background-color: var(--bs-warning);
   }
 }
 
@@ -148,19 +148,19 @@ html body {
   background: rgba(255, 255, 255, 0.1);
 
   .progress-bar {
-    background-color: var(--primary);
+    background-color: var(--bs-primary);
     font-weight: 700;
   }
 
   &.device-show {
     height: 1.5rem;
-    margin-top: .5rem;
+    margin-top: 0.5rem;
 
     .progress-bar {
       height: 1.5rem;
-      font-size: .875rem;
+      font-size: 0.875rem;
       text-align: right;
-      padding: 0 .5rem;
+      padding: 0 0.5rem;
       min-width: 2rem;
     }
   }

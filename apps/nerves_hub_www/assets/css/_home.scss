@@ -1,5 +1,5 @@
-$text-dark: #282D30;
-$primary: #A72B2A;
+$text-dark: #282d30;
+$primary: #a72b2a;
 
 .home-wrapper {
   h1 {
@@ -65,7 +65,7 @@ $primary: #A72B2A;
 
     .close {
       position: static;
-      padding: .75rem;
+      padding: 0.75rem;
     }
   }
 
@@ -132,7 +132,10 @@ $primary: #A72B2A;
 
   .home-hero {
     display: grid;
-    grid-template-columns: minmax(1.5rem, 1fr) 38.75rem 38.75rem minmax(1.5rem, 1fr);
+    grid-template-columns: minmax(1.5rem, 1fr) 38.75rem 38.75rem minmax(
+        1.5rem,
+        1fr
+      );
     height: 50rem;
 
     @media (max-width: 1150px) {
@@ -160,7 +163,7 @@ $primary: #A72B2A;
   }
 
   .hero-image {
-    background: #A22926;
+    background: #a22926;
     border-radius: 0 0 0 6rem;
     position: relative;
     display: flex;
@@ -220,7 +223,7 @@ $primary: #A72B2A;
   }
 
   .home-about {
-    background: #F6F6F6;
+    background: #f6f6f6;
     margin-bottom: 16rem;
     margin-top: 16rem;
     padding-bottom: 5rem;
@@ -228,7 +231,7 @@ $primary: #A72B2A;
     position: relative;
 
     &:before {
-      border-right: 100vw solid #F6F6F6;
+      border-right: 100vw solid #f6f6f6;
       border-top: 12rem solid transparent;
       content: '';
       display: block;
@@ -244,7 +247,7 @@ $primary: #A72B2A;
     }
 
     &:after {
-      border-left: 100vw solid #F6F6F6;
+      border-left: 100vw solid #f6f6f6;
       border-bottom: 12rem solid transparent;
       bottom: -12rem;
       content: '';
@@ -287,7 +290,7 @@ $primary: #A72B2A;
       }
 
       p {
-        margin-top: .75rem;
+        margin-top: 0.75rem;
       }
     }
   }
@@ -411,7 +414,7 @@ $primary: #A72B2A;
       }
 
       .item {
-        box-shadow: 0 2px 32px 0 rgba(59,143,169,0.3);
+        box-shadow: 0 2px 32px 0 rgba(59, 143, 169, 0.3);
         border-radius: 5px;
         overflow: hidden;
         display: grid;

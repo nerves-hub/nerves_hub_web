@@ -4,7 +4,7 @@ html {
     display: inline-flex;
     align-items: center;
     height: 44px;
-    padding: .5rem 1rem;
+    padding: 0.5rem 1rem;
     font-size: 14px;
     min-width: 80px;
     justify-content: center;
@@ -20,7 +20,7 @@ html {
 
     &:disabled,
     &.disabled {
-      opacity: .5;
+      opacity: 0.5;
       cursor: not-allowed;
       pointer-events: none;
 
@@ -36,7 +36,7 @@ html {
   }
 
   .action-text + .button-icon {
-    margin-left: .75rem;
+    margin-left: 0.75rem;
   }
 
   .btn:hover .button-icon {
@@ -50,47 +50,48 @@ html {
     width: 1rem;
     height: 1rem;
     display: inline-block;
-    opacity: .75;
+    opacity: 0.75;
     transition: opacity 200ms ease;
 
     & + .action-text {
-      margin-left: .75rem;
+      margin-left: 0.75rem;
     }
 
     &.add {
-      background-image: url("/images/icons/add.svg");
+      color: white;
+      background-image: url('/images/icons/add.svg');
     }
 
     &.power {
-      background-image: url("/images/icons/power.svg");
+      background-image: url('/images/icons/power.svg');
     }
 
     &.console-icon {
-      background-image: url("/images/icons/console.svg");
+      background-image: url('/images/icons/console.svg');
     }
 
     &.edit {
-      background-image: url("/images/icons/edit.svg");
+      background-image: url('/images/icons/edit.svg');
     }
 
     &.download {
-      background-image: url("/images/icons/download.svg");
+      background-image: url('/images/icons/download.svg');
     }
 
     &.delete {
-      background-image: url("/images/icons/trash.svg");
+      background-image: url('/images/icons/trash.svg');
     }
 
     &.quarantine {
-      background-image: url("/images/icons/quarantine.svg");
+      background-image: url('/images/icons/quarantine.svg');
     }
 
     &.filter {
-      background-image: url("/images/icons/filter.svg");
+      background-image: url('/images/icons/filter.svg');
     }
 
     &.upload {
-      background-image: url("/images/icons/upload.svg");
+      background-image: url('/images/icons/upload.svg');
     }
   }
 
@@ -101,10 +102,10 @@ html {
   }
 
   .btn-filter-hide {
-    border: 2px solid var(--primary);
+    border: 2px solid var(--bs-primary);
 
     &:hover {
-      border-color: var(--primary) !important;
+      border-color: var(--bs-primary) !important;
     }
 
     &:focus {
@@ -129,7 +130,6 @@ html {
   }
 
   .btn-action {
-
     @media (max-width: 860px) {
       min-width: 3.5rem;
 

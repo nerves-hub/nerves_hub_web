@@ -1,5 +1,5 @@
 .modal-content {
-  @extend .text-dark;
+  @extend .text-dark !optional;
   font-size: 18px;
   background-color: white;
   width: 70%;
@@ -8,7 +8,7 @@
 }
 
 .modal-header {
-  @extend .bg-dark;
+  @extend .bg-dark !optional;
   display: block;
   text-align: left;
   color: white;
