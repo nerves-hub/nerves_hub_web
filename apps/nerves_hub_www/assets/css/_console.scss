@@ -45,8 +45,8 @@
   color: inherit;
   font-family: inherit;
   border: none;
-  background-image:none;
-  background-color:transparent;
+  background-image: none;
+  background-color: transparent;
   -webkit-box-shadow: none;
   -moz-box-shadow: none;
   box-shadow: none;
@@ -59,9 +59,10 @@
 
 // Console V2
 
-@import "~xterm/css/xterm.css";
+@import '~xterm/css/xterm.css';
 
-#console-html, #console-body {
+#console-html,
+#console-body {
   background-color: black;
   height: 100%;
   border: solid gray;
@@ -86,7 +87,7 @@
 }
 
 .online {
-  background-image: url("/images/icons/check.svg");
+  background-image: url('/images/icons/check.svg');
   padding-left: 1.5rem;
   background-repeat: no-repeat;
   font-weight: bold;
@@ -94,8 +95,9 @@
   line-height: 44px;
 }
 
-.offline, .rebooting {
-  background-image: url("/images/icons/cross.svg");
+.offline,
+.rebooting {
+  background-image: url('/images/icons/cross.svg');
   padding-left: 1.5rem;
   background-repeat: no-repeat;
   font-weight: bold;

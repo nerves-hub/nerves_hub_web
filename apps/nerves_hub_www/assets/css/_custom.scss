@@ -11,15 +11,15 @@
 }
 
 .opacity-75 {
-  opacity: .75;
+  opacity: 0.75;
 }
 
 .opacity-50 {
-  opacity: .5;
+  opacity: 0.5;
 }
 
 .opacity-25 {
-  opacity: .25;
+  opacity: 0.25;
 }
 
 .opacity-0 {
@@ -28,12 +28,12 @@
 
 .divider {
   height: 1px;
-  background-color: rgba(255, 255, 255, 0.10);
+  background-color: rgba(255, 255, 255, 0.1);
   margin: 2rem 0;
 }
 
 .box-item {
-  border: 1px solid var(--white-50);
+  border: 1px solid var(--bs-white-50);
   border-radius: 4px;
   padding: 1.5rem;
   transition: all 200ms ease;
@@ -57,17 +57,17 @@
 
   & > img {
     margin: auto;
-    opacity: .75;
+    opacity: 0.75;
   }
 
   .key-value {
-    font-size: .75rem;
-    color: var(--white-50);
-    margin-top: .5rem;
+    font-size: 0.75rem;
+    color: var(--bs-white-50);
+    margin-top: 0.5rem;
   }
 }
 .options .dropdown-item {
-  color: var(--white-50);
+  color: var(--bs-white-50);
   transition: color 200ms ease;
   display: flex;
   align-items: center;
@@ -93,10 +93,10 @@
   align-items: center;
   justify-content: center;
   transition: opacity 200ms ease;
-  opacity: .75;
+  opacity: 0.75;
 
   &:hover,
-  &[aria-expanded="true"] {
+  &[aria-expanded='true'] {
     opacity: 1;
   }
 
@@ -107,8 +107,8 @@
   & + .dropdown-menu {
     padding: 0;
     border-radius: 4px;
-    background-color: var(--background);
-    border: 1px solid var(--white-75);
+    background-color: var(--bs-background);
+    border: 1px solid var(--bs-white-75);
 
     li {
       color: white;
@@ -144,11 +144,11 @@
   }
 
   .tooltip-text {
-    padding: .5rem;
-    background: var(--backgroundDark);
+    padding: 0.5rem;
+    background: var(--bs-backgroundDark);
     position: absolute;
     left: 100%;
-    top: -.25rem;
+    top: -0.25rem;
     display: none;
     width: 13rem;
     text-transform: none;
@@ -163,9 +163,9 @@
   .tooltip-info {
     width: 2rem;
     height: 1rem;
-    opacity: .5;
+    opacity: 0.5;
     transition: opacity 200ms ease;
-    background-image: url("/images/icons/info.svg");
+    background-image: url('/images/icons/info.svg');
     background-position: center;
     background-size: 1rem;
     background-repeat: no-repeat;
@@ -179,7 +179,7 @@
 }
 
 .display-box {
-  background: var(--backgroundLight);
+  background: var(--bs-backgroundLight);
   padding: 2.5rem;
   border-radius: 4px;
   margin-bottom: 2rem;
@@ -187,7 +187,7 @@
 
 .back-link {
   padding-left: 1.5rem;
-  background-image: url("/images/icons/arrow-back-red.svg");
+  background-image: url('/images/icons/arrow-back-red.svg');
   background-position: left 14px;
   background-repeat: no-repeat;
   font-weight: bold;
@@ -208,7 +208,7 @@
   }
 
   .help-text {
-    margin-bottom: .5rem;
+    margin-bottom: 0.5rem;
   }
 }
 
@@ -223,7 +223,7 @@
   }
 
   .help-text {
-    margin-bottom: .5rem;
+    margin-bottom: 0.5rem;
   }
 
   @media (max-width: 860px) {
@@ -232,14 +232,14 @@
 }
 
 .device-limit-indicator {
-  background-image: url("/images/icons/device.svg");
+  background-image: url('/images/icons/device.svg');
   background-position: right center;
   background-repeat: no-repeat;
   background-size: 1.5rem;
   padding-right: 2rem;
   letter-spacing: 4px;
 
-  @media(max-width: 860px) {
+  @media (max-width: 860px) {
     display: none;
   }
 }
@@ -281,7 +281,7 @@ html {
     margin-bottom: 0;
   }
 
-  @media(max-width: 860px) {
+  @media (max-width: 860px) {
     margin-bottom: 1rem;
 
     & + h1 {

@@ -19,7 +19,7 @@ html {
   // Margin
 
   .mt-1 {
-    margin-top: .5rem !important;
+    margin-top: 0.5rem !important;
   }
 
   .mt-2 {
@@ -51,7 +51,7 @@ html {
   }
 
   .mr-1 {
-    margin-right: .5rem !important;
+    margin-right: 0.5rem !important;
   }
 
   .mr-2 {
@@ -83,7 +83,7 @@ html {
   }
 
   .mb-1 {
-    margin-bottom: .5rem !important;
+    margin-bottom: 0.5rem !important;
   }
 
   .mb-2 {
@@ -115,7 +115,7 @@ html {
   }
 
   .ml-1 {
-    margin-left: .5rem !important;
+    margin-left: 0.5rem !important;
   }
 
   .ml-2 {
@@ -149,7 +149,7 @@ html {
   // Padding
 
   .pt-1 {
-    padding-top: .5rem !important;
+    padding-top: 0.5rem !important;
   }
 
   .pt-2 {
@@ -181,7 +181,7 @@ html {
   }
 
   .pr-1 {
-    padding-right: .5rem !important;
+    padding-right: 0.5rem !important;
   }
 
   .pr-2 {
@@ -213,7 +213,7 @@ html {
   }
 
   .pb-1 {
-    padding-bottom: .5rem !important;
+    padding-bottom: 0.5rem !important;
   }
 
   .pb-2 {
@@ -245,7 +245,7 @@ html {
   }
 
   .pl-1 {
-    padding-left: .5rem !important;
+    padding-left: 0.5rem !important;
   }
 
   .pl-2 {
@@ -277,7 +277,7 @@ html {
   }
 
   .p-1 {
-    padding: .5rem !important;
+    padding: 0.5rem !important;
   }
 
   .p-2 {
@@ -327,7 +327,7 @@ html {
     }
 
     .grid-item {
-      border: 1px solid var(--white-50);
+      border: 1px solid var(--bs-white-50);
       border-radius: 4px;
       height: 216px;
       padding: 2rem;
@@ -398,4 +398,3 @@ html {
     grid-row: 2;
   }
 }
-

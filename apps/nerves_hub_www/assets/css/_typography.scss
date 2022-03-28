@@ -18,8 +18,8 @@ body {
   .h2 {
     font-size: 2.125rem;
     font-weight: 900;
-    color: var(--text-dark);
-    opacity: .4;
+    color: var(--bs-text-dark);
+    opacity: 0.4;
     line-height: 2.7rem;
     margin: 0;
   }
@@ -47,7 +47,7 @@ body {
   .subtitle {
     font-size: 1.5rem;
     font-weight: 900;
-    color: var(--text-dark);
+    color: var(--bs-text-dark);
     line-height: 1.9rem;
     margin: 0;
 
@@ -61,15 +61,15 @@ body {
   .h5 {
     font-size: 1.125rem;
     font-weight: 500;
-    color: var(--white-50);
+    color: var(--bs-white-50);
     line-height: 1.75rem;
   }
 
   h6,
   .h6,
   .label {
-    color: var(--white-50);
-    font-size: .75rem;
+    color: var(--bs-white-50);
+    font-size: 0.75rem;
     font-weight: 300;
     margin: 0;
   }
@@ -95,19 +95,19 @@ body {
   .p-small {
     font-size: 0.875rem;
     font-weight: 400;
-    color: var(--white-75);
+    color: var(--bs-white-75);
     line-height: 1.2rem;
   }
 
   .help-text {
     font-size: 0.875rem;
-    color: var(--white-50);
+    color: var(--bs-white-50);
     font-weight: 300;
 
     &.large {
       font-size: 1.125rem;
       font-weight: 500;
-      color: var(--white-50);
+      color: var(--bs-white-50);
     }
   }
 
@@ -117,21 +117,21 @@ body {
     font-weight: 500;
 
     &.inline {
-      color: var(--primary-light);
+      color: var(--bs-primary-light);
 
       &:hover {
-        color: var(--primary-medium);
+        color: var(--bs-primary-medium);
       }
     }
 
     &:hover {
-      color: var(--primary-light);
+      color: var(--bs-primary-light);
       text-decoration: none;
     }
   }
 
   .color-primary {
-    color: var(--primary) !important;
+    color: var(--bs-primary) !important;
   }
 
   .color-white {
@@ -139,11 +139,11 @@ body {
   }
 
   .color-white-50 {
-    color: var(--white-50);
+    color: var(--bs-white-50);
   }
 
   .text-muted {
-    color: rgba(255,255,255,0.65) !important;
+    color: rgba(255, 255, 255, 0.65) !important;
   }
 
   .fw-b {

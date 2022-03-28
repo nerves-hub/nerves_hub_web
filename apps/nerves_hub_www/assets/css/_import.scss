@@ -3,7 +3,7 @@ html {
     // input[type=file] {
     //   color: transparent;
     // }
-    
+
     ::-webkit-file-upload-button {
       display: none;
     }
@@ -15,7 +15,7 @@ html {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    border: 1px dashed var(--white-50);
+    border: 1px dashed var(--bs-white-50);
     border-radius: 4px;
     background: none;
     position: static;
@@ -31,20 +31,20 @@ html {
     &:hover {
       border-color: white;
     }
-    
+
     .upload-select {
       width: 100%;
-    height: 100%;
-    max-width: 100%;
-    
-    background: none;
-    position: static;
-    margin: 0;
+      height: 100%;
+      max-width: 100%;
+
+      background: none;
+      position: static;
+      margin: 0;
     }
   }
 
   td.import-warning {
-    border: 2px dashed var(--primary);
+    border: 2px dashed var(--bs-primary);
 
     &:hover {
       .tooltip-text {
@@ -58,7 +58,6 @@ html {
   }
 
   tr.import-malformed {
-    background-color: var(--primary-75);
+    background-color: var(--bs-primary-75);
   }
-
 }

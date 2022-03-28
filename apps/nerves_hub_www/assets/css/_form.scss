@@ -26,7 +26,7 @@ html {
   .form-control {
     background: transparent;
     color: white;
-    border: 1px solid var(--white-25);
+    border: 1px solid var(--bs-white-25);
     height: 48px;
     font-size: 16px;
     font-weight: 400;
@@ -42,7 +42,7 @@ html {
     }
 
     &:disabled {
-      background-color: var(--white-25);
+      background-color: var(--bs-white-25);
       opacity: 0.8;
       cursor: not-allowed;
     }
@@ -55,18 +55,18 @@ html {
     }
 
     &.invalid {
-      border: 1px solid var(--warning);
+      border: 1px solid var(--bs-warning);
     }
   }
 
-  input[type="number"].small {
-      -moz-appearance: textfield;
+  input[type='number'].small {
+    -moz-appearance: textfield;
   }
 
-  input[type="number"].small::-webkit-outer-spin-button,
-  input[type="number"].small::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
+  input[type='number'].small::-webkit-outer-spin-button,
+  input[type='number'].small::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
 
   .form-control-md {
@@ -79,7 +79,7 @@ html {
 
   label {
     font-size: 18px;
-    color: var(--white-50);
+    color: var(--bs-white-50);
     font-weight: 500;
     display: inline-flex;
     flex-direction: row;
@@ -96,9 +96,10 @@ html {
   select:-webkit-autofill,
   select:-webkit-autofill:hover,
   select:-webkit-autofill:focus {
-    border: 1px solid var(--primary-50);
+    border: 1px solid var(--bs-primary-50);
     -webkit-text-fill-color: white;
     -webkit-box-shadow: none;
+    box-shadow: none;
     transition: background-color 5000s ease-in-out 0s;
     font-family: 'Montserrat', sans-serif;
     font-size: 16px;
@@ -109,6 +110,7 @@ html {
     height: 25px;
     width: 25px;
     -webkit-filter: grayscale(100%);
+    filter: grayscale(100%);
   }
 
   .form-page-wrapper {
@@ -138,7 +140,7 @@ html {
     }
 
     .help-text {
-      color: var(--white-50);
+      color: var(--bs-white-50);
       margin: 3.25rem 0 0.75rem;
       font-weight: 500;
     }
@@ -200,7 +202,7 @@ html {
   }
 
   .has-error {
-    color: var(--danger);
+    color: var(--bs-danger);
     margin-top: 0.25rem;
     font-weight: 500;
     font-size: 1rem;
@@ -218,7 +220,7 @@ html {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      border: 1px dashed var(--white-50);
+      border: 1px dashed var(--bs-white-50);
       border-radius: 4px;
       background: none;
       position: static;
@@ -228,7 +230,7 @@ html {
       margin: 0;
 
       &.selected {
-        color: var(--white-50);
+        color: var(--bs-white-50);
 
         .file-name {
           color: white;
@@ -254,7 +256,7 @@ html {
   }
 
   .filter-wrapper {
-    background-color: var(--backgroundLight);
+    background-color: var(--bs-backgroundLight);
     border-radius: 4px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
