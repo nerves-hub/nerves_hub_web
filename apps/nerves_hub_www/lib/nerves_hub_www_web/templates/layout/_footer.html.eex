@@ -1,5 +1,5 @@
 <footer class="footer">
-  <div class="grid josh-js" data-josh-anim-name="fadeIn">
+  <div class="grid">
     <img src="/images/logo.svg" alt="NervesHub Logo" class="footer-logo" />
     <div class="footer-nav resources">
       <h6>Resources</h6>
@@ -7,12 +7,10 @@
       <a href="https://github.com/nerves-hub" target="_blank" rel="noopener noreferrer">Source code</a>
       <a href="https://hexdocs.pm/nerves_hub/readme.html#content" target="_blank" rel="noopener noreferrer">HexDocs</a>
       <a href="<%= Routes.nerves_key_path(@conn, :index) %>">NervesKey</a>
-      <a href="https://status.nerves-hub.org/" target="_blank" rel="noopener noreferrer">Status</a>
     </div>
     <div class="footer-nav help">
       <h6>Help</h6>
       <a href="https://github.com/nerves-hub/nerves_hub_web/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
-      <a href="mailto:support@nerves-hub.org" target="_blank" rel="noopener noreferrer">Contact support</a>
     </div>
   </div>
   <div class="tos-grid">

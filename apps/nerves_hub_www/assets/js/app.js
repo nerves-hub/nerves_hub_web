@@ -5,7 +5,6 @@ import 'bootstrap'
 import $ from 'jquery'
 import { Socket } from 'phoenix'
 import LiveSocket from 'phoenix_live_view'
-import Josh from 'joshjs'
 
 let dates = require('./dates')
 let csrfToken = document
@@ -16,8 +15,6 @@ let liveSocket = new LiveSocket('/live', Socket, {
 })
 
 liveSocket.connect()
-
-new Josh()
 
 $(function() {
   $('.custom-upload-input').on('change', function() {
