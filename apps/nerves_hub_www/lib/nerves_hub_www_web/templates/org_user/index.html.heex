@@ -1,0 +1,60 @@
+<div class="action-row">
+  <h1>Users</h1>
+  <%= if @org.type != :user do %>
+    <a class="btn btn-outline-light btn-action" aria-label="Add new user" href={Routes.org_path(@conn, :invite, @org.name)}>
+      <span class="button-icon add"></span>
+      <span class="action-text">Add New User</span>
+    </a>
+  <% end %>
+</div>
+
+<%= if @org.type == :user do %>
+  <h5 class="mb-6">This is your own personal organization, additional users cannot be invited. <a class="inline" href={Routes.org_path(@conn, :new)}>Create a new organization</a> to collaborate with others.</h5>
+<% end %>
+
+<table class="table table-sm table-hover">
+  <thead>
+    <tr>
+      <th>User name</th>
+      <th>Email</th>
+      <th>Role</th>
+      <th>Added on</th>
+    </tr>
+  </thead>
+  <tbody>
+    <%= for org_user <- @org_users do %>
+      <tr class="item">
+        <td>
+          <div class="mobile-label help-text">User name</div>
+          <%= org_user.user.username %>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Email</div>
+          <%= org_user.user.email %>
+        </td>
+        <td class="tt-c">
+          <div class="mobile-label help-text">Role</div>
+          <%= org_user.role %>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Added on</div>
+          <div class="date-time"><%= org_user.user.inserted_at %></div>
+        </td>
+        <%= if org_user.user.id != assigns.user.id do %>
+          <td class="actions">
+            <div class="dropdown options">
+              <a class="dropdown-toggle options" href="#" id={org_user.id} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <img src="/images/icons/more.svg" alt="options" />
+              </a>
+              <div class="dropdown-menu dropdown-menu-right">
+                <%= link "edit", class: "dropdown-item", to: Routes.org_user_path(@conn, :edit, @org.name, org_user.user_id) %>
+                <div class="dropdown-divider"></div>
+                <%= link "Delete", class: "dropdown-item", to: Routes.org_user_path(@conn, :delete, @org.name, org_user.user_id), method: :delete, data: [confirm: "Are you sure you want to remove this user? This can not be undone."] %>
+              </div>
+            </div>
+          </td>
+        <% end %>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

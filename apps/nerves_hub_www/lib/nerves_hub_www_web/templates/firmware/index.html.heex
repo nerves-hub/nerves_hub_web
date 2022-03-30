@@ -1,0 +1,81 @@
+<%= if @firmwares == [] do %>
+  <div class="no-results-blowup-wrapper">
+    <img src="/images/firmware.svg" alt="No products" />
+    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any firmware yet</h3>
+    <div class="flex-row align-items-center mt-3">
+      <a class="btn btn-outline-light" aria-label="Upload firmware" href={Routes.firmware_path(@conn, :upload, @org.name, @product.name)}>
+        <span class="button-icon add"></span>
+        <span class="action-text">Upload Firmware</span>
+      </a>
+    </div>
+  </div>
+<% else %>
+  <div class="action-row">
+    <h1>Firmware</h1>
+    <a class="btn btn-outline-light btn-action" aria-label="Upload firmware" href={Routes.firmware_path(@conn, :upload, @org.name, @product.name)}>
+      <span class="button-icon add"></span>
+      <span class="action-text">Upload Firmware</span>
+    </a>
+  </div>
+
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th>UUID</th>
+        <th>Version</th>
+        <th>Platform</th>
+        <th>Firmware key</th>
+        <th>Uploaded on</th>
+        <th></th>
+      </tr>
+    </thead>
+    <%= for firmware <- @firmwares do %>
+      <tr class="item">
+        <td>
+          <div class="mobile-label help-text">UUID</div>
+          <div>
+            <a href={Routes.firmware_path(@conn, :show, @org.name, @product.name, firmware.uuid)} class="badge ff-m"><%= firmware.uuid %></a>
+          </div>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Version</div>
+          <%= firmware.version %>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Platform</div>
+          <%= firmware.platform %>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Firmware key</div>
+          <div>
+            <span class="badge"><%= format_signed(firmware, @org) %></span>
+          </div>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Uploaded on</div>
+          <div>
+            <%= if is_nil(firmware.inserted_at) do %>
+              <span class="color-white-50">Never</span>
+            <% else %>
+              <span class="date-time"><%= firmware.inserted_at %></span>
+            <% end %>
+          </div>
+        </td>
+        <td class="actions">
+          <div class="mobile-label help-text">Actions</div>
+          <div class="dropdown options">
+            <a class="dropdown-toggle options" href="#" id={firmware.uuid} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <div class="mobile-label pr-2">Open</div>
+              <img src="/images/icons/more.svg" alt="options" />
+            </a>
+            <div class="dropdown-menu dropdown-menu-right">
+              <%= link("Download", class: "dropdown-item", to: Routes.firmware_path(@conn, :download, @org.name, @product.name, firmware.uuid)) %>
+              <div class="dropdown-divider"></div>
+              <%= link "Delete", class: "dropdown-item", to: Routes.firmware_path(@conn, :delete, @org.name, @product.name, firmware.uuid), method: :delete, data: [confirm: "Are you sure you want to delete this firmware? This can not be undone."] %>
+            </div>
+          </div>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+<% end %>

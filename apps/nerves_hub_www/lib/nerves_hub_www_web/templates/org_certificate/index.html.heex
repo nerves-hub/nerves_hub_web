@@ -1,0 +1,70 @@
+<div class="action-row">
+  <h1>Certificate Authorities</h1>
+  <a class="btn btn-outline-light btn-action" aria-label="Add certificate authority" href={Routes.org_certificate_path(@conn, :new, @org.name)}>
+    <span class="button-icon add"></span>
+    <span class="action-text">Add Certificate Authority</span>
+  </a>
+</div>
+
+<table class="table table-sm table-hover">
+  <thead>
+    <tr>
+      <th>Serial</th>
+      <th>Description</th>
+      <th>Last used</th>
+      <th>Not before</th>
+      <th>Not after</th>
+      <th>JITP Enabled? </th>
+    </tr>
+  </thead>
+  <tbody>
+    <%= for cert <- @certificates do %>
+      <tr class="item">
+        <td>
+          <div class="mobile-label help-text">Serial</div>
+          <code class="color-white wb-ba ff-m"><%= format_serial(cert.serial) %></code>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Description</div>
+          <%= if is_nil(cert.description) do %>
+            -
+          <% else %>
+            <%= cert.description %>
+          <% end %>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Last used</div>
+          <%= if !is_nil(cert.last_used) do %>
+            <%= DateTimeFormat.from_now(cert.last_used) %>
+          <% else %>
+            <span class="text-muted">Never</span>
+          <% end %>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Not before</div>
+          <div class="date-time"><%= cert.not_before %></div>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Not after</div>
+          <div class="date-time"><%= cert.not_after %></div>
+        </td>
+        <td>
+          <span class="text-muted"><%= if is_nil(cert.jitp), do: "no", else: "yes" %></span>
+        </td>
+        <td class="actions">
+          <div class="mobile-label help-text">Actions</div>
+          <div class="dropdown options">
+            <a class="dropdown-toggle options" href="#" id={cert.id} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <div class="mobile-label pr-2">Open</div>
+              <img src="/images/icons/more.svg" alt="options" />
+            </a>
+            <div class="dropdown-menu dropdown-menu-right">
+              <%= link "Edit", class: "dropdown-item", to: Routes.org_certificate_path(@conn, :edit, @org.name, cert.serial) %>
+              <%= link "Delete", class: "dropdown-item", to: Routes.org_certificate_path(@conn, :delete, @org.name, cert.serial), method: :delete, data: [confirm: "Are you sure you want to delete this certificate? This can not be undone."] %>
+            </div>
+          </div>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

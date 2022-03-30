@@ -1,0 +1,21 @@
+<h1>
+  Edit User Role
+</h1>
+
+<%= form_for @changeset, Routes.org_user_path(@conn, :update, @org.name, @org_user.user_id), fn f -> %>
+  <div class="form-group">
+    <label for="role_input" class="tooltip-label h3 mb-1">
+      <span>Role</span>
+    </label>
+    <div class="pos-rel">
+      <%= select f, :role, role_options(), class: "form-control", id: "role_input" %>
+      <div class="select-icon"></div>
+    </div>
+    <div class="has-error"><%= error_tag f, :role %></div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <a class="btn btn-outline-light" href={Routes.org_user_path(@conn, :index, @org.name)}>Cancel</a>
+    <%= submit "Update", class: "btn btn-primary" %>
+  </div>
+<% end %>
