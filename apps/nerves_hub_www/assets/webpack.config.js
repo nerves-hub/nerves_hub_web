@@ -10,16 +10,16 @@ module.exports = (env, options) => ({
   optimization: {
     minimizer: [
       new TerserPlugin({ parallel: true }),
-      new CssMinimizerPlugin({})
-    ]
+      new CssMinimizerPlugin({}),
+    ],
   },
   entry: {
     app: glob.sync('./vendor/**/*.js').concat(['./js/app.js']),
-    console: './js/console.js'
+    console: './js/console.js',
   },
   output: {
     filename: '[name].js',
-    path: path.resolve(__dirname, '../priv/static/js')
+    path: path.resolve(__dirname, '../priv/static/js'),
   },
   module: {
     rules: [
@@ -27,8 +27,8 @@ module.exports = (env, options) => ({
         test: /\.js$/,
         exclude: /node_modules/,
         use: {
-          loader: 'babel-loader'
-        }
+          loader: 'babel-loader',
+        },
       },
       {
         test: /\.s?css$/,
@@ -38,37 +38,37 @@ module.exports = (env, options) => ({
             loader: 'css-loader',
             options: {
               url: false,
-              importLoaders: 1
-            }
+              importLoaders: 1,
+            },
           },
           {
             loader: 'postcss-loader',
             options: {
               postcssOptions: {
-                plugins: ['postcss-url']
-              }
-            }
+                plugins: ['postcss-url'],
+              },
+            },
           },
-          'sass-loader'
-        ]
+          'sass-loader',
+        ],
       },
       {
         test: /\.(png|jpg|gif|svg)$/,
         loader: 'file-loader',
         options: {
           name: '[name].[ext]',
-          outputPath: '../images'
-        }
+          outputPath: '../images',
+        },
       },
       {
         test: /\.(ttf|otf|eot|svg|woff2?)$/,
         loader: 'file-loader',
         options: {
           name: '[name].[ext]',
-          outputPath: '../fonts'
-        }
-      }
-    ]
+          outputPath: '../fonts',
+        },
+      },
+    ],
   },
   resolve: {
     modules: [
@@ -76,11 +76,11 @@ module.exports = (env, options) => ({
       __dirname + '/js',
       __dirname + '/css',
       '~font-awesome/fontawesome-free/scss/fontawesome.scss',
-      __dirname + '/images'
-    ]
+      __dirname + '/images',
+    ],
   },
   plugins: [
     new MiniCssExtractPlugin({ filename: '../css/app.css' }),
-    new CopyWebpackPlugin({ patterns: [{ from: 'static/', to: '../' }] })
-  ]
+    new CopyWebpackPlugin({ patterns: [{ from: 'static/', to: '../' }] }),
+  ],
 })
