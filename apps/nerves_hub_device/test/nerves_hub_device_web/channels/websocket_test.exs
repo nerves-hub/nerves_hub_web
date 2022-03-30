@@ -284,7 +284,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
 
       not_before = Timex.now() |> Timex.shift(days: -1)
-      not_after = Timex.now() |> Timex.shift(seconds: 1)
+      not_after = Timex.now() |> Timex.shift(days: 1)
 
       template =
         X509.Certificate.Template.new(:root_ca,

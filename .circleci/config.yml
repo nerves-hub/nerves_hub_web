@@ -1,11 +1,11 @@
 defaults: &defaults
   docker:
-    - image: nerveshub/docker-build:alpine-3.9
+    - image: nerveshub/docker-build:alpine-3.15.3
   working_directory: ~/repo
 
 remote_docker: &remote_docker
   setup_remote_docker:
-    version: 17.09.0-ce
+    version: 20.10.11
 
 docker_env: &docker_env
   run:
@@ -43,11 +43,11 @@ docker_save: &docker_save
 
 version: 2.1
 orbs:
-  docker: circleci/docker@1.6.0
+  docker: circleci/docker@2.0.3
 jobs:
   fetch_deps:
     docker:
-      - image: hexpm/elixir:1.11.4-erlang-23.0.4-alpine-3.13.1
+      - image: hexpm/elixir:1.13.3-erlang-24.3.3-alpine-3.15.3
         environment:
           MIX_ENV: test
     working_directory: ~/app
@@ -64,7 +64,7 @@ jobs:
 
   test_elixir:
     docker:
-      - image: hexpm/elixir:1.11.4-erlang-23.0.4-alpine-3.13.1
+      - image: hexpm/elixir:1.13.3-erlang-24.3.3-alpine-3.15.3
         environment:
           MIX_ENV: test
           DATABASE_URL: postgres://db:db@localhost:5432/db
