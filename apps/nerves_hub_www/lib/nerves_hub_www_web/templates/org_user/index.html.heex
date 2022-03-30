@@ -1,7 +1,7 @@
 <div class="action-row">
   <h1>Users</h1>
   <%= if @org.type != :user do %>
-    <a class="btn btn-outline-light btn-action" aria-label="Add new user" href="<%= Routes.org_path(@conn, :invite, @org.name) %>">
+    <a class="btn btn-outline-light btn-action" aria-label="Add new user" href={Routes.org_path(@conn, :invite, @org.name)}>
       <span class="button-icon add"></span>
       <span class="action-text">Add New User</span>
     </a>
@@ -9,7 +9,7 @@
 </div>
 
 <%= if @org.type == :user do %>
-  <h5 class="mb-6">This is your own personal organization, additional users cannot be invited. <a class="inline" href="<%= Routes.org_path(@conn, :new) %>">Create a new organization</a> to collaborate with others.</h5>
+  <h5 class="mb-6">This is your own personal organization, additional users cannot be invited. <a class="inline" href={Routes.org_path(@conn, :new)}>Create a new organization</a> to collaborate with others.</h5>
 <% end %>
 
 <table class="table table-sm table-hover">
@@ -43,7 +43,7 @@
         <%= if org_user.user.id != assigns.user.id do %>
           <td class="actions">
             <div class="dropdown options">
-              <a class="dropdown-toggle options" href="#" id="<%= org_user.id %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <a class="dropdown-toggle options" href="#" id={to_string(org_user.id)} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <img src="/images/icons/more.svg" alt="options" />
               </a>
               <div class="dropdown-menu dropdown-menu-right">

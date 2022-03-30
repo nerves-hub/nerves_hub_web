@@ -19,7 +19,7 @@
       <span class="action-text">Destroy</span>
     </button>
   <% else %>
-    <button class="btn btn-outline-light btn-action"  aria-label="Reboot device" type="button" phx-click="reboot" <%= if @device.status == "offline", do: "disabled" %> data-confirm="Are you sure?">
+    <button class="btn btn-outline-light btn-action"  aria-label="Reboot device" type="button" phx-click="reboot" disabled={@device.status == "offline"} data-confirm="Are you sure?">
       <span class="button-icon power"></span>
       <span class="action-text">Reboot</span>
     </button>
@@ -128,7 +128,7 @@
           <div class="mobile-label help-text">Serial</div>
           <code class="color-white wb-ba ff-m"><%= format_serial(cert.serial) %></code>
         </td>
-        <td title="<%= cert.last_used %>">
+        <td title={cert.last_used}>
           <div class="mobile-label help-text">Last used</div>
           <%= if !is_nil(cert.last_used) do %>
             <%= DateTimeFormat.from_now(cert.last_used) %>
@@ -148,7 +148,7 @@
         <td class="actions">
           <div class="mobile-label help-text">Actions</div>
           <div class="dropdown options">
-              <a class="dropdown-toggle options" href="#" id="<%= cert.id %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <a class="dropdown-toggle options" href="#" id={to_string(cert.id)} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <div class="mobile-label pr-2">Open</div>
                 <img src="/images/icons/more.svg" alt="options" />
               </a>
@@ -156,7 +156,7 @@
               <%= if cert.der do %>
                 <%= link("Download", class: "dropdown-item", aria_label: "Download Device Certificate", to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)) %>
               <% end %>
-              <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial="<%= cert.serial %>" data-confirm="Delete <%= format_serial(cert.serial) %>?">Delete</a>
+              <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial={cert.serial} data-confirm={"Delete #{format_serial(cert.serial)}?"}>Delete</a>
             </div>
           </div>
         </td>
