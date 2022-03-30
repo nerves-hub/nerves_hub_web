@@ -9,9 +9,9 @@ let socket = new Socket('/socket', { params: { token: window.userToken } })
 var term = new Terminal({
   cursorBlink: true,
   cursorStyle: 'bar',
-  macOptionIsMeta: true
+  macOptionIsMeta: true,
 })
-var restart_button = document.getElementById('restart_button')
+
 const fitAddon = new FitAddon()
 term.loadAddon(fitAddon)
 
@@ -40,17 +40,17 @@ channel
   })
 
 // Stream all events straight to the device
-term.onData(data => {
+term.onData((data) => {
   channel.push('dn', { data })
 })
 
 // Write data from device to console
-channel.on('up', payload => {
+channel.on('up', (payload) => {
   term.write(payload.data)
 })
 
 // Update meta fields for page
-channel.on('meta_update', payload => {
+channel.on('meta_update', (payload) => {
   var deets = document.getElementById('status-deets')
   var inner
   if (payload.status === 'updating') {
@@ -87,13 +87,6 @@ window.addEventListener('resize', () => {
 channel.onClose(() => {
   console.log('CLOSED')
   term.blur()
-  term.setOption('cursorBlink', false)
+  term.options({ cursorBlink: false })
   term.write('DISCONNECTED')
-})
-
-restart_button.addEventListener('click', () => {
-  var check = confirm('Are you sure you want to restart the IEx process?')
-  if (check == true) {
-    channel.push('restart', {})
-  }
 })
