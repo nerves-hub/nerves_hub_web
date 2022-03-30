@@ -151,19 +151,13 @@ defmodule NervesHubWebCore.AuditLogs.AuditLogTest do
         })
 
       assert al1.description ==
-               "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{
-                 firmware.uuid
-               }"
+               "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
 
       assert al2.description ==
-               "device #{device.identifier} received update for firmware #{firmware.uuid} via deployment #{
-                 deployment.name
-               } after channel_join"
+               "device #{device.identifier} received update for firmware #{firmware.uuid} via deployment #{deployment.name} after channel_join"
 
       assert al3.description ==
-               "device #{device.identifier} received update for firmware #{firmware.uuid} via deployment #{
-                 deployment.name
-               } after http_join"
+               "device #{device.identifier} received update for firmware #{firmware.uuid} via deployment #{deployment.name} after http_join"
     end
 
     test "description for deployment failures", context do
@@ -183,14 +177,10 @@ defmodule NervesHubWebCore.AuditLogs.AuditLogTest do
         })
 
       assert al1.description ==
-               "deployment #{deployment.name} marked unhealthy. Failure threshold met for firmware #{
-                 firmware.uuid
-               }"
+               "deployment #{deployment.name} marked unhealthy. Failure threshold met for firmware #{firmware.uuid}"
 
       assert al2.description ==
-               "deployment #{deployment.name} marked unhealthy. Failure rate met for firmware #{
-                 firmware.uuid
-               }"
+               "deployment #{deployment.name} marked unhealthy. Failure rate met for firmware #{firmware.uuid}"
     end
 
     test "description for device failures", context do
@@ -210,14 +200,10 @@ defmodule NervesHubWebCore.AuditLogs.AuditLogTest do
         })
 
       assert al1.description ==
-               "device #{device.identifier} marked unhealthy. Device failure threshold met for firmware #{
-                 firmware.uuid
-               } in deployment #{deployment.name}"
+               "device #{device.identifier} marked unhealthy. Device failure threshold met for firmware #{firmware.uuid} in deployment #{deployment.name}"
 
       assert al2.description ==
-               "device #{device.identifier} marked unhealthy. Device failure rate met for firmware #{
-                 firmware.uuid
-               } in deployment #{deployment.name}"
+               "device #{device.identifier} marked unhealthy. Device failure rate met for firmware #{firmware.uuid} in deployment #{deployment.name}"
     end
 
     test "default description when unmatched or unknown", %{
@@ -227,9 +213,7 @@ defmodule NervesHubWebCore.AuditLogs.AuditLogTest do
       al = AuditLog.build(deployment, device, :update, %{wat: 1})
 
       assert al.description ==
-               "deployment #{deployment.name} performed unknown update on device #{
-                 device.identifier
-               }"
+               "deployment #{deployment.name} performed unknown update on device #{device.identifier}"
     end
   end
 end
