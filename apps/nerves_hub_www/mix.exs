@@ -71,7 +71,7 @@ defmodule NervesHubWWW.MixProject do
       {:jason, "~> 1.2", override: true},
       {:nerves_hub_web_core, in_umbrella: true},
       {:nerves_hub_device, in_umbrella: true},
-      {:ansi_to_html, git: "https://github.com/tonnenpinguin/ansi_to_html"},
+      {:ansi_to_html, "~> 0.5"},
       {:scrivener_html, git: "https://github.com/tonnenpinguin/scrivener_html", branch: "phx-1.6"}
     ]
   end
