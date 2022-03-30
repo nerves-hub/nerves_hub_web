@@ -257,18 +257,18 @@ defmodule NervesHubWebCore.Fixtures do
     device
   end
 
-  def device_certificate_pem() do
+  def device_certificate_pem do
     path()
     |> Path.join("ssl/device-1234-cert.pem")
     |> File.read!()
   end
 
-  def device_certificate_authority_file() do
+  def device_certificate_authority_file do
     path()
     |> Path.join("ssl/device-root-ca.pem")
   end
 
-  def device_certificate_authority_key_file() do
+  def device_certificate_authority_key_file do
     path()
     |> Path.join("ssl/device-root-ca-key.pem")
   end

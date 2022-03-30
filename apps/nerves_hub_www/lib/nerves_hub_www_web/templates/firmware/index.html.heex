@@ -3,7 +3,7 @@
     <img src="/images/firmware.svg" alt="No products" />
     <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any firmware yet</h3>
     <div class="flex-row align-items-center mt-3">
-      <a class="btn btn-outline-light" aria-label="Upload firmware" href="<%= Routes.firmware_path(@conn, :upload, @org.name, @product.name) %>">
+      <a class="btn btn-outline-light" aria-label="Upload firmware" href={Routes.firmware_path(@conn, :upload, @org.name, @product.name)}>
         <span class="button-icon add"></span>
         <span class="action-text">Upload Firmware</span>
       </a>
@@ -12,7 +12,7 @@
 <% else %>
   <div class="action-row">
     <h1>Firmware</h1>
-    <a class="btn btn-outline-light btn-action" aria-label="Upload firmware" href="<%= Routes.firmware_path(@conn, :upload, @org.name, @product.name) %>">
+    <a class="btn btn-outline-light btn-action" aria-label="Upload firmware" href={Routes.firmware_path(@conn, :upload, @org.name, @product.name)}>
       <span class="button-icon add"></span>
       <span class="action-text">Upload Firmware</span>
     </a>
@@ -34,7 +34,7 @@
         <td>
           <div class="mobile-label help-text">UUID</div>
           <div>
-            <a href="<%= Routes.firmware_path(@conn, :show, @org.name, @product.name, firmware.uuid) %>" class="badge ff-m"><%= firmware.uuid %></a>
+            <a href={Routes.firmware_path(@conn, :show, @org.name, @product.name, firmware.uuid)} class="badge ff-m"><%= firmware.uuid %></a>
           </div>
         </td>
         <td>
@@ -64,7 +64,7 @@
         <td class="actions">
           <div class="mobile-label help-text">Actions</div>
           <div class="dropdown options">
-            <a class="dropdown-toggle options" href="#" id="<%= firmware.uuid %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <a class="dropdown-toggle options" href="#" id={firmware.uuid} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               <div class="mobile-label pr-2">Open</div>
               <img src="/images/icons/more.svg" alt="options" />
             </a>

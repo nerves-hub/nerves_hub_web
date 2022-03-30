@@ -1,7 +1,0 @@
-<input id="device_id" hidden type="text" value="<%= @device.id %>" />
-<input id="product_id" hidden type="text" value="<%= @device.product_id %>" />
-<%= if @console_available do %>
-  <div id="terminal" class="console-v2"></div>
-<% else %>
-  <h5>Console disabled or unavailable.</h5>
-<% end %>

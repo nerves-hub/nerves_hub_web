@@ -66,5 +66,5 @@ defmodule NervesHubWWWWeb.DeviceView do
 
   defdelegate device_status(device), to: Presence
 
-  def selected?(filters, field, value), do: if(filters[field] == value, do: "selected")
+  def selected?(filters, field, value), do: filters[field] == value
 end

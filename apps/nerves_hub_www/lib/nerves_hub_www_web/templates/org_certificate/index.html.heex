@@ -1,6 +1,6 @@
 <div class="action-row">
   <h1>Certificate Authorities</h1>
-  <a class="btn btn-outline-light btn-action" aria-label="Add certificate authority" href="<%= Routes.org_certificate_path(@conn, :new, @org.name) %>">
+  <a class="btn btn-outline-light btn-action" aria-label="Add certificate authority" href={Routes.org_certificate_path(@conn, :new, @org.name)}>
     <span class="button-icon add"></span>
     <span class="action-text">Add Certificate Authority</span>
   </a>
@@ -54,7 +54,7 @@
         <td class="actions">
           <div class="mobile-label help-text">Actions</div>
           <div class="dropdown options">
-            <a class="dropdown-toggle options" href="#" id="<%= cert.id %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <a class="dropdown-toggle options" href="#" id={to_string(cert.id)} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               <div class="mobile-label pr-2">Open</div>
               <img src="/images/icons/more.svg" alt="options" />
             </a>

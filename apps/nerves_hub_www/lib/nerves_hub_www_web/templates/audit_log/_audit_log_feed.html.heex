@@ -3,8 +3,8 @@
 <div id="audit-log-feed">
   <%= if Enum.count(@audit_logs) > 0 do %>
   <%= for audit_log <- @audit_logs do %>
-  <div class="audit-log-item" id='<%= audit_log.id %>'>
-    <div class="audit-action-icon icon-<%= audit_log.action %>"></div>
+  <div class="audit-log-item" id={audit_log.id}>
+    <div class={"audit-action-icon icon-#{audit_log.action}"}></div>
     <div>
       <p class="audit-description"><%= audit_log.description %></p>
       <div class="help-text">

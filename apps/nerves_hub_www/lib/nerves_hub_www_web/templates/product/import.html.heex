@@ -31,7 +31,7 @@
 <% end %>
 
 <%= if @active_tab == :upload  do %>
-  <form phx-change="validate" phx-drop-target="<%= @uploads.csv.ref %>">
+  <form phx-change="validate" phx-drop-target={@uploads.csv.ref}>
     <h1> Upload a CSV file: </h1>
     <div class="form-group import-csv">
       <%= for entry <- @uploads.csv.entries do %>
@@ -42,7 +42,7 @@
     </div>
   </form>
 
-  <form phx-change="validate" phx-drop-target="<%= @uploads.jose.ref %>">
+  <form phx-change="validate" phx-drop-target={@uploads.jose.ref}>
     <h1> Upload a JOSE file (e.g., TrustPlatform Manifest File): </h1>
     <div class="form-group import-csv">
       <%= for entry <- @uploads.jose.entries do %>
@@ -69,27 +69,27 @@
     <nav>
       <ul class="nav">
         <li class="nav-item">
-          <a class="nav-link <%= if @active_tab == :all, do: "active" %>" phx-click="tab-change" phx-value-tab="all">
+          <a class={"nav-link #{if @active_tab == :all, do: "active"}"} phx-click="tab-change" phx-value-tab="all">
             <span class="text">All</span><span class="help-text ml-2"><%= length(@results) %></span>
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link <%= if @active_tab == :new, do: "active" %>" phx-click="tab-change" phx-value-tab="new">
+          <a class={"nav-link #{if @active_tab == :new, do: "active"}"} phx-click="tab-change" phx-value-tab="new">
             <span class="text">New</span><span class="help-text ml-2"><%= count_results(@results, :new) %></span>
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link <%= if @active_tab == :updating, do: "active" %>" phx-click="tab-change" phx-value-tab="updating">
+          <a class={"nav-link #{if @active_tab == :updating, do: "active"}"} phx-click="tab-change" phx-value-tab="updating">
             <span class="text">Updating</span><span class="help-text ml-2"><%= count_results(@results, :updating) %></span>
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link <%= if @active_tab == :warning, do: "active" %>" phx-click="tab-change" phx-value-tab="warning">
+          <a class={"nav-link #{if @active_tab == :warning, do: "active"}"} phx-click="tab-change" phx-value-tab="warning">
             <span class="text">Warnings</span><span class="help-text ml-2"><%= count_results(@results, :warning) %></span>
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link <%= if @active_tab == :malformed, do: "active" %>" phx-click="tab-change" phx-value-tab="malformed">
+          <a class={"nav-link #{if @active_tab == :malformed, do: "active"}"} phx-click="tab-change" phx-value-tab="malformed">
             <span class="text">Malformed</span><span class="help-text ml-2"><%= count_results(@results, :malformed) %></span>
           </a>
         </li>
@@ -111,13 +111,13 @@
       </tr>
     </thead>
     <%= for {line_num, level, changeset, certs} <- @results, @active_tab == level or @active_tab == :all, device = Ecto.Changeset.apply_changes(changeset) do %>
-      <tr class="item <%= if level == :malformed, do: "import-malformed" %>">
+      <tr class={"item #{if level == :malformed, do: "import-malformed"}"}>
         <td>
           <div class="mobile-label help-text">Line</div>
           <div><%= line_num %></div>
         </td>
 
-        <td class="<%= csv_td_class(changeset, :identifier) %>">
+        <td class={csv_td_class(changeset, :identifier)}>
           <div class="mobile-label help-text">Identifier</div>
           <div>
             <%= if err = changeset.errors[:identifier] do %>
@@ -129,7 +129,7 @@
           </div>
         </td>
 
-        <td class="<%= csv_td_class(changeset, :description) %>">
+        <td class={csv_td_class(changeset, :description)}>
           <div class="mobile-label help-text">Description</div>
           <div>
             <%= if err = changeset.errors[:description] do %>
@@ -141,9 +141,9 @@
           </div>
         </td>
 
-        <td class="<%= csv_td_class(changeset, :tags) %>">
+        <td class={csv_td_class(changeset, :tags)}>
           <div class="mobile-label help-text">Tags</div>
-          <div class="<%= if changeset.errors[:tags], do: "tooltip-label" %>">
+          <div class={if changeset.errors[:tags], do: "tooltip-label"}>
             <%= if err = changeset.errors[:tags] do %>
               <%= changeset.params["tags"] %>
               <span class="tooltip-text"><%= elem(err, 0) %></span>
@@ -155,7 +155,7 @@
           </div>
         </td>
 
-        <td class="<%= csv_td_class(changeset, :product) %>">
+        <td class={csv_td_class(changeset, :product)}>
           <div class="mobile-label help-text">Product</div>
           <div>
             <%= if err = changeset.errors[:product] do %>
@@ -167,7 +167,7 @@
           </div>
         </td>
 
-        <td class="<%= csv_td_class(changeset, :org) %>">
+        <td class={csv_td_class(changeset, :org)}>
           <div class="mobile-label help-text">Org</div>
           <div>
             <%= if err = changeset.errors[:org] do %>
@@ -179,7 +179,7 @@
           </div>
         </td>
 
-        <td class="<%= if not Enum.all?(certs, &is_map/1), do: "import-warning tooltip-label" %>">
+        <td class={if not Enum.all?(certs, &is_map/1), do: "import-warning tooltip-label"}>
           <div class="mobile-label help-text">Device Certificates</div>
           <%= for db_cert_or_err <- certs do %>
             <div>
@@ -195,11 +195,11 @@
 
         <td>
           <div class="btn-group" role="group" aria-label="Device Import Actions">
-            <button class="btn btn-outline-light btn-action" aria-label="Skip" type="button" phx-click="delete" phx-value-line="<%= line_num %>">
+            <button class="btn btn-outline-light btn-action" aria-label="Skip" type="button" phx-click="delete" phx-value-line={line_num}>
               <span class="button-icon delete"></span>
             </button>
           <%= if level in [:new, :updating] do %>
-            <button class="btn btn-outline-light btn-action btn-primary" title="Import" aria-label="Import" type="button" phx-click="import-one" phx-value-line="<%= line_num %>">
+            <button class="btn btn-outline-light btn-action btn-primary" title="Import" aria-label="Import" type="button" phx-click="import-one" phx-value-line={line_num}>
               <span class="button-icon upload"></span>
             </button>
           <% end %>

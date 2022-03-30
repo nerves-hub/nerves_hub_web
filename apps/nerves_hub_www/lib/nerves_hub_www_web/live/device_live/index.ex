@@ -175,9 +175,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   end
 
   def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
-    socket =
-      socket
-      |> assign(:show_filters, toggle != "true")
+    socket = socket |> assign(:show_filters, toggle != "true")
 
     {:noreply, socket}
   end

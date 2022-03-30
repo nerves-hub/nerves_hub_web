@@ -6,7 +6,7 @@
       <a href="https://docs.nerves-hub.org/" target="_blank" rel="noopener noreferrer">Documentation</a>
       <a href="https://github.com/nerves-hub" target="_blank" rel="noopener noreferrer">Source code</a>
       <a href="https://hexdocs.pm/nerves_hub/readme.html#content" target="_blank" rel="noopener noreferrer">HexDocs</a>
-      <a href="<%= Routes.nerves_key_path(@conn, :index) %>">NervesKey</a>
+      <a href={Routes.nerves_key_path(@conn, :index)}>NervesKey</a>
       <a href="https://status.nerves-hub.org/" target="_blank" rel="noopener noreferrer">Status</a>
     </div>
     <div class="footer-nav help">
@@ -17,9 +17,9 @@
   </div>
   <div class="tos-grid">
     <div></div>
-    <div><a href="<%= Routes.policy_path(@conn, :coc) %>">Code of Conduct</a></div>
-    <div><a href="<%= Routes.policy_path(@conn, :tos) %>">Terms of Service</a></div>
-    <div><a href="<%= Routes.policy_path(@conn, :privacy) %>">Privacy Policy</a></div>
+    <div><a href={Routes.policy_path(@conn, :coc)}>Code of Conduct</a></div>
+    <div><a href={Routes.policy_path(@conn, :tos)}>Terms of Service</a></div>
+    <div><a href={Routes.policy_path(@conn, :privacy)}>Privacy Policy</a></div>
   </div>
 
 </footer>

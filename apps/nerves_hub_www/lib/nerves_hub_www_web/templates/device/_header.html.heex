@@ -52,7 +52,7 @@
 <%= if Map.has_key?(@device, :fwup_progress) && @device.fwup_progress do %>
   <div class="help-text mt-3">Progress</div>
   <div class="progress device-show">
-    <div class="progress-bar" role="progressbar" style="width: <%= @device.fwup_progress %>%">
+    <div class="progress-bar" role="progressbar" style={"width: #{@device.fwup_progress}%"}>
       <%= @device.fwup_progress %>%
     </div>
   </div>
