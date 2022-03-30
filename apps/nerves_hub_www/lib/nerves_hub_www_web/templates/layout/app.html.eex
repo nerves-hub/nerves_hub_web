@@ -17,7 +17,7 @@
   </head>
 
   <body>
-    <%= if @view_module == NervesHubWWWWeb.HomeView do %>
+    <%= if view_module(@conn) == NervesHubWWWWeb.HomeView do %>
       <div class="home-wrapper">
         <main role="main" class="flex-column">
           <%= if get_flash(@conn, :info) do %>
@@ -67,6 +67,6 @@
       window.orgId = "<%= assigns[:org] && Map.get(assigns[:org], :id) %>"
     </script>
     <%= csrf_meta_tag() %>
-    <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
+    <script phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
   </body>
 </html>

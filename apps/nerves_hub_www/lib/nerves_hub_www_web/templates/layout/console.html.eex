@@ -18,6 +18,6 @@
       window.userToken = "<%= assigns[:user_token] %>"
     </script>
     <%= csrf_meta_tag() %>
-    <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/console.js") %>"></script>
+    <script phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/console.js") %>"></script>
   </body>
 </html>

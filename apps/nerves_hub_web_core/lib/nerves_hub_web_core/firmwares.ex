@@ -71,7 +71,9 @@ defmodule NervesHubWebCore.Firmwares do
     end
   end
 
-  @spec get_firmware_by_uuid(String.t()) :: [Firmware.t()]
+  @spec get_firmware_by_uuid(String.t() | nil) :: [Firmware.t()]
+  def get_firmware_by_uuid(nil), do: []
+
   def get_firmware_by_uuid(uuid) do
     from(
       f in Firmware,

@@ -33,7 +33,10 @@ defmodule NervesHubDeviceWeb.ConnCase do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHubWebCore.Repo)
 
     unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHubWebCore.Repo, {:shared, self()})
+      pid =
+        Ecto.Adapters.SQL.Sandbox.start_owner!(NervesHubWebCore.Repo, shared: not tags[:async])
+
+      on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
     end
 
     user = Fixtures.user_fixture()

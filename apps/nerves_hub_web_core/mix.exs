@@ -9,11 +9,11 @@ defmodule NervesHubWebCore.MixProject do
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
-      elixir: "~> 1.6",
+      elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
-      compilers: [:phoenix] ++ Mix.compilers(),
+      compilers: Mix.compilers(),
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
         coveralls: :test,
@@ -45,12 +45,12 @@ defmodule NervesHubWebCore.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:phoenix, "~> 1.5"},
-      {:phoenix_html, "~> 2.14"},
+      {:phoenix, "~> 1.6"},
+      {:phoenix_html, "~> 3.1"},
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.1"},
       {:ecto_sql, "~> 3.0"},
-      {:ecto_enum, github: "mobileoverlord/ecto_enum"},
+      {:ecto_enum, github: "gjaldon/ecto_enum"},
       {:postgrex, "~> 0.14"},
       {:bcrypt_elixir, "~> 2.0"},
       {:comeonin, "~> 5.3"},

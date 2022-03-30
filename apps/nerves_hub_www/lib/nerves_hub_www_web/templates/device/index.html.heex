@@ -3,11 +3,11 @@
     <img src="/images/device.svg" alt="No devices" />
     <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any devices yet</h3>
     <div class="flex-row align-items-center mt-3">
-      <a class="btn btn-outline-light" aria-label="Add new device" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
+      <a class="btn btn-outline-light" aria-label="Add new device" href={Routes.device_path(@socket, :new, @org.name, @product.name)}>
         <span class="button-icon add"></span>
         <span class="action-text">Add Device</span>
       </a>
-      <a class="btn btn-outline-light" aria-label="Add new device" href="<%= Routes.product_path(@socket, :devices_import, @org.name, @product.name) %>">
+      <a class="btn btn-outline-light" aria-label="Add new device" href={Routes.product_path(@socket, :devices_import, @org.name, @product.name)}>
         <div class="button-icon upload"></div>
         <span class="action-text">Import</span>
       </a>
@@ -18,7 +18,7 @@
   <div class="action-row">
     <div class="flex-row align-items-center">
       <h1 class="mr-3 mb-0">Devices</h1>
-      <button class="btn btn-outline-light btn-action <%= if @show_filters, do: "btn-filter-hide", else: "btn-filter-show" %>" type="button" phx-click="toggle-filters" phx-value-toggle="<%= @show_filters %>">
+      <button class={"btn btn-outline-light btn-action #{if @show_filters, do: "btn-filter-hide", else: "btn-filter-show"}"} type="button" phx-click="toggle-filters" phx-value-toggle={inspect(@show_filters)}>
         <span class="action-text">
           <%=if @show_filters, do: "Hide Filters", else: "Show Filters" %>
         </span>
@@ -26,15 +26,15 @@
       </button>
     </div>
     <div>
-      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href="<%= Routes.product_path(@socket, :devices_import, @org.name, @product.name) %>">
+      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href={Routes.product_path(@socket, :devices_import, @org.name, @product.name)}>
         <div class="button-icon upload"></div>
         <span class="action-text">Import</span>
       </a>
-      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href="<%= Routes.product_path(@socket, :devices_export, @org.name, @product.name) %>">
+      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href={Routes.product_path(@socket, :devices_export, @org.name, @product.name)}>
         <div class="button-icon download"></div>
         <span class="action-text">Export</span>
       </a>
-      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href="<%= Routes.device_path(@socket, :new, @org.name, @product.name) %>">
+      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href={Routes.device_path(@socket, :new, @org.name, @product.name)}>
         <div class="button-icon add"></div>
         <span class="action-text">Add Device</span>
       </a>
@@ -42,12 +42,12 @@
   </div>
   <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex;">
     <%= for size <- @paginate_opts.page_sizes do %>
-      <button phx-click="set-paginate-opts" phx-value-page-size="<%= size %>" class="btn btn-secondary btn-sm <%= if size == @paginate_opts.page_size, do: "active" %>">
+      <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"btn btn-secondary btn-sm #{if size == @paginate_opts.page_size, do: "active"}"}>
         <%= size %>
       </button>
     <% end %>
     <form phx-change="validate-paginate-opts" phx-submit="set-paginate-opts">
-      <input type="text" value="<%= @paginate_opts.page_size %>" class="form-control small <%= unless @page_size_valid, do: "invalid" %>" name="page-size" />
+      <input type="text" value={@paginate_opts.page_size} class={"form-control small#{unless @page_size_valid, do: " invalid"}"} name="page-size" />
     </form>
   </div>
   <%= if @show_filters do%>
@@ -56,15 +56,15 @@
       <form id="filter-form" phx-change="update-filters" class="filter-form device-filters">
         <div class="form-group">
           <label for="input_id">ID</label>
-          <input type="text" name="id" id="input_id" class="form-control" value="<%= @current_filters["id"] %>" phx-debounce="500" />
+          <input type="text" name="id" id="input_id" class="form-control" value={@current_filters["id"]} phx-debounce="500" />
         </div>
         <div class="form-group">
           <label for="input_health">Health</label>
           <div class="pos-rel">
             <select name="healthy" id="input_health" class="form-control">
-              <option <%= selected?(@current_filters, "healthy", "") %> value="">All</option>
-              <option <%= selected?(@current_filters, "healthy", "1") %> value="1">Healthy</option>
-              <option <%= selected?(@current_filters, "healthy", "0") %> value="0">Unhealthy</option>
+              <option selected={selected?(@current_filters, "healthy", "")} value="">All</option>
+              <option selected={selected?(@current_filters, "healthy", "1")} value="1">Healthy</option>
+              <option selected={selected?(@current_filters, "healthy", "0")} value="0">Unhealthy</option>
             </select>
             <div class="select-icon"></div>
           </div>
@@ -73,9 +73,9 @@
           <label for="input_connection">Connection</label>
           <div class="pos-rel">
             <select name="connection" id="input_connection" class="form-control">
-              <option <%= selected?(@current_filters, "connection", "") %> value="">All</option>
-              <option <%= selected?(@current_filters, "connection", "1") %> value="1">Connected</option>
-              <option <%= selected?(@current_filters, "connection", "0") %> value="0">Disconnected</option>
+              <option selected={selected?(@current_filters, "connection", "")} value="">All</option>
+              <option selected={selected?(@current_filters, "connection", "1")} value="1">Connected</option>
+              <option selected={selected?(@current_filters, "connection", "0")} value="0">Disconnected</option>
             </select>
             <div class="select-icon"></div>
           </div>
@@ -84,9 +84,9 @@
           <label for="input_firmware">Firmware</label>
           <div class="pos-rel">
             <select name="firmware_version" id="input_firmware" class="form-control">
-              <option <%= selected?(@current_filters, "firmware_version", "") %> value="">All</option>
+              <option selected={selected?(@current_filters, "firmware_version", "")} value="">All</option>
               <%= for version <- @firmware_versions do %>
-                <option <%= selected?(@current_filters, "firmware_version", version) %>><%= version %></option>
+                <option selected={selected?(@current_filters, "firmware_version", version)}><%= version %></option>
               <% end %>
             </select>
             <div class="select-icon"></div>
@@ -94,7 +94,7 @@
         </div>
         <div class="form-group">
           <label for="input_tags">Tags</label>
-          <input type="text" name="tag" id="input_tags" class="form-control" value="<%= @current_filters["tag"] %>" phx-debounce="500" />
+          <input type="text" name="tag" id="input_tags" class="form-control" value={@current_filters["tag"]} phx-debounce="500" />
         </div>
       </form>
       <button class="btn btn-secondary" type="button" phx-click="reset-filters">Reset Filters</button>
@@ -118,7 +118,7 @@
         <td>
           <div class="mobile-label help-text">Identifier</div>
           <div>
-            <a href="<%= Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>" class="badge ff-m healthy-<%= device.healthy %>">
+            <a href={Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier)} class={"badge ff-m healthy-#{device.healthy}"}>
               <%= device.identifier %>
             </a>
           </div>
@@ -149,7 +149,7 @@
           <div>
             <%= if Map.has_key?(device, :fwup_progress) && device.fwup_progress do %>
               <div class="progress">
-                <div class="progress-bar" role="progressbar" style="width: <%= device.fwup_progress %>%"><%= device.fwup_progress %>%</div>
+                <div class="progress-bar" role="progressbar" style={"width: #{device.fwup_progress}%"}><%= device.fwup_progress %>%</div>
               </div>
             <% else %>
               <%= if is_nil(device.firmware_metadata) do %>
@@ -196,14 +196,14 @@
         <td class="actions">
           <div class="mobile-label help-text">Actions</div>
           <div class="dropdown options">
-            <a class="dropdown-toggle options" href="#" id="<%= device.identifier %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <a class="dropdown-toggle options" href="#" id={device.identifier} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               <div class="mobile-label pr-2">Open</div>
               <img src="/images/icons/more.svg" alt="options" />
             </a>
             <div class="dropdown-menu dropdown-menu-right">
               <%= link "details", class: "dropdown-item", to: Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>
               <div class="dropdown-divider"></div>
-              <button class="dropdown-item" type="button" phx-click="reboot" phx-value-device-id="<%= device.id %>" <%= if device.status == "offline", do: "disabled" %> data-confirm="Are you sure?">
+              <button class="dropdown-item" type="button" phx-click="reboot" phx-value-device-id={device.id} disabled={device.status == "offline"} data-confirm="Are you sure?">
                 <span>Reboot</span>
               </button>
               <div class="dropdown-divider"></div>
