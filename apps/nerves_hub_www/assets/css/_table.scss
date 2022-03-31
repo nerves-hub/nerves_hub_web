@@ -16,6 +16,10 @@ html {
       }
     }
 
+    > :not(:first-child) {
+      border-top: none;
+    }
+
     td {
       border-bottom: 1px solid var(--bs-border-dark);
       border-top: none;

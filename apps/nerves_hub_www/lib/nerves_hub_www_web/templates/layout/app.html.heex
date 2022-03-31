@@ -44,7 +44,7 @@
             <div class="alert alert-info alert-dismissible">
               <div class="content-container">
                 <%= get_flash(@conn, :info) %>
-                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert">&times;</button>
               </div>
             </div>
           <% end %>
@@ -52,7 +52,7 @@
             <div class="alert alert-danger alert-dismissible">
               <div class="content-container">
                 <%= get_flash(@conn, :error) %>
-                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert">&times;</button>
               </div>
             </div>
           <% end %>
@@ -65,13 +65,13 @@
         <main role="main" class="flex-column content-container">
           <%= if get_flash(@conn, :info) do %>
             <div class="alert alert-info alert-dismissible">
-              <button type="button" class="close" data-dismiss="alert">&times;</button>
+              <button type="button" class="btn-close" data-bs-dismiss="alert">&times;</button>
               <%= get_flash(@conn, :info) %>
             </div>
           <% end %>
           <%= if get_flash(@conn, :error) do %>
             <div class="alert alert-danger alert-dismissible">
-              <button type="button" class="close" data-dismiss="alert">&times;</button>
+              <button type="button" class="btn-close" data-bs-dismiss="alert">&times;</button>
               <%= get_flash(@conn, :error) %>
             </div>
           <% end %>

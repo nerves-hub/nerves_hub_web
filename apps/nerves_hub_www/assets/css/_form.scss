@@ -24,6 +24,7 @@ html {
   }
 
   .form-control {
+    appearance: auto;
     background: transparent;
     color: white;
     border: 1px solid var(--bs-white-25);
@@ -84,6 +85,7 @@ html {
     display: inline-flex;
     flex-direction: row;
     align-items: center;
+    margin-bottom: 0.5rem;
     cursor: pointer;
   }
 

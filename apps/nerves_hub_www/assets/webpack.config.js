@@ -75,7 +75,6 @@ module.exports = (env, options) => ({
       'node_modules',
       __dirname + '/js',
       __dirname + '/css',
-      '~font-awesome/fontawesome-free/scss/fontawesome.scss',
       __dirname + '/images',
     ],
   },

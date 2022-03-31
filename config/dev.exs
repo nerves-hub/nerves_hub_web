@@ -94,6 +94,7 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   live_reload: [
     patterns: [
       ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},
+      ~r{assets/css/.*(css|scss)$},
       ~r{priv/gettext/.*(po)$},
       ~r{lib/nerves_hub_www_web/views/.*(ex)$},
       ~r{lib/nerves_hub_www_web/templates/.*(eex|md)$},
