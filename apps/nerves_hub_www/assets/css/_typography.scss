@@ -115,6 +115,7 @@ body {
     color: white;
     transition: color 200ms ease;
     font-weight: 500;
+    text-decoration: none;
 
     &.inline {
       color: var(--bs-primary-light);
