@@ -279,12 +279,71 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       refute_receive({"presence_diff", _})
     end
 
+    test "already registered expired certificate can connect", %{user: user} do
+      org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
+      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
+
+      %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org)
+
+      key = X509.PrivateKey.new_ec(:secp256r1)
+
+      not_before = Timex.now() |> Timex.shift(days: -2)
+      not_after = Timex.now() |> Timex.shift(days: -1)
+
+      cert =
+        key
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("CN=#{device.identifier}", ca, ca_key,
+          validity: X509.Certificate.Validity.new(not_before, not_after)
+        )
+
+      # Verify our cert is indeed expired
+      assert {:error, {:bad_cert, :cert_expired}} =
+               :public_key.pkix_path_validation(
+                 X509.Certificate.to_der(ca),
+                 [X509.Certificate.to_der(cert)],
+                 []
+               )
+
+      _ = Fixtures.device_certificate_fixture(device, cert)
+
+      nerves_hub_ca_cert =
+        Path.expand("../../test/fixtures/ssl/ca.pem")
+        |> File.read!()
+        |> X509.Certificate.from_pem!()
+
+      opts = [
+        url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        serializer: Jason,
+        ssl_verify: :verify_peer,
+        transport_opts: [
+          socket_opts: [
+            cert: X509.Certificate.to_der(cert),
+            key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
+            cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
+            server_name_indication: 'device.nerves-hub.org'
+          ]
+        ]
+      ]
+
+      {:ok, socket} = Socket.start_link(opts)
+      wait_for_socket(socket)
+      {:ok, _reply, _channel} = Channel.join(socket, "device")
+
+      device =
+        NervesHubWebCore.Repo.get(Device, device.id)
+        |> NervesHubWebCore.Repo.preload(:org)
+
+      assert Presence.device_status(device) == "online"
+      refute_receive({"presence_diff", _})
+    end
+
     test "vaild certificate expired signer can connect", %{user: user} do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
 
-      not_before = Timex.now() |> Timex.shift(days: -1)
-      not_after = Timex.now() |> Timex.shift(days: 1)
+      not_before = Timex.now() |> Timex.shift(days: -2)
+      not_after = Timex.now() |> Timex.shift(days: -1)
 
       template =
         X509.Certificate.Template.new(:root_ca,
@@ -320,8 +379,6 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
           ]
         ]
       ]
-
-      :timer.sleep(2_000)
 
       {:ok, socket} = Socket.start_link(opts)
       wait_for_socket(socket)
