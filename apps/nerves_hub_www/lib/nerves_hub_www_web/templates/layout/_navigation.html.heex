@@ -8,7 +8,7 @@
     <%= if logged_in?(@conn) do %>
       <ul class="navbar-nav me-auto flex-grow">
         <li class="nav-item dropdown switcher">
-          <a class="nav-link dropdown-toggle org-select arrow-primary" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <a class="nav-link dropdown-toggle org-select arrow-primary" href="#" id="navbarDropdownMenuLink" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <%= if org = get_in(@conn.assigns, [:org]), do: org.name, else: @conn.assigns.user.username %><%= if product = product(@conn) do %> <span class="workspace-divider">:</span> <%= product.name %><% end %>
           </a>
 
@@ -65,7 +65,7 @@
       </ul>
       <ul class="navbar-nav">
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle user-menu" href="#" id="menu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <a class="nav-link dropdown-toggle user-menu" href="#" id="menu1" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <span><%= @conn.assigns.user.username %></span>
             <img src="/images/icons/settings.svg" alt="settings" />
           </a>
