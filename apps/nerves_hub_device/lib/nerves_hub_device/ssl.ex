@@ -56,6 +56,20 @@ defmodule NervesHubDevice.SSL do
     end
   end
 
+  def verify_fun(otp_cert, {:bad_cert, :cert_expired}, state) do
+    # If the CA is expired but already registered then we should
+    # still allow it in the request. If this is a device attempting
+    # to register, the validation will fail later on due to the expired.
+    #
+    # If this is an existing device presenting an expired cert in the chain
+    # then allowing the expired CA cert prevents the request from being
+    # terminating prematurely
+    case check_known_ca(otp_cert) do
+      {:ok, _ca} -> {:valid, state}
+      _unknown_ca -> :cert_expired
+    end
+  end
+
   def verify_fun(_certificate, {:extension, _}, state) do
     {:valid, state}
   end
