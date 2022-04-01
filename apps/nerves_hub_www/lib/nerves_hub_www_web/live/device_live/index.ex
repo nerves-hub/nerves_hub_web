@@ -221,7 +221,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     end
   end
 
-  def handle_event("select", %{"id" => id_str} = params, socket) do
+  def handle_event("select", %{"id" => id_str}, socket) do
     id = String.to_integer(id_str)
     {:noreply, assign(socket, :selected_devices, [id | socket.assigns.selected_devices])}
   end
@@ -311,7 +311,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     |> sync_devices(%{joins: Presence.list("product:#{product_id}:devices"), leaves: %{}})
   end
 
-  defp do_sort(%{assigns: assigns} = socket) do
+  defp do_sort(%{assigns: %{current_sort: "selected"} = assigns} = socket) do
     devices =
       Enum.sort_by(assigns.devices, &(&1.id in assigns.selected_devices), assigns.sort_direction)
 

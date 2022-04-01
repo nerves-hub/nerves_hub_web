@@ -110,9 +110,9 @@
             <select name="product" id="move_to" class="form-control">
               <option value=""></option>
               <%= for org <- user_orgs(@user), products = user_org_products(@user, org), length(products) > 0 do %>
-                <optgroup label=<%= org.name %>>
+                <optgroup label={org.name}>
                   <%= for product <- products, product.id != @product.id do %>
-                    <option value="<%= org.id %>:<%= product.id %>:<%= product.name %>"><%= product.name %></option>
+                    <option value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>
                   <% end %>
                 </optgroup>
               <% end %>
@@ -123,7 +123,7 @@
         <div class="flex-row align-items-center">
           <button class="btn btn-secondary" type="button" phx-click="deselect-all">Deselect All</button>
           <%= if @target_product do %>
-            <button class="btn btn-primary ml-3" type="submit" data-confirm="<%= move_alert(@target_product) %>">Move</button>
+            <button class="btn btn-primary ml-3" type="submit" data-confirm={move_alert(@target_product)}>Move</button>
           <% end %>
         </div>
       </form>
@@ -145,7 +145,7 @@
     <%= for device <- @devices do %>
       <tr class="item">
         <td>
-          <input class="checkbox" <%= if device.id in @selected_devices, do: "checked" %> type="checkbox" id="<%= device.id %>-select" phx-value-id="<%= device.id %>" phx-click="select">
+          <input class="checkbox" type="checkbox" checked={device.id in @selected_devices} id={"#{device.id}-select"} phx-value-id={device.id} phx-click="select">
         </td>
         <td>
           <div class="mobile-label help-text">Identifier</div>
