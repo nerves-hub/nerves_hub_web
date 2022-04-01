@@ -144,7 +144,7 @@
     </thead>
     <%= for device <- @devices do %>
       <tr class="item">
-        <td>
+        <td class="select-device-checkbox">
           <input class="checkbox" type="checkbox" checked={device.id in @selected_devices} id={"#{device.id}-select"} phx-value-id={device.id} phx-click="select">
         </td>
         <td>
