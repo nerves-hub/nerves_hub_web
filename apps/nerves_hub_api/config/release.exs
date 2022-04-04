@@ -46,7 +46,8 @@ config :nerves_hub_web_core, NervesHubWebCore.Mailer,
   server: System.fetch_env!("SES_SERVER"),
   port: System.fetch_env!("SES_PORT"),
   username: System.fetch_env!("SMTP_USERNAME"),
-  password: System.fetch_env!("SMTP_PASSWORD")
+  password: System.fetch_env!("SMTP_PASSWORD"),
+  allow_signups?: System.get_env("ALLOW_SIGNUPS", "false") |> String.to_atom()
 
 host = System.fetch_env!("HOST")
 
