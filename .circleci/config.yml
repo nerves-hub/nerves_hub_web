@@ -41,6 +41,25 @@ docker_save: &docker_save
         nerveshub/$APP_NAME:latest \
         -o /docker/$APP_NAME-latest.tar
 
+docker_import: &docker_import
+  run:
+    name: Import docker images
+    command: |
+      docker load \
+        -i /docker/$APP_NAME-$DOCKER_TAG.tar
+      docker load \
+        -i /docker/$APP_NAME-latest.tar
+
+docker_push: &docker_push
+  run:
+    name: Push docker images to dockerhub
+    command: |
+      docker login -u $DOCKER_USER -p $DOCKER_PASS
+      docker push \
+        nerveshub/$APP_NAME:$DOCKER_TAG
+      docker push \
+        nerveshub/$APP_NAME:latest
+
 version: 2.1
 orbs:
   docker: circleci/docker@2.0.3
@@ -157,6 +176,45 @@ jobs:
           key: docker-api-{{ .Branch }}-{{ .Revision }}
           paths: "/docker"
 
+  push-www:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-www-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
+      - <<: *docker_push
+
+  push-device:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-device-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
+      - <<: *docker_push
+
+  push-api:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_api" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-api-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
+      - <<: *docker_push
+
 workflows:
   version: 2
   pipeline:
@@ -183,3 +241,24 @@ workflows:
             context: org-global
             requires:
               - test_elixir
+        - push-www:
+            context: org-global
+            requires:
+              - build-www
+            filters:
+              branches:
+                only: main
+        - push-device:
+            context: org-global
+            requires:
+              - build-device
+            filters:
+              branches:
+                only: main
+        - push-api:
+            context: org-global
+            requires:
+              - build-api
+            filters:
+              branches:
+                only: main
