@@ -16,7 +16,7 @@
   </div>
   <div>
     <div class="help-text">Last Handshake</div>
-    <p>
+    <p title={@device.last_communication}>
       <%= if is_nil(@device.last_communication) do %>
         Never
       <% else %>
