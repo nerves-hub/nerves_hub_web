@@ -1,7 +1,7 @@
 # nerves_hub_www
 
-[![CircleCI](https://circleci.com/gh/nerves-hub/nerves_hub_web/tree/next.svg?style=svg)](https://circleci.com/gh/nerves-hub/nerves_hub_web/tree/next)
-[![Coverage Status](https://coveralls.io/repos/github/nerves-hub/nerves_hub_web/badge.svg?branch=next)](https://coveralls.io/github/nerves-hub/nerves_hub_web?branch=next)
+[![CircleCI](https://circleci.com/gh/nerves-hub/nerves_hub_web/tree/main.svg?style=svg)](https://circleci.com/gh/nerves-hub/nerves_hub_web/tree/main)
+[![Coverage Status](https://coveralls.io/repos/github/nerves-hub/nerves_hub_web/badge.svg?branch=main)](https://coveralls.io/github/nerves-hub/nerves_hub_web?branch=main)
 
 This is the source code for the NervesHub firmware update and device management
 server.
@@ -11,9 +11,7 @@ server.
 The public NervesHub instance at `nerves-hub.org` will be turned off on March
 31st, 2022.  See [NervesHub Sunset](https://elixirforum.com/t/action-advised-nerveshub-sunset/42925).
 This doesn't mean NervesHub development has ended. Many of us run NervesHub
-instances internally at our companies and really like it. We will be moving our
-patches to the source code to this `next` branch. The `main` branch continues to
-deploy to `nerves-hub.org`.
+instances internally at our companies and really like it, and development continues.
 
 ## Project overview and setup
 
