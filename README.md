@@ -134,14 +134,3 @@ Devices and Firmware.
 
 For a Device to be considered eligible for a given Deployment, it must have
 *all* the tags in the Deployment's "tags" condition.
-
-## Simulating a device
-
-The [nerves_hub](https://github.com/nerves-hub/nerves_hub) is an
-example OTP application that simulates a device.  It will connect to the
-NervesHub server via a Phoenix Channel and can be used to exercise the server
-for development and test.
-
-See the
-[nerves_hub/README.md](https://github.com/nerves-hub/nerves_hub/blob/next/README.md)
-for more information.
