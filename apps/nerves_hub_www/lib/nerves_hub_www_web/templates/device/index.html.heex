@@ -134,7 +134,7 @@
           </div>
         </td>
 
-        <td>
+        <td title={device.last_communication}>
           <div class="mobile-label help-text">Last handshake</div>
           <%= if is_nil(device.last_communication) do %>
             <span class="color-white-50">Never</span>
