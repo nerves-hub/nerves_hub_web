@@ -26,7 +26,6 @@ docker_build_release: &docker_build_release
     command: |
       docker build \
         -t nerveshub/$APP_NAME:$DOCKER_TAG \
-        -t nerveshub/$APP_NAME:latest \
         -f apps/$APP_NAME/rel/Dockerfile.build .
 
 docker_save: &docker_save
@@ -37,9 +36,6 @@ docker_save: &docker_save
       docker save \
         nerveshub/$APP_NAME:$DOCKER_TAG \
         -o /docker/$APP_NAME-$DOCKER_TAG.tar
-      docker save \
-        nerveshub/$APP_NAME:latest \
-        -o /docker/$APP_NAME-latest.tar
 
 docker_import: &docker_import
   run:
@@ -47,8 +43,6 @@ docker_import: &docker_import
     command: |
       docker load \
         -i /docker/$APP_NAME-$DOCKER_TAG.tar
-      docker load \
-        -i /docker/$APP_NAME-latest.tar
 
 migrate: &migrate
   run:
@@ -231,8 +225,6 @@ jobs:
             docker login -u $DOCKER_USER -p $DOCKER_PASS
             docker push \
               nerveshub/$APP_NAME:$DOCKER_TAG
-            docker push \
-              nerveshub/$APP_NAME:latest
 
   push-staging-device:
     <<: *defaults
@@ -269,8 +261,6 @@ jobs:
             docker login -u $DOCKER_USER -p $DOCKER_PASS
             docker push \
               nerveshub/$APP_NAME:$DOCKER_TAG
-            docker push \
-              nerveshub/$APP_NAME:latest
 
   push-staging-api:
     <<: *defaults
@@ -307,8 +297,6 @@ jobs:
             docker login -u $DOCKER_USER -p $DOCKER_PASS
             docker push \
               nerveshub/$APP_NAME:$DOCKER_TAG
-            docker push \
-              nerveshub/$APP_NAME:latest
 
   migrate-staging:
     <<: *defaults
