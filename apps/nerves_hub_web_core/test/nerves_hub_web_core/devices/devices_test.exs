@@ -72,7 +72,8 @@ defmodule NervesHubWebCore.DevicesTest do
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
-    %{devices: org_device_limit} = Accounts.get_org_limit_by_org_id(org.id)
+    org_device_limit = 10
+    Accounts.create_org_limit(%{org_id: org.id, devices: org_device_limit})
 
     for i <- 1..org_device_limit do
       params = %{
@@ -93,37 +94,6 @@ defmodule NervesHubWebCore.DevicesTest do
     }
 
     assert {:error, %Changeset{}} = Devices.create_device(params)
-  end
-
-  test "org device count limit can be raised", %{user: user} do
-    org = Fixtures.org_fixture(user, %{name: "an_org_with_no_devices"})
-    product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
-    firmware = Fixtures.firmware_fixture(org_key, product)
-    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
-    %{devices: org_device_limit} = Accounts.get_org_limit_by_org_id(org.id)
-
-    for i <- 1..org_device_limit do
-      params = %{
-        org_id: org.id,
-        product_id: product.id,
-        firmware_metadata: metadata,
-        identifier: "id #{i}"
-      }
-
-      {:ok, %Devices.Device{}} = Devices.create_device(params)
-    end
-
-    params = %{
-      org_id: org.id,
-      product_id: product.id,
-      firmware_metadata: metadata,
-      identifier: "more than default"
-    }
-
-    Accounts.create_org_limit(%{org_id: org.id, devices: 10})
-
-    assert {:ok, %Devices.Device{}} = Devices.create_device(params)
   end
 
   test "delete_device", %{
