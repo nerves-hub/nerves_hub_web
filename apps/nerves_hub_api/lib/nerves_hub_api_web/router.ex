@@ -21,6 +21,12 @@ defmodule NervesHubAPIWeb.Router do
     plug(NervesHubAPIWeb.Plugs.Device)
   end
 
+  scope "/health", NervesHubAPIWeb do
+    pipe_through(:api)
+
+    get("/", HealthCheckController, :health_check)
+  end
+
   scope "/users", NervesHubAPIWeb do
     pipe_through(:api)
 
