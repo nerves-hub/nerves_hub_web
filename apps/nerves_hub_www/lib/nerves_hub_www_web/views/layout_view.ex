@@ -247,6 +247,11 @@ defmodule NervesHubWWWWeb.LayoutView do
         title: "My Organizations",
         active: "",
         href: Routes.org_path(conn, :index, conn.assigns.user.username)
+      },
+      %{
+        title: "Access Tokens",
+        active: "",
+        href: Routes.account_path(conn, :show, conn.assigns.user.username, "tokens")
       }
     ]
     |> sidebar_active(conn)

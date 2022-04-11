@@ -43,6 +43,7 @@ defmodule NervesHubAPIWeb.ConnCase do
     end
 
     user = Fixtures.user_fixture()
+    {:ok, token} = NervesHubWebCore.Accounts.create_user_token(user, "test-token")
     %{cert: cert} = Fixtures.user_certificate_fixture(user)
 
     user2 = Fixtures.user_fixture(%{username: user.username <> "0"})
@@ -56,6 +57,7 @@ defmodule NervesHubAPIWeb.ConnCase do
      conn2: build_auth_conn(cert2),
      org: org,
      user: user,
+     user_token: token,
      user2: user2,
      product: product}
   end
