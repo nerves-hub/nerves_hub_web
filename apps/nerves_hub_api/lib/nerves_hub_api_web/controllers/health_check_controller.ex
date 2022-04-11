@@ -8,5 +8,5 @@ defmodule NervesHubAPIWeb.HealthCheckController do
   We could expand this to include a test query to the database.
   """
   def health_check(conn, _),
-      do: json(conn, %{status: "UP"})
+    do: json(conn, %{status: "UP"})
 end
