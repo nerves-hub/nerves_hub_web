@@ -32,6 +32,7 @@ defmodule NervesHubAPIWeb.Router do
 
     post("/register", UserController, :register)
     post("/auth", UserController, :auth)
+    post("/login", UserController, :login)
     post("/sign", UserController, :sign)
   end
 

@@ -109,6 +109,8 @@ defmodule NervesHubWWWWeb.Router do
       end
 
       get("/organizations", OrgController, :index)
+
+      get("/:tab", AccountController, :show)
     end
 
     get("/org/new", OrgController, :new)
