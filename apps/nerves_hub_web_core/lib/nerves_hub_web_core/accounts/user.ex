@@ -5,7 +5,7 @@ defmodule NervesHubWebCore.Accounts.User do
   import Ecto.Query
   import EctoEnum
 
-  alias NervesHubWebCore.Accounts.{Org, UserCertificate, OrgUser}
+  alias NervesHubWebCore.Accounts.{Org, UserCertificate, OrgUser, UserToken}
   alias NervesHubWebCore.Repo
 
   alias Ecto.Changeset
@@ -23,6 +23,7 @@ defmodule NervesHubWebCore.Accounts.User do
 
   schema "users" do
     has_many(:user_certificates, UserCertificate)
+    has_many(:user_tokens, UserToken)
 
     has_many(:org_users, OrgUser, where: [deleted_at: nil])
     has_many(:orgs, through: [:org_users, :org], where: [deleted_at: nil])

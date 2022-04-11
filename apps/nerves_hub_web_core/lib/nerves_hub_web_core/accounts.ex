@@ -8,6 +8,7 @@ defmodule NervesHubWebCore.Accounts do
     Org,
     User,
     UserCertificate,
+    UserToken,
     Invite,
     OrgKey,
     OrgLimit,
@@ -738,4 +739,34 @@ defmodule NervesHubWebCore.Accounts do
   end
 
   defdelegate remove_account(user_id), to: RemoveAccount
+
+  @doc """
+  Create a 36 digit Base62 encoded user token
+
+  Token format is "nh{prefix}_{30 digit HMAC}{6 digit 32 bit CRC32 checksum}"
+
+  Currently supported prefixes:
+    * `u` - User token
+
+  Heavily inspired by [GitHub authentication token formats](https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/)
+  """
+  @spec create_user_token(User.t(), String.t()) ::
+          {:ok, UserToken.t()} | {:error, Ecto.Changeset.t()}
+  def create_user_token(%NervesHubWebCore.Accounts.User{} = user, note) do
+    UserToken.create_changeset(user, %{note: note})
+    |> Repo.insert()
+  end
+
+  @doc """
+  Get a UserToken preloaded with the User
+  """
+  @spec get_user_token(String.t()) :: {:ok, UserToken.t()} | {:error, :not_found}
+  def get_user_token(token) do
+    from(UserToken, where: [token: ^token], preload: [:user])
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      ut -> {:ok, ut}
+    end
+  end
 end

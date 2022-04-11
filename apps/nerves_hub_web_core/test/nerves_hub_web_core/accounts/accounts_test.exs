@@ -366,6 +366,13 @@ defmodule NervesHubWebCore.AccountsTest do
     assert "is already member" in errors_on(changeset).org_users
   end
 
+  test "can create a user token", %{user: user} do
+    assert {:ok, %{token: <<"nhu_", token::binary>>}} =
+             Accounts.create_user_token(user, "Test token")
+
+    assert byte_size(token) == 36
+  end
+
   def setup_org_metric(%{user: user}) do
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
