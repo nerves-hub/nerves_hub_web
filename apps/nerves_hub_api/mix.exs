@@ -23,7 +23,7 @@ defmodule NervesHubAPI.Mixfile do
   def application do
     [
       mod: {NervesHubAPI.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :base62]
     ]
   end
 
