@@ -37,7 +37,7 @@ defmodule NervesHubWebCore.MixProject do
   def application do
     [
       mod: {NervesHubWebCore.Application, []},
-      extra_applications: [:logger, :jason, :inets],
+      extra_applications: [:logger, :jason, :inets, :base62],
       start_phases: [{:start_workers, []}]
     ]
   end
