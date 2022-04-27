@@ -32,6 +32,9 @@ DEVICE_NODES=$(format_nodes "$DEVICE_IPS" nerves_hub_device)
 API_IPS=$(service_ip_addresses nerves-hub-api)
 API_NODES=$(format_nodes "$API_IPS" nerves_hub_api)
 
+API_PUBLIC_IPS=$(service_ip_addresses nerves-hub-api-public)
+API_PUBLIC_NODES=$(service_ip_addresses nerves-hub-api-public)
+
 NODES=$(echo "$DEVICE_NODES $WWW_NODES $API_NODES" | tr '\n' ' ')
 
 # we should now have something that looks like

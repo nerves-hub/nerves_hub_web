@@ -19,3 +19,4 @@ erl_crash.dump
 .elixir_ls
 .vscode
 node_modules
+*.iml
