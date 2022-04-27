@@ -33,9 +33,9 @@ API_IPS=$(service_ip_addresses nerves-hub-api)
 API_NODES=$(format_nodes "$API_IPS" nerves_hub_api)
 
 API_PUBLIC_IPS=$(service_ip_addresses nerves-hub-api-public)
-API_PUBLIC_NODES=$(service_ip_addresses nerves-hub-api-public)
+API_PUBLIC_NODES=$(format_nodes "$API_PUBLIC_IPS" nerves_hub_api)
 
-NODES=$(echo "$DEVICE_NODES $WWW_NODES $API_NODES" | tr '\n' ' ')
+NODES=$(echo "$DEVICE_NODES $WWW_NODES $API_NODES $API_PUBLIC_NODES" | tr '\n' ' ')
 
 # we should now have something that looks like
 # nerves_hub_www@10.0.2.120 nerves_hub_device@10.0.3.99 nerves_hub_api@10.0.3.101
