@@ -8,8 +8,7 @@ sync_nodes_optional =
   case System.fetch_env("SYNC_NODES_OPTIONAL") do
     {:ok, sync_nodes_optional} ->
       sync_nodes_optional
-      |> String.trim()
-      |> String.split(" ")
+      |> String.split(" ", trim: true)
       |> Enum.map(&String.to_atom/1)
 
     :error ->
