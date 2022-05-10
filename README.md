@@ -8,10 +8,10 @@ server.
 
 *Important*
 
-The public NervesHub instance at `nerves-hub.org` will be turned off on March
-31st, 2022.  See [NervesHub Sunset](https://elixirforum.com/t/action-advised-nerveshub-sunset/42925).
-This doesn't mean NervesHub development has ended. Many of us run NervesHub
-instances internally at our companies and really like it, and development continues.
+The public NervesHub instance at `nerves-hub.org` was turned off on March 31st,
+2022. See [NervesHub Sunset](https://elixirforum.com/t/action-advised-nerveshub-sunset/42925).
+NervesHub is still actively developed and used. Many of us run NervesHub
+instances internally at our companies and really like it.
 
 ## Project overview and setup
 
