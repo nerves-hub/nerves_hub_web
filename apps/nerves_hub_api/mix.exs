@@ -46,6 +46,7 @@ defmodule NervesHubAPI.Mixfile do
       {:plug_cowboy, "~> 2.1"},
       {:gettext, "~> 0.11"},
       {:rollbax, "~> 0.11.0"},
+      {:base62, "~> 1.2"},
       {:cowboy, "~> 2.1", override: true},
       {:jason, "~> 1.2", override: true},
       {:nerves_hub_device, in_umbrella: true},

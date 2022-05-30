@@ -47,6 +47,7 @@ defmodule NervesHubWebCore.MixProject do
     [
       {:phoenix, "~> 1.6"},
       {:phoenix_html, "~> 3.1"},
+      {:phoenix_live_view, "~> 0.16"},
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.1"},
       {:ecto_sql, "~> 3.0"},
@@ -67,7 +68,8 @@ defmodule NervesHubWebCore.MixProject do
       {:jason, "~> 1.2", override: true},
       {:ecto, "~> 3.4", override: true},
       {:mox, "~> 1.0", only: [:test, :dev]},
-      {:nimble_csv, "~> 1.1"}
+      {:nimble_csv, "~> 1.1"},
+      {:base62, "~> 1.2"}
     ]
   end
 end
