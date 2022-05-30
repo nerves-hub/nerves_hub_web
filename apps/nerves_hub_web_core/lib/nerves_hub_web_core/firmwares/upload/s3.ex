@@ -25,7 +25,10 @@ defmodule NervesHubWebCore.Firmwares.Upload.S3 do
     s3_key = firmware.upload_metadata["s3_key"]
 
     ExAws.Config.new(:s3)
-    |> S3.presigned_url(:get, bucket(), s3_key, expires_in: @firmware_url_validity_time)
+    |> S3.presigned_url(:get, bucket(), s3_key,
+      expires_in: @firmware_url_validity_time,
+      virtual_host: true
+    )
     |> case do
       {:ok, url} ->
         {:ok, url}
