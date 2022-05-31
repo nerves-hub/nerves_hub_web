@@ -5,8 +5,6 @@ host = System.get_env("HOST")
 config :ex_aws,
   region: {:system, "AWS_REGION"}
 
-config :ex_aws_s3, json_codec: Jason
-
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",

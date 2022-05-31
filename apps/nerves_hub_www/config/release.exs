@@ -37,8 +37,6 @@ config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.S3,
 config :nerves_hub_web_core, NervesHubWebCore.Workers.FirmwaresTransferS3Ingress,
   bucket: System.fetch_env!("S3_LOG_BUCKET_NAME")
 
-config :ex_aws, :s3, host: System.get_env("AWS_HOST", "s3.amazonaws.com")
-
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   secret_key_base: System.fetch_env!("SECRET_KEY_BASE"),
   live_view: [signing_salt: System.fetch_env!("LIVE_VIEW_SIGNING_SALT")]
