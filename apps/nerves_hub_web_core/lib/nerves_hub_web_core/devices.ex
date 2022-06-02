@@ -493,12 +493,17 @@ defmodule NervesHubWebCore.Devices do
     %UpdatePayload{update_available: false}
   end
 
-  @spec delta_updatable?(source :: Firmware.t(), target :: Firmware.t(), Product.t(), fwup_version :: String.t()) :: boolean()
+  @spec delta_updatable?(
+          source :: Firmware.t(),
+          target :: Firmware.t(),
+          Product.t(),
+          fwup_version :: String.t()
+        ) :: boolean()
   def delta_updatable?(source, target, product, fwup_version) do
-    product.delta_updatable
-    and target.delta_updatable
-    and source.delta_updatable
-    and Version.match?(fwup_version, @min_fwup_delta_updatable_version)
+    product.delta_updatable and
+      target.delta_updatable and
+      source.delta_updatable and
+      Version.match?(fwup_version, @min_fwup_delta_updatable_version)
   end
 
   @doc """
