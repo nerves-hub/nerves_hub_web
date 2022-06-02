@@ -116,10 +116,10 @@
   <div class="alert alert-warning">
     <div class="content-container">
       <center>Device was previously moved and has certificates associated with a Signer CA from another organization</center>
-      </br>
+      <%= tag(:br) %>
       <center>In most cases, this should be okay (or was even intentional), but automatic device certificate creation</center>
       <center>will not work until the Signer CA is also moved the the same organization as this device.</center>
-      </br>
+      <%= tag(:br) %>
       <center>If the intention is leave the Signer CA in the other organization, then this will continue to work</center>
       <center>so long as certificates are managed manually for this device and other metadata, such as the product</center>
       <center>and firmware signing keys appropiately match the existing firmware as well</center>
@@ -138,7 +138,7 @@
   <tbody>
     <%= for cert <- @device.device_certificates do %>
       <% mismatch? = cert.org_id != @device.org_id %>
-      <tr class="item" style="<%= if mismatch?, do: "border: 2px dashed var(--warning)" %>">
+      <tr class="item" style={if mismatch?, do: "border: 2px dashed var(--bs-warning)"}>
         <td>
           <div class="mobile-label help-text">Serial</div>
           <code class="color-white wb-ba ff-m"><%= format_serial(cert.serial) %></code>
