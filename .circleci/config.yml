@@ -18,7 +18,10 @@ docker_env: &docker_env
       else
         TAG=$CIRCLE_TAG
       fi
+      VERSION=$(tr -d '\n' < VERSION)
+
       echo "export DOCKER_TAG=$TAG" >> $BASH_ENV
+      echo "export DOCKER_VERSION_TAG=$VERSION" >> $BASH_ENV
 
 docker_build_release: &docker_build_release
   run:
@@ -26,6 +29,7 @@ docker_build_release: &docker_build_release
     command: |
       docker build \
         -t nerveshub/$APP_NAME:$DOCKER_TAG \
+        -t nerveshub/$APP_NAME:$DOCKER_VERSION_TAG \
         -t nerveshub/$APP_NAME:latest \
         -f apps/$APP_NAME/rel/Dockerfile.build .
 
@@ -38,6 +42,9 @@ docker_save: &docker_save
         nerveshub/$APP_NAME:$DOCKER_TAG \
         -o /docker/$APP_NAME-$DOCKER_TAG.tar
       docker save \
+        nerveshub/$APP_NAME:$DOCKER_VERSION_TAG \
+        -o /docker/$APP_NAME-$DOCKER_VERSION_TAG.tar
+      docker save \
         nerveshub/$APP_NAME:latest \
         -o /docker/$APP_NAME-latest.tar
 
@@ -48,15 +55,25 @@ docker_import: &docker_import
       docker load \
         -i /docker/$APP_NAME-$DOCKER_TAG.tar
       docker load \
+        -i /docker/$APP_NAME-$DOCKER_VERSION_TAG.tar
+      docker load \
         -i /docker/$APP_NAME-latest.tar
 
 docker_push: &docker_push
   run:
-    name: Push docker images to dockerhub
+    name: Push commit image to dockerhub
     command: |
       docker login -u $DOCKER_USER -p $DOCKER_PASS
       docker push \
         nerveshub/$APP_NAME:$DOCKER_TAG
+
+docker_release: &docker_release
+  run:
+    name: Release docker images to dockerhub
+    command: |
+      docker login -u $DOCKER_USER -p $DOCKER_PASS
+      docker push \
+        nerveshub/$APP_NAME:$DOCKER_VERSION_TAG
       docker push \
         nerveshub/$APP_NAME:latest
 
@@ -215,6 +232,45 @@ jobs:
       - <<: *docker_import
       - <<: *docker_push
 
+  release-www:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-www-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
+      - <<: *docker_release
+
+  release-device:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-device-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
+      - <<: *docker_release
+
+  release-api:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: echo "export APP_NAME=nerves_hub_api" >> $BASH_ENV
+      - <<: *remote_docker
+      - <<: *docker_env
+      - restore_cache:
+          keys:
+            - docker-api-{{ .Branch }}-{{ .Revision }}
+      - <<: *docker_import
+      - <<: *docker_release
+
 workflows:
   version: 2
   pipeline:
@@ -262,3 +318,30 @@ workflows:
             filters:
               branches:
                 only: main
+        - release-www:
+            context: org-global
+            requires:
+              - build-www
+            filters:
+              branches:
+                ignore: /.*/
+              tags:
+                only: /v.*/
+        - release-device:
+            context: org-global
+            requires:
+              - build-device
+            filters:
+              branches:
+                ignore: /.*/
+              tags:
+                only: /v.*/
+        - release-api:
+            context: org-global
+            requires:
+              - build-api
+            filters:
+              branches:
+                ignore: /.*/
+              tags:
+                only: /v.*/
