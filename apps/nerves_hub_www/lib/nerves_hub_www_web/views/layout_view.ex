@@ -256,6 +256,11 @@ defmodule NervesHubWWWWeb.LayoutView do
         title: "Access Tokens",
         active: "",
         href: Routes.account_path(conn, :show, conn.assigns.user.username, "tokens")
+      },
+      %{
+        title: "FIDO Credentials",
+        active: "",
+        href: Routes.account_path(conn, :fido, conn.assigns.user.username)
       }
     ]
     |> sidebar_active(conn)

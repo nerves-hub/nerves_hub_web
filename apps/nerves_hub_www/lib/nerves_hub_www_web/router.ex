@@ -44,6 +44,7 @@ defmodule NervesHubWWWWeb.Router do
 
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
+    post("/login/fido", SessionController, :fido)
     get("/logout", SessionController, :delete)
 
     get("/register", AccountController, :new)
@@ -110,6 +111,7 @@ defmodule NervesHubWWWWeb.Router do
 
       get("/organizations", OrgController, :index)
 
+      get("/fido", AccountController, :fido)
       get("/:tab", AccountController, :show)
     end
 

@@ -14,7 +14,8 @@ defmodule NervesHubWebCore.Accounts do
     OrgLimit,
     OrgUser,
     OrgMetric,
-    RemoveAccount
+    RemoveAccount,
+    FidoCredential
   }
 
   alias NervesHubWebCore.Products.{Product, ProductUser}
@@ -251,11 +252,20 @@ defmodule NervesHubWebCore.Accounts do
   def authenticate(email_or_username, password) do
     with {:ok, user} <- get_user_by_email_or_username(email_or_username),
          true <- Bcrypt.verify_pass(password, user.password_hash) do
-      {:ok, user |> User.with_default_org() |> User.with_org_keys()}
+      user =
+        user
+        |> User.with_default_org()
+        |> User.with_org_keys()
+        |> User.with_fido_credentials()
+
+      {:ok, user}
     else
-      _ ->
+      {:error, :not_found} ->
         # User wasn't found; do dummy check to make user enumeration more difficult
         Bcrypt.no_user_verify()
+        {:error, :authentication_failed}
+
+      _ ->
         {:error, :authentication_failed}
     end
   end
@@ -322,7 +332,19 @@ defmodule NervesHubWebCore.Accounts do
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
-      cert -> {:ok, cert}
+      user -> {:ok, user}
+    end
+  end
+
+  def get_user_by_fido_credential_id(credential_id) do
+    FidoCredential
+    |> Repo.exclude_deleted()
+    |> where(credential_id: ^credential_id)
+    |> preload(:user)
+    |> Repo.one()
+    |> case do
+      %FidoCredential{user: %User{} = user} -> {:ok, user}
+      nil -> {:error, :not_found}
     end
   end
 
@@ -365,9 +387,8 @@ defmodule NervesHubWebCore.Accounts do
   end
 
   def get_user_by_certificate_serial(serial) do
-    case get_user_certificate_by_serial(serial) do
-      {:ok, %{user: user}} -> User.with_default_org(user)
-      error -> error
+    with {:ok, %UserCertificate{user: user}} <- get_user_certificate_by_serial(serial) do
+      User.with_default_org(user)
     end
   end
 
@@ -752,7 +773,7 @@ defmodule NervesHubWebCore.Accounts do
   """
   @spec create_user_token(User.t(), String.t()) ::
           {:ok, UserToken.t()} | {:error, Ecto.Changeset.t()}
-  def create_user_token(%NervesHubWebCore.Accounts.User{} = user, note) do
+  def create_user_token(%User{} = user, note) do
     UserToken.create_changeset(user, %{note: note})
     |> Repo.insert()
   end
@@ -768,5 +789,17 @@ defmodule NervesHubWebCore.Accounts do
       nil -> {:error, :not_found}
       ut -> {:ok, ut}
     end
+  end
+
+  def create_fido_credential(attrs) do
+    %FidoCredential{}
+    |> FidoCredential.create_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def delete_fido_credential(%FidoCredential{} = credential) do
+    credential
+    |> FidoCredential.delete_changeset()
+    |> Repo.update()
   end
 end

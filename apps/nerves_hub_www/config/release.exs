@@ -54,3 +54,6 @@ config :nerves_hub_web_core,
   allow_signups?: System.get_env("ALLOW_SIGNUPS", "false") |> String.to_atom()
 
 config :nerves_hub_www, NervesHubWWWWeb.Endpoint, url: [host: host, port: port]
+
+config :wax_,
+  origin: "https://#{host}:#{port}"

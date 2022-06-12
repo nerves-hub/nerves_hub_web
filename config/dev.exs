@@ -101,3 +101,7 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
       ~r{lib/nerves_hube_www_web/live/.*(ex)$}
     ]
   ]
+
+config :wax_,
+  # wax only accepts localhost when using http
+  origin: "http://localhost:#{web_port}"

@@ -6,7 +6,7 @@ defmodule NervesHubWWWWeb.AccountController do
   alias NervesHubWebCore.Accounts.User
   alias NervesHubWebCore.Accounts.Email
   alias NervesHubWebCore.Mailer
-  alias NervesHubWWWWeb.AccountLive
+  alias NervesHubWWWWeb.{AccountLive, FidoLive}
 
   plug(NervesHubWebCore.Plugs.AllowUninvitedSignups when action in [:new, :create])
 
@@ -113,6 +113,10 @@ defmodule NervesHubWWWWeb.AccountController do
         |> put_flash(:error, "Invalid org")
         |> redirect(to: "/")
     end
+  end
+
+  def fido(%{assigns: %{user: user}} = conn, params) do
+    live_render(conn, FidoLive.Show, session: Map.put(params, "auth_user_id", user.id))
   end
 
   def show(%{assigns: %{user: user}} = conn, params) do

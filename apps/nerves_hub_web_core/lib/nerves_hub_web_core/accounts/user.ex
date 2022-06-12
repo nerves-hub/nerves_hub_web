@@ -5,7 +5,7 @@ defmodule NervesHubWebCore.Accounts.User do
   import Ecto.Query
   import EctoEnum
 
-  alias NervesHubWebCore.Accounts.{Org, UserCertificate, OrgUser, UserToken}
+  alias NervesHubWebCore.Accounts.{Org, UserCertificate, OrgUser, UserToken, FidoCredential}
   alias NervesHubWebCore.Repo
 
   alias Ecto.Changeset
@@ -24,6 +24,7 @@ defmodule NervesHubWebCore.Accounts.User do
   schema "users" do
     has_many(:user_certificates, UserCertificate)
     has_many(:user_tokens, UserToken)
+    has_many(:fido_credentials, FidoCredential, where: [deleted_at: nil])
 
     has_many(:org_users, OrgUser, where: [deleted_at: nil])
     has_many(:orgs, through: [:org_users, :org], where: [deleted_at: nil])
@@ -118,6 +119,16 @@ defmodule NervesHubWebCore.Accounts.User do
   def with_org_keys(user_query) do
     user_query
     |> preload(orgs: [:org_keys])
+  end
+
+  def with_fido_credentials(%User{} = user) do
+    user
+    |> Repo.preload(:fido_credentials)
+  end
+
+  def with_fido_credentials(user_query) do
+    user_query
+    |> preload(:fido_credentials)
   end
 
   def role_or_higher(:read), do: [:read, :write, :delete, :admin]
