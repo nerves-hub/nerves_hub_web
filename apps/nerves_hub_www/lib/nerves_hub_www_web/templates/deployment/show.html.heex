@@ -1,7 +1,7 @@
 <div class="action-row">
   <%= link "All Deployments", to: Routes.deployment_path(@socket, :index, @org.name, @product.name), class: "back-link"%>
   <div class="btn-group" role="group" aria-label="Deployment Actions">
-    <a class="btn btn-outline-light btn-action" aria-label={"Turn #{opposite_status(@deployment)} deployment"} phx-click="toggle_active" phx-value-isactive={!@deployment.is_active}>
+    <a class="btn btn-outline-light btn-action" aria-label={"Turn #{opposite_status(@deployment)} deployment"} phx-click={JS.push("toggle_active", value: %{is_active: !@deployment.is_active})}>
       <span class="button-icon power"></span>
       <span class="action-text">Turn <%= opposite_status(@deployment) %></span>
     </a>
