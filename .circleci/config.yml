@@ -275,28 +275,46 @@ workflows:
   version: 2
   pipeline:
       jobs:
-        - fetch_deps
+        - fetch_deps:
+            filters:
+              tags:
+                only: /.*/
         - test_elixir:
             context: org-global
             requires:
               - fetch_deps
+            filters:
+              tags:
+                only: /.*/
         # - test_javascript:
         #     context: org-global
         #     requires:
         #       - fetch_deps
+        #     filters:
+        #       tags:
+        #         only: /.*/
         - build-www:
             context: org-global
             requires:
               - test_elixir
               # - test_javascript
+            filters:
+              tags:
+                only: /.*/
         - build-device:
             context: org-global
             requires:
               - test_elixir
+            filters:
+              tags:
+                only: /.*/
         - build-api:
             context: org-global
             requires:
               - test_elixir
+            filters:
+              tags:
+                only: /.*/
         - push-www:
             context: org-global
             requires:
