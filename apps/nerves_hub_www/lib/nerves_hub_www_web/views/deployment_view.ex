@@ -1,6 +1,5 @@
 defmodule NervesHubWWWWeb.DeploymentView do
   use NervesHubWWWWeb, :view
-  alias Phoenix.LiveView.JS
 
   alias NervesHubWebCore.Repo
   alias NervesHubWebCore.Firmwares.Firmware
