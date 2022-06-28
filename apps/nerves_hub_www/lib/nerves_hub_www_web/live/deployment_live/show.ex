@@ -84,7 +84,7 @@ defmodule NervesHubWWWWeb.DeploymentLive.Show do
 
   def handle_event(
         "toggle_active",
-        %{"is_active" => value},
+        %{"is-active" => value},
         %{assigns: %{deployment: deployment, user: user}} = socket
       ) do
     {:ok, updated_deployment} = Deployments.update_deployment(deployment, %{is_active: value})
