@@ -118,6 +118,70 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       refute_receive({"presence_diff", _})
       Socket.stop(socket)
     end
+
+    test "already registered expired certificate without signer CA can connect", %{user: user} do
+      org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
+      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
+
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+      serial = NervesHubWebCore.Certificate.get_serial_number(ca)
+
+      # Ensure this signer CA does not exist in the DB
+      assert {:error, :not_found} = Devices.get_ca_certificate_by_serial(serial)
+
+      key = X509.PrivateKey.new_ec(:secp256r1)
+
+      not_before = Timex.now() |> Timex.shift(days: -2)
+      not_after = Timex.now() |> Timex.shift(days: -1)
+
+      cert =
+        key
+        |> X509.PublicKey.derive()
+        |> X509.Certificate.new("CN=#{device.identifier}", ca, ca_key,
+          validity: X509.Certificate.Validity.new(not_before, not_after)
+        )
+
+      # Verify our cert is indeed expired
+      assert {:error, {:bad_cert, :cert_expired}} =
+               :public_key.pkix_path_validation(
+                 X509.Certificate.to_der(ca),
+                 [X509.Certificate.to_der(cert)],
+                 []
+               )
+
+      _ = Fixtures.device_certificate_fixture(device, cert)
+
+      nerves_hub_ca_cert =
+        Path.expand("../../test/fixtures/ssl/ca.pem")
+        |> File.read!()
+        |> X509.Certificate.from_pem!()
+
+      opts = [
+        url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        serializer: Jason,
+        ssl_verify: :verify_peer,
+        transport_opts: [
+          socket_opts: [
+            cert: X509.Certificate.to_der(cert),
+            key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
+            cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
+            server_name_indication: 'device.nerves-hub.org'
+          ]
+        ]
+      ]
+
+      {:ok, socket} = Socket.start_link(opts)
+      wait_for_socket(socket)
+      {:ok, _reply, _channel} = Channel.join(socket, "device")
+
+      device =
+        NervesHubWebCore.Repo.get(Device, device.id)
+        |> NervesHubWebCore.Repo.preload(:org)
+
+      assert Presence.device_status(device) == "online"
+      refute_receive({"presence_diff", _})
+    end
   end
 
   describe "firmware update" do
