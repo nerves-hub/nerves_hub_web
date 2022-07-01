@@ -43,30 +43,20 @@ defmodule NervesHubDevice.SSL do
   # This can happen if the Signer CA is not included in the request
   # and only the device cert/key is. Or if some other unknown CA
   # was included.
-  def verify_fun(otp_cert, {:bad_cert, :unknown_ca}, state) do
+  def verify_fun(otp_cert, {:bad_cert, err}, state) when err in [:unknown_ca, :cert_expired] do
     aki = Certificate.get_aki(otp_cert)
     ski = Certificate.get_ski(otp_cert)
 
     if aki == ski do
       # Because Signer CAs are required to be registered first, we don't
-      # really care about it coming in here
+      # really care about it coming in here. Likewise, if this is an
+      # unregistered CA, we can just move on so that the device can
+      # still attempt to present it's certificate to check if it has been
+      # pinned or not. Veririfcation will fail there if the device cert
+      # and it's signer CA is unknown
       {:valid, state}
     else
       do_verify(otp_cert, state)
-    end
-  end
-
-  def verify_fun(otp_cert, {:bad_cert, :cert_expired}, state) do
-    # If the CA is expired but already registered then we should
-    # still allow it in the request. If this is a device attempting
-    # to register, the validation will fail later on due to the expired.
-    #
-    # If this is an existing device presenting an expired cert in the chain
-    # then allowing the expired CA cert prevents the request from being
-    # terminating prematurely
-    case check_known_ca(otp_cert) do
-      {:ok, _ca} -> {:valid, state}
-      _unknown_ca -> :cert_expired
     end
   end
 
