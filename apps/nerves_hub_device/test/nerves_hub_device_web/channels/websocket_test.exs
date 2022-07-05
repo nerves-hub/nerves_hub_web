@@ -183,7 +183,9 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       refute_receive({"presence_diff", _})
     end
 
-    test "already registered certificate with expired signer CA can connect", %{user: user} do
+    test "already registered expired certificate with expired signer CA can connect", %{
+      user: user
+    } do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
 
@@ -205,10 +207,6 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       assert {:error, :not_found} = Devices.get_ca_certificate_by_serial(serial)
 
       key = X509.PrivateKey.new_ec(:secp256r1)
-
-      not_before = Timex.now() |> Timex.shift(days: -2)
-      not_after = Timex.now() |> Timex.shift(days: 1)
-      validity = X509.Certificate.Validity.new(not_before, not_after)
 
       cert =
         key
@@ -372,7 +370,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
   end
 
   describe "Custom CA Signers" do
-    test "vaild certificate can connect", %{user: user} do
+    test "valid certificate can connect", %{user: user} do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
 
