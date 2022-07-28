@@ -124,17 +124,13 @@ defmodule NervesHubWebCore.Fixtures do
     org_key
   end
 
-  def ca_certificate_fixture(%Accounts.Org{} = org, opts \\ []) do
-    opts = Keyword.merge([template: :root_ca], opts)
-    ca_key = X509.PrivateKey.new_ec(:secp256r1)
-    ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", opts)
-
+  defp to_ca_certificate_params(ca) do
     {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(ca)
 
     serial = NervesHubWebCore.Certificate.get_serial_number(ca)
     aki = NervesHubWebCore.Certificate.get_aki(ca)
 
-    params = %{
+    %{
       serial: serial,
       aki: aki,
       ski: NervesHubWebCore.Certificate.get_ski(ca),
@@ -142,6 +138,27 @@ defmodule NervesHubWebCore.Fixtures do
       not_after: not_after,
       der: X509.Certificate.to_der(ca)
     }
+  end
+
+  def ca_certificate_fixture(%Accounts.Org{} = org, opts \\ []) do
+    opts = Keyword.merge([template: :root_ca], opts)
+    ca_key = X509.PrivateKey.new_ec(:secp256r1)
+    ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", opts)
+
+    params = to_ca_certificate_params(ca)
+
+    {:ok, db_cert} = Devices.create_ca_certificate(org, params)
+    %{cert: ca, key: ca_key, db_cert: db_cert}
+  end
+
+  def ca_certificate_jitp_enabled_fixture(%Accounts.Org{} = org, %Product{} = product, opts \\ []) do
+    opts = Keyword.merge([template: :root_ca], opts)
+    ca_key = X509.PrivateKey.new_ec(:secp256r1)
+    ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", opts)
+
+    params =
+      to_ca_certificate_params(ca)
+      |> Map.put(:jitp, %{"description" => "jitp", "product_id" => product.id, "tags" => ["prod"]})
 
     {:ok, db_cert} = Devices.create_ca_certificate(org, params)
     %{cert: ca, key: ca_key, db_cert: db_cert}

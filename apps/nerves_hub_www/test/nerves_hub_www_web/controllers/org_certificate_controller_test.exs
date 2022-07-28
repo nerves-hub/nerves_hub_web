@@ -173,7 +173,28 @@ defmodule NervesHubWWWWeb.OrgCertificateControllerTest do
     test "renders form", %{conn: conn, org: org} do
       %{db_cert: ca} = Fixtures.ca_certificate_fixture(org)
       conn = get(conn, Routes.org_certificate_path(conn, :edit, org.name, ca.serial))
-      assert html_response(conn, 200) =~ "Edit Certificate Authority"
+
+      html = html_response(conn, 200)
+      assert html =~ "Edit Certificate Authority"
+
+      assert html
+             |> Floki.parse_document!()
+             |> Floki.find("#jitp_form")
+             |> Floki.attribute("hidden") == ["hidden"]
+    end
+
+    test "renders form, jitp enabled", %{conn: conn, org: org, user: user} do
+      product = Fixtures.product_fixture(user, org)
+      %{db_cert: ca} = Fixtures.ca_certificate_jitp_enabled_fixture(org, product)
+      conn = get(conn, Routes.org_certificate_path(conn, :edit, org.name, ca.serial))
+
+      html = html_response(conn, 200)
+      assert html =~ "Edit Certificate Authority"
+
+      assert html
+             |> Floki.parse_document!()
+             |> Floki.find("#jitp_form")
+             |> Floki.attribute("hidden") == []
     end
 
     test "redirects to index when not found", %{conn: conn, org: org} do
