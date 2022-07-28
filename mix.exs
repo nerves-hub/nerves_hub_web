@@ -60,7 +60,7 @@ defmodule NervesHubUmbrella.MixProject do
     [
       # {:excoveralls, "~> 0.8", only: :test},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
+      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
       {:recon, "~> 2.5"}
     ]
   end
