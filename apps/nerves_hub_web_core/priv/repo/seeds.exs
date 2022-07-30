@@ -45,12 +45,19 @@ defmodule NervesHubWebCore.SeedHelpers do
 
     Firmwares.update_firmware_ttl(elem(firmwares, 2).id)
 
-    Fixtures.device_fixture(org, product, firmwares |> elem(1), %{last_communication: DateTime.utc_now()})
-    |> Fixtures.device_certificate_fixture()
+    device =
+      Fixtures.device_fixture(org, product, firmwares |> elem(1), %{
+        last_communication: DateTime.utc_now()
+      })
+
+    cert =
+      Fixtures.device_certificate_pem(org.name, device.identifier)
+      |> X509.Certificate.from_pem!()
+
+    Fixtures.device_certificate_fixture(device, cert)
   end
 
   def nerves_team_seed(root_user_params) do
-
     user = Fixtures.user_fixture(root_user_params)
     [default_user_org | _] = Accounts.get_user_orgs(user)
     org = Fixtures.org_fixture(user, %{name: "NervesTeam"})

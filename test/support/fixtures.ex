@@ -279,6 +279,24 @@ defmodule NervesHubWebCore.Fixtures do
     |> File.read!()
   end
 
+  def device_certificate_pem(org_name, identifier) do
+    key = X509.PrivateKey.new_ec(:secp256r1)
+    csr = X509.CSR.new(key, "/O=#{org_name}/CN=#{identifier}")
+
+    with {:ok, signer_cert_pem} <- File.read(device_certificate_authority_file()),
+         {:ok, signer_key_pem} <- File.read(device_certificate_authority_key_file()),
+         {:ok, signer_cert} <- X509.Certificate.from_pem(signer_cert_pem),
+         {:ok, signer_key} <- X509.PrivateKey.from_pem(signer_key_pem) do
+      subject_rdn = X509.CSR.subject(csr) |> X509.RDNSequence.to_string()
+      public_key = X509.CSR.public_key(csr)
+
+      X509.Certificate.new(public_key, subject_rdn, signer_cert, signer_key,
+        template: NervesHubCLI.Certificate.device_template()
+      )
+      |> X509.Certificate.to_pem()
+    end
+  end
+
   def device_certificate_authority_file do
     path()
     |> Path.join("ssl/device-root-ca.pem")
