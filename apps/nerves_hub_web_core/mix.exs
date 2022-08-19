@@ -67,7 +67,17 @@ defmodule NervesHubWebCore.MixProject do
       {:jason, "~> 1.2", override: true},
       {:ecto, "~> 3.4", override: true},
       {:mox, "~> 1.0", only: [:test, :dev]},
-      {:nimble_csv, "~> 1.1"}
+      {:nimble_csv, "~> 1.1"},
+      {:telemetry_metrics, "~> 0.4"},
+      {:telemetry_poller, "~> 0.4"},
+      {:statix, "~> 1.2"},
+      {:bark, github: "smartrent/bark", tag: "1.1.1"},
+      {:decorator, "~> 1.2"},
+      {:spandex, "~> 3.0.1"},
+      {:spandex_datadog, "~> 1.0.0"},
+      {:spandex_ecto, "~> 0.6.2"},
+      {:spandex_phoenix, "~> 1.0.0"},
+      {:httpoison, "~> 1.4.0"}
     ]
   end
 end

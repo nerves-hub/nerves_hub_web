@@ -1,5 +1,6 @@
 defmodule NervesHubWWWWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub_www
+  use SpandexPhoenix
 
   @session_options [
     store: :cookie,

@@ -1,5 +1,6 @@
 defmodule NervesHubDeviceWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub_device
+  use SpandexPhoenix
 
   socket(
     "/socket",

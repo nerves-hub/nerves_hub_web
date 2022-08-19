@@ -11,11 +11,30 @@ defmodule NervesHubWebCore.Application do
     # Define workers and child supervisors to be supervised
     children = [
       # Start the Ecto repository
+      datadog_children(),
       NervesHubWebCore.Repo,
       {Phoenix.PubSub, pubsub_config},
       {Task.Supervisor, name: NervesHubWebCore.TaskSupervisor},
-      {Oban, configure_oban()}
+      {Oban, configure_oban()},
+      {NervesHubWebCore.Stats, []}
     ]
+
+    :telemetry.attach(
+      "spandex-query-tracer",
+      [:nerves_hub_web_core, :repo, :query],
+      &SpandexEcto.TelemetryAdapter.handle_event/4,
+      nil
+    )
+
+    SpandexPhoenix.Telemetry.install(
+      customize_metadata: fn conn ->
+        service = Map.get(conn.private, :service, :elixir)
+
+        conn
+        |> SpandexPhoenix.default_metadata()
+        |> Keyword.put(:service, service)
+      end
+    )
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -82,5 +101,22 @@ defmodule NervesHubWebCore.Application do
         [NervesHubWebCore.Worker] in behaviors do
       module
     end
+  end
+
+  defp datadog_children do
+    opts = [
+      host: Application.get_env(:nerves_hub_web_core, :datadog_host, "localhost"),
+      port:
+        Application.get_env(:nerves_hub_web_core, :datadog_port) |> StringHelper.to_integer(8126),
+      batch_size:
+        Application.get_env(:nerves_hub_web_core, :datadog_batch_size)
+        |> StringHelper.to_integer(10),
+      sync_threshold:
+        Application.get_env(:nerves_hub_web_core, :datadog_sync_threshold)
+        |> StringHelper.to_integer(100),
+      http: HTTPoison
+    ]
+
+    {SpandexDatadog.ApiServer, opts}
   end
 end

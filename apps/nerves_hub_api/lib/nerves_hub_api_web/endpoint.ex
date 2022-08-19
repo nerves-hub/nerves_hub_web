@@ -1,5 +1,6 @@
 defmodule NervesHubAPIWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub_api
+  use SpandexPhoenix
 
   # Serve at "/" the static files from "priv/static" directory.
   #

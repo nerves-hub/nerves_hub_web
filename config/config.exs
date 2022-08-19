@@ -13,7 +13,7 @@ config :ex_aws_s3, json_codec: Jason
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:user_id]
+  metadata: [:user_id, :request_id, :trace_id, :span_id]
 
 config :phoenix,
   json_library: Jason,
@@ -68,6 +68,31 @@ config :nerves_hub_web_core, Oban,
   repo: NervesHubWebCore.Repo,
   log: false,
   queues: [delete_firmware: 1, firmware_delta_builder: 2]
+
+config :spandex_phoenix, tracer: NervesHubWebCore.Tracer
+
+config :spandex, :decorators, tracer: NervesHubWebCore.Tracer
+
+config :nerves_hub_web_core,
+  datadog_host: System.get_env("DATADOG_HOST") || "localhost",
+  datadog_port: System.get_env("DATADOG_PORT") || "8126",
+  datadog_batch_size: System.get_env("SPANDEX_BATCH_SIZE") || "100",
+  datadog_sync_threshold: System.get_env("SPANDEX_SYNC_THRESHOLD") || "100"
+
+config :nerves_hub_web_core,
+  statsd_host: System.get_env("STATSD_HOST", "localhost"),
+  statsd_port: System.get_env("STATSD_PORT", "8125")
+
+config :nerves_hub_web_core, NervesHubWebCore.Tracer,
+  service: :nerves_hub_web_core,
+  adapter: SpandexDatadog.Adapter,
+  disabled?: false,
+  type: :web
+
+config :spandex_ecto, SpandexEcto.EctoLogger,
+  service: :nerves_hub_web_core_ecto,
+  tracer: NervesHubWebCore.Tracer,
+  otp_app: :nerves_hub_web_core
 
 ##
 # NervesHubWWW

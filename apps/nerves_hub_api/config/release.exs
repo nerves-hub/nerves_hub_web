@@ -81,3 +81,5 @@ config :nerves_hub_web_core, NervesHubWebCore.CertificateAuthority,
     certfile: "/etc/ssl/#{host}.pem",
     cacertfile: "/etc/ssl/ca.pem"
   ]
+
+config :nerves_hub_web_core, NervesHubWebCore.Tracer, env: System.get_env("DD_ENV") || "dev"
