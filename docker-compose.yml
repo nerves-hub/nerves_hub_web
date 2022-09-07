@@ -11,3 +11,21 @@ services:
       PGDATA: /data
     volumes:
       - ~/db/nerveshub/postgres:/data
+
+  datadog:
+    image: datadog/agent:latest
+    ports:
+      - "8125:8125/udp"
+      - "8126:8126"
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_ENV=dev
+      - DD_APM_ENABLED=true
+      - DD_HOSTNAME=${DD_HOSTNAME}
+      - DD_SITE=${DD_SITE}
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+      - ./infrastructure/local/docker/dd_redis.yml:/etc/datadog-agent/conf.d/redisdb.d/auto_conf.yaml
