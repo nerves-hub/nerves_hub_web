@@ -138,7 +138,9 @@ defmodule NervesHubWWWWeb.ProductLive.Import do
   defp handle_progress(:csv, entry, socket) do
     socket =
       if entry.done? do
-        consume_uploaded_entry(socket, entry, &parse_csv(socket, &1.path))
+        consume_uploaded_entry(socket, entry, fn entry ->
+          {:ok, parse_csv(socket, entry.path)}
+        end)
       else
         socket
       end
@@ -149,7 +151,9 @@ defmodule NervesHubWWWWeb.ProductLive.Import do
   defp handle_progress(:jose, entry, socket) do
     socket =
       if entry.done? do
-        consume_uploaded_entry(socket, entry, &parse_jose(socket, &1.path))
+        consume_uploaded_entry(socket, entry, fn entry ->
+          {:ok, parse_jose(socket, entry.path)}
+        end)
       else
         socket
       end
