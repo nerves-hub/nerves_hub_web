@@ -55,6 +55,7 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
     port: 443,
     otp_app: :nerves_hub_device,
     # Enable client SSL
+    versions: [:"tlsv1.2"],
     verify: :verify_peer,
     fail_if_no_peer_cert: true,
     keyfile: "/etc/ssl/#{host}-key.pem",
