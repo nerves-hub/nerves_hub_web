@@ -1,4 +1,4 @@
-FROM elixir:1.13
+FROM elixir:1.14
 
 ENV \
   LANG=C.UTF-8 \
