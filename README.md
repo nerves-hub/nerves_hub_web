@@ -132,3 +132,16 @@ Devices and Firmware.
 
 For a Device to be considered eligible for a given Deployment, it must have
 *all* the tags in the Deployment's "tags" condition.
+
+### Potential SSL issues
+
+OTP > 24.2.2 switched to use TLS1.3 by default and made quite a few fixes/changes
+to how it is implemented in the `:ssl` module. This has affected the setup of
+client authentication in a few different ways depending on how you have your
+server and device configured:
+
+| Server | Client | Effect |
+| --- | --- | --- |
+|TLS1.3 | TLS1.3| `certificate_required` error (needs OTP 25.2 - see https://github.com/erlang/otp/issues/6106)  |
+|TLS1.3|TLS1.2|  `CLIENT ALERT: Fatal - Handshake Failure - :unacceptable_ecdsa_key` - Happens because the client is attempting to sign with `:she` as the signature algorithm. The workaround is to specify `ssl: [signature_algs: [{:sha256, :ecdsa},{:sha512, :ecdsa}]]`|
+|TLS1.2 | TLS1.3 or TLS1.2 | Successful|
