@@ -5,6 +5,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 See the [NervesHub documentation] for more information
 
+## [v1.1.0] - 2022-10-07
+
+[v1.1.0]: https://github.com/nerves-hub/nerves_hub_web/releases/tag/v1.1.0
+
+### Fixed
+
+* Default to TLS 1.2 for all connections. This fixes issues if TLS 1.3 is
+  used or attempted. See [NervesHubWeb: Potential SSL Issues](https://github.com/nerves-hub/nerves_hub_web#potential-ssl-issues)
+
 ## [v1.0.4] - 2022-10-07
 
 [v1.0.4]: https://github.com/nerves-hub/nerves_hub_web/releases/tag/v1.0.4
