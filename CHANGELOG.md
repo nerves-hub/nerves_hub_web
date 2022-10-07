@@ -5,6 +5,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 See the [NervesHub documentation] for more information
 
+## [v1.0.4] - 2022-10-07
+
+[v1.0.4]: https://github.com/nerves-hub/nerves_hub_web/releases/tag/v1.0.4
+
+### Fixed
+
+* Fix return value passed to consume_upload_entry/3 (thanks @tonnenpinguin)
+
 ## [v1.0.3] - 2022-07-28
 
 [v1.0.3]: https://github.com/nerves-hub/nerves_hub_web/releases/tag/v1.0.3
