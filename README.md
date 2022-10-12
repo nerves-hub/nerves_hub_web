@@ -143,5 +143,5 @@ server and device configured:
 | Server | Client | Effect |
 | --- | --- | --- |
 |TLS1.3 | TLS1.3| `certificate_required` error (needs OTP 25.2 - see https://github.com/erlang/otp/issues/6106)  |
-|TLS1.3|TLS1.2|  `CLIENT ALERT: Fatal - Handshake Failure - :unacceptable_ecdsa_key` - Happens because the client is attempting to sign with `:she` as the signature algorithm. The workaround is to specify `ssl: [signature_algs: [{:sha256, :ecdsa},{:sha512, :ecdsa}]]`|
+|TLS1.3|TLS1.2|  `CLIENT ALERT: Fatal - Handshake Failure - :unacceptable_ecdsa_key` - Happens because the client is attempting to sign with `:she` as the signature algorithm. The workaround is to specify `ssl: [signature_algs: [{:sha256, :ecdsa},{:sha512, :ecdsa}]]`, e.g. as config for `:nerves_hub_link`. |
 |TLS1.2 | TLS1.3 or TLS1.2 | Successful|
