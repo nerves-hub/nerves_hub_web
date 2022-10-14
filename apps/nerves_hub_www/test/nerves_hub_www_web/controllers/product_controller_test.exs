@@ -4,7 +4,7 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
   alias NervesHubWebCore.{Fixtures, Products}
 
   @create_attrs %{name: "some name"}
-  @update_attrs %{delta_updatable: false}
+  @update_attrs %{name: "some name 2"}
   @invalid_attrs %{name: nil}
 
   describe "index" do
@@ -50,8 +50,8 @@ defmodule NervesHubWWWWeb.ProductControllerTest do
       conn =
         put(conn, Routes.product_path(conn, :update, org.name, product.name), product: params)
 
+      assert %{name: "some name 2"} = product = Products.get_product!(product.id)
       assert redirected_to(conn) == Routes.device_path(conn, :index, org.name, product.name)
-      assert %{delta_updatable: false} = Products.get_product!(product.id)
     end
   end
 

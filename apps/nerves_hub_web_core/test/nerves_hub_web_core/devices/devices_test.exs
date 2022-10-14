@@ -585,7 +585,7 @@ defmodule NervesHubWebCore.DevicesTest do
       %{firmware_metadata: %{fwup_version: fwup_version}} = device
 
       firmware_delta = Fixtures.firmware_delta_fixture(source, target)
-      assert Devices.delta_updatable?(source, target, product, fwup_version)
+      assert Devices.delta_updatable?(source, target, deployment, fwup_version)
 
       {:ok, firmware_delta_url} = Firmwares.get_firmware_url(firmware_delta)
 
@@ -610,7 +610,7 @@ defmodule NervesHubWebCore.DevicesTest do
       {:ok, device} = Devices.update_firmware_metadata(device, %{fwup_version: "1.6.0"})
       %{firmware_metadata: %{fwup_version: fwup_version}} = device
 
-      assert Devices.delta_updatable?(source, target, product, fwup_version)
+      assert Devices.delta_updatable?(source, target, deployment, fwup_version)
 
       result = Devices.resolve_update(device, deployment)
       refute result.update_available
@@ -702,24 +702,23 @@ defmodule NervesHubWebCore.DevicesTest do
 
   test "delta_updatable?", %{
     firmware: source,
-    product: product,
     deployment: deployment
   } do
     fwup_version = @valid_fwup_version
     %{firmware: target} = Repo.preload(deployment, :firmware)
 
-    assert Devices.delta_updatable?(source, target, product, fwup_version) == false
+    assert Devices.delta_updatable?(source, target, deployment, fwup_version) == false
 
     source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
     target = Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
 
-    assert product.delta_updatable == true
+    assert deployment.delta_updatable == true
     assert source.delta_updatable == true
     assert target.delta_updatable == true
 
-    assert Devices.delta_updatable?(source, target, product, fwup_version) == true
+    assert Devices.delta_updatable?(source, target, deployment, fwup_version) == true
 
     # case where the source firmware does not exist
-    assert Devices.delta_updatable?(nil, target, product, fwup_version) == false
+    assert Devices.delta_updatable?(nil, target, deployment, fwup_version) == false
   end
 end

@@ -20,7 +20,8 @@ defmodule NervesHubWebCore.Deployments.Deployment do
     :failure_threshold,
     :failure_rate_seconds,
     :failure_rate_amount,
-    :healthy
+    :healthy,
+    :delta_updatable
   ]
 
   schema "deployments" do
@@ -38,6 +39,7 @@ defmodule NervesHubWebCore.Deployments.Deployment do
     field(:is_active, :boolean)
     field(:name, :string)
     field(:healthy, :boolean, default: true)
+    field(:delta_updatable, :boolean, default: false)
 
     timestamps()
   end
