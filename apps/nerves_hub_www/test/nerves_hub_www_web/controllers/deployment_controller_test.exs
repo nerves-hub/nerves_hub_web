@@ -100,7 +100,8 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
         name: "Test Deployment ABC",
         tags: "beta, beta-edge",
         version: "< 1.0.0",
-        is_active: true
+        is_active: true,
+        delta_updatable: true
       }
 
       # check that we end up in the right place
@@ -115,10 +116,13 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
                Routes.deployment_path(create_conn, :index, org.name, product.name)
 
       # check that the proper creation side effects took place
-      conn = get(conn, Routes.deployment_path(conn, :index, org.name, product.name))
+      route = Routes.deployment_path(conn, :show, org.name, product.name, deployment_params.name)
+      conn = get(conn, route)
+
       assert html_response(conn, 200) =~ deployment_params.name
       assert html_response(conn, 200) =~ "Off"
       assert html_response(conn, 200) =~ firmware.version
+      assert html_response(conn, 200) =~ "Delta firmware updates enabled"
     end
 
     test "audits on success", %{conn: conn, org: org, fixture: fixture} do
@@ -194,7 +198,8 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
             "version" => "4.3.2",
             "tags" => "new, tags, now",
             "name" => "not original",
-            "firmware_id" => firmware.id
+            "firmware_id" => firmware.id,
+            "delta_updatable" => false
           }
         )
 
@@ -212,6 +217,7 @@ defmodule NervesHubWWWWeb.DeploymentControllerTest do
       assert reloaded_deployment.name == "not original"
       assert reloaded_deployment.conditions["version"] == "4.3.2"
       assert Enum.sort(reloaded_deployment.conditions["tags"]) == Enum.sort(~w(new tags now))
+      assert reloaded_deployment.delta_updatable == false
     end
 
     test "failed update shows errors", %{

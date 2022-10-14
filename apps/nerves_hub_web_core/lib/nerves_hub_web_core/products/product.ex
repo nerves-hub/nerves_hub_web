@@ -10,7 +10,7 @@ defmodule NervesHubWebCore.Products.Product do
   alias NervesHubWebCore.Repo
 
   @required_params [:name, :org_id]
-  @optional_params [:delta_updatable]
+  @optional_params []
 
   @type t :: %__MODULE__{}
 
@@ -25,7 +25,6 @@ defmodule NervesHubWebCore.Products.Product do
 
     field(:name, :string)
     field(:deleted_at, :utc_datetime)
-    field(:delta_updatable, :boolean, default: false)
 
     timestamps()
   end

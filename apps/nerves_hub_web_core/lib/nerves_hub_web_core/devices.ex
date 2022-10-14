@@ -464,7 +464,7 @@ defmodule NervesHubWebCore.Devices do
           {:error, :not_found} -> nil
         end
 
-      if delta_updatable?(source, target, product, fwup_version) do
+      if delta_updatable?(source, target, deployment, fwup_version) do
         case Firmwares.get_firmware_delta_by_source_and_target(source, target) do
           {:ok, firmware_delta} ->
             build_update_payload(firmware_delta, target, deployment)
@@ -501,13 +501,13 @@ defmodule NervesHubWebCore.Devices do
   @spec delta_updatable?(
           source :: Firmware.t(),
           target :: Firmware.t(),
-          Product.t(),
+          Deployment.t(),
           fwup_version :: String.t()
         ) :: boolean()
-  def delta_updatable?(nil, _target, _product, _fwup_version), do: false
+  def delta_updatable?(nil, _target, _deployment, _fwup_version), do: false
 
-  def delta_updatable?(source, target, product, fwup_version) do
-    product.delta_updatable and
+  def delta_updatable?(source, target, deployment, fwup_version) do
+    deployment.delta_updatable and
       target.delta_updatable and
       source.delta_updatable and
       Version.match?(fwup_version, @min_fwup_delta_updatable_version)

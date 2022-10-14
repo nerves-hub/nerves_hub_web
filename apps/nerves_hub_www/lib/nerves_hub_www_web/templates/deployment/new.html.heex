@@ -40,6 +40,25 @@
     <div class="has-error"><%= error_tag f, :version %></div>
   </div>
 
+  <div class="form-group">
+    <label for="delta_updatable_input" class="tooltip-label">
+      <span>Firmware updates</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">
+        Check out the documentation at
+        <a href="https://docs.nerves-hub.org" target="_blank" class="inline">https://docs.nerves-hub.org </a>
+        for more information about
+        <a href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank" class="inline">delta updates</a>
+      </span>
+    </label>
+    <div class="flex-row align-items-center">
+      <%= checkbox f, :delta_updatable, class: "form-control checkbox", id: "delta_updatable_input" %>
+      <label for="delta_updatable_input" class="color-white pl-1 m-0">Enable delta firmware updates</label>
+    </div>
+
+    <div class="has-error"><%= error_tag f, :delta_updatable %></div>
+  </div>
+
   <div class="button-submit-wrapper">
     <a class="btn btn-secondary" href={Routes.deployment_path(@conn, :index, @org.name, @product.name)}>Cancel</a>
     <%= submit "Create Deployment", class: "btn btn-primary" %>

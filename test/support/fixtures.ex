@@ -30,10 +30,11 @@ defmodule NervesHubWebCore.Fixtures do
       "version" => "<= 1.0.0",
       "tags" => ["beta", "beta-edge"]
     },
-    is_active: false
+    is_active: false,
+    delta_updatable: true
   }
   @device_params %{tags: ["beta", "beta-edge"]}
-  @product_params %{name: "valid product", delta_updatable: true}
+  @product_params %{name: "valid product"}
 
   @user_ca_key Path.expand("../fixtures/ssl/user-root-ca-key.pem", __DIR__)
   @user_ca_cert Path.expand("../fixtures/ssl/user-root-ca.pem", __DIR__)

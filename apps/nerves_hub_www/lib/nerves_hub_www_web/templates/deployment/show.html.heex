@@ -57,6 +57,12 @@
           <p><%= version(@deployment) %></p>
         </div>
         <div>
+          <div class="help-text mb-1">Firmware updates</div>
+          <p>
+            Delta firmware updates <%= if @deployment.delta_updatable, do: "enabled", else: "disabled" %>
+          </p>
+        </div>
+        <div>
           <div class="help-text mb-1 tooltip-label help-tooltip">
             <span>Failure Rate</span>
             <span class="tooltip-info"></span>
