@@ -5,6 +5,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 See the [NervesHub documentation] for more information
 
+## [v1.2.0] - 2022-10-18
+
+[v1.2.0]: https://github.com/nerves-hub/nerves_hub_web/releases/tag/v1.2.0
+
+### Potentially Breaking Change
+
+* Moved flag for enabling/disabling Delta updates to the `Deployment` instead of
+  the `Product`. This allows for more granular control over which devices get
+  Delta updates. This will require migrations to be run before use.
+
 ## [v1.1.0] - 2022-10-07
 
 [v1.1.0]: https://github.com/nerves-hub/nerves_hub_web/releases/tag/v1.1.0
