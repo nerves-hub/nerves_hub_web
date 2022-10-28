@@ -63,7 +63,7 @@ docker_push: &docker_push
   run:
     name: Push commit image to dockerhub
     command: |
-      docker login -u $DOCKER_USER -p $DOCKER_PASS
+#      docker login -u $DOCKER_USER -p $DOCKER_PASS
       docker push \
         public.ecr.aws/o0z1n0s8/nerveshub/$APP_NAME:$DOCKER_TAG
 
@@ -71,7 +71,7 @@ docker_release: &docker_release
   run:
     name: Release docker images to dockerhub
     command: |
-      docker login -u $DOCKER_USER -p $DOCKER_PASS
+#      docker login -u $DOCKER_USER -p $DOCKER_PASS
       docker push \
         public.ecr.aws/o0z1n0s8/nerveshub/$APP_NAME:$DOCKER_VERSION_TAG
       docker push \
