@@ -66,8 +66,9 @@ docker_push: &docker_push
       aws-secret-access-key: AWS_ACCESS_SECRET
       aws-region: AWS_REGION_NAME
     - command: |
-      docker push \
-        public.ecr.aws/o0z1n0s8/nerveshub/$APP_NAME:$DOCKER_TAG
+      aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/o0z1n0s8
+    - command: |
+      docker push public.ecr.aws/o0z1n0s8/nerveshub/$APP_NAME:$DOCKER_TAG
 
 docker_release: &docker_release
   run:
