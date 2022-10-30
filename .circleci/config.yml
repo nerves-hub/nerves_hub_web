@@ -60,7 +60,12 @@ docker_import: &docker_import
         -i /docker/$APP_NAME-latest.tar
 
 docker_push: &docker_push
-  run:
+  - run:
+    aws-cli/setup:
+      aws-access-key-id: AWS_ACCESS_KEY
+      aws-secret-access-key: AWS_ACCESS_SECRET
+      aws-region: AWS_REGION_NAME
+  - run:      
     name: Push commit image to dockerhub
     command: |
       docker push \
