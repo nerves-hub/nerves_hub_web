@@ -70,7 +70,7 @@ docker_login: &docker_login
   aws-cli/setup:
     aws-access-key-id: AWS_ACCESS_KEY
     aws-secret-access-key: AWS_ACCESS_SECRET
-    aws-region: "eu-west-1"         
+    aws-region: AWS_REGION_NAME        
 
 docker_release: &docker_release
   run:
@@ -302,7 +302,7 @@ workflows:
         #       tags:
         #         only: /.*/
         - build-www:
-            context: org-global
+            context: aws
             requires:
               - test_elixir
               # - test_javascript
@@ -310,42 +310,42 @@ workflows:
               tags:
                 only: /.*/
         - build-device:
-            context: org-global
+            context: aws
             requires:
               - test_elixir
             filters:
               tags:
                 only: /.*/
         - build-api:
-            context: org-global
+            context: aws
             requires:
               - test_elixir
             filters:
               tags:
                 only: /.*/
         - push-www:
-            context: org-global
+            context: aws
             requires:
               - build-www
             filters:
               branches:
                 only: main
         - push-device:
-            context: org-global
+            context: aws
             requires:
               - build-device
             filters:
               branches:
                 only: main
         - push-api:
-            context: org-global
+            context: aws
             requires:
               - build-api
             filters:
               branches:
                 only: main
         - release-www:
-            context: org-global
+            context: aws
             requires:
               - build-www
             filters:
@@ -354,7 +354,7 @@ workflows:
               tags:
                 only: /v.*/
         - release-device:
-            context: org-global
+            context: aws
             requires:
               - build-device
             filters:
@@ -363,7 +363,7 @@ workflows:
               tags:
                 only: /v.*/
         - release-api:
-            context: org-global
+            context: aws
             requires:
               - build-api
             filters:
