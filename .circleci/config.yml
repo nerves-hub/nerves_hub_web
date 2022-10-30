@@ -60,14 +60,17 @@ docker_import: &docker_import
         -i /docker/$APP_NAME-latest.tar
 
 docker_push: &docker_push
-  - aws-cli/setup:
+  run: 
+    name: Push docker images to ECR
+    command: |
+      aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/o0z1n0s8
+      docker push public.ecr.aws/o0z1n0s8/nerveshub/$APP_NAME:$DOCKER_TAG
+
+docker_login: &docker_login
+  aws-cli/setup:
     aws-access-key-id: AWS_ACCESS_KEY
     aws-secret-access-key: AWS_ACCESS_SECRET
-    aws-region: AWS_REGION_NAME
-  - command: |
-    aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/o0z1n0s8
-  - command: |
-    docker push public.ecr.aws/o0z1n0s8/nerveshub/$APP_NAME:$DOCKER_TAG
+    aws-region: "eu-west-1"         
 
 docker_release: &docker_release
   run:
@@ -97,7 +100,7 @@ jobs:
       - run: mix do deps.get
       - save_cache:
           key: mix-deps-v1-{{ .Branch }}-{{ checksum "mix.lock" }}
-          paths: "deps"
+          paths: ["deps"]
 
   test_elixir:
     docker:
