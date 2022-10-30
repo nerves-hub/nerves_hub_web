@@ -84,6 +84,7 @@ docker_release: &docker_release
 version: 2.1
 orbs:
   docker: circleci/docker@2.0.3
+  aws-cli: circleci/aws-cli@2.0  
 jobs:
   fetch_deps:
     docker:
