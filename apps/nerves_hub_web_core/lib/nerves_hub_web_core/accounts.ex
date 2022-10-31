@@ -316,9 +316,9 @@ defmodule NervesHubWebCore.Accounts do
 
   def get_user_by_email_or_username(email_or_username) do
     User
-    |> Repo.exclude_deleted()
     |> where(username: ^email_or_username)
     |> or_where(email: ^email_or_username)
+    |> Repo.exclude_deleted()
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}

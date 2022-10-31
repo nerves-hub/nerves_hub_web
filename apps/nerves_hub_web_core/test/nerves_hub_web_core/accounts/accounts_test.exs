@@ -212,6 +212,26 @@ defmodule NervesHubWebCore.AccountsTest do
     assert {:ok, %User{}} = Accounts.authenticate(user.username, user.password)
   end
 
+  test "authenticate with previously used and deleted email address" do
+    email = "ThatsTesty@mctesterson.com"
+    password = "test_password"
+
+    params = %{
+      username: "Testy-McTesterson",
+      org_name: "mctesterson.com",
+      email: email,
+      password: password
+    }
+
+    {:ok, %User{} = user} = Accounts.create_user(params)
+
+    NervesHubWebCore.Accounts.RemoveAccount.remove_account(user.id)
+
+    {:ok, %User{} = _user} = Accounts.create_user(params)
+
+    assert {:ok, %User{email: ^email}} = Accounts.authenticate(email, password)
+  end
+
   test "create_org_with_user_with_certificate with valid params" do
     params = %{
       username: "Testy-McTesterson",
