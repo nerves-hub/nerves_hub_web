@@ -722,4 +722,20 @@ defmodule NervesHubWebCore.DevicesTest do
     # case where the source firmware does not exist
     assert Devices.delta_updatable?(nil, target, product, fwup_version) == false
   end
+
+  test "matches_deployment? works when device and/or deployment tags are nil", %{
+    deployment: deployment,
+    device: device
+  } do
+    # There is a verion check before the tags, so load both versions
+    # here to ensure they match and we get to the tag check
+    device = put_in(device.firmware_metadata.version, "1.0.0")
+    deployment = put_in(deployment.conditions["version"], "1.0.0")
+
+    nil_tags_deployment = put_in(deployment.conditions["tags"], nil)
+
+    refute Devices.matches_deployment?(%{device | tags: nil}, deployment)
+    assert Devices.matches_deployment?(%{device | tags: nil}, nil_tags_deployment)
+    assert Devices.matches_deployment?(device, nil_tags_deployment)
+  end
 end

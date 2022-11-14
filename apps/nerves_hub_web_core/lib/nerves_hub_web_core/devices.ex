@@ -709,6 +709,9 @@ defmodule NervesHubWebCore.Devices do
     Version.match?(version, requirement)
   end
 
+  defp tags_match?(nil, deployment_tags), do: tags_match?([], deployment_tags)
+  defp tags_match?(device_tags, nil), do: tags_match?(device_tags, [])
+
   defp tags_match?(device_tags, deployment_tags) do
     Enum.all?(deployment_tags, fn tag -> tag in device_tags end)
   end
