@@ -1,13 +1,13 @@
-ARG ELIXIR_VERSION=1.11.3
-ARG ERLANG_VERSION=23.0.4
-ARG ALPINE_VERSION=3.12.1
+ARG ELIXIR_VERSION=1.14.2
+ARG ERLANG_VERSION=24.3.4.6
+ARG ALPINE_VERSION=3.15.6
 
 # Elixir build container
 FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-alpine-${ALPINE_VERSION} as builder
 
 ENV MIX_ENV=prod
 
-RUN apk --no-cache add make gcc musl-dev git
+RUN apk --no-cache add build-base git curl sudo
 RUN mix local.hex --force && mix local.rebar --force
 RUN mkdir /build
 ADD . /build
@@ -18,7 +18,7 @@ RUN mix release nerves_hub_device  --overwrite
 
 # Release Container
 FROM nerveshub/runtime:alpine-${ALPINE_VERSION} as release
-RUN apk add -X https://dl-cdn.alpinelinux.org/alpine/v3.12/main -u alpine-keys
+RUN apk add -X https://dl-cdn.alpinelinux.org/alpine/v3.15/main -u alpine-keys
 
 RUN apk add 'fwup~=1.9' \
   --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ \

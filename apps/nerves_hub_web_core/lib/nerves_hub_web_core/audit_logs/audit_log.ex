@@ -121,14 +121,10 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
     description =
       case from_str do
         "broadcast" ->
-          "#{identifier_for(actor)} update triggered #{identifier_for(resource)} to update #{
-            identifier_for(actor.firmware)
-          }"
+          "#{identifier_for(actor)} update triggered #{identifier_for(resource)} to update #{identifier_for(actor.firmware)}"
 
         msg ->
-          "#{identifier_for(resource)} received update for #{identifier_for(actor.firmware)} via #{
-            identifier_for(actor)
-          } after #{msg}"
+          "#{identifier_for(resource)} received update for #{identifier_for(actor.firmware)} via #{identifier_for(actor)} after #{msg}"
       end
 
     %{audit_log | description: description}
@@ -142,9 +138,7 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
     actor = Repo.preload(actor, :firmware)
 
     description =
-      "#{identifier_for(resource)} marked unhealthy. #{String.capitalize(reason)} for #{
-        identifier_for(actor.firmware)
-      } in #{identifier_for(actor)}"
+      "#{identifier_for(resource)} marked unhealthy. #{String.capitalize(reason)} for #{identifier_for(actor.firmware)} in #{identifier_for(actor)}"
 
     %{audit_log | description: description}
   end
@@ -157,9 +151,7 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
     actor = Repo.preload(actor, :firmware)
 
     description =
-      "#{identifier_for(actor)} marked unhealthy. #{String.capitalize(reason)} for #{
-        identifier_for(actor.firmware)
-      }"
+      "#{identifier_for(actor)} marked unhealthy. #{String.capitalize(reason)} for #{identifier_for(actor.firmware)}"
 
     %{audit_log | description: description}
   end
@@ -236,9 +228,7 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
 
   def create_description(audit_log, actor, resource) do
     desc =
-      "#{identifier_for(actor)} performed unknown #{audit_log.action} on #{
-        identifier_for(resource)
-      }"
+      "#{identifier_for(actor)} performed unknown #{audit_log.action} on #{identifier_for(resource)}"
 
     %{audit_log | description: desc}
   end

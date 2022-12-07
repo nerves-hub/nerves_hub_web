@@ -52,7 +52,7 @@ defmodule NervesHubWebCore.MixProject do
       {:ecto_sql, "~> 3.0"},
       {:ecto_enum, github: "mobileoverlord/ecto_enum"},
       {:postgrex, "~> 0.14"},
-      {:bcrypt_elixir, "~> 2.0"},
+      {:bcrypt_elixir, "~> 3.0"},
       {:comeonin, "~> 5.3"},
       {:oban, "~> 2.11"},
       {:crontab, "~> 1.1"},
