@@ -11,7 +11,7 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
   @valid_serial "device-1234"
   @valid_product "test-product"
 
-  @device_port Application.get_env(:nerves_hub_device, Endpoint) |> get_in([:https, :port])
+  @device_port Application.compile_env(:nerves_hub_device, Endpoint) |> get_in([:https, :port])
 
   @fake_ssl_socket_config [
     url: "wss://127.0.0.1:#{@device_port}/socket/websocket",

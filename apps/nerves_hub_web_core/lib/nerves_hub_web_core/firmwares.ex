@@ -13,7 +13,7 @@ defmodule NervesHubWebCore.Firmwares do
 
   @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
 
-  @uploader Application.fetch_env!(:nerves_hub_web_core, :firmware_upload)
+  @uploader Application.compile_env!(:nerves_hub_web_core, :firmware_upload)
 
   @spec get_firmwares_by_product(integer()) :: [Firmware.t()]
   def get_firmwares_by_product(product_id) do

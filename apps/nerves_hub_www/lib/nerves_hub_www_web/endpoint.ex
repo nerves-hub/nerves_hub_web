@@ -26,7 +26,7 @@ defmodule NervesHubWWWWeb.Endpoint do
   )
 
   file_upload_config =
-    Application.get_env(:nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.File, [])
+    Application.compile_env(:nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.File, [])
 
   if Keyword.get(file_upload_config, :enabled, false) do
     plug(
