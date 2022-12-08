@@ -36,7 +36,7 @@ reset-db: .env
 	make rebuild-db
 
 reset-test-db: .env
-	DB=db_test \
+	DB=nerves_hub_test \
 	MIX_ENV=test \
 	make reset-db
 
@@ -47,12 +47,12 @@ rebuild-db:
 	mix run apps/nerves_hub_web_core/priv/repo/seeds.exs
 
 test: .env
-	DB=db_test \
+	DB=nerves_hub_test \
 	. ./.env && \
 	mix test
 
 test-watch: .env
-	DB=db_test \
+	DB=nerves_hub_test \
 	. ./.env && \
 	mix test.watch
 
