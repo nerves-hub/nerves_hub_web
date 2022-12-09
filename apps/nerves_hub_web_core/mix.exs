@@ -77,7 +77,9 @@ defmodule NervesHubWebCore.MixProject do
       {:spandex_datadog, "~> 1.0.0"},
       {:spandex_ecto, "~> 0.6.2"},
       {:spandex_phoenix, "~> 1.0.0"},
-      {:httpoison, "~> 1.4.0"}
+      {:httpoison, "~> 1.4.0"},
+      {:base62, "~> 1.2"},
+      {:scrivener_ecto, "~> 2.7"}
     ]
   end
 end

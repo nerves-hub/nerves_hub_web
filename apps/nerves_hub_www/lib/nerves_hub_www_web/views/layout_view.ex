@@ -125,7 +125,7 @@ defmodule NervesHubWWWWeb.LayoutView do
 
     content_tag(:div, class: "btn-group btn-group-toggle", data: [toggle: "buttons"]) do
       opts
-      |> Scrivener.HTML.raw_pagination_links(distance: opts[:distance] || 8)
+      |> Scrivener.HTML.raw_pagination_links(distance: Map.get(opts, :distance, 8))
       |> Enum.map(fn {text, page} ->
         text = if text == :ellipsis, do: page, else: text
 
@@ -141,17 +141,6 @@ defmodule NervesHubWWWWeb.LayoutView do
   def pagination_links(%{total_records: record_count, page_size: size} = opts) do
     opts
     |> Map.put(:total_pages, ceil(record_count / size))
-    |> pagination_links()
-  end
-
-  @doc """
-  Like `pagination_links/1` but allows you to send a list which will be used
-  to deduce `:total_pages` required to generate the links.
-  """
-  def pagination_links(records, opts \\ []) when is_list(records) do
-    Map.new(opts)
-    |> Map.put(:total_records, length(records))
-    |> Map.put_new(:page_size, 20)
     |> pagination_links()
   end
 

@@ -3,6 +3,8 @@ defmodule NervesHubWebCore.Repo do
     otp_app: :nerves_hub_web_core,
     adapter: Ecto.Adapters.Postgres
 
+  use Scrivener
+
   import Ecto.Query, only: [where: 3]
 
   @type transaction ::

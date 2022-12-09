@@ -37,7 +37,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
       socket
       |> assign(:device, sync_device(socket.assigns.device))
       |> assign(:page_title, socket.assigns.device.identifier)
-      |> audit_log_assigns()
+      |> audit_log_assigns(1)
 
     {:ok, socket}
   rescue
@@ -72,25 +72,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     end
   end
 
-  def handle_event(
-        "paginate",
-        %{"page" => page_num},
-        %{assigns: %{audit_log_ids: ids, paginate_opts: paginate_opts}} = socket
-      ) do
-    # This LiveView stores an array of all its audit log's ids. On paginate
-    # call, it gets the the index offset based on the page it is currently on
-    # then slices out the number of ids equal to the set page_size starting
-    # at that index. Then we query AuditLogs for only those specific records
-    page_num = String.to_integer(page_num)
-    start_index = (page_num - 1) * paginate_opts.page_size
-    audit_logs = Enum.slice(ids, start_index, paginate_opts.page_size) |> AuditLogs.from_ids()
-
-    socket =
-      socket
-      |> assign(:audit_logs, audit_logs)
-      |> assign(:paginate_opts, %{paginate_opts | page_number: page_num})
-
-    {:noreply, socket}
+  def handle_event("paginate", %{"page" => page_num}, socket) do
+    {:noreply, socket |> audit_log_assigns(String.to_integer(page_num))}
   end
 
   def handle_event(
@@ -163,14 +146,11 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     end
   end
 
-  defp audit_log_assigns(%{assigns: %{device: device}} = socket) do
-    all_logs = AuditLogs.logs_for_feed(device)
-    paginate_opts = %{page_number: 1, page_size: 5}
+  defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
+    logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 5})
 
     socket
-    |> assign(:audit_logs, Enum.slice(all_logs, 0, paginate_opts.page_size))
-    |> assign(:audit_log_ids, Enum.map(all_logs, & &1.id))
-    |> assign(:paginate_opts, paginate_opts)
+    |> assign(:audit_logs, logs)
     |> assign(:resource_id, device.id)
   end
 
