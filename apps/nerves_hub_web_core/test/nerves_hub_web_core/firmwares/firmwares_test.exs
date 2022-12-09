@@ -67,7 +67,10 @@ defmodule NervesHubWebCore.FirmwaresTest do
       org_key: org_key,
       product: %{id: product_id} = product
     } do
-      %{firmware_per_product: product_firmware_limit} = %OrgLimit{}
+      # Make a specific limit to reduce how much this test churns
+      product_firmware_limit = 10
+      Accounts.create_org_limit(%{org_id: org.id, firmware_per_product: product_firmware_limit})
+
       current = product_id |> Firmwares.get_firmwares_by_product() |> length()
 
       if current < product_firmware_limit do
