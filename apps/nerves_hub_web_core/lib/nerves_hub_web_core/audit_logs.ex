@@ -47,4 +47,40 @@ defmodule NervesHubWebCore.AuditLogs do
     |> order_by(desc: :inserted_at)
     |> Repo.all()
   end
+
+  def truncate(opts \\ []) do
+    max_records_per_resource_per_run =
+      Keyword.get(opts, :max_records_per_resource_per_run, 100_000)
+
+    max_resources_per_run = Keyword.get(opts, :max_resources_per_run, 50)
+    retain_per_resource = Keyword.get(opts, :retain_per_resource, 10_000)
+
+    over_limit =
+      from(
+        a in AuditLog,
+        as: :audit_log,
+        group_by: [a.resource_type, a.resource_id],
+        order_by: [desc: count()],
+        limit: ^max_resources_per_run,
+        having: count() > ^retain_per_resource,
+        select: map(a, [:resource_type, :resource_id])
+      )
+      |> Repo.all()
+
+    Enum.each(over_limit, fn %{resource_type: resource_type, resource_id: resource_id} ->
+      to_delete =
+        from(a in AuditLog,
+          where: a.resource_type == ^resource_type,
+          where: a.resource_id == ^resource_id,
+          order_by: [asc: :inserted_at],
+          offset: ^retain_per_resource,
+          limit: ^max_records_per_resource_per_run,
+          select: a.id
+        )
+
+      AuditLog
+      |> where([a], a.id in subquery(to_delete))
+      |> Repo.delete_all()
+    end)
+  end
 end

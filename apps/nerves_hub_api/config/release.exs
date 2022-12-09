@@ -79,3 +79,13 @@ config :nerves_hub_web_core, NervesHubWebCore.CertificateAuthority,
     certfile: "/etc/ssl/#{host}.pem",
     cacertfile: "/etc/ssl/ca.pem"
   ]
+
+config :nerves_hub_web_core, NervesHubWebCore.Workers.TruncateAuditLogs,
+  enabled: System.get_env("TRUNCATE_AUDIT_LOGS_ENABLED", "false") |> String.to_atom(),
+  max_records_per_resource_per_run:
+    System.get_env("TRUNCATE_AUDIT_LOGS_MAX_RECORDS_PER_RESOURCE_PER_RUN", "100000")
+    |> String.to_integer(),
+  max_resources_per_run:
+    System.get_env("TRUNCATE_AUDIT_LOGS_MAX_RESOURCES_PER_RUN", "500") |> String.to_integer(),
+  retain_per_resource:
+    System.get_env("TRUNCATE_AUDIT_LOGS_RETAIN_PER_RESOURCE", "10000") |> String.to_integer()
