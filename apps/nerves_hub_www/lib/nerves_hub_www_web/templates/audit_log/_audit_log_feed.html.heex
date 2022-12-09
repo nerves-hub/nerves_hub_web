@@ -1,7 +1,11 @@
 <h3 class="mb-2">Latest Activity</h3>
 
 <div id="audit-log-feed">
-  <%= if Enum.count(@audit_logs) > 0 do %>
+  <%= if Enum.empty?(@audit_logs) do %>
+  <div class="audit-log-item">
+    <p class="text-muted">No activity</p>
+  </div>
+  <% else %>
   <%= for audit_log <- @audit_logs do %>
   <div class="audit-log-item" id={audit_log.id}>
     <div class={"audit-action-icon icon-#{audit_log.action}"}></div>
@@ -13,10 +17,6 @@
     </div>
   </div>
   <% end %>
-  <%= pagination_links(@audit_log_ids, @paginate_opts) %>
-  <% else %>
-  <div class="audit-log-item">
-    <p class="text-muted">No activity</p>
-  </div>
+  <%= pagination_links(@audit_logs) %>
   <% end %>
 </div>
