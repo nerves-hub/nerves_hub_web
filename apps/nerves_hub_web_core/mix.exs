@@ -69,7 +69,8 @@ defmodule NervesHubWebCore.MixProject do
       {:ecto, "~> 3.4", override: true},
       {:mox, "~> 1.0", only: [:test, :dev]},
       {:nimble_csv, "~> 1.1"},
-      {:base62, "~> 1.2"}
+      {:base62, "~> 1.2"},
+      {:scrivener_ecto, "~> 2.7"}
     ]
   end
 end
