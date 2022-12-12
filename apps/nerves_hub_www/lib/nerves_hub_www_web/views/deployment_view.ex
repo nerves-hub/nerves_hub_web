@@ -7,6 +7,18 @@ defmodule NervesHubWWWWeb.DeploymentView do
 
   def firmware_dropdown_options(firmwares) do
     firmwares
+    |> Enum.sort_by(
+      fn firmware ->
+        case Version.parse(firmware.version) do
+          {:ok, version} ->
+            version
+
+          :error ->
+            %Version{major: 0, minor: 0, patch: 0}
+        end
+      end,
+      {:desc, Version}
+    )
     |> Enum.map(&[value: &1.id, key: firmware_display_name(&1)])
   end
 
