@@ -4,7 +4,6 @@ defmodule NervesHubWebCore.FirmwaresTest do
 
   alias NervesHubWebCore.{
     Accounts,
-    Accounts.OrgLimit,
     DeltaUpdaterMock,
     Deployments,
     Firmwares,

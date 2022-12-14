@@ -72,16 +72,6 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     socket_error(socket, live_view_error(:update))
   end
 
-  # def handle_params(%{"org_name"}, _url, socket) do
-  #   IO.puts "Params: #{inspect params}"
-  #   socket =
-  #     socket
-  #     # |> assign_new(:user, fn -> Accounts.get_user!(user_id) end)
-  #     # |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
-  #     # |> assign_new(:product, fn -> Products.get_product!(product_id) end)
-  #   {:noreply, socket}
-  # end/
-
   # Handles event of user clicking the same field that is already sorted
   # For this case, we switch the sorting direction of same field
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
@@ -188,6 +178,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:paginate_opts, %{paginate_opts | page_number: @default_page})
       |> assign(:current_filters, params)
       |> assign(:currently_filtering, params != @default_filters)
+      |> assign(:selected_devices, [])
       |> assign_display_devices()
 
     {:noreply, socket}
@@ -301,121 +292,21 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
-  def handle_info(
-        %Broadcast{event: "presence_diff", payload: %{leaves: leaves}},
-        %{assigns: %{org: org, product: product}} = socket
-      ) do
-    devices = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
-    joins = Presence.list("product:#{product.id}:devices")
-
-    socket =
-      assign_display_devices(socket, sync_devices(devices, %{joins: joins, leaves: leaves}))
-
+  # Since we're displaying an unknown section of the list, just refresh the current page
+  # to get the information from the database / presence
+  def handle_info(%Broadcast{event: "presence_diff"}, socket) do
+    socket = assign_display_devices(socket)
     {:noreply, socket}
   end
 
-  defp assign_statuses(org_id, product_id) do
-    Devices.get_devices_by_org_id_and_product_id(org_id, product_id)
-    |> sync_devices(%{joins: Presence.list("product:#{product_id}:devices"), leaves: %{}})
-  end
-
-  defp do_sort(%{assigns: %{current_sort: "selected"} = assigns} = socket) do
-    devices =
-      Enum.sort_by(assigns.devices, &(&1.id in assigns.selected_devices), assigns.sort_direction)
-
-    assign(socket, :devices, devices)
-  end
-
-  defp do_sort(%{assigns: %{devices: devices, current_sort: current_sort}} = socket) do
-    current_sort = String.to_existing_atom(current_sort)
-    sorter = sorter(current_sort, socket.assigns.sort_direction)
-    devices = Enum.sort_by(devices, &Map.get(&1, current_sort), sorter)
-    assign(socket, :devices, devices)
-  end
-
-  defp sorter(:last_communication, :desc), do: &(date_order(&1, &2) != :lt)
-  defp sorter(:last_communication, :asc), do: &(date_order(&1, &2) != :gt)
-  defp sorter(_, :desc), do: &>=/2
-  defp sorter(_, :asc), do: &<=/2
-
-  defp date_order(nil, nil), do: :eq
-  defp date_order(_, nil), do: :gt
-  defp date_order(nil, _), do: :lt
-  defp date_order(a, b), do: DateTime.compare(a, b)
-
-  defp do_paginate(%{assigns: %{devices: devices, paginate_opts: paginate_opts}} = socket) do
-    start_index = (paginate_opts.page_number - 1) * paginate_opts.page_size
-    devices = Enum.slice(devices, start_index, paginate_opts.page_size)
-
-    socket
-    |> assign_page_count()
-    |> assign(:devices, devices)
-  end
-
-  defp do_filter(socket, %{"connection" => connection} = filters) do
-    connection_status_match =
-      &Enum.filter(&1, fn device ->
-        if connection == "1" do
-          device.status != "offline"
-        else
-          device.status == "offline"
-        end
-      end)
-
-    apply_filter(socket, filters, "connection", connection_status_match)
-  end
-
-  defp do_filter(socket, %{"firmware_version" => version} = filters) do
-    version_match =
-      &Enum.filter(&1, fn device ->
-        !is_nil(device.firmware_metadata) && device.firmware_metadata.version == version
-      end)
-
-    apply_filter(socket, filters, "firmware_version", version_match)
-  end
-
-  defp do_filter(socket, %{"healthy" => healthy} = filters) do
-    healthy_match = &Enum.filter(&1, fn device -> device.healthy == (healthy == "1") end)
-
-    apply_filter(socket, filters, "healthy", healthy_match)
-  end
-
-  defp do_filter(socket, %{"id" => id} = filters) do
-    id_match = &Enum.filter(&1, fn device -> device.identifier =~ id end)
-
-    apply_filter(socket, filters, "id", id_match)
-  end
-
-  defp do_filter(socket, %{"tag" => tag} = filters) do
-    tag_match =
-      &Enum.filter(&1, fn device -> Enum.any?(device.tags || [], fn t -> t =~ tag end) end)
-
-    apply_filter(socket, filters, "tag", tag_match)
-  end
-
-  defp do_filter(socket, _) do
-    socket
-  end
-
-  defp apply_filter(
-         %{assigns: %{devices: devices}} = socket,
-         filters,
-         filter_key,
-         filter_function
-       ) do
-    filters = Map.delete(filters, filter_key)
-
-    devices = filter_function.(devices)
-
-    socket
-    |> assign(:devices, devices)
-    |> do_filter(filters)
-  end
-
-  defp parse_filters(filter) do
-    keys = @default_filters |> Map.keys()
-    filters = Map.take(filter, keys)
-    :maps.filter(fn _, v -> v != "" end, filters)
+  defp assign_statuses(org_id, product_id, opts) do
+    Devices.get_devices_by_org_id_and_product_id(org_id, product_id, opts)
+    |> tap(fn page ->
+      sync_devices(page.entries, %{
+        joins: Presence.list("product:#{product_id}:devices"),
+        leaves: %{}
+      })
+    end)
   end
 
   defp sync_devices(devices, %{joins: joins, leaves: leaves}) do
@@ -487,23 +378,29 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
-  defp assign_page_count(%{assigns: %{devices: devices, paginate_opts: paginate_opts}} = socket) do
-    page_count = Float.ceil(length(devices) / paginate_opts.page_size) |> trunc
+  defp assign_display_devices(
+         %{assigns: %{org: org, product: product, paginate_opts: paginate_opts}} = socket
+       ) do
+    opts = %{
+      pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
+      sort: {socket.assigns.sort_direction, String.to_atom(socket.assigns.current_sort)},
+      filters: socket.assigns.current_filters
+    }
 
-    assign(socket, :paginate_opts, %{paginate_opts | total_pages: page_count})
+    page = assign_statuses(org.id, product.id, opts)
+    assign_display_devices(socket, page)
   end
 
-  defp assign_display_devices(%{assigns: %{org: org, product: product}} = socket) do
-    devices = assign_statuses(org.id, product.id)
-    assign_display_devices(socket, devices)
-  end
+  defp assign_display_devices(%{assigns: %{paginate_opts: paginate_opts}} = socket, page) do
+    paginate_opts =
+      paginate_opts
+      |> Map.put(:page_number, page.page_number)
+      |> Map.put(:page_size, page.page_size)
+      |> Map.put(:total_pages, page.total_pages)
 
-  defp assign_display_devices(%{assigns: %{current_filters: filters}} = socket, devices) do
     socket
-    |> assign(:devices, devices)
-    |> do_filter(parse_filters(filters))
-    |> do_sort()
-    |> do_paginate()
+    |> assign(:devices, page.entries)
+    |> assign(:paginate_opts, paginate_opts)
   end
 
   defp firmware_versions(product_id) do
