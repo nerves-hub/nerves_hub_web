@@ -92,13 +92,24 @@ defmodule NervesHubWebCore.Devices do
           where(query, [d], d.healthy == ^value)
 
         {"id", value} ->
-          where(query, [d], d.identifier == ^value)
+          where(query, [d], ilike(d.identifier, ^"#{value}%"))
 
         {"tag", value} ->
           case NervesHubWebCore.Types.Tag.cast(value) do
             {:ok, tags} ->
+              # This query here joins the table back to itself to unnest `tags` in a
+              # way that is ILIKE-able. It's ugly but it works.
+              query =
+                query
+                |> join(
+                  :inner_lateral,
+                  [d],
+                  t in fragment("select unnest(tags) as tags from devices where id = ?", d.id)
+                )
+                |> group_by([d], d.id)
+
               Enum.reduce(tags, query, fn tag, query ->
-                where(query, [d], fragment("? = ANY(?)", ^tag, d.tags))
+                where(query, [d, t], ilike(t.tags, ^"#{tag}%"))
               end)
 
             {:error, _} ->
