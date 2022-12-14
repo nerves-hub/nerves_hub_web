@@ -4,7 +4,6 @@ defmodule NervesHubWebCore.FirmwaresTest do
 
   alias NervesHubWebCore.{
     Accounts,
-    Accounts.OrgLimit,
     Firmwares,
     Firmwares.Firmware,
     Repo,

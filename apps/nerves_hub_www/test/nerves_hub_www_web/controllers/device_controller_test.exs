@@ -49,7 +49,9 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       Fixtures.device_fixture(org, product, firmware)
-      [to_delete | _] = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
+
+      %{entries: [to_delete | _]} =
+        Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
 
       conn =
         delete(

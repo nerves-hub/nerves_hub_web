@@ -65,7 +65,8 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
 
       Fixtures.device_fixture(org, product, firmware)
 
-      [to_delete | _] = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
+      %{entries: [to_delete | _]} =
+        Devices.get_devices_by_org_id_and_product_id(org.id, product.id, %{})
 
       conn =
         delete(
@@ -96,7 +97,8 @@ defmodule NervesHubAPIWeb.DeviceControllerTest do
 
       Fixtures.device_fixture(org, product, firmware)
 
-      [to_update | _] = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
+      %{entries: [to_update | _]} =
+        Devices.get_devices_by_org_id_and_product_id(org.id, product.id, %{})
 
       conn =
         put(

@@ -41,7 +41,7 @@ defmodule NervesHubWebCore.Devices do
     |> Repo.all()
   end
 
-  def get_devices_by_org_id_and_product_id(org_id, product_id) do
+  def get_devices_by_org_id_and_product_id(org_id, product_id, opts \\ %{}) do
     query =
       from(
         d in Device,
@@ -49,10 +49,50 @@ defmodule NervesHubWebCore.Devices do
         where: d.product_id == ^product_id
       )
 
+    pagination = Map.get(opts, :pagination, %{})
+    sorting = Map.get(opts, :sort, {:asc, :identifier})
+    filters = Map.get(opts, :filters, %{})
+
     query
     |> Repo.exclude_deleted()
-    |> order_by(asc: :identifier)
-    |> Repo.all()
+    |> order_by(^sorting)
+    |> filtering(filters)
+    |> Repo.paginate(pagination)
+  end
+
+  defp filtering(query, filters) do
+    Enum.reduce(filters, query, fn {key, value}, query ->
+      case {key, value} do
+        {_, ""} ->
+          query
+
+        {"_target", _} ->
+          query
+
+        {"connection", value} ->
+          where(query, [d], d.connection == ^value)
+
+        {"firmware_version", value} ->
+          where(query, [d], d.firmware_metadata["version"] == ^value)
+
+        {"healthy", value} ->
+          where(query, [d], d.healthy == ^value)
+
+        {"id", value} ->
+          where(query, [d], d.identifier == ^value)
+
+        {"tag", value} ->
+          case NervesHubWebCore.Types.Tag.cast(value) do
+            {:ok, tags} ->
+              Enum.reduce(tags, query, fn tag, query ->
+                where(query, [d], fragment("? = ANY(?)", ^tag, d.tags))
+              end)
+
+            {:error, _} ->
+              query
+          end
+      end
+    end)
   end
 
   def get_device_count_by_org_id(org_id) do
