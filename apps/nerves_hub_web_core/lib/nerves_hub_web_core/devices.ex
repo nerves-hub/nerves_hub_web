@@ -41,7 +41,20 @@ defmodule NervesHubWebCore.Devices do
     |> Repo.all()
   end
 
-  def get_devices_by_org_id_and_product_id(org_id, product_id, opts \\ %{}) do
+  def get_devices_by_org_id_and_product_id(org_id, product_id) do
+    query =
+      from(
+        d in Device,
+        where: d.org_id == ^org_id,
+        where: d.product_id == ^product_id
+      )
+
+    query
+    |> Repo.exclude_deleted()
+    |> Repo.all()
+  end
+
+  def get_devices_by_org_id_and_product_id(org_id, product_id, opts) do
     query =
       from(
         d in Device,
