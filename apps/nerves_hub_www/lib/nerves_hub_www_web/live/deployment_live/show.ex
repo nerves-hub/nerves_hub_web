@@ -1,7 +1,7 @@
 defmodule NervesHubWWWWeb.DeploymentLive.Show do
   use NervesHubWWWWeb, :live_view
 
-  alias NervesHubWebCore.{Accounts, Deployments, Products}
+  alias NervesHubWebCore.{Accounts, Deployments, Products, Firmwares}
 
   def render(assigns) do
     NervesHubWWWWeb.DeploymentView.render("show.html", assigns)
@@ -13,7 +13,8 @@ defmodule NervesHubWWWWeb.DeploymentLive.Show do
           "auth_user_id" => user_id,
           "org_id" => org_id,
           "product_id" => product_id,
-          "deployment_id" => deployment_id
+          "deployment_id" => deployment_id,
+          "firmware_id" => firmware_id
         },
         socket
       ) do
@@ -23,6 +24,7 @@ defmodule NervesHubWWWWeb.DeploymentLive.Show do
       |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
       |> assign_new(:product, fn -> Products.get_product!(product_id) end)
       |> assign_new(:deployment, fn -> Deployments.get_deployment!(deployment_id) end)
+      |> assign_new(:firmware, fn -> Firmwares.get_firmware!(firmware_id) end)
       |> audit_log_assigns(1)
 
     {:ok, socket}

@@ -120,7 +120,8 @@ defmodule NervesHubWWWWeb.DeploymentController do
         "auth_user_id" => user.id,
         "org_id" => org.id,
         "product_id" => product.id,
-        "deployment_id" => deployment.id
+        "deployment_id" => deployment.id,
+        "firmware_id" => deployment.firmware_id
       }
     )
   end
