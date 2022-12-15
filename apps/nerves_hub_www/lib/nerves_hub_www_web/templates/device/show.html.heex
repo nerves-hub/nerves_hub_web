@@ -86,7 +86,7 @@
         <%= if !is_nil(@device.firmware_metadata) do %>
           <div>
             <div class="help-text mb-1">UUID</div>
-            <p class="ff-m"><%= @device.firmware_metadata.uuid %></p>
+            <a href={Routes.firmware_path(@socket, :show, @org.name, @product.name, @device.firmware_metadata.uuid)} class="badge ff-m"><%= @device.firmware_metadata.uuid %></a>
           </div>
         <% end %>
       </div>

@@ -50,7 +50,7 @@
         </div>
         <div>
           <div class="help-text mb-1">Firmware version</div>
-          <span class="badge ff-m"><%= firmware_summary(@deployment) %></span>
+          <span> <a href={Routes.firmware_path(@socket, :show, @org.name, @product.name, @firmware.uuid)} class="badge ff-m"><%= firmware_summary(@firmware) %></a> </span>
         </div>
         <div>
           <div class="help-text mb-1">Version requirement</div>
