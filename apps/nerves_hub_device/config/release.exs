@@ -47,16 +47,28 @@ config :nerves_hub_web_core, NervesHubWebCore.Mailer,
 
 host = System.fetch_env!("HOST")
 
+# OTP 25.2 includes SSL 10.8.6 which allows disabling certificate authorities
+# check with Client SSL since we don't expect devices to send full chains
+# up to NervesHub. This allows the use of TLS 1.3
+ssl_ver = to_string(Application.spec(:ssl)[:vsn])
+
+tls_opts =
+  if Version.match?(ssl_ver, ">= 10.8.6") do
+    [certificate_authorities: false]
+  else
+    [versions: [:"tlsv1.2"]]
+  end
+
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   url: [host: host],
-  https: [
-    port: 443,
-    otp_app: :nerves_hub_device,
-    # Enable client SSL
-    versions: [:"tlsv1.2"],
-    verify: :verify_peer,
-    fail_if_no_peer_cert: true,
-    keyfile: "/etc/ssl/#{host}-key.pem",
-    certfile: "/etc/ssl/#{host}.pem",
-    cacertfile: "/etc/ssl/ca.pem"
-  ]
+  https:
+    [
+      port: 443,
+      otp_app: :nerves_hub_device,
+      # Enable client SSL
+      verify: :verify_peer,
+      fail_if_no_peer_cert: true,
+      keyfile: "/etc/ssl/#{host}-key.pem",
+      certfile: "/etc/ssl/#{host}.pem",
+      cacertfile: "/etc/ssl/ca.pem"
+    ] ++ tls_opts

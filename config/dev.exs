@@ -43,7 +43,7 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
     port: 4001,
     otp_app: :nerves_hub_device,
     # Enable client SSL
-    versions: [:"tlsv1.2"],
+    certificate_authorities: false,
     verify: :verify_peer,
     verify_fun: {&NervesHubDevice.SSL.verify_fun/3, nil},
     fail_if_no_peer_cert: true,
