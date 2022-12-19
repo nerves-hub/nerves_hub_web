@@ -83,7 +83,7 @@ orbs:
 jobs:
   fetch_deps:
     docker:
-      - image: hexpm/elixir:1.13.3-erlang-24.3.3-alpine-3.15.3
+      - image: hexpm/elixir:1.14.2-erlang-25.2-alpine-3.15.6
         environment:
           MIX_ENV: test
     working_directory: ~/app
@@ -100,7 +100,7 @@ jobs:
 
   test_elixir:
     docker:
-      - image: hexpm/elixir:1.13.3-erlang-24.3.3-alpine-3.15.3
+      - image: hexpm/elixir:1.14.2-erlang-25.2-alpine-3.15.6
         environment:
           MIX_ENV: test
           DATABASE_URL: postgres://db:db@localhost:5432/db
