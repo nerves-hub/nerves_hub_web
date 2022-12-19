@@ -59,7 +59,7 @@ jobs:
       - run: mix local.rebar --force
       - run: mix do deps.get
       - save_cache:
-          key: mix-deps-v1-{{ .Branch }}-{{ checksum "mix.lock" }}
+          key: mix-deps-v2-{{ .Branch }}-{{ checksum "mix.lock" }}
           paths: "deps"
 
   test_elixir:
@@ -85,7 +85,7 @@ jobs:
       - run: mix local.rebar --force
       - restore_cache:
           keys:
-            - mix-deps-v1-{{ .Branch }}-{{ checksum "mix.lock" }}
+            - mix-deps-v2-{{ .Branch }}-{{ checksum "mix.lock" }}
       - run: mix compile
       - run:
           name: Wait for DB
@@ -106,7 +106,7 @@ jobs:
   #         path: ~/app
   #     - restore_cache:
   #         keys:
-  #           - mix-deps-v1-{{ .Branch }}-{{ checksum "../../../mix.lock" }}
+  #           - mix-deps-v2-{{ .Branch }}-{{ checksum "../../../mix.lock" }}
   #     - run: npm install
   #     - run:
   #         name: Verify formatting
