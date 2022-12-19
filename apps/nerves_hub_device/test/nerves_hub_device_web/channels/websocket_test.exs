@@ -6,20 +6,21 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
   alias NervesHubDevice.Presence
   alias NervesHubDeviceWeb.Endpoint
 
-  alias PhoenixClient.{Socket, Channel}
-
   @valid_serial "device-1234"
   @valid_product "test-product"
 
   @device_port Application.compile_env(:nerves_hub_device, Endpoint) |> get_in([:https, :port])
 
-  @fake_ssl_socket_config [
-    url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-    json_library: Jason,
-    reconnect_interval: 50,
-    ssl_verify: :verify_peer,
-    transport_opts: [
-      socket_opts: [
+  @bad_socket_config [
+    uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+    json_parser: Jason,
+    reconnect_after_msec: [500],
+    rejoin_after_msec: [500],
+    mint_opts: [
+      protocols: [:http1],
+      transport_opts: [
+        verify: :verify_peer,
+        versions: [:"tlsv1.2"],
         certfile: Path.expand("../../test/fixtures/ssl/device-fake.pem") |> to_charlist,
         keyfile: Path.expand("../../test/fixtures/ssl/device-fake-key.pem") |> to_charlist,
         cacertfile: Path.expand("../../test/fixtures/ssl/ca-fake.pem") |> to_charlist,
@@ -28,13 +29,16 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
     ]
   ]
 
-  @ssl_socket_config [
-    url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-    json_library: Jason,
-    reconnect_interval: 50,
-    ssl_verify: :verify_peer,
-    transport_opts: [
-      socket_opts: [
+  @socket_config [
+    uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+    json_parser: Jason,
+    reconnect_after_msec: [500],
+    rejoin_after_msec: [500],
+    mint_opts: [
+      protocols: [:http1],
+      transport_opts: [
+        verify: :verify_peer,
+        versions: [:"tlsv1.2"],
         certfile: Path.expand("../../test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
         keyfile: Path.expand("../../test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
         cacertfile: Path.expand("../../test/fixtures/ssl/ca.pem") |> to_charlist,
@@ -83,9 +87,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       {device, _firmware} = device_fixture(user, %{identifier: @valid_serial})
 
       Fixtures.device_certificate_fixture(device)
-      {:ok, socket} = Socket.start_link(@ssl_socket_config)
-      wait_for_socket(socket)
-      {:ok, _reply, _channel} = Channel.join(socket, "device")
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device")
+      SocketClient.wait_join(socket)
 
       device =
         NervesHubWebCore.Repo.get(Device, device.id)
@@ -93,22 +99,21 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       assert Presence.device_status(device) == "online"
       refute_receive({"presence_diff", _})
-      Socket.stop(socket)
     end
 
     test "authentication rejected to channel using incorrect client ssl certificate" do
-      {:ok, socket} = Socket.start_link(@fake_ssl_socket_config)
-      refute Socket.connected?(socket)
-      Socket.stop(socket)
+      {:ok, socket} = SocketClient.start_link(@bad_socket_config)
+      refute SocketClient.connected?(socket)
     end
 
     test "Can connect and authenticate to channel using firmware topic", %{user: user} do
       {device, firmware} = device_fixture(user, %{identifier: @valid_serial})
 
       Fixtures.device_certificate_fixture(device)
-      {:ok, socket} = Socket.start_link(@ssl_socket_config)
-      wait_for_socket(socket)
-      {:ok, _reply, _channel} = Channel.join(socket, "firmware:#{firmware.uuid}")
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "firmware:#{firmware.uuid}")
+      SocketClient.wait_join(socket)
 
       device =
         NervesHubWebCore.Repo.get(Device, device.id)
@@ -116,7 +121,6 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       assert Presence.device_status(device) == "online"
       refute_receive({"presence_diff", _})
-      Socket.stop(socket)
     end
 
     test "already registered expired certificate without signer CA can connect", %{user: user} do
@@ -158,11 +162,15 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        serializer: Jason,
-        ssl_verify: :verify_peer,
-        transport_opts: [
-          socket_opts: [
+        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        json_parser: Jason,
+        reconnect_after_msec: [500],
+        rejoin_after_msec: [500],
+        mint_opts: [
+          protocols: [:http1],
+          transport_opts: [
+            verify: :verify_peer,
+            versions: [:"tlsv1.2"],
             cert: X509.Certificate.to_der(cert),
             key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
             cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
@@ -171,9 +179,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         ]
       ]
 
-      {:ok, socket} = Socket.start_link(opts)
-      wait_for_socket(socket)
-      {:ok, _reply, _channel} = Channel.join(socket, "device")
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device")
+      SocketClient.wait_join(socket)
 
       device =
         NervesHubWebCore.Repo.get(Device, device.id)
@@ -229,11 +238,15 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        serializer: Jason,
-        ssl_verify: :verify_peer,
-        transport_opts: [
-          socket_opts: [
+        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        json_parser: Jason,
+        reconnect_after_msec: [500],
+        rejoin_after_msec: [500],
+        mint_opts: [
+          protocols: [:http1],
+          transport_opts: [
+            verify: :verify_peer,
+            versions: [:"tlsv1.2"],
             cert: X509.Certificate.to_der(cert),
             key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
             cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
@@ -242,9 +255,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         ]
       ]
 
-      {:ok, socket} = Socket.start_link(opts)
-      wait_for_socket(socket)
-      {:ok, _reply, _channel} = Channel.join(socket, "device")
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device")
+      SocketClient.wait_join(socket)
 
       device =
         NervesHubWebCore.Repo.get(Device, device.id)
@@ -281,9 +295,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       })
       |> Deployments.update_deployment(%{is_active: true})
 
-      {:ok, socket} = Socket.start_link(@ssl_socket_config)
-      wait_for_socket(socket)
-      {:ok, reply, _channel} = Channel.join(socket, "device")
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device")
+      SocketClient.wait_join(socket)
+      reply = SocketClient.reply(socket)
       assert %{"update_available" => true, "firmware_url" => _, "firmware_meta" => %{}} = reply
 
       device =
@@ -324,10 +340,14 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
           }
         })
 
-      {:ok, socket} = Socket.start_link(@ssl_socket_config)
-      wait_for_socket(socket)
       Phoenix.PubSub.subscribe(NervesHubWeb.PubSub, "device:#{device.id}")
-      {:ok, reply, _channel} = Channel.join(socket, "device")
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device")
+      SocketClient.wait_join(socket)
+      reply = SocketClient.reply(socket)
+
       assert %{"update_available" => false} = reply
 
       Deployments.update_deployment(deployment, %{is_active: true})
@@ -351,9 +371,11 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
 
       query_uuid = firmware.uuid
 
-      {:ok, socket} = Socket.start_link(@ssl_socket_config)
-      wait_for_socket(socket)
-      {:ok, reply, _channel} = Channel.join(socket, "device")
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device")
+      SocketClient.wait_join(socket)
+      reply = SocketClient.reply(socket)
       assert %{"update_available" => false} = reply
 
       device = Repo.preload(device, :org)
@@ -389,11 +411,15 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        serializer: Jason,
-        ssl_verify: :verify_peer,
-        transport_opts: [
-          socket_opts: [
+        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        json_parser: Jason,
+        reconnect_after_msec: [500],
+        rejoin_after_msec: [500],
+        mint_opts: [
+          protocols: [:http1],
+          transport_opts: [
+            verify: :verify_peer,
+            versions: [:"tlsv1.2"],
             cert: X509.Certificate.to_der(cert),
             key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
             cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
@@ -402,9 +428,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         ]
       ]
 
-      {:ok, socket} = Socket.start_link(opts)
-      wait_for_socket(socket)
-      {:ok, _reply, _channel} = Channel.join(socket, "device")
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device")
+      SocketClient.wait_join(socket)
 
       device =
         NervesHubWebCore.Repo.get(Device, device.id)
@@ -448,11 +475,15 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        serializer: Jason,
-        ssl_verify: :verify_peer,
-        transport_opts: [
-          socket_opts: [
+        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        json_parser: Jason,
+        reconnect_after_msec: [500],
+        rejoin_after_msec: [500],
+        mint_opts: [
+          protocols: [:http1],
+          transport_opts: [
+            verify: :verify_peer,
+            versions: [:"tlsv1.2"],
             cert: X509.Certificate.to_der(cert),
             key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
             cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
@@ -461,9 +492,10 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         ]
       ]
 
-      {:ok, socket} = Socket.start_link(opts)
-      wait_for_socket(socket)
-      {:ok, _reply, _channel} = Channel.join(socket, "device")
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device")
+      SocketClient.wait_join(socket)
 
       device =
         NervesHubWebCore.Repo.get(Device, device.id)
@@ -502,11 +534,15 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        serializer: Jason,
-        ssl_verify: :verify_peer,
-        transport_opts: [
-          socket_opts: [
+        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        json_parser: Jason,
+        reconnect_after_msec: [500],
+        rejoin_after_msec: [500],
+        mint_opts: [
+          protocols: [:http1],
+          transport_opts: [
+            verify: :verify_peer,
+            versions: [:"tlsv1.2"],
             cert: X509.Certificate.to_der(cert),
             key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
             cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
@@ -515,9 +551,12 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         ]
       ]
 
-      {:ok, socket} = Socket.start_link(opts)
-      wait_for_socket(socket)
-      {:ok, _reply, _channel} = Channel.join(socket, "device")
+      :timer.sleep(2_000)
+
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device")
+      SocketClient.wait_join(socket)
 
       device =
         NervesHubWebCore.Repo.get(Device, device.id)
@@ -548,11 +587,15 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        url: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        serializer: Jason,
-        ssl_verify: :verify_peer,
-        transport_opts: [
-          socket_opts: [
+        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        json_parser: Jason,
+        reconnect_after_msec: [500],
+        rejoin_after_msec: [500],
+        mint_opts: [
+          protocols: [:http1],
+          transport_opts: [
+            verify: :verify_peer,
+            versions: [:"tlsv1.2"],
             cert: X509.Certificate.to_der(cert),
             key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
             cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
@@ -561,34 +604,20 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
         ]
       ]
 
-      {:ok, socket} = Socket.start_link(opts)
-      wait_for_socket(socket)
-      {:ok, _reply, channel} = Channel.join(socket, "device")
-      Channel.stop(channel)
-      Socket.stop(socket)
-      {:ok, socket} = Socket.start_link(opts)
-      wait_for_socket(socket)
-      {:ok, _reply, _channel} = Channel.join(socket, "device")
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device")
+      SocketClient.wait_join(socket)
+      GenServer.stop(socket)
+
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device")
+      SocketClient.wait_join(socket)
 
       [%{last_used: updated_last_used}] = Devices.get_ca_certificates(org)
 
       assert last_used != updated_last_used
-    end
-  end
-
-  def wait_for_socket(_, _ \\ nil)
-
-  def wait_for_socket(socket, nil) do
-    timeout = 2_000
-    {:ok, t_ref} = :timer.exit_after(timeout, "Timed out waiting for socket")
-    wait_for_socket(socket, t_ref)
-  end
-
-  def wait_for_socket(socket, timer) do
-    if Socket.connected?(socket) do
-      :timer.cancel(timer)
-    else
-      wait_for_socket(socket, timer)
     end
   end
 end

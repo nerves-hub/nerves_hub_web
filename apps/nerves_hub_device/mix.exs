@@ -57,8 +57,7 @@ defmodule NervesHubDevice.Mixfile do
       {:plug_cowboy, "~> 2.1"},
       {:cowboy, "~> 2.0", override: true},
       {:jason, "~> 1.2", override: true},
-      {:phoenix_client, "~> 0.7", only: :test},
-      {:websocket_client, "~> 1.3", only: :test},
+      {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:nerves_hub_web_core, in_umbrella: true}
     ]
   end
