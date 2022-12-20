@@ -19,7 +19,7 @@ defmodule NervesHubWebCore.Products.Product do
     has_many(:firmwares, Firmware)
     has_many(:product_users, ProductUser)
     has_many(:users, through: [:product_users, :user])
-    has_one(:jitp, CACertificate.JITP)
+    has_many(:jitp, CACertificate.JITP)
 
     belongs_to(:org, Org, where: [deleted_at: nil])
 
