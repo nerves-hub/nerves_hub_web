@@ -101,44 +101,6 @@ defmodule NervesHubDeviceWeb.WebsocketTest do
       refute_receive({"presence_diff", _})
     end
 
-    test "Can connect and authenticate to channel using client ssl certificate with TLS 1.3", %{
-      user: user
-    } do
-      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial})
-
-      Fixtures.device_certificate_fixture(device)
-
-      config = [
-        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        json_parser: Jason,
-        reconnect_after_msec: [500],
-        rejoin_after_msec: [500],
-        mint_opts: [
-          protocols: [:http1],
-          transport_opts: [
-            verify: :verify_peer,
-            versions: [:"tlsv1.3"],
-            certfile: Path.expand("../../test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
-            keyfile: Path.expand("../../test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
-            cacertfile: Path.expand("../../test/fixtures/ssl/ca.pem") |> to_charlist,
-            server_name_indication: 'device.nerves-hub.org'
-          ]
-        ]
-      ]
-
-      {:ok, socket} = SocketClient.start_link(config)
-      SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
-      SocketClient.wait_join(socket)
-
-      device =
-        NervesHubWebCore.Repo.get(Device, device.id)
-        |> NervesHubWebCore.Repo.preload(:org)
-
-      assert Presence.device_status(device) == "online"
-      refute_receive({"presence_diff", _})
-    end
-
     test "authentication rejected to channel using incorrect client ssl certificate" do
       {:ok, socket} = SocketClient.start_link(@bad_socket_config)
       refute SocketClient.connected?(socket)
