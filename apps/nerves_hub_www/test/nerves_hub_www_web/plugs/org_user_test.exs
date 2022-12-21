@@ -24,7 +24,7 @@ defmodule NervesHubWWWWeb.Plugs.OrgUserTest do
       |> Map.put(:params, %{"user_id" => 000})
       |> NervesHubWWWWeb.Plugs.OrgUser.call([])
 
-    assert html_response(conn, 404) =~ "not found"
+    assert html_response(conn, 404) =~ "Sorry, the page you are looking for does not exist."
   end
 
   test "404 is rendered when org_user is not found", %{conn: conn, user: user} do
@@ -35,6 +35,6 @@ defmodule NervesHubWWWWeb.Plugs.OrgUserTest do
       |> Map.put(:params, %{"user_id" => user2.id})
       |> NervesHubWWWWeb.Plugs.OrgUser.call([])
 
-    assert html_response(conn, 404) =~ "not found"
+    assert html_response(conn, 404) =~ "Sorry, the page you are looking for does not exist."
   end
 end

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Page not found · NervesHub</title>
+    <link rel="stylesheet" href="<%= Routes.static_path(NervesHubWWWWeb.Endpoint, "/css/app.css") %>">
+  </head>
+
+<nav class="navbar navbar-expand navbar-dark fixed-top flex-md-nowrap p-0 flex-row justify-content-center">
+  <div class="content-container flex-row align-items-center justify-content-between h-100">
+    <a class="logo" href="/">
+      <img src="/images/logo.svg" alt="logo" />
+      <img src="/images/logo-no-text.svg" alt="logo" class="mobile-logo" />
+    </a>
+  </div>
+</nav>
+
+<body>
+  <div class="normal-wrapper">
+    <main role="main" class="flex-column content-container">
+    <div class="no-results-blowup-wrapper">
+      <img src="/images/product.svg" alt="No products">
+        <br>
+        <%= "Sorry, the page you are looking for does not exist."%>
+        </div>
+    </main>
+  </div>
+</body>
+
+
+<footer class="footer">
+  <div class="grid josh-js" data-josh-anim-name="fadeIn">
+    <img src="/images/logo.svg" alt="NervesHub Logo" class="footer-logo" />
+    <div class="footer-nav resources">
+      <h6>Resources</h6>
+      <a href="https://docs.nerves-hub.org/" target="_blank" rel="noopener noreferrer">Documentation</a>
+      <a href="https://github.com/nerves-hub" target="_blank" rel="noopener noreferrer">Source code</a>
+      <a href="https://hexdocs.pm/nerves_hub/readme.html#content" target="_blank" rel="noopener noreferrer">HexDocs</a>
+      <a href="<%= Routes.nerves_key_path(NervesHubWWWWeb.Endpoint, :index) %>">NervesKey</a>
+      <a href="https://status.nerves-hub.org/" target="_blank" rel="noopener noreferrer">Status</a>
+    </div>
+    <div class="footer-nav help">
+      <h6>Help</h6>
+      <a href="https://github.com/smartrent/nerves_hub_web/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
+      <a href="mailto:support@nerves-hub.org" target="_blank" rel="noopener noreferrer">Contact support</a>
+    </div>
+  </div>
+  <div class="tos-grid">
+    <div></div>
+    <div><a href="<%= Routes.policy_path(NervesHubWWWWeb.Endpoint, :coc) %>">Code of Conduct</a></div>
+    <div><a href="<%= Routes.policy_path(NervesHubWWWWeb.Endpoint, :tos) %>">Terms of Service</a></div>
+    <div><a href="<%= Routes.policy_path(NervesHubWWWWeb.Endpoint, :privacy) %>">Privacy Policy</a></div>
+  </div>
+
+</footer>
+</html>
