@@ -52,11 +52,51 @@ host = System.fetch_env!("HOST")
 # up to NervesHub. This allows the use of TLS 1.3
 ssl_ver = to_string(Application.spec(:ssl)[:vsn])
 
+tlsv1_2_signature_algs = [
+  {:sha512, :ecdsa},
+  :rsa_pss_pss_sha512,
+  :rsa_pss_rsae_sha512,
+  {:sha512, :rsa},
+  {:sha384, :ecdsa},
+  :rsa_pss_pss_sha384,
+  :rsa_pss_rsae_sha384,
+  {:sha384, :rsa},
+  {:sha256, :ecdsa},
+  :rsa_pss_pss_sha256,
+  :rsa_pss_rsae_sha256,
+  {:sha256, :rsa}
+
+  # These commonly break with devices using crypto chips for an unknown
+  # reason when using OTP >= 25, so we opt to exclude them since they
+  # probably are not being used anyway
+  #
+  # {:sha224, :ecdsa},
+  # {:sha224, :rsa},
+  # {:sha, :ecdsa},
+  # {:sha, :rsa},
+  # {:sha, :dsa}
+]
+
 tls_opts =
   if Version.match?(ssl_ver, ">= 10.8.6") do
-    [certificate_authorities: false]
+    [
+      certificate_authorities: false,
+      signature_algs: [
+        :eddsa_ed25519,
+        :eddsa_ed448,
+        :ecdsa_secp521r1_sha512,
+        :ecdsa_secp384r1_sha384,
+        :ecdsa_secp256r1_sha256,
+        :rsa_pss_pss_sha512,
+        :rsa_pss_pss_sha384,
+        :rsa_pss_pss_sha256,
+        :rsa_pss_rsae_sha512,
+        :rsa_pss_rsae_sha384,
+        :rsa_pss_rsae_sha256 | tlsv1_2_signature_algs
+      ]
+    ]
   else
-    [versions: [:"tlsv1.2"]]
+    [versions: [:"tlsv1.2"], signature_algs: tlsv1_2_signature_algs]
   end
 
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
