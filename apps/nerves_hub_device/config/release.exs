@@ -51,26 +51,15 @@ host = System.fetch_env!("HOST")
 
 # OTP 25.2 includes SSL 10.8.6 which allows disabling certificate authorities
 # check with Client SSL since we don't expect devices to send full chains
-# up to NervesHub. This allows the use of TLS 1.3.
+# up to NervesHub. This allows the use of TLS 1.3
+ssl_ver = to_string(Application.spec(:ssl)[:vsn])
 
-# However, hardware in production was changed to force tlsv1.2
-# which breaks attempting to use ATTEC508A crypto engine with servers
-# running TLS 1.3. So before migrating there, we need to transition
-# devices to support TLS 1.2 or 1.3
-#
-# see https://github.com/smartrent/nerves_hub_web#potential-ssl-issues
-tls_opts = [versions: [:"tlsv1.2"]]
-
-# Once migrated, remove the line above and uncomment these lines
-
-# ssl_ver = to_string(Application.spec(:ssl)[:vsn])
-
-# tls_opts =
-#   if Version.match?(ssl_ver, ">= 10.8.6") do
-#     [certificate_authorities: false]
-#   else
-#     [versions: [:"tlsv1.2"]]
-#   end
+tls_opts =
+  if Version.match?(ssl_ver, ">= 10.8.6") do
+    [certificate_authorities: false]
+  else
+    [versions: [:"tlsv1.2"]]
+  end
 
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   url: [host: host],
