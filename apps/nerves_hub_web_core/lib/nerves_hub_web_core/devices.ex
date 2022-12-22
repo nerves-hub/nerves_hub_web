@@ -82,8 +82,10 @@ defmodule NervesHubWebCore.Devices do
         {"_target", _} ->
           query
 
-        {"connection", value} ->
-          where(query, [d], d.connection == ^value)
+        {"connection", _value} ->
+          # TODO make this something in the database that we can query against
+          # where(query, [d], d.connection == ^value)
+          query
 
         {"firmware_version", value} ->
           where(query, [d], d.firmware_metadata["version"] == ^value)
