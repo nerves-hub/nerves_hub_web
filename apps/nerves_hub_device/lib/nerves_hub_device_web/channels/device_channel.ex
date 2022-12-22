@@ -153,7 +153,14 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   def terminate(_reason, %{assigns: %{device: device}}) do
     if device = Devices.get_device(device.id) do
-      Devices.update_device(device, %{last_communication: DateTime.utc_now()})
+      {:ok, device} = Devices.update_device(device, %{last_communication: DateTime.utc_now()})
+
+      AuditLogs.audit!(device, device, :update, %{
+        description:
+          "device #{device.identifier} disconnected from the server at #{device.last_communication}",
+        last_communication: device.last_communication,
+        status: device.status
+      })
     end
 
     :ok
