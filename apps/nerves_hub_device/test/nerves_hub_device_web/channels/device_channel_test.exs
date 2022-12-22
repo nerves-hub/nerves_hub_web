@@ -2,7 +2,7 @@ defmodule NervesHubDeviceWeb.DeviceChannelTest do
   use NervesHubDeviceWeb.ChannelCase
   use DefaultMocks
   alias NervesHubDeviceWeb.{DeviceSocket, DeviceChannel}
-  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.{AuditLogs, Fixtures}
   alias NervesHubDevice.Presence
 
   test "basic connection to the channel" do
@@ -27,6 +27,23 @@ defmodule NervesHubDeviceWeb.DeviceChannelTest do
     assert presence["#{device.id}"].status == "online"
     assert presence["#{device.id}"].update_available == false
     assert presence["#{device.id}"].firmware_metadata
+  end
+
+  test "device disconnected adds audit log" do
+    user = Fixtures.user_fixture()
+    {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
+    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
+
+    Process.unlink(socket.channel_pid)
+
+    close(socket)
+
+    assert [_, disconnect_log] = AuditLogs.logs_for(device)
+
+    assert disconnect_log.changes["description"] =~
+             "device #{device.identifier} disconnected from the server at #{device.last_communication}"
   end
 
   test "update_available on connect" do
