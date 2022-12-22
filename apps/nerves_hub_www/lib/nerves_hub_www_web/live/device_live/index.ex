@@ -292,21 +292,18 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
-  # Since we're displaying an unknown section of the list, just refresh the current page
-  # to get the information from the database / presence
-  def handle_info(%Broadcast{event: "presence_diff"}, socket) do
-    socket = assign_display_devices(socket)
-    {:noreply, socket}
+  # Only sync devices currently on display
+  def handle_info(%Broadcast{event: "presence_diff", payload: diff}, socket) do
+    {:noreply, assign(socket, devices: sync_devices(socket.assigns.devices, diff))}
   end
 
   defp assign_statuses(org_id, product_id, opts) do
     Devices.get_devices_by_org_id_and_product_id(org_id, product_id, opts)
-    |> tap(fn page ->
-      sync_devices(page.entries, %{
-        joins: Presence.list("product:#{product_id}:devices"),
-        leaves: %{}
-      })
-    end)
+    |> Map.update(
+      :entries,
+      [],
+      &sync_devices(&1, %{joins: Presence.list("product:#{product_id}:devices"), leaves: %{}})
+    )
   end
 
   defp sync_devices(devices, %{joins: joins, leaves: leaves}) do
