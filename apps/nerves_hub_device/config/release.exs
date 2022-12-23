@@ -47,60 +47,6 @@ config :nerves_hub_web_core, NervesHubWebCore.Mailer,
   username: System.fetch_env!("SMTP_USERNAME"),
   password: System.fetch_env!("SMTP_PASSWORD")
 
-host = System.fetch_env!("HOST")
-
-# OTP 25.2 includes SSL 10.8.6 which allows disabling certificate authorities
-# check with Client SSL since we don't expect devices to send full chains
-# up to NervesHub. This allows the use of TLS 1.3
-ssl_ver = to_string(Application.spec(:ssl)[:vsn])
-
-tlsv1_2_signature_algs = [
-  {:sha512, :ecdsa},
-  :rsa_pss_pss_sha512,
-  :rsa_pss_rsae_sha512,
-  {:sha512, :rsa},
-  {:sha384, :ecdsa},
-  :rsa_pss_pss_sha384,
-  :rsa_pss_rsae_sha384,
-  {:sha384, :rsa},
-  {:sha256, :ecdsa},
-  :rsa_pss_pss_sha256,
-  :rsa_pss_rsae_sha256,
-  {:sha256, :rsa}
-
-  # These commonly break with devices using crypto chips for an unknown
-  # reason when using OTP >= 25, so we opt to exclude them since they
-  # probably are not being used anyway
-  #
-  # {:sha224, :ecdsa},
-  # {:sha224, :rsa},
-  # {:sha, :ecdsa},
-  # {:sha, :rsa},
-  # {:sha, :dsa}
-]
-
-tls_opts =
-  if Version.match?(ssl_ver, ">= 10.8.6") do
-    [
-      certificate_authorities: false,
-      signature_algs: [
-        :eddsa_ed25519,
-        :eddsa_ed448,
-        :ecdsa_secp521r1_sha512,
-        :ecdsa_secp384r1_sha384,
-        :ecdsa_secp256r1_sha256,
-        :rsa_pss_pss_sha512,
-        :rsa_pss_pss_sha384,
-        :rsa_pss_pss_sha256,
-        :rsa_pss_rsae_sha512,
-        :rsa_pss_rsae_sha384,
-        :rsa_pss_rsae_sha256 | tlsv1_2_signature_algs
-      ]
-    ]
-  else
-    [versions: [:"tlsv1.2"], signature_algs: tlsv1_2_signature_algs]
-  end
-
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   url: [host: host],
   https:
@@ -108,6 +54,57 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
       port: 443,
       otp_app: :nerves_hub_device,
       # Enable client SSL
+      # Older versions of OTP 25 may break using using devices
+      # that support TLS 1.3 or 1.2 negotiation. To mitigate that
+      # potential error, we enforce TLS 1.2. If you're using OTP >= 25.1
+      # on all devices, then it is safe to allow TLS 1.3 by removing
+      # the versions constraint and setting `certificate_authorities: false`
+      # since we don't expect devices to send full chains to the server
+      # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
+      #
+      # certificate_authorities: false,
+      versions: [:"tlsv1.2"],
+      signature_algs: [
+        [
+          ## TLS 1.3
+          ## Because we're forcing TLS 1.2 for now, these can be excluded
+          # :eddsa_ed25519,
+          # :eddsa_ed448,
+          # :ecdsa_secp521r1_sha512,
+          # :ecdsa_secp384r1_sha384,
+          # :ecdsa_secp256r1_sha256,
+          # :rsa_pss_pss_sha512,
+          # :rsa_pss_pss_sha384,
+          # :rsa_pss_pss_sha256,
+          # :rsa_pss_rsae_sha512,
+          # :rsa_pss_rsae_sha384,
+          # :rsa_pss_rsae_sha256,
+
+          # TLS 1.2
+          {:sha512, :ecdsa},
+          :rsa_pss_pss_sha512,
+          :rsa_pss_rsae_sha512,
+          {:sha512, :rsa},
+          {:sha384, :ecdsa},
+          :rsa_pss_pss_sha384,
+          :rsa_pss_rsae_sha384,
+          {:sha384, :rsa},
+          {:sha256, :ecdsa},
+          :rsa_pss_pss_sha256,
+          :rsa_pss_rsae_sha256,
+          {:sha256, :rsa}
+
+          # These commonly break with devices using crypto chips for an unknown
+          # reason when using OTP >= 25, so we opt to exclude them since they
+          # probably are not being used anyway
+          #
+          # {:sha224, :ecdsa},
+          # {:sha224, :rsa},
+          # {:sha, :ecdsa},
+          # {:sha, :rsa},
+          # {:sha, :dsa}
+        ]
+      ],
       verify: :verify_peer,
       fail_if_no_peer_cert: true,
       keyfile: "/etc/ssl/#{host}-key.pem",
