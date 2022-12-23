@@ -43,20 +43,29 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
     port: 4001,
     otp_app: :nerves_hub_device,
     # Enable client SSL
-    certificate_authorities: false,
+    # Older versions of OTP 25 may break using using devices
+    # that support TLS 1.3 or 1.2 negotiation. To mitigate that
+    # potential error, we enforce TLS 1.2. If you're using OTP >= 25.1
+    # on all devices, then it is safe to allow TLS 1.3 by removing
+    # the versions constraint and setting `certificate_authorities: false`
+    # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
+    #
+    # certificate_authorities: false,
+    versions: [:"tlsv1.2"],
     signature_algs: [
-      # TLS 1.3
-      :eddsa_ed25519,
-      :eddsa_ed448,
-      :ecdsa_secp521r1_sha512,
-      :ecdsa_secp384r1_sha384,
-      :ecdsa_secp256r1_sha256,
-      :rsa_pss_pss_sha512,
-      :rsa_pss_pss_sha384,
-      :rsa_pss_pss_sha256,
-      :rsa_pss_rsae_sha512,
-      :rsa_pss_rsae_sha384,
-      :rsa_pss_rsae_sha256,
+      ## TLS 1.3
+      ## Because we're forcing TLS 1.2 for now, these can be excluded
+      # :eddsa_ed25519,
+      # :eddsa_ed448,
+      # :ecdsa_secp521r1_sha512,
+      # :ecdsa_secp384r1_sha384,
+      # :ecdsa_secp256r1_sha256,
+      # :rsa_pss_pss_sha512,
+      # :rsa_pss_pss_sha384,
+      # :rsa_pss_pss_sha256,
+      # :rsa_pss_rsae_sha512,
+      # :rsa_pss_rsae_sha384,
+      # :rsa_pss_rsae_sha256,
 
       # TLS 1.2
       {:sha512, :ecdsa},
