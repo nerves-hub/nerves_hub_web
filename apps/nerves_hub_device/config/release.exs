@@ -110,4 +110,4 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
       keyfile: "/etc/ssl/#{host}-key.pem",
       certfile: "/etc/ssl/#{host}.pem",
       cacertfile: "/etc/ssl/ca.pem"
-    ] ++ tls_opts
+    ]
