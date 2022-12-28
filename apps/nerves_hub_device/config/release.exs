@@ -47,6 +47,8 @@ config :nerves_hub_web_core, NervesHubWebCore.Mailer,
   username: System.fetch_env!("SMTP_USERNAME"),
   password: System.fetch_env!("SMTP_PASSWORD")
 
+host = System.fetch_env!("HOST")
+
 config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   url: [host: host],
   https:
