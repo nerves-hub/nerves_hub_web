@@ -112,6 +112,6 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
       keyfile: "/etc/ssl/#{host}-key.pem",
       certfile: "/etc/ssl/#{host}.pem",
       cacertfile: "/etc/ssl/ca.pem"
-    ] ++ tls_opts
+    ]
 
 config :nerves_hub_web_core, NervesHubWebCore.Tracer, env: System.get_env("DD_ENV") || "dev"
