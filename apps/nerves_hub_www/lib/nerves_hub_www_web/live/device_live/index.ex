@@ -263,6 +263,30 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
+  def handle_event("quarantine-devices", _, socket) do
+    %{ok: _successfuls} =
+      Devices.get_devices_by_id(socket.assigns.selected_devices)
+      |> Devices.quarantine_devices(socket.assigns.user)
+
+    socket =
+      assign(socket, selected_devices: socket.assigns.selected_devices)
+      |> assign_display_devices()
+
+    {:noreply, socket}
+  end
+
+  def handle_event("unquarantine-devices", _, socket) do
+    %{ok: _successfuls} =
+      Devices.get_devices_by_id(socket.assigns.selected_devices)
+      |> Devices.unquarantine_devices(socket.assigns.user)
+
+    socket =
+      assign(socket, selected_devices: socket.assigns.selected_devices)
+      |> assign_display_devices()
+
+    {:noreply, socket}
+  end
+
   def handle_event(
         "toggle_health_state",
         %{"device-id" => device_id},

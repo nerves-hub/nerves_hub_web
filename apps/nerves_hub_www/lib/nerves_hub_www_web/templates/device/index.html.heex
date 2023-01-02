@@ -104,31 +104,49 @@
     <div class="filter-wrapper">
       <h4 class="color-white mb-2 flex-row align-items-center">Bulk Actions <span class="help-text ml-2"><%= length(@selected_devices) %> selected</span></h4>
       <form id="move" phx-change="target-product" phx-submit="move-devices">
-        <div class="form-group">
-          <label for="move_to">Move device(s) to:</label>
-          <div class="pos-rel">
-            <select name="product" id="move_to" class="form-control">
-              <option value=""></option>
-              <%= for org <- user_orgs(@user), products = user_org_products(@user, org), length(products) > 0 do %>
-                <optgroup label={org.name}>
-                  <%= for product <- products, product.id != @product.id do %>
-                    <option value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>
-                  <% end %>
-                </optgroup>
-              <% end %>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
         <div class="flex-row align-items-center">
-          <button class="btn btn-secondary" type="button" phx-click="deselect-all">Deselect All</button>
+          <div class="form-group">
+            <label for="move_to">Move device(s) to:</label>
+            <div class="pos-rel">
+              <select name="product" id="move_to" class="form-control">
+                <option value=""></option>
+                <%= for org <- user_orgs(@user), products = user_org_products(@user, org), length(products) > 0 do %>
+                  <optgroup label={org.name}>
+                    <%= for product <- products, product.id != @product.id do %>
+                      <option value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>
+                    <% end %>
+                  </optgroup>
+                <% end %>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+          </div>
           <%= if @target_product do %>
-            <button class="btn btn-primary ml-3" type="submit" data-confirm={move_alert(@target_product)}>Move</button>
+            <button class="btn btn-primary ml-2" type="submit" data-confirm={move_alert(@target_product)}>Move</button>
           <% end %>
         </div>
       </form>
+
+      <div class="flex-row align-items-center gap-2 mb-2">
+        <form id="quarantine" phx-submit="quarantine-devices">
+          <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will quarantine all selected devices">
+            <span class="button-icon quarantine-red"></span>
+            <span class="action-text quarantine-button">Quarantine</span>
+          </button>
+        </form>
+
+        <form id="unquarantine" phx-submit="unquarantine-devices">
+          <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will unquarantine all selected devices">
+            <span class="button-icon quarantine"></span>
+            <span class="action-text">Unquarantine</span>
+          </button>
+        </form>
+
+        <button class="btn btn-outline-light btn-action btn-secondary" type="button" phx-click="deselect-all">Deselect All</button>
+      </div>
     </div>
   <% end %>
+
   <table class="table table-sm table-hover">
     <thead>
       <tr>

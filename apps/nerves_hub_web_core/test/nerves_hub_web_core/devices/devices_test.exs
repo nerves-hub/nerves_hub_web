@@ -9,7 +9,8 @@ defmodule NervesHubWebCore.DevicesTest do
     Devices,
     Devices.CACertificate,
     Deployments,
-    Firmwares
+    Firmwares,
+    Repo
   }
 
   alias NervesHubWebCore.Devices.{DeviceCertificate, UpdatePayload}
@@ -25,6 +26,8 @@ defmodule NervesHubWebCore.DevicesTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(org, firmware)
     device = Fixtures.device_fixture(org, product, firmware)
+    device2 = Fixtures.device_fixture(org, product, firmware)
+    device3 = Fixtures.device_fixture(org, product, firmware)
     ca_fix = Fixtures.ca_certificate_fixture(org)
     %{db_cert: db_cert} = Fixtures.device_certificate_fixture(device)
 
@@ -42,6 +45,8 @@ defmodule NervesHubWebCore.DevicesTest do
        org_key: org_key,
        firmware: firmware,
        device: device,
+       device2: device2,
+       device3: device3,
        deployment: deployment,
        product: product
      }}
@@ -105,6 +110,36 @@ defmodule NervesHubWebCore.DevicesTest do
     {:ok, _device} = Devices.delete_device(device)
 
     assert {:error, _} = Devices.get_device_by_org(org, device.id)
+  end
+
+  test "can quarantine multiple devices", %{
+    user: user,
+    device: device,
+    device2: device2,
+    device3: device3
+  } do
+    devices = [device, device2, device3]
+
+    %{ok: devices} = Devices.quarantine_devices(devices, user)
+
+    assert Enum.all?(devices, fn device -> device.healthy == false end)
+  end
+
+  test "can unquarantine multiple devices" do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+    product = Fixtures.product_fixture(user, org)
+    org_key = Fixtures.org_key_fixture(org)
+    firmware = Fixtures.firmware_fixture(org_key, product)
+    device = Fixtures.device_fixture(org, product, firmware, %{healthy: false})
+    device2 = Fixtures.device_fixture(org, product, firmware, %{healthy: false})
+    device3 = Fixtures.device_fixture(org, product, firmware, %{healthy: false})
+
+    devices = [device, device2, device3]
+
+    %{ok: devices} = Devices.unquarantine_devices(devices, user)
+
+    assert Enum.all?(devices, fn device -> device.healthy == true end)
   end
 
   test "delete_device deletes its certificates", %{

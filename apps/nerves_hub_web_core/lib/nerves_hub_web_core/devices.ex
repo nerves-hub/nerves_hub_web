@@ -483,18 +483,19 @@ defmodule NervesHubWebCore.Devices do
       {:ok, device} ->
         # Get deployments with new changed device.
         # This will dispatch an update if `tags` is updated for example.
-        task =
-          Task.Supervisor.async(NervesHubWebCore.TaskSupervisor, fn ->
-            case get_eligible_deployments(device) do
-              [%Deployment{} = deployment | _] ->
+        case get_eligible_deployments(device) do
+          [%Deployment{} = deployment | _] ->
+            task =
+              Task.Supervisor.async(NervesHubWebCore.TaskSupervisor, fn ->
                 send_update_message(device, deployment)
+              end)
 
-              _ ->
-                {:ok, device}
-            end
-          end)
+            Task.await(task, 15000)
 
-        Task.await(task, 15000)
+          _ ->
+            {:ok, device}
+        end
+
         {:ok, device}
 
       error ->
@@ -701,6 +702,48 @@ defmodule NervesHubWebCore.Devices do
     end
   end
 
+  @spec quarantine(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
+  def quarantine(%Device{} = device, user) do
+    audit_params = %{
+      log_description: "user #{user.username} quarantined device #{device.identifier}"
+    }
+
+    Multi.new()
+    |> Multi.run(:quarantine, fn _, _ -> update_device(device, %{healthy: false}) end)
+    |> Multi.run(:audit_device, fn _, _ ->
+      AuditLogs.audit(user, device, :update, audit_params)
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{quarantine: updated}} ->
+        {:ok, updated}
+
+      err ->
+        err
+    end
+  end
+
+  @spec unquarantine(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
+  def unquarantine(%Device{} = device, user) do
+    audit_params = %{
+      log_description: "user #{user.username} unquarantined device #{device.identifier}"
+    }
+
+    Multi.new()
+    |> Multi.run(:unquarantine, fn _, _ -> update_device(device, %{healthy: true}) end)
+    |> Multi.run(:audit_device, fn _, _ ->
+      AuditLogs.audit(user, device, :update, audit_params)
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{unquarantine: updated}} ->
+        {:ok, updated}
+
+      err ->
+        err
+    end
+  end
+
   @spec move_many([Device.t()], Product.t(), User.t()) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]
@@ -709,6 +752,32 @@ defmodule NervesHubWebCore.Devices do
     product = Repo.preload(product, :org)
 
     Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :move, [&1, product, user]))
+    |> Task.await_many(20_000)
+    |> Enum.reduce(%{ok: [], error: []}, fn
+      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
+      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
+    end)
+  end
+
+  @spec quarantine_devices([Device.t()], User.t()) :: %{
+          ok: [Device.t()],
+          error: [{Ecto.Multi.name(), any()}]
+        }
+  def quarantine_devices(devices, user) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :quarantine, [&1, user]))
+    |> Task.await_many(20_000)
+    |> Enum.reduce(%{ok: [], error: []}, fn
+      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
+      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
+    end)
+  end
+
+  @spec unquarantine_devices([Device.t()], User.t()) :: %{
+          ok: [Device.t()],
+          error: [{Ecto.Multi.name(), any()}]
+        }
+  def unquarantine_devices(devices, user) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :unquarantine, [&1, user]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}

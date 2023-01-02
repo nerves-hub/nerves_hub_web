@@ -86,6 +86,10 @@ html {
       background-image: url('/images/icons/quarantine.svg');
     }
 
+    &.quarantine-red {
+      background-image: url("/images/icons/quarantine-red.svg");
+    }
+
     &.filter {
       background-image: url('/images/icons/filter.svg');
     }
