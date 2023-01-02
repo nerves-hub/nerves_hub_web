@@ -25,6 +25,7 @@ config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
     otp_app: :nerves_hub_api,
     # Enable client SSL
     verify: :verify_peer,
+    versions: [:"tlsv1.2"],
     keyfile: Path.join(ssl_dir, "api.nerves-hub.org-key.pem"),
     certfile: Path.join(ssl_dir, "api.nerves-hub.org.pem"),
     cacertfile: Path.join(ssl_dir, "ca.pem")
