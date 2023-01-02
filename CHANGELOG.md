@@ -5,6 +5,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 See the [NervesHub documentation] for more information
 
+## [v1.3.0] - 2023-01-02
+
+[v1.3.0]: https://github.com/nerves-hub/nerves_hub_web/releases/tag/v1.3.0
+
+### Potentially Breaking Change
+
+Versions were updated to Elixir 1.14.2 and OTP 25.2. Much testing has been done to
+attempt to catch any potential SSL/TLS issues before release and the update should
+be fairly safe, but it is worth keeping an eye on.
+
+### Added
+
+* Add `NervesHubWebCore.Workers.TruncateAuditLogs` for periodic cleaning of
+  audit logs table (thanks @LostKobrakai)
+* Firmware UUIDs hyperlink to the firmware#show page (thanks @TheCraftedGem)
+* Add pretty 404 Not Found page (thanks @TheCraftedGem)
+* Audit Log on device disconnect (thanks @TheCraftedGem)
+
+### Fixed
+
+* TLS 1.2 is forced for support with past OTP versions and to prevent
+  devices using cryptochips from being able to connect
+  * Note: `:sha` and `:sha224` signature algorithms were dropped as there is a potential
+    bug negotiating them on a device with cryptochips if the server presents them as options.
+    Since they are not typically used, it was decided to remove the support to fix the bug
+    until more investigation can be done when reviewing OpenSSL 3.0
+* [#871] Fix JITP>product relation to allow multiple profiles (thanks @jeanparpaillon)
+* `DeviceLive.Index` now sorts and paginates via the database instead of loading
+  all devices into memory. Fixes an issue where a production with thousands of devices
+  may fail to load the index page (thanks @oestrich)
+  * Moving to the DB level broke the ability to sort/query by `Connection Status`.
+    This will be adjusted and fixed in a later release
+* Fix incorrect query in `Fix Accounts.get_user_by_email_or_username/1` (Thanks @zolakeith!)
+* Paginate audit logs instead of loading the complete feed (thanks @LostKobrakai)
+* Sort devices `Last Communication` correctly when `nil`
+
+### Updated
+
+* Device imports now support certificates Base64 encoded as DER format
+* Sort firmware dropdown options by version number (thanks @TheCraftedGem)
+
 ## [v1.2.0] - 2022-10-18
 
 [v1.2.0]: https://github.com/nerves-hub/nerves_hub_web/releases/tag/v1.2.0
