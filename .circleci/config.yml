@@ -132,6 +132,50 @@ jobs:
       - run:
           name: Verify formatting
           command: mix format --check-formatted
+      - run:
+          name: Copy test certs into place for release config
+          command: |
+            cp test/fixtures/ssl/user-root-ca.pem /etc/ssl/
+            cp test/fixtures/ssl/root-ca.pem /etc/ssl/
+      - run:
+          name: Test API release.exs
+          command: mix eval 'Config.Reader.read!("apps/nerves_hub_api/config/release.exs")'
+          environment:
+            AWS_REGION: region
+            CA_HOST: localhost
+            HOST: localhost
+            S3_BUCKET_NAME: bucket
+            S3_LOG_BUCKET_NAME: bucket-log
+            SES_PORT: 2525
+            SES_SERVER: server
+            SMTP_PASSWORD: password
+            SMTP_USERNAME: username
+      - run:
+          name: Test Device release.exs
+          command: mix eval 'Config.Reader.read!("apps/nerves_hub_device/config/release.exs")'
+          environment:
+            AWS_REGION: region
+            HOST: localhost
+            S3_BUCKET_NAME: bucket
+            S3_LOG_BUCKET_NAME: bucket-log
+            SES_PORT: 2525
+            SES_SERVER: server
+            SMTP_PASSWORD: password
+            SMTP_USERNAME: username
+      - run:
+          name: Test WWW release.exs
+          command: mix eval 'Config.Reader.read!("apps/nerves_hub_www/config/release.exs")'
+          environment:
+            AWS_REGION: region
+            HOST: localhost
+            LIVE_VIEW_SIGNING_SALT: signing-salt
+            S3_BUCKET_NAME: bucket
+            S3_LOG_BUCKET_NAME: bucket-log
+            SECRET_KEY_BASE: secret-key-base
+            SES_PORT: 2525
+            SES_SERVER: server
+            SMTP_PASSWORD: password
+            SMTP_USERNAME: username
 
   test_javascript:
     docker:
