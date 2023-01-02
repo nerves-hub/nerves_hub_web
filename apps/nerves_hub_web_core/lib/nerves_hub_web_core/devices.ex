@@ -68,10 +68,16 @@ defmodule NervesHubWebCore.Devices do
 
     query
     |> Repo.exclude_deleted()
-    |> order_by(^sorting)
+    |> order_by(^sort_devices(sorting))
     |> filtering(filters)
     |> Repo.paginate(pagination)
   end
+
+  defp sort_devices({:asc, :last_communication}), do: {:asc_nulls_first, :last_communication}
+
+  defp sort_devices({:desc, :last_communication}), do: {:desc_nulls_last, :last_communication}
+
+  defp sort_devices(sort), do: sort
 
   defp filtering(query, filters) do
     Enum.reduce(filters, query, fn {key, value}, query ->
