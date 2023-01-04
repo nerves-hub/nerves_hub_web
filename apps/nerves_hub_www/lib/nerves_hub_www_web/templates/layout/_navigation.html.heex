@@ -17,7 +17,7 @@
             <div class="dropdown-divider"></div>
             <%= for org <- take_user_orgs(@conn, 5) do %>
               <div class="dropdown-submenu">
-                <%= active_link(@conn, to: Routes.product_path(@conn, :index, org.name), class_active: "active dropdown-item org", class_inactive: "dropdown-item org dropdown-toggle", aria_haspopup: "true") do %>
+                <%= link(to: Routes.product_path(@conn, :index, org.name), class: "dropdown-item org #{org_classes(@conn, org.name)}", aria_haspopup: "true") do %>
                   <%= org.name %>
                   <div class="active-checkmark"></div>
                 <% end %>
