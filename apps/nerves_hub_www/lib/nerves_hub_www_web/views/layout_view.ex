@@ -260,6 +260,16 @@ defmodule NervesHubWWWWeb.LayoutView do
     end)
   end
 
+  def org_classes(conn, org_name) do
+    case conn.path_info do
+      ["org", ^org_name | _] ->
+        "active"
+
+      _ ->
+        "dropdown-toggle"
+    end
+  end
+
   defmodule DateTimeFormat do
     def from_now(timestamp) do
       if Timex.is_valid?(timestamp) do
