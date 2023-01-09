@@ -2,6 +2,7 @@ defmodule NervesHubWebCore.AuditLogs.AuditLogTest do
   use NervesHubWebCore.DataCase
 
   alias NervesHubWebCore.{
+    AuditLogs,
     AuditLogs.AuditLog,
     Fixtures
   }
@@ -214,6 +215,17 @@ defmodule NervesHubWebCore.AuditLogs.AuditLogTest do
 
       assert al.description ==
                "deployment #{deployment.name} performed unknown update on device #{device.identifier}"
+    end
+
+    test "format for csv contains headers", context do
+      %{user: user, device: device} = context
+
+      al = AuditLogs.audit!(user, device, :update, %{healthy: true})
+
+      csv_content = AuditLogs.format_for_csv([al])
+
+      assert csv_content =~
+               "id,org_id,action,actor_id,actor_type,description,changes,params,resource_id,resource_type,inserted_at"
     end
   end
 end

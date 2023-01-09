@@ -2,6 +2,7 @@ defmodule NervesHubWebCore.AuditLogs do
   import Ecto.Query
 
   alias NervesHubWebCore.{Repo, AuditLogs.AuditLog}
+  alias NimbleCSV.RFC4180, as: CSV
 
   def audit(actor, resource, action, params) do
     AuditLog.build(actor, resource, action, params)
@@ -51,5 +52,14 @@ defmodule NervesHubWebCore.AuditLogs do
     )
     |> order_by(desc: :inserted_at)
     |> Repo.paginate(opts)
+  end
+
+  def format_for_csv(audit_logs) do
+    fields = AuditLog.__schema__(:fields)
+    lines = for al <- audit_logs, do: Enum.map(fields, &(Map.get(al, &1) |> Jason.encode!()))
+
+    [fields | lines]
+    |> CSV.dump_to_iodata()
+    |> IO.iodata_to_binary()
   end
 end

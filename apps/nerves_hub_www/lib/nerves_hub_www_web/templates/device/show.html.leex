@@ -51,6 +51,11 @@
       <span class="action-text">Edit</span>
     <% end %>
   <% end %>
+
+    <a class="btn btn-outline-light btn-action" aria-label="Download Audit Logs" href="<%= Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, @device.identifier) %>">
+      <div class="button-icon download"></div>
+      <span class="action-text">Download Audit Logs</span>
+    </a>
   </div>
 </div>
 

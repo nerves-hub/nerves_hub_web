@@ -77,6 +77,11 @@
               <%= link "details", class: "dropdown-item", to: Routes.deployment_path(@conn, :show, @org.name, @product.name, deployment.name) %>
               <div class="dropdown-divider"></div>
               <%= link "edit", class: "dropdown-item", to: Routes.deployment_path(@conn, :edit, @org.name, @product.name, deployment.name) %>
+               <div class="dropdown-divider"></div>
+              <a class="dropdown-item" aria-label="Download Audit Logs" href="<%= Routes.deployment_path(@conn, :export_audit_logs, @org.name, @product.name, deployment.name) %>">
+                <div class="button-icon download"></div>
+                <span class="action-text">Download Audit Logs</span>
+              </a>
             </div>
           </div>
         </td>

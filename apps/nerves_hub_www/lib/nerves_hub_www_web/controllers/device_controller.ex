@@ -1,6 +1,7 @@
 defmodule NervesHubWWWWeb.DeviceController do
   use NervesHubWWWWeb, :controller
 
+  alias NervesHubWebCore.AuditLogs
   alias NervesHubWebCore.Devices
   alias NervesHubWebCore.Devices.Device
   alias NervesHubWWWWeb.DeviceLive
@@ -11,7 +12,8 @@ defmodule NervesHubWWWWeb.DeviceController do
 
   plug(
     :validate_role,
-    [product: :read] when action in [:index, :console, :show, :download_certificate]
+    [product: :read]
+    when action in [:index, :console, :show, :download_certificate, :export_audit_logs]
   )
 
   def index(%{assigns: %{user: user, org: org, product: product}} = conn, _params) do
@@ -127,5 +129,22 @@ defmodule NervesHubWWWWeb.DeviceController do
       _ ->
         conn
     end
+  end
+
+  def export_audit_logs(%{assigns: %{org: org, product: product, device: device}} = conn, params) do
+    conn =
+      case AuditLogs.logs_for(device) do
+        [] ->
+          put_flash(conn, :error, "No audit logs exist for this device.")
+          |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
+
+        audit_logs ->
+          audit_logs = AuditLogs.format_for_csv(audit_logs)
+
+          conn
+          |> send_download({:binary, audit_logs}, filename: "#{device.identifier}-audit-logs.csv")
+      end
+
+    {:noreply, conn}
   end
 end

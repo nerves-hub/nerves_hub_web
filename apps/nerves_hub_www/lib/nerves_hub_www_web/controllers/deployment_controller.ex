@@ -1,6 +1,7 @@
 defmodule NervesHubWWWWeb.DeploymentController do
   use NervesHubWWWWeb, :controller
 
+  alias NervesHubWebCore.AuditLogs
   alias NervesHubWebCore.Firmwares
   alias NervesHubWebCore.Deployments
   alias NervesHubWebCore.Deployments.Deployment
@@ -8,7 +9,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
 
   plug(:validate_role, [product: :delete] when action in [:delete])
   plug(:validate_role, [product: :write] when action in [:new, :create, :edit, :update])
-  plug(:validate_role, [product: :read] when action in [:index, :show])
+  plug(:validate_role, [product: :read] when action in [:index, :show, :export_audit_logs])
 
   def index(%{assigns: %{org: _org, product: %{id: product_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product_id)
@@ -242,5 +243,25 @@ defmodule NervesHubWWWWeb.DeploymentController do
     tags
     |> String.split(",")
     |> Enum.map(&String.trim/1)
+  end
+
+  def export_audit_logs(
+        %{assigns: %{org: org, product: product, deployment: deployment}} = conn,
+        params
+      ) do
+    conn =
+      case AuditLogs.logs_for(deployment) do
+        [] ->
+          put_flash(conn, :error, "No audit logs exist for this deployment.")
+          |> redirect(to: Routes.deployment_path(conn, :index, org.name, product.name))
+
+        audit_logs ->
+          audit_logs = AuditLogs.format_for_csv(audit_logs)
+
+          conn
+          |> send_download({:binary, audit_logs}, filename: "#{deployment.name}-audit-logs.csv")
+      end
+
+    {:noreply, conn}
   end
 end

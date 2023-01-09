@@ -265,6 +265,13 @@
                   <%= if device.healthy, do: "Quarantine", else: "Unquarantine" %>
                 </span>
               </button>
+
+              <div class="dropdown-divider"></div>
+
+              <a class="dropdown-item" aria-label="Download Audit Logs" href="<%= Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier) %>">
+                <div class="button-icon download"></div>
+                <span class="action-text">Download Audit Logs</span>
+              </a>
             </div>
           </div>
         </td>

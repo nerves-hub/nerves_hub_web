@@ -109,6 +109,7 @@
     border-radius: 4px;
     background-color: var(--background);
     border: 1px solid var(--white-75);
+    width: auto;
 
     li {
       color: white;
@@ -122,6 +123,7 @@
 
       &:last-child:after {
         display: none;
+        width: 100%;
       }
     }
   }

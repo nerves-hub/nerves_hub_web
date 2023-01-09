@@ -148,6 +148,7 @@ defmodule NervesHubWWWWeb.Router do
             put("/", DeviceController, :update)
             delete("/", DeviceController, :delete)
             get("/certificate/:cert_serial/download", DeviceController, :download_certificate)
+            get("/audit_logs/download", DeviceController, :export_audit_logs)
           end
         end
 
@@ -178,6 +179,7 @@ defmodule NervesHubWWWWeb.Router do
             patch("/", DeploymentController, :update)
             put("/", DeploymentController, :update)
             delete("/", DeploymentController, :delete)
+            get("/audit_logs/download", DeploymentController, :export_audit_logs)
           end
         end
       end
