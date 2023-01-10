@@ -71,7 +71,7 @@ jobs:
           SECRET_KEY_BASE: ${SECRET_KEY_BASE:-BGC824f8kh1IQPXK7bUmXDigrw404rA7rivR96vGv4bhMIRogiaFN7Z6R4duZClA}
           LIVE_VIEW_SIGNING_SALT: ${LIVE_VIEW_SIGNING_SALT:-2GiUN2NDLEnYT8I/3Q+XL6LGUGEKGogh}
           COVERALLS_REPO_TOKEN: UrUe0yTdaISMj214UUZgj0H1y79UlsTX2
-      - image: cimg/postgres:10.22
+      - image: cimg/postgres:12.12
         environment:
           POSTGRES_USER: db
           POSTGRES_DB: db
