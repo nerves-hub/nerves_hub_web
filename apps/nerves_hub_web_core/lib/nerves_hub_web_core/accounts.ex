@@ -188,6 +188,7 @@ defmodule NervesHubWebCore.Accounts do
       order_by: [desc: ou.role]
     )
     |> OrgUser.with_user()
+    |> Repo.exclude_deleted()
     |> Repo.all()
   end
 
@@ -197,14 +198,24 @@ defmodule NervesHubWebCore.Accounts do
       where: ou.org_id == ^org.id,
       where: ou.user_id == ^user.id,
       where: ou.role in ^User.role_or_higher(role),
+      where: is_nil(ou.deleted_at),
       select: count(ou.id) >= 1
     )
     |> Repo.one()
   end
 
   def get_user_orgs(%User{} = user) do
-    user
-    |> Ecto.assoc(:orgs)
+    query =
+      from(
+        o in Org,
+        full_join: ou in OrgUser,
+        on: ou.org_id == o.id,
+        where: ou.user_id == ^user.id,
+        where: is_nil(ou.deleted_at),
+        group_by: o.id
+      )
+
+    query
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
@@ -223,6 +234,7 @@ defmodule NervesHubWebCore.Accounts do
           ou.user_id == ^user.id or
             (pu.user_id == ^user.id and
                pu.role in ^User.role_or_higher(product_role)),
+        where: is_nil(ou.deleted_at),
         group_by: o.id
       )
 
