@@ -66,7 +66,6 @@ config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
     otp_app: :nerves_hub_api,
     # Enable client SSL
     verify: :verify_peer,
-    versions: [:"tlsv1.2"],
     keyfile: "/etc/ssl/#{host}-key.pem",
     certfile: "/etc/ssl/#{host}.pem",
     cacerts: cacerts ++ :certifi.cacerts()

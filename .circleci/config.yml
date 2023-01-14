@@ -1,6 +1,6 @@
 defaults: &defaults
   docker:
-    - image: nerveshub/docker-build:alpine-3.15.6
+    - image: nerveshub/docker-build:alpine-3.17.0
   working_directory: ~/repo
 
 remote_docker: &remote_docker
@@ -47,7 +47,7 @@ orbs:
 jobs:
   fetch_deps:
     docker:
-      - image: hexpm/elixir:1.14.2-erlang-25.2-alpine-3.15.6
+      - image: hexpm/elixir:1.14.2-erlang-24.2.2-alpine-3.17.0
         environment:
           MIX_ENV: test
     working_directory: ~/app
@@ -64,7 +64,7 @@ jobs:
 
   test_elixir:
     docker:
-      - image: hexpm/elixir:1.14.2-erlang-25.2-alpine-3.15.6
+      - image: hexpm/elixir:1.14.2-erlang-24.2.2-alpine-3.17.0
         environment:
           MIX_ENV: test
           DATABASE_URL: postgres://db:db@localhost:5432/db

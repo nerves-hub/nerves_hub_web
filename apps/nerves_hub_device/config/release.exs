@@ -64,46 +64,6 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
     # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
     #
     # certificate_authorities: false,
-    versions: [:"tlsv1.2"],
-    signature_algs: [
-      ## TLS 1.3
-      ## Because we're forcing TLS 1.2 for now, these can be excluded
-      # :eddsa_ed25519,
-      # :eddsa_ed448,
-      # :ecdsa_secp521r1_sha512,
-      # :ecdsa_secp384r1_sha384,
-      # :ecdsa_secp256r1_sha256,
-      # :rsa_pss_pss_sha512,
-      # :rsa_pss_pss_sha384,
-      # :rsa_pss_pss_sha256,
-      # :rsa_pss_rsae_sha512,
-      # :rsa_pss_rsae_sha384,
-      # :rsa_pss_rsae_sha256,
-
-      # TLS 1.2
-      {:sha512, :ecdsa},
-      :rsa_pss_pss_sha512,
-      :rsa_pss_rsae_sha512,
-      {:sha512, :rsa},
-      {:sha384, :ecdsa},
-      :rsa_pss_pss_sha384,
-      :rsa_pss_rsae_sha384,
-      {:sha384, :rsa},
-      {:sha256, :ecdsa},
-      :rsa_pss_pss_sha256,
-      :rsa_pss_rsae_sha256,
-      {:sha256, :rsa}
-
-      # These commonly break with devices using crypto chips for an unknown
-      # reason when using OTP >= 25, so we opt to exclude them since they
-      # probably are not being used anyway
-      #
-      # {:sha224, :ecdsa},
-      # {:sha224, :rsa},
-      # {:sha, :ecdsa},
-      # {:sha, :rsa},
-      # {:sha, :dsa}
-    ],
     verify: :verify_peer,
     fail_if_no_peer_cert: true,
     keyfile: "/etc/ssl/#{host}-key.pem",
