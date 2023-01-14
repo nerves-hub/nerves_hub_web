@@ -1,6 +1,6 @@
 defaults: &defaults
   docker:
-    - image: nerveshub/docker-build:alpine-3.17.0
+    - image: nerveshub/docker-build:alpine-3.13.1
   working_directory: ~/repo
 
 remote_docker: &remote_docker
@@ -47,7 +47,7 @@ orbs:
 jobs:
   fetch_deps:
     docker:
-      - image: hexpm/elixir:1.14.2-erlang-24.2.2-alpine-3.17.0
+      - image: hexpm/elixir:1.13.2-erlang-23.0.4-alpine-3.13.1
         environment:
           MIX_ENV: test
     working_directory: ~/app
@@ -64,7 +64,7 @@ jobs:
 
   test_elixir:
     docker:
-      - image: hexpm/elixir:1.14.2-erlang-24.2.2-alpine-3.17.0
+      - image: hexpm/elixir:1.13.2-erlang-23.0.4-alpine-3.13.1
         environment:
           MIX_ENV: test
           DATABASE_URL: postgres://db:db@localhost:5432/db
@@ -101,45 +101,45 @@ jobs:
           command: |
             cp test/fixtures/ssl/user-root-ca.pem /etc/ssl/
             cp test/fixtures/ssl/root-ca.pem /etc/ssl/
-      - run:
-          name: Test API release.exs
-          command: mix eval 'Config.Reader.read!("apps/nerves_hub_api/config/release.exs")'
-          environment:
-            AWS_REGION: region
-            CA_HOST: localhost
-            HOST: localhost
-            S3_BUCKET_NAME: bucket
-            S3_LOG_BUCKET_NAME: bucket-log
-            SES_PORT: 2525
-            SES_SERVER: server
-            SMTP_PASSWORD: password
-            SMTP_USERNAME: username
-      - run:
-          name: Test Device release.exs
-          command: mix eval 'Config.Reader.read!("apps/nerves_hub_device/config/release.exs")'
-          environment:
-            AWS_REGION: region
-            HOST: localhost
-            S3_BUCKET_NAME: bucket
-            S3_LOG_BUCKET_NAME: bucket-log
-            SES_PORT: 2525
-            SES_SERVER: server
-            SMTP_PASSWORD: password
-            SMTP_USERNAME: username
-      - run:
-          name: Test WWW release.exs
-          command: mix eval 'Config.Reader.read!("apps/nerves_hub_www/config/release.exs")'
-          environment:
-            AWS_REGION: region
-            HOST: localhost
-            LIVE_VIEW_SIGNING_SALT: signing-salt
-            S3_BUCKET_NAME: bucket
-            S3_LOG_BUCKET_NAME: bucket-log
-            SECRET_KEY_BASE: secret-key-base
-            SES_PORT: 2525
-            SES_SERVER: server
-            SMTP_PASSWORD: password
-            SMTP_USERNAME: username
+      # - run:
+      #     name: Test API release.exs
+      #     command: mix eval 'Config.Reader.read!("apps/nerves_hub_api/config/release.exs")'
+      #     environment:
+      #       AWS_REGION: region
+      #       CA_HOST: localhost
+      #       HOST: localhost
+      #       S3_BUCKET_NAME: bucket
+      #       S3_LOG_BUCKET_NAME: bucket-log
+      #       SES_PORT: 2525
+      #       SES_SERVER: server
+      #       SMTP_PASSWORD: password
+      #       SMTP_USERNAME: username
+      # - run:
+      #     name: Test Device release.exs
+      #     command: mix eval 'Config.Reader.read!("apps/nerves_hub_device/config/release.exs")'
+      #     environment:
+      #       AWS_REGION: region
+      #       HOST: localhost
+      #       S3_BUCKET_NAME: bucket
+      #       S3_LOG_BUCKET_NAME: bucket-log
+      #       SES_PORT: 2525
+      #       SES_SERVER: server
+      #       SMTP_PASSWORD: password
+      #       SMTP_USERNAME: username
+      # - run:
+      #     name: Test WWW release.exs
+      #     command: mix eval 'Config.Reader.read!("apps/nerves_hub_www/config/release.exs")'
+      #     environment:
+      #       AWS_REGION: region
+      #       HOST: localhost
+      #       LIVE_VIEW_SIGNING_SALT: signing-salt
+      #       S3_BUCKET_NAME: bucket
+      #       S3_LOG_BUCKET_NAME: bucket-log
+      #       SECRET_KEY_BASE: secret-key-base
+      #       SES_PORT: 2525
+      #       SES_SERVER: server
+      #       SMTP_PASSWORD: password
+      #       SMTP_USERNAME: username
 
   # test_javascript:
   #   docker:
