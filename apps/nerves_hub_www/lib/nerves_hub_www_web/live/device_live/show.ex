@@ -26,7 +26,9 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
       |> assign_new(:user, fn -> Accounts.get_user!(user_id) end)
       |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
       |> assign_new(:product, fn -> Products.get_product!(product_id) end)
-      |> assign_new(:device, fn -> Devices.get_device!(device_id) end)
+      |> assign_new(:device, fn ->
+        Devices.get_device_by_product(device_id, product_id, org_id)
+      end)
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{socket.assigns.device.id}")
