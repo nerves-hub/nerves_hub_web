@@ -112,6 +112,20 @@ defmodule NervesHubWebCore.DevicesTest do
     assert {:error, _} = Devices.get_device_by_org(org, device.id)
   end
 
+  test "can tag multiple devices", %{
+    user: user,
+    device: device,
+    device2: device2,
+    device3: device3
+  } do
+    devices = [device, device2, device3]
+    tags = "New,Tags"
+
+    %{ok: devices} = Devices.tag_devices(devices, user, tags)
+
+    assert Enum.all?(devices, fn device -> device.tags == ["New", "Tags"] end)
+  end
+
   test "can quarantine multiple devices", %{
     user: user,
     device: device,

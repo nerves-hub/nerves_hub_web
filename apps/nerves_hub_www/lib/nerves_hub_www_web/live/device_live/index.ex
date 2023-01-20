@@ -56,6 +56,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       |> assign(:page_size_valid, true)
       |> assign(:selected_devices, [])
       |> assign(:target_product, nil)
+      |> assign(:bulk_tagging, false)
+      |> assign(:valid_tags, true)
       |> assign_display_devices()
 
     {:ok, socket}
@@ -174,6 +176,14 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
+  def handle_event("toggle-tags", %{"toggle" => toggle}, socket) do
+    socket =
+      socket
+      |> assign(:bulk_tagging, toggle != "true")
+
+    {:noreply, socket}
+  end
+
   def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
     socket =
       socket
@@ -230,6 +240,26 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
   def handle_event("deselect-all", _, socket) do
     {:noreply, assign(socket, selected_devices: [])}
+  end
+
+  def handle_event("validate-tags", %{"tags" => tags}, socket) do
+    if String.contains?(tags, " ") do
+      {:noreply, assign(socket, valid_tags: false)}
+    else
+      {:noreply, assign(socket, valid_tags: true)}
+    end
+  end
+
+  def handle_event("tag-devices", %{"tags" => tags}, socket) do
+    %{ok: _successfuls} =
+      Devices.get_devices_by_id(socket.assigns.selected_devices)
+      |> Devices.tag_devices(socket.assigns.user, tags)
+
+    socket =
+      assign(socket, selected_devices: socket.assigns.selected_devices)
+      |> assign_display_devices()
+
+    {:noreply, socket}
   end
 
   def handle_event("target-product", %{"product" => attrs}, socket) do

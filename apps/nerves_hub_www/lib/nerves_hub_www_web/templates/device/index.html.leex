@@ -127,22 +127,55 @@
         <% end %>
       </form>
 
+
       <form id="quarantine" phx-submit="quarantine-devices">
-        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will quarantine all selected devices">
+        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will quarantine all selected devices" phx-click="quarantine-devices">
           <span class="button-icon quarantine-red"></span>
           <span class="action-text quarantine-button">Quarantine</span>
         </button>
       </form>
 
       <form id="unquarantine" phx-submit="unquarantine-devices">
-        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will unquarantine all selected devices">
+        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will unquarantine all selected devices" phx-click="unquarantine-devices">
           <span class="button-icon quarantine"></span>
           <span class="action-text">Unquarantine</span>
         </button>
       </form>
 
+
+      <form id="toggle-tags" phx-submit="toggle-tags">
+        <button class="btn btn-outline-light btn-action" type="button" phx-click="toggle-tags" phx-value-toggle="<%= @bulk_tagging %>">
+          <span class="action-text">Tags</span>
+        </button>
+      </form>
+
       <button class="btn btn-outline-light btn-action btn-secondary" type="button" phx-click="deselect-all">Deselect All</button>
       </div>
+      <br>
+      <form id="bulk-tag-input" phx-submit="tag-devices" phx-change="validate-tags">
+        <div class="<%= unless @bulk_tagging, do: "hidden" %>">
+          <div class="form-group">
+            <label for="tags" class="tooltip-label h3 mb-1">
+              <span>Tag(s)</span>
+              <span class="tooltip-info"></span>
+              <span class="tooltip-text">Use tags to manage firmware deployments for different sets of devices.</span>
+            </label>
+            <input type="text" name="tags" id="input_tags" class="form-control" value="<%= @current_filters["tag"] %>" phx-debounce="500" />
+            <small class="form-text text-muted mt-1">
+              You can have multiple tags separated by commas.
+           </small>
+           <br>
+          <button class="btn btn-outline-light btn-action btn-primary" type="submit" data-confirm="This will update tags on all selected devices" <%= unless @valid_tags do %>disabled<% end %>>
+            <span class="action-text">Submit Tags</span>
+          </button>
+            <br>
+            <br>
+            <div class="<%= if @valid_tags, do: "hidden" %>">
+              <span class="has-error"> Tags Cannot Contain Spaces </span>
+            </div>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
 

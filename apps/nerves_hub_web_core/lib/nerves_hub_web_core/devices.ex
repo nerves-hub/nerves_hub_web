@@ -723,14 +723,26 @@ defmodule NervesHubWebCore.Devices do
       log_description: "user #{user.username} quarantined device #{device.identifier}"
     }
 
+    params = %{healthy: false}
+    update_device_with_audit(device, params, user, audit_params)
+  end
+
+  @spec tag_device(Device.t() | [Device.t()], User.t(), List.t()) :: Repo.transaction()
+  def tag_device(%Device{} = device, user, tags) do
+    params = %{tags: tags}
+    update_device_with_audit(device, params, user)
+  end
+
+  @spec update_device_with_audit(Device.t(), Map.t(), User.t(), Map.t()) :: Repo.transaction()
+  def update_device_with_audit(device, params, user, audit_params \\ %{}) do
     Multi.new()
-    |> Multi.run(:quarantine, fn _, _ -> update_device(device, %{healthy: false}) end)
+    |> Multi.run(:update_with_audit, fn _, _ -> update_device(device, params) end)
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, :update, audit_params)
     end)
     |> Repo.transaction()
     |> case do
-      {:ok, %{quarantine: updated}} ->
+      {:ok, %{update_with_audit: updated}} ->
         {:ok, updated}
 
       err ->
@@ -744,19 +756,9 @@ defmodule NervesHubWebCore.Devices do
       log_description: "user #{user.username} unquarantined device #{device.identifier}"
     }
 
-    Multi.new()
-    |> Multi.run(:unquarantine, fn _, _ -> update_device(device, %{healthy: true}) end)
-    |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, :update, audit_params)
-    end)
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{unquarantine: updated}} ->
-        {:ok, updated}
+    params = %{healthy: true}
 
-      err ->
-        err
-    end
+    update_device_with_audit(device, params, user, audit_params)
   end
 
   @spec move_many([Device.t()], Product.t(), User.t()) :: %{
@@ -780,6 +782,19 @@ defmodule NervesHubWebCore.Devices do
         }
   def quarantine_devices(devices, user) do
     Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :quarantine, [&1, user]))
+    |> Task.await_many(20_000)
+    |> Enum.reduce(%{ok: [], error: []}, fn
+      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
+      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
+    end)
+  end
+
+  @spec tag_devices([Device.t()], User.t(), List.t()) :: %{
+          ok: [Device.t()],
+          error: [{Ecto.Multi.name(), any()}]
+        }
+  def tag_devices(devices, user, tags) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :tag_device, [&1, user, tags]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
