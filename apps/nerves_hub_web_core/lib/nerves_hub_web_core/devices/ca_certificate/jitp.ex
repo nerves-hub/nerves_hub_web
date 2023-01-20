@@ -3,6 +3,8 @@ defmodule NervesHubWebCore.Devices.CACertificate.JITP do
   import Ecto.Changeset
   alias NervesHubWebCore.Products.Product
 
+  @type t :: %__MODULE__{}
+
   schema "jitp" do
     # JITP enabled CA Certs must be linked to a product
     # so devices can be created

@@ -333,6 +333,42 @@ defmodule NervesHubWebCore.DevicesTest do
     assert {:ok, %CACertificate{serial: ^serial}} = Devices.get_ca_certificate_by_aki(aki)
   end
 
+  test "can get JITP metadata for certificate by ski", %{org: org, product: product} do
+    org_id = org.id
+
+    ca_key = X509.PrivateKey.new_ec(:secp256r1)
+    ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+
+    {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(ca)
+
+    serial = NervesHubWebCore.Certificate.get_serial_number(ca)
+    ski = NervesHubWebCore.Certificate.get_aki(ca)
+    aki = NervesHubWebCore.Certificate.get_ski(ca)
+
+    params = %{
+      serial: serial,
+      aki: aki,
+      ski: ski,
+      not_before: not_before,
+      not_after: not_after,
+      der: X509.Certificate.to_der(ca),
+      jitp: %{
+        product_id: product.id,
+        description: "description",
+        tags: ["tag1"]
+      }
+    }
+
+    assert {:ok, %CACertificate{org_id: ^org_id}} = Devices.create_ca_certificate(org, params)
+
+    assert {:ok,
+            %CACertificate.JITP{
+              product: ^product,
+              description: "description",
+              tags: ["tag1"]
+            }} = Devices.get_jitp_by_ski(ski)
+  end
+
   test "get_device_by_identifier with existing device", %{org: org, device: target_device} do
     assert {:ok, result} = Devices.get_device_by_identifier(org, target_device.identifier)
 

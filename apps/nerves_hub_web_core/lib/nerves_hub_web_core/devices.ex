@@ -411,6 +411,20 @@ defmodule NervesHubWebCore.Devices do
     end
   end
 
+  @spec get_jitp_by_ski(binary) :: {:ok, CACertificate.JITP.t()} | {:error, any()}
+  def get_jitp_by_ski(ski) do
+    Repo.get_by(CACertificate, ski: ski)
+    |> case do
+      nil ->
+        {:error, :not_found}
+
+      ca_cert ->
+        with {:ok, %{jitp: jitp}} <- preload_cert(ca_cert, jitp: :product) do
+          {:ok, jitp}
+        end
+    end
+  end
+
   @spec get_ca_certificate_by_serial(binary) :: {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_serial(serial) do
     Repo.get_by(CACertificate, serial: serial)
@@ -440,8 +454,8 @@ defmodule NervesHubWebCore.Devices do
     end
   end
 
-  def preload_cert(%CACertificate{} = certificate) do
-    {:ok, Repo.preload(certificate, [:jitp])}
+  def preload_cert(%CACertificate{} = certificate, opts \\ [:jitp]) do
+    {:ok, Repo.preload(certificate, opts)}
   end
 
   def update_ca_certificate(%CACertificate{} = certificate, params) do

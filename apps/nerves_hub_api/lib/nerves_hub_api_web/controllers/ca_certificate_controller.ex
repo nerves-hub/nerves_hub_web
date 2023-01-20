@@ -1,7 +1,7 @@
 defmodule NervesHubAPIWeb.CACertificateController do
   use NervesHubAPIWeb, :controller
 
-  alias NervesHubWebCore.{Devices, Certificate}
+  alias NervesHubWebCore.{Devices, Products, Certificate}
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
@@ -27,16 +27,19 @@ defmodule NervesHubAPIWeb.CACertificateController do
          aki <- Certificate.get_aki(cert),
          ski <- Certificate.get_ski(cert),
          {not_before, not_after} <- Certificate.get_validity(cert),
-         params <- %{
-           serial: serial,
-           aki: aki,
-           ski: ski,
-           not_before: not_before,
-           not_after: not_after,
-           der: X509.Certificate.to_der(cert),
-           description: Map.get(params, "description")
-         },
-         {:ok, ca_certificate} <- Devices.create_ca_certificate(org, params) do
+         params <-
+           %{
+             serial: serial,
+             aki: aki,
+             ski: ski,
+             not_before: not_before,
+             not_after: not_after,
+             der: X509.Certificate.to_der(cert),
+             description: Map.get(params, "description")
+           }
+           |> maybe_merge_jitp(org, params),
+         {:ok, ca_certificate} <-
+           Devices.create_ca_certificate(org, params) do
       conn
       |> put_status(:created)
       |> put_resp_header(
@@ -48,6 +51,30 @@ defmodule NervesHubAPIWeb.CACertificateController do
       {:error, :not_found} -> {:error, "error decoding certificate"}
       e -> e
     end
+  end
+
+  defp maybe_merge_jitp(params, org, %{"jitp" => jitp64}) do
+    decoded_jitp = jitp64 |> Base.decode64!() |> Jason.decode!()
+
+    case Products.get_product_by_org_id_and_name(org.id, decoded_jitp["product"]) do
+      {:ok, product} ->
+        jitp_params = %{
+          jitp: %{
+            product_id: product.id,
+            description: decoded_jitp["description"],
+            tags: decoded_jitp["tags"]
+          }
+        }
+
+        Map.merge(params, jitp_params)
+
+      {:error, :not_found} ->
+        {:error, "product not found"}
+    end
+  end
+
+  defp maybe_merge_jitp(params, _org, _params) do
+    params
   end
 
   def delete(%{assigns: %{org: org}} = conn, %{"serial" => serial}) do
