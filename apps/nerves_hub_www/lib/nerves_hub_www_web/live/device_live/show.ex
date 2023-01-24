@@ -31,8 +31,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
       end)
 
     if connected?(socket) do
-      socket.endpoint.subscribe("device:#{socket.assigns.device.id}")
-      socket.endpoint.subscribe("product:#{product_id}:devices")
+      socket.endpoint.subscribe("device:#{socket.assigns.device.id}:internal")
     end
 
     socket =
@@ -55,11 +54,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     socket_error(socket, live_view_error(:update))
   end
 
-  def handle_info(
-        %Broadcast{event: "presence_diff", payload: payload},
-        %{assigns: %{device: device}} = socket
-      ) do
-    {:noreply, assign(socket, :device, sync_device(device, payload))}
+  def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
+    {:noreply, assign(socket, :device, sync_device(socket.assigns.device, payload))}
   end
 
   # Ignore unknown messages
@@ -185,26 +181,18 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     {:noreply, socket}
   end
 
-  defp sync_device(device, payload \\ nil)
-  defp sync_device(%{device: device}, payload), do: sync_device(device, payload)
-  defp sync_device(%{assigns: %{device: device}}, payload), do: sync_device(device, payload)
-
-  defp sync_device(%Device{id: id} = device, nil) do
-    joins = Map.put(%{}, to_string(id), Presence.find(device))
-    sync_device(device, %{joins: joins})
+  def sync_device(%Device{} = device) do
+    metadata = Presence.find(device)
+    sync_device(device, metadata)
   end
 
-  defp sync_device(%Device{id: id} = device, payload) when is_map(payload) do
-    id = to_string(id)
-    joins = Map.get(payload, :joins, %{})
-    leaves = Map.get(payload, :leaves, %{})
-
+  defp sync_device(%Device{} = device, metadata) do
     device = Repo.preload(device, :device_certificates, force: true)
 
-    cond do
-      meta = joins[id] ->
+    case is_nil(metadata) do
+      false ->
         updates =
-          Map.take(meta, [
+          Map.take(metadata, [
             :console_available,
             :firmware_metadata,
             :fwup_progress,
@@ -213,18 +201,6 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
           ])
 
         Map.merge(device, updates)
-
-      leaves[id] ->
-        # We're counting a device leaving as its last_communication. This is
-        # slightly inaccurate to set here, but only by a minuscule amount
-        # and saves DB calls and broadcasts
-        disconnect_time = DateTime.truncate(DateTime.utc_now(), :second)
-
-        device
-        |> Map.put(:console_available, false)
-        |> Map.put(:fwup_progress, nil)
-        |> Map.put(:last_communication, disconnect_time)
-        |> Map.put(:status, "offline")
 
       true ->
         device

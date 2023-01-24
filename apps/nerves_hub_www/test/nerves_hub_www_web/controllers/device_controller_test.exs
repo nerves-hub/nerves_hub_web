@@ -74,7 +74,8 @@ defmodule NervesHubWWWWeb.DeviceControllerTest do
       firmware = Fixtures.firmware_fixture(org_key, product)
       device = Fixtures.device_fixture(org, product, firmware)
 
-      Presence.track(self(), "product:#{product.id}:devices", device.id, %{
+      Presence.track(device, %{
+        product_id: product.id,
         console_available: true,
         console_version: "0.9.0"
       })

@@ -1,6 +1,7 @@
 defmodule NervesHubDeviceWeb.ConsoleChannelTest do
   use NervesHubDeviceWeb.ChannelCase
 
+  alias NervesHubDevice.Presence
   alias NervesHubDeviceWeb.{ConsoleChannel, Endpoint, DeviceSocket}
   alias NervesHubWebCore.Fixtures
   alias Phoenix.Socket.Broadcast
@@ -61,6 +62,9 @@ defmodule NervesHubDeviceWeb.ConsoleChannelTest do
   end
 
   defp connect_device(%{device: device, device_certificate: device_certificate}) do
+    # Pretend to be the device channel
+    Presence.track(device, %{})
+
     {:ok, _, socket} =
       DeviceSocket
       |> socket("device_socket:#{device.id}", %{certificate: device_certificate})

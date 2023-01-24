@@ -3,8 +3,7 @@ defmodule NervesHubDevice.Application do
 
   def start(_type, _args) do
     children = [
-      NervesHubDeviceWeb.Endpoint,
-      NervesHubDevice.Presence
+      NervesHubDeviceWeb.Endpoint
     ]
 
     opts = [strategy: :one_for_one, name: NervesHubDevice.Supervisor]

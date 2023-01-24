@@ -65,13 +65,11 @@ defmodule NervesHubWWWWeb.DeviceLiveShowTest do
     end
 
     test "presence_diff with changes", %{conn: conn, fixture: fixture} do
-      %{device: device} = fixture
-      payload = %{joins: %{"#{device.id}" => %{status: "online"}}, leaves: %{}}
       {:ok, view, html} = live(conn, device_show_path(fixture))
 
       assert html =~ "offline"
 
-      send(view.pid, %Broadcast{event: "presence_diff", payload: payload})
+      send(view.pid, %Broadcast{event: "connection_change", payload: %{status: "online"}})
 
       assert render(view) =~ "online"
     end

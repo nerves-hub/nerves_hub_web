@@ -2,7 +2,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   @moduledoc """
   The channel over which firmware updates are communicated to devices.
 
-  After joining, devices will subsequently join a `Phoenix.Presence` topic scoped by organization.
+  After joining, devices will subsequently track themselves for presence.
   """
 
   use NervesHubDeviceWeb, :channel
@@ -62,52 +62,35 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   end
 
   def handle_in("fwup_progress", %{"value" => percent}, socket) do
-    Presence.update(
-      socket.channel_pid,
-      tracking_topic(socket),
-      socket.assigns.device.id,
-      %{fwup_progress: percent}
-    )
+    Presence.update(socket.assigns.device, %{fwup_progress: percent})
 
     {:noreply, socket}
   end
 
   def handle_in("status_update", %{"status" => status}, socket) do
-    Presence.update(
-      socket.channel_pid,
-      tracking_topic(socket),
-      socket.assigns.device.id,
-      %{status: status}
-    )
+    Presence.update(socket.assigns.device, %{status: status})
 
     {:noreply, socket}
   end
 
   def handle_in("rebooting", _payload, socket) do
     # Device sends "rebooting" message back to signify ack of the request
-    Presence.update(
-      socket.channel_pid,
-      tracking_topic(socket),
-      socket.assigns.device.id,
-      %{rebooting: true}
-    )
+    Presence.update(socket.assigns.device, %{rebooting: true})
 
     {:noreply, socket}
   end
 
   def handle_info({:after_join, device, update_available}, socket) do
-    {:ok, _} =
-      Presence.track(
-        socket.channel_pid,
-        tracking_topic(device),
-        device.id,
-        %{
-          connected_at: System.system_time(:second),
-          last_communication: device.last_communication,
-          update_available: update_available,
-          firmware_metadata: device.firmware_metadata
-        }
-      )
+    Presence.track(
+      device,
+      %{
+        product_id: device.product_id,
+        connected_at: System.system_time(:second),
+        last_communication: device.last_communication,
+        update_available: update_available,
+        firmware_metadata: device.firmware_metadata
+      }
+    )
 
     {:noreply, socket}
   end
@@ -130,20 +113,21 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   end
 
   def handle_info(%Broadcast{event: "moved"}, socket) do
-    device = socket.assigns.device
-    meta = Presence.find(device, %{})
+    device = Repo.reload(socket.assigns.device)
+    Presence.update(device, %{product_id: device.product_id})
 
-    Presence.untrack(socket.channel_pid, tracking_topic(device), device.id)
-
-    reloaded = Repo.reload(device)
-
-    Presence.track(socket.channel_pid, tracking_topic(reloaded), reloaded.id, meta)
-
-    {:noreply, assign(socket, device: reloaded)}
+    {:noreply, assign(socket, device: device)}
   end
 
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
     push(socket, event, payload)
+    {:noreply, socket}
+  end
+
+  def handle_info({:console, version}, socket) do
+    metadata = %{console_available: true, console_version: version}
+    # Update gproc and then also tell connected liveviews that the device changed
+    Presence.update(socket.assigns.device, metadata)
     {:noreply, socket}
   end
 
@@ -161,6 +145,8 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
         last_communication: device.last_communication,
         status: device.status
       })
+
+      Presence.untrack(device)
     end
 
     :ok
@@ -211,12 +197,4 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   end
 
   defp should_audit_log?(_join_reply, _params), do: true
-
-  defp tracking_topic(%{assigns: %{device: device}}) do
-    tracking_topic(device)
-  end
-
-  defp tracking_topic(%{product_id: product_id}) do
-    "product:#{product_id}:devices"
-  end
 end

@@ -53,6 +53,7 @@ defmodule NervesHubDevice.Mixfile do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:plug, "~> 1.7"},
       {:gettext, "~> 0.11"},
+      {:gproc, "~> 0.9.0"},
       {:rollbax, "~> 0.11.0"},
       {:plug_cowboy, "~> 2.1"},
       {:cowboy, "~> 2.0", override: true},

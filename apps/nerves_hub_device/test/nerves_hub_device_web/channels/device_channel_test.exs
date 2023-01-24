@@ -21,12 +21,12 @@ defmodule NervesHubDeviceWeb.DeviceChannelTest do
     {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
     {:ok, _, _socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
 
-    presence = Presence.list("product:#{device.product_id}:devices")
-    assert presence["#{device.id}"].connected_at
-    assert presence["#{device.id}"].last_communication
-    assert presence["#{device.id}"].status == "online"
-    assert presence["#{device.id}"].update_available == false
-    assert presence["#{device.id}"].firmware_metadata
+    presence = Presence.find(device)
+    assert presence.connected_at
+    assert presence.last_communication
+    assert presence.status == "online"
+    assert presence.update_available == false
+    assert presence.firmware_metadata
   end
 
   test "device disconnected adds audit log" do

@@ -320,25 +320,24 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   end
 
   # Only sync devices currently on display
-  def handle_info(%Broadcast{event: "presence_diff", payload: diff}, socket) do
-    {:noreply, assign(socket, devices: sync_devices(socket.assigns.devices, diff))}
+  def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
+    {:noreply, assign(socket, devices: sync_devices(socket.assigns.devices, payload))}
   end
 
   defp assign_statuses(org_id, product_id, opts) do
     Devices.get_devices_by_org_id_and_product_id(org_id, product_id, opts)
-    |> Map.update(
-      :entries,
-      [],
-      &sync_devices(&1, %{joins: Presence.list("product:#{product_id}:devices"), leaves: %{}})
-    )
+    |> Map.update(:entries, [], &sync_devices/1)
   end
 
-  defp sync_devices(devices, %{joins: joins, leaves: leaves}) do
-    for device <- devices do
-      id = to_string(device.id)
+  defp sync_devices(devices, payload \\ %{}) do
+    Enum.map(devices, fn device ->
+      meta = Presence.find(device)
 
-      cond do
-        meta = joins[id] ->
+      case is_nil(meta) do
+        true ->
+          Map.put(device, :status, "offline")
+
+        false ->
           fields = [
             :firmware_metadata,
             :last_communication,
@@ -347,24 +346,16 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
             :console_available
           ]
 
-          updates = Map.take(meta, fields)
-          Map.merge(device, updates)
+          device = Map.merge(device, Map.take(meta, fields))
 
-        leaves[id] ->
-          # We're counting a device leaving as its last_communication. This is
-          # slightly inaccurate to set here, but only by a minuscule amount
-          # and saves DB calls and broadcasts
-          disconnect_time = DateTime.truncate(DateTime.utc_now(), :second)
-
-          device
-          |> Map.put(:last_communication, disconnect_time)
-          |> Map.put(:status, "offline")
-          |> Map.put(:fwup_progress, nil)
-
-        true ->
-          device
+          if Map.get(payload, :device_id) == device.id do
+            payload = Map.delete(payload, :device_id)
+            Map.merge(device, payload)
+          else
+            device
+          end
       end
-    end
+    end)
   end
 
   defp do_reboot(socket, :allowed, device, device_index) do

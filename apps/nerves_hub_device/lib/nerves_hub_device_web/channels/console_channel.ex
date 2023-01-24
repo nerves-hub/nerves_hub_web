@@ -2,6 +2,7 @@
 defmodule NervesHubDeviceWeb.ConsoleChannel do
   use NervesHubDeviceWeb, :channel
 
+  alias NervesHubDevice.Presence
   alias NervesHubWebCore.Devices
   alias Phoenix.Socket.Broadcast
 
@@ -42,20 +43,12 @@ defmodule NervesHubDeviceWeb.ConsoleChannel do
     {:noreply, socket}
   end
 
-  def handle_info({:after_join, payload}, %{assigns: %{device: device}} = socket) do
+  def handle_info({:after_join, payload}, socket) do
     socket.endpoint.subscribe(console_topic(socket))
     version = Map.get(payload, "console_version", "0.1.0")
 
-    {:ok, _} =
-      NervesHubDevice.Presence.track(
-        socket.channel_pid,
-        "product:#{device.product_id}:devices",
-        device.id,
-        %{
-          console_available: true,
-          console_version: version
-        }
-      )
+    {pid, _value} = Presence.await(socket.assigns.device)
+    send(pid, {:console, version})
 
     {:noreply, socket}
   end

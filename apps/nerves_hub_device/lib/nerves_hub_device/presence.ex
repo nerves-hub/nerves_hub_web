@@ -1,36 +1,16 @@
 defmodule NervesHubDevice.Presence do
   @moduledoc """
-  Implementation of Phoenix.Presence for Devices connected to NervesHub.
+  Device Presence server
 
-  # Example Usage
+  Tracks online devices with `:gproc` as a local registry for metadata
+  on the device.
 
-  ## List all connected devices for a product
+  gproc selects are based on Erlang match specs, with the ETS flavor.
 
-      iex> NervesHubDevice.Presence.list("product:#\{product_id}:devices")
-
-  ## Get a particular device's presence
-      iex> device = %NervesHubWebCore.Devices.Device{...}
-      iex> NervesHubDevice.Presence.find(device)
+  Docs: https://www.erlang.org/doc/apps/erts/match_spec.html
   """
 
-  use Phoenix.Presence,
-    otp_app: :nerves_hub_device,
-    pubsub_server: NervesHubWeb.PubSub
-
   alias NervesHubWebCore.Devices.Device
-  alias NervesHubDevice.Presence
-
-  @allowed_fields [
-    :connected_at,
-    :console_available,
-    :console_version,
-    :firmware_metadata,
-    :fwup_progress,
-    :last_communication,
-    :rebooting,
-    :status,
-    :update_available
-  ]
 
   @typedoc """
   Status of the current connection.
@@ -53,70 +33,160 @@ defmodule NervesHubDevice.Presence do
 
   @type presence_list :: %{optional(device_id_string) => device_presence}
 
-  # because of how the `use` statement defines this function
-  # and how the elaborate callback system works for presence,
-  # this spec is not accepted by dialyzer, however when
-  # one calls `list(product:#{product_id}:devices)` it will
-  # return the `presence_list` value
-  # @spec list(String.t()) :: presence_list()
+  @allowed_fields [
+    :product_id,
+    :connected_at,
+    :console_available,
+    :console_version,
+    :firmware_metadata,
+    :fwup_progress,
+    :last_communication,
+    :rebooting,
+    :status,
+    :update_available
+  ]
 
-  def fetch("product:" <> topic, entries) do
-    case String.split(topic, ":", trim: true) do
-      [_product_id, "devices"] ->
-        for {key, entry} <- entries, into: %{}, do: {key, merge_metas(entry)}
+  @doc """
+  Track a device coming online
 
-      _ ->
-        entries
+  The process calling track will now own the key / device for any updates
+  and untracks going forward.
+  """
+  @spec track(Device.t(), map()) :: :ok
+  def track(%Device{} = device, metadata) do
+    # publish a device update message
+    :gproc.reg({:n, :l, device.id}, metadata)
+    publish_change(device, metadata)
+  end
+
+  @doc """
+  Stop tracking a device
+
+  Generally before it goes offline. This is helps gproc stay fast,
+  instead of letting it clear itself out via process traps.
+  """
+  @spec untrack(Device.t()) :: :ok
+  def untrack(%Device{} = device) do
+    # publish a device update message
+    :gproc.unreg({:n, :l, device.id})
+    publish_change(device, %{status: "offline"})
+  end
+
+  @doc """
+  Update a key to include merged metadata
+  """
+  @spec update(Device.t(), map()) :: :ok
+  def update(%Device{} = device, new_metadata) do
+    # publish a device update message
+    current_metadata = find(device)
+    metadata = Map.merge(current_metadata, new_metadata)
+    :gproc.set_value({:n, :l, device.id}, metadata)
+    publish_change(device, metadata)
+  end
+
+  defp publish_change(device, payload) do
+    payload =
+      payload
+      |> metadata()
+      |> Map.put(:device_id, device.id)
+
+    Phoenix.PubSub.broadcast(
+      NervesHubWeb.PubSub,
+      "device:#{device.id}:internal",
+      %Phoenix.Socket.Broadcast{event: "connection_change", payload: payload}
+    )
+
+    Phoenix.PubSub.broadcast(
+      NervesHubWeb.PubSub,
+      "product:#{device.product_id}:devices",
+      %Phoenix.Socket.Broadcast{event: "connection_change", payload: payload}
+    )
+  end
+
+  @doc """
+  Find a device and return its metadata
+  """
+  @spec find(Device.t(), map()) :: map()
+  def find(%Device{} = device, default_metadata \\ nil) do
+    # match the key and return it's metadata (gproc value
+    # {key, pid, value} where key is {type, scope, user key}
+    case :gproc.select({:local, :names}, [
+           {{{:_, :_, device.id}, :_, :_}, [], [{:element, 3, :"$_"}]}
+         ]) do
+      [metadata] ->
+        metadata(metadata)
+
+      [] ->
+        default_metadata
     end
   end
 
-  def fetch(_, entries), do: entries
+  defp metadata(metadata) do
+    case Map.take(metadata, @allowed_fields) do
+      %{status: _status} = e ->
+        e
 
-  def find(device, default \\ nil)
+      %{update_available: true} = e ->
+        Map.put(e, :status, "update pending")
 
-  def find(%Device{id: device_id, product_id: product_id}, default) do
-    "product:#{product_id}:devices"
-    |> Presence.list()
-    |> Map.get("#{device_id}", default)
+      %{rebooting: true} = e ->
+        Map.put(e, :status, "rebooting")
+
+      %{fwup_progress: _progress} = e ->
+        Map.put(e, :status, "updating")
+
+      e ->
+        Map.put(e, :status, "online")
+    end
   end
 
-  def find(_, default), do: default
+  @doc """
+  Count the number of devices based on a metadata filter
+  """
+  @spec count(map()) :: integer()
+  def count(metadata) do
+    # count based on the metadata
+    # first tuple is {key, pid, user value}
+    # and thing returning `true` aka what's matched is counted
+    :gproc.select_count({:l, :n}, [{{:_, :_, metadata}, [], [true]}])
+  end
 
   @doc """
-  Return the status of a device.
+  Devices connected status
 
-  ## Statuses
-
-  - `"online"` - The device has `:firmware_metadata` and is connected to Presence
-  - `"update pending"` - The device has `:firmware_metadata`, is connected to presence, and
-    its presence meta includes `update_available: true`
-  - `"offline"` - The device is not connected to Presence
+  If the device is found, the known status is returned, otherwise it's offline
   """
   @spec device_status(Device.t()) :: status()
   def device_status(%Device{} = device) do
     case find(device) do
-      nil -> "offline"
-      %{status: status} -> status
+      nil ->
+        :offline
+
+      metadata ->
+        metadata.status
     end
   end
 
-  def device_status(_) do
-    "offline"
+  @doc """
+  Await for the device to be registered
+
+  This returns the pid after it's registered
+  """
+  @spec await(Device.t()) :: pid()
+  def await(%Device{} = device) do
+    :gproc.await({:n, :l, device.id})
   end
 
-  defp merge_metas(%{metas: metas}) do
-    # The most current meta is head of the list so we
-    # accumulate that first and merge everthing else into it
-    Enum.reduce(metas, %{}, &Map.merge(&1, &2))
-    |> Map.take(@allowed_fields)
-    |> case do
-      %{status: _status} = e -> e
-      %{update_available: true} = e -> Map.put(e, :status, "update pending")
-      %{rebooting: true} = e -> Map.put(e, :status, "rebooting")
-      %{fwup_progress: _progress} = e -> Map.put(e, :status, "updating")
-      e -> Map.put(e, :status, "online")
+  # developer helper function to find the pid of a device
+  @doc false
+  def whereis(key) do
+    # match the key and return it's PID
+    case :gproc.select({:local, :names}, [{{{:_, :_, key}, :_, :_}, [], [{:element, 2, :"$_"}]}]) do
+      [pid] ->
+        pid
+
+      [] ->
+        nil
     end
   end
-
-  defp merge_metas(unknown), do: unknown
 end

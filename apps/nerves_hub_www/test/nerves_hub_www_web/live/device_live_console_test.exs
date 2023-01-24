@@ -9,11 +9,12 @@ defmodule NervesHubWWWWeb.DeviceLiveConsoleTest do
 
   alias Phoenix.Socket.Broadcast
 
-  setup %{fixture: %{device: device, product: product}} = context do
+  setup %{fixture: %{device: device}} = context do
     Endpoint.subscribe("console:#{device.id}")
 
     unless context[:skip_presence] do
-      Presence.track(self(), "product:#{product.id}:devices", device.id, %{
+      Presence.track(device, %{
+        product_id: device.product_id,
         console_available: true
       })
     end
