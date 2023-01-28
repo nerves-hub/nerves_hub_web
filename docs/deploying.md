@@ -176,7 +176,7 @@ Edit the file called `config/release.exs`:
 
 ```elixir
 config :nerves_hub_ca, :api,
-  port: System.fetch_env!("PORT"),
+  port: System.fetch_env!("PORT") |> String.to_integer(),
   verify: :verify_peer,
   fail_if_no_peer_cert: true
 
@@ -663,7 +663,7 @@ via web browser. Next to configure is the `cli`.
 
 ### nerves_hub_cli
 
-In your firmware project, add new `config.exs` enteries:
+In your firmware project, add new `config.exs` entries:
 
 ```elixir
 config :nerves, :firmware, provisioning: :nerves_hub_link
