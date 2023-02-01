@@ -112,5 +112,7 @@ config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
   pubsub_server: NervesHubWeb.PubSub,
   live_view: [signing_salt: System.get_env("LIVE_VIEW_SIGNING_SALT")]
 
+config :gproc, :gproc_dist, :all
+
 # Environment specific config
 import_config "#{Mix.env()}.exs"

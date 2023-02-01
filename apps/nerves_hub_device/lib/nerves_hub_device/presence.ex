@@ -55,7 +55,7 @@ defmodule NervesHubDevice.Presence do
   @spec track(Device.t(), map()) :: :ok
   def track(%Device{} = device, metadata) do
     # publish a device update message
-    :gproc.reg({:n, :l, device.id}, metadata)
+    :gproc.reg({:n, :g, device.id}, metadata)
     publish_change(device, metadata)
   end
 
@@ -68,7 +68,7 @@ defmodule NervesHubDevice.Presence do
   @spec untrack(Device.t()) :: :ok
   def untrack(%Device{} = device) do
     # publish a device update message
-    :gproc.unreg({:n, :l, device.id})
+    :gproc.unreg({:n, :g, device.id})
     publish_change(device, %{status: "offline"})
   end
 
@@ -80,7 +80,7 @@ defmodule NervesHubDevice.Presence do
     # publish a device update message
     current_metadata = find(device)
     metadata = Map.merge(current_metadata, new_metadata)
-    :gproc.set_value({:n, :l, device.id}, metadata)
+    :gproc.set_value({:n, :g, device.id}, metadata)
     publish_change(device, metadata)
   end
 
@@ -110,7 +110,7 @@ defmodule NervesHubDevice.Presence do
   def find(%Device{} = device, default_metadata \\ nil) do
     # match the key and return it's metadata (gproc value
     # {key, pid, value} where key is {type, scope, user key}
-    case :gproc.select({:local, :names}, [
+    case :gproc.select({:global, :names}, [
            {{{:_, :_, device.id}, :_, :_}, [], [{:element, 3, :"$_"}]}
          ]) do
       [metadata] ->
@@ -148,7 +148,7 @@ defmodule NervesHubDevice.Presence do
     # count based on the metadata
     # first tuple is {key, pid, user value}
     # and thing returning `true` aka what's matched is counted
-    :gproc.select_count({:l, :n}, [{{:_, :_, metadata}, [], [true]}])
+    :gproc.select_count({:g, :n}, [{{:_, :_, metadata}, [], [true]}])
   end
 
   @doc """
@@ -174,14 +174,14 @@ defmodule NervesHubDevice.Presence do
   """
   @spec await(Device.t()) :: pid()
   def await(%Device{} = device) do
-    :gproc.await({:n, :l, device.id})
+    :gproc.await({:n, :g, device.id})
   end
 
   # developer helper function to find the pid of a device
   @doc false
   def whereis(key) do
     # match the key and return it's PID
-    case :gproc.select({:local, :names}, [{{{:_, :_, key}, :_, :_}, [], [{:element, 2, :"$_"}]}]) do
+    case :gproc.select({:global, :names}, [{{{:_, :_, key}, :_, :_}, [], [{:element, 2, :"$_"}]}]) do
       [pid] ->
         pid
 
