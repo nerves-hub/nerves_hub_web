@@ -8,6 +8,6 @@ defmodule NervesHubWebCore.Workers.TruncateAuditLogs do
   @impl true
   def run(_) do
     config = Application.get_env(:nerves_hub_web_core, __MODULE__)
-    if config[:enabled], do: NervesHubWebCore.AuditLogs.truncate(config)
+    if config[:enabled], do: NervesHubWebCore.AuditLogs.truncate(config), else: :ok
   end
 end
