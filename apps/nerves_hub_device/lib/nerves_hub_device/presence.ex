@@ -46,6 +46,8 @@ defmodule NervesHubDevice.Presence do
     :update_available
   ]
 
+  def __fields__(), do: @allowed_fields
+
   @doc """
   Track a device coming online
 

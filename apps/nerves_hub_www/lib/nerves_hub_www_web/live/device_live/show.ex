@@ -85,7 +85,8 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
       case Devices.update_device(device, params) do
         {:ok, updated_device} ->
           AuditLogs.audit!(user, device, :update, params)
-          assign(socket, :device, updated_device)
+          meta = Map.take(device, Presence.__fields__())
+          assign(socket, :device, Map.merge(updated_device, meta))
 
         {:error, _changeset} ->
           put_flash(socket, :error, "Failed to mark health state")

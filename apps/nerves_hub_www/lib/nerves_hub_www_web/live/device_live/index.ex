@@ -336,8 +336,12 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
 
           devices =
             Enum.map(devices, fn
-              device when device.id == updated_device.id -> updated_device
-              device -> device
+              device when device.id == updated_device.id ->
+                meta = Map.take(device, Presence.__fields__())
+                Map.merge(updated_device, meta)
+
+              device ->
+                device
             end)
 
           assign(socket, :devices, devices)
