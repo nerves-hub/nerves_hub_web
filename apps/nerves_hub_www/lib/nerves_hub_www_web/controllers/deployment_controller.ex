@@ -247,7 +247,7 @@ defmodule NervesHubWWWWeb.DeploymentController do
 
   def export_audit_logs(
         %{assigns: %{org: org, product: product, deployment: deployment}} = conn,
-        params
+        _params
       ) do
     conn =
       case AuditLogs.logs_for(deployment) do

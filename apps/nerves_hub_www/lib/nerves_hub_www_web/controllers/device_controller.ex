@@ -131,7 +131,7 @@ defmodule NervesHubWWWWeb.DeviceController do
     end
   end
 
-  def export_audit_logs(%{assigns: %{org: org, product: product, device: device}} = conn, params) do
+  def export_audit_logs(%{assigns: %{org: org, product: product, device: device}} = conn, _params) do
     conn =
       case AuditLogs.logs_for(device) do
         [] ->
