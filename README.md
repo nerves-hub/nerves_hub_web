@@ -1,7 +1,6 @@
 # nerves_hub_www
 
 [![CircleCI](https://circleci.com/gh/nerves-hub/nerves_hub_web.svg?style=svg)](https://circleci.com/gh/nerves-hub/nerves_hub_web)
-[![Coverage Status](https://coveralls.io/repos/github/nerves-hub/nerves_hub_web/badge.svg?branch=main)](https://coveralls.io/github/nerves-hub/nerves_hub_web?branch=main)
 
 A domain independent back end solution for rolling out software updates to edge
 devices connected to IP based networking infrastructure.

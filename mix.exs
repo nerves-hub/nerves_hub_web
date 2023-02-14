@@ -7,7 +7,6 @@ defmodule NervesHubUmbrella.MixProject do
       apps_path: "apps",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      test_coverage: [tool: ExCoveralls],
       aliases: aliases(),
       elixirc_paths: elixirc_paths(Mix.env()),
       dialyzer: [
@@ -53,7 +52,6 @@ defmodule NervesHubUmbrella.MixProject do
   # Run "mix help deps" for examples and options.
   defp deps do
     [
-      # {:excoveralls, "~> 0.8", only: :test},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
       {:recon, "~> 2.5"},

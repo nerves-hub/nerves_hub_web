@@ -14,13 +14,7 @@ defmodule NervesHubWebCore.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       compilers: [:phoenix] ++ Mix.compilers(),
-      test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
-        coveralls: :test,
-        "coveralls.detail": :test,
-        "coveralls.html": :test,
-        "coveralls.json": :test,
-        "coveralls.post": :test,
         docs: :docs
       ]
     ]
