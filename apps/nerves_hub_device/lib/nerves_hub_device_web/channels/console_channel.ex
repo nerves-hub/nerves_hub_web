@@ -1,6 +1,6 @@
 # Channel the device is connected to
 defmodule NervesHubDeviceWeb.ConsoleChannel do
-  use NervesHubDeviceWeb, :channel
+  use Phoenix.Channel
 
   alias NervesHubDevice.Presence
   alias NervesHubWebCore.Devices

@@ -3,14 +3,10 @@ defmodule NervesHubWebCore.Application do
 
   require Logger
 
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
   def start(_type, _args) do
     pubsub_config = Application.get_env(:nerves_hub_web_core, NervesHubWeb.PubSub)
 
-    # Define workers and child supervisors to be supervised
     children = [
-      # Start the Ecto repository
       datadog_children(),
       NervesHubWebCore.Repo,
       {Phoenix.PubSub, pubsub_config},
@@ -36,8 +32,6 @@ defmodule NervesHubWebCore.Application do
       end
     )
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: NervesHubWebCore.Supervisor]
     Supervisor.start_link(children, opts)
   end
@@ -106,17 +100,29 @@ defmodule NervesHubWebCore.Application do
   defp datadog_children do
     opts = [
       host: Application.get_env(:nerves_hub_web_core, :datadog_host, "localhost"),
-      port:
-        Application.get_env(:nerves_hub_web_core, :datadog_port) |> StringHelper.to_integer(8126),
-      batch_size:
-        Application.get_env(:nerves_hub_web_core, :datadog_batch_size)
-        |> StringHelper.to_integer(10),
+      port: to_integer(Application.get_env(:nerves_hub_web_core, :datadog_port)),
+      batch_size: to_integer(Application.get_env(:nerves_hub_web_core, :datadog_batch_size)),
       sync_threshold:
-        Application.get_env(:nerves_hub_web_core, :datadog_sync_threshold)
-        |> StringHelper.to_integer(100),
+        to_integer(Application.get_env(:nerves_hub_web_core, :datadog_sync_threshold)),
       http: HTTPoison
     ]
 
     {SpandexDatadog.ApiServer, opts}
   end
+
+  defp to_integer(_string, _error_value \\ nil)
+
+  defp to_integer(not_a_string, _error_value) when is_integer(not_a_string),
+    do: not_a_string
+
+  defp to_integer(string, error_value) when is_binary(string) do
+    string
+    |> Float.parse()
+    |> case do
+      {float_value, _remainder} -> round(float_value)
+      :error -> error_value
+    end
+  end
+
+  defp to_integer(_, error_value), do: error_value
 end

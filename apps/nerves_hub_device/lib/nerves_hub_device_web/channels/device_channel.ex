@@ -5,7 +5,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   After joining, devices will subsequently track themselves for presence.
   """
 
-  use NervesHubDeviceWeb, :channel
+  use Phoenix.Channel
 
   alias NervesHubWebCore.{
     AuditLogs,
