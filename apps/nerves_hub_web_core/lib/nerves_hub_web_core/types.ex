@@ -70,11 +70,14 @@ defmodule NervesHubWebCore.Types do
     def load(resource), do: {:ok, String.to_existing_atom(resource)}
 
     defp allowed_resources do
-      {:ok, modules} = :application.get_key(:nerves_hub_web_core, :modules)
-
-      for module <- modules,
-          Keyword.has_key?(module.__info__(:functions), :__schema__),
-          do: to_string(module)
+      [
+        "Elixir.NervesHubWebCore.Accounts.Org",
+        "Elixir.NervesHubWebCore.Accounts.User",
+        "Elixir.NervesHubWebCore.Deployments.Deployment",
+        "Elixir.NervesHubWebCore.Devices.Device",
+        "Elixir.NervesHubWebCore.Firmwares.Firmware",
+        "Elixir.NervesHubWebCore.Products.Product"
+      ]
     end
   end
 end

@@ -1,8 +1,8 @@
 defmodule NervesHubWebCore.TypesTest do
   use ExUnit.Case, async: true
 
+  alias NervesHubWebCore.Accounts.User
   alias NervesHubWebCore.Types
-  alias NervesHubWebCore.AuditLogs.AuditLog
 
   describe "resource" do
     test "type" do
@@ -11,8 +11,8 @@ defmodule NervesHubWebCore.TypesTest do
 
     test "cast" do
       # Valid cast
-      assert Types.Resource.cast(AuditLog) == {:ok, AuditLog}
-      assert Types.Resource.cast(to_string(AuditLog)) == {:ok, AuditLog}
+      assert Types.Resource.cast(User) == {:ok, User}
+      assert Types.Resource.cast(to_string(User)) == {:ok, User}
 
       # Invalid cast
       assert Types.Resource.cast("AuditLog") == :error
@@ -23,8 +23,8 @@ defmodule NervesHubWebCore.TypesTest do
 
     test "dump" do
       # Valid dump
-      assert Types.Resource.dump(AuditLog) == {:ok, to_string(AuditLog)}
-      assert Types.Resource.dump(to_string(AuditLog)) == {:ok, to_string(AuditLog)}
+      assert Types.Resource.dump(User) == {:ok, to_string(User)}
+      assert Types.Resource.dump(to_string(User)) == {:ok, to_string(User)}
 
       # Invalid dump
       assert Types.Resource.dump("AuditLog") == :error
@@ -34,7 +34,7 @@ defmodule NervesHubWebCore.TypesTest do
     end
 
     test "load" do
-      assert Types.Resource.load(to_string(AuditLog)) == {:ok, AuditLog}
+      assert Types.Resource.load(to_string(User)) == {:ok, User}
     end
   end
 end
