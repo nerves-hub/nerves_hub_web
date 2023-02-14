@@ -287,7 +287,12 @@ defmodule NervesHubWebCore.DeploymentsTest do
       # the same update but failing
       Enum.each(1..5, fn i ->
         device = Fixtures.device_fixture(context.org, context.product, context.firmware)
-        al = AuditLog.build(context.deployment, device, :update, %{send_update_message: true})
+
+        al =
+          AuditLog.build(context.deployment, device, :update, "update triggered", %{
+            send_update_message: true
+          })
+
         time = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
         Repo.insert(al)
         Repo.insert(%{al | inserted_at: Timex.shift(time, seconds: i)})

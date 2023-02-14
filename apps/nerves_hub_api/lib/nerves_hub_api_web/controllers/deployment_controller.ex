@@ -1,8 +1,10 @@
 defmodule NervesHubAPIWeb.DeploymentController do
   use NervesHubAPIWeb, :controller
 
-  alias NervesHubWebCore.{Deployments, Firmwares}
+  alias NervesHubWebCore.AuditLogs
+  alias NervesHubWebCore.Deployments
   alias NervesHubWebCore.Deployments.Deployment
+  alias NervesHubWebCore.Firmwares
 
   action_fallback(NervesHubAPIWeb.FallbackController)
 
@@ -28,7 +30,13 @@ defmodule NervesHubAPIWeb.DeploymentController do
              params <- Map.put(params, "org_id", org.id),
              params <- whitelist(params, @whitelist_fields),
              {:ok, deployment} <- Deployments.create_deployment(params) do
-          audit!(user, deployment, :create, params)
+          AuditLogs.audit!(
+            user,
+            deployment,
+            :create,
+            "user #{user.username} created deployment #{deployment.name}",
+            params
+          )
 
           conn
           |> put_status(:created)
@@ -56,7 +64,14 @@ defmodule NervesHubAPIWeb.DeploymentController do
          deployment_params <- whitelist(deployment_params, @whitelist_fields),
          {:ok, %Deployment{} = updated_deployment} <-
            Deployments.update_deployment(deployment, deployment_params) do
-      audit!(user, deployment, :update, deployment_params)
+      AuditLogs.audit!(
+        user,
+        deployment,
+        :update,
+        "user #{user.username} updated deployment #{deployment.name}",
+        deployment_params
+      )
+
       render(conn, "show.json", deployment: updated_deployment)
     end
   end

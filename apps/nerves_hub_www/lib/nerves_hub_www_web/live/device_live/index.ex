@@ -2,7 +2,12 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
   use NervesHubWWWWeb, :live_view
 
   alias NervesHubDevice.Presence
-  alias NervesHubWebCore.{Accounts, Devices, Firmwares, Products, Products.Product}
+  alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.AuditLogs
+  alias NervesHubWebCore.Devices
+  alias NervesHubWebCore.Firmwares
+  alias NervesHubWebCore.Products
+  alias NervesHubWebCore.Products.Product
   alias NervesHubWWWWeb.DeviceView
 
   alias Phoenix.Socket.Broadcast
@@ -332,7 +337,15 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     socket =
       case Devices.update_device(device, params) do
         {:ok, updated_device} ->
-          AuditLogs.audit!(user, device, :update, params)
+          health_str = if !device.healthy, do: "healthy", else: "unhealthy"
+
+          AuditLogs.audit!(
+            user,
+            device,
+            :update,
+            "user #{user.username} marked device #{device.identifier} #{health_str}",
+            params
+          )
 
           devices =
             Enum.map(devices, fn
@@ -392,8 +405,14 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     end)
   end
 
-  defp do_reboot(socket, :allowed, device, device_index) do
-    AuditLogs.audit!(socket.assigns.user, device, :update, %{reboot: true})
+  defp do_reboot(%{assigns: %{user: user}} = socket, :allowed, device, device_index) do
+    AuditLogs.audit!(
+      user,
+      device,
+      :update,
+      "user #{user.username} rebooted device #{device.identifier}",
+      %{reboot: true}
+    )
 
     socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
@@ -408,13 +427,19 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
-  defp do_reboot(socket, :blocked, device, device_index) do
+  defp do_reboot(%{assigns: %{user: user}} = socket, :blocked, device, device_index) do
     msg = "User not authorized to reboot this device"
 
-    AuditLogs.audit!(socket.assigns.user, device, :update, %{
-      reboot: false,
-      message: msg
-    })
+    AuditLogs.audit!(
+      user,
+      device,
+      :update,
+      "user #{user.username} attempted to reboot device #{device.identifier}",
+      %{
+        reboot: false,
+        message: msg
+      }
+    )
 
     devices =
       List.replace_at(socket.assigns.devices, device_index, %{device | status: "reboot-blocked"})

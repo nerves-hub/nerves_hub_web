@@ -1,14 +1,11 @@
 defmodule NervesHubWWWWeb.DeviceLive.Edit do
   use NervesHubWWWWeb, :live_view
 
-  import NervesHubWebCore.AuditLogs, only: [audit!: 4]
-
-  alias NervesHubWebCore.{
-    Accounts,
-    Devices,
-    Devices.Device,
-    Products
-  }
+  alias NervesHubWebCore.AuditLogs
+  alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.Devices
+  alias NervesHubWebCore.Devices.Device
+  alias NervesHubWebCore.Products
 
   def render(assigns) do
     NervesHubWWWWeb.DeviceView.render("edit.html", assigns)
@@ -76,7 +73,13 @@ defmodule NervesHubWWWWeb.DeviceLive.Edit do
     |> Devices.update_device(device_params)
     |> case do
       {:ok, _updated_device} ->
-        audit!(user, device, :update, device_params)
+        AuditLogs.audit!(
+          user,
+          device,
+          :update,
+          "user #{user.username} updated device #{device.identifier}",
+          device_params
+        )
 
         {:noreply,
          socket

@@ -3,7 +3,12 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
 
   alias NervesHubDevice.Presence
 
-  alias NervesHubWebCore.{Accounts, AuditLogs, Devices, Devices.Device, Repo, Products}
+  alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.AuditLogs
+  alias NervesHubWebCore.Devices
+  alias NervesHubWebCore.Devices.Device
+  alias NervesHubWebCore.Repo
+  alias NervesHubWebCore.Products
 
   alias Phoenix.Socket.Broadcast
 
@@ -84,7 +89,14 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     socket =
       case Devices.update_device(device, params) do
         {:ok, updated_device} ->
-          AuditLogs.audit!(user, device, :update, params)
+          AuditLogs.audit!(
+            user,
+            device,
+            :update,
+            "user #{user.username} updated device #{device.identifier}",
+            params
+          )
+
           meta = Map.take(device, Presence.__fields__())
           assign(socket, :device, Map.merge(updated_device, meta))
 
@@ -153,8 +165,14 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     |> assign(:resource_id, device.id)
   end
 
-  defp do_reboot(socket, :allowed) do
-    AuditLogs.audit!(socket.assigns.user, socket.assigns.device, :update, %{reboot: true})
+  defp do_reboot(%{assigns: %{device: device, user: user}} = socket, :allowed) do
+    AuditLogs.audit!(
+      user,
+      device,
+      :update,
+      "user #{user.username} rebooted device #{device.identifier}",
+      %{reboot: true}
+    )
 
     socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "reboot", %{})
 
@@ -166,13 +184,19 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
     {:noreply, socket}
   end
 
-  defp do_reboot(socket, :blocked) do
+  defp do_reboot(%{assigns: %{device: device, user: user}} = socket, :blocked) do
     msg = "User not authorized to reboot this device"
 
-    AuditLogs.audit!(socket.assigns.user, socket.assigns.device, :update, %{
-      reboot: false,
-      message: msg
-    })
+    AuditLogs.audit!(
+      user,
+      device,
+      :update,
+      "user #{user.username} attempted to reboot device #{device.identifier}",
+      %{
+        reboot: false,
+        message: msg
+      }
+    )
 
     socket =
       socket

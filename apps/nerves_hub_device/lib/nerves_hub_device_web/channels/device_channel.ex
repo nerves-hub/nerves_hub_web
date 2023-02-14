@@ -42,7 +42,12 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
         |> build_join_reply()
 
       if should_audit_log?(join_reply, params) do
-        AuditLogs.audit!(hd(deployments), device, :update, %{
+        deployment = hd(deployments)
+
+        description =
+          "device #{device.identifier} received update for firmware #{deployment.firmware.uuid} via deployment #{deployment.name} after channel join"
+
+        AuditLogs.audit!(deployment, device, :update, description, %{
           from: "channel_join",
           send_update_message: true
         })
@@ -98,10 +103,15 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     {deployment, payload} =
       Map.pop_lazy(payload, :deployment, fn -> Repo.get(Deployment, payload.deployment_id) end)
 
+    device = socket.assigns.device
+
+    description =
+      "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{deployment.firmware.uuid}"
+
     # If we get here, the device is connected and high probability it receives
     # the update message so we can Audit and later assert on this audit event
     # as a loosely valid attempt to update
-    AuditLogs.audit!(deployment, socket.assigns.device, :update, %{
+    AuditLogs.audit!(deployment, device, :update, description, %{
       from: "broadcast",
       send_update_message: true
     })
@@ -138,7 +148,9 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
     if device = Devices.get_device(device.id) do
       {:ok, device} = Devices.update_device(device, %{last_communication: DateTime.utc_now()})
 
-      AuditLogs.audit!(device, device, :update, %{
+      description = "device #{device.identifier} disconnected from the server"
+
+      AuditLogs.audit!(device, device, :update, description, %{
         last_communication: device.last_communication,
         status: device.status
       })

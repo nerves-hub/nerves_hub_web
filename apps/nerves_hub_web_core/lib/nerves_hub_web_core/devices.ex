@@ -471,8 +471,9 @@ defmodule NervesHubWebCore.Devices do
 
   def device_connected(device) do
     last_communication = DateTime.utc_now()
+    description = "device #{device.identifier} connected to the server"
 
-    AuditLogs.audit!(device, device, :update, %{
+    AuditLogs.audit!(device, device, :update, description, %{
       last_communication: last_communication
     })
 
@@ -644,7 +645,10 @@ defmodule NervesHubWebCore.Devices do
   def verify_update_eligibility(device, deployment) do
     cond do
       failure_rate_met?(device, deployment) ->
-        AuditLogs.audit!(deployment, device, :update, %{
+        description =
+          "device #{device.identifier} marked unhealthy. Device failure rate met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}"
+
+        AuditLogs.audit!(deployment, device, :update, description, %{
           healthy: false,
           reason: "device failure rate met"
         })
@@ -652,7 +656,10 @@ defmodule NervesHubWebCore.Devices do
         update_device(device, %{healthy: false})
 
       failure_threshold_met?(device, deployment) ->
-        AuditLogs.audit!(deployment, device, :update, %{
+        description =
+          "device #{device.identifier} marked unhealthy. Device failure thredhold met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}"
+
+        AuditLogs.audit!(deployment, device, :update, description, %{
           healthy: false,
           reason: "device failure threshold met"
         })
@@ -688,23 +695,21 @@ defmodule NervesHubWebCore.Devices do
 
     _ = maybe_copy_firmware_keys(device, product.org)
 
-    audit_params = %{
-      log_description:
-        "user #{user.username} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
-    }
+    description =
+      "user #{user.username} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
 
     source_product = %Product{id: device.product_id, org_id: device.org_id}
 
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, :update, audit_params)
+      AuditLogs.audit(user, device, :update, description, %{})
     end)
     |> Multi.run(:audit_target, fn _, _ ->
-      AuditLogs.audit(user, product, :update, audit_params)
+      AuditLogs.audit(user, product, :update, description, %{})
     end)
     |> Multi.run(:audit_source, fn _, _ ->
-      AuditLogs.audit(user, source_product, :update, audit_params)
+      AuditLogs.audit(user, source_product, :update, description, %{})
     end)
     |> Repo.transaction()
     |> case do
@@ -719,26 +724,24 @@ defmodule NervesHubWebCore.Devices do
 
   @spec quarantine(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
   def quarantine(%Device{} = device, user) do
-    audit_params = %{
-      log_description: "user #{user.username} quarantined device #{device.identifier}"
-    }
-
+    description = "user #{user.username} quarantined device #{device.identifier}"
     params = %{healthy: false}
-    update_device_with_audit(device, params, user, audit_params)
+    update_device_with_audit(device, params, user, description)
   end
 
   @spec tag_device(Device.t() | [Device.t()], User.t(), List.t()) :: Repo.transaction()
   def tag_device(%Device{} = device, user, tags) do
+    description = "user #{user.username} updated device #{device.identifier} tags"
     params = %{tags: tags}
-    update_device_with_audit(device, params, user)
+    update_device_with_audit(device, params, user, description)
   end
 
   @spec update_device_with_audit(Device.t(), Map.t(), User.t(), Map.t()) :: Repo.transaction()
-  def update_device_with_audit(device, params, user, audit_params \\ %{}) do
+  def update_device_with_audit(device, params, user, description) do
     Multi.new()
     |> Multi.run(:update_with_audit, fn _, _ -> update_device(device, params) end)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, :update, audit_params)
+      AuditLogs.audit(user, device, :update, description, %{})
     end)
     |> Repo.transaction()
     |> case do
@@ -752,13 +755,9 @@ defmodule NervesHubWebCore.Devices do
 
   @spec unquarantine(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
   def unquarantine(%Device{} = device, user) do
-    audit_params = %{
-      log_description: "user #{user.username} unquarantined device #{device.identifier}"
-    }
-
+    description = "user #{user.username} unquarantined device #{device.identifier}"
     params = %{healthy: true}
-
-    update_device_with_audit(device, params, user, audit_params)
+    update_device_with_audit(device, params, user, description)
   end
 
   @spec move_many([Device.t()], Product.t(), User.t()) :: %{

@@ -178,7 +178,10 @@ defmodule NervesHubWebCore.Deployments do
   def verify_eligibility(%Deployment{} = deployment) do
     cond do
       failure_rate_met?(deployment) ->
-        AuditLogs.audit!(deployment, deployment, :update, %{
+        description =
+          "deployment #{deployment.name} marked unhealthy. Device failure rate met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}"
+
+        AuditLogs.audit!(deployment, deployment, :update, description, %{
           healthy: false,
           reason: "failure rate met"
         })
@@ -186,7 +189,10 @@ defmodule NervesHubWebCore.Deployments do
         update_deployment(deployment, %{healthy: false})
 
       failure_threshold_met?(deployment) ->
-        AuditLogs.audit!(deployment, deployment, :update, %{
+        description =
+          "deployment #{deployment.name} marked unhealthy. Device failure thredhold met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}"
+
+        AuditLogs.audit!(deployment, deployment, :update, description, %{
           healthy: false,
           reason: "failure threshold met"
         })

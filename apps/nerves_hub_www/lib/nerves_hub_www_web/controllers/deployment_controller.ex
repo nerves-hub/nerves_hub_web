@@ -93,7 +93,13 @@ defmodule NervesHubWWWWeb.DeploymentController do
         |> redirect(to: Routes.deployment_path(conn, :new, org.name, product.name))
 
       {_, {:ok, deployment}} ->
-        audit!(user, deployment, :create, params)
+        AuditLogs.audit!(
+          user,
+          deployment,
+          :create,
+          "user #{user.username} created deployment #{deployment.name}",
+          params
+        )
 
         conn
         |> put_flash(:info, "Deployment created")
@@ -169,7 +175,13 @@ defmodule NervesHubWWWWeb.DeploymentController do
       {:ok, updated} ->
         # Use original deployment so changes will get
         # marked in audit log
-        audit!(user, deployment, :update, params)
+        AuditLogs.audit!(
+          user,
+          deployment,
+          :update,
+          "user #{user.username} updated deployment #{deployment.name}",
+          params
+        )
 
         conn
         |> put_flash(:info, "Deployment updated")

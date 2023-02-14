@@ -20,7 +20,7 @@ defmodule NervesHubAPIWeb do
   def controller do
     quote do
       use Phoenix.Controller, namespace: NervesHubAPIWeb
-      import NervesHubWebCore.AuditLogs, only: [audit: 4, audit!: 4]
+
       import Plug.Conn
       import NervesHubAPIWeb.Gettext
       import NervesHubWebCore.RoleValidateHelpers

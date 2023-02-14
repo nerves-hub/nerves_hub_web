@@ -48,7 +48,12 @@ defmodule NervesHubWWWWeb.DeploymentLive.Show do
       ) do
     case Deployments.delete_deployment(deployment) do
       {:ok, _} ->
-        AuditLogs.audit!(user, deployment, :delete, %{id: deployment.id, name: deployment.name})
+        description = "user #{user.username} deleted deployment #{deployment.name}"
+
+        AuditLogs.audit!(user, deployment, :delete, description, %{
+          id: deployment.id,
+          name: deployment.name
+        })
 
         socket =
           socket
@@ -73,7 +78,9 @@ defmodule NervesHubWWWWeb.DeploymentLive.Show do
         %{assigns: %{deployment: deployment, user: user}} = socket
       ) do
     {:ok, updated_deployment} = Deployments.update_deployment(deployment, %{is_active: value})
-    AuditLogs.audit!(user, deployment, :update, %{is_active: value})
+    active_str = if value, do: "active", else: "inactive"
+    description = "user #{user.username} marked deployment #{deployment.name} #{active_str}"
+    AuditLogs.audit!(user, deployment, :update, description, %{is_active: value})
     {:noreply, assign(socket, :deployment, updated_deployment)}
   end
 
@@ -87,7 +94,14 @@ defmodule NervesHubWWWWeb.DeploymentLive.Show do
     socket =
       case Deployments.update_deployment(deployment, params) do
         {:ok, updated_deployment} ->
-          AuditLogs.audit!(user, deployment, :update, params)
+          AuditLogs.audit!(
+            user,
+            deployment,
+            :update,
+            "user #{user.username} updated deployment #{deployment.name}",
+            params
+          )
+
           assign(socket, :deployment, updated_deployment)
 
         {:error, _changeset} ->
