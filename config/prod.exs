@@ -8,6 +8,8 @@ config :rollbax,
   enabled: true,
   enable_crash_reports: true
 
+config :phoenix, logger: false
+
 ##
 # NervesHub API
 #

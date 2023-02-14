@@ -10,6 +10,8 @@ defmodule NervesHubDeviceWeb.Endpoint do
     ]
   )
 
+  plug(NervesHubDeviceWeb.Plugs.Logger)
+
   @doc """
   Callback invoked for dynamically configuring the endpoint.
 

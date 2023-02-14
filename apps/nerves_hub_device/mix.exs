@@ -60,7 +60,8 @@ defmodule NervesHubDevice.Mixfile do
       {:cowboy, "~> 2.0", override: true},
       {:jason, "~> 1.2", override: true},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
-      {:nerves_hub_web_core, in_umbrella: true}
+      {:nerves_hub_web_core, in_umbrella: true},
+      {:logfmt, "~> 3.3"}
     ]
   end
 end

@@ -49,7 +49,8 @@ defmodule NervesHubAPI.Mixfile do
       {:cowboy, "~> 2.1", override: true},
       {:jason, "~> 1.2", override: true},
       {:nerves_hub_device, in_umbrella: true},
-      {:nerves_hub_web_core, in_umbrella: true}
+      {:nerves_hub_web_core, in_umbrella: true},
+      {:logfmt, "~> 3.3"}
     ]
   end
 end

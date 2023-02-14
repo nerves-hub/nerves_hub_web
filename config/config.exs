@@ -12,7 +12,7 @@ config :ex_aws_s3, json_codec: Jason
 
 # Configures Elixir's Logger
 config :logger, :console,
-  format: "$time $metadata[$level] $message\n",
+  format: "$time $metadata level=$level $message\n",
   metadata: [:user_id, :request_id, :trace_id, :span_id]
 
 config :phoenix,

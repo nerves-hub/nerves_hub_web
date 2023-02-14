@@ -14,7 +14,7 @@ defmodule NervesHubAPIWeb.Endpoint do
     only: ~w(css fonts images js favicon.ico robots.txt)
   )
 
-  plug(Plug.Logger)
+  plug(NervesHubAPIWeb.Plugs.Logger)
 
   plug(
     Plug.Parsers,

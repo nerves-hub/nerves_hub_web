@@ -51,7 +51,7 @@ defmodule NervesHubWWWWeb.Endpoint do
   end
 
   plug(Plug.RequestId)
-  plug(Plug.Logger)
+  plug(NervesHubWWWWeb.Plugs.Logger)
 
   plug(
     Plug.Parsers,
