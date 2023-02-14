@@ -217,6 +217,16 @@ defmodule NervesHubWebCore.AuditLogs.AuditLog do
   end
 
   def create_description(
+        %{params: %{last_communication: _, status: "offline"}} = audit_log,
+        %Device{} = actor,
+        %Device{}
+      ) do
+    desc = "#{identifier_for(actor)} disconnected from the server"
+
+    %{audit_log | description: desc}
+  end
+
+  def create_description(
         %{params: %{last_communication: _}} = audit_log,
         %Device{} = actor,
         %Device{}

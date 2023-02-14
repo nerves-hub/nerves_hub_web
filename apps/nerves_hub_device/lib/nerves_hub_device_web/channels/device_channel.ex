@@ -17,7 +17,6 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
   }
 
   alias NervesHubDevice.Presence
-
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -140,8 +139,6 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
       {:ok, device} = Devices.update_device(device, %{last_communication: DateTime.utc_now()})
 
       AuditLogs.audit!(device, device, :update, %{
-        description:
-          "device #{device.identifier} disconnected from the server at #{device.last_communication}",
         last_communication: device.last_communication,
         status: device.status
       })

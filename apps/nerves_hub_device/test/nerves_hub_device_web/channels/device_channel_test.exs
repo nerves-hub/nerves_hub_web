@@ -42,8 +42,7 @@ defmodule NervesHubDeviceWeb.DeviceChannelTest do
 
     disconnect_log =
       Enum.find(AuditLogs.logs_for(device), fn audit_log ->
-        description = audit_log.changes["description"]
-        description && description =~ "#{device.identifier} disconnected from the server at"
+        audit_log.description == "device #{device.identifier} disconnected from the server"
       end)
 
     assert disconnect_log
