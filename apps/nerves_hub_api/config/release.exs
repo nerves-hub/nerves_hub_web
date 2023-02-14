@@ -21,12 +21,6 @@ config :kernel,
   inet_dist_listen_min: 9100,
   inet_dist_listen_max: 9155
 
-if rollbar_access_token = System.get_env("ROLLBAR_ACCESS_TOKEN") do
-  config :rollbax, access_token: rollbar_access_token
-else
-  config :rollbax, enabled: false
-end
-
 config :nerves_hub_web_core,
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
 

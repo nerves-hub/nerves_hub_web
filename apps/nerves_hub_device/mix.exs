@@ -49,7 +49,6 @@ defmodule NervesHubDevice.Mixfile do
       {:gettext, "~> 0.11"},
       {:gen_leader, github: "garret-smith/gen_leader_revival"},
       {:gproc, "~> 0.9.0"},
-      {:rollbax, "~> 0.11.0"},
       {:plug_cowboy, "~> 2.1"},
       {:cowboy, "~> 2.0", override: true},
       {:jason, "~> 1.2", override: true},

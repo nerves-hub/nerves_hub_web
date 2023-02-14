@@ -60,7 +60,6 @@ defmodule NervesHubWWW.MixProject do
       {:cowboy, "~> 2.0", override: true},
       {:gettext, "~> 0.11"},
       {:hackney, "~> 1.16"},
-      {:rollbax, "~> 0.11.0"},
       {:floki, ">= 0.27.0", only: :test},
       {:jason, "~> 1.2", override: true},
       {:nerves_hub_web_core, in_umbrella: true},

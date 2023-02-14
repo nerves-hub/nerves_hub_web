@@ -3,11 +3,6 @@ import Config
 # Do not print debug messages in production
 config :logger, level: :info
 
-config :rollbax,
-  environment: to_string(Mix.env()),
-  enabled: true,
-  enable_crash_reports: true
-
 config :phoenix, logger: false
 
 ##

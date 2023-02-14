@@ -22,8 +22,6 @@ config :phoenix,
     leex: Phoenix.LiveView.Engine
   ]
 
-config :rollbax, enabled: false
-
 ##
 # NervesHub API
 #
