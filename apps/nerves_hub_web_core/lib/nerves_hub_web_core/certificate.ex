@@ -98,6 +98,18 @@ defmodule NervesHubWebCore.Certificate do
     |> hash_der()
   end
 
+  @doc """
+  Attempt to parse a certificate from PEM or DER form
+  """
+  @spec from_pem_or_der(String.t() | binary()) ::
+          {:ok, X509.Certificate.t()} | {:error, :malformed}
+  def from_pem_or_der(pem_or_der) do
+    case from_pem(pem_or_der) do
+      {:ok, _} = r -> r
+      _err -> from_der(pem_or_der)
+    end
+  end
+
   defp convert_timestamp({:utcTime, timestamp}) do
     <<year::binary-unit(8)-size(2), month::binary-unit(8)-size(2), day::binary-unit(8)-size(2),
       hour::binary-unit(8)-size(2), minute::binary-unit(8)-size(2),

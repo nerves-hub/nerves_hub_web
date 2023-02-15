@@ -43,6 +43,14 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
       socket
       |> assign(:device, sync_device(socket.assigns.device))
       |> assign(:page_title, socket.assigns.device.identifier)
+      |> assign(:toggle_upload, false)
+      |> assign(:results, [])
+      |> allow_upload(:certificate,
+        accept: :any,
+        auto_upload: true,
+        max_entries: 1,
+        progress: &handle_progress/3
+      )
       |> audit_log_assigns(1)
 
     {:ok, socket}
@@ -57,6 +65,43 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
   # for mount/3
   def mount(_, _, socket) do
     socket_error(socket, live_view_error(:update))
+  end
+
+  def handle_progress(:certificate, %{done?: true} = entry, socket) do
+    socket =
+      socket
+      |> clear_flash(:info)
+      |> clear_flash(:error)
+      |> consume_uploaded_entry(entry, &import_cert(socket, &1.path))
+
+    {:noreply, socket}
+  end
+
+  def handle_progress(:certificate, _entry, socket), do: {:noreply, socket}
+
+  defp import_cert(%{assigns: %{device: device}} = socket, path) do
+    with {:ok, pem_or_der} <- File.read(path),
+         {:ok, otp_cert} <- Certificate.from_pem_or_der(pem_or_der),
+         {:ok, db_cert} <- Devices.create_device_certificate(device, otp_cert) do
+      updated = update_in(device.device_certificates, &[db_cert | &1])
+
+      assign(socket, :device, updated)
+      |> put_flash(:info, "Certificate Upload Successful")
+    else
+      {:error, :malformed} ->
+        put_flash(socket, :error, "Incorrect filetype or malformed certificate")
+
+      {:error, %Ecto.Changeset{errors: errors}} ->
+        formatted =
+          Enum.map_join(errors, "\n", fn {field, {msg, _}} ->
+            ["* ", to_string(field), " ", msg]
+          end)
+
+        put_flash(socket, :error, IO.iodata_to_binary(["Failed to save:\n", formatted]))
+
+      err ->
+        put_flash(socket, :error, "Unknown file error - #{inspect(err)}")
+    end
   end
 
   def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
@@ -156,6 +201,16 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
         {:noreply, put_flash(socket, :error, "Failed to delete device")}
     end
   end
+
+  def handle_event("toggle-upload", %{"toggle" => toggle}, socket) do
+    {:noreply, assign(socket, :toggle_upload, toggle != "true")}
+  end
+
+  def handle_event("clear-flash-" <> key_str, _, socket) do
+    {:noreply, clear_flash(socket, String.to_existing_atom(key_str))}
+  end
+
+  def handle_event("validate-cert", _, socket), do: {:noreply, socket}
 
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
     logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 5})

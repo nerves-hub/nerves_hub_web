@@ -260,9 +260,24 @@ defmodule NervesHubWebCore.Devices do
     |> Repo.transaction()
   end
 
-  @spec create_device_certificate(Device.t(), map) ::
+  @spec create_device_certificate(Device.t(), map() | X509.Certificate.t()) ::
           {:ok, DeviceCertificate.t()}
           | {:error, Changeset.t()}
+  def create_device_certificate(%Device{} = device, otp_cert) when is_tuple(otp_cert) do
+    {nb, na} = Certificate.get_validity(otp_cert)
+
+    params = %{
+      aki: Certificate.get_aki(otp_cert),
+      der: Certificate.to_der(otp_cert),
+      not_after: na,
+      not_before: nb,
+      serial: Certificate.get_serial_number(otp_cert),
+      ski: Certificate.get_ski(otp_cert)
+    }
+
+    create_device_certificate(device, params)
+  end
+
   def create_device_certificate(%Device{} = device, params) do
     params = Map.put(params, :org_id, device.org_id)
 

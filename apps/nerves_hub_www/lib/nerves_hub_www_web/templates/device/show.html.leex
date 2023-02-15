@@ -116,7 +116,45 @@
   </div>
 </div>
 
-<h3 class="mb-2">Certificates</h3>
+<%= if err = live_flash(@flash, :error) do %>
+  <div class="alert alert-danger alert-dismissible">
+    <button type="button" class="close" phx-click="clear-flash-error">&times;</button>
+    <%= for line <- String.split(err, "\n") do %>
+      <p><%= line %></p>
+    <% end %>
+  </div>
+<% end %>
+
+<%= if info = live_flash(@flash, :info) do %>
+  <div class="alert alert-info alert-dismissible">
+    <button type="button" class="close" phx-click="clear-flash-info">&times;</button>
+    <%= info %>
+  </div>
+<% end %>
+
+<div class="upload-cert-group">
+  <h3 class="mb-2">Certificates</h3>
+  <%= if @toggle_upload do %>
+    <button class="btn btn-primary" type="button" phx-click="toggle-upload" phx-value-toggle="<%= @toggle_upload %>">
+      <span class="action-text">Cancel Upload</span>
+    </button>
+  <% else %>
+    <button class="btn btn-outline-light btn-action" type="button" phx-click="toggle-upload" phx-value-toggle="<%= @toggle_upload %>">
+      <div class="button-icon add"></div>
+    </button>
+  <% end %>
+</div>
+
+<div class="<%= unless @toggle_upload, do: "hidden" %>">
+  <form phx-change="validate-cert" phx-drop-target="<%= @uploads.certificate.ref %>">
+    <div class="form-group import-pem">
+      <label>Drag or Click to upload</label>
+      <%= live_file_input @uploads.certificate, class: "upload-select"%>
+    </div>
+  </form>
+  </br>
+</div>
+
 <%= if Enum.any?(@device.device_certificates, & &1.org_id != @device.org_id) do %>
   <div class="alert alert-warning">
     <div class="content-container">

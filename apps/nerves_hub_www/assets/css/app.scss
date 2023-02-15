@@ -173,3 +173,12 @@ html body {
 .quarantine-button {
   color: red;
 }
+
+.upload-cert-group {
+  display: flex;
+  .btn {
+    margin-left: 1%;
+    height: fit-content;
+    min-width: min-content;
+  }
+}
