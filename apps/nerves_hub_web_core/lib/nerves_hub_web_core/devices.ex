@@ -11,7 +11,6 @@ defmodule NervesHubWebCore.Devices do
     Firmwares.Firmware,
     Firmwares.FirmwareMetadata,
     AuditLogs,
-    AuditLogs.AuditLog,
     Accounts,
     Accounts.Org,
     Repo,
@@ -542,16 +541,16 @@ defmodule NervesHubWebCore.Devices do
           UpdatePayload.t()
   def resolve_update(_device, _deployments = []), do: %UpdatePayload{update_available: false}
 
+  def resolve_update(device, [%Deployment{} = deployment | _]) do
+    resolve_update(device, deployment)
+  end
+
   def resolve_update(_device, %Deployment{healthy: false}) do
     %UpdatePayload{update_available: false}
   end
 
   def resolve_update(%Device{firmware_metadata: nil}, _deployment) do
     %UpdatePayload{update_available: false}
-  end
-
-  def resolve_update(device, [%Deployment{} = deployment | _]) do
-    resolve_update(device, deployment)
   end
 
   def resolve_update(
@@ -635,10 +634,7 @@ defmodule NervesHubWebCore.Devices do
 
   @spec failure_threshold_met?(Device.t(), Deployment.t()) :: boolean()
   def failure_threshold_met?(%Device{} = device, %Deployment{} = deployment) do
-    failures_query(device, deployment)
-    |> Repo.all()
-    |> length()
-    |> Kernel.>=(deployment.device_failure_threshold)
+    Enum.count(device.update_attempts) >= deployment.device_failure_threshold
   end
 
   @spec failure_rate_met?(Device.t(), Deployment.t()) :: boolean()
@@ -646,11 +642,12 @@ defmodule NervesHubWebCore.Devices do
     seconds_ago =
       Timex.shift(DateTime.utc_now(), seconds: -deployment.device_failure_rate_seconds)
 
-    failures_query(device, deployment)
-    |> where([al], al.inserted_at >= ^seconds_ago)
-    |> Repo.all()
-    |> length()
-    |> Kernel.>=(deployment.device_failure_rate_amount)
+    attempts =
+      Enum.filter(device.update_attempts, fn attempt ->
+        DateTime.compare(seconds_ago, attempt) == :lt
+      end)
+
+    Enum.count(attempts) >= deployment.device_failure_rate_amount
   end
 
   def verify_update_eligibility(%{healthy: false} = device, _deployment) do
@@ -684,6 +681,37 @@ defmodule NervesHubWebCore.Devices do
       true ->
         {:ok, device}
     end
+  end
+
+  def update_attempted(device, now \\ DateTime.utc_now()) do
+    now = DateTime.truncate(now, :second)
+
+    changeset =
+      device
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:update_attempts, [now | device.update_attempts])
+
+    Multi.new()
+    |> Multi.update(:device, changeset)
+    |> Multi.run(:audit_device, fn _, _ ->
+      description = "device #{device.identifier} is attempting to update"
+      AuditLogs.audit(device, device, :update, description, %{})
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{device: device}} ->
+        {:ok, device}
+
+      err ->
+        err
+    end
+  end
+
+  def firmware_update_successful(device) do
+    device
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.put_change(:update_attempts, [])
+    |> Repo.update()
   end
 
   def restore_device(%Device{} = device) do
@@ -771,7 +799,7 @@ defmodule NervesHubWebCore.Devices do
   @spec unquarantine(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
   def unquarantine(%Device{} = device, user) do
     description = "user #{user.username} unquarantined device #{device.identifier}"
-    params = %{healthy: true}
+    params = %{healthy: true, update_attempts: []}
     update_device_with_audit(device, params, user, description)
   end
 
@@ -841,49 +869,6 @@ defmodule NervesHubWebCore.Devices do
       "device:#{id}",
       %Phoenix.Socket.Broadcast{event: event, payload: payload}
     )
-  end
-
-  defp failures_query(%Device{id: device_id}, %Deployment{id: deployment_id} = deployment) do
-    deployment = Repo.preload(deployment, :firmware)
-
-    latest_healthy =
-      from(
-        al in AuditLog,
-        where: [resource_type: ^to_string(Device), resource_id: ^device_id],
-        where: fragment("(params->>'healthy' = 'true')"),
-        order_by: [desc: :inserted_at],
-        limit: 1,
-        select: al.inserted_at
-      )
-      |> Repo.one()
-
-    query =
-      from(
-        al in AuditLog,
-        where: [
-          actor_id: ^deployment_id,
-          actor_type: ^to_string(Deployment),
-          resource_type: ^to_string(Device),
-          resource_id: ^device_id
-        ],
-        where:
-          fragment(
-            """
-            (params->>'firmware_uuid' = ?) AND
-            (params->>'send_update_message' = 'true')
-            """,
-            ^deployment.firmware.uuid
-          ),
-        # Handle edge case we may make 2 audit log events at the same time
-        distinct: true,
-        select: al.inserted_at
-      )
-
-    if latest_healthy do
-      where(query, [al], al.inserted_at >= ^latest_healthy)
-    else
-      query
-    end
   end
 
   defp version_match?(_vsn, ""), do: true

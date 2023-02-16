@@ -35,6 +35,7 @@ defmodule NervesHubWebCore.Devices.Device do
     field(:healthy, :boolean, default: true)
     field(:tags, NervesHubWebCore.Types.Tag)
     field(:deleted_at, :utc_datetime)
+    field(:update_attempts, {:array, :utc_datetime}, default: [])
 
     field(:status, :string, default: "offline", virtual: true)
 

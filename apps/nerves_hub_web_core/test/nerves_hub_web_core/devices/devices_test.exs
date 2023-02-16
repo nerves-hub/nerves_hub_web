@@ -1,19 +1,17 @@
 defmodule NervesHubWebCore.DevicesTest do
   use NervesHubWebCore.DataCase, async: false
 
-  alias NervesHubWebCore.{
-    Accounts,
-    AuditLogs,
-    AuditLogs.AuditLog,
-    Fixtures,
-    Devices,
-    Devices.CACertificate,
-    Deployments,
-    Firmwares,
-    Repo
-  }
-
-  alias NervesHubWebCore.Devices.{DeviceCertificate, UpdatePayload}
+  alias NervesHubWebCore.Accounts
+  alias NervesHubWebCore.AuditLogs
+  alias NervesHubWebCore.AuditLogs.AuditLog
+  alias NervesHubWebCore.Deployments
+  alias NervesHubWebCore.Devices
+  alias NervesHubWebCore.Devices.CACertificate
+  alias NervesHubWebCore.Devices.DeviceCertificate
+  alias NervesHubWebCore.Devices.UpdatePayload
+  alias NervesHubWebCore.Firmwares
+  alias NervesHubWebCore.Fixtures
+  alias NervesHubWebCore.Repo
   alias Ecto.Changeset
 
   @valid_fwup_version "1.6.0"
@@ -684,80 +682,6 @@ defmodule NervesHubWebCore.DevicesTest do
     end
   end
 
-  test "failure_rate_met?", %{deployment: deployment, device: device} do
-    # Build a bunch of failures at quick rate
-    Enum.each(1..5, fn i ->
-      al =
-        AuditLog.build(deployment, device, :update, "update triggered", %{
-          send_update_message: true
-        })
-
-      time = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second) |> Timex.shift(seconds: i)
-      Repo.insert(%{al | inserted_at: time})
-    end)
-
-    assert Devices.failure_rate_met?(device, deployment)
-  end
-
-  test "failure_rate_met? after marked healthy", %{deployment: deployment, device: device} do
-    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
-
-    Enum.each(-1..-5, fn i ->
-      al =
-        AuditLog.build(deployment, device, :update, "update triggered", %{
-          send_update_message: true
-        })
-
-      time = now |> Timex.shift(seconds: i)
-      Repo.insert(%{al | inserted_at: time})
-    end)
-
-    assert Devices.failure_rate_met?(device, deployment)
-
-    al = AuditLog.build(deployment, device, :update, "update triggered", %{healthy: true})
-    time = now |> Timex.shift(seconds: -3)
-    Repo.insert(%{al | inserted_at: time})
-
-    refute Devices.failure_rate_met?(device, deployment)
-  end
-
-  test "failure_threshold_met?", %{deployment: deployment, device: device} do
-    # Build a bunch of failures for the device
-    Enum.each(1..15, fn i ->
-      al =
-        AuditLog.build(deployment, device, :update, "update triggered", %{
-          send_update_message: true
-        })
-
-      time = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second) |> Timex.shift(minutes: i)
-      Repo.insert(%{al | inserted_at: time})
-    end)
-
-    assert Devices.failure_threshold_met?(device, deployment)
-  end
-
-  test "failure_threshold_met? after marked healthy", %{deployment: deployment, device: device} do
-    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
-
-    Enum.each(-1..-15, fn i ->
-      al =
-        AuditLog.build(deployment, device, :update, "update triggered", %{
-          send_update_message: true
-        })
-
-      time = now |> Timex.shift(minutes: i)
-      Repo.insert(%{al | inserted_at: time})
-    end)
-
-    assert Devices.failure_threshold_met?(device, deployment)
-
-    al = AuditLog.build(deployment, device, :update, "update triggered", %{healthy: true})
-    time = now |> Timex.shift(minutes: -2)
-    Repo.insert(%{al | inserted_at: time})
-
-    refute Devices.failure_threshold_met?(device, deployment)
-  end
-
   test "device_connected adds audit log", %{device: device} do
     assert AuditLogs.logs_for(device) == []
     Devices.device_connected(device)
@@ -802,5 +726,104 @@ defmodule NervesHubWebCore.DevicesTest do
     refute Devices.matches_deployment?(%{device | tags: nil}, deployment)
     assert Devices.matches_deployment?(%{device | tags: nil}, nil_tags_deployment)
     assert Devices.matches_deployment?(device, nil_tags_deployment)
+  end
+
+  describe "tracking update attempts and verifying eligibility" do
+    test "records the timestamp of an attempt", %{device: device} do
+      {:ok, device} = Devices.update_attempted(device)
+      assert Enum.count(device.update_attempts) == 1
+
+      {:ok, device} = Devices.update_attempted(device)
+      assert Enum.count(device.update_attempts) == 2
+    end
+
+    test "records and audit log for updating", %{device: device} do
+      assert [] = AuditLogs.logs_for(device)
+
+      {:ok, device} = Devices.update_attempted(device)
+
+      [audit_log] = AuditLogs.logs_for(device)
+
+      assert audit_log.description =~ ~r/attempting to update/
+    end
+
+    test "resets update attempts on successful update", %{device: device} do
+      {:ok, device} = Devices.update_attempted(device)
+      assert Enum.count(device.update_attempts) == 1
+
+      {:ok, device} = Devices.firmware_update_successful(device)
+      assert Enum.count(device.update_attempts) == 0
+    end
+
+    test "device updates successfully", %{device: device, deployment: deployment} do
+      {:ok, device} = Devices.update_attempted(device)
+
+      {:ok, device} = Devices.verify_update_eligibility(device, deployment)
+
+      assert device.healthy
+    end
+
+    test "device updates successfully after a few attempts", %{
+      device: device,
+      deployment: deployment
+    } do
+      {:ok, device} = Devices.update_attempted(device)
+      {:ok, device} = Devices.update_attempted(device)
+
+      {:ok, device} = Devices.verify_update_eligibility(device, deployment)
+
+      assert device.healthy
+    end
+
+    test "device updates successfully after a few attempts over a long period of time", state do
+      %{device: device, deployment: deployment} = state
+      deployment = %{deployment | device_failure_threshold: 6, device_failure_rate_amount: 3}
+
+      now = DateTime.utc_now()
+
+      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -3600, :second))
+      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -1200, :second))
+      {:ok, device} = Devices.update_attempted(device, now)
+
+      {:ok, device} = Devices.verify_update_eligibility(device, deployment)
+
+      assert device.healthy
+    end
+
+    test "device is unhealthy and should be quarantined based on total attemps", state do
+      %{device: device, deployment: deployment} = state
+      deployment = Repo.preload(deployment, [:firmware])
+      deployment = %{deployment | device_failure_threshold: 6}
+
+      now = DateTime.utc_now()
+
+      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -3600, :second))
+      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -1200, :second))
+      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -500, :second))
+      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -500, :second))
+      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -500, :second))
+      {:ok, device} = Devices.update_attempted(device, now)
+
+      {:ok, device} = Devices.verify_update_eligibility(device, deployment)
+
+      refute device.healthy
+    end
+
+    test "device is unhealthy and should be quarantined based on attempt rate", state do
+      %{device: device, deployment: deployment} = state
+      deployment = Repo.preload(deployment, [:firmware])
+
+      now = DateTime.utc_now()
+
+      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -13, :second))
+      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -10, :second))
+      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -5, :second))
+      {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -2, :second))
+      {:ok, device} = Devices.update_attempted(device, now)
+
+      {:ok, device} = Devices.verify_update_eligibility(device, deployment)
+
+      refute device.healthy
+    end
   end
 end

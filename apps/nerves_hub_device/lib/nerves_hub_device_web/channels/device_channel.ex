@@ -54,7 +54,7 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
       end
 
       send(self(), {:after_join, device, join_reply.update_available})
-      {:ok, join_reply, socket}
+      {:ok, join_reply, assign(socket, :update_started?, false)}
     end
   end
 
@@ -67,6 +67,18 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   def handle_in("fwup_progress", %{"value" => percent}, socket) do
     Presence.update(socket.assigns.device, %{fwup_progress: percent})
+
+    # if this is the first fwup we see in the channel, then mark it as an update attempt
+    socket =
+      if !socket.assigns.update_started? do
+        {:ok, device} = Devices.update_attempted(socket.assigns.device)
+
+        socket
+        |> assign(:device, device)
+        |> assign(:update_started?, true)
+      else
+        socket
+      end
 
     {:noreply, socket}
   end
@@ -167,15 +179,18 @@ defmodule NervesHubDeviceWeb.DeviceChannel do
 
   defp get_certificate(_), do: {:error, :no_device_or_org}
 
+  # The reported firmware is the same as what we already know about
   def update_metadata(%Device{firmware_metadata: %{uuid: uuid}} = device, %{
         "nerves_fw_uuid" => uuid
       }) do
     {:ok, device}
   end
 
+  # A new UUID is being reported from an update
   def update_metadata(device, params) do
-    with {:ok, metadata} <- Firmwares.metadata_from_device(params) do
-      Devices.update_firmware_metadata(device, metadata)
+    with {:ok, metadata} <- Firmwares.metadata_from_device(params),
+         {:ok, device} <- Devices.update_firmware_metadata(device, metadata) do
+      Devices.firmware_update_successful(device)
     end
   end
 
