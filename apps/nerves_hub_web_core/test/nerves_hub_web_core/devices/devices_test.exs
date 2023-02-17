@@ -137,6 +137,21 @@ defmodule NervesHubWebCore.DevicesTest do
     assert Enum.all?(devices, fn device -> device.healthy == false end)
   end
 
+  test "can unquarantine a devices" do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+    product = Fixtures.product_fixture(user, org)
+    org_key = Fixtures.org_key_fixture(org)
+    firmware = Fixtures.firmware_fixture(org_key, product)
+    device = Fixtures.device_fixture(org, product, firmware, %{healthy: false})
+
+    {:ok, device} = Devices.update_attempted(device)
+    {:ok, device} = Devices.unquarantine(device, user)
+
+    assert device.healthy
+    assert device.update_attempts == []
+  end
+
   test "can unquarantine multiple devices" do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})

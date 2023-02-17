@@ -19,7 +19,8 @@ defmodule NervesHubWebCore.Devices.Device do
     :description,
     :healthy,
     :tags,
-    :deleted_at
+    :deleted_at,
+    :update_attempts
   ]
   @required_params [:org_id, :product_id, :identifier]
 
