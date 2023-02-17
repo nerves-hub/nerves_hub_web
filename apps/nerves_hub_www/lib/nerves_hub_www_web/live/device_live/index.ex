@@ -332,21 +332,9 @@ defmodule NervesHubWWWWeb.DeviceLive.Index do
       ) do
     device = Devices.get_device(device_id)
 
-    params = %{healthy: !device.healthy}
-
     socket =
-      case Devices.update_device(device, params) do
+      case Devices.toggle_health(device, user) do
         {:ok, updated_device} ->
-          health_str = if !device.healthy, do: "healthy", else: "unhealthy"
-
-          AuditLogs.audit!(
-            user,
-            device,
-            :update,
-            "user #{user.username} marked device #{device.identifier} #{health_str}",
-            params
-          )
-
           devices =
             Enum.map(devices, fn
               device when device.id == updated_device.id ->

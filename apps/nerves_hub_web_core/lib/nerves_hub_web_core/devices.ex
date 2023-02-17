@@ -803,6 +803,16 @@ defmodule NervesHubWebCore.Devices do
     update_device_with_audit(device, params, user, description)
   end
 
+  def toggle_health(device, user) do
+    case device.healthy do
+      true ->
+        quarantine(device, user)
+
+      false ->
+        unquarantine(device, user)
+    end
+  end
+
   @spec move_many([Device.t()], Product.t(), User.t()) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]

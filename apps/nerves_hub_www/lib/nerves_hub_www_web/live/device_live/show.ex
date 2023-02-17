@@ -129,19 +129,9 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
         _params,
         %{assigns: %{device: device, user: user}} = socket
       ) do
-    params = %{healthy: !device.healthy}
-
     socket =
-      case Devices.update_device(device, params) do
+      case Devices.toggle_health(device, user) do
         {:ok, updated_device} ->
-          AuditLogs.audit!(
-            user,
-            device,
-            :update,
-            "user #{user.username} updated device #{device.identifier}",
-            params
-          )
-
           meta = Map.take(device, Presence.__fields__())
           assign(socket, :device, Map.merge(updated_device, meta))
 
