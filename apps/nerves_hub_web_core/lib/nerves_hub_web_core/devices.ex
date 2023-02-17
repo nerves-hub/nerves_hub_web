@@ -689,7 +689,7 @@ defmodule NervesHubWebCore.Devices do
     changeset =
       device
       |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_change(:update_attempts, [now | device.update_attempts])
+      |> Ecto.Changeset.put_change(:update_attempts, [now | List.wrap(device.update_attempts)])
 
     Multi.new()
     |> Multi.update(:device, changeset)
