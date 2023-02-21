@@ -5,6 +5,7 @@ defmodule NervesHubWWWWeb.DeviceLive.Show do
 
   alias NervesHubWebCore.Accounts
   alias NervesHubWebCore.AuditLogs
+  alias NervesHubWebCore.Certificate
   alias NervesHubWebCore.Devices
   alias NervesHubWebCore.Devices.Device
   alias NervesHubWebCore.Repo
