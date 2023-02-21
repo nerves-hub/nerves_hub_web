@@ -634,7 +634,7 @@ defmodule NervesHubWebCore.Devices do
 
   @spec failure_threshold_met?(Device.t(), Deployment.t()) :: boolean()
   def failure_threshold_met?(%Device{} = device, %Deployment{} = deployment) do
-    Enum.count(List.wrap(device.update_attempts)) >= deployment.device_failure_threshold
+    Enum.count(device.update_attempts) >= deployment.device_failure_threshold
   end
 
   @spec failure_rate_met?(Device.t(), Deployment.t()) :: boolean()
@@ -643,7 +643,7 @@ defmodule NervesHubWebCore.Devices do
       Timex.shift(DateTime.utc_now(), seconds: -deployment.device_failure_rate_seconds)
 
     attempts =
-      Enum.filter(List.wrap(device.update_attempts), fn attempt ->
+      Enum.filter(device.update_attempts, fn attempt ->
         DateTime.compare(seconds_ago, attempt) == :lt
       end)
 
@@ -689,7 +689,7 @@ defmodule NervesHubWebCore.Devices do
     changeset =
       device
       |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_change(:update_attempts, [now | List.wrap(device.update_attempts)])
+      |> Ecto.Changeset.put_change(:update_attempts, [now | device.update_attempts])
 
     Multi.new()
     |> Multi.update(:device, changeset)
