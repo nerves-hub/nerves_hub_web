@@ -1,6 +1,6 @@
 import Config
 
-nerves_hub_app = System.get_env!("NERVES_HUB_APP")
+nerves_hub_app = System.get_env("NERVES_HUB_APP")
 
 config :nerves_hub_web_core, app: nerves_hub_app
 
