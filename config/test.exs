@@ -1,5 +1,8 @@
 import Config
 
+# Start all of the applications
+config :nerves_hub_web_core, app: "all"
+
 web_port = 5000
 
 config :bcrypt_elixir, log_rounds: 4

@@ -26,19 +26,19 @@ defmodule NervesHubUmbrella.MixProject do
         nerves_hub_device: [
           steps: [:assemble],
           include_executables_for: [:unix],
-          runtime_config_path: "apps/nerves_hub_device/config/release.exs",
+          runtime_config_path: "apps/nerves_hub_www/config/release.exs",
           reboot_system_after_config: true,
           applications: [
-            nerves_hub_device: :permanent
+            nerves_hub_www: :permanent
           ]
         ],
         nerves_hub_api: [
           steps: [:assemble],
           include_executables_for: [:unix],
-          runtime_config_path: "apps/nerves_hub_api/config/release.exs",
+          runtime_config_path: "apps/nerves_hub_www/config/release.exs",
           reboot_system_after_config: true,
           applications: [
-            nerves_hub_api: :permanent
+            nerves_hub_www: :permanent
           ]
         ]
       ]

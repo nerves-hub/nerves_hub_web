@@ -1,5 +1,8 @@
 import Config
 
+# Start all of the applications
+config :nerves_hub_web_core, app: "all"
+
 web_host = "nerves-hub.org"
 web_port = 4000
 web_scheme = "http"

@@ -3,7 +3,7 @@ defmodule NervesHubAPI.Application do
 
   def start(_type, _args) do
     children = [
-      NervesHubAPIWeb.Endpoint
+      #      NervesHubAPIWeb.Endpoint
     ]
 
     opts = [strategy: :one_for_one, name: NervesHubAPI.Supervisor]

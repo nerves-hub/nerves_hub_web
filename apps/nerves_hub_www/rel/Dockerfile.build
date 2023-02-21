@@ -50,6 +50,7 @@ EXPOSE 80
 EXPOSE 443
 
 ENV LOCAL_IPV4=127.0.0.1
+ENV NERVES_HUB_APP=web
 
 COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub_www/ ./
 COPY --from=builder /build/rel/scripts/docker-entrypoint.sh .

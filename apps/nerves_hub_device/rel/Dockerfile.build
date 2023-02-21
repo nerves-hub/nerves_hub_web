@@ -30,6 +30,8 @@ EXPOSE 443
 
 WORKDIR /app
 
+ENV NERVES_HUB_APP=device
+
 COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub_device/ ./
 
 COPY --from=builder /build/rel/scripts/docker-entrypoint.sh .
