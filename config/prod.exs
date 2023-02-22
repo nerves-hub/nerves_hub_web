@@ -8,29 +8,29 @@ config :phoenix, logger: false
 ##
 # NervesHub API
 #
-config :nerves_hub_api, NervesHubAPIWeb.Endpoint, server: true
+config :nerves_hub_www, NervesHubAPIWeb.Endpoint, server: true
 
 ##
 # NervesHub Device
 #
-config :nerves_hub_device, NervesHubDeviceWeb.Endpoint, server: true
+config :nerves_hub_www, NervesHubDeviceWeb.Endpoint, server: true
 
 ##
 # NervesHubWebCore
 #
-config :nerves_hub_web_core,
+config :nerves_hub_www,
   enable_workers: true,
   firmware_upload: NervesHubWebCore.Firmwares.Upload.S3,
   host: "www.nerves-hub.org",
   port: 80
 
-config :nerves_hub_web_core, NervesHubWebCore.Mailer,
+config :nerves_hub_www, NervesHubWebCore.Mailer,
   adapter: Bamboo.SMTPAdapter,
   tls: :always,
   ssl: false,
   retries: 1
 
-config :nerves_hub_web_core, NervesHubWebCore.Repo, pool_size: 20
+config :nerves_hub_www, NervesHubWebCore.Repo, pool_size: 20
 
 ##
 # NervesHubWWW

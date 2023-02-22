@@ -1,7 +1,7 @@
 import Config
 
 # Start all of the applications
-config :nerves_hub_web_core, app: "all"
+config :nerves_hub_www, app: "all"
 
 web_port = 5000
 
@@ -15,14 +15,14 @@ config :logger, level: :warn
 #
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
-config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
+config :nerves_hub_www, NervesHubAPIWeb.Endpoint,
   http: [port: 4002],
   server: false
 
 ##
 # NervesHub Device
 #
-config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
+config :nerves_hub_www, NervesHubDeviceWeb.Endpoint,
   code_reloader: false,
   debug_errors: true,
   check_origin: false,
@@ -30,7 +30,7 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
   server: true,
   https: [
     port: 4101,
-    otp_app: :nerves_hub_device,
+    otp_app: :nerves_hub_www,
     # Enable client SSL
     verify: :verify_peer,
     verify_fun: {&NervesHubDevice.SSL.verify_fun/3, nil},
@@ -43,26 +43,26 @@ config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
 ##
 # NervesHubWebCore
 #
-config :nerves_hub_web_core,
+config :nerves_hub_www,
   allow_signups?: true,
   firmware_upload: NervesHubWebCore.UploadMock,
   port: web_port
 
-config :nerves_hub_web_core,
+config :nerves_hub_www,
   delta_updater: NervesHubWebCore.DeltaUpdaterMock
 
-config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.S3, bucket: "mybucket"
+config :nerves_hub_www, NervesHubWebCore.Firmwares.Upload.S3, bucket: "mybucket"
 
-config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.File,
+config :nerves_hub_www, NervesHubWebCore.Firmwares.Upload.File,
   local_path: System.tmp_dir(),
   public_path: "/firmware"
 
-config :nerves_hub_web_core, NervesHubWebCore.Repo,
+config :nerves_hub_www, NervesHubWebCore.Repo,
   ssl: false,
   pool_size: 30,
   pool: Ecto.Adapters.SQL.Sandbox
 
-config :nerves_hub_web_core, NervesHubWebCore.CertificateAuthority,
+config :nerves_hub_www, NervesHubWebCore.CertificateAuthority,
   host: "127.0.0.1",
   port: 8443,
   ssl: [
@@ -72,9 +72,9 @@ config :nerves_hub_web_core, NervesHubWebCore.CertificateAuthority,
     server_name_indication: 'ca.nerves-hub.org'
   ]
 
-config :nerves_hub_web_core, NervesHubWebCore.Mailer, adapter: Bamboo.TestAdapter
+config :nerves_hub_www, NervesHubWebCore.Mailer, adapter: Bamboo.TestAdapter
 
-config :nerves_hub_web_core, Oban, queues: false, plugins: false
+config :nerves_hub_www, Oban, queues: false, plugins: false
 
 ##
 # NervesHubWWW

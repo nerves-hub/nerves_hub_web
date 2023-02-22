@@ -27,7 +27,7 @@ docker_build_release: &docker_build_release
       docker build \
         -t nerveshub/$APP_NAME:$DOCKER_TAG \
         -t nerveshub/$APP_NAME:latest \
-        -f apps/$APP_NAME/rel/Dockerfile.build .
+        -f dockerfiles/$APP_NAME.build .
 
 docker_save: &docker_save
   run:

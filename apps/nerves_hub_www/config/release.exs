@@ -2,7 +2,7 @@ import Config
 
 nerves_hub_app = System.get_env("NERVES_HUB_APP")
 
-config :nerves_hub_web_core, app: nerves_hub_app
+config :nerves_hub_www, app: nerves_hub_app
 
 logger_level = System.get_env("LOG_LEVEL", "info") |> String.to_atom()
 
@@ -28,28 +28,28 @@ config :kernel,
   inet_dist_listen_min: 9100,
   inet_dist_listen_max: 9155
 
-config :nerves_hub_web_core, NervesHubWebCore.Firmwares.Upload.S3,
+config :nerves_hub_www, NervesHubWebCore.Firmwares.Upload.S3,
   bucket: System.fetch_env!("S3_BUCKET_NAME")
 
-config :nerves_hub_web_core, NervesHubWebCore.Workers.FirmwaresTransferS3Ingress,
+config :nerves_hub_www, NervesHubWebCore.Workers.FirmwaresTransferS3Ingress,
   bucket: System.fetch_env!("S3_LOG_BUCKET_NAME")
 
 config :ex_aws, region: System.fetch_env!("AWS_REGION")
 
-config :nerves_hub_web_core, NervesHubWebCore.Mailer,
+config :nerves_hub_www, NervesHubWebCore.Mailer,
   adapter: Bamboo.SMTPAdapter,
   server: System.fetch_env!("SES_SERVER"),
   port: System.fetch_env!("SES_PORT"),
   username: System.fetch_env!("SMTP_USERNAME"),
   password: System.fetch_env!("SMTP_PASSWORD")
 
-config :nerves_hub_web_core,
+config :nerves_hub_www,
   host: host,
   port: port,
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   allow_signups?: System.get_env("ALLOW_SIGNUPS", "false") |> String.to_atom()
 
-config :nerves_hub_web_core, NervesHubWebCore.Tracer, env: System.get_env("DD_ENV") || "dev"
+config :nerves_hub_www, NervesHubWebCore.Tracer, env: System.get_env("DD_ENV") || "dev"
 
 if nerves_hub_app == "web" do
   config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
@@ -59,11 +59,11 @@ if nerves_hub_app == "web" do
 end
 
 if nerves_hub_app == "device" do
-  config :nerves_hub_device, NervesHubDeviceWeb.Endpoint,
+  config :nerves_hub_www, NervesHubDeviceWeb.Endpoint,
     url: [host: host],
     https: [
       port: 443,
-      otp_app: :nerves_hub_device,
+      otp_app: :nerves_hub_www,
       # Enable client SSL
       # Older versions of OTP 25 may break using using devices
       # that support TLS 1.3 or 1.2 negotiation. To mitigate that
@@ -94,11 +94,11 @@ if nerves_hub_app == "api" do
     |> Enum.map(&X509.Certificate.from_pem!/1)
     |> Enum.map(&X509.Certificate.to_der/1)
 
-  config :nerves_hub_api, NervesHubAPIWeb.Endpoint,
+  config :nerves_hub_www, NervesHubAPIWeb.Endpoint,
     url: [host: host],
     https: [
       port: 443,
-      otp_app: :nerves_hub_api,
+      otp_app: :nerves_hub_www,
       # Enable client SSL
       verify: :verify_peer,
       keyfile: "/etc/ssl/#{host}-key.pem",
@@ -108,7 +108,7 @@ if nerves_hub_app == "api" do
 
   ca_host = System.fetch_env!("CA_HOST")
 
-  config :nerves_hub_web_core, NervesHubWebCore.CertificateAuthority,
+  config :nerves_hub_www, NervesHubWebCore.CertificateAuthority,
     host: ca_host,
     port: 8443,
     ssl: [

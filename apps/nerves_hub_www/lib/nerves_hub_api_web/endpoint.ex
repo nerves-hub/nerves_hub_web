@@ -1,18 +1,6 @@
-defmodule NervesHubWWWWeb.Endpoint do
+defmodule NervesHubAPIWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub_www
   use SpandexPhoenix
-
-  @session_options [
-    store: :cookie,
-    key: "_nerves_hub_key",
-    signing_salt: "1CPjriVa"
-  ]
-
-  socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
-
-  socket("/socket", NervesHubWWWWeb.UserSocket,
-    websocket: [connect_info: [session: @session_options]]
-  )
 
   # Serve at "/" the static files from "priv/static" directory.
   #
@@ -26,32 +14,7 @@ defmodule NervesHubWWWWeb.Endpoint do
     only: ~w(css fonts images js favicon.ico robots.txt)
   )
 
-  file_upload_config =
-    Application.compile_env(:nerves_hub_www, NervesHubWebCore.Firmwares.Upload.File, [])
-
-  if Keyword.get(file_upload_config, :enabled, false) do
-    plug(
-      Plug.Static,
-      at: file_upload_config[:public_path],
-      from: file_upload_config[:local_path]
-    )
-  end
-
-  # Code reloading can be explicitly enabled under the
-  # :code_reloader configuration of your endpoint.
-  if code_reloading? do
-    socket(
-      "/phoenix/live_reload/socket",
-      Phoenix.LiveReloader.Socket,
-      websocket: true
-    )
-
-    plug(Phoenix.LiveReloader)
-    plug(Phoenix.CodeReloader)
-  end
-
-  plug(Plug.RequestId)
-  plug(NervesHubWWWWeb.Plugs.Logger)
+  plug(NervesHubAPIWeb.Plugs.Logger)
 
   plug(
     Plug.Parsers,
@@ -70,10 +33,12 @@ defmodule NervesHubWWWWeb.Endpoint do
   # Set :encryption_salt if you would also like to encrypt it.
   plug(
     Plug.Session,
-    @session_options
+    store: :cookie,
+    key: "_nerves_hub_api_key",
+    signing_salt: "WVt9MTK1"
   )
 
-  plug(NervesHubWWWWeb.Router)
+  plug(NervesHubAPIWeb.Router)
 
   @doc """
   Callback invoked for dynamically configuring the endpoint.

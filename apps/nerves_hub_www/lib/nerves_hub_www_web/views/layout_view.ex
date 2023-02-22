@@ -78,7 +78,7 @@ defmodule NervesHubWWWWeb.LayoutView do
   end
 
   def permit_uninvited_signups do
-    Application.get_env(:nerves_hub_web_core, :allow_signups?)
+    Application.get_env(:nerves_hub_www, :allow_signups?)
   end
 
   @tib :math.pow(2, 40)

@@ -4,7 +4,7 @@ defmodule NervesHubWWW.Application do
   def start(_type, _args) do
     NervesHubWebCore.CertificateAuthority.start_pool()
 
-    children = endpoints()
+    children = [NervesHubWebCore.Supervisor] ++ endpoints()
 
     opts = [strategy: :one_for_one, name: NervesHubWWW.Supervisor]
     Supervisor.start_link(children, opts)
@@ -16,7 +16,7 @@ defmodule NervesHubWWW.Application do
   end
 
   defp endpoints() do
-    case Application.get_env(:nerves_hub_web_core, :app) do
+    case Application.get_env(:nerves_hub_www, :app) do
       "all" ->
         [
           NervesHubAPIWeb.Endpoint,

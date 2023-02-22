@@ -44,7 +44,7 @@ rebuild-db:
 	mix ecto.drop && \
 	mix ecto.create && \
 	mix ecto.migrate && \
-	mix run apps/nerves_hub_web_core/priv/repo/seeds.exs
+	mix run apps/nerves_hub_www/priv/repo/seeds.exs
 
 test: .env
 	DB=nerves_hub_test \

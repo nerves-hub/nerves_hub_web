@@ -20,7 +20,7 @@ defmodule NervesHubWebCore.Fixtures do
 
   def compiler_options(_, _), do: Code.compiler_options(ignore_module_conflict: false)
 
-  @uploader Application.compile_env(:nerves_hub_web_core, :firmware_upload)
+  @uploader Application.compile_env(:nerves_hub_www, :firmware_upload)
 
   @org_params %{name: "Test-Org"}
 
