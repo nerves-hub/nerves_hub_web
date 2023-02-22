@@ -15,9 +15,9 @@ RUN mix deps.clean --all && mix deps.get
 FROM node:${NODE_VERSION} as assets
 RUN mkdir -p /priv/static
 WORKDIR /build
-COPY apps/nerves_hub_www/assets apps/nerves_hub_www/assets
+COPY assets assets
 COPY --from=deps /build/deps deps
-RUN cd apps/nerves_hub_www/assets \
+RUN cd assets \
   && npm install \
   && npm run deploy
 
@@ -32,7 +32,7 @@ RUN mkdir /build
 ADD . /build
 WORKDIR /build
 COPY --from=deps /build/deps deps
-COPY --from=assets /build/apps/nerves_hub_www/priv/static apps/nerves_hub_www/priv/static
+COPY --from=assets /build/priv/static priv/static
 
 RUN mix do phx.digest, release nerves_hub_www --overwrite
 

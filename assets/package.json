@@ -14,9 +14,9 @@
     "joshjs": "^1.0.7",
     "jquery": "^3.6.0",
     "moment": "^2.29.1",
-    "phoenix": "file:../../../deps/phoenix",
-    "phoenix_html": "file:../../../deps/phoenix_html",
-    "phoenix_live_view": "file:../../../deps/phoenix_live_view",
+    "phoenix": "file:../deps/phoenix",
+    "phoenix_html": "file:../deps/phoenix_html",
+    "phoenix_live_view": "file:../deps/phoenix_live_view",
     "popper.js": "^1.16.1",
     "xterm": "^4.13.0",
     "xterm-addon-fit": "^0.4.0"

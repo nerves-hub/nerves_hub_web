@@ -2,7 +2,7 @@ defmodule NervesHubWebCore.Firmware.Transfer.S3Test do
   use NervesHubWebCore.DataCase, async: true
   alias NervesHubWebCore.Workers.FirmwaresTransferS3Ingress, as: Ingress
 
-  @fixture Path.expand("../../../../../../test/fixtures/s3_access_log.txt", __DIR__)
+  @fixture Path.expand("../../../../test/fixtures/s3_access_log.txt", __DIR__)
 
   test "can parse transfer records to firmware_tranfer params" do
     expected = %{

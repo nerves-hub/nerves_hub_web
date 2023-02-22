@@ -20,3 +20,15 @@ erl_crash.dump
 .vscode
 node_modules
 *.iml
+
+/config/*.secret.exs
+/priv/static
+.env
+.elixir_ls
+.vscode
+
+node_modules/
+assets/*.log
+tmp
+
+gproc_dist*
