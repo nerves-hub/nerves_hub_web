@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.UniqueFirmwareAndTenantKeys do
+defmodule NervesHub.Repo.Migrations.UniqueFirmwareAndTenantKeys do
   use Ecto.Migration
 
   def change do

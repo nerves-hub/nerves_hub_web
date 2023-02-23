@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.DeviceCertificateAllowLinSki do
+defmodule NervesHub.Repo.Migrations.DeviceCertificateAllowLinSki do
   use Ecto.Migration
 
   def change do

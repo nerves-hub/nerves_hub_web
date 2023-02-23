@@ -17,12 +17,12 @@ config :phoenix, :stacktrace_depth, 20
 ##
 # NervesHubAPI
 #
-config :nerves_hub_www, NervesHubAPIWeb.Endpoint,
+config :nerves_hub_www, NervesHubWeb.API.Endpoint,
   debug_errors: true,
   code_reloader: false,
   check_origin: false,
   watchers: [],
-  pubsub_server: NervesHubWeb.PubSub,
+  pubsub_server: NervesHub.PubSub,
   https: [
     port: 4002,
     otp_app: :nerves_hub_www,
@@ -36,7 +36,7 @@ config :nerves_hub_www, NervesHubAPIWeb.Endpoint,
 ##
 # NervesHubDevice
 #
-config :nerves_hub_www, NervesHubDeviceWeb.Endpoint,
+config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
   debug_errors: true,
   code_reloader: false,
   check_origin: false,
@@ -63,24 +63,24 @@ config :nerves_hub_www, NervesHubDeviceWeb.Endpoint,
   ]
 
 ##
-# NervesHubWebCore
+# NervesHub
 #
 config :nerves_hub_www,
-  firmware_upload: NervesHubWebCore.Firmwares.Upload.File,
+  firmware_upload: NervesHub.Firmwares.Upload.File,
   host: web_host,
   port: web_port,
   scheme: web_scheme
 
-config :nerves_hub_www, NervesHubWebCore.Firmwares.Upload.File,
+config :nerves_hub_www, NervesHub.Firmwares.Upload.File,
   enabled: true,
   local_path: Path.join(System.tmp_dir(), "firmware"),
   public_path: "/firmware"
 
-# config :nerves_hub_www, NervesHubWebCore.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
+# config :nerves_hub_www, NervesHub.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
 
-config :nerves_hub_www, NervesHubWebCore.Repo, ssl: false
+config :nerves_hub_www, NervesHub.Repo, ssl: false
 
-config :nerves_hub_www, NervesHubWebCore.CertificateAuthority,
+config :nerves_hub_www, NervesHub.CertificateAuthority,
   host: "0.0.0.0",
   port: 8443,
   ssl: [
@@ -88,19 +88,19 @@ config :nerves_hub_www, NervesHubWebCore.CertificateAuthority,
     server_name_indication: 'ca.nerves-hub.org'
   ]
 
-config :nerves_hub_www, NervesHubWebCore.Mailer, adapter: Bamboo.LocalAdapter
+config :nerves_hub_www, NervesHub.Mailer, adapter: Bamboo.LocalAdapter
 
 ##
 # NervesHubWWW
 #
-config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
+config :nerves_hub_www, NervesHubWeb.Endpoint,
   http: [ip: {0, 0, 0, 0}, port: web_port],
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
   watchers: [npm: ["run", "watch", cd: Path.expand("../assets", __DIR__)]]
 
-config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
+config :nerves_hub_www, NervesHubWeb.Endpoint,
   url: [scheme: web_scheme, host: web_host, port: web_port],
   live_reload: [
     patterns: [

@@ -1,7 +1,7 @@
 defmodule NervesHubDevice.SSLTest do
   use NervesHubDevice.DataCase, async: true
 
-  alias NervesHubWebCore.{Certificate, Devices, Fixtures}
+  alias NervesHub.{Certificate, Devices, Fixtures}
 
   require X509.ASN1
 
@@ -102,12 +102,12 @@ defmodule NervesHubDevice.SSLTest do
           tags: ["hello", "jitp"],
           description: "jitp"
         }
-        |> NervesHubWebCore.Repo.insert!()
+        |> NervesHub.Repo.insert!()
 
       ca.db_cert
-      |> NervesHubWebCore.Repo.preload([:org, :jitp])
+      |> NervesHub.Repo.preload([:org, :jitp])
       |> Ecto.Changeset.change(%{jitp_id: jitp.id})
-      |> NervesHubWebCore.Repo.update!()
+      |> NervesHub.Repo.update!()
 
       assert Devices.get_device_by_identifier(org, identifier) == {:error, :not_found}
       assert {:valid, _state} = run_verify(otp_cert, {:bad_cert, :unknown_ca})
@@ -281,12 +281,12 @@ defmodule NervesHubDevice.SSLTest do
           tags: ["hello", "jitp"],
           description: "jitp"
         }
-        |> NervesHubWebCore.Repo.insert!()
+        |> NervesHub.Repo.insert!()
 
       context.ca_db_cert
-      |> NervesHubWebCore.Repo.preload([:org, :jitp])
+      |> NervesHub.Repo.preload([:org, :jitp])
       |> Ecto.Changeset.change(%{jitp_id: jitp.id})
-      |> NervesHubWebCore.Repo.update!()
+      |> NervesHub.Repo.update!()
 
       # Soft delete device and attempt verify
       assert {:ok, device} = Repo.soft_delete(context.device)

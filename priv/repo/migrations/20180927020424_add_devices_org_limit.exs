@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddDevicesOrgLimit do
+defmodule NervesHub.Repo.Migrations.AddDevicesOrgLimit do
   use Ecto.Migration
 
   def change do

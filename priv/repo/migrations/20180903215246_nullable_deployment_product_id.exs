@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.NullableDeploymentProductId do
+defmodule NervesHub.Repo.Migrations.NullableDeploymentProductId do
   use Ecto.Migration
 
   def change do

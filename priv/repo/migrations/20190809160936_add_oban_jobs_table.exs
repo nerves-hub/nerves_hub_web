@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddObanJobsTable do
+defmodule NervesHub.Repo.Migrations.AddObanJobsTable do
   use Ecto.Migration
 
   # defdelegate up, to: Oban.Migrations

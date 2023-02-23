@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddPatchableToFirmware do
+defmodule NervesHub.Repo.Migrations.AddPatchableToFirmware do
   use Ecto.Migration
 
   def change do

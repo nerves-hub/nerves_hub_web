@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddDescriptionToAuditLogs do
+defmodule NervesHub.Repo.Migrations.AddDescriptionToAuditLogs do
   use Ecto.Migration
 
   def change do

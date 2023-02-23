@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.FixUniqueIndices do
+defmodule NervesHub.Repo.Migrations.FixUniqueIndices do
   use Ecto.Migration
 
   def change do

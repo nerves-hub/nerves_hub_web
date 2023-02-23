@@ -1,7 +1,7 @@
-defmodule NervesHubWebCore.Repo.Migrations.CreateAuditLogs do
+defmodule NervesHub.Repo.Migrations.CreateAuditLogs do
   use Ecto.Migration
 
-  alias NervesHubWebCore.AuditLogs.AuditLog.Action
+  alias NervesHub.AuditLogs.AuditLog.Action
 
   def change do
     Action.create_type()

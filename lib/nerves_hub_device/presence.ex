@@ -10,7 +10,7 @@ defmodule NervesHubDevice.Presence do
   Docs: https://www.erlang.org/doc/apps/erts/match_spec.html
   """
 
-  alias NervesHubWebCore.Devices.Device
+  alias NervesHub.Devices.Device
 
   @typedoc """
   Status of the current connection.
@@ -25,7 +25,7 @@ defmodule NervesHubDevice.Presence do
           connected_at: pos_integer(),
           console_available: boolean(),
           console_version: Version.build(),
-          firmware_metadata: NervesHubWebCore.Firmwares.FirmwareMetadata.t(),
+          firmware_metadata: NervesHub.Firmwares.FirmwareMetadata.t(),
           last_communication: DateTime.t(),
           status: status(),
           update_available: boolean()
@@ -93,13 +93,13 @@ defmodule NervesHubDevice.Presence do
       |> Map.put(:device_id, device.id)
 
     Phoenix.PubSub.broadcast(
-      NervesHubWeb.PubSub,
+      NervesHub.PubSub,
       "device:#{device.id}:internal",
       %Phoenix.Socket.Broadcast{event: "connection_change", payload: payload}
     )
 
     Phoenix.PubSub.broadcast(
-      NervesHubWeb.PubSub,
+      NervesHub.PubSub,
       "product:#{device.product_id}:devices",
       %Phoenix.Socket.Broadcast{event: "connection_change", payload: payload}
     )

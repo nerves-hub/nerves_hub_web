@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddObanBeatsTable do
+defmodule NervesHub.Repo.Migrations.AddObanBeatsTable do
   use Ecto.Migration
 
   def up do

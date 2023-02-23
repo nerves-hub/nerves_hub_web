@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.SoftDeleteChanges do
+defmodule NervesHub.Repo.Migrations.SoftDeleteChanges do
   use Ecto.Migration
 
   def change do

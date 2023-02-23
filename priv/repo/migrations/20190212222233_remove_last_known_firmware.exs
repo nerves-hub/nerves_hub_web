@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.RemoveLastKnownFirmware do
+defmodule NervesHub.Repo.Migrations.RemoveLastKnownFirmware do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddDeviceFirmwareMetadataRemoveLastLink do
+defmodule NervesHub.Repo.Migrations.AddDeviceFirmwareMetadataRemoveLastLink do
   use Ecto.Migration
 
   def change do

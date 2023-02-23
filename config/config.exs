@@ -27,49 +27,49 @@ config :phoenix,
 #
 # config :nerves_hub_api,
 #  namespace: NervesHubAPI,
-#  ecto_repos: [NervesHubWebCore.Repo]
+#  ecto_repos: [NervesHub.Repo]
 
 # Configures the endpoint
-config :nerves_hub_www, NervesHubAPIWeb.Endpoint,
+config :nerves_hub_www, NervesHubWeb.API.Endpoint,
   url: [host: "localhost"],
-  render_errors: [view: NervesHubAPIWeb.ErrorView, accepts: ~w(json)],
-  pubsub_server: NervesHubWeb.PubSub
+  render_errors: [view: NervesHubWeb.API.ErrorView, accepts: ~w(json)],
+  pubsub_server: NervesHub.PubSub
 
 ##
 # NervesHub Device
 #
 # General application configuration
 # config :nerves_hub_device,
-#   ecto_repos: [NervesHubWebCore.Repo],
+#   ecto_repos: [NervesHub.Repo],
 #   namespace: NervesHubDevice
 
 # Configures the endpoint
-config :nerves_hub_www, NervesHubDeviceWeb.Endpoint,
-  render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
-  pubsub_server: NervesHubWeb.PubSub
+config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
+  render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
+  pubsub_server: NervesHub.PubSub
 
 ##
-# NervesHubWebCore
+# NervesHub
 #
 config :nerves_hub_www,
   allow_signups?: false,
-  ecto_repos: [NervesHubWebCore.Repo],
+  ecto_repos: [NervesHub.Repo],
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   host: host
 
-config :nerves_hub_www, NervesHubWeb.PubSub,
-  name: NervesHubWeb.PubSub,
+config :nerves_hub_www, NervesHub.PubSub,
+  name: NervesHub.PubSub,
   adapter_name: Phoenix.PubSub.PG2,
   fastlane: Phoenix.Channel.Server
 
 config :nerves_hub_www, Oban,
-  repo: NervesHubWebCore.Repo,
+  repo: NervesHub.Repo,
   log: false,
   queues: [delete_firmware: 1, firmware_delta_builder: 2]
 
-config :spandex_phoenix, tracer: NervesHubWebCore.Tracer
+config :spandex_phoenix, tracer: NervesHub.Tracer
 
-config :spandex, :decorators, tracer: NervesHubWebCore.Tracer
+config :spandex, :decorators, tracer: NervesHub.Tracer
 
 config :nerves_hub_www,
   datadog_host: System.get_env("DATADOG_HOST") || "localhost",
@@ -81,7 +81,7 @@ config :nerves_hub_www,
   statsd_host: System.get_env("STATSD_HOST", "localhost"),
   statsd_port: System.get_env("STATSD_PORT", "8125")
 
-config :nerves_hub_www, NervesHubWebCore.Tracer,
+config :nerves_hub_www, NervesHub.Tracer,
   service: :nerves_hub_www,
   adapter: SpandexDatadog.Adapter,
   disabled?: false,
@@ -89,25 +89,25 @@ config :nerves_hub_www, NervesHubWebCore.Tracer,
 
 config :spandex_ecto, SpandexEcto.EctoLogger,
   service: :nerves_hub_www,
-  tracer: NervesHubWebCore.Tracer,
+  tracer: NervesHub.Tracer,
   otp_app: :nerves_hub_www
 
 ##
 # NervesHubWWW
 #
 config :nerves_hub_www,
-  ecto_repos: [NervesHubWebCore.Repo],
+  ecto_repos: [NervesHub.Repo],
   # Options are :ssl or :header
   websocket_auth_methods: [:ssl]
 
-config :nerves_hub_www, NervesHubWWWWeb.Gettext, default_locale: "en"
+config :nerves_hub_www, NervesHubWeb.Gettext, default_locale: "en"
 
 # Configures the endpoint
-config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
+config :nerves_hub_www, NervesHubWeb.Endpoint,
   url: [host: host],
   secret_key_base: System.get_env("SECRET_KEY_BASE"),
-  render_errors: [view: NervesHubWWWWeb.ErrorView, accepts: ~w(html json)],
-  pubsub_server: NervesHubWeb.PubSub,
+  render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
+  pubsub_server: NervesHub.PubSub,
   live_view: [signing_salt: System.get_env("LIVE_VIEW_SIGNING_SALT")]
 
 config :gproc, :gproc_dist, :all

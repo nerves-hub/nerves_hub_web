@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.RenamePatchToDeltaUpdate do
+defmodule NervesHub.Repo.Migrations.RenamePatchToDeltaUpdate do
   use Ecto.Migration
 
   def up do

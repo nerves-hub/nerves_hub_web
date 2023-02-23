@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.FirmwareIsTruth do
+defmodule NervesHub.Repo.Migrations.FirmwareIsTruth do
   use Ecto.Migration
 
   def change do

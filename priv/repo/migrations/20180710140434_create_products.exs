@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.CreateProducts do
+defmodule NervesHub.Repo.Migrations.CreateProducts do
   use Ecto.Migration
 
   def up do

@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddProductIdToDevices do
+defmodule NervesHub.Repo.Migrations.AddProductIdToDevices do
   use Ecto.Migration
 
   def change do

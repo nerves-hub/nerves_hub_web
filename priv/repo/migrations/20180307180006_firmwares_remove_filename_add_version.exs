@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.FirmwaresRemoveFilenameAddVersion do
+defmodule NervesHub.Repo.Migrations.FirmwaresRemoveFilenameAddVersion do
   use Ecto.Migration
 
   def up do

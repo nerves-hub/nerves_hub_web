@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.UsersNameToUsername do
+defmodule NervesHub.Repo.Migrations.UsersNameToUsername do
   use Ecto.Migration
 
   def change do

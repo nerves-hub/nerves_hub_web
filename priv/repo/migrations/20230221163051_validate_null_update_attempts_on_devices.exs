@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.ValidateNullUpdateAttemptsOnDevices do
+defmodule NervesHub.Repo.Migrations.ValidateNullUpdateAttemptsOnDevices do
   use Ecto.Migration
 
   def change do

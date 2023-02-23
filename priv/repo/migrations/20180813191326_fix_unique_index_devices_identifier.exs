@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.FixUniqueIndexDevicesIdentifier do
+defmodule NervesHub.Repo.Migrations.FixUniqueIndexDevicesIdentifier do
   use Ecto.Migration
 
   def change do

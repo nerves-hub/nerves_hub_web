@@ -1,8 +1,8 @@
-alias NervesHubWebCore.Repo
-alias NervesHubWebCore.Firmwares.Firmware
-alias NervesHubWebCore.Devices.DeviceCertificate
-alias NervesHubWebCore.Deployments.Deployment
-alias NervesHubWebCore.AuditLogs.AuditLog
+alias NervesHub.Repo
+alias NervesHub.Firmwares.Firmware
+alias NervesHub.Devices.DeviceCertificate
+alias NervesHub.Deployments.Deployment
+alias NervesHub.AuditLogs.AuditLog
 
 import Ecto.Query
 import IO.ANSI, only: [default_color: 0, green: 0, red: 0]

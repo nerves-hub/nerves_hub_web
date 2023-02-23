@@ -1,10 +1,10 @@
-defmodule NervesHubWebCore.Repo.Migrations.DefaultUserOrg do
+defmodule NervesHub.Repo.Migrations.DefaultUserOrg do
   # import Ecto.Query
   use Ecto.Migration
 
-  # alias NervesHubWebCore.Accounts
-  # alias NervesHubWebCore.Accounts.{User, Org}
-  # alias NervesHubWebCore.Repo
+  # alias NervesHub.Accounts
+  # alias NervesHub.Accounts.{User, Org}
+  # alias NervesHub.Repo
 
   def up do
     # This should have been done outside of a migration. If the User schema ever changes then

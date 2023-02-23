@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddPatchableFlagToProducts do
+defmodule NervesHub.Repo.Migrations.AddPatchableFlagToProducts do
   use Ecto.Migration
 
   def change do

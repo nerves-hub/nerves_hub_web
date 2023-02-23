@@ -2,7 +2,7 @@
   "containerOverrides": [
     {
       "name": "nerves_hub_www",
-      "command": ["/app/bin/nerves_hub_www", "eval", "NervesHubWebCore.Release.Tasks.migrate_and_seed()"]
+      "command": ["/app/bin/nerves_hub_www", "eval", "NervesHub.Release.Tasks.migrate_and_seed()"]
     }
   ]
 }

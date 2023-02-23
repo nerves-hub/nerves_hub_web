@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.ChangeCertificateFields do
+defmodule NervesHub.Repo.Migrations.ChangeCertificateFields do
   use Ecto.Migration
 
   def change do

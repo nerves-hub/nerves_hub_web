@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.RemoveUsersOrgs do
+defmodule NervesHub.Repo.Migrations.RemoveUsersOrgs do
   use Ecto.Migration
 
   def change do

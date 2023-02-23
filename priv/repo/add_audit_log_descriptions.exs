@@ -1,4 +1,4 @@
-alias NervesHubWebCore.{AuditLogs.AuditLog, Repo}
+alias NervesHub.{AuditLogs.AuditLog, Repo}
 import Ecto.Query
 import IO.ANSI, only: [default_color: 0, green: 0, red: 0]
 

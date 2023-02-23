@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.UniqueDeploymentNameProductId do
+defmodule NervesHub.Repo.Migrations.UniqueDeploymentNameProductId do
   use Ecto.Migration
 
   def up do

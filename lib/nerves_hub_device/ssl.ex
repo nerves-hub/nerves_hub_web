@@ -1,5 +1,5 @@
 defmodule NervesHubDevice.SSL do
-  alias NervesHubWebCore.{Devices, Certificate}
+  alias NervesHub.{Devices, Certificate}
 
   @type pkix_path_validation_reason ::
           :cert_expired

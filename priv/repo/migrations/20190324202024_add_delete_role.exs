@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddDeleteRole do
+defmodule NervesHub.Repo.Migrations.AddDeleteRole do
   use Ecto.Migration
   @disable_ddl_transaction true
 

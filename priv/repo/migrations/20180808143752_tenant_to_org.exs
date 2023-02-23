@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.TenantToOrg do
+defmodule NervesHub.Repo.Migrations.TenantToOrg do
   use Ecto.Migration
 
   def change do

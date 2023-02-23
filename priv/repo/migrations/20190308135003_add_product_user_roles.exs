@@ -1,7 +1,7 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddProductUserRoles do
+defmodule NervesHub.Repo.Migrations.AddProductUserRoles do
   use Ecto.Migration
 
-  alias NervesHubWebCore.Accounts.User.Role
+  alias NervesHub.Accounts.User.Role
 
   def change do
     create table(:product_users) do

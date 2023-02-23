@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.UpdateMetadataIndexToCompoundIndex do
+defmodule NervesHub.Repo.Migrations.UpdateMetadataIndexToCompoundIndex do
   use Ecto.Migration
 
   def up do

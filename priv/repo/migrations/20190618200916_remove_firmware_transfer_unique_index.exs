@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.RemoveFirmwareTransferUniqueIndex do
+defmodule NervesHub.Repo.Migrations.RemoveFirmwareTransferUniqueIndex do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.RemoveJitpProductUniqueness do
+defmodule NervesHub.Repo.Migrations.RemoveJitpProductUniqueness do
   use Ecto.Migration
 
   def change do

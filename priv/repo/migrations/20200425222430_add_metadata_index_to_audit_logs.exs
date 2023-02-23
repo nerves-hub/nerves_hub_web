@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddMetadataIndexToAuditLogs do
+defmodule NervesHub.Repo.Migrations.AddMetadataIndexToAuditLogs do
   use Ecto.Migration
 
   def up do

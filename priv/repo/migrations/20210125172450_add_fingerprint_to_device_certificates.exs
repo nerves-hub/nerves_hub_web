@@ -1,7 +1,7 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddFingerprintToDeviceCertificates do
+defmodule NervesHub.Repo.Migrations.AddFingerprintToDeviceCertificates do
   use Ecto.Migration
 
-  alias NervesHubWebCore.{Certificate, Devices.DeviceCertificate}
+  alias NervesHub.{Certificate, Devices.DeviceCertificate}
 
   import Ecto.Query, only: [from: 2]
   import Ecto.Changeset, only: [put_change: 3]

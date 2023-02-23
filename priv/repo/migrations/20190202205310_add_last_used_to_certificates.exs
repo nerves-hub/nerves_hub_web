@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddLastUsedToCertificates do
+defmodule NervesHub.Repo.Migrations.AddLastUsedToCertificates do
   use Ecto.Migration
 
   def change do

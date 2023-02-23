@@ -1,7 +1,7 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddOrgUserRoles do
+defmodule NervesHub.Repo.Migrations.AddOrgUserRoles do
   use Ecto.Migration
 
-  alias NervesHubWebCore.Accounts.User.Role
+  alias NervesHub.Accounts.User.Role
 
   def change do
     Role.create_type()

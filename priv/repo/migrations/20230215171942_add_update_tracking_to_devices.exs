@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddUpdateTrackingToDevices do
+defmodule NervesHub.Repo.Migrations.AddUpdateTrackingToDevices do
   use Ecto.Migration
 
   def change do

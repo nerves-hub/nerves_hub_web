@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.CreateOrgLimitsTable do
+defmodule NervesHub.Repo.Migrations.CreateOrgLimitsTable do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddOrgIdToModels do
+defmodule NervesHub.Repo.Migrations.AddOrgIdToModels do
   use Ecto.Migration
 
   def change do

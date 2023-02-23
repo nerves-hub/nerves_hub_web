@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddNeedsAttentionToDevices do
+defmodule NervesHub.Repo.Migrations.AddNeedsAttentionToDevices do
   use Ecto.Migration
 
   def change do

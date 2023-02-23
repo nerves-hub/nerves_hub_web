@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddRateAndThresholdsToDeployments do
+defmodule NervesHub.Repo.Migrations.AddRateAndThresholdsToDeployments do
   use Ecto.Migration
 
   def change do

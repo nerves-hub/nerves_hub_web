@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddIndexesToAuditLogs do
+defmodule NervesHub.Repo.Migrations.AddIndexesToAuditLogs do
   use Ecto.Migration
 
   @disable_ddl_transaction true

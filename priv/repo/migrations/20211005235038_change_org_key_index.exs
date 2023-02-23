@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.ChangeOrgKeyIndex do
+defmodule NervesHub.Repo.Migrations.ChangeOrgKeyIndex do
   use Ecto.Migration
 
   def up do

@@ -55,7 +55,7 @@ defmodule NervesHubUmbrella.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {NervesHubWWW.Application, []},
+      mod: {NervesHub.Application, []},
       extra_applications: [
         :logger,
         :runtime_tools,

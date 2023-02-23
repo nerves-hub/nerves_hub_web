@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.RequireDeviceUniqueness do
+defmodule NervesHub.Repo.Migrations.RequireDeviceUniqueness do
   use Ecto.Migration
 
   def change do

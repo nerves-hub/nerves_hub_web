@@ -1,4 +1,4 @@
-defmodule NervesHubWWWWeb.ConnCase do
+defmodule NervesHubWeb.ConnCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -21,25 +21,25 @@ defmodule NervesHubWWWWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest, except: [init_test_session: 2]
 
-      alias NervesHubWWWWeb.Router.Helpers, as: Routes
+      alias NervesHubWeb.Router.Helpers, as: Routes
 
       # The default endpoint for testing
-      @endpoint NervesHubWWWWeb.Endpoint
+      @endpoint NervesHubWeb.Endpoint
     end
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHubWebCore.Repo)
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
 
     unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHubWebCore.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end
 
-defmodule NervesHubAPIWeb.ConnCase do
+defmodule NervesHubWeb.APIConnCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -55,7 +55,7 @@ defmodule NervesHubAPIWeb.ConnCase do
   """
 
   use ExUnit.CaseTemplate
-  alias NervesHubWebCore.Fixtures
+  alias NervesHub.Fixtures
 
   using do
     quote do
@@ -64,24 +64,24 @@ defmodule NervesHubAPIWeb.ConnCase do
       import Phoenix.ConnTest
 
       use DefaultMocks
-      import NervesHubAPIWeb.ConnCase, only: [build_auth_conn: 1, peer_data: 1]
+      import NervesHubWeb.APIConnCase, only: [build_auth_conn: 1, peer_data: 1]
 
-      alias NervesHubAPIWeb.Router.Helpers, as: Routes
+      alias NervesHubWeb.API.Router.Helpers, as: Routes
 
       # The default endpoint for testing
-      @endpoint NervesHubAPIWeb.Endpoint
+      @endpoint NervesHubWeb.API.Endpoint
     end
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHubWebCore.Repo)
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
 
     unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHubWebCore.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 
     user = Fixtures.user_fixture()
-    {:ok, token} = NervesHubWebCore.Accounts.create_user_token(user, "test-token")
+    {:ok, token} = NervesHub.Accounts.create_user_token(user, "test-token")
     %{cert: cert} = Fixtures.user_certificate_fixture(user)
 
     user2 = Fixtures.user_fixture(%{username: user.username <> "0"})

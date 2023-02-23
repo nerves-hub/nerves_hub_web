@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddOrgMetrics do
+defmodule NervesHub.Repo.Migrations.AddOrgMetrics do
   use Ecto.Migration
 
   def change do

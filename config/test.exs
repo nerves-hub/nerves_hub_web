@@ -15,14 +15,14 @@ config :logger, level: :warn
 #
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
-config :nerves_hub_www, NervesHubAPIWeb.Endpoint,
+config :nerves_hub_www, NervesHubWeb.API.Endpoint,
   http: [port: 4002],
   server: false
 
 ##
 # NervesHub Device
 #
-config :nerves_hub_www, NervesHubDeviceWeb.Endpoint,
+config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
   code_reloader: false,
   debug_errors: true,
   check_origin: false,
@@ -41,28 +41,28 @@ config :nerves_hub_www, NervesHubDeviceWeb.Endpoint,
   ]
 
 ##
-# NervesHubWebCore
+# NervesHub
 #
 config :nerves_hub_www,
   allow_signups?: true,
-  firmware_upload: NervesHubWebCore.UploadMock,
+  firmware_upload: NervesHub.UploadMock,
   port: web_port
 
 config :nerves_hub_www,
-  delta_updater: NervesHubWebCore.DeltaUpdaterMock
+  delta_updater: NervesHub.DeltaUpdaterMock
 
-config :nerves_hub_www, NervesHubWebCore.Firmwares.Upload.S3, bucket: "mybucket"
+config :nerves_hub_www, NervesHub.Firmwares.Upload.S3, bucket: "mybucket"
 
-config :nerves_hub_www, NervesHubWebCore.Firmwares.Upload.File,
+config :nerves_hub_www, NervesHub.Firmwares.Upload.File,
   local_path: System.tmp_dir(),
   public_path: "/firmware"
 
-config :nerves_hub_www, NervesHubWebCore.Repo,
+config :nerves_hub_www, NervesHub.Repo,
   ssl: false,
   pool_size: 30,
   pool: Ecto.Adapters.SQL.Sandbox
 
-config :nerves_hub_www, NervesHubWebCore.CertificateAuthority,
+config :nerves_hub_www, NervesHub.CertificateAuthority,
   host: "127.0.0.1",
   port: 8443,
   ssl: [
@@ -72,14 +72,14 @@ config :nerves_hub_www, NervesHubWebCore.CertificateAuthority,
     server_name_indication: 'ca.nerves-hub.org'
   ]
 
-config :nerves_hub_www, NervesHubWebCore.Mailer, adapter: Bamboo.TestAdapter
+config :nerves_hub_www, NervesHub.Mailer, adapter: Bamboo.TestAdapter
 
 config :nerves_hub_www, Oban, queues: false, plugins: false
 
 ##
 # NervesHubWWW
 #
-config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
+config :nerves_hub_www, NervesHubWeb.Endpoint,
   http: [port: web_port],
   server: false,
   secret_key_base: "x7Vj9rmmRke//ctlapsPNGHXCRTnArTPbfsv6qX4PChFT9ARiNR5Ua8zoRilNCmX",

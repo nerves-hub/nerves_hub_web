@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddDerToDeviceCertificates do
+defmodule NervesHub.Repo.Migrations.AddDerToDeviceCertificates do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.UniqueOrgNames do
+defmodule NervesHub.Repo.Migrations.UniqueOrgNames do
   use Ecto.Migration
 
   def change do

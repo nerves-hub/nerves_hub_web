@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.FirmwarePatchTable do
+defmodule NervesHub.Repo.Migrations.FirmwarePatchTable do
   use Ecto.Migration
 
   def change do

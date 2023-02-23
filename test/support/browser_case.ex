@@ -1,9 +1,9 @@
-defmodule NervesHubWWWWeb.ConnCase.Browser do
+defmodule NervesHubWeb.ConnCase.Browser do
   @moduledoc """
   conn case for browser related tests
   """
-  alias NervesHubWebCore.{Accounts, Fixtures}
-  alias NervesHubWWWWeb.ConnCase
+  alias NervesHub.{Accounts, Fixtures}
+  alias NervesHubWeb.ConnCase
   alias Plug.Test
 
   defmacro __using__(opts) do

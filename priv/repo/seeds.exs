@@ -5,7 +5,7 @@
 # Inside the script, you can read and write to any of your
 # repositories directly:
 #
-#     NervesHubWebCore.Repo.insert!(%NervesHubWWW.SomeSchema{})
+#     NervesHub.Repo.insert!(%NervesHubWWW.SomeSchema{})
 #
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.
@@ -13,10 +13,10 @@
 # The seeds are run on every deploy. Therefore, it is important
 # that first check to see if the data you are trying to insert
 # has been run yet.
-alias NervesHubWebCore.{Accounts, Accounts.User, Repo, Firmwares}
+alias NervesHub.{Accounts, Accounts.User, Repo, Firmwares}
 
-defmodule NervesHubWebCore.SeedHelpers do
-  alias NervesHubWebCore.Fixtures
+defmodule NervesHub.SeedHelpers do
+  alias NervesHub.Fixtures
 
   def seed_product(product_name, user, org) do
     product = Fixtures.product_fixture(user, org, %{name: product_name})
@@ -24,7 +24,7 @@ defmodule NervesHubWebCore.SeedHelpers do
     firmware_versions = ["0.1.0", "0.1.1", "0.1.2", "1.0.0"]
 
     org_with_keys_and_users =
-      org |> NervesHubWebCore.Accounts.Org.with_org_keys() |> Repo.preload(:users)
+      org |> NervesHub.Accounts.Org.with_org_keys() |> Repo.preload(:users)
 
     org_keys = org_with_keys_and_users |> Map.get(:org_keys)
     user_names = org_with_keys_and_users |> Map.get(:users) |> Enum.map(fn x -> x.username end)
@@ -80,7 +80,7 @@ else
     end
 
   if env == "dev" do
-    NervesHubWebCore.SeedHelpers.nerves_team_seed(%{
+    NervesHub.SeedHelpers.nerves_team_seed(%{
       email: root_user_email,
       username: root_user_name,
       password: root_user_name

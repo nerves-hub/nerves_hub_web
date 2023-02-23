@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.ChangeDeviceCertificatesColumnsMatchAsn do
+defmodule NervesHub.Repo.Migrations.ChangeDeviceCertificatesColumnsMatchAsn do
   use Ecto.Migration
 
   def up do

@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.UpdateUserUniqueness do
+defmodule NervesHub.Repo.Migrations.UpdateUserUniqueness do
   use Ecto.Migration
 
   def change do

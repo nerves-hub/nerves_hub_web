@@ -1,7 +1,7 @@
 Code.compiler_options(ignore_module_conflict: true)
 
-defmodule NervesHubWebCore.Fixtures do
-  alias NervesHubWebCore.{
+defmodule NervesHub.Fixtures do
+  alias NervesHub.{
     Accounts,
     Accounts.Org,
     Accounts.OrgKey,
@@ -14,7 +14,7 @@ defmodule NervesHubWebCore.Fixtures do
     Repo
   }
 
-  alias NervesHubWebCore.Support.Fwup
+  alias NervesHub.Support.Fwup
 
   @after_compile {__MODULE__, :compiler_options}
 
@@ -62,16 +62,16 @@ defmodule NervesHubWebCore.Fixtures do
       |> X509.PublicKey.derive()
       |> X509.Certificate.new("/O=#{user.username}", ca, ca_key, validity: 1)
 
-    {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(cert)
+    {not_before, not_after} = NervesHub.Certificate.get_validity(cert)
 
-    serial = Map.get(params, :serial) || NervesHubWebCore.Certificate.get_serial_number(cert)
-    aki = NervesHubWebCore.Certificate.get_aki(cert)
+    serial = Map.get(params, :serial) || NervesHub.Certificate.get_serial_number(cert)
+    aki = NervesHub.Certificate.get_aki(cert)
 
     params = %{
       description: Map.get(params, :description) || user.username,
       serial: serial,
       aki: aki,
-      ski: NervesHubWebCore.Certificate.get_ski(cert),
+      ski: NervesHub.Certificate.get_ski(cert),
       not_before: not_before,
       not_after: not_after
     }
@@ -129,15 +129,15 @@ defmodule NervesHubWebCore.Fixtures do
     ca_key = X509.PrivateKey.new_ec(:secp256r1)
     ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", opts)
 
-    {not_before, not_after} = NervesHubWebCore.Certificate.get_validity(ca)
+    {not_before, not_after} = NervesHub.Certificate.get_validity(ca)
 
-    serial = NervesHubWebCore.Certificate.get_serial_number(ca)
-    aki = NervesHubWebCore.Certificate.get_aki(ca)
+    serial = NervesHub.Certificate.get_serial_number(ca)
+    aki = NervesHub.Certificate.get_aki(ca)
 
     params = %{
       serial: serial,
       aki: aki,
-      ski: NervesHubWebCore.Certificate.get_ski(ca),
+      ski: NervesHub.Certificate.get_ski(ca),
       not_before: not_before,
       not_after: not_after,
       der: X509.Certificate.to_der(ca)

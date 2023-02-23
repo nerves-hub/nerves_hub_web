@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddDescriptionToCaCertificates do
+defmodule NervesHub.Repo.Migrations.AddDescriptionToCaCertificates do
   use Ecto.Migration
 
   def change do

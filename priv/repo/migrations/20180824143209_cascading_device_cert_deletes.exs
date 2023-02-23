@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.CascadingDeviceCertDeletes do
+defmodule NervesHub.Repo.Migrations.CascadingDeviceCertDeletes do
   use Ecto.Migration
 
   def up do

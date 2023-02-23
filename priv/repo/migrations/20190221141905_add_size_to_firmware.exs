@@ -1,4 +1,4 @@
-defmodule NervesHubWebCore.Repo.Migrations.AddSizeToFirmware do
+defmodule NervesHub.Repo.Migrations.AddSizeToFirmware do
   use Ecto.Migration
 
   def change do

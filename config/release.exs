@@ -28,15 +28,14 @@ config :kernel,
   inet_dist_listen_min: 9100,
   inet_dist_listen_max: 9155
 
-config :nerves_hub_www, NervesHubWebCore.Firmwares.Upload.S3,
-  bucket: System.fetch_env!("S3_BUCKET_NAME")
+config :nerves_hub_www, NervesHub.Firmwares.Upload.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
 
-config :nerves_hub_www, NervesHubWebCore.Workers.FirmwaresTransferS3Ingress,
+config :nerves_hub_www, NervesHub.Workers.FirmwaresTransferS3Ingress,
   bucket: System.fetch_env!("S3_LOG_BUCKET_NAME")
 
 config :ex_aws, region: System.fetch_env!("AWS_REGION")
 
-config :nerves_hub_www, NervesHubWebCore.Mailer,
+config :nerves_hub_www, NervesHub.Mailer,
   adapter: Bamboo.SMTPAdapter,
   server: System.fetch_env!("SES_SERVER"),
   port: System.fetch_env!("SES_PORT"),
@@ -49,17 +48,17 @@ config :nerves_hub_www,
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   allow_signups?: System.get_env("ALLOW_SIGNUPS", "false") |> String.to_atom()
 
-config :nerves_hub_www, NervesHubWebCore.Tracer, env: System.get_env("DD_ENV") || "dev"
+config :nerves_hub_www, NervesHub.Tracer, env: System.get_env("DD_ENV") || "dev"
 
 if nerves_hub_app == "web" do
-  config :nerves_hub_www, NervesHubWWWWeb.Endpoint,
+  config :nerves_hub_www, NervesHubWeb.Endpoint,
     url: [host: host, port: port],
     secret_key_base: System.fetch_env!("SECRET_KEY_BASE"),
     live_view: [signing_salt: System.fetch_env!("LIVE_VIEW_SIGNING_SALT")]
 end
 
 if nerves_hub_app == "device" do
-  config :nerves_hub_www, NervesHubDeviceWeb.Endpoint,
+  config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
     url: [host: host],
     https: [
       port: 443,
@@ -94,7 +93,7 @@ if nerves_hub_app == "api" do
     |> Enum.map(&X509.Certificate.from_pem!/1)
     |> Enum.map(&X509.Certificate.to_der/1)
 
-  config :nerves_hub_www, NervesHubAPIWeb.Endpoint,
+  config :nerves_hub_www, NervesHubWeb.API.Endpoint,
     url: [host: host],
     https: [
       port: 443,
@@ -108,7 +107,7 @@ if nerves_hub_app == "api" do
 
   ca_host = System.fetch_env!("CA_HOST")
 
-  config :nerves_hub_www, NervesHubWebCore.CertificateAuthority,
+  config :nerves_hub_www, NervesHub.CertificateAuthority,
     host: ca_host,
     port: 8443,
     ssl: [
