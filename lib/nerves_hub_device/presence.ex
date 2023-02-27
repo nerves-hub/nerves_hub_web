@@ -55,10 +55,30 @@ defmodule NervesHubDevice.Presence do
   and untracks going forward.
   """
   @spec track(Device.t(), map()) :: :ok
-  def track(%Device{} = device, metadata) do
-    # publish a device update message
+  def track(device, metadata, times \\ 0)
+
+  def track(%Device{}, _metadata, times) when times >= 5 do
+    raise "Failed to register a device after 5 attempts"
+  end
+
+  def track(%Device{} = device, metadata, times) do
+    # Attempt to register the device and if it fails
+    # terminate the other process since the new one
+    # should be the winner. Then continue registration
     :gproc.reg({:n, :g, device.id}, metadata)
+
+    # publish a device update message
     publish_change(device, metadata)
+  rescue
+    ArgumentError ->
+      case whereis(device.id) do
+        nil ->
+          track(device, metadata, times + 1)
+
+        pid ->
+          if Process.alive?(pid), do: GenServer.stop(pid)
+          track(device, metadata, times + 1)
+      end
   end
 
   @doc """
