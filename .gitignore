@@ -15,7 +15,6 @@ erl_crash.dump
 # variables.
 /config/*.secret.exs
 
-.env
 .elixir_ls
 .vscode
 node_modules

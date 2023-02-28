@@ -127,6 +127,7 @@ defmodule NervesHubUmbrella.MixProject do
       {:telemetry_metrics, "~> 0.4"},
       {:telemetry_poller, "~> 0.4"},
       {:timex, "~> 3.1"},
+      {:vapor, "~> 0.10"},
       {:x509, "~> 0.5.1 or ~> 0.6"}
     ]
   end
@@ -143,9 +144,10 @@ defmodule NervesHubUmbrella.MixProject do
       "ecto.setup": [
         "ecto.create",
         "ecto.migrate",
-        "run apps/nerves_hub_www/priv/repo/seeds.exs"
+        "run priv/repo/seeds.exs"
       ],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
+      "ecto.migrate.reset": ["ecto.drop", "ecto.create", "ecto.migrate"],
       test: ["ecto.create --quiet", "ecto.migrate", "test"]
     ]
   end

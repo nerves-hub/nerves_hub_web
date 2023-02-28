@@ -1,7 +1,5 @@
 import Config
 
-host = System.get_env("HOST")
-
 config :ex_aws,
   access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, :instance_role],
   json_codec: Jason,
@@ -31,7 +29,6 @@ config :phoenix,
 
 # Configures the endpoint
 config :nerves_hub_www, NervesHubWeb.API.Endpoint,
-  url: [host: "localhost"],
   render_errors: [view: NervesHubWeb.API.ErrorView, accepts: ~w(json)],
   pubsub_server: NervesHub.PubSub
 
@@ -54,8 +51,7 @@ config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
 config :nerves_hub_www,
   allow_signups?: false,
   ecto_repos: [NervesHub.Repo],
-  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
-  host: host
+  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
 
 config :nerves_hub_www, NervesHub.PubSub,
   name: NervesHub.PubSub,
@@ -104,11 +100,9 @@ config :nerves_hub_www, NervesHubWeb.Gettext, default_locale: "en"
 
 # Configures the endpoint
 config :nerves_hub_www, NervesHubWeb.Endpoint,
-  url: [host: host],
   secret_key_base: System.get_env("SECRET_KEY_BASE"),
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
-  pubsub_server: NervesHub.PubSub,
-  live_view: [signing_salt: System.get_env("LIVE_VIEW_SIGNING_SALT")]
+  pubsub_server: NervesHub.PubSub
 
 config :gproc, :gproc_dist, :all
 

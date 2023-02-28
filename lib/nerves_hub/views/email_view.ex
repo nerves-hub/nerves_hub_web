@@ -5,10 +5,15 @@ defmodule NervesHub.EmailView do
 
   import Phoenix.HTML
 
+  alias NervesHub.Config
+
   def base_url do
-    scheme = Application.get_env(:nerves_hub_www, :scheme, :https)
-    host = Application.get_env(:nerves_hub_www, :host)
-    port = Application.get_env(:nerves_hub_www, :port)
+    vapor_config = Vapor.load!(Config)
+    endpoint_config = vapor_config.endpoint
+
+    scheme = endpoint_config.url_scheme
+    host = endpoint_config.url_host
+    port = endpoint_config.url_port
     port = if Enum.member?([443, 80], port), do: "", else: ":#{port}"
 
     "#{scheme}://#{host}#{port}"

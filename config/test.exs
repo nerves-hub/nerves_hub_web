@@ -59,7 +59,6 @@ config :nerves_hub_www, NervesHub.Firmwares.Upload.File,
 
 config :nerves_hub_www, NervesHub.Repo,
   ssl: false,
-  pool_size: 30,
   pool: Ecto.Adapters.SQL.Sandbox
 
 config :nerves_hub_www, NervesHub.CertificateAuthority,

@@ -2,6 +2,8 @@ defmodule NervesHubWeb.API.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub_www
   use SpandexPhoenix
 
+  alias NervesHub.Config
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # You should set gzip to true if you are running phoenix.digest
@@ -47,6 +49,19 @@ defmodule NervesHubWeb.API.Endpoint do
   configuration should be loaded from the system environment.
   """
   def init(_key, config) do
+    vapor_config = Vapor.load!(Config)
+    endpoint_config = vapor_config.endpoint
+
+    config =
+      Keyword.merge(config,
+        secret_key_base: endpoint_config.secret_key_base,
+        url: [
+          host: endpoint_config.url_host,
+          port: endpoint_config.url_port,
+          scheme: endpoint_config.url_scheme
+        ]
+      )
+
     if config[:load_from_system_env] do
       port = System.get_env("PORT") || raise "expected the PORT environment variable to be set"
       {:ok, Keyword.put(config, :http, [:inet6, port: port])}

@@ -7,53 +7,23 @@ help:
 	@echo "reset-test-db - reinitialize the test database"
 	@echo "test - run the unit tests"
 
-.env:
-	@echo "Please create a '.env' file first. Copy 'dev.env' to '.env' for a start."
-	@exit 1
-
-server: .env
-	. ./.env && \
+server:
 	mix phx.server
 
 iex:
-	make iex-server
-
-iex-server: .env
-	. ./.env && \
-	iex -S mix phx.server
-
-mix:
 	iex -S mix
 
-format:
-	mix cmd mix format
+iex-server:
+	iex -S mix phx.server
 
-check-format:
-	mix cmd mix format --check-formatted
+reset-db:
+	mix exto.reset
 
-reset-db: .env
-	. ./.env && \
-	make rebuild-db
-
-reset-test-db: .env
-	DB=nerves_hub_test \
+reset-test-db:
 	MIX_ENV=test \
 	make reset-db
 
-rebuild-db:
-	mix ecto.drop && \
-	mix ecto.create && \
-	mix ecto.migrate && \
-	mix run apps/nerves_hub_www/priv/repo/seeds.exs
-
-test: .env
-	DB=nerves_hub_test \
-	. ./.env && \
+test:
 	mix test
 
-test-watch: .env
-	DB=nerves_hub_test \
-	. ./.env && \
-	mix test.watch
-
-.PHONY: test rebuild-db reset-db reset-test-db mix iex-server server help
+.PHONY: help server iex iex-server reset-db reset-test-db test

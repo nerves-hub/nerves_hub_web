@@ -3,10 +3,6 @@ import Config
 # Start all of the applications
 config :nerves_hub_www, app: "all"
 
-web_host = "nerves-hub.org"
-web_port = 4000
-web_scheme = "http"
-
 ssl_dir =
   (System.get_env("NERVES_HUB_CA_DIR") || Path.join([__DIR__, "../test/fixtures/ssl/"]))
   |> Path.expand()
@@ -65,11 +61,7 @@ config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
 ##
 # NervesHub
 #
-config :nerves_hub_www,
-  firmware_upload: NervesHub.Firmwares.Upload.File,
-  host: web_host,
-  port: web_port,
-  scheme: web_scheme
+config :nerves_hub_www, firmware_upload: NervesHub.Firmwares.Upload.File
 
 config :nerves_hub_www, NervesHub.Firmwares.Upload.File,
   enabled: true,
@@ -94,14 +86,13 @@ config :nerves_hub_www, NervesHub.Mailer, adapter: Bamboo.LocalAdapter
 # NervesHubWWW
 #
 config :nerves_hub_www, NervesHubWeb.Endpoint,
-  http: [ip: {0, 0, 0, 0}, port: web_port],
+  http: [ip: {0, 0, 0, 0}, port: 4000],
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
   watchers: [npm: ["run", "watch", cd: Path.expand("../assets", __DIR__)]]
 
 config :nerves_hub_www, NervesHubWeb.Endpoint,
-  url: [scheme: web_scheme, host: web_host, port: web_port],
   live_reload: [
     patterns: [
       ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},

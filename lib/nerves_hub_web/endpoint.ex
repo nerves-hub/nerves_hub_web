@@ -2,6 +2,8 @@ defmodule NervesHubWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub_www
   use SpandexPhoenix
 
+  alias NervesHub.Config
+
   @session_options [
     store: :cookie,
     key: "_nerves_hub_key",
@@ -82,6 +84,22 @@ defmodule NervesHubWeb.Endpoint do
   configuration should be loaded from the system environment.
   """
   def init(_key, config) do
+    vapor_config = Vapor.load!(Config)
+    endpoint_config = vapor_config.endpoint
+
+    config =
+      Keyword.merge(config,
+        secret_key_base: endpoint_config.secret_key_base,
+        live_view: [
+          signing_salt: endpoint_config.live_view_signing_salt
+        ],
+        url: [
+          host: endpoint_config.url_host,
+          port: endpoint_config.url_port,
+          scheme: endpoint_config.url_scheme
+        ]
+      )
+
     if config[:load_from_system_env] do
       port = System.get_env("PORT") || raise "expected the PORT environment variable to be set"
       {:ok, Keyword.put(config, :http, [:inet6, port: port])}

@@ -67,6 +67,7 @@ jobs:
       - image: hexpm/elixir:1.13.2-erlang-23.0.4-alpine-3.13.1
         environment:
           MIX_ENV: test
+          HOST: localhost
           DATABASE_URL: postgres://db:db@localhost:5432/db
           SECRET_KEY_BASE: ${SECRET_KEY_BASE:-BGC824f8kh1IQPXK7bUmXDigrw404rA7rivR96vGv4bhMIRogiaFN7Z6R4duZClA}
           LIVE_VIEW_SIGNING_SALT: ${LIVE_VIEW_SIGNING_SALT:-2GiUN2NDLEnYT8I/3Q+XL6LGUGEKGogh}
