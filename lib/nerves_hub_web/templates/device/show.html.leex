@@ -24,7 +24,7 @@
       <span class="action-text">Reboot</span>
     </button>
     <%= link(
-      class: "btn btn-outline-light btn-action #{unless Map.has_key?(@device, :console_available) && @device.console_available, do: "disabled"}",
+      class: "btn btn-outline-light btn-action",
       aria_label: "Console",
       target: "_blank",
       to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier))
