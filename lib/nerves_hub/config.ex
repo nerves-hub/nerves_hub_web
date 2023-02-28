@@ -12,7 +12,7 @@ defmodule NervesHub.Config do
   config :endpoint,
          env([
            {:http_host, "HOST"},
-           {:live_view_signing_salt, "LIVE_VIEW_SIGNING_SALT", optional: true},
+           {:live_view_signing_salt, "LIVE_VIEW_SIGNING_SALT", required: false},
            {:secret_key_base, "SECRET_KEY_BASE"},
            {:url_host, "HOST"},
            {:url_port, "URL_PORT", default: "443", map: &String.to_integer/1},
