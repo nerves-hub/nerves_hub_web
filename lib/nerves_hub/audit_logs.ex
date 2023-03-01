@@ -1,7 +1,9 @@
 defmodule NervesHub.AuditLogs do
   import Ecto.Query
 
-  alias NervesHub.{Repo, AuditLogs.AuditLog}
+  alias NervesHub.AuditLogs.AuditLog
+  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Repo
   alias NimbleCSV.RFC4180, as: CSV
 
   def audit(actor, resource, action, description, params) do
@@ -32,18 +34,28 @@ defmodule NervesHub.AuditLogs do
     |> Repo.all()
   end
 
-  def logs_for_feed(%resource_type{id: id}) do
-    resource_type = to_string(resource_type)
-
-    from(al in AuditLog,
-      where: [actor_type: ^resource_type, actor_id: ^id],
-      or_where: [resource_type: ^resource_type, resource_id: ^id]
-    )
-    |> order_by(desc: :inserted_at)
+  def logs_for_feed(resource) do
+    resource
+    |> query_for_feed()
     |> Repo.all()
   end
 
-  def logs_for_feed(%resource_type{id: id}, opts) do
+  def logs_for_feed(resource, opts) do
+    resource
+    |> query_for_feed()
+    |> Repo.paginate(opts)
+  end
+
+  defp query_for_feed(%Deployment{id: id}) do
+    resource_type = to_string(Deployment)
+
+    from(al in AuditLog,
+      where: [resource_type: ^resource_type, resource_id: ^id]
+    )
+    |> order_by(desc: :inserted_at)
+  end
+
+  defp query_for_feed(%resource_type{id: id}) do
     resource_type = to_string(resource_type)
 
     from(al in AuditLog,
@@ -51,7 +63,6 @@ defmodule NervesHub.AuditLogs do
       or_where: [resource_type: ^resource_type, resource_id: ^id]
     )
     |> order_by(desc: :inserted_at)
-    |> Repo.paginate(opts)
   end
 
   def format_for_csv(audit_logs) do
