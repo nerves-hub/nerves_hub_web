@@ -499,6 +499,8 @@ defmodule NervesHub.Devices do
   end
 
   def update_firmware_metadata(device, metadata) do
+    description = "device #{device.identifier} updated firmware metadata"
+    AuditLogs.audit!(device, device, :update, description, metadata)
     update_device(device, %{firmware_metadata: metadata})
   end
 
@@ -708,6 +710,9 @@ defmodule NervesHub.Devices do
   end
 
   def firmware_update_successful(device) do
+    description = "device #{device.identifier} firmware successfully updated to version #{device.firmware_metadata.version}"
+    AuditLogs.audit!(device, device, :update, description, %{})
+
     device
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_change(:update_attempts, [])
