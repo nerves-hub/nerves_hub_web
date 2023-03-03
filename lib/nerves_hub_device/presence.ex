@@ -76,7 +76,7 @@ defmodule NervesHubDevice.Presence do
           track(device, metadata, times + 1)
 
         pid ->
-          if Process.alive?(pid), do: GenServer.stop(pid)
+          GenServer.stop(pid)
           track(device, metadata, times + 1)
       end
   end
