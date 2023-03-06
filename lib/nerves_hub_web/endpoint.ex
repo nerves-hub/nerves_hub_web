@@ -85,7 +85,7 @@ defmodule NervesHubWeb.Endpoint do
   """
   def init(_key, config) do
     vapor_config = Vapor.load!(Config)
-    endpoint_config = vapor_config.endpoint
+    endpoint_config = vapor_config.web_endpoint
 
     config =
       Keyword.merge(config,

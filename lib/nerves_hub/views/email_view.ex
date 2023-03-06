@@ -9,7 +9,7 @@ defmodule NervesHub.EmailView do
 
   def base_url do
     vapor_config = Vapor.load!(Config)
-    endpoint_config = vapor_config.endpoint
+    endpoint_config = vapor_config.web_endpoint
 
     scheme = endpoint_config.url_scheme
     host = endpoint_config.url_host
