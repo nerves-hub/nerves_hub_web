@@ -12,7 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.2/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.2/languages/bash.min.js"></script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <link rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>">
+    <link rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")}>
 
     <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/cookieconsent2/3.1.0/cookieconsent.min.css" />
     <script src="//cdnjs.cloudflare.com/ajax/libs/cookieconsent2/3.1.0/cookieconsent.min.js"></script>
@@ -37,7 +37,7 @@
   </head>
 
   <body>
-    <%= if @view_module == NervesHubWeb.HomeView do %>
+    <%= if Map.get(assigns, :home?) do %>
       <div class="home-wrapper">
         <main role="main" class="flex-column">
           <%= if get_flash(@conn, :info) do %>
@@ -87,6 +87,6 @@
       window.orgId = "<%= assigns[:org] && Map.get(assigns[:org], :id) %>"
     </script>
     <%= csrf_meta_tag() %>
-    <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
+    <script type="text/javascript" src={Routes.static_path(@conn, "/js/app.js")}></script>
   </body>
 </html>

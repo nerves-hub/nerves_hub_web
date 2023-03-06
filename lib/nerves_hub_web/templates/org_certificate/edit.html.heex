@@ -9,9 +9,9 @@
 
   <%= inputs_for f, :jitp, fn fp -> %>
     <label for="jitp_toggle"> Enable Just In Time Provisioning </label>
-    <input type="checkbox" name="jitp_toggle" id="jitp_toggle" <%= if f.data.jitp, do: "checked"%>>
+    <input type="checkbox" name="jitp_toggle" id="jitp_toggle" {if f.data.jitp, do: [checked: true], else: []}>
     <%= hidden_input fp, :delete, id: "jitp-delete" %>
-    <div <%= unless f.data.jitp, do: "hidden"%> id="jitp_form">
+    <div {unless f.data.jitp, do: [hidden: true], else: []} id="jitp_form">
       <div class="form-group">
         <label for="description_input" class="tooltip-label h3 mb-1">
           <span>JITP Description</span>

@@ -1,6 +1,6 @@
 <div class="action-row">
   <h1>Firmware Keys</h1>
-  <a class="btn btn-outline-light btn-action" aria-label="Add new firmware key" href="<%= Routes.org_key_path(@conn, :new, @org.name) %>">
+  <a class="btn btn-outline-light btn-action" aria-label="Add new firmware key" href={Routes.org_key_path(@conn, :new, @org.name)}>
     <span class="button-icon add"></span>
     <span class="action-text">Add Key</span>
   </a>
@@ -10,7 +10,7 @@
   <p class="p-small mb-3">Firmware keys refer to the raw or base64-encoded public and private keys used to sign and authenticate firmware files.</p>
 
   <%= for org_keys <- @org_keys do %>
-    <a class="firmware-key box-item" href="<%= Routes.org_key_path(@conn, :edit, @org.name, org_keys) %>">
+    <a class="firmware-key box-item" href={Routes.org_key_path(@conn, :edit, @org.name, org_keys)}>
       <img src="/images/icons/key.svg" alt="key" />
       <div>
         <h3>

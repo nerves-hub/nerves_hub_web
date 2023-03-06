@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand navbar-dark fixed-top flex-md-nowrap p-0 flex-row justify-content-center">
   <div class="content-container flex-row align-items-center justify-content-between h-100">
-    <a class="logo" href="<%= logo_href(@conn) %>">
+    <a class="logo" href={logo_href(@conn)}>
       <img src="/images/logo.svg" alt="logo" />
       <img src="/images/logo-no-text.svg" alt="logo" class="mobile-logo" />
     </a>
@@ -40,10 +40,10 @@
                   <% end %>
 
                   <%= if count_user_org_products(@conn.assigns.user, org) > 5 do %>
-                    <a href="<%= Routes.product_path(@conn, :index, org.name) %>" class="all-nav-link">View All Products (<%= count_user_org_products(@conn.assigns.user, org) %>)</a>
+                    <a href={Routes.product_path(@conn, :index, org.name)} class="all-nav-link">View All Products (<%= count_user_org_products(@conn.assigns.user, org) %>)</a>
                   <% end %>
 
-                  <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create product" href="<%= Routes.product_path(@conn, :new, org.name) %>">
+                  <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create product" href={Routes.product_path(@conn, :new, org.name)}>
                     <span class="action-text">Create Product</span>
                     <span class="button-icon add"></span>
                   </a>
@@ -53,10 +53,10 @@
             <% end %>
 
             <%= if count_user_orgs(@conn) > 5 do %>
-            <a class="all-nav-link" href="<%= Routes.org_path(@conn, :index, @conn.assigns.user.username) %>">View All Organizations (<%= count_user_orgs(@conn) %>)</a>
+            <a class="all-nav-link" href={Routes.org_path(@conn, :index, @conn.assigns.user.username)}>View All Organizations (<%= count_user_orgs(@conn) %>)</a>
             <% end %>
 
-            <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization" href="<%= Routes.org_path(@conn, :new) %>">
+            <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization" href={Routes.org_path(@conn, :new)}>
               <span class="action-text">Create Organization</span>
               <div class="button-icon add"></div>
             </a>
@@ -80,9 +80,9 @@
       </ul>
     <% else %>
       <div class="navbar-nav">
-        <a class="btn btn-outline-light ml-3" href="<%= Routes.session_path(@conn, :new)%>">Login</a>
+        <a class="btn btn-outline-light ml-3" href={Routes.session_path(@conn, :new)}>Login</a>
         <%= if permit_uninvited_signups() do %>
-          <a class="btn btn-primary ml-3" href="<%= Routes.account_path(@conn, :new) %>">Create Account</a>
+          <a class="btn btn-primary ml-3" href={Routes.account_path(@conn, :new)}>Create Account</a>
         <% end %>
       </div>
     <% end %>

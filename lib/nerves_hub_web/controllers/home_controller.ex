@@ -3,6 +3,7 @@ defmodule NervesHubWeb.HomeController do
 
   def index(conn, _params) do
     conn
+    |> assign(:home?, true)
     |> render("index.html")
   end
 end

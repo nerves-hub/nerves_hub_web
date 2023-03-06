@@ -5,7 +5,7 @@
       <ul class="nav">
         <%= for link <- links do %>
           <li class="nav-item">
-            <a class="nav-link <%= link.active %>" href="<%= link.href %>">
+            <a class={"nav-link #{link.active}"} href={link.href}>
               <span class="text"><%= link.title %></span>
             </a>
           </li>

@@ -10,7 +10,7 @@
     <div class="form-group">
       <div class="flex-row justify-content-between">
         <label for="password_input">Password</label>
-        <a href="<%= Routes.password_reset_path(@conn, :new) %>" class="forgot-password">
+        <a href={Routes.password_reset_path(@conn, :new)} class="forgot-password">
           Forgot Password
         </a>
       </div>
@@ -21,7 +21,7 @@
       <%= submit "Login", class: "btn btn-primary btn-lg w-100" %>
       <%= if permit_uninvited_signups() do %>
         <div class="help-text">Don't have an account?</div>
-        <a class="btn btn-outline-light" href="<%= Routes.account_path(@conn, :new) %>">
+        <a class="btn btn-outline-light" href={Routes.account_path(@conn, :new)}>
           Create Account
         </a>
       <% end %>

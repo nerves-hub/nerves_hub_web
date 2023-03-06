@@ -8,7 +8,7 @@
     <meta name="author" content="">
 
     <title><%= @device.identifier %></title>
-    <link rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>">
+    <link rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")}>
   </head>
 
   <body id="console-body">
@@ -18,6 +18,6 @@
       window.userToken = "<%= assigns[:user_token] %>"
     </script>
     <%= csrf_meta_tag() %>
-    <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/console.js") %>"></script>
+    <script type="text/javascript" src={Routes.static_path(@conn, "/js/console.js")}></script>
   </body>
 </html>

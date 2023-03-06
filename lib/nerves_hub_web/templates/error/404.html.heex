@@ -8,7 +8,7 @@
     <meta name="author" content="">
 
     <title>Page not found · NervesHub</title>
-    <link rel="stylesheet" href="<%= Routes.static_path(NervesHubWeb.Endpoint, "/css/app.css") %>">
+    <link rel="stylesheet" href={Routes.static_path(NervesHubWeb.Endpoint, "/css/app.css")}>
   </head>
 
 <nav class="navbar navbar-expand navbar-dark fixed-top flex-md-nowrap p-0 flex-row justify-content-center">
@@ -26,7 +26,7 @@
     <div class="no-results-blowup-wrapper">
       <img src="/images/product.svg" alt="No products">
         <br>
-        <%= "Sorry, the page you are looking for does not exist."%>
+        Sorry, the page you are looking for does not exist.
         </div>
     </main>
   </div>
@@ -41,7 +41,7 @@
       <a href="https://docs.nerves-hub.org/" target="_blank" rel="noopener noreferrer">Documentation</a>
       <a href="https://github.com/nerves-hub" target="_blank" rel="noopener noreferrer">Source code</a>
       <a href="https://hexdocs.pm/nerves_hub/readme.html#content" target="_blank" rel="noopener noreferrer">HexDocs</a>
-      <a href="<%= Routes.nerves_key_path(NervesHubWeb.Endpoint, :index) %>">NervesKey</a>
+      <a href={Routes.nerves_key_path(NervesHubWeb.Endpoint, :index)}>NervesKey</a>
       <a href="https://status.nerves-hub.org/" target="_blank" rel="noopener noreferrer">Status</a>
     </div>
     <div class="footer-nav help">
@@ -52,9 +52,9 @@
   </div>
   <div class="tos-grid">
     <div></div>
-    <div><a href="<%= Routes.policy_path(NervesHubWeb.Endpoint, :coc) %>">Code of Conduct</a></div>
-    <div><a href="<%= Routes.policy_path(NervesHubWeb.Endpoint, :tos) %>">Terms of Service</a></div>
-    <div><a href="<%= Routes.policy_path(NervesHubWeb.Endpoint, :privacy) %>">Privacy Policy</a></div>
+    <div><a href={Routes.policy_path(NervesHubWeb.Endpoint, :coc)}>Code of Conduct</a></div>
+    <div><a href={Routes.policy_path(NervesHubWeb.Endpoint, :tos)}>Terms of Service</a></div>
+    <div><a href={Routes.policy_path(NervesHubWeb.Endpoint, :privacy)}>Privacy Policy</a></div>
   </div>
 
 </footer>
