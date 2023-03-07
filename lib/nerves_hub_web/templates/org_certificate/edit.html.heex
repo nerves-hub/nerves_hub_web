@@ -7,6 +7,16 @@
     <div class="has-error"><%= error_tag f, :description %></div>
   </div>
 
+  <div class="form-group">
+    <div class="help-text mb-1 tooltip-label help-tooltip">
+      <%= label f, :check_expiration, for: "check_expiration_input" %>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text"><%= check_expiration_help_text() %></span>
+    </div>
+    <%= checkbox f, :check_expiration , class: "", id: "check_expiration_input" %>
+    <div class="has-error"><%= error_tag f, :check_expiration %></div>
+  </div>
+
   <%= inputs_for f, :jitp, fn fp -> %>
     <label for="jitp_toggle"> Enable Just In Time Provisioning </label>
     <input type="checkbox" name="jitp_toggle" id="jitp_toggle" {if f.data.jitp, do: [checked: true], else: []}>

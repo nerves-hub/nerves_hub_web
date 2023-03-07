@@ -15,4 +15,12 @@ defmodule NervesHubWeb.OrgCertificateView do
     String.to_integer(serial_str)
     |> format_serial()
   end
+
+  def check_expiration_help_text() do
+    """
+    By default, the time validity of CA certificates is unchecked. You can
+    toggle this to check expiration to prevent device certificates
+    from being created from an expired signing CA certificate.
+    """
+  end
 end

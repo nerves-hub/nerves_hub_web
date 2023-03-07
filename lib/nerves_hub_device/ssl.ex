@@ -113,7 +113,7 @@ defmodule NervesHubDevice.SSL do
   defp maybe_register_from_new_public_key(otp_cert) do
     with {:ok, cn} <- check_common_name(otp_cert),
          {:ok, db_ca} <- check_known_ca(otp_cert),
-         :ok <- check_expiration(db_ca),
+         :ok <- maybe_check_expiration(db_ca),
          der = Certificate.to_der(otp_cert),
          {:ok, _} <- :public_key.pkix_path_validation(db_ca.der, [der], []),
          {:ok, device} <- maybe_jitp_device(cn, db_ca),
@@ -130,7 +130,7 @@ defmodule NervesHubDevice.SSL do
     with {:ok, cn} <- check_common_name(otp_cert),
          true <- cn == device.identifier || :mismatched_cert,
          {:ok, db_ca} <- check_known_ca(otp_cert),
-         :ok <- check_expiration(db_ca),
+         :ok <- maybe_check_expiration(db_ca),
          true <- db_ca.org_id == device.org_id || :mismatched_org,
          der = Certificate.to_der(otp_cert),
          {:ok, _} <- :public_key.pkix_path_validation(db_ca.der, [der], []),
@@ -162,7 +162,7 @@ defmodule NervesHubDevice.SSL do
     end
   end
 
-  defp check_expiration(db_cert) do
+  defp maybe_check_expiration(%{check_expiration: true} = db_cert) do
     now = DateTime.utc_now()
     is_after? = DateTime.compare(now, db_cert.not_after) == :gt
     is_before? = DateTime.compare(now, db_cert.not_before) != :gt
@@ -174,6 +174,8 @@ defmodule NervesHubDevice.SSL do
       :ok
     end
   end
+
+  defp maybe_check_expiration(_db_cert), do: :ok
 
   defp maybe_jitp_device(cn, %{org_id: org_id, jitp: nil}) do
     case Devices.get_device_by(identifier: cn, org_id: org_id) do

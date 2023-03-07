@@ -20,6 +20,7 @@ defmodule NervesHub.Devices.CACertificate do
 
   @optional_params [
     :description,
+    :check_expiration,
     :last_used
   ]
 
@@ -35,6 +36,7 @@ defmodule NervesHub.Devices.CACertificate do
     field(:not_after, :utc_datetime)
     field(:last_used, :utc_datetime)
     field(:der, :binary)
+    field(:check_expiration, :boolean)
 
     timestamps()
   end
@@ -48,7 +50,7 @@ defmodule NervesHub.Devices.CACertificate do
   end
 
   def update_changeset(%CACertificate{} = ca_certificate, params) do
-    cast(ca_certificate, params, [:description, :last_used])
+    cast(ca_certificate, params, @optional_params)
     |> cast_assoc(:jitp)
   end
 end
