@@ -145,6 +145,19 @@
       %>
       <div class="has-error"><%= error_tag f, :device_failure_threshold %></div>
     </div>
+
+    <div class="form-group">
+      <label for="device_failure_threshold" class="tooltip-label">
+        <span>Device penalty box timeout minutes</span>
+        <span class="tooltip-info"></span>
+        <span class="tooltip-text"><%= help_message_for(:penalty_timeout_minutes) %></span>
+      </label>
+      <%= number_input f, :penalty_timeout_minutes,
+        class: "form-control",
+        id: "penalty_timeout_minutes"
+      %>
+      <div class="has-error"><%= error_tag f, :penalty_timeout_minutes %></div>
+    </div>
   </div>
 
   <div class="button-submit-wrapper">

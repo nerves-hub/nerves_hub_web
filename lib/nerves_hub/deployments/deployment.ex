@@ -20,7 +20,8 @@ defmodule NervesHub.Deployments.Deployment do
     :failure_threshold,
     :failure_rate_seconds,
     :failure_rate_amount,
-    :healthy
+    :healthy,
+    :penalty_timeout_minutes
   ]
 
   schema "deployments" do

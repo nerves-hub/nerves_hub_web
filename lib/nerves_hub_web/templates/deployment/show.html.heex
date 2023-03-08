@@ -92,6 +92,14 @@
             </div>
             <p><%= @deployment.device_failure_threshold %></p>
           </div>
+          <div>
+            <div class="help-text mb-1 tooltip-label help-tooltip">
+              <span>Device Penalty Box Timeout</span>
+              <span class="tooltip-info"></span>
+              <span class="tooltip-text"><%= help_message_for(:penalty_timeout_minutes) %></span>
+            </div>
+            <p><%= @deployment.penalty_timeout_minutes %> minutes</p>
+          </div>
         </div>
       </div>
     </div>

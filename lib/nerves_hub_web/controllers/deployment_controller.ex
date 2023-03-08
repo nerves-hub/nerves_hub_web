@@ -162,7 +162,8 @@ defmodule NervesHubWeb.DeploymentController do
       :failure_threshold,
       :firmware_id,
       :name,
-      :is_active
+      :is_active,
+      :penalty_timeout_minutes
     ]
 
     params =

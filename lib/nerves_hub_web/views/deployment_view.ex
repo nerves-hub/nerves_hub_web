@@ -63,6 +63,9 @@ defmodule NervesHubWeb.DeploymentView do
 
       :device_failure_threshold ->
         "Maximum number of install attempts and/or failures a device can have for this deployment before being marked unhealthy"
+
+      :penalty_timeout_minutes ->
+        "Number of minutes a device is placed in the penalty box for reaching the failure rate and threshold"
     end
   end
 
