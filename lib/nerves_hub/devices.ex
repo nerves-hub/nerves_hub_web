@@ -95,8 +95,14 @@ defmodule NervesHub.Devices do
         {"firmware_version", value} ->
           where(query, [d], d.firmware_metadata["version"] == ^value)
 
-        {"healthy", value} ->
-          where(query, [d], d.healthy == ^value)
+        {"updates", "enabled"} ->
+          where(query, [d], d.updates_enabled == true)
+
+        {"updates", "penalty-box"} ->
+          where(query, [d], d.updates_blocked_until > fragment("now() at time zone 'utc'"))
+
+        {"updates", "disabled"} ->
+          where(query, [d], d.updates_enabled == false)
 
         {"id", value} ->
           where(query, [d], ilike(d.identifier, ^"#{value}%"))
@@ -509,7 +515,7 @@ defmodule NervesHub.Devices do
     |> Device.changeset(params)
     |> Repo.update()
     |> case do
-      {:ok, %{healthy: false} = device} ->
+      {:ok, %{updates_enabled: false} = device} ->
         {:ok, device}
 
       {:ok, device} ->
@@ -559,7 +565,7 @@ defmodule NervesHub.Devices do
         %Device{firmware_metadata: %{uuid: uuid, fwup_version: fwup_version}} = device,
         %Deployment{} = deployment
       ) do
-    with {:ok, %{healthy: true}} <- verify_update_eligibility(device, deployment),
+    with {:ok, device} <- verify_update_eligibility(device, deployment),
          true <- matches_deployment?(device, deployment),
          %Device{product: product} <- Repo.preload(device, :product),
          %{firmware: target} <- Repo.preload(deployment, :firmware) do
@@ -652,33 +658,66 @@ defmodule NervesHub.Devices do
     Enum.count(attempts) >= deployment.device_failure_rate_amount
   end
 
-  def verify_update_eligibility(%{healthy: false} = device, _deployment) do
-    {:ok, device}
+  @doc """
+  Devices that haven't been automatically blocked are not in the penalty window
+  Devices that have a time greater than now are in the penalty window
+  """
+  def device_in_penalty_box?(device, now \\ DateTime.utc_now())
+
+  def device_in_penalty_box?(%{updates_blocked_until: nil}, _now), do: false
+
+  def device_in_penalty_box?(device, now) do
+    DateTime.compare(device.updates_blocked_until, now) == :gt
   end
 
-  def verify_update_eligibility(device, deployment) do
+  defp updates_blocked?(device, now) do
+    device.updates_enabled == false || device_in_penalty_box?(device, now)
+  end
+
+  def verify_update_eligibility(device, deployment, now \\ DateTime.utc_now()) do
     cond do
+      updates_blocked?(device, now) ->
+        {:error, :updates_blocked, device}
+
       failure_rate_met?(device, deployment) ->
-        description =
-          "device #{device.identifier} marked unhealthy. Device failure rate met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}"
+        blocked_until =
+          DateTime.utc_now()
+          |> DateTime.truncate(:second)
+          |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
+
+        description = """
+        Device #{device.identifier} automatically blocked firmware upgrades for #{deployment.penalty_timeout_minutes} minutes.
+        Device failure rate met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
+        """
 
         AuditLogs.audit!(deployment, device, :update, description, %{
-          healthy: false,
+          updates_blocked_until: blocked_until,
           reason: "device failure rate met"
         })
 
-        update_device(device, %{healthy: false})
+        {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
+
+        {:error, :updates_blocked, device}
 
       failure_threshold_met?(device, deployment) ->
-        description =
-          "device #{device.identifier} marked unhealthy. Device failure thredhold met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}"
+        blocked_until =
+          DateTime.utc_now()
+          |> DateTime.truncate(:second)
+          |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
+
+        description = """
+        Device #{device.identifier} automatically blocked firmware upgrades for #{deployment.penalty_timeout_minutes} minutes.
+        Device failure thredhold met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
+        """
 
         AuditLogs.audit!(deployment, device, :update, description, %{
-          healthy: false,
+          updates_blocked_until: blocked_until,
           reason: "device failure threshold met"
         })
 
-        update_device(device, %{healthy: false})
+        {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
+
+        {:error, :updates_blocked, device}
 
       true ->
         {:ok, device}
@@ -716,6 +755,7 @@ defmodule NervesHub.Devices do
     device
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_change(:update_attempts, [])
+    |> Ecto.Changeset.put_change(:updates_blocked_until, nil)
     |> Repo.update()
   end
 
@@ -770,13 +810,6 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec quarantine(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
-  def quarantine(%Device{} = device, user) do
-    description = "user #{user.username} quarantined device #{device.identifier}"
-    params = %{healthy: false}
-    update_device_with_audit(device, params, user, description)
-  end
-
   @spec tag_device(Device.t() | [Device.t()], User.t(), List.t()) :: Repo.transaction()
   def tag_device(%Device{} = device, user, tags) do
     description = "user #{user.username} updated device #{device.identifier} tags"
@@ -801,21 +834,34 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec unquarantine(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
-  def unquarantine(%Device{} = device, user) do
-    description = "user #{user.username} unquarantined device #{device.identifier}"
-    params = %{healthy: true, update_attempts: []}
+  @spec enable_updates(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
+  def enable_updates(%Device{} = device, user) do
+    description = "user #{user.username} enabled updates for device #{device.identifier}"
+    params = %{updates_enabled: true, update_attempts: []}
+    update_device_with_audit(device, params, user, description)
+  end
+
+  @spec disable_updates(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
+  def disable_updates(%Device{} = device, user) do
+    description = "user #{user.username} disabled updates for device #{device.identifier}"
+    params = %{updates_enabled: false}
     update_device_with_audit(device, params, user, description)
   end
 
   def toggle_health(device, user) do
-    case device.healthy do
+    case device.updates_enabled do
       true ->
-        quarantine(device, user)
+        disable_updates(device, user)
 
       false ->
-        unquarantine(device, user)
+        enable_updates(device, user)
     end
+  end
+
+  def clear_penalty_box(%Device{} = device, user) do
+    description = "user #{user.username} removed device #{device.identifier} from the penalty box"
+    params = %{updates_blocked_until: nil}
+    update_device_with_audit(device, params, user, description)
   end
 
   @spec move_many([Device.t()], Product.t(), User.t()) :: %{
@@ -833,12 +879,12 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  @spec quarantine_devices([Device.t()], User.t()) :: %{
+  @spec disable_updates([Device.t()], User.t()) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]
         }
-  def quarantine_devices(devices, user) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :quarantine, [&1, user]))
+  def disable_updates_for_devices(devices, user) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :disable_updates, [&1, user]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
@@ -859,12 +905,21 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  @spec unquarantine_devices([Device.t()], User.t()) :: %{
+  @spec enable_updates_for_devices([Device.t()], User.t()) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]
         }
-  def unquarantine_devices(devices, user) do
-    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :unquarantine, [&1, user]))
+  def enable_updates_for_devices(devices, user) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :enable_updates, [&1, user]))
+    |> Task.await_many(20_000)
+    |> Enum.reduce(%{ok: [], error: []}, fn
+      {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}
+      {:error, name, changeset, _}, acc -> %{acc | error: [{name, changeset} | acc.error]}
+    end)
+  end
+
+  def clear_penalty_box_for_devices(devices, user) do
+    Enum.map(devices, &Task.Supervisor.async(Tasks, __MODULE__, :clear_penalty_box, [&1, user]))
     |> Task.await_many(20_000)
     |> Enum.reduce(%{ok: [], error: []}, fn
       {:ok, updated}, acc -> %{acc | ok: [updated | acc.ok]}

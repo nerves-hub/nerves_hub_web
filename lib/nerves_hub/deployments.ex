@@ -162,7 +162,7 @@ defmodule NervesHub.Deployments do
           ^deployment.firmware.uuid
         ),
       where: d.org_id == ^deployment.product.org_id,
-      where: d.healthy == false,
+      where: d.updates_enabled == false,
       select: count(d.id)
     )
     |> Repo.exclude_deleted()
@@ -234,7 +234,7 @@ defmodule NervesHub.Deployments do
           ^deployment.firmware.uuid
         ),
       where: d.org_id == ^org_id,
-      where: d.healthy
+      where: d.updates_enabled
     )
     |> Repo.exclude_deleted()
     |> Repo.all()

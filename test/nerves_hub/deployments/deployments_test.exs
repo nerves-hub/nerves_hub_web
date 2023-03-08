@@ -217,7 +217,7 @@ defmodule NervesHub.DeploymentsTest do
       device =
         Fixtures.device_fixture(org, product, firmware, %{
           tags: ["beta", "beta-edge"],
-          healthy: false
+          updates_enabled: false
         })
 
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
@@ -257,7 +257,7 @@ defmodule NervesHub.DeploymentsTest do
         1..4,
         &Fixtures.device_fixture(org, product, firmware, %{
           tags: ["beta", "beta-edge", "#{&1}"],
-          healthy: false
+          updates_enabled: false
         })
       )
 

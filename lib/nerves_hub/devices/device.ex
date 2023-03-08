@@ -17,10 +17,11 @@ defmodule NervesHub.Devices.Device do
   @optional_params [
     :last_communication,
     :description,
-    :healthy,
+    :updates_enabled,
     :tags,
     :deleted_at,
-    :update_attempts
+    :update_attempts,
+    :updates_blocked_until
   ]
   @required_params [:org_id, :product_id, :identifier]
 
@@ -33,10 +34,11 @@ defmodule NervesHub.Devices.Device do
     field(:identifier, :string)
     field(:description, :string)
     field(:last_communication, :utc_datetime)
-    field(:healthy, :boolean, default: true)
+    field(:updates_enabled, :boolean, default: true)
     field(:tags, NervesHub.Types.Tag)
     field(:deleted_at, :utc_datetime)
     field(:update_attempts, {:array, :utc_datetime}, default: [])
+    field(:updates_blocked_until, :utc_datetime)
 
     field(:status, :string, default: "offline", virtual: true)
 

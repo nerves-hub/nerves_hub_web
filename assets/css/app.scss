@@ -87,17 +87,29 @@ html body {
   margin-top: .5rem;
   margin-bottom: .5rem;
 
-  &.healthy-false {
-    background-color: var(--primary-25);
+  &.firmware-penalty-box {
+    background-color: rgba(202, 138, 4, 0.5);
     padding-right: 2.5rem;
-    background-image: url("/images/icons/quarantine-red.svg");
+    background-image: url("/images/icons/firmware-penalty-box.svg");
     background-position: right .5rem center;
     background-repeat: no-repeat;
     background-size: 1.1rem;
 
     &:hover {
       color: white;
-      background-color: var(--primary-50);
+      background-color: rgba(202, 138, 4, 1);
+    }
+  }
+
+  &.firmware-disabled {
+    padding-right: 2.5rem;
+    background-image: url("/images/icons/firmware-disabled.svg");
+    background-position: right .5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.1rem;
+
+    &:hover {
+      color: white;
     }
   }
 
@@ -117,7 +129,7 @@ html body {
   }
 }
 
-.quarantined {
+.firmware-penalty-box {
   background-image: url("/images/icons/error.svg");
   background-size: 1.5rem;
   background-repeat: no-repeat;
@@ -168,10 +180,6 @@ html body {
 
 .hidden {
   display: none;
-}
-
-.quarantine-button {
-  color: red;
 }
 
 .upload-cert-group {

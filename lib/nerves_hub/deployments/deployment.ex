@@ -38,6 +38,7 @@ defmodule NervesHub.Deployments.Deployment do
     field(:is_active, :boolean)
     field(:name, :string)
     field(:healthy, :boolean, default: true)
+    field(:penalty_timeout_minutes, :integer, default: 1440)
 
     timestamps()
   end

@@ -1,8 +1,9 @@
 defmodule NervesHubWeb.DeviceView do
   use NervesHubWeb, :view
 
-  alias NervesHubDevice.Presence
+  alias NervesHub.Devices
   alias NervesHub.Repo
+  alias NervesHubDevice.Presence
   alias NervesHubWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
 
   import NervesHubWeb.LayoutView,
@@ -88,5 +89,31 @@ defmodule NervesHubWeb.DeviceView do
 
     Do you wish to continue?
     """
+  end
+
+  def firmware_update_status(device) do
+    cond do
+      Devices.device_in_penalty_box?(device) ->
+        "firmware-penalty-box"
+
+      device.updates_enabled == false ->
+        "firmware-disabled"
+
+      true ->
+        "firmware-enabled"
+    end
+  end
+
+  def firmware_update_title(device) do
+    cond do
+      Devices.device_in_penalty_box?(device) ->
+        "Automatic Penalty Box"
+
+      device.updates_enabled == false ->
+        "Firmware Disabled"
+
+      true ->
+        "Firmware Enabled"
+    end
   end
 end

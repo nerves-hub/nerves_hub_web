@@ -10,7 +10,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         identifier: identifier,
         description: "test device",
         tags: ["test"],
-        healthy: true
+        updates_enabled: true
       }
 
       conn = post(conn, Routes.device_path(conn, :create, org.name, product.name), device)
@@ -18,7 +18,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       conn = get(conn, Routes.device_path(conn, :show, org.name, product.name, device.identifier))
       assert json_response(conn, 200)["data"]["identifier"] == identifier
-      assert json_response(conn, 200)["data"]["healthy"] == true
+      assert json_response(conn, 200)["data"]["updates_enabled"] == true
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do

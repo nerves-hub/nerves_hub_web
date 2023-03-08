@@ -18,7 +18,7 @@
   <div class="action-row">
     <div class="flex-row align-items-center">
       <h1 class="mr-3 mb-0">Devices</h1>
-      <button class={"btn btn-outline-light btn-action #{if @show_filters, do: "btn-filter-hide", else: "btn-filter-show"}"} type="button" phx-click="toggle-filters" phx-value-toggle={@show_filters}>
+      <button class={"btn btn-outline-light btn-action #{if @show_filters, do: "btn-filter-hide", else: "btn-filter-show"}"} type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
         <span class="action-text">
           <%= if @show_filters, do: "Hide Filters", else: "Show Filters" %>
         </span>
@@ -59,12 +59,13 @@
           <input type="text" name="id" id="input_id" class="form-control" value={@current_filters["id"]} phx-debounce="500" />
         </div>
         <div class="form-group">
-          <label for="input_health">Health</label>
+          <label for="input_health">Firmware Updates</label>
           <div class="pos-rel">
-            <select name="healthy" id="input_health" class="form-control">
-              <option {selected?(@current_filters, "healthy", "")} value="">All</option>
-              <option {selected?(@current_filters, "healthy", "1")} value="1">Healthy</option>
-              <option {selected?(@current_filters, "healthy", "0")} value="0">Unhealthy</option>
+            <select name="updates" id="input_health" class="form-control">
+              <option {selected?(@current_filters, "updates", "")} value="">All</option>
+              <option {selected?(@current_filters, "updates", "enabled")} value="enabled">Enabled</option>
+              <option {selected?(@current_filters, "updates", "penalty-box")} value="penalty-box">Penalty Box</option>
+              <option {selected?(@current_filters, "updates", "disabled")} value="disabled">Disabled</option>
             </select>
             <div class="select-icon"></div>
           </div>
@@ -104,7 +105,7 @@
     <div class="filter-wrapper">
       <h4 class="color-white mb-2 flex-row align-items-center">Bulk Actions <span class="help-text ml-2"><%= length(@selected_devices) %> selected</span></h4>
       <form id="move" phx-change="target-product" phx-submit="move-devices">
-        <div class="form-group">
+        <div class="form-group inline-block">
           <label for="move_to">Move device(s) to:</label>
           <div class="pos-rel">
             <select name="product" id="move_to" class="form-control">
@@ -128,27 +129,36 @@
         </div>
       </form>
 
-      <form id="quarantine" phx-submit="quarantine-devices">
-        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will quarantine all selected devices" phx-click="quarantine-devices">
-          <span class="button-icon quarantine-red"></span>
-          <span class="action-text quarantine-button">Quarantine</span>
+      <form class="inline-block" id="disable-updates" phx-submit="disable-updates-for-devices">
+        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will disable updates for all selected devices" phx-click="disable-updates-for-devices">
+          <span class="button-icon firmware-disabled"></span>
+          <span class="action-text">Disable Updates</span>
         </button>
       </form>
 
-      <form id="unquarantine" phx-submit="unquarantine-devices">
-        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will unquarantine all selected devices" phx-click="unquarantine-devices">
-          <span class="button-icon quarantine"></span>
-          <span class="action-text">Unquarantine</span>
+      <form class="inline-block" id="clear-penalty-box" phx-submit="clear-penalty-box-for-devices">
+        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will clear the penalty box all selected devices" phx-click="clear-penalty-box-for-devices">
+          <span class="button-icon firmware-enabled"></span>
+          <span class="action-text">Clear Penalty box</span>
         </button>
       </form>
 
-      <form id="toggle-tags" phx-submit="toggle-tags">
+      <form class="inline-block" id="enable-updates" phx-submit="enable-updates-for-devices">
+        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will enable updates for all selected devices" phx-click="enable-updates-for-devices">
+          <span class="button-icon firmware-enabled"></span>
+          <span class="action-text">Enable Updates</span>
+        </button>
+      </form>
+
+      <form class="inline-block" id="toggle-tags" phx-submit="toggle-tags">
         <button class="btn btn-outline-light btn-action" type="button" phx-click="toggle-tags" phx-value-toggle={@bulk_tagging}>
           <span class="action-text">Tags</span>
         </button>
       </form>
 
-      <button class="btn btn-outline-light btn-action btn-secondary" type="button" phx-click="deselect-all">Deselect All</button>
+      <div class="mt-2">
+        <button class="btn btn-outline-light btn-action btn-secondary" type="button" phx-click="deselect-all">Deselect All</button>
+      </div>
     </div>
     <br>
     <form id="bulk-tag-input" phx-submit="tag-devices" phx-change="validate-tags">
@@ -198,7 +208,7 @@
         <td>
           <div class="mobile-label help-text">Identifier</div>
           <div>
-            <a href={Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier)} class={"badge ff-m healthy-#{device.healthy}"}>
+            <a href={Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier)} class={"badge ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
               <%= device.identifier %>
             </a>
           </div>
@@ -293,7 +303,7 @@
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" type="button" phx-click="toggle_health_state" phx-value-device-id={device.id}>
                 <span>
-                  <%= if device.healthy, do: "Quarantine", else: "Unquarantine" %>
+                  <%= if device.updates_enabled, do: "Disable Updates", else: "Enable Updates" %>
                 </span>
               </button>
 

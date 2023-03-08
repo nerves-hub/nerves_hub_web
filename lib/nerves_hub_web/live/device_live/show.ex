@@ -125,6 +125,22 @@ defmodule NervesHubWeb.DeviceLive.Show do
     {:noreply, socket |> audit_log_assigns(String.to_integer(page_num))}
   end
 
+  def handle_event("clear-penalty-box", _params, socket) do
+    %{device: device, user: user} = socket.assigns
+
+    socket =
+      case Devices.clear_penalty_box(device, user) do
+        {:ok, updated_device} ->
+          meta = Map.take(device, Presence.__fields__())
+          assign(socket, :device, Map.merge(updated_device, meta))
+
+        {:error, _changeset} ->
+          put_flash(socket, :error, "Failed to mark health state")
+      end
+
+    {:noreply, socket}
+  end
+
   def handle_event(
         "toggle_health_state",
         _params,

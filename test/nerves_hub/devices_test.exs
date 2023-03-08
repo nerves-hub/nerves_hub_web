@@ -124,7 +124,7 @@ defmodule NervesHub.DevicesTest do
     assert Enum.all?(devices, fn device -> device.tags == ["New", "Tags"] end)
   end
 
-  test "can quarantine multiple devices", %{
+  test "can disable updates for multiple devices", %{
     user: user,
     device: device,
     device2: device2,
@@ -132,41 +132,58 @@ defmodule NervesHub.DevicesTest do
   } do
     devices = [device, device2, device3]
 
-    %{ok: devices} = Devices.quarantine_devices(devices, user)
+    %{ok: devices} = Devices.disable_updates_for_devices(devices, user)
 
-    assert Enum.all?(devices, fn device -> device.healthy == false end)
+    assert Enum.all?(devices, fn device -> device.updates_enabled == false end)
   end
 
-  test "can unquarantine a devices" do
+  test "can enable updates for a devices" do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    device = Fixtures.device_fixture(org, product, firmware, %{healthy: false})
+    device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
 
     {:ok, device} = Devices.update_attempted(device)
-    {:ok, device} = Devices.unquarantine(device, user)
+    {:ok, device} = Devices.enable_updates(device, user)
 
-    assert device.healthy
+    assert device.updates_enabled
     assert device.update_attempts == []
   end
 
-  test "can unquarantine multiple devices" do
+  test "can enable updates for multiple devices" do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    device = Fixtures.device_fixture(org, product, firmware, %{healthy: false})
-    device2 = Fixtures.device_fixture(org, product, firmware, %{healthy: false})
-    device3 = Fixtures.device_fixture(org, product, firmware, %{healthy: false})
+    device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+    device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
+    device3 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
 
     devices = [device, device2, device3]
 
-    %{ok: devices} = Devices.unquarantine_devices(devices, user)
+    %{ok: devices} = Devices.enable_updates_for_devices(devices, user)
 
-    assert Enum.all?(devices, fn device -> device.healthy == true end)
+    assert Enum.all?(devices, fn device -> device.updates_enabled == true end)
+  end
+
+  test "can clear penalty box for multiple devices" do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
+    product = Fixtures.product_fixture(user, org)
+    org_key = Fixtures.org_key_fixture(org)
+    firmware = Fixtures.firmware_fixture(org_key, product)
+    device = Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+    device2 = Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+    device3 = Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+
+    devices = [device, device2, device3]
+
+    %{ok: devices} = Devices.clear_penalty_box_for_devices(devices, user)
+
+    assert Enum.all?(devices, fn device -> is_nil(device.updates_blocked_until) end)
   end
 
   test "delete_device deletes its certificates", %{
@@ -507,7 +524,7 @@ defmodule NervesHub.DevicesTest do
 
   describe "send_update_message" do
     test "does not send when device needs attention", %{deployment: deployment, device: device} do
-      assert Devices.send_update_message(%{device | healthy: false}, deployment) ==
+      assert Devices.send_update_message(%{device | updates_enabled: false}, deployment) ==
                %UpdatePayload{update_available: false}
     end
 
@@ -578,7 +595,7 @@ defmodule NervesHub.DevicesTest do
 
   describe "resolve_update" do
     test "no update when device needs attention", %{deployment: deployment, device: device} do
-      assert Devices.resolve_update(%{device | healthy: false}, deployment) == %UpdatePayload{
+      assert Devices.resolve_update(%{device | updates_enabled: false}, deployment) == %UpdatePayload{
                update_available: false
              }
     end
@@ -775,7 +792,8 @@ defmodule NervesHub.DevicesTest do
 
       {:ok, device} = Devices.verify_update_eligibility(device, deployment)
 
-      assert device.healthy
+      assert device.updates_enabled
+      refute device.updates_blocked_until
     end
 
     test "device updates successfully after a few attempts", %{
@@ -787,7 +805,8 @@ defmodule NervesHub.DevicesTest do
 
       {:ok, device} = Devices.verify_update_eligibility(device, deployment)
 
-      assert device.healthy
+      assert device.updates_enabled
+      refute device.updates_blocked_until
     end
 
     test "device updates successfully after a few attempts over a long period of time", state do
@@ -802,10 +821,11 @@ defmodule NervesHub.DevicesTest do
 
       {:ok, device} = Devices.verify_update_eligibility(device, deployment)
 
-      assert device.healthy
+      assert device.updates_enabled
+      refute device.updates_blocked_until
     end
 
-    test "device is unhealthy and should be quarantined based on total attemps", state do
+    test "device is unhealthy and should be put in the penalty box based on total attemps", state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
       deployment = %{deployment | device_failure_threshold: 6}
@@ -819,12 +839,12 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -500, :second))
       {:ok, device} = Devices.update_attempted(device, now)
 
-      {:ok, device} = Devices.verify_update_eligibility(device, deployment)
+      {:error, :updates_blocked, device} = Devices.verify_update_eligibility(device, deployment)
 
-      refute device.healthy
+      assert device.updates_blocked_until
     end
 
-    test "device is unhealthy and should be quarantined based on attempt rate", state do
+    test "device is unhealthy and should be put in the penalty box based on attempt rate", state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
 
@@ -836,9 +856,27 @@ defmodule NervesHub.DevicesTest do
       {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -2, :second))
       {:ok, device} = Devices.update_attempted(device, now)
 
-      {:ok, device} = Devices.verify_update_eligibility(device, deployment)
+      {:error, :updates_blocked, device} = Devices.verify_update_eligibility(device, deployment)
 
-      refute device.healthy
+      assert device.updates_blocked_until
+    end
+
+    test "device is in the penalty box and should be rejected for updates", state do
+      %{device: device, deployment: deployment} = state
+      deployment = Repo.preload(deployment, [:firmware])
+      now = DateTime.utc_now()
+
+      # future time
+      device = %{device | updates_blocked_until: DateTime.add(now, 1, :second)}
+      {:error, :updates_blocked, _device} = Devices.verify_update_eligibility(device, deployment, now)
+
+      # now
+      device = %{device | updates_blocked_until: now}
+      {:ok, _device} = Devices.verify_update_eligibility(device, deployment, now)
+
+      # past time
+      device = %{device | updates_blocked_until: DateTime.add(now, -1, :second)}
+      {:ok, _device} = Devices.verify_update_eligibility(device, deployment, now)
     end
   end
 end
