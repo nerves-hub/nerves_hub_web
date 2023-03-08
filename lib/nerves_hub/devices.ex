@@ -860,7 +860,7 @@ defmodule NervesHub.Devices do
 
   def clear_penalty_box(%Device{} = device, user) do
     description = "user #{user.username} removed device #{device.identifier} from the penalty box"
-    params = %{updates_blocked_until: nil}
+    params = %{updates_blocked_until: nil, update_attempts: []}
     update_device_with_audit(device, params, user, description)
   end
 
