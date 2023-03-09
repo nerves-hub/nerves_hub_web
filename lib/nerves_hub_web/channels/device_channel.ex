@@ -115,7 +115,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {deployment, payload} =
       Map.pop_lazy(payload, :deployment, fn -> Repo.get(Deployment, payload.deployment_id) end)
 
+    # reload update attempts because they might have been cleared
+    # and we have a cached stale version
     device = socket.assigns.device
+    updated_device = Repo.reload(device)
+    device = %{device | update_attempts: updated_device.update_attempts}
+    socket = assign(socket, :device, device)
 
     description =
       "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{deployment.firmware.uuid}"
