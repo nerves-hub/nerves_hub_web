@@ -71,7 +71,13 @@ defmodule NervesHubWeb.DeviceChannel do
     # if this is the first fwup we see in the channel, then mark it as an update attempt
     socket =
       if !socket.assigns.update_started? do
-        {:ok, device} = Devices.update_attempted(socket.assigns.device)
+        # reload update attempts because they might have been cleared
+        # and we have a cached stale version
+        device = socket.assigns.device
+        updated_device = Repo.reload(device)
+        device = %{device | update_attempts: updated_device.update_attempts}
+
+        {:ok, device} = Devices.update_attempted(device)
 
         socket
         |> assign(:device, device)
@@ -115,12 +121,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {deployment, payload} =
       Map.pop_lazy(payload, :deployment, fn -> Repo.get(Deployment, payload.deployment_id) end)
 
-    # reload update attempts because they might have been cleared
-    # and we have a cached stale version
     device = socket.assigns.device
-    updated_device = Repo.reload(device)
-    device = %{device | update_attempts: updated_device.update_attempts}
-    socket = assign(socket, :device, device)
 
     description =
       "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{deployment.firmware.uuid}"
