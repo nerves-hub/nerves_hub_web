@@ -195,6 +195,7 @@
         <th>Connection</th>
         <%= devices_table_header("Last handshake", "last_communication", @current_sort, @sort_direction) %>
         <th>Firmware</th>
+        <th>Platform</th>
         <th>Firmware Status</th>
         <%= devices_table_header("Tags", "tags", @current_sort, @sort_direction) %>
         <th></th>
@@ -254,6 +255,19 @@
                   <%= device.firmware_metadata.version %>
                 </span>
               <% end %>
+            <% end %>
+          </div>
+        </td>
+
+        <td>
+          <div class="mobile-label help-text">Platform</div>
+          <div>
+            <%= if is_nil(device.firmware_metadata) do %>
+              <span class="color-white-50">Unknown</span>
+            <% else %>
+              <span class="badge">
+                <%= device.firmware_metadata.platform %>
+              </span>
             <% end %>
           </div>
         </td>

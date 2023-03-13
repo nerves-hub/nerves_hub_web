@@ -124,11 +124,11 @@
 <div class="upload-cert-group">
   <h3 class="mb-2">Certificates</h3>
   <%= if @toggle_upload do %>
-    <button class="btn btn-primary" type="button" phx-click="toggle-upload" phx-value-toggle={@toggle_upload}>
+    <button class="btn btn-primary" type="button" phx-click="toggle-upload" phx-value-toggle={to_string(@toggle_upload)}>
       <span class="action-text">Cancel Upload</span>
     </button>
   <% else %>
-    <button class="btn btn-outline-light btn-action" type="button" phx-click="toggle-upload" phx-value-toggle={@toggle_upload}>
+    <button class="btn btn-outline-light btn-action" type="button" phx-click="toggle-upload" phx-value-toggle={to_string(@toggle_upload)}>
       <div class="button-icon add"></div>
     </button>
   <% end %>
