@@ -95,6 +95,9 @@ defmodule NervesHub.Devices do
         {"firmware_version", value} ->
           where(query, [d], d.firmware_metadata["version"] == ^value)
 
+        {"platform", value} ->
+          where(query, [d], d.firmware_metadata["platform"] == ^value)
+
         {"updates", "enabled"} ->
           where(query, [d], d.updates_enabled == true)
 
@@ -975,4 +978,15 @@ defmodule NervesHub.Devices do
   end
 
   def maybe_copy_firmware_keys(_old, _updated), do: :ignore
+
+  @doc """
+  Get distinct device platforms based on the product
+  """
+  def platforms(product_id) do
+    Device
+    |> select([d], fragment("?->>'platform'", d.firmware_metadata))
+    |> distinct(true)
+    |> where([d], d.product_id == ^product_id)
+    |> Repo.all()
+  end
 end

@@ -15,6 +15,7 @@ defmodule NervesHubWeb.DeviceLive.Index do
   @default_filters %{
     "connection" => "",
     "firmware_version" => "",
+    "platform" => "",
     "healthy" => "",
     "id" => "",
     "tag" => ""
@@ -55,6 +56,7 @@ defmodule NervesHubWeb.DeviceLive.Index do
         total_pages: 0
       })
       |> assign(:firmware_versions, firmware_versions(product_id))
+      |> assign(:platforms, Devices.platforms(product_id))
       |> assign(:show_filters, false)
       |> assign(:current_filters, @default_filters)
       |> assign(:currently_filtering, false)
