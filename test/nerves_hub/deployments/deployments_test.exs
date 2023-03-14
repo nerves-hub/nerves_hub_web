@@ -393,5 +393,30 @@ defmodule NervesHub.DeploymentsTest do
       assert Enum.member?(deployments, low_deployment)
       refute Enum.member?(deployments, high_deployment)
     end
+
+    test "finds matching deployments skips pre versions", state do
+      %{org: org, org_key: org_key, product: product, firmware: firmware} = state
+
+      low_deployment =
+        Fixtures.deployment_fixture(org, firmware, %{
+          name: "rpi",
+          conditions: %{"tags" => ["rpi"], "version" => "~> 1.0"}
+        })
+
+      high_deployment =
+        Fixtures.deployment_fixture(org, firmware, %{
+          name: "rpi0",
+          conditions: %{"tags" => ["rpi"], "version" => "~> 2.0"}
+        })
+
+      firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.2.0-pre"})
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
+
+      deployments = Deployments.potential_deployments(device)
+
+      refute Enum.member?(deployments, low_deployment)
+      refute Enum.member?(deployments, high_deployment)
+    end
   end
 end

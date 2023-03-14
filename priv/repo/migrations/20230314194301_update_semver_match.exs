@@ -1,4 +1,4 @@
-defmodule NervesHub.Repo.Migrations.CreateSemanticVersioningFunction do
+defmodule NervesHub.Repo.Migrations.UpdateSemverMatch do
   use Ecto.Migration
 
   def change do
@@ -9,6 +9,7 @@ defmodule NervesHub.Repo.Migrations.CreateSemanticVersioningFunction do
     RETURNS NULL ON NULL INPUT
     AS $$
     SELECT CASE
+    WHEN version LIKE '%-%' THEN 'f'
     WHEN req LIKE '~>%' THEN
         string_to_array(version, '.')::int[] >= string_to_array(substring(req from 4), '.')::int[]
         AND
