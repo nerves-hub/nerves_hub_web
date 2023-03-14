@@ -297,3 +297,12 @@ html {
     display: grid !important;
   }
 }
+
+.device-header-group {
+  display: flex;
+  .btn {
+    margin-left: 1%;
+    height: fit-content;
+    min-width: min-content;
+  }
+}

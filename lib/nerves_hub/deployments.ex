@@ -253,4 +253,20 @@ defmodule NervesHub.Deployments do
 
     {:ok, deployment}
   end
+
+  @doc """
+  Find all potential deployments for a device
+
+  Based on the product, firmware platform, firmware architecture, and device tags
+  """
+  def potential_deployments(device) do
+    Deployment
+    |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
+    |> where([d], d.product_id == ^device.product_id)
+    |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
+    |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
+    |> where([d], fragment("?->'tags' <@ to_jsonb(?::text[])", d.conditions, ^device.tags))
+    |> where([d], fragment("coalesce(semver_match(?::text, ?->>'version'), 't')", ^device.firmware_metadata.version, d.conditions))
+    |> Repo.all()
+  end
 end

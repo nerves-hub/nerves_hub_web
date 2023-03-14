@@ -40,30 +40,41 @@
         <span class="action-text">Edit</span>
       <% end %>
     <% end %>
-
-    <a class="btn btn-outline-light btn-action" aria-label="Download Audit Logs" href={Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, @device.identifier)}>
-      <div class="button-icon download"></div>
-      <span class="action-text">Download Audit Logs</span>
-    </a>
   </div>
 </div>
 
 <%= render("_header.html", device: @device) %>
 
 <div class="row">
-  <div class="col-lg-7">
+  <div class="col-lg-6">
     <h3 class="mb-2">Deployments</h3>
     <div class="display-box">
-      <div class="help-text mb-1">Tags</div>
-      <%= if !is_nil(@device.tags) do %>
-        <%= for tag <- @device.tags do %>
-          <span class="badge"><%= tag %></span>
+      <div>
+        <div class="help-text mb-1">Tags</div>
+        <%= if !is_nil(@device.tags) do %>
+          <%= for tag <- @device.tags do %>
+            <span class="badge"><%= tag %></span>
+          <% end %>
+        <% else %>
+          <p>No Tags</p>
         <% end %>
-      <% else %>
-        <p>No Tags</p>
-      <% end %>
+      </div>
+      <div class="mt-4">
+        <div class="help-text mb-1">Matching Deployments</div>
+        <%= if !Enum.empty?(@deployments) do %>
+          <%= for deployment <- @deployments do %>
+            <%= link(to: Routes.deployment_path(@socket, :show, @org.name, @product.name, deployment.name), class: "badge") do %>
+              <div class={"deployment-state state-#{if deployment.is_active, do: "on", else: "off"}"}><%= deployment.name %></div>
+            <% end %>
+          <% end %>
+        <% else %>
+          <span class="color-white-50">No Matching Deployments</span>
+        <% end %>
+      </div>
     </div>
+  </div>
 
+  <div class="col-lg-6">
     <h3 class="mb-2">Firmware</h3>
     <div class="display-box">
       <div class="flex-row justify-content-between">
@@ -99,10 +110,18 @@
       </div>
     </div>
   </div>
+</div>
 
-  <div class="col-lg-5">
-    <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
+<div class="mb-4">
+  <div class="device-header-group">
+    <h3 class="mb-2">Latest Activity</h3>
+
+    <a class="btn btn-outline-light btn-action" title="Download Audit Logs" aria-label="Download Audit Logs" href={Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, @device.identifier)}>
+      <div class="button-icon download"></div>
+    </a>
   </div>
+
+  <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
 </div>
 
 <%= if err = live_flash(@flash, :error) do %>
@@ -121,7 +140,7 @@
   </div>
 <% end %>
 
-<div class="upload-cert-group">
+<div class="device-header-group">
   <h3 class="mb-2">Certificates</h3>
   <%= if @toggle_upload do %>
     <button class="btn btn-primary" type="button" phx-click="toggle-upload" phx-value-toggle={to_string(@toggle_upload)}>

@@ -319,4 +319,79 @@ defmodule NervesHub.DeploymentsTest do
       refute Deployments.failure_rate_met?(deployment)
     end
   end
+
+  describe "device's matching deployments" do
+    test "finds all matching deployments", state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      beta_deployment = Fixtures.deployment_fixture(org, firmware, %{name: "beta", conditions: %{"tags" => ["beta"]}})
+      rpi_deployment = Fixtures.deployment_fixture(org, firmware, %{name: "rpi", conditions: %{"tags" => ["rpi"]}})
+      rpi0_deployment = Fixtures.deployment_fixture(org, firmware, %{name: "rpi0", conditions: %{"tags" => ["rpi0"]}})
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
+
+      deployments = Deployments.potential_deployments(device)
+
+      assert Enum.member?(deployments, beta_deployment)
+      assert Enum.member?(deployments, rpi_deployment)
+      refute Enum.member?(deployments, rpi0_deployment)
+    end
+
+    test "finds matching deployments including the platform", state do
+      %{org: org, org_key: org_key, product: product} = state
+
+      rpi_firmware = Fixtures.firmware_fixture(org_key, product, %{platform: "rpi"})
+      rpi0_firmware = Fixtures.firmware_fixture(org_key, product, %{platform: "rpi0"})
+
+      rpi_deployment = Fixtures.deployment_fixture(org, rpi_firmware, %{name: "rpi", conditions: %{"tags" => ["rpi"]}})
+      rpi0_deployment = Fixtures.deployment_fixture(org, rpi0_firmware, %{name: "rpi0", conditions: %{"tags" => ["rpi"]}})
+
+      device = Fixtures.device_fixture(org, product, rpi_firmware, %{tags: ["beta", "rpi"]})
+
+      deployments = Deployments.potential_deployments(device)
+
+      assert Enum.member?(deployments, rpi_deployment)
+      refute Enum.member?(deployments, rpi0_deployment)
+    end
+
+    test "finds matching deployments including the architecture", state do
+      %{org: org, org_key: org_key, product: product} = state
+
+      rpi_firmware = Fixtures.firmware_fixture(org_key, product, %{architecture: "rpi"})
+      rpi0_firmware = Fixtures.firmware_fixture(org_key, product, %{architecture: "rpi0"})
+
+      rpi_deployment = Fixtures.deployment_fixture(org, rpi_firmware, %{name: "rpi", conditions: %{"tags" => ["rpi"]}})
+      rpi0_deployment = Fixtures.deployment_fixture(org, rpi0_firmware, %{name: "rpi0", conditions: %{"tags" => ["rpi"]}})
+
+      device = Fixtures.device_fixture(org, product, rpi_firmware, %{tags: ["beta", "rpi"]})
+
+      deployments = Deployments.potential_deployments(device)
+
+      assert Enum.member?(deployments, rpi_deployment)
+      refute Enum.member?(deployments, rpi0_deployment)
+    end
+
+    test "finds matching deployments including the version", state do
+      %{org: org, product: product, firmware: firmware} = state
+
+      low_deployment =
+        Fixtures.deployment_fixture(org, firmware, %{
+          name: "rpi",
+          conditions: %{"tags" => ["rpi"], "version" => "~> 1.0"}
+        })
+
+      high_deployment =
+        Fixtures.deployment_fixture(org, firmware, %{
+          name: "rpi0",
+          conditions: %{"tags" => ["rpi"], "version" => "~> 2.0"}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
+
+      deployments = Deployments.potential_deployments(device)
+
+      assert Enum.member?(deployments, low_deployment)
+      refute Enum.member?(deployments, high_deployment)
+    end
+  end
 end

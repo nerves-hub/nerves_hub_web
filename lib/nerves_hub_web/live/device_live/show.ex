@@ -6,6 +6,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
+  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Repo
@@ -46,6 +47,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
       |> assign(:page_title, socket.assigns.device.identifier)
       |> assign(:toggle_upload, false)
       |> assign(:results, [])
+      |> assign(:deployments, Deployments.potential_deployments(socket.assigns.device))
       |> allow_upload(:certificate,
         accept: :any,
         auto_upload: true,
