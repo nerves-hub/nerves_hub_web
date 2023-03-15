@@ -6,6 +6,13 @@
   </div>
 <% end %>
 
+<%= if info = live_flash(@flash, :info) do %>
+  <div class="alert alert-info alert-dismissible">
+    <button type="button" class="close" phx-click="clear-flash-info">&times;</button>
+    <%= info %>
+  </div>
+<% end %>
+
 <div class="action-row">
   <%= link "All Devices", to: Routes.device_path(@socket, :index, @org.name, @product.name), class: "back-link"%>
   <div class="btn-group" role="group" aria-label="Device Actions">
@@ -107,6 +114,24 @@
               <%= display_status(@device.status) %>
           <% end %>
         </div>
+      </div>
+      <div class="mt-4">
+        <div class="help-text mb-1 tooltip-label help-tooltip">
+          <span>Send update</span>
+          <span class="tooltip-info"></span>
+          <span class="tooltip-text">Push a specific version of firmware to a device. This disables updates to prevent a deployment pushing an update on reconnect.</span>
+        </div>
+        <form action="#" phx-submit="push-update">
+          <div class="flex-row justify-content-between">
+            <select name="uuid" class="form-control">
+              <option value="">Select a version</option>
+              <%= for firmware <- @firmwares do %>
+                <option value={firmware.uuid}><%= firmware.version %></option>
+              <% end %>
+            </select>
+            <button class="btn btn-secondary ml-2">Send</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

@@ -117,6 +117,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  # manually pushed
+  def handle_info(%Broadcast{event: "update", payload: %{deployment_id: nil} = payload}, socket) do
+    push(socket, "update", payload)
+    {:noreply, socket}
+  end
+
   def handle_info(%Broadcast{event: "update", payload: payload}, socket) do
     {deployment, payload} =
       Map.pop_lazy(payload, :deployment, fn -> Repo.get(Deployment, payload.deployment_id) end)

@@ -46,6 +46,16 @@ defmodule NervesHub.Firmwares do
 
   def get_firmware!(firmware_id), do: Repo.get!(Firmware, firmware_id)
 
+  def get_firmware_for_device(device) do
+    Firmware
+    |> where([f], f.platform == ^device.firmware_metadata.platform)
+    |> where([f], f.architecture == ^device.firmware_metadata.architecture)
+    |> where([f], f.org_id == ^device.org_id)
+    |> where([f], f.product_id == ^device.product_id)
+    |> order_by([f], fragment("? collate numeric desc", f.version))
+    |> Repo.all()
+  end
+
   @spec get_firmware_by_org_id(non_neg_integer()) :: [Firmware.t()]
   def get_firmware_by_org_id(org_id) do
     q =
@@ -72,11 +82,7 @@ defmodule NervesHub.Firmwares do
 
   @spec get_firmware_by_uuid(String.t()) :: [Firmware.t()]
   def get_firmware_by_uuid(uuid) do
-    from(
-      f in Firmware,
-      where: f.uuid == ^uuid
-    )
-    |> Repo.all()
+    Repo.get_by(Firmware, uuid: uuid)
   end
 
   @spec get_firmware_by_product_and_uuid(Product.t(), String.t()) ::
@@ -507,8 +513,11 @@ defmodule NervesHub.Firmwares do
 
           uuid ->
             case get_firmware_by_uuid(uuid) do
-              [firmware | _] -> metadata_from_firmware(firmware)
-              [] -> {:ok, nil}
+              nil ->
+                {:ok, nil}
+
+              firmware ->
+                metadata_from_firmware(firmware)
             end
         end
     end

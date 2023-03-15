@@ -9,6 +9,8 @@ defmodule NervesHubWeb.DeviceLive.Show do
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.UpdatePayload
+  alias NervesHub.Firmwares
   alias NervesHub.Repo
   alias NervesHub.Products
 
@@ -48,6 +50,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
       |> assign(:toggle_upload, false)
       |> assign(:results, [])
       |> assign(:deployments, Deployments.potential_deployments(socket.assigns.device))
+      |> assign(:firmwares, Firmwares.get_firmware_for_device(socket.assigns.device))
       |> allow_upload(:certificate,
         accept: :any,
         auto_upload: true,
@@ -220,6 +223,31 @@ defmodule NervesHubWeb.DeviceLive.Show do
   end
 
   def handle_event("validate-cert", _, socket), do: {:noreply, socket}
+
+  def handle_event("push-update", %{"uuid" => uuid}, socket) do
+    firmware = Firmwares.get_firmware_by_uuid(uuid)
+
+    {:ok, url} = Firmwares.get_firmware_url(firmware)
+    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
+
+    %{device: device, user: user} = socket.assigns
+
+    {:ok, device} = Devices.disable_updates(device, user)
+    socket = assign(socket, :device, device)
+
+    description = "user #{user.username} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+    AuditLogs.audit!(user, device, :update, description, %{firmware_uuid: firmware.uuid})
+
+    payload = %UpdatePayload{
+      update_available: true,
+      firmware_url: url,
+      firmware_meta: meta
+    }
+
+    NervesHubWeb.Endpoint.broadcast("device:#{socket.assigns.device.id}", "update", payload)
+
+    {:noreply, put_flash(socket, :info, "Pushing update")}
+  end
 
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
     logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 5})
