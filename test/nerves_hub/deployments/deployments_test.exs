@@ -293,7 +293,7 @@ defmodule NervesHub.DeploymentsTest do
             send_update_message: true
           })
 
-        time = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+        time = NaiveDateTime.utc_now()
         Repo.insert(al)
         Repo.insert(%{al | inserted_at: Timex.shift(time, seconds: i)})
         Repo.insert(%{al | inserted_at: Timex.shift(time, seconds: i + 5)})

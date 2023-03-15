@@ -45,7 +45,7 @@ defmodule NervesHubWeb.DeviceChannel do
         deployment = hd(deployments)
 
         description =
-          "device #{device.identifier} received update for firmware #{deployment.firmware.uuid} via deployment #{deployment.name} after channel join"
+          "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} after channel join"
 
         AuditLogs.audit!(deployment, device, :update, description, %{
           from: "channel_join",

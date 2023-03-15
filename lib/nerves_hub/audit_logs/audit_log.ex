@@ -36,7 +36,7 @@ defmodule NervesHub.AuditLogs.AuditLog do
     field(:resource_id, :id)
     field(:resource_type, Resource)
 
-    timestamps(updated_at: false)
+    timestamps(type: :naive_datetime_usec, updated_at: false)
   end
 
   def build(%actor_type{} = actor, %resource_type{} = resource, action, description, params) do

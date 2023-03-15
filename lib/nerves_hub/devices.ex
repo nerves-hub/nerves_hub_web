@@ -752,7 +752,7 @@ defmodule NervesHub.Devices do
   end
 
   def firmware_update_successful(device) do
-    description = "device #{device.identifier} firmware successfully updated to version #{device.firmware_metadata.version}"
+    description = "device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
     AuditLogs.audit!(device, device, :update, description, %{})
 
     device

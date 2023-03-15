@@ -49,9 +49,7 @@ defmodule NervesHub.AuditLogs do
   defp query_for_feed(%Deployment{id: id}) do
     resource_type = to_string(Deployment)
 
-    from(al in AuditLog,
-      where: [resource_type: ^resource_type, resource_id: ^id]
-    )
+    from(al in AuditLog, where: [resource_type: ^resource_type, resource_id: ^id])
     |> order_by(desc: :inserted_at)
   end
 
