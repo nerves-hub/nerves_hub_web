@@ -16,7 +16,7 @@ defmodule NervesHubWebCore.DevicesTest do
   alias NervesHubWebCore.Devices.{DeviceCertificate, UpdatePayload}
   alias Ecto.Changeset
 
-  @valid_fwup_version "1.6.0"
+  @valid_fwup_version "1.10.0"
 
   setup do
     user = Fixtures.user_fixture()
@@ -616,7 +616,7 @@ defmodule NervesHubWebCore.DevicesTest do
 
       deployment = Fixtures.deployment_fixture(org, target, %{name: "resolve-update"})
       device = Fixtures.device_fixture(org, product, source)
-      {:ok, device} = Devices.update_firmware_metadata(device, %{fwup_version: "1.6.0"})
+      {:ok, device} = Devices.update_firmware_metadata(device, %{fwup_version: "1.10.0"})
       %{firmware_metadata: %{fwup_version: fwup_version}} = device
 
       firmware_delta = Fixtures.firmware_delta_fixture(source, target)
@@ -642,7 +642,7 @@ defmodule NervesHubWebCore.DevicesTest do
 
       deployment = Fixtures.deployment_fixture(org, target, %{name: "resolve-update"})
       device = Fixtures.device_fixture(org, product, source)
-      {:ok, device} = Devices.update_firmware_metadata(device, %{fwup_version: "1.6.0"})
+      {:ok, device} = Devices.update_firmware_metadata(device, %{fwup_version: "1.10.0"})
       %{firmware_metadata: %{fwup_version: fwup_version}} = device
 
       assert Devices.delta_updatable?(source, target, deployment, fwup_version)
