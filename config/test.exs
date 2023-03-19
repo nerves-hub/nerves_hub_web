@@ -61,16 +61,6 @@ config :nerves_hub_www, NervesHub.Repo,
   ssl: false,
   pool: Ecto.Adapters.SQL.Sandbox
 
-config :nerves_hub_www, NervesHub.CertificateAuthority,
-  host: "127.0.0.1",
-  port: 8443,
-  ssl: [
-    keyfile: Path.join([__DIR__, "../test/fixtures/ssl/ca-client-key.pem"]),
-    certfile: Path.join([__DIR__, "../test/fixtures/ssl/ca-client.pem"]),
-    cacertfile: Path.join([__DIR__, "../test/fixtures/ssl/ca.pem"]),
-    server_name_indication: 'ca.nerves-hub.org'
-  ]
-
 config :nerves_hub_www, NervesHub.Mailer, adapter: Bamboo.TestAdapter
 
 config :nerves_hub_www, Oban, queues: false, plugins: false

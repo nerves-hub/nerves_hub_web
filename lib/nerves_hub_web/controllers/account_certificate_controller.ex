@@ -4,7 +4,6 @@ defmodule NervesHubWeb.AccountCertificateController do
   require Logger
 
   alias Ecto.Changeset
-  alias NervesHub.{Certificate, CertificateAuthority}
   alias NervesHub.Accounts
   alias NervesHub.Accounts.UserCertificate
 
@@ -37,36 +36,6 @@ defmodule NervesHubWeb.AccountCertificateController do
     |> send_download({:binary, archive}, filename: "certificates.tar.gz")
   end
 
-  def create(%{assigns: %{user: user}} = conn, %{"user_certificate" => user_certificate_params}) do
-    username = user.email
-
-    with {:ok, resp} <- CertificateAuthority.create_user_certificate(username),
-         cert_pem <- Map.get(resp, "cert"),
-         key <- Map.get(resp, "key"),
-         {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
-         serial_number <- Certificate.get_serial_number(cert) do
-      user_certificate_params = Map.put(user_certificate_params, "serial", serial_number)
-
-      archive =
-        create_certificate_archive(cert_pem, key)
-        |> Base.encode64()
-
-      {:ok, db_cert} = Accounts.create_user_certificate(user, user_certificate_params)
-
-      conn
-      |> redirect(
-        to: Routes.account_certificate_path(conn, :show, user.username, db_cert, file: archive)
-      )
-    else
-      {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, "new.html", changeset: changeset)
-
-      e ->
-        Logger.error("Error while generating user certificate: #{inspect(e)}")
-        send_resp(conn, 500, "An error occurered while creating the account certificate")
-    end
-  end
-
   def delete(%{assigns: %{user: user}} = conn, %{"id" => id}) do
     cert = Accounts.get_user_certificate!(user, id)
     {:ok, _cert} = Accounts.delete_user_certificate(cert)
@@ -75,37 +44,6 @@ defmodule NervesHubWeb.AccountCertificateController do
     |> put_flash(:info, "Certificate deleted successfully.")
     |> redirect(to: Routes.account_certificate_path(conn, :index, user.username))
   end
-
-  # Thanks to Hex for lending us this chunk of code.
-  # NervesHub <3 Hex
-  defp create_certificate_archive(cert, key) do
-    {:ok, fd} = :file.open([], [:ram, :read, :write, :binary])
-    {:ok, tar} = :erl_tar.init(fd, :write, &file_op/2)
-
-    files = [
-      {'user.pem', cert},
-      {'user-key.pem', key}
-    ]
-
-    try do
-      try do
-        add_files(tar, files)
-      after
-        :erl_tar.close(tar)
-      end
-
-      {:ok, size} = :file.position(fd, :cur)
-      {:ok, binary} = :file.pread(fd, 0, size)
-      binary
-    after
-      :ok = :file.close(fd)
-    end
-  end
-
-  defp file_op(:write, {fd, data}), do: :file.write(fd, data)
-  defp file_op(:position, {fd, pos}), do: :file.position(fd, pos)
-  defp file_op(:read2, {fd, size}), do: :file.read(fd, size)
-  defp file_op(:close, _Fd), do: :ok
 
   def add_files(tar, files) when is_list(files) do
     Enum.map(files, &add_file(tar, &1))

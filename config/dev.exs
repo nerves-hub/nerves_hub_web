@@ -72,14 +72,6 @@ config :nerves_hub_www, NervesHub.Firmwares.Upload.File,
 
 config :nerves_hub_www, NervesHub.Repo, ssl: false
 
-config :nerves_hub_www, NervesHub.CertificateAuthority,
-  host: "0.0.0.0",
-  port: 8443,
-  ssl: [
-    cacertfile: Path.join(ssl_dir, "ca.pem"),
-    server_name_indication: 'ca.nerves-hub.org'
-  ]
-
 config :nerves_hub_www, NervesHub.Mailer, adapter: Bamboo.LocalAdapter
 
 ##

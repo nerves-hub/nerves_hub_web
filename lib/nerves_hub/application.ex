@@ -2,8 +2,6 @@ defmodule NervesHub.Application do
   use Application
 
   def start(_type, _args) do
-    NervesHub.CertificateAuthority.start_pool()
-
     children = [NervesHub.Supervisor] ++ endpoints()
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]

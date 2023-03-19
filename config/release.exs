@@ -104,15 +104,4 @@ if nerves_hub_app == "api" do
       certfile: "/etc/ssl/#{host}.pem",
       cacerts: cacerts ++ :certifi.cacerts()
     ]
-
-  ca_host = System.fetch_env!("CA_HOST")
-
-  config :nerves_hub_www, NervesHub.CertificateAuthority,
-    host: ca_host,
-    port: 8443,
-    ssl: [
-      keyfile: "/etc/ssl/#{host}-key.pem",
-      certfile: "/etc/ssl/#{host}.pem",
-      cacertfile: "/etc/ssl/ca.pem"
-    ]
 end

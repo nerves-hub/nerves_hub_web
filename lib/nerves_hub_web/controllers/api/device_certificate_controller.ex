@@ -1,7 +1,8 @@
 defmodule NervesHubWeb.API.DeviceCertificateController do
   use NervesHubWeb, :api_controller
 
-  alias NervesHub.{Devices, Certificate, CertificateAuthority}
+  alias NervesHub.Certificate
+  alias NervesHub.Devices
 
   action_fallback(NervesHubWeb.API.FallbackController)
 
@@ -56,26 +57,6 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
     else
       {:error, :not_found} -> {:error, "error decoding certificate"}
       e -> e
-    end
-  end
-
-  def sign(%{assigns: %{device: device}} = conn, %{"csr" => csr}) do
-    with {:ok, %{"cert" => cert_pem}} <- CertificateAuthority.sign_device_csr(csr),
-         {:ok, cert} <- X509.Certificate.from_pem(cert_pem),
-         serial <- Certificate.get_serial_number(cert),
-         aki <- Certificate.get_aki(cert),
-         ski <- Certificate.get_ski(cert),
-         {not_before, not_after} <- Certificate.get_validity(cert),
-         params <- %{
-           serial: serial,
-           aki: aki,
-           ski: ski,
-           not_before: not_before,
-           not_after: not_after,
-           der: Certificate.to_der(cert)
-         },
-         {:ok, _db_cert} <- Devices.create_device_certificate(device, params) do
-      render(conn, "cert.json", cert: cert_pem, device_certificate: cert_pem)
     end
   end
 
