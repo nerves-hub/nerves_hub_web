@@ -1,19 +1,42 @@
 /* eslint no-console: ["error", { allow: ["log"] }] */
 
-import { Socket } from 'phoenix'
-import { Terminal } from 'xterm'
-import { FitAddon } from 'xterm-addon-fit'
+import { Socket } from 'phoenix';
+import { Terminal } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
 
 let socket = new Socket('/socket', { params: { token: window.userToken } })
+
+const xtermjsTheme = {
+  foreground: '#FFFAF4',
+  background: '#0E1019',
+  selectionBackground: '#48B9C7',
+  black: '#232323',
+  brightBlack: '#444444',
+  red: '#FFFAF4',
+  brightRed: '#FF2740',
+  green: '#8CE10B',
+  brightGreen: '#ABE15B',
+  yellow: '#FFB900',
+  brightYellow: '#FFD242',
+  blue: '#008DF8',
+  brightBlue: '#0092FF',
+  magenta: '#6D43A6',
+  brightMagenta: '#9A5FEB',
+  cyan: '#00D8EB',
+  brightCyan: '#67FFF0',
+  white: '#FFFFFF',
+  brightWhite: '#FFFFFF'
+};
 
 var term = new Terminal({
   cursorBlink: true,
   cursorStyle: 'bar',
-  macOptionIsMeta: true
+  macOptionIsMeta: true,
+  fontFamily: '"Roboto Mono", monospace',
+  theme: xtermjsTheme,
 })
-var restart_button = document.getElementById('restart_button')
-const fitAddon = new FitAddon()
-term.loadAddon(fitAddon)
+const fitAddon = new FitAddon();
+term.loadAddon(fitAddon);
 
 var device_id = document.getElementById('device_id').value
 var product_id = document.getElementById('product_id').value
@@ -89,11 +112,4 @@ channel.onClose(() => {
   term.blur()
   term.setOption('cursorBlink', false)
   term.write('DISCONNECTED')
-})
-
-restart_button.addEventListener('click', () => {
-  var check = confirm('Are you sure you want to restart the IEx process?')
-  if (check == true) {
-    channel.push('restart', {})
-  }
 })
