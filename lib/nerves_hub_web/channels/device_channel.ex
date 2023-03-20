@@ -102,6 +102,11 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_in("connection_types", %{"value" => types}, socket) do
+    {:ok, device} = Devices.update_device(socket.assigns.device, %{"connection_types" => types})
+    {:noreply, assign(socket, :device, device)}
+  end
+
   def handle_info({:after_join, device, update_available}, socket) do
     Presence.track(
       device,

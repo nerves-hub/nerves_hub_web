@@ -3,13 +3,14 @@ defmodule NervesHub.Devices.Device do
 
   import Ecto.Changeset
   import Ecto.Query
+  import EctoEnum
 
-  alias NervesHub.Repo
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
-  alias NervesHub.Products.Product
-  alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.Products.Product
+  alias NervesHub.Repo
 
   alias __MODULE__
 
@@ -21,9 +22,12 @@ defmodule NervesHub.Devices.Device do
     :tags,
     :deleted_at,
     :update_attempts,
-    :updates_blocked_until
+    :updates_blocked_until,
+    :connection_types
   ]
   @required_params [:org_id, :product_id, :identifier]
+
+  defenum(ConnectionType, :connection_type, [:cellular, :ethernet, :wifi])
 
   schema "devices" do
     belongs_to(:org, Org, where: [deleted_at: nil])
@@ -39,6 +43,7 @@ defmodule NervesHub.Devices.Device do
     field(:deleted_at, :utc_datetime)
     field(:update_attempts, {:array, :utc_datetime}, default: [])
     field(:updates_blocked_until, :utc_datetime)
+    field(:connection_types, {:array, ConnectionType})
 
     field(:status, :string, default: "offline", virtual: true)
 

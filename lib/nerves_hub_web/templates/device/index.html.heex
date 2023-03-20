@@ -59,6 +59,18 @@
           <input type="text" name="id" id="input_id" class="form-control" value={@current_filters["id"]} phx-debounce="500" />
         </div>
         <div class="form-group">
+          <label for="connection_type">Connection Type</label>
+          <div class="pos-rel">
+            <select name="connection_type" id="connection_type" class="form-control">
+              <option {selected?(@current_filters, "connection_type", "")} value="">All</option>
+              <option {selected?(@current_filters, "connection_type", "cellular")} value="cellular">Cellular</option>
+              <option {selected?(@current_filters, "connection_type", "ethernet")} value="ethernet">Ethernet</option>
+              <option {selected?(@current_filters, "connection_type", "wifi")} value="wifi">WiFi</option>
+            </select>
+            <div class="select-icon"></div>
+          </div>
+        </div>
+        <div class="form-group">
           <label for="input_health">Firmware Updates</label>
           <div class="pos-rel">
             <select name="updates" id="input_health" class="form-control">

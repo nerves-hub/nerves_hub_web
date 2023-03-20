@@ -92,6 +92,9 @@ defmodule NervesHub.Devices do
           # where(query, [d], d.connection == ^value)
           query
 
+        {"connection_type", value} ->
+          where(query, [d], ^value in d.connection_types)
+
         {"firmware_version", value} ->
           where(query, [d], d.firmware_metadata["version"] == ^value)
 

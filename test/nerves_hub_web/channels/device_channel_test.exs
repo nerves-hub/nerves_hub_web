@@ -118,6 +118,25 @@ defmodule NervesHubWeb.DeviceChannelTest do
     assert socket.assigns.update_started?
   end
 
+  test "set connection types for the device" do
+    user = Fixtures.user_fixture()
+    {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _join_reply, socket} =
+      subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
+
+    push(socket, "connection_types", %{"value" => ["ethernet", "wifi"]})
+
+    # we need to let the channel process all messages before we can
+    # check the state of the device's connection types
+    _socket = :sys.get_state(socket.channel_pid)
+
+    device = NervesHub.Repo.reload(device)
+    assert device.connection_types == [:ethernet, :wifi]
+  end
+
   def device_fixture(user, device_params \\ %{}, org \\ nil) do
     org = org || Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)

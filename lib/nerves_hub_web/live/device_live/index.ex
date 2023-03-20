@@ -14,6 +14,7 @@ defmodule NervesHubWeb.DeviceLive.Index do
 
   @default_filters %{
     "connection" => "",
+    "connection_types" => "",
     "firmware_version" => "",
     "platform" => "",
     "healthy" => "",
