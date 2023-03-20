@@ -250,7 +250,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
   end
 
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
-    logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 5})
+    logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 10})
 
     socket
     |> assign(:audit_logs, logs)

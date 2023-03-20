@@ -112,7 +112,7 @@ defmodule NervesHubWeb.DeploymentLive.Show do
   end
 
   defp audit_log_assigns(%{assigns: %{deployment: deployment}} = socket, page_number) do
-    logs = AuditLogs.logs_for_feed(deployment, %{page: page_number, page_size: 5})
+    logs = AuditLogs.logs_for_feed(deployment, %{page: page_number, page_size: 10})
 
     socket
     |> assign(:audit_logs, logs)

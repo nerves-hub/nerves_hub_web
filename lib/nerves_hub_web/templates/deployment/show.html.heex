@@ -36,77 +36,92 @@
 
 <div class="divider"></div>
 
-<div class="row">
-  <div class="col-lg-7">
-    <h3 class="mb-2">Deployment Details</h3>
-    <div class="display-box">
-      <div class="x2-grid">
-        <div class="gc-span-2">
-          <div class="help-text mb-1">Distributed to</div>
-          <%= if Enum.count(tags(@deployment)) > 0 do %>
-            <%= for tag <- tags(@deployment) do %>
-              <span class="badge">
-                <%= tag %>
-              </span>
-            <% end %>
-          <% else %>
-            <p class="text-muted">No tags selected, not being distributed</p>
+<div class="">
+  <h3 class="mb-2">Deployment Details</h3>
+  <div class="display-box">
+    <div class="x2-grid">
+      <div class="gc-span-2">
+        <div class="help-text mb-1">Distributed to</div>
+        <%= if Enum.count(tags(@deployment)) > 0 do %>
+          <%= for tag <- tags(@deployment) do %>
+            <span class="badge">
+              <%= tag %>
+            </span>
           <% end %>
-          <div>
-            <div class="help-text mb-1">Firmware version</div>
-            <span> <a href={Routes.firmware_path(@socket, :show, @org.name, @product.name, @firmware.uuid)} class="badge ff-m"><%= firmware_summary(@firmware) %></a> </span>
-          </div>
-          <div>
-            <div class="help-text mb-1">Version requirement</div>
-            <p><%= version(@deployment) %></p>
-          </div>
-          <div>
-            <div class="help-text mb-1 tooltip-label help-tooltip">
-              <span>Failure Rate</span>
-              <span class="tooltip-info"></span>
-              <span class="tooltip-text"><%= help_message_for(:failure_rate) %></span>
+        <% else %>
+          <p class="text-muted">No tags selected, not being distributed</p>
+        <% end %>
+        <div>
+          <div class="help-text mb-1">Firmware version</div>
+          <span> <a href={Routes.firmware_path(@socket, :show, @org.name, @product.name, @firmware.uuid)} class="badge ff-m"><%= firmware_summary(@firmware) %></a> </span>
+        </div>
+        <div>
+          <div class="help-text mb-1">Version requirement</div>
+          <p><%= version(@deployment) %></p>
+        </div>
+        <div class="row">
+          <div class="col-lg-6">
+            <div>
+              <div class="help-text mb-1 tooltip-label help-tooltip">
+                <span>Failure Rate</span>
+                <span class="tooltip-info"></span>
+                <span class="tooltip-text"><%= help_message_for(:failure_rate) %></span>
+              </div>
+              <p><%= @deployment.failure_rate_amount %> devices per <%= @deployment.failure_rate_seconds %> seconds</p>
             </div>
-            <p><%= @deployment.failure_rate_amount %> devices per <%= @deployment.failure_rate_seconds %> seconds</p>
           </div>
-          <div>
-            <div class="help-text mb-1 tooltip-label help-tooltip">
-              <span>Failure Threshold</span>
-              <span class="tooltip-info"></span>
-              <span class="tooltip-text"><%= help_message_for(:failure_threshold) %></span>
+          <div class="col-lg-6">
+            <div>
+              <div class="help-text mb-1 tooltip-label help-tooltip">
+                <span>Failure Threshold</span>
+                <span class="tooltip-info"></span>
+                <span class="tooltip-text"><%= help_message_for(:failure_threshold) %></span>
+              </div>
+              <p><%= @deployment.failure_threshold %></p>
             </div>
-            <p><%= @deployment.failure_threshold %></p>
           </div>
-          <div>
-            <div class="help-text mb-1 tooltip-label help-tooltip">
-              <span>Device Failure Rate</span>
-              <span class="tooltip-info"></span>
-              <span class="tooltip-text"><%= help_message_for(:device_failure_rate) %></span>
+        </div>
+        <div class="row">
+          <div class="col-lg-6">
+            <div>
+              <div class="help-text mb-1 tooltip-label help-tooltip">
+                <span>Device Failure Rate</span>
+                <span class="tooltip-info"></span>
+                <span class="tooltip-text"><%= help_message_for(:device_failure_rate) %></span>
+              </div>
+              <p><%= @deployment.device_failure_rate_amount %> failures per <%= @deployment.device_failure_rate_seconds %> seconds</p>
             </div>
-            <p><%= @deployment.device_failure_rate_amount %> failures per <%= @deployment.device_failure_rate_seconds %> seconds</p>
           </div>
-          <div>
-            <div class="help-text mb-1 tooltip-label help-tooltip">
-              <span>Device Failure Threshold</span>
-              <span class="tooltip-info"></span>
-              <span class="tooltip-text"><%= help_message_for(:device_failure_threshold) %></span>
+          <div class="col-lg-6">
+            <div>
+              <div class="help-text mb-1 tooltip-label help-tooltip">
+                <span>Device Failure Threshold</span>
+                <span class="tooltip-info"></span>
+                <span class="tooltip-text"><%= help_message_for(:device_failure_threshold) %></span>
+              </div>
+              <p><%= @deployment.device_failure_threshold %></p>
             </div>
-            <p><%= @deployment.device_failure_threshold %></p>
           </div>
-          <div>
-            <div class="help-text mb-1 tooltip-label help-tooltip">
-              <span>Device Penalty Box Timeout</span>
-              <span class="tooltip-info"></span>
-              <span class="tooltip-text"><%= help_message_for(:penalty_timeout_minutes) %></span>
+        </div>
+        <div class="row">
+          <div class="col-lg-6">
+            <div>
+              <div class="help-text mb-1 tooltip-label help-tooltip">
+                <span>Device Penalty Box Timeout</span>
+                <span class="tooltip-info"></span>
+                <span class="tooltip-text"><%= help_message_for(:penalty_timeout_minutes) %></span>
+              </div>
+              <p><%= @deployment.penalty_timeout_minutes %> minutes</p>
             </div>
-            <p><%= @deployment.penalty_timeout_minutes %> minutes</p>
           </div>
         </div>
       </div>
     </div>
   </div>
-  <div class="col-lg-5">
-    <h3 class="mb-2">Latest Activity</h3>
+</div>
 
-    <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
-  </div>
+<div>
+  <h3 class="mb-2">Latest Activity</h3>
+
+  <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
 </div>
