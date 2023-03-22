@@ -66,7 +66,9 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("fwup_progress", %{"value" => percent}, socket) do
-    Presence.update(socket.assigns.device, %{fwup_progress: percent})
+    # No need to update the product channel which will spam anyone listening on
+    # the listing of devices.
+    Presence.update(socket.assigns.device, %{fwup_progress: percent}, product: false)
 
     # if this is the first fwup we see in the channel, then mark it as an update attempt
     socket =
