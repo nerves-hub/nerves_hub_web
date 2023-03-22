@@ -20,7 +20,7 @@ defmodule NervesHub.Firmwares do
     from(
       f in Firmware,
       where: f.product_id == ^product_id,
-      order_by: [desc: :version, desc: :inserted_at]
+      order_by: [fragment("? collate numeric desc", f.version), desc: :inserted_at]
     )
     |> Firmware.with_product()
     |> Repo.all()
