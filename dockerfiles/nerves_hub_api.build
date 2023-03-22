@@ -30,8 +30,7 @@ EXPOSE 443
 
 WORKDIR /app
 
-ENV NERVES_HUB_APP=api \
-  URL_SCHEME=https \
+ENV URL_SCHEME=https \
   URL_PORT=443
 
 COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub_api/ ./
