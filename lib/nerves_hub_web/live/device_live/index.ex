@@ -62,8 +62,8 @@ defmodule NervesHubWeb.DeviceLive.Index do
       |> assign(:currently_filtering, false)
       |> assign(:selected_devices, [])
       |> assign(:target_product, nil)
-      |> assign(:bulk_tagging, false)
       |> assign(:valid_tags, true)
+      |> assign(:device_tags, "")
       |> assign_display_devices()
 
     {:ok, socket}
@@ -140,19 +140,7 @@ defmodule NervesHubWeb.DeviceLive.Index do
   end
 
   def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
-    socket =
-      socket
-      |> assign(:show_filters, toggle != "true")
-
-    {:noreply, socket}
-  end
-
-  def handle_event("toggle-tags", %{"toggle" => toggle}, socket) do
-    socket =
-      socket
-      |> assign(:bulk_tagging, toggle != "true")
-
-    {:noreply, socket}
+    {:noreply, assign(socket, :show_filters, toggle != "true")}
   end
 
   def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
@@ -215,9 +203,9 @@ defmodule NervesHubWeb.DeviceLive.Index do
 
   def handle_event("validate-tags", %{"tags" => tags}, socket) do
     if String.contains?(tags, " ") do
-      {:noreply, assign(socket, valid_tags: false)}
+      {:noreply, assign(socket, valid_tags: false, device_tags: tags)}
     else
-      {:noreply, assign(socket, valid_tags: true)}
+      {:noreply, assign(socket, valid_tags: true, device_tags: tags)}
     end
   end
 

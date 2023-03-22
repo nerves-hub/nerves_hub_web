@@ -98,31 +98,35 @@ defmodule NervesHubDevice.Presence do
   Update a key to include merged metadata
   """
   @spec update(Device.t(), map()) :: :ok
-  def update(%Device{} = device, new_metadata) do
+  def update(%Device{} = device, new_metadata, publish \\ []) do
     # publish a device update message
     current_metadata = find(device)
     metadata = Map.merge(current_metadata, new_metadata)
     :gproc.set_value({:n, :g, device.id}, metadata)
-    publish_change(device, metadata)
+    publish_change(device, metadata, publish)
   end
 
-  defp publish_change(device, payload) do
+  defp publish_change(device, payload, publish \\ []) do
     payload =
       payload
       |> metadata()
       |> Map.put(:device_id, device.id)
 
-    Phoenix.PubSub.broadcast(
-      NervesHub.PubSub,
-      "device:#{device.id}:internal",
-      %Phoenix.Socket.Broadcast{event: "connection_change", payload: payload}
-    )
+    if Keyword.get(publish, :internal, true) do
+      Phoenix.PubSub.broadcast(
+        NervesHub.PubSub,
+        "device:#{device.id}:internal",
+        %Phoenix.Socket.Broadcast{event: "connection_change", payload: payload}
+      )
+    end
 
-    Phoenix.PubSub.broadcast(
-      NervesHub.PubSub,
-      "product:#{device.product_id}:devices",
-      %Phoenix.Socket.Broadcast{event: "connection_change", payload: payload}
-    )
+    if Keyword.get(publish, :product, true) do
+      Phoenix.PubSub.broadcast(
+        NervesHub.PubSub,
+        "product:#{device.product_id}:devices",
+        %Phoenix.Socket.Broadcast{event: "connection_change", payload: payload}
+      )
+    end
   end
 
   @doc """

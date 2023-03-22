@@ -45,20 +45,6 @@ defmodule NervesHubWeb.DeviceView do
 
   def display_status(_), do: nil
 
-  def platform_options do
-    [
-      "bbb",
-      "ev3",
-      "qemu_arm",
-      "rpi",
-      "rpi0",
-      "rpi2",
-      "rpi3",
-      "smartrent_hub",
-      "x86_64"
-    ]
-  end
-
   def tags_to_string(%Ecto.Changeset{} = changeset) do
     changeset
     |> Ecto.Changeset.get_field(:tags)
@@ -78,6 +64,8 @@ defmodule NervesHubWeb.DeviceView do
       []
     end
   end
+
+  def move_alert(nil), do: ""
 
   def move_alert(%{name: product_name}) do
     """

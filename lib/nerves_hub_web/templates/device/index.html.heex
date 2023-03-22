@@ -126,88 +126,75 @@
   <% end %>
   <div class={if length(@selected_devices) == 0, do: "hidden"}>
     <div class="filter-wrapper">
-      <h4 class="color-white mb-2 flex-row align-items-center">Bulk Actions <span class="help-text ml-2"><%= length(@selected_devices) %> selected</span></h4>
-      <form id="move" phx-change="target-product" phx-submit="move-devices">
-        <div class="form-group inline-block">
-          <label for="move_to">Move device(s) to:</label>
-          <div class="pos-rel">
-            <select name="product" id="move_to" class="form-control">
-              <option value=""></option>
-              <%= for org <- user_orgs(@user), products = user_org_products(@user, org), length(products) > 0 do %>
-                <optgroup label={org.name}>
-                  <%= for product <- products, product.id != @product.id do %>
-                    <option value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>
-                  <% end %>
-                </optgroup>
-              <% end %>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
+      <div class="flex-row">
+        <h4 class="color-white mb-2 flex-row align-items-center flex-grow">Bulk Actions <span class="help-text ml-2"><%= length(@selected_devices) %> selected</span></h4>
 
-        <div class="btn-group">
-          <%= if @target_product do %>
-            <button class="btn btn-outline-light btn-action btn-primary" type="submit" data-confirm={move_alert(@target_product)}>Move</button>
-          <% end %>
-        </div>
-      </form>
-
-      <form class="inline-block" id="disable-updates" phx-submit="disable-updates-for-devices">
-        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will disable updates for all selected devices" phx-click="disable-updates-for-devices">
-          <span class="button-icon firmware-disabled"></span>
-          <span class="action-text">Disable Updates</span>
-        </button>
-      </form>
-
-      <form class="inline-block" id="clear-penalty-box" phx-submit="clear-penalty-box-for-devices">
-        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will clear the penalty box all selected devices" phx-click="clear-penalty-box-for-devices">
-          <span class="button-icon firmware-enabled"></span>
-          <span class="action-text">Clear Penalty box</span>
-        </button>
-      </form>
-
-      <form class="inline-block" id="enable-updates" phx-submit="enable-updates-for-devices">
-        <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will enable updates for all selected devices" phx-click="enable-updates-for-devices">
-          <span class="button-icon firmware-enabled"></span>
-          <span class="action-text">Enable Updates</span>
-        </button>
-      </form>
-
-      <form class="inline-block" id="toggle-tags" phx-submit="toggle-tags">
-        <button class="btn btn-outline-light btn-action" type="button" phx-click="toggle-tags" phx-value-toggle={to_string(@bulk_tagging)}>
-          <span class="action-text">Tags</span>
-        </button>
-      </form>
-
-      <div class="mt-2">
         <button class="btn btn-outline-light btn-action btn-secondary" type="button" phx-click="deselect-all">Deselect All</button>
       </div>
-    </div>
-    <br>
-    <form id="bulk-tag-input" phx-submit="tag-devices" phx-change="validate-tags">
-      <div class={unless @bulk_tagging, do: "hidden"}>
-        <div class="form-group">
-          <label for="tags" class="tooltip-label h3 mb-1">
-            <span>Tag(s)</span>
-            <span class="tooltip-info"></span>
-            <span class="tooltip-text">Use tags to manage firmware deployments for different sets of devices.</span>
-          </label>
-          <input type="text" name="tags" id="input_tags" class="form-control" value={@current_filters["tag"]} phx-debounce="500" />
-          <small class="form-text text-muted mt-1">
-            You can have multiple tags separated by commas.
-          </small>
-          <br>
-          <button class="btn btn-outline-light btn-action btn-primary" type="submit" data-confirm="This will update tags on all selected devices" {unless @valid_tags, do: [disabled: true], else: []}>
-            <span class="action-text">Submit Tags</span>
-          </button>
-          <br>
-          <br>
-          <div class={if @valid_tags, do: "hidden"}>
-            <span class="has-error"> Tags Cannot Contain Spaces </span>
+
+      <div class="row mt-2">
+        <form id="move" class="col-lg-6" phx-change="target-product" phx-submit="move-devices">
+          <label for="move_to">Move device(s) to:</label>
+          <div class="flex-row align-items-center">
+            <div class="flex-grow pos-rel">
+              <select name="product" id="move_to" class="form-control">
+                <option value=""></option>
+                <%= for org <- user_orgs(@user), products = user_org_products(@user, org), length(products) > 0 do %>
+                  <optgroup label={org.name}>
+                    <%= for product <- products, product.id != @product.id do %>
+                      <option value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>
+                    <% end %>
+                  </optgroup>
+                <% end %>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+
+            <button class="btn btn-outline-light btn-action btn-primary ml-1" type="submit" data-confirm={move_alert(@target_product)} {unless @target_product, do: [disabled: true], else: []}>Move</button>
+          </div>
+        </form>
+
+        <form id="bulk-tag-input" class="col-lg-6" phx-submit="tag-devices" phx-change="validate-tags">
+          <label for="move_to">Set tag(s) to:</label>
+          <div class="flex-row align-items-center">
+            <div class="flex-grow">
+              <input type="text" name="tags" id="input_tags" class="form-control" value={@current_filters["tag"]} phx-debounce="500" />
+            </div>
+            <button class="btn btn-outline-light btn-action btn-primary ml-1" type="submit" data-confirm="This will update tags on all selected devices" {if @valid_tags && @device_tags != "", do: [], else: [disabled: true]}>Set</button>
+          </div>
+          <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
+        </form>
+      </div>
+
+      <div class="row mt-2">
+        <div class="col-lg-12">
+          <label>Firmware Updates</label>
+
+          <div class="flex-row flex-gap-1">
+            <form class="inline-block" id="disable-updates" phx-submit="disable-updates-for-devices">
+              <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will disable updates for all selected devices" phx-click="disable-updates-for-devices">
+                <span class="button-icon firmware-disabled"></span>
+                <span class="action-text">Disable</span>
+              </button>
+            </form>
+
+            <form class="inline-block" id="enable-updates" phx-submit="enable-updates-for-devices">
+              <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will enable updates for all selected devices" phx-click="enable-updates-for-devices">
+                <span class="button-icon firmware-enabled"></span>
+                <span class="action-text">Enable</span>
+              </button>
+            </form>
+
+            <form class="inline-block" id="clear-penalty-box" phx-submit="clear-penalty-box-for-devices">
+              <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will clear the penalty box all selected devices" phx-click="clear-penalty-box-for-devices">
+                <span class="button-icon firmware-enabled"></span>
+                <span class="action-text">Clear Penalty box</span>
+              </button>
+            </form>
           </div>
         </div>
       </div>
-    </form>
+    </div>
   </div>
 
   <table class="table table-sm table-hover">
@@ -216,7 +203,6 @@
         <th>Selected</th>
         <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
         <th>Connection</th>
-        <%= devices_table_header("Last handshake", "last_communication", @current_sort, @sort_direction) %>
         <th>Firmware</th>
         <th>Platform</th>
         <th>Firmware Status</th>
@@ -242,7 +228,9 @@
           <div class="mobile-label help-text">Connection</div>
           <div>
             <%= if device.status == "offline" do %>
-              <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
+              <div title={"Last connected #{DateTimeFormat.from_now(device.last_communication)}"}>
+                <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
+              </div>
             <% else %>
               <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
             <% end %>
@@ -250,34 +238,14 @@
         </td>
 
         <td>
-          <div class="mobile-label help-text">Last handshake</div>
-          <%= if is_nil(device.last_communication) do %>
-            <span class="color-white-50">Never</span>
-          <% else %>
-            <div class="tooltip-label">
-              <span>
-                <%= DateTimeFormat.from_now(device.last_communication) %>
-              </span>
-              <span class="tooltip-text ml-1"><%= device.last_communication %></span>
-            </div>
-          <% end %>
-        </td>
-
-        <td>
           <div class="mobile-label help-text">Firmware</div>
           <div>
-            <%= if Map.has_key?(device, :fwup_progress) && device.fwup_progress do %>
-              <div class="progress">
-                <div class="progress-bar" role="progressbar" style={"width: #{device.fwup_progress}%"}><%= device.fwup_progress %>%</div>
-              </div>
+            <%= if is_nil(device.firmware_metadata) do %>
+              <span class="color-white-50">Unknown</span>
             <% else %>
-              <%= if is_nil(device.firmware_metadata) do %>
-                <span class="color-white-50">Unknown</span>
-              <% else %>
-                <span class="badge">
-                  <%= device.firmware_metadata.version %>
-                </span>
-              <% end %>
+              <span class="badge">
+                <%= device.firmware_metadata.version %>
+              </span>
             <% end %>
           </div>
         </td>

@@ -22,6 +22,14 @@ html {
     display: inline-flex;
   }
 
+  .flex-grow {
+    flex-grow: 1;
+  }
+
+  .flex-gap-1 {
+    gap: .5rem;
+  }
+
   // Margin
 
   .mt-1 {
