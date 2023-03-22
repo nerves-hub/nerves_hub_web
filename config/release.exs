@@ -1,6 +1,11 @@
 import Config
 
-nerves_hub_app = System.get_env("NERVES_HUB_APP")
+nerves_hub_app =
+  System.get_env("NERVES_HUB_APP")
+  |> case do
+    "www" -> "web"
+    other -> other
+  end
 
 config :nerves_hub_www, app: nerves_hub_app
 
@@ -50,7 +55,7 @@ config :nerves_hub_www,
 
 config :nerves_hub_www, NervesHub.Tracer, env: System.get_env("DD_ENV") || "dev"
 
-if nerves_hub_app in ["web", "www"] do
+if nerves_hub_app == "web" do
   config :nerves_hub_www, NervesHubWeb.Endpoint,
     url: [host: host, port: port],
     secret_key_base: System.fetch_env!("SECRET_KEY_BASE"),
