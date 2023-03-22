@@ -50,7 +50,7 @@ config :nerves_hub_www,
 
 config :nerves_hub_www, NervesHub.Tracer, env: System.get_env("DD_ENV") || "dev"
 
-if nerves_hub_app == "web" do
+if nerves_hub_app in ["web", "www"] do
   config :nerves_hub_www, NervesHubWeb.Endpoint,
     url: [host: host, port: port],
     secret_key_base: System.fetch_env!("SECRET_KEY_BASE"),
