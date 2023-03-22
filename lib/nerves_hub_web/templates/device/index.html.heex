@@ -46,9 +46,6 @@
         <%= size %>
       </button>
     <% end %>
-    <form phx-change="validate-paginate-opts" phx-submit="set-paginate-opts">
-      <input type="text" value={@paginate_opts.page_size} class={"form-control small #{unless @page_size_valid, do: "invalid"}"} name="page-size" />
-    </form>
   </div>
   <%= if @show_filters do%>
     <div class="filter-wrapper">

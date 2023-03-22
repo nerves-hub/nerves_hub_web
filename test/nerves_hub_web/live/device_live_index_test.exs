@@ -99,7 +99,8 @@ defmodule NervesHubWeb.DeviceLiveIndexTest do
       refute html =~ device.identifier
 
       html = render_change(view, "set-paginate-opts", %{"page-size" => "1"})
-      assert html =~ device2.identifier
+      assert html =~ device.identifier
+      refute html =~ device2.identifier
 
       html = render_change(view, "paginate", %{"page" => "3"})
       refute html =~ device.identifier
@@ -107,7 +108,9 @@ defmodule NervesHubWeb.DeviceLiveIndexTest do
       assert html =~ device3.identifier
 
       html = render_change(view, "set-paginate-opts", %{"page-size" => "2"})
-      assert html =~ device3.identifier
+      assert html =~ device.identifier
+      assert html =~ device2.identifier
+      refute html =~ device3.identifier
 
       html = render_change(view, "paginate", %{"page" => "2"})
       refute html =~ device.identifier
