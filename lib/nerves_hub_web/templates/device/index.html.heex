@@ -174,7 +174,7 @@
       </form>
 
       <form class="inline-block" id="toggle-tags" phx-submit="toggle-tags">
-        <button class="btn btn-outline-light btn-action" type="button" phx-click="toggle-tags" phx-value-toggle={@bulk_tagging}>
+        <button class="btn btn-outline-light btn-action" type="button" phx-click="toggle-tags" phx-value-toggle={to_string(@bulk_tagging)}>
           <span class="action-text">Tags</span>
         </button>
       </form>
