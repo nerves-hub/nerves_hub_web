@@ -126,6 +126,11 @@ defmodule NervesHubWeb.DeviceLive.Show do
     end
   end
 
+  def handle_event("identify", _value, socket) do
+    socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "identify", %{})
+    {:noreply, socket}
+  end
+
   def handle_event("paginate", %{"page" => page_num}, socket) do
     {:noreply, socket |> audit_log_assigns(String.to_integer(page_num))}
   end
