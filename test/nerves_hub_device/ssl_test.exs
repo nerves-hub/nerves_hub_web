@@ -1,7 +1,8 @@
 defmodule NervesHubDevice.SSLTest do
   use NervesHubDevice.DataCase, async: true
 
-  alias NervesHub.{Certificate, Devices, Fixtures}
+  alias NervesHub.Devices
+  alias NervesHub.Fixtures
 
   require X509.ASN1
 
@@ -57,27 +58,6 @@ defmodule NervesHubDevice.SSLTest do
     test "rejects cert with corrupted signature, but serial, aki, and ski still match", context do
       corrupted = do_corruption(context.cert, :bad_signature)
       assert {:fail, :invalid_signature} = run_verify(corrupted)
-    end
-
-    test "saves DER and fingerprints when missing", context do
-      {:ok, _db_ca} = Devices.create_ca_certificate_from_x509(context.org, context.unknown_signer)
-
-      %{db_cert: db_cert} =
-        Fixtures.device_certificate_fixture_without_der(context.device, context.unknown_cert)
-
-      assert is_nil(db_cert.der)
-      assert is_nil(db_cert.fingerprint)
-      assert is_nil(db_cert.public_key_fingerprint)
-
-      assert {:valid, _state} = run_verify(context.unknown_cert)
-
-      reloaded = Fixtures.reload(db_cert)
-
-      assert reloaded.der == Certificate.to_der(context.unknown_cert)
-      assert reloaded.fingerprint == Certificate.fingerprint(context.unknown_cert)
-
-      assert reloaded.public_key_fingerprint ==
-               Certificate.public_key_fingerprint(context.unknown_cert)
     end
 
     test "jitp", _ do

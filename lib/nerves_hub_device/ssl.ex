@@ -82,11 +82,7 @@ defmodule NervesHubDevice.SSL do
     # to consider expirations for existing
     case Devices.get_device_certificate_by_x509(otp_cert) do
       {:ok, %{device: %{deleted_at: nil}} = db_cert} ->
-        Devices.update_device_certificate(db_cert, %{
-          last_used: DateTime.utc_now(),
-          # TODO: Remove once enough time has allowed existing DERs to be captured ¬
-          der: Certificate.to_der(otp_cert)
-        })
+        Devices.update_device_certificate(db_cert, %{last_used: DateTime.utc_now()})
 
       {:ok, _db_cert} ->
         :ignore_deleted_device

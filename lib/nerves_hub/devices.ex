@@ -323,33 +323,8 @@ defmodule NervesHub.Devices do
 
   def get_device_certificate_by_x509(cert) do
     fingerprint = NervesHub.Certificate.fingerprint(cert)
-    aki = NervesHub.Certificate.get_aki(cert)
-    serial = NervesHub.Certificate.get_serial_number(cert)
-    {not_before, not_after} = NervesHub.Certificate.get_validity(cert)
 
-    query =
-      from(
-        c in DeviceCertificate,
-        where: [fingerprint: ^fingerprint],
-        # TODO: Remove lookup by other fields when DER and
-        # fingerprints have been captured
-        #
-        # finerprint == nil is important because an altered cert
-        # may still contain the same serial, aki, and validity.
-        # However, the fingerprint would be different and not
-        # match on the lookup above. So this fallback query
-        # should only be considered if we dont already have
-        # the fingerprint
-        or_where:
-          is_nil(c.fingerprint) and
-            c.serial == ^serial and
-            c.aki == ^aki and
-            c.not_before == ^not_before and
-            c.not_after == ^not_after,
-        preload: :device
-      )
-
-    query
+    from(DeviceCertificate, where: [fingerprint: ^fingerprint], preload: :device)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}

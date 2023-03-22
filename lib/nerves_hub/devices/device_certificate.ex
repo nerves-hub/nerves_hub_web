@@ -59,22 +59,8 @@ defmodule NervesHub.Devices.DeviceCertificate do
   end
 
   def update_changeset(%DeviceCertificate{} = device_certificate, params) do
-    device_certificate
-    # Allowing the DER here is temporary while we backfill device connections
-    |> cast(params, [:last_used, :der])
-    |> remove_der_change_if_exists()
-    |> add_fingerprints()
+    cast(device_certificate, params, [:last_used])
   end
-
-  defp remove_der_change_if_exists(%{data: %{der: der}, changes: %{der: _}} = changeset)
-       when is_binary(der) do
-    # We only want to save the DER once.
-    # If it already exists on the record, ignore it
-    # TODO: Remove this updatable field when confident enough have been captured
-    delete_change(changeset, :der)
-  end
-
-  defp remove_der_change_if_exists(changeset), do: changeset
 
   defp add_fingerprints(changeset) do
     case {get_change(changeset, :der), changeset.valid?} do
