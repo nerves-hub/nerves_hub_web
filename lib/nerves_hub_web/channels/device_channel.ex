@@ -38,7 +38,8 @@ defmodule NervesHubWeb.DeviceChannel do
       deployments = Devices.get_eligible_deployments(device)
 
       join_reply =
-        Devices.resolve_update(device, deployments)
+        device
+        |> Devices.resolve_update(deployments)
         |> build_join_reply()
 
       if should_audit_log?(join_reply, params) do
@@ -53,8 +54,14 @@ defmodule NervesHubWeb.DeviceChannel do
         })
       end
 
+      socket =
+        socket
+        |> assign(:update_started?, false)
+        |> assign(:device, device)
+
       send(self(), {:after_join, device, join_reply.update_available})
-      {:ok, join_reply, assign(socket, :update_started?, false)}
+
+      {:ok, join_reply, socket}
     end
   end
 
