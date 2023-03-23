@@ -65,7 +65,7 @@ config :nerves_hub_www, firmware_upload: NervesHub.Firmwares.Upload.File
 
 config :nerves_hub_www, NervesHub.Firmwares.Upload.File,
   enabled: true,
-  local_path: Path.join(System.tmp_dir(), "firmware"),
+  local_path: Path.expand("tmp/firmware"),
   public_path: "/firmware"
 
 # config :nerves_hub_www, NervesHub.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
