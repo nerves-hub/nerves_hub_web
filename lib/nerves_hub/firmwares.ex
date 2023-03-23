@@ -3,8 +3,13 @@ defmodule NervesHub.Firmwares do
 
   alias Ecto.Changeset
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.{OrgKey, Org}
-  alias NervesHub.Firmwares.{Firmware, FirmwareMetadata, FirmwareDelta, FirmwareTransfer}
+  alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.Firmwares.FirmwareDelta
+  alias NervesHub.Firmwares.FirmwareTransfer
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -45,6 +50,8 @@ defmodule NervesHub.Firmwares do
   end
 
   def get_firmware!(firmware_id), do: Repo.get!(Firmware, firmware_id)
+
+  def get_firmware_for_device(%Device{firmware_metadata: nil}), do: []
 
   def get_firmware_for_device(device) do
     Firmware

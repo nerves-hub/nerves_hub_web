@@ -5,6 +5,7 @@ defmodule NervesHub.Deployments do
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Firmwares
   alias NervesHub.Devices
+  alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias Ecto.Changeset
@@ -259,6 +260,8 @@ defmodule NervesHub.Deployments do
 
   Based on the product, firmware platform, firmware architecture, and device tags
   """
+  def potential_deployments(%Device{firmware_metadata: nil}), do: []
+
   def potential_deployments(device) do
     Deployment
     |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
