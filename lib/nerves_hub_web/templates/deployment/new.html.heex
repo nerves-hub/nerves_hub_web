@@ -21,7 +21,11 @@
   </div>
 
   <div class="form-group">
-    <label for="firmware_id">Firmware version</label>
+    <label for="firmware_id" class="tooltip-label">
+      <span>Firmware version</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">Once selected, deployments will use the same platform and architecture going forward.</span>
+    </label>
     <%= select f, :firmware_id, firmware_dropdown_options(@firmwares), required: true, id: "firmware_id", class: "form-control" %>
     <div class="select-icon"></div>
     <div class="has-error"><%= error_tag f, :firmware_id %></div>
