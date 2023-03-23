@@ -39,9 +39,9 @@ defmodule NervesHubWeb.DeviceController do
     |> Map.put("product_id", product.id)
     |> Devices.create_device()
     |> case do
-      {:ok, _device} ->
+      {:ok, device} ->
         conn
-        |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
+        |> redirect(to: Routes.device_path(conn, :show, org.name, product.name, device.identifier))
 
       {:error, changeset} ->
         conn
