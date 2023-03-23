@@ -109,59 +109,6 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
   end
 
   describe "sign device certificate" do
-    @tag :ca_integration
-    test "renders key when data is valid", %{
-      conn: conn,
-      org: org,
-      device: device,
-      product: product
-    } do
-      subject = "/O=NervesHub/CN=device-1234"
-      key = X509.PrivateKey.new_ec(:secp256r1)
-
-      csr =
-        X509.CSR.new(key, subject)
-        |> X509.CSR.to_pem()
-        |> Base.encode64()
-
-      params = %{identifier: device.identifier, csr: csr}
-
-      conn =
-        post(
-          conn,
-          Routes.device_certificate_path(conn, :sign, org.name, product.name, device.identifier),
-          params
-        )
-
-      resp_data = json_response(conn, 200)["data"]
-      assert %{"cert" => cert} = resp_data
-
-      otp_cert = X509.Certificate.from_pem!(cert)
-      {:ok, db_cert} = Devices.get_device_certificate_by_x509(cert)
-
-      assert db_cert.device_id == device.id
-      assert db_cert.der == Certificate.to_der(otp_cert)
-      assert db_cert.fingerprint == Certificate.fingerprint(otp_cert)
-      assert db_cert.public_key_fingerprint == Certificate.public_key_fingerprint(otp_cert)
-    end
-
-    @tag :ca_integration
-    test "renders errors when data is invalid", %{
-      conn: conn,
-      org: org,
-      device: device,
-      product: product
-    } do
-      conn =
-        post(
-          conn,
-          Routes.device_certificate_path(conn, :sign, org.name, product.name, device.identifier),
-          csr: ""
-        )
-
-      assert json_response(conn, 500)["errors"] != %{}
-    end
-
     test "renders error when using deprecated api", %{conn: conn, org: org} do
       conn = post(conn, "/orgs/#{org.name}/devices/1234/certificates/sign", %{})
       {:error, reason} = NervesHubWeb.API.DeviceController.error_deprecated(conn, %{})

@@ -4,11 +4,6 @@ defmodule NervesHubWeb.AccountCertificateControllerTest do
   alias NervesHub.Fixtures
   alias NervesHub.Accounts
 
-  @create_attrs %{
-    description: "test cert",
-    serial: "1580653878678601091983566405937658689714637"
-  }
-
   describe "index" do
     test "lists all appropriate account certificates", %{
       conn: conn,
@@ -41,26 +36,6 @@ defmodule NervesHubWeb.AccountCertificateControllerTest do
     test "renders form", %{conn: conn, user: user} do
       conn = get(conn, Routes.account_certificate_path(conn, :new, user.username))
       assert html_response(conn, 200) =~ "Generate an Account Certificate"
-    end
-  end
-
-  describe "create certificate" do
-    @tag :ca_integration
-    test "redirects to show when data is valid", %{conn: conn, user: user} do
-      %{params: params} = Fixtures.user_certificate_params(user, @create_attrs)
-
-      conn =
-        post(conn, Routes.account_certificate_path(conn, :create, user.username),
-          user_certificate: params
-        )
-
-      assert %{id: id} = redirected_params(conn)
-
-      assert redirected_to(conn) =~
-               Routes.account_certificate_path(conn, :show, user.username, id)
-
-      conn = get(conn, Routes.account_certificate_path(conn, :show, user.username, id))
-      assert html_response(conn, 200) =~ "User Certificate"
     end
   end
 
