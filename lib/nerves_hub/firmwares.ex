@@ -31,6 +31,20 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
+  def get_firmwares_for_deployment(deployment) do
+    deployment = Repo.preload(deployment, [:firmware])
+
+    from(
+      f in Firmware,
+      where: f.product_id == ^deployment.product_id,
+      where: f.platform == ^deployment.firmware.platform,
+      where: f.architecture == ^deployment.firmware.architecture,
+      order_by: [fragment("? collate numeric desc", f.version), desc: :inserted_at]
+    )
+    |> Firmware.with_product()
+    |> Repo.all()
+  end
+
   @spec get_firmware(Org.t(), integer()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}

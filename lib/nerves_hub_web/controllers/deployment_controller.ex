@@ -133,8 +133,8 @@ defmodule NervesHubWeb.DeploymentController do
     )
   end
 
-  def edit(%{assigns: %{deployment: deployment, product: product}} = conn, _params) do
-    firmwares = Firmwares.get_firmwares_by_product(product.id)
+  def edit(%{assigns: %{deployment: deployment}} = conn, _params) do
+    firmwares = Firmwares.get_firmwares_for_deployment(deployment)
 
     conn
     |> render(
