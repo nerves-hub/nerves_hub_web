@@ -88,7 +88,6 @@ defmodule NervesHub.Fixtures do
       version: "1.0.0",
       vcs_identifier: "test_vcs_identifier",
       misc: "test_misc",
-      ttl: 1_000_000_000,
       upload_metadata: @uploader.metadata(org_id, filepath)
     }
   end

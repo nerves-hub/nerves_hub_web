@@ -56,8 +56,6 @@ defmodule NervesHub.Firmwares.Firmware do
     field(:misc, :string)
     field(:platform, :string)
     field(:size, :integer)
-    field(:ttl_until, :utc_datetime)
-    field(:ttl, :integer)
     field(:upload_metadata, :map)
     field(:uuid, :string)
     field(:vcs_identifier, :string)
