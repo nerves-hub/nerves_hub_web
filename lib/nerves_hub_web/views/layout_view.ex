@@ -46,11 +46,11 @@ defmodule NervesHubWeb.LayoutView do
     Enum.take(user_org_products(user, org), amount)
   end
 
-  def org_device_limit(%{assigns: %{current_limit: limits, org: %{id: org_id}}}) do
-    "#{Devices.get_device_count_by_org_id(org_id)}/#{Map.get(limits, :devices)}"
+  def device_count(%{assigns: %{org: %{id: org_id}}}) do
+    Devices.get_device_count_by_org_id(org_id)
   end
 
-  def org_device_limit(_conn) do
+  def device_count(_conn) do
     nil
   end
 

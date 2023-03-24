@@ -13,14 +13,6 @@ defmodule NervesHub.Release.Tasks do
     stop()
   end
 
-  def gc do
-    init(@otp_app, @start_apps)
-
-    NervesHub.Workers.FirmwaresGC.run()
-
-    stop()
-  end
-
   defp init(app, start_apps) do
     IO.puts("Loading nerves_hub_www app for migrations...")
     Application.load(app)

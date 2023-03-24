@@ -41,12 +41,6 @@
     </div>
   </form>
 <% else %>
-  <%= if count_results(@results, :new) + 1 > @device_limit do %>
-    <div class="alert alert-danger">
-      <center>This CSV contains more new devices than is allowed in the <%= @org.name %> org.</center>
-    </div>
-  <% end %>
-
   <%= if count_results(@results, :malformed) + count_results(@results, :warning) > 0 do %>
     <div class="alert alert-warning">
       <center>Lines that have warnings or are malformed will be ignored.</center>

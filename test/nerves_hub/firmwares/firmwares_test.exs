@@ -3,13 +3,11 @@ defmodule NervesHub.FirmwaresTest do
   use Oban.Testing, repo: NervesHub.Repo
 
   alias NervesHub.{
-    Accounts,
     Firmwares,
     Firmwares.Firmware,
     Repo,
     Fixtures,
     Support.Fwup,
-    Deployments,
     DeltaUpdaterMock,
     UploadMock
   }
@@ -49,7 +47,7 @@ defmodule NervesHub.FirmwaresTest do
       filepath = Fixtures.firmware_file_fixture(org_key, product)
 
       assert {:error, _} =
-               Firmwares.create_firmware(org, filepath, %{}, upload_file_2: upload_file_2)
+               Firmwares.create_firmware(org, filepath, upload_file_2: upload_file_2)
 
       assert ^firmwares = Firmwares.get_firmwares_by_product(product.id)
     end
@@ -58,49 +56,6 @@ defmodule NervesHub.FirmwaresTest do
          %{firmware: %{upload_metadata: %{local_path: filepath}}, org: org} do
       assert {:error, %Ecto.Changeset{errors: [uuid: {"has already been taken", [_ | _]}]}} =
                Firmwares.create_firmware(org, filepath)
-    end
-
-    test "enforces firmware limit within product", %{
-      firmware: %{upload_metadata: %{local_path: filepath}},
-      org: org,
-      org_key: org_key,
-      product: %{id: product_id} = product
-    } do
-      # Make a specific limit to reduce how much this test churns
-      product_firmware_limit = 10
-      Accounts.create_org_limit(%{org_id: org.id, firmware_per_product: product_firmware_limit})
-
-      current = product_id |> Firmwares.get_firmwares_by_product() |> length()
-
-      if current < product_firmware_limit do
-        for _ <- 1..(product_firmware_limit - current) do
-          _firmware = Fixtures.firmware_fixture(org_key, product)
-        end
-      end
-
-      assert {:error, %Changeset{errors: [product: {"firmware limit reached", []}]}} =
-               Firmwares.create_firmware(org, filepath)
-    end
-
-    test "allow firmware per product limit to be raised", %{
-      firmware: %{upload_metadata: %{local_path: filepath}},
-      org: org,
-      org_key: org_key,
-      product: %{id: product_id} = product
-    } do
-      Accounts.create_org_limit(%{org_id: org.id, firmware_per_product: 10})
-
-      product_firmware_limit = 5
-      current = product_id |> Firmwares.get_firmwares_by_product() |> length()
-
-      if current < product_firmware_limit do
-        for _ <- 1..(product_firmware_limit - current) do
-          _firmware = Fixtures.firmware_fixture(org_key, product)
-        end
-      end
-
-      {:error, %Changeset{errors: errors}} = Firmwares.create_firmware(org, filepath)
-      refute {"firmware limit reached", []} == Keyword.get(errors, :product)
     end
   end
 
@@ -245,85 +200,6 @@ defmodule NervesHub.FirmwaresTest do
       assert Firmwares.verify_signature(corrupt_path, [
                org_key
              ]) == {:error, :invalid_signature}
-    end
-  end
-
-  describe "firmware ttl" do
-    test "creating firmware sets ttl", %{org_key: org_key, product: product} do
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      assert firmware.ttl != nil
-      assert firmware.ttl_until != nil
-    end
-
-    test "associating firmware with deployment unsets ttl", %{
-      org: org,
-      org_key: org_key,
-      product: product
-    } do
-      firmware = Fixtures.firmware_fixture(org_key, product)
-
-      params = %{
-        org_id: org.id,
-        firmware_id: firmware.id,
-        name: "firmware ttl",
-        conditions: %{
-          "version" => "",
-          "tags" => ["beta", "beta-edge"]
-        },
-        is_active: false
-      }
-
-      Deployments.create_deployment(params)
-
-      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
-
-      assert firmware.ttl != nil
-      assert firmware.ttl_until == nil
-    end
-
-    test "disassociating firmware from deployment unsets ttl", %{
-      org: org,
-      org_key: org_key,
-      product: product
-    } do
-      firmware = Fixtures.firmware_fixture(org_key, product)
-
-      params = %{
-        org_id: org.id,
-        firmware_id: firmware.id,
-        name: "firmware ttl",
-        conditions: %{
-          "version" => "",
-          "tags" => ["beta", "beta-edge"]
-        },
-        is_active: false
-      }
-
-      {:ok, deployment} = Deployments.create_deployment(params)
-
-      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
-
-      assert firmware.ttl != nil
-      assert firmware.ttl_until == nil
-
-      Deployments.delete_deployment(deployment)
-
-      {:ok, firmware} = Firmwares.get_firmware(org, firmware.id)
-
-      assert firmware.ttl != nil
-      assert firmware.ttl_until != nil
-    end
-
-    test "garbage collect old firmware", %{org_key: org_key, product: product} do
-      firmware = Fixtures.firmware_fixture(org_key, product, %{ttl: 1})
-      :timer.sleep(2_500)
-      firmwares = Firmwares.get_firmware_by_expired_ttl()
-      assert Enum.find(firmwares, &(&1.id == firmware.id)) != nil
-    end
-
-    test "passing an empty ttl sets defaults", %{org_key: org_key, product: product} do
-      firmware = Fixtures.firmware_fixture(org_key, product, %{ttl: ""})
-      assert firmware.ttl != ""
     end
   end
 

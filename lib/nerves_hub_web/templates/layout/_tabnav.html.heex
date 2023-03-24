@@ -11,9 +11,9 @@
           </li>
         <% end %>
       </ul>
-      <%= if !is_nil(org_device_limit(@conn)) do %>
-        <div class="device-limit-indicator" title="Device total and limit" aria-label="Device total and limit">
-          <%= org_device_limit(@conn) %>
+      <%= if !is_nil(device_count(@conn)) do %>
+        <div class="device-limit-indicator" title="Device total" aria-label="Device total">
+          <%= device_count(@conn) %>
         </div>
       <% end %>
     </nav>

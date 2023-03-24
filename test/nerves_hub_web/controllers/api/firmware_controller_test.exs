@@ -3,7 +3,6 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
 
   alias NervesHub.Fixtures
   alias NervesHub.Support.Fwup
-  alias NervesHub.Accounts
 
   describe "index" do
     test "lists all firmwares", %{conn: conn, org: org, product: product} do
@@ -33,25 +32,6 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
 
       conn = get(conn, Routes.firmware_path(conn, :show, org.name, product.name, uuid))
       assert json_response(conn, 200)["data"]["uuid"] == uuid
-    end
-
-    test "renders error when size limit is exceeded", %{conn: conn, org: org, product: product} do
-      Accounts.create_org_limit(%{org_id: org.id, firmware_size: 1})
-
-      org_key = Fixtures.org_key_fixture(org)
-
-      {:ok, signed_firmware_path} =
-        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: product.name})
-
-      upload = %Plug.Upload{
-        path: signed_firmware_path,
-        filename: "doesnt_matter.fw"
-      }
-
-      params = %{"firmware" => upload}
-      path = Routes.firmware_path(conn, :create, org.name, product.name)
-      conn = post(conn, path, params)
-      assert json_response(conn, 422)["errors"] != %{}
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do

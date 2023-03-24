@@ -3,7 +3,6 @@ defmodule NervesHub.Deployments do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments.Deployment
-  alias NervesHub.Firmwares
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
@@ -79,7 +78,6 @@ defmodule NervesHub.Deployments do
         {:error, :not_found}
 
       {:ok, deployment} ->
-        Firmwares.update_firmware_ttl(deployment.firmware_id)
         {:ok, deployment}
     end
   end
@@ -93,7 +91,6 @@ defmodule NervesHub.Deployments do
     |> Repo.reload_assoc(:firmware)
     |> case do
       {:ok, deployment} ->
-        Firmwares.update_firmware_ttl(deployment.firmware_id)
         fetch_and_update_relevant_devices(deployment)
 
       error ->
@@ -106,14 +103,6 @@ defmodule NervesHub.Deployments do
     %Deployment{}
     |> Deployment.creation_changeset(params)
     |> Repo.insert()
-    |> case do
-      {:ok, deployment} ->
-        Firmwares.update_firmware_ttl(deployment.firmware_id)
-        {:ok, deployment}
-
-      error ->
-        error
-    end
   end
 
   @spec failure_rate_met?(Deployment.t()) :: boolean()

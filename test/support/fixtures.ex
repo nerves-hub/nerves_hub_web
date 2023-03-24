@@ -194,7 +194,7 @@ defmodule NervesHub.Fixtures do
       ) do
     org = Repo.get!(Org, org_id)
     filepath = firmware_file_fixture(org_key, product, params)
-    {:ok, firmware} = Firmwares.create_firmware(org, filepath, params)
+    {:ok, firmware} = Firmwares.create_firmware(org, filepath)
     firmware
   end
 

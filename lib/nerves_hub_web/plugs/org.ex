@@ -9,11 +9,8 @@ defmodule NervesHubWeb.Plugs.Org do
 
   def call(%{params: %{"org_name" => org_name}, assigns: %{user: user}} = conn, _opts) do
     with {:ok, org} <- Accounts.get_org_by_name_and_user(org_name, user),
-         {:ok, org} <- Accounts.get_org_with_org_keys(org.id),
-         limit <- Accounts.get_org_limit_by_org_id(org.id) do
-      conn
-      |> assign(:org, org)
-      |> assign(:current_limit, limit)
+         {:ok, org} <- Accounts.get_org_with_org_keys(org.id) do
+      assign(conn, :org, org)
     else
       _error ->
         conn

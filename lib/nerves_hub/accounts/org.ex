@@ -5,7 +5,7 @@ defmodule NervesHub.Accounts.Org do
   import Ecto.Query
   import EctoEnum
 
-  alias NervesHub.Accounts.{OrgKey, OrgLimit, OrgUser}
+  alias NervesHub.Accounts.{OrgKey, OrgUser}
   alias NervesHub.Devices.{Device, CACertificate}
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -26,7 +26,6 @@ defmodule NervesHub.Accounts.Org do
     has_many(:products, Product)
     has_many(:devices, Device, where: [deleted_at: nil])
     has_many(:ca_certificates, CACertificate)
-    has_one(:org_limits, OrgLimit)
 
     has_many(:org_users, OrgUser, where: [deleted_at: nil])
     has_many(:users, through: [:org_users, :user])

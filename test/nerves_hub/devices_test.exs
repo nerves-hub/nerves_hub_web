@@ -1,7 +1,6 @@
 defmodule NervesHub.DevicesTest do
   use NervesHub.DataCase, async: false
 
-  alias NervesHub.Accounts
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Deployments
@@ -71,40 +70,7 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
-  test "org cannot have too many devices", %{user: user} do
-    org = Fixtures.org_fixture(user, %{name: "an_org_with_no_devices"})
-    product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
-    firmware = Fixtures.firmware_fixture(org_key, product)
-    {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
-    org_device_limit = 10
-    Accounts.create_org_limit(%{org_id: org.id, devices: org_device_limit})
-
-    for i <- 1..org_device_limit do
-      params = %{
-        org_id: org.id,
-        product_id: product.id,
-        firmware_metadata: metadata,
-        identifier: "id #{i}"
-      }
-
-      {:ok, %Devices.Device{}} = Devices.create_device(params)
-    end
-
-    params = %{
-      org_id: org.id,
-      product_id: product.id,
-      firmware_metadata: metadata,
-      identifier: "too many"
-    }
-
-    assert {:error, %Changeset{}} = Devices.create_device(params)
-  end
-
-  test "delete_device", %{
-    org: org,
-    device: device
-  } do
+  test "delete_device", %{org: org, device: device} do
     {:ok, _device} = Devices.delete_device(device)
 
     assert {:error, _} = Devices.get_device_by_org(org, device.id)

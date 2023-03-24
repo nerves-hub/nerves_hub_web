@@ -4,12 +4,10 @@ defmodule NervesHub.Firmwares.Firmware do
   import Ecto.Changeset
   import Ecto.Query
 
-  alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Products.Product
-  alias NervesHub.Repo
 
   alias __MODULE__
 
@@ -31,7 +29,6 @@ defmodule NervesHub.Firmwares.Firmware do
     :description,
     :misc,
     :org_key_id,
-    :ttl_until,
     :vcs_identifier
   ]
 
@@ -41,7 +38,6 @@ defmodule NervesHub.Firmwares.Firmware do
     :platform,
     :product_id,
     :size,
-    :ttl,
     :upload_metadata,
     :uuid,
     :version
@@ -74,7 +70,6 @@ defmodule NervesHub.Firmwares.Firmware do
     firmware
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
-    |> validate_limits()
     |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
     |> foreign_key_constraint(:deployments, name: :deployments_firmware_id_fkey)
   end
@@ -83,7 +78,6 @@ defmodule NervesHub.Firmwares.Firmware do
     firmware
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
-    |> validate_limits()
     |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
     |> foreign_key_constraint(:deployments, name: :deployments_firmware_id_fkey)
   end
@@ -92,69 +86,6 @@ defmodule NervesHub.Firmwares.Firmware do
     firmware
     |> cast(params, @required_params ++ @optional_params)
     |> no_assoc_constraint(:deployments, message: "Firmware has associated deployments")
-  end
-
-  defp validate_limits(%Ecto.Changeset{changes: %{org_id: org_id}} = cs) do
-    limits = Accounts.get_org_limit_by_org_id(org_id)
-
-    cs
-    |> validate_firmware_size(limits)
-    |> validate_firmware_limit(limits)
-    |> validate_firmware_ttl(limits)
-  end
-
-  defp validate_limits(cs), do: cs
-
-  defp validate_firmware_size(%Ecto.Changeset{changes: %{size: firmware_size}} = cs, %{
-         firmware_size: firmware_size_limit
-       }) do
-    if firmware_size > firmware_size_limit do
-      add_error(cs, :firmware, "firmware exceeds maximum size",
-        size: firmware_size,
-        limit: firmware_size_limit
-      )
-    else
-      cs
-    end
-  end
-
-  defp validate_firmware_size(%Ecto.Changeset{} = cs, _limits) do
-    cs
-  end
-
-  defp validate_firmware_limit(%Ecto.Changeset{changes: %{product_id: product_id}} = cs, limits) do
-    if too_many_firmwares?(product_id, limits) do
-      add_error(cs, :product, "firmware limit reached")
-    else
-      cs
-    end
-  end
-
-  defp validate_firmware_limit(%Ecto.Changeset{} = cs, _limits) do
-    cs
-  end
-
-  defp validate_firmware_ttl(%Ecto.Changeset{changes: %{ttl: ttl}} = cs, %{
-         firmware_ttl_seconds: limit
-       }) do
-    if ttl > limit do
-      add_error(cs, :firmware, "cannot set ttl #{ttl} > #{limit}")
-    else
-      cs
-    end
-  end
-
-  defp validate_firmware_ttl(cs, _limits), do: cs
-
-  defp too_many_firmwares?(product_id, %{firmware_per_product: limit}) do
-    firmware_count =
-      from(f in Firmware,
-        where: f.product_id == ^product_id,
-        select: count(f.id)
-      )
-      |> Repo.one()
-
-    firmware_count + 1 > limit
   end
 
   def with_product(firmware_query) do
