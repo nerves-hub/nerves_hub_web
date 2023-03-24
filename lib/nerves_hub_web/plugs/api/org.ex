@@ -10,11 +10,7 @@ defmodule NervesHubWeb.API.Plugs.Org do
   def call(%{params: %{"org_name" => org_name}, assigns: %{user: user}} = conn, _opts) do
     case Accounts.get_org_by_name_and_user(org_name, user) do
       {:ok, org} ->
-        limits = Accounts.get_org_limit_by_org_id(org.id)
-
-        conn
-        |> assign(:org, org)
-        |> assign(:org_limit, limits)
+        assign(conn, :org, org)
 
       _ ->
         conn

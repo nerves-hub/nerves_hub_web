@@ -2,7 +2,6 @@ defmodule NervesHub.Firmwares do
   import Ecto.Query
 
   alias Ecto.Changeset
-  alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.Org
   alias NervesHub.Devices.Device
@@ -127,18 +126,16 @@ defmodule NervesHub.Firmwares do
   @spec create_firmware(
           org :: Org.t(),
           filepath :: Path.t(),
-          params :: map(),
           opts :: [{:upload_file_2, upload_file_2()}]
         ) ::
           {:ok, Firmware.t()}
           | {:error, Changeset.t() | :no_public_keys | :invalid_signature | any}
-  def create_firmware(org, filepath, params \\ %{}, opts \\ []) do
+  def create_firmware(org, filepath, opts \\ []) do
     upload_file_2 = opts[:upload_file_2] || (&@uploader.upload_file/2)
 
     Repo.transaction(
       fn ->
-        with {:ok, params} <- build_firmware_params(org, filepath, params),
-             params <- set_ttl(org, params),
+        with {:ok, params} <- build_firmware_params(org, filepath),
              {:ok, firmware} <- insert_firmware(params),
              :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
           firmware
@@ -199,58 +196,6 @@ defmodule NervesHub.Firmwares do
       nil ->
         {:error, :invalid_signature}
     end
-  end
-
-  def update_firmware_ttl(nil), do: :ok
-
-  def update_firmware_ttl(firmware_id) do
-    q =
-      from(f in NervesHub.Firmwares.Firmware,
-        left_join: d in NervesHub.Deployments.Deployment,
-        on: d.firmware_id == f.id,
-        where:
-          f.id == ^firmware_id and
-            not is_nil(d.firmware_id),
-        limit: 1
-      )
-
-    case Repo.one(q) do
-      # Firmware has no associations. Set ttl.
-      nil ->
-        case NervesHub.Repo.get(Firmware, firmware_id) do
-          %Firmware{ttl_until: nil, ttl: ttl} = firmware ->
-            ttl_until = DateTime.utc_now() |> Timex.shift(seconds: ttl)
-
-            firmware
-            |> Firmware.update_changeset(%{ttl_until: ttl_until})
-            |> Repo.update()
-
-            :set
-
-          _ ->
-            :noop
-        end
-
-      # Firmware has associations and no ttl has been set.
-      %Firmware{ttl_until: nil} ->
-        :noop
-
-      # Firmware has associations and is marked for ttl. Unset ttl.
-      %Firmware{} = firmware ->
-        firmware
-        |> Firmware.update_changeset(%{ttl_until: nil})
-        |> Repo.update()
-
-        :unset
-    end
-  end
-
-  def get_firmware_by_expired_ttl() do
-    from(
-      f in Firmware,
-      where: f.ttl_until < ^DateTime.utc_now()
-    )
-    |> Repo.all()
   end
 
   def metadata_from_conn(%Plug.Conn{} = conn) do
@@ -450,8 +395,8 @@ defmodule NervesHub.Firmwares do
     |> Repo.insert()
   end
 
-  @spec build_firmware_params(Org.t(), Path.t(), map()) :: {:ok, map()} | {:error, any()}
-  defp build_firmware_params(%{id: org_id} = org, filepath, params) do
+  @spec build_firmware_params(Org.t(), Path.t()) :: {:ok, map()} | {:error, any()}
+  defp build_firmware_params(%{id: org_id} = org, filepath) do
     org = NervesHub.Repo.preload(org, :org_keys)
 
     with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
@@ -473,7 +418,6 @@ defmodule NervesHub.Firmwares do
           product_name: metadata.product,
           upload_metadata: @uploader.metadata(org_id, filename),
           size: :filelib.file_size(filepath),
-          ttl: Map.get(params, :ttl),
           uuid: metadata.uuid,
           vcs_identifier: metadata.vcs_identifier,
           version: metadata.version
@@ -481,28 +425,6 @@ defmodule NervesHub.Firmwares do
 
       {:ok, params}
     end
-  end
-
-  defp set_ttl(%{id: org_id}, params) do
-    ttl =
-      case Map.get(params, :ttl) do
-        ttl when ttl == nil or ttl == "" ->
-          org_id
-          |> Accounts.get_org_limit_by_org_id()
-          |> Map.get(:firmware_ttl_seconds_default)
-
-        ttl when is_binary(ttl) ->
-          String.to_integer(ttl)
-
-        ttl ->
-          ttl
-      end
-
-    ttl_until = DateTime.utc_now() |> Timex.shift(seconds: ttl)
-
-    params
-    |> Map.put(:ttl, ttl)
-    |> Map.put(:ttl_until, ttl_until)
   end
 
   defp resolve_product(params) do

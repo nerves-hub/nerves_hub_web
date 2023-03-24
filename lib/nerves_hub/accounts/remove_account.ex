@@ -13,7 +13,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
   }
 
   alias Firmwares.{Firmware, FirmwareDelta, FirmwareTransfer}
-  alias Accounts.{Org, OrgUser, OrgKey, Invite, User, UserCertificate, OrgLimit, OrgMetric}
+  alias Accounts.{Org, OrgUser, OrgKey, Invite, User, UserCertificate, OrgMetric}
   alias Devices.{DeviceCertificate, Device, CACertificate}
   alias Products.{Product, ProductUser}
 
@@ -31,7 +31,6 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.merge(&delete_firmwares/1)
     |> Multi.delete_all(:product_users, &query_product_users/1)
     |> Multi.delete_all(:org_keys, &query_by_org_id(OrgKey, &1))
-    |> Multi.delete_all(:org_limits, &query_by_org_id(OrgLimit, &1))
     |> Multi.delete_all(:org_metrics, &query_by_org_id(OrgMetric, &1))
     |> Multi.update_all(:soft_delete_products, &soft_delete_by_org_id(Product, &1), [])
     |> Multi.update_all(:soft_delete_devices, &soft_delete_by_org_id(Device, &1), [])

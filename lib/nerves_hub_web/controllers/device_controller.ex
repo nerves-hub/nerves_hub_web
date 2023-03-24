@@ -45,7 +45,7 @@ defmodule NervesHubWeb.DeviceController do
 
       {:error, changeset} ->
         conn
-        |> put_flash(:error, "Failed to add device. Check your device limit.")
+        |> put_flash(:error, "Failed to add device.")
         |> render("new.html", changeset: changeset)
     end
   end

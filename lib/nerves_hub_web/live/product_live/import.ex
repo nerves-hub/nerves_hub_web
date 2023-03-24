@@ -4,8 +4,6 @@ defmodule NervesHubWeb.ProductLive.Import do
   alias NervesHub.{Accounts, Devices, Devices.Device, Products}
   alias NimbleCSV.RFC4180, as: CSV
 
-  import NervesHubWeb.ProductView, only: [count_results: 2]
-
   @import_limit 1000
 
   def render(assigns) do
@@ -27,7 +25,6 @@ defmodule NervesHubWeb.ProductLive.Import do
       |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
       |> assign_new(:product, fn -> Products.get_product!(product_id) end)
       |> assign(:active_tab, :upload)
-      |> assign(:device_limit, Accounts.get_org_limit_by_org_id(org_id).devices)
       |> assign(:results, [])
       |> allow_upload(:csv,
         accept: [".csv"],
@@ -166,7 +163,6 @@ defmodule NervesHubWeb.ProductLive.Import do
       device_changeset(socket, attrs)
       |> maybe_org_invalid(attrs.org, org.name)
       |> maybe_product_invalid(attrs.product, product.name)
-      |> maybe_org_limit_reached(socket)
 
     result = {line_num, label_line(changeset, attrs.certificates), changeset, attrs.certificates}
 
@@ -220,14 +216,6 @@ defmodule NervesHubWeb.ProductLive.Import do
       Ecto.Changeset.add_error(changeset, :product, "does not match current expected product",
         expected: expected
       )
-    end
-  end
-
-  defp maybe_org_limit_reached(changeset, %{assigns: %{device_limit: limit, results: results}}) do
-    if count_results(results, :new) + 1 > limit do
-      Ecto.Changeset.add_error(changeset, :org, "device limit reached")
-    else
-      changeset
     end
   end
 

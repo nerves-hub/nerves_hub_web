@@ -4,10 +4,7 @@ defmodule NervesHubWeb.LayoutViewTest do
   use NervesHubWeb.ConnCase, async: true
 
   import NervesHubWeb.LayoutView,
-    only: [humanize_size: 1, humanize_seconds: 1, org_device_limit: 1]
-
-  alias NervesHub.Accounts.OrgLimit
-  alias NervesHub.Fixtures
+    only: [humanize_size: 1, humanize_seconds: 1]
 
   describe "Test humanize functions" do
     test "humanize size" do
@@ -24,21 +21,6 @@ defmodule NervesHubWeb.LayoutViewTest do
       assert result == "57 minutes, 36 seconds"
       result = humanize_seconds(60 * 60 * 24 * 7)
       assert result == "1 week"
-    end
-  end
-
-  describe "org_device_limit/1" do
-    test "a string representation of total devices and device limit is returned", %{conn: conn} do
-      %{org: org, device: _} = Fixtures.standard_fixture()
-      limits = %OrgLimit{devices: 3}
-
-      conn = Map.put(conn, :assigns, %{org: org, current_limit: limits})
-
-      assert org_device_limit(conn) == "1/3"
-    end
-
-    test "nil is returned when conn doesn't have org/limits", %{conn: conn} do
-      refute org_device_limit(conn)
     end
   end
 end

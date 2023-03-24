@@ -4,7 +4,7 @@ defmodule NervesHub.AccountsTest do
   alias Ecto.Changeset
 
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.{Org, OrgKey, OrgLimit, OrgUser, User, Invite}
+  alias NervesHub.Accounts.{Org, OrgKey, OrgUser, User, Invite}
   alias NervesHub.Fixtures
 
   @required_org_params %{name: "Org"}
@@ -32,43 +32,6 @@ defmodule NervesHub.AccountsTest do
   test "create_org with invalid characters", %{user: user} do
     assert {:error, %Changeset{}} = Accounts.create_org(user, %{name: "Org with space"})
     assert {:error, %Changeset{}} = Accounts.create_org(user, %{name: "Org with %"})
-  end
-
-  test "create_org_limits with defaults", %{user: user} do
-    {:ok, %Org{} = result_org} = Accounts.create_org(user, @required_org_params)
-    limits = Accounts.get_org_limit_by_org_id(result_org.id)
-    assert limits == %OrgLimit{}
-  end
-
-  test "create_org_limits with custom values", %{user: user} do
-    org_firmware_size_limit = 1
-
-    {:ok, %Org{} = result_org} = Accounts.create_org(user, @required_org_params)
-
-    limit_params = %{org_id: result_org.id, firmware_size: org_firmware_size_limit}
-    {:ok, %OrgLimit{}} = Accounts.create_org_limit(limit_params)
-
-    %{firmware_size: firmware_size_limit} = Accounts.get_org_limit_by_org_id(result_org.id)
-
-    assert firmware_size_limit == org_firmware_size_limit
-  end
-
-  test "delete_org_limits", %{user: user} do
-    org_firmware_size_limit = 1
-
-    {:ok, %Org{} = result_org} = Accounts.create_org(user, @required_org_params)
-
-    limit_params = %{org_id: result_org.id, firmware_size: org_firmware_size_limit}
-    {:ok, %OrgLimit{}} = Accounts.create_org_limit(limit_params)
-
-    %{firmware_size: firmware_size_limit} =
-      limits = Accounts.get_org_limit_by_org_id(result_org.id)
-
-    assert firmware_size_limit == org_firmware_size_limit
-
-    {:ok, _} = Accounts.delete_org_limit(limits)
-    limits = Accounts.get_org_limit_by_org_id(result_org.id)
-    assert limits == %OrgLimit{}
   end
 
   test "create_org with user" do

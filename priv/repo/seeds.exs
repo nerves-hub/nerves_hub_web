@@ -43,8 +43,6 @@ defmodule NervesHub.SeedHelpers do
       conditions: %{"version" => "< 1.0.0", "tags" => ["beta"]}
     })
 
-    Firmwares.update_firmware_ttl(elem(firmwares, 2).id)
-
     Fixtures.device_fixture(org, product, firmwares |> elem(1), %{last_communication: DateTime.utc_now()})
     |> Fixtures.device_certificate_fixture()
   end

@@ -55,12 +55,6 @@ defmodule NervesHubWeb.FirmwareController do
        } = changeset} ->
         render_error(conn, "No matching product could be found.", changeset)
 
-      {:error,
-       %Changeset{
-         errors: [firmware: {"firmware exceeds maximum size", [size: size, limit: limit]}]
-       } = changeset} ->
-        render_error(conn, "firmware size #{size} exceeds maximum size #{limit}", changeset)
-
       {:error, %Changeset{} = changeset} ->
         render_error(conn, "Unknown error uploading firmware.", changeset)
 

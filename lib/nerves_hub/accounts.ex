@@ -11,7 +11,6 @@ defmodule NervesHub.Accounts do
     UserToken,
     Invite,
     OrgKey,
-    OrgLimit,
     OrgUser,
     OrgMetric,
     RemoveAccount
@@ -43,38 +42,6 @@ defmodule NervesHub.Accounts do
 
       {:error, :org, changeset, _} ->
         {:error, changeset}
-    end
-  end
-
-  def create_org_limit(params) do
-    %OrgLimit{}
-    |> OrgLimit.changeset(params)
-    |> Repo.insert()
-  end
-
-  def delete_org_limit(%OrgLimit{} = org_limit) do
-    org_limit
-    |> Repo.delete()
-  end
-
-  def update_org_limit(org_limit, params) do
-    org_limit
-    |> OrgLimit.update_changeset(params)
-    |> Repo.update()
-  end
-
-  @doc """
-  Returns a map of limits for the org identified by `org_id`.
-  """
-  @spec get_org_limit_by_org_id(Org.id()) :: OrgLimit.t()
-  def get_org_limit_by_org_id(org_id) do
-    query = from(ol in OrgLimit, where: ol.org_id == ^org_id)
-
-    query
-    |> Repo.one()
-    |> case do
-      nil -> %OrgLimit{}
-      org_limit -> org_limit
     end
   end
 

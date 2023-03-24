@@ -1,24 +1,5 @@
 <h1>Organization Settings</h1>
 
-<div class="x4-grid">
-  <div>
-    <div class="help-text mb-1">Device Limit</div>
-    <p><%= @org_limit.devices %></p>
-  </div>
-  <div>
-    <div class="help-text mb-1">Firmware per Product</div>
-    <p><%= @org_limit.firmware_per_product %></p>
-  </div>
-  <div>
-    <div class="help-text mb-1">Firmware Size</div>
-    <p><%= humanize_size(@org_limit.firmware_size) %></p>
-  </div>
-  <div>
-    <div class="help-text mb-1">Firmware Max Time to Live</div>
-    <p><%= humanize_seconds(@org_limit.firmware_ttl_seconds) %></p>
-  </div>
-</div>
-
 <div class="divider"></div>
 
 <%= if @org.type != :user do %>

@@ -15,10 +15,10 @@ defmodule NervesHubWeb.API.FirmwareController do
   end
 
   def create(%{assigns: %{org: org, product: product}} = conn, params) do
-    params = whitelist(params, [:ttl, :firmware])
+    params = whitelist(params, [:firmware])
 
-    with {%{path: filepath}, params} <- Map.pop(params, :firmware),
-         {:ok, firmware} <- Firmwares.create_firmware(org, filepath, params) do
+    with {%{path: filepath}, _params} <- Map.pop(params, :firmware),
+         {:ok, firmware} <- Firmwares.create_firmware(org, filepath) do
       conn
       |> put_status(:created)
       |> put_resp_header(
