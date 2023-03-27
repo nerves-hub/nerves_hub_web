@@ -175,53 +175,6 @@ defmodule NervesHub.AccountsTest do
     assert {:ok, %User{}} = Accounts.authenticate(user.username, user.password)
   end
 
-  test "create_org_with_user_with_certificate with valid params" do
-    params = %{
-      username: "Testy-McTesterson",
-      org_name: "mctesterson.com",
-      email: "testy@mctesterson.com",
-      password: "test_password"
-    }
-
-    {:ok, %User{} = user} = Accounts.create_user(params)
-    [result_org | _] = Accounts.get_user_orgs(user)
-
-    assert result_org.name == user.username
-    assert user.username == params.username
-
-    params = %{
-      description: "abcd",
-      serial: "12345"
-    }
-
-    %{params: params} = Fixtures.user_certificate_params(user, params)
-
-    assert {:ok, %Accounts.UserCertificate{}} = Accounts.create_user_certificate(user, params)
-  end
-
-  test "cannot create user certificate with duplicate serial" do
-    params = %{
-      username: "Testy-McTesterson",
-      org_name: "mctesterson.com",
-      email: "testy@mctesterson.com",
-      password: "test_password"
-    }
-
-    target_org = %Org{name: params.org_name}
-
-    {:ok, %User{} = user} = Accounts.create_user(%{orgs: [target_org]} |> Enum.into(params))
-
-    params = %{
-      description: "abcd",
-      serial: "12345"
-    }
-
-    %{params: params} = Fixtures.user_certificate_params(user, params)
-
-    assert {:ok, %Accounts.UserCertificate{}} = Accounts.create_user_certificate(user, params)
-    assert {:error, %Ecto.Changeset{}} = Accounts.create_user_certificate(user, params)
-  end
-
   test "org_key name must be unique", %{user: user} do
     {:ok, org} = Accounts.create_org(user, @required_org_params)
 
