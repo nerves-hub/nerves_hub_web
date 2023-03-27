@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.DeviceLive.Index do
   use NervesHubWeb, :live_view
 
+  require Logger
+
   alias NervesHubDevice.Presence
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs
@@ -68,8 +70,9 @@ defmodule NervesHubWeb.DeviceLive.Index do
 
     {:ok, socket}
   rescue
-    e ->
-      socket_error(socket, live_view_error(e))
+    exception ->
+      Logger.error(Exception.format(:error, exception, __STACKTRACE__))
+      socket_error(socket, live_view_error(exception))
   end
 
   # Catch-all to handle when LV sessions change.
