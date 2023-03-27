@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.DeviceLive.Console do
   use NervesHubWeb, :live_view
 
+  require Logger
+
   alias NervesHubDevice.Presence
   alias NervesHub.{Accounts, Devices, Products}
   alias Phoenix.Socket.Broadcast
@@ -43,8 +45,9 @@ defmodule NervesHubWeb.DeviceLive.Console do
     |> assign(:user_role, org_user.role)
     |> init_iex()
   rescue
-    e ->
-      socket_error(socket, live_view_error(e))
+    exception ->
+      Logger.error(Exception.format(:error, exception, __STACKTRACE__))
+      socket_error(socket, live_view_error(exception))
   end
 
   # Catch-all to handle when LV sessions change.

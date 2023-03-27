@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.AccountLive.Show do
   use NervesHubWeb, :live_view
 
+  require Logger
+
   alias NervesHubWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
 
   alias NervesHub.{Accounts, Accounts.UserToken, Repo}
@@ -106,8 +108,9 @@ defmodule NervesHubWeb.AccountLive.Show do
 
     {:ok, socket}
   rescue
-    e ->
-      socket_error(socket, live_view_error(e))
+    exception ->
+      Logger.error(Exception.format(:error, exception, __STACKTRACE__))
+      socket_error(socket, live_view_error(exception))
   end
 
   # Catch-all to handle when LV sessions change.
