@@ -55,14 +55,14 @@ config :nerves_hub_www,
 
 config :nerves_hub_www, NervesHub.Tracer, env: System.get_env("DD_ENV") || "dev"
 
-if nerves_hub_app == "web" do
+if nerves_hub_app in ["all", "web"] do
   config :nerves_hub_www, NervesHubWeb.Endpoint,
     url: [host: host, port: port],
     secret_key_base: System.fetch_env!("SECRET_KEY_BASE"),
     live_view: [signing_salt: System.fetch_env!("LIVE_VIEW_SIGNING_SALT")]
 end
 
-if nerves_hub_app == "device" do
+if nerves_hub_app in ["all", "device"] do
   config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
     url: [host: host],
     https: [
@@ -86,7 +86,7 @@ if nerves_hub_app == "device" do
     ]
 end
 
-if nerves_hub_app == "api" do
+if nerves_hub_app in ["all", "api"] do
   cacert_pems = [
     "/etc/ssl/user-root-ca.pem",
     "/etc/ssl/root-ca.pem"
