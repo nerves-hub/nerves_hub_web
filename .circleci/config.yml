@@ -7,40 +7,6 @@ remote_docker: &remote_docker
   setup_remote_docker:
     version: 20.10.14
 
-docker_env: &docker_env
-  run:
-    name: Set docker env
-    command: |
-      if [ -z "$CIRCLE_TAG" ]; then
-      BRANCH=$(git rev-parse --abbrev-ref HEAD)
-        SHA=$(git rev-parse --short HEAD)
-        TAG=$(echo "v.$BRANCH.$SHA" | sed 's/\//_/g')
-      else
-        TAG=$CIRCLE_TAG
-      fi
-      echo "export DOCKER_TAG=$TAG" >> $BASH_ENV
-
-docker_build_release: &docker_build_release
-  run:
-    name: Build docker images
-    command: |
-      docker build \
-        -t nerveshub/$APP_NAME:$DOCKER_TAG \
-        -t nerveshub/$APP_NAME:latest \
-        -f dockerfiles/$APP_NAME.build .
-
-docker_save: &docker_save
-  run:
-    name: Save docker images
-    command: |
-      mkdir -p /docker
-      docker save \
-        nerveshub/$APP_NAME:$DOCKER_TAG \
-        -o /docker/$APP_NAME-$DOCKER_TAG.tar
-      docker save \
-        nerveshub/$APP_NAME:latest \
-        -o /docker/$APP_NAME-latest.tar
-
 version: 2.1
 orbs:
   docker: circleci/docker@1.6.0
@@ -162,43 +128,40 @@ jobs:
   #         name: Test
   #         command: npm run test
 
-  build-www:
+  build-docker:
     <<: *defaults
     steps:
       - checkout
-      - run: echo "export APP_NAME=nerves_hub_www" >> $BASH_ENV
       - <<: *remote_docker
-      - <<: *docker_env
-      - <<: *docker_build_release
-      - <<: *docker_save
+      - run:
+          name: Set docker env
+          command: |
+            if [ -z "$CIRCLE_TAG" ]; then
+            BRANCH=$(git rev-parse --abbrev-ref HEAD)
+              SHA=$(git rev-parse --short HEAD)
+              TAG=$(echo "v.$BRANCH.$SHA" | sed 's/\//_/g')
+            else
+              TAG=$CIRCLE_TAG
+            fi
+            echo "export DOCKER_TAG=$TAG" >> $BASH_ENV
+      - run:
+          name: build docker image
+          command: |
+            docker build \
+              -t nerveshub/nerves_hub:$DOCKER_TAG \
+              -t nerveshub/nerves_hub:latest .
+      - run:
+          name: Save docker images
+          command: |
+            mkdir -p /docker
+            docker save \
+              nerveshub/nerves_hub:$DOCKER_TAG \
+              -o /docker/nerves_hub-$DOCKER_TAG.tar
+            docker save \
+              nerveshub/nerves_hub:latest \
+              -o /docker/nerves_hub-latest.tar
       - save_cache:
-          key: docker-www-{{ .Branch }}-{{ .Revision }}
-          paths: "/docker"
-
-  build-device:
-    <<: *defaults
-    steps:
-      - checkout
-      - run: echo "export APP_NAME=nerves_hub_device" >> $BASH_ENV
-      - <<: *remote_docker
-      - <<: *docker_env
-      - <<: *docker_build_release
-      - <<: *docker_save
-      - save_cache:
-          key: docker-device-{{ .Branch }}-{{ .Revision }}
-          paths: "/docker"
-
-  build-api:
-    <<: *defaults
-    steps:
-      - checkout
-      - run: echo "export APP_NAME=nerves_hub_api" >> $BASH_ENV
-      - <<: *remote_docker
-      - <<: *docker_env
-      - <<: *docker_build_release
-      - <<: *docker_save
-      - save_cache:
-          key: docker-api-{{ .Branch }}-{{ .Revision }}
+          key: docker-{{ .Branch }}-{{ .Revision }}
           paths: "/docker"
 
 workflows:
@@ -212,13 +175,6 @@ workflows:
         # - test_javascript:
         #     requires:
         #       - fetch_deps
-        - build-www:
-            requires:
-              - test_elixir
-              # - test_javascript
-        - build-device:
-            requires:
-              - test_elixir
-        - build-api:
+        - build-docker:
             requires:
               - test_elixir
