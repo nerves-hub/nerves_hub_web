@@ -59,7 +59,7 @@ defmodule NervesHub.Accounts do
   """
   @spec create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def create_user(user_params) do
-    org_params = %{name: user_params[:username], type: :user}
+    org_params = %{name: user_params[:username]}
 
     multi =
       Multi.new()
@@ -105,9 +105,6 @@ defmodule NervesHub.Accounts do
         {:error, changeset}
     end
   end
-
-  def remove_org_user(%Org{type: :user, name: name}, %User{username: name}),
-    do: {:error, :user_org}
 
   def remove_org_user(%Org{} = org, %User{} = user) do
     count = Repo.aggregate(Ecto.assoc(org, :org_users), :count, :id)
