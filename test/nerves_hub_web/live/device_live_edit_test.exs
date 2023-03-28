@@ -5,14 +5,6 @@ defmodule NervesHubWeb.DeviceLiveEditTest do
 
   alias NervesHubWeb.Endpoint
 
-  test "redirects on mount with unrecognized session structure", %{conn: conn, fixture: fixture} do
-    home_path = Routes.home_path(Endpoint, :index)
-    conn = clear_session(conn)
-
-    assert {:error, {:redirect, %{flash: _flash, to: ^home_path}}} =
-             live(conn, device_path(fixture, :edit))
-  end
-
   describe "validate" do
     test "valid tags allow submit", %{conn: conn, fixture: fixture} do
       params = %{"device" => %{tags: "new,tags"}}

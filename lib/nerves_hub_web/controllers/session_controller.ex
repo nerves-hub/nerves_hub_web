@@ -14,8 +14,8 @@ defmodule NervesHubWeb.SessionController do
 
       user_id ->
         case Accounts.get_user(user_id) do
-          {:ok, user} ->
-            redirect(conn, to: Routes.product_path(conn, :index, user.username))
+          {:ok, _user} ->
+            redirect(conn, to: Routes.home_path(conn, :index))
 
           _ ->
             render(conn, "new.html")
@@ -52,6 +52,6 @@ defmodule NervesHubWeb.SessionController do
   end
 
   defp redirect_path_after_login(conn, user) do
-    get_session(conn, :login_redirect_path) || Routes.product_path(conn, :index, user.username)
+    get_session(conn, :login_redirect_path) || Routes.home_path(conn, :index)
   end
 end

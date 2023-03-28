@@ -38,7 +38,7 @@
 
   <body>
     <div class="normal-wrapper">
-      <%= render("_navigation.html", conn: @conn) %>
+      <%= render("_navigation.html", assigns) %>
       <main role="main" class="flex-column content-container">
         <%= if get_flash(@conn, :info) do %>
           <div class="alert alert-info alert-dismissible">

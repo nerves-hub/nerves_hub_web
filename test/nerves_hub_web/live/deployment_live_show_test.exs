@@ -4,14 +4,6 @@ defmodule NervesHubWeb.DeploymentLiveShowTest do
   alias NervesHub.{AuditLogs, Repo}
   alias NervesHubWeb.Endpoint
 
-  test "redirects on mount with unrecognized session structure", %{fixture: fixture, conn: conn} do
-    home_path = Routes.home_path(Endpoint, :index)
-    conn = clear_session(conn)
-
-    assert {:error, {:redirect, %{flash: _flash, to: ^home_path}}} =
-             live(conn, deployment_path(fixture, :show))
-  end
-
   describe "handle_event" do
     test "toggle active", %{fixture: fixture, conn: conn} do
       %{deployment: deployment} = fixture

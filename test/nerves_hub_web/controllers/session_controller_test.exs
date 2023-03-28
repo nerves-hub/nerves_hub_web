@@ -34,7 +34,7 @@ defmodule NervesHubWeb.SessionControllerTest do
           login: %{email_or_username: user.email, password: user.password}
         )
 
-      assert redirected_to(conn) == Routes.product_path(conn, :index, user.username)
+      assert redirected_to(conn) == Routes.home_path(conn, :index)
     end
 
     test "redirected to original URL when logging in", %{user: user} do
