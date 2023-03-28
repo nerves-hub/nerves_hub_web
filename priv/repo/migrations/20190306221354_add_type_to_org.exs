@@ -2,9 +2,10 @@ defmodule NervesHub.Repo.Migrations.AddTypeToOrg do
   use Ecto.Migration
 
   def change do
-    NervesHub.Accounts.Org.Type.create_type()
+    execute "create type type as enum ('user', 'group');", "delete type type;"
+
     alter table(:orgs) do
-      add(:type, NervesHub.Accounts.Org.Type.type())
+      add(:type, :type)
     end
   end
 end

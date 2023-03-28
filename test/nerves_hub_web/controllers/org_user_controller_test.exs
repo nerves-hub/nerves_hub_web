@@ -27,11 +27,6 @@ defmodule NervesHubWeb.OrgUserControllerTest do
       conn = get(conn, Routes.org_user_path(conn, :index, org.name))
       assert html_response(conn, 200) =~ "Add New User"
     end
-
-    test "user is unable to invite users to user org", %{conn: conn, user: user} do
-      conn = get(conn, Routes.org_user_path(conn, :index, user.username))
-      refute html_response(conn, 200) =~ "Add New User"
-    end
   end
 
   describe "update org_user role" do

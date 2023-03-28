@@ -1,16 +1,10 @@
 <div class="action-row">
   <h1>Users</h1>
-  <%= if @org.type != :user do %>
-    <a class="btn btn-outline-light btn-action" aria-label="Add new user" href={Routes.org_path(@conn, :invite, @org.name)}>
-      <span class="button-icon add"></span>
-      <span class="action-text">Add New User</span>
-    </a>
-  <% end %>
+  <a class="btn btn-outline-light btn-action" aria-label="Add new user" href={Routes.org_path(@conn, :invite, @org.name)}>
+    <span class="button-icon add"></span>
+    <span class="action-text">Add New User</span>
+  </a>
 </div>
-
-<%= if @org.type == :user do %>
-  <h5 class="mb-6">This is your own personal organization, additional users cannot be invited. <a class="inline" href={Routes.org_path(@conn, :new)}>Create a new organization</a> to collaborate with others.</h5>
-<% end %>
 
 <table class="table table-sm table-hover">
   <thead>

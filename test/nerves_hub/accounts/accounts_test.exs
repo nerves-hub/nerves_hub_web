@@ -106,10 +106,10 @@ defmodule NervesHub.AccountsTest do
     assert user_orgs == [default_org, org_1]
   end
 
-  test "Unable to remove user from user org" do
+  test "Unable to remove the last user from an org" do
     user = Fixtures.user_fixture()
     [org] = Accounts.get_user_orgs(user)
-    assert {:error, :user_org} = Accounts.remove_org_user(org, user)
+    assert {:error, :last_user} = Accounts.remove_org_user(org, user)
   end
 
   describe "authenticate" do
@@ -251,27 +251,9 @@ defmodule NervesHub.AccountsTest do
              Accounts.update_org_key(org_key, %{org_id: other_org.id})
   end
 
-  test "create_org sets type to group", %{user: user} do
-    assert {:ok, %Org{type: :group}} = Accounts.create_org(user, %{name: "group-org"})
-  end
-
   test "cannot remove user from their own org", %{user: user} do
     {:ok, org} = Accounts.get_org_by_name_and_user(user.username, user)
     assert {:error, _} = Accounts.remove_org_user(org, user)
-  end
-
-  test "create_user sets default org to type user" do
-    params = %{
-      username: "user_with_org",
-      org_name: "user_with_org.com",
-      email: "user@user_with_org.com",
-      password: "asdfasdf"
-    }
-
-    {:ok, %User{} = user} = Accounts.create_user(params)
-    [result_org | _] = Accounts.get_user_orgs(user)
-
-    assert result_org.type == :user
   end
 
   test "get orgs for user by product role returns unique orgs", %{user: user} do

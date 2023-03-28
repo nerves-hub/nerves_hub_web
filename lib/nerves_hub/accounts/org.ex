@@ -3,7 +3,6 @@ defmodule NervesHub.Accounts.Org do
 
   import Ecto.Changeset
   import Ecto.Query
-  import EctoEnum
 
   alias NervesHub.Accounts.{OrgKey, OrgUser}
   alias NervesHub.Devices.{Device, CACertificate}
@@ -11,15 +10,10 @@ defmodule NervesHub.Accounts.Org do
   alias NervesHub.Repo
   alias __MODULE__
 
-  @params [
-    :name,
-    :type
-  ]
+  @params [:name]
 
   @type id :: pos_integer() | nil
   @type t :: %__MODULE__{id: id()}
-
-  defenum(Type, :type, [:user, :group])
 
   schema "orgs" do
     has_many(:org_keys, OrgKey)
@@ -31,7 +25,6 @@ defmodule NervesHub.Accounts.Org do
     has_many(:users, through: [:org_users, :user])
 
     field(:name, :string)
-    field(:type, Type, default: :group)
     field(:deleted_at, :utc_datetime)
 
     timestamps()
