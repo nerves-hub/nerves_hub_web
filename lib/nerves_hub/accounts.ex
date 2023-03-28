@@ -7,7 +7,6 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.{
     Org,
     User,
-    UserCertificate,
     UserToken,
     Invite,
     OrgKey,
@@ -210,16 +209,6 @@ defmodule NervesHub.Accounts do
     |> Repo.all()
   end
 
-  @spec create_user_certificate(User.t(), map) ::
-          {:ok, User.t()}
-          | {:error, Changeset.t()}
-  def create_user_certificate(%User{} = user, params) do
-    user
-    |> Ecto.build_assoc(:user_certificates)
-    |> UserCertificate.changeset(params)
-    |> Repo.insert()
-  end
-
   @doc """
   Authenticates a user by their email and password. Returns the user if the
   user is found and the password is correct, otherwise nil.
@@ -303,73 +292,6 @@ defmodule NervesHub.Accounts do
       nil -> {:error, :not_found}
       cert -> {:ok, cert}
     end
-  end
-
-  @spec get_user_certificates(User.t()) ::
-          {:ok, [UserCertificate.t()]}
-          | {:error, :not_found}
-  def get_user_certificates(%User{id: user_id}) do
-    query = from(uc in UserCertificate, where: uc.user_id == ^user_id)
-
-    query
-    |> Repo.all()
-  end
-
-  def get_user_certificate!(%User{id: user_id}, cert_id) do
-    query = from(uc in UserCertificate, where: uc.user_id == ^user_id, where: uc.id == ^cert_id)
-
-    query
-    |> Repo.one!()
-  end
-
-  @spec get_user_certificate(User.t(), integer()) ::
-          {:ok, UserCertificate.t()}
-          | {:error, :not_found}
-  def get_user_certificate(%User{id: user_id}, cert_id) do
-    query = from(uc in UserCertificate, where: uc.user_id == ^user_id, where: uc.id == ^cert_id)
-
-    query
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      cert -> {:ok, cert}
-    end
-  end
-
-  @spec delete_user_certificate(UserCertificate.t()) ::
-          {:ok, UserCertificate.t()}
-          | {:error, Changeset.t()}
-  def delete_user_certificate(%UserCertificate{} = cert) do
-    Repo.delete(cert)
-  end
-
-  def get_user_by_certificate_serial(serial) do
-    case get_user_certificate_by_serial(serial) do
-      {:ok, %{user: user}} -> User.with_default_org(user)
-      error -> error
-    end
-  end
-
-  def get_user_certificate_by_serial(serial) do
-    query =
-      from(
-        uc in UserCertificate,
-        where: uc.serial == ^serial,
-        preload: [:user]
-      )
-
-    query
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      cert -> {:ok, cert}
-    end
-  end
-
-  def update_user_certificate(%UserCertificate{} = certificate, params) do
-    certificate
-    |> UserCertificate.update_changeset(params)
-    |> Repo.update()
   end
 
   @doc """

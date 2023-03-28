@@ -82,27 +82,27 @@ defmodule NervesHubWeb.APIConnCase do
 
     user = Fixtures.user_fixture()
     {:ok, token} = NervesHub.Accounts.create_user_token(user, "test-token")
-    %{cert: cert} = Fixtures.user_certificate_fixture(user)
 
     user2 = Fixtures.user_fixture(%{username: user.username <> "0"})
-    %{cert: cert2} = Fixtures.user_certificate_fixture(user2)
+    {:ok, token2} = NervesHub.Accounts.create_user_token(user2, "test-token")
 
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org, %{name: "starter"})
 
     {:ok,
-     conn: build_auth_conn(cert),
-     conn2: build_auth_conn(cert2),
+     conn: build_auth_conn(token.token),
+     conn2: build_auth_conn(token2.token),
      org: org,
      user: user,
      user_token: token,
      user2: user2,
+     user2_token: token2,
      product: product}
   end
 
-  def build_auth_conn(cert) do
+  def build_auth_conn(token) do
     Phoenix.ConnTest.build_conn()
-    |> Plug.Test.put_peer_data(peer_data(cert))
+    |> Plug.Conn.put_req_header("authorization", "token #{token}")
     |> Plug.Conn.put_req_header("accept", "application/json")
   end
 

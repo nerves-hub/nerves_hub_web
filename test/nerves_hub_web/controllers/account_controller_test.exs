@@ -68,9 +68,6 @@ defmodule NervesHubWeb.AccountControllerTest do
       conn = get(conn, Routes.account_path(conn, :edit, user.username))
       assert html_response(conn, 200) =~ "Personal Info"
 
-      assert html_response(conn, 200) =~
-               Routes.account_certificate_path(conn, :index, user.username)
-
       assert html_response(conn, 200) =~ "type=\"password\""
     end
   end

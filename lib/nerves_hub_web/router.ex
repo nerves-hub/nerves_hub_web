@@ -99,15 +99,6 @@ defmodule NervesHubWeb.Router do
       get("/delete_account", AccountController, :confirm_delete)
       delete("/delete_account", AccountController, :delete)
 
-      scope "/certificates" do
-        get("/", AccountCertificateController, :index)
-        get("/new", AccountCertificateController, :new)
-        get("/:id", AccountCertificateController, :show)
-        delete("/:id", AccountCertificateController, :delete)
-        post("/create", AccountCertificateController, :create)
-        get("/:id/download", AccountCertificateController, :download)
-      end
-
       get("/organizations", OrgController, :index)
 
       get("/:tab", AccountController, :show)

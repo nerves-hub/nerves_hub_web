@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.API.Plugs.User do
   import Plug.Conn
 
-  alias NervesHub.{Accounts, Certificate}
+  alias NervesHub.Accounts
 
   def init(opts) do
     opts
@@ -30,7 +30,7 @@ defmodule NervesHubWeb.API.Plugs.User do
         token_auth(token)
 
       _ ->
-        peer_cert_auth(conn)
+        :error
     end
   end
 
@@ -50,21 +50,6 @@ defmodule NervesHubWeb.API.Plugs.User do
   end
 
   defp token_auth(_token), do: :forbidden
-
-  defp peer_cert_auth(conn) do
-    conn
-    |> Plug.Conn.get_peer_data()
-    |> Map.get(:ssl_cert)
-    |> case do
-      nil ->
-        nil
-
-      cert ->
-        cert = X509.Certificate.from_der!(cert)
-        serial = Certificate.get_serial_number(cert)
-        Accounts.get_user_certificate_by_serial(serial)
-    end
-  end
 
   defp mark_last_used(record) do
     Ecto.Changeset.change(record, %{last_used: DateTime.truncate(DateTime.utc_now(), :second)})

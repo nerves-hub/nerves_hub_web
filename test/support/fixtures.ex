@@ -35,9 +35,6 @@ defmodule NervesHub.Fixtures do
   @device_params %{tags: ["beta", "beta-edge"]}
   @product_params %{name: "valid product", delta_updatable: true}
 
-  @user_ca_key Path.expand("../fixtures/ssl/user-root-ca-key.pem", __DIR__)
-  @user_ca_cert Path.expand("../fixtures/ssl/user-root-ca.pem", __DIR__)
-
   defdelegate reload(record), to: Repo
 
   def path(), do: Path.expand("../fixtures", __DIR__)
@@ -49,34 +46,6 @@ defmodule NervesHub.Fixtures do
       username: "user-#{counter()}",
       password: "test_password"
     }
-  end
-
-  def user_certificate_params(%Accounts.User{} = user, params \\ %{}) do
-    ca_key = File.read!(@user_ca_key) |> X509.PrivateKey.from_pem!()
-    ca = File.read!(@user_ca_cert) |> X509.Certificate.from_pem!()
-
-    key = X509.PrivateKey.new_ec(:secp256r1)
-
-    cert =
-      key
-      |> X509.PublicKey.derive()
-      |> X509.Certificate.new("/O=#{user.username}", ca, ca_key, validity: 1)
-
-    {not_before, not_after} = NervesHub.Certificate.get_validity(cert)
-
-    serial = Map.get(params, :serial) || NervesHub.Certificate.get_serial_number(cert)
-    aki = NervesHub.Certificate.get_aki(cert)
-
-    params = %{
-      description: Map.get(params, :description) || user.username,
-      serial: serial,
-      aki: aki,
-      ski: NervesHub.Certificate.get_ski(cert),
-      not_before: not_before,
-      not_after: not_after
-    }
-
-    %{cert: cert, key: key, params: params}
   end
 
   def firmware_params(org_id, filepath) do
@@ -149,12 +118,6 @@ defmodule NervesHub.Fixtures do
   def user_fixture(params \\ %{}) do
     {:ok, user} = params |> Enum.into(user_params()) |> Accounts.create_user()
     user
-  end
-
-  def user_certificate_fixture(%Accounts.User{} = user, params \\ %{}) do
-    %{cert: cert, key: key, params: params} = user_certificate_params(user, params)
-    {:ok, db_cert} = Accounts.create_user_certificate(user, params)
-    %{cert: cert, key: key, db_cert: db_cert}
   end
 
   def product_fixture(_user, _org, params \\ %{})

@@ -5,7 +5,7 @@ defmodule NervesHub.Accounts.User do
   import Ecto.Query
   import EctoEnum
 
-  alias NervesHub.Accounts.{Org, UserCertificate, OrgUser, UserToken}
+  alias NervesHub.Accounts.{Org, OrgUser, UserToken}
   alias NervesHub.Repo
 
   alias Ecto.Changeset
@@ -22,7 +22,6 @@ defmodule NervesHub.Accounts.User do
   defenum(Role, :role, [:admin, :delete, :write, :read])
 
   schema "users" do
-    has_many(:user_certificates, UserCertificate)
     has_many(:user_tokens, UserToken)
 
     has_many(:org_users, OrgUser, where: [deleted_at: nil])
