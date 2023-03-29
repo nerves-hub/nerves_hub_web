@@ -87,26 +87,5 @@ if nerves_hub_app in ["all", "device"] do
 end
 
 if nerves_hub_app in ["all", "api"] do
-  cacert_pems = [
-    "/etc/ssl/user-root-ca.pem",
-    "/etc/ssl/root-ca.pem"
-  ]
-
-  cacerts =
-    cacert_pems
-    |> Enum.map(&File.read!/1)
-    |> Enum.map(&X509.Certificate.from_pem!/1)
-    |> Enum.map(&X509.Certificate.to_der/1)
-
-  config :nerves_hub_www, NervesHubWeb.API.Endpoint,
-    url: [host: host],
-    https: [
-      port: 443,
-      otp_app: :nerves_hub_www,
-      # Enable client SSL
-      verify: :verify_peer,
-      keyfile: "/etc/ssl/#{host}-key.pem",
-      certfile: "/etc/ssl/#{host}.pem",
-      cacerts: cacerts ++ :certifi.cacerts()
-    ]
+  config :nerves_hub_www, NervesHubWeb.API.Endpoint, url: [host: host, port: port]
 end
