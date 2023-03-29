@@ -8,7 +8,10 @@ config :phoenix, logger: false
 ##
 # NervesHub API
 #
-config :nerves_hub_www, NervesHubWeb.API.Endpoint, server: true
+config :nerves_hub_www, NervesHubWeb.API.Endpoint,
+  load_from_system_env: true,
+  server: true,
+  force_ssl: [rewrite_on: [:x_forwarded_proto]]
 
 ##
 # NervesHub Device
