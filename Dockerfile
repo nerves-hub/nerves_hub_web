@@ -55,9 +55,11 @@ ENV URL_SCHEME=https \
 
 COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub/ ./
 COPY --from=builder /build/rel/scripts/docker-entrypoint.sh .
+COPY --from=builder /build/rel/scripts/s3-sync.sh .
 COPY --from=builder /build/rel/scripts/ecs-cluster.sh .
 
 RUN ["chmod", "+x", "/app/docker-entrypoint.sh"]
+RUN ["chmod", "+x", "/app/s3-sync.sh"]
 RUN ["chmod", "+x", "/app/ecs-cluster.sh"]
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
