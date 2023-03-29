@@ -102,7 +102,10 @@ defmodule NervesHubWeb.Router do
 
       get("/organizations", OrgController, :index)
 
-      get("/:tab", AccountController, :show)
+      get("/tokens", TokenController, :index)
+      get("/tokens/new", TokenController, :new)
+      post("/tokens", TokenController, :create)
+      delete("/tokens/:id", TokenController, :delete)
     end
 
     get("/org/new", OrgController, :new)

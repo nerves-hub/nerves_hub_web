@@ -1,0 +1,9 @@
+<%= form_for @changeset, Routes.token_path(@conn, :create, @user.username), [class: "form-group"], fn f -> %>
+  <label for="note_input">Note</label>
+  <%= text_input f, :note, class: "form-control" %>
+  <div class="has-error"><%= error_tag f, :note %></div>
+  <div class="button-submit-wrapper">
+    <%= link("Cancel", to: Routes.token_path(@conn, :index, @user.username), class: "btn btn-secondary") %>
+    <%= submit "Generate", class: "btn btn-primary" %>
+  </div>
+<% end %>

@@ -667,4 +667,14 @@ defmodule NervesHub.Accounts do
       ut -> {:ok, ut}
     end
   end
+
+  def get_user_token(user, id) do
+    case Repo.get_by(UserToken, id: id, user_id: user.id) do
+      nil ->
+        {:error, :not_found}
+
+      user_token ->
+        {:ok, user_token}
+    end
+  end
 end
