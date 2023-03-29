@@ -34,7 +34,7 @@ WORKDIR /build
 COPY --from=deps /build/deps deps
 COPY --from=assets /build/priv/static priv/static
 
-RUN mix do phx.digest, release nerves_hub_www --overwrite
+RUN mix do phx.digest, release nerves_hub --overwrite
 
 # Release Container
 FROM nerveshub/runtime:alpine-${ALPINE_VERSION} as release
@@ -53,7 +53,7 @@ ENV LOCAL_IPV4=127.0.0.1
 ENV URL_SCHEME=https \
   URL_PORT=443
 
-COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub_www/ ./
+COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub/ ./
 COPY --from=builder /build/rel/scripts/docker-entrypoint.sh .
 COPY --from=builder /build/rel/scripts/ecs-cluster.sh .
 

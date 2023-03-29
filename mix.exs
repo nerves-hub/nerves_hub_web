@@ -19,25 +19,7 @@ defmodule NervesHubUmbrella.MixProject do
         ignore_warnings: "dialyzer.ignore-warnings"
       ],
       releases: [
-        nerves_hub_www: [
-          steps: [:assemble],
-          include_executables_for: [:unix],
-          runtime_config_path: "config/release.exs",
-          reboot_system_after_config: true,
-          applications: [
-            nerves_hub_www: :permanent
-          ]
-        ],
-        nerves_hub_device: [
-          steps: [:assemble],
-          include_executables_for: [:unix],
-          runtime_config_path: "config/release.exs",
-          reboot_system_after_config: true,
-          applications: [
-            nerves_hub_www: :permanent
-          ]
-        ],
-        nerves_hub_api: [
+        nerves_hub: [
           steps: [:assemble],
           include_executables_for: [:unix],
           runtime_config_path: "config/release.exs",

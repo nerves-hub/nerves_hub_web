@@ -42,4 +42,4 @@ NODES=$(echo "$DEVICE_NODES $WWW_NODES $API_NODES $API_PUBLIC_NODES" | tr '\n' '
 export SYNC_NODES_OPTIONAL="$NODES"
 echo "SYNC_NODES_OPTIONAL=${SYNC_NODES_OPTIONAL}"
 
-exec /app/bin/$APP_NAME start
+exec /app/bin/nerves_hub start
