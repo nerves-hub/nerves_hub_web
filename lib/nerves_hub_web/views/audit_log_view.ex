@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.AuditLogView do
   use NervesHubWeb, :view
 
-  alias NervesHubWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
+  alias NervesHubWeb.LayoutView.DateTimeFormat
   import NervesHubWeb.LayoutView, only: [pagination_links: 1]
 
   def actor_link(%{actor_id: id, actor_type: type}, current_id) do

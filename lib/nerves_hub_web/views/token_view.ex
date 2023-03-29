@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.TokenView do
   use NervesHubWeb, :view
 
-  alias NervesHubWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
+  alias NervesHubWeb.LayoutView.DateTimeFormat
 end

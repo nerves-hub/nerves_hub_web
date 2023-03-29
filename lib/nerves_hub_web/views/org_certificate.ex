@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.OrgCertificateView do
   use NervesHubWeb, :view
 
-  alias NervesHubWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
+  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   def format_serial(big_long_integer) when is_integer(big_long_integer) do
     big_long_integer

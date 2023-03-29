@@ -4,7 +4,7 @@ defmodule NervesHubWeb.DeviceView do
   alias NervesHub.Devices
   alias NervesHub.Repo
   alias NervesHubDevice.Presence
-  alias NervesHubWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
+  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   import NervesHubWeb.LayoutView,
     only: [pagination_links: 1, user_orgs: 1, user_org_products: 2]
