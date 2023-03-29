@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand navbar-dark fixed-top flex-md-nowrap p-0 flex-row justify-content-center">
   <div class="content-container flex-row align-items-center justify-content-between h-100">
-    <a class="logo" href={logo_href(@conn)}>
+    <a class="logo" href={Routes.home_path(@conn, :index)}>
       <img src="/images/logo.svg" alt="logo" />
       <img src="/images/logo-no-text.svg" alt="logo" class="mobile-logo" />
     </a>
@@ -15,7 +15,7 @@
           <div class="dropdown-menu workspace-dropdown" aria-labelledby="navbarDropdownMenuLink">
             <div class="help-text">Select an organization</div>
             <div class="dropdown-divider"></div>
-            <%= for org <- take_user_orgs(@conn, 5) do %>
+            <%= for org <- @orgs do %>
               <div class="dropdown-submenu">
                 <%= link(to: Routes.product_path(@conn, :index, org.name), class: "dropdown-item org #{org_classes(@conn, org.name)}", aria_haspopup: "true") do %>
                   <%= org.name %>

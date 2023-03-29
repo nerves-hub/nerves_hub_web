@@ -1,12 +1,14 @@
 defmodule NervesHubWeb.HomeController do
   use NervesHubWeb, :controller
 
-  def index(conn, _params) do
-    case conn.assigns do
-      %{user: user} ->
-        redirect(conn, to: Routes.product_path(conn, :index, user.username))
+  alias NervesHub.Accounts
 
-      _ ->
+  def index(conn, _params) do
+    case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do
+      true ->
+        render(conn, "index.html")
+
+      false ->
         redirect(conn, to: Routes.session_path(conn, :new))
     end
   end

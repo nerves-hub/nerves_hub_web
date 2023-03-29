@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Router do
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
     plug(NervesHubWeb.Plugs.SetLocale)
+    plug(NervesHubWeb.Plugs.FetchUser)
   end
 
   pipeline :logged_in do

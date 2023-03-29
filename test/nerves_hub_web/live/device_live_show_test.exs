@@ -12,14 +12,6 @@ defmodule NervesHubWeb.DeviceLiveShowTest do
     Endpoint.subscribe("device:#{device.id}")
   end
 
-  test "redirects on mount with unrecognized session structure", %{conn: conn, fixture: fixture} do
-    home_path = Routes.home_path(Endpoint, :index)
-    conn = clear_session(conn)
-
-    assert {:error, {:redirect, %{flash: _flash, to: ^home_path}}} =
-             live(conn, device_show_path(fixture))
-  end
-
   describe "handle_event" do
     test "reboot allowed", %{conn: conn, fixture: fixture} do
       %{device: device} = fixture

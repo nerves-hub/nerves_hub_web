@@ -30,10 +30,6 @@ defmodule NervesHubWeb.LayoutView do
     Enum.count(user_orgs(conn))
   end
 
-  def take_user_orgs(conn, amount) do
-    Enum.take(user_orgs(conn), amount)
-  end
-
   def user_org_products(user, org) do
     Products.get_products_by_user_and_org(user, org)
   end
@@ -56,14 +52,6 @@ defmodule NervesHubWeb.LayoutView do
 
   def logged_in?(%{assigns: %{user: %User{}}}), do: true
   def logged_in?(_), do: false
-
-  def logo_href(conn) do
-    if logged_in?(conn) do
-      Routes.product_path(conn, :index, conn.assigns.user.username)
-    else
-      Routes.home_path(conn, :index)
-    end
-  end
 
   def has_org_role?(org, user, role) do
     Accounts.has_org_role?(org, user, role)
