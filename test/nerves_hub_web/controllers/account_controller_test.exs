@@ -4,15 +4,6 @@ defmodule NervesHubWeb.AccountControllerTest do
 
   alias NervesHub.Accounts
 
-  describe "new" do
-    test "renders account creation form", %{
-      conn: conn
-    } do
-      conn = get(conn, Routes.account_path(conn, :new))
-      assert html_response(conn, 200) =~ "Create your free account"
-    end
-  end
-
   describe "invite" do
     test "renders invite creation form", %{
       conn: conn
@@ -132,45 +123,6 @@ defmodule NervesHubWeb.AccountControllerTest do
         )
 
       assert html_response(conn, 200) =~ "Current password is incorrect."
-    end
-  end
-
-  describe "create" do
-    test "creates a user and org", %{
-      conn: conn
-    } do
-      conn =
-        post(
-          conn,
-          Routes.account_path(conn, :create, %{
-            "user" => %{
-              "username" => "MyName",
-              "email" => "joe@example.com",
-              "password" => "12345678"
-            }
-          })
-        )
-
-      assert redirected_to(conn, 302) =~ "/login"
-    end
-
-    test "requires an 8 character password", %{
-      conn: conn
-    } do
-      conn =
-        post(
-          conn,
-          Routes.account_path(conn, :create, %{
-            "user" => %{
-              "username" => "MyName",
-              "org_name" => "a Org",
-              "email" => "joe@example.com",
-              "password" => "12345"
-            }
-          })
-        )
-
-      assert html_response(conn, 200) =~ "should be at least 8 character"
     end
   end
 end

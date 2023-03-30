@@ -50,8 +50,7 @@ config :nerves_hub_www, NervesHub.Mailer,
 config :nerves_hub_www,
   host: host,
   port: port,
-  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
-  allow_signups?: System.get_env("ALLOW_SIGNUPS", "false") |> String.to_atom()
+  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
 
 config :nerves_hub_www, NervesHub.Tracer, env: System.get_env("DD_ENV") || "dev"
 

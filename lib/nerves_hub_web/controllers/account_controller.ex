@@ -3,33 +3,9 @@ defmodule NervesHubWeb.AccountController do
 
   alias Ecto.Changeset
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.User
   alias NervesHub.Accounts.Email
   alias NervesHub.Mailer
   alias NervesHubWeb.AccountLive
-
-  plug(NervesHub.Plugs.AllowUninvitedSignups when action in [:new, :create])
-
-  def new(conn, _params) do
-    render(conn, "new.html", changeset: %Changeset{data: %User{}})
-  end
-
-  @doc """
-  This action is triggered by a "Create Account" UI request. There is no
-  organization involved save the one created for the user.
-  """
-  def create(conn, %{"user" => user_params}) do
-    user_params
-    |> whitelist([:password, :username, :email])
-    |> Accounts.create_user()
-    |> case do
-      {:ok, _new_user} ->
-        redirect(conn, to: "/login")
-
-      {:error, changeset} ->
-        render(conn, "new.html", changeset: changeset)
-    end
-  end
 
   def edit(conn, _params) do
     conn

@@ -3,22 +3,10 @@ defmodule NervesHubWeb.API.UserController do
 
   alias NervesHub.Accounts
 
-  plug(NervesHub.Plugs.AllowUninvitedSignups when action == :register)
-
   action_fallback(NervesHubWeb.API.FallbackController)
 
   def me(%{assigns: %{user: user}} = conn, _params) do
     render(conn, "show.json", user: user)
-  end
-
-  def register(conn, params) do
-    params =
-      params
-      |> whitelist([:username, :email, :password])
-
-    with {:ok, user} <- Accounts.create_user(params) do
-      render(conn, "show.json", user: user)
-    end
   end
 
   def auth(conn, %{"password" => password} = opts) do

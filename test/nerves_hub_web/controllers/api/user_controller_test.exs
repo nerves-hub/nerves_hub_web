@@ -12,29 +12,6 @@ defmodule NervesHubWeb.API.UserControllerTest do
            }
   end
 
-  describe "register new account" do
-    test "register new account" do
-      conn = build_conn()
-      body = %{username: "api_test", password: "12345678", email: "new_test@test.com"}
-      conn = post(conn, Routes.user_path(conn, :register), body)
-
-      assert json_response(conn, 200)["data"] == %{
-               "username" => body.username,
-               "email" => body.email
-             }
-    end
-
-    test "shows an error when username/org doesn't conform to ~r/^[A-Za-z0-9-_]" do
-      conn = build_conn()
-      body = %{username: "api.test", password: "12345678", email: "new_test@test.com"}
-      conn = post(conn, Routes.user_path(conn, :register), body)
-
-      assert json_response(conn, 422) == %{
-               "errors" => %{"username" => ["invalid character(s) in username"]}
-             }
-    end
-  end
-
   test "authenticate existing accounts" do
     password = "12345678"
 

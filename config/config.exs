@@ -49,7 +49,6 @@ config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
 # NervesHub
 #
 config :nerves_hub_www,
-  allow_signups?: false,
   ecto_repos: [NervesHub.Repo],
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
 
