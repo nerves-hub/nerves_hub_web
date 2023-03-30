@@ -166,10 +166,11 @@ defmodule NervesHubWeb.Router do
           scope "/:deployment_name" do
             pipe_through(:deployment)
 
-            get("/show", DeploymentController, :show)
+            get("/", DeploymentController, :show)
             get("/edit", DeploymentController, :edit)
             patch("/", DeploymentController, :update)
             put("/", DeploymentController, :update)
+            post("/toggle", DeploymentController, :toggle)
             delete("/", DeploymentController, :delete)
             get("/audit_logs/download", DeploymentController, :export_audit_logs)
           end

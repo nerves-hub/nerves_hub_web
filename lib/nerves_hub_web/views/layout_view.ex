@@ -104,6 +104,21 @@ defmodule NervesHubWeb.LayoutView do
   as `:page_size`) to `pagination_links/2` which will calculate `:total_pages`
   for you.
   """
+  def pagination_links(%{total_pages: _, links: true} = opts) do
+    opts = Map.put_new(opts, :page_number, 1)
+
+    anchor = if opts.anchor, do: "##{opts.anchor}", else: ""
+
+    content_tag(:div, class: "btn-group btn-group-toggle", data: [toggle: "buttons"]) do
+      opts
+      |> Scrivener.HTML.raw_pagination_links(distance: Map.get(opts, :distance, 8))
+      |> Enum.map(fn {text, page} ->
+        text = if text == :ellipsis, do: page, else: text
+        link(text, to: "?page=#{page}#{anchor}", class: "btn btn-secondary btn-sm #{if page == opts.page_number, do: "active"}")
+      end)
+    end
+  end
+
   def pagination_links(%{total_pages: _} = opts) do
     opts = Map.put_new(opts, :page_number, 1)
 

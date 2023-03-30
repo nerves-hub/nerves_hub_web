@@ -1,25 +1,25 @@
 <div class="action-row">
-  <%= link "All Deployments", to: Routes.deployment_path(@socket, :index, @org.name, @product.name), class: "back-link"%>
+  <%= link "All Deployments", to: Routes.deployment_path(@conn, :index, @org.name, @product.name), class: "back-link"%>
   <div class="btn-group" role="group" aria-label="Deployment Actions">
-    <a class="btn btn-outline-light btn-action" aria-label={"Turn #{opposite_status(@deployment)} deployment"} phx-click="toggle_active" phx-value-isactive={to_string(!@deployment.is_active)}>
+    <%= link(to: Routes.deployment_path(@conn, :toggle, @org.name, @product.name, @deployment.name), class: "btn btn-outline-light btn-action", method: :post, aria: [label: "Turn #{opposite_status(@deployment)} deployment"]) do %>
       <span class="button-icon power"></span>
       <span class="action-text">Turn <%= opposite_status(@deployment) %></span>
-    </a>
-    <a class="btn btn-outline-light btn-action" aria-label="Edit" href={Routes.deployment_path(@socket, :edit, @org.name, @product.name, @deployment.name)}>
-      <span class="button-icon edit"></span>
-      <span class="action-text">Edit</span>
-    </a>
-    <%= form_for %Plug.Conn{}, "#", [phx_submit: "delete"], fn _f -> %>
-      <%= submit class: "btn btn-outline-light btn-action", aria_label: "Delete", onclick: "return confirm('Are you sure you want to delete this deployment? This can not be undone.')" do %>
-        <span class="button-icon delete"></span>
-        <span class="action-text">Delete</span>
-      <% end %>
     <% end %>
 
-    <a class="btn btn-outline-light btn-action" aria-label="Download Audit Logs" href={Routes.deployment_path(@socket, :export_audit_logs, @org.name, @product.name, @deployment.name)}>
+    <%= link(to: Routes.deployment_path(@conn, :edit, @org.name, @product.name, @deployment.name), class: "btn btn-outline-light btn-action", aria: [label: "Edit"]) do %>
+      <span class="button-icon edit"></span>
+      <span class="action-text">Edit</span>
+    <% end %>
+
+    <%= link(to: Routes.deployment_path(@conn, :delete, @org.name, @product.name, @deployment.name), class: "btn btn-outline-light btn-action", method: :delete, aria: [label: "Delete"], data: [confirm: "Are you sure you want to delete this deployment? This cannot be undone."]) do %>
+      <span class="button-icon delete"></span>
+      <span class="action-text">Delete</span>
+    <% end %>
+
+    <%= link(to: Routes.deployment_path(@conn, :export_audit_logs, @org.name, @product.name, @deployment.name), class: "btn btn-outline-light btn-action", aria: [label: "Download Audit Logs"]) do %>
       <div class="button-icon download"></div>
       <span class="action-text">Download Audit Logs</span>
-    </a>
+    <% end %>
   </div>
 </div>
 
@@ -53,7 +53,7 @@
         <% end %>
         <div>
           <div class="help-text mb-1">Firmware version</div>
-          <span> <a href={Routes.firmware_path(@socket, :show, @org.name, @product.name, @firmware.uuid)} class="badge ff-m"><%= firmware_summary(@firmware) %></a> </span>
+          <span> <a href={Routes.firmware_path(@conn, :show, @org.name, @product.name, @firmware.uuid)} class="badge ff-m"><%= firmware_summary(@firmware) %></a> </span>
         </div>
         <div>
           <div class="help-text mb-1">Version requirement</div>
@@ -121,7 +121,7 @@
 </div>
 
 <div>
-  <h3 class="mb-2">Latest Activity</h3>
+  <h3 id="latest-activity" class="mb-2">Latest Activity</h3>
 
   <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
 </div>
