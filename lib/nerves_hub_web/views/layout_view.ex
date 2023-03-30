@@ -228,7 +228,7 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Access Tokens",
         active: "",
-        href: Routes.account_path(conn, :show, conn.assigns.user.username, "tokens")
+        href: Routes.token_path(conn, :index, conn.assigns.user.username)
       }
     ]
     |> sidebar_active(conn)

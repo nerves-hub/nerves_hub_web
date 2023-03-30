@@ -5,7 +5,6 @@ defmodule NervesHubWeb.AccountController do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Email
   alias NervesHub.Mailer
-  alias NervesHubWeb.AccountLive
 
   def edit(conn, _params) do
     conn
@@ -89,10 +88,6 @@ defmodule NervesHubWeb.AccountController do
         |> put_flash(:error, "Invalid org")
         |> redirect(to: "/")
     end
-  end
-
-  def show(%{assigns: %{user: user}} = conn, params) do
-    live_render(conn, AccountLive.Show, session: Map.put(params, "auth_user_id", user.id))
   end
 
   defp _accept_invite(conn, token, clean_params, invite, org) do
