@@ -139,7 +139,7 @@
             <div class="flex-grow pos-rel">
               <select name="product" id="move_to" class="form-control">
                 <option value=""></option>
-                <%= for org <- user_orgs(@user), products = user_org_products(@user, org), length(products) > 0 do %>
+                <%= for org <- @orgs, products = org.products, length(products) > 0 do %>
                   <optgroup label={org.name}>
                     <%= for product <- products, product.id != @product.id do %>
                       <option value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>

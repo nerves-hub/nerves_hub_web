@@ -24,8 +24,8 @@
                 <ul class="dropdown-menu">
                   <div class="help-text">Select a product</div>
                   <div class="dropdown-divider"></div>
-                  <%= if user_org_products(@conn.assigns.user, org) !== [] do %>
-                    <%= for product <- take_user_org_products(@conn.assigns.user, org, 5) do %>
+                  <%= if org.products !== [] do %>
+                    <%= for product <- org.products do %>
                       <li>
                         <%= active_link(@conn, to: Routes.device_path(@conn, :index, org.name, product.name), class_active: "active dropdown-item product", class_inactive: "dropdown-item product") do %>
                           <%= product.name %>
@@ -39,10 +39,6 @@
                     <div class="dropdown-divider"></div>
                   <% end %>
 
-                  <%= if count_user_org_products(@conn.assigns.user, org) > 5 do %>
-                    <a href={Routes.product_path(@conn, :index, org.name)} class="all-nav-link">View All Products (<%= count_user_org_products(@conn.assigns.user, org) %>)</a>
-                  <% end %>
-
                   <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create product" href={Routes.product_path(@conn, :new, org.name)}>
                     <span class="action-text">Create Product</span>
                     <span class="button-icon add"></span>
@@ -50,10 +46,6 @@
                 </ul>
                 <div class="dropdown-divider"></div>
               </div>
-            <% end %>
-
-            <%= if count_user_orgs(@conn) > 5 do %>
-            <a class="all-nav-link" href={Routes.org_path(@conn, :index, @conn.assigns.user.username)}>View All Organizations (<%= count_user_orgs(@conn) %>)</a>
             <% end %>
 
             <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization" href={Routes.org_path(@conn, :new)}>

@@ -44,9 +44,20 @@ defmodule NervesHubWeb.DeviceLive.Index do
       socket.endpoint.subscribe("product:#{product_id}:devices")
     end
 
+    user = Accounts.get_user!(user_id)
+
     socket =
       socket
-      |> assign_new(:user, fn -> Accounts.get_user!(user_id) end)
+      |> assign(:user, user)
+      |> assign_new(:orgs, fn ->
+        import Ecto.Query
+        # Taken from the FetchUser plug
+        # Duplicated because we can't pass in what the plug already loaded
+        org_query = from(o in NervesHub.Accounts.Org, where: is_nil(o.deleted_at))
+        product_query = from(p in NervesHub.Products.Product, where: is_nil(p.deleted_at))
+        user = Repo.preload(user, orgs: {org_query, products: product_query})
+        user.orgs
+      end)
       |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
       |> assign_new(:product, fn -> Products.get_product!(product_id) end)
       |> assign(:current_sort, "identifier")

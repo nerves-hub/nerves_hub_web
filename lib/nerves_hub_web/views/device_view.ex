@@ -7,7 +7,7 @@ defmodule NervesHubWeb.DeviceView do
   alias NervesHubWeb.LayoutView.DateTimeFormat, as: DateTimeFormat
 
   import NervesHubWeb.LayoutView,
-    only: [pagination_links: 1, user_orgs: 1, user_org_products: 2]
+    only: [pagination_links: 1]
 
   import NervesHubWeb.OrgCertificateView, only: [format_serial: 1]
 
