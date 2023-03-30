@@ -1,6 +1,9 @@
 defmodule NervesHubWeb.DeviceLive.Index do
   use NervesHubWeb, :live_view
 
+  # For the preloads below
+  import Ecto.Query
+
   require Logger
 
   alias NervesHubDevice.Presence
@@ -50,7 +53,6 @@ defmodule NervesHubWeb.DeviceLive.Index do
       socket
       |> assign(:user, user)
       |> assign_new(:orgs, fn ->
-        import Ecto.Query
         # Taken from the FetchUser plug
         # Duplicated because we can't pass in what the plug already loaded
         org_query = from(o in NervesHub.Accounts.Org, where: is_nil(o.deleted_at))
