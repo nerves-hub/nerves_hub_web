@@ -8,7 +8,7 @@ defmodule NervesHubWeb.DeploymentController do
   alias Ecto.Changeset
 
   plug(:validate_role, [product: :delete] when action in [:delete])
-  plug(:validate_role, [product: :write] when action in [:new, :create, :edit, :update])
+  plug(:validate_role, [product: :write] when action in [:new, :create, :edit, :update, :toggle])
   plug(:validate_role, [product: :read] when action in [:index, :show, :export_audit_logs])
 
   def index(%{assigns: %{org: _org, product: %{id: product_id}}} = conn, _params) do
@@ -116,21 +116,25 @@ defmodule NervesHubWeb.DeploymentController do
     end
   end
 
-  def show(
-        %{assigns: %{user: user, org: org, product: product, deployment: deployment}} = conn,
-        _params
-      ) do
+  def show(conn, params) do
+    %{deployment: deployment} = conn.assigns
+
+    logs =
+      AuditLogs.logs_for_feed(deployment, %{
+        page: Map.get(params, "page", 1),
+        page_size: 10
+      })
+
+    # Use proper links since current pagination links assumes LiveView
+    logs =
+      logs
+      |> Map.put(:links, true)
+      |> Map.put(:anchor, "latest-activity")
+
     conn
-    |> live_render(
-      NervesHubWeb.DeploymentLive.Show,
-      session: %{
-        "auth_user_id" => user.id,
-        "org_id" => org.id,
-        "product_id" => product.id,
-        "deployment_id" => deployment.id,
-        "firmware_id" => deployment.firmware_id
-      }
-    )
+    |> assign(:audit_logs, logs)
+    |> assign(:firmware, deployment.firmware)
+    |> render("show.html")
   end
 
   def edit(%{assigns: %{deployment: deployment}} = conn, _params) do
@@ -209,7 +213,31 @@ defmodule NervesHubWeb.DeploymentController do
     end
   end
 
-  def delete(%{assigns: %{org: org, product: product, deployment: deployment}} = conn, _params) do
+  def toggle(conn, _params) do
+    %{deployment: deployment, org: org, product: product, user: user} = conn.assigns
+
+    value = !deployment.is_active
+    {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: value})
+
+    active_str = if value, do: "active", else: "inactive"
+    description = "user #{user.username} marked deployment #{deployment.name} #{active_str}"
+    AuditLogs.audit!(user, deployment, :update, description, %{is_active: value})
+
+    conn
+    |> put_flash(:info, "Deployment set #{active_str}")
+    |> redirect(to: Routes.deployment_path(conn, :show, org.name, product.name, deployment.name))
+  end
+
+  def delete(conn, _params) do
+    %{deployment: deployment, org: org, product: product, user: user} = conn.assigns
+
+    description = "user #{user.username} deleted deployment #{deployment.name}"
+
+    AuditLogs.audit!(user, deployment, :delete, description, %{
+      id: deployment.id,
+      name: deployment.name
+    })
+
     Deployments.delete_deployment(deployment)
 
     conn

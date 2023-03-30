@@ -74,7 +74,6 @@ defmodule NervesHubWeb do
 
       alias NervesHubWeb.{
         DeviceLive,
-        DeploymentLive,
         Endpoint
       }
 
@@ -121,7 +120,7 @@ defmodule NervesHubWeb do
 
       import PhoenixActiveLink
 
-      alias NervesHubWeb.{DeviceLive, DeploymentLive, Endpoint}
+      alias NervesHubWeb.{DeviceLive, Endpoint}
 
       # Import convenience functions from controllers
       import Phoenix.Controller,
