@@ -21,11 +21,9 @@ defmodule NervesHub.Firmwares do
 
   @spec get_firmwares_by_product(integer()) :: [Firmware.t()]
   def get_firmwares_by_product(product_id) do
-    from(
-      f in Firmware,
-      where: f.product_id == ^product_id,
-      order_by: [fragment("? collate numeric desc", f.version), desc: :inserted_at]
-    )
+    Firmware
+    |> where([f], f.product_id == ^product_id)
+    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
     |> Firmware.with_product()
     |> Repo.all()
   end
@@ -42,6 +40,19 @@ defmodule NervesHub.Firmwares do
     )
     |> Firmware.with_product()
     |> Repo.all()
+  end
+
+  @doc """
+  Get only version numbers for a product, sorted highest first
+  """
+  def get_firmware_versions_by_product(product_id) do
+    Firmware
+    |> select([f], f.version)
+    |> distinct(true)
+    |> where([f], f.product_id == ^product_id)
+    |> Repo.all()
+    |> Enum.sort(Version)
+    |> Enum.reverse()
   end
 
   @spec get_firmware(Org.t(), integer()) ::
