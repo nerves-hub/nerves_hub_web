@@ -448,6 +448,6 @@ defmodule NervesHubWeb.DeviceLive.Index do
   end
 
   defp firmware_versions(product_id) do
-    Firmwares.get_firmwares_by_product(product_id) |> Enum.map(& &1.version)
+    Firmwares.get_firmware_versions_by_product(product_id)
   end
 end
