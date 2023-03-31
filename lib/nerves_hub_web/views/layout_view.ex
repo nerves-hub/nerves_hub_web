@@ -5,7 +5,6 @@ defmodule NervesHubWeb.LayoutView do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User
   alias NervesHub.Devices
-  alias NervesHub.Products
   alias NervesHub.Products.Product
 
   def product(%{assigns: %{product: %Product{} = product}}) do
@@ -14,32 +13,6 @@ defmodule NervesHubWeb.LayoutView do
 
   def product(_conn) do
     nil
-  end
-
-  def user_orgs(%{assigns: %{user: %User{} = user}}) do
-    user_orgs(user)
-  end
-
-  def user_orgs(%User{} = user) do
-    Accounts.get_user_orgs_with_product_role(user, :read)
-  end
-
-  def user_orgs(_conn), do: []
-
-  def count_user_orgs(conn) do
-    Enum.count(user_orgs(conn))
-  end
-
-  def user_org_products(user, org) do
-    Products.get_products_by_user_and_org(user, org)
-  end
-
-  def count_user_org_products(user, org) do
-    Enum.count(user_org_products(user, org))
-  end
-
-  def take_user_org_products(user, org, amount) do
-    Enum.take(user_org_products(user, org), amount)
   end
 
   def device_count(%{assigns: %{org: %{id: org_id}}}) do
@@ -51,6 +24,7 @@ defmodule NervesHubWeb.LayoutView do
   end
 
   def logged_in?(%{assigns: %{user: %User{}}}), do: true
+
   def logged_in?(_), do: false
 
   def has_org_role?(org, user, role) do
