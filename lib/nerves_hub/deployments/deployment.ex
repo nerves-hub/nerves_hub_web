@@ -143,7 +143,7 @@ defmodule NervesHub.Deployments.Deployment do
         |> validate_length(:tags, min: 1)
         |> validate_change(:version, fn :version, version ->
           if not is_nil(version) and !String.match?(version, @version_regex) do
-            [version: "Must match the regex #{Regex.source(@version_regex)}"]
+            [version: "Invalid version format"]
           else
             []
           end
