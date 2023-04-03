@@ -327,7 +327,7 @@ defmodule NervesHubWeb.WebsocketTest do
       Fixtures.deployment_fixture(org, firmware2, %{
         name: "a different name",
         conditions: %{
-          "version" => ">=0.0.1",
+          "version" => ">= 0.0.1",
           "tags" => ["beta", "beta-edge"]
         }
       })
@@ -373,7 +373,7 @@ defmodule NervesHubWeb.WebsocketTest do
         Fixtures.deployment_fixture(device.org, firmware2, %{
           name: "a different name",
           conditions: %{
-            "version" => ">=0.0.1",
+            "version" => ">= 0.0.1",
             "tags" => ["beta", "beta-edge"]
           }
         })

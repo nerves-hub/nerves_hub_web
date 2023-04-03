@@ -11,6 +11,9 @@ defmodule NervesHub.Deployments.Deployment do
 
   alias __MODULE__
 
+  # Similar to Elixir's `Version` but simplified for the match in postgres
+  @version_regex ~r/(=|<|<=|>|>=|~>) \d+\.\d+(\.\d+)?/
+
   @type t :: %__MODULE__{}
   @required_fields [:org_id, :firmware_id, :name, :conditions, :is_active, :product_id]
   @optional_fields [
@@ -52,6 +55,7 @@ defmodule NervesHub.Deployments.Deployment do
     |> cast(with_product_id, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
+    |> validate_conditions()
     |> validate_change(:is_active, fn :is_active, is_active ->
       creation_errors(:is_active, is_active)
     end)
@@ -138,8 +142,8 @@ defmodule NervesHub.Deployments.Deployment do
         |> validate_required([:tags])
         |> validate_length(:tags, min: 1)
         |> validate_change(:version, fn :version, version ->
-          if not is_nil(version) and Version.parse_requirement(version) == :error do
-            [version: "Must be valid Elixir version requirement string"]
+          if not is_nil(version) and !String.match?(version, @version_regex) do
+            [version: "Must match the regex #{Regex.source(@version_regex)}"]
           else
             []
           end

@@ -90,6 +90,27 @@ defmodule NervesHub.DeploymentsTest do
 
       assert {:error, %Changeset{}} = Deployments.create_deployment(params)
     end
+
+    test "create_deployment checks for version formatting" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "version"})
+      org_key = Fixtures.org_key_fixture(org)
+      product = Fixtures.product_fixture(user, org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      params = %{
+        org_id: org.id,
+        firmware_id: firmware.id,
+        name: "a different name",
+        conditions: %{
+          "version" => "<1.0.0",
+          "tags" => ["beta", "beta-edge"]
+        },
+        is_active: false
+      }
+
+      assert {:error, %Changeset{}} = Deployments.create_deployment(params)
+    end
   end
 
   describe "update_deployment" do

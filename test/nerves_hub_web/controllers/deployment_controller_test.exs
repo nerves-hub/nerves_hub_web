@@ -191,7 +191,7 @@ defmodule NervesHubWeb.DeploymentControllerTest do
           conn,
           Routes.deployment_path(conn, :update, org.name, product.name, deployment.name),
           deployment: %{
-            "version" => "4.3.2",
+            "version" => "= 4.3.2",
             "tags" => "new, tags, now",
             "name" => "not original",
             "firmware_id" => firmware.id
@@ -210,7 +210,7 @@ defmodule NervesHubWeb.DeploymentControllerTest do
                )
 
       assert reloaded_deployment.name == "not original"
-      assert reloaded_deployment.conditions["version"] == "4.3.2"
+      assert reloaded_deployment.conditions["version"] == "= 4.3.2"
       assert Enum.sort(reloaded_deployment.conditions["tags"]) == Enum.sort(~w(new tags now))
     end
 
