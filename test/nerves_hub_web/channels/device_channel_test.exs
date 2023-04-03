@@ -73,19 +73,22 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     deployment = Fixtures.deployment_fixture(org, firmware)
 
+    {:ok, deployment} =
+      NervesHub.Deployments.update_deployment(deployment, %{
+        is_active: true
+      })
+
     device =
-      Fixtures.device_fixture(
-        org,
-        product,
-        firmware,
-        %{tags: ["beta", "beta-edge"], identifier: "123"}
-      )
+      Fixtures.device_fixture(org, product, firmware, %{
+        tags: ["beta", "beta-edge"],
+        identifier: "123"
+      })
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
     {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, %{update_available: false}, _socket} =
-      subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
+      subscribe_and_join(socket, DeviceChannel, "device")
 
     new_firmware =
       Fixtures.firmware_fixture(org_key, product, %{
@@ -94,8 +97,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     {:ok, _deployment} =
       NervesHub.Deployments.update_deployment(deployment, %{
-        firmware_id: new_firmware.id,
-        is_active: true
+        firmware_id: new_firmware.id
       })
 
     assert_push("update", %{firmware_meta: %{version: "0.0.2"}})

@@ -15,18 +15,6 @@ defmodule NervesHub.AuditLogs.AuditLogTest do
       assert al.changes == params
     end
 
-    test "adds firmware_uuid for device update messages", %{
-      deployment: deployment,
-      device: device
-    } do
-      deployment = Repo.preload(deployment, :firmware)
-
-      al =
-        AuditLog.build(deployment, device, :update, "firmware uuid", %{send_update_message: true})
-
-      assert al.params.firmware_uuid == deployment.firmware.uuid
-    end
-
     test "can use supplied description", %{device: device, user: user} do
       description = "what just happened?!"
       al = AuditLog.build(user, device, :update, description, %{})

@@ -57,8 +57,6 @@ defmodule NervesHubWeb.WebsocketTest do
         version: "0.0.1"
       })
 
-    Fixtures.deployment_fixture(org, firmware)
-
     params = Enum.into(device_params, %{tags: ["beta", "beta-edge"]})
 
     device =
@@ -327,7 +325,7 @@ defmodule NervesHubWeb.WebsocketTest do
       Fixtures.deployment_fixture(org, firmware2, %{
         name: "a different name",
         conditions: %{
-          "version" => ">=0.0.1",
+          "version" => ">= 0.0.1",
           "tags" => ["beta", "beta-edge"]
         }
       })
@@ -349,7 +347,7 @@ defmodule NervesHubWeb.WebsocketTest do
       assert Time.diff(DateTime.utc_now(), device.last_communication) < 2
     end
 
-    test "receives update message once deployment is available", %{user: user} do
+    test "receives update message when a deployment gets a new version", %{user: user} do
       {device, firmware} = device_fixture(user, %{identifier: @valid_serial})
 
       device = NervesHub.Repo.preload(device, :org)
@@ -358,27 +356,18 @@ defmodule NervesHubWeb.WebsocketTest do
       Fixtures.device_certificate_fixture(device)
       org_key = Fixtures.org_key_fixture(device.org)
 
-      firmware2 =
-        Fixtures.firmware_fixture(
-          org_key,
-          firmware.product,
-          %{
-            version: "0.0.2"
-          }
-        )
-
-      Fixtures.firmware_delta_fixture(firmware, firmware2)
-
       deployment =
-        Fixtures.deployment_fixture(device.org, firmware2, %{
+        Fixtures.deployment_fixture(device.org, firmware, %{
           name: "a different name",
           conditions: %{
-            "version" => ">=0.0.1",
             "tags" => ["beta", "beta-edge"]
           }
         })
 
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+      {:ok, deployment} =
+        Deployments.update_deployment(deployment, %{
+          is_active: true
+        })
 
       {:ok, socket} = SocketClient.start_link(@socket_config)
       SocketClient.wait_connect(socket)
@@ -388,15 +377,16 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert %{"update_available" => false} = reply
 
-      Deployments.update_deployment(deployment, %{is_active: true})
+      new_firmware = Fixtures.firmware_fixture(org_key, firmware.product, %{version: "0.0.2"})
 
-      assert_receive(
-        %Phoenix.Socket.Broadcast{
-          event: "update",
-          payload: %{firmware_url: _f_url, firmware_meta: %{}}
-        },
-        1000
-      )
+      {:ok, _deployment} =
+        Deployments.update_deployment(deployment, %{
+          firmware_id: new_firmware.id
+        })
+
+      message = SocketClient.wait_update(socket)
+
+      assert message["update_available"]
     end
 
     test "does not receive update message when current_version matches target_version", %{

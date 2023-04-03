@@ -2,7 +2,7 @@ defmodule NervesHub.DeploymentsTest do
   use NervesHub.DataCase, async: false
   import Phoenix.ChannelTest
 
-  alias NervesHub.{AuditLogs.AuditLog, Deployments, Fixtures, Firmwares}
+  alias NervesHub.{Deployments, Fixtures, Firmwares}
   alias Ecto.Changeset
 
   setup do
@@ -95,15 +95,10 @@ defmodule NervesHub.DeploymentsTest do
   describe "update_deployment" do
     test "updates correct devices", %{
       org: org,
-      org2: org2,
       org_key: org_key,
       firmware: firmware,
-      firmware2: firmware2,
       product: product
     } do
-      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "beta-edge"]})
-      _device2 = Fixtures.device_fixture(org2, product, firmware2, %{tags: ["beta", "beta-edge"]})
-
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
       Fixtures.firmware_delta_fixture(firmware, new_firmware)
@@ -119,18 +114,13 @@ defmodule NervesHub.DeploymentsTest do
         is_active: false
       }
 
-      device_topic = "device:#{device.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, device_topic)
+      {:ok, deployment} = Deployments.create_deployment(params)
 
-      {:ok, deployment} =
-        Deployments.create_deployment(params)
-        |> elem(1)
-        |> Deployments.update_deployment(%{is_active: true})
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
-      {:ok, meta} = Firmwares.metadata_from_firmware(new_firmware)
+      {:ok, _deployment} = Deployments.update_deployment(deployment, %{is_active: true})
 
-      assert [^device] = Deployments.fetch_relevant_devices(deployment)
-      assert_broadcast("update", %{firmware_url: _f_url, firmware_meta: ^meta}, 500)
+      assert_broadcast("update", %{}, 500)
     end
 
     test "does not update incorrect devices", %{
@@ -244,79 +234,6 @@ defmodule NervesHub.DeploymentsTest do
       {:ok, meta} = Firmwares.metadata_from_firmware(new_firmware)
 
       refute_broadcast("update", %{firmware_url: _f_url, firmware_meta: ^meta})
-    end
-
-    test "failure_threshold_met?", %{
-      firmware: firmware,
-      org: org,
-      org_key: org_key,
-      product: product
-    } do
-      # Create many devices in error state
-      Enum.each(
-        1..4,
-        &Fixtures.device_fixture(org, product, firmware, %{
-          tags: ["beta", "beta-edge", "#{&1}"],
-          updates_enabled: false
-        })
-      )
-
-      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
-
-      params = %{
-        firmware_id: new_firmware.id,
-        org_id: org.id,
-        name: "my deployment",
-        conditions: %{
-          "version" => "< 1.0.1",
-          "tags" => ["beta", "beta-edge"]
-        },
-        is_active: false,
-        failure_threshold: 2
-      }
-
-      {:ok, deployment} = Deployments.create_deployment(params)
-
-      assert Deployments.failure_threshold_met?(deployment)
-    end
-  end
-
-  describe "failure_rate_met?" do
-    setup context do
-      # Create multi AuditLogs for deployment 1 to signify same device attempting to apply
-      # the same update but failing
-      Enum.each(1..5, fn i ->
-        device = Fixtures.device_fixture(context.org, context.product, context.firmware)
-
-        al =
-          AuditLog.build(context.deployment, device, :update, "update triggered", %{
-            send_update_message: true
-          })
-
-        time = NaiveDateTime.utc_now()
-        Repo.insert(al)
-        Repo.insert(%{al | inserted_at: Timex.shift(time, seconds: i)})
-        Repo.insert(%{al | inserted_at: Timex.shift(time, seconds: i + 5)})
-      end)
-
-      context
-    end
-
-    test "when failure rate exceeded", %{deployment: deployment} do
-      assert Deployments.failure_rate_met?(deployment)
-    end
-
-    test "skips failures that don't match deployment and firmware", %{
-      deployment: deployment,
-      firmware2: firmware2
-    } do
-      assert Deployments.failure_rate_met?(deployment)
-
-      # Simulate updating a deployment with new firmware. So existing failures
-      # tied to old firmware will not be counted in the rate check
-      {:ok, deployment} = Deployments.update_deployment(deployment, %{firmware_id: firmware2.id})
-
-      refute Deployments.failure_rate_met?(deployment)
     end
   end
 

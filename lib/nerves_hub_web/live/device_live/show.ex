@@ -45,9 +45,12 @@ defmodule NervesHubWeb.DeviceLive.Show do
       socket.endpoint.subscribe("device:#{socket.assigns.device.id}:internal")
     end
 
+    device = Repo.preload(socket.assigns.device, [:deployment])
+
     socket =
       socket
-      |> assign(:device, sync_device(socket.assigns.device))
+      |> assign(:device, sync_device(device))
+      |> assign(:deployment, device.deployment)
       |> assign(:page_title, socket.assigns.device.identifier)
       |> assign(:toggle_upload, false)
       |> assign(:results, [])
