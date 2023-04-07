@@ -255,7 +255,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
       firmware_meta: meta
     }
 
-    NervesHubWeb.Endpoint.broadcast("device:#{socket.assigns.device.id}", "update", payload)
+    NervesHubWeb.Endpoint.broadcast("device:#{socket.assigns.device.id}", "deployments/update", payload)
 
     {:noreply, put_flash(socket, :info, "Pushing update")}
   end

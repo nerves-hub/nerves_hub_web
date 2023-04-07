@@ -39,9 +39,14 @@ defmodule NervesHubWeb.DeviceChannel do
         |> Deployments.set_deployment()
         |> Repo.preload(deployment: [:firmware])
 
-      if device.deployment_id do
-        socket.endpoint.subscribe("deployment:#{device.deployment_id}")
-      end
+      socket =
+        if device.deployment_id do
+          socket.endpoint.subscribe("deployment:#{device.deployment_id}")
+          assign(socket, :deployment_channel, "deployment:#{device.deployment_id}")
+        else
+          socket.endpoint.subscribe("deployment:none")
+          assign(socket, :deployment_channel, "deployment:none")
+        end
 
       join_reply =
         device
@@ -134,13 +139,34 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_info(%Broadcast{event: "deployments/changed"}, socket) do
+    socket.endpoint.unsubscribe(socket.assigns.deployment_channel)
+
+    device =
+      socket.assigns.device
+      |> Repo.reload()
+      |> Deployments.set_deployment()
+      |> Repo.preload(deployment: [:firmware])
+
+    socket =
+      if device.deployment_id do
+        socket.endpoint.subscribe("deployment:#{device.deployment_id}")
+        assign(socket, :deployment_channel, "deployment:#{device.deployment_id}")
+      else
+        socket.endpoint.subscribe("deployment:none")
+        assign(socket, :deployment_channel, "deployment:none")
+      end
+
+    {:noreply, assign(socket, :device, device)}
+  end
+
   # manually pushed
-  def handle_info(%Broadcast{event: "update", payload: %{deployment_id: nil} = payload}, socket) do
+  def handle_info(%Broadcast{event: "deployments/update", payload: %{deployment_id: nil} = payload}, socket) do
     push(socket, "update", payload)
     {:noreply, socket}
   end
 
-  def handle_info(%Broadcast{event: "update"}, socket) do
+  def handle_info(%Broadcast{event: "deployments/update"}, socket) do
     device = Repo.preload(socket.assigns.device, [deployment: [:firmware]], force: true)
 
     payload = Devices.resolve_update(device)

@@ -273,6 +273,46 @@ defmodule NervesHub.Fixtures do
     device_certificate_fixture(device, cert)
   end
 
+  def device_certificate_fixture(%Devices.Device{} = device, {:ECPrivateKey, _, _, _, _} = key) do
+    csr = X509.CSR.new(key, "/O=tester/CN=#{device.identifier}")
+
+    signer_cert_pem = File.read!(device_certificate_authority_file())
+    signer_key_pem = File.read!(device_certificate_authority_key_file())
+    {:ok, signer_cert} = X509.Certificate.from_pem(signer_cert_pem)
+    {:ok, signer_key} = X509.PrivateKey.from_pem(signer_key_pem)
+
+    subject_rdn = X509.CSR.subject(csr) |> X509.RDNSequence.to_string()
+    public_key = X509.CSR.public_key(csr)
+
+    now = DateTime.utc_now()
+
+    not_before =
+      now
+      |> DateTime.to_unix()
+      |> Kernel.-(12 * 60 * 60)
+      |> DateTime.from_unix!()
+
+    not_after = Map.put(now, :year, now.year + 30)
+
+    cert =
+      X509.Certificate.new(public_key, subject_rdn, signer_cert, signer_key,
+        template: X509.Certificate.Template.new(%X509.Certificate.Template{
+          serial: {:random, 20},
+          validity: X509.Certificate.Validity.new(not_before, not_after),
+          hash: :sha256,
+          extensions: [
+            basic_constraints: X509.Certificate.Extension.basic_constraints(false),
+            key_usage: X509.Certificate.Extension.key_usage([:digitalSignature, :keyEncipherment]),
+            ext_key_usage: X509.Certificate.Extension.ext_key_usage([:clientAuth]),
+            subject_key_identifier: true,
+            authority_key_identifier: true
+          ]
+        })
+      )
+
+    device_certificate_fixture(device, cert)
+  end
+
   def device_certificate_fixture(%Devices.Device{} = device, cert) do
     serial = Certificate.get_serial_number(cert)
     {not_before, not_after} = Certificate.get_validity(cert)

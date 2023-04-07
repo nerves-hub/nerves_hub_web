@@ -82,21 +82,58 @@ defmodule NervesHub.Deployments do
     end
   end
 
+  @doc """
+  Update a deployment
+
+  Updating a deployment is a big task. Devices will be notified of the change when:
+  - Firmware changes, all devices will be told of the new firmware to update
+  - Conditions change, all devices will have the deployment removed and told about the
+    change, any devices that don't have a deployment and are online will be told about
+    the conditions changing to check for a deployment again
+  - If now active, any devices without a deployment will be told to reevaluate
+  - If now inactive, devices will have the deployment removed and told about the change
+  """
   @spec update_deployment(Deployment.t(), map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def update_deployment(deployment, params) do
-    deployment
-    |> Deployment.with_firmware()
-    |> Deployment.changeset(params)
-    |> Repo.update()
-    |> Repo.reload_assoc(:firmware)
-    |> case do
+    changeset =
+      deployment
+      |> Deployment.with_firmware()
+      |> Deployment.changeset(params)
+
+    case Repo.update(changeset) do
       {:ok, deployment} ->
-        fetch_and_update_relevant_devices(deployment)
+        deployment = Repo.preload(deployment, [:firmware], force: true)
+
+        # if the conditions changed, we should reset all devices and tell any connected
+        if Map.has_key?(changeset.changes, :conditions) do
+          Device
+          |> where([d], d.deployment_id == ^deployment.id)
+          |> Repo.update_all(set: [deployment_id: nil])
+
+          broadcast(deployment, "deployments/changed", deployment.conditions)
+          broadcast(:none, "deployments/changed", deployment.conditions)
+        end
+
+        # if is_active is false, wipe it out like above
+        # if its now true, tell the none deployment devices
+        if Map.has_key?(changeset.changes, :is_active) do
+          if deployment.is_active do
+            broadcast(:none, "deployments/changed")
+          else
+            Device
+            |> where([d], d.deployment_id == ^deployment.id)
+            |> Repo.update_all(set: [deployment_id: nil])
+
+            broadcast(deployment, "deployments/changed")
+          end
+        end
+
+        broadcast(deployment, "deployments/update")
 
         {:ok, deployment}
 
-      error ->
-        error
+      {:error, changeset} ->
+        {:error, changeset}
     end
   end
 
@@ -107,11 +144,17 @@ defmodule NervesHub.Deployments do
     |> Repo.insert()
   end
 
-  def fetch_and_update_relevant_devices(deployment) do
-    broadcast(deployment, "update")
+  def broadcast(deployment, event, payload \\ %{})
+
+  def broadcast(:none, event, payload) do
+    Phoenix.PubSub.broadcast(
+      NervesHub.PubSub,
+      "deployment:none",
+      %Phoenix.Socket.Broadcast{event: event, payload: payload}
+    )
   end
 
-  def broadcast(%Deployment{id: id}, event, payload \\ %{}) do
+  def broadcast(%Deployment{id: id}, event, payload) do
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
       "deployment:#{id}",

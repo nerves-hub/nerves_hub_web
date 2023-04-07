@@ -8,6 +8,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
+  alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
@@ -478,8 +479,16 @@ defmodule NervesHub.Devices do
 
     case Repo.update(changeset) do
       {:ok, device} ->
-    # TODO verify device still matches deployment?
-        {:ok, device}
+        case Map.has_key?(changeset.changes, :tags) do
+          true ->
+            # Since the tags changed, let's find a new deployment
+            device = %{device | deployment_id: nil, deployment: nil}
+            device = Deployments.set_deployment(device)
+            {:ok, device}
+
+          false ->
+            {:ok, device}
+        end
 
       {:error, changeset} ->
         {:error, changeset}
