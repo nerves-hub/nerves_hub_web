@@ -5,6 +5,7 @@ defmodule NervesHubWeb.AccountController do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Email
   alias NervesHub.Mailer
+  alias NervesHub.Accounts.User
 
   def edit(conn, _params) do
     conn
@@ -31,6 +32,29 @@ defmodule NervesHubWeb.AccountController do
       conn
       |> put_flash(:info, "Success")
       |> redirect(to: "/login")
+    end
+  end
+
+  def new(conn, _params) do
+    changeset = Accounts.change_user(%User{})
+    render(conn, "new.html", changeset: changeset)
+  end
+
+  def create(conn, %{"user" => user_params}) do
+    params = %{
+      username: user_params["username"],
+      email: user_params["email"],
+      password: user_params["password"]
+    }
+
+    case Accounts.create_user(params) do
+      {:ok, _user} ->
+        conn
+        |> put_flash(:info, "User created successfully.")
+        |> redirect(to: "/login")
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        render(conn, "new.html", changeset: changeset)
     end
   end
 

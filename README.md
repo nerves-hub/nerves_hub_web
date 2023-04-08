@@ -79,17 +79,18 @@ is needed in order to run both applications. When you create certificates from `
      ```
 
 2. Fetch dependencies: `mix do deps.get, compile`
-3. Initialize the database: `make reset-db`
+3. Initialize the database: `make reset-db` (or mix `ecto.reset`)
 4. Compile web assets (this only needs to be done once and requires python2):
    `mix assets.install`
 
 ### Starting the application
 
-* `make server` - start the server process
-* `make iex-server` - start the server with the
-   interactive shell
+* `make server` - start the server process (or run `mix phx.server`)
+* `make iex-server` - start the server with the interactive shell (or run `iex -S mix phx.server`)
 
 > **_Note_**: The whole app may need to be compiled the first time you run this, so please be patient
+
+Then visit http://localhost:4000/register to create your first account
 
 ### Running Tests
 
