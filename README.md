@@ -91,6 +91,11 @@ is needed in order to run both applications. When you create certificates from `
 
 > **_Note_**: The whole app may need to be compiled the first time you run this, so please be patient
 
+Once the server is running, by default in development you can access it at http://localhost:4000
+
+In development you can login into a pre-generated account with the username
+`nerveshub` and password `nerveshub`.
+
 ### Running Tests
 
 1. Make sure you've completed your [database connection setup](#development-environment-setup)
