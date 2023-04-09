@@ -17,7 +17,7 @@ iex-server:
 	iex -S mix phx.server
 
 reset-db:
-	mix exto.reset
+	mix ecto.reset
 
 reset-test-db:
 	MIX_ENV=test \
