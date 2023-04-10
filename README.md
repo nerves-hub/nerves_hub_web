@@ -63,7 +63,6 @@ is needed in order to run both applications. When you create certificates from `
      **Using Docker**
 
      * Create directory for local data storage: `mkdir ~/db`
-     * Copy `dev.env` to `.env` and customize as needed: `cp dev.env .env`
      * Start the database (may require sudo): `docker-compose up -d`
 
      **Using local postgres**
@@ -80,7 +79,7 @@ is needed in order to run both applications. When you create certificates from `
 
 2. Fetch dependencies: `mix do deps.get, compile`
 3. Initialize the database: `make reset-db` (or mix `ecto.reset`)
-4. Compile web assets (this only needs to be done once and requires python2):
+4. Compile web assets (this only needs to be done once and requires python2 or a symlink for python3):
    `mix assets.install`
 
 ### Starting the application
