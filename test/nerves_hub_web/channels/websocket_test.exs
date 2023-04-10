@@ -417,6 +417,42 @@ defmodule NervesHubWeb.WebsocketTest do
       assert "online" == Presence.device_status(updated_device)
       assert Time.diff(DateTime.utc_now(), updated_device.last_communication) < 2
     end
+
+    test "checks version requirements on connect", %{user: user} do
+      {device, firmware} = device_fixture(user, %{identifier: @valid_serial, product: @valid_product})
+
+      org = %Accounts.Org{id: device.org_id}
+
+      Fixtures.deployment_fixture(org, firmware, %{
+        name: "a different name",
+        conditions: %{
+          "version" => "~> 0.0.1",
+          "tags" => ["beta", "beta-edge"]
+        }
+      })
+      |> Deployments.update_deployment(%{is_active: true})
+
+      device = Deployments.set_deployment(device)
+      assert device.deployment_id
+
+      Fixtures.device_certificate_fixture(device)
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+      SocketClient.wait_connect(socket)
+
+      # Device has updated and no longer matches the attached deployment
+      SocketClient.join(socket, "device", %{
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => "test",
+        "nerves_fw_architecture" => "arm",
+        "nerves_fw_platform" => "tester",
+        "nerves_fw_version" => "0.1.0"
+      })
+      SocketClient.wait_join(socket)
+
+      device = Repo.reload(device)
+      refute device.deployment_id
+    end
   end
 
   describe "Custom CA Signers" do

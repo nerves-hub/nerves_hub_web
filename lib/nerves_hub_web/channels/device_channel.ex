@@ -36,6 +36,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
       device =
         device
+        |> Devices.verify_deployment()
         |> Deployments.set_deployment()
         |> Repo.preload(deployment: [:firmware])
 

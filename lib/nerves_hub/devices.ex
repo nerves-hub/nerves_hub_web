@@ -545,6 +545,28 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
+  Verify that the deployment still matches the device
+
+  This may clear the deployment from the device if the version or tags are different.
+  """
+  def verify_deployment(%{deployment_id: nil} = device), do: device
+
+  def verify_deployment(device) do
+    device = Repo.preload(device, [:deployment])
+
+    case matches_deployment?(device, device.deployment) do
+      true ->
+        device
+
+      false ->
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, nil)
+        |> Repo.update!()
+    end
+  end
+
+  @doc """
   Returns true if Version.match? and all deployment tags are in device tags.
   """
   def matches_deployment?(

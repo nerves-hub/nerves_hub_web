@@ -17,8 +17,8 @@ defmodule SocketClient do
     GenServer.call(socket, :reply)
   end
 
-  def join(socket, channel) do
-    GenServer.call(socket, {:join, channel})
+  def join(socket, channel, params \\ %{}) do
+    GenServer.call(socket, {:join, channel, params})
   end
 
   def wait_connect(_, _ \\ nil)
@@ -136,11 +136,11 @@ defmodule SocketClient do
     {:reply, socket.assigns.reply, socket}
   end
 
-  def handle_call({:join, channel}, _from, socket) do
+  def handle_call({:join, channel, params}, _from, socket) do
     socket =
       socket
       |> assign(:joined?, false)
-      |> Slipstream.join(channel)
+      |> Slipstream.join(channel, params)
 
     {:reply, :ok, socket}
   end
