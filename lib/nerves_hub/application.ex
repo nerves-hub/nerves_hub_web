@@ -30,9 +30,9 @@ defmodule NervesHub.Application do
     case Application.get_env(:nerves_hub, :app) do
       "all" ->
         [
+          NervesHubWeb.Endpoint,
           NervesHubWeb.API.Endpoint,
-          NervesHubWeb.DeviceEndpoint,
-          NervesHubWeb.Endpoint
+          NervesHubWeb.DeviceEndpoint
         ]
 
       "api" ->
