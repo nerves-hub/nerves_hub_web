@@ -40,7 +40,7 @@ RUN mix do phx.digest, release nerves_hub --overwrite
 FROM nerveshub/runtime:alpine-${ALPINE_VERSION} as release
 RUN apk add -X https://dl-cdn.alpinelinux.org/alpine/v3.15/main -u alpine-keys
 
-RUN apk add 'fwup~=1.9' \
+RUN apk add fwup \
   --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ \
   --no-cache
 
