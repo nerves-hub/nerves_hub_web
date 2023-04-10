@@ -481,6 +481,9 @@ defmodule NervesHub.Devices do
       {:ok, device} ->
         case Map.has_key?(changeset.changes, :tags) do
           true ->
+            description = "device #{device.identifier} tags changed, the attached deployment has been reset"
+            AuditLogs.audit!(device, device, :update, description)
+
             # Since the tags changed, let's find a new deployment
             device = %{device | deployment_id: nil, deployment: nil}
             device = Deployments.set_deployment(device)

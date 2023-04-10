@@ -12,7 +12,7 @@ defmodule NervesHub.AuditLogs do
     |> Repo.insert()
   end
 
-  def audit!(actor, resource, action, description, params) do
+  def audit!(actor, resource, action, description, params \\ %{}) do
     AuditLog.build(actor, resource, action, description, params)
     |> AuditLog.changeset()
     |> Repo.insert!()

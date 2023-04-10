@@ -150,9 +150,15 @@ defmodule NervesHubWeb.DeviceChannel do
 
     socket =
       if device.deployment_id do
+        description = "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+        AuditLogs.audit!(device, device, :update, description)
+
         socket.endpoint.subscribe("deployment:#{device.deployment_id}")
         assign(socket, :deployment_channel, "deployment:#{device.deployment_id}")
       else
+        description = "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
+        AuditLogs.audit!(device, device, :update, description)
+
         socket.endpoint.subscribe("deployment:none")
         assign(socket, :deployment_channel, "deployment:none")
       end

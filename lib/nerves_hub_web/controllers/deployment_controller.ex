@@ -175,8 +175,7 @@ defmodule NervesHubWeb.DeploymentController do
       |> inject_conditions_map()
       |> whitelist(allowed_fields)
 
-    Deployments.update_deployment(deployment, params)
-    |> case do
+    case Deployments.update_deployment(deployment, params) do
       {:ok, updated} ->
         # Use original deployment so changes will get
         # marked in audit log

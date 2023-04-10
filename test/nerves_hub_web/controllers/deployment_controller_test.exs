@@ -251,10 +251,12 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       conn = get(update_conn, redirect_path)
       assert get_flash(conn, :info) == "Deployment updated"
 
-      [audit_log] = AuditLogs.logs_for(deployment)
+      [audit_log_one, audit_log_two] = AuditLogs.logs_for(deployment)
 
-      assert audit_log.resource_type == Deployment
-      assert Map.has_key?(audit_log.changes, "conditions")
+      assert audit_log_one.resource_type == Deployment
+      assert Map.has_key?(audit_log_one.changes, "conditions")
+
+      assert audit_log_two.description =~ ~r/removed all devices/
     end
   end
 

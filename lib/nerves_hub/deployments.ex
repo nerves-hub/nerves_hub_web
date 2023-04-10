@@ -3,6 +3,7 @@ defmodule NervesHub.Deployments do
 
   require Logger
 
+  alias NervesHub.AuditLogs
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
@@ -112,6 +113,9 @@ defmodule NervesHub.Deployments do
 
           broadcast(deployment, "deployments/changed", deployment.conditions)
           broadcast(:none, "deployments/changed", deployment.conditions)
+
+          description = "deployment #{deployment.name} conditions changed and removed all devices"
+          AuditLogs.audit!(deployment, deployment, :update, description)
         end
 
         # if is_active is false, wipe it out like above
@@ -125,6 +129,9 @@ defmodule NervesHub.Deployments do
             |> Repo.update_all(set: [deployment_id: nil])
 
             broadcast(deployment, "deployments/changed")
+
+            description = "deployment #{deployment.name} is inactive and removed all devices"
+            AuditLogs.audit!(deployment, deployment, :update, description)
           end
         end
 
