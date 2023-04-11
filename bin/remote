@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+
+# Per project settings
+
+git_branch="HEAD"
+
+# Generalized starts below
+
+ssh_user="deploy"
+ssh_host="192.168.3.48"
+ssh_port=22
+ssh_options=("${ssh_host}" -l "${ssh_user}" -p "${ssh_port}")
+
+help_text=$(cat <<"HELP"
+remote - Help manage remote nodes
+
+  ./bin/remote [command]
+
+Commands:
+
+bash    Start a remote bash shell
+
+deploy  Deploy `origin/main` to the environment
+
+help    View this help message
+
+iex     Start a remote IEx shell
+
+logs    Tail logs from a remote server. Note if there are more than one server
+        to connect to, only one will be tailed. See the script if you need to
+        follow more than one server for how to do that.
+
+psql    Start a remote psql connection
+HELP
+)
+
+case "${1}" in
+  bash)
+    ssh "${ssh_options[@]}" -t -C 'export $(cat /etc/nerves_hub.env | xargs) && bash'
+    ;;
+
+  setup)
+    scp nerves_hub.env "${ssh_user}@${ssh_host}:/tmp/nerves_hub.env"
+    scp nerves_hub.service "${ssh_user}@${ssh_host}:/tmp/nerves_hub.service"
+
+    commands=$(cat << CMD
+# caddy
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt-get update
+
+# fwup
+sudo wget https://github.com/fwup-home/fwup/releases/download/v1.10.0/fwup_1.10.0_amd64.deb -P /tmp/
+sudo dpkg -i /tmp/fwup_1.10.0_amd64.deb
+
+sudo apt-get install -y xdelta3 caddy postgresql
+
+sudo mv /tmp/nerves_hub.env /etc/nerves_hub.env
+sudo mv /tmp/nerves_hub.service /etc/systemd/system/nerves_hub.service
+sudo systemctl daemon-reload
+sudo systemctl enable nerves_hub
+CMD
+)
+
+    ssh "${ssh_options[@]}" -t -C "${commands}"
+
+    cat << NOTICE
+Setup complete. There are still a few TODOs before this server is ready to deploy.
+
+- Create a postgresql deploy user
+- Fill in /etc/nerves_hub.env with your keys and secrets.
+- Generate certs, make sure the following are present
+  - /etc/ssl/{host}-key.pem
+  - /etc/ssl/{host}.pem
+- Edit /etc/caddy/Caddyfile to use your domain
+
+Create a postgresql user with:
+$ sudo -u postgres createuser --superuser deploy -W
+
+You can generate a cert with:
+
+$ openssl genrsa -out ca.key 2048
+$ openssl req -x509 -new -nodes -key ca.key -sha256 -days 1825 -out ca.pem -subj '//'
+$ openssl genrsa -out device.nerves-hub.dev-key.pem
+$ openssl req -new -key device.nerves-hub.dev-key.pem -out device.nerves-hub.dev.csr -subj '/CN=device.nerves-hub.dev/'
+$ nvim device.nerves-hub.dev.ext
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = device.nerves-hub.dev
+$ openssl x509 -req -in device.nerves-hub.dev.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out device.nerves-hub.dev.pem -days 825 -sha256 -extfile device.nerves-hub.dev.ext
+$ sudo mv device.nerves-hub.dev-key.pem /etc/ssl/
+$ sudo mv device.nerves-hub.dev.pem /etc/ssl/
+
+NOTICE
+
+    ;;
+
+  deploy)
+    ./bin/release
+    set -x
+    scp tmp/nerves_hub.tar.gz "${ssh_user}@${ssh_host}:/tmp/nerves_hub.tar.gz"
+
+    now="$(date +%s)"
+    sha="$(git rev-parse ${git_branch})"
+    release_path="/home/${ssh_user}/nerves_hub/releases/${now}"
+    current_path="/home/${ssh_user}/nerves_hub/current"
+
+    echo "${release_path}"
+
+    commands=$(cat << CMD
+mkdir -p ${release_path}
+tar xzf /tmp/nerves_hub.tar.gz -C ${release_path}
+echo ${sha} > ${release_path}/REVISION
+sudo systemctl stop nerves_hub
+rm ${current_path}
+ln -s ${release_path} ${current_path}
+cd ${current_path} && ./bin/nerves_hub eval "NervesHub.Release.Tasks.migrate_and_seed()"
+sudo systemctl start nerves_hub
+CMD
+)
+
+    ssh "${ssh_options[@]}" -t -C "${commands}"
+
+    echo "Deploy complete"
+
+    ;;
+
+  iex)
+    ssh "${ssh_options[@]}" -t -C "cd nerves_hub/current && ./bin/nerves_hub remote"
+    ;;
+
+  logs)
+    ssh "${ssh_options[@]}" -t -C 'journalctl -u nerves_hub -f'
+    ;;
+
+  psql)
+    ssh "${ssh_options[@]}" -t -C 'source /etc/nerves_hub.env && psql $DATABASE_URL'
+    ;;
+
+  *)
+    echo "${help_text}"
+    ;;
+esac

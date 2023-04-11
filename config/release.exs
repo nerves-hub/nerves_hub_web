@@ -65,6 +65,7 @@ if nerves_hub_app in ["all", "device"] do
   config :nerves_hub, NervesHubWeb.DeviceEndpoint,
     url: [host: host],
     https: [
+      verify_fun: {&NervesHubDevice.SSL.verify_fun/3, nil},
       port: https_port,
       otp_app: :nerves_hub,
       # Enable client SSL

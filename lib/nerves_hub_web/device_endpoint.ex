@@ -20,22 +20,6 @@ defmodule NervesHubWeb.DeviceEndpoint do
   """
   @impl Phoenix.Endpoint
   def init(_key, config) do
-    config = verify_fun(config)
-
-    if config[:load_from_system_env] do
-      port = System.get_env("PORT") || raise "expected the PORT environment variable to be set"
-      {:ok, Keyword.put(config, :http, [:inet6, port: port])}
-    else
-      {:ok, config}
-    end
-  end
-
-  defp verify_fun(config) do
-    if https_opts = Keyword.get(config, :https) do
-      https_opts = Keyword.put(https_opts, :verify_fun, {&NervesHubDevice.SSL.verify_fun/3, nil})
-      Keyword.put(config, :https, https_opts)
-    else
-      config
-    end
+    {:ok, config}
   end
 end

@@ -23,9 +23,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint, server: true
 #
 config :nerves_hub,
   enable_workers: true,
-  firmware_upload: NervesHub.Firmwares.Upload.S3,
-  host: "www.nerves-hub.org",
-  port: 80
+  firmware_upload: NervesHub.Firmwares.Upload.S3
 
 config :nerves_hub, NervesHub.Mailer,
   adapter: Bamboo.SMTPAdapter,
