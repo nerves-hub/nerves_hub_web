@@ -196,7 +196,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
 
-      deployments = Deployments.potential_deployments(device)
+      deployments = Deployments.alternate_deployments(device)
 
       assert Enum.member?(deployments, beta_deployment)
       assert Enum.member?(deployments, rpi_deployment)
@@ -214,7 +214,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, rpi_firmware, %{tags: ["beta", "rpi"]})
 
-      deployments = Deployments.potential_deployments(device)
+      deployments = Deployments.alternate_deployments(device)
 
       assert Enum.member?(deployments, rpi_deployment)
       refute Enum.member?(deployments, rpi0_deployment)
@@ -231,7 +231,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, rpi_firmware, %{tags: ["beta", "rpi"]})
 
-      deployments = Deployments.potential_deployments(device)
+      deployments = Deployments.alternate_deployments(device)
 
       assert Enum.member?(deployments, rpi_deployment)
       refute Enum.member?(deployments, rpi0_deployment)
@@ -254,7 +254,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
 
-      deployments = Deployments.potential_deployments(device)
+      deployments = Deployments.alternate_deployments(device)
 
       assert Enum.member?(deployments, low_deployment)
       refute Enum.member?(deployments, high_deployment)
@@ -279,7 +279,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
 
-      deployments = Deployments.potential_deployments(device)
+      deployments = Deployments.alternate_deployments(device)
 
       refute Enum.member?(deployments, low_deployment)
       refute Enum.member?(deployments, high_deployment)

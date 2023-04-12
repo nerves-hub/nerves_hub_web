@@ -54,7 +54,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
       |> assign(:page_title, device.identifier)
       |> assign(:toggle_upload, false)
       |> assign(:results, [])
-      |> assign(:deployments, Deployments.potential_deployments(device))
+      |> assign(:deployments, Deployments.alternate_deployments(device))
       |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
       |> allow_upload(:certificate,
         accept: :any,

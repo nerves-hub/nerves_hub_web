@@ -174,18 +174,25 @@ defmodule NervesHub.Deployments do
 
   Based on the product, firmware platform, firmware architecture, and device tags
   """
-  def potential_deployments(%Device{firmware_metadata: nil}), do: []
+  def alternate_deployments(%Device{firmware_metadata: nil}), do: []
 
-  def potential_deployments(device, active \\ [true, false]) do
+  def alternate_deployments(device, active \\ [true, false]) do
     Deployment
     |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
     |> where([d], d.product_id == ^device.product_id)
     |> where([d], d.is_active in ^active)
+    |> ignore_same_deployment(device)
     |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
     |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
     |> where([d], fragment("?->'tags' <@ to_jsonb(?::text[])", d.conditions, ^device.tags))
     |> where([d], fragment("coalesce(semver_match(?::text, ?->>'version'), 't')", ^device.firmware_metadata.version, d.conditions))
     |> Repo.all()
+  end
+
+  defp ignore_same_deployment(query, %{deployment_id: nil}), do: query
+
+  defp ignore_same_deployment(query, %{deployment_id: deployment_id}) do
+    where(query, [d], d.id != ^deployment_id)
   end
 
   @doc """
@@ -194,7 +201,7 @@ defmodule NervesHub.Deployments do
   Do nothing if a deployment is already set
   """
   def set_deployment(%{deployment_id: nil} = device) do
-    case potential_deployments(device, [true]) do
+    case alternate_deployments(device, [true]) do
       [] ->
         Logger.debug("No matching deployments for #{device.identifier}")
 
