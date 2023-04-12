@@ -4,8 +4,6 @@ defmodule NervesHub.AuditLogs.AuditLog do
   import Ecto.Changeset
   import EctoEnum
 
-  alias NervesHub.Repo
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Accounts.Org
   alias NervesHub.Types.Resource
 
@@ -48,7 +46,7 @@ defmodule NervesHub.AuditLogs.AuditLog do
       resource_id: resource.id,
       resource_type: resource_type,
       org_id: resource.org_id,
-      params: format_params(actor, resource, action, params)
+      params: params
     }
     |> add_changes(resource)
   end
@@ -79,17 +77,4 @@ defmodule NervesHub.AuditLogs.AuditLog do
   end
 
   defp add_changes(audit_log, _resource), do: audit_log
-
-  defp format_params(
-         %Deployment{} = deployment,
-         _resource,
-         _action,
-         %{send_update_message: true} = params
-       ) do
-    # preload if missing, otherwise skip
-    deployment = Repo.preload(deployment, :firmware)
-    Map.put(params, :firmware_uuid, deployment.firmware.uuid)
-  end
-
-  defp format_params(_actor, _resource, _action, params), do: params
 end

@@ -7,7 +7,6 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.DeviceCertificate
-  alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -152,9 +151,7 @@ defmodule NervesHub.DevicesTest do
     assert Enum.all?(devices, fn device -> is_nil(device.updates_blocked_until) end)
   end
 
-  test "delete_device deletes its certificates", %{
-    device: device
-  } do
+  test "delete_device deletes its certificates", %{device: device} do
     [_cert] = Devices.get_device_certificates(device)
 
     {:ok, _device} = Devices.delete_device(device)
@@ -488,198 +485,6 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
-  describe "send_update_message" do
-    test "does not send when device needs attention", %{deployment: deployment, device: device} do
-      assert Devices.send_update_message(%{device | updates_enabled: false}, deployment) ==
-               %UpdatePayload{update_available: false}
-    end
-
-    test "does not send when deployment needs attention", %{
-      deployment: deployment,
-      device: device
-    } do
-      assert Devices.send_update_message(device, %{deployment | healthy: false}) ==
-               %UpdatePayload{update_available: false}
-    end
-
-    test "does not send when firmware_meta is not present", %{
-      deployment: deployment,
-      device: device
-    } do
-      assert Devices.send_update_message(%{device | firmware_metadata: nil}, deployment) ==
-               %UpdatePayload{update_available: false}
-    end
-
-    test "does not send when deployment version mismatch", %{
-      deployment: deployment,
-      device: device
-    } do
-      conditions = %{deployment.conditions | "version" => "> 1.0.0"}
-
-      assert Devices.send_update_message(device, %{deployment | conditions: conditions}) ==
-               %UpdatePayload{update_available: false}
-    end
-
-    test "does not send when deployment tags mismatch", %{deployment: deployment, device: device} do
-      conditions = %{deployment.conditions | "tags" => ["wat?!"]}
-
-      assert Devices.send_update_message(device, %{deployment | conditions: conditions}) ==
-               %UpdatePayload{update_available: false}
-    end
-
-    test "broadcasts update message", %{
-      deployment: deployment,
-      device: device,
-      firmware: firmware
-    } do
-      require Phoenix.ChannelTest
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
-
-      deployment =
-        %{deployment | conditions: %{"tags" => device.tags, "version" => "< 2.0.0"}}
-        # preload so that we can correctly match
-        |> Repo.preload(:firmware)
-
-      Fixtures.firmware_delta_fixture(firmware, deployment.firmware)
-
-      assert %UpdatePayload{update_available: true} =
-               Devices.send_update_message(device, deployment)
-
-      deployment_id = deployment.id
-
-      Phoenix.ChannelTest.assert_broadcast(
-        "update",
-        %{
-          deployment: ^deployment,
-          deployment_id: ^deployment_id,
-          firmware_url: _,
-          firmware_meta: %{}
-        }
-      )
-    end
-  end
-
-  describe "resolve_update" do
-    test "no update when device needs attention", %{deployment: deployment, device: device} do
-      assert Devices.resolve_update(%{device | updates_enabled: false}, deployment) == %UpdatePayload{
-               update_available: false
-             }
-    end
-
-    test "no update when deployment needs attention", %{deployment: deployment, device: device} do
-      assert Devices.resolve_update(device, %{deployment | healthy: false}) == %UpdatePayload{
-               update_available: false
-             }
-    end
-
-    test "no update when firmware_meta is not present", %{deployment: deployment, device: device} do
-      assert Devices.resolve_update(%{device | firmware_metadata: nil}, deployment) ==
-               %UpdatePayload{
-                 update_available: false
-               }
-    end
-
-    test "update message when valid", %{
-      deployment: deployment,
-      device: device,
-      firmware: firmware
-    } do
-      deployment = deployment |> Repo.preload(:firmware)
-      Fixtures.firmware_delta_fixture(firmware, deployment.firmware)
-
-      result = Devices.resolve_update(device, deployment)
-      {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
-      assert result.update_available
-      assert result.firmware_url =~ firmware.uuid
-      assert result.firmware_meta.uuid == meta.uuid
-    end
-
-    test "update when source is not present", %{
-      product: product,
-      org: org,
-      org_key: org_key
-    } do
-      source = Fixtures.firmware_fixture(org_key, product)
-      target = Fixtures.firmware_fixture(org_key, product)
-
-      deployment = Fixtures.deployment_fixture(org, target, %{name: "resolve-update"})
-      device = Fixtures.device_fixture(org, product, source)
-      {:ok, _source} = Firmwares.delete_firmware(source)
-
-      {:ok, firmware_url} = Firmwares.get_firmware_url(target)
-
-      result = Devices.resolve_update(device, deployment)
-      assert result.update_available
-      assert result.firmware_url == firmware_url
-    end
-
-    test "update message with delta updatable device & firmware delta", %{
-      product: product,
-      org: org,
-      org_key: org_key
-    } do
-      source = Fixtures.firmware_fixture(org_key, product)
-      target = Fixtures.firmware_fixture(org_key, product)
-
-      source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
-      target = Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
-
-      deployment = Fixtures.deployment_fixture(org, target, %{name: "resolve-update"})
-      device = Fixtures.device_fixture(org, product, source)
-      {:ok, device} = Devices.update_firmware_metadata(device, %{fwup_version: "1.6.0"})
-      %{firmware_metadata: %{fwup_version: fwup_version}} = device
-
-      firmware_delta = Fixtures.firmware_delta_fixture(source, target)
-      assert Devices.delta_updatable?(source, target, product, fwup_version)
-
-      {:ok, firmware_delta_url} = Firmwares.get_firmware_url(firmware_delta)
-
-      result = Devices.resolve_update(device, deployment)
-      assert result.update_available
-      assert result.firmware_url == firmware_delta_url
-    end
-
-    test "no update message with delta updatable device & no firmware delta", %{
-      product: product,
-      org: org,
-      org_key: org_key
-    } do
-      source = Fixtures.firmware_fixture(org_key, product)
-      target = Fixtures.firmware_fixture(org_key, product)
-
-      source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
-      target = Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
-
-      deployment = Fixtures.deployment_fixture(org, target, %{name: "resolve-update"})
-      device = Fixtures.device_fixture(org, product, source)
-      {:ok, device} = Devices.update_firmware_metadata(device, %{fwup_version: "1.6.0"})
-      %{firmware_metadata: %{fwup_version: fwup_version}} = device
-
-      assert Devices.delta_updatable?(source, target, product, fwup_version)
-
-      result = Devices.resolve_update(device, deployment)
-      refute result.update_available
-    end
-
-    test "update message with non-delta-updatable device", %{
-      product: product,
-      org: org,
-      org_key: org_key
-    } do
-      source = Fixtures.firmware_fixture(org_key, product)
-      target = Fixtures.firmware_fixture(org_key, product)
-
-      deployment = Fixtures.deployment_fixture(org, target, %{name: "resolve-update"})
-      device = Fixtures.device_fixture(org, product, source)
-
-      {:ok, target_url} = Firmwares.get_firmware_url(target)
-
-      result = Devices.resolve_update(device, deployment)
-      assert result.update_available
-      assert result.firmware_url == target_url
-    end
-  end
-
   test "device_connected adds audit log", %{device: device} do
     assert AuditLogs.logs_for(device) == []
     Devices.device_connected(device)
@@ -754,6 +559,10 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "device updates successfully", %{device: device, deployment: deployment} do
+      deployment = Repo.preload(deployment, [:firmware])
+
+      {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
+
       {:ok, device} = Devices.update_attempted(device)
 
       {:ok, device} = Devices.verify_update_eligibility(device, deployment)
@@ -766,6 +575,10 @@ defmodule NervesHub.DevicesTest do
       device: device,
       deployment: deployment
     } do
+      deployment = Repo.preload(deployment, [:firmware])
+
+      {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
+
       {:ok, device} = Devices.update_attempted(device)
       {:ok, device} = Devices.update_attempted(device)
 
@@ -778,6 +591,9 @@ defmodule NervesHub.DevicesTest do
     test "device updates successfully after a few attempts over a long period of time", state do
       %{device: device, deployment: deployment} = state
       deployment = %{deployment | device_failure_threshold: 6, device_failure_rate_amount: 3}
+      deployment = Repo.preload(deployment, [:firmware])
+
+      {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
       now = DateTime.utc_now()
 
@@ -791,10 +607,19 @@ defmodule NervesHub.DevicesTest do
       refute device.updates_blocked_until
     end
 
+    test "device already matches the firmware of the deployment", state do
+      %{device: device, deployment: deployment} = state
+      deployment = Repo.preload(deployment, [:firmware])
+
+      {:error, :up_to_date, _device} = Devices.verify_update_eligibility(device, deployment)
+    end
+
     test "device is unhealthy and should be put in the penalty box based on total attemps", state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
       deployment = %{deployment | device_failure_threshold: 6}
+
+      {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
       now = DateTime.utc_now()
 
@@ -814,6 +639,8 @@ defmodule NervesHub.DevicesTest do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
 
+      {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
+
       now = DateTime.utc_now()
 
       {:ok, device} = Devices.update_attempted(device, DateTime.add(now, -13, :second))
@@ -830,6 +657,9 @@ defmodule NervesHub.DevicesTest do
     test "device is in the penalty box and should be rejected for updates", state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
+
+      {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
+
       now = DateTime.utc_now()
 
       # future time
@@ -844,5 +674,55 @@ defmodule NervesHub.DevicesTest do
       device = %{device | updates_blocked_until: DateTime.add(now, -1, :second)}
       {:ok, _device} = Devices.verify_update_eligibility(device, deployment, now)
     end
+  end
+
+  describe "update device" do
+    test "success: deployment is not changed if tags don't change" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "org"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      deployment = Fixtures.deployment_fixture(org, firmware, %{conditions: %{"tags" => ["beta"]}})
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+
+      device = Deployments.set_deployment(device)
+      assert device.deployment_id == deployment.id
+
+      {:ok, device} = Devices.update_device(device, %{description: "Updated description"})
+      assert device.deployment_id == deployment.id
+    end
+
+    test "success: deployment changes if the tags change" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "org"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      deployment_one = Fixtures.deployment_fixture(org, firmware, %{name: "alpha", conditions: %{"tags" => ["alpha"]}})
+      {:ok, deployment_one} = Deployments.update_deployment(deployment_one, %{is_active: true})
+      deployment_two = Fixtures.deployment_fixture(org, firmware, %{name: "beta", conditions: %{"tags" => ["beta"]}})
+      {:ok, deployment_two} = Deployments.update_deployment(deployment_two, %{is_active: true})
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+
+      device = Deployments.set_deployment(device)
+      assert device.deployment_id == deployment_one.id
+
+      {:ok, device} = Devices.update_device(device, %{tags: ["beta"]})
+      assert device.deployment_id == deployment_two.id
+    end
+  end
+
+  defp update_firmware_uuid(device, uuid) do
+    firmware_metadata = %{
+      architecture: "x86_64",
+      platform: "platform",
+      product: "valid product",
+      version: "1.0.0",
+      uuid: uuid
+    }
+
+    Devices.update_firmware_metadata(device, firmware_metadata)
   end
 end

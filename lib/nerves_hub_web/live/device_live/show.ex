@@ -41,18 +41,21 @@ defmodule NervesHubWeb.DeviceLive.Show do
         Devices.get_device_by_product(device_id, product_id, org_id)
       end)
 
+    device = socket.assigns.device
+
     if connected?(socket) do
-      socket.endpoint.subscribe("device:#{socket.assigns.device.id}:internal")
+      socket.endpoint.subscribe("device:#{device.id}:internal")
     end
 
     socket =
       socket
-      |> assign(:device, sync_device(socket.assigns.device))
-      |> assign(:page_title, socket.assigns.device.identifier)
+      |> assign(:device, sync_device(device))
+      |> assign(:deployment, device.deployment)
+      |> assign(:page_title, device.identifier)
       |> assign(:toggle_upload, false)
       |> assign(:results, [])
-      |> assign(:deployments, Deployments.potential_deployments(socket.assigns.device))
-      |> assign(:firmwares, Firmwares.get_firmware_for_device(socket.assigns.device))
+      |> assign(:deployments, Deployments.alternate_deployments(device))
+      |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
       |> allow_upload(:certificate,
         accept: :any,
         auto_upload: true,
@@ -252,7 +255,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
       firmware_meta: meta
     }
 
-    NervesHubWeb.Endpoint.broadcast("device:#{socket.assigns.device.id}", "update", payload)
+    NervesHubWeb.Endpoint.broadcast("device:#{socket.assigns.device.id}", "deployments/update", payload)
 
     {:noreply, put_flash(socket, :info, "Pushing update")}
   end

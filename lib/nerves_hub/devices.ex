@@ -1,25 +1,24 @@
 defmodule NervesHub.Devices do
   import Ecto.Query
 
-  alias Ecto.{Changeset, Multi}
-
-  alias NervesHub.{
-    Certificate,
-    Devices.UpdatePayload,
-    Deployments.Deployment,
-    Firmwares,
-    Firmwares.Firmware,
-    Firmwares.FirmwareMetadata,
-    AuditLogs,
-    Accounts,
-    Accounts.Org,
-    Repo,
-    Accounts.OrgKey,
-    Products.Product,
-    Workers
-  }
-
-  alias NervesHub.Devices.{Device, DeviceCertificate, CACertificate}
+  alias Ecto.Changeset
+  alias Ecto.Multi
+  alias NervesHub.Accounts
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgKey
+  alias NervesHub.AuditLogs
+  alias NervesHub.Certificate
+  alias NervesHub.Deployments
+  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.UpdatePayload
+  alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.Products.Product
+  alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
   @min_fwup_delta_updatable_version ">=1.6.0"
@@ -170,6 +169,7 @@ defmodule NervesHub.Devices do
 
   def get_device_by_product(device_id, product_id, org_id) do
     device_by_product_query(device_id, product_id, org_id)
+    |> preload([:deployment])
     |> Repo.exclude_deleted()
     |> Repo.one!()
   end
@@ -196,7 +196,7 @@ defmodule NervesHub.Devices do
       from(
         d in Device,
         where: d.identifier == ^identifier and d.org_id == ^org_id,
-        preload: [:device_certificates]
+        preload: [:device_certificates, :deployment]
       )
 
     query
@@ -238,23 +238,7 @@ defmodule NervesHub.Devices do
 
   def get_eligible_deployments(_), do: []
 
-  @doc """
-  resolves an update with `resolve_update/2` then dispatches
-  the payload over Phoenix PubSub
-  """
-  def send_update_message(%Device{} = device, %Deployment{} = deployment) do
-    %UpdatePayload{} = update_payload = resolve_update(device, deployment)
-
-    if update_payload.update_available do
-      broadcast(device, "update", update_payload)
-    end
-
-    update_payload
-  end
-
-  @spec create_device(map) ::
-          {:ok, Device.t()}
-          | {:error, Changeset.t()}
+  @spec create_device(map) :: {:ok, Device.t()} | {:error, Changeset.t()}
   def create_device(params) do
     %Device{}
     |> Device.changeset(params)
@@ -492,102 +476,58 @@ defmodule NervesHub.Devices do
   end
 
   def update_device(%Device{} = device, params) do
-    device
-    |> Device.changeset(params)
-    |> Repo.update()
-    |> case do
-      {:ok, %{updates_enabled: false} = device} ->
-        {:ok, device}
+    changeset = Device.changeset(device, params)
 
+    case Repo.update(changeset) do
       {:ok, device} ->
-        # Get deployments with new changed device.
-        # This will dispatch an update if `tags` is updated for example.
-        case get_eligible_deployments(device) do
-          [%Deployment{} = deployment | _] ->
-            task =
-              Task.Supervisor.async(NervesHub.TaskSupervisor, fn ->
-                send_update_message(device, deployment)
-              end)
+        case Map.has_key?(changeset.changes, :tags) do
+          true ->
+            description = "device #{device.identifier} tags changed, the attached deployment has been reset"
+            AuditLogs.audit!(device, device, :update, description)
 
-            Task.await(task, 15000)
+            # Since the tags changed, let's find a new deployment
+            device = %{device | deployment_id: nil, deployment: nil}
+            device = Deployments.set_deployment(device)
+            {:ok, device}
 
-          _ ->
+          false ->
             {:ok, device}
         end
 
-        {:ok, device}
-
-      error ->
-        error
+      {:error, changeset} ->
+        {:error, changeset}
     end
   end
 
   @doc """
-  Finds a matching deployment for a device based on it's current firmware meta and
-  health status.
+  Resolve an update for the device's deployment
   """
-  @spec resolve_update(Device.t(), deployments :: [Deployment.t()] | Deployment.t()) ::
-          UpdatePayload.t()
-  def resolve_update(_device, _deployments = []), do: %UpdatePayload{update_available: false}
-
-  def resolve_update(device, [%Deployment{} = deployment | _]) do
-    resolve_update(device, deployment)
-  end
-
-  def resolve_update(_device, %Deployment{healthy: false}) do
+  def resolve_update(%{deployment_id: nil}) do
     %UpdatePayload{update_available: false}
   end
 
-  def resolve_update(%Device{firmware_metadata: nil}, _deployment) do
-    %UpdatePayload{update_available: false}
-  end
+  def resolve_update(device) do
+    deployment = Repo.preload(device.deployment, [:firmware])
 
-  def resolve_update(
-        %Device{firmware_metadata: %{uuid: uuid, fwup_version: fwup_version}} = device,
-        %Deployment{} = deployment
-      ) do
-    with {:ok, device} <- verify_update_eligibility(device, deployment),
-         true <- matches_deployment?(device, deployment),
-         %Device{product: product} <- Repo.preload(device, :product),
-         %{firmware: target} <- Repo.preload(deployment, :firmware) do
-      source =
-        case Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
-          {:ok, source} -> source
-          {:error, :not_found} -> nil
-        end
+    case verify_update_eligibility(device, deployment) do
+      {:ok, _device} ->
+        {:ok, url} = Firmwares.get_firmware_url(deployment.firmware)
+        {:ok, meta} = Firmwares.metadata_from_firmware(deployment.firmware)
 
-      if delta_updatable?(source, target, product, fwup_version) do
-        case Firmwares.get_firmware_delta_by_source_and_target(source, target) do
-          {:ok, firmware_delta} ->
-            build_update_payload(firmware_delta, target, deployment)
+        %UpdatePayload{
+          update_available: true,
+          firmware_url: url,
+          firmware_meta: meta,
+          deployment: deployment,
+          deployment_id: deployment.id
+        }
 
-          {:error, :not_found} ->
-            :ok = Workers.FirmwareDeltaBuilder.start(source.id, target.id)
-            build_no_update_payload()
-        end
-      else
-        build_update_payload(target, target, deployment)
-      end
-    else
-      _ -> build_no_update_payload()
+      {:error, :up_to_date, _device} ->
+        %UpdatePayload{update_available: false}
+
+      {:error, :updates_blocked, _device} ->
+        %UpdatePayload{update_available: false}
     end
-  end
-
-  defp build_update_payload(target_or_delta_firmware, target, deployment) do
-    {:ok, url} = Firmwares.get_firmware_url(target_or_delta_firmware)
-    {:ok, meta} = Firmwares.metadata_from_firmware(target)
-
-    %UpdatePayload{
-      update_available: true,
-      firmware_url: url,
-      firmware_meta: meta,
-      deployment: deployment,
-      deployment_id: deployment.id
-    }
-  end
-
-  defp build_no_update_payload() do
-    %UpdatePayload{update_available: false}
   end
 
   @spec delta_updatable?(
@@ -603,6 +543,28 @@ defmodule NervesHub.Devices do
       target.delta_updatable and
       source.delta_updatable and
       Version.match?(fwup_version, @min_fwup_delta_updatable_version)
+  end
+
+  @doc """
+  Verify that the deployment still matches the device
+
+  This may clear the deployment from the device if the version or tags are different.
+  """
+  def verify_deployment(%{deployment_id: nil} = device), do: device
+
+  def verify_deployment(device) do
+    device = Repo.preload(device, [:deployment])
+
+    case matches_deployment?(device, device.deployment) do
+      true ->
+        device
+
+      false ->
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, nil)
+        |> Repo.update!()
+    end
   end
 
   @doc """
@@ -655,8 +617,15 @@ defmodule NervesHub.Devices do
     device.updates_enabled == false || device_in_penalty_box?(device, now)
   end
 
+  def device_matches_deployment?(device, deployment) do
+    device.firmware_metadata.uuid == deployment.firmware.uuid
+  end
+
   def verify_update_eligibility(device, deployment, now \\ DateTime.utc_now()) do
     cond do
+      device_matches_deployment?(device, deployment) ->
+        {:error, :up_to_date, device}
+
       updates_blocked?(device, now) ->
         {:error, :updates_blocked, device}
 

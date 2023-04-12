@@ -2,7 +2,8 @@ defmodule NervesHub.DeploymentsTest do
   use NervesHub.DataCase, async: false
   import Phoenix.ChannelTest
 
-  alias NervesHub.{AuditLogs.AuditLog, Deployments, Fixtures, Firmwares}
+  alias NervesHub.Deployments
+  alias NervesHub.Fixtures
   alias Ecto.Changeset
 
   setup do
@@ -93,17 +94,12 @@ defmodule NervesHub.DeploymentsTest do
   end
 
   describe "update_deployment" do
-    test "updates correct devices", %{
+    test "updating firmware sends an update message", %{
       org: org,
-      org2: org2,
       org_key: org_key,
       firmware: firmware,
-      firmware2: firmware2,
       product: product
     } do
-      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "beta-edge"]})
-      _device2 = Fixtures.device_fixture(org2, product, firmware2, %{tags: ["beta", "beta-edge"]})
-
       new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
 
       Fixtures.firmware_delta_fixture(firmware, new_firmware)
@@ -119,204 +115,74 @@ defmodule NervesHub.DeploymentsTest do
         is_active: false
       }
 
-      device_topic = "device:#{device.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, device_topic)
-
-      {:ok, deployment} =
-        Deployments.create_deployment(params)
-        |> elem(1)
-        |> Deployments.update_deployment(%{is_active: true})
-
-      {:ok, meta} = Firmwares.metadata_from_firmware(new_firmware)
-
-      assert [^device] = Deployments.fetch_relevant_devices(deployment)
-      assert_broadcast("update", %{firmware_url: _f_url, firmware_meta: ^meta}, 500)
-    end
-
-    test "does not update incorrect devices", %{
-      org: org,
-      org_key: org_key,
-      firmware: firmware,
-      product: product
-    } do
-      incorrect_params = [
-        {%{version: "1.0.0"}, %{identifier: "foo"}},
-        {%{}, %{identifier: "new identifier", tags: ["beta"]}},
-        {%{}, %{identifier: "newnew identifier", architecture: "foo"}},
-        {%{}, %{identifier: "newnewnew identifier", platform: "foo"}}
-      ]
-
-      for {f_params, d_params} <- incorrect_params do
-        device = Fixtures.device_fixture(org, product, firmware, d_params)
-        new_firmware = Fixtures.firmware_fixture(org_key, product, f_params)
-
-        params = %{
-          org_id: org.id,
-          firmware_id: new_firmware.id,
-          name: "my deployment #{d_params.identifier}",
-          conditions: %{
-            "version" => "< 1.0.0",
-            "tags" => ["beta", "beta-edge"]
-          },
-          is_active: false
-        }
-
-        device_topic = "device:#{device.id}"
-        Phoenix.PubSub.subscribe(NervesHub.PubSub, device_topic)
-
-        {:ok, _deployment} =
-          Deployments.create_deployment(params)
-          |> elem(1)
-          |> Deployments.update_deployment(%{is_active: true})
-
-        {:ok, meta} = Firmwares.metadata_from_firmware(new_firmware)
-
-        refute_broadcast("update", %{firmware_url: _f_url, firmware_meta: ^meta})
-      end
-    end
-
-    test "does not update devices if deployment in unhealthy state", %{
-      firmware: firmware,
-      org: org,
-      org_key: org_key,
-      product: product
-    } do
-      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "beta-edge"]})
-      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
-
-      params = %{
-        org_id: org.id,
-        firmware_id: new_firmware.id,
-        name: "my deployment",
-        conditions: %{
-          "version" => "< 1.0.1",
-          "tags" => ["beta", "beta-edge"]
-        },
-        is_active: false
-      }
-
-      device_topic = "device:#{device.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, device_topic)
-
-      {:ok, _deployment} =
-        Deployments.create_deployment(params)
-        |> elem(1)
-        |> Deployments.update_deployment(%{is_active: true, healthy: false})
-
-      {:ok, meta} = Firmwares.metadata_from_firmware(new_firmware)
-
-      refute_broadcast("update", %{firmware_url: _f_url, firmware_meta: ^meta})
-    end
-
-    test "does not update devices if device in unhealthy state", %{
-      firmware: firmware,
-      org: org,
-      org_key: org_key,
-      product: product
-    } do
-      device =
-        Fixtures.device_fixture(org, product, firmware, %{
-          tags: ["beta", "beta-edge"],
-          updates_enabled: false
-        })
-
-      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
-
-      params = %{
-        firmware_id: new_firmware.id,
-        org_id: org.id,
-        name: "my deployment",
-        conditions: %{
-          "version" => "< 1.0.1",
-          "tags" => ["beta", "beta-edge"]
-        },
-        is_active: false
-      }
-
-      device_topic = "device:#{device.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, device_topic)
-
-      {:ok, _deployment} =
-        Deployments.create_deployment(params)
-        |> elem(1)
-        |> Deployments.update_deployment(%{is_active: true})
-
-      {:ok, meta} = Firmwares.metadata_from_firmware(new_firmware)
-
-      refute_broadcast("update", %{firmware_url: _f_url, firmware_meta: ^meta})
-    end
-
-    test "failure_threshold_met?", %{
-      firmware: firmware,
-      org: org,
-      org_key: org_key,
-      product: product
-    } do
-      # Create many devices in error state
-      Enum.each(
-        1..4,
-        &Fixtures.device_fixture(org, product, firmware, %{
-          tags: ["beta", "beta-edge", "#{&1}"],
-          updates_enabled: false
-        })
-      )
-
-      new_firmware = Fixtures.firmware_fixture(org_key, product, %{version: "1.0.1"})
-
-      params = %{
-        firmware_id: new_firmware.id,
-        org_id: org.id,
-        name: "my deployment",
-        conditions: %{
-          "version" => "< 1.0.1",
-          "tags" => ["beta", "beta-edge"]
-        },
-        is_active: false,
-        failure_threshold: 2
-      }
-
       {:ok, deployment} = Deployments.create_deployment(params)
 
-      assert Deployments.failure_threshold_met?(deployment)
-    end
-  end
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
-  describe "failure_rate_met?" do
-    setup context do
-      # Create multi AuditLogs for deployment 1 to signify same device attempting to apply
-      # the same update but failing
-      Enum.each(1..5, fn i ->
-        device = Fixtures.device_fixture(context.org, context.product, context.firmware)
+      {:ok, _deployment} = Deployments.update_deployment(deployment, %{is_active: true})
 
-        al =
-          AuditLog.build(context.deployment, device, :update, "update triggered", %{
-            send_update_message: true
-          })
-
-        time = NaiveDateTime.utc_now()
-        Repo.insert(al)
-        Repo.insert(%{al | inserted_at: Timex.shift(time, seconds: i)})
-        Repo.insert(%{al | inserted_at: Timex.shift(time, seconds: i + 5)})
-      end)
-
-      context
+      assert_broadcast("deployments/update", %{}, 500)
     end
 
-    test "when failure rate exceeded", %{deployment: deployment} do
-      assert Deployments.failure_rate_met?(deployment)
+    test "changing tags resets device's deployments and causes a recalculation", state do
+      %{firmware: firmware, org: org, product: product} = state
+
+      deployment = Fixtures.deployment_fixture(org, firmware, %{name: "name", conditions: %{tags: ["alpha"]}})
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      device_one = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+      device_two = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+
+      device_one = Deployments.set_deployment(device_one)
+      assert device_one.deployment_id == deployment.id
+      device_two = Deployments.set_deployment(device_two)
+      assert device_two.deployment_id == deployment.id
+
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{conditions: %{"tags" => ["beta"]}})
+      assert deployment.conditions == %{"tags" => ["beta"]}
+
+      device_one = Repo.reload(device_one)
+      refute device_one.deployment_id
+      device_two = Repo.reload(device_two)
+      refute device_two.deployment_id
+
+      assert_broadcast("deployments/changed", %{}, 500)
     end
 
-    test "skips failures that don't match deployment and firmware", %{
-      deployment: deployment,
-      firmware2: firmware2
-    } do
-      assert Deployments.failure_rate_met?(deployment)
+    test "changing is_active causes a recaluation", state do
+      %{firmware: firmware, org: org, product: product} = state
 
-      # Simulate updating a deployment with new firmware. So existing failures
-      # tied to old firmware will not be counted in the rate check
-      {:ok, deployment} = Deployments.update_deployment(deployment, %{firmware_id: firmware2.id})
+      deployment = Fixtures.deployment_fixture(org, firmware, %{name: "name", conditions: %{tags: ["alpha"]}})
 
-      refute Deployments.failure_rate_met?(deployment)
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:none")
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      Phoenix.PubSub.unsubscribe(NervesHub.PubSub, "deployment:none")
+
+      assert_broadcast("deployments/changed", %{}, 500)
+
+      device_one = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+      device_two = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+
+      device_one = Deployments.set_deployment(device_one)
+      assert device_one.deployment_id == deployment.id
+      device_two = Deployments.set_deployment(device_two)
+      assert device_two.deployment_id == deployment.id
+
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{conditions: %{"tags" => ["beta"]}})
+      assert deployment.conditions == %{"tags" => ["beta"]}
+
+      assert_broadcast("deployments/changed", %{}, 500)
+
+      device_one = Repo.reload(device_one)
+      refute device_one.deployment_id
+      device_two = Repo.reload(device_two)
+      refute device_two.deployment_id
     end
   end
 
@@ -330,7 +196,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
 
-      deployments = Deployments.potential_deployments(device)
+      deployments = Deployments.alternate_deployments(device)
 
       assert Enum.member?(deployments, beta_deployment)
       assert Enum.member?(deployments, rpi_deployment)
@@ -348,7 +214,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, rpi_firmware, %{tags: ["beta", "rpi"]})
 
-      deployments = Deployments.potential_deployments(device)
+      deployments = Deployments.alternate_deployments(device)
 
       assert Enum.member?(deployments, rpi_deployment)
       refute Enum.member?(deployments, rpi0_deployment)
@@ -365,7 +231,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, rpi_firmware, %{tags: ["beta", "rpi"]})
 
-      deployments = Deployments.potential_deployments(device)
+      deployments = Deployments.alternate_deployments(device)
 
       assert Enum.member?(deployments, rpi_deployment)
       refute Enum.member?(deployments, rpi0_deployment)
@@ -388,7 +254,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
 
-      deployments = Deployments.potential_deployments(device)
+      deployments = Deployments.alternate_deployments(device)
 
       assert Enum.member?(deployments, low_deployment)
       refute Enum.member?(deployments, high_deployment)
@@ -413,7 +279,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
 
-      deployments = Deployments.potential_deployments(device)
+      deployments = Deployments.alternate_deployments(device)
 
       refute Enum.member?(deployments, low_deployment)
       refute Enum.member?(deployments, high_deployment)

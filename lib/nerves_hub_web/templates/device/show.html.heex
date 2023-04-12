@@ -71,7 +71,16 @@
         <% end %>
       </div>
       <div class="mt-4">
-        <div class="help-text mb-1">Matching Deployments</div>
+        <div class="help-text mb-1">Assigned Deployment</div>
+
+        <%= if @deployment do %>
+          <%= link(to: Routes.deployment_path(@socket, :show, @org.name, @product.name, @deployment.name), class: "badge") do %>
+            <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}><%= @deployment.name %></div>
+          <% end %>
+        <% end %>
+      </div>
+      <div class="mt-4">
+        <div class="help-text mb-1">Alternate Deployments</div>
         <%= if !Enum.empty?(@deployments) do %>
           <%= for deployment <- @deployments do %>
             <%= link(to: Routes.deployment_path(@socket, :show, @org.name, @product.name, deployment.name), class: "badge") do %>
@@ -79,7 +88,7 @@
             <% end %>
           <% end %>
         <% else %>
-          <span class="color-white-50">No Matching Deployments</span>
+          <span class="color-white-50">No Alternate Deployments</span>
         <% end %>
       </div>
     </div>

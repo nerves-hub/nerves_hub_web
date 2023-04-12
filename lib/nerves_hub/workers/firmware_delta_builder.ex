@@ -16,8 +16,9 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
 
     {:ok, _firmware_delta} = maybe_create_firmware_delta(source, target)
 
-    Deployments.get_deployments_by_firmware(target_id)
-    |> Enum.each(&Deployments.fetch_and_update_relevant_devices/1)
+    Enum.each(Deployments.get_deployments_by_firmware(target_id), fn deployment ->
+      Deployments.broadcast(deployment, "deployments/update")
+    end)
 
     :ok
   end

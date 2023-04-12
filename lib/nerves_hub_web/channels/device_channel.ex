@@ -7,14 +7,12 @@ defmodule NervesHubWeb.DeviceChannel do
 
   use Phoenix.Channel
 
-  alias NervesHub.{
-    AuditLogs,
-    Deployments.Deployment,
-    Devices,
-    Devices.Device,
-    Firmwares,
-    Repo
-  }
+  alias NervesHub.AuditLogs
+  alias NervesHub.Deployments
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares
+  alias NervesHub.Repo
 
   alias NervesHubDevice.Presence
   alias Phoenix.Socket.Broadcast
@@ -35,23 +33,34 @@ defmodule NervesHubWeb.DeviceChannel do
     with {:ok, device} <- update_metadata(device, params),
          {:ok, device} <- Devices.device_connected(device) do
       socket.endpoint.subscribe("device:#{device.id}")
-      deployments = Devices.get_eligible_deployments(device)
+
+      device =
+        device
+        |> Devices.verify_deployment()
+        |> Deployments.set_deployment()
+        |> Repo.preload(deployment: [:firmware])
+
+      socket =
+        if device.deployment_id do
+          socket.endpoint.subscribe("deployment:#{device.deployment_id}")
+          assign(socket, :deployment_channel, "deployment:#{device.deployment_id}")
+        else
+          socket.endpoint.subscribe("deployment:none")
+          assign(socket, :deployment_channel, "deployment:none")
+        end
 
       join_reply =
         device
-        |> Devices.resolve_update(deployments)
+        |> Devices.resolve_update()
         |> build_join_reply()
 
       if should_audit_log?(join_reply, params) do
-        deployment = hd(deployments)
+        deployment = device.deployment
 
         description =
           "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} after channel join"
 
-        AuditLogs.audit!(deployment, device, :update, description, %{
-          from: "channel_join",
-          send_update_message: true
-        })
+        AuditLogs.audit!(deployment, device, :update, description, %{from: "channel_join"})
       end
 
       socket =
@@ -131,32 +140,64 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_info(%Broadcast{event: "deployments/changed"}, socket) do
+    socket.endpoint.unsubscribe(socket.assigns.deployment_channel)
+
+    device =
+      socket.assigns.device
+      |> Repo.reload()
+      |> Deployments.set_deployment()
+      |> Repo.preload(deployment: [:firmware])
+
+    socket =
+      if device.deployment_id do
+        description = "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+        AuditLogs.audit!(device, device, :update, description)
+
+        socket.endpoint.subscribe("deployment:#{device.deployment_id}")
+        assign(socket, :deployment_channel, "deployment:#{device.deployment_id}")
+      else
+        description = "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
+        AuditLogs.audit!(device, device, :update, description)
+
+        socket.endpoint.subscribe("deployment:none")
+        assign(socket, :deployment_channel, "deployment:none")
+      end
+
+    {:noreply, assign(socket, :device, device)}
+  end
+
   # manually pushed
-  def handle_info(%Broadcast{event: "update", payload: %{deployment_id: nil} = payload}, socket) do
+  def handle_info(%Broadcast{event: "deployments/update", payload: %{deployment_id: nil} = payload}, socket) do
     push(socket, "update", payload)
     {:noreply, socket}
   end
 
-  def handle_info(%Broadcast{event: "update", payload: payload}, socket) do
-    {deployment, payload} =
-      Map.pop_lazy(payload, :deployment, fn -> Repo.get(Deployment, payload.deployment_id) end)
+  def handle_info(%Broadcast{event: "deployments/update"}, socket) do
+    device = Repo.preload(socket.assigns.device, [deployment: [:firmware]], force: true)
 
-    device = socket.assigns.device
+    payload = Devices.resolve_update(device)
 
-    description =
-      "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{deployment.firmware.uuid}"
+    case payload.update_available do
+      true ->
+        deployment = device.deployment
+        firmware = deployment.firmware
 
-    # If we get here, the device is connected and high probability it receives
-    # the update message so we can Audit and later assert on this audit event
-    # as a loosely valid attempt to update
-    AuditLogs.audit!(deployment, device, :update, description, %{
-      from: "broadcast",
-      send_update_message: true
-    })
+        description =
+          "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
 
-    push(socket, "update", payload)
+        # If we get here, the device is connected and high probability it receives
+        # the update message so we can Audit and later assert on this audit event
+        # as a loosely valid attempt to update
+        AuditLogs.audit!(deployment, device, :update, description, %{from: "broadcast"})
 
-    {:noreply, socket}
+        push(socket, "update", payload)
+
+        {:noreply, socket}
+
+      false ->
+        {:noreply, socket}
+    end
   end
 
   def handle_info(%Broadcast{event: "moved"}, socket) do

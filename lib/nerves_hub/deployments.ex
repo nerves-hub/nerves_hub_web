@@ -1,9 +1,10 @@
 defmodule NervesHub.Deployments do
   import Ecto.Query
 
+  require Logger
+
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments.Deployment
-  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -82,19 +83,64 @@ defmodule NervesHub.Deployments do
     end
   end
 
+  @doc """
+  Update a deployment
+
+  Updating a deployment is a big task. Devices will be notified of the change when:
+  - Firmware changes, all devices will be told of the new firmware to update
+  - Conditions change, all devices will have the deployment removed and told about the
+    change, any devices that don't have a deployment and are online will be told about
+    the conditions changing to check for a deployment again
+  - If now active, any devices without a deployment will be told to reevaluate
+  - If now inactive, devices will have the deployment removed and told about the change
+  """
   @spec update_deployment(Deployment.t(), map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def update_deployment(deployment, params) do
-    deployment
-    |> Deployment.with_firmware()
-    |> Deployment.changeset(params)
-    |> Repo.update()
-    |> Repo.reload_assoc(:firmware)
-    |> case do
-      {:ok, deployment} ->
-        fetch_and_update_relevant_devices(deployment)
+    changeset =
+      deployment
+      |> Deployment.with_firmware()
+      |> Deployment.changeset(params)
 
-      error ->
-        error
+    case Repo.update(changeset) do
+      {:ok, deployment} ->
+        deployment = Repo.preload(deployment, [:firmware], force: true)
+
+        # if the conditions changed, we should reset all devices and tell any connected
+        if Map.has_key?(changeset.changes, :conditions) do
+          Device
+          |> where([d], d.deployment_id == ^deployment.id)
+          |> Repo.update_all(set: [deployment_id: nil])
+
+          broadcast(deployment, "deployments/changed", deployment.conditions)
+          broadcast(:none, "deployments/changed", deployment.conditions)
+
+          description = "deployment #{deployment.name} conditions changed and removed all devices"
+          AuditLogs.audit!(deployment, deployment, :update, description)
+        end
+
+        # if is_active is false, wipe it out like above
+        # if its now true, tell the none deployment devices
+        if Map.has_key?(changeset.changes, :is_active) do
+          if deployment.is_active do
+            broadcast(:none, "deployments/changed")
+          else
+            Device
+            |> where([d], d.deployment_id == ^deployment.id)
+            |> Repo.update_all(set: [deployment_id: nil])
+
+            broadcast(deployment, "deployments/changed")
+
+            description = "deployment #{deployment.name} is inactive and removed all devices"
+            AuditLogs.audit!(deployment, deployment, :update, description)
+          end
+        end
+
+        broadcast(deployment, "deployments/update")
+
+        {:ok, deployment}
+
+      {:error, changeset} ->
+        {:error, changeset}
     end
   end
 
@@ -105,143 +151,22 @@ defmodule NervesHub.Deployments do
     |> Repo.insert()
   end
 
-  @spec failure_rate_met?(Deployment.t()) :: boolean()
-  def failure_rate_met?(%Deployment{} = deployment) do
-    deployment = Repo.preload(deployment, :firmware)
-    rate_seconds_ago = Timex.shift(DateTime.utc_now(), seconds: -deployment.failure_rate_seconds)
+  def broadcast(deployment, event, payload \\ %{})
 
-    from(
-      al in NervesHub.AuditLogs.AuditLog,
-      where: [actor_type: ^to_string(Deployment), resource_type: ^to_string(Devices.Device)],
-      where: al.actor_id == ^deployment.id,
-      where:
-        fragment(
-          """
-          (params->>'firmware_uuid' = ?) AND
-          (params->>'send_update_message' = 'true')
-          """,
-          ^deployment.firmware.uuid
-        ),
-      where: al.inserted_at >= ^rate_seconds_ago,
-      group_by: :resource_id,
-      having: count(al.resource_id) > 2,
-      select: al.resource_id
+  def broadcast(:none, event, payload) do
+    Phoenix.PubSub.broadcast(
+      NervesHub.PubSub,
+      "deployment:none",
+      %Phoenix.Socket.Broadcast{event: event, payload: payload}
     )
-    |> Repo.all()
-    |> length()
-    |> Kernel.>=(deployment.failure_rate_amount)
   end
 
-  @spec failure_threshold_met?(Deployment.t()) :: boolean()
-  def failure_threshold_met?(%Deployment{} = deployment) do
-    deployment = Repo.preload(deployment, [:product, :firmware])
-
-    from(
-      d in Devices.Device,
-      where:
-        fragment(
-          """
-          (firmware_metadata->>'product' = ?) AND
-          (firmware_metadata->>'architecture' = ?) AND
-          (firmware_metadata->>'platform' = ?) AND
-          (firmware_metadata->>'uuid' != ?)
-          """,
-          ^deployment.product.name,
-          ^deployment.firmware.architecture,
-          ^deployment.firmware.platform,
-          ^deployment.firmware.uuid
-        ),
-      where: d.org_id == ^deployment.product.org_id,
-      where: d.updates_enabled == false,
-      select: count(d.id)
+  def broadcast(%Deployment{id: id}, event, payload) do
+    Phoenix.PubSub.broadcast(
+      NervesHub.PubSub,
+      "deployment:#{id}",
+      %Phoenix.Socket.Broadcast{event: event, payload: payload}
     )
-    |> Repo.exclude_deleted()
-    |> Repo.one()
-    |> Kernel.>=(deployment.failure_threshold)
-  end
-
-  @spec verify_eligibility(Deployment.t()) :: {:error, Ecto.Changeset.t()} | {:ok, Deployment.t()}
-  def verify_eligibility(%Deployment{healthy: false} = deployment) do
-    {:ok, deployment}
-  end
-
-  def verify_eligibility(%Deployment{} = deployment) do
-    cond do
-      failure_rate_met?(deployment) ->
-        description =
-          "deployment #{deployment.name} marked unhealthy. Device failure rate met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}"
-
-        AuditLogs.audit!(deployment, deployment, :update, description, %{
-          healthy: false,
-          reason: "failure rate met"
-        })
-
-        update_deployment(deployment, %{healthy: false})
-
-      failure_threshold_met?(deployment) ->
-        description =
-          "deployment #{deployment.name} marked unhealthy. Device failure thredhold met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}"
-
-        AuditLogs.audit!(deployment, deployment, :update, description, %{
-          healthy: false,
-          reason: "failure threshold met"
-        })
-
-        update_deployment(deployment, %{healthy: false})
-
-      true ->
-        {:ok, deployment}
-    end
-  end
-
-  def fetch_and_update_relevant_devices(deployment) do
-    deployment
-    |> fetch_relevant_devices()
-    |> update_relevant_devices(deployment)
-  end
-
-  def fetch_relevant_devices(%Deployment{is_active: false}) do
-    []
-  end
-
-  def fetch_relevant_devices(deployment) do
-    deployment = Repo.preload(deployment, [:product, :firmware])
-    org_id = deployment.product.org_id
-
-    from(
-      d in Devices.Device,
-      where:
-        fragment(
-          """
-          (firmware_metadata->>'product' = ?) AND
-          (firmware_metadata->>'architecture' = ?) AND
-          (firmware_metadata->>'platform' = ?) AND
-          (firmware_metadata->>'uuid' != ?)
-          """,
-          ^deployment.product.name,
-          ^deployment.firmware.architecture,
-          ^deployment.firmware.platform,
-          ^deployment.firmware.uuid
-        ),
-      where: d.org_id == ^org_id,
-      where: d.updates_enabled
-    )
-    |> Repo.exclude_deleted()
-    |> Repo.all()
-  end
-
-  defp update_relevant_devices(devices, deployment) do
-    Task.Supervisor.async_stream(
-      NervesHub.TaskSupervisor,
-      devices,
-      fn device ->
-        Devices.send_update_message(device, deployment)
-      end,
-      timeout: 15000
-    )
-    |> Stream.run()
-
-    {:ok, deployment}
   end
 
   @doc """
@@ -249,16 +174,56 @@ defmodule NervesHub.Deployments do
 
   Based on the product, firmware platform, firmware architecture, and device tags
   """
-  def potential_deployments(%Device{firmware_metadata: nil}), do: []
+  def alternate_deployments(%Device{firmware_metadata: nil}), do: []
 
-  def potential_deployments(device) do
+  def alternate_deployments(device, active \\ [true, false]) do
     Deployment
     |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
     |> where([d], d.product_id == ^device.product_id)
+    |> where([d], d.is_active in ^active)
+    |> ignore_same_deployment(device)
     |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
     |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
     |> where([d], fragment("?->'tags' <@ to_jsonb(?::text[])", d.conditions, ^device.tags))
     |> where([d], fragment("coalesce(semver_match(?::text, ?->>'version'), 't')", ^device.firmware_metadata.version, d.conditions))
     |> Repo.all()
   end
+
+  defp ignore_same_deployment(query, %{deployment_id: nil}), do: query
+
+  defp ignore_same_deployment(query, %{deployment_id: deployment_id}) do
+    where(query, [d], d.id != ^deployment_id)
+  end
+
+  @doc """
+  If the device is missing a deployment, find a matching deployment
+
+  Do nothing if a deployment is already set
+  """
+  def set_deployment(%{deployment_id: nil} = device) do
+    case alternate_deployments(device, [true]) do
+      [] ->
+        Logger.debug("No matching deployments for #{device.identifier}")
+
+        %{device | deployment: nil}
+
+      [deployment] ->
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+        |> Repo.update!()
+        |> Repo.preload([:deployment])
+
+      [deployment | _] ->
+        Logger.debug("More than one deployment matches for #{device.identifier}, setting to the first")
+
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+        |> Repo.update!()
+        |> Repo.preload([:deployment])
+    end
+  end
+
+  def set_deployment(device), do: Repo.preload(device, [:deployment])
 end
