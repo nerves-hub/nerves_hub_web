@@ -41,21 +41,21 @@ defmodule NervesHubWeb.DeviceLive.Show do
         Devices.get_device_by_product(device_id, product_id, org_id)
       end)
 
-    if connected?(socket) do
-      socket.endpoint.subscribe("device:#{socket.assigns.device.id}:internal")
-    end
+    device = socket.assigns.device
 
-    device = Repo.preload(socket.assigns.device, [:deployment])
+    if connected?(socket) do
+      socket.endpoint.subscribe("device:#{device.id}:internal")
+    end
 
     socket =
       socket
       |> assign(:device, sync_device(device))
       |> assign(:deployment, device.deployment)
-      |> assign(:page_title, socket.assigns.device.identifier)
+      |> assign(:page_title, device.identifier)
       |> assign(:toggle_upload, false)
       |> assign(:results, [])
-      |> assign(:deployments, Deployments.potential_deployments(socket.assigns.device))
-      |> assign(:firmwares, Firmwares.get_firmware_for_device(socket.assigns.device))
+      |> assign(:deployments, Deployments.potential_deployments(device))
+      |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
       |> allow_upload(:certificate,
         accept: :any,
         auto_upload: true,

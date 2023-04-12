@@ -169,6 +169,7 @@ defmodule NervesHub.Devices do
 
   def get_device_by_product(device_id, product_id, org_id) do
     device_by_product_query(device_id, product_id, org_id)
+    |> preload([:deployment])
     |> Repo.exclude_deleted()
     |> Repo.one!()
   end
@@ -195,7 +196,7 @@ defmodule NervesHub.Devices do
       from(
         d in Device,
         where: d.identifier == ^identifier and d.org_id == ^org_id,
-        preload: [:device_certificates]
+        preload: [:device_certificates, :deployment]
       )
 
     query
