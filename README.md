@@ -60,7 +60,7 @@ echo "127.0.0.1 nerves-hub.org" | sudo tee -a /etc/hosts
      **Using local postgres**
 
      * Make sure your postgres is running
-     * If you need to edit the `DATABASE_URL`, create a `.env.local` to adjust to your local postgres connection
+     * If you need to edit the `DATABASE_URL`, create a `.env.dev.local` and `.env.test.local` to adjust to your local postgres connection
 
 2. Fetch dependencies: `mix do deps.get, compile`
 3. Initialize the database: `mix ecto.reset`
