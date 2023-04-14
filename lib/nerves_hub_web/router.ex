@@ -37,6 +37,8 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.Plugs.Firmware)
   end
 
+  forward "/api", NervesHubWeb.APIRouter
+
   scope "/", NervesHubWeb do
     # Use the default browser stack
     pipe_through(:browser)
