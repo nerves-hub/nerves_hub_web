@@ -2,13 +2,16 @@
 
 [![CircleCI](https://circleci.com/gh/nerves-hub/nerves_hub_web.svg?style=svg)](https://circleci.com/gh/nerves-hub/nerves_hub_web)
 
-*This is the 2.0 development branch of NervesHubWeb. If you have been using
+This is the source code for the NervesHub firmware update and device management
+server.
+
+**Important**
+
+This is the 2.0 development branch of NervesHubWeb. If you have been using
 NervesHub prior to around April, 2023 and are not following 2.0 development, see
 the [`maint-v1.0`
-branch](https://github.com/nerves-hub/nerves_hub_web/tree/maint-v1.0)*
+branch](https://github.com/nerves-hub/nerves_hub_web/tree/maint-v1.0)
 
-A domain independent back end solution for rolling out software updates to edge
-devices connected to IP based networking infrastructure.
 
 ## Project overview and setup
 
