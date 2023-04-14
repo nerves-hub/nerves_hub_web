@@ -35,7 +35,7 @@ instructions](https://github.com/jmacd/xdelta).
 On Debian/Ubuntu, you will also need to install the following packages:
 
 ```sh
-sudo apt install docker-compose inotify-tools
+sudo apt install inotify-tools
 ```
 
 Local development uses the host `nerves-hub.org` for connections and cert
@@ -52,32 +52,20 @@ echo "127.0.0.1 nerves-hub.org" | sudo tee -a /etc/hosts
 
      NervesHub currently runs with Postgres 10.7. For development, you can use a local postgres or use the configured docker image:
 
-     **Using Docker**
-
-     * Create directory for local data storage: `mkdir ~/db`
-     * Start the database (may require sudo): `docker-compose up -d`
-
      **Using local postgres**
 
      * Make sure your postgres is running
-     * Copy `dev.env` to `.env` with `cp dev.env .env`
-     * Change any of the `DB_*` variables as needed in your `.env`. For local running postgres, you would typically use these settings:
-
-     ```bash
-     DB_USER=postgres
-     DB_PASSWORD="" # in some cases, this might not be blank
-     DB_PORT=5432
-     ```
+     * If you need to edit the `DATABASE_URL`, create a `.env.local` to adjust to your local postgres connection
 
 2. Fetch dependencies: `mix do deps.get, compile`
-3. Initialize the database: `make reset-db` (or mix `ecto.reset`)
+3. Initialize the database: `mix ecto.reset`
 4. Compile web assets (this only needs to be done once and requires python2 or a symlink for python3):
    `mix assets.install`
 
 ### Starting the application
 
-* `make server` - start the server process (or run `mix phx.server`)
-* `make iex-server` - start the server with the interactive shell (or run `iex -S mix phx.server`)
+* `mix phx.server` - start the server process
+* `iex -S mix phx.server` - start the server with the interactive shell
 
 > **_Note_**: The whole app may need to be compiled the first time you run this, so please be patient
 
@@ -90,7 +78,7 @@ In development you can login into a pre-generated account with the username
 
 1. Make sure you've completed your [database connection setup](#development-environment-setup)
 2. Fetch and compile `test` dependencies: `MIX_ENV=test mix do deps.get, compile`
-3. Initialize the test databases: `make reset-test-db`
+3. Initialize the test databases: `MIX_ENV=test mix ecto.migrate.reset`
 4. Run tests: `make test`
 
 
