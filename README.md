@@ -8,6 +8,10 @@ server.
 
 *Important*
 
+This is the maintenance branch for most NervesHub usage prior to around April,
+2023. For current development (aka 2.0 development), see the [`main`
+branch](https://github.com/nerves-hub/nerves_hub_web/tree/main)*
+
 The public NervesHub instance at `nerves-hub.org` was turned off on March 31st,
 2022. See [NervesHub Sunset](https://elixirforum.com/t/action-advised-nerveshub-sunset/42925).
 NervesHub is still actively developed and used. Many of us run NervesHub
