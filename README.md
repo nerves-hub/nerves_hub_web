@@ -9,31 +9,28 @@ devices connected to IP based networking infrastructure.
 
 ### Development environment setup
 
-If you haven't already, make sure that your development environment has
-Elixir >= 1.7, Erlang 21, and NodeJS.
+For best compatibility with Erlang SSL versions, we use Erlang/OTP 23.0.4. If
+you're coming to NervesHub without OTP 23 or earlier devices, don't worry about
+this. OTP 23.0.4 is difficult to install on Apple M1/M2 hardware so developing
+on Linux is highly recommended if you're keeping to the OTP 23.0.4 requirement.
 
-You'll also need `fwup` and can follow [these installation instructions](https://github.com/fhunleth/fwup#installing) for your platform if needed.
-
-Additionally you will need to install [xdelta3](https://github.com/jmacd/xdelta).
-
-The instructions below use `asdf` which can be installed with the
-instructions below ([copied from asdf-vm.com](https://asdf-vm.com/#/core-manage-asdf-vm))
-
-```
-git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.7.1
-# The following steps are for Bash, which is usually the default shell
-# If you’re using something else, you probably know the equivalent thing you need to do echo -e '\n. $HOME/.asdf/asdf.sh' >> ~/.bashrc
-echo -e '\n. $HOME/.asdf/completions/asdf.bash' >> ~/.bashrc
-```
-
-Here are steps for the NodeJS setup if you're using `asdf`:
+The `.tool-versions` files contains the Erlang, Elixir and NodeJS versions.
+Install [asdf-vm](https://asdf-vm.com/) and run the following for quick setup:
 
 ```sh
 cd nerves_hub_web
+
 asdf plugin-add nodejs
 bash ~/.asdf/plugins/nodejs/bin/import-release-team-keyring # this requires gpg to be installed
-asdf install $(cat .tool-versions | grep nodejs)
+asdf install
 ```
+
+Modify the `.tool-versions` if you want to use a later version of Erlang.
+
+You'll also need to install `fwup` and `xdelta3`. See the [fwup installation
+instructions](https://github.com/fhunleth/fwup#installing) and the [xdelta3
+instructions](https://github.com/jmacd/xdelta).
+
 
 On Debian/Ubuntu, you will also need to install the following packages:
 
@@ -41,18 +38,13 @@ On Debian/Ubuntu, you will also need to install the following packages:
 sudo apt install docker-compose inotify-tools
 ```
 
-Local development uses the host `nerves-hub.org` for connections and cert validation. To properly map to your local running server, you'll need to add a host record for it:
+Local development uses the host `nerves-hub.org` for connections and cert
+validation. To properly map to your local running server, you'll need to add a
+host record for it:
 
 ```sh
 echo "127.0.0.1 nerves-hub.org" | sudo tee -a /etc/hosts
 ```
-
-### Dependent application setup
-
-NervesHub is designed to run in conjunction with another application [nerves_hub_ca](https://github.com/nerves-hub/nerves_hub_ca).
-This application runs on port `8443` and it handles user's certificates. It can also be used to create a suit of certificates that
-is needed in order to run both applications. When you create certificates from `nerves_hub_ca` place them in dir:
-`nerves_hub_web/test/fixtures/ssl`.
 
 ### First time application setup
 
