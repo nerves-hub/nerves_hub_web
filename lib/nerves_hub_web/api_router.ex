@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.API.Router do
+defmodule NervesHubWeb.APIRouter do
   use NervesHubWeb, :router
 
   pipeline :api do

@@ -66,7 +66,7 @@ defmodule NervesHubWeb.APIConnCase do
       use DefaultMocks
       import NervesHubWeb.APIConnCase, only: [build_auth_conn: 1, peer_data: 1]
 
-      alias NervesHubWeb.API.Router.Helpers, as: Routes
+      alias NervesHubWeb.APIRouter.Helpers, as: Routes
 
       # The default endpoint for testing
       @endpoint NervesHubWeb.API.Endpoint

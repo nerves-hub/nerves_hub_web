@@ -40,7 +40,7 @@ defmodule NervesHubWeb.API.Endpoint do
     signing_salt: "WVt9MTK1"
   )
 
-  plug(NervesHubWeb.API.Router)
+  plug(NervesHubWeb.APIRouter)
 
   @doc """
   Callback invoked for dynamically configuring the endpoint.

@@ -5,7 +5,7 @@ defmodule NervesHubWeb.API.Plugs.UserTest do
   setup do
     conn =
       build_conn()
-      |> bypass_through(NervesHubWeb.API.Router)
+      |> bypass_through(NervesHubWeb.APIRouter)
       |> dispatch(NervesHubWeb.API.Endpoint, :get, "/users/me")
 
     %{conn: conn}

@@ -56,7 +56,7 @@ defmodule NervesHubWeb do
 
       import Phoenix.LiveView.Controller
 
-      alias NervesHubWeb.API.Router.Helpers, as: Routes
+      alias NervesHubWeb.APIRouter.Helpers, as: Routes
 
       def whitelist(params, keys) do
         keys
@@ -145,7 +145,7 @@ defmodule NervesHubWeb do
       import NervesHubWeb.ErrorHelpers
       import NervesHubWeb.Gettext
 
-      alias NervesHubWeb.API.Router.Helpers, as: Routes
+      alias NervesHubWeb.APIRouter.Helpers, as: Routes
 
       def render("error.json", %{error: error}) do
         %{
