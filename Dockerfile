@@ -37,7 +37,32 @@ COPY --from=assets /build/priv/static priv/static
 RUN mix do phx.digest, release nerves_hub --overwrite
 
 # Release Container
-FROM nerveshub/runtime:alpine-${ALPINE_VERSION} as release
+FROM alpine:${ALPINE_VERSION} as release
+
+ENV MIX_ENV=prod
+ENV REPLACE_OS_VARS true
+ENV LC_ALL=en_US.UTF-8
+ENV AWS_ENV_SHA=1393537837dc67d237a9a31c8b4d3dd994022d65e99c1c1e1968edc347aae63f
+
+ARG AWS_CLI_VERSION=1.22.81
+RUN apk --no-cache add \
+  bash \
+  libcrypto1.1 \
+  openssl \
+  curl \
+  python3 \
+  py-pip \
+  jq \
+  && pip install --no-cache-dir awscli==$AWS_CLI_VERSION
+
+# Add SSM Parameter Store helper, which is used in the entrypoint script to set secrets
+RUN wget https://raw.githubusercontent.com/nerves-hub/aws-env/master/bin/aws-env-linux-amd64 && \
+    echo "$AWS_ENV_SHA  aws-env-linux-amd64" | sha256sum -c - && \
+    mv aws-env-linux-amd64 /bin/aws-env && \
+    chmod +x /bin/aws-env
+
+WORKDIR /app
+
 RUN apk add -X https://dl-cdn.alpinelinux.org/alpine/v3.15/main -u alpine-keys
 
 RUN apk add fwup \
