@@ -63,13 +63,7 @@ RUN wget https://raw.githubusercontent.com/nerves-hub/aws-env/master/bin/aws-env
 
 WORKDIR /app
 
-RUN apk add -X https://dl-cdn.alpinelinux.org/alpine/v3.15/main -u alpine-keys
-
-RUN apk add fwup \
-  --repository http://dl-cdn.alpinelinux.org/alpine/edge/community/ \
-  --no-cache
-
-RUN apk --no-cache add xdelta3 zip unzip
+RUN apk add --no-cache fwup xdelta3 zip unzip
 
 EXPOSE 80
 EXPOSE 443
