@@ -190,17 +190,24 @@ defmodule NervesHub.Firmwares do
   def verify_signature(_filepath, []), do: {:error, :no_public_keys}
 
   def verify_signature(filepath, keys) when is_binary(filepath) do
-    keys
-    |> Enum.find(fn %{key: key} ->
-      case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath]) do
-        {_, 0} ->
-          true
+    signed_key =
+      Enum.find(keys, fn %{key: key} ->
+        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath]) do
+          {_, 0} ->
+            true
 
-        _ ->
-          false
-      end
-    end)
-    |> case do
+          # fwup returns a 1 for invalid signatures
+          {_, 1} ->
+            false
+
+          {text, code} ->
+            Logger.warn("fwup returned code #{code} with #{text}")
+
+            false
+        end
+      end)
+
+    case signed_key do
       %OrgKey{} = key ->
         {:ok, key}
 

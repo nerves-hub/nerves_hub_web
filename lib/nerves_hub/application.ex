@@ -1,7 +1,17 @@
 defmodule NervesHub.Application do
   use Application
 
+  require Logger
+
   def start(_type, _args) do
+    case System.cmd("fwup", ["--version"]) do
+      {_, 0} ->
+        Logger.debug("fwup was found")
+
+      _ ->
+        raise "fwup could not be found in the $PATH. This is a requirement of NervesHubWeb and cannot start otherwise"
+    end
+
     children = [NervesHub.Supervisor] ++ endpoints()
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
