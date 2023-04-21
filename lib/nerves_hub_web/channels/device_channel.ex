@@ -213,9 +213,23 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:console, version}, socket) do
-    metadata = %{console_available: true, console_version: version}
     # Update gproc and then also tell connected liveviews that the device changed
+    metadata = %{console_available: true, console_version: version}
     Presence.update(socket.assigns.device, metadata)
+
+    # now that the console is connected, push down the device's elixir, line by line
+    device = socket.assigns.device
+
+    if device.connecting_code do
+      device.connecting_code
+      |> String.graphemes()
+      |> Enum.map(fn character ->
+        socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => character})
+      end)
+
+      socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => "\r"})
+    end
+
     {:noreply, socket}
   end
 
