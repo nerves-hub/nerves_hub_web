@@ -107,7 +107,7 @@ defmodule NervesHubUmbrella.MixProject do
       {:statix, "~> 1.2"},
       {:sweet_xml, "~> 0.6"},
       {:telemetry_metrics, "~> 0.4"},
-      {:telemetry_poller, "~> 0.4"},
+      {:telemetry_poller, "~> 1.0"},
       {:timex, "~> 3.1"},
       {:vapor, "~> 0.10"},
       {:x509, "~> 0.5.1 or ~> 0.6"}
