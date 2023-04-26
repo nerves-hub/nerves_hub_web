@@ -10,6 +10,10 @@ defmodule NervesHub.Deployments do
   alias NervesHub.Repo
   alias Ecto.Changeset
 
+  def all() do
+    Repo.all(Deployment)
+  end
+
   @spec get_deployments_by_product(integer()) :: [Deployment.t()]
   def get_deployments_by_product(product_id) do
     from(
@@ -25,6 +29,16 @@ defmodule NervesHub.Deployments do
   def get_deployments_by_firmware(firmware_id) do
     from(d in Deployment, where: d.firmware_id == ^firmware_id)
     |> Repo.all()
+  end
+
+  def get(id) when is_integer(id) do
+    case Repo.get(Deployment, id) do
+      nil ->
+        {:error, :not_found}
+
+      deployment ->
+        {:ok, deployment}
+    end
   end
 
   @spec get_deployment(Product.t(), String.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
@@ -72,13 +86,13 @@ defmodule NervesHub.Deployments do
 
   @spec delete_deployment(Deployment.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
   def delete_deployment(%Deployment{id: deployment_id}) do
-    Repo.get!(Deployment, deployment_id)
-    |> Repo.delete()
-    |> case do
+    case Repo.delete(Repo.get!(Deployment, deployment_id)) do
       {:error, _changeset} ->
         {:error, :not_found}
 
       {:ok, deployment} ->
+        broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
+
         {:ok, deployment}
     end
   end
@@ -156,9 +170,17 @@ defmodule NervesHub.Deployments do
 
   @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def create_deployment(params) do
-    %Deployment{}
-    |> Deployment.creation_changeset(params)
-    |> Repo.insert()
+    changeset = Deployment.creation_changeset(%Deployment{}, params)
+
+    case Repo.insert(changeset) do
+      {:ok, deployment} ->
+        broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
+
+        {:ok, deployment}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
 
   def broadcast(deployment, event, payload \\ %{})
@@ -171,6 +193,14 @@ defmodule NervesHub.Deployments do
     }
 
     Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:none", message)
+  end
+
+  def broadcast(:monitor, event, payload) do
+    Phoenix.PubSub.broadcast(
+      NervesHub.PubSub,
+      "deployment:monitor",
+      %Phoenix.Socket.Broadcast{event: event, payload: payload}
+    )
   end
 
   def broadcast(%Deployment{id: id}, event, payload) do

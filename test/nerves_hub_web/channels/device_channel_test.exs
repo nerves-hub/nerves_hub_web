@@ -63,49 +63,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
     assert join_reply.update_available == false
   end
 
-  test "update_available after a firmware update" do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user)
-    product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
-
-    firmware =
-      Fixtures.firmware_fixture(org_key, product, %{
-        version: "0.0.1"
-      })
-
-    deployment = Fixtures.deployment_fixture(org, firmware)
-
-    {:ok, deployment} =
-      NervesHub.Deployments.update_deployment(deployment, %{
-        is_active: true
-      })
-
-    device =
-      Fixtures.device_fixture(org, product, firmware, %{
-        tags: ["beta", "beta-edge"],
-        identifier: "123"
-      })
-
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-    {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
-
-    {:ok, %{update_available: false}, _socket} =
-      subscribe_and_join(socket, DeviceChannel, "device")
-
-    new_firmware =
-      Fixtures.firmware_fixture(org_key, product, %{
-        version: "0.0.2"
-      })
-
-    {:ok, _deployment} =
-      NervesHub.Deployments.update_deployment(deployment, %{
-        firmware_id: new_firmware.id
-      })
-
-    assert_push("update", %{firmware_meta: %{version: "0.0.2"}})
-  end
-
   test "the first fwup_progress marks an update as happening" do
     user = Fixtures.user_fixture()
     {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})

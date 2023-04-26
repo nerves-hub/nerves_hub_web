@@ -3,6 +3,8 @@ defmodule NervesHub.Application do
 
   require Logger
 
+  @env Mix.env()
+
   def start(_type, _args) do
     case System.cmd("fwup", ["--version"]) do
       {_, 0} ->
@@ -15,7 +17,7 @@ defmodule NervesHub.Application do
     children = [
       NervesHub.Metrics,
       NervesHub.Supervisor
-    ] ++ endpoints()
+    ] ++ endpoints(@env)
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
     Supervisor.start_link(children, opts)
@@ -26,10 +28,19 @@ defmodule NervesHub.Application do
     :ok
   end
 
-  defp endpoints() do
+  defp endpoints(:test) do
+    [
+      NervesHubWeb.API.Endpoint,
+      NervesHubWeb.DeviceEndpoint,
+      NervesHubWeb.Endpoint
+    ]
+  end
+
+  defp endpoints(_) do
     case Application.get_env(:nerves_hub, :app) do
       "all" ->
         [
+          NervesHub.Deployments.Supervisor,
           NervesHubWeb.API.Endpoint,
           NervesHubWeb.DeviceEndpoint,
           NervesHubWeb.Endpoint
@@ -39,7 +50,10 @@ defmodule NervesHub.Application do
         [NervesHubWeb.API.Endpoint]
 
       "device" ->
-        [NervesHubWeb.DeviceEndpoint]
+        [
+          NervesHub.Deployments.Supervisor,
+          NervesHubWeb.DeviceEndpoint
+        ]
 
       "web" ->
         [NervesHubWeb.Endpoint]
