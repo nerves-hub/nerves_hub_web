@@ -22,7 +22,8 @@ defmodule NervesHub.Devices.Device do
     :deleted_at,
     :update_attempts,
     :updates_blocked_until,
-    :connection_types
+    :connection_types,
+    :connecting_code
   ]
   @required_params [:org_id, :product_id, :identifier]
 
@@ -44,6 +45,7 @@ defmodule NervesHub.Devices.Device do
     field(:update_attempts, {:array, :utc_datetime}, default: [])
     field(:updates_blocked_until, :utc_datetime)
     field(:connection_types, {:array, ConnectionType})
+    field(:connecting_code, :string)
 
     field(:status, :string, default: "offline", virtual: true)
 

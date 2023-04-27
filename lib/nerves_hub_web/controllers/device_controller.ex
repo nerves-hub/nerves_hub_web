@@ -84,39 +84,16 @@ defmodule NervesHubWeb.DeviceController do
     |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
   end
 
-  def console(
-        %{assigns: %{user: user, org: org, product: product, device: device}} = conn,
-        _params
-      ) do
+  def console(%{assigns: %{device: device}} = conn, _params) do
     meta = NervesHubDevice.Presence.find(device, %{})
-    version = Map.get(meta, :console_version, "0.1.0")
 
-    # Render based on NervesHubLink version to decide which
-    # remote IEx console API needs to be handled. For now, leave
-    # in support for rendering console via LiveView. This can
-    # be cleaned up once it is no longer used
-    cond do
-      Version.match?(version, ">= 0.9.0") ->
-        conn
-        |> put_root_layout({NervesHubWeb.LayoutView, :console})
-        |> put_layout(false)
-        |> render("console.html",
-          device: Map.merge(device, meta),
-          console_available: meta[:console_available]
-        )
-
-      true ->
-        conn
-        |> live_render(
-          DeviceLive.Console,
-          session: %{
-            "auth_user_id" => user.id,
-            "org_id" => org.id,
-            "product_id" => product.id,
-            "device_id" => device.id
-          }
-        )
-    end
+    conn
+    |> put_root_layout({NervesHubWeb.LayoutView, :console})
+    |> put_layout(false)
+    |> render("console.html",
+      device: Map.merge(device, meta),
+      console_available: meta[:console_available]
+    )
   end
 
   def download_certificate(%{assigns: %{device: device}} = conn, %{"cert_serial" => serial}) do
