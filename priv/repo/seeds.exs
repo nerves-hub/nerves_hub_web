@@ -44,7 +44,6 @@ defmodule NervesHub.SeedHelpers do
     })
 
     Fixtures.device_fixture(org, product, firmwares |> elem(1), %{last_communication: DateTime.utc_now()})
-    |> Fixtures.device_certificate_fixture()
   end
 
   def nerves_team_seed(root_user_params) do
