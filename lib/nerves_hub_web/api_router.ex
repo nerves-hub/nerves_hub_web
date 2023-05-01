@@ -25,6 +25,7 @@ defmodule NervesHubWeb.APIRouter do
     pipe_through(:api)
 
     get("/", HealthCheckController, :health_check)
+    get("/nodes", HealthCheckController, :node_check)
   end
 
   scope "/users", NervesHubWeb.API do
