@@ -119,12 +119,12 @@ echo ${sha} > ${release_path}/REVISION
 sudo systemctl stop nerves_hub
 rm ${current_path}
 ln -s ${release_path} ${current_path}
-cd ${current_path} && export $\(cat /etc/nerves_hub.env | xargs\) && ./bin/nerves_hub eval "NervesHub.Release.Tasks.migrate_and_seed()"
-sudo systemctl start nerves_hub
 CMD
 )
 
     ssh "${ssh_options[@]}" -t -C "${commands}"
+    ssh "${ssh_options[@]}" -t -C 'cd nerves_hub/current && export $(cat /etc/nerves_hub.env | xargs) && ./bin/nerves_hub eval "NervesHub.Release.Tasks.migrate_and_seed()"'
+    ssh "${ssh_options[@]}" -t -C 'sudo systemctl start nerves_hub'
 
     echo "Deploy complete"
 
