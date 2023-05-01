@@ -64,7 +64,7 @@ defmodule NervesHubWeb.APIConnCase do
       import Phoenix.ConnTest
 
       use DefaultMocks
-      import NervesHubWeb.APIConnCase, only: [build_auth_conn: 1, peer_data: 1]
+      import NervesHubWeb.APIConnCase, only: [build_auth_conn: 1]
 
       alias NervesHubWeb.APIRouter.Helpers, as: Routes
 
@@ -104,9 +104,5 @@ defmodule NervesHubWeb.APIConnCase do
     Phoenix.ConnTest.build_conn()
     |> Plug.Conn.put_req_header("authorization", "token #{token}")
     |> Plug.Conn.put_req_header("accept", "application/json")
-  end
-
-  def peer_data(cert) do
-    %{address: {127, 0, 0, 1}, port: 111_317, ssl_cert: X509.Certificate.to_der(cert)}
   end
 end
