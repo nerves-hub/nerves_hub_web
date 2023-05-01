@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Endpoint do
   )
 
   file_upload_config =
-    Application.compile_env(:nerves_hub, NervesHub.Firmwares.Upload.File, [])
+    Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload.File, [])
 
   if Keyword.get(file_upload_config, :enabled, false) do
     plug(

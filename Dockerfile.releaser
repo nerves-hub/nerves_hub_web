@@ -19,6 +19,9 @@ COPY assets /app
 RUN npm run deploy
 
 FROM builder as releaser
+
+ARG FIRMWARE_UPLOAD_BACKEND=S3
+
 COPY --from=frontend /priv/static /app/priv/static
 COPY . /app/
 RUN mix phx.digest

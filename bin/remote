@@ -54,7 +54,7 @@ sudo apt-get update
 sudo wget https://github.com/fwup-home/fwup/releases/download/v1.10.0/fwup_1.10.0_amd64.deb -P /tmp/
 sudo dpkg -i /tmp/fwup_1.10.0_amd64.deb
 
-sudo apt-get install -y xdelta3 caddy postgresql
+sudo apt-get install -y xdelta3 caddy postgresql unzip
 
 sudo mv /tmp/nerves_hub.env /etc/nerves_hub.env
 sudo mv /tmp/nerves_hub.service /etc/systemd/system/nerves_hub.service
@@ -119,7 +119,7 @@ echo ${sha} > ${release_path}/REVISION
 sudo systemctl stop nerves_hub
 rm ${current_path}
 ln -s ${release_path} ${current_path}
-cd ${current_path} && ./bin/nerves_hub eval "NervesHub.Release.Tasks.migrate_and_seed()"
+cd ${current_path} && export $\(cat /etc/nerves_hub.env | xargs\) && ./bin/nerves_hub eval "NervesHub.Release.Tasks.migrate_and_seed()"
 sudo systemctl start nerves_hub
 CMD
 )

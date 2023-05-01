@@ -30,7 +30,21 @@ config :kernel,
   inet_dist_listen_min: 9100,
   inet_dist_listen_max: 9155
 
-config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
+firmware_upload = System.get_env("FIRMWARE_UPLOAD_BACKEND", "S3")
+
+case firmware_upload do
+  "S3" ->
+    config :nerves_hub, NervesHub.Firmwares.Upload.S3,
+      bucket: System.fetch_env!("S3_BUCKET_NAME")
+
+  "local" ->
+    local_path = System.get_env("FIRMWARE_UPLOAD_PATH")
+
+    config :nerves_hub, NervesHub.Firmwares.Upload.File,
+      enabled: true,
+      local_path: local_path,
+      public_path: "/firmware"
+end
 
 config :ex_aws, region: System.fetch_env!("AWS_REGION")
 
