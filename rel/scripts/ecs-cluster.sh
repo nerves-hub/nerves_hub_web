@@ -16,7 +16,7 @@ service_ip_addresses() {
 }
 
 format_nodes() {
-  for IP in $1; do echo "$2@$IP"; done
+  for IP in $1; do echo "nerves_hub@$IP"; done
 }
 
 METADATA=`curl $ECS_CONTAINER_METADATA_URI`
@@ -24,16 +24,16 @@ export LOCAL_IPV4=$(echo $METADATA | jq -r '.Networks[0] .IPv4Addresses[0]')
 export AWS_REGION_NAME=us-east-1
 
 WWW_IPS=$(service_ip_addresses nerves-hub-www)
-WWW_NODES=$(format_nodes "$WWW_IPS" nerves_hub_www)
+WWW_NODES=$(format_nodes "$WWW_IPS")
 
 DEVICE_IPS=$(service_ip_addresses nerves-hub-device)
-DEVICE_NODES=$(format_nodes "$DEVICE_IPS" nerves_hub_device)
+DEVICE_NODES=$(format_nodes "$DEVICE_IPS")
 
 API_IPS=$(service_ip_addresses nerves-hub-api)
-API_NODES=$(format_nodes "$API_IPS" nerves_hub_api)
+API_NODES=$(format_nodes "$API_IPS")
 
 API_PUBLIC_IPS=$(service_ip_addresses nerves-hub-api-public)
-API_PUBLIC_NODES=$(format_nodes "$API_PUBLIC_IPS" nerves_hub_api)
+API_PUBLIC_NODES=$(format_nodes "$API_PUBLIC_IPS")
 
 NODES=$(echo "$DEVICE_NODES $WWW_NODES $API_NODES $API_PUBLIC_NODES" | tr '\n' ' ')
 
