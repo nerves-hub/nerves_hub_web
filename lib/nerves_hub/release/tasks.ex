@@ -4,7 +4,13 @@ defmodule NervesHub.Release.Tasks do
   @otp_app :nerves_hub
   @start_apps [:logger, :ssl, :postgrex, :ecto_sql]
 
-  def migrate_and_seed do
+  def migrate() do
+    init(@otp_app, @start_apps)
+    run_migrations_for(@otp_app)
+    stop()
+  end
+
+  def migrate_and_seed() do
     init(@otp_app, @start_apps)
 
     run_migrations_for(@otp_app)
