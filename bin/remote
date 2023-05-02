@@ -45,8 +45,8 @@ case "${1}" in
     ;;
 
   setup)
-    scp nerves_hub.env "${ssh_user}@${ssh_host}:/tmp/nerves_hub.env"
-    scp nerves_hub.service "${ssh_user}@${ssh_host}:/tmp/nerves_hub.service"
+    scp deploy/nerves_hub.env "${ssh_user}@${ssh_host}:/tmp/nerves_hub.env"
+    scp deploy/nerves_hub.service "${ssh_user}@${ssh_host}:/tmp/nerves_hub.service"
 
     commands=$(cat << CMD
 # caddy
@@ -81,12 +81,15 @@ Setup complete. There are still a few TODOs before this server is ready to deplo
 - Edit /etc/caddy/Caddyfile to use your domain
 
 Create a postgresql user with:
-$ sudo -u postgres createuser --superuser deploy -W
+$ sudo -u postgres createdb nerveshub
+$ sudo -u postgres createuser --superuser deploy
+$ sudo -u postgres psql
+$ [psql] alter role deploy with password 'password';
 
 You can generate a cert with:
 
 $ openssl genrsa -out ca.key 2048
-$ openssl req -x509 -new -nodes -key ca.key -sha256 -days 1825 -out ca.pem -subj '//'
+$ openssl req -x509 -new -nodes -key ca.key -sha256 -days 1825 -out ca.pem -subj '/OU=NervesHub/'
 $ openssl genrsa -out device.nerves-hub.dev-key.pem
 $ openssl req -new -key device.nerves-hub.dev-key.pem -out device.nerves-hub.dev.csr -subj '/CN=device.nerves-hub.dev/'
 $ nvim device.nerves-hub.dev.ext
@@ -100,6 +103,12 @@ DNS.1 = device.nerves-hub.dev
 $ openssl x509 -req -in device.nerves-hub.dev.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out device.nerves-hub.dev.pem -days 825 -sha256 -extfile device.nerves-hub.dev.ext
 $ sudo mv device.nerves-hub.dev-key.pem /etc/ssl/
 $ sudo mv device.nerves-hub.dev.pem /etc/ssl/
+
+Edit Caddyfile to include your domain
+$ nvim /etc/caddy/Caddyfile
+nerves-hub.dev {
+	reverse_proxy http://localhost:4000
+}
 
 NOTICE
 
@@ -126,7 +135,7 @@ NOTICE
 
     header "Stopping NervesHub"
     ssh "${ssh_options[@]}" -t -C "sudo systemctl stop nerves_hub"
-    ssh "${ssh_options[@]}" -t -C "rm ${current_path}"
+    ssh "${ssh_options[@]}" -t -C "rm -f ${current_path}"
     ssh "${ssh_options[@]}" -t -C "ln -s ${release_path} ${current_path}"
 
     header "Migrating"
