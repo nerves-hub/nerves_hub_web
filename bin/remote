@@ -35,15 +35,13 @@ Commands:
 
 bash    Start a remote bash shell
 
-deploy  Deploy `origin/main` to the environment
+deploy  Deploy `origin/main`
 
 help    View this help message
 
 iex     Start a remote IEx shell
 
-logs    Tail logs from a remote server. Note if there are more than one server
-        to connect to, only one will be tailed. See the script if you need to
-        follow more than one server for how to do that.
+logs    Tail logs from a remote server
 
 psql    Start a remote psql connection
 HELP
@@ -55,8 +53,10 @@ case "${1}" in
     ;;
 
   setup)
+    cat deploy/nerves_hub.service | sed "s/deploy/${deploy_user}/" >> /tmp/nerves_hub.service
+
     scp -F ./remote_host deploy/nerves_hub.env nerves_hub:/tmp/nerves_hub.env
-    scp -F ./remote_host deploy/nerves_hub.service nerves_hub:/tmp/nerves_hub.service
+    scp -F ./remote_host /tmp/nerves_hub.service nerves_hub:/tmp/nerves_hub.service
 
     commands=$(cat << CMD
 # caddy
@@ -100,23 +100,23 @@ You can generate a cert with:
 
 $ openssl genrsa -out ca.key 2048
 $ openssl req -x509 -new -nodes -key ca.key -sha256 -days 1825 -out ca.pem -subj '/OU=NervesHub/'
-$ openssl genrsa -out device.nerves-hub.dev-key.pem
-$ openssl req -new -key device.nerves-hub.dev-key.pem -out device.nerves-hub.dev.csr -subj '/CN=device.nerves-hub.dev/'
-$ nvim device.nerves-hub.dev.ext
+$ openssl genrsa -out device.nerves-hub.org-key.pem
+$ openssl req -new -key device.nerves-hub.org-key.pem -out device.nerves-hub.org.csr -subj '/CN=device.nerves-hub.org/'
+$ nvim device.nerves-hub.org.ext
 authorityKeyIdentifier=keyid,issuer
 basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = device.nerves-hub.dev
-$ openssl x509 -req -in device.nerves-hub.dev.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out device.nerves-hub.dev.pem -days 825 -sha256 -extfile device.nerves-hub.dev.ext
-$ sudo mv device.nerves-hub.dev-key.pem /etc/ssl/
-$ sudo mv device.nerves-hub.dev.pem /etc/ssl/
+DNS.1 = device.nerves-hub.org
+$ openssl x509 -req -in device.nerves-hub.org.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out device.nerves-hub.org.pem -days 825 -sha256 -extfile device.nerves-hub.org.ext
+$ sudo mv device.nerves-hub.org-key.pem /etc/ssl/
+$ sudo mv device.nerves-hub.org.pem /etc/ssl/
 
 Edit Caddyfile to include your domain
 $ nvim /etc/caddy/Caddyfile
-nerves-hub.dev {
+nerves-hub.org {
 	reverse_proxy http://localhost:4000
 }
 
