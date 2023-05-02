@@ -9,7 +9,12 @@ git_branch="HEAD"
 ssh_user="deploy"
 ssh_host="192.168.3.48"
 ssh_port=22
-ssh_options=("${ssh_host}" -l "${ssh_user}" -p "${ssh_port}")
+ssh_options=("${ssh_host}" -l "${ssh_user}" -p "${ssh_port}" -o "ControlMaster=auto" -o "ControlPath=~/.ssh/ssh_mux_%h_%p_%r" -o "ControlPersist=600" -o "LogLevel=QUIET")
+
+function header() {
+  printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
+  printf "\e[1;36m%s\e[0m\n" "${1}"
+}
 
 help_text=$(cat <<"HELP"
 remote - Help manage remote nodes
@@ -101,8 +106,12 @@ NOTICE
     ;;
 
   deploy)
+    set -e
+
+    header "Creating erlang release"
     ./bin/release
-    set -x
+
+    header "Copying file to server"
     scp tmp/nerves_hub.tar.gz "${ssh_user}@${ssh_host}:/tmp/nerves_hub.tar.gz"
 
     now="$(date +%s)"
@@ -110,23 +119,23 @@ NOTICE
     release_path="/home/${ssh_user}/nerves_hub/releases/${now}"
     current_path="/home/${ssh_user}/nerves_hub/current"
 
-    echo "${release_path}"
+    header "Creating release at ${release_path}"
+    ssh "${ssh_options[@]}" -t -C "mkdir -p ${release_path}"
+    ssh "${ssh_options[@]}" -t -C "tar xzf /tmp/nerves_hub.tar.gz -C ${release_path}"
+    ssh "${ssh_options[@]}" -t -C "echo ${sha} > ${release_path}/REVISION"
 
-    commands=$(cat << CMD
-mkdir -p ${release_path}
-tar xzf /tmp/nerves_hub.tar.gz -C ${release_path}
-echo ${sha} > ${release_path}/REVISION
-sudo systemctl stop nerves_hub
-rm ${current_path}
-ln -s ${release_path} ${current_path}
-CMD
-)
+    header "Stopping NervesHub"
+    ssh "${ssh_options[@]}" -t -C "sudo systemctl stop nerves_hub"
+    ssh "${ssh_options[@]}" -t -C "rm ${current_path}"
+    ssh "${ssh_options[@]}" -t -C "ln -s ${release_path} ${current_path}"
 
-    ssh "${ssh_options[@]}" -t -C "${commands}"
-    ssh "${ssh_options[@]}" -t -C 'cd nerves_hub/current && export $(cat /etc/nerves_hub.env | xargs) && ./bin/nerves_hub eval "NervesHub.Release.Tasks.migrate_and_seed()"'
+    header "Migrating"
+    ssh "${ssh_options[@]}" -t -C 'cd nerves_hub/current && export $(cat /etc/nerves_hub.env | xargs) && ./bin/nerves_hub eval "NervesHub.Release.Tasks.migrate()"'
+
+    header "Starting NervesHub"
     ssh "${ssh_options[@]}" -t -C 'sudo systemctl start nerves_hub'
 
-    echo "Deploy complete"
+    header "Deploy complete"
 
     ;;
 
