@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
 
-# Per project settings
+if [ ! -f ./remote_host ]; then
+  cat << "HELP"
+Before using this script, you need an ssh config file with `nerves_hub` as the host.
+
+Below is a sample file to place at `./remote_host`. Please update with your login details.
+
+```
+Host nerves_hub
+  HostName 127.0.0.1
+  User deploy
+  Port 22
+```
+HELP
+
+  exit 1
+fi
 
 git_branch="HEAD"
-
-# Generalized starts below
-
-ssh_user="deploy"
-ssh_host="192.168.3.48"
-ssh_port=22
-ssh_options=("${ssh_host}" -l "${ssh_user}" -p "${ssh_port}" -o "ControlMaster=auto" -o "ControlPath=~/.ssh/ssh_mux_%h_%p_%r" -o "ControlPersist=600" -o "LogLevel=QUIET")
+deploy_user=$(cat ./remote_host | grep User | sed 's/User //' | sed 's/\s*//')
+ssh_options=(nerves_hub -F ./remote_host -o "ControlMaster=auto" -o "ControlPath=~/.ssh/ssh_mux_%h_%p_%r" -o "ControlPersist=600" -o "LogLevel=QUIET")
 
 function header() {
   printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
@@ -45,8 +55,8 @@ case "${1}" in
     ;;
 
   setup)
-    scp deploy/nerves_hub.env "${ssh_user}@${ssh_host}:/tmp/nerves_hub.env"
-    scp deploy/nerves_hub.service "${ssh_user}@${ssh_host}:/tmp/nerves_hub.service"
+    scp -F ./remote_host deploy/nerves_hub.env nerves_hub:/tmp/nerves_hub.env
+    scp -F ./remote_host deploy/nerves_hub.service nerves_hub:/tmp/nerves_hub.service
 
     commands=$(cat << CMD
 # caddy
@@ -121,12 +131,12 @@ NOTICE
     ./bin/release
 
     header "Copying file to server"
-    scp tmp/nerves_hub.tar.gz "${ssh_user}@${ssh_host}:/tmp/nerves_hub.tar.gz"
+    scp -F ./remote_host tmp/nerves_hub.tar.gz nerves_hub:/tmp/nerves_hub.tar.gz
 
     now="$(date +%s)"
     sha="$(git rev-parse ${git_branch})"
-    release_path="/home/${ssh_user}/nerves_hub/releases/${now}"
-    current_path="/home/${ssh_user}/nerves_hub/current"
+    release_path="/home/${deploy_user}/nerves_hub/releases/${now}"
+    current_path="/home/${deploy_user}/nerves_hub/current"
 
     header "Creating release at ${release_path}"
     ssh "${ssh_options[@]}" -t -C "mkdir -p ${release_path}"
