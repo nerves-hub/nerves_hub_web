@@ -105,14 +105,24 @@ defmodule NervesHub.Deployments do
       {:ok, deployment} ->
         deployment = Repo.preload(deployment, [:firmware], force: true)
 
+        payload = %{
+          id: deployment.id,
+          active: deployment.is_active,
+          product_id: deployment.product_id,
+          platform: deployment.firmware.platform,
+          architecture: deployment.firmware.architecture,
+          version: deployment.firmware.version,
+          conditions: deployment.conditions
+        }
+
         # if the conditions changed, we should reset all devices and tell any connected
         if Map.has_key?(changeset.changes, :conditions) do
           Device
           |> where([d], d.deployment_id == ^deployment.id)
           |> Repo.update_all(set: [deployment_id: nil])
 
-          broadcast(deployment, "deployments/changed", deployment.conditions)
-          broadcast(:none, "deployments/changed", deployment.conditions)
+          broadcast(deployment, "deployments/changed", payload)
+          broadcast(:none, "deployments/changed", payload)
 
           description = "deployment #{deployment.name} conditions changed and removed all devices"
           AuditLogs.audit!(deployment, deployment, :update, description)
@@ -122,13 +132,13 @@ defmodule NervesHub.Deployments do
         # if its now true, tell the none deployment devices
         if Map.has_key?(changeset.changes, :is_active) do
           if deployment.is_active do
-            broadcast(:none, "deployments/changed")
+            broadcast(:none, "deployments/changed", payload)
           else
             Device
             |> where([d], d.deployment_id == ^deployment.id)
             |> Repo.update_all(set: [deployment_id: nil])
 
-            broadcast(deployment, "deployments/changed")
+            broadcast(deployment, "deployments/changed", payload)
 
             description = "deployment #{deployment.name} is inactive and removed all devices"
             AuditLogs.audit!(deployment, deployment, :update, description)
@@ -154,19 +164,23 @@ defmodule NervesHub.Deployments do
   def broadcast(deployment, event, payload \\ %{})
 
   def broadcast(:none, event, payload) do
-    Phoenix.PubSub.broadcast(
-      NervesHub.PubSub,
-      "deployment:none",
-      %Phoenix.Socket.Broadcast{event: event, payload: payload}
-    )
+    message = %Phoenix.Socket.Broadcast{
+      topic: "deployment:none",
+      event: event,
+      payload: payload
+    }
+
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:none", message)
   end
 
   def broadcast(%Deployment{id: id}, event, payload) do
-    Phoenix.PubSub.broadcast(
-      NervesHub.PubSub,
-      "deployment:#{id}",
-      %Phoenix.Socket.Broadcast{event: event, payload: payload}
-    )
+    message = %Phoenix.Socket.Broadcast{
+      topic: "deployment:#{id}",
+      event: event,
+      payload: payload
+    }
+
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:#{id}", message)
   end
 
   @doc """

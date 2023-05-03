@@ -140,6 +140,42 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  # We can save a fairly expensive query by checking the incoming deployment's payload
+  # If it matches, we can set the deployment directly and only do 3 queries (update, two preloads)
+  def handle_info(%Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload}, socket) do
+    device = socket.assigns.device
+    version_requirement = Map.get(payload.conditions, "version") ||  "> 0.0.0"
+
+    if payload.active &&
+      device.product_id == payload.product_id &&
+      device.firmware_metadata.platform == payload.platform &&
+      device.firmware_metadata.architecture == payload.architecture &&
+      Enum.all?(payload.conditions["tags"], &Enum.member?(device.tags, &1)) &&
+      Version.match?(device.firmware_metadata.version, version_requirement) do
+      device =
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, payload.id)
+        |> Repo.update!()
+        |> Repo.preload([deployment: [:firmware]], force: true)
+
+      description = "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+      AuditLogs.audit!(device, device, :update, description)
+
+      socket.endpoint.unsubscribe("deployment:none")
+      socket.endpoint.subscribe("deployment:#{device.deployment_id}")
+
+      socket =
+        socket
+        |> assign(:device, device)
+        |> assign(:deployment_channel, "deployment:#{device.deployment_id}")
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_info(%Broadcast{event: "deployments/changed"}, socket) do
     socket.endpoint.unsubscribe(socket.assigns.deployment_channel)
 
