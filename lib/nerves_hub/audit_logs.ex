@@ -71,4 +71,20 @@ defmodule NervesHub.AuditLogs do
     |> CSV.dump_to_iodata()
     |> IO.iodata_to_binary()
   end
+
+  def truncate(opts) do
+    oldest = DateTime.add(DateTime.utc_now(), -24 * 60 * 60 * opts.days_kept, :second)
+
+    to_delete =
+      from(a in AuditLog,
+        where: a.inserted_at < ^oldest,
+        order_by: [asc: :inserted_at],
+        limit: ^opts.max_records_per_run,
+        select: a.id
+      )
+
+    AuditLog
+    |> where([a], a.id in subquery(to_delete))
+    |> Repo.delete_all()
+  end
 end

@@ -61,7 +61,13 @@ config :nerves_hub_www, NervesHub.PubSub,
 config :nerves_hub_www, Oban,
   repo: NervesHub.Repo,
   log: false,
-  queues: [delete_firmware: 1, firmware_delta_builder: 2]
+  queues: [delete_firmware: 1, firmware_delta_builder: 2, truncate: 1],
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"0 * * * *", NervesHub.Workers.TruncateAuditLogs, max_attempts: 1}
+     ]}
+  ]
 
 config :spandex_phoenix, tracer: NervesHub.Tracer
 
