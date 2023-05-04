@@ -28,12 +28,22 @@ const xtermjsTheme = {
   brightWhite: '#FFFFFF'
 };
 
+// Try loading scrollback from local storage. If not, use 1000 (which is xterm.js default)
+let scrollback = 1000;
+try {
+  let stored_scrollback = parseInt(localStorage.getItem('scrollback'));
+  if (Number.isSafeInteger(stored_scrollback)) {
+    scrollback = stored_scrollback;
+  }
+} catch (e) {}
+
 var term = new Terminal({
   cursorBlink: true,
   cursorStyle: 'bar',
   macOptionIsMeta: true,
   fontFamily: '"Roboto Mono", monospace',
   theme: xtermjsTheme,
+  scrollback: scrollback,
 })
 const fitAddon = new FitAddon();
 term.loadAddon(fitAddon);
