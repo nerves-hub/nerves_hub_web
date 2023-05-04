@@ -155,7 +155,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     deployment =
       Fixtures.deployment_fixture(org, firmware, %{
-        conditions: %{"tags" => ["alpha"]}
+        conditions: %{"tags" => ["alpha"], "version" => ""}
       })
 
     {:ok, deployment} =
