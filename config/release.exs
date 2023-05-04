@@ -35,9 +35,6 @@ config :kernel,
 
 config :nerves_hub_www, NervesHub.Firmwares.Upload.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
 
-config :nerves_hub_www, NervesHub.Workers.FirmwaresTransferS3Ingress,
-  bucket: System.fetch_env!("S3_LOG_BUCKET_NAME")
-
 config :ex_aws, region: System.fetch_env!("AWS_REGION")
 
 config :nerves_hub_www, NervesHub.Mailer,
