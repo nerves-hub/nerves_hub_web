@@ -260,7 +260,7 @@ defmodule NervesHub.DeploymentsTest do
       refute Enum.member?(deployments, high_deployment)
     end
 
-    test "finds matching deployments skips pre versions", state do
+    test "finds matching deployments including pre versions", state do
       %{org: org, org_key: org_key, product: product, firmware: firmware} = state
 
       low_deployment =
@@ -281,7 +281,7 @@ defmodule NervesHub.DeploymentsTest do
 
       deployments = Deployments.alternate_deployments(device)
 
-      refute Enum.member?(deployments, low_deployment)
+      assert Enum.member?(deployments, low_deployment)
       refute Enum.member?(deployments, high_deployment)
     end
   end
