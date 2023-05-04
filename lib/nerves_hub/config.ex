@@ -28,7 +28,7 @@ defmodule NervesHub.Config do
 
   config :audit_logs,
          env([
-           {:enabled, "TRUNATE_AUDIT_LOGS_ENABLED", default: "true", map: &to_boolean/1},
+           {:enabled, "TRUNATE_AUDIT_LOGS_ENABLED", default: "false", map: &to_boolean/1},
            {:max_records_per_run, "TRUNCATE_AUDIT_LOGS_MAX_RECORDS_PER_RUN",
             default: "10000", map: &String.to_integer/1},
            {:days_kept, "TRUNCATE_AUDIT_LOGS_MAX_DAYS_KEPT",
