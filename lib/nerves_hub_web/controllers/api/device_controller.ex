@@ -73,8 +73,4 @@ defmodule NervesHubWeb.API.DeviceController do
         |> send_resp(403, Jason.encode!(%{status: "Unauthorized"}))
     end
   end
-
-  def error_deprecated(_conn, _params) do
-    {:error, "Please upgrade nerves_hub_cli to ~> 0.9 or nerves_hub_user_api to ~> 0.6"}
-  end
 end
