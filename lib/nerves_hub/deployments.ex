@@ -199,9 +199,24 @@ defmodule NervesHub.Deployments do
     |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
     |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
     |> where([d], fragment("?->'tags' <@ to_jsonb(?::text[])", d.conditions, ^device.tags))
-    |> where([d], fragment("coalesce(semver_match(?::text, ?->>'version'), 't')", ^device.firmware_metadata.version, d.conditions))
     |> Repo.all()
+    |> Enum.filter(fn deployment ->
+      version_match?(device, deployment)
+    end)
   end
+
+  @doc """
+  Check that a device version matches for a deployment's conditions
+
+  A deployment not having a version condition returns true
+  """
+  def version_match?(_device, %{conditions: %{"version" => ""}}), do: true
+
+  def version_match?(device, %{conditions: %{"version" => version}}) when not is_nil(version) do
+    Version.match?(device.firmware_metadata.version, version)
+  end
+
+  def version_match?(_device, _deployment), do: true
 
   defp ignore_same_deployment(query, %{deployment_id: nil}), do: query
 
