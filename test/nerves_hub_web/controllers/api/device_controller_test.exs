@@ -25,12 +25,6 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn = post(conn, Routes.key_path(conn, :create, org.name))
       assert json_response(conn, 422)["errors"] != %{}
     end
-
-    test "renders error when using deprecated api", %{conn: conn, org: org} do
-      conn = post(conn, "/orgs/#{org.name}/devices")
-      {:error, reason} = NervesHubWeb.API.DeviceController.error_deprecated(conn, %{})
-      assert json_response(conn, 500)["errors"] == reason
-    end
   end
 
   describe "index" do
@@ -48,12 +42,6 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert Enum.find(conn.assigns.devices, fn %{identifier: identifier} ->
                device.identifier == identifier
              end)
-    end
-
-    test "renders error when using deprecated api", %{conn: conn, org: org} do
-      conn = get(conn, "/orgs/#{org.name}/devices")
-      {:error, reason} = NervesHubWeb.API.DeviceController.error_deprecated(conn, %{})
-      assert json_response(conn, 500)["errors"] == reason
     end
   end
 
@@ -79,12 +67,6 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         get(conn, Routes.device_path(conn, :show, org.name, product.name, to_delete.identifier))
 
       assert json_response(conn, 200)["status"] != ""
-    end
-
-    test "renders error when using deprecated api", %{conn: conn, org: org} do
-      conn = delete(conn, "/orgs/#{org.name}/devices/1234")
-      {:error, reason} = NervesHubWeb.API.DeviceController.error_deprecated(conn, %{})
-      assert json_response(conn, 500)["errors"] == reason
     end
   end
 
@@ -114,12 +96,6 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert json_response(conn, 200)
       assert conn.assigns.device.tags == ["a", "b", "c", "d"]
-    end
-
-    test "renders error when using deprecated api", %{conn: conn, org: org} do
-      conn = put(conn, "/orgs/#{org.name}/devices/1234", %{})
-      {:error, reason} = NervesHubWeb.API.DeviceController.error_deprecated(conn, %{})
-      assert json_response(conn, 500)["errors"] == reason
     end
   end
 
