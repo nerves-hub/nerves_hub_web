@@ -236,7 +236,8 @@ defmodule NervesHubWeb.DeviceLive.Show do
   def handle_event("validate-cert", _, socket), do: {:noreply, socket}
 
   def handle_event("push-update", %{"uuid" => uuid}, socket) do
-    firmware = Firmwares.get_firmware_by_uuid(uuid)
+    product = socket.assigns.product
+    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
     {:ok, url} = Firmwares.get_firmware_url(firmware)
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
