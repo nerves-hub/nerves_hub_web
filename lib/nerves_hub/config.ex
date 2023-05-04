@@ -25,4 +25,17 @@ defmodule NervesHub.Config do
            {:url_port, "URL_PORT", default: "443", map: &String.to_integer/1},
            {:url_scheme, "URL_SCHEME", default: "https"}
          ])
+
+  config :audit_logs,
+         env([
+           {:enabled, "TRUNATE_AUDIT_LOGS_ENABLED", default: "false", map: &to_boolean/1},
+           {:max_records_per_run, "TRUNCATE_AUDIT_LOGS_MAX_RECORDS_PER_RUN",
+            default: "10000", map: &String.to_integer/1},
+           {:days_kept, "TRUNCATE_AUDIT_LOGS_MAX_DAYS_KEPT",
+            default: "30", map: &String.to_integer/1}
+         ])
+
+  def to_boolean("true"), do: true
+
+  def to_boolean(_), do: false
 end
