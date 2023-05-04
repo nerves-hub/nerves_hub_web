@@ -144,7 +144,14 @@ defmodule NervesHubWeb.DeviceChannel do
   # If it matches, we can set the deployment directly and only do 3 queries (update, two preloads)
   def handle_info(%Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload}, socket) do
     device = socket.assigns.device
-    version_requirement = Map.get(payload.conditions, "version") ||  "> 0.0.0"
+    version_requirement = Map.get(payload.conditions, "version")
+
+    version_requirement =
+      if version_requirement == "" || is_nil(version_requirement) do
+        "> 0.0.0"
+      else
+        version_requirement
+      end
 
     if payload.active &&
       device.product_id == payload.product_id &&
