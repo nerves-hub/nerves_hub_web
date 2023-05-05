@@ -1,6 +1,6 @@
 defmodule NervesHub.Repo do
   use Ecto.Repo,
-    otp_app: :nerves_hub_www,
+    otp_app: :nerves_hub,
     adapter: Ecto.Adapters.Postgres
 
   use Scrivener

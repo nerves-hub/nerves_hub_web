@@ -27,7 +27,7 @@ defmodule NervesHub.Application do
   end
 
   defp endpoints() do
-    case Application.get_env(:nerves_hub_www, :app) do
+    case Application.get_env(:nerves_hub, :app) do
       "all" ->
         [
           NervesHubWeb.API.Endpoint,

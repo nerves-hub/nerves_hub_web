@@ -12,8 +12,8 @@ defmodule NervesHub.Stats do
 
   def init(_opts) do
     Process.flag(:trap_exit, true)
-    host = Application.get_env(:nerves_hub_www, :statsd_host, nil)
-    port = Application.get_env(:nerves_hub_www, :statsd_port, nil)
+    host = Application.get_env(:nerves_hub, :statsd_host, nil)
+    port = Application.get_env(:nerves_hub, :statsd_port, nil)
 
     if host && port do
       :ok = ServerStatix.connect()
@@ -107,12 +107,12 @@ defmodule NervesHub.Stats do
   end
 
   def options(additional_tags) do
-    env = Application.get_env(:nerves_hub_www, :env)
+    env = Application.get_env(:nerves_hub, :env)
 
     base_options = [
       tags: [
         "env:#{env}",
-        "service:nerves_hub_www",
+        "service:nerves_hub",
         "dyno:#{dyno_type()}"
       ]
     ]
@@ -124,19 +124,19 @@ defmodule NervesHub.Stats do
   @doc """
   Format additional tags from other applications together with our base tags in a way that will cause Statix to not error
   ## Examples
-      iex> base_options = [prefix: "nerves_hub_www.", tags: ["env:dev", "service:nerves_hub_www"]]
+      iex> base_options = [prefix: "nerves_hub_www.", tags: ["env:dev", "service:nerves_hub"]]
       iex> additional = [{:sample_rate, 1.0}, tags: ["http_status:200", "http_host:smarthome-cahatlas-qa.herokuapp.com", "http_status_family:2xx"]]
       iex> NervesHub.Stats.handle_additional_tags(additional, base_options)
       [
         tags: ["http_status:200", "http_host:smarthome-cahatlas-qa.herokuapp.com",
-        "http_status_family:2xx", "env:dev", "service:nerves_hub_www"],
+        "http_status_family:2xx", "env:dev", "service:nerves_hub"],
         sample_rate: 1.0,
         prefix: "nerves_hub_www."
       ]
-      iex> base_options = [prefix: "nerves_hub_www.", tags: ["env:dev", "service:nerves_hub_www"]]
+      iex> base_options = [prefix: "nerves_hub_www.", tags: ["env:dev", "service:nerves_hub"]]
       iex> additional = []
       iex> NervesHub.Stats.handle_additional_tags(additional, base_options)
-      [prefix: "nerves_hub_www.", tags: ["env:dev", "service:nerves_hub_www"]]
+      [prefix: "nerves_hub_www.", tags: ["env:dev", "service:nerves_hub"]]
   """
   def handle_additional_tags(additional_tags, base_options) do
     Enum.reduce(additional_tags, base_options, fn x, acc ->
@@ -156,7 +156,7 @@ defmodule NervesHub.Stats do
   end
 
   defp dyno_type do
-    Application.get_env(:nerves_hub_www, :dyno, "web")
+    Application.get_env(:nerves_hub, :dyno, "web")
   end
 end
 

@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.API.Endpoint do
-  use Phoenix.Endpoint, otp_app: :nerves_hub_www
+  use Phoenix.Endpoint, otp_app: :nerves_hub
   use SpandexPhoenix
 
   alias NervesHub.Config
@@ -11,7 +11,7 @@ defmodule NervesHubWeb.API.Endpoint do
   plug(
     Plug.Static,
     at: "/",
-    from: :nerves_hub_www,
+    from: :nerves_hub,
     gzip: false,
     only: ~w(css fonts images js favicon.ico robots.txt)
   )

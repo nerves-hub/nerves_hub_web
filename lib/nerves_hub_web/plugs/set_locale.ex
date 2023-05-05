@@ -11,7 +11,7 @@ defmodule NervesHubWeb.Plugs.SetLocale do
         conn
         |> put_resp_header(
           "content-language",
-          Application.get_env(:nerves_hub_www, NervesHubWeb.Gettext)[:default_locale]
+          Application.get_env(:nerves_hub, NervesHubWeb.Gettext)[:default_locale]
         )
 
       locale ->

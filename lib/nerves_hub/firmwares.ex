@@ -17,7 +17,7 @@ defmodule NervesHub.Firmwares do
 
   @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
 
-  @uploader Application.compile_env!(:nerves_hub_www, :firmware_upload)
+  @uploader Application.compile_env!(:nerves_hub, :firmware_upload)
 
   @spec get_firmwares_by_product(integer()) :: [Firmware.t()]
   def get_firmwares_by_product(product_id) do
@@ -528,7 +528,7 @@ defmodule NervesHub.Firmwares do
 
   defp delta_updater() do
     Application.get_env(
-      :nerves_hub_www,
+      :nerves_hub,
       :delta_updater,
       NervesHub.Firmwares.DeltaUpdater.Default
     )
