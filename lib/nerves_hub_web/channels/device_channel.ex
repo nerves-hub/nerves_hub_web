@@ -144,46 +144,29 @@ defmodule NervesHubWeb.DeviceChannel do
   # If it matches, we can set the deployment directly and only do 3 queries (update, two preloads)
   def handle_info(%Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload}, socket) do
     device = socket.assigns.device
-    version_requirement = Map.get(payload.conditions, "version")
 
-    version_requirement =
-      if version_requirement == "" || is_nil(version_requirement) do
-        "> 0.0.0"
-      else
-        version_requirement
-      end
-
-    if payload.active &&
-      device.product_id == payload.product_id &&
-      device.firmware_metadata.platform == payload.platform &&
-      device.firmware_metadata.architecture == payload.architecture &&
-      Enum.all?(payload.conditions["tags"], &Enum.member?(device.tags, &1)) &&
-      Version.match?(device.firmware_metadata.version, version_requirement) do
-      device =
-        device
-        |> Ecto.Changeset.change()
-        |> Ecto.Changeset.put_change(:deployment_id, payload.id)
-        |> Repo.update!()
-        |> Repo.preload([deployment: [:firmware]], force: true)
-
-      description = "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
-      AuditLogs.audit!(device, device, :update, description)
-
-      socket.endpoint.unsubscribe("deployment:none")
-      socket.endpoint.subscribe("deployment:#{device.deployment_id}")
-
-      socket =
-        socket
-        |> assign(:device, device)
-        |> assign(:deployment_channel, "deployment:#{device.deployment_id}")
-
-      {:noreply, socket}
+    if device_matches_deployment_payload?(device, payload) do
+      {:noreply, assign_deployment(socket, device, payload)}
     else
       {:noreply, socket}
     end
   end
 
-  def handle_info(%Broadcast{event: "deployments/changed"}, socket) do
+  def handle_info(%Broadcast{event: "deployments/changed", payload: payload}, socket) do
+    device = socket.assigns.device
+
+    if device_matches_deployment_payload?(device, payload) do
+      {:noreply, assign_deployment(socket, device, payload)}
+    else
+      # jitter over a minute but spaced out to attempt to not
+      # slam the database when all devices check
+      jitter = :rand.uniform(30) * 2 * 1000
+      Process.send_after(self(), :resolve_changed_deployment, jitter)
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info(:resolve_changed_deployment, socket) do
     socket.endpoint.unsubscribe(socket.assigns.deployment_channel)
 
     device =
@@ -345,4 +328,32 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp should_audit_log?(_join_reply, _params), do: true
+
+  defp device_matches_deployment_payload?(device, payload) do
+    payload.active &&
+      device.product_id == payload.product_id &&
+      device.firmware_metadata.platform == payload.platform &&
+      device.firmware_metadata.architecture == payload.architecture &&
+      Enum.all?(payload.conditions["tags"], &Enum.member?(device.tags, &1)) &&
+      Deployments.version_match?(device, payload)
+  end
+
+  defp assign_deployment(socket, device, payload) do
+    device =
+      device
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:deployment_id, payload.id)
+      |> Repo.update!()
+      |> Repo.preload([deployment: [:firmware]], force: true)
+
+    description = "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+    AuditLogs.audit!(device, device, :update, description)
+
+    socket.endpoint.unsubscribe(socket.assigns.deployment_channel)
+    socket.endpoint.subscribe("deployment:#{device.deployment_id}")
+
+    socket
+    |> assign(:device, device)
+    |> assign(:deployment_channel, "deployment:#{device.deployment_id}")
+  end
 end
