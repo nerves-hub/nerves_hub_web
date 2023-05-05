@@ -28,7 +28,7 @@ config :phoenix,
 #  ecto_repos: [NervesHub.Repo]
 
 # Configures the endpoint
-config :nerves_hub_www, NervesHubWeb.API.Endpoint,
+config :nerves_hub, NervesHubWeb.API.Endpoint,
   render_errors: [view: NervesHubWeb.API.ErrorView, accepts: ~w(json)],
   pubsub_server: NervesHub.PubSub
 
@@ -41,24 +41,24 @@ config :nerves_hub_www, NervesHubWeb.API.Endpoint,
 #   namespace: NervesHubDevice
 
 # Configures the endpoint
-config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
+config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub
 
 ##
 # NervesHub
 #
-config :nerves_hub_www,
+config :nerves_hub,
   namespace: NervesHub,
   ecto_repos: [NervesHub.Repo],
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
 
-config :nerves_hub_www, NervesHub.PubSub,
+config :nerves_hub, NervesHub.PubSub,
   name: NervesHub.PubSub,
   adapter_name: Phoenix.PubSub.PG2,
   fastlane: Phoenix.Channel.Server
 
-config :nerves_hub_www, Oban,
+config :nerves_hub, Oban,
   repo: NervesHub.Repo,
   log: false,
   queues: [delete_firmware: 1, firmware_delta_builder: 2, truncate: 1],
@@ -73,43 +73,43 @@ config :spandex_phoenix, tracer: NervesHub.Tracer
 
 config :spandex, :decorators, tracer: NervesHub.Tracer
 
-config :nerves_hub_www,
+config :nerves_hub,
   datadog_host: System.get_env("DATADOG_HOST") || "localhost",
   datadog_port: System.get_env("DATADOG_PORT") || "8126",
   datadog_batch_size: System.get_env("SPANDEX_BATCH_SIZE") || "100",
   datadog_sync_threshold: System.get_env("SPANDEX_SYNC_THRESHOLD") || "100"
 
-config :nerves_hub_www, NervesHub.Repo,
+config :nerves_hub, NervesHub.Repo,
   queue_target: 500,
   queue_interval: 5_000
 
-config :nerves_hub_www,
+config :nerves_hub,
   statsd_host: System.get_env("STATSD_HOST", "localhost"),
   statsd_port: System.get_env("STATSD_PORT", "8125")
 
-config :nerves_hub_www, NervesHub.Tracer,
-  service: :nerves_hub_www,
+config :nerves_hub, NervesHub.Tracer,
+  service: :nerves_hub,
   adapter: SpandexDatadog.Adapter,
   disabled?: false,
   type: :web
 
 config :spandex_ecto, SpandexEcto.EctoLogger,
-  service: :nerves_hub_www,
+  service: :nerves_hub,
   tracer: NervesHub.Tracer,
-  otp_app: :nerves_hub_www
+  otp_app: :nerves_hub
 
 ##
 # NervesHubWWW
 #
-config :nerves_hub_www,
+config :nerves_hub,
   ecto_repos: [NervesHub.Repo],
   # Options are :ssl or :header
   websocket_auth_methods: [:ssl]
 
-config :nerves_hub_www, NervesHubWeb.Gettext, default_locale: "en"
+config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
 
 # Configures the endpoint
-config :nerves_hub_www, NervesHubWeb.Endpoint,
+config :nerves_hub, NervesHubWeb.Endpoint,
   secret_key_base: System.get_env("SECRET_KEY_BASE"),
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub

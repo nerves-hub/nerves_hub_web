@@ -87,7 +87,7 @@ defmodule NervesHub.Accounts.Email do
   end
 
   defp from_address do
-    email = Application.fetch_env!(:nerves_hub_www, :from_email)
+    email = Application.fetch_env!(:nerves_hub, :from_email)
     {"NervesHub", email}
   end
 end

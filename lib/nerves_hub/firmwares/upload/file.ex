@@ -36,7 +36,7 @@ defmodule NervesHub.Firmwares.Upload.File do
     vapor_config = Vapor.load!(NervesHub.Config)
     web_config = vapor_config.web_endpoint
 
-    config = Application.get_env(:nerves_hub_www, __MODULE__)
+    config = Application.get_env(:nerves_hub, __MODULE__)
     common_path = "#{org_id}"
     local_path = Path.join([config[:local_path], common_path, filename])
     port = if Enum.member?([443, 80], web_config.url_port), do: "", else: ":#{web_config.url_port}"

@@ -3,7 +3,7 @@ defmodule NervesHubUmbrella.MixProject do
 
   def project do
     [
-      app: :nerves_hub_www,
+      app: :nerves_hub,
       version: "0.1.0",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -25,7 +25,7 @@ defmodule NervesHubUmbrella.MixProject do
           runtime_config_path: "config/release.exs",
           reboot_system_after_config: true,
           applications: [
-            nerves_hub_www: :permanent
+            nerves_hub: :permanent
           ]
         ]
       ]

@@ -54,7 +54,7 @@ defmodule NervesHub.Firmwares.Upload.S3 do
   end
 
   def bucket do
-    Application.get_env(:nerves_hub_www, __MODULE__)[:bucket]
+    Application.get_env(:nerves_hub, __MODULE__)[:bucket]
   end
 
   def key_prefix() do

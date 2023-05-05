@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.DeviceEndpoint do
-  use Phoenix.Endpoint, otp_app: :nerves_hub_www
+  use Phoenix.Endpoint, otp_app: :nerves_hub
   use SpandexPhoenix
 
   socket(

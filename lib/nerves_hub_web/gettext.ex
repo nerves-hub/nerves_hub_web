@@ -20,5 +20,5 @@ defmodule NervesHubWeb.Gettext do
 
   See the [Gettext Docs](https://hexdocs.pm/gettext) for detailed usage.
   """
-  use Gettext, otp_app: :nerves_hub_www
+  use Gettext, otp_app: :nerves_hub
 end

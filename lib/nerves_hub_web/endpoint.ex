@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Endpoint do
-  use Phoenix.Endpoint, otp_app: :nerves_hub_www
+  use Phoenix.Endpoint, otp_app: :nerves_hub
   use SpandexPhoenix
 
   alias NervesHub.Config
@@ -23,13 +23,13 @@ defmodule NervesHubWeb.Endpoint do
   plug(
     Plug.Static,
     at: "/",
-    from: :nerves_hub_www,
+    from: :nerves_hub,
     gzip: false,
     only: ~w(css fonts images js favicon.ico robots.txt)
   )
 
   file_upload_config =
-    Application.compile_env(:nerves_hub_www, NervesHub.Firmwares.Upload.File, [])
+    Application.compile_env(:nerves_hub, NervesHub.Firmwares.Upload.File, [])
 
   if Keyword.get(file_upload_config, :enabled, false) do
     plug(

@@ -8,7 +8,7 @@ defmodule NervesHub.Supervisor do
   end
 
   def init(:undefined) do
-    pubsub_config = Application.get_env(:nerves_hub_www, NervesHub.PubSub)
+    pubsub_config = Application.get_env(:nerves_hub, NervesHub.PubSub)
 
     children = [
       datadog_children(),
@@ -21,7 +21,7 @@ defmodule NervesHub.Supervisor do
 
     :telemetry.attach(
       "spandex-query-tracer",
-      [:nerves_hub_www, :repo, :query],
+      [:nerves_hub, :repo, :query],
       &SpandexEcto.TelemetryAdapter.handle_event/4,
       nil
     )
@@ -41,15 +41,15 @@ defmodule NervesHub.Supervisor do
   end
 
   defp configure_oban() do
-    Application.get_env(:nerves_hub_www, Oban, [])
+    Application.get_env(:nerves_hub, Oban, [])
   end
 
   defp datadog_children() do
     opts = [
-      host: Application.get_env(:nerves_hub_www, :datadog_host, "localhost"),
-      port: to_integer(Application.get_env(:nerves_hub_www, :datadog_port)),
-      batch_size: to_integer(Application.get_env(:nerves_hub_www, :datadog_batch_size)),
-      sync_threshold: to_integer(Application.get_env(:nerves_hub_www, :datadog_sync_threshold)),
+      host: Application.get_env(:nerves_hub, :datadog_host, "localhost"),
+      port: to_integer(Application.get_env(:nerves_hub, :datadog_port)),
+      batch_size: to_integer(Application.get_env(:nerves_hub, :datadog_batch_size)),
+      sync_threshold: to_integer(Application.get_env(:nerves_hub, :datadog_sync_threshold)),
       http: HTTPoison
     ]
 

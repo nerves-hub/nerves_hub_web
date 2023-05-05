@@ -9,7 +9,7 @@ defmodule NervesHubWeb.WebsocketTest do
   @valid_serial "device-1234"
   @valid_product "test-product"
 
-  @device_port Application.compile_env(:nerves_hub_www, DeviceEndpoint) |> get_in([:https, :port])
+  @device_port Application.compile_env(:nerves_hub, DeviceEndpoint) |> get_in([:https, :port])
 
   @bad_socket_config [
     uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",

@@ -1,5 +1,5 @@
 defmodule NervesHub.Tracer do
-  use Spandex.Tracer, otp_app: :nerves_hub_www
+  use Spandex.Tracer, otp_app: :nerves_hub
 
   defoverridable start_span: 1, start_span: 2
 

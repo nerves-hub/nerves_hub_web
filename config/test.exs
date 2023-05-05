@@ -1,7 +1,7 @@
 import Config
 
 # Start all of the applications
-config :nerves_hub_www, app: "all"
+config :nerves_hub, app: "all"
 
 web_port = 5000
 
@@ -15,14 +15,14 @@ config :logger, level: :warn
 #
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
-config :nerves_hub_www, NervesHubWeb.API.Endpoint,
+config :nerves_hub, NervesHubWeb.API.Endpoint,
   http: [port: 4002],
   server: false
 
 ##
 # NervesHub Device
 #
-config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
+config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   code_reloader: false,
   debug_errors: true,
   check_origin: false,
@@ -30,7 +30,7 @@ config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
   server: true,
   https: [
     port: 4101,
-    otp_app: :nerves_hub_www,
+    otp_app: :nerves_hub,
     # Enable client SSL
     verify: :verify_peer,
     verify_fun: {&NervesHubDevice.SSL.verify_fun/3, nil},
@@ -43,31 +43,31 @@ config :nerves_hub_www, NervesHubWeb.DeviceEndpoint,
 ##
 # NervesHub
 #
-config :nerves_hub_www,
+config :nerves_hub,
   firmware_upload: NervesHub.UploadMock,
   port: web_port
 
-config :nerves_hub_www,
+config :nerves_hub,
   delta_updater: NervesHub.DeltaUpdaterMock
 
-config :nerves_hub_www, NervesHub.Firmwares.Upload.S3, bucket: "mybucket"
+config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: "mybucket"
 
-config :nerves_hub_www, NervesHub.Firmwares.Upload.File,
+config :nerves_hub, NervesHub.Firmwares.Upload.File,
   local_path: System.tmp_dir(),
   public_path: "/firmware"
 
-config :nerves_hub_www, NervesHub.Repo,
+config :nerves_hub, NervesHub.Repo,
   ssl: false,
   pool: Ecto.Adapters.SQL.Sandbox
 
-config :nerves_hub_www, NervesHub.Mailer, adapter: Bamboo.TestAdapter
+config :nerves_hub, NervesHub.Mailer, adapter: Bamboo.TestAdapter
 
-config :nerves_hub_www, Oban, queues: false, plugins: false
+config :nerves_hub, Oban, queues: false, plugins: false
 
 ##
 # NervesHubWWW
 #
-config :nerves_hub_www, NervesHubWeb.Endpoint,
+config :nerves_hub, NervesHubWeb.Endpoint,
   http: [port: web_port],
   server: false,
   secret_key_base: "x7Vj9rmmRke//ctlapsPNGHXCRTnArTPbfsv6qX4PChFT9ARiNR5Ua8zoRilNCmX",

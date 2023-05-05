@@ -1,7 +1,7 @@
 defmodule NervesHub.Release.Tasks do
   alias Ecto.Migrator
 
-  @otp_app :nerves_hub_www
+  @otp_app :nerves_hub
   @start_apps [:logger, :ssl, :postgrex, :ecto_sql]
 
   def migrate_and_seed do
