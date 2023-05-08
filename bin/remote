@@ -159,7 +159,7 @@ NOTICE
     ;;
 
   iex)
-    ssh "${ssh_options[@]}" -t -C "cd nerves_hub/current && ./bin/nerves_hub remote"
+    ssh "${ssh_options[@]}" -t -C 'export $(cat /etc/nerves_hub.env | xargs) && cd nerves_hub/current && ./bin/nerves_hub remote'
     ;;
 
   logs)
