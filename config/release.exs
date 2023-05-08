@@ -105,3 +105,10 @@ if nerves_hub_app in ["all", "api"] do
 
   config :nerves_hub, NervesHubWeb.API.Endpoint, url: [host: host, port: url_port]
 end
+
+config :sentry,
+  dsn: System.get_env("SENTRY_DSN_URL"),
+  environment_name: System.get_env("DEPLOY_ENV"),
+  enable_source_code_context: true,
+  root_source_code_path: File.cwd!(),
+  included_environments: ["prod", "production", "staging", "qa"]

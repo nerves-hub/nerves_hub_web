@@ -99,6 +99,7 @@ defmodule NervesHubUmbrella.MixProject do
       {:postgrex, "~> 0.14"},
       {:scrivener_ecto, "~> 2.7"},
       {:scrivener_html, git: "https://github.com/nerves-hub/scrivener_html", branch: "phx-1.5"},
+      {:sentry, "~> 8.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:spandex, "~> 3.2"},
       {:spandex_datadog, "~> 1.3"},

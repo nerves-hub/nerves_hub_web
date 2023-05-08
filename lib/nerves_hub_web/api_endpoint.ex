@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.API.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub
   use SpandexPhoenix
+  use Sentry.PlugCapture
 
   alias NervesHub.Config
 
@@ -26,6 +27,8 @@ defmodule NervesHubWeb.API.Endpoint do
     length: 1_073_741_824,
     json_decoder: Jason
   )
+
+  plug(Sentry.PlugContext)
 
   plug(Plug.MethodOverride)
   plug(Plug.Head)
