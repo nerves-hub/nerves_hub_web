@@ -18,7 +18,7 @@ HELP
 fi
 
 git_branch="HEAD"
-deploy_user=$(cat ./remote_host | grep User | sed 's/User //' | sed 's/\s*//')
+deploy_user=$(cat ./remote_host | grep User | sed 's/User //' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 ssh_options=(nerves_hub -F ./remote_host -o "ControlMaster=auto" -o "ControlPath=~/.ssh/ssh_mux_%h_%p_%r" -o "ControlPersist=600" -o "LogLevel=QUIET")
 
 function header() {
