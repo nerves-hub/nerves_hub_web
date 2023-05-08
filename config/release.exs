@@ -13,9 +13,6 @@ logger_level = System.get_env("LOG_LEVEL", "info") |> String.to_atom()
 
 config :logger, level: logger_level
 
-host = System.fetch_env!("HOST")
-port = 80
-
 sync_nodes_optional =
   case System.fetch_env("SYNC_NODES_OPTIONAL") do
     {:ok, sync_nodes_optional} ->
@@ -33,7 +30,20 @@ config :kernel,
   inet_dist_listen_min: 9100,
   inet_dist_listen_max: 9155
 
-config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
+firmware_upload = System.get_env("FIRMWARE_UPLOAD_BACKEND", "S3")
+
+case firmware_upload do
+  "S3" ->
+    config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
+
+  "local" ->
+    local_path = System.get_env("FIRMWARE_UPLOAD_PATH")
+
+    config :nerves_hub, NervesHub.Firmwares.Upload.File,
+      enabled: true,
+      local_path: local_path,
+      public_path: "/firmware"
+end
 
 config :ex_aws, region: System.fetch_env!("AWS_REGION")
 
@@ -44,14 +54,17 @@ config :nerves_hub, NervesHub.Mailer,
   username: System.fetch_env!("SMTP_USERNAME"),
   password: System.fetch_env!("SMTP_PASSWORD")
 
-config :nerves_hub,
-  host: host,
-  port: port,
-  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
-
 config :nerves_hub, NervesHub.Tracer, env: System.get_env("DD_ENV") || "dev"
 
 if nerves_hub_app in ["all", "web"] do
+  host = System.fetch_env!("HOST")
+  port = 80
+
+  config :nerves_hub,
+    host: host,
+    port: port,
+    from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
+
   config :nerves_hub, NervesHubWeb.Endpoint,
     url: [host: host, port: port],
     secret_key_base: System.fetch_env!("SECRET_KEY_BASE"),
@@ -59,10 +72,14 @@ if nerves_hub_app in ["all", "web"] do
 end
 
 if nerves_hub_app in ["all", "device"] do
+  host = System.get_env("DEVICE_HOST") || System.fetch_env!("HOST")
+  https_port = String.to_integer(System.get_env("DEVICE_PORT") || "443")
+
   config :nerves_hub, NervesHubWeb.DeviceEndpoint,
     url: [host: host],
     https: [
-      port: 443,
+      verify_fun: {&NervesHubDevice.SSL.verify_fun/3, nil},
+      port: https_port,
       otp_app: :nerves_hub,
       # Enable client SSL
       # Older versions of OTP 25 may break using using devices
@@ -83,5 +100,8 @@ if nerves_hub_app in ["all", "device"] do
 end
 
 if nerves_hub_app in ["all", "api"] do
-  config :nerves_hub, NervesHubWeb.API.Endpoint, url: [host: host, port: port]
+  host = System.get_env("API_HOST") || System.fetch_env!("HOST")
+  url_port = String.to_integer(System.get_env("API_URL_PORT") || "80")
+
+  config :nerves_hub, NervesHubWeb.API.Endpoint, url: [host: host, port: url_port]
 end

@@ -33,3 +33,5 @@ tmp
 gproc_dist*
 
 test/fixtures/ssl/device-root-ca.srl
+
+/remote_host

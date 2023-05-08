@@ -1,15 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e -o pipefail
 
 rm -rf tmp/build
 mkdir -p tmp/build
-git archive --format=tar main | tar x -C tmp/build/
+git archive --format=tar HEAD | tar x -C tmp/build/
 cd tmp/build
 
-docker build -f Dockerfile.releaser -t nerves_hub_www:releaser .
+docker build -f Dockerfile.releaser -t nerves_hub:releaser --build-arg FIRMWARE_UPLOAD_BACKEND=local .
 
-export DOCKER_UUID=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-docker run -ti --name "nerves_hub_www_releaser_${DOCKER_UUID}" nerves_hub_www:releaser /bin/true
-docker cp "nerves_hub_www_releaser_${DOCKER_UUID}":/opt/nerves_hub_www.tar.gz ../
-docker rm "nerves_hub_www_releaser_${DOCKER_UUID}"
+DOCKER_UUID="$(echo $RANDOM | md5sum | head -c 20)"
+export DOCKER_UUID
+
+docker run -ti --name "nerves_hub_releaser_${DOCKER_UUID}" nerves_hub:releaser /bin/true
+docker cp -q "nerves_hub_releaser_${DOCKER_UUID}":/opt/nerves_hub.tar.gz ../
+docker rm "nerves_hub_releaser_${DOCKER_UUID}"

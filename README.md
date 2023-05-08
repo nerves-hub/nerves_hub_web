@@ -92,6 +92,20 @@ In development you can login into a pre-generated account with the username
 3. Initialize the test databases: `MIX_ENV=test mix ecto.migrate.reset`
 4. Run tests: `make test`
 
+### Self Hosting
+
+1. Set up an Ubuntu 22.04 server
+1. Get a domain and edit DNS to point at your IP
+1. You will need an SMTP login from somewhere like Mailgun or Sendgrid
+1. `./bin/remote` and setup your `./remote_host` file
+1. `./bin/remote setup` to do basic setup
+1. Follow the TODOs at the end of the basic setup, edit the environment file, create a postgres user, generate certs, update the Caddyfile, etc
+    1. Make sure you save the ca cert and key you generated, as your devices will need the ca.pem cert chain
+1. `./bin/remote deploy` to do your first deploy
+
+At the end of this you should have a NervesHub instance that will respond on 443 for the web and 4001 for a device to connect to. Devices will need your `ca.pem` file generated if you followed along with the setup TODOs. NervesHubLink will use this to validate your connection.
+
+If you're self hosting, there may be minor problems that aren't covered here. Self hosting is a best effort through the scripts provided.
 
 ### Client-side SSL device authorization
 
