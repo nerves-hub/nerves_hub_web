@@ -10,4 +10,8 @@ defmodule NervesHubWeb.HomeController do
         redirect(conn, to: Routes.session_path(conn, :new))
     end
   end
+
+  def error(_conn, _params) do
+    raise "Error"
+  end
 end
