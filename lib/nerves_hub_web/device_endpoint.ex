@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.DeviceEndpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub
   use SpandexPhoenix
+  use Sentry.PlugCapture
 
   socket(
     "/socket",
@@ -9,6 +10,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
       connect_info: [:peer_data, :x_headers]
     ]
   )
+
+  plug(Sentry.PlugContext)
 
   plug(NervesHubWeb.Plugs.Logger)
 
