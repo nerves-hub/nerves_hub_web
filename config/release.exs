@@ -34,8 +34,7 @@ firmware_upload = System.get_env("FIRMWARE_UPLOAD_BACKEND", "S3")
 
 case firmware_upload do
   "S3" ->
-    config :nerves_hub, NervesHub.Firmwares.Upload.S3,
-      bucket: System.fetch_env!("S3_BUCKET_NAME")
+    config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
 
   "local" ->
     local_path = System.get_env("FIRMWARE_UPLOAD_PATH")
