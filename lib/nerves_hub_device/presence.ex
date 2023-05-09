@@ -154,7 +154,8 @@ defmodule NervesHubDevice.Presence do
 
   def local_deployment_device_pids(deployment) do
     :gproc.select({:global, :names}, [
-      {{{:_, :_, :_}, :_, %{node: node(), deployment_id: deployment.id}}, [], [{:element, 2, :"$_"}]}
+      {{{:_, :_, :_}, :_, %{node: node(), deployment_id: deployment.id}}, [],
+       [{:element, 2, :"$_"}]}
     ])
   end
 

@@ -252,7 +252,9 @@ defmodule NervesHubWeb.DeviceLive.Show do
     {:ok, device} = Devices.disable_updates(device, user)
     socket = assign(socket, :device, device)
 
-    description = "user #{user.username} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+    description =
+      "user #{user.username} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+
     AuditLogs.audit!(user, device, :update, description, %{firmware_uuid: firmware.uuid})
 
     payload = %UpdatePayload{
@@ -261,7 +263,11 @@ defmodule NervesHubWeb.DeviceLive.Show do
       firmware_meta: meta
     }
 
-    NervesHubWeb.Endpoint.broadcast("device:#{socket.assigns.device.id}", "deployments/update", payload)
+    NervesHubWeb.Endpoint.broadcast(
+      "device:#{socket.assigns.device.id}",
+      "deployments/update",
+      payload
+    )
 
     {:noreply, put_flash(socket, :info, "Pushing update")}
   end

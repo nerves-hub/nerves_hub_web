@@ -140,9 +140,15 @@ defmodule NervesHub.DevicesTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    device = Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
-    device2 = Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
-    device3 = Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+
+    device =
+      Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+
+    device2 =
+      Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
+
+    device3 =
+      Fixtures.device_fixture(org, product, firmware, %{updates_blocked_until: DateTime.utc_now()})
 
     devices = [device, device2, device3]
 
@@ -614,7 +620,8 @@ defmodule NervesHub.DevicesTest do
       {:error, :up_to_date, _device} = Devices.verify_update_eligibility(device, deployment)
     end
 
-    test "device is unhealthy and should be put in the penalty box based on total attemps", state do
+    test "device is unhealthy and should be put in the penalty box based on total attemps",
+         state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
       deployment = %{deployment | device_failure_threshold: 6}
@@ -635,7 +642,8 @@ defmodule NervesHub.DevicesTest do
       assert device.updates_blocked_until
     end
 
-    test "device is unhealthy and should be put in the penalty box based on attempt rate", state do
+    test "device is unhealthy and should be put in the penalty box based on attempt rate",
+         state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
 
@@ -664,7 +672,9 @@ defmodule NervesHub.DevicesTest do
 
       # future time
       device = %{device | updates_blocked_until: DateTime.add(now, 1, :second)}
-      {:error, :updates_blocked, _device} = Devices.verify_update_eligibility(device, deployment, now)
+
+      {:error, :updates_blocked, _device} =
+        Devices.verify_update_eligibility(device, deployment, now)
 
       # now
       device = %{device | updates_blocked_until: now}
@@ -683,7 +693,10 @@ defmodule NervesHub.DevicesTest do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
-      deployment = Fixtures.deployment_fixture(org, firmware, %{conditions: %{"tags" => ["beta"]}})
+
+      deployment =
+        Fixtures.deployment_fixture(org, firmware, %{conditions: %{"tags" => ["beta"]}})
+
       {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
 
@@ -700,9 +713,21 @@ defmodule NervesHub.DevicesTest do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
-      deployment_one = Fixtures.deployment_fixture(org, firmware, %{name: "alpha", conditions: %{"tags" => ["alpha"]}})
+
+      deployment_one =
+        Fixtures.deployment_fixture(org, firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => ["alpha"]}
+        })
+
       {:ok, deployment_one} = Deployments.update_deployment(deployment_one, %{is_active: true})
-      deployment_two = Fixtures.deployment_fixture(org, firmware, %{name: "beta", conditions: %{"tags" => ["beta"]}})
+
+      deployment_two =
+        Fixtures.deployment_fixture(org, firmware, %{
+          name: "beta",
+          conditions: %{"tags" => ["beta"]}
+        })
+
       {:ok, deployment_two} = Deployments.update_deployment(deployment_two, %{is_active: true})
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
 

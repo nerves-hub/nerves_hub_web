@@ -9,11 +9,11 @@ defmodule NervesHub.Metrics do
     children = [
       NervesHub.Metrics.Reporters,
       {:telemetry_poller,
-        measurements: [
-          {NervesHub.Metrics, :dispatch_node_count, []},
-        ],
-        period: :timer.seconds(60),
-        name: :nerves_hub_poller}
+       measurements: [
+         {NervesHub.Metrics, :dispatch_node_count, []}
+       ],
+       period: :timer.seconds(60),
+       name: :nerves_hub_poller}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

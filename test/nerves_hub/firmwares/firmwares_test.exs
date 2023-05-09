@@ -46,8 +46,7 @@ defmodule NervesHub.FirmwaresTest do
       upload_file_2 = fn _, _ -> {:error, :nope} end
       filepath = Fixtures.firmware_file_fixture(org_key, product)
 
-      assert {:error, _} =
-               Firmwares.create_firmware(org, filepath, upload_file_2: upload_file_2)
+      assert {:error, _} = Firmwares.create_firmware(org, filepath, upload_file_2: upload_file_2)
 
       assert ^firmwares = Firmwares.get_firmwares_by_product(product.id)
     end

@@ -426,7 +426,8 @@ defmodule NervesHubWeb.WebsocketTest do
     end
 
     test "checks version requirements on connect", %{user: user} do
-      {device, firmware} = device_fixture(user, %{identifier: @valid_serial, product: @valid_product})
+      {device, firmware} =
+        device_fixture(user, %{identifier: @valid_serial, product: @valid_product})
 
       org = %Accounts.Org{id: device.org_id}
 
@@ -455,6 +456,7 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "tester",
         "nerves_fw_version" => "0.1.0"
       })
+
       SocketClient.wait_join(socket)
 
       device = Repo.reload(device)

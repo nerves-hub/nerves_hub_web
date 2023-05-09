@@ -14,10 +14,11 @@ defmodule NervesHub.Application do
         raise "fwup could not be found in the $PATH. This is a requirement of NervesHubWeb and cannot start otherwise"
     end
 
-    children = [
-      NervesHub.Metrics,
-      NervesHub.Supervisor
-    ] ++ endpoints(@env)
+    children =
+      [
+        NervesHub.Metrics,
+        NervesHub.Supervisor
+      ] ++ endpoints(@env)
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
     Supervisor.start_link(children, opts)

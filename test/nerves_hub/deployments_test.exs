@@ -127,7 +127,9 @@ defmodule NervesHub.DeploymentsTest do
     test "changing tags resets device's deployments and causes a recalculation", state do
       %{firmware: firmware, org: org, product: product} = state
 
-      deployment = Fixtures.deployment_fixture(org, firmware, %{name: "name", conditions: %{tags: ["alpha"]}})
+      deployment =
+        Fixtures.deployment_fixture(org, firmware, %{name: "name", conditions: %{tags: ["alpha"]}})
+
       {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
 
       device_one = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
@@ -140,7 +142,9 @@ defmodule NervesHub.DeploymentsTest do
 
       Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
-      {:ok, deployment} = Deployments.update_deployment(deployment, %{conditions: %{"tags" => ["beta"]}})
+      {:ok, deployment} =
+        Deployments.update_deployment(deployment, %{conditions: %{"tags" => ["beta"]}})
+
       assert deployment.conditions == %{"tags" => ["beta"]}
 
       device_one = Repo.reload(device_one)
@@ -154,7 +158,8 @@ defmodule NervesHub.DeploymentsTest do
     test "changing is_active causes a recaluation", state do
       %{firmware: firmware, org: org, product: product} = state
 
-      deployment = Fixtures.deployment_fixture(org, firmware, %{name: "name", conditions: %{tags: ["alpha"]}})
+      deployment =
+        Fixtures.deployment_fixture(org, firmware, %{name: "name", conditions: %{tags: ["alpha"]}})
 
       Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:none")
 
@@ -174,7 +179,9 @@ defmodule NervesHub.DeploymentsTest do
 
       Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
-      {:ok, deployment} = Deployments.update_deployment(deployment, %{conditions: %{"tags" => ["beta"]}})
+      {:ok, deployment} =
+        Deployments.update_deployment(deployment, %{conditions: %{"tags" => ["beta"]}})
+
       assert deployment.conditions == %{"tags" => ["beta"]}
 
       assert_broadcast("deployments/changed", %{}, 500)
@@ -190,9 +197,23 @@ defmodule NervesHub.DeploymentsTest do
     test "finds all matching deployments", state do
       %{org: org, product: product, firmware: firmware} = state
 
-      beta_deployment = Fixtures.deployment_fixture(org, firmware, %{name: "beta", conditions: %{"tags" => ["beta"]}})
-      rpi_deployment = Fixtures.deployment_fixture(org, firmware, %{name: "rpi", conditions: %{"tags" => ["rpi"]}})
-      rpi0_deployment = Fixtures.deployment_fixture(org, firmware, %{name: "rpi0", conditions: %{"tags" => ["rpi0"]}})
+      beta_deployment =
+        Fixtures.deployment_fixture(org, firmware, %{
+          name: "beta",
+          conditions: %{"tags" => ["beta"]}
+        })
+
+      rpi_deployment =
+        Fixtures.deployment_fixture(org, firmware, %{
+          name: "rpi",
+          conditions: %{"tags" => ["rpi"]}
+        })
+
+      rpi0_deployment =
+        Fixtures.deployment_fixture(org, firmware, %{
+          name: "rpi0",
+          conditions: %{"tags" => ["rpi0"]}
+        })
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
 
@@ -209,8 +230,17 @@ defmodule NervesHub.DeploymentsTest do
       rpi_firmware = Fixtures.firmware_fixture(org_key, product, %{platform: "rpi"})
       rpi0_firmware = Fixtures.firmware_fixture(org_key, product, %{platform: "rpi0"})
 
-      rpi_deployment = Fixtures.deployment_fixture(org, rpi_firmware, %{name: "rpi", conditions: %{"tags" => ["rpi"]}})
-      rpi0_deployment = Fixtures.deployment_fixture(org, rpi0_firmware, %{name: "rpi0", conditions: %{"tags" => ["rpi"]}})
+      rpi_deployment =
+        Fixtures.deployment_fixture(org, rpi_firmware, %{
+          name: "rpi",
+          conditions: %{"tags" => ["rpi"]}
+        })
+
+      rpi0_deployment =
+        Fixtures.deployment_fixture(org, rpi0_firmware, %{
+          name: "rpi0",
+          conditions: %{"tags" => ["rpi"]}
+        })
 
       device = Fixtures.device_fixture(org, product, rpi_firmware, %{tags: ["beta", "rpi"]})
 
@@ -226,8 +256,17 @@ defmodule NervesHub.DeploymentsTest do
       rpi_firmware = Fixtures.firmware_fixture(org_key, product, %{architecture: "rpi"})
       rpi0_firmware = Fixtures.firmware_fixture(org_key, product, %{architecture: "rpi0"})
 
-      rpi_deployment = Fixtures.deployment_fixture(org, rpi_firmware, %{name: "rpi", conditions: %{"tags" => ["rpi"]}})
-      rpi0_deployment = Fixtures.deployment_fixture(org, rpi0_firmware, %{name: "rpi0", conditions: %{"tags" => ["rpi"]}})
+      rpi_deployment =
+        Fixtures.deployment_fixture(org, rpi_firmware, %{
+          name: "rpi",
+          conditions: %{"tags" => ["rpi"]}
+        })
+
+      rpi0_deployment =
+        Fixtures.deployment_fixture(org, rpi0_firmware, %{
+          name: "rpi0",
+          conditions: %{"tags" => ["rpi"]}
+        })
 
       device = Fixtures.device_fixture(org, product, rpi_firmware, %{tags: ["beta", "rpi"]})
 

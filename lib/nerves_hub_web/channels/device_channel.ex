@@ -148,7 +148,10 @@ defmodule NervesHubWeb.DeviceChannel do
 
   # We can save a fairly expensive query by checking the incoming deployment's payload
   # If it matches, we can set the deployment directly and only do 3 queries (update, two preloads)
-  def handle_info(%Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload}, socket) do
+  def handle_info(
+        %Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload},
+        socket
+      ) do
     device = socket.assigns.device
 
     if device_matches_deployment_payload?(device, payload) do
@@ -183,13 +186,17 @@ defmodule NervesHubWeb.DeviceChannel do
 
     socket =
       if device.deployment_id do
-        description = "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+        description =
+          "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+
         AuditLogs.audit!(device, device, :update, description)
 
         socket.endpoint.subscribe("deployment:#{device.deployment_id}")
         assign(socket, :deployment_channel, "deployment:#{device.deployment_id}")
       else
-        description = "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
+        description =
+          "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
+
         AuditLogs.audit!(device, device, :update, description)
 
         socket.endpoint.subscribe("deployment:none")
@@ -200,7 +207,10 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # manually pushed
-  def handle_info(%Broadcast{event: "deployments/update", payload: %{deployment_id: nil} = payload}, socket) do
+  def handle_info(
+        %Broadcast{event: "deployments/update", payload: %{deployment_id: nil} = payload},
+        socket
+      ) do
     push(socket, "update", payload)
     {:noreply, socket}
   end
@@ -261,7 +271,9 @@ defmodule NervesHubWeb.DeviceChannel do
       device.deployment.connecting_code
       |> String.graphemes()
       |> Enum.map(fn character ->
-        socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => character})
+        socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{
+          "data" => character
+        })
       end)
 
       socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => "\r"})
@@ -271,7 +283,9 @@ defmodule NervesHubWeb.DeviceChannel do
       device.connecting_code
       |> String.graphemes()
       |> Enum.map(fn character ->
-        socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => character})
+        socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{
+          "data" => character
+        })
       end)
 
       socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => "\r"})
@@ -367,7 +381,9 @@ defmodule NervesHubWeb.DeviceChannel do
       |> Repo.update!()
       |> Repo.preload([deployment: [:firmware]], force: true)
 
-    description = "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+    description =
+      "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+
     AuditLogs.audit!(device, device, :update, description)
 
     socket.endpoint.unsubscribe(socket.assigns.deployment_channel)

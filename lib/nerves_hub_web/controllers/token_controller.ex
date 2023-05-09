@@ -43,7 +43,7 @@ defmodule NervesHubWeb.TokenController do
       conn
       |> put_flash(:info, "Token deleted!")
       |> redirect(to: Routes.token_path(conn, :index, user.username))
-    else 
+    else
       _ ->
         conn
         |> put_flash(:error, "Could not delete token")

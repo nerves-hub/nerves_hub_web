@@ -132,14 +132,20 @@ defmodule NervesHubWeb.DeviceChannelTest do
         identifier: "123"
       })
 
-    %{db_cert: alpha_certificate, cert: _cert} = Fixtures.device_certificate_fixture(device_alpha, X509.PrivateKey.new_ec(:secp256r1))
-    {:ok, socket_alpha} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: alpha_certificate.der}})
+    %{db_cert: alpha_certificate, cert: _cert} =
+      Fixtures.device_certificate_fixture(device_alpha, X509.PrivateKey.new_ec(:secp256r1))
+
+    {:ok, socket_alpha} =
+      connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: alpha_certificate.der}})
 
     {:ok, %{update_available: false}, socket_alpha} =
       subscribe_and_join(socket_alpha, DeviceChannel, "device")
 
-    %{db_cert: beta_certificate, cert: _cert} = Fixtures.device_certificate_fixture(device_beta, X509.PrivateKey.new_ec(:secp256r1))
-    {:ok, socket_beta} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: beta_certificate.der}})
+    %{db_cert: beta_certificate, cert: _cert} =
+      Fixtures.device_certificate_fixture(device_beta, X509.PrivateKey.new_ec(:secp256r1))
+
+    {:ok, socket_beta} =
+      connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: beta_certificate.der}})
 
     {:ok, %{update_available: false}, socket_beta} =
       subscribe_and_join(socket_beta, DeviceChannel, "device")
@@ -193,8 +199,11 @@ defmodule NervesHubWeb.DeviceChannelTest do
         identifier: "123"
       })
 
-    %{db_cert: alpha_certificate, cert: _cert} = Fixtures.device_certificate_fixture(device_alpha, X509.PrivateKey.new_ec(:secp256r1))
-    {:ok, socket_alpha} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: alpha_certificate.der}})
+    %{db_cert: alpha_certificate, cert: _cert} =
+      Fixtures.device_certificate_fixture(device_alpha, X509.PrivateKey.new_ec(:secp256r1))
+
+    {:ok, socket_alpha} =
+      connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: alpha_certificate.der}})
 
     {:ok, %{update_available: false}, socket_alpha} =
       subscribe_and_join(socket_alpha, DeviceChannel, "device")
