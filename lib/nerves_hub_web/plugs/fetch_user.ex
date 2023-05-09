@@ -35,4 +35,3 @@ defmodule NervesHubWeb.Plugs.FetchUser do
     end
   end
 end
-

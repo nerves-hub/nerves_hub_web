@@ -30,7 +30,11 @@ defmodule NervesHub.Deployments.Monitor do
   def handle_continue(:boot, state) do
     deployments =
       Enum.into(Deployments.all(), %{}, fn deployment ->
-        {:ok, pid} = DynamicSupervisor.start_child(DeploymentDynamicSupervisor, {Deployments.Orchestrator, deployment})
+        {:ok, pid} =
+          DynamicSupervisor.start_child(
+            DeploymentDynamicSupervisor,
+            {Deployments.Orchestrator, deployment}
+          )
 
         {deployment.id, pid}
       end)
@@ -40,7 +44,13 @@ defmodule NervesHub.Deployments.Monitor do
 
   def handle_info(%Broadcast{event: "deployments/new", payload: payload}, state) do
     {:ok, deployment} = Deployments.get(payload.deployment_id)
-    {:ok, pid} = DynamicSupervisor.start_child(DeploymentDynamicSupervisor, {Deployments.Orchestrator, deployment})
+
+    {:ok, pid} =
+      DynamicSupervisor.start_child(
+        DeploymentDynamicSupervisor,
+        {Deployments.Orchestrator, deployment}
+      )
+
     deployments = Map.put(state.deployments, deployment.id, pid)
     {:noreply, %{state | deployments: deployments}}
   end

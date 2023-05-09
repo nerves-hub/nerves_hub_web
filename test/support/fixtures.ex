@@ -296,18 +296,20 @@ defmodule NervesHub.Fixtures do
 
     cert =
       X509.Certificate.new(public_key, subject_rdn, signer_cert, signer_key,
-        template: X509.Certificate.Template.new(%X509.Certificate.Template{
-          serial: {:random, 20},
-          validity: X509.Certificate.Validity.new(not_before, not_after),
-          hash: :sha256,
-          extensions: [
-            basic_constraints: X509.Certificate.Extension.basic_constraints(false),
-            key_usage: X509.Certificate.Extension.key_usage([:digitalSignature, :keyEncipherment]),
-            ext_key_usage: X509.Certificate.Extension.ext_key_usage([:clientAuth]),
-            subject_key_identifier: true,
-            authority_key_identifier: true
-          ]
-        })
+        template:
+          X509.Certificate.Template.new(%X509.Certificate.Template{
+            serial: {:random, 20},
+            validity: X509.Certificate.Validity.new(not_before, not_after),
+            hash: :sha256,
+            extensions: [
+              basic_constraints: X509.Certificate.Extension.basic_constraints(false),
+              key_usage:
+                X509.Certificate.Extension.key_usage([:digitalSignature, :keyEncipherment]),
+              ext_key_usage: X509.Certificate.Extension.ext_key_usage([:clientAuth]),
+              subject_key_identifier: true,
+              authority_key_identifier: true
+            ]
+          })
       )
 
     device_certificate_fixture(device, cert)
@@ -319,7 +321,15 @@ defmodule NervesHub.Fixtures do
     aki = Certificate.get_aki(cert)
     ski = Certificate.get_ski(cert)
     der = Certificate.to_der(cert)
-    params = %{serial: serial, aki: aki, ski: ski, not_before: not_before, not_after: not_after, der: der}
+
+    params = %{
+      serial: serial,
+      aki: aki,
+      ski: ski,
+      not_before: not_before,
+      not_after: not_after,
+      der: der
+    }
 
     {:ok, device_cert} = Devices.create_device_certificate(device, params)
     %{db_cert: device_cert, cert: cert}

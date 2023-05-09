@@ -481,7 +481,9 @@ defmodule NervesHub.Devices do
       {:ok, device} ->
         case Map.has_key?(changeset.changes, :tags) do
           true ->
-            description = "device #{device.identifier} tags changed, the attached deployment has been reset"
+            description =
+              "device #{device.identifier} tags changed, the attached deployment has been reset"
+
             AuditLogs.audit!(device, device, :update, description)
 
             # Since the tags changed, let's find a new deployment
@@ -698,7 +700,9 @@ defmodule NervesHub.Devices do
   end
 
   def firmware_update_successful(device) do
-    description = "device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
+    description =
+      "device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
+
     AuditLogs.audit!(device, device, :update, description, %{})
 
     device

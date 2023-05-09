@@ -41,7 +41,9 @@ defmodule NervesHubWeb.DeviceController do
     |> case do
       {:ok, device} ->
         conn
-        |> redirect(to: Routes.device_path(conn, :show, org.name, product.name, device.identifier))
+        |> redirect(
+          to: Routes.device_path(conn, :show, org.name, product.name, device.identifier)
+        )
 
       {:error, changeset} ->
         conn

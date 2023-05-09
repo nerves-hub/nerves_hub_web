@@ -274,7 +274,9 @@ defmodule NervesHub.Deployments do
         |> Repo.preload([:deployment])
 
       [deployment | _] ->
-        Logger.debug("More than one deployment matches for #{device.identifier}, setting to the first")
+        Logger.debug(
+          "More than one deployment matches for #{device.identifier}, setting to the first"
+        )
 
         device
         |> Ecto.Changeset.change()
