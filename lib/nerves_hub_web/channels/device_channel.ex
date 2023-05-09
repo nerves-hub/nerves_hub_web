@@ -245,6 +245,17 @@ defmodule NervesHubWeb.DeviceChannel do
 
     # now that the console is connected, push down the device's elixir, line by line
     device = socket.assigns.device
+    deployment = device.deployment
+
+    if deployment && deployment.connecting_code do
+      device.deployment.connecting_code
+      |> String.graphemes()
+      |> Enum.map(fn character ->
+        socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => character})
+      end)
+
+      socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => "\r"})
+    end
 
     if device.connecting_code do
       device.connecting_code

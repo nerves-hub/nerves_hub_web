@@ -176,6 +176,19 @@
     </div>
   </div>
 
+  <div class="form-group">
+    <label for="connecting_code" class="tooltip-label h3 mb-1">
+      <span>First Connect Code</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">Run this code when the device first connects to the console.</span>
+    </label>
+    <%= textarea f, :connecting_code, rows: 6, class: "form-control", id: "connecting_code" %>
+    <small class="form-text text-muted mt-1">
+      Make sure this is valid Elixir and will not crash the device. This will run before device specific first connect code.
+    </small>
+    <div class="has-error"><%= error_tag f, :connecting_code %></div>
+  </div>
+
   <div class="button-submit-wrapper">
     <%= submit "Save Changes", class: "btn btn-primary" %>
   </div>

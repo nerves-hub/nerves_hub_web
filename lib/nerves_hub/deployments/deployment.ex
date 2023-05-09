@@ -21,7 +21,8 @@ defmodule NervesHub.Deployments.Deployment do
     :failure_rate_seconds,
     :failure_rate_amount,
     :healthy,
-    :penalty_timeout_minutes
+    :penalty_timeout_minutes,
+    :connecting_code
   ]
 
   schema "deployments" do
@@ -40,6 +41,7 @@ defmodule NervesHub.Deployments.Deployment do
     field(:name, :string)
     field(:healthy, :boolean, default: true)
     field(:penalty_timeout_minutes, :integer, default: 1440)
+    field(:connecting_code, :string)
 
     timestamps()
   end
