@@ -20,6 +20,10 @@ defmodule NervesHubWeb.ConsoleChannel do
     {:shutdown, :closed}
   end
 
+  def handle_in("reconnect", _payload, socket) do
+    {:stop, :shutdown, socket}
+  end
+
   def handle_in("init_attempt", %{"success" => success?} = payload, socket) do
     unless success? do
       socket.endpoint.broadcast_from(self(), console_topic(socket), "init_failure", payload)
