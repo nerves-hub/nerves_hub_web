@@ -1,12 +1,16 @@
 defmodule NervesHubWeb.API.DeviceController do
   use NervesHubWeb, :api_controller
 
-  alias NervesHub.{Devices, Devices.DeviceCertificate}
+  alias NervesHub.AuditLogs
+  alias NervesHub.Devices
+  alias NervesHub.Devices.DeviceCertificate
+  alias NervesHubWeb.Endpoint
 
   action_fallback(NervesHubWeb.API.FallbackController)
 
   plug(:validate_role, [product: :delete] when action in [:delete])
   plug(:validate_role, [product: :write] when action in [:create, :update])
+  plug(:validate_role, [product: :write] when action in [:reboot, :reconnect, :code])
   plug(:validate_role, [product: :read] when action in [:index, :show, :auth])
 
   def index(%{assigns: %{org: org, product: product}} = conn, _params) do
@@ -72,5 +76,40 @@ defmodule NervesHubWeb.API.DeviceController do
         conn
         |> send_resp(403, Jason.encode!(%{status: "Unauthorized"}))
     end
+  end
+
+  def reboot(conn, _params) do
+    %{device: device, user: user} = conn.assigns
+
+    AuditLogs.audit!(
+      user,
+      device,
+      :update,
+      "user #{user.username} rebooted device #{device.identifier}",
+      %{reboot: true}
+    )
+
+    Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
+
+    send_resp(conn, 200, "Success")
+  end
+
+  def reconnect(conn, _params) do
+    Endpoint.broadcast_from(self(), "device:#{conn.assigns.device.id}", "reconnect", %{})
+    send_resp(conn, 200, "Success")
+  end
+
+  def code(conn, %{"body" => body}) do
+    device = conn.assigns.device
+
+    body
+    |> String.graphemes()
+    |> Enum.map(fn character ->
+      Endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => character})
+    end)
+
+    Endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => "\r"})
+
+    send_resp(conn, 200, "Success")
   end
 end
