@@ -4,6 +4,8 @@ defmodule NervesHubWeb.API.DeviceView do
   alias NervesHubWeb.API.DeviceView
   alias NervesHubDevice.Presence
 
+  defdelegate console_available(device), to: Presence
+
   defdelegate device_status(device), to: Presence
 
   def render("index.json", %{devices: devices}) do
@@ -20,6 +22,7 @@ defmodule NervesHubWeb.API.DeviceView do
       tags: device.tags,
       version: version(device),
       status: device_status(device),
+      console_available: console_available(device),
       last_communication: last_communication(device),
       description: device.description,
       firmware_metadata: device.firmware_metadata,

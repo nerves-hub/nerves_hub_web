@@ -90,6 +90,9 @@ defmodule NervesHubWeb.APIRouter do
                 get("/", DeviceController, :show)
                 delete("/", DeviceController, :delete)
                 put("/", DeviceController, :update)
+                post("/reboot", DeviceController, :reboot)
+                post("/reconnect", DeviceController, :reconnect)
+                post("/code", DeviceController, :code)
 
                 scope "/certificates" do
                   get("/", DeviceCertificateController, :index)

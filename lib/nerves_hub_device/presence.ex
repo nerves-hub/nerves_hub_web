@@ -206,6 +206,20 @@ defmodule NervesHubDevice.Presence do
   end
 
   @doc """
+  Devices console status
+  """
+  @spec console_available(Device.t()) :: status()
+  def console_available(%Device{} = device) do
+    case find(device) do
+      nil ->
+        false
+
+      metadata ->
+        metadata.console_available
+    end
+  end
+
+  @doc """
   Await for the device to be registered
 
   This returns the pid after it's registered
