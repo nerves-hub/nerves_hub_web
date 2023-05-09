@@ -379,10 +379,17 @@ defmodule NervesHubWeb.WebsocketTest do
 
       new_firmware = Fixtures.firmware_fixture(org_key, firmware.product, %{version: "0.0.2"})
 
-      {:ok, _deployment} =
+      {:ok, deployment} =
         Deployments.update_deployment(deployment, %{
           firmware_id: new_firmware.id
         })
+
+      # This is what the orchestrator process will do
+      device_pids = Presence.local_deployment_device_pids(deployment)
+
+      Enum.each(device_pids, fn pid ->
+        send(pid, "deployments/update")
+      end)
 
       message = SocketClient.wait_update(socket)
 

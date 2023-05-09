@@ -34,7 +34,9 @@ defmodule NervesHubDevice.Presence do
   @type presence_list :: %{optional(device_id_string) => device_presence}
 
   @allowed_fields [
+    :node,
     :product_id,
+    :deployment_id,
     :connected_at,
     :console_available,
     :console_version,
@@ -62,6 +64,9 @@ defmodule NervesHubDevice.Presence do
   end
 
   def track(%Device{} = device, metadata, times) do
+    # insert the local node to make sure we can filter down later
+    metadata = Map.put(metadata, :node, node())
+
     # Attempt to register the device and if it fails
     # terminate the other process since the new one
     # should be the winner. Then continue registration
@@ -145,6 +150,12 @@ defmodule NervesHubDevice.Presence do
       [] ->
         default_metadata
     end
+  end
+
+  def local_deployment_device_pids(deployment) do
+    :gproc.select({:global, :names}, [
+      {{{:_, :_, :_}, :_, %{node: node(), deployment_id: deployment.id}}, [], [{:element, 2, :"$_"}]}
+    ])
   end
 
   defp metadata(metadata) do

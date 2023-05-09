@@ -49,6 +49,7 @@ defmodule NervesHubWeb.DeviceChannel do
           assign(socket, :deployment_channel, "deployment:none")
         end
 
+      # Let the orchestrator handle this going forward
       join_reply =
         device
         |> Devices.resolve_update()
@@ -134,6 +135,7 @@ defmodule NervesHubWeb.DeviceChannel do
       device,
       %{
         product_id: device.product_id,
+        deployment_id: device.deployment_id,
         connected_at: System.system_time(:second),
         last_communication: device.last_communication,
         update_available: update_available,
@@ -204,6 +206,10 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info(%Broadcast{event: "deployments/update"}, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_info("deployments/update", socket) do
     device = Repo.preload(socket.assigns.device, [deployment: [:firmware]], force: true)
 
     payload = Devices.resolve_update(device)
