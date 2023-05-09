@@ -167,7 +167,8 @@ defmodule NervesHubWeb.DeploymentController do
       :firmware_id,
       :name,
       :is_active,
-      :penalty_timeout_minutes
+      :penalty_timeout_minutes,
+      :connecting_code
     ]
 
     params =
