@@ -132,8 +132,8 @@ defmodule NervesHubWeb.DeviceLive.Show do
     end
   end
 
-  def handle_event("reconnect", _value, %{assigns: %{device: device, user: user}} = socket) do
-    socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "reconnect", %{})
+  def handle_event("reconnect", _value, %{assigns: %{device: device}} = socket) do
+    socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reconnect", %{})
     {:noreply, socket}
   end
 
