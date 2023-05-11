@@ -23,7 +23,8 @@ defmodule NervesHub.Devices.Device do
     :update_attempts,
     :updates_blocked_until,
     :connection_types,
-    :connecting_code
+    :connecting_code,
+    :deployment_id
   ]
   @required_params [:org_id, :product_id, :identifier]
 

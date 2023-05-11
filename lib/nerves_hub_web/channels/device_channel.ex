@@ -189,7 +189,7 @@ defmodule NervesHubWeb.DeviceChannel do
       socket.assigns.device
       |> Repo.reload()
       |> Deployments.set_deployment()
-      |> Repo.preload(deployment: [:firmware])
+      |> Repo.preload([deployment: [:firmware]], force: true)
 
     socket =
       if device.deployment_id do
@@ -261,10 +261,20 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  # TODO this is wrong
   def handle_info(%Broadcast{event: "moved"}, socket) do
     device = Repo.reload(socket.assigns.device)
-    Presence.update(device, %{product_id: device.product_id})
+
+    Registry.update_value(NervesHub.Devices, device.id, fn _ ->
+      %{deployment_id: device.deployment_id}
+    end)
+
+    Presence.update(device, %{
+      product_id: device.product_id,
+      deployment_id: device.deployment_id
+    })
+
+    # The old deployment is no longer valid, so let's look one up again
+    send(self(), :resolve_changed_deployment)
 
     {:noreply, assign(socket, device: device)}
   end
