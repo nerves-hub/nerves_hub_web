@@ -13,12 +13,19 @@ defmodule NervesHubWeb.API.DeviceController do
   plug(:validate_role, [product: :write] when action in [:reboot, :reconnect, :code])
   plug(:validate_role, [product: :read] when action in [:index, :show, :auth])
 
-  def index(%{assigns: %{org: org, product: product}} = conn, _params) do
+  def index(%{assigns: %{org: org, product: product}} = conn, params) do
+    opts = %{
+      pagination: Map.get(params, "pagination", %{}),
+      filters: Map.get(params, "filters", %{})
+    }
+
+    page = Devices.get_devices_by_org_id_and_product_id(org.id, product.id, opts)
+    pagination = Map.take(page, [:page_number, :page_size, :total_entries, :total_pages])
+
     conn
-    |> render(
-      "index.json",
-      devices: Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
-    )
+    |> assign(:devices, page.entries)
+    |> assign(:pagination, pagination)
+    |> render("index.json")
   end
 
   def create(%{assigns: %{org: org, product: product}} = conn, params) do

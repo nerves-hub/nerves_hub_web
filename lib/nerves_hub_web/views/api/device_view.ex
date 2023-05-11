@@ -8,8 +8,11 @@ defmodule NervesHubWeb.API.DeviceView do
 
   defdelegate device_status(device), to: Presence
 
-  def render("index.json", %{devices: devices}) do
-    %{data: render_many(devices, DeviceView, "device.json")}
+  def render("index.json", %{devices: devices, pagination: pagination}) do
+    %{
+      data: render_many(devices, DeviceView, "device.json"),
+      pagination: pagination
+    }
   end
 
   def render("show.json", %{device: device}) do
