@@ -385,7 +385,10 @@ defmodule NervesHubWeb.WebsocketTest do
         })
 
       # This is what the orchestrator process will do
-      device_pids = Presence.local_deployment_device_pids(deployment)
+      device_pids =
+        Registry.select(NervesHub.Devices, [
+          {{:_, :_, %{deployment_id: deployment.id}}, [], [{:element, 1, {:element, 2, :"$_"}}]}
+        ])
 
       Enum.each(device_pids, fn pid ->
         send(pid, "deployments/update")

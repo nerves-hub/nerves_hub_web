@@ -11,7 +11,6 @@ defmodule NervesHub.Deployments.Orchestrator do
   use GenServer
 
   alias NervesHub.Repo
-  alias NervesHubDevice.Presence
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
@@ -36,7 +35,10 @@ defmodule NervesHub.Deployments.Orchestrator do
   end
 
   def handle_info(%Broadcast{event: "deployments/update"}, deployment) do
-    device_pids = Presence.local_deployment_device_pids(deployment)
+    device_pids =
+      Registry.select(NervesHub.Devices, [
+        {{:_, :_, %{deployment_id: deployment.id}}, [], [{:element, 1, {:element, 2, :"$_"}}]}
+      ])
 
     Enum.each(device_pids, fn pid ->
       send(pid, "deployments/update")

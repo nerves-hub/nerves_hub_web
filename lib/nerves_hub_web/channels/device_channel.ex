@@ -131,17 +131,20 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:after_join, device, update_available}, socket) do
-    Presence.track(
-      device,
-      %{
-        product_id: device.product_id,
-        deployment_id: device.deployment_id,
-        connected_at: System.system_time(:second),
-        last_communication: device.last_communication,
-        update_available: update_available,
-        firmware_metadata: device.firmware_metadata
-      }
-    )
+    # local node tracking
+    Registry.register(NervesHub.Devices, device.id, %{
+      deployment_id: device.deployment_id
+    })
+
+    # Cluster tracking
+    Presence.track(device, %{
+      product_id: device.product_id,
+      deployment_id: device.deployment_id,
+      connected_at: System.system_time(:second),
+      last_communication: device.last_communication,
+      update_available: update_available,
+      firmware_metadata: device.firmware_metadata
+    })
 
     {:noreply, socket}
   end
@@ -153,6 +156,10 @@ defmodule NervesHubWeb.DeviceChannel do
         socket
       ) do
     device = socket.assigns.device
+
+    Presence.update(device, %{
+      deployment_id: nil
+    })
 
     if device_matches_deployment_payload?(device, payload) do
       {:noreply, assign_deployment(socket, device, payload)}
@@ -203,6 +210,14 @@ defmodule NervesHubWeb.DeviceChannel do
         assign(socket, :deployment_channel, "deployment:none")
       end
 
+    Registry.update_value(NervesHub.Devices, device.id, fn _ ->
+      %{deployment_id: device.deployment_id}
+    end)
+
+    Presence.update(device, %{
+      deployment_id: device.deployment_id
+    })
+
     {:noreply, assign(socket, :device, device)}
   end
 
@@ -246,6 +261,7 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  # TODO this is wrong
   def handle_info(%Broadcast{event: "moved"}, socket) do
     device = Repo.reload(socket.assigns.device)
     Presence.update(device, %{product_id: device.product_id})
@@ -309,6 +325,7 @@ defmodule NervesHubWeb.DeviceChannel do
         status: device.status
       })
 
+      Registry.unregister(NervesHub.Devices, device.id)
       Presence.untrack(device)
     end
 
@@ -388,6 +405,14 @@ defmodule NervesHubWeb.DeviceChannel do
 
     socket.endpoint.unsubscribe(socket.assigns.deployment_channel)
     socket.endpoint.subscribe("deployment:#{device.deployment_id}")
+
+    Registry.update_value(NervesHub.Devices, device.id, fn _ ->
+      %{deployment_id: device.deployment_id}
+    end)
+
+    Presence.update(device, %{
+      deployment_id: device.deployment_id
+    })
 
     socket
     |> assign(:device, device)

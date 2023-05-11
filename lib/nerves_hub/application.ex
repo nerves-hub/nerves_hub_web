@@ -17,7 +17,8 @@ defmodule NervesHub.Application do
     children =
       [
         NervesHub.Metrics,
-        NervesHub.Supervisor
+        NervesHub.Supervisor,
+        {Registry, keys: :unique, name: NervesHub.Devices}
       ] ++ endpoints(@env)
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]

@@ -152,13 +152,6 @@ defmodule NervesHubDevice.Presence do
     end
   end
 
-  def local_deployment_device_pids(deployment) do
-    :gproc.select({:global, :names}, [
-      {{{:_, :_, :_}, :_, %{node: node(), deployment_id: deployment.id}}, [],
-       [{:element, 2, :"$_"}]}
-    ])
-  end
-
   defp metadata(metadata) do
     case Map.take(metadata, @allowed_fields) do
       %{status: _status} = e ->
