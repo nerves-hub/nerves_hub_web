@@ -732,14 +732,22 @@ defmodule NervesHub.Devices do
   @spec move(Device.t() | [Device.t()], Product.t(), User.t()) :: Repo.transaction()
   def move(%Device{} = device, product, user) do
     product = Repo.preload(product, :org)
-    attrs = %{org_id: product.org_id, product_id: product.id}
+
+    attrs = %{
+      org_id: product.org_id,
+      product_id: product.id,
+      deployment_id: nil
+    }
 
     _ = maybe_copy_firmware_keys(device, product.org)
 
     description =
       "user #{user.username} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
 
-    source_product = %Product{id: device.product_id, org_id: device.org_id}
+    source_product = %Product{
+      id: device.product_id,
+      org_id: device.org_id
+    }
 
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
