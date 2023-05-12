@@ -62,6 +62,9 @@ defmodule NervesHubWeb.DeviceChannel do
           "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} after channel join"
 
         AuditLogs.audit!(deployment, device, :update, description, %{from: "channel_join"})
+
+        # if there's an update, track it
+        Devices.told_to_update(device, deployment)
       end
 
       socket =
@@ -234,7 +237,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info("deployments/update", socket) do
+  def handle_info({"deployments/update", inflight_update}, socket) do
     device = Repo.preload(socket.assigns.device, [deployment: [:firmware]], force: true)
 
     payload = Devices.resolve_update(device)
@@ -251,6 +254,8 @@ defmodule NervesHubWeb.DeviceChannel do
         # the update message so we can Audit and later assert on this audit event
         # as a loosely valid attempt to update
         AuditLogs.audit!(deployment, device, :update, description, %{from: "broadcast"})
+
+        Devices.update_started!(inflight_update)
 
         push(socket, "update", payload)
 

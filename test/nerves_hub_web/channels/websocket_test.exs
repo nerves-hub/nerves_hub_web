@@ -1,8 +1,13 @@
 defmodule NervesHubWeb.WebsocketTest do
-  use ExUnit.Case
   use NervesHubWeb.ChannelCase
+
   alias NervesHub.Fixtures
-  alias NervesHub.{Accounts, Deployments, Devices, Devices.Device, Repo}
+  alias NervesHub.Accounts
+  alias NervesHub.Deployments
+  alias NervesHub.Deployments.Orchestrator
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Device
+  alias NervesHub.Repo
   alias NervesHubDevice.Presence
   alias NervesHubWeb.DeviceEndpoint
 
@@ -385,14 +390,7 @@ defmodule NervesHubWeb.WebsocketTest do
         })
 
       # This is what the orchestrator process will do
-      device_pids =
-        Registry.select(NervesHub.Devices, [
-          {{:_, :_, %{deployment_id: deployment.id}}, [], [{:element, 1, {:element, 2, :"$_"}}]}
-        ])
-
-      Enum.each(device_pids, fn pid ->
-        send(pid, "deployments/update")
-      end)
+      Orchestrator.send_update(deployment)
 
       message = SocketClient.wait_update(socket)
 

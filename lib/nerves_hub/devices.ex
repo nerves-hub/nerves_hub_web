@@ -13,6 +13,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
@@ -705,6 +706,17 @@ defmodule NervesHub.Devices do
 
     AuditLogs.audit!(device, device, :update, description, %{})
 
+    # Clear the inflight update, no longer inflight!
+    inflight_update =
+      Repo.get_by(InflightUpdate,
+        device_id: device.id,
+        firmware_uuid: device.firmware_metadata.uuid
+      )
+
+    if inflight_update != nil do
+      Repo.delete(inflight_update)
+    end
+
     device
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_change(:update_attempts, [])
@@ -945,6 +957,36 @@ defmodule NervesHub.Devices do
     |> select([d], fragment("?->>'platform'", d.firmware_metadata))
     |> distinct(true)
     |> where([d], d.product_id == ^product_id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Deployment orchestrator told a device to update
+  """
+  def told_to_update(device, deployment) do
+    %InflightUpdate{}
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.put_change(:device_id, device.id)
+    |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+    |> Ecto.Changeset.put_change(:firmware_id, deployment.firmware_id)
+    |> Ecto.Changeset.put_change(:firmware_uuid, deployment.firmware.uuid)
+    |> Ecto.Changeset.unique_constraint(:deployment_id,
+      name: :inflight_updates_device_id_deployment_id_index
+    )
+    |> Repo.insert()
+  end
+
+  def update_started!(inflight_update) do
+    inflight_update
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.put_change(:status, "updating")
+    |> Repo.update!()
+  end
+
+  def inflight_updates_for(%Deployment{} = deployment) do
+    InflightUpdate
+    |> where([iu], iu.deployment_id == ^deployment.id)
+    |> preload([:device])
     |> Repo.all()
   end
 end

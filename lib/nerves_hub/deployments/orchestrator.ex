@@ -10,6 +10,10 @@ defmodule NervesHub.Deployments.Orchestrator do
 
   use GenServer
 
+  require Logger
+
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Device
   alias NervesHub.Repo
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
@@ -24,6 +28,30 @@ defmodule NervesHub.Deployments.Orchestrator do
 
   def name(deployment), do: name(deployment.id)
 
+  @doc """
+  Send updates to connected devices for this deployment
+  """
+  def send_update(deployment) do
+    match_return = %{device_id: {:element, 1, :"$_"}, pid: {:element, 1, {:element, 2, :"$_"}}}
+
+    devices =
+      Registry.select(NervesHub.Devices, [
+        {{:_, :_, %{deployment_id: deployment.id}}, [], [match_return]}
+      ])
+
+    Enum.each(devices, fn %{device_id: device_id, pid: pid} ->
+      device = %Device{id: device_id}
+
+      case Devices.told_to_update(device, deployment) do
+        {:ok, inflight_update} ->
+          send(pid, {"deployments/update", inflight_update})
+
+        {:error, _changeset} ->
+          Logger.error("Could not update device #{device_id}")
+      end
+    end)
+  end
+
   def init(deployment) do
     {:ok, deployment, {:continue, :boot}}
   end
@@ -35,16 +63,14 @@ defmodule NervesHub.Deployments.Orchestrator do
   end
 
   def handle_info(%Broadcast{event: "deployments/update"}, deployment) do
-    device_pids =
-      Registry.select(NervesHub.Devices, [
-        {{:_, :_, %{deployment_id: deployment.id}}, [], [{:element, 1, {:element, 2, :"$_"}}]}
-      ])
+    deployment =
+      deployment
+      |> Repo.reload()
+      |> Repo.preload([:firmware])
 
-    Enum.each(device_pids, fn pid ->
-      send(pid, "deployments/update")
-    end)
+    send_update(deployment)
 
-    {:noreply, Repo.reload(deployment)}
+    {:noreply, deployment}
   end
 
   # Catch all for unknown broadcasts on a deployment
