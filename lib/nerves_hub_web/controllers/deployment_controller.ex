@@ -5,6 +5,7 @@ defmodule NervesHubWeb.DeploymentController do
   alias NervesHub.Firmwares
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Devices
   alias Ecto.Changeset
 
   plug(:validate_role, [product: :delete] when action in [:delete])
@@ -131,8 +132,11 @@ defmodule NervesHubWeb.DeploymentController do
       |> Map.put(:links, true)
       |> Map.put(:anchor, "latest-activity")
 
+    inflight_updates = Devices.inflight_updates_for(deployment)
+
     conn
     |> assign(:audit_logs, logs)
+    |> assign(:inflight_updates, inflight_updates)
     |> assign(:firmware, deployment.firmware)
     |> render("show.html")
   end

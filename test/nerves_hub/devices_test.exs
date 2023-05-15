@@ -564,6 +564,16 @@ defmodule NervesHub.DevicesTest do
       assert Enum.count(device.update_attempts) == 0
     end
 
+    test "clears an inflight update if it matches", %{device: device, deployment: deployment} do
+      deployment = Repo.preload(deployment, [:firmware])
+      {:ok, inflight_update} = Devices.told_to_update(device, deployment)
+
+      {:ok, _device} = Devices.firmware_update_successful(device)
+
+      inflight_update = Repo.reload(inflight_update)
+      assert is_nil(inflight_update)
+    end
+
     test "device updates successfully", %{device: device, deployment: deployment} do
       deployment = Repo.preload(deployment, [:firmware])
 

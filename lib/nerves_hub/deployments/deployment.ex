@@ -5,6 +5,7 @@ defmodule NervesHub.Deployments.Deployment do
   import Ecto.Query
 
   alias NervesHub.Accounts.Org
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -29,6 +30,8 @@ defmodule NervesHub.Deployments.Deployment do
     belongs_to(:firmware, Firmware)
     belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:org, Org, where: [deleted_at: nil])
+
+    has_many(:inflight_updates, InflightUpdate)
 
     field(:conditions, :map)
     field(:device_failure_threshold, :integer, default: 3)
