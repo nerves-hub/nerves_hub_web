@@ -390,7 +390,7 @@ defmodule NervesHubWeb.WebsocketTest do
         })
 
       # This is what the orchestrator process will do
-      Orchestrator.send_update(deployment)
+      Orchestrator.trigger_update(deployment)
 
       message = SocketClient.wait_update(socket)
 

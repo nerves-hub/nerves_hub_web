@@ -10,6 +10,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Certificate
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -714,6 +715,7 @@ defmodule NervesHub.Devices do
       )
 
     if inflight_update != nil do
+      Orchestrator.device_updated(inflight_update.deployment_id)
       Repo.delete(inflight_update)
     end
 
@@ -988,5 +990,12 @@ defmodule NervesHub.Devices do
     |> where([iu], iu.deployment_id == ^deployment.id)
     |> preload([:device])
     |> Repo.all()
+  end
+
+  def count_inflight_updates_for(%Deployment{} = deployment) do
+    InflightUpdate
+    |> select([iu], count(iu))
+    |> where([iu], iu.deployment_id == ^deployment.id)
+    |> Repo.one()
   end
 end

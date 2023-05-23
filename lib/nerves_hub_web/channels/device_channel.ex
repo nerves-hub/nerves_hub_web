@@ -101,6 +101,10 @@ defmodule NervesHubWeb.DeviceChannel do
 
         {:ok, device} = Devices.update_attempted(device)
 
+        Registry.update_value(NervesHub.Devices, device.id, fn value ->
+          Map.put(value, :updating, true)
+        end)
+
         socket
         |> assign(:device, device)
         |> assign(:update_started?, true)
@@ -136,7 +140,9 @@ defmodule NervesHubWeb.DeviceChannel do
   def handle_info({:after_join, device, update_available}, socket) do
     # local node tracking
     Registry.register(NervesHub.Devices, device.id, %{
-      deployment_id: device.deployment_id
+      deployment_id: device.deployment_id,
+      firmware_uuid: device.firmware_metadata.uuid,
+      updating: false
     })
 
     # Cluster tracking
@@ -213,8 +219,8 @@ defmodule NervesHubWeb.DeviceChannel do
         assign(socket, :deployment_channel, "deployment:none")
       end
 
-    Registry.update_value(NervesHub.Devices, device.id, fn _ ->
-      %{deployment_id: device.deployment_id}
+    Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Map.put(value, :deployment_id, device.deployment_id)
     end)
 
     Presence.update(device, %{
@@ -269,8 +275,8 @@ defmodule NervesHubWeb.DeviceChannel do
   def handle_info(%Broadcast{event: "moved"}, socket) do
     device = Repo.reload(socket.assigns.device)
 
-    Registry.update_value(NervesHub.Devices, device.id, fn _ ->
-      %{deployment_id: device.deployment_id}
+    Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Map.put(value, :deployment_id, device.deployment_id)
     end)
 
     Presence.update(device, %{
@@ -421,8 +427,8 @@ defmodule NervesHubWeb.DeviceChannel do
     socket.endpoint.unsubscribe(socket.assigns.deployment_channel)
     socket.endpoint.subscribe("deployment:#{device.deployment_id}")
 
-    Registry.update_value(NervesHub.Devices, device.id, fn _ ->
-      %{deployment_id: device.deployment_id}
+    Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Map.put(value, :deployment_id, device.deployment_id)
     end)
 
     Presence.update(device, %{
