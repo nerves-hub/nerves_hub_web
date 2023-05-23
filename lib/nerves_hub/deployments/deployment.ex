@@ -13,7 +13,17 @@ defmodule NervesHub.Deployments.Deployment do
   alias __MODULE__
 
   @type t :: %__MODULE__{}
-  @required_fields [:org_id, :firmware_id, :name, :conditions, :is_active, :product_id]
+
+  @required_fields [
+    :org_id,
+    :firmware_id,
+    :name,
+    :conditions,
+    :is_active,
+    :product_id,
+    :concurrent_updates
+  ]
+
   @optional_fields [
     :device_failure_threshold,
     :device_failure_rate_seconds,
@@ -45,6 +55,7 @@ defmodule NervesHub.Deployments.Deployment do
     field(:healthy, :boolean, default: true)
     field(:penalty_timeout_minutes, :integer, default: 1440)
     field(:connecting_code, :string)
+    field(:concurrent_updates, :integer, default: 10)
 
     timestamps()
   end
@@ -91,11 +102,8 @@ defmodule NervesHub.Deployments.Deployment do
   end
 
   def changeset(%Deployment{} = deployment, params) do
-    # set product_id by getting it from firmware
-    with_product_id = handle_product_id(deployment, params)
-
     deployment
-    |> cast(with_product_id, @required_fields ++ @optional_fields)
+    |> cast(params, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> validate_conditions()
