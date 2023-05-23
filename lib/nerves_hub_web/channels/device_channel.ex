@@ -138,6 +138,9 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:after_join, device, update_available}, socket) do
+    # clear out any inflight updates, there shouldn't be one at this point
+    Devices.clear_inflight_update(device)
+
     # local node tracking
     Registry.register(NervesHub.Devices, device.id, %{
       deployment_id: device.deployment_id,
