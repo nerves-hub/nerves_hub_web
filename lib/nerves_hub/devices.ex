@@ -966,16 +966,31 @@ defmodule NervesHub.Devices do
   Deployment orchestrator told a device to update
   """
   def told_to_update(device, deployment) do
-    %InflightUpdate{}
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_change(:device_id, device.id)
-    |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
-    |> Ecto.Changeset.put_change(:firmware_id, deployment.firmware_id)
-    |> Ecto.Changeset.put_change(:firmware_uuid, deployment.firmware.uuid)
-    |> Ecto.Changeset.unique_constraint(:deployment_id,
-      name: :inflight_updates_device_id_deployment_id_index
-    )
-    |> Repo.insert()
+    changeset =
+      %InflightUpdate{}
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:device_id, device.id)
+      |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+      |> Ecto.Changeset.put_change(:firmware_id, deployment.firmware_id)
+      |> Ecto.Changeset.put_change(:firmware_uuid, deployment.firmware.uuid)
+      |> Ecto.Changeset.unique_constraint(:deployment_id,
+        name: :inflight_updates_device_id_deployment_id_index
+      )
+
+    case Repo.insert(changeset) do
+      {:ok, inflight_update} ->
+        {:ok, inflight_update}
+
+      {:error, _changeset} ->
+        # Device already has an inflight udpate, fetch it
+        case Repo.get_by(InflightUpdate, device_id: device.id, deployment_id: deployment.id) do
+          nil ->
+            :error
+
+          inflight_update ->
+            {:ok, inflight_update}
+        end
+    end
   end
 
   def update_started!(inflight_update) do
