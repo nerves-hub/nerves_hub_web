@@ -67,6 +67,8 @@ defmodule NervesHub.Deployments.Orchestrator do
 
     # Get a rough count of devices to update
     count = deployment.concurrent_updates - Devices.count_inflight_updates_for(deployment)
+    # Just in case inflight goes higher than concurrent, limit it to 0
+    count = Enum.max([count, 0])
 
     devices
     |> Enum.take(count)
