@@ -60,25 +60,29 @@ defmodule NervesHub.Deployments.Orchestrator do
         {{:_, :_, %{deployment_id: deployment.id, updating: false}}, [], [match_return]}
       ])
 
-    device =
-      Enum.find(devices, fn device ->
-        device.firmware_uuid != deployment.firmware.uuid
-      end)
+    if Devices.count_inflight_updates_for(deployment) < deployment.concurrent_updates do
+      device =
+        Enum.find(devices, fn device ->
+          device.firmware_uuid != deployment.firmware.uuid
+        end)
 
-    if device && Devices.count_inflight_updates_for(deployment) < deployment.concurrent_updates do
-      %{device_id: device_id, pid: pid} = device
+      if device do
+        %{device_id: device_id, pid: pid} = device
 
-      device = %Device{id: device_id}
+        device = %Device{id: device_id}
 
-      case Devices.told_to_update(device, deployment) do
-        {:ok, inflight_update} ->
-          send(pid, {"deployments/update", inflight_update})
+        case Devices.told_to_update(device, deployment) do
+          {:ok, inflight_update} ->
+            send(pid, {"deployments/update", inflight_update})
 
-        {:error, _changeset} ->
-          Logger.error("Could not update device #{device_id}")
+          :error ->
+            Logger.error(
+              "An inflight update could not be created or found for the device #{device.identifier} (#{device.id})"
+            )
+        end
+
+        send(self(), :trigger)
       end
-
-      send(self(), :trigger)
     end
   end
 
