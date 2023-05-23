@@ -59,8 +59,16 @@
           <div class="help-text mb-1">Version requirement</div>
           <p><%= version(@deployment) %></p>
         </div>
+        <div class="mb-1">
+          <div class="help-text mb-1 tooltip-label">
+            <span>Concurrent Device Updates</span>
+            <span class="tooltip-info"></span>
+            <span class="tooltip-text">The number of devices that will update at any given time. This is a soft limit and concurrent updates may be slightly above this number.</span>
+          </div>
+          <p><%= @deployment.concurrent_updates %></p>
+        </div>
         <div class="row">
-          <div class="col-lg-6">
+          <div class="col-lg-6 mb-1">
             <div>
               <div class="help-text mb-1 tooltip-label help-tooltip">
                 <span>Failure Rate</span>
@@ -70,7 +78,7 @@
               <p><%= @deployment.failure_rate_amount %> devices per <%= @deployment.failure_rate_seconds %> seconds</p>
             </div>
           </div>
-          <div class="col-lg-6">
+          <div class="col-lg-6 mb-1">
             <div>
               <div class="help-text mb-1 tooltip-label help-tooltip">
                 <span>Failure Threshold</span>
@@ -82,7 +90,7 @@
           </div>
         </div>
         <div class="row">
-          <div class="col-lg-6">
+          <div class="col-lg-6 mb-1">
             <div>
               <div class="help-text mb-1 tooltip-label help-tooltip">
                 <span>Device Failure Rate</span>
@@ -92,7 +100,7 @@
               <p><%= @deployment.device_failure_rate_amount %> failures per <%= @deployment.device_failure_rate_seconds %> seconds</p>
             </div>
           </div>
-          <div class="col-lg-6">
+          <div class="col-lg-6 mb-1">
             <div>
               <div class="help-text mb-1 tooltip-label help-tooltip">
                 <span>Device Failure Threshold</span>
@@ -104,7 +112,7 @@
           </div>
         </div>
         <div class="row">
-          <div class="col-lg-6">
+          <div class="col-lg-6 mb-1">
             <div>
               <div class="help-text mb-1 tooltip-label help-tooltip">
                 <span>Device Penalty Box Timeout</span>
@@ -114,6 +122,14 @@
               <p><%= @deployment.penalty_timeout_minutes %> minutes</p>
             </div>
           </div>
+        </div>
+        <div>
+          <div class="help-text mb-1">Code sent on Device Connect</div>
+          <%= if @deployment.connecting_code do %>
+            <pre><code><%= @deployment.connecting_code %></code></pre>
+          <% else %>
+            <p>-</p>
+          <% end %>
         </div>
       </div>
     </div>

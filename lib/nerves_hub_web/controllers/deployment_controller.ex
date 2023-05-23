@@ -156,29 +156,10 @@ defmodule NervesHubWeb.DeploymentController do
     )
   end
 
-  def update(
-        %{assigns: %{org: org, product: product, user: user, deployment: deployment}} = conn,
-        %{"deployment" => deployment_params}
-      ) do
-    allowed_fields = [
-      :conditions,
-      :device_failure_rate_amount,
-      :device_failure_rate_seconds,
-      :device_failure_threshold,
-      :failure_rate_amount,
-      :failure_rate_seconds,
-      :failure_threshold,
-      :firmware_id,
-      :name,
-      :is_active,
-      :penalty_timeout_minutes,
-      :connecting_code
-    ]
+  def update(conn, %{"deployment" => params}) do
+    %{org: org, product: product, user: user, deployment: deployment} = conn.assigns
 
-    params =
-      deployment_params
-      |> inject_conditions_map()
-      |> whitelist(allowed_fields)
+    params = inject_conditions_map(params)
 
     case Deployments.update_deployment(deployment, params) do
       {:ok, updated} ->
@@ -206,14 +187,12 @@ defmodule NervesHubWeb.DeploymentController do
         )
 
       {:error, changeset} ->
-        render(
-          conn,
-          "edit.html",
-          deployment: deployment,
-          firmware: deployment.firmware,
-          firmwares: Firmwares.get_firmwares_by_product(product.id),
-          changeset: changeset |> tags_to_string()
-        )
+        conn
+        |> assign(:deployment, deployment)
+        |> assign(:firmware, deployment.firmware)
+        |> assign(:firmwares, Firmwares.get_firmwares_by_product(product.id))
+        |> assign(:changeset, tags_to_string(changeset))
+        |> render("edit.html")
     end
   end
 

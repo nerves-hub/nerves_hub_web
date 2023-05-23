@@ -88,6 +88,18 @@
     <div class="has-error"><%= error_tag f, :version %></div>
   </div>
 
+  <h3 class="mb-2">Rolling Updates</h3>
+
+  <div class="form-group">
+    <label for="version_requirement" class="tooltip-label">
+      <span>Concurrent Device Updates</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">The number of devices that will update at any given time. This is a soft limit and concurrent updates may be slightly above this number.</span>
+    </label>
+    <%= number_input f, :concurrent_updates, class: "form-control", id: "concurrent_updates" %>
+    <div class="has-error"><%= error_tag f, :version %></div>
+  </div>
+
   <!-- Advanced Options -->
   <button class="btn btn-outline-light mb-4" type="button" data-toggle="collapse" data-target="#advancedOptionsToggle" aria-expanded="false" aria-controls="advancedOptionsToggle">
     Show Advanced Options
