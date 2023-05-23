@@ -993,6 +993,12 @@ defmodule NervesHub.Devices do
     end
   end
 
+  def clear_inflight_update(device) do
+    InflightUpdate
+    |> where([iu], iu.device_id == ^device.id)
+    |> Repo.delete_all()
+  end
+
   def update_started!(inflight_update) do
     inflight_update
     |> Ecto.Changeset.change()
