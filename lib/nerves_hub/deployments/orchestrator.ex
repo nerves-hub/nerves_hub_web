@@ -75,13 +75,15 @@ defmodule NervesHub.Deployments.Orchestrator do
           {:ok, inflight_update} ->
             send(pid, {"deployments/update", inflight_update})
 
+            # Only continue to loop if we were able to update otherwise
+            # this will continue to trigger the same device over and over
+            send(self(), :trigger)
+
           :error ->
             Logger.error(
               "An inflight update could not be created or found for the device #{device.identifier} (#{device.id})"
             )
         end
-
-        send(self(), :trigger)
       end
     end
   end
