@@ -60,24 +60,24 @@ defmodule NervesHub.Deployments.Orchestrator do
         {{:_, :_, %{deployment_id: deployment.id, updating: false}}, [], [match_return]}
       ])
 
-    if Devices.count_inflight_updates_for(deployment) < deployment.concurrent_updates do
-      device =
-        Enum.find(devices, fn device ->
-          device.firmware_uuid != deployment.firmware.uuid
-        end)
+    devices =
+      Enum.filter(devices, fn device ->
+        device.firmware_uuid != deployment.firmware.uuid
+      end)
 
-      if device do
-        %{device_id: device_id, pid: pid} = device
+    # Get a rough count of devices to update
+    count = deployment.concurrent_updates - Devices.count_inflight_updates_for(deployment)
 
-        device = %Device{id: device_id}
+    devices
+    |> Enum.take(count)
+    |> Enum.each(fn %{device_id: device_id, pid: pid} ->
+      device = %Device{id: device_id}
 
+      # Check again because other nodes are processing at the same time
+      if Devices.count_inflight_updates_for(deployment) < deployment.concurrent_updates do
         case Devices.told_to_update(device, deployment) do
           {:ok, inflight_update} ->
             send(pid, {"deployments/update", inflight_update})
-
-            # Only continue to loop if we were able to update otherwise
-            # this will continue to trigger the same device over and over
-            send(self(), :trigger)
 
           :error ->
             Logger.error(
@@ -85,7 +85,10 @@ defmodule NervesHub.Deployments.Orchestrator do
             )
         end
       end
-    end
+
+      # Slow the update a bit to allow for concurrent nodes
+      Process.sleep(500)
+    end)
   end
 
   def init(deployment) do
