@@ -33,7 +33,9 @@ defmodule NervesHub.Deployments.Deployment do
     :failure_rate_amount,
     :healthy,
     :penalty_timeout_minutes,
-    :connecting_code
+    :connecting_code,
+    :total_updating_devices,
+    :current_updated_devices
   ]
 
   schema "deployments" do
@@ -56,6 +58,8 @@ defmodule NervesHub.Deployments.Deployment do
     field(:penalty_timeout_minutes, :integer, default: 1440)
     field(:connecting_code, :string)
     field(:concurrent_updates, :integer, default: 10)
+    field(:total_updating_devices, :integer, default: 0)
+    field(:current_updated_devices, :integer, default: 0)
 
     timestamps()
   end
@@ -106,6 +110,13 @@ defmodule NervesHub.Deployments.Deployment do
     |> cast(params, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
+    |> prepare_changes(fn changeset ->
+      if changeset.changes[:firmware_id] do
+        put_change(changeset, :current_updated_devices, 0)
+      else
+        changeset
+      end
+    end)
     |> validate_conditions()
   end
 

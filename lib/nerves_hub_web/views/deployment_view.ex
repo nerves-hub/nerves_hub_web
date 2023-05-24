@@ -79,4 +79,10 @@ defmodule NervesHubWeb.DeploymentView do
   def opposite_status(%Deployment{is_active: false}), do: "On"
 
   def tags(%Deployment{conditions: %{"tags" => tags}}), do: tags
+
+  def deployment_percentage(%{total_updating_devices: 0}), do: 100
+
+  def deployment_percentage(deployment) do
+    floor(deployment.current_updated_devices / deployment.total_updating_devices * 100)
+  end
 end

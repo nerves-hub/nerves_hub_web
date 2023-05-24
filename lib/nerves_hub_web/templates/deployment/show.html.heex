@@ -139,6 +139,13 @@
 <div>
   <h3 id="inflight-updates" class="mb-2">Inflight Updates</h3>
 
+  <div class="help-text mt-3">Progress</div>
+  <div class="progress device-show mb-3">
+    <div class="progress-bar" role="progressbar" style={"width: #{deployment_percentage(@deployment)}%"}>
+      <%= deployment_percentage(@deployment) %>%
+    </div>
+  </div>
+
   <div class="display-box">
     <%= if Enum.empty?(@inflight_updates) do %>
       No inflight updates

@@ -110,10 +110,17 @@ defmodule NervesHub.Deployments do
   """
   @spec update_deployment(Deployment.t(), map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def update_deployment(deployment, params) do
+    device_count =
+      Device
+      |> select([d], count(d))
+      |> where([d], d.deployment_id == ^deployment.id)
+      |> Repo.one()
+
     changeset =
       deployment
       |> Deployment.with_firmware()
       |> Deployment.changeset(params)
+      |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
 
     case Repo.update(changeset) do
       {:ok, deployment} ->

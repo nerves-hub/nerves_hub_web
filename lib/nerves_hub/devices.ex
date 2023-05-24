@@ -716,6 +716,11 @@ defmodule NervesHub.Devices do
 
     if inflight_update != nil do
       Orchestrator.device_updated(inflight_update.deployment_id)
+
+      Deployment
+      |> where([d], d.id == ^inflight_update.deployment_id)
+      |> Repo.update_all(inc: [current_updated_devices: 1])
+
       Repo.delete(inflight_update)
     end
 

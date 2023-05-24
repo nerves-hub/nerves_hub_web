@@ -574,6 +574,18 @@ defmodule NervesHub.DevicesTest do
       assert is_nil(inflight_update)
     end
 
+    test "increments the deployment's updated count", %{device: device, deployment: deployment} do
+      deployment = Repo.preload(deployment, [:firmware])
+      assert deployment.current_updated_devices == 0
+
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment)
+
+      {:ok, _device} = Devices.firmware_update_successful(device)
+
+      deployment = Repo.reload(deployment)
+      assert deployment.current_updated_devices == 1
+    end
+
     test "device updates successfully", %{device: device, deployment: deployment} do
       deployment = Repo.preload(deployment, [:firmware])
 
