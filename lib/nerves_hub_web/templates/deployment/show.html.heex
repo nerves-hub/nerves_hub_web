@@ -141,17 +141,19 @@
 
   <div class="help-text mt-3">Progress</div>
   <div class="progress device-show mb-3">
-    <div class="progress-bar" role="progressbar" style={"width: #{deployment_percentage(@deployment)}%"}>
+    <div id="deployment-percentage" class="progress-bar" role="progressbar" style={"width: #{deployment_percentage(@deployment)}%"}>
       <%= deployment_percentage(@deployment) %>%
     </div>
   </div>
 
   <div class="display-box">
-    <%= if Enum.empty?(@inflight_updates) do %>
-      No inflight updates
-    <% end %>
+    <div id="inflight-empty">
+      <%= if Enum.empty?(@inflight_updates) do %>
+        No inflight updates
+      <% end %>
+    </div>
 
-    <div>
+    <div id="inflight-update-badges">
       <%= for inflight_update <- @inflight_updates do %>
         <span class="ff-m badge">
           <%= link(inflight_update.device.identifier, to: Routes.device_path(@conn, :show, @org.name, @product.name, inflight_update.device.identifier)) %>
@@ -166,3 +168,13 @@
 
   <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
 </div>
+
+<script type="application/javascript">
+  document.addEventListener("DOMContentLoaded", function() {
+    // Run every 10s
+    var interval = setInterval(function() {
+      var url = "<%= Routes.deployment_path(@conn, :show, @org.name, @product.name, @deployment.name) %>";
+      deploymentPolling(url);
+    }, 3000);
+  });
+</script>

@@ -5,6 +5,32 @@ defmodule NervesHubWeb.DeploymentView do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Deployments.Deployment
 
+  def render("show.json", %{deployment: deployment} = assigns) do
+    %{inflight_updates: inflight_updates, org: org, product: product} = assigns
+
+    %{
+      total_updating_devices: deployment.total_updating_devices,
+      current_updated_devices: deployment.current_updated_devices,
+      percentage: deployment_percentage(deployment),
+      inflight_updates:
+        Enum.map(inflight_updates, fn inflight_update ->
+          href =
+            Routes.device_path(
+              Endpoint,
+              :show,
+              org.name,
+              product.name,
+              inflight_update.device.identifier
+            )
+
+          %{
+            identifier: inflight_update.device.identifier,
+            href: href
+          }
+        end)
+    }
+  end
+
   def firmware_dropdown_options(firmwares) do
     firmwares
     |> Enum.sort_by(

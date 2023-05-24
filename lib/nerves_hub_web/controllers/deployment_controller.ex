@@ -138,7 +138,7 @@ defmodule NervesHubWeb.DeploymentController do
     |> assign(:audit_logs, logs)
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:firmware, deployment.firmware)
-    |> render("show.html")
+    |> render(:show)
   end
 
   def edit(%{assigns: %{deployment: deployment}} = conn, _params) do
