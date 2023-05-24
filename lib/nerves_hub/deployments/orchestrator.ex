@@ -49,6 +49,12 @@ defmodule NervesHub.Deployments.Orchestrator do
   was successful, and the process is repeated.
   """
   def trigger_update(deployment) do
+    match_conditions = [
+      {:and, {:==, {:map_get, :deployment_id, :"$1"}, deployment.id},
+       {:==, {:map_get, :updating, :"$1"}, false},
+       {:"/=", {:map_get, :firmware_uuid, :"$1"}, deployment.firmware.uuid}}
+    ]
+
     match_return = %{
       device_id: {:element, 1, :"$_"},
       pid: {:element, 1, {:element, 2, :"$_"}},
@@ -57,18 +63,13 @@ defmodule NervesHub.Deployments.Orchestrator do
 
     devices =
       Registry.select(NervesHub.Devices, [
-        {{:_, :_, %{deployment_id: deployment.id, updating: false}}, [], [match_return]}
+        {{:_, :_, :"$1"}, match_conditions, [match_return]}
       ])
-
-    devices =
-      Enum.filter(devices, fn device ->
-        device.firmware_uuid != deployment.firmware.uuid
-      end)
 
     # Get a rough count of devices to update
     count = deployment.concurrent_updates - Devices.count_inflight_updates_for(deployment)
     # Just in case inflight goes higher than concurrent, limit it to 0
-    count = Enum.max([count, 0])
+    count = max(count, 0)
 
     devices
     |> Enum.take(count)
