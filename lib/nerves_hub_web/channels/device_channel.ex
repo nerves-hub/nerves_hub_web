@@ -15,6 +15,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Repo
 
   alias NervesHubDevice.Presence
+  alias NervesHubDevice.PresenceException
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -117,12 +118,18 @@ defmodule NervesHubWeb.DeviceChannel do
       end
 
     {:noreply, socket}
+  rescue
+    PresenceException ->
+      {:stop, :shutdown, socket}
   end
 
   def handle_in("status_update", %{"status" => status}, socket) do
     Presence.update(socket.assigns.device, %{status: status})
 
     {:noreply, socket}
+  rescue
+    PresenceException ->
+      {:stop, :shutdown, socket}
   end
 
   def handle_in("rebooting", _payload, socket) do
@@ -130,6 +137,9 @@ defmodule NervesHubWeb.DeviceChannel do
     Presence.update(socket.assigns.device, %{rebooting: true})
 
     {:noreply, socket}
+  rescue
+    PresenceException ->
+      {:stop, :shutdown, socket}
   end
 
   def handle_in("reconnect", _payload, socket) do
@@ -160,6 +170,9 @@ defmodule NervesHubWeb.DeviceChannel do
     })
 
     {:noreply, socket}
+  rescue
+    PresenceException ->
+      {:stop, :shutdown, socket}
   end
 
   # We can save a fairly expensive query by checking the incoming deployment's payload
@@ -179,6 +192,9 @@ defmodule NervesHubWeb.DeviceChannel do
     else
       {:noreply, socket}
     end
+  rescue
+    PresenceException ->
+      {:stop, :shutdown, socket}
   end
 
   def handle_info(%Broadcast{event: "deployments/changed", payload: payload}, socket) do
@@ -232,6 +248,9 @@ defmodule NervesHubWeb.DeviceChannel do
     })
 
     {:noreply, assign(socket, :device, device)}
+  rescue
+    PresenceException ->
+      {:stop, :shutdown, socket}
   end
 
   # manually pushed
@@ -292,6 +311,9 @@ defmodule NervesHubWeb.DeviceChannel do
     send(self(), :resolve_changed_deployment)
 
     {:noreply, assign(socket, device: device)}
+  rescue
+    PresenceException ->
+      {:stop, :shutdown, socket}
   end
 
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
@@ -333,6 +355,9 @@ defmodule NervesHubWeb.DeviceChannel do
     end
 
     {:noreply, socket}
+  rescue
+    PresenceException ->
+      {:stop, :shutdown, socket}
   end
 
   def handle_out("presence_diff", _msg, socket) do
@@ -355,6 +380,9 @@ defmodule NervesHubWeb.DeviceChannel do
     end
 
     :ok
+  rescue
+    PresenceException ->
+      :ok
   end
 
   def terminate(_reason, _state), do: :ok
@@ -442,5 +470,8 @@ defmodule NervesHubWeb.DeviceChannel do
     socket
     |> assign(:device, device)
     |> assign(:deployment_channel, "deployment:#{device.deployment_id}")
+  rescue
+    PresenceException ->
+      {:stop, :shutdown, socket}
   end
 end

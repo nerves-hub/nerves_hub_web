@@ -3,6 +3,7 @@ defmodule NervesHubWeb.ConsoleChannel do
   use Phoenix.Channel
 
   alias NervesHubDevice.Presence
+  alias NervesHubDevice.PresenceException
   alias NervesHub.Devices
   alias Phoenix.Socket.Broadcast
 
@@ -55,6 +56,9 @@ defmodule NervesHubWeb.ConsoleChannel do
     send(pid, {:console, version})
 
     {:noreply, socket}
+  rescue
+    PresenceException ->
+      {:stop, :shutdown, socket}
   end
 
   def handle_info(%{event: "phx_leave"}, socket) do
