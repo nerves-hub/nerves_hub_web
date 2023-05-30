@@ -1,3 +1,14 @@
+defmodule NervesHubDevice.PresenceException do
+  defexception [:message]
+
+  @impl true
+  def exception(message) do
+    %__MODULE__{
+      message: message
+    }
+  end
+end
+
 defmodule NervesHubDevice.Presence do
   @moduledoc """
   Device Presence server
@@ -11,6 +22,7 @@ defmodule NervesHubDevice.Presence do
   """
 
   alias NervesHub.Devices.Device
+  alias NervesHubDevice.PresenceException
 
   @typedoc """
   Status of the current connection.
@@ -70,7 +82,12 @@ defmodule NervesHubDevice.Presence do
     # Attempt to register the device and if it fails
     # terminate the other process since the new one
     # should be the winner. Then continue registration
-    :gproc.reg({:n, :g, device.id}, metadata)
+    try do
+      :gproc.reg({:n, :g, device.id}, metadata)
+    catch
+      :exit, value ->
+        raise PresenceException, value
+    end
 
     # publish a device update message
     publish_change(device, metadata)
@@ -94,8 +111,14 @@ defmodule NervesHubDevice.Presence do
   """
   @spec untrack(Device.t()) :: :ok
   def untrack(%Device{} = device) do
-    # publish a device update message
-    :gproc.unreg({:n, :g, device.id})
+    try do
+      # publish a device update message
+      :gproc.unreg({:n, :g, device.id})
+    catch
+      :exit, value ->
+        raise PresenceException, value
+    end
+
     publish_change(device, %{status: "offline"})
   end
 
@@ -107,7 +130,14 @@ defmodule NervesHubDevice.Presence do
     # publish a device update message
     current_metadata = find(device)
     metadata = Map.merge(current_metadata, new_metadata)
-    :gproc.set_value({:n, :g, device.id}, metadata)
+
+    try do
+      :gproc.set_value({:n, :g, device.id}, metadata)
+    catch
+      :exit, value ->
+        raise PresenceException, value
+    end
+
     publish_change(device, metadata, publish)
   end
 
@@ -219,7 +249,12 @@ defmodule NervesHubDevice.Presence do
   """
   @spec await(Device.t()) :: pid()
   def await(%Device{} = device) do
-    :gproc.await({:n, :g, device.id})
+    try do
+      :gproc.await({:n, :g, device.id})
+    catch
+      :exit, value ->
+        raise PresenceException, value
+    end
   end
 
   # developer helper function to find the pid of a device
