@@ -11,6 +11,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceLink
   alias NervesHub.Firmwares
   alias NervesHub.Repo
 
@@ -32,22 +33,11 @@ defmodule NervesHubWeb.DeviceChannel do
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
          {:ok, device} <- Devices.device_connected(device) do
-      socket.endpoint.subscribe("device:#{device.id}")
-
       device =
         device
         |> Devices.verify_deployment()
         |> Deployments.set_deployment()
         |> Repo.preload(deployment: [:firmware])
-
-      socket =
-        if device.deployment_id do
-          socket.endpoint.subscribe("deployment:#{device.deployment_id}")
-          assign(socket, :deployment_channel, "deployment:#{device.deployment_id}")
-        else
-          socket.endpoint.subscribe("deployment:none")
-          assign(socket, :deployment_channel, "deployment:none")
-        end
 
       # clear out any inflight updates, there shouldn't be one at this point
       # we might make a new one right below it, so clear it beforehand
@@ -142,6 +132,11 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:after_join, device, update_available}, socket) do
+    {:ok, pid} = Devices.Supervisor.start_device(device)
+    DeviceLink.connect(pid, self())
+
+    socket = assign(socket, :device_link_pid, pid)
+
     # local node tracking
     Registry.register(NervesHub.Devices, device.id, %{
       deployment_id: device.deployment_id,
@@ -196,32 +191,25 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info(:resolve_changed_deployment, socket) do
-    socket.endpoint.unsubscribe(socket.assigns.deployment_channel)
-
     device =
       socket.assigns.device
       |> Repo.reload()
       |> Deployments.set_deployment()
       |> Repo.preload([deployment: [:firmware]], force: true)
 
-    socket =
-      if device.deployment_id do
-        description =
-          "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+    if device.deployment_id do
+      description =
+        "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
 
-        AuditLogs.audit!(device, device, :update, description)
+      AuditLogs.audit!(device, device, :update, description)
+    else
+      description =
+        "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
 
-        socket.endpoint.subscribe("deployment:#{device.deployment_id}")
-        assign(socket, :deployment_channel, "deployment:#{device.deployment_id}")
-      else
-        description =
-          "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
+      AuditLogs.audit!(device, device, :update, description)
+    end
 
-        AuditLogs.audit!(device, device, :update, description)
-
-        socket.endpoint.subscribe("deployment:none")
-        assign(socket, :deployment_channel, "deployment:none")
-      end
+    DeviceLink.update_device(socket.assigns.device_link_pid, device)
 
     Registry.update_value(NervesHub.Devices, device.id, fn value ->
       Map.put(value, :deployment_id, device.deployment_id)
@@ -428,8 +416,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     AuditLogs.audit!(device, device, :update, description)
 
-    socket.endpoint.unsubscribe(socket.assigns.deployment_channel)
-    socket.endpoint.subscribe("deployment:#{device.deployment_id}")
+    DeviceLink.update_device(socket.assigns.device_link_pid, device)
 
     Registry.update_value(NervesHub.Devices, device.id, fn value ->
       Map.put(value, :deployment_id, device.deployment_id)
