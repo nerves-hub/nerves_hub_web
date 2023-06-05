@@ -32,6 +32,7 @@ defmodule NervesHub.Application do
 
   defp endpoints(:test) do
     [
+      NervesHub.Devices.Supervisor,
       NervesHubWeb.API.Endpoint,
       NervesHubWeb.DeviceEndpoint,
       NervesHubWeb.Endpoint
@@ -43,6 +44,7 @@ defmodule NervesHub.Application do
       "all" ->
         [
           NervesHub.Deployments.Supervisor,
+          NervesHub.Devices.Supervisor,
           NervesHubWeb.API.Endpoint,
           NervesHubWeb.DeviceEndpoint,
           NervesHubWeb.Endpoint
@@ -54,6 +56,7 @@ defmodule NervesHub.Application do
       "device" ->
         [
           NervesHub.Deployments.Supervisor,
+          NervesHub.Devices.Supervisor,
           NervesHubWeb.DeviceEndpoint
         ]
 
