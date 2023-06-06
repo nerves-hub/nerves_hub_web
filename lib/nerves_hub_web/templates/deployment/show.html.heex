@@ -171,10 +171,10 @@
 
 <script type="application/javascript">
   document.addEventListener("DOMContentLoaded", function() {
-    // Run every 10s
+    // Run every 15s
     var interval = setInterval(function() {
       var url = "<%= Routes.deployment_path(@conn, :show, @org.name, @product.name, @deployment.name) %>";
       deploymentPolling(url);
-    }, 3000);
+    }, 15000);
   });
 </script>
