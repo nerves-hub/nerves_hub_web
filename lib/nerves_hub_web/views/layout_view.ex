@@ -87,12 +87,14 @@ defmodule NervesHubWeb.LayoutView do
       opts
       |> Scrivener.HTML.raw_pagination_links(distance: Map.get(opts, :distance, 8))
       |> Enum.map(fn {text, page} ->
-        text = if text == :ellipsis, do: page, else: text
-
-        link(text,
-          to: "?page=#{page}#{anchor}",
-          class: "btn btn-secondary btn-sm #{if page == opts.page_number, do: "active"}"
-        )
+        if text == :ellipsis do
+          content_tag(:span, page, class: "btn btn-secondary btn-sm")
+        else
+          link(text,
+            to: "?page=#{page}#{anchor}",
+            class: "btn btn-secondary btn-sm #{if page == opts.page_number, do: "active"}"
+          )
+        end
       end)
     end
   end
