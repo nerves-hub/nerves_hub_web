@@ -125,7 +125,6 @@ defmodule NervesHubWeb.Router do
       scope "/:product_name" do
         pipe_through(:product)
 
-        get("/", ProductController, :show)
         get("/edit", ProductController, :edit)
         put("/", ProductController, :update)
         delete("/", ProductController, :delete)
