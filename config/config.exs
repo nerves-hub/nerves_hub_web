@@ -65,7 +65,8 @@ config :nerves_hub, Oban,
   plugins: [
     {Oban.Plugins.Cron,
      crontab: [
-       {"0 * * * *", NervesHub.Workers.TruncateAuditLogs, max_attempts: 1}
+       {"0 * * * *", NervesHub.Workers.TruncateAuditLogs, max_attempts: 1},
+       {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates}
      ]}
   ]
 

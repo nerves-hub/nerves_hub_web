@@ -12,6 +12,7 @@ defmodule NervesHub.Devices.InflightUpdate do
 
     field(:firmware_uuid, Ecto.UUID)
     field(:status, :string, default: "pending")
+    field(:expires_at, :utc_datetime)
 
     timestamps(updated_at: false)
   end

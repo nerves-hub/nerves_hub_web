@@ -97,7 +97,17 @@
       <span class="tooltip-text">The number of devices that will update at any given time. This is a soft limit and concurrent updates may be slightly above this number.</span>
     </label>
     <%= number_input f, :concurrent_updates, class: "form-control", id: "concurrent_updates" %>
-    <div class="has-error"><%= error_tag f, :version %></div>
+    <div class="has-error"><%= error_tag f, :concurrent_updates %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="version_requirement" class="tooltip-label">
+      <span>Number of Minutes Before Expiring Updates</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">The number of minutes before an inflight update expires to clear the queue</span>
+    </label>
+    <%= number_input f, :inflight_update_expiration_minutes, class: "form-control", id: "concurrent_updates" %>
+    <div class="has-error"><%= error_tag f, :inflight_update_expiration_minutes %></div>
   </div>
 
   <!-- Advanced Options -->
