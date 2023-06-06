@@ -59,13 +59,23 @@
           <div class="help-text mb-1">Version requirement</div>
           <p><%= version(@deployment) %></p>
         </div>
-        <div class="mb-1">
-          <div class="help-text mb-1 tooltip-label">
-            <span>Concurrent Device Updates</span>
-            <span class="tooltip-info"></span>
-            <span class="tooltip-text">The number of devices that will update at any given time. This is a soft limit and concurrent updates may be slightly above this number.</span>
+        <div class="row">
+          <div class="col-lg-6 mb-1">
+            <div class="help-text mb-1 tooltip-label">
+              <span>Concurrent Device Updates</span>
+              <span class="tooltip-info"></span>
+              <span class="tooltip-text">The number of devices that will update at any given time. This is a soft limit and concurrent updates may be slightly above this number.</span>
+            </div>
+            <p><%= @deployment.concurrent_updates %></p>
           </div>
-          <p><%= @deployment.concurrent_updates %></p>
+          <div class="col-lg-6 mb-1">
+            <div class="help-text mb-1 tooltip-label">
+              <span>Number of Minutes Before Expiring Updates</span>
+              <span class="tooltip-info"></span>
+              <span class="tooltip-text">The number of minutes before an inflight update expires to clear the queue</span>
+            </div>
+            <p><%= @deployment.inflight_update_expiration_minutes %></p>
+          </div>
         </div>
         <div class="row">
           <div class="col-lg-6 mb-1">

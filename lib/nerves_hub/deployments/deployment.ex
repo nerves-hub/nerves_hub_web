@@ -21,7 +21,8 @@ defmodule NervesHub.Deployments.Deployment do
     :conditions,
     :is_active,
     :product_id,
-    :concurrent_updates
+    :concurrent_updates,
+    :inflight_update_expiration_minutes
   ]
 
   @optional_fields [
@@ -60,6 +61,7 @@ defmodule NervesHub.Deployments.Deployment do
     field(:concurrent_updates, :integer, default: 10)
     field(:total_updating_devices, :integer, default: 0)
     field(:current_updated_devices, :integer, default: 0)
+    field(:inflight_update_expiration_minutes, :integer, default: 60)
 
     timestamps()
   end

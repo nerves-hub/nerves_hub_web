@@ -971,6 +971,11 @@ defmodule NervesHub.Devices do
   Deployment orchestrator told a device to update
   """
   def told_to_update(device, deployment) do
+    expires_at =
+      DateTime.utc_now()
+      |> DateTime.add(60 * deployment.inflight_update_expiration_minutes, :second)
+      |> DateTime.truncate(:second)
+
     changeset =
       %InflightUpdate{}
       |> Ecto.Changeset.change()
@@ -978,6 +983,7 @@ defmodule NervesHub.Devices do
       |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
       |> Ecto.Changeset.put_change(:firmware_id, deployment.firmware_id)
       |> Ecto.Changeset.put_change(:firmware_uuid, deployment.firmware.uuid)
+      |> Ecto.Changeset.put_change(:expires_at, expires_at)
       |> Ecto.Changeset.unique_constraint(:deployment_id,
         name: :inflight_updates_device_id_deployment_id_index
       )
@@ -987,7 +993,7 @@ defmodule NervesHub.Devices do
         {:ok, inflight_update}
 
       {:error, _changeset} ->
-        # Device already has an inflight udpate, fetch it
+        # Device already has an inflight update, fetch it
         case Repo.get_by(InflightUpdate, device_id: device.id, deployment_id: deployment.id) do
           nil ->
             :error
