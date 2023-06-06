@@ -22,15 +22,10 @@ defmodule NervesHubWeb.ProductControllerTest do
   end
 
   describe "create product" do
-    test "redirects to show when data is valid", %{conn: conn, org: org} do
+    test "redirects to device listing when data is valid", %{conn: conn, org: org} do
       params = @create_attrs
       conn = post(conn, Routes.product_path(conn, :create, org.name), product: params)
       assert redirected_to(conn) == Routes.device_path(conn, :index, org.name, params.name)
-
-      conn = get(conn, Routes.product_path(conn, :show, org.name, params.name))
-      assert html_response(conn, 200) =~ "Show Product"
-      assert html_response(conn, 200) =~ org.name
-      assert html_response(conn, 200) =~ Routes.firmware_path(conn, :index, org.name, params.name)
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do
@@ -40,7 +35,7 @@ defmodule NervesHubWeb.ProductControllerTest do
   end
 
   describe "update product" do
-    test "redirects to show when data is valid", %{
+    test "redirects to device listing when data is valid", %{
       conn: conn,
       fixture: %{product: product},
       org: org
@@ -62,8 +57,6 @@ defmodule NervesHubWeb.ProductControllerTest do
       path = Routes.product_path(conn, :delete, org.name, product.name)
       conn = delete(conn, path)
       assert redirected_to(conn) == Routes.product_path(conn, :index, org.name)
-      conn = get(conn, path)
-      assert html_response(conn, 404)
     end
 
     test "error when product has associated firmwares and devices", %{

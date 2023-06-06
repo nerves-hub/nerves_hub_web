@@ -11,7 +11,6 @@ defmodule NervesHubWeb.ProductController do
   plug(:validate_role, [org: :delete] when action in [:delete])
 
   plug(:validate_role, [product: :write] when action in [:update])
-  plug(:validate_role, [product: :read] when action in [:show])
 
   def index(%{assigns: %{user: user, org: org}} = conn, _params) do
     products = Products.get_products_by_user_and_org(user, org)
@@ -35,11 +34,6 @@ defmodule NervesHubWeb.ProductController do
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, "new.html", changeset: changeset)
     end
-  end
-
-  def show(%{assigns: %{product: product}} = conn, _params) do
-    conn
-    |> render("show.html", product: product)
   end
 
   def edit(%{assigns: %{product: product}} = conn, _params) do
