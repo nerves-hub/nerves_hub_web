@@ -476,7 +476,7 @@ defmodule NervesHub.Devices do
     update_device(device, %{firmware_metadata: metadata})
   end
 
-  def update_device(%Device{} = device, params) do
+  def update_device(%Device{} = device, params, opts \\ []) do
     changeset = Device.changeset(device, params)
 
     case Repo.update(changeset) do
@@ -491,9 +491,18 @@ defmodule NervesHub.Devices do
             # Since the tags changed, let's find a new deployment
             device = %{device | deployment_id: nil, deployment: nil}
             device = Deployments.set_deployment(device)
+
+            if Keyword.get(opts, :broadcast, true) do
+              broadcast(device, "devices/updated")
+            end
+
             {:ok, device}
 
           false ->
+            if Keyword.get(opts, :broadcast, true) do
+              broadcast(device, "devices/updated")
+            end
+
             {:ok, device}
         end
 
@@ -800,13 +809,16 @@ defmodule NervesHub.Devices do
   @spec update_device_with_audit(Device.t(), Map.t(), User.t(), Map.t()) :: Repo.transaction()
   def update_device_with_audit(device, params, user, description) do
     Multi.new()
-    |> Multi.run(:update_with_audit, fn _, _ -> update_device(device, params) end)
+    |> Multi.run(:update_with_audit, fn _, _ ->
+      update_device(device, params, broadcast: false)
+    end)
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, :update, description, %{})
     end)
     |> Repo.transaction()
     |> case do
       {:ok, %{update_with_audit: updated}} ->
+        broadcast(device, "devices/updated")
         {:ok, updated}
 
       err ->
