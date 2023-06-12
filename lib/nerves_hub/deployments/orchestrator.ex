@@ -52,6 +52,7 @@ defmodule NervesHub.Deployments.Orchestrator do
     match_conditions = [
       {:and, {:==, {:map_get, :deployment_id, :"$1"}, deployment.id},
        {:==, {:map_get, :updating, :"$1"}, false},
+       {:==, {:map_get, :updates_enabled, :"$1"}, true},
        {:"/=", {:map_get, :firmware_uuid, :"$1"}, deployment.firmware.uuid}}
     ]
 

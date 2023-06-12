@@ -147,10 +147,13 @@ defmodule NervesHubWeb.DeviceChannel do
 
     socket = assign(socket, :device_link_pid, pid)
 
+    start_penalty_timer(device)
+
     # local node tracking
     Registry.register(NervesHub.Devices, device.id, %{
       deployment_id: device.deployment_id,
       firmware_uuid: device.firmware_metadata.uuid,
+      updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
       updating: false
     })
 
@@ -295,6 +298,8 @@ defmodule NervesHubWeb.DeviceChannel do
       deployment_id: device.deployment_id
     })
 
+    DeviceLink.update_device(socket.assigns.device_link_pid, device)
+
     # The old deployment is no longer valid, so let's look one up again
     send(self(), :resolve_changed_deployment)
 
@@ -304,8 +309,37 @@ defmodule NervesHubWeb.DeviceChannel do
       {:stop, :shutdown, socket}
   end
 
+  # Update local state and tell the various servers of the new information
+  def handle_info(%Broadcast{event: "devices/updated"}, socket) do
+    device = Repo.reload(socket.assigns.device)
+
+    Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Map.merge(value, %{
+        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
+      })
+    end)
+
+    DeviceLink.update_device(socket.assigns.device_link_pid, device)
+
+    start_penalty_timer(device)
+
+    {:noreply, assign(socket, :device, device)}
+  end
+
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
     push(socket, event, payload)
+    {:noreply, socket}
+  end
+
+  def handle_info(:penalty_box_check, socket) do
+    device = socket.assigns.device
+
+    Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Map.merge(value, %{
+        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
+      })
+    end)
+
     {:noreply, socket}
   end
 
@@ -460,5 +494,20 @@ defmodule NervesHubWeb.DeviceChannel do
   rescue
     PresenceException ->
       {:stop, :shutdown, socket}
+  end
+
+  @doc """
+  Start a timer for penalty box checking only if time is in the future
+  """
+  def start_penalty_timer(%{updates_blocked_until: nil}), do: :ok
+
+  def start_penalty_timer(device) do
+    check_penalty_box_in =
+      DateTime.diff(device.updates_blocked_until, DateTime.utc_now(), :millisecond)
+
+    if check_penalty_box_in > 0 do
+      # delay the check slightly to make sure the penalty is cleared when its updated
+      Process.send_after(self(), :penalty_box_check, check_penalty_box_in + 1000)
+    end
   end
 end
