@@ -25,11 +25,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _, _socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
 
     presence = Presence.find(device)
-    assert presence.connected_at
-    assert presence.last_communication
     assert presence.status == "online"
-    assert presence.update_available == false
-    assert presence.firmware_metadata
   end
 
   test "device disconnected adds audit log" do

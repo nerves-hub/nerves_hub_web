@@ -94,7 +94,7 @@ defmodule NervesHubWeb.DeviceController do
     |> put_layout(false)
     |> render("console.html",
       device: Map.merge(device, meta),
-      console_available: meta[:console_available]
+      console_available: !is_nil(meta[:console_version])
     )
   end
 

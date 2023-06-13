@@ -6,7 +6,7 @@
     <p class="flex-row align-items-center tt-c">
       <span><%= @device.status %></span>
       <span class="ml-1">
-        <%= if @device.status in ["offline", "rebooting"] do %>
+        <%= if @device.status in ["offline"] do %>
           <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
         <% else %>
           <img src="/images/icons/check.svg" alt="online" class="table-icon" />

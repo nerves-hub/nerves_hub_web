@@ -67,7 +67,7 @@ defmodule NervesHubWeb.DeviceChannel do
         |> assign(:update_started?, false)
         |> assign(:device, device)
 
-      send(self(), {:after_join, device, join_reply.update_available})
+      send(self(), {:after_join, device})
 
       {:ok, join_reply, socket}
     end
@@ -123,13 +123,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("rebooting", _payload, socket) do
-    # Device sends "rebooting" message back to signify ack of the request
-    Presence.update(socket.assigns.device, %{rebooting: true})
-
     {:noreply, socket}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   def handle_in("reconnect", _payload, socket) do
@@ -141,7 +135,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, assign(socket, :device, device)}
   end
 
-  def handle_info({:after_join, device, update_available}, socket) do
+  def handle_info({:after_join, device}, socket) do
     {:ok, pid} = Devices.Supervisor.start_device(device)
     DeviceLink.connect(pid, self())
 
@@ -158,14 +152,7 @@ defmodule NervesHubWeb.DeviceChannel do
     })
 
     # Cluster tracking
-    Presence.track(device, %{
-      product_id: device.product_id,
-      deployment_id: device.deployment_id,
-      connected_at: System.system_time(:second),
-      last_communication: device.last_communication,
-      update_available: update_available,
-      firmware_metadata: device.firmware_metadata
-    })
+    Presence.track(device, %{})
 
     {:noreply, socket}
   rescue
@@ -180,10 +167,6 @@ defmodule NervesHubWeb.DeviceChannel do
         socket
       ) do
     device = socket.assigns.device
-
-    Presence.update(device, %{
-      deployment_id: nil
-    })
 
     if device_matches_deployment_payload?(device, payload) do
       {:noreply, assign_deployment(socket, device, payload)}
@@ -233,10 +216,6 @@ defmodule NervesHubWeb.DeviceChannel do
     Registry.update_value(NervesHub.Devices, device.id, fn value ->
       Map.put(value, :deployment_id, device.deployment_id)
     end)
-
-    Presence.update(device, %{
-      deployment_id: device.deployment_id
-    })
 
     {:noreply, assign(socket, :device, device)}
   rescue
@@ -293,11 +272,6 @@ defmodule NervesHubWeb.DeviceChannel do
       Map.put(value, :deployment_id, device.deployment_id)
     end)
 
-    Presence.update(device, %{
-      product_id: device.product_id,
-      deployment_id: device.deployment_id
-    })
-
     DeviceLink.update_device(socket.assigns.device_link_pid, device)
 
     # The old deployment is no longer valid, so let's look one up again
@@ -345,7 +319,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   def handle_info({:console, version}, socket) do
     # Update gproc and then also tell connected liveviews that the device changed
-    metadata = %{console_available: true, console_version: version}
+    metadata = %{console_version: version}
     Presence.update(socket.assigns.device, metadata)
 
     # now that the console is connected, push down the device's elixir, line by line
@@ -483,10 +457,6 @@ defmodule NervesHubWeb.DeviceChannel do
     Registry.update_value(NervesHub.Devices, device.id, fn value ->
       Map.put(value, :deployment_id, device.deployment_id)
     end)
-
-    Presence.update(device, %{
-      deployment_id: device.deployment_id
-    })
 
     socket
     |> assign(:device, device)

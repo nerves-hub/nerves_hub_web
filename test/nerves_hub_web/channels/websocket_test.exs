@@ -348,7 +348,6 @@ defmodule NervesHubWeb.WebsocketTest do
         |> NervesHub.Repo.get(device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Presence.device_status(device) == "update pending"
       assert Time.diff(DateTime.utc_now(), device.last_communication) < 2
     end
 
