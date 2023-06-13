@@ -357,10 +357,8 @@ defmodule NervesHubWeb.DeviceLive.Index do
         false ->
           fields = [
             :firmware_metadata,
-            :last_communication,
             :status,
-            :fwup_progress,
-            :console_available
+            :fwup_progress
           ]
 
           device = Map.merge(device, Map.take(meta, fields))

@@ -333,10 +333,8 @@ defmodule NervesHubWeb.DeviceLive.Show do
       false ->
         updates =
           Map.take(metadata, [
-            :console_available,
             :firmware_metadata,
             :fwup_progress,
-            :last_communication,
             :status
           ])
 

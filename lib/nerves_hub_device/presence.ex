@@ -34,30 +34,17 @@ defmodule NervesHubDevice.Presence do
   @type device_id_string :: String.t()
 
   @type device_presence :: %{
-          connected_at: pos_integer(),
-          console_available: boolean(),
           console_version: Version.build(),
-          firmware_metadata: NervesHub.Firmwares.FirmwareMetadata.t(),
-          last_communication: DateTime.t(),
-          status: status(),
-          update_available: boolean()
+          fwup_progress: integer(),
+          status: status()
         }
 
   @type presence_list :: %{optional(device_id_string) => device_presence}
 
   @allowed_fields [
-    :node,
-    :product_id,
-    :deployment_id,
-    :connected_at,
-    :console_available,
     :console_version,
-    :firmware_metadata,
     :fwup_progress,
-    :last_communication,
-    :rebooting,
-    :status,
-    :update_available
+    :status
   ]
 
   def __fields__(), do: @allowed_fields
@@ -76,9 +63,6 @@ defmodule NervesHubDevice.Presence do
   end
 
   def track(%Device{} = device, metadata, times) do
-    # insert the local node to make sure we can filter down later
-    metadata = Map.put(metadata, :node, node())
-
     # Attempt to register the device and if it fails
     # terminate the other process since the new one
     # should be the winner. Then continue registration
@@ -187,29 +171,12 @@ defmodule NervesHubDevice.Presence do
       %{status: _status} = e ->
         e
 
-      %{update_available: true} = e ->
-        Map.put(e, :status, "update pending")
-
-      %{rebooting: true} = e ->
-        Map.put(e, :status, "rebooting")
-
       %{fwup_progress: _progress} = e ->
         Map.put(e, :status, "updating")
 
       e ->
         Map.put(e, :status, "online")
     end
-  end
-
-  @doc """
-  Count the number of devices based on a metadata filter
-  """
-  @spec count(map()) :: integer()
-  def count(metadata) do
-    # count based on the metadata
-    # first tuple is {key, pid, user value}
-    # and thing returning `true` aka what's matched is counted
-    :gproc.select_count({:g, :n}, [{{:_, :_, metadata}, [], [true]}])
   end
 
   @doc """
@@ -238,7 +205,7 @@ defmodule NervesHubDevice.Presence do
         false
 
       metadata ->
-        metadata.console_available
+        !is_nil(metadata.console_version)
     end
   end
 
