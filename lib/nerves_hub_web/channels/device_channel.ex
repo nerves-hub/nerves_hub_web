@@ -324,6 +324,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     # now that the console is connected, push down the device's elixir, line by line
     device = socket.assigns.device
+    device = Repo.preload(device, [:deployment])
     deployment = device.deployment
 
     if deployment && deployment.connecting_code do
