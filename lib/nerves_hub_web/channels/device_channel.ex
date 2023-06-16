@@ -14,9 +14,6 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Devices.DeviceLink
   alias NervesHub.Firmwares
   alias NervesHub.Repo
-
-  alias NervesHubDevice.Presence
-  alias NervesHubDevice.PresenceException
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -81,9 +78,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("fwup_progress", %{"value" => percent}, socket) do
-    # No need to update the product channel which will spam anyone listening on
-    # the listing of devices.
-    Presence.update(socket.assigns.device, %{fwup_progress: percent}, product: false)
+    :ok = DeviceLink.fwup_progress(socket.assigns.device_link_pid, percent)
 
     # if this is the first fwup we see in the channel, then mark it as an update attempt
     socket =
@@ -108,18 +103,12 @@ defmodule NervesHubWeb.DeviceChannel do
       end
 
     {:noreply, socket}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
+  # this is used for fwup errors
   def handle_in("status_update", %{"status" => status}, socket) do
-    Presence.update(socket.assigns.device, %{status: status})
-
+    :ok = DeviceLink.update_status(socket.assigns.device_link_pid, status)
     {:noreply, socket}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   def handle_in("rebooting", _payload, socket) do
@@ -151,13 +140,7 @@ defmodule NervesHubWeb.DeviceChannel do
       updating: false
     })
 
-    # Cluster tracking
-    Presence.track(device, %{})
-
     {:noreply, socket}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   # We can save a fairly expensive query by checking the incoming deployment's payload
@@ -173,9 +156,6 @@ defmodule NervesHubWeb.DeviceChannel do
     else
       {:noreply, socket}
     end
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   def handle_info(%Broadcast{event: "deployments/changed", payload: payload}, socket) do
@@ -218,9 +198,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end)
 
     {:noreply, assign(socket, :device, device)}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   # manually pushed
@@ -278,9 +255,6 @@ defmodule NervesHubWeb.DeviceChannel do
     send(self(), :resolve_changed_deployment)
 
     {:noreply, assign(socket, device: device)}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   # Update local state and tell the various servers of the new information
@@ -317,45 +291,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info({:console, version}, socket) do
-    # Update gproc and then also tell connected liveviews that the device changed
-    metadata = %{console_version: version}
-    Presence.update(socket.assigns.device, metadata)
-
-    # now that the console is connected, push down the device's elixir, line by line
-    device = socket.assigns.device
-    deployment = device.deployment
-
-    if deployment && deployment.connecting_code do
-      device.deployment.connecting_code
-      |> String.graphemes()
-      |> Enum.map(fn character ->
-        socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{
-          "data" => character
-        })
-      end)
-
-      socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => "\r"})
-    end
-
-    if device.connecting_code do
-      device.connecting_code
-      |> String.graphemes()
-      |> Enum.map(fn character ->
-        socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{
-          "data" => character
-        })
-      end)
-
-      socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => "\r"})
-    end
-
-    {:noreply, socket}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
-  end
-
+  # TODO delete this?
   def handle_out("presence_diff", _msg, socket) do
     {:noreply, socket}
   end
@@ -372,13 +308,9 @@ defmodule NervesHubWeb.DeviceChannel do
       })
 
       Registry.unregister(NervesHub.Devices, device.id)
-      Presence.untrack(device)
     end
 
     :ok
-  rescue
-    PresenceException ->
-      :ok
   end
 
   def terminate(_reason, _state), do: :ok
@@ -461,9 +393,6 @@ defmodule NervesHubWeb.DeviceChannel do
     socket
     |> assign(:device, device)
     |> assign(:deployment_channel, "deployment:#{device.deployment_id}")
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   @doc """
