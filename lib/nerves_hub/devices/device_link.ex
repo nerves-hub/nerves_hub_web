@@ -11,13 +11,21 @@ defmodule NervesHub.Devices.DeviceLink do
 
   use GenServer
 
+  alias NervesHub.Devices
+  alias NervesHub.Repo
   alias NervesHubDevice.Presence
   alias Phoenix.Socket.Broadcast
 
   require Logger
 
   defmodule State do
-    defstruct [:deployment_channel, :device, :transport_pid, :transport_ref]
+    defstruct [
+      :deployment_channel,
+      :device,
+      :transport_pid,
+      :transport_ref,
+      update_started?: false
+    ]
   end
 
   def start_link(device) do
@@ -92,7 +100,25 @@ defmodule NervesHub.Devices.DeviceLink do
   def handle_call({:fwup_progress, progress}, from, state) do
     # No need to update the product channel which will spam anyone listening on
     # the listing of devices.
-    Presence.update(state.device, %{status: progress}, product: false)
+    Presence.update(state.device, %{fwup_progress: progress}, product: false)
+
+    # if this is the first fwup we see in the channel, then mark it as an update attempt
+    state =
+      if !state.update_started? do
+        # reload update attempts because they might have been cleared
+        # and we have a cached stale version
+        device = state.device
+        updated_device = Repo.reload(device)
+        device = %{device | update_attempts: updated_device.update_attempts}
+
+        {:ok, device} = Devices.update_attempted(device)
+
+        state
+        |> Map.put(:device, device)
+        |> Map.put(:update_started?, true)
+      else
+        state
+      end
 
     {:reply, :ok, state}
   rescue
@@ -197,6 +223,11 @@ defmodule NervesHub.Devices.DeviceLink do
     end
 
     {:noreply, state}
+  end
+
+  def terminate(_reason, state) do
+    Presence.untrack(state.device)
+    state
   end
 
   defp subscribe(topic) do

@@ -73,7 +73,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
     # Since fwup_progress doesn't reply, we need to use sys to grab the socket
     # _after_ the handle_in has run
     socket = :sys.get_state(socket.channel_pid)
-    assert socket.assigns.update_started?
+    state = :sys.get_state(socket.assigns.device_link_pid)
+    assert state.update_started?
   end
 
   test "set connection types for the device" do

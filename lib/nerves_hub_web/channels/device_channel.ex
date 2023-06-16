@@ -59,14 +59,9 @@ defmodule NervesHubWeb.DeviceChannel do
         Devices.told_to_update(device, deployment)
       end
 
-      socket =
-        socket
-        |> assign(:update_started?, false)
-        |> assign(:device, device)
-
       send(self(), {:after_join, device})
 
-      {:ok, join_reply, socket}
+      {:ok, join_reply, assign(socket, :device, device)}
     end
   end
 
@@ -80,27 +75,9 @@ defmodule NervesHubWeb.DeviceChannel do
   def handle_in("fwup_progress", %{"value" => percent}, socket) do
     :ok = DeviceLink.fwup_progress(socket.assigns.device_link_pid, percent)
 
-    # if this is the first fwup we see in the channel, then mark it as an update attempt
-    socket =
-      if !socket.assigns.update_started? do
-        # reload update attempts because they might have been cleared
-        # and we have a cached stale version
-        device = socket.assigns.device
-        updated_device = Repo.reload(device)
-        device = %{device | update_attempts: updated_device.update_attempts}
-
-        {:ok, device} = Devices.update_attempted(device)
-
-        Registry.update_value(NervesHub.Devices, device.id, fn value ->
-          Map.put(value, :updating, true)
-        end)
-
-        socket
-        |> assign(:device, device)
-        |> assign(:update_started?, true)
-      else
-        socket
-      end
+    Registry.update_value(NervesHub.Devices, socket.assigns.device.id, fn value ->
+      Map.put(value, :updating, true)
+    end)
 
     {:noreply, socket}
   end
