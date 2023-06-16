@@ -30,8 +30,14 @@ defmodule NervesHub.Devices.DeviceLink do
 
   def name(device), do: name(device.id)
 
+  # Client
+
   def connect(pid, transport_pid) do
     GenServer.call(pid, {:connect, transport_pid})
+  end
+
+  def fwup_progress(pid, progress) do
+    GenServer.call(pid, {:fwup_progress, progress})
   end
 
   def update_device(pid, device) do
@@ -42,9 +48,7 @@ defmodule NervesHub.Devices.DeviceLink do
     GenServer.call(pid, {:update_status, status})
   end
 
-  def fwup_progress(pid, progress) do
-    GenServer.call(pid, {:fwup_progress, progress})
-  end
+  # Server
 
   def init(device) do
     {:ok, %State{device: device}, {:continue, :boot}}
@@ -79,6 +83,24 @@ defmodule NervesHub.Devices.DeviceLink do
       {:stop, :shutdown, state}
   end
 
+  def handle_call({:connect, transport_pid}, _from, state) do
+    ref = Process.monitor(transport_pid)
+    state = %{state | transport_pid: transport_pid, transport_ref: ref}
+    {:reply, :ok, state, {:continue, :track}}
+  end
+
+  def handle_call({:fwup_progress, progress}, from, state) do
+    # No need to update the product channel which will spam anyone listening on
+    # the listing of devices.
+    Presence.update(state.device, %{status: progress}, product: false)
+
+    {:reply, :ok, state}
+  rescue
+    PresenceException ->
+      GenServer.reply(from, :shutdown)
+      {:stop, :shutdown, state}
+  end
+
   def handle_call({:update_device, device}, _from, state) do
     unsubscribe(state.deployment_channel)
 
@@ -96,26 +118,8 @@ defmodule NervesHub.Devices.DeviceLink do
     {:reply, :ok, state}
   end
 
-  def handle_call({:connect, transport_pid}, _from, state) do
-    ref = Process.monitor(transport_pid)
-    state = %{state | transport_pid: transport_pid, transport_ref: ref}
-    {:reply, :ok, state, {:continue, :track}}
-  end
-
   def handle_call({:update_status, status}, from, state) do
     Presence.update(state.device, %{status: status})
-
-    {:reply, :ok, state}
-  rescue
-    PresenceException ->
-      GenServer.reply(from, :shutdown)
-      {:stop, :shutdown, state}
-  end
-
-  def handle_call({:fwup_progress, progress}, from, state) do
-    # No need to update the product channel which will spam anyone listening on
-    # the listing of devices.
-    Presence.update(state.device, %{status: progress}, product: false)
 
     {:reply, :ok, state}
   rescue

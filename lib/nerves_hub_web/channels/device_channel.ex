@@ -124,6 +124,10 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, assign(socket, :device, device)}
   end
 
+  def handle_info(:shutdown, socket) do
+    {:stop, :shutdown, socket}
+  end
+
   def handle_info({:after_join, device}, socket) do
     {:ok, pid} = Devices.Supervisor.start_device(device)
     DeviceLink.connect(pid, self())

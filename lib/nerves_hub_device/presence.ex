@@ -77,9 +77,15 @@ defmodule NervesHubDevice.Presence do
     publish_change(device, metadata)
   rescue
     ArgumentError ->
+      self_pid = self()
+
       case whereis(device.id) do
         nil ->
           track(device, metadata, times + 1)
+
+        # The DeviceLink process is debouncing the reconnection
+        ^self_pid ->
+          :ok
 
         pid ->
           GenServer.stop(pid)
