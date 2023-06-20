@@ -102,7 +102,7 @@ defmodule NervesHubWeb.API.DeviceController do
   end
 
   def reconnect(conn, _params) do
-    Endpoint.broadcast_from(self(), "device:#{conn.assigns.device.id}", "reconnect", %{})
+    Endpoint.broadcast("device_socket:#{conn.assigns.device.id}", "disconnect", %{})
     send_resp(conn, 200, "Success")
   end
 
