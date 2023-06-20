@@ -42,7 +42,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
     device = socket.assigns.device
 
     if connected?(socket) do
-      socket.endpoint.subscribe("device:#{device.id}:internal")
+      socket.endpoint.subscribe("device:#{device.identifier}:internal")
     end
 
     socket =
