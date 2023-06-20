@@ -6,13 +6,13 @@ defmodule NervesHubWeb.DeviceLive.Index do
 
   require Logger
 
-  alias NervesHubDevice.Presence
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHub.Tracker
   alias NervesHubWeb.DeviceView
 
   alias Phoenix.Socket.Broadcast
@@ -320,8 +320,7 @@ defmodule NervesHubWeb.DeviceLive.Index do
           devices =
             Enum.map(devices, fn
               device when device.id == updated_device.id ->
-                meta = Map.take(device, Presence.__fields__())
-                Map.merge(updated_device, meta)
+                updated_device
 
               device ->
                 device
@@ -404,7 +403,7 @@ defmodule NervesHubWeb.DeviceLive.Index do
 
     statuses =
       Enum.into(page.entries, %{}, fn device ->
-        {device.id, Presence.device_status(device)}
+        {device.id, Tracker.status(device)}
       end)
 
     socket

@@ -3,8 +3,6 @@ defmodule NervesHubWeb.DeviceLive.Show do
 
   require Logger
 
-  alias NervesHubDevice.Presence
-
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
@@ -14,6 +12,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
   alias NervesHub.Firmwares
   alias NervesHub.Repo
   alias NervesHub.Products
+  alias NervesHub.Tracker
 
   alias Phoenix.Socket.Broadcast
 
@@ -49,7 +48,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
     socket =
       socket
       |> assign(:device, Repo.preload(device, [:device_certificates]))
-      |> assign(:status, Presence.device_status(device))
+      |> assign(:status, Tracker.status(device))
       |> assign(:deployment, device.deployment)
       |> assign(:page_title, device.identifier)
       |> assign(:toggle_upload, false)

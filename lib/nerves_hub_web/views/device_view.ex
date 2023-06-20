@@ -3,7 +3,6 @@ defmodule NervesHubWeb.DeviceView do
 
   alias NervesHub.Devices
   alias NervesHub.Repo
-  alias NervesHubDevice.Presence
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
   import NervesHubWeb.LayoutView,
@@ -54,8 +53,6 @@ defmodule NervesHubWeb.DeviceView do
   def tags_to_string(%{tags: tags}), do: tags_to_string(tags)
   def tags_to_string(tags) when is_list(tags), do: Enum.join(tags, ",")
   def tags_to_string(tags), do: tags
-
-  defdelegate device_status(device), to: Presence
 
   def selected?(filters, field, value) do
     if filters[field] == value do

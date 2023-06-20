@@ -14,9 +14,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Devices.DeviceLink
   alias NervesHub.Firmwares
   alias NervesHub.Repo
-
-  alias NervesHubDevice.Presence
-  alias NervesHubDevice.PresenceException
+  alias NervesHub.Tracker
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -110,13 +108,9 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_in("status_update", %{"status" => status}, socket) do
-    Presence.update(socket.assigns.device, %{status: status})
-
+  def handle_in("status_update", %{"status" => _status}, socket) do
+    # TODO store in tracker or the database?
     {:noreply, socket}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   def handle_in("rebooting", _payload, socket) do
@@ -145,12 +139,9 @@ defmodule NervesHubWeb.DeviceChannel do
     })
 
     # Cluster tracking
-    Presence.track(device, %{status: "online"})
+    Tracker.online(device)
 
     {:noreply, socket}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   # We can save a fairly expensive query by checking the incoming deployment's payload
@@ -317,13 +308,10 @@ defmodule NervesHubWeb.DeviceChannel do
       })
 
       Registry.unregister(NervesHub.Devices, device.id)
-      Presence.untrack(device)
+      Tracker.offline(device)
     end
 
     :ok
-  rescue
-    PresenceException ->
-      :ok
   end
 
   def terminate(_reason, _state), do: :ok
