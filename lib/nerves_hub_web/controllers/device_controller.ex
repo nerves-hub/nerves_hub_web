@@ -86,16 +86,11 @@ defmodule NervesHubWeb.DeviceController do
     |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
   end
 
-  def console(%{assigns: %{device: device}} = conn, _params) do
-    meta = NervesHubDevice.Presence.find(device, %{})
-
+  def console(conn, _params) do
     conn
     |> put_root_layout({NervesHubWeb.LayoutView, :console})
     |> put_layout(false)
-    |> render("console.html",
-      device: Map.merge(device, meta),
-      console_available: !is_nil(meta[:console_version])
-    )
+    |> render("console.html")
   end
 
   def download_certificate(%{assigns: %{device: device}} = conn, %{"cert_serial" => serial}) do

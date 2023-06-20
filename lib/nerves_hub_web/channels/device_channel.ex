@@ -81,9 +81,9 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("fwup_progress", %{"value" => percent}, socket) do
-    # No need to update the product channel which will spam anyone listening on
-    # the listing of devices.
-    Presence.update(socket.assigns.device, %{fwup_progress: percent}, product: false)
+    socket.endpoint.broadcast("device:#{socket.assigns.device.id}:internal", "fwup_progress", %{
+      percent: percent
+    })
 
     # if this is the first fwup we see in the channel, then mark it as an update attempt
     socket =
@@ -126,10 +126,6 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_in("reconnect", _payload, socket) do
-    {:stop, :shutdown, socket}
-  end
-
   def handle_in("connection_types", %{"value" => types}, socket) do
     {:ok, device} = Devices.update_device(socket.assigns.device, %{"connection_types" => types})
     {:noreply, assign(socket, :device, device)}
@@ -152,7 +148,7 @@ defmodule NervesHubWeb.DeviceChannel do
     })
 
     # Cluster tracking
-    Presence.track(device, %{})
+    Presence.track(device, %{status: "online"})
 
     {:noreply, socket}
   rescue
@@ -300,6 +296,10 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, assign(socket, :device, device)}
   end
 
+  def handle_info(%Broadcast{event: "reconnect"}, socket) do
+    {:stop, :shutdown, socket}
+  end
+
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
     push(socket, event, payload)
     {:noreply, socket}
@@ -317,11 +317,8 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info({:console, version}, socket) do
-    # Update gproc and then also tell connected liveviews that the device changed
-    metadata = %{console_version: version}
-    Presence.update(socket.assigns.device, metadata)
-
+  # TODO save version into the database, it likely won't change often
+  def handle_info({:console, _version}, socket) do
     # now that the console is connected, push down the device's elixir, line by line
     device = socket.assigns.device
     device = Repo.preload(device, [:deployment])
