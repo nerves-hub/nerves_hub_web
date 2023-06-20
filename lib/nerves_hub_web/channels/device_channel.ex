@@ -351,7 +351,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
       AuditLogs.audit!(device, device, :update, description, %{
         last_communication: device.last_communication,
-        status: device.status
+        status: "offline"
       })
 
       Registry.unregister(NervesHub.Devices, device.id)

@@ -48,8 +48,6 @@ defmodule NervesHub.Devices.Device do
     field(:connection_types, {:array, ConnectionType})
     field(:connecting_code, :string)
 
-    field(:status, :string, default: "offline", virtual: true)
-
     timestamps()
   end
 

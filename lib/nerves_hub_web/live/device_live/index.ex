@@ -194,8 +194,8 @@ defmodule NervesHubWeb.DeviceLive.Index do
     device = Enum.at(devices, device_index)
 
     case Enum.find(user.org_users, &(&1.org_id == device.org_id)) do
-      %{role: :admin} -> do_reboot(socket, :allowed, device, device_index)
-      _ -> do_reboot(socket, :blocked, device, device_index)
+      %{role: :admin} -> do_reboot(socket, :allowed, device)
+      _ -> do_reboot(socket, :blocked, device)
     end
   end
 
@@ -336,39 +336,17 @@ defmodule NervesHubWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
-  # Only sync devices currently on display
   def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
-    {:noreply, assign(socket, devices: sync_devices(socket.assigns.devices, payload))}
+    # Only sync devices currently on display
+    if Map.has_key?(socket.assigns.device_statuses, payload.device_id) do
+      device_statuses = Map.put(socket.assigns.device_statuses, payload.device_id, payload.status)
+      {:noreply, assign(socket, :device_statuses, device_statuses)}
+    else
+      {:noreply, socket}
+    end
   end
 
-  defp assign_statuses(org_id, product_id, opts) do
-    Devices.get_devices_by_org_id_and_product_id(org_id, product_id, opts)
-    |> Map.update(:entries, [], &sync_devices/1)
-  end
-
-  defp sync_devices(devices, payload \\ %{}) do
-    Enum.map(devices, fn device ->
-      meta = Presence.find(device)
-
-      case is_nil(meta) do
-        true ->
-          Map.put(device, :status, "offline")
-
-        false ->
-          fields = [:status]
-          device = Map.merge(device, Map.take(meta, fields))
-
-          if Map.get(payload, :device_id) == device.id do
-            payload = Map.delete(payload, :device_id)
-            Map.merge(device, payload)
-          else
-            device
-          end
-      end
-    end)
-  end
-
-  defp do_reboot(%{assigns: %{user: user}} = socket, :allowed, device, device_index) do
+  defp do_reboot(%{assigns: %{user: user}} = socket, :allowed, device) do
     AuditLogs.audit!(
       user,
       device,
@@ -379,18 +357,17 @@ defmodule NervesHubWeb.DeviceLive.Index do
 
     socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
-    devices =
-      List.replace_at(socket.assigns.devices, device_index, %{device | status: "reboot-requested"})
+    device_statuses = Map.put(socket.assigns.device_statuses, device.id, "reboot-requested")
 
     socket =
       socket
       |> put_flash(:info, "Device Reboot Requested")
-      |> assign(:devices, devices)
+      |> assign(:device_statuses, device_statuses)
 
     {:noreply, socket}
   end
 
-  defp do_reboot(%{assigns: %{user: user}} = socket, :blocked, device, device_index) do
+  defp do_reboot(%{assigns: %{user: user}} = socket, :blocked, device) do
     msg = "User not authorized to reboot this device"
 
     AuditLogs.audit!(
@@ -404,13 +381,12 @@ defmodule NervesHubWeb.DeviceLive.Index do
       }
     )
 
-    devices =
-      List.replace_at(socket.assigns.devices, device_index, %{device | status: "reboot-blocked"})
+    device_statuses = Map.put(socket.assigns.device_statuses, device.id, "reboot-blocked")
 
     socket =
       socket
       |> put_flash(:error, msg)
-      |> assign(:devices, devices)
+      |> assign(:device_statuses, device_statuses)
 
     {:noreply, socket}
   end
@@ -424,8 +400,16 @@ defmodule NervesHubWeb.DeviceLive.Index do
       filters: socket.assigns.current_filters
     }
 
-    page = assign_statuses(org.id, product.id, opts)
-    assign_display_devices(socket, page)
+    page = Devices.get_devices_by_org_id_and_product_id(org.id, product.id, opts)
+
+    statuses =
+      Enum.into(page.entries, %{}, fn device ->
+        {device.id, Presence.device_status(device)}
+      end)
+
+    socket
+    |> assign(:device_statuses, statuses)
+    |> assign_display_devices(page)
   end
 
   defp assign_display_devices(%{assigns: %{paginate_opts: paginate_opts}} = socket, page) do

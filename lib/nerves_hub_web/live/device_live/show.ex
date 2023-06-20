@@ -10,7 +10,6 @@ defmodule NervesHubWeb.DeviceLive.Show do
   alias NervesHub.Certificate
   alias NervesHub.Deployments
   alias NervesHub.Devices
-  alias NervesHub.Devices.Device
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Repo
@@ -49,7 +48,8 @@ defmodule NervesHubWeb.DeviceLive.Show do
 
     socket =
       socket
-      |> assign(:device, sync_device(device))
+      |> assign(:device, Repo.preload(device, [:device_certificates]))
+      |> assign(:status, Presence.device_status(device))
       |> assign(:deployment, device.deployment)
       |> assign(:page_title, device.identifier)
       |> assign(:toggle_upload, false)
@@ -119,7 +119,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
   def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
     socket =
       socket
-      |> assign(:device, sync_device(socket.assigns.device, payload))
+      |> assign(:status, payload.status)
       |> assign(:fwup_progress, nil)
 
     {:noreply, socket}
@@ -161,8 +161,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
     socket =
       case Devices.clear_penalty_box(device, user) do
         {:ok, updated_device} ->
-          meta = Map.take(device, Presence.__fields__())
-          assign(socket, :device, Map.merge(updated_device, meta))
+          assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))
 
         {:error, _changeset} ->
           put_flash(socket, :error, "Failed to mark health state")
@@ -179,8 +178,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
     socket =
       case Devices.toggle_health(device, user) do
         {:ok, updated_device} ->
-          meta = Map.take(device, Presence.__fields__())
-          assign(socket, :device, Map.merge(updated_device, meta))
+          assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))
 
         {:error, _changeset} ->
           put_flash(socket, :error, "Failed to mark health state")
@@ -259,7 +257,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
     %{device: device, user: user} = socket.assigns
 
     {:ok, device} = Devices.disable_updates(device, user)
-    socket = assign(socket, :device, device)
+    socket = assign(socket, :device, Repo.preload(device, [:device_certificates]))
 
     description =
       "user #{user.username} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
@@ -303,7 +301,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
     socket =
       socket
       |> put_flash(:info, "Device Reboot Requested")
-      |> assign(:device, %{socket.assigns.device | status: "reboot-requested"})
+      |> assign(:status, "reboot-requested")
 
     {:noreply, socket}
   end
@@ -325,26 +323,8 @@ defmodule NervesHubWeb.DeviceLive.Show do
     socket =
       socket
       |> put_flash(:error, msg)
-      |> assign(:device, %{socket.assigns.device | status: "reboot-blocked"})
+      |> assign(:status, "reboot-blocked")
 
     {:noreply, socket}
-  end
-
-  def sync_device(%Device{} = device) do
-    metadata = Presence.find(device)
-    sync_device(device, metadata)
-  end
-
-  defp sync_device(%Device{} = device, metadata) do
-    device = Repo.preload(device, :device_certificates, force: true)
-
-    case is_nil(metadata) do
-      false ->
-        updates = Map.take(metadata, [:status])
-        Map.merge(device, updates)
-
-      true ->
-        device
-    end
   end
 end
