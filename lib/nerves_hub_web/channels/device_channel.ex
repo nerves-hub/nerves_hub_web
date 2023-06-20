@@ -284,10 +284,6 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, assign(socket, :device, device)}
   end
 
-  def handle_info(%Broadcast{event: "reconnect"}, socket) do
-    {:stop, :shutdown, socket}
-  end
-
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
     push(socket, event, payload)
     {:noreply, socket}
