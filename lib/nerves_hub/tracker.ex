@@ -81,10 +81,7 @@ defmodule NervesHub.Tracker do
 
   @doc false
   def shard(device) do
-    device.identifier
-    |> String.to_charlist()
-    |> Enum.sum()
-    |> rem(8)
+    :erlang.phash(device.identifier, 8)
   end
 
   @doc false
