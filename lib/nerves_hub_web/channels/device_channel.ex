@@ -108,9 +108,6 @@ defmodule NervesHubWeb.DeviceChannel do
       end
 
     {:noreply, socket}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   def handle_in("status_update", %{"status" => status}, socket) do
@@ -169,9 +166,6 @@ defmodule NervesHubWeb.DeviceChannel do
     else
       {:noreply, socket}
     end
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   def handle_info(%Broadcast{event: "deployments/changed", payload: payload}, socket) do
@@ -214,9 +208,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end)
 
     {:noreply, assign(socket, :device, device)}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   # manually pushed
@@ -274,9 +265,6 @@ defmodule NervesHubWeb.DeviceChannel do
     send(self(), :resolve_changed_deployment)
 
     {:noreply, assign(socket, device: device)}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   # Update local state and tell the various servers of the new information
@@ -349,9 +337,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end
 
     {:noreply, socket}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   def handle_out("presence_diff", _msg, socket) do
@@ -459,9 +444,6 @@ defmodule NervesHubWeb.DeviceChannel do
     socket
     |> assign(:device, device)
     |> assign(:deployment_channel, "deployment:#{device.deployment_id}")
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   @doc """
