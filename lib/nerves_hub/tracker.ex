@@ -1,3 +1,7 @@
+defmodule NervesHub.Tracker.Record do
+  defstruct [:identifier, :pid, :node, :timestamp, :status]
+end
+
 defmodule NervesHub.Tracker do
   @moduledoc """
   Track device online state
@@ -13,12 +17,15 @@ defmodule NervesHub.Tracker do
   use Supervisor
 
   alias NervesHub.Tracker.DeviceShard
+  alias NervesHub.Tracker.Record
 
   @doc false
   def all_online() do
     0..7
     |> Enum.map(fn i ->
-      :ets.select(:"tracker_shards_#{i}", [{:_, [], [{:element, 1, :"$_"}]}])
+      :ets.select(:"tracker_shards_#{i}", [
+        {{:_, %{status: "online"}}, [], [{:element, 1, :"$_"}]}
+      ])
     end)
     |> Enum.concat()
   end
@@ -26,31 +33,61 @@ defmodule NervesHub.Tracker do
   @doc """
   Mark a device as online
   """
-  def online(device) do
+  def online(%{} = device) do
+    online(device.identifier)
+  end
+
+  def online(identifier) when is_binary(identifier) do
     {:ok, now} = HLClock.now(NervesHub.Clock)
 
-    record = %{
-      identifier: device.identifier,
+    record = %Record{
+      status: "online",
+      identifier: identifier,
       pid: self(),
       node: node(),
       timestamp: now
     }
 
-    GenServer.abcast(DeviceShard.name(shard(device)), {:online, record})
+    GenServer.abcast(DeviceShard.name(shard(identifier)), {:online, record})
+
+    publish(identifier, "online")
   end
 
   @doc """
   Mark a device as offline
   """
-  def offline(device) do
+  def offline(%{} = device) do
+    offline(device.identifier)
+  end
+
+  def offline(identifier) when is_binary(identifier) do
     {:ok, now} = HLClock.now(NervesHub.Clock)
 
-    record = %{
-      identifier: device.identifier,
+    record = %Record{
+      status: "offline",
+      identifier: identifier,
+      pid: nil,
+      node: nil,
       timestamp: now
     }
 
-    GenServer.abcast(DeviceShard.name(shard(device)), {:offline, record})
+    GenServer.abcast(DeviceShard.name(shard(identifier)), {:offline, record})
+
+    publish(identifier, "offline")
+  end
+
+  defp publish(identifier, status) do
+    message = %Phoenix.Socket.Broadcast{
+      event: "connection_change",
+      payload: %{
+        device_id: identifier,
+        status: status
+      }
+    }
+
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{identifier}:internal", message)
+
+    :ok
   end
 
   @doc """
@@ -74,14 +111,18 @@ defmodule NervesHub.Tracker do
       [] ->
         false
 
-      [_] ->
-        true
+      [{_identifier, record}] ->
+        record.status == "online"
     end
   end
 
   @doc false
-  def shard(device) do
-    :erlang.phash(device.identifier, 8)
+  def shard(%{} = device) do
+    shard(device.identifier)
+  end
+
+  def shard(identifier) when is_binary(identifier) do
+    :erlang.phash2(identifier, 8)
   end
 
   @doc false
@@ -124,6 +165,8 @@ defmodule NervesHub.Tracker.DeviceShard do
   use GenServer
 
   require Logger
+
+  alias NervesHub.Tracker
 
   defmodule State do
     defstruct [:ets_table, :index]
@@ -179,7 +222,7 @@ defmodule NervesHub.Tracker.DeviceShard do
         # only perform the delete if it's a new message and we didn't receive an
         # out of date message by accident
         if HLClock.before?(existing_record.timestamp, record.timestamp) do
-          :ets.delete(state.ets_table, record.identifier)
+          :ets.insert(state.ets_table, {record.identifier, record})
         end
 
         {:noreply, state}
@@ -227,9 +270,7 @@ defmodule NervesHub.Tracker.DeviceShard do
         {:noreply, state}
 
       [{_id, record}] ->
-        {:ok, now} = HLClock.now(NervesHub.Clock)
-        record = %{record | timestamp: now}
-        GenServer.abcast(name(state.index), {:offline, record})
+        Tracker.offline(record.identifier)
         {:noreply, state}
     end
   end

@@ -79,7 +79,9 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("fwup_progress", %{"value" => percent}, socket) do
-    socket.endpoint.broadcast("device:#{socket.assigns.device.id}:internal", "fwup_progress", %{
+    device = socket.assigns.device
+
+    socket.endpoint.broadcast("device:#{device.identifier}:internal", "fwup_progress", %{
       percent: percent
     })
 
@@ -88,7 +90,6 @@ defmodule NervesHubWeb.DeviceChannel do
       if !socket.assigns.update_started? do
         # reload update attempts because they might have been cleared
         # and we have a cached stale version
-        device = socket.assigns.device
         updated_device = Repo.reload(device)
         device = %{device | update_attempts: updated_device.update_attempts}
 
