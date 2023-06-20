@@ -117,7 +117,16 @@ defmodule NervesHubWeb.DeviceLive.Show do
   end
 
   def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
-    {:noreply, assign(socket, :device, sync_device(socket.assigns.device, payload))}
+    socket =
+      socket
+      |> assign(:device, sync_device(socket.assigns.device, payload))
+      |> assign(:fwup_progress, nil)
+
+    {:noreply, socket}
+  end
+
+  def handle_info(%Broadcast{event: "fwup_progress", payload: payload}, socket) do
+    {:noreply, assign(socket, :fwup_progress, payload.percent)}
   end
 
   # Ignore unknown messages
@@ -331,13 +340,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
 
     case is_nil(metadata) do
       false ->
-        updates =
-          Map.take(metadata, [
-            :firmware_metadata,
-            :fwup_progress,
-            :status
-          ])
-
+        updates = Map.take(metadata, [:status])
         Map.merge(device, updates)
 
       true ->

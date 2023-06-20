@@ -3,7 +3,6 @@ defmodule NervesHubWeb.DeviceControllerTest do
 
   alias NervesHub.Devices
   alias NervesHub.Fixtures
-  alias NervesHubDevice.Presence
 
   setup %{user: user, org: org} do
     [product: Fixtures.product_fixture(user, org)]
@@ -73,10 +72,6 @@ defmodule NervesHubWeb.DeviceControllerTest do
       org_key = Fixtures.org_key_fixture(org)
       firmware = Fixtures.firmware_fixture(org_key, product)
       device = Fixtures.device_fixture(org, product, firmware)
-
-      Presence.track(device, %{
-        console_version: "0.9.0"
-      })
 
       result =
         get(conn, Routes.device_path(conn, :console, org.name, product.name, device.identifier))

@@ -355,12 +355,7 @@ defmodule NervesHubWeb.DeviceLive.Index do
           Map.put(device, :status, "offline")
 
         false ->
-          fields = [
-            :firmware_metadata,
-            :status,
-            :fwup_progress
-          ]
-
+          fields = [:status]
           device = Map.merge(device, Map.take(meta, fields))
 
           if Map.get(payload, :device_id) == device.id do

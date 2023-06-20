@@ -34,16 +34,12 @@ defmodule NervesHubDevice.Presence do
   @type device_id_string :: String.t()
 
   @type device_presence :: %{
-          console_version: Version.build(),
-          fwup_progress: integer(),
           status: status()
         }
 
   @type presence_list :: %{optional(device_id_string) => device_presence}
 
   @allowed_fields [
-    :console_version,
-    :fwup_progress,
     :status
   ]
 
@@ -126,10 +122,7 @@ defmodule NervesHubDevice.Presence do
   end
 
   defp publish_change(device, payload, publish \\ []) do
-    payload =
-      payload
-      |> metadata()
-      |> Map.put(:device_id, device.id)
+    payload = Map.put(payload, :device_id, device.id)
 
     if Keyword.get(publish, :internal, true) do
       Phoenix.PubSub.broadcast(
@@ -159,23 +152,10 @@ defmodule NervesHubDevice.Presence do
            {{{:_, :_, device.id}, :_, :_}, [], [{:element, 3, :"$_"}]}
          ]) do
       [metadata] ->
-        metadata(metadata)
+        metadata
 
       [] ->
         default_metadata
-    end
-  end
-
-  defp metadata(metadata) do
-    case Map.take(metadata, @allowed_fields) do
-      %{status: _status} = e ->
-        e
-
-      %{fwup_progress: _progress} = e ->
-        Map.put(e, :status, "updating")
-
-      e ->
-        Map.put(e, :status, "online")
     end
   end
 
@@ -192,20 +172,6 @@ defmodule NervesHubDevice.Presence do
 
       metadata ->
         metadata.status
-    end
-  end
-
-  @doc """
-  Devices console status
-  """
-  @spec console_available(Device.t()) :: status()
-  def console_available(%Device{} = device) do
-    case find(device) do
-      nil ->
-        false
-
-      metadata ->
-        !is_nil(metadata.console_version)
     end
   end
 
