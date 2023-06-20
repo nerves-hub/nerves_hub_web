@@ -4,7 +4,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Fixtures
-  alias NervesHubDevice.Presence
+  alias NervesHub.Tracker
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
 
@@ -24,8 +24,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
     {:ok, _, _socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
 
-    presence = Presence.find(device)
-    assert presence.status == "online"
+    assert Tracker.online?(device)
   end
 
   test "device disconnected adds audit log" do

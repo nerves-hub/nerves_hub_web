@@ -80,6 +80,7 @@ defmodule NervesHubUmbrella.MixProject do
       {:gettext, "~> 0.21.0"},
       {:gproc, "~> 0.9.0"},
       {:hackney, "~> 1.16"},
+      {:hlclock, "~> 1.0"},
       {:httpoison, "~> 1.4.0"},
       {:jason, "~> 1.2", override: true},
       {:logfmt, "~> 3.3"},

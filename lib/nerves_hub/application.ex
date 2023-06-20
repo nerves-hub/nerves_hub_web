@@ -18,7 +18,8 @@ defmodule NervesHub.Application do
       [
         NervesHub.Metrics,
         NervesHub.Supervisor,
-        {Registry, keys: :unique, name: NervesHub.Devices}
+        {Registry, keys: :unique, name: NervesHub.Devices},
+        NervesHub.Tracker
       ] ++ endpoints(@env)
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]

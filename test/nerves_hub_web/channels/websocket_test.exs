@@ -8,7 +8,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Repo
-  alias NervesHubDevice.Presence
+  alias NervesHub.Tracker
   alias NervesHubWeb.DeviceEndpoint
 
   @valid_serial "device-1234"
@@ -100,7 +100,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Presence.device_status(device) == "online"
+      assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
     end
 
@@ -138,7 +138,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Presence.device_status(device) == "online"
+      assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
     end
 
@@ -160,7 +160,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Presence.device_status(device) == "online"
+      assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
     end
 
@@ -229,7 +229,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Presence.device_status(device) == "online"
+      assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
     end
 
@@ -305,7 +305,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Presence.device_status(device) == "online"
+      assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
     end
   end
@@ -421,7 +421,7 @@ defmodule NervesHubWeb.WebsocketTest do
         |> Repo.preload(:org)
 
       assert updated_device.firmware_metadata.uuid == query_uuid
-      assert "online" == Presence.device_status(updated_device)
+      assert Tracker.online?(device)
       assert Time.diff(DateTime.utc_now(), updated_device.last_communication) < 2
     end
 
@@ -510,7 +510,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Presence.device_status(device) == "online"
+      assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
     end
 
@@ -571,7 +571,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Presence.device_status(device) == "online"
+      assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
     end
 
