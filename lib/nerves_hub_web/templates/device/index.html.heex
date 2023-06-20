@@ -205,7 +205,6 @@
         <th>Connection</th>
         <th>Firmware</th>
         <th>Platform</th>
-        <th>Firmware Status</th>
         <%= devices_table_header("Tags", "tags", @current_sort, @sort_direction) %>
         <th></th>
       </tr>
@@ -227,7 +226,7 @@
         <td>
           <div class="mobile-label help-text">Connection</div>
           <div>
-            <%= if device.status == "offline" do %>
+            <%= if @device_statuses[device.id] == "offline" do %>
               <div title={"Last connected #{DateTimeFormat.from_now(device.last_communication)}"}>
                 <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
               </div>
@@ -263,20 +262,6 @@
           </div>
         </td>
 
-        <td class="tt-c-first-letter">
-          <div class="mobile-label help-text">Firmware status</div>
-          <div>
-            <%= cond do %>
-              <% device.status == "offline" -> %>
-                <span class="color-white-50">Unknown</span>
-              <% device.status == "online" -> %>
-                Up to date
-              <% true -> %>
-                <%= display_status(device.status) %>
-            <% end %>
-          </div>
-        </td>
-
         <td>
           <div class="mobile-label help-text">Tags</div>
           <div>
@@ -298,7 +283,7 @@
             <div class="dropdown-menu dropdown-menu-right">
               <%= link "details", class: "dropdown-item", to: Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>
               <div class="dropdown-divider"></div>
-              <button class="dropdown-item" type="button" phx-click="reboot" phx-value-device-id={device.id} {if device.status == "offline", do: [disabled: true], else: []} data-confirm="Are you sure?">
+              <button class="dropdown-item" type="button" phx-click="reboot" phx-value-device-id={device.id} {if @device_statuses[device.id] == "offline", do: [disabled: true], else: []} data-confirm="Are you sure?">
                 <span>Reboot</span>
               </button>
               <div class="dropdown-divider"></div>

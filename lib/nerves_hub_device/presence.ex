@@ -168,7 +168,7 @@ defmodule NervesHubDevice.Presence do
   def device_status(%Device{} = device) do
     case find(device) do
       nil ->
-        :offline
+        "offline"
 
       metadata ->
         metadata.status

@@ -26,15 +26,15 @@
         <span class="action-text">Destroy</span>
       </button>
     <% else %>
-      <button class="btn btn-outline-light btn-action"  aria-label="Reboot device" type="button" phx-click="reboot" {if @device.status == "offline", do: [disabled: true], else: []} data-confirm="Are you sure?">
+      <button class="btn btn-outline-light btn-action"  aria-label="Reboot device" type="button" phx-click="reboot" {if @status == "offline", do: [disabled: true], else: []} data-confirm="Are you sure?">
         <span class="button-icon power"></span>
         <span class="action-text">Reboot</span>
       </button>
-      <button class="btn btn-outline-light btn-action"  aria-label="Reconnect device" type="button" phx-click="reconnect" {if @device.status == "offline", do: [disabled: true], else: []}>
+      <button class="btn btn-outline-light btn-action"  aria-label="Reconnect device" type="button" phx-click="reconnect" {if @status == "offline", do: [disabled: true], else: []}>
         <span class="button-icon power"></span>
         <span class="action-text">Reconnect</span>
       </button>
-      <button class="btn btn-outline-light btn-action"  aria-label="Identify device" type="button" phx-click="identify" {if @device.status == "offline", do: [disabled: true], else: []}>
+      <button class="btn btn-outline-light btn-action"  aria-label="Identify device" type="button" phx-click="identify" {if @status == "offline", do: [disabled: true], else: []}>
         <span class="button-icon identify"></span>
         <span class="action-text">Identify</span>
       </button>
@@ -123,12 +123,12 @@
         <div class="help-text mb-1">Status</div>
         <div class="tt-c-first-letter">
           <%= cond do %>
-            <% @device.status == "offline" -> %>
+            <% @status == "offline" -> %>
               <span class="color-white-50">Unknown</span>
-            <% @device.status == "online" -> %>
+            <% @status == "online" -> %>
               Up to date
             <% true -> %>
-              <%= display_status(@device.status) %>
+              <%= display_status(@status) %>
           <% end %>
         </div>
       </div>
