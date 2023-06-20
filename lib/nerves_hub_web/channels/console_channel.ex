@@ -2,9 +2,8 @@
 defmodule NervesHubWeb.ConsoleChannel do
   use Phoenix.Channel
 
-  alias NervesHubDevice.Presence
-  alias NervesHubDevice.PresenceException
   alias NervesHub.Devices
+  alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
   def join("console", payload, socket) do
@@ -48,17 +47,35 @@ defmodule NervesHubWeb.ConsoleChannel do
     {:noreply, socket}
   end
 
-  def handle_info({:after_join, payload}, socket) do
+  def handle_info({:after_join, _payload}, socket) do
     socket.endpoint.subscribe(console_topic(socket))
-    version = Map.get(payload, "console_version", "0.1.0")
 
-    {pid, _value} = Presence.await(socket.assigns.device)
-    send(pid, {:console, version})
+    # now that the console is connected, push down the device's elixir, line by line
+    device = socket.assigns.device
+    device = Repo.preload(device, [:deployment])
+    deployment = device.deployment
+
+    if deployment && deployment.connecting_code do
+      device.deployment.connecting_code
+      |> String.graphemes()
+      |> Enum.map(fn character ->
+        push(socket, "dn", %{"data" => character})
+      end)
+
+      push(socket, "dn", %{"data" => "\r"})
+    end
+
+    if device.connecting_code do
+      device.connecting_code
+      |> String.graphemes()
+      |> Enum.map(fn character ->
+        push(socket, "dn", %{"data" => character})
+      end)
+
+      push(socket, "dn", %{"data" => "\r"})
+    end
 
     {:noreply, socket}
-  rescue
-    PresenceException ->
-      {:stop, :shutdown, socket}
   end
 
   def handle_info(%{event: "phx_leave"}, socket) do
