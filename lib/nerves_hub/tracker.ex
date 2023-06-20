@@ -1,8 +1,20 @@
 defmodule NervesHub.Tracker do
+  @moduledoc """
+  Track device online state
+
+  When a device is marked as online, the state is broadcast to the cluster
+  via an `abcast` to it's shard genserver. There are 8 shards to help lower
+  the amount of mail in each shard's mailbox.
+
+  A HLClock is started for each node that syncs between nodes in order to
+  keep the clocks roughly in sync.
+  """
+
   use Supervisor
 
-  alias NervesHub.DeviceShard
+  alias NervesHub.Tracker.DeviceShard
 
+  @doc false
   def all_online() do
     0..7
     |> Enum.map(fn i ->
@@ -11,6 +23,9 @@ defmodule NervesHub.Tracker do
     |> Enum.concat()
   end
 
+  @doc """
+  Mark a device as online
+  """
   def online(device) do
     {:ok, now} = HLClock.now(NervesHub.Clock)
 
@@ -24,6 +39,9 @@ defmodule NervesHub.Tracker do
     GenServer.abcast(DeviceShard.name(shard(device)), {:online, record})
   end
 
+  @doc """
+  Mark a device as offline
+  """
   def offline(device) do
     {:ok, now} = HLClock.now(NervesHub.Clock)
 
@@ -35,6 +53,9 @@ defmodule NervesHub.Tracker do
     GenServer.abcast(DeviceShard.name(shard(device)), {:offline, record})
   end
 
+  @doc """
+  String version of `offline/1`
+  """
   def status(device) do
     if online?(device) do
       "online"
@@ -43,6 +64,11 @@ defmodule NervesHub.Tracker do
     end
   end
 
+  @doc """
+  Check if a device is currently online
+
+  Checks the local shard directly, if present, the device is online
+  """
   def online?(device) do
     case :ets.lookup(DeviceShard.name(shard(device)), device.identifier) do
       [] ->
@@ -53,6 +79,7 @@ defmodule NervesHub.Tracker do
     end
   end
 
+  @doc false
   def shard(device) do
     device.identifier
     |> String.to_charlist()
@@ -60,10 +87,12 @@ defmodule NervesHub.Tracker do
     |> rem(8)
   end
 
+  @doc false
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts)
   end
 
+  @impl true
   def init(_opts) do
     children =
       Enum.map(0..7, fn i ->
@@ -80,7 +109,21 @@ defmodule NervesHub.Tracker do
   end
 end
 
-defmodule NervesHub.DeviceShard do
+defmodule NervesHub.Tracker.DeviceShard do
+  @moduledoc """
+  A shard of the overall state of device tracking
+
+  Starts an ets table and manages devices coming and going offline. If the device
+  is local to the shard, it is monitored. When the device goes offline on the same node,
+  and the device didn't declare itself as offline, the device is set as offline.
+
+  Remote nodes are watched as well and clears out any devices that were online on that
+  node when it goes offline.
+
+  When the shard comes online, it picks a random node and asks it's counterpart on that
+  node to sync over the full set of state.
+  """
+
   use GenServer
 
   require Logger
@@ -103,7 +146,7 @@ defmodule NervesHub.DeviceShard do
       index: opts[:index]
     }
 
-    :ets.new(state.ets_table, [:set, :public, :named_table, read_concurrency: true])
+    :ets.new(state.ets_table, [:set, :protected, :named_table, read_concurrency: true])
 
     :net_kernel.monitor_nodes(true)
 
@@ -116,7 +159,9 @@ defmodule NervesHub.DeviceShard do
     {:reply, :ok, state, {:continue, {:sync, pid}}}
   end
 
+  # NOTE this might become an issue as we start having very large amounts of devices online
   def handle_continue({:sync, pid}, state) do
+    # select everything out at once, because otherwise we might miss something
     records = :ets.select(state.ets_table, [{:_, [], [{:element, 2, :"$_"}]}])
 
     Enum.each(records, fn record ->
@@ -134,6 +179,8 @@ defmodule NervesHub.DeviceShard do
         {:noreply, state}
 
       [{_identifier, existing_record}] ->
+        # only perform the delete if it's a new message and we didn't receive an
+        # out of date message by accident
         if HLClock.before?(existing_record.timestamp, record.timestamp) do
           :ets.delete(state.ets_table, record.identifier)
         end
@@ -145,6 +192,8 @@ defmodule NervesHub.DeviceShard do
   def handle_cast({:online, record}, state) do
     Logger.debug("Online device #{record.identifier} from shard #{state.index}")
 
+    # monitor the process if its local to clear the device once it is terminated,
+    # as a precaution for the device not calling it's own `terminate`.
     if :erlang.node(record.pid) == node() do
       Process.monitor(record.pid)
     end
