@@ -305,40 +305,6 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  # TODO save version into the database, it likely won't change often
-  def handle_info({:console, _version}, socket) do
-    # now that the console is connected, push down the device's elixir, line by line
-    device = socket.assigns.device
-    device = Repo.preload(device, [:deployment])
-    deployment = device.deployment
-
-    if deployment && deployment.connecting_code do
-      device.deployment.connecting_code
-      |> String.graphemes()
-      |> Enum.map(fn character ->
-        socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{
-          "data" => character
-        })
-      end)
-
-      socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => "\r"})
-    end
-
-    if device.connecting_code do
-      device.connecting_code
-      |> String.graphemes()
-      |> Enum.map(fn character ->
-        socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{
-          "data" => character
-        })
-      end)
-
-      socket.endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => "\r"})
-    end
-
-    {:noreply, socket}
-  end
-
   def handle_out("presence_diff", _msg, socket) do
     {:noreply, socket}
   end
