@@ -204,8 +204,10 @@ defmodule NervesHub.Tracker.DeviceShard do
     # select everything out at once, because otherwise we might miss something
     records = :ets.select(state.ets_table, [{:_, [], [{:element, 2, :"$_"}]}])
 
-    Enum.each(records, fn record ->
-      GenServer.cast(pid, {:online, record})
+    records
+    |> Enum.chunk_every(100)
+    |> Enum.each(fn records ->
+      GenServer.cast(pid, {:sync, records})
     end)
 
     {:noreply, state}
@@ -249,6 +251,14 @@ defmodule NervesHub.Tracker.DeviceShard do
 
         {:noreply, state}
     end
+  end
+
+  def handle_cast({:sync, records}, state) do
+    Enum.each(records, fn record ->
+      handle_cast({:online, record}, state)
+    end)
+
+    {:noreply, state}
   end
 
   def handle_info(:sync, state) do
