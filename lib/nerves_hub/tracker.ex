@@ -216,11 +216,10 @@ defmodule NervesHub.Tracker.DeviceShard do
 
     case :ets.lookup(state.ets_table, record.identifier) do
       [] ->
+        :ets.insert(state.ets_table, {record.identifier, record})
         {:noreply, state}
 
       [{_identifier, existing_record}] ->
-        # only perform the delete if it's a new message and we didn't receive an
-        # out of date message by accident
         if HLClock.before?(existing_record.timestamp, record.timestamp) do
           :ets.insert(state.ets_table, {record.identifier, record})
         end
