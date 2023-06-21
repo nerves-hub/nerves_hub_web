@@ -298,12 +298,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
 
     socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "reboot", %{})
 
-    socket =
-      socket
-      |> put_flash(:info, "Device Reboot Requested")
-      |> assign(:status, "reboot-requested")
-
-    {:noreply, socket}
+    {:noreply, put_flash(socket, :info, "Device Reboot Requested")}
   end
 
   defp do_reboot(%{assigns: %{device: device, user: user}} = socket, :blocked) do
@@ -320,11 +315,6 @@ defmodule NervesHubWeb.DeviceLive.Show do
       }
     )
 
-    socket =
-      socket
-      |> put_flash(:error, msg)
-      |> assign(:status, "reboot-blocked")
-
-    {:noreply, socket}
+    {:noreply, put_flash(socket, :error, msg)}
   end
 end
