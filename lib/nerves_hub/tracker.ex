@@ -48,7 +48,7 @@ defmodule NervesHub.Tracker do
       timestamp: now
     }
 
-    GenServer.abcast(DeviceShard.name(shard(identifier)), {:online, record})
+    GenServer.abcast(DeviceShard.name(shard(identifier)), {:store, record})
 
     publish(identifier, "online")
   end
@@ -71,7 +71,7 @@ defmodule NervesHub.Tracker do
       timestamp: now
     }
 
-    GenServer.abcast(DeviceShard.name(shard(identifier)), {:offline, record})
+    GenServer.abcast(DeviceShard.name(shard(identifier)), {:store, record})
 
     publish(identifier, "offline")
   end
@@ -213,29 +213,12 @@ defmodule NervesHub.Tracker.DeviceShard do
     {:noreply, state}
   end
 
-  def handle_cast({:offline, record}, state) do
-    Logger.debug("Offline device #{record.identifier} from shard #{state.index}")
-
-    case :ets.lookup(state.ets_table, record.identifier) do
-      [] ->
-        :ets.insert(state.ets_table, {record.identifier, record})
-        {:noreply, state}
-
-      [{_identifier, existing_record}] ->
-        if HLClock.before?(existing_record.timestamp, record.timestamp) do
-          :ets.insert(state.ets_table, {record.identifier, record})
-        end
-
-        {:noreply, state}
-    end
-  end
-
-  def handle_cast({:online, record}, state) do
-    Logger.debug("Online device #{record.identifier} from shard #{state.index}")
+  def handle_cast({:store, record}, state) do
+    Logger.debug("#{record.status} device #{record.identifier} from shard #{state.index}")
 
     # monitor the process if its local to clear the device once it is terminated,
     # as a precaution for the device not calling it's own `terminate`.
-    if :erlang.node(record.pid) == node() do
+    if record.pid && :erlang.node(record.pid) == node() do
       Process.monitor(record.pid)
     end
 
@@ -255,7 +238,7 @@ defmodule NervesHub.Tracker.DeviceShard do
 
   def handle_cast({:sync, records}, state) do
     Enum.each(records, fn record ->
-      handle_cast({:online, record}, state)
+      handle_cast({:store, record}, state)
     end)
 
     {:noreply, state}
@@ -290,15 +273,15 @@ defmodule NervesHub.Tracker.DeviceShard do
     {:noreply, state}
   end
 
-  def handle_info({:nodeup, _node}, state) do
-    {:noreply, state}
+  def handle_info({:nodeup, node}, state) do
+    {:noreply, state, {:continue, {:sync, {name(state.index), node}}}}
   end
 end
 
 defmodule NervesHub.ClockSync do
   @moduledoc false
 
-  # Taken from Groot
+  # Taken from [Groot](https://github.com/elixir-toniq/groot)
 
   # This module regularly sends our local HLC to a random node in our cluster.
   # Each node in the cluster does this periodically in order to passively
