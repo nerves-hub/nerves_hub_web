@@ -115,7 +115,5 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub
 
-config :gproc, :gproc_dist, :all
-
 # Environment specific config
 import_config "#{Mix.env()}.exs"

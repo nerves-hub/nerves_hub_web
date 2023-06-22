@@ -76,7 +76,6 @@ defmodule NervesHubUmbrella.MixProject do
       {:ex_aws_s3, "~> 2.0"},
       {:floki, ">= 0.27.0", only: :test},
       {:gettext, "~> 0.21.0"},
-      {:gproc, "~> 0.9.0"},
       {:hackney, "~> 1.16"},
       {:hlclock, "~> 1.0"},
       {:httpoison, "~> 1.4.0"},
