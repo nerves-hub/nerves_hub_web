@@ -3,7 +3,6 @@ defmodule NervesHub.Devices.Device do
 
   import Ecto.Changeset
   import Ecto.Query
-  import EctoEnum
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Devices.DeviceCertificate
@@ -28,8 +27,6 @@ defmodule NervesHub.Devices.Device do
   ]
   @required_params [:org_id, :product_id, :identifier]
 
-  defenum(ConnectionType, :connection_type, [:cellular, :ethernet, :wifi])
-
   schema "devices" do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:product, Product, where: [deleted_at: nil])
@@ -45,7 +42,7 @@ defmodule NervesHub.Devices.Device do
     field(:deleted_at, :utc_datetime)
     field(:update_attempts, {:array, :utc_datetime}, default: [])
     field(:updates_blocked_until, :utc_datetime)
-    field(:connection_types, {:array, ConnectionType})
+    field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
     field(:connecting_code, :string)
 
     timestamps()

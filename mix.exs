@@ -70,7 +70,6 @@ defmodule NervesHubUmbrella.MixProject do
       {:crontab, "~> 1.1"},
       {:decorator, "~> 1.2"},
       {:ecto, "~> 3.8", override: true},
-      {:ecto_enum, github: "mobileoverlord/ecto_enum"},
       {:ecto_sql, "~> 3.0"},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},

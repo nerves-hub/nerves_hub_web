@@ -2,7 +2,6 @@ defmodule NervesHub.AuditLogs.AuditLog do
   use Ecto.Schema
 
   import Ecto.Changeset
-  import EctoEnum
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Types.Resource
@@ -20,12 +19,10 @@ defmodule NervesHub.AuditLogs.AuditLog do
   ]
   @optional_params [:changes]
 
-  defenum(Action, :action, [:create, :update, :delete])
-
   schema "audit_logs" do
     belongs_to(:org, Org, where: [deleted_at: nil])
 
-    field(:action, Action)
+    field(:action, Ecto.Enum, values: [:create, :update, :delete])
     field(:actor_id, :id)
     field(:actor_type, Resource)
     field(:description, :string)
