@@ -15,7 +15,6 @@ defmodule NervesHub.Accounts do
     RemoveAccount
   }
 
-  alias NervesHub.Products.{Product, ProductUser}
   alias NervesHub.Repo
 
   @spec create_org(User.t(), map) ::
@@ -174,29 +173,6 @@ defmodule NervesHub.Accounts do
         full_join: ou in OrgUser,
         on: ou.org_id == o.id,
         where: ou.user_id == ^user.id,
-        where: is_nil(ou.deleted_at),
-        group_by: o.id
-      )
-
-    query
-    |> Repo.exclude_deleted()
-    |> Repo.all()
-  end
-
-  def get_user_orgs_with_product_role(%User{} = user, product_role) do
-    query =
-      from(
-        o in Org,
-        full_join: p in Product,
-        on: p.org_id == o.id,
-        full_join: ou in OrgUser,
-        on: ou.org_id == o.id,
-        full_join: pu in ProductUser,
-        on: pu.product_id == p.id,
-        where:
-          ou.user_id == ^user.id or
-            (pu.user_id == ^user.id and
-               pu.role in ^User.role_or_higher(product_role)),
         where: is_nil(ou.deleted_at),
         group_by: o.id
       )

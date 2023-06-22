@@ -1,8 +1,8 @@
 defmodule NervesHubWeb.API.ProductControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
+  alias NervesHub.Accounts
   alias NervesHub.Fixtures
-  alias NervesHub.{Accounts, Products}
 
   setup context do
     org = Fixtures.org_fixture(context.user, %{name: "api_test"})
@@ -137,33 +137,6 @@ defmodule NervesHubWeb.API.ProductControllerTest do
       path = Routes.product_path(conn, :show, org.name, "new")
       conn = get(conn, path)
       assert json_response(conn, 200)["data"]["name"] == "new"
-    end
-  end
-
-  describe "update product roles" do
-    setup [:create_product]
-
-    test "ok: org write", %{user2: user, conn2: conn, org: org, product: product} do
-      Accounts.add_org_user(org, user, %{role: :write})
-      Products.add_product_user(product, user, %{role: :admin})
-
-      conn =
-        put(conn, Routes.product_path(conn, :update, org.name, product.name),
-          product: %{"name" => "new"}
-        )
-
-      assert %{"name" => "new"} = json_response(conn, 200)["data"]
-
-      path = Routes.product_path(conn, :show, org.name, "new")
-      conn = get(conn, path)
-      assert json_response(conn, 200)["data"]["name"] == "new"
-    end
-
-    test "error: org read", %{user2: user, conn2: conn, org: org, product: product} do
-      Accounts.add_org_user(org, user, %{role: :read})
-
-      conn = delete(conn, Routes.product_path(conn, :delete, org.name, product.name))
-      assert json_response(conn, 403)["status"] != ""
     end
   end
 

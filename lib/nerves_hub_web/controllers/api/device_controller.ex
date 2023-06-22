@@ -11,10 +11,10 @@ defmodule NervesHubWeb.API.DeviceController do
 
   action_fallback(NervesHubWeb.API.FallbackController)
 
-  plug(:validate_role, [product: :delete] when action in [:delete])
-  plug(:validate_role, [product: :write] when action in [:create, :update])
-  plug(:validate_role, [product: :write] when action in [:reboot, :reconnect, :code, :upgrade])
-  plug(:validate_role, [product: :read] when action in [:index, :show, :auth])
+  plug(:validate_role, [org: :delete] when action in [:delete])
+  plug(:validate_role, [org: :write] when action in [:create, :update])
+  plug(:validate_role, [org: :write] when action in [:reboot, :reconnect, :code, :upgrade])
+  plug(:validate_role, [org: :read] when action in [:index, :show, :auth])
 
   def index(%{assigns: %{org: org, product: product}} = conn, params) do
     opts = %{

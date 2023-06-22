@@ -15,7 +15,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias Firmwares.{Firmware, FirmwareDelta, FirmwareTransfer}
   alias Accounts.{Org, OrgUser, OrgKey, Invite, User, OrgMetric}
   alias Devices.{DeviceCertificate, Device, CACertificate}
-  alias Products.{Product, ProductUser}
+  alias Products.Product
 
   def remove_account(user_id) do
     Multi.new()
@@ -29,7 +29,6 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.delete_all(:firmware_deltas, &query_firmware_deltas/1)
     |> Multi.delete_all(:firmware_transfers, &query_by_org_id(FirmwareTransfer, &1))
     |> Multi.merge(&delete_firmwares/1)
-    |> Multi.delete_all(:product_users, &query_product_users/1)
     |> Multi.delete_all(:org_keys, &query_by_org_id(OrgKey, &1))
     |> Multi.delete_all(:org_metrics, &query_by_org_id(OrgMetric, &1))
     |> Multi.update_all(:soft_delete_products, &soft_delete_by_org_id(Product, &1), [])
@@ -112,8 +111,6 @@ defmodule NervesHub.Accounts.RemoveAccount do
   defp query_by_org_id(queryable, ids) when is_list(ids) do
     where(queryable, [d], d.org_id in ^ids)
   end
-
-  defp query_product_users(%{user_id: id}), do: where(ProductUser, user_id: ^id)
 
   defp query_firmware_deltas(%{org_ids: ids}) do
     join(

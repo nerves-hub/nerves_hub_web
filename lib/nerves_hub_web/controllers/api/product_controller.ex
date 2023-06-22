@@ -6,24 +6,23 @@ defmodule NervesHubWeb.API.ProductController do
 
   action_fallback(NervesHubWeb.API.FallbackController)
 
-  plug(:validate_role, [org: :delete] when action in [:delete])
+  plug(:validate_role, [org: :read] when action in [:show])
   plug(:validate_role, [org: :write] when action in [:create])
-
-  plug(:validate_role, [product: :admin] when action in [:update])
-  plug(:validate_role, [product: :read] when action in [:show])
+  plug(:validate_role, [org: :delete] when action in [:delete])
+  plug(:validate_role, [org: :admin] when action in [:update])
 
   def index(%{assigns: %{user: user, org: org}} = conn, _params) do
     products = Products.get_products_by_user_and_org(user, org)
     render(conn, "index.json", products: products)
   end
 
-  def create(%{assigns: %{org: org, user: user}} = conn, params) do
+  def create(%{assigns: %{org: org}} = conn, params) do
     params =
       params
       |> Map.take(["name"])
       |> Map.put("org_id", org.id)
 
-    with {:ok, product} <- Products.create_product(user, params) do
+    with {:ok, product} <- Products.create_product(params) do
       conn
       |> put_status(:created)
       |> put_resp_header("location", Routes.product_path(conn, :show, org.name, product.name))
