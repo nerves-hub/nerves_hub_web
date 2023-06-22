@@ -251,7 +251,17 @@ defmodule NervesHub.Tracker.DeviceShard do
 
       nodes ->
         node = Enum.random(nodes)
-        :ok = GenServer.call({name(state.index), node}, :start_sync)
+
+        # In the off chance that this node doesn't have this server registered,
+        # try again in a little bit. This can happen in rolling deploys the first
+        # time the application is deployed with the tracker.
+        try do
+          :ok = GenServer.call({name(state.index), node}, :start_sync)
+        catch
+          :error, _timeout ->
+            Process.send_after(self(), :sync, 500)
+        end
+
         {:noreply, state}
     end
   end
