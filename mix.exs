@@ -75,7 +75,6 @@ defmodule NervesHubUmbrella.MixProject do
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
       {:floki, ">= 0.27.0", only: :test},
-      {:gen_leader, github: "garret-smith/gen_leader_revival"},
       {:gettext, "~> 0.21.0"},
       {:gproc, "~> 0.9.0"},
       {:hackney, "~> 1.16"},
