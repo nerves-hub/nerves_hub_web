@@ -5,7 +5,6 @@ defmodule NervesHub.Products.Product do
   alias NervesHub.Devices.Device
   alias NervesHub.Accounts.Org
   alias NervesHub.Firmwares.Firmware
-  alias NervesHub.Products.ProductUser
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Repo
 
@@ -17,8 +16,6 @@ defmodule NervesHub.Products.Product do
   schema "products" do
     has_many(:devices, Device, where: [deleted_at: nil])
     has_many(:firmwares, Firmware)
-    has_many(:product_users, ProductUser)
-    has_many(:users, through: [:product_users, :user])
     has_many(:jitp, CACertificate.JITP)
 
     belongs_to(:org, Org, where: [deleted_at: nil])

@@ -103,14 +103,6 @@ defmodule NervesHubWeb.APIRouter do
               end
             end
 
-            scope "/users" do
-              get("/", ProductUserController, :index)
-              post("/", ProductUserController, :add)
-              get("/:username", ProductUserController, :show)
-              put("/:username", ProductUserController, :update)
-              delete("/:username", ProductUserController, :remove)
-            end
-
             scope "/firmwares" do
               get("/", FirmwareController, :index)
               get("/:uuid", FirmwareController, :show)

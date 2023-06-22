@@ -27,28 +27,25 @@ defmodule NervesHub.ProductsTest do
       assert Products.get_product!(product.id) == product
     end
 
-    test "create_product/1 with valid data creates a product", %{org: org, user: user} do
+    test "create_product/1 with valid data creates a product", %{org: org} do
       params = Enum.into(%{org_id: org.id}, @valid_attrs)
-      assert {:ok, %Product{} = product} = Products.create_product(user, params)
+      assert {:ok, %Product{} = product} = Products.create_product(params)
       assert product.name == "some name"
     end
 
-    test "create_product/1 adds user to product", %{org: org, user: user} do
+    test "create_product/1 adds user to product", %{org: org} do
       params = Enum.into(%{org_id: org.id}, @valid_attrs)
-      assert {:ok, %Product{} = product} = Products.create_product(user, params)
-
-      user_products = Products.get_products_by_user_and_org(user, org)
-      assert Enum.member?(user_products, product)
+      assert {:ok, %Product{}} = Products.create_product(params)
     end
 
-    test "create_product/1 with invalid data returns error changeset", %{user: user} do
-      assert {:error, %Ecto.Changeset{}} = Products.create_product(user, @invalid_attrs)
+    test "create_product/1 with invalid data returns error changeset" do
+      assert {:error, %Ecto.Changeset{}} = Products.create_product(@invalid_attrs)
     end
 
-    test "create_product/1 fails with duplicate names", %{user: user, org: org} do
+    test "create_product/1 fails with duplicate names", %{org: org} do
       params = %{org_id: org.id, name: "same name"}
-      {:ok, _product} = Products.create_product(user, params)
-      assert {:error, %Ecto.Changeset{}} = Products.create_product(user, params)
+      {:ok, _product} = Products.create_product(params)
+      assert {:error, %Ecto.Changeset{}} = Products.create_product(params)
     end
 
     test "update_product/2 with valid data updates the product", %{product: product} do
@@ -73,18 +70,6 @@ defmodule NervesHub.ProductsTest do
 
     test "change_product/1 returns a product changeset", %{product: product} do
       assert %Ecto.Changeset{} = Products.change_product(product)
-    end
-
-    test "add user and remove user from a product", %{org: org, product: product} do
-      user = Fixtures.user_fixture()
-      assert {:ok, _product_user} = Products.add_product_user(product, user, %{role: :admin})
-      assert [^product] = Products.get_products_by_user_and_org(user, org)
-      assert :ok = Products.remove_product_user(product, user)
-      assert [] = Products.get_products_by_user_and_org(user, org)
-    end
-
-    test "Unable to remove last user from org", %{product: product, user: user} do
-      assert {:error, :last_user} = Products.remove_product_user(product, user)
     end
 
     test "List products from an org where the user has a comparable org role", %{

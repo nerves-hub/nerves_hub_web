@@ -7,32 +7,6 @@ defmodule NervesHub.RoleValidateHelpers do
     validate_org_user_role(conn, org, user, role)
   end
 
-  def validate_role(
-        %{assigns: %{product: %{org: %Ecto.Association.NotLoaded{}} = product}} = conn,
-        product: role
-      ) do
-    product = NervesHub.Repo.preload(product, :org)
-
-    conn
-    |> Plug.Conn.assign(:product, product)
-    |> validate_role(product: role)
-  end
-
-  def validate_role(%{assigns: %{user: user, product: %{org: org} = product}} = conn,
-        product: role
-      ) do
-    cond do
-      NervesHub.Accounts.has_org_role?(org, user, role) ->
-        conn
-
-      NervesHub.Products.has_product_role?(product, user, role) ->
-        conn
-
-      true ->
-        halt_role(conn, "product " <> to_string(role))
-    end
-  end
-
   def validate_role(conn, [{key, value}]) do
     halt_role(conn, "#{key} #{value}")
   end

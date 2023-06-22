@@ -7,12 +7,12 @@ defmodule NervesHubWeb.DeviceController do
   alias NervesHubWeb.DeviceLive
   alias Ecto.Changeset
 
-  plug(:validate_role, [product: :delete] when action in [:delete])
-  plug(:validate_role, [product: :write] when action in [:new, :create, :edit])
+  plug(:validate_role, [org: :delete] when action in [:delete])
+  plug(:validate_role, [org: :write] when action in [:new, :create, :edit])
 
   plug(
     :validate_role,
-    [product: :read]
+    [org: :read]
     when action in [:index, :console, :show, :download_certificate, :export_audit_logs]
   )
 

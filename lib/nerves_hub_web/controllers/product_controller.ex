@@ -6,11 +6,9 @@ defmodule NervesHubWeb.ProductController do
 
   action_fallback(NervesHubWeb.FallbackController)
 
-  plug(:validate_role, [org: :write] when action in [:new, :create])
+  plug(:validate_role, [org: :write] when action in [:new, :create, :update])
   plug(:validate_role, [org: :read] when action in [:index])
   plug(:validate_role, [org: :delete] when action in [:delete])
-
-  plug(:validate_role, [product: :write] when action in [:update])
 
   def index(%{assigns: %{user: user, org: org}} = conn, _params) do
     products = Products.get_products_by_user_and_org(user, org)
@@ -22,10 +20,10 @@ defmodule NervesHubWeb.ProductController do
     render(conn, "new.html", changeset: changeset)
   end
 
-  def create(%{assigns: %{user: user, org: org}} = conn, %{"product" => product_params}) do
+  def create(%{assigns: %{org: org}} = conn, %{"product" => product_params}) do
     params = Enum.into(product_params, %{"org_id" => org.id})
 
-    case Products.create_product(user, params) do
+    case Products.create_product(params) do
       {:ok, product} ->
         conn
         |> put_flash(:info, "Product created successfully.")

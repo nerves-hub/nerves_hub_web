@@ -122,13 +122,13 @@ defmodule NervesHub.Fixtures do
 
   def product_fixture(_user, _org, params \\ %{})
 
-  def product_fixture(%Accounts.User{} = user, %Accounts.Org{} = org, params) do
+  def product_fixture(%Accounts.User{}, %Accounts.Org{} = org, params) do
     params =
       %{org_id: org.id}
       |> Enum.into(params)
       |> Enum.into(@product_params)
 
-    {:ok, product} = Products.create_product(user, params)
+    {:ok, product} = Products.create_product(params)
     product
   end
 
