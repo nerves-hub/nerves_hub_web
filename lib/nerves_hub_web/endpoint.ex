@@ -1,6 +1,5 @@
 defmodule NervesHubWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub
-  use SpandexPhoenix
   use Sentry.PlugCapture
 
   alias NervesHub.Config

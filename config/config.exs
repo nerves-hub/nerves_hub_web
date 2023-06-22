@@ -70,10 +70,6 @@ config :nerves_hub, Oban,
      ]}
   ]
 
-config :spandex_phoenix, tracer: NervesHub.Tracer
-
-config :spandex, :decorators, tracer: NervesHub.Tracer
-
 config :nerves_hub,
   datadog_host: System.get_env("DATADOG_HOST") || "localhost",
   datadog_port: System.get_env("DATADOG_PORT") || "8126",
@@ -87,17 +83,6 @@ config :nerves_hub, NervesHub.Repo,
 config :nerves_hub,
   statsd_host: System.get_env("STATSD_HOST", "localhost"),
   statsd_port: System.get_env("STATSD_PORT", "8125")
-
-config :nerves_hub, NervesHub.Tracer,
-  service: :nerves_hub,
-  adapter: SpandexDatadog.Adapter,
-  disabled?: false,
-  type: :web
-
-config :spandex_ecto, SpandexEcto.EctoLogger,
-  service: :nerves_hub,
-  tracer: NervesHub.Tracer,
-  otp_app: :nerves_hub
 
 ##
 # NervesHubWWW
