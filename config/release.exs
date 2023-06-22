@@ -54,8 +54,6 @@ config :nerves_hub, NervesHub.Mailer,
   username: System.fetch_env!("SMTP_USERNAME"),
   password: System.fetch_env!("SMTP_PASSWORD")
 
-config :nerves_hub, NervesHub.Tracer, env: System.get_env("DD_ENV") || "dev"
-
 if nerves_hub_app in ["all", "web"] do
   host = System.fetch_env!("HOST")
   port = 80
