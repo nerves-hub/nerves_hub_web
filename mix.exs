@@ -59,7 +59,6 @@ defmodule NervesHubUmbrella.MixProject do
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
       {:recon, "~> 2.5"},
-      {:ansi_to_html, git: "https://github.com/jjcarstens/ansi_to_html"},
       {:bamboo, "~> 2.0"},
       {:bamboo_phoenix, "~> 1.0"},
       {:bamboo_smtp, "~> 4.2"},

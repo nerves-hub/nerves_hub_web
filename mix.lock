@@ -1,5 +1,4 @@
 %{
-  "ansi_to_html": {:git, "https://github.com/jjcarstens/ansi_to_html", "7aa02d8c425e92d876616073e26af591c189ef76", []},
   "bamboo": {:hex, :bamboo, "2.2.0", "f10a406d2b7f5123eb1f02edfa043c259db04b47ab956041f279eaac776ef5ce", [:mix], [{:hackney, ">= 1.15.2", [hex: :hackney, repo: "hexpm", optional: false]}, {:jason, "~> 1.0", [hex: :jason, repo: "hexpm", optional: true]}, {:mime, "~> 1.4", [hex: :mime, repo: "hexpm", optional: false]}, {:plug, "~> 1.0", [hex: :plug, repo: "hexpm", optional: false]}], "hexpm", "8c3b14ba7d2f40cb4be04128ed1e2aff06d91d9413d38bafb4afccffa3ade4fc"},
   "bamboo_phoenix": {:hex, :bamboo_phoenix, "1.0.0", "f3cc591ffb163ed0bf935d256f1f4645cd870cf436545601215745fb9cc9953f", [:mix], [{:bamboo, ">= 2.0.0", [hex: :bamboo, repo: "hexpm", optional: false]}, {:phoenix, ">= 1.3.0", [hex: :phoenix, repo: "hexpm", optional: false]}], "hexpm", "6db88fbb26019c84a47994bb2bd879c0887c29ce6c559bc6385fd54eb8b37dee"},
   "bamboo_smtp": {:hex, :bamboo_smtp, "4.2.2", "e9f57a2300df9cb496c48751bd7668a86a2b89aa2e79ccaa34e0c46a5f64c3ae", [:mix], [{:bamboo, "~> 2.2.0", [hex: :bamboo, repo: "hexpm", optional: false]}, {:gen_smtp, "~> 1.2.0", [hex: :gen_smtp, repo: "hexpm", optional: false]}], "hexpm", "28cac2ec8adaae02aed663bf68163992891a3b44cfd7ada0bebe3e09bed7207f"},
@@ -33,7 +32,6 @@
   "file_system": {:hex, :file_system, "0.2.10", "fb082005a9cd1711c05b5248710f8826b02d7d1784e7c3451f9c1231d4fc162d", [:mix], [], "hexpm", "41195edbfb562a593726eda3b3e8b103a309b733ad25f3d642ba49696bf715dc"},
   "floki": {:hex, :floki, "0.34.2", "5fad07ef153b3b8ec110b6b155ec3780c4b2c4906297d0b4be1a7162d04a7e02", [:mix], [], "hexpm", "26b9d50f0f01796bc6be611ca815c5e0de034d2128e39cc9702eee6b66a4d1c8"},
   "gen_leader": {:git, "https://github.com/garret-smith/gen_leader_revival.git", "d9689e6e80cd8a437bc207d37cb53290ecd64b35", []},
-  "gen_leader_revival": {:git, "https://github.com/garret-smith/gen_leader_revival.git", "d9689e6e80cd8a437bc207d37cb53290ecd64b35", []},
   "gen_smtp": {:hex, :gen_smtp, "1.2.0", "9cfc75c72a8821588b9b9fe947ae5ab2aed95a052b81237e0928633a13276fd3", [:rebar3], [{:ranch, ">= 1.8.0", [hex: :ranch, repo: "hexpm", optional: false]}], "hexpm", "5ee0375680bca8f20c4d85f58c2894441443a743355430ff33a783fe03296779"},
   "gettext": {:hex, :gettext, "0.21.0", "15bbceb20b317b706a8041061a08e858b5a189654128618b53746bf36c84352b", [:mix], [{:expo, "~> 0.1.0", [hex: :expo, repo: "hexpm", optional: false]}], "hexpm", "04a66db4103b6d1d18f92240bb2c73167b517229316b7bef84e4eebbfb2f14f6"},
   "gproc": {:hex, :gproc, "0.9.0", "853ccb7805e9ada25d227a157ba966f7b34508f386a3e7e21992b1b484230699", [:rebar3], [], "hexpm", "587e8af698ccd3504cf4ba8d90f893ede2b0f58cabb8a916e2bf9321de3cf10b"},
@@ -42,7 +40,6 @@
   "hpax": {:hex, :hpax, "0.1.2", "09a75600d9d8bbd064cdd741f21fc06fc1f4cf3d0fcc335e5aa19be1a7235c84", [:mix], [], "hexpm", "2c87843d5a23f5f16748ebe77969880e29809580efdaccd615cd3bed628a8c13"},
   "html_entities": {:hex, :html_entities, "0.5.2", "9e47e70598da7de2a9ff6af8758399251db6dbb7eebe2b013f2bbd2515895c3c", [:mix], [], "hexpm", "c53ba390403485615623b9531e97696f076ed415e8d8058b1dbaa28181f4fdcc"},
   "httpoison": {:hex, :httpoison, "1.4.0", "e0b3c2ad6fa573134e42194d13e925acfa8f89d138bc621ffb7b1989e6d22e73", [:mix], [{:hackney, "~> 1.8", [hex: :hackney, repo: "hexpm", optional: false]}], "hexpm", "37b6f39cb92136ee72276f4bf4da81495e7935d720c3a15daf1553953153e3f7"},
-  "hut": {:hex, :hut, "1.3.0", "71f2f054e657c03f959cf1acc43f436ea87580696528ca2a55c8afb1b06c85e7", [:"erlang.mk", :rebar, :rebar3], [], "hexpm", "7e15d28555d8a1f2b5a3a931ec120af0753e4853a4c66053db354f35bf9ab563"},
   "idna": {:hex, :idna, "6.1.1", "8a63070e9f7d0c62eb9d9fcb360a7de382448200fbbd1b106cc96d3d8099df8d", [:rebar3], [{:unicode_util_compat, "~>0.7.0", [hex: :unicode_util_compat, repo: "hexpm", optional: false]}], "hexpm", "92376eb7894412ed19ac475e4a86f7b413c1b9fbb5bd16dccd57934157944cea"},
   "jason": {:hex, :jason, "1.4.0", "e855647bc964a44e2f67df589ccf49105ae039d4179db7f6271dfd3843dc27e6", [:mix], [{:decimal, "~> 1.0 or ~> 2.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm", "79a3791085b2a0f743ca04cec0f7be26443738779d09302e01318f97bdb82121"},
   "logfmt": {:hex, :logfmt, "3.3.3", "6521ee4a5c532088e15d487fab9f736c07bdd161d643560c73cd4b10685deb65", [:mix], [], "hexpm", "dbd51cd3fe37c3429b9bd687bad1f531a533505f4a641592129e7a47e24104d1"},
