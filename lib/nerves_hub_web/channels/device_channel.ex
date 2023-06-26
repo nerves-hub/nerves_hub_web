@@ -18,6 +18,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias Phoenix.Socket.Broadcast
 
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
 
   intercept(["presence_diff"])
 
@@ -124,25 +125,27 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:after_join, device}, socket) do
-    {:ok, pid} = Devices.Supervisor.start_device(device)
-    DeviceLink.connect(pid, self())
+    Tracer.with_span("DeviceChannel.after_join") do
+      {:ok, pid} = Devices.Supervisor.start_device(device)
+      DeviceLink.connect(pid, self())
 
-    socket = assign(socket, :device_link_pid, pid)
+      socket = assign(socket, :device_link_pid, pid)
 
-    start_penalty_timer(device)
+      start_penalty_timer(device)
 
-    # local node tracking
-    Registry.register(NervesHub.Devices, device.id, %{
-      deployment_id: device.deployment_id,
-      firmware_uuid: device.firmware_metadata.uuid,
-      updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-      updating: false
-    })
+      # local node tracking
+      Registry.register(NervesHub.Devices, device.id, %{
+        deployment_id: device.deployment_id,
+        firmware_uuid: device.firmware_metadata.uuid,
+        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+        updating: false
+      })
 
-    # Cluster tracking
-    Tracker.online(device)
+      # Cluster tracking
+      Tracker.online(device)
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   # We can save a fairly expensive query by checking the incoming deployment's payload

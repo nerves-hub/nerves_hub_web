@@ -14,6 +14,11 @@ defmodule NervesHub.Application do
         raise "fwup could not be found in the $PATH. This is a requirement of NervesHubWeb and cannot start otherwise"
     end
 
+    :opentelemetry_cowboy.setup()
+    OpentelemetryPhoenix.setup(adapter: :cowboy2)
+    OpentelemetryEcto.setup([:nerves_hub, :repo])
+    OpentelemetryOban.setup()
+
     children =
       [
         NervesHub.Metrics,
