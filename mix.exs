@@ -25,7 +25,9 @@ defmodule NervesHubUmbrella.MixProject do
           runtime_config_path: "config/release.exs",
           reboot_system_after_config: true,
           applications: [
-            nerves_hub: :permanent
+            nerves_hub: :permanent,
+            opentelemetry: :temporary,
+            opentelemetry_exporter: :permanent
           ]
         ]
       ]
@@ -39,12 +41,13 @@ defmodule NervesHubUmbrella.MixProject do
     [
       mod: {NervesHub.Application, []},
       extra_applications: [
+        :base62,
+        :inets,
+        :jason,
         :logger,
         :runtime_tools,
         :timex,
-        :jason,
-        :inets,
-        :base62
+        :tls_certificate_check,
       ]
     ]
   end
@@ -83,6 +86,13 @@ defmodule NervesHubUmbrella.MixProject do
       {:mox, "~> 1.0", only: [:test, :dev]},
       {:nimble_csv, "~> 1.1"},
       {:oban, "~> 2.11"},
+      {:opentelemetry, "~> 1.3"},
+      {:opentelemetry_api, "~> 1.2"},
+      {:opentelemetry_cowboy, "~> 0.2"},
+      {:opentelemetry_ecto, "~> 1.0"},
+      {:opentelemetry_exporter, "~> 1.4"},
+      {:opentelemetry_oban, "~> 1.0"},
+      {:opentelemetry_phoenix, "~> 1.1"},
       {:phoenix, "~> 1.6.0"},
       {:phoenix_active_link, "~> 0.3.1"},
       {:phoenix_ecto, "~> 4.0"},

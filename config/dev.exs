@@ -86,3 +86,12 @@ config :nerves_hub, NervesHubWeb.Endpoint,
       ~r{lib/nerves_hube_www_web/live/.*(ex)$}
     ]
   ]
+
+config :opentelemetry,
+  span_processor: :batch,
+  traces_exporter: :otlp,
+  resource: %{service: %{name: "nerves_hub"}}
+
+config :opentelemetry_exporter,
+  otlp_protocol: :http_protobuf,
+  otlp_endpoint: "http://localhost:4318"

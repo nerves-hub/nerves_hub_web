@@ -52,6 +52,7 @@ defmodule NervesHubWeb.Endpoint do
   end
 
   plug(Plug.RequestId)
+  plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])
   plug(NervesHubWeb.Plugs.Logger)
 
   plug(

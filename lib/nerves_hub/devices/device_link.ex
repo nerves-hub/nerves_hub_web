@@ -11,6 +11,7 @@ defmodule NervesHub.Devices.DeviceLink do
   alias Phoenix.Socket.Broadcast
 
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
 
   defmodule State do
     defstruct [:deployment_channel, :device, :transport_pid, :transport_ref]
@@ -27,7 +28,8 @@ defmodule NervesHub.Devices.DeviceLink do
   def name(device), do: name(device.id)
 
   def connect(pid, transport_pid) do
-    GenServer.call(pid, {:connect, transport_pid})
+    ctx = OpenTelemetry.Ctx.get_current()
+    GenServer.call(pid, {:connect, transport_pid, ctx})
   end
 
   def update_device(pid, device) do
@@ -70,10 +72,14 @@ defmodule NervesHub.Devices.DeviceLink do
     {:reply, :ok, state}
   end
 
-  def handle_call({:connect, transport_pid}, _from, state) do
-    ref = Process.monitor(transport_pid)
-    state = %{state | transport_pid: transport_pid, transport_ref: ref}
-    {:reply, :ok, state}
+  def handle_call({:connect, transport_pid, ctx}, _from, state) do
+    OpenTelemetry.Ctx.attach(ctx)
+
+    Tracer.with_span("DeviceLink.connect") do
+      ref = Process.monitor(transport_pid)
+      state = %{state | transport_pid: transport_pid, transport_ref: ref}
+      {:reply, :ok, state}
+    end
   end
 
   def handle_info({:DOWN, transport_ref, :process, _pid, _reason}, state) do
