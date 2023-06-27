@@ -87,11 +87,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
     ]
   ]
 
-config :opentelemetry,
-  span_processor: :batch,
-  traces_exporter: :otlp,
-  resource: %{service: %{name: "nerves_hub"}}
-
+# Export to a local collector
 config :opentelemetry_exporter,
   otlp_protocol: :http_protobuf,
   otlp_endpoint: "http://localhost:4318"
