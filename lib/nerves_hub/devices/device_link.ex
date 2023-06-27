@@ -75,7 +75,7 @@ defmodule NervesHub.Devices.DeviceLink do
   def handle_call({:connect, transport_pid, ctx}, _from, state) do
     OpenTelemetry.Ctx.attach(ctx)
 
-    Tracer.with_span("DeviceLink.connect") do
+    Tracer.with_span "DeviceLink.connect" do
       ref = Process.monitor(transport_pid)
       state = %{state | transport_pid: transport_pid, transport_ref: ref}
       {:reply, :ok, state}

@@ -47,7 +47,7 @@ defmodule NervesHubUmbrella.MixProject do
         :logger,
         :runtime_tools,
         :timex,
-        :tls_certificate_check,
+        :tls_certificate_check
       ]
     ]
   end
