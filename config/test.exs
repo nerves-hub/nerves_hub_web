@@ -72,3 +72,10 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   server: false,
   secret_key_base: "x7Vj9rmmRke//ctlapsPNGHXCRTnArTPbfsv6qX4PChFT9ARiNR5Ua8zoRilNCmX",
   live_view: [signing_salt: "FnV9rP_c2BL11dvh"]
+
+# OTel
+config :opentelemetry, traces_exporter: :none
+
+config :opentelemetry, :processors, [
+  {:otel_simple_processor, %{}}
+]

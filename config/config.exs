@@ -100,5 +100,10 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub
 
+config :opentelemetry,
+  span_processor: :batch,
+  traces_exporter: :otlp,
+  resource: %{service: %{name: "nerves_hub"}}
+
 # Environment specific config
 import_config "#{Mix.env()}.exs"
