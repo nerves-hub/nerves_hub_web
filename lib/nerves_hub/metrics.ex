@@ -1,16 +1,46 @@
 defmodule NervesHub.Metrics do
   use Supervisor
 
+  import Telemetry.Metrics
+
+  alias NervesHub.Config
+
   def start_link(_) do
     Supervisor.start_link(__MODULE__, [])
   end
 
   def init(_) do
+    vapor_config = Vapor.load!(Config)
+    statsd_config = vapor_config.statsd
+
     children = [
       NervesHub.Metrics.Reporters,
+      {TelemetryMetricsStatsd,
+       host: statsd_config.host,
+       port: statsd_config.port,
+       formatter: :datadog,
+       metrics: [
+         # NervesHub
+         counter("nerves_hub.devices.connect.count", tags: [:env, :service]),
+         counter("nerves_hub.devices.disconnect.count", tags: [:env, :service]),
+         counter("nerves_hub.devices.deployment.changed.count", tags: [:env, :service]),
+         counter("nerves_hub.devices.deployment.update.manual.count", tags: [:env, :service]),
+         counter("nerves_hub.devices.deployment.update.automatic.count", tags: [:env, :service]),
+         counter("nerves_hub.devices.deployment.penalty_box.check.count", tags: [:env, :service]),
+         last_value("nerves_hub.devices.online.count", tags: [:env, :service, :node]),
+         # General
+         counter("phoenix.endpoint.start.count", tags: [:env, :service]),
+         last_value("vm.memory.total", tags: [:env, :service])
+       ],
+       global_tags: [
+         env: Application.get_env(:nerves_hub, :env),
+         dyno: Application.get_env(:nerves_hub, :app),
+         service: "nerves_hub"
+       ]},
       {:telemetry_poller,
        measurements: [
-         {NervesHub.Metrics, :dispatch_node_count, []}
+         {NervesHub.Metrics, :dispatch_node_count, []},
+         {NervesHub.Metrics, :dispatch_device_count, []}
        ],
        period: :timer.seconds(60),
        name: :nerves_hub_poller}
@@ -22,6 +52,11 @@ defmodule NervesHub.Metrics do
   def dispatch_node_count() do
     nodes = Node.list()
     :telemetry.execute([:nerves_hub, :nodes], %{count: Enum.count(nodes)}, %{nodes: nodes})
+  end
+
+  def dispatch_device_count() do
+    device_count = Registry.count(NervesHub.Devices)
+    :telemetry.execute([:nerves_hub, :devices, :online], %{count: device_count}, %{node: node()})
   end
 end
 
