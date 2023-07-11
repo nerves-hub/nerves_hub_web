@@ -22,10 +22,12 @@ defmodule NervesHub.Application do
     end
 
     children =
-      metrics(@env) ++
+      [
+        {Registry, keys: :unique, name: NervesHub.Devices}
+      ] ++
+        metrics(@env) ++
         [
           NervesHub.Supervisor,
-          {Registry, keys: :unique, name: NervesHub.Devices},
           NervesHub.Tracker
         ] ++ endpoints(@env)
 
