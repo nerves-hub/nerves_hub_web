@@ -20,8 +20,6 @@ defmodule NervesHubWeb.DeviceChannel do
   require Logger
   require OpenTelemetry.Tracer, as: Tracer
 
-  import NervesHub.Tracer
-
   def join("firmware:" <> fw_uuid, params, socket) do
     with {:ok, certificate} <- get_certificate(socket),
          {:ok, device} <- Devices.get_device_by_certificate(certificate) do
@@ -116,29 +114,29 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("status_update", %{"status" => _status}, socket) do
-    trace("DeviceChannel.status_update", socket.device.assigns.device) do
+    trace("DeviceChannel.status_update", socket.device.assigns.device, fn ->
       # TODO store in tracker or the database?
       {:noreply, socket}
-    end
+    end)
   end
 
   def handle_in("rebooting", _payload, socket) do
-    trace("DeviceChannel.rebootign", socket.assigns.device) do
+    trace("DeviceChannel.rebooting", socket.assigns.device, fn ->
       {:noreply, socket}
-    end
+    end)
   end
 
   def handle_in("connection_types", %{"value" => types}, socket) do
-    trace("DeviceChannel.connection_types", socket.assigns.device) do
+    trace("DeviceChannel.connection_types", socket.assigns.device, fn ->
       {:ok, device} = Devices.update_device(socket.assigns.device, %{"connection_types" => types})
       {:noreply, assign(socket, :device, device)}
-    end
+    end)
   end
 
   def handle_info({:after_join, device}, socket) do
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1})
 
-    trace("DeviceChannel.after_join", socket.assigns.device) do
+    trace("DeviceChannel.after_join", socket.assigns.device, fn ->
       {:ok, pid} = Devices.Supervisor.start_device(device)
       DeviceLink.connect(pid, self())
 
@@ -158,7 +156,7 @@ defmodule NervesHubWeb.DeviceChannel do
       Tracker.online(device)
 
       {:noreply, socket}
-    end
+    end)
   end
 
   # We can save a fairly expensive query by checking the incoming deployment's payload
@@ -167,7 +165,7 @@ defmodule NervesHubWeb.DeviceChannel do
         %Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload},
         socket
       ) do
-    trace("DeviceChannel.deployment_changed", socket.assigns.device) do
+    trace("DeviceChannel.deployment_changed", socket.assigns.device, fn ->
       device = socket.assigns.device
 
       if device_matches_deployment_payload?(device, payload) do
@@ -175,11 +173,11 @@ defmodule NervesHubWeb.DeviceChannel do
       else
         {:noreply, socket}
       end
-    end
+    end)
   end
 
   def handle_info(%Broadcast{event: "deployments/changed", payload: payload}, socket) do
-    trace("DeviceChannel.deployment_changed", socket.assigns.device) do
+    trace("DeviceChannel.deployment_changed", socket.assigns.device, fn ->
       device = socket.assigns.device
 
       if device_matches_deployment_payload?(device, payload) do
@@ -192,11 +190,11 @@ defmodule NervesHubWeb.DeviceChannel do
         Process.send_after(self(), :resolve_changed_deployment, jitter)
         {:noreply, socket}
       end
-    end
+    end)
   end
 
   def handle_info(:resolve_changed_deployment, socket) do
-    trace("DeviceChannel.resolve_changed_deployment", socket.assigns.device) do
+    trace("DeviceChannel.resolve_changed_deployment", socket.assigns.device, fn ->
       :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
 
       device =
@@ -224,7 +222,7 @@ defmodule NervesHubWeb.DeviceChannel do
       end)
 
       {:noreply, assign(socket, :device, device)}
-    end
+    end)
   end
 
   # manually pushed
@@ -232,12 +230,12 @@ defmodule NervesHubWeb.DeviceChannel do
         %Broadcast{event: "deployments/update", payload: %{deployment_id: nil} = payload},
         socket
       ) do
-    trace("DeviceChannel.deployments_update", socket.assigns.device) do
+    trace("DeviceChannel.deployments_update", socket.assigns.device, fn ->
       :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
       Tracer.set_attribute("nerves_hub.deployment.manual", true)
       push(socket, "update", payload)
       {:noreply, socket}
-    end
+    end)
   end
 
   def handle_info(%Broadcast{event: "deployments/update"}, socket) do
@@ -245,7 +243,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({"deployments/update", inflight_update}, socket) do
-    trace("DeviceChannel.deployments_update", socket.assigns.device) do
+    trace("DeviceChannel.deployments_update", socket.assigns.device, fn ->
       :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1})
 
       device = Repo.preload(socket.assigns.device, [deployment: [:firmware]], force: true)
@@ -274,11 +272,11 @@ defmodule NervesHubWeb.DeviceChannel do
         false ->
           {:noreply, socket}
       end
-    end
+    end)
   end
 
   def handle_info(%Broadcast{event: "moved"}, socket) do
-    trace("DeviceChannel.deployment_moved", socket.assigns.device) do
+    trace("DeviceChannel.deployment_moved", socket.assigns.device, fn ->
       device = Repo.reload(socket.assigns.device)
 
       Registry.update_value(NervesHub.Devices, device.id, fn value ->
@@ -291,12 +289,12 @@ defmodule NervesHubWeb.DeviceChannel do
       send(self(), :resolve_changed_deployment)
 
       {:noreply, assign(socket, device: device)}
-    end
+    end)
   end
 
   # Update local state and tell the various servers of the new information
   def handle_info(%Broadcast{event: "devices/updated"}, socket) do
-    trace("DeviceChannel.devices_updated", socket.assigns.device) do
+    trace("DeviceChannel.devices_updated", socket.assigns.device, fn ->
       device = Repo.reload(socket.assigns.device)
 
       Registry.update_value(NervesHub.Devices, device.id, fn value ->
@@ -310,7 +308,7 @@ defmodule NervesHubWeb.DeviceChannel do
       start_penalty_timer(device)
 
       {:noreply, assign(socket, :device, device)}
-    end
+    end)
   end
 
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
@@ -319,7 +317,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info(:penalty_box_check, socket) do
-    trace("DeviceChannel.penalty_box_check", socket.assigns.device) do
+    trace("DeviceChannel.penalty_box_check", socket.assigns.device, fn ->
       device = socket.assigns.device
 
       updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
@@ -333,7 +331,7 @@ defmodule NervesHubWeb.DeviceChannel do
       end)
 
       {:noreply, socket}
-    end
+    end)
   end
 
   def terminate(_reason, %{assigns: %{device: device}}) do
@@ -415,7 +413,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp assign_deployment(socket, device, payload) do
-    trace("DeviceChannel.assign_deployment", socket.assigns.device) do
+    trace("DeviceChannel.assign_deployment", socket.assigns.device, fn ->
       device =
         device
         |> Ecto.Changeset.change()
@@ -437,7 +435,7 @@ defmodule NervesHubWeb.DeviceChannel do
       socket
       |> assign(:device, device)
       |> assign(:deployment_channel, "deployment:#{device.deployment_id}")
-    end
+    end)
   end
 
   @doc """
@@ -452,6 +450,17 @@ defmodule NervesHubWeb.DeviceChannel do
     if check_penalty_box_in > 0 do
       # delay the check slightly to make sure the penalty is cleared when its updated
       Process.send_after(self(), :penalty_box_check, check_penalty_box_in + 1000)
+    end
+  end
+
+  def trace(name, device, fun) do
+    Tracer.with_span name do
+      Tracer.set_attributes(%{
+        "nerves_hub.device.id" => device.id,
+        "nerves_hub.device.identifier" => device.identifier
+      })
+
+      fun.()
     end
   end
 end
