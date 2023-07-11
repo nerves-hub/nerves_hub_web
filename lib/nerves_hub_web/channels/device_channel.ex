@@ -22,8 +22,6 @@ defmodule NervesHubWeb.DeviceChannel do
 
   import NervesHub.Tracer
 
-  intercept(["presence_diff"])
-
   def join("firmware:" <> fw_uuid, params, socket) do
     with {:ok, certificate} <- get_certificate(socket),
          {:ok, device} <- Devices.get_device_by_certificate(certificate) do
@@ -138,6 +136,8 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:after_join, device}, socket) do
+    :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1})
+
     trace("DeviceChannel.after_join", socket.assigns.device) do
       {:ok, pid} = Devices.Supervisor.start_device(device)
       DeviceLink.connect(pid, self())
@@ -183,6 +183,7 @@ defmodule NervesHubWeb.DeviceChannel do
       device = socket.assigns.device
 
       if device_matches_deployment_payload?(device, payload) do
+        :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
         {:noreply, assign_deployment(socket, device, payload)}
       else
         # jitter over a minute but spaced out to attempt to not
@@ -196,6 +197,8 @@ defmodule NervesHubWeb.DeviceChannel do
 
   def handle_info(:resolve_changed_deployment, socket) do
     trace("DeviceChannel.resolve_changed_deployment", socket.assigns.device) do
+      :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
+
       device =
         socket.assigns.device
         |> Repo.reload()
@@ -230,6 +233,7 @@ defmodule NervesHubWeb.DeviceChannel do
         socket
       ) do
     trace("DeviceChannel.deployments_update", socket.assigns.device) do
+      :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
       Tracer.set_attribute("nerves_hub.deployment.manual", true)
       push(socket, "update", payload)
       {:noreply, socket}
@@ -242,6 +246,8 @@ defmodule NervesHubWeb.DeviceChannel do
 
   def handle_info({"deployments/update", inflight_update}, socket) do
     trace("DeviceChannel.deployments_update", socket.assigns.device) do
+      :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1})
+
       device = Repo.preload(socket.assigns.device, [deployment: [:firmware]], force: true)
 
       payload = Devices.resolve_update(device)
@@ -316,21 +322,23 @@ defmodule NervesHubWeb.DeviceChannel do
     trace("DeviceChannel.penalty_box_check", socket.assigns.device) do
       device = socket.assigns.device
 
+      updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
+
+      :telemetry.execute([:nerves_hub, :devices, :penalty_box, :check], %{
+        updates_enabled: updates_enabled
+      })
+
       Registry.update_value(NervesHub.Devices, device.id, fn value ->
-        Map.merge(value, %{
-          updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
-        })
+        Map.merge(value, %{updates_enabled: updates_enabled})
       end)
 
       {:noreply, socket}
     end
   end
 
-  def handle_out("presence_diff", _msg, socket) do
-    {:noreply, socket}
-  end
-
   def terminate(_reason, %{assigns: %{device: device}}) do
+    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1})
+
     if device = Devices.get_device(device.id) do
       {:ok, device} = Devices.update_device(device, %{last_communication: DateTime.utc_now()})
 

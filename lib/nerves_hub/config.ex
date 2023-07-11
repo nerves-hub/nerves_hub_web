@@ -35,6 +35,12 @@ defmodule NervesHub.Config do
             default: "30", map: &String.to_integer/1}
          ])
 
+  config :statsd,
+         env([
+           {:host, "STATSD_HOST", default: "localhost"},
+           {:port, "STATSD_PORT", default: 9125, map: &String.to_integer/1}
+         ])
+
   def to_boolean("true"), do: true
 
   def to_boolean(_), do: false

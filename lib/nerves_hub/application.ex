@@ -22,12 +22,12 @@ defmodule NervesHub.Application do
     end
 
     children =
-      [
-        NervesHub.Metrics,
-        NervesHub.Supervisor,
-        {Registry, keys: :unique, name: NervesHub.Devices},
-        NervesHub.Tracker
-      ] ++ endpoints(@env)
+      metrics(@env) ++
+        [
+          NervesHub.Supervisor,
+          {Registry, keys: :unique, name: NervesHub.Devices},
+          NervesHub.Tracker
+        ] ++ endpoints(@env)
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
     Supervisor.start_link(children, opts)
@@ -36,6 +36,12 @@ defmodule NervesHub.Application do
   def config_change(changed, _new, removed) do
     NervesHubWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp metrics(:test), do: []
+
+  defp metrics(_env) do
+    [NervesHub.Metrics]
   end
 
   defp endpoints(:test) do

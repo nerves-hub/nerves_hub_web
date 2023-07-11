@@ -49,6 +49,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 # NervesHub
 #
 config :nerves_hub,
+  env: Mix.env(),
   namespace: NervesHub,
   ecto_repos: [NervesHub.Repo],
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
@@ -70,19 +71,9 @@ config :nerves_hub, Oban,
      ]}
   ]
 
-config :nerves_hub,
-  datadog_host: System.get_env("DATADOG_HOST") || "localhost",
-  datadog_port: System.get_env("DATADOG_PORT") || "8126",
-  datadog_batch_size: System.get_env("SPANDEX_BATCH_SIZE") || "100",
-  datadog_sync_threshold: System.get_env("SPANDEX_SYNC_THRESHOLD") || "100"
-
 config :nerves_hub, NervesHub.Repo,
   queue_target: 500,
   queue_interval: 5_000
-
-config :nerves_hub,
-  statsd_host: System.get_env("STATSD_HOST", "localhost"),
-  statsd_port: System.get_env("STATSD_PORT", "8125")
 
 ##
 # NervesHubWWW

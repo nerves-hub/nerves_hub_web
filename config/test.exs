@@ -74,8 +74,9 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   live_view: [signing_salt: "FnV9rP_c2BL11dvh"]
 
 # OTel
-config :opentelemetry, traces_exporter: :none
+config :opentelemetry, tracer: :otel_tracer_noop, traces_exporter: :none
 
-config :opentelemetry, :processors, [
-  {:otel_simple_processor, %{}}
-]
+config :opentelemetry, :processors,
+  otel_batch_processor: %{
+    exporter: {:otel_exporter_tab, []}
+  }
