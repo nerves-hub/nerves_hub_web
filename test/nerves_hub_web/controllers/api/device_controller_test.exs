@@ -1,6 +1,9 @@
 defmodule NervesHubWeb.API.DeviceControllerTest do
   use NervesHubWeb.APIConnCase, async: false
-  alias NervesHub.{Devices, Fixtures}
+  import Phoenix.ChannelTest
+
+  alias NervesHub.Devices
+  alias NervesHub.Fixtures
 
   describe "create devices" do
     test "renders device when data is valid", %{conn: conn, org: org, product: product} do
@@ -126,6 +129,25 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         })
 
       assert json_response(conn, 200)["data"]
+    end
+  end
+
+  describe "upgrade firmware" do
+    test "pushing new firmware to a device", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware_one = Fixtures.firmware_fixture(org_key, product)
+      firmware_two = Fixtures.firmware_fixture(org_key, product)
+
+      device = Fixtures.device_fixture(org, product, firmware_one)
+
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
+
+      url = Routes.device_path(conn, :upgrade, org.name, product.name, device.identifier)
+      conn = post(conn, url, %{"uuid" => firmware_two.uuid})
+
+      assert response(conn, 204)
+      assert_broadcast("deployments/update", %{})
     end
   end
 end

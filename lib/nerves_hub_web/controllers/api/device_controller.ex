@@ -4,13 +4,16 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.UpdatePayload
+  alias NervesHub.Firmwares
+  alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
 
   action_fallback(NervesHubWeb.API.FallbackController)
 
   plug(:validate_role, [product: :delete] when action in [:delete])
   plug(:validate_role, [product: :write] when action in [:create, :update])
-  plug(:validate_role, [product: :write] when action in [:reboot, :reconnect, :code])
+  plug(:validate_role, [product: :write] when action in [:reboot, :reconnect, :code, :upgrade])
   plug(:validate_role, [product: :read] when action in [:index, :show, :auth])
 
   def index(%{assigns: %{org: org, product: product}} = conn, params) do
@@ -118,5 +121,37 @@ defmodule NervesHubWeb.API.DeviceController do
     Endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => "\r"})
 
     send_resp(conn, 200, "Success")
+  end
+
+  def upgrade(conn, %{"uuid" => uuid}) do
+    product = conn.assigns.product
+    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
+
+    {:ok, url} = Firmwares.get_firmware_url(firmware)
+    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
+
+    %{device: device, user: user} = conn.assigns
+
+    {:ok, device} = Devices.disable_updates(device, user)
+    device = Repo.preload(device, [:device_certificates])
+
+    description =
+      "user #{user.username} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+
+    AuditLogs.audit!(user, device, :update, description, %{firmware_uuid: firmware.uuid})
+
+    payload = %UpdatePayload{
+      update_available: true,
+      firmware_url: url,
+      firmware_meta: meta
+    }
+
+    NervesHubWeb.Endpoint.broadcast(
+      "device:#{device.id}",
+      "deployments/update",
+      payload
+    )
+
+    send_resp(conn, 204, "")
   end
 end
