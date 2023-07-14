@@ -76,6 +76,8 @@ defmodule NervesHubWeb.Router do
   scope "/", NervesHubWeb do
     pipe_through([:browser, :logged_in])
 
+    get("/online-devices", HomeController, :online_devices)
+
     scope "/settings/:org_name" do
       pipe_through(:org)
 

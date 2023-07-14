@@ -24,10 +24,21 @@ defmodule NervesHub.Tracker do
     0..7
     |> Enum.map(fn i ->
       :ets.select(:"tracker_shards_#{i}", [
-        {{:_, %{status: "online"}}, [], [{:element, 1, :"$_"}]}
+        {{:_, %{status: "online"}}, [], [{:element, 2, :"$_"}]}
       ])
     end)
     |> Enum.concat()
+  end
+
+  @doc false
+  def count_online() do
+    0..7
+    |> Enum.map(fn i ->
+      :ets.select_count(:"tracker_shards_#{i}", [
+        {{:_, %{status: "online"}}, [], [true]}
+      ])
+    end)
+    |> Enum.sum()
   end
 
   @doc """
