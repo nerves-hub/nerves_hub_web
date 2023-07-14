@@ -1,0 +1,5 @@
+<ul>
+<%= Enum.map(@devices, fn device -> %>
+  <li><%= device.identifier %></li>
+<% end) %>
+</ul>
