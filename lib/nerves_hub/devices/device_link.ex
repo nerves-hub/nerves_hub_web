@@ -22,7 +22,7 @@ defmodule NervesHub.Devices.DeviceLink do
   end
 
   def name(device_id) when is_integer(device_id) do
-    {:via, Registry, {NervesHub.Devices, {:link, device_id}}}
+    {:via, Registry, {NervesHub.DeviceLinks, {:link, device_id}}}
   end
 
   def name(device), do: name(device.id)
