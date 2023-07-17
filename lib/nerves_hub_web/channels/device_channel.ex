@@ -322,6 +322,8 @@ defmodule NervesHubWeb.DeviceChannel do
 
       updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
 
+      Tracer.set_attribute("nerves_hub.device.updates_enabled", updates_enabled)
+
       :telemetry.execute([:nerves_hub, :devices, :penalty_box, :check], %{
         updates_enabled: updates_enabled
       })
@@ -329,6 +331,11 @@ defmodule NervesHubWeb.DeviceChannel do
       Registry.update_value(NervesHub.Devices, device.id, fn value ->
         Map.merge(value, %{updates_enabled: updates_enabled})
       end)
+
+      # Just in case time is weird or it got placed back in between checks
+      if !updates_enabled do
+        start_penalty_timer(device)
+      end
 
       {:noreply, socket}
     end)

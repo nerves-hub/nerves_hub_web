@@ -566,7 +566,7 @@ defmodule NervesHub.Devices do
   """
   def verify_deployment(%{deployment_id: nil} = device) do
     Tracer.with_span "Devices.verify_deployment" do
-      Tracer.set_attribute("device.deployment_id", nil)
+      Tracer.set_attribute("nerves_hub.device.deployment_id", nil)
 
       device
     end
@@ -580,12 +580,12 @@ defmodule NervesHub.Devices do
 
       case matches_deployment?(device, device.deployment) do
         true ->
-          Tracer.set_attribute("devices.match_deployment", true)
+          Tracer.set_attribute("nerves_hub.device.match_deployment", true)
 
           device
 
         false ->
-          Tracer.set_attribute("devices.match_deployment", false)
+          Tracer.set_attribute("nerves_hub.device.match_deployment", false)
 
           device
           |> Ecto.Changeset.change()
