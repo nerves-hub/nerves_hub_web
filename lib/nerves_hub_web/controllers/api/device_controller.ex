@@ -154,4 +154,16 @@ defmodule NervesHubWeb.API.DeviceController do
 
     send_resp(conn, 204, "")
   end
+
+  def penalty(conn, _params) do
+    %{device: device, user: user} = conn.assigns
+
+    case Devices.clear_penalty_box(device, user) do
+      {:ok, _device} ->
+        send_resp(conn, 204, "")
+
+      {:error, _changeset} ->
+        send_resp(conn, 400, "")
+    end
+  end
 end

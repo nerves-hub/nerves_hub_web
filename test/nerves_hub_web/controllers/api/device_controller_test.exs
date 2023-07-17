@@ -4,6 +4,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
   alias NervesHub.Devices
   alias NervesHub.Fixtures
+  alias NervesHub.Repo
 
   describe "create devices" do
     test "renders device when data is valid", %{conn: conn, org: org, product: product} do
@@ -148,6 +149,29 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert response(conn, 204)
       assert_broadcast("deployments/update", %{})
+    end
+  end
+
+  describe "clear penalty box" do
+    test "success", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, device} = Devices.update_device(device, %{updates_blocked_until: DateTime.utc_now()})
+
+      conn =
+        delete(
+          conn,
+          Routes.device_path(conn, :penalty, org.name, product.name, device.identifier)
+        )
+
+      assert response(conn, 204)
+
+      assert device.updates_blocked_until
+      device = Repo.reload(device)
+      refute device.updates_blocked_until
     end
   end
 end
