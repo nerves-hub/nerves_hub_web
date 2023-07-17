@@ -269,7 +269,7 @@ defmodule NervesHub.Deployments do
   """
   def set_deployment(%{deployment_id: nil} = device) do
     Tracer.with_span "Deployments.set_deployment" do
-      Tracer.set_attribute("deployment.status", "setting")
+      Tracer.set_attribute("nerves_hub.deployment.status", "setting")
 
       case alternate_deployments(device, [true]) do
         [] ->
@@ -300,7 +300,7 @@ defmodule NervesHub.Deployments do
 
   def set_deployment(device) do
     Tracer.with_span "Deployments.set_deployment" do
-      Tracer.set_attribute("deployment.status", "existed")
+      Tracer.set_attribute("nerves_hub.deployment.status", "existed")
 
       Repo.preload(device, [:deployment])
     end
