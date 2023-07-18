@@ -23,9 +23,6 @@ config :phoenix,
 ##
 # NervesHub API
 #
-# config :nerves_hub_api,
-#  namespace: NervesHubAPI,
-#  ecto_repos: [NervesHub.Repo]
 
 # Configures the endpoint
 config :nerves_hub, NervesHubWeb.API.Endpoint,
@@ -35,10 +32,6 @@ config :nerves_hub, NervesHubWeb.API.Endpoint,
 ##
 # NervesHub Device
 #
-# General application configuration
-# config :nerves_hub_device,
-#   ecto_repos: [NervesHub.Repo],
-#   namespace: NervesHubDevice
 
 # Configures the endpoint
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
@@ -60,7 +53,7 @@ config :nerves_hub, NervesHub.PubSub,
   fastlane: Phoenix.Channel.Server
 
 config :nerves_hub, Oban,
-  repo: NervesHub.Repo,
+  repo: NervesHub.ObanRepo,
   log: false,
   queues: [delete_firmware: 1, firmware_delta_builder: 2, truncate: 1],
   plugins: [
