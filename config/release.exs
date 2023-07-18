@@ -9,6 +9,10 @@ nerves_hub_app =
 
 config :nerves_hub, app: nerves_hub_app
 
+rate_limit = System.get_env("DEVICE_CONNECT_RATE_LIMIT", "100") |> String.to_integer()
+
+config :nerves_hub, NerveHub.RateLimit, limit: rate_limit
+
 logger_level = System.get_env("LOG_LEVEL", "info") |> String.to_atom()
 
 config :logger, level: logger_level

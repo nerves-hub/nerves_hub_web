@@ -68,6 +68,8 @@ config :nerves_hub, NervesHub.ObanRepo, ssl: false
 
 config :nerves_hub, NervesHub.Mailer, adapter: Bamboo.LocalAdapter
 
+config :nerves_hub, NervesHub.RateLimit, limit: 10
+
 ##
 # NervesHubWWW
 #

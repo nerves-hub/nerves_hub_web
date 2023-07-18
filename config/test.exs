@@ -68,6 +68,8 @@ config :nerves_hub, NervesHub.Mailer, adapter: Bamboo.TestAdapter
 
 config :nerves_hub, Oban, queues: false, plugins: false
 
+config :nerves_hub, NervesHub.RateLimit, limit: 100
+
 ##
 # NervesHubWWW
 #
