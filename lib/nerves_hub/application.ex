@@ -63,7 +63,8 @@ defmodule NervesHub.Application do
           NervesHub.Devices.Supervisor,
           NervesHubWeb.API.Endpoint,
           NervesHubWeb.DeviceEndpoint,
-          NervesHubWeb.Endpoint
+          NervesHubWeb.Endpoint,
+          {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS]}
         ]
 
       "api" ->
@@ -73,7 +74,8 @@ defmodule NervesHub.Application do
         [
           NervesHub.Deployments.Supervisor,
           NervesHub.Devices.Supervisor,
-          NervesHubWeb.DeviceEndpoint
+          NervesHubWeb.DeviceEndpoint,
+          {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS]}
         ]
 
       "web" ->
