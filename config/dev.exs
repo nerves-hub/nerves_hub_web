@@ -64,6 +64,8 @@ config :nerves_hub, NervesHub.Firmwares.Upload.File,
 
 config :nerves_hub, NervesHub.Repo, ssl: false
 
+config :nerves_hub, NervesHub.ObanRepo, ssl: false
+
 config :nerves_hub, NervesHub.Mailer, adapter: Bamboo.LocalAdapter
 
 ##

@@ -64,3 +64,11 @@ defmodule NervesHub.Repo do
 
   def destroy(struct_or_changeset), do: delete(struct_or_changeset)
 end
+
+defmodule NervesHub.ObanRepo do
+  use Ecto.Repo,
+    otp_app: :nerves_hub,
+    adapter: Ecto.Adapters.Postgres
+
+  defdelegate init(context, config), to: NervesHub.Repo
+end

@@ -18,7 +18,6 @@ defmodule NervesHub.Application do
       :opentelemetry_cowboy.setup()
       OpentelemetryPhoenix.setup(adapter: :cowboy2)
       OpentelemetryEcto.setup([:nerves_hub, :repo])
-      OpentelemetryOban.setup()
     end
 
     children =

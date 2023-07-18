@@ -60,6 +60,10 @@ config :nerves_hub, NervesHub.Repo,
   ssl: false,
   pool: Ecto.Adapters.SQL.Sandbox
 
+config :nerves_hub, NervesHub.ObanRepo,
+  ssl: false,
+  pool: Ecto.Adapters.SQL.Sandbox
+
 config :nerves_hub, NervesHub.Mailer, adapter: Bamboo.TestAdapter
 
 config :nerves_hub, Oban, queues: false, plugins: false

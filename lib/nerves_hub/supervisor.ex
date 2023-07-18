@@ -14,6 +14,7 @@ defmodule NervesHub.Supervisor do
       NervesHub.Repo,
       {Phoenix.PubSub, pubsub_config},
       {Task.Supervisor, name: NervesHub.TaskSupervisor},
+      NervesHub.ObanRepo,
       {Oban, configure_oban()}
     ]
 

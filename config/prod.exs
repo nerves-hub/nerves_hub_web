@@ -39,6 +39,8 @@ config :nerves_hub, NervesHub.Mailer,
 
 config :nerves_hub, NervesHub.Repo, pool_size: 20
 
+config :nerves_hub, NervesHub.ObanRepo, pool_size: 10
+
 ##
 # NervesHubWWW
 #
