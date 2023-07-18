@@ -107,7 +107,6 @@ defmodule NervesHubUmbrella.MixProject do
       {:scrivener_html, git: "https://github.com/nerves-hub/scrivener_html", branch: "phx-1.5"},
       {:sentry, "~> 8.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
-      {:statix, "~> 1.2"},
       {:sweet_xml, "~> 0.6"},
       {:telemetry_metrics, "~> 0.4"},
       {:telemetry_metrics_statsd, "~> 0.6.3"},
