@@ -42,6 +42,25 @@ defmodule NervesHub.RateLimit do
       write_concurrency: true
     ])
 
+    :timer.send_interval(10_000, :prune)
+
     {:ok, state}
+  end
+
+  @impl true
+  def handle_info(:prune, state) do
+    minute_ago =
+      DateTime.utc_now()
+      |> DateTime.add(-60, :second)
+      |> DateTime.to_unix()
+
+    deleted =
+      :ets.select_delete(state.ets_key, [
+        {{:"$1", :_}, [{:<, :"$1", minute_ago}], [true]}
+      ])
+
+    :telemetry.execute([:nerves_hub, :rate_limit, :pruned], %{count: deleted})
+
+    {:noreply, state}
   end
 end
