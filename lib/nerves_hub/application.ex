@@ -1,6 +1,8 @@
 defmodule NervesHub.Application do
   use Application
 
+  alias NervesHub.Config
+
   require Logger
 
   @env Mix.env()
@@ -56,6 +58,10 @@ defmodule NervesHub.Application do
   end
 
   defp endpoints(_) do
+    vapor_config = Vapor.load!(Config)
+    socket_drano_config = vapor_config.socket_drano
+    socket_strategy = {:percentage, socket_drano_config.percentage, socket_drano_config.time}
+
     case Application.get_env(:nerves_hub, :app) do
       "all" ->
         [
@@ -64,7 +70,7 @@ defmodule NervesHub.Application do
           NervesHubWeb.API.Endpoint,
           NervesHubWeb.DeviceEndpoint,
           NervesHubWeb.Endpoint,
-          {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS]}
+          {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS], strategy: socket_strategy}
         ]
 
       "api" ->
@@ -75,7 +81,7 @@ defmodule NervesHub.Application do
           NervesHub.Deployments.Supervisor,
           NervesHub.Devices.Supervisor,
           NervesHubWeb.DeviceEndpoint,
-          {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS]}
+          {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS, strategy: socket_strategy]}
         ]
 
       "web" ->

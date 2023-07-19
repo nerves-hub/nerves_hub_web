@@ -35,6 +35,12 @@ defmodule NervesHub.Config do
             default: "30", map: &String.to_integer/1}
          ])
 
+  config :socket_drano,
+         env([
+           {:percentage, "SOCKET_DRAIN_BATCH_PERCENTAGE", default: 25, map: &String.to_integer/1},
+           {:time, "SOCKET_DRAIN_BATCH_TIME", default: 100, map: &String.to_integer/1}
+         ])
+
   config :statsd,
          env([
            {:host, "STATSD_HOST", default: "localhost"},
