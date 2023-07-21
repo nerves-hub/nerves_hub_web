@@ -761,6 +761,122 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "firmware status" do
+    test "latest: no deployment" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "org"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+
+      refute device.deployment_id
+      assert Devices.firmware_status(device) == "latest"
+    end
+
+    test "latest: firmware matches the deployment" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "org"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      deployment =
+        Fixtures.deployment_fixture(org, firmware, %{
+          name: "alpha",
+          conditions: %{"tags" => ["alpha"]}
+        })
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+      device = Deployments.set_deployment(device)
+
+      assert device.deployment_id == deployment.id
+      assert device.updates_enabled
+
+      assert Devices.firmware_status(device) == "latest"
+    end
+
+    test "updating: there are update attempts" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "org"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware_one = Fixtures.firmware_fixture(org_key, product)
+      firmware_two = Fixtures.firmware_fixture(org_key, product)
+
+      deployment =
+        Fixtures.deployment_fixture(org, firmware_one, %{
+          name: "alpha",
+          conditions: %{"tags" => ["alpha"]}
+        })
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      device = Fixtures.device_fixture(org, product, firmware_two, %{tags: ["alpha"]})
+      device = Deployments.set_deployment(device)
+      {:ok, device} = Devices.update_attempted(device)
+
+      assert device.deployment_id == deployment.id
+      assert device.updates_enabled
+
+      assert Devices.firmware_status(device) == "updating"
+    end
+
+    test "pending: updates are disabled" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "org"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware_one = Fixtures.firmware_fixture(org_key, product)
+      firmware_two = Fixtures.firmware_fixture(org_key, product)
+
+      deployment =
+        Fixtures.deployment_fixture(org, firmware_one, %{
+          name: "alpha",
+          conditions: %{"tags" => ["alpha"]}
+        })
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      device = Fixtures.device_fixture(org, product, firmware_two, %{tags: ["alpha"]})
+      device = Deployments.set_deployment(device)
+      {:ok, device} = Devices.disable_updates(device, user)
+
+      assert device.deployment_id == deployment.id
+      refute device.updates_enabled
+
+      assert Devices.firmware_status(device) == "pending"
+    end
+
+    test "pending: still waiting on updating" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user, %{name: "org"})
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware_one = Fixtures.firmware_fixture(org_key, product)
+      firmware_two = Fixtures.firmware_fixture(org_key, product)
+
+      deployment =
+        Fixtures.deployment_fixture(org, firmware_one, %{
+          name: "alpha",
+          conditions: %{"tags" => ["alpha"]}
+        })
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      device = Fixtures.device_fixture(org, product, firmware_two, %{tags: ["alpha"]})
+      device = Deployments.set_deployment(device)
+
+      assert device.deployment_id == deployment.id
+      assert device.updates_enabled
+
+      assert Devices.firmware_status(device) == "pending"
+    end
+  end
+
   defp update_firmware_uuid(device, uuid) do
     firmware_metadata = %{
       architecture: "x86_64",
