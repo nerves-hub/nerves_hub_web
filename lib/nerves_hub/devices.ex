@@ -1059,4 +1059,27 @@ defmodule NervesHub.Devices do
     |> where([iu], iu.deployment_id == ^deployment.id)
     |> Repo.one()
   end
+
+  @doc """
+  Get the firmware status for a device
+
+  "latest", "pending", or "updating"
+  """
+  def firmware_status(device) do
+    device = Repo.preload(device, deployment: [:firmware])
+
+    cond do
+      is_nil(device.deployment_id) ->
+        "latest"
+
+      device.firmware_metadata.uuid == device.deployment.firmware.uuid ->
+        "latest"
+
+      !Enum.empty?(device.update_attempts) ->
+        "updating"
+
+      true ->
+        "pending"
+    end
+  end
 end
