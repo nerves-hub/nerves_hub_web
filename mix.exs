@@ -91,7 +91,7 @@ defmodule NervesHubUmbrella.MixProject do
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 3.3.1", override: true},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 0.17.0"},
+      {:phoenix_live_view, "~> 0.18.0"},
       {:phoenix_markdown, "~> 1.0"},
       {:phoenix_pubsub, "~> 2.0"},
       {:plug, "~> 1.7"},
