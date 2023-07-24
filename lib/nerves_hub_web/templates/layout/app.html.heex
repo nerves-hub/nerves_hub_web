@@ -40,16 +40,16 @@
     <div class="normal-wrapper">
       <%= render("_navigation.html", assigns) %>
       <main role="main" class="flex-column content-container">
-        <%= if get_flash(@conn, :info) do %>
+        <%= if Phoenix.Flash.get(@flash, :info) do %>
           <div class="alert alert-info alert-dismissible">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
-            <%= get_flash(@conn, :info) %>
+            <%= Phoenix.Flash.get(@flash, :info) %>
           </div>
         <% end %>
-        <%= if get_flash(@conn, :error) do %>
+        <%= if Phoenix.Flash.get(@flash, :error) do %>
           <div class="alert alert-danger alert-dismissible">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
-            <%= get_flash(@conn, :error) %>
+            <%= Phoenix.Flash.get(@flash, :error) %>
           </div>
         <% end %>
         <%= render("_tabnav.html", conn: @conn) %>

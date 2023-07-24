@@ -78,12 +78,12 @@ defmodule NervesHubWeb.ProductControllerTest do
 
       result = do_delete.()
       assert redirected_to(result) == redirect_path
-      assert get_flash(result, :error) =~ "Product has associated firmwares"
+      assert Phoenix.Flash.get(result.assigns.flash, :error) =~ "Product has associated firmwares"
 
       NervesHub.Firmwares.delete_firmware(firmware)
       result = do_delete.()
       assert redirected_to(result) == redirect_path
-      assert get_flash(result, :error) =~ "Product has associated devices"
+      assert Phoenix.Flash.get(result.assigns.flash, :error) =~ "Product has associated devices"
     end
   end
 

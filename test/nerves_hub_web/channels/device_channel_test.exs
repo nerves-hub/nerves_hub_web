@@ -12,7 +12,10 @@ defmodule NervesHubWeb.DeviceChannelTest do
     user = Fixtures.user_fixture()
     {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-    {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
     {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
     assert socket
   end
@@ -21,7 +24,10 @@ defmodule NervesHubWeb.DeviceChannelTest do
     user = Fixtures.user_fixture()
     {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-    {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
     {:ok, _, _socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
 
     assert Tracker.online?(device)
@@ -31,7 +37,10 @@ defmodule NervesHubWeb.DeviceChannelTest do
     user = Fixtures.user_fixture()
     {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-    {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
     {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
 
     Process.unlink(socket.channel_pid)
@@ -50,7 +59,9 @@ defmodule NervesHubWeb.DeviceChannelTest do
     user = Fixtures.user_fixture()
     {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-    {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, join_reply, _socket} =
       subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
@@ -62,7 +73,9 @@ defmodule NervesHubWeb.DeviceChannelTest do
     user = Fixtures.user_fixture()
     {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-    {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _join_reply, socket} =
       subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
@@ -79,7 +92,9 @@ defmodule NervesHubWeb.DeviceChannelTest do
     user = Fixtures.user_fixture()
     {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-    {:ok, socket} = connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _join_reply, socket} =
       subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
@@ -131,7 +146,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       Fixtures.device_certificate_fixture(device_alpha, X509.PrivateKey.new_ec(:secp256r1))
 
     {:ok, socket_alpha} =
-      connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: alpha_certificate.der}})
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: alpha_certificate.der}})
 
     {:ok, %{update_available: false}, socket_alpha} =
       subscribe_and_join(socket_alpha, DeviceChannel, "device")
@@ -140,7 +155,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       Fixtures.device_certificate_fixture(device_beta, X509.PrivateKey.new_ec(:secp256r1))
 
     {:ok, socket_beta} =
-      connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: beta_certificate.der}})
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: beta_certificate.der}})
 
     {:ok, %{update_available: false}, socket_beta} =
       subscribe_and_join(socket_beta, DeviceChannel, "device")
@@ -198,7 +213,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       Fixtures.device_certificate_fixture(device_alpha, X509.PrivateKey.new_ec(:secp256r1))
 
     {:ok, socket_alpha} =
-      connect(DeviceSocket, %{}, %{peer_data: %{ssl_cert: alpha_certificate.der}})
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: alpha_certificate.der}})
 
     {:ok, %{update_available: false}, socket_alpha} =
       subscribe_and_join(socket_alpha, DeviceChannel, "device")

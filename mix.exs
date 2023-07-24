@@ -8,7 +8,6 @@ defmodule NervesHubUmbrella.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
-      compilers: [:phoenix] ++ Mix.compilers(),
       preferred_cli_env: [
         docs: :docs
       ],
@@ -86,7 +85,7 @@ defmodule NervesHubUmbrella.MixProject do
       {:opentelemetry_ecto, "~> 1.0"},
       {:opentelemetry_exporter, "~> 1.4"},
       {:opentelemetry_phoenix, "~> 1.1"},
-      {:phoenix, "~> 1.6.0"},
+      {:phoenix, "~> 1.7.0"},
       {:phoenix_active_link, "~> 0.3.1"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 3.3.1", override: true},
@@ -94,6 +93,7 @@ defmodule NervesHubUmbrella.MixProject do
       {:phoenix_live_view, "~> 0.18.0"},
       {:phoenix_markdown, "~> 1.0"},
       {:phoenix_pubsub, "~> 2.0"},
+      {:phoenix_view, "~> 2.0"},
       {:plug, "~> 1.7"},
       {:plug_cowboy, "~> 2.1"},
       {:postgrex, "~> 0.14"},
