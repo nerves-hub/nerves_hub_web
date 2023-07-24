@@ -68,16 +68,4 @@ defmodule NervesHubWeb.ProductController do
     filename = "#{product.name}-devices.csv"
     send_download(conn, {:binary, Products.devices_csv(product)}, filename: filename)
   end
-
-  def devices_import(%{assigns: %{user: user, org: org, product: product}} = conn, _params) do
-    conn
-    |> live_render(
-      NervesHubWeb.ProductLive.Import,
-      session: %{
-        "auth_user_id" => user.id,
-        "org_id" => org.id,
-        "product_id" => product.id
-      }
-    )
-  end
 end

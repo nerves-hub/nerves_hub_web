@@ -1,8 +1,6 @@
 defmodule NervesHubWeb.ProductView do
   use NervesHubWeb, :view
 
-  import NervesHubWeb.OrgCertificateView, only: [format_serial: 1]
-
   def count_results(results, level) do
     Enum.count(results, &match?({_, ^level, _, _}, &1))
   end
