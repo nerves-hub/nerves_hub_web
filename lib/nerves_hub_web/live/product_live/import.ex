@@ -188,18 +188,20 @@ defmodule NervesHubWeb.ProductLive.Import do
   end
 
   defp device_changeset(%{assigns: assigns}, attrs) do
-    case Devices.get_device_by(
-           identifier: attrs.identifier,
-           org_id: assigns.org.id,
-           product_id: assigns.product.id
-         ) do
-      {:ok, device} ->
-        device
+    device =
+      case Devices.get_device_by(
+             identifier: attrs.identifier,
+             org_id: assigns.org.id,
+             product_id: assigns.product.id
+           ) do
+        {:ok, device} ->
+          device
 
-      _ ->
-        %Device{}
-    end
-    |> Device.changeset(attrs)
+        _ ->
+          %Device{}
+      end
+
+    Device.changeset(device, attrs)
   end
 
   defp maybe_org_invalid(changeset, expected, current) do

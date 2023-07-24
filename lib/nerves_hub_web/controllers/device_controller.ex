@@ -5,7 +5,6 @@ defmodule NervesHubWeb.DeviceController do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHubWeb.DeviceLive
-  alias Ecto.Changeset
 
   plug(:validate_role, [product: :delete] when action in [:delete])
   plug(:validate_role, [product: :write] when action in [:new, :create, :edit])
@@ -30,7 +29,8 @@ defmodule NervesHubWeb.DeviceController do
 
   def new(%{assigns: %{org: _org}} = conn, _params) do
     conn
-    |> render("new.html", changeset: %Changeset{data: %Device{}})
+    |> assign(:changeset, Ecto.Changeset.change(%Device{}))
+    |> render("new.html")
   end
 
   def create(%{assigns: %{org: org, product: product}} = conn, %{"device" => params}) do

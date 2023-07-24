@@ -126,7 +126,8 @@ defmodule NervesHub.Devices do
                 |> join(
                   :inner_lateral,
                   [d],
-                  t in fragment("select unnest(tags) as tags from devices where id = ?", d.id)
+                  t in fragment("select unnest(tags) as tags from devices where id = ?", d.id),
+                  on: true
                 )
                 |> group_by([d], d.id)
 
