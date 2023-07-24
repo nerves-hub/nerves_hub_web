@@ -182,11 +182,7 @@ defmodule NervesHub.Fixtures do
     Firmwares.create_firmware_transfer(params)
   end
 
-  def deployment_fixture(
-        %Org{} = org,
-        %Firmwares.Firmware{} = firmware,
-        params \\ %{}
-      ) do
+  def deployment_fixture(%Org{} = org, %Firmwares.Firmware{} = firmware, params \\ %{}) do
     {:ok, deployment} =
       %{org_id: org.id, firmware_id: firmware.id}
       |> Enum.into(params)
