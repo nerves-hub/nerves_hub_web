@@ -37,7 +37,7 @@
         <%= if org_user.user.id != assigns.user.id do %>
           <td class="actions">
             <div class="dropdown options">
-              <a class="dropdown-toggle options" href="#" id={org_user.id} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <a class="dropdown-toggle options" href="#" id={"org-user-#{org_user.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <img src="/images/icons/more.svg" alt="options" />
               </a>
               <div class="dropdown-menu dropdown-menu-right">
