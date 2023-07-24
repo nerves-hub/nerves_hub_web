@@ -6,10 +6,6 @@
 ##
 ## Use `mix gettext.extract --merge` or `mix gettext.merge`
 ## to merge POT files into PO files.
-msgid ""
-msgstr ""
-"Language: en\n"
-"Plural-Forms: nplurals=2\n"
 
 #, elixir-format
 #: lib/nerves_hub_www_web/templates/account/new.html.eex:8
