@@ -14,10 +14,6 @@ defmodule NervesHubUmbrella.MixProject do
       ],
       elixirc_paths: elixirc_paths(Mix.env()),
       elixir: "~> 1.11",
-      dialyzer: [
-        plt_add_apps: [:ex_unit, :mix],
-        ignore_warnings: "dialyzer.ignore-warnings"
-      ],
       releases: [
         nerves_hub: [
           steps: [:assemble],
@@ -59,7 +55,6 @@ defmodule NervesHubUmbrella.MixProject do
   # Run "mix help deps" for examples and options.
   defp deps do
     [
-      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
       {:recon, "~> 2.5"},
       {:bamboo, "~> 2.0"},
