@@ -144,7 +144,7 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       assert redirected_to(create_conn, 302) =~ redirect_path
 
       conn = get(create_conn, redirect_path)
-      assert get_flash(conn, :info) == "Deployment created"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Deployment created"
 
       [%{resource_type: resource_type, params: params}] = AuditLogs.logs_by(fixture.user)
       assert resource_type == Deployment
@@ -249,7 +249,7 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       assert redirected_to(update_conn, 302) =~ redirect_path
 
       conn = get(update_conn, redirect_path)
-      assert get_flash(conn, :info) == "Deployment updated"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Deployment updated"
 
       [audit_log_one, audit_log_two] = AuditLogs.logs_for(deployment)
 

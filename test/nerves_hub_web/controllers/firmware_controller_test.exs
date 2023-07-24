@@ -184,7 +184,9 @@ defmodule NervesHubWeb.FirmwareControllerTest do
         |> delete(Routes.firmware_path(conn, :delete, org.name, product.name, firmware.uuid))
 
       assert redirected_to(conn) == redirect_path
-      assert get_flash(conn, :error) =~ "Firmware has associated deployments"
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~
+               "Firmware has associated deployments"
     end
   end
 

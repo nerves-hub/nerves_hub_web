@@ -221,7 +221,7 @@ defmodule NervesHubWeb.OrgCertificateControllerTest do
       conn = put(conn, Routes.org_certificate_path(conn, :update, org.name, serial), params)
 
       assert html_response(conn, 200) =~ "can&#39;t be blank"
-      assert get_flash(conn, :error) != nil
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) != nil
     end
   end
 
