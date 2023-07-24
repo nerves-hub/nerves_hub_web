@@ -57,7 +57,7 @@ defmodule NervesHubUmbrella.MixProject do
     [
       {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
       {:recon, "~> 2.5"},
-      {:bamboo, "~> 2.0"},
+      {:bamboo, "~> 2.3", override: true},
       {:bamboo_phoenix, "~> 1.0"},
       {:bamboo_smtp, "~> 4.2"},
       {:base62, "~> 1.2"},
