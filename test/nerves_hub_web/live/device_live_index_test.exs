@@ -1,9 +1,7 @@
 defmodule NervesHubWeb.DeviceLiveIndexTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
-  import Phoenix.ChannelTest
-
-  alias NervesHub.{AuditLogs, Fixtures, Repo}
+  alias NervesHub.Fixtures
   alias NervesHubWeb.Endpoint
 
   setup %{fixture: %{device: device}} do
@@ -11,38 +9,6 @@ defmodule NervesHubWeb.DeviceLiveIndexTest do
   end
 
   describe "handle_event" do
-    test "reboot allowed", %{conn: conn, fixture: fixture} do
-      %{device: device} = fixture
-      {:ok, view, _html} = live(conn, device_index_path(fixture))
-
-      before_audit_count = AuditLogs.logs_for(device) |> length
-
-      render_change(view, :reboot, %{"device-id" => device.id})
-      assert_broadcast("reboot", %{})
-
-      after_audit_count = AuditLogs.logs_for(device) |> length
-
-      assert after_audit_count == before_audit_count + 1
-    end
-
-    test "reboot blocked", %{conn: conn, fixture: fixture} do
-      %{device: device, user: user} = fixture
-
-      Repo.preload(user, :org_users)
-      |> Map.get(:org_users)
-      |> Enum.map(&NervesHub.Accounts.change_org_user_role(&1, :read))
-
-      {:ok, view, _html} = live(conn, device_index_path(fixture))
-
-      before_audit_count = AuditLogs.logs_for(device) |> length
-
-      render_change(view, :reboot, %{"device-id" => device.id})
-
-      after_audit_count = AuditLogs.logs_for(device) |> length
-
-      assert after_audit_count == before_audit_count + 1
-    end
-
     test "filters devices by field", %{conn: conn, fixture: fixture} do
       %{device: device, firmware: firmware, org: org, product: product} = fixture
 

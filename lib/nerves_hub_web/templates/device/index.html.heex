@@ -269,26 +269,24 @@
             <div class="dropdown-menu dropdown-menu-right">
               <%= link "details", class: "dropdown-item", to: Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>
               <div class="dropdown-divider"></div>
-              <button class="dropdown-item" type="button" phx-click="reboot" phx-value-device-id={device.id} {if @device_statuses[device.id] == "offline", do: [disabled: true], else: []} data-confirm="Are you sure?">
-                <span>Reboot</span>
-              </button>
+              <%= link "Reboot", to: Routes.device_path(@socket, :reboot, @org.name, @product.name, device.identifier), method: :post, class: "dropdown-item"  %>
               <div class="dropdown-divider"></div>
               <%= link "Console", to: Routes.device_path(@socket, :console, @org.name, @product.name, device.identifier), class: "dropdown-item" %>
               <div class="dropdown-divider"></div>
-              <%= link "edit", class: "dropdown-item", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
+              <%= link "Edit", class: "dropdown-item", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
               <div class="dropdown-divider"></div>
-              <button class="dropdown-item" type="button" phx-click="toggle_health_state" phx-value-device-id={device.id}>
+              <%= link to: Routes.device_path(@socket, :toggle_updates, @org.name, @product.name, device.identifier), method: :post, class: "dropdown-item" do %>
                 <span>
                   <%= if device.updates_enabled, do: "Disable Updates", else: "Enable Updates" %>
                 </span>
-              </button>
+              <% end %>
 
               <div class="dropdown-divider"></div>
 
-              <a class="dropdown-item" aria-label="Download Audit Logs" href={Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier)}>
+              <%= link to: Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier), class: "dropdown-item", aria: [label: "Download Audit Logs"] do %>
                 <div class="button-icon download"></div>
                 <span class="action-text">Download Audit Logs</span>
-              </a>
+              <% end %>
             </div>
           </div>
         </td>

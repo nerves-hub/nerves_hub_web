@@ -5,9 +5,14 @@ defmodule NervesHubWeb.DeviceController do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHubWeb.DeviceLive
+  alias NervesHubWeb.Endpoint
 
   plug(:validate_role, [product: :delete] when action in [:delete])
-  plug(:validate_role, [product: :write] when action in [:new, :create, :edit])
+
+  plug(
+    :validate_role,
+    [product: :write] when action in [:new, :create, :edit, :reboot, :toggle_updates]
+  )
 
   plug(
     :validate_role,
@@ -99,6 +104,40 @@ defmodule NervesHubWeb.DeviceController do
     conn
     |> put_flash(:info, "Device deleted successfully.")
     |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
+  end
+
+  def reboot(conn, _params) do
+    %{user: user, org: org, product: product, device: device} = conn.assigns
+
+    AuditLogs.audit!(
+      user,
+      device,
+      :update,
+      "user #{user.username} rebooted device #{device.identifier}",
+      %{reboot: true}
+    )
+
+    Endpoint.broadcast_from!(self(), "device:#{device.id}", "reboot", %{})
+
+    conn
+    |> put_flash(:info, "Device Reboot Requested")
+    |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
+  end
+
+  def toggle_updates(conn, _params) do
+    %{user: user, org: org, product: product, device: device} = conn.assigns
+
+    case Devices.toggle_health(device, user) do
+      {:ok, _device} ->
+        conn
+        |> put_flash(:info, "Toggled device firmware updates")
+        |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
+
+      {:error, _changeset} ->
+        conn
+        |> put_flash(:error, "Failed to toggle device firmware updates")
+        |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
+    end
   end
 
   def console(conn, _params) do
