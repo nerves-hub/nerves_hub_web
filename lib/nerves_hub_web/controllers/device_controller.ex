@@ -65,17 +65,32 @@ defmodule NervesHubWeb.DeviceController do
     )
   end
 
-  def edit(%{assigns: %{user: user, org: org, product: product, device: device}} = conn, _params) do
+  def edit(conn, _params) do
+    %{device: device} = conn.assigns
+
     conn
-    |> live_render(
-      DeviceLive.Edit,
-      session: %{
-        "auth_user_id" => user.id,
-        "org_id" => org.id,
-        "product_id" => product.id,
-        "device_id" => device.id
-      }
-    )
+    |> assign(:changeset, Ecto.Changeset.change(device, %{}))
+    |> render("edit.html")
+  end
+
+  def update(conn, %{"device" => params}) do
+    %{user: user, org: org, product: product, device: device} = conn.assigns
+
+    message = "user #{user.username} updated device #{device.identifier}"
+
+    case Devices.update_device_with_audit(device, params, user, message) do
+      {:ok, device} ->
+        conn
+        |> put_flash(:info, "Device updated")
+        |> redirect(
+          to: Routes.device_path(conn, :show, org.name, product.name, device.identifier)
+        )
+
+      {:error, changeset} ->
+        conn
+        |> assign(:changeset, changeset)
+        |> render("edit.html")
+    end
   end
 
   def delete(%{assigns: %{org: org, product: product, device: device}} = conn, _params) do
