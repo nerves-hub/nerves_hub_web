@@ -146,6 +146,8 @@ defmodule NervesHubWeb.Router do
             patch("/", DeviceController, :update)
             put("/", DeviceController, :update)
             delete("/", DeviceController, :delete)
+            post("/reboot", DeviceController, :reboot)
+            post("/toggle-updates", DeviceController, :toggle_updates)
             get("/certificate/:cert_serial/download", DeviceController, :download_certificate)
             get("/audit_logs/download", DeviceController, :export_audit_logs)
           end

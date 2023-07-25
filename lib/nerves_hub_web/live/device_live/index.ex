@@ -7,7 +7,6 @@ defmodule NervesHubWeb.DeviceLive.Index do
   require Logger
 
   alias NervesHub.Accounts
-  alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Firmwares
   alias NervesHub.Products
@@ -182,23 +181,6 @@ defmodule NervesHubWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
-  def handle_event(
-        "reboot",
-        %{"device-id" => device_id},
-        %{assigns: %{devices: devices, user: user}} = socket
-      ) do
-    user = Repo.preload(user, :org_users)
-
-    device_id = String.to_integer(device_id)
-    device_index = Enum.find_index(devices, fn device -> device.id == device_id end)
-    device = Enum.at(devices, device_index)
-
-    case Enum.find(user.org_users, &(&1.org_id == device.org_id)) do
-      %{role: :admin} -> do_reboot(socket, :allowed, device)
-      _ -> do_reboot(socket, :blocked, device)
-    end
-  end
-
   def handle_event("select", %{"id" => id_str}, socket) do
     id = String.to_integer(id_str)
     selected_devices = socket.assigns.selected_devices
@@ -307,34 +289,6 @@ defmodule NervesHubWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
-  def handle_event(
-        "toggle_health_state",
-        %{"device-id" => device_id},
-        %{assigns: %{devices: devices, user: user}} = socket
-      ) do
-    device = Devices.get_device(device_id)
-
-    socket =
-      case Devices.toggle_health(device, user) do
-        {:ok, updated_device} ->
-          devices =
-            Enum.map(devices, fn
-              device when device.id == updated_device.id ->
-                updated_device
-
-              device ->
-                device
-            end)
-
-          assign(socket, :devices, devices)
-
-        {:error, _changeset} ->
-          put_flash(socket, :error, "Failed to mark health state")
-      end
-
-    {:noreply, socket}
-  end
-
   def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
     # Only sync devices currently on display
     if Map.has_key?(socket.assigns.device_statuses, payload.device_id) do
@@ -343,51 +297,6 @@ defmodule NervesHubWeb.DeviceLive.Index do
     else
       {:noreply, socket}
     end
-  end
-
-  defp do_reboot(%{assigns: %{user: user}} = socket, :allowed, device) do
-    AuditLogs.audit!(
-      user,
-      device,
-      :update,
-      "user #{user.username} rebooted device #{device.identifier}",
-      %{reboot: true}
-    )
-
-    socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
-
-    device_statuses = Map.put(socket.assigns.device_statuses, device.id, "reboot-requested")
-
-    socket =
-      socket
-      |> put_flash(:info, "Device Reboot Requested")
-      |> assign(:device_statuses, device_statuses)
-
-    {:noreply, socket}
-  end
-
-  defp do_reboot(%{assigns: %{user: user}} = socket, :blocked, device) do
-    msg = "User not authorized to reboot this device"
-
-    AuditLogs.audit!(
-      user,
-      device,
-      :update,
-      "user #{user.username} attempted to reboot device #{device.identifier}",
-      %{
-        reboot: false,
-        message: msg
-      }
-    )
-
-    device_statuses = Map.put(socket.assigns.device_statuses, device.id, "reboot-blocked")
-
-    socket =
-      socket
-      |> put_flash(:error, msg)
-      |> assign(:device_statuses, device_statuses)
-
-    {:noreply, socket}
   end
 
   defp assign_display_devices(
