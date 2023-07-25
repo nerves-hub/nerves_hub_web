@@ -1,7 +1,7 @@
-<%= link "Back to Device", to: Routes.device_path(@socket, :show, @org.name, @product.name, @device.identifier), class: "back-link"%>
+<%= link "Back to Device", to: Routes.device_path(@conn, :show, @org.name, @product.name, @device.identifier), class: "back-link"%>
 <h1>Edit Device</h1>
 
-<%= form_for @changeset, "#", [phx_change: :validate, phx_submit: :save], fn f -> %>
+<%= form_for @changeset, Routes.device_path(@conn, :update, @org.name, @product.name, @device.identifier), [method: :patch], fn f -> %>
   <div class="form-group">
     <label for="identifier_input" class="tooltip-label h3 mb-1">
       <span>ID</span>
@@ -49,6 +49,6 @@
   </div>
 
   <div class="button-submit-wrapper">
-    <%= submit "Save Changes", class: "btn btn-primary", disabled: @changeset.errors != [] %>
+    <%= submit "Save Changes", class: "btn btn-primary" %>
   </div>
 <% end %>
