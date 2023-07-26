@@ -57,7 +57,7 @@ defmodule NervesHub.Devices.Device do
     |> cast_embed(:firmware_metadata)
     |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
-    |> unique_constraint(:identifier, name: :devices_org_id_identifier_index)
+    |> unique_constraint(:identifier)
   end
 
   def with_org(device_query) do
