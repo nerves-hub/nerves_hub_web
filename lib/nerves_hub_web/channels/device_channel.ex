@@ -114,7 +114,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("status_update", %{"status" => _status}, socket) do
-    trace("DeviceChannel.status_update", socket.device.assigns.device, fn ->
+    trace("DeviceChannel.status_update", socket.assigns.device, fn ->
       # TODO store in tracker or the database?
       {:noreply, socket}
     end)
