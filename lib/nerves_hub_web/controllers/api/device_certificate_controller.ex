@@ -10,7 +10,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
   plug(:validate_role, [org: :write] when action in [:create])
   plug(:validate_role, [org: :read] when action in [:index, :show])
 
-  def index(%{assigns: %{org: org}} = conn, %{"device_identifier" => identifier}) do
+  def index(%{assigns: %{org: org}} = conn, %{"identifier" => identifier}) do
     with {:ok, device} <- Devices.get_device_by_identifier(org, identifier) do
       device_certificates = Devices.get_device_certificates(device)
       render(conn, "index.json", device_certificates: device_certificates)

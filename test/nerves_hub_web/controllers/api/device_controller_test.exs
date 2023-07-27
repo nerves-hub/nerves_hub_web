@@ -20,7 +20,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn = post(conn, Routes.device_path(conn, :create, org.name, product.name), device)
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, Routes.device_path(conn, :show, org.name, product.name, device.identifier))
+      conn = get(conn, Routes.device_path(conn, :show, device.identifier))
       assert json_response(conn, 200)["data"]["identifier"] == identifier
       assert json_response(conn, 200)["data"]["updates_enabled"] == true
     end
@@ -67,8 +67,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert response(conn, 204)
 
-      conn =
-        get(conn, Routes.device_path(conn, :show, org.name, product.name, to_delete.identifier))
+      conn = get(conn, Routes.device_path(conn, :show, to_delete.identifier))
 
       assert json_response(conn, 200)["status"] != ""
     end
@@ -95,8 +94,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert json_response(conn, 201)["data"]
 
-      conn =
-        get(conn, Routes.device_path(conn, :show, org.name, product.name, to_update.identifier))
+      conn = get(conn, Routes.device_path(conn, :show, to_update.identifier))
 
       assert json_response(conn, 200)
       assert conn.assigns.device.tags == ["a", "b", "c", "d"]
