@@ -194,6 +194,16 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
+  def get_by_identifier(identifier) do
+    case Repo.get_by(Device, identifier: identifier) do
+      nil ->
+        {:error, :not_found}
+
+      device ->
+        {:ok, Repo.preload(device, [:org, :product])}
+    end
+  end
+
   @spec get_device_by_identifier(Org.t(), String.t()) :: {:ok, Device.t()} | {:error, :not_found}
   def get_device_by_identifier(%Org{id: org_id}, identifier) when is_binary(identifier) do
     query =

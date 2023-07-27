@@ -35,6 +35,17 @@ defmodule NervesHubWeb.APIRouter do
     post("/login", UserController, :login)
   end
 
+  scope "/devices", NervesHubWeb.API do
+    pipe_through([:api, :user])
+
+    get("/:identifier", DeviceController, :show)
+    post("/:identifier/reboot", DeviceController, :reboot)
+    post("/:identifier/reconnect", DeviceController, :reconnect)
+    post("/:identifier/code", DeviceController, :code)
+    post("/:identifier/upgrade", DeviceController, :upgrade)
+    delete("/:identifier/penalty", DeviceController, :penalty)
+  end
+
   scope "/", NervesHubWeb.API do
     pipe_through(:api)
     pipe_through(:user)
@@ -85,7 +96,7 @@ defmodule NervesHubWeb.APIRouter do
               post("/", DeviceController, :create)
               post("/auth", DeviceController, :auth)
 
-              scope "/:device_identifier" do
+              scope "/:identifier" do
                 pipe_through(:device)
                 get("/", DeviceController, :show)
                 delete("/", DeviceController, :delete)
