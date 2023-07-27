@@ -45,7 +45,7 @@
   </div>
 
   <div class="button-submit-wrapper">
-    <a class="btn btn-secondary" href={Routes.deployment_path(@conn, :index, @org.name, @product.name)}>Cancel</a>
+    <a class="btn btn-secondary" href={Routes.deployment_path(@conn, :new, @org.name, @product.name)}>Back</a>
     <%= submit "Create Deployment", class: "btn btn-primary" %>
   </div>
 <% end %>

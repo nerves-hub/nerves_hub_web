@@ -14,7 +14,17 @@ defmodule NervesHubWeb.DeploymentController do
 
   def index(%{assigns: %{org: _org, product: %{id: product_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product_id)
-    render(conn, "index.html", deployments: deployments)
+
+    deployments =
+      deployments
+      |> Enum.sort_by(& &1.name)
+      |> Enum.group_by(fn deployment ->
+        deployment.firmware.platform
+      end)
+
+    conn
+    |> assign(:deployments, deployments)
+    |> render("index.html")
   end
 
   def new(%{assigns: %{org: org, product: product}} = conn, %{
@@ -53,6 +63,22 @@ defmodule NervesHubWeb.DeploymentController do
     end
   end
 
+  def new(conn, %{"deployment" => %{"platform" => platform}}) do
+    %{product: product} = conn.assigns
+
+    firmwares = Firmwares.get_firmwares_by_product(product.id)
+
+    firmwares =
+      Enum.filter(firmwares, fn firmware ->
+        firmware.platform == platform
+      end)
+
+    conn
+    |> assign(:firmwares, firmwares)
+    |> assign(:changeset, Ecto.Changeset.change(%Deployment{}))
+    |> render("new.html")
+  end
+
   def new(%{assigns: %{org: org, product: product}} = conn, _params) do
     firmwares = Firmwares.get_firmwares_by_product(product.id)
 
@@ -61,8 +87,14 @@ defmodule NervesHubWeb.DeploymentController do
       |> put_flash(:error, "You must upload a firmware version before creating a deployment")
       |> redirect(to: Routes.firmware_path(conn, :upload, org.name, product.name))
     else
+      platforms =
+        firmwares
+        |> Enum.map(& &1.platform)
+        |> Enum.uniq()
+
       conn
-      |> render("new.html", firmwares: firmwares, changeset: %Changeset{data: %Deployment{}})
+      |> assign(:platforms, platforms)
+      |> render("new-platform.html")
     end
   end
 

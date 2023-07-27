@@ -70,10 +70,11 @@ defmodule NervesHubWeb.DeploymentView do
   end
 
   def firmware_display_name(%Firmware{} = f) do
-    case f.version do
-      nil -> "--"
-      version -> "#{version} #{f.platform} #{f.architecture} #{f.uuid}"
-    end
+    "#{f.version} #{f.platform} #{f.architecture} #{f.uuid}"
+  end
+
+  def firmware_simple_display_name(%Firmware{} = f) do
+    "#{f.version} #{f.uuid}"
   end
 
   def help_message_for(field) do
