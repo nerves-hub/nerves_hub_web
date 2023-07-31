@@ -269,6 +269,11 @@ defmodule NervesHub.Tracker.DeviceShard do
         try do
           :ok = GenServer.call({name(state.index), node}, :start_sync)
         catch
+          # process doesn't exist
+          :exit, _reason ->
+            Process.send_after(self(), :sync, 500)
+
+          # didn't hear back in the timeout
           :error, _timeout ->
             Process.send_after(self(), :sync, 500)
         end
