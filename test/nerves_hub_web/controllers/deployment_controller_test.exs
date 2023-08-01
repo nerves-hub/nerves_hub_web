@@ -146,11 +146,7 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       conn = get(create_conn, redirect_path)
       assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Deployment created"
 
-      [%{resource_type: resource_type, params: params}] = AuditLogs.logs_by(fixture.user)
-      assert resource_type == Deployment
-      assert params["firmware_id"] == deployment_params.firmware_id
-      assert params["org_id"] == deployment_params.org_id
-      assert params["name"] == deployment_params.name
+      [%{resource_type: Deployment}] = AuditLogs.logs_by(fixture.user)
     end
   end
 

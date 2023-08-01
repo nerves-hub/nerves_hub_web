@@ -55,8 +55,6 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
 
       [audit_log] = AuditLogs.logs_by(user)
       assert audit_log.resource_type == Deployment
-      assert audit_log.params["firmware_id"] == params.firmware_id
-      assert audit_log.params["name"] == params.name
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do

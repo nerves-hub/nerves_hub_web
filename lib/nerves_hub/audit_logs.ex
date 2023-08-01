@@ -6,20 +6,20 @@ defmodule NervesHub.AuditLogs do
   alias NervesHub.Repo
   alias NimbleCSV.RFC4180, as: CSV
 
-  def audit(actor, resource, action, description, params) do
-    AuditLog.build(actor, resource, action, description, params)
+  def audit(actor, resource, description) do
+    AuditLog.build(actor, resource, description)
     |> AuditLog.changeset()
     |> Repo.insert()
   end
 
-  def audit!(actor, resource, action, description, params \\ %{}) do
-    AuditLog.build(actor, resource, action, description, params)
+  def audit!(actor, resource, description) do
+    AuditLog.build(actor, resource, description)
     |> AuditLog.changeset()
     |> Repo.insert!()
   end
 
-  def audit_with_ref!(actor, resource, action, description, reference_id) do
-    AuditLog.build(actor, resource, action, description, reference_id, %{})
+  def audit_with_ref!(actor, resource, description, reference_id) do
+    AuditLog.build(actor, resource, description, reference_id)
     |> AuditLog.changeset()
     |> Repo.insert!()
   end

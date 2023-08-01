@@ -40,7 +40,6 @@ defmodule NervesHubWeb.DeviceChannel do
         AuditLogs.audit_with_ref!(
           device,
           device,
-          :update,
           description,
           socket.assigns.reference_id
         )
@@ -70,7 +69,6 @@ defmodule NervesHubWeb.DeviceChannel do
           AuditLogs.audit_with_ref!(
             deployment,
             device,
-            :update,
             description,
             socket.assigns.reference_id
           )
@@ -226,7 +224,6 @@ defmodule NervesHubWeb.DeviceChannel do
         AuditLogs.audit_with_ref!(
           device,
           device,
-          :update,
           description,
           socket.assigns.reference_id
         )
@@ -237,7 +234,6 @@ defmodule NervesHubWeb.DeviceChannel do
         AuditLogs.audit_with_ref!(
           device,
           device,
-          :update,
           description,
           socket.assigns.reference_id
         )
@@ -292,7 +288,6 @@ defmodule NervesHubWeb.DeviceChannel do
           AuditLogs.audit_with_ref!(
             deployment,
             device,
-            :update,
             description,
             socket.assigns.reference_id
           )
@@ -383,7 +378,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
       description = "device #{device.identifier} disconnected from the server"
 
-      AuditLogs.audit_with_ref!(device, device, :update, description, reference_id)
+      AuditLogs.audit_with_ref!(device, device, description, reference_id)
 
       Registry.unregister(NervesHub.Devices, device.id)
       Tracker.offline(device)
@@ -462,7 +457,7 @@ defmodule NervesHubWeb.DeviceChannel do
       description =
         "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
 
-      AuditLogs.audit_with_ref!(device, device, :update, description, socket.assigns.reference_id)
+      AuditLogs.audit_with_ref!(device, device, description, socket.assigns.reference_id)
 
       DeviceLink.update_device(socket.assigns.device_link_pid, device)
 

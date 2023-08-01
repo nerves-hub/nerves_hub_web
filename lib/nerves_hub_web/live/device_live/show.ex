@@ -261,7 +261,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
     description =
       "user #{user.username} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
 
-    AuditLogs.audit!(user, device, :update, description, %{firmware_uuid: firmware.uuid})
+    AuditLogs.audit!(user, device, description)
 
     payload = %UpdatePayload{
       update_available: true,
@@ -287,13 +287,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
   end
 
   defp do_reboot(%{assigns: %{device: device, user: user}} = socket, :allowed) do
-    AuditLogs.audit!(
-      user,
-      device,
-      :update,
-      "user #{user.username} rebooted device #{device.identifier}",
-      %{reboot: true}
-    )
+    AuditLogs.audit!(user, device, "user #{user.username} rebooted device #{device.identifier}")
 
     socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "reboot", %{})
 
@@ -306,12 +300,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
     AuditLogs.audit!(
       user,
       device,
-      :update,
-      "user #{user.username} attempted to reboot device #{device.identifier}",
-      %{
-        reboot: false,
-        message: msg
-      }
+      "user #{user.username} attempted to reboot device #{device.identifier}"
     )
 
     {:noreply, put_flash(socket, :error, msg)}
