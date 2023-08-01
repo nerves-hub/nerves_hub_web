@@ -11,6 +11,9 @@
           <p class="audit-description"><%= audit_log.description %></p>
           <div class="help-text">
             <%= DateTimeFormat.from_now(audit_log.inserted_at) %><small> at <%= audit_log.inserted_at %></small>
+            <%= if audit_log.reference_id do %>
+              (Ref: <%= audit_log.reference_id %>)
+            <% end %>
           </div>
         </div>
       </div>

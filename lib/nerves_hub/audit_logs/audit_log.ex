@@ -18,7 +18,7 @@ defmodule NervesHub.AuditLogs.AuditLog do
     :resource_type,
     :org_id
   ]
-  @optional_params [:changes]
+  @optional_params [:reference_id]
 
   defenum(Action, :action, [:create, :update, :delete])
 
@@ -29,10 +29,10 @@ defmodule NervesHub.AuditLogs.AuditLog do
     field(:actor_id, :id)
     field(:actor_type, Resource)
     field(:description, :string)
-    field(:changes, :map)
     field(:params, :map)
     field(:resource_id, :id)
     field(:resource_type, Resource)
+    field(:reference_id, :string)
 
     timestamps(type: :naive_datetime_usec, updated_at: false)
   end
@@ -48,7 +48,27 @@ defmodule NervesHub.AuditLogs.AuditLog do
       org_id: resource.org_id,
       params: params
     }
-    |> add_changes(resource)
+  end
+
+  def build(
+        %actor_type{} = actor,
+        %resource_type{} = resource,
+        action,
+        description,
+        reference_id,
+        params
+      ) do
+    %__MODULE__{
+      action: action,
+      actor_id: actor.id,
+      actor_type: actor_type,
+      description: description,
+      resource_id: resource.id,
+      resource_type: resource_type,
+      org_id: resource.org_id,
+      reference_id: reference_id,
+      params: params
+    }
   end
 
   def changeset(params) do
@@ -68,13 +88,4 @@ defmodule NervesHub.AuditLogs.AuditLog do
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
   end
-
-  defp add_changes(
-         %__MODULE__{action: :update, params: params, resource_type: type} = audit_log,
-         resource
-       ) do
-    %{audit_log | changes: type.changeset(resource, params).changes}
-  end
-
-  defp add_changes(audit_log, _resource), do: audit_log
 end

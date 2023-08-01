@@ -18,6 +18,12 @@ defmodule NervesHub.AuditLogs do
     |> Repo.insert!()
   end
 
+  def audit_with_ref!(actor, resource, action, description, reference_id) do
+    AuditLog.build(actor, resource, action, description, reference_id, %{})
+    |> AuditLog.changeset()
+    |> Repo.insert!()
+  end
+
   def logs_by(%actor_type{id: id}) do
     actor_type = to_string(actor_type)
 
