@@ -2,30 +2,24 @@ defmodule NervesHub.AuditLogs.AuditLog do
   use Ecto.Schema
 
   import Ecto.Changeset
-  import EctoEnum
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Types.Resource
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @required_params [
-    :action,
     :actor_id,
     :actor_type,
     :description,
-    :params,
     :resource_id,
     :resource_type,
     :org_id
   ]
   @optional_params [:reference_id]
 
-  defenum(Action, :action, [:create, :update, :delete])
-
   schema "audit_logs" do
     belongs_to(:org, Org, where: [deleted_at: nil])
 
-    field(:action, Action)
     field(:actor_id, :id)
     field(:actor_type, Resource)
     field(:description, :string)
@@ -37,37 +31,26 @@ defmodule NervesHub.AuditLogs.AuditLog do
     timestamps(type: :naive_datetime_usec, updated_at: false)
   end
 
-  def build(%actor_type{} = actor, %resource_type{} = resource, action, description, params) do
+  def build(%actor_type{} = actor, %resource_type{} = resource, description) do
     %__MODULE__{
-      action: action,
       actor_id: actor.id,
       actor_type: actor_type,
       description: description,
       resource_id: resource.id,
       resource_type: resource_type,
-      org_id: resource.org_id,
-      params: params
+      org_id: resource.org_id
     }
   end
 
-  def build(
-        %actor_type{} = actor,
-        %resource_type{} = resource,
-        action,
-        description,
-        reference_id,
-        params
-      ) do
+  def build(%actor_type{} = actor, %resource_type{} = resource, description, reference_id) do
     %__MODULE__{
-      action: action,
       actor_id: actor.id,
       actor_type: actor_type,
       description: description,
       resource_id: resource.id,
       resource_type: resource_type,
       org_id: resource.org_id,
-      reference_id: reference_id,
-      params: params
+      reference_id: reference_id
     }
   end
 

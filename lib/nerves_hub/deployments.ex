@@ -147,7 +147,7 @@ defmodule NervesHub.Deployments do
           broadcast(:none, "deployments/changed", payload)
 
           description = "deployment #{deployment.name} conditions changed and removed all devices"
-          AuditLogs.audit!(deployment, deployment, :update, description)
+          AuditLogs.audit!(deployment, deployment, description)
         end
 
         # if is_active is false, wipe it out like above
@@ -163,7 +163,7 @@ defmodule NervesHub.Deployments do
             broadcast(deployment, "deployments/changed", payload)
 
             description = "deployment #{deployment.name} is inactive and removed all devices"
-            AuditLogs.audit!(deployment, deployment, :update, description)
+            AuditLogs.audit!(deployment, deployment, description)
           end
         end
 

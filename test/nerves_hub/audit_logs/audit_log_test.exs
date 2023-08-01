@@ -11,9 +11,8 @@ defmodule NervesHub.AuditLogs.AuditLogTest do
   describe "build" do
     test "can use supplied description", %{device: device, user: user} do
       description = "what just happened?!"
-      al = AuditLog.build(user, device, :update, description, %{})
+      al = AuditLog.build(user, device, description)
       assert al.description == description
-      assert al.params == %{}
     end
   end
 end

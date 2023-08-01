@@ -478,7 +478,7 @@ defmodule NervesHub.Devices do
 
   def update_firmware_metadata(device, metadata) do
     description = "device #{device.identifier} updated firmware metadata"
-    AuditLogs.audit!(device, device, :update, description, metadata)
+    AuditLogs.audit!(device, device, description)
     update_device(device, %{firmware_metadata: metadata})
   end
 
@@ -492,7 +492,7 @@ defmodule NervesHub.Devices do
             description =
               "device #{device.identifier} tags changed, the attached deployment has been reset"
 
-            AuditLogs.audit!(device, device, :update, description)
+            AuditLogs.audit!(device, device, description)
 
             # Since the tags changed, let's find a new deployment
             device = %{device | deployment_id: nil, deployment: nil}
@@ -672,10 +672,7 @@ defmodule NervesHub.Devices do
         Device failure rate met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
         """
 
-        AuditLogs.audit!(deployment, device, :update, description, %{
-          updates_blocked_until: blocked_until,
-          reason: "device failure rate met"
-        })
+        AuditLogs.audit!(deployment, device, description)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
 
@@ -692,10 +689,7 @@ defmodule NervesHub.Devices do
         Device failure thredhold met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
         """
 
-        AuditLogs.audit!(deployment, device, :update, description, %{
-          updates_blocked_until: blocked_until,
-          reason: "device failure threshold met"
-        })
+        AuditLogs.audit!(deployment, device, description)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
 
@@ -718,7 +712,7 @@ defmodule NervesHub.Devices do
     |> Multi.update(:device, changeset)
     |> Multi.run(:audit_device, fn _, _ ->
       description = "device #{device.identifier} is attempting to update"
-      AuditLogs.audit(device, device, :update, description, %{})
+      AuditLogs.audit(device, device, description)
     end)
     |> Repo.transaction()
     |> case do
@@ -734,7 +728,7 @@ defmodule NervesHub.Devices do
     description =
       "device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
 
-    AuditLogs.audit!(device, device, :update, description, %{})
+    AuditLogs.audit!(device, device, description)
 
     # Clear the inflight update, no longer inflight!
     inflight_update =
@@ -800,13 +794,13 @@ defmodule NervesHub.Devices do
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, :update, description, %{})
+      AuditLogs.audit(user, device, description)
     end)
     |> Multi.run(:audit_target, fn _, _ ->
-      AuditLogs.audit(user, product, :update, description, %{})
+      AuditLogs.audit(user, product, description)
     end)
     |> Multi.run(:audit_source, fn _, _ ->
-      AuditLogs.audit(user, source_product, :update, description, %{})
+      AuditLogs.audit(user, source_product, description)
     end)
     |> Repo.transaction()
     |> case do
@@ -833,7 +827,7 @@ defmodule NervesHub.Devices do
       update_device(device, params, broadcast: false)
     end)
     |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, :update, description, %{})
+      AuditLogs.audit(user, device, description)
     end)
     |> Repo.transaction()
     |> case do

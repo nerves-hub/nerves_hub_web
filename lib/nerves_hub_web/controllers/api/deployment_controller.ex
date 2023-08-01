@@ -33,9 +33,7 @@ defmodule NervesHubWeb.API.DeploymentController do
           AuditLogs.audit!(
             user,
             deployment,
-            :create,
-            "user #{user.username} created deployment #{deployment.name}",
-            params
+            "user #{user.username} created deployment #{deployment.name}"
           )
 
           conn
@@ -67,9 +65,7 @@ defmodule NervesHubWeb.API.DeploymentController do
       AuditLogs.audit!(
         user,
         deployment,
-        :update,
-        "user #{user.username} updated deployment #{deployment.name}",
-        deployment_params
+        "user #{user.username} updated deployment #{deployment.name}"
       )
 
       render(conn, "show.json", deployment: updated_deployment)

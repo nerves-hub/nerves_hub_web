@@ -109,13 +109,7 @@ defmodule NervesHubWeb.DeviceController do
   def reboot(conn, _params) do
     %{user: user, org: org, product: product, device: device} = conn.assigns
 
-    AuditLogs.audit!(
-      user,
-      device,
-      :update,
-      "user #{user.username} rebooted device #{device.identifier}",
-      %{reboot: true}
-    )
+    AuditLogs.audit!(user, device, "user #{user.username} rebooted device #{device.identifier}")
 
     Endpoint.broadcast_from!(self(), "device:#{device.id}", "reboot", %{})
 

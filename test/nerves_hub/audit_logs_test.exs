@@ -16,7 +16,7 @@ defmodule NervesHub.AuditLogsTest do
       Enum.map(0..5, fn days ->
         inserted_at = NaiveDateTime.add(now, -1 * days * 24 * 60 * 60, :second)
 
-        AuditLogs.audit!(%Device{id: 10}, %Device{id: 10, org_id: org.id}, :update, "Updating")
+        AuditLogs.audit!(%Device{id: 10}, %Device{id: 10, org_id: org.id}, "Updating")
         |> Ecto.Changeset.change(%{inserted_at: inserted_at})
         |> Repo.update!()
       end)
@@ -36,7 +36,7 @@ defmodule NervesHub.AuditLogsTest do
       Enum.map(0..11, fn _ ->
         inserted_at = NaiveDateTime.add(now, -1 * 5 * 24 * 60 * 60, :second)
 
-        AuditLogs.audit!(%Device{id: 10}, %Device{id: 10, org_id: org.id}, :update, "Updating")
+        AuditLogs.audit!(%Device{id: 10}, %Device{id: 10, org_id: org.id}, "Updating")
         |> Ecto.Changeset.change(%{inserted_at: inserted_at})
         |> Repo.update!()
       end)

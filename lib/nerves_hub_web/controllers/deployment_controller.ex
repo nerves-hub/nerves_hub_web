@@ -129,9 +129,7 @@ defmodule NervesHubWeb.DeploymentController do
         AuditLogs.audit!(
           user,
           deployment,
-          :create,
-          "user #{user.username} created deployment #{deployment.name}",
-          params
+          "user #{user.username} created deployment #{deployment.name}"
         )
 
         conn
@@ -200,9 +198,7 @@ defmodule NervesHubWeb.DeploymentController do
         AuditLogs.audit!(
           user,
           deployment,
-          :update,
-          "user #{user.username} updated deployment #{deployment.name}",
-          params
+          "user #{user.username} updated deployment #{deployment.name}"
         )
 
         conn
@@ -236,7 +232,7 @@ defmodule NervesHubWeb.DeploymentController do
 
     active_str = if value, do: "active", else: "inactive"
     description = "user #{user.username} marked deployment #{deployment.name} #{active_str}"
-    AuditLogs.audit!(user, deployment, :update, description, %{is_active: value})
+    AuditLogs.audit!(user, deployment, description)
 
     conn
     |> put_flash(:info, "Deployment set #{active_str}")
@@ -248,10 +244,7 @@ defmodule NervesHubWeb.DeploymentController do
 
     description = "user #{user.username} deleted deployment #{deployment.name}"
 
-    AuditLogs.audit!(user, deployment, :delete, description, %{
-      id: deployment.id,
-      name: deployment.name
-    })
+    AuditLogs.audit!(user, deployment, description)
 
     Deployments.delete_deployment(deployment)
 

@@ -1,15 +1,13 @@
 defmodule NervesHub.Repo.Migrations.CreateAuditLogs do
   use Ecto.Migration
 
-  alias NervesHub.AuditLogs.AuditLog.Action
-
   def change do
-    Action.create_type()
+    execute "create type action as enum ('create', 'update', 'delete');", "delete type action;"
 
     create table(:audit_logs, primary_key: false) do
       add(:id, :uuid, primary_key: true)
 
-      add(:action, Action.type(), null: false)
+      add(:action, :action, null: false)
       add(:actor_id, :id, null: false)
       add(:actor_type, :string, null: false)
       add(:params, :map, null: false)
