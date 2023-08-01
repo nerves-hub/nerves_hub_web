@@ -469,14 +469,7 @@ defmodule NervesHub.Devices do
   end
 
   def device_connected(device) do
-    last_communication = DateTime.utc_now()
-    description = "device #{device.identifier} connected to the server"
-
-    AuditLogs.audit!(device, device, :update, description, %{
-      last_communication: last_communication
-    })
-
-    update_device(device, %{last_communication: last_communication})
+    update_device(device, %{last_communication: DateTime.utc_now()})
   end
 
   def update_firmware_metadata(device, nil) do

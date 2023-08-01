@@ -107,7 +107,6 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
 
       [audit_log] = AuditLogs.logs_for(deployment)
       assert audit_log.resource_type == Deployment
-      assert audit_log.changes == %{"is_active" => true}
     end
 
     test "renders errors when data is invalid", %{

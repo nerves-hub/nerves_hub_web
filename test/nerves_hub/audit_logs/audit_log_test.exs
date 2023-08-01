@@ -9,12 +9,6 @@ defmodule NervesHub.AuditLogs.AuditLogTest do
   end
 
   describe "build" do
-    test "includes changes if present", %{device: device, user: user} do
-      params = %{tags: ["howdy"]}
-      al = AuditLog.build(user, device, :update, "updated", params)
-      assert al.changes == params
-    end
-
     test "can use supplied description", %{device: device, user: user} do
       description = "what just happened?!"
       al = AuditLog.build(user, device, :update, description, %{})

@@ -2,7 +2,6 @@ defmodule NervesHub.DevicesTest do
   use NervesHub.DataCase, async: false
 
   alias NervesHub.AuditLogs
-  alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate
@@ -489,13 +488,6 @@ defmodule NervesHub.DevicesTest do
     for deployment <- deployments do
       assert deployment.firmware.product_id == product.id
     end
-  end
-
-  test "device_connected adds audit log", %{device: device} do
-    assert AuditLogs.logs_for(device) == []
-    Devices.device_connected(device)
-    assert [%AuditLog{description: desc}] = AuditLogs.logs_for(device)
-    assert desc =~ "device #{device.identifier} connected to the server"
   end
 
   test "delta_updatable?", %{

@@ -35,6 +35,16 @@ defmodule NervesHubWeb.DeviceChannel do
         Tracer.set_attribute("nerves_hub.device.id", device.id)
         Tracer.set_attribute("nerves_hub.device.identifier", device.identifier)
 
+        description = "device #{device.identifier} connected to the server"
+
+        AuditLogs.audit_with_ref!(
+          device,
+          device,
+          :update,
+          description,
+          socket.assigns.reference_id
+        )
+
         device =
           device
           |> Devices.verify_deployment()
@@ -57,7 +67,13 @@ defmodule NervesHubWeb.DeviceChannel do
           description =
             "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} after channel join"
 
-          AuditLogs.audit!(deployment, device, :update, description, %{from: "channel_join"})
+          AuditLogs.audit_with_ref!(
+            deployment,
+            device,
+            :update,
+            description,
+            socket.assigns.reference_id
+          )
 
           # if there's an update, track it
           Devices.told_to_update(device, deployment)
@@ -207,12 +223,24 @@ defmodule NervesHubWeb.DeviceChannel do
         description =
           "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
 
-        AuditLogs.audit!(device, device, :update, description)
+        AuditLogs.audit_with_ref!(
+          device,
+          device,
+          :update,
+          description,
+          socket.assigns.reference_id
+        )
       else
         description =
           "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
 
-        AuditLogs.audit!(device, device, :update, description)
+        AuditLogs.audit_with_ref!(
+          device,
+          device,
+          :update,
+          description,
+          socket.assigns.reference_id
+        )
       end
 
       DeviceLink.update_device(socket.assigns.device_link_pid, device)
@@ -261,7 +289,13 @@ defmodule NervesHubWeb.DeviceChannel do
           # If we get here, the device is connected and high probability it receives
           # the update message so we can Audit and later assert on this audit event
           # as a loosely valid attempt to update
-          AuditLogs.audit!(deployment, device, :update, description, %{from: "broadcast"})
+          AuditLogs.audit_with_ref!(
+            deployment,
+            device,
+            :update,
+            description,
+            socket.assigns.reference_id
+          )
 
           Devices.update_started!(inflight_update)
 
@@ -341,7 +375,7 @@ defmodule NervesHubWeb.DeviceChannel do
     end)
   end
 
-  def terminate(_reason, %{assigns: %{device: device}}) do
+  def terminate(_reason, %{assigns: %{device: device, reference_id: reference_id}}) do
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1})
 
     if device = Devices.get_device(device.id) do
@@ -349,10 +383,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
       description = "device #{device.identifier} disconnected from the server"
 
-      AuditLogs.audit!(device, device, :update, description, %{
-        last_communication: device.last_communication,
-        status: "offline"
-      })
+      AuditLogs.audit_with_ref!(device, device, :update, description, reference_id)
 
       Registry.unregister(NervesHub.Devices, device.id)
       Tracker.offline(device)
@@ -431,7 +462,7 @@ defmodule NervesHubWeb.DeviceChannel do
       description =
         "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
 
-      AuditLogs.audit!(device, device, :update, description)
+      AuditLogs.audit_with_ref!(device, device, :update, description, socket.assigns.reference_id)
 
       DeviceLink.update_device(socket.assigns.device_link_pid, device)
 

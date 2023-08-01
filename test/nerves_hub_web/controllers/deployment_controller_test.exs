@@ -254,7 +254,6 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       [audit_log_one, audit_log_two] = AuditLogs.logs_for(deployment)
 
       assert audit_log_one.resource_type == Deployment
-      assert Map.has_key?(audit_log_one.changes, "conditions")
 
       assert audit_log_two.description =~ ~r/removed all devices/
     end

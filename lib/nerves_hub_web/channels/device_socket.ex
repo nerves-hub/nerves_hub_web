@@ -30,7 +30,14 @@ defmodule NervesHubWeb.DeviceSocket do
       |> Devices.get_device_certificate_by_x509()
       |> case do
         {:ok, db_cert} ->
-          {:ok, assign(socket, :certificate, db_cert)}
+          reference_id = Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
+
+          socket =
+            socket
+            |> assign(:certificate, db_cert)
+            |> assign(:reference_id, reference_id)
+
+          {:ok, socket}
 
         _e ->
           :error
