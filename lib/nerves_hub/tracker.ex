@@ -2,6 +2,35 @@ defmodule NervesHub.Tracker.Record do
   defstruct [:identifier, :pid, :node, :timestamp, :status]
 end
 
+defmodule NervesHub.Tracker.Exception do
+  defexception [:identifier, :message]
+
+  def message(exception) do
+    "Failure to register device (#{exception.identifier}) - #{exception.message}"
+  end
+end
+
+defmodule NervesHub.Tracker.DeviceTest do
+  @moduledoc false
+
+  # This is a helper process for testing the tracker in a console
+
+  use GenServer
+
+  def start_link(identifier) do
+    GenServer.start_link(__MODULE__, identifier)
+  end
+
+  def init(identifier) do
+    {:ok, identifier, {:continue, :boot}}
+  end
+
+  def handle_continue(:boot, identifier) do
+    NervesHub.Tracker.online(identifier)
+    {:noreply, identifier}
+  end
+end
+
 defmodule NervesHub.Tracker do
   @moduledoc """
   Track device online state
@@ -43,12 +72,32 @@ defmodule NervesHub.Tracker do
 
   @doc """
   Mark a device as online
+
+  If the identifier is already marked as online, the previous PID
+  will be terminated, then reigstration will continue.
   """
   def online(%{} = device) do
     online(device.identifier)
   end
 
   def online(identifier) when is_binary(identifier) do
+    pid = whereis(identifier)
+
+    if pid != nil do
+      :ok = GenServer.stop(pid)
+
+      # we need to give time for the tracker shard to sync that
+      # the device is now offline
+      await_offline(identifier)
+
+      # Make sure nothing else sneaks in
+      if whereis(identifier) != nil do
+        raise NervesHub.Tracker.Exception,
+          identifier: identifier,
+          message: "A new device registered while registering this device"
+      end
+    end
+
     {:ok, now} = HLClock.now(NervesHub.Clock)
 
     record = %Record{
@@ -62,6 +111,24 @@ defmodule NervesHub.Tracker do
     GenServer.abcast(DeviceShard.name(shard(identifier)), {:store, record})
 
     publish(identifier, "online")
+  end
+
+  @doc false
+  def await_offline(identifier, times \\ 0)
+
+  def await_offline(_identifier, times) when times >= 5 do
+    raise "Device did not go offline"
+  end
+
+  def await_offline(identifier, times) do
+    case whereis(identifier) do
+      nil ->
+        :ok
+
+      _pid ->
+        Process.sleep(100)
+        await_offline(identifier, times + 1)
+    end
   end
 
   @doc """
@@ -124,6 +191,21 @@ defmodule NervesHub.Tracker do
 
       [{_identifier, record}] ->
         record.status == "online"
+    end
+  end
+
+  @doc false
+  def whereis(%{} = device) do
+    whereis(device.identifier)
+  end
+
+  def whereis(identifier) when is_binary(identifier) do
+    case :ets.lookup(DeviceShard.name(shard(identifier)), identifier) do
+      [] ->
+        nil
+
+      [{^identifier, record}] ->
+        record.pid
     end
   end
 
