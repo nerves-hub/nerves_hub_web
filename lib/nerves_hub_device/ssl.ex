@@ -109,9 +109,14 @@ defmodule NervesHubDevice.SSL do
   defp maybe_register_from_new_public_key(otp_cert) do
     with {:ok, cn} <- check_common_name(otp_cert),
          {:ok, db_ca} <- check_known_ca(otp_cert),
+         # TODO: Remove this expiration check with later OTP
          :ok <- maybe_check_expiration(db_ca),
          der = Certificate.to_der(otp_cert),
-         {:ok, _} <- :public_key.pkix_path_validation(db_ca.der, [der], []),
+         verify_state = {X509.Certificate.from_der!(db_ca.der), !!db_ca.check_expiration},
+         {:ok, _} <-
+           :public_key.pkix_path_validation(db_ca.der, [der],
+             verify_fun: {&path_verify/3, verify_state}
+           ),
          {:ok, device} <- maybe_jitp_device(cn, db_ca),
          :ok <- check_new_public_key_allowed(device),
          params = params_from_otp_cert(otp_cert) do
@@ -126,13 +131,36 @@ defmodule NervesHubDevice.SSL do
     with {:ok, cn} <- check_common_name(otp_cert),
          true <- cn == device.identifier || :mismatched_cert,
          {:ok, db_ca} <- check_known_ca(otp_cert),
+         # TODO: Remove this expiration check with later OTP
          :ok <- maybe_check_expiration(db_ca),
          true <- db_ca.org_id == device.org_id || :mismatched_org,
          der = Certificate.to_der(otp_cert),
-         {:ok, _} <- :public_key.pkix_path_validation(db_ca.der, [der], []),
+         verify_state = {X509.Certificate.from_der!(db_ca.der), !!db_ca.check_expiration},
+         {:ok, _} <-
+           :public_key.pkix_path_validation(db_ca.der, [der],
+             verify_fun: {&path_verify/3, verify_state}
+           ),
          params = params_from_otp_cert(otp_cert) do
       Devices.create_device_certificate(device, params)
     end
+  end
+
+  defp path_verify(ca, {:bad_cert, :cert_expired}, {ca, _check_expiration? = false} = state) do
+    # The Signer CA is technically expired, but expiration checks are disabled
+    # so we should let this through the rest of the verification
+    {:valid, state}
+  end
+
+  defp path_verify(_cert, {:bad_cert, reason}, _state) do
+    {:fail, reason}
+  end
+
+  defp path_verify(_cert, event, state) when event in [:valid_peer, :valid] do
+    {event, state}
+  end
+
+  defp path_verify(_certificate, {:extension, _}, state) do
+    {:valid, state}
   end
 
   defp check_common_name(otp_cert) do
