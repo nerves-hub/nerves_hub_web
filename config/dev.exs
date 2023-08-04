@@ -42,6 +42,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
     # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
     #
     # certificate_authorities: false,
+    versions: [:"tlsv1.2"],
     verify: :verify_peer,
     verify_fun: {&NervesHubDevice.SSL.verify_fun/3, nil},
     fail_if_no_peer_cert: true,

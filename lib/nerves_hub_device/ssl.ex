@@ -109,8 +109,6 @@ defmodule NervesHubDevice.SSL do
   defp maybe_register_from_new_public_key(otp_cert) do
     with {:ok, cn} <- check_common_name(otp_cert),
          {:ok, db_ca} <- check_known_ca(otp_cert),
-         # TODO: Remove this expiration check with later OTP
-         :ok <- maybe_check_expiration(db_ca),
          der = Certificate.to_der(otp_cert),
          verify_state = {X509.Certificate.from_der!(db_ca.der), !!db_ca.check_expiration},
          {:ok, _} <-
@@ -131,8 +129,6 @@ defmodule NervesHubDevice.SSL do
     with {:ok, cn} <- check_common_name(otp_cert),
          true <- cn == device.identifier || :mismatched_cert,
          {:ok, db_ca} <- check_known_ca(otp_cert),
-         # TODO: Remove this expiration check with later OTP
-         :ok <- maybe_check_expiration(db_ca),
          true <- db_ca.org_id == device.org_id || :mismatched_org,
          der = Certificate.to_der(otp_cert),
          verify_state = {X509.Certificate.from_der!(db_ca.der), !!db_ca.check_expiration},
@@ -185,21 +181,6 @@ defmodule NervesHubDevice.SSL do
         :unknown_ca
     end
   end
-
-  defp maybe_check_expiration(%{check_expiration: true} = db_cert) do
-    now = DateTime.utc_now()
-    is_after? = DateTime.compare(now, db_cert.not_after) == :gt
-    is_before? = DateTime.compare(now, db_cert.not_before) != :gt
-
-    if is_before? or is_after? do
-      # Maybe should be :cert_expired ?
-      :invalid_issuer
-    else
-      :ok
-    end
-  end
-
-  defp maybe_check_expiration(_db_cert), do: :ok
 
   defp maybe_jitp_device(cn, %{org_id: org_id, jitp: nil}) do
     case Devices.get_device_by(identifier: cn, org_id: org_id) do
