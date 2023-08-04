@@ -28,7 +28,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, _socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
+    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
+
+    # Make sure the channel has performed it's after join
+    _ = :sys.get_state(socket.channel_pid)
+
+    # Make sure the tracker is caught up as well
+    _ = :sys.get_state(Tracker.DeviceShard.name(Tracker.shard(device)))
 
     assert Tracker.online?(device)
   end
