@@ -28,7 +28,7 @@ defmodule NervesHubWeb.Endpoint do
     only: ~w(css fonts images js favicon.ico robots.txt)
   )
 
-  file_upload_config = Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload.File, [])
+  file_upload_config = Application.compile_env(:nerves_hub, NervesHub.Firmwares.Upload.File, [])
 
   if Keyword.get(file_upload_config, :enabled, false) do
     plug(

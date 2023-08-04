@@ -201,7 +201,7 @@ defmodule NervesHub.Firmwares do
             false
 
           {text, code} ->
-            Logger.warn("fwup returned code #{code} with #{text}")
+            Logger.warning("fwup returned code #{code} with #{text}")
 
             false
         end

@@ -269,7 +269,7 @@ defmodule NervesHub.Fixtures do
     device_certificate_fixture(device, cert)
   end
 
-  def device_certificate_fixture(%Devices.Device{} = device, {:ECPrivateKey, _, _, _, _} = key) do
+  def device_certificate_fixture(%Devices.Device{} = device, {:ECPrivateKey, _, _, _, _, _} = key) do
     csr = X509.CSR.new(key, "/O=tester/CN=#{device.identifier}")
 
     signer_cert_pem = File.read!(device_certificate_authority_file())

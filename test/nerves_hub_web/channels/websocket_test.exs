@@ -29,7 +29,7 @@ defmodule NervesHubWeb.WebsocketTest do
         certfile: Path.expand("test/fixtures/ssl/device-fake.pem") |> to_charlist,
         keyfile: Path.expand("test/fixtures/ssl/device-fake-key.pem") |> to_charlist,
         cacertfile: Path.expand("test/fixtures/ssl/ca-fake.pem") |> to_charlist,
-        server_name_indication: 'device.nerves-hub.org'
+        server_name_indication: ~c"device.nerves-hub.org"
       ]
     ]
   ]
@@ -47,7 +47,7 @@ defmodule NervesHubWeb.WebsocketTest do
         certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
         keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
         cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist,
-        server_name_indication: 'device.nerves-hub.org'
+        server_name_indication: ~c"device.nerves-hub.org"
       ]
     ]
   ]
@@ -102,6 +102,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
+
+      SocketClient.close(socket)
     end
 
     test "Can connect and authenticate to channel using client ssl certificate with TLS 1.3", %{
@@ -124,7 +126,7 @@ defmodule NervesHubWeb.WebsocketTest do
             certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
             keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
             cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist,
-            server_name_indication: 'device.nerves-hub.org'
+            server_name_indication: ~c"device.nerves-hub.org"
           ]
         ]
       ]
@@ -140,11 +142,15 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
+
+      SocketClient.close(socket)
     end
 
     test "authentication rejected to channel using incorrect client ssl certificate" do
       {:ok, socket} = SocketClient.start_link(@bad_socket_config)
       refute SocketClient.connected?(socket)
+
+      SocketClient.close(socket)
     end
 
     test "Can connect and authenticate to channel using firmware topic", %{user: user} do
@@ -162,6 +168,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
+
+      SocketClient.close(socket)
     end
 
     test "already registered expired certificate without signer CA can connect", %{user: user} do
@@ -215,7 +223,7 @@ defmodule NervesHubWeb.WebsocketTest do
             cert: X509.Certificate.to_der(cert),
             key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
             cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
-            server_name_indication: 'device.nerves-hub.org'
+            server_name_indication: ~c"device.nerves-hub.org"
           ]
         ]
       ]
@@ -231,6 +239,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
+
+      SocketClient.close(socket)
     end
 
     test "already registered expired certificate with expired signer CA can connect", %{
@@ -291,7 +301,7 @@ defmodule NervesHubWeb.WebsocketTest do
             cert: X509.Certificate.to_der(cert),
             key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
             cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
-            server_name_indication: 'device.nerves-hub.org'
+            server_name_indication: ~c"device.nerves-hub.org"
           ]
         ]
       ]
@@ -307,6 +317,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
+
+      SocketClient.close(socket)
     end
   end
 
@@ -349,6 +361,8 @@ defmodule NervesHubWeb.WebsocketTest do
         |> NervesHub.Repo.preload(:org)
 
       assert Time.diff(DateTime.utc_now(), device.last_communication) < 2
+
+      SocketClient.close(socket)
     end
 
     test "receives update message when a deployment gets a new version", %{user: user} do
@@ -394,6 +408,8 @@ defmodule NervesHubWeb.WebsocketTest do
       message = SocketClient.wait_update(socket)
 
       assert message["update_available"]
+
+      SocketClient.close(socket)
     end
 
     test "does not receive update message when current_version matches target_version", %{
@@ -423,6 +439,8 @@ defmodule NervesHubWeb.WebsocketTest do
       assert updated_device.firmware_metadata.uuid == query_uuid
       assert Tracker.online?(device)
       assert Time.diff(DateTime.utc_now(), updated_device.last_communication) < 2
+
+      SocketClient.close(socket)
     end
 
     test "checks version requirements on connect", %{user: user} do
@@ -461,6 +479,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       device = Repo.reload(device)
       refute device.deployment_id
+
+      SocketClient.close(socket)
     end
   end
 
@@ -496,7 +516,7 @@ defmodule NervesHubWeb.WebsocketTest do
             cert: X509.Certificate.to_der(cert),
             key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
             cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
-            server_name_indication: 'device.nerves-hub.org'
+            server_name_indication: ~c"device.nerves-hub.org"
           ]
         ]
       ]
@@ -512,6 +532,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
+
+      SocketClient.close(socket)
     end
 
     test "vaild certificate expired signer can connect", %{user: user} do
@@ -555,7 +577,7 @@ defmodule NervesHubWeb.WebsocketTest do
             cert: X509.Certificate.to_der(cert),
             key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
             cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
-            server_name_indication: 'device.nerves-hub.org'
+            server_name_indication: ~c"device.nerves-hub.org"
           ]
         ]
       ]
@@ -573,6 +595,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert Tracker.online?(device)
       refute_receive({"presence_diff", _})
+
+      SocketClient.close(socket)
     end
 
     test "ca signer last used is updated", %{user: user} do
@@ -608,7 +632,7 @@ defmodule NervesHubWeb.WebsocketTest do
             cert: X509.Certificate.to_der(cert),
             key: {:ECPrivateKey, X509.PrivateKey.to_der(key)},
             cacerts: [X509.Certificate.to_der(ca), X509.Certificate.to_der(nerves_hub_ca_cert)],
-            server_name_indication: 'device.nerves-hub.org'
+            server_name_indication: ~c"device.nerves-hub.org"
           ]
         ]
       ]
@@ -627,6 +651,8 @@ defmodule NervesHubWeb.WebsocketTest do
       [%{last_used: updated_last_used}] = Devices.get_ca_certificates(org)
 
       assert last_used != updated_last_used
+
+      SocketClient.close(socket)
     end
   end
 end

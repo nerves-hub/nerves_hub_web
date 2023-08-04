@@ -13,7 +13,7 @@ orbs:
 jobs:
   fetch_deps:
     docker:
-      - image: hexpm/elixir:1.13.2-erlang-23.0.4-alpine-3.13.1
+      - image: hexpm/elixir:1.15.4-erlang-26.0.2-alpine-3.18.2
         environment:
           MIX_ENV: test
     working_directory: ~/app
@@ -30,7 +30,7 @@ jobs:
 
   test_elixir:
     docker:
-      - image: hexpm/elixir:1.13.2-erlang-23.0.4-alpine-3.13.1
+      - image: hexpm/elixir:1.15.4-erlang-26.0.2-alpine-3.18.2
         environment:
           MIX_ENV: test
           HOST: localhost
