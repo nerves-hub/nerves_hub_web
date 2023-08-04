@@ -93,6 +93,7 @@ if nerves_hub_app in ["all", "device"] do
       # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
       #
       # certificate_authorities: false,
+      versions: [:"tlsv1.2"],
       verify: :verify_peer,
       fail_if_no_peer_cert: true,
       keyfile: "/etc/ssl/#{host}-key.pem",
