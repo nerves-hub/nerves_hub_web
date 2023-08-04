@@ -420,7 +420,7 @@ defmodule NervesHubWeb.DeviceChannel do
     # This shouldn't even be possible, but a nil firmware_url
     # will crash the device in a very destructive way
     # so put this here to be safe
-    Logger.warn("Device has update available, but no firmware_url - Ignoring")
+    Logger.warning("Device has update available, but no firmware_url - Ignoring")
     %{update_available: false}
   end
 

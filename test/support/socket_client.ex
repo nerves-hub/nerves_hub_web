@@ -13,6 +13,10 @@ defmodule SocketClient do
     GenServer.call(socket, :joined?)
   end
 
+  def close(socket) do
+    GenServer.stop(socket)
+  end
+
   def reply(socket) do
     GenServer.call(socket, :reply)
   end

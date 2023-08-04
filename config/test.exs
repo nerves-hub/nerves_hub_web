@@ -7,8 +7,7 @@ web_port = 5000
 
 config :bcrypt_elixir, log_rounds: 4
 
-# Print only warnings and errors during test
-config :logger, level: :warn
+config :logger, :default_handler, false
 
 ##
 # NervesHub API
@@ -86,3 +85,7 @@ config :opentelemetry, :processors,
   otel_batch_processor: %{
     exporter: {:otel_exporter_tab, []}
   }
+
+config :sentry,
+  environment_name: :test,
+  included_environments: []
