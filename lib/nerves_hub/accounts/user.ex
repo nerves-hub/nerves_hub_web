@@ -3,7 +3,6 @@ defmodule NervesHub.Accounts.User do
 
   import Ecto.Changeset
   import Ecto.Query
-  import EctoEnum
 
   alias NervesHub.Accounts.{Org, OrgUser, UserToken}
   alias NervesHub.Repo
@@ -18,8 +17,6 @@ defmodule NervesHub.Accounts.User do
 
   @required_params [:username, :email, :password_hash]
   @optional_params [:password, :password_reset_token, :password_reset_token_expires]
-
-  defenum(Role, :role, [:admin, :delete, :write, :read])
 
   schema "users" do
     has_many(:user_tokens, UserToken)

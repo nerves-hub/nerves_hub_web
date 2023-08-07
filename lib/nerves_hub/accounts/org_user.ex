@@ -11,7 +11,7 @@ defmodule NervesHub.Accounts.OrgUser do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:user, User, where: [deleted_at: nil])
 
-    field(:role, User.Role)
+    field(:role, Ecto.Enum, values: [:admin, :delete, :write, :read])
     field(:deleted_at, :utc_datetime)
 
     timestamps()
