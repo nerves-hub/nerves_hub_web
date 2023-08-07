@@ -1,10 +1,12 @@
 defmodule NervesHubWeb.OrgUserView do
   use NervesHubWeb, :view
 
-  alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.OrgUser
 
   def role_options() do
-    User.Role.__enum_map__() |> Enum.map(fn opt -> {format_option(opt), opt} end)
+    OrgUser
+    |> Ecto.Enum.mappings(:role)
+    |> Enum.map(fn {key, value} -> {format_option(value), key} end)
   end
 
   defp format_option(opt) do
