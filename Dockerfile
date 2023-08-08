@@ -43,11 +43,11 @@ ENV REPLACE_OS_VARS true
 ENV LC_ALL=en_US.UTF-8
 ENV AWS_ENV_SHA=1393537837dc67d237a9a31c8b4d3dd994022d65e99c1c1e1968edc347aae63f
 
-ARG AWS_CLI_VERSION=1.29.19
 RUN apt-get update && apt-get install -y bash openssl curl python3 python3-pip jq xdelta3 zip unzip wget && \
       wget https://github.com/fwup-home/fwup/releases/download/v1.10.1/fwup_1.10.1_amd64.deb && \
       dpkg -i fwup_1.10.1_amd64.deb && rm fwup_1.10.1_amd64.deb && \
-      apt-get clean && rm -rf /var/lib/apt/lists/*
+      apt-get clean && rm -rf /var/lib/apt/lists/* && \
+      pip3 install awscli==1.29.19 PyYAML==6.0.1
 
 # Add SSM Parameter Store helper, which is used in the entrypoint script to set secrets
 RUN wget https://raw.githubusercontent.com/nerves-hub/aws-env/master/bin/aws-env-linux-amd64 && \
