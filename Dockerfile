@@ -1,11 +1,10 @@
 ARG ELIXIR_VERSION=1.15.4
 ARG ERLANG_VERSION=26.0.2
-ARG ALPINE_VERSION=3.18.2
 ARG NODE_VERSION=16.18.1
 
 # Fetch deps for building web assets
-FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-alpine-${ALPINE_VERSION} as deps
-RUN apk --no-cache add git
+FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-debian-buster-20230612 as deps
+RUN apt-get update && apt-get install -y git
 RUN mix local.hex --force && mix local.rebar --force
 ADD . /build
 WORKDIR /build
@@ -22,11 +21,11 @@ RUN cd assets \
   && npm run deploy
 
 # Elixir build container
-FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-alpine-${ALPINE_VERSION} as builder
+FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-debian-buster-20230612 as builder
 
 ENV MIX_ENV=prod
 
-RUN apk --no-cache add build-base git curl sudo
+RUN apt-get update && apt-get install -y build-essential git curl sudo
 RUN mix local.hex --force && mix local.rebar --force
 RUN mkdir /build
 ADD . /build
@@ -37,7 +36,7 @@ COPY --from=assets /build/priv/static priv/static
 RUN mix do phx.digest, release nerves_hub --overwrite
 
 # Release Container
-FROM alpine:${ALPINE_VERSION} as release
+FROM debian:buster as release
 
 ENV MIX_ENV=prod
 ENV REPLACE_OS_VARS true
@@ -45,15 +44,10 @@ ENV LC_ALL=en_US.UTF-8
 ENV AWS_ENV_SHA=1393537837dc67d237a9a31c8b4d3dd994022d65e99c1c1e1968edc347aae63f
 
 ARG AWS_CLI_VERSION=1.29.19
-RUN apk --no-cache add \
-  bash \
-  libcrypto1.1 \
-  openssl \
-  curl \
-  python3 \
-  py-pip \
-  jq \
-  && pip install --no-cache-dir awscli==$AWS_CLI_VERSION
+RUN apt-get update && apt-get install -y bash openssl curl python3 python3-pip jq xdelta3 zip unzip wget && \
+      wget https://github.com/fwup-home/fwup/releases/download/v1.10.1/fwup_1.10.1_amd64.deb && \
+      dpkg -i fwup_1.10.1_amd64.deb && rm fwup_1.10.1_amd64.deb && \
+      apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Add SSM Parameter Store helper, which is used in the entrypoint script to set secrets
 RUN wget https://raw.githubusercontent.com/nerves-hub/aws-env/master/bin/aws-env-linux-amd64 && \
@@ -62,8 +56,6 @@ RUN wget https://raw.githubusercontent.com/nerves-hub/aws-env/master/bin/aws-env
     chmod +x /bin/aws-env
 
 WORKDIR /app
-
-RUN apk add --no-cache fwup xdelta3 zip unzip
 
 EXPOSE 80
 EXPOSE 443
