@@ -36,7 +36,7 @@ COPY --from=assets /build/priv/static priv/static
 RUN mix do phx.digest, release nerves_hub --overwrite
 
 # Release Container
-FROM debian:buster as release
+FROM debian:buster-20230612 as release
 
 ENV MIX_ENV=prod
 ENV REPLACE_OS_VARS true
