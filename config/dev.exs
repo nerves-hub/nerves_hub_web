@@ -22,7 +22,7 @@ config :nerves_hub, NervesHubWeb.API.Endpoint,
   pubsub_server: NervesHub.PubSub
 
 ##
-# NervesHubDevice
+# NervesHub Device
 #
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   debug_errors: true,
@@ -44,7 +44,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
     # certificate_authorities: false,
     versions: [:"tlsv1.2"],
     verify: :verify_peer,
-    verify_fun: {&NervesHubDevice.SSL.verify_fun/3, nil},
+    verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
     fail_if_no_peer_cert: true,
     keyfile: Path.join(ssl_dir, "device.nerves-hub.org-key.pem"),
     certfile: Path.join(ssl_dir, "device.nerves-hub.org.pem"),
