@@ -1,5 +1,5 @@
-defmodule NervesHubDevice.SSLTest do
-  use NervesHubDevice.DataCase, async: true
+defmodule NervesHub.SSLTest do
+  use NervesHub.DataCase, async: true
 
   alias NervesHub.Devices
   alias NervesHub.Fixtures
@@ -313,7 +313,7 @@ defmodule NervesHubDevice.SSLTest do
   end
 
   defp run_verify(otp_cert, event \\ :valid_peer) do
-    NervesHubDevice.SSL.verify_fun(otp_cert, event, nil)
+    NervesHub.SSL.verify_fun(otp_cert, event, nil)
   end
 
   defp build_db_records(_context) do
