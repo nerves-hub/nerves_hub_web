@@ -17,9 +17,7 @@ defmodule NervesHub.Application do
     end
 
     if @env != :test do
-      :opentelemetry_cowboy.setup()
       OpentelemetryPhoenix.setup(adapter: :cowboy2)
-      OpentelemetryEcto.setup([:nerves_hub, :repo])
     end
 
     children =

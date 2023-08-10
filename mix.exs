@@ -80,8 +80,6 @@ defmodule NervesHubUmbrella.MixProject do
       {:oban, "~> 2.11"},
       {:opentelemetry, "~> 1.3"},
       {:opentelemetry_api, "~> 1.2"},
-      {:opentelemetry_cowboy, "~> 0.2"},
-      {:opentelemetry_ecto, "~> 1.0"},
       {:opentelemetry_exporter, "~> 1.4"},
       {:opentelemetry_phoenix, "~> 1.1"},
       {:phoenix, "~> 1.7.0"},
