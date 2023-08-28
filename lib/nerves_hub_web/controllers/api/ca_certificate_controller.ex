@@ -1,7 +1,9 @@
 defmodule NervesHubWeb.API.CACertificateController do
   use NervesHubWeb, :api_controller
 
-  alias NervesHub.{Devices, Certificate}
+  alias NervesHub.Certificate
+  alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices
 
   action_fallback(NervesHubWeb.API.FallbackController)
 
@@ -17,6 +19,27 @@ defmodule NervesHubWeb.API.CACertificateController do
   def show(%{assigns: %{org: org}} = conn, %{"serial" => serial}) do
     with {:ok, ca_certificate} <- Devices.get_ca_certificate_by_org_and_serial(org, serial) do
       render(conn, "show.json", ca_certificate: ca_certificate)
+    end
+  end
+
+  def create(%{assigns: %{org: org}} = conn, %{"ski_only" => val} = params)
+      when val in [true, "true"] do
+    params = %{
+      ski: String.replace(params["ski"], ~r/:|[[:space:]]/, "") |> :binary.decode_hex(),
+      description: params["description"],
+      org_id: conn.assigns.org.id
+    }
+
+    changeset = CACertificate.ski_only_changeset(%CACertificate{}, params)
+
+    with {:ok, ca_certificate} <- NervesHub.Repo.insert(changeset) do
+      conn
+      |> put_status(:created)
+      |> put_resp_header(
+        "location",
+        Routes.ca_certificate_path(conn, :show, org.name, ca_certificate.serial)
+      )
+      |> render("show.json", ca_certificate: ca_certificate)
     end
   end
 

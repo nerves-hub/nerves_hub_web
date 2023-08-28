@@ -48,16 +48,17 @@ defmodule NervesHub.SSL do
     aki = Certificate.get_aki(otp_cert)
     ski = Certificate.get_ski(otp_cert)
 
-    if aki == ski do
-      # Because Signer CAs are required to be registered first, we don't
-      # really care about it coming in here. Likewise, if this is an
-      # unregistered CA, we can just move on so that the device can
-      # still attempt to present it's certificate to check if it has been
-      # pinned or not. Veririfcation will fail there if the device cert
-      # and it's signer CA is unknown
-      {:valid, state}
-    else
-      do_verify(otp_cert, state)
+    cond do
+      aki == ski ->
+        {:valid, state}
+
+      match?({:ok, _db_ca}, Devices.get_ca_certificate_by_ski(ski)) ->
+        # Known signer CA. Expiration will be checked later if registration
+        # of a new device cert needs to happen
+        {:valid, state}
+
+      true ->
+        do_verify(otp_cert, state)
     end
   end
 
@@ -174,6 +175,12 @@ defmodule NervesHub.SSL do
     Certificate.get_aki(otp_cert)
     |> Devices.get_ca_certificate_by_ski()
     |> case do
+      {:ok, %{der: der}} when der in [nil, "invalid"] ->
+        # This CA only has a registered SKI to allow incomplete
+        # chains to still let the peer cert be evaluated. We should
+        # not consider it for JITP registration
+        :unknown_ca
+
       {:ok, db_ca} ->
         # Mark that this CA cert was used
         Devices.update_ca_certificate(db_ca, %{last_used: DateTime.utc_now()})

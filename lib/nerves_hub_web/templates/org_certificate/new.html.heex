@@ -1,40 +1,51 @@
 <h1>New Certificate Authority</h1>
 
 <%= form_for @changeset, Routes.org_certificate_path(@conn, :create, @org.name), [multipart: true], fn f -> %>
-  <h3> Step 1 </h3>
-  <p> Generate a key pair for the private key verification certificate </p>
-  <pre><code class="language-bash">
-  openssl genrsa -out verificationCert.key 2048
-  </code></pre>
+  <div class="form-group">
+    <div class="help-text mb-1 tooltip-label help-tooltip">
+      <label for="ski_only_toggle">Subject Key Identifier only?</label>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text"><%= ski_only_help_text() %></span>
+    </div>
+    <%= checkbox f, :ski_only_toggle, id: "ski_only_toggle" %>
+  </div>
 
-  <h3> Step 2 </h3>
-  <p> Copy this registration code to your clipboard </p>
-  <pre><code class="language-bash">
-  <%= @registration_code %>
-  </code></pre>
+  <div class="form-group ski_toggle_hide" id="verify-instructions">
+    <h3> Step 1 </h3>
+    <p> Generate a key pair for the private key verification certificate </p>
+    <pre><code class="language-bash">
+    openssl genrsa -out verificationCert.key 2048
+    </code></pre>
 
-  <h3> Step 3 </h3>
-  <p> Create a CSR with this registration code </p>
-  <pre><code class="language-bash">
-  openssl req -new -key verificationCert.key -out verificationCert.csr
-  </code></pre>
+    <h3> Step 2 </h3>
+    <p> Copy this registration code to your clipboard </p>
+    <pre><code class="language-bash">
+    <%= @registration_code %>
+    </code></pre>
 
-  <p> Put the registration code in the <b> Common Name </b> field </p>
-  <pre><code class="language-bash">
-  Country Name (2 letter code) [AU]:
-  State or Province Name (full name) [Some-State]:
-  Locality Name (eg, city) []:
-  Organization Name (eg, company) [Internet Widgits Pty Ltd]:
-  Organizational Unit Name (eg, section) []:
-  Common Name (e.g. server FQDN or YOUR name) []: <%= @registration_code %>
-  Email Address []:
-  </code></pre>
+    <h3> Step 3 </h3>
+    <p> Create a CSR with this registration code </p>
+    <pre><code class="language-bash">
+    openssl req -new -key verificationCert.key -out verificationCert.csr
+    </code></pre>
 
-  <h3> Step 4 </h3>
-  <p> Use the CSR that was signed with the CA private key to create a private key verification certificate </p>
-  <pre><code class="language-bash">
-  openssl x509 -req -in verificationCert.csr -CA rootCA.pem -CAkey rootCA.key -CAcreateserial -out verificationCert.crt -days 500 -sha256
-  </code></pre>
+    <p> Put the registration code in the <b> Common Name </b> field </p>
+    <pre><code class="language-bash">
+    Country Name (2 letter code) [AU]:
+    State or Province Name (full name) [Some-State]:
+    Locality Name (eg, city) []:
+    Organization Name (eg, company) [Internet Widgits Pty Ltd]:
+    Organizational Unit Name (eg, section) []:
+    Common Name (e.g. server FQDN or YOUR name) []: <%= @registration_code %>
+    Email Address []:
+    </code></pre>
+
+    <h3> Step 4 </h3>
+    <p> Use the CSR that was signed with the CA private key to create a private key verification certificate </p>
+    <pre><code class="language-bash">
+    openssl x509 -req -in verificationCert.csr -CA rootCA.pem -CAkey rootCA.key -CAcreateserial -out verificationCert.crt -days 500 -sha256
+    </code></pre>
+  </div>
 
   <div class="form-group">
     <%= label f, :description, for: "description_input" %>
@@ -42,7 +53,13 @@
     <div class="has-error"><%= error_tag f, :description %></div>
   </div>
 
-  <div class="form-group">
+  <div hidden class="form-group" id="ski_input_form">
+    <%= label f, :ski, for: "ski_input" %>
+    <%= text_input f, :ski , class: "form-control", id: "ski_input" %>
+    <div class="has-error"><%= error_tag f, :ski %></div>
+  </div>
+
+  <div class="form-group ski_toggle_hide">
     <div class="help-text mb-1 tooltip-label help-tooltip">
       <%= label f, :check_expiration, for: "check_expiration_input" %>
       <span class="tooltip-info"></span>
@@ -52,10 +69,9 @@
     <div class="has-error"><%= error_tag f, :check_expiration %></div>
   </div>
 
-
-  <%= inputs_for f, :jitp, fn fp -> %>
-    <label for="jitp_toggle"> Enable Just In Time Provisioning </label>
-    <%= checkbox fp, :jitp_toggle, id: "jitp_toggle" %>
+  <%= inputs_for f, :jitp, [class: "ski_toggle_hide"], fn fp -> %>
+    <label class="ski_toggle_hide" for="jitp_toggle"> Enable Just In Time Provisioning </label>
+    <%= checkbox fp, :jitp_toggle, class: "ski_toggle_hide", id: "jitp_toggle" %>
     <div hidden id="jitp_form">
       <div class="form-group">
         <label for="description_input" class="tooltip-label h3 mb-1">
@@ -89,13 +105,13 @@
     </div>
   <% end %>
 
-  <div class="form-group custom-upload-group">
+  <div class="form-group custom-upload-group ski_toggle_hide">
     <%= label f, :cert, "Upload a Certificate Authority file (rootCA.pem)", class: "custom-upload-label not-selected", for: "cert_input" %>
     <%= file_input f, :cert, required: true, class: "custom-upload-input hidden", id: "cert_input", accept: ".pem" %>
     <div class="has-error"><%= error_tag f, :cert %></div>
   </div>
 
-  <div class="form-group custom-upload-group">
+  <div class="form-group custom-upload-group ski_toggle_hide">
     <%= label f, :csr, "Upload a Certificate Authority file (verificationCert.crt)", class: "custom-upload-label not-selected", for: "csr_input" %>
     <%= file_input f, :csr, required: true, class: "custom-upload-input hidden", id: "csr_input", accept: ".crt" %>
     <div class="has-error"><%= error_tag f, :csr %></div>
@@ -110,5 +126,17 @@
 <script>
 document.getElementById("jitp_toggle").onclick = function() {
   document.getElementById("jitp_form").hidden = !this.checked;
+}
+
+document.getElementById("ski_only_toggle").onclick = function() {
+  var elements = document.getElementsByClassName("ski_toggle_hide");
+
+  for (var i = 0; i < elements.length; i++) {
+    elements[i].hidden = this.checked;
+  }
+
+  document.getElementById("csr_input").required = !this.checked;
+  document.getElementById("cert_input").required = !this.checked;
+  document.getElementById("ski_input_form").hidden = !this.checked;
 }
 </script>

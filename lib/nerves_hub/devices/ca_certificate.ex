@@ -53,4 +53,31 @@ defmodule NervesHub.Devices.CACertificate do
     cast(ca_certificate, params, @optional_params)
     |> cast_assoc(:jitp)
   end
+
+  @required_ski_params [:ski, :description, :org_id]
+  def ski_only_changeset(%CACertificate{} = ca_certificate, params) do
+    ca_certificate
+    |> cast(params, @required_ski_params)
+    |> validate_required(@required_ski_params)
+    |> unique_constraint(:serial, name: :ca_certificates_serial_index)
+    |> add_ski_fields()
+  end
+
+  defp add_ski_fields(%{valid?: true} = c) do
+    {serial, _} =
+      get_field(c, :ski)
+      |> :binary.encode_hex()
+      |> Integer.parse(16)
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    change(c, %{
+      serial: to_string(serial),
+      not_before: now,
+      not_after: %{now | year: now.year + 30},
+      der: "invalid"
+    })
+  end
+
+  defp add_ski_fields(c), do: c
 end

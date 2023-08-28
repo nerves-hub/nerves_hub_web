@@ -75,6 +75,36 @@ defmodule NervesHubWeb.OrgCertificateController do
     end
   end
 
+  def create(conn, %{"ca_certificate" => %{"ski_only_toggle" => "true"} = params}) do
+    params = %{
+      ski: String.replace(params["ski"], ~r/:|[[:space:]]/, "") |> :binary.decode_hex(),
+      description: params["description"],
+      org_id: conn.assigns.org.id
+    }
+
+    CACertificate.ski_only_changeset(%CACertificate{}, params)
+    |> NervesHub.Repo.insert()
+    |> case do
+      {:ok, _ca_certificate} ->
+        conn
+        |> put_flash(:info, "Certificate Authority created")
+        |> redirect(to: Routes.org_certificate_path(conn, :index, conn.assigns.org.name))
+
+      {:error, changeset} ->
+        products =
+          NervesHub.Products.get_products_by_user_and_org(conn.assigns.user, conn.assigns.org)
+
+        conn
+        |> put_flash(:error, "Error creating certificate")
+        |> render(
+          "new.html",
+          changeset: changeset,
+          products: products,
+          registration_code: get_session(conn)["registration_code"]
+        )
+    end
+  end
+
   def create(
         %{assigns: %{org: org, user: user}} = conn,
         %{

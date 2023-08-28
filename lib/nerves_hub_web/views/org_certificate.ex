@@ -23,4 +23,15 @@ defmodule NervesHubWeb.OrgCertificateView do
     from being created from an expired signing CA certificate.
     """
   end
+
+  def ski_only_help_text() do
+    """
+    This is a special case for creating a CA certificate when only the
+    Subject Key Identifier (SKI) is known. This is for cases where the
+    device certificate is signed by an intermediate CA certificate and
+    the full chain is not known. If this intermediate signer CA is presented
+    in the chain, this enables NervesHub to still validate the device
+    certificate. This certificate will not support Just-In-Time Provisioning
+    """
+  end
 end
