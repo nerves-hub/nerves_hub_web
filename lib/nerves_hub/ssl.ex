@@ -40,24 +40,31 @@ defmodule NervesHub.SSL do
     {:valid, state}
   end
 
-  # The certificate failed peer validation.
-  # This can happen if the Signer CA is not included in the request
-  # and only the device cert/key is. Or if some other unknown CA
-  # was included.
   def verify_fun(otp_cert, {:bad_cert, err}, state) when err in [:unknown_ca, :cert_expired] do
     aki = Certificate.get_aki(otp_cert)
     ski = Certificate.get_ski(otp_cert)
 
-    if aki == ski do
-      # Because Signer CAs are required to be registered first, we don't
-      # really care about it coming in here. Likewise, if this is an
-      # unregistered CA, we can just move on so that the device can
-      # still attempt to present it's certificate to check if it has been
-      # pinned or not. Veririfcation will fail there if the device cert
-      # and it's signer CA is unknown
-      {:valid, state}
-    else
-      do_verify(otp_cert, state)
+    cond do
+      aki == ski ->
+        # If the signer CA is also the root, then AKI == SKI. We can skip
+        # checking as it will be validated later on if the device needs
+        # registration
+        {:valid, state}
+
+      match?({:ok, _db_ca}, Devices.get_ca_certificate_by_ski(ski)) ->
+        # Signer CA sent with the device certificate, but is an intermediary
+        # so the chain is incomplete labeling it as unknown_ca.
+        #
+        # Since we have this CA registered, validate so we can move on to the device
+        # cert next and expiration will be checked later if registration of a new
+        # device cert needs to happen.
+        {:valid, state}
+
+      true ->
+        # The signer CA was not included in the request, so this is most
+        # likely a device cert that needs verification. If it isn't, then
+        # this is some other unknown CA that will fail
+        do_verify(otp_cert, state)
     end
   end
 
