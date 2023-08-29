@@ -1,6 +1,7 @@
 defmodule NervesHub.SSLTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Fixtures
 
@@ -102,6 +103,25 @@ defmodule NervesHub.SSLTest do
       assert {:ok, device} = Repo.soft_delete(context.device)
       assert device.deleted_at
       assert {:fail, :ignore_deleted_device} = run_verify(context.cert)
+    end
+
+    test "valiadates known intermediary signer CA", context do
+      subject_rdn = "/O=#{context.org.name}/CN=#{context.device.identifier} Signer"
+
+      private_key = X509.PrivateKey.new_ec(:secp256r1)
+      public_key = X509.PublicKey.derive(private_key)
+
+      intermediary_ca =
+        X509.Certificate.new(public_key, "#{subject_rdn}", context.ca_cert, context.ca_key)
+
+      refute Certificate.get_aki(intermediary_ca) == Certificate.get_ski(intermediary_ca)
+
+      assert {:fail, _state} = run_verify(intermediary_ca, {:bad_cert, :unknown_ca})
+
+      # Register the intermediary signer CA
+      {:ok, _db_ca} = Devices.create_ca_certificate_from_x509(context.org, intermediary_ca)
+
+      assert {:valid, _state} = run_verify(intermediary_ca, {:bad_cert, :unknown_ca})
     end
   end
 
