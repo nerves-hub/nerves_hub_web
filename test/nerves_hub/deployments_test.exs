@@ -3,6 +3,7 @@ defmodule NervesHub.DeploymentsTest do
   import Phoenix.ChannelTest
 
   alias NervesHub.Deployments
+  alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias Ecto.Changeset
 
@@ -323,5 +324,11 @@ defmodule NervesHub.DeploymentsTest do
       assert Enum.member?(deployments, low_deployment)
       refute Enum.member?(deployments, high_deployment)
     end
+  end
+
+  test "alternate_deployments/2 ignores device without firmware metadata" do
+    assert [] == Deployments.alternate_deployments(%Device{firmware_metadata: nil})
+    assert [] == Deployments.alternate_deployments(%Device{firmware_metadata: nil}, [true])
+    assert [] == Deployments.alternate_deployments(%Device{firmware_metadata: nil}, [false])
   end
 end
