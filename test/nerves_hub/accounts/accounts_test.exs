@@ -223,7 +223,10 @@ defmodule NervesHub.AccountsTest do
     org = Fixtures.org_fixture(user)
 
     {:ok, %Invite{} = invite} =
-      Accounts.add_or_invite_to_org(%{"email" => "accepted_invite@test.org"}, org)
+      Accounts.add_or_invite_to_org(
+        %{"email" => "accepted_invite@test.org", "role" => "read"},
+        org
+      )
 
     assert {:ok, %OrgUser{}} =
              Accounts.create_user_from_invite(invite, org, %{
@@ -236,7 +239,10 @@ defmodule NervesHub.AccountsTest do
     org = Fixtures.org_fixture(user)
 
     {:ok, %Invite{} = invite} =
-      Accounts.add_or_invite_to_org(%{"email" => "failed_accepted_invite@test.org"}, org)
+      Accounts.add_or_invite_to_org(
+        %{"email" => "failed_accepted_invite@test.org", "role" => "read"},
+        org
+      )
 
     {:error, changeset} = Accounts.create_user_from_invite(invite, org, %{invalid: "params"})
     assert "can't be blank" in errors_on(changeset).password
@@ -246,9 +252,13 @@ defmodule NervesHub.AccountsTest do
   test "invite existing user", %{user: user} do
     org = Fixtures.org_fixture(user)
     new_user = Fixtures.user_fixture()
-    assert {:ok, %OrgUser{}} = Accounts.add_or_invite_to_org(%{"email" => new_user.email}, org)
 
-    {:error, changeset} = Accounts.add_or_invite_to_org(%{"email" => new_user.email}, org)
+    assert {:ok, %OrgUser{}} =
+             Accounts.add_or_invite_to_org(%{"email" => new_user.email, "role" => "read"}, org)
+
+    {:error, changeset} =
+      Accounts.add_or_invite_to_org(%{"email" => new_user.email, "role" => "read"}, org)
+
     assert "is already member" in errors_on(changeset).org_users
   end
 

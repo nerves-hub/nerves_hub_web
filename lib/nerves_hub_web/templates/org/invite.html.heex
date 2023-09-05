@@ -16,13 +16,10 @@
     <label for="role_input" class="tooltip-label h3 mb-1">
       <span>Role</span>
       <span class="tooltip-info"></span>
-      <span class="tooltip-text">User role can be changed from the command line</span>
+      <span class="tooltip-text">Defines the type of access this user has in this org</span>
     </label>
     <div class="pos-rel">
-      <select class="form-control" disabled id="role_input">
-        <option value="Admin">Admin</option>
-        <option value="Basic">Basic</option>
-      </select>
+      <%= select f, :role, NervesHubWeb.OrgUserView.role_options(), selected: :read, class: "form-control" %>
       <div class="select-icon"></div>
     </div>
   </div>

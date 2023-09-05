@@ -9,7 +9,8 @@ defmodule NervesHubWeb.AccountControllerTest do
     test "renders invite creation form", %{
       conn: conn
     } do
-      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com"}, conn.assigns.org)
+      {:ok, invite} =
+        Accounts.invite(%{"email" => "joe@example.com", "role" => "read"}, conn.assigns.org)
 
       conn = get(conn, Routes.account_path(conn, :invite, invite.token))
 
@@ -23,7 +24,7 @@ defmodule NervesHubWeb.AccountControllerTest do
       conn: conn
     } do
       org = conn.assigns.org
-      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com"}, org)
+      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com", "role" => "read"}, org)
 
       conn =
         post(
