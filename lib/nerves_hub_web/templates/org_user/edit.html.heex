@@ -1,5 +1,5 @@
 <h1>
-  Edit User Role
+  <%= @org_user.user.username %>
 </h1>
 
 <%= form_for @changeset, Routes.org_user_path(@conn, :update, @org.name, @org_user.user_id), fn f -> %>

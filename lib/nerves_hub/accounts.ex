@@ -440,7 +440,7 @@ defmodule NervesHub.Accounts do
   def add_or_invite_to_org(%{"email" => email} = params, org) do
     case get_user_by_email(email) do
       {:error, :not_found} -> invite(params, org)
-      {:ok, user} -> add_org_user(org, user, %{role: :admin})
+      {:ok, user} -> add_org_user(org, user, %{role: params["role"]})
     end
   end
 
@@ -507,7 +507,7 @@ defmodule NervesHub.Accounts do
 
     Repo.transaction(fn ->
       with {:ok, user} <- create_user(user_params),
-           {:ok, user} <- add_org_user(org, user, %{role: :admin}),
+           {:ok, user} <- add_org_user(org, user, %{role: invite.role}),
            {:ok, _invite} <- set_invite_accepted(invite) do
         # Repo.transaction will wrap this in an {:ok, user}
         user
