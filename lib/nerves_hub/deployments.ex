@@ -226,9 +226,10 @@ defmodule NervesHub.Deployments do
 
   Based on the product, firmware platform, firmware architecture, and device tags
   """
-  def alternate_deployments(%Device{firmware_metadata: nil}), do: []
+  def alternate_deployments(device, active \\ [true, false])
+  def alternate_deployments(%Device{firmware_metadata: nil}, _active), do: []
 
-  def alternate_deployments(device, active \\ [true, false]) do
+  def alternate_deployments(device, active) do
     Deployment
     |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
     |> where([d], d.product_id == ^device.product_id)
