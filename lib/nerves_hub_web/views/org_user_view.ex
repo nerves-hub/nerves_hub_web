@@ -4,14 +4,8 @@ defmodule NervesHubWeb.OrgUserView do
   alias NervesHub.Accounts.OrgUser
 
   def role_options() do
-    OrgUser
-    |> Ecto.Enum.mappings(:role)
-    |> Enum.map(fn {key, value} -> {format_option(value), key} end)
-  end
-
-  defp format_option(opt) do
-    opt
-    |> to_string()
-    |> String.capitalize()
+    for {key, value} <- Ecto.Enum.mappings(OrgUser, :role),
+        key in [:admin, :read],
+        do: {String.capitalize(value), key}
   end
 end
