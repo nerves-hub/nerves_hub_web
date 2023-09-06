@@ -64,8 +64,6 @@ channel
   .join()
   .receive('ok', () => {
     console.log('JOINED')
-    // Push CTL-L to refresh form line
-    channel.push('dn', { data: '\f' })
     channel.push('window_size', { height: term.rows, width: term.cols })
   })
   .receive('error', () => {
