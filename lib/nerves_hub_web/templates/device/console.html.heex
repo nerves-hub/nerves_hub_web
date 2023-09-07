@@ -1,3 +1,12 @@
 <input id="device_id" hidden type="text" value={@device.id} />
 <input id="product_id" hidden type="text" value={@device.product_id} />
-<div id="terminal" class="console-v2"></div>
+
+<div class="box">
+  <div class="title-bar">
+    <p class="title">Nerves</p>
+    <a href={Routes.device_url(@conn, :show, @org.name, @product.name, @device.identifier)}>X</a>
+  </div>
+  <div class="body">
+    <div id="terminal" class="console"></div>
+  </div>
+</div>
