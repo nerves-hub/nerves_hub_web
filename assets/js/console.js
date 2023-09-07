@@ -2,9 +2,8 @@
 
 import { Socket } from 'phoenix';
 import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
 
-let socket = new Socket('/socket', { params: { token: window.userToken } })
+let socket = new Socket('/socket', { params: { token: window.userToken } });
 
 const xtermjsTheme = {
   foreground: '#FFFAF4',
@@ -38,6 +37,8 @@ try {
 } catch (e) {}
 
 var term = new Terminal({
+  rows: 25,
+  cols: 120,
   cursorBlink: true,
   cursorStyle: 'bar',
   macOptionIsMeta: true,
@@ -45,79 +46,47 @@ var term = new Terminal({
   theme: xtermjsTheme,
   scrollback: scrollback,
 })
-const fitAddon = new FitAddon();
-term.loadAddon(fitAddon);
 
-var device_id = document.getElementById('device_id').value
-var product_id = document.getElementById('product_id').value
+var device_id = document.getElementById('device_id').value;
+var product_id = document.getElementById('product_id').value;
 
-socket.connect()
+socket.connect();
 
-term.open(document.getElementById('terminal'))
-fitAddon.fit()
+term.open(document.getElementById('terminal'));
+term.focus();
 
-term.focus()
-
-let channel = socket.channel('user_console', { device_id, product_id })
+let channel = socket.channel('user_console', { device_id, product_id });
 
 channel
   .join()
   .receive('ok', () => {
-    console.log('JOINED')
-    channel.push('window_size', { height: term.rows, width: term.cols })
+    console.log('JOINED');
+    // This will be the same for everyone, the first time it should be used
+    // and there after it will be ignored as a noop by erlang
+    channel.push('window_size', { height: term.rows, width: term.cols });
   })
   .receive('error', () => {
-    console.log('ERROR')
-  })
+    console.log('ERROR');
+  });
 
 // Stream all events straight to the device
 term.onData(data => {
   channel.push('dn', { data })
-})
+});
 
 // Write data from device to console
 channel.on('up', payload => {
   term.write(payload.data)
-})
-
-// Update meta fields for page
-channel.on('meta_update', payload => {
-  var deets = document.getElementById('status-deets')
-  var inner
-  if (payload.status === 'updating') {
-    inner = `
-      <div class="progress console-progress">
-        <div class="progress-bar" role="progressbar" style="width: ${payload.fwup_progress}%">
-          ${payload.fwup_progress}%
-        </div>
-      </div>
-      `
-  } else {
-    inner = `
-    <span>${payload.status}</span>
-    <span class="ml-1">
-      <img alt="${payload.status}" class="table-icon ${payload.status}" />
-    </span>
-    `
-  }
-  deets.innerHTML = inner
-
-  if ('last_communication' in payload) {
-    document.getElementById('last_communication').value =
-      payload.last_communication
-  }
-})
+});
 
 // Set new size on device when window changes
 window.addEventListener('resize', () => {
-  fitAddon.fit()
-  term.scrollToBottom()
-  channel.push('window_size', { height: term.rows, width: term.cols })
-})
+  term.scrollToBottom();
+});
 
 channel.onClose(() => {
-  console.log('CLOSED')
-  term.blur()
-  term.setOption('cursorBlink', false)
-  term.write('DISCONNECTED')
-})
+  console.log('CLOSED');
+  term.blur();
+  term.setOption('cursorBlink', false);
+  term.write('DISCONNECTED');
+});
