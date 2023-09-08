@@ -3,12 +3,16 @@ defmodule NervesHubWeb.UserConsoleChannel do
 
   alias Phoenix.Socket.Broadcast
 
-  # intercept(["presence_diff"])
-
   def join("user_console", %{"device_id" => device_id, "product_id" => product_id}, socket) do
     socket.endpoint.subscribe(console_topic(device_id))
     socket.endpoint.subscribe("product:#{product_id}:devices")
     {:ok, assign(socket, :device_id, device_id)}
+  end
+
+  def handle_in("message", payload, socket) do
+    payload = Map.put(payload, :username, socket.assigns.user.username)
+    broadcast(socket, "message", payload)
+    {:noreply, socket}
   end
 
   def handle_in(event, payload, %{assigns: %{device_id: device_id}} = socket) do
