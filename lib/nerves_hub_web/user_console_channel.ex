@@ -28,6 +28,15 @@ defmodule NervesHubWeb.UserConsoleChannel do
     {:noreply, socket}
   end
 
+  def terminate(_reason, socket) do
+    broadcast(socket, "message", %{
+      username: socket.assigns.user.username,
+      event: "closed the console"
+    })
+
+    socket
+  end
+
   defp console_topic(device_id) do
     "console:#{device_id}"
   end
