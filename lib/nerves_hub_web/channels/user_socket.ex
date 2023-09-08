@@ -3,7 +3,7 @@ defmodule NervesHubWeb.UserSocket do
 
   alias NervesHub.Accounts
 
-  channel("user_console", NervesHubWeb.UserConsoleChannel)
+  channel("user:console:*", NervesHubWeb.UserConsoleChannel)
 
   def connect(%{"token" => token}, socket) do
     case Phoenix.Token.verify(socket, "user salt", token, max_age: 86400) do

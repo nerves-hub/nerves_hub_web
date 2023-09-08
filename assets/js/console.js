@@ -59,7 +59,7 @@ term.focus();
 let chatBody = document.getElementById('chat-body');
 let chatMessage = document.getElementById('chat-message');
 
-let channel = socket.channel('user_console', { device_id, product_id });
+let channel = socket.channel(`user:console:${device_id}`, {});
 
 channel
   .join()
