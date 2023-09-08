@@ -37,12 +37,13 @@ try {
 } catch (e) {}
 
 var term = new Terminal({
-  rows: 25,
+  rows: 28,
   cols: 120,
   cursorBlink: true,
   cursorStyle: 'bar',
   macOptionIsMeta: true,
-  fontFamily: '"Roboto Mono", monospace',
+  fontFamily: 'Ubuntu Mono, courier-new, courier, monospace',
+  fontSize: 15,
   theme: xtermjsTheme,
   scrollback: scrollback,
 })
@@ -55,6 +56,9 @@ socket.connect();
 term.open(document.getElementById('terminal'));
 term.focus();
 
+let chatBody = document.getElementById('chat-body');
+let chatMessage = document.getElementById('chat-message');
+
 let channel = socket.channel('user_console', { device_id, product_id });
 
 channel
@@ -64,6 +68,7 @@ channel
     // This will be the same for everyone, the first time it should be used
     // and there after it will be ignored as a noop by erlang
     channel.push('window_size', { height: term.rows, width: term.cols });
+    channel.push('message', { event: "loaded the console" });
   })
   .receive('error', () => {
     console.log('ERROR');
@@ -77,6 +82,25 @@ term.onData(data => {
 // Write data from device to console
 channel.on('up', payload => {
   term.write(payload.data)
+});
+
+channel.on("message", payload => {
+  if (payload.text) {
+    chatBody.append(`${payload.username}: ${payload.text}\n`);
+  } else if (payload.event) {
+    chatBody.append(`${payload.username} ${payload.event}\n`);
+  }
+});
+
+chatBody.addEventListener("click", (e) => {
+  chatMessage.focus();
+});
+
+chatMessage.addEventListener("keypress", (e) => {
+  if (e.key == "Enter") {
+    channel.push("message", { text: chatMessage.value });
+    chatMessage.value = "";
+  }
 });
 
 // Set new size on device when window changes
