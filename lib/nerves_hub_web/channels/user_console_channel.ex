@@ -3,9 +3,8 @@ defmodule NervesHubWeb.UserConsoleChannel do
 
   alias Phoenix.Socket.Broadcast
 
-  def join("user_console", %{"device_id" => device_id, "product_id" => product_id}, socket) do
+  def join("user:console:" <> device_id, _, socket) do
     socket.endpoint.subscribe(console_topic(device_id))
-    socket.endpoint.subscribe("product:#{product_id}:devices")
     {:ok, assign(socket, :device_id, device_id)}
   end
 
