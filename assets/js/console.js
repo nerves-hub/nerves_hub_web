@@ -49,7 +49,6 @@ var term = new Terminal({
 })
 
 var device_id = document.getElementById('device_id').value;
-var product_id = document.getElementById('product_id').value;
 
 socket.connect();
 
@@ -95,7 +94,6 @@ channel.on("message", payload => {
 chatBody.addEventListener("click", (e) => {
   chatMessage.focus();
 });
-
 chatMessage.addEventListener("keypress", (e) => {
   if (e.key == "Enter") {
     channel.push("message", { text: chatMessage.value });
