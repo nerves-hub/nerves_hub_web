@@ -101,4 +101,15 @@ defmodule NervesHubWeb.DeviceView do
         "Firmware Enabled"
     end
   end
+
+  def connecting_code(device) do
+    if device.deployment && device.deployment.connecting_code do
+      """
+      #{device.deployment.connecting_code}
+      #{device.connecting_code}
+      """
+    else
+      device.connecting_code
+    end
+  end
 end
