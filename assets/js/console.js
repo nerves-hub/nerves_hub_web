@@ -101,6 +101,56 @@ chatMessage.addEventListener("keypress", (e) => {
   }
 });
 
+let downloadingFileBuffer = [];
+
+channel.on("file-data/start", payload => {
+  downloadingFileBuffer = [];
+});
+
+channel.on("file-data", payload => {
+  const data = atob(payload.data);
+
+  const buffer = new Uint8Array(data.length);
+
+  for (var i = 0; i < data.length; i++){
+    buffer[i] = data.charCodeAt(i);
+  }
+
+  downloadingFileBuffer.push(buffer);
+});
+
+channel.on("file-data/stop", payload => {
+  let length = 0;
+
+  for (let i in downloadingFileBuffer) {
+    let buffer = downloadingFileBuffer[i];
+    length += buffer.length;
+  }
+
+  const mainBuffer = new Uint8Array(length);
+
+  let offset = 0;
+
+  for (let i in downloadingFileBuffer) {
+    let buffer = downloadingFileBuffer[i];
+    mainBuffer.set(buffer, offset);
+    offset += buffer.length;
+  }
+
+  const file = new Blob([mainBuffer]);
+
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(file)
+
+  link.href = url;
+  link.download = payload.filename;
+  document.body.appendChild(link);
+  link.click();
+
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+});
+
 // Set new size on device when window changes
 window.addEventListener('resize', () => {
   term.scrollToBottom();

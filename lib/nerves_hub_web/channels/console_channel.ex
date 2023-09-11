@@ -43,6 +43,21 @@ defmodule NervesHubWeb.ConsoleChannel do
     {:noreply, socket}
   end
 
+  def handle_in("file-data/start", payload, socket) do
+    socket.endpoint.broadcast_from!(self(), console_topic(socket), "file-data/start", payload)
+    {:noreply, socket}
+  end
+
+  def handle_in("file-data", payload, socket) do
+    socket.endpoint.broadcast_from!(self(), console_topic(socket), "file-data", payload)
+    {:noreply, socket}
+  end
+
+  def handle_in("file-data/stop", payload, socket) do
+    socket.endpoint.broadcast_from!(self(), console_topic(socket), "file-data/stop", payload)
+    {:noreply, socket}
+  end
+
   def handle_info({:after_join, _payload}, socket) do
     socket.endpoint.subscribe(console_topic(socket))
 
