@@ -32,6 +32,12 @@
     outline:none;
   }
 
+  &.terminal {
+    .body {
+      width: 1080px;
+    }
+  }
+
   &.chat {
     width: 280px;
     display: flex;
