@@ -1,4 +1,8 @@
-<h1 class="ff-m"><%= @device.identifier %></h1>
+<h1 class="ff-m mb-0"><%= @device.identifier %></h1>
+
+<%= if @device.description do %>
+  <p class="help-text large"><%= @device.description %></p>
+<% end %>
 
 <div class="device-meta-grid">
   <div>
@@ -13,6 +17,17 @@
         <% end %>
       </span>
     </p>
+  </div>
+  <div>
+    <div class="help-text mb-1">Version</div>
+    <%= if is_nil(@device.firmware_metadata) do %>
+      <p>Unknown</p>
+    <% else %>
+      <a href={Routes.firmware_path(@socket, :show, @org.name, @product.name, @device.firmware_metadata.uuid)} class="badge ff-m">
+        <%= @device.firmware_metadata.version %>
+        <%= @device.firmware_metadata.uuid %>
+      </a>
+    <% end %>
   </div>
   <div>
     <div class="help-text mb-1 tooltip-label help-tooltip">
@@ -50,16 +65,6 @@
           <span class="ml-1">
             <img src="/images/icons/firmware-enabled.svg" alt="Firmware enabled icon" style="width: 1.3rem; margin-top: -4px;"/>
           </span>
-      <% end %>
-    </p>
-  </div>
-  <div>
-    <div class="help-text">Description</div>
-    <p>
-      <%= if is_nil(@device.description) do %>
-        -
-      <% else %>
-        <%= @device.description %>
       <% end %>
     </p>
   </div>
