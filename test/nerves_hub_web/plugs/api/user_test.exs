@@ -5,8 +5,8 @@ defmodule NervesHubWeb.API.Plugs.UserTest do
   setup do
     conn =
       build_conn()
-      |> bypass_through(NervesHubWeb.APIRouter)
-      |> dispatch(NervesHubWeb.API.Endpoint, :get, "/users/me")
+      |> bypass_through(NervesHubWeb.Router)
+      |> dispatch(NervesHubWeb.Endpoint, :get, "/api/users/me")
 
     %{conn: conn}
   end
@@ -16,7 +16,7 @@ defmodule NervesHubWeb.API.Plugs.UserTest do
       build_conn()
       |> put_req_header("authorization", "token #{token}")
       |> put_req_header("accept", "application/json")
-      |> get("/users/me")
+      |> get("/api/users/me")
 
     assert json_response(conn, 200)["data"] == %{
              "email" => user.email,
@@ -27,7 +27,7 @@ defmodule NervesHubWeb.API.Plugs.UserTest do
       build_conn()
       |> put_req_header("authorization", "Bearer #{token}")
       |> put_req_header("accept", "application/json")
-      |> get("/users/me")
+      |> get("/api/users/me")
 
     assert json_response(conn, 200)["data"] == %{
              "email" => user.email,
@@ -40,13 +40,13 @@ defmodule NervesHubWeb.API.Plugs.UserTest do
       build_conn()
       |> put_req_header("authorization", "token wat-is-this-token")
       |> put_req_header("accept", "application/json")
-      |> get("/users/me")
+      |> get("/api/users/me")
 
     conn2 =
       build_conn()
       |> put_req_header("authorization", "token nhu_1234567890abcdefghijklmnopqrstuvwxyz")
       |> put_req_header("accept", "application/json")
-      |> get("/users/me")
+      |> get("/api/users/me")
 
     assert json_response(conn, 403)
     assert json_response(conn2, 403)

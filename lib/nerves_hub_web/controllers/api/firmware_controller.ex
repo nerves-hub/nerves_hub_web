@@ -23,7 +23,7 @@ defmodule NervesHubWeb.API.FirmwareController do
       |> put_status(:created)
       |> put_resp_header(
         "location",
-        Routes.firmware_path(conn, :show, org, product.name, firmware.uuid)
+        Routes.api_firmware_path(conn, :show, org, product.name, firmware.uuid)
       )
       |> render("show.json", firmware: firmware)
     else

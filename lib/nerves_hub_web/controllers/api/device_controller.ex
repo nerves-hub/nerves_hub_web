@@ -42,7 +42,7 @@ defmodule NervesHubWeb.API.DeviceController do
       |> put_status(:created)
       |> put_resp_header(
         "location",
-        Routes.device_path(conn, :show, org.name, product.name, device.identifier)
+        Routes.api_device_path(conn, :show, org.name, product.name, device.identifier)
       )
       |> render("show.json", device: device)
     end

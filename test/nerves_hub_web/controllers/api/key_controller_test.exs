@@ -7,14 +7,14 @@ defmodule NervesHubWeb.API.KeyControllerTest do
 
   describe "index" do
     test "lists all keys", %{conn: conn, org: org} do
-      conn = get(conn, Routes.key_path(conn, :index, org.name))
+      conn = get(conn, Routes.api_key_path(conn, :index, org.name))
       assert json_response(conn, 200)["data"] == []
     end
   end
 
   describe "index roles" do
     test "error: missing org read", %{conn2: conn, org: org} do
-      conn = get(conn, Routes.key_path(conn, :index, org.name))
+      conn = get(conn, Routes.api_key_path(conn, :index, org.name))
       assert json_response(conn, 403)["status"] != ""
     end
   end
@@ -26,15 +26,15 @@ defmodule NervesHubWeb.API.KeyControllerTest do
       pub_key = Fwup.get_public_key(name)
       key = %{name: name, key: pub_key, org_id: org.id}
 
-      conn = post(conn, Routes.key_path(conn, :create, org.name), key)
+      conn = post(conn, Routes.api_key_path(conn, :create, org.name), key)
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, Routes.key_path(conn, :show, org.name, key.name))
+      conn = get(conn, Routes.api_key_path(conn, :show, org.name, key.name))
       assert json_response(conn, 200)["data"]["name"] == name
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do
-      conn = post(conn, Routes.key_path(conn, :create, org.name))
+      conn = post(conn, Routes.api_key_path(conn, :create, org.name))
       assert json_response(conn, 422)["errors"] != %{}
     end
   end
@@ -48,10 +48,10 @@ defmodule NervesHubWeb.API.KeyControllerTest do
       pub_key = Fwup.get_public_key(name)
       key = %{name: name, key: pub_key, org_id: org.id}
 
-      conn = post(conn, Routes.key_path(conn, :create, org.name), key)
+      conn = post(conn, Routes.api_key_path(conn, :create, org.name), key)
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, Routes.key_path(conn, :show, org.name, key.name))
+      conn = get(conn, Routes.api_key_path(conn, :show, org.name, key.name))
       assert json_response(conn, 200)["data"]["name"] == name
     end
 
@@ -62,7 +62,7 @@ defmodule NervesHubWeb.API.KeyControllerTest do
       pub_key = Fwup.get_public_key(name)
       key = %{name: name, key: pub_key, org_id: org.id}
 
-      conn = post(conn, Routes.key_path(conn, :create, org.name), key)
+      conn = post(conn, Routes.api_key_path(conn, :create, org.name), key)
       assert json_response(conn, 403)["status"] != ""
     end
   end
@@ -71,10 +71,10 @@ defmodule NervesHubWeb.API.KeyControllerTest do
     setup [:create_key]
 
     test "deletes chosen key", %{conn: conn, org: org, key: key} do
-      conn = delete(conn, Routes.key_path(conn, :delete, org.name, key.name))
+      conn = delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))
       assert response(conn, 204)
 
-      conn = get(conn, Routes.key_path(conn, :show, org.name, key.name))
+      conn = get(conn, Routes.api_key_path(conn, :show, org.name, key.name))
 
       assert response(conn, 404)
     end
@@ -85,19 +85,19 @@ defmodule NervesHubWeb.API.KeyControllerTest do
 
     test "ok: org delete", %{user2: user, conn2: conn, org: org, key: key} do
       Accounts.add_org_user(org, user, %{role: :delete})
-      conn = delete(conn, Routes.key_path(conn, :delete, org.name, key.name))
+      conn = delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))
       assert response(conn, 204)
     end
 
     test "error: org write", %{user2: user, conn2: conn, org: org, key: key} do
       Accounts.add_org_user(org, user, %{role: :write})
-      conn = delete(conn, Routes.key_path(conn, :delete, org.name, key.name))
+      conn = delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))
       assert json_response(conn, 403)["status"] != ""
     end
 
     test "error: org read", %{user2: user, conn2: conn, org: org, key: key} do
       Accounts.add_org_user(org, user, %{role: :read})
-      conn = delete(conn, Routes.key_path(conn, :delete, org.name, key.name))
+      conn = delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))
       assert json_response(conn, 403)["status"] != ""
     end
   end

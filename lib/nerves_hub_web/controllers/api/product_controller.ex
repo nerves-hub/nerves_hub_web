@@ -25,7 +25,7 @@ defmodule NervesHubWeb.API.ProductController do
     with {:ok, product} <- Products.create_product(params) do
       conn
       |> put_status(:created)
-      |> put_resp_header("location", Routes.product_path(conn, :show, org.name, product.name))
+      |> put_resp_header("location", Routes.api_product_path(conn, :show, org.name, product.name))
       |> render("show.json", product: product)
     end
   end

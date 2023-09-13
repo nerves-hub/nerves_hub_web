@@ -44,7 +44,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
       |> put_status(:created)
       |> put_resp_header(
         "location",
-        Routes.device_certificate_path(
+        Routes.api_device_certificate_path(
           conn,
           :show,
           org.name,

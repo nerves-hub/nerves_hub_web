@@ -10,15 +10,6 @@ config :bcrypt_elixir, log_rounds: 4
 config :logger, :default_handler, false
 
 ##
-# NervesHub API
-#
-# We don't run a server during test. If one is required,
-# you can enable the server option below.
-config :nerves_hub, NervesHubWeb.API.Endpoint,
-  http: [port: 4002],
-  server: false
-
-##
 # NervesHub Device
 #
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,

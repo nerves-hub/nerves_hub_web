@@ -5,7 +5,7 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
 
   describe "index" do
     test "lists all deployments", %{conn: conn, org: org, product: product} do
-      conn = get(conn, Routes.deployment_path(conn, :index, org.name, product.name))
+      conn = get(conn, Routes.api_deployment_path(conn, :index, org.name, product.name))
       assert json_response(conn, 200)["data"] == []
     end
   end
@@ -36,10 +36,12 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
       params: params,
       product: product
     } do
-      conn = post(conn, Routes.deployment_path(conn, :create, org.name, product.name), params)
+      conn = post(conn, Routes.api_deployment_path(conn, :create, org.name, product.name), params)
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, Routes.deployment_path(conn, :show, org.name, product.name, params.name))
+      conn =
+        get(conn, Routes.api_deployment_path(conn, :show, org.name, product.name, params.name))
+
       assert json_response(conn, 200)["data"]["name"] == params.name
     end
 
@@ -50,7 +52,7 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
       product: product,
       user: user
     } do
-      conn = post(conn, Routes.deployment_path(conn, :create, org.name, product.name), params)
+      conn = post(conn, Routes.api_deployment_path(conn, :create, org.name, product.name), params)
       assert json_response(conn, 201)["data"]
 
       [audit_log] = AuditLogs.logs_by(user)
@@ -58,7 +60,7 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do
-      conn = post(conn, Routes.deployment_path(conn, :create, org.name, product.name))
+      conn = post(conn, Routes.api_deployment_path(conn, :create, org.name, product.name))
       assert json_response(conn, 500)["errors"] != %{}
     end
   end
@@ -72,11 +74,11 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
       org: org,
       product: product
     } do
-      path = Routes.deployment_path(conn, :update, org.name, product.name, deployment.name)
+      path = Routes.api_deployment_path(conn, :update, org.name, product.name, deployment.name)
       conn = put(conn, path, deployment: %{"is_active" => true})
       assert %{"is_active" => true} = json_response(conn, 200)["data"]
 
-      path = Routes.deployment_path(conn, :show, org.name, product.name, deployment.name)
+      path = Routes.api_deployment_path(conn, :show, org.name, product.name, deployment.name)
       conn = get(conn, path)
       assert json_response(conn, 200)["data"]["is_active"]
     end
@@ -87,19 +89,19 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
       org: org,
       product: product
     } do
-      path = Routes.deployment_path(conn, :update, org.name, product.name, deployment.name)
+      path = Routes.api_deployment_path(conn, :update, org.name, product.name, deployment.name)
       refute deployment.is_active
       conn = put(conn, path, deployment: %{"state" => "on"})
       assert %{"is_active" => true, "state" => "on"} = json_response(conn, 200)["data"]
 
-      path = Routes.deployment_path(conn, :show, org.name, product.name, deployment.name)
+      path = Routes.api_deployment_path(conn, :show, org.name, product.name, deployment.name)
       conn = get(conn, path)
       assert json_response(conn, 200)["data"]["is_active"]
       assert json_response(conn, 200)["data"]["state"] == "on"
     end
 
     test "audits on success", %{conn: conn, deployment: deployment, org: org, product: product} do
-      path = Routes.deployment_path(conn, :update, org.name, product.name, deployment.name)
+      path = Routes.api_deployment_path(conn, :update, org.name, product.name, deployment.name)
       conn = put(conn, path, deployment: %{"is_active" => true})
       assert json_response(conn, 200)["data"]
 
@@ -113,7 +115,7 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
       org: org,
       product: product
     } do
-      path = Routes.deployment_path(conn, :update, org.name, product.name, deployment.name)
+      path = Routes.api_deployment_path(conn, :update, org.name, product.name, deployment.name)
       conn = put(conn, path, deployment: %{is_active: "1234"})
       assert json_response(conn, 422)["errors"] != %{}
     end
@@ -131,13 +133,16 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
       conn =
         delete(
           conn,
-          Routes.deployment_path(conn, :delete, org.name, product.name, deployment.name)
+          Routes.api_deployment_path(conn, :delete, org.name, product.name, deployment.name)
         )
 
       assert response(conn, 204)
 
       conn =
-        get(conn, Routes.deployment_path(conn, :show, org.name, product.name, deployment.name))
+        get(
+          conn,
+          Routes.api_deployment_path(conn, :show, org.name, product.name, deployment.name)
+        )
 
       assert response(conn, 404)
     end

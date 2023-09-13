@@ -6,14 +6,6 @@ config :logger, level: :info, backends: [:console, Sentry.LoggerBackend]
 config :phoenix, logger: false
 
 ##
-# NervesHub API
-#
-config :nerves_hub, NervesHubWeb.API.Endpoint,
-  load_from_system_env: true,
-  server: true,
-  force_ssl: [rewrite_on: [:x_forwarded_proto]]
-
-##
 # NervesHub Device
 #
 config :nerves_hub, NervesHubWeb.DeviceEndpoint, server: true

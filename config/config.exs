@@ -21,15 +21,6 @@ config :phoenix,
   ]
 
 ##
-# NervesHub API
-#
-
-# Configures the endpoint
-config :nerves_hub, NervesHubWeb.API.Endpoint,
-  render_errors: [view: NervesHubWeb.API.ErrorView, accepts: ~w(json)],
-  pubsub_server: NervesHub.PubSub
-
-##
 # NervesHub Device
 #
 

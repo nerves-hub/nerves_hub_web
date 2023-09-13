@@ -102,13 +102,6 @@ if nerves_hub_app in ["all", "device"] do
     ]
 end
 
-if nerves_hub_app in ["all", "api"] do
-  host = System.get_env("API_HOST") || System.fetch_env!("HOST")
-  url_port = String.to_integer(System.get_env("API_URL_PORT") || "80")
-
-  config :nerves_hub, NervesHubWeb.API.Endpoint, url: [host: host, port: url_port]
-end
-
 config :sentry,
   dsn: System.get_env("SENTRY_DSN_URL"),
   environment_name: System.get_env("DEPLOY_ENV"),

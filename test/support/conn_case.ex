@@ -64,12 +64,13 @@ defmodule NervesHubWeb.APIConnCase do
       import Phoenix.ConnTest
 
       use DefaultMocks
+
       import NervesHubWeb.APIConnCase, only: [build_auth_conn: 1]
 
-      alias NervesHubWeb.APIRouter.Helpers, as: Routes
+      alias NervesHubWeb.Router.Helpers, as: Routes
 
       # The default endpoint for testing
-      @endpoint NervesHubWeb.API.Endpoint
+      @endpoint NervesHubWeb.Endpoint
     end
   end
 

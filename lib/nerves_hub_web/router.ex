@@ -37,7 +37,134 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.Plugs.Firmware)
   end
 
-  forward("/api", NervesHubWeb.APIRouter)
+  pipeline :api do
+    plug(:accepts, ["json"])
+  end
+
+  pipeline :api_user do
+    plug(NervesHubWeb.API.Plugs.User)
+  end
+
+  pipeline :api_org do
+    plug(NervesHubWeb.API.Plugs.Org)
+  end
+
+  pipeline :api_product do
+    plug(NervesHubWeb.API.Plugs.Product)
+  end
+
+  pipeline :api_device do
+    plug(NervesHubWeb.API.Plugs.Device)
+  end
+
+  scope("/api", NervesHubWeb.API, as: :api) do
+    pipe_through(:api)
+
+    get("/health", HealthCheckController, :health_check)
+
+    post("/users/register", UserController, :register)
+    post("/users/auth", UserController, :auth)
+    post("/users/login", UserController, :login)
+
+    scope "/devices" do
+      pipe_through([:api_user])
+
+      get("/:identifier", DeviceController, :show)
+      post("/:identifier/reboot", DeviceController, :reboot)
+      post("/:identifier/reconnect", DeviceController, :reconnect)
+      post("/:identifier/code", DeviceController, :code)
+      post("/:identifier/upgrade", DeviceController, :upgrade)
+      delete("/:identifier/penalty", DeviceController, :penalty)
+    end
+
+    scope "/" do
+      pipe_through([:api_user])
+
+      get("/users/me", UserController, :me)
+
+      scope "/orgs" do
+        scope "/:org_name" do
+          pipe_through([:api_org])
+
+          scope "/users" do
+            get("/", OrgUserController, :index)
+            post("/", OrgUserController, :add)
+            get("/:username", OrgUserController, :show)
+            put("/:username", OrgUserController, :update)
+            delete("/:username", OrgUserController, :remove)
+          end
+
+          scope "/keys" do
+            get("/", KeyController, :index)
+            post("/", KeyController, :create)
+            get("/:name", KeyController, :show)
+            delete("/:name", KeyController, :delete)
+          end
+
+          scope "/ca_certificates" do
+            get("/", CACertificateController, :index)
+            post("/", CACertificateController, :create)
+            get("/:serial", CACertificateController, :show)
+            delete("/:serial", CACertificateController, :delete)
+          end
+
+          scope "/products" do
+            get("/", ProductController, :index)
+            post("/", ProductController, :create)
+
+            scope "/:product_name" do
+              pipe_through([:api_product])
+
+              get("/", ProductController, :show)
+              delete("/", ProductController, :delete)
+              put("/", ProductController, :update)
+
+              scope "/devices" do
+                get("/", DeviceController, :index)
+                post("/", DeviceController, :create)
+                post("/auth", DeviceController, :auth)
+
+                scope "/:identifier" do
+                  pipe_through([:api_device])
+
+                  get("/", DeviceController, :show)
+                  delete("/", DeviceController, :delete)
+                  put("/", DeviceController, :update)
+                  post("/reboot", DeviceController, :reboot)
+                  post("/reconnect", DeviceController, :reconnect)
+                  post("/code", DeviceController, :code)
+                  post("/upgrade", DeviceController, :upgrade)
+                  delete("/penalty", DeviceController, :penalty)
+
+                  scope "/certificates" do
+                    get("/", DeviceCertificateController, :index)
+                    get("/:serial", DeviceCertificateController, :show)
+                    post("/", DeviceCertificateController, :create)
+                    delete("/:serial", DeviceCertificateController, :delete)
+                  end
+                end
+              end
+
+              scope "/firmwares" do
+                get("/", FirmwareController, :index)
+                get("/:uuid", FirmwareController, :show)
+                post("/", FirmwareController, :create)
+                delete("/:uuid", FirmwareController, :delete)
+              end
+
+              scope "/deployments" do
+                get("/", DeploymentController, :index)
+                post("/", DeploymentController, :create)
+                get("/:name", DeploymentController, :show)
+                put("/:name", DeploymentController, :update)
+                delete("/:name", DeploymentController, :delete)
+              end
+            end
+          end
+        end
+      end
+    end
+  end
 
   scope "/", NervesHubWeb do
     # Use the default browser stack

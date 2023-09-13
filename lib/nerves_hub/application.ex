@@ -50,7 +50,6 @@ defmodule NervesHub.Application do
   defp endpoints(:test) do
     [
       NervesHub.Devices.Supervisor,
-      NervesHubWeb.API.Endpoint,
       NervesHubWeb.DeviceEndpoint,
       NervesHubWeb.Endpoint
     ]
@@ -66,14 +65,10 @@ defmodule NervesHub.Application do
         [
           NervesHub.Deployments.Supervisor,
           NervesHub.Devices.Supervisor,
-          NervesHubWeb.API.Endpoint,
           NervesHubWeb.DeviceEndpoint,
           NervesHubWeb.Endpoint,
           {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS], strategy: socket_strategy}
         ]
-
-      "api" ->
-        [NervesHubWeb.API.Endpoint]
 
       "device" ->
         [

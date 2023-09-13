@@ -5,7 +5,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
   describe "index" do
     test "lists all ca certificates", %{conn: conn, org: org} do
-      conn = get(conn, Routes.ca_certificate_path(conn, :index, org.name))
+      conn = get(conn, Routes.api_ca_certificate_path(conn, :index, org.name))
       assert json_response(conn, 200)["data"] == []
     end
   end
@@ -20,14 +20,14 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
       params = %{cert: Base.encode64(ca_cert_pem), description: description}
 
-      conn = post(conn, Routes.ca_certificate_path(conn, :create, org.name), params)
+      conn = post(conn, Routes.api_ca_certificate_path(conn, :create, org.name), params)
       resp_data = json_response(conn, 201)["data"]
       assert %{"serial" => ^serial} = resp_data
       assert %{"description" => ^description} = resp_data
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do
-      conn = post(conn, Routes.ca_certificate_path(conn, :create, org.name), cert: "")
+      conn = post(conn, Routes.api_ca_certificate_path(conn, :create, org.name), cert: "")
 
       assert json_response(conn, 500)["errors"] != %{}
     end
@@ -38,11 +38,15 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
 
     test "deletes chosen ca_certificate", %{conn: conn, org: org, ca_certificate: ca_certificate} do
       conn =
-        delete(conn, Routes.ca_certificate_path(conn, :delete, org.name, ca_certificate.serial))
+        delete(
+          conn,
+          Routes.api_ca_certificate_path(conn, :delete, org.name, ca_certificate.serial)
+        )
 
       assert response(conn, 204)
 
-      conn = get(conn, Routes.ca_certificate_path(conn, :show, org.name, ca_certificate.serial))
+      conn =
+        get(conn, Routes.api_ca_certificate_path(conn, :show, org.name, ca_certificate.serial))
 
       assert response(conn, 404)
     end

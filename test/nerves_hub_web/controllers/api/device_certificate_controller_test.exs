@@ -23,7 +23,13 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
       conn =
         get(
           conn,
-          Routes.device_certificate_path(conn, :index, org.name, product.name, device.identifier)
+          Routes.api_device_certificate_path(
+            conn,
+            :index,
+            org.name,
+            product.name,
+            device.identifier
+          )
         )
 
       assert json_response(conn, 200)["data"] == []
@@ -43,7 +49,7 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
       conn =
         post(
           conn,
-          Routes.device_certificate_path(
+          Routes.api_device_certificate_path(
             conn,
             :create,
             org.name,
@@ -59,7 +65,7 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
       conn =
         get(
           conn,
-          Routes.device_certificate_path(
+          Routes.api_device_certificate_path(
             conn,
             :show,
             org.name,
@@ -88,7 +94,7 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
       conn =
         post(
           conn,
-          Routes.device_certificate_path(
+          Routes.api_device_certificate_path(
             conn,
             :create,
             org.name,
@@ -114,7 +120,7 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
       conn =
         delete(
           conn,
-          Routes.device_certificate_path(
+          Routes.api_device_certificate_path(
             conn,
             :delete,
             org.name,
@@ -129,7 +135,7 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
       conn =
         get(
           conn,
-          Routes.device_certificate_path(
+          Routes.api_device_certificate_path(
             conn,
             :show,
             org.name,

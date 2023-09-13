@@ -28,7 +28,10 @@ defmodule NervesHubWeb.API.OrgUserController do
 
       conn
       |> put_status(:created)
-      |> put_resp_header("location", Routes.org_user_path(conn, :show, org.name, user.username))
+      |> put_resp_header(
+        "location",
+        Routes.api_org_user_path(conn, :show, org.name, user.username)
+      )
       |> render("show.json", org_user: org_user)
     end
   end
