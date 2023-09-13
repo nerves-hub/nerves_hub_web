@@ -11,17 +11,6 @@ config :logger, :console, format: "[$level] $message\n"
 config :phoenix, :stacktrace_depth, 20
 
 ##
-# NervesHubAPI
-#
-config :nerves_hub, NervesHubWeb.API.Endpoint,
-  http: [ip: {0, 0, 0, 0}, port: 4002],
-  debug_errors: true,
-  code_reloader: false,
-  check_origin: false,
-  watchers: [],
-  pubsub_server: NervesHub.PubSub
-
-##
 # NervesHub Device
 #
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,

@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.DeviceControllerTest do
   use NervesHubWeb.APIConnCase, async: false
+
   import Phoenix.ChannelTest
 
   alias NervesHub.Devices
@@ -17,16 +18,16 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         updates_enabled: true
       }
 
-      conn = post(conn, Routes.device_path(conn, :create, org.name, product.name), device)
+      conn = post(conn, Routes.api_device_path(conn, :create, org.name, product.name), device)
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, Routes.device_path(conn, :show, device.identifier))
+      conn = get(conn, Routes.api_device_path(conn, :show, device.identifier))
       assert json_response(conn, 200)["data"]["identifier"] == identifier
       assert json_response(conn, 200)["data"]["updates_enabled"] == true
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org} do
-      conn = post(conn, Routes.key_path(conn, :create, org.name))
+      conn = post(conn, Routes.api_key_path(conn, :create, org.name))
       assert json_response(conn, 422)["errors"] != %{}
     end
   end
@@ -39,7 +40,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       device = Fixtures.device_fixture(org, product, firmware)
 
-      conn = get(conn, Routes.device_path(conn, :index, org.name, product.name))
+      conn = get(conn, Routes.api_device_path(conn, :index, org.name, product.name))
 
       assert json_response(conn, 200)["data"]
 
@@ -62,12 +63,12 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn =
         delete(
           conn,
-          Routes.device_path(conn, :delete, org.name, product.name, to_delete.identifier)
+          Routes.api_device_path(conn, :delete, org.name, product.name, to_delete.identifier)
         )
 
       assert response(conn, 204)
 
-      conn = get(conn, Routes.device_path(conn, :show, to_delete.identifier))
+      conn = get(conn, Routes.api_device_path(conn, :show, to_delete.identifier))
 
       assert json_response(conn, 200)["status"] != ""
     end
@@ -86,7 +87,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn =
         put(
           conn,
-          Routes.device_path(conn, :update, org.name, product.name, to_update.identifier),
+          Routes.api_device_path(conn, :update, org.name, product.name, to_update.identifier),
           %{
             tags: ["a", "b", "c", "d"]
           }
@@ -94,7 +95,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, Routes.device_path(conn, :show, to_update.identifier))
+      conn = get(conn, Routes.api_device_path(conn, :show, to_update.identifier))
 
       assert json_response(conn, 200)
       assert conn.assigns.device.tags == ["a", "b", "c", "d"]
@@ -123,7 +124,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         |> Base.encode64()
 
       conn =
-        post(conn, Routes.device_path(conn, :auth, org.name, product.name), %{
+        post(conn, Routes.api_device_path(conn, :auth, org.name, product.name), %{
           "certificate" => cert64
         })
 
@@ -142,7 +143,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}")
 
-      url = Routes.device_path(conn, :upgrade, org.name, product.name, device.identifier)
+      url = Routes.api_device_path(conn, :upgrade, org.name, product.name, device.identifier)
       conn = post(conn, url, %{"uuid" => firmware_two.uuid})
 
       assert response(conn, 204)
@@ -162,7 +163,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn =
         delete(
           conn,
-          Routes.device_path(conn, :penalty, org.name, product.name, device.identifier)
+          Routes.api_device_path(conn, :penalty, org.name, product.name, device.identifier)
         )
 
       assert response(conn, 204)
