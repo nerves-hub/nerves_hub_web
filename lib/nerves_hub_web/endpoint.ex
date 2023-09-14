@@ -28,14 +28,10 @@ defmodule NervesHubWeb.Endpoint do
     only: ~w(css fonts images js favicon.ico robots.txt)
   )
 
-  file_upload_config = Application.compile_env(:nerves_hub, NervesHub.Firmwares.Upload.File, [])
+  firmware_upload = System.get_env("FIRMWARE_UPLOAD_BACKEND", "S3")
 
-  if Keyword.get(file_upload_config, :enabled, false) do
-    plug(
-      Plug.Static,
-      at: file_upload_config[:public_path],
-      from: file_upload_config[:local_path]
-    )
+  if firmware_upload == "local" do
+    plug(NervesHubWeb.Plugs.FileUpload)
   end
 
   # Code reloading can be explicitly enabled under the
