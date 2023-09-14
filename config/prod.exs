@@ -21,6 +21,10 @@ case firmware_upload do
 
   "local" ->
     config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
+
+    config :nerves_hub, NervesHub.Firmwares.Upload.File,
+      enabled: true,
+      public_path: "/firmware"
 end
 
 config :nerves_hub, NervesHub.Mailer,
