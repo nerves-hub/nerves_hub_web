@@ -2,7 +2,6 @@ defmodule NervesHubWeb.DeviceSocket do
   use Phoenix.Socket
 
   alias NervesHub.Devices
-  alias NervesHub.RateLimit
 
   ## Channels
   # channel "room:*", NervesHubWeb.RoomChannel
@@ -23,27 +22,23 @@ defmodule NervesHubWeb.DeviceSocket do
   # performing token verification on connect.
 
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) do
-    if RateLimit.increment() do
-      # By this point, SSL verification has already been completed.
-      # We just need to get the DB cert
-      X509.Certificate.from_der!(ssl_cert)
-      |> Devices.get_device_certificate_by_x509()
-      |> case do
-        {:ok, db_cert} ->
-          reference_id = Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
+    # By this point, SSL verification has already been completed.
+    # We just need to get the DB cert
+    X509.Certificate.from_der!(ssl_cert)
+    |> Devices.get_device_certificate_by_x509()
+    |> case do
+      {:ok, db_cert} ->
+        reference_id = Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
 
-          socket =
-            socket
-            |> assign(:certificate, db_cert)
-            |> assign(:reference_id, reference_id)
+        socket =
+          socket
+          |> assign(:certificate, db_cert)
+          |> assign(:reference_id, reference_id)
 
-          {:ok, socket}
+        {:ok, socket}
 
-        _e ->
-          :error
-      end
-    else
-      :error
+      _e ->
+        :error
     end
   end
 
