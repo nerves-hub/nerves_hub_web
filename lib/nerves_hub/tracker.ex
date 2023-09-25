@@ -84,7 +84,14 @@ defmodule NervesHub.Tracker do
     pid = whereis(identifier)
 
     if pid != nil do
-      :ok = GenServer.stop(pid)
+      # If this happens to fail because the process is already dead,
+      # then goal achieved!
+      try do
+        :ok = GenServer.stop(pid)
+      catch
+        :exit, {:noproc, _} ->
+          :ok
+      end
 
       # we need to give time for the tracker shard to sync that
       # the device is now offline
