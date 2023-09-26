@@ -213,6 +213,7 @@ defmodule NervesHubWeb.Router do
 
       get("/invite", OrgController, :invite)
       post("/invite", OrgController, :send_invite)
+      delete("/invite/:token", OrgController, :delete_invite)
       get("/certificates", OrgCertificateController, :index)
       post("/certificates", OrgCertificateController, :create)
       get("/certificates/new", OrgCertificateController, :new)

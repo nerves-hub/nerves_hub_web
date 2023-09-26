@@ -7,7 +7,7 @@ defmodule NervesHubWeb.OrgController do
   alias NervesHub.Accounts.{Invite, OrgKey, OrgUser}
   alias NervesHub.Mailer
 
-  plug(:validate_role, [org: :admin] when action in [:edit, :update, :invite])
+  plug(:validate_role, [org: :admin] when action in [:edit, :update, :invite, :delete_invite])
 
   def index(conn, _params) do
     render(conn, "index.html")
@@ -89,6 +89,20 @@ defmodule NervesHubWeb.OrgController do
           org: org,
           email: invite_params["email"]
         )
+    end
+  end
+
+  def delete_invite(%{assigns: %{org: org}} = conn, %{"token" => token}) do
+    case Accounts.delete_invite(org, token) do
+      {:ok, _} ->
+        conn
+        |> put_flash(:info, "Invite rescinded")
+        |> redirect(to: Routes.org_user_path(conn, :index, org.name))
+
+      {:error, _} ->
+        conn
+        |> put_flash(:error, "Invite failed to rescind")
+        |> redirect(to: Routes.org_user_path(conn, :index, org.name))
     end
   end
 end
