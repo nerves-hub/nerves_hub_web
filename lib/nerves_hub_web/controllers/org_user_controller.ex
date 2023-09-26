@@ -13,6 +13,7 @@ defmodule NervesHubWeb.OrgUserController do
     |> render(
       "index.html",
       org_users: Accounts.get_org_users(org),
+      invites: Accounts.get_invites_for_org(org),
       org: org
     )
   end

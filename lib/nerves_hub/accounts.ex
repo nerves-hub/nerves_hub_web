@@ -478,6 +478,22 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  def get_invites_for_org(org) do
+    Invite
+    |> where([i], i.org_id == ^org.id)
+    |> where([i], i.accepted == false)
+    |> Repo.all()
+  end
+
+  def delete_invite(org, token) do
+    Invite
+    |> where([i], i.org_id == ^org.id)
+    |> where([i], i.token == ^token)
+    |> where([i], i.accepted == false)
+    |> Repo.one()
+    |> Repo.delete()
+  end
+
   @doc """
   Inserts a new user record, creating a org and adding a user to
   that new org if needed

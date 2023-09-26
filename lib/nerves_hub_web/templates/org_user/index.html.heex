@@ -1,3 +1,28 @@
+<%= if !Enum.empty?(@invites) do %>
+  <h1>Outstanding Invites</h1>
+
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Invite Link</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <%= for invite <- @invites do %>
+        <tr>
+          <td><%= invite.email %></td>
+          <td><pre style="background: white; margin: auto;"><%= Routes.account_url(@conn, :invite, invite.token) %></pre></td>
+          <td>
+            <%= link("Rescind", to: Routes.org_path(@conn, :delete_invite, @org.name, invite.token), method: :delete, class: "btn btn-outline-light") %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
+
 <div class="action-row">
   <h1>Users</h1>
   <a class="btn btn-outline-light btn-action" aria-label="Add new user" href={Routes.org_path(@conn, :invite, @org.name)}>
