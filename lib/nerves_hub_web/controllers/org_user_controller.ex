@@ -2,8 +2,9 @@ defmodule NervesHubWeb.OrgUserController do
   use NervesHubWeb, :controller
 
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.{Email, Org}
-  alias NervesHub.Mailer
+  alias NervesHub.Accounts.SwooshEmail
+  alias NervesHub.Accounts.Org
+  alias NervesHub.SwooshMailer
 
   plug(NervesHubWeb.Plugs.OrgUser when action in [:delete, :edit, :update])
   plug(:validate_role, org: :admin)
@@ -48,8 +49,13 @@ defmodule NervesHubWeb.OrgUserController do
       :ok ->
         instigator = current_user.username
 
-        Email.tell_org_user_removed(org, Accounts.get_org_users(org), instigator, org_user.user)
-        |> Mailer.deliver_later()
+        SwooshEmail.tell_org_user_removed(
+          org,
+          Accounts.get_org_users(org),
+          instigator,
+          org_user.user
+        )
+        |> SwooshMailer.deliver()
 
         conn
         |> put_flash(:info, "User removed")

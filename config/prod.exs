@@ -27,12 +27,6 @@ case firmware_upload do
       public_path: "/firmware"
 end
 
-config :nerves_hub, NervesHub.Mailer,
-  adapter: Bamboo.SMTPAdapter,
-  tls: :always,
-  ssl: false,
-  retries: 1
-
 config :nerves_hub, NervesHub.Repo, pool_size: 20
 
 config :nerves_hub, NervesHub.ObanRepo, pool_size: 10

@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.API.OrgUserControllerTest do
   use NervesHubWeb.APIConnCase, async: true
-  use Bamboo.Test
+
+  import Swoosh.TestAssertions
 
   alias NervesHub.Fixtures
   alias NervesHub.Accounts
@@ -43,7 +44,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       # An email should have been sent
       instigator = conn.assigns.user.username
 
-      assert_email_delivered_with(
+      assert_email_sent(
         subject: "[NervesHub] User #{instigator} added #{user2.username} to #{org.name}"
       )
     end
@@ -78,7 +79,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       # An email should have been sent
       instigator = conn.assigns.user.username
 
-      assert_email_delivered_with(
+      assert_email_sent(
         subject: "[NervesHub] User #{instigator} removed #{user.username} from #{org.name}"
       )
 

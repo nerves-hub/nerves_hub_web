@@ -3,8 +3,8 @@ defmodule NervesHubWeb.AccountController do
 
   alias Ecto.Changeset
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.Email
-  alias NervesHub.Mailer
+  alias NervesHub.Accounts.SwooshEmail
+  alias NervesHub.SwooshMailer
 
   def edit(conn, _params) do
     conn
@@ -104,15 +104,14 @@ defmodule NervesHubWeb.AccountController do
         end
 
       email =
-        Email.tell_org_user_added(
+        SwooshEmail.tell_org_user_added(
           org,
           Accounts.get_org_users(org),
           instigator,
           new_org_user.user
         )
 
-      email
-      |> Mailer.deliver_later()
+      SwooshMailer.deliver(email)
 
       conn
       |> put_flash(:info, "Account successfully created, login below")

@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.AccountControllerTest do
   use NervesHubWeb.ConnCase.Browser, async: true
-  use Bamboo.Test
+
+  import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
 
@@ -45,9 +46,7 @@ defmodule NervesHubWeb.AccountControllerTest do
       # An email should have been sent
       instigator = conn.assigns.user.username
 
-      assert_email_delivered_with(
-        subject: "[NervesHub] User #{instigator} added MyName to #{org.name}"
-      )
+      assert_email_sent(subject: "[NervesHub] User #{instigator} added MyName to #{org.name}")
     end
   end
 

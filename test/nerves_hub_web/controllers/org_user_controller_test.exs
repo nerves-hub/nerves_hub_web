@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.OrgUserControllerTest do
   use NervesHubWeb.ConnCase.Browser, async: true
-  use Bamboo.Test
+
+  import Swoosh.TestAssertions
 
   alias NervesHub.{Accounts, Fixtures}
 
@@ -66,7 +67,7 @@ defmodule NervesHubWeb.OrgUserControllerTest do
       # An email should have been sent
       instigator = conn.assigns.user.username
 
-      assert_email_delivered_with(
+      assert_email_sent(
         subject: "[NervesHub] User #{instigator} removed #{user.username} from #{org.name}"
       )
 
@@ -83,7 +84,7 @@ defmodule NervesHubWeb.OrgUserControllerTest do
       conn = delete(conn, Routes.org_user_path(conn, :delete, org.name, user.id))
       assert redirected_to(conn) == Routes.org_user_path(conn, :index, org.name)
 
-      assert_no_emails_delivered()
+      refute_email_sent()
 
       assert {:ok, ^org_user} = Accounts.get_org_user(org, user)
 

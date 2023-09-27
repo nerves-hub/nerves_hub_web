@@ -2,8 +2,8 @@ defmodule NervesHubWeb.API.OrgUserController do
   use NervesHubWeb, :api_controller
 
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.Email
-  alias NervesHub.Mailer
+  alias NervesHub.Accounts.SwooshEmail
+  alias NervesHub.SwooshMailer
 
   action_fallback(NervesHubWeb.API.FallbackController)
 
@@ -23,8 +23,8 @@ defmodule NervesHubWeb.API.OrgUserController do
       # know about this new user.
       instigator = conn.assigns.user.username
 
-      Email.tell_org_user_added(org, Accounts.get_org_users(org), instigator, user)
-      |> Mailer.deliver_later()
+      SwooshEmail.tell_org_user_added(org, Accounts.get_org_users(org), instigator, user)
+      |> SwooshMailer.deliver()
 
       conn
       |> put_status(:created)
@@ -51,8 +51,8 @@ defmodule NervesHubWeb.API.OrgUserController do
       # that this user has been removed from the organization.
       instigator = conn.assigns.user.username
 
-      Email.tell_org_user_removed(org, Accounts.get_org_users(org), instigator, user)
-      |> Mailer.deliver_later()
+      SwooshEmail.tell_org_user_removed(org, Accounts.get_org_users(org), instigator, user)
+      |> SwooshMailer.deliver()
 
       send_resp(conn, :no_content, "")
     end
