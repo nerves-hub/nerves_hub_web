@@ -1,11 +1,11 @@
 defmodule NervesHubWeb.PasswordResetController do
   use NervesHubWeb, :controller
 
-  alias NervesHub.Accounts.Email
+  alias NervesHub.Accounts.SwooshEmail
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.PasswordReset
   alias NervesHub.Accounts
-  alias NervesHub.Mailer
+  alias NervesHub.SwooshMailer
 
   alias Ecto.Changeset
 
@@ -19,8 +19,8 @@ defmodule NervesHubWeb.PasswordResetController do
     case Accounts.update_password_reset_token(email) do
       {:ok, user} ->
         user
-        |> Email.forgot_password()
-        |> Mailer.deliver_later()
+        |> SwooshEmail.forgot_password()
+        |> SwooshMailer.deliver()
 
         :ok
 

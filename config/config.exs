@@ -80,5 +80,7 @@ config :opentelemetry,
   traces_exporter: :otlp,
   resource: %{service: %{name: "nerves_hub"}}
 
+config :swoosh, :api_client, Swoosh.ApiClient.Finch
+
 # Environment specific config
 import_config "#{Mix.env()}.exs"

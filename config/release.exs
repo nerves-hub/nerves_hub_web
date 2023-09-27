@@ -48,12 +48,15 @@ end
 
 config :ex_aws, region: System.fetch_env!("AWS_REGION")
 
-config :nerves_hub, NervesHub.Mailer,
-  adapter: Bamboo.SMTPAdapter,
-  server: System.fetch_env!("SES_SERVER"),
+config :nerves_hub, NervesHub.SwooshMailer,
+  adapter: Swoosh.Adapters.SMTP,
+  relay: System.fetch_env!("SES_SERVER"),
   port: System.fetch_env!("SES_PORT"),
   username: System.fetch_env!("SMTP_USERNAME"),
-  password: System.fetch_env!("SMTP_PASSWORD")
+  password: System.fetch_env!("SMTP_PASSWORD"),
+  ssl: false,
+  tls: :always,
+  retries: 1
 
 if nerves_hub_app in ["all", "web"] do
   host = System.fetch_env!("HOST")

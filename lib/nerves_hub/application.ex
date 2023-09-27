@@ -23,7 +23,8 @@ defmodule NervesHub.Application do
     children =
       [
         {Registry, keys: :unique, name: NervesHub.Devices},
-        {Registry, keys: :unique, name: NervesHub.DeviceLinks}
+        {Registry, keys: :unique, name: NervesHub.DeviceLinks},
+        {Finch, name: Swoosh.Finch}
       ] ++
         metrics(@env) ++
         [

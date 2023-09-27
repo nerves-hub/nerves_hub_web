@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.PasswordResetControllerTest do
   use NervesHubWeb.ConnCase, async: true
-  use Bamboo.Test
+
+  import Swoosh.TestAssertions
 
   alias NervesHub.Fixtures
   alias NervesHub.Accounts
@@ -23,7 +24,7 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
       assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
 
       {:ok, updated_user} = Accounts.get_user(user.id)
-      assert_delivered_email(NervesHub.Accounts.Email.forgot_password(updated_user))
+      assert_email_sent(NervesHub.Accounts.SwooshEmail.forgot_password(updated_user))
     end
 
     test "with invalid params", %{conn: conn} do
