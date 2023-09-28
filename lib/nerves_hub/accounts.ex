@@ -149,6 +149,8 @@ defmodule NervesHub.Accounts do
       where: ou.org_id == ^org.id,
       order_by: [desc: ou.role]
     )
+    |> join(:inner, [ou], u in assoc(ou, :user), as: :user)
+    |> where([ou, user: user], is_nil(user.deleted_at))
     |> OrgUser.with_user()
     |> Repo.exclude_deleted()
     |> Repo.all()
