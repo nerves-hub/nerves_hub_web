@@ -153,25 +153,6 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.close(socket)
     end
 
-    test "Can connect and authenticate to channel using firmware topic", %{user: user} do
-      {device, firmware} = device_fixture(user, %{identifier: @valid_serial})
-
-      Fixtures.device_certificate_fixture(device)
-      {:ok, socket} = SocketClient.start_link(@socket_config)
-      SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "firmware:#{firmware.uuid}")
-      SocketClient.wait_join(socket)
-
-      device =
-        NervesHub.Repo.get(Device, device.id)
-        |> NervesHub.Repo.preload(:org)
-
-      assert Tracker.online?(device)
-      refute_receive({"presence_diff", _})
-
-      SocketClient.close(socket)
-    end
-
     test "already registered expired certificate without signer CA can connect", %{user: user} do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
