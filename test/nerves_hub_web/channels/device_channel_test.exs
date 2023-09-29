@@ -10,25 +10,25 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "basic connection to the channel" do
     user = Fixtures.user_fixture()
-    {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
+    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
     assert socket
   end
 
   test "presence connection information" do
     user = Fixtures.user_fixture()
-    {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
+    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
 
     # Make sure the channel has performed it's after join
     _ = :sys.get_state(socket.channel_pid)
@@ -41,13 +41,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "device disconnected adds audit log" do
     user = Fixtures.user_fixture()
-    {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
+    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
 
     Process.unlink(socket.channel_pid)
 
@@ -63,28 +63,28 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "update_available on connect" do
     user = Fixtures.user_fixture()
-    {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, join_reply, _socket} =
-      subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
+      subscribe_and_join(socket, DeviceChannel, "device")
 
     assert join_reply.update_available == false
   end
 
   test "the first fwup_progress marks an update as happening" do
     user = Fixtures.user_fixture()
-    {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _join_reply, socket} =
-      subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
+      subscribe_and_join(socket, DeviceChannel, "device")
 
     push(socket, "fwup_progress", %{"value" => 10})
 
@@ -96,14 +96,14 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "set connection types for the device" do
     user = Fixtures.user_fixture()
-    {device, firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _join_reply, socket} =
-      subscribe_and_join(socket, DeviceChannel, "firmware:#{firmware.uuid}")
+      subscribe_and_join(socket, DeviceChannel, "device")
 
     push(socket, "connection_types", %{"value" => ["ethernet", "wifi"]})
 

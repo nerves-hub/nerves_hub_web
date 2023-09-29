@@ -6,7 +6,6 @@ defmodule NervesHubWeb.DeviceSocket do
   ## Channels
   # channel "room:*", NervesHubWeb.RoomChannel
   channel("console", NervesHubWeb.ConsoleChannel)
-  channel("firmware:*", NervesHubWeb.DeviceChannel)
   channel("device", NervesHubWeb.DeviceChannel)
 
   # Socket params are passed from the client and can

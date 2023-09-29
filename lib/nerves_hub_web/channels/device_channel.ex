@@ -20,14 +20,6 @@ defmodule NervesHubWeb.DeviceChannel do
   require Logger
   require OpenTelemetry.Tracer, as: Tracer
 
-  def join("firmware:" <> fw_uuid, params, socket) do
-    with {:ok, certificate} <- get_certificate(socket),
-         {:ok, device} <- Devices.get_device_by_certificate(certificate) do
-      params = Map.put_new(params, "nerves_fw_uuid", fw_uuid)
-      join("device", params, assign(socket, :device, device))
-    end
-  end
-
   def join("device", params, %{assigns: %{device: device}} = socket) do
     Tracer.with_span "DeviceChannel.join" do
       with {:ok, device} <- update_metadata(device, params),
