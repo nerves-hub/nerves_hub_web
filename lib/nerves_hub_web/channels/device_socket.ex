@@ -2,6 +2,7 @@ defmodule NervesHubWeb.DeviceSocket do
   use Phoenix.Socket
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.Device
 
   ## Channels
   # channel "room:*", NervesHubWeb.RoomChannel
@@ -22,16 +23,16 @@ defmodule NervesHubWeb.DeviceSocket do
 
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) do
     # By this point, SSL verification has already been completed.
-    # We just need to get the DB cert
+    # We just need the device from the SSL cert
     X509.Certificate.from_der!(ssl_cert)
     |> Devices.get_device_certificate_by_x509()
     |> case do
-      {:ok, db_cert} ->
+      {:ok, %{device: %Device{} = device}} ->
         reference_id = Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
 
         socket =
           socket
-          |> assign(:certificate, db_cert)
+          |> assign(:device, device)
           |> assign(:reference_id, reference_id)
 
         {:ok, socket}
@@ -55,6 +56,6 @@ defmodule NervesHubWeb.DeviceSocket do
   #     NervesHubWeb.Endpoint.broadcast("user_socket:#{user.id}", "disconnect", %{})
   #
   # Returning `nil` makes this socket anonymous.
-  def id(%{assigns: %{certificate: certificate}}), do: "device_socket:#{certificate.device_id}"
+  def id(%{assigns: %{device: device}}), do: "device_socket:#{device.id}"
   def id(_socket), do: nil
 end
