@@ -58,6 +58,7 @@ defmodule NervesHubUmbrella.MixProject do
       {:recon, "~> 2.5"},
       {:base62, "~> 1.2"},
       {:bcrypt_elixir, "~> 3.0"},
+      {:circular_buffer, "~> 0.4.1"},
       {:comeonin, "~> 5.3"},
       {:cowboy, "~> 2.0", override: true},
       {:crontab, "~> 1.1"},

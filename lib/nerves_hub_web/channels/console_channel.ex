@@ -2,44 +2,41 @@
 defmodule NervesHubWeb.ConsoleChannel do
   use Phoenix.Channel
 
-  alias NervesHub.Devices
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
-  def join("console", payload, socket) do
-    with {:ok, certificate} <- get_certificate(socket),
-         {:ok, device} <- Devices.get_device_by_certificate(certificate) do
-      send(self(), {:after_join, payload})
-      {:ok, assign(socket, :device, device)}
-    else
-      {:error, _} = err -> err
-    end
+  def join("console", payload, %{assigns: %{device: device}} = socket) do
+    send(self(), {:after_join, payload})
+
+    socket =
+      socket
+      |> assign(:device, device)
+      |> assign(:current_line, "")
+      |> assign(:buffer, CircularBuffer.new(1024))
+
+    {:ok, socket}
   end
 
   def terminate(_, _socket) do
     {:shutdown, :closed}
   end
 
-  def handle_in("init_attempt", %{"success" => success?} = payload, socket) do
-    unless success? do
-      socket.endpoint.broadcast_from(self(), console_topic(socket), "init_failure", payload)
-    end
-
-    {:noreply, socket}
-  end
-
-  def handle_in("put_chars", payload, socket) do
-    socket.endpoint.broadcast_from!(self(), console_topic(socket), "put_chars", payload)
-    {:reply, :ok, socket}
-  end
-
-  def handle_in("get_line", payload, socket) do
-    socket.endpoint.broadcast_from!(self(), console_topic(socket), "get_line", payload)
-    {:noreply, socket}
-  end
-
   def handle_in("up", payload, socket) do
+    current_line = socket.assigns.current_line <> payload["data"]
+    [current_line | lines] = Enum.reverse(String.split(current_line, "\n"))
+
+    buffer =
+      Enum.reduce(Enum.reverse(lines), socket.assigns.buffer, fn line, buffer ->
+        CircularBuffer.insert(buffer, line <> "\n")
+      end)
+
+    socket =
+      socket
+      |> assign(:current_line, current_line)
+      |> assign(:buffer, buffer)
+
     socket.endpoint.broadcast_from!(self(), console_topic(socket), "up", payload)
+
     {:noreply, socket}
   end
 
@@ -89,12 +86,9 @@ defmodule NervesHubWeb.ConsoleChannel do
     {:noreply, socket}
   end
 
-  def handle_info(%{event: "phx_leave"}, socket) do
-    {:noreply, socket}
-  end
-
-  # This broadcasted message is meant for other LiveView windows
-  def handle_info(%Broadcast{event: "add_line"}, socket) do
+  def handle_info({:connect, pid}, socket) do
+    lines = Enum.join(socket.assigns.buffer) <> socket.assigns.current_line
+    send(pid, {:cache, lines})
     {:noreply, socket}
   end
 
@@ -106,8 +100,4 @@ defmodule NervesHubWeb.ConsoleChannel do
   defp console_topic(%{assigns: %{device: device}}) do
     "console:#{device.id}"
   end
-
-  defp get_certificate(%{assigns: %{certificate: certificate}}), do: {:ok, certificate}
-
-  defp get_certificate(_), do: {:error, :no_device_or_org}
 end
