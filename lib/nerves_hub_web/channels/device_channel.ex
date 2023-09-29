@@ -81,13 +81,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  def join("device", params, socket) do
-    with {:ok, certificate} <- get_certificate(socket),
-         {:ok, device} <- Devices.get_device_by_certificate(certificate) do
-      join("device", params, assign(socket, :device, device))
-    end
-  end
-
   def handle_in("fwup_progress", %{"value" => percent}, socket) do
     device = socket.assigns.device
 
@@ -380,10 +373,6 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def terminate(_reason, _state), do: :ok
-
-  defp get_certificate(%{assigns: %{certificate: certificate}}), do: {:ok, certificate}
-
-  defp get_certificate(_), do: {:error, :no_device_or_org}
 
   # The reported firmware is the same as what we already know about
   def update_metadata(%Device{firmware_metadata: %{uuid: uuid}} = device, %{
