@@ -156,6 +156,11 @@ defmodule NervesHubWeb.DeviceChannel do
 
       {:noreply, socket}
     end)
+  rescue
+    NervesHub.Tracker.Exception ->
+      # Tracker had a problem, toss out the channel and let the device reconnect
+      :telemetry.execute([:nerves_hub, :tracker, :exception], %{count: 1})
+      {:stop, :normal, socket}
   end
 
   # We can save a fairly expensive query by checking the incoming deployment's payload
