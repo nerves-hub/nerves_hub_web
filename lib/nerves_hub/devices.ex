@@ -290,10 +290,20 @@ defmodule NervesHub.Devices do
   def create_device_certificate(%Device{} = device, params) do
     params = Map.put(params, :org_id, device.org_id)
 
-    device
-    |> Ecto.build_assoc(:device_certificates)
-    |> DeviceCertificate.changeset(params)
-    |> Repo.insert()
+    changeset =
+      device
+      |> Ecto.build_assoc(:device_certificates)
+      |> DeviceCertificate.changeset(params)
+
+    case Repo.insert(changeset) do
+      {:ok, device_certificate} ->
+        :telemetry.execute([:nerves_hub, :device_certificates, :created], %{count: 1})
+
+        {:ok, device_certificate}
+
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   def get_device_certificates(%Device{} = device) do
