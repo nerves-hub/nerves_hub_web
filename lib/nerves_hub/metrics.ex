@@ -35,6 +35,7 @@ defmodule NervesHub.Metrics do
          counter("nerves_hub.rate_limit.rejected.count", tags: [:env, :service]),
          counter("nerves_hub.ssl.fail.count", tags: [:env, :service]),
          counter("nerves_hub.ssl.success.count", tags: [:env, :service]),
+         counter("nerves_hub.tracker.exception.count", tags: [:env, :service]),
          # General
          counter("phoenix.endpoint.start.count", tags: [:env, :service]),
          last_value("vm.memory.total", tags: [:env, :service])

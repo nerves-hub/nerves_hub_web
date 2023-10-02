@@ -91,6 +91,9 @@ defmodule NervesHub.Tracker do
       catch
         :exit, {:noproc, _} ->
           :ok
+
+        :exit, {:shutdown, _} ->
+          :ok
       end
 
       # we need to give time for the tracker shard to sync that
@@ -123,8 +126,10 @@ defmodule NervesHub.Tracker do
   @doc false
   def await_offline(identifier, times \\ 0)
 
-  def await_offline(_identifier, times) when times >= 5 do
-    raise "Device did not go offline"
+  def await_offline(identifier, times) when times >= 5 do
+    raise NervesHub.Tracker.Exception,
+      identifier: identifier,
+      message: "Device did not go offline"
   end
 
   def await_offline(identifier, times) do
