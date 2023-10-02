@@ -3,6 +3,8 @@ defmodule NervesHub.SSL do
   alias NervesHub.Certificate
   alias NervesHub.RateLimit
 
+  require OpenTelemetry.Tracer, as: Tracer
+
   @type pkix_path_validation_reason ::
           :cert_expired
           | :invalid_issuer
@@ -42,30 +44,38 @@ defmodule NervesHub.SSL do
   end
 
   def verify_fun(otp_cert, {:bad_cert, err}, state) when err in [:unknown_ca, :cert_expired] do
-    aki = Certificate.get_aki(otp_cert)
-    ski = Certificate.get_ski(otp_cert)
+    Tracer.with_span "SSL.bad_cert" do
+      aki = Certificate.get_aki(otp_cert)
+      ski = Certificate.get_ski(otp_cert)
 
-    cond do
-      aki == ski ->
-        # If the signer CA is also the root, then AKI == SKI. We can skip
-        # checking as it will be validated later on if the device needs
-        # registration
-        {:valid, state}
+      cond do
+        aki == ski ->
+          Tracer.set_attribute("nerves_hub.ssl.bad_cert", "aki=ski")
 
-      is_binary(ski) and match?({:ok, _db_ca}, Devices.get_ca_certificate_by_ski(ski)) ->
-        # Signer CA sent with the device certificate, but is an intermediary
-        # so the chain is incomplete labeling it as unknown_ca.
-        #
-        # Since we have this CA registered, validate so we can move on to the device
-        # cert next and expiration will be checked later if registration of a new
-        # device cert needs to happen.
-        {:valid, state}
+          # If the signer CA is also the root, then AKI == SKI. We can skip
+          # checking as it will be validated later on if the device needs
+          # registration
+          {:valid, state}
 
-      true ->
-        # The signer CA was not included in the request, so this is most
-        # likely a device cert that needs verification. If it isn't, then
-        # this is some other unknown CA that will fail
-        do_verify(otp_cert, state)
+        is_binary(ski) and match?({:ok, _db_ca}, Devices.get_ca_certificate_by_ski(ski)) ->
+          Tracer.set_attribute("nerves_hub.ssl.bad_cert", "intermediate cert")
+
+          # Signer CA sent with the device certificate, but is an intermediary
+          # so the chain is incomplete labeling it as unknown_ca.
+          #
+          # Since we have this CA registered, validate so we can move on to the device
+          # cert next and expiration will be checked later if registration of a new
+          # device cert needs to happen.
+          {:valid, state}
+
+        true ->
+          Tracer.set_attribute("nerves_hub.ssl.bad_cert", "no signer ca")
+
+          # The signer CA was not included in the request, so this is most
+          # likely a device cert that needs verification. If it isn't, then
+          # this is some other unknown CA that will fail
+          do_verify(otp_cert, state)
+      end
     end
   end
 
@@ -75,14 +85,37 @@ defmodule NervesHub.SSL do
 
   defp do_verify(otp_cert, state) do
     if RateLimit.increment() do
+      :telemetry.execute([:nerves_hub, :rate_limit, :accepted], %{count: 1})
+
       case verify_cert(otp_cert) do
-        {:ok, _db_cert} -> {:valid, state}
-        {:error, {:bad_cert, reason}} -> {:fail, reason}
-        {:error, _} -> {:fail, :registration_failed}
-        reason when is_atom(reason) -> {:fail, reason}
-        _ -> {:fail, :unknown_server_error}
+        {:ok, _db_cert} ->
+          :telemetry.execute([:nerves_hub, :ssl, :success], %{count: 1})
+
+          {:valid, state}
+
+        {:error, {:bad_cert, reason}} ->
+          :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
+
+          {:fail, reason}
+
+        {:error, _} ->
+          :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
+
+          {:fail, :registration_failed}
+
+        reason when is_atom(reason) ->
+          :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
+
+          {:fail, reason}
+
+        _ ->
+          :telemetry.execute([:nerves_hub, :ssl, :fail], %{count: 1})
+
+          {:fail, :unknown_server_error}
       end
     else
+      :telemetry.execute([:nerves_hub, :rate_limit, :rejected], %{count: 1})
+
       {:fail, :rate_limit}
     end
   end
@@ -197,9 +230,14 @@ defmodule NervesHub.SSL do
 
   defp maybe_jitp_device(cn, %{org_id: org_id, jitp: nil}) do
     case Devices.get_device_by(identifier: cn, org_id: org_id) do
-      {:ok, %{deleted_at: nil}} = resp -> resp
-      {:ok, _d} -> :ignore_deleted_device
-      _ -> :device_not_registered
+      {:ok, %{deleted_at: nil}} = resp ->
+        resp
+
+      {:ok, _d} ->
+        :ignore_deleted_device
+
+      _ ->
+        :device_not_registered
     end
   end
 
@@ -212,15 +250,22 @@ defmodule NervesHub.SSL do
         :ignore_deleted_device
 
       _ ->
-        case Devices.create_device(%{
-               identifier: cn,
-               org_id: org_id,
-               product_id: jitp.product_id,
-               tags: jitp.tags,
-               description: jitp.description
-             }) do
-          {:ok, _d} = resp -> resp
-          _ -> :device_registration_failed
+        params = %{
+          identifier: cn,
+          org_id: org_id,
+          product_id: jitp.product_id,
+          tags: jitp.tags,
+          description: jitp.description
+        }
+
+        case Devices.create_device(params) do
+          {:ok, device} ->
+            :telemetry.execute([:nerves_hub, :devices, :jitp, :created], %{count: 1})
+
+            {:ok, device}
+
+          _ ->
+            :device_registration_failed
         end
     end
   end

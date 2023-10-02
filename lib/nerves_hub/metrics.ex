@@ -27,8 +27,14 @@ defmodule NervesHub.Metrics do
          counter("nerves_hub.devices.deployment.update.manual.count", tags: [:env, :service]),
          counter("nerves_hub.devices.deployment.update.automatic.count", tags: [:env, :service]),
          counter("nerves_hub.devices.deployment.penalty_box.check.count", tags: [:env, :service]),
+         counter("nerves_hub.devices.jitp.created.count", tags: [:env, :service]),
+         counter("nerves_hub.device_certificates.created.count", tags: [:env, :service]),
          last_value("nerves_hub.devices.online.count", tags: [:env, :service, :node]),
+         counter("nerves_hub.rate_limit.accepted.count", tags: [:env, :service]),
          counter("nerves_hub.rate_limit.pruned.count", tags: [:env, :service]),
+         counter("nerves_hub.rate_limit.rejected.count", tags: [:env, :service]),
+         counter("nerves_hub.ssl.fail.count", tags: [:env, :service]),
+         counter("nerves_hub.ssl.success.count", tags: [:env, :service]),
          # General
          counter("phoenix.endpoint.start.count", tags: [:env, :service]),
          last_value("vm.memory.total", tags: [:env, :service])
