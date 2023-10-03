@@ -3,6 +3,8 @@ import Config
 # Start all of the applications
 config :nerves_hub, app: "all"
 
+config :nerves_hub, deploy_env: "test"
+
 web_port = 5000
 
 config :bcrypt_elixir, log_rounds: 4

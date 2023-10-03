@@ -9,6 +9,8 @@ nerves_hub_app =
 
 config :nerves_hub, app: nerves_hub_app
 
+config :nerves_hub, deploy_env: System.get_env("DEPLOY_ENV")
+
 rate_limit = System.get_env("DEVICE_CONNECT_RATE_LIMIT", "100") |> String.to_integer()
 
 config :nerves_hub, NervesHub.RateLimit, limit: rate_limit

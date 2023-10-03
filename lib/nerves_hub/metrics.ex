@@ -41,7 +41,7 @@ defmodule NervesHub.Metrics do
          last_value("vm.memory.total", tags: [:env, :service])
        ],
        global_tags: [
-         env: Application.get_env(:nerves_hub, :env),
+         env: Application.get_env(:nerves_hub, :deploy_env),
          dyno: Application.get_env(:nerves_hub, :app),
          service: "nerves_hub"
        ]},
