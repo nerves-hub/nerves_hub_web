@@ -38,7 +38,38 @@ defmodule NervesHub.Metrics do
          counter("nerves_hub.tracker.exception.count", tags: [:env, :service]),
          # General
          counter("phoenix.endpoint.start.count", tags: [:env, :service]),
-         last_value("vm.memory.total", tags: [:env, :service])
+         summary("phoenix.endpoint.stop.duration",
+           tags: [:env, :service],
+           unit: {:native, :millisecond}
+         ),
+         summary("phoenix.router_dispatch.stop.duration",
+           tags: [:route, :env, :service],
+           unit: {:native, :millisecond}
+         ),
+         distribution("nerves_hub.repo.query.idle_time",
+           tags: [:env, :service],
+           unit: {:native, :millisecond}
+         ),
+         distribution("nerves_hub.repo.query.queue_time",
+           tags: [:env, :service],
+           unit: {:native, :millisecond}
+         ),
+         distribution("nerves_hub.repo.query.query_time",
+           tags: [:env, :service],
+           unit: {:native, :millisecond}
+         ),
+         distribution("nerves_hub.repo.query.decode_time",
+           tags: [:env, :service],
+           unit: {:native, :millisecond}
+         ),
+         distribution("nerves_hub.repo.query.total_time",
+           tags: [:env, :service],
+           unit: {:native, :millisecond}
+         ),
+         summary("vm.memory.total", tags: [:env, :service], unit: {:byte, :kilobyte}),
+         summary("vm.total_run_queue_lengths.total", tags: [:env, :service]),
+         summary("vm.total_run_queue_lengths.cpu", tags: [:env, :service]),
+         summary("vm.total_run_queue_lengths.io", tags: [:env, :service])
        ],
        global_tags: [
          env: Application.get_env(:nerves_hub, :deploy_env),
