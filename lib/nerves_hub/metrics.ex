@@ -33,6 +33,7 @@ defmodule NervesHub.Metrics do
          counter("nerves_hub.rate_limit.accepted.count", tags: [:env, :service]),
          counter("nerves_hub.rate_limit.pruned.count", tags: [:env, :service]),
          counter("nerves_hub.rate_limit.rejected.count", tags: [:env, :service]),
+         counter("nerves_hub.fuse.increment.count", tags: [:env, :service, :fuse, :counter]),
          counter("nerves_hub.ssl.fail.count", tags: [:env, :service]),
          counter("nerves_hub.ssl.success.count", tags: [:env, :service]),
          counter("nerves_hub.tracker.exception.count", tags: [:env, :service]),
@@ -144,6 +145,8 @@ defmodule NervesHub.EctoReporter do
 
     if queue_time > 500 do
       Logger.warning("[Ecto] Queuing is at #{queue_time}ms")
+
+      :fuse.melt(:ecto)
     end
   end
 end

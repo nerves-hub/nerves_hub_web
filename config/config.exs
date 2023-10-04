@@ -82,5 +82,7 @@ config :opentelemetry,
 
 config :swoosh, :api_client, Swoosh.ApiClient.Finch
 
+config :fuse, stats_plugin: NervesHub.FuseStats
+
 # Environment specific config
 import_config "#{Mix.env()}.exs"

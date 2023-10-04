@@ -20,6 +20,8 @@ defmodule NervesHub.Application do
       :opentelemetry_cowboy.setup()
     end
 
+    :fuse.install(:ecto, {{:standard, 20, 1000}, {:reset, 5000}})
+
     children =
       [
         {Registry, keys: :unique, name: NervesHub.Devices},
