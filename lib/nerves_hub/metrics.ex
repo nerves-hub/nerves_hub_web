@@ -108,8 +108,6 @@ defmodule NervesHub.Metrics.Reporters do
 
   use GenServer
 
-  alias NervesHub.NodeReporter
-
   def start_link(opts) do
     GenServer.start_link(__MODULE__, [], opts)
   end
@@ -120,7 +118,8 @@ defmodule NervesHub.Metrics.Reporters do
 
   def handle_continue(:initialize, state) do
     reporters = [
-      NodeReporter
+      NervesHub.EctoReporter,
+      NervesHub.NodeReporter
     ]
 
     Enum.each(reporters, fn reporter ->
@@ -128,6 +127,24 @@ defmodule NervesHub.Metrics.Reporters do
     end)
 
     {:noreply, state}
+  end
+end
+
+defmodule NervesHub.EctoReporter do
+  require Logger
+
+  def events() do
+    [
+      [:nerves_hub, :repo, :query]
+    ]
+  end
+
+  def handle_event([:nerves_hub, :repo, :query], %{queue_time: queue_time}, _, _) do
+    queue_time = :erlang.convert_time_unit(queue_time, :native, :millisecond)
+
+    if queue_time > 500 do
+      Logger.warning("[Ecto] Queuing is at #{queue_time}ms")
+    end
   end
 end
 
