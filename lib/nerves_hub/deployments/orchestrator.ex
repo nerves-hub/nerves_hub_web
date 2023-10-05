@@ -11,6 +11,7 @@ defmodule NervesHub.Deployments.Orchestrator do
   use GenServer
 
   require Logger
+  require OpenTelemetry.Tracer, as: Tracer
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -49,50 +50,68 @@ defmodule NervesHub.Deployments.Orchestrator do
   was successful, and the process is repeated.
   """
   def trigger_update(deployment) do
-    match_conditions = [
-      {:and, {:==, {:map_get, :deployment_id, :"$1"}, deployment.id},
-       {:==, {:map_get, :updating, :"$1"}, false},
-       {:==, {:map_get, :updates_enabled, :"$1"}, true},
-       {:"/=", {:map_get, :firmware_uuid, :"$1"}, deployment.firmware.uuid}}
-    ]
+    Tracer.with_span "Deploments.Orchestrator.trigger_update" do
+      :telemetry.execute([:nerves_hub, :deployment, :trigger_update], %{count: 1})
 
-    match_return = %{
-      device_id: {:element, 1, :"$_"},
-      pid: {:element, 1, {:element, 2, :"$_"}},
-      firmware_uuid: {:map_get, :firmware_uuid, {:element, 2, {:element, 2, :"$_"}}}
-    }
+      match_conditions = [
+        {:and, {:==, {:map_get, :deployment_id, :"$1"}, deployment.id},
+         {:==, {:map_get, :updating, :"$1"}, false},
+         {:==, {:map_get, :updates_enabled, :"$1"}, true},
+         {:"/=", {:map_get, :firmware_uuid, :"$1"}, deployment.firmware.uuid}}
+      ]
 
-    devices =
-      Registry.select(NervesHub.Devices, [
-        {{:_, :_, :"$1"}, match_conditions, [match_return]}
-      ])
+      match_return = %{
+        device_id: {:element, 1, :"$_"},
+        pid: {:element, 1, {:element, 2, :"$_"}},
+        firmware_uuid: {:map_get, :firmware_uuid, {:element, 2, {:element, 2, :"$_"}}}
+      }
 
-    # Get a rough count of devices to update
-    count = deployment.concurrent_updates - Devices.count_inflight_updates_for(deployment)
-    # Just in case inflight goes higher than concurrent, limit it to 0
-    count = max(count, 0)
+      devices =
+        Registry.select(NervesHub.Devices, [
+          {{:_, :_, :"$1"}, match_conditions, [match_return]}
+        ])
 
-    devices
-    |> Enum.take(count)
-    |> Enum.each(fn %{device_id: device_id, pid: pid} ->
-      device = %Device{id: device_id}
+      # Get a rough count of devices to update
+      count = deployment.concurrent_updates - Devices.count_inflight_updates_for(deployment)
+      # Just in case inflight goes higher than concurrent, limit it to 0
+      count = max(count, 0)
 
-      # Check again because other nodes are processing at the same time
-      if Devices.count_inflight_updates_for(deployment) < deployment.concurrent_updates do
-        case Devices.told_to_update(device, deployment) do
-          {:ok, inflight_update} ->
-            send(pid, {"deployments/update", inflight_update})
+      Tracer.set_attributes(%{
+        "nerves_hub.deployments.devices_to_update" => count,
+        "nerves_hub.deployments.devices_online" => Enum.count(devices)
+      })
 
-          :error ->
-            Logger.error(
-              "An inflight update could not be created or found for the device #{device.identifier} (#{device.id})"
-            )
+      # use a reduce to bounce out early?
+      # limit the number of devices to 5 minutes / 500ms?
+
+      devices
+      |> Enum.take(count)
+      |> Enum.each(fn %{device_id: device_id, pid: pid} ->
+        Tracer.with_span "Deployments.Orchestrator.each_device" do
+          Tracer.set_attribute("nerves_hub.devices.id", device_id)
+
+          :telemetry.execute([:nerves_hub, :deployment, :trigger_update, :device], %{count: 1})
+
+          device = %Device{id: device_id}
+
+          # Check again because other nodes are processing at the same time
+          if Devices.count_inflight_updates_for(deployment) < deployment.concurrent_updates do
+            case Devices.told_to_update(device, deployment) do
+              {:ok, inflight_update} ->
+                send(pid, {"deployments/update", inflight_update})
+
+              :error ->
+                Logger.error(
+                  "An inflight update could not be created or found for the device #{device.identifier} (#{device.id})"
+                )
+            end
+          end
+
+          # Slow the update a bit to allow for concurrent nodes
+          Process.sleep(500)
         end
-      end
-
-      # Slow the update a bit to allow for concurrent nodes
-      Process.sleep(500)
-    end)
+      end)
+    end
   end
 
   def init(deployment) do
