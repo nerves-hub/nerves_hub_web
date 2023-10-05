@@ -89,6 +89,7 @@ channel.on("message", payload => {
   } else if (payload.event) {
     chatBody.append(`${payload.username} ${payload.event}\n`);
   }
+  chatBody.scrollTop = chatBody.scrollHeight
 });
 
 chatBody.addEventListener("click", (e) => {
