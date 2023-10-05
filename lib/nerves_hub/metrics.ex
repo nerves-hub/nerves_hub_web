@@ -147,6 +147,11 @@ defmodule NervesHub.EctoReporter do
       Logger.warning("[Ecto] Queuing is at #{queue_time}ms")
     end
   end
+
+  # No queue time
+  def handle_event([:nerves_hub, :repo, :query], _, _, _) do
+    :ok
+  end
 end
 
 defmodule NervesHub.NodeReporter do
