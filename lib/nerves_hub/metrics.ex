@@ -46,6 +46,7 @@ defmodule NervesHub.Metrics do
            tags: [:route, :env, :service],
            unit: {:native, :millisecond}
          ),
+         counter("nerves_hub.repo.query.count", tags: [:env, :service]),
          distribution("nerves_hub.repo.query.idle_time",
            tags: [:env, :service],
            unit: {:native, :millisecond}
