@@ -27,7 +27,9 @@ defmodule NervesHubWeb.API.DeviceView do
       firmware_update_status: Devices.firmware_status(device),
       deployment: render_one(device.deployment, __MODULE__, "deployment.json", as: :deployment),
       updates_enabled: device.updates_enabled,
-      updates_blocked_until: device.updates_blocked_until
+      updates_blocked_until: device.updates_blocked_until,
+      org_name: device.org.name,
+      product_name: device.product.name
     }
   end
 
