@@ -72,7 +72,7 @@ defmodule NervesHub.Devices do
     |> Repo.exclude_deleted()
     |> order_by(^sort_devices(sorting))
     |> filtering(filters)
-    |> preload(deployment: [:firmware])
+    |> preload([:org, :product, deployment: [:firmware]])
     |> Repo.paginate(pagination)
   end
 
