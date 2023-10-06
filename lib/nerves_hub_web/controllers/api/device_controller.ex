@@ -38,6 +38,8 @@ defmodule NervesHubWeb.API.DeviceController do
       |> Map.put("product_id", product.id)
 
     with {:ok, device} <- Devices.create_device(params) do
+      device = Repo.preload(device, deployment: [:firmware])
+
       conn
       |> put_status(:created)
       |> put_resp_header(
@@ -81,6 +83,8 @@ defmodule NervesHubWeb.API.DeviceController do
   def update(%{assigns: %{org: org}} = conn, %{"identifier" => identifier} = params) do
     with {:ok, device} <- Devices.get_device_by_identifier(org, identifier),
          {:ok, updated_device} <- Devices.update_device(device, params) do
+      updated_device = Repo.preload(updated_device, deployment: [:firmware])
+
       conn
       |> put_status(201)
       |> render("show.json", device: updated_device)
@@ -93,6 +97,8 @@ defmodule NervesHubWeb.API.DeviceController do
          {:ok, %DeviceCertificate{device_id: device_id}} <-
            Devices.get_device_certificate_by_x509(cert),
          {:ok, device} <- Devices.get_device_by_org(org, device_id) do
+      device = Repo.preload(device, deployment: [:firmware])
+
       conn
       |> put_status(200)
       |> render("show.json", device: device)
