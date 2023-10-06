@@ -1,21 +1,23 @@
 <input id="device_id" hidden type="text" value={@device.id} />
 
-<div class="desktop">
-  <div class="box terminal">
-    <div class="title-bar">
-      <p class="title">Console</p>
+<div class="desktop-wrapper">
+  <div class="desktop">
+    <div class="box terminal">
+      <div class="title-bar">
+        <p class="title">Console</p>
+      </div>
+      <div class="body">
+        <div id="terminal" class="console"></div>
+      </div>
     </div>
-    <div class="body">
-      <div id="terminal" class="console"></div>
-    </div>
-  </div>
-  <div class="box chat">
-    <div class="title-bar">
-      <p class="title">Chat</p>
-    </div>
-    <div class="body">
-      <pre id="chat-body"></pre>
-      <input type="text" id="chat-message" />
+    <div class="box chat">
+      <div class="title-bar">
+        <p class="title">Chat</p>
+      </div>
+      <div class="body">
+        <pre id="chat-body"></pre>
+        <input type="text" id="chat-message" />
+      </div>
     </div>
   </div>
 </div>
