@@ -2,6 +2,8 @@
 
 import { Socket } from 'phoenix';
 import { Terminal } from 'xterm';
+import { WebglAddon } from 'xterm-addon-webgl';
+import { WebLinksAddon } from 'xterm-addon-web-links';
 
 let socket = new Socket('/socket', { params: { token: window.userToken } });
 
@@ -43,17 +45,65 @@ var term = new Terminal({
   cursorStyle: 'bar',
   macOptionIsMeta: true,
   fontFamily: 'Ubuntu Mono, courier-new, courier, monospace',
-  fontSize: 15,
+  fontSize: 12,
   theme: xtermjsTheme,
   scrollback: scrollback,
-})
+});
 
 var device_id = document.getElementById('device_id').value;
 
 socket.connect();
 
+class ResizeAddon {
+  activate(terminal) {
+    this._terminal = terminal;
+  }
+
+  dispose() {}
+
+  calculate() {
+    let maxWidth, maxHeight;
+
+    if (document.body.clientWidth > document.body.clientHeight) {
+      maxWidth = Math.floor((document.body.clientWidth - 280) * 0.9);
+      maxHeight = Math.floor(document.body.clientHeight * 0.8);
+    } else {
+      maxWidth = Math.floor(document.body.clientWidth * 0.9);
+      maxHeight = Math.floor(document.body.clientHeight * 0.8);
+    };
+
+    this._terminal.options.fontSize = 12;
+
+    let dims = this._terminal._core._renderService.dimensions;
+
+    for (let i = 0; i < 30; i++) {
+      if (dims.css.canvas.height < maxHeight && dims.css.canvas.width < maxWidth) {
+        this._terminal.options.fontSize = 12 + i;
+      }
+    }
+  }
+}
+
+function debounce(func, timeout = 300){
+  let timer;
+
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { func.apply(this, args); }, timeout);
+  };
+}
+
+const resizeAddon = new ResizeAddon();
+
 term.open(document.getElementById('terminal'));
+term.loadAddon(new WebglAddon());
+term.loadAddon(resizeAddon);
+term.loadAddon(new WebLinksAddon());
 term.focus();
+
+resizeAddon.calculate();
+
+window.addEventListener("resize", debounce(() => { resizeAddon.calculate(); }));
 
 let chatBody = document.getElementById('chat-body');
 let chatMessage = document.getElementById('chat-message');
