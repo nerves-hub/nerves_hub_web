@@ -25,8 +25,18 @@ defmodule NervesHubWeb.API.DeviceView do
       description: device.description,
       firmware_metadata: device.firmware_metadata,
       firmware_update_status: Devices.firmware_status(device),
+      deployment: render_one(device.deployment, __MODULE__, "deployment.json", as: :deployment),
       updates_enabled: device.updates_enabled,
       updates_blocked_until: device.updates_blocked_until
+    }
+  end
+
+  def render("deployment.json", %{deployment: deployment}) do
+    %{
+      firmware_uuid: deployment.firmware.uuid,
+      firmware_version: deployment.firmware.version,
+      is_active: deployment.is_active,
+      name: deployment.name
     }
   end
 

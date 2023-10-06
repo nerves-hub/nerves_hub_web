@@ -72,6 +72,7 @@ defmodule NervesHub.Devices do
     |> Repo.exclude_deleted()
     |> order_by(^sort_devices(sorting))
     |> filtering(filters)
+    |> preload(deployment: [:firmware])
     |> Repo.paginate(pagination)
   end
 
@@ -200,7 +201,7 @@ defmodule NervesHub.Devices do
         {:error, :not_found}
 
       device ->
-        {:ok, Repo.preload(device, [:org, :product])}
+        {:ok, Repo.preload(device, [:org, :product, deployment: [:firmware]])}
     end
   end
 
