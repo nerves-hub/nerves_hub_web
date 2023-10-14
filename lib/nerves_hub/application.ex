@@ -29,6 +29,7 @@ defmodule NervesHub.Application do
         metrics(@env) ++
         [
           NervesHub.RateLimit,
+          NervesHub.LoadBalancer,
           NervesHub.Supervisor,
           NervesHub.Tracker
         ] ++ endpoints(@env)
