@@ -137,7 +137,7 @@ For a Device to be considered eligible for a given Deployment, it must have
 
 The OTP versions running on the device and server must be compatible or devices
 won't be able to connect. See [this google
-sheet](https://docs.google.com/spreadsheets/d/1DX5rk5HtWOjbH_cMUb3DjIS-quRn1cQbQ7xRKmultOk/edit?usp=sharing)
+sheet](https://docs.google.com/spreadsheets/d/1PS7gKR66PCNR3GFOVCgaraMrhT5dOjk7BnERNMZmY-s/edit?usp=sharing)
 for the gory details.
 
 OTP > 24.2.2 switched to use TLS1.3 by default and made quite a few fixes/changes
