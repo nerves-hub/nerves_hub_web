@@ -4,6 +4,9 @@ import { Socket } from 'phoenix';
 import { Terminal } from 'xterm';
 import { WebglAddon } from 'xterm-addon-webgl';
 import { WebLinksAddon } from 'xterm-addon-web-links';
+import semver from 'semver';
+
+let metadata = {};
 
 let socket = new Socket('/socket', { params: { token: window.userToken } });
 
@@ -38,7 +41,7 @@ try {
   }
 } catch (e) {}
 
-var term = new Terminal({
+let term = new Terminal({
   rows: 28,
   cols: 120,
   cursorBlink: true,
@@ -152,6 +155,12 @@ chatMessage.addEventListener("keypress", (e) => {
   }
 });
 
+channel.on("metadata", payload => {
+  metadata = payload;
+
+  document.querySelector(".terminal .title").innerHTML = `Console - ${metadata.version}`;
+});
+
 let downloadingFileBuffer = [];
 
 channel.on("file-data/start", payload => {
@@ -213,3 +222,54 @@ channel.onClose(() => {
   term.setOption('cursorBlink', false);
   term.write('DISCONNECTED');
 });
+
+let dropzone = document.getElementById("dropzone");
+
+dropzone.addEventListener('dragover', function(e) {
+  e.stopPropagation();
+  e.preventDefault();
+
+  if (semver.gte(metadata.version, "2.0.0")) {
+    e.dataTransfer.dropEffect = 'copy';
+  } else {
+    e.dataTransfer.dropEffect = 'none';
+  }
+});
+
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  [...e.dataTransfer.items].forEach((item, i) => {
+    const file = item.getAsFile();
+    const reader = file.stream().getReader();
+
+    channel.push("file-data/start", { filename: file.name });
+
+    reader.read().then(function process({ done, value }) {
+      if (done) {
+        channel.push("file-data/stop", { filename: file.name });
+        return;
+      }
+
+      const chunkSize = 1024;
+      let chunkNum = 0;
+
+      for (let i = 0; i < value.length; i += chunkSize) {
+        const chunk = value.slice(i, i + chunkSize);
+
+        const encoded = btoa(String.fromCharCode.apply(null, chunk));
+
+        channel.push("file-data", {
+          filename: file.name,
+          chunk: chunkNum,
+          data: encoded
+        });
+
+        chunkNum += 1;
+      }
+
+      return reader.read().then(process);
+    });
+  });
+}, false);

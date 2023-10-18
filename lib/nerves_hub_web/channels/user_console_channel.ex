@@ -25,6 +25,11 @@ defmodule NervesHubWeb.UserConsoleChannel do
   # Ignore other connects
   def handle_info({:connect, _pid}, socket), do: {:noreply, socket}
 
+  def handle_info({:metadata, metadata}, socket) do
+    push(socket, "metadata", metadata)
+    {:noreply, assign(socket, :metadata, metadata)}
+  end
+
   def handle_info({:cache, lines}, socket) do
     push(socket, "up", %{data: lines})
     {:noreply, socket}
