@@ -55,7 +55,9 @@ defmodule NervesHubWeb.ConsoleChannel do
     {:noreply, socket}
   end
 
-  def handle_info({:after_join, _payload}, socket) do
+  def handle_info({:after_join, payload}, socket) do
+    socket = assign(socket, :version, payload["console_version"])
+
     socket.endpoint.subscribe(console_topic(socket))
 
     # now that the console is connected, push down the device's elixir, line by line
@@ -87,8 +89,12 @@ defmodule NervesHubWeb.ConsoleChannel do
   end
 
   def handle_info({:connect, pid}, socket) do
+    metadata = %{version: socket.assigns.version}
+    send(pid, {:metadata, metadata})
+
     lines = Enum.join(socket.assigns.buffer) <> socket.assigns.current_line
     send(pid, {:cache, lines})
+
     {:noreply, socket}
   end
 
