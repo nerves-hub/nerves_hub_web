@@ -35,30 +35,34 @@ defmodule NervesHubWeb.ConsoleChannel do
       |> assign(:current_line, current_line)
       |> assign(:buffer, buffer)
 
-    socket.endpoint.broadcast_from!(self(), console_topic(socket), "up", payload)
+    topic = "user:console:#{socket.assigns.device.id}"
+    socket.endpoint.broadcast!(topic, "up", payload)
 
     {:noreply, socket}
   end
 
   def handle_in("file-data/start", payload, socket) do
-    socket.endpoint.broadcast_from!(self(), console_topic(socket), "file-data/start", payload)
+    topic = "user:console:#{socket.assigns.device.id}"
+    socket.endpoint.broadcast!(topic, "file-data/start", payload)
     {:noreply, socket}
   end
 
   def handle_in("file-data", payload, socket) do
-    socket.endpoint.broadcast_from!(self(), console_topic(socket), "file-data", payload)
+    topic = "user:console:#{socket.assigns.device.id}"
+    socket.endpoint.broadcast!(topic, "file-data", payload)
     {:noreply, socket}
   end
 
   def handle_in("file-data/stop", payload, socket) do
-    socket.endpoint.broadcast_from!(self(), console_topic(socket), "file-data/stop", payload)
+    topic = "user:console:#{socket.assigns.device.id}"
+    socket.endpoint.broadcast!(topic, "file-data/stop", payload)
     {:noreply, socket}
   end
 
   def handle_info({:after_join, payload}, socket) do
     socket = assign(socket, :version, payload["console_version"])
 
-    socket.endpoint.subscribe(console_topic(socket))
+    socket.endpoint.subscribe("device:console:#{socket.assigns.device.id}")
 
     # now that the console is connected, push down the device's elixir, line by line
     device = socket.assigns.device
@@ -101,9 +105,5 @@ defmodule NervesHubWeb.ConsoleChannel do
   def handle_info(%Broadcast{payload: payload, event: event}, socket) do
     push(socket, event, payload)
     {:noreply, socket}
-  end
-
-  defp console_topic(%{assigns: %{device: device}}) do
-    "console:#{device.id}"
   end
 end

@@ -4,8 +4,8 @@ defmodule NervesHubWeb.UserConsoleChannel do
   alias Phoenix.Socket.Broadcast
 
   def join("user:console:" <> device_id, _, socket) do
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, console_topic(device_id), {:connect, self()})
-    socket.endpoint.subscribe(console_topic(device_id))
+    topic = "device:console:#{device_id}"
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, topic, {:connect, self()})
     {:ok, assign(socket, :device_id, device_id)}
   end
 
@@ -15,15 +15,31 @@ defmodule NervesHubWeb.UserConsoleChannel do
     {:noreply, socket}
   end
 
-  def handle_in(event, payload, %{assigns: %{device_id: device_id}} = socket) do
-    # Keypresses are coming in here raw
-    # Send them to the device
-    socket.endpoint.broadcast_from!(self(), console_topic(device_id), event, payload)
+  def handle_in("file-data/start", payload, socket) do
+    topic = "device:console:#{socket.assigns.device_id}"
+    socket.endpoint.broadcast!(topic, "file-data/start", payload)
     {:noreply, socket}
   end
 
-  # Ignore other connects
-  def handle_info({:connect, _pid}, socket), do: {:noreply, socket}
+  def handle_in("file-data", payload, socket) do
+    topic = "device:console:#{socket.assigns.device_id}"
+    socket.endpoint.broadcast!(topic, "file-data", payload)
+    {:noreply, socket}
+  end
+
+  def handle_in("file-data/stop", payload, socket) do
+    topic = "device:console:#{socket.assigns.device_id}"
+    socket.endpoint.broadcast!(topic, "file-data/stop", payload)
+    {:noreply, socket}
+  end
+
+  def handle_in(event, payload, socket) do
+    # Keypresses are coming in here raw
+    # Send them to the device
+    topic = "device:console:#{socket.assigns.device_id}"
+    socket.endpoint.broadcast!(topic, event, payload)
+    {:noreply, socket}
+  end
 
   def handle_info({:metadata, metadata}, socket) do
     push(socket, "metadata", metadata)
@@ -48,9 +64,5 @@ defmodule NervesHubWeb.UserConsoleChannel do
     })
 
     socket
-  end
-
-  defp console_topic(device_id) do
-    "console:#{device_id}"
   end
 end
