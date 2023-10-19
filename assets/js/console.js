@@ -245,10 +245,12 @@ dropzone.addEventListener("drop", (e) => {
     const reader = file.stream().getReader();
 
     channel.push("file-data/start", { filename: file.name });
+    channel.push('message', { event: `starting to upload ${file.name}` });
 
     reader.read().then(function process({ done, value }) {
       if (done) {
         channel.push("file-data/stop", { filename: file.name });
+        channel.push('message', { event: `uploaded ${file.name}` });
         return;
       }
 
