@@ -26,6 +26,7 @@ config :phoenix,
 
 # Configures the endpoint
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
+  adapter: Bandit.PhoenixAdapter,
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub
 
@@ -71,6 +72,7 @@ config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
 
 # Configures the endpoint
 config :nerves_hub, NervesHubWeb.Endpoint,
+  adapter: Bandit.PhoenixAdapter,
   secret_key_base: System.get_env("SECRET_KEY_BASE"),
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub

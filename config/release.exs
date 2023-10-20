@@ -87,22 +87,26 @@ if nerves_hub_app in ["all", "device"] do
       verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
       port: https_port,
       otp_app: :nerves_hub,
-      # Enable client SSL
-      # Older versions of OTP 25 may break using using devices
-      # that support TLS 1.3 or 1.2 negotiation. To mitigate that
-      # potential error, we enforce TLS 1.2. If you're using OTP >= 25.1
-      # on all devices, then it is safe to allow TLS 1.3 by removing
-      # the versions constraint and setting `certificate_authorities: false`
-      # since we don't expect devices to send full chains to the server
-      # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
-      #
-      # certificate_authorities: false,
-      versions: [:"tlsv1.2"],
-      verify: :verify_peer,
-      fail_if_no_peer_cert: true,
-      keyfile: "/etc/ssl/#{host}-key.pem",
-      certfile: "/etc/ssl/#{host}.pem",
-      cacertfile: "/etc/ssl/ca.pem"
+      thousand_island_options: [
+        transport_options: [
+          # Enable client SSL
+          # Older versions of OTP 25 may break using using devices
+          # that support TLS 1.3 or 1.2 negotiation. To mitigate that
+          # potential error, we enforce TLS 1.2. If you're using OTP >= 25.1
+          # on all devices, then it is safe to allow TLS 1.3 by removing
+          # the versions constraint and setting `certificate_authorities: false`
+          # since we don't expect devices to send full chains to the server
+          # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
+          #
+          # certificate_authorities: false,
+          versions: [:"tlsv1.2"],
+          verify: :verify_peer,
+          fail_if_no_peer_cert: true,
+          keyfile: "/etc/ssl/#{host}-key.pem",
+          certfile: "/etc/ssl/#{host}.pem",
+          cacertfile: "/etc/ssl/ca.pem"
+        ]
+      ]
     ]
 end
 

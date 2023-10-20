@@ -16,10 +16,6 @@ defmodule NervesHub.Application do
         raise "fwup could not be found in the $PATH. This is a requirement of NervesHubWeb and cannot start otherwise"
     end
 
-    if @env != :test do
-      :opentelemetry_cowboy.setup()
-    end
-
     children =
       [
         {Registry, keys: :unique, name: NervesHub.Devices},
