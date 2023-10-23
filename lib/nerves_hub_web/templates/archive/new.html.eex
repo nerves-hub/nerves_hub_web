@@ -1,0 +1,10 @@
+<%= form_for(@conn, Routes.archive_path(@conn, :create, @org.name, @product.name), [as: :archive, multipart: true], fn f -> %>
+  <div class="form-group custom-upload-group">
+    <label for="file_input" class="custom-upload-label not-selected">Click to upload file</label>
+    <%= file_input f, :file, required: true, id: "file_input", class: "custom-upload-input hidden" %>
+    <div class="has-error"><%= error_tag f, :file %></div>
+  </div>
+  <div class="button-submit-wrapper">
+    <%= submit "Upload Archive", class: "btn btn-primary" %>
+  </div>
+<% end) %>

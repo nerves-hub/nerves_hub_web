@@ -2,10 +2,11 @@ defmodule NervesHub.Products.Product do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias NervesHub.Devices.Device
   alias NervesHub.Accounts.Org
-  alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Archives.Archive
   alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Repo
 
   @required_params [:name, :org_id]
@@ -17,6 +18,7 @@ defmodule NervesHub.Products.Product do
     has_many(:devices, Device, where: [deleted_at: nil])
     has_many(:firmwares, Firmware)
     has_many(:jitp, CACertificate.JITP)
+    has_many(:archives, Archive)
 
     belongs_to(:org, Org, where: [deleted_at: nil])
 

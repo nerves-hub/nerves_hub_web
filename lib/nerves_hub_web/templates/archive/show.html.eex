@@ -1,0 +1,62 @@
+<div class="action-row">
+  <%= link "All Archives", to: Routes.archive_path(@conn, :index, @org.name, @product.name), class: "back-link"%>
+  <div class="btn-group" role="group" aria-label="Device Actions">
+    <%= link(
+      class: "btn btn-outline-light btn-action",
+      aria_label: "Download",
+      to: Routes.archive_path(@conn, :download, @org.name, @product.name, @archive.uuid))
+      do %>
+      <span class="button-icon download"></span>
+      <span class="action-text">Download</span>
+    <% end %>
+    <%= link(
+      class: "btn btn-outline-light btn-action",
+      aria_label: "Delete",
+      to: Routes.archive_path(@conn, :delete, @org.name, @product.name, @archive.uuid),
+      method: :delete,
+      data: [confirm: "Are you sure you want to delete this archive? This can not be undone."])
+      do %>
+      <span class="button-icon delete"></span>
+      <span class="action-text">Delete</span>
+    <% end %>
+  </div>
+</div>
+
+<h1>Archive <%= @archive.version %></h1>
+
+<div class="firmware-meta-grid">
+  <div>
+    <div class="help-text">UUID</div>
+    <p class="ff-m"><%= @archive.uuid %></p>
+  </div>
+  <div>
+    <div class="help-text">Platform</div>
+    <p><%= @archive.platform %></p>
+  </div>
+  <div>
+    <div class="help-text">Architecture</div>
+    <p><%= @archive.architecture %></p>
+  </div>
+  <div class="gr-2">
+    <div class="help-text">Author</div>
+    <p><%= @archive.author %></p>
+  </div>
+  <div class="gr-2">
+    <div class="help-text">Uploaded On</div>
+    <p class="date-time">
+      <%= @archive.inserted_at %>
+    </p>
+  </div>
+  <div class="gr-2">
+    <div class="help-text">VCS ID</div>
+    <p class="ff-m">
+      <%= if is_nil(@archive.vcs_identifier) do %>
+        -
+      <% else %>
+        <%= @archive.vcs_identifier %>
+      <% end %>
+    </p>
+  </div>
+</div>
+
+<div class="divider"></div>

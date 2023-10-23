@@ -52,6 +52,13 @@ config :nerves_hub, NervesHub.Firmwares.Upload.File,
   local_path: Path.expand("tmp/firmware"),
   public_path: "/firmware"
 
+config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
+
+config :nerves_hub, NervesHub.Uploads.File,
+  enabled: true,
+  local_path: Path.expand("tmp/uploads"),
+  public_path: "/uploads"
+
 # config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
 
 config :nerves_hub, NervesHub.Repo, ssl: false

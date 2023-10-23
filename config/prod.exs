@@ -25,6 +25,12 @@ case firmware_upload do
     config :nerves_hub, NervesHub.Firmwares.Upload.File,
       enabled: true,
       public_path: "/firmware"
+
+    config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
+
+    config :nerves_hub, NervesHub.Uploads.File,
+      enabled: true,
+      public_path: "/uploads"
 end
 
 config :nerves_hub, NervesHub.Repo, pool_size: 20

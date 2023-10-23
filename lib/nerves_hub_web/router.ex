@@ -295,6 +295,13 @@ defmodule NervesHubWeb.Router do
           end
         end
 
+        resources("/archives", ArchiveController,
+          only: [:index, :show, :new, :create, :delete],
+          param: "uuid"
+        )
+
+        get("/archives/:uuid/download", ArchiveController, :download)
+
         scope "/deployments" do
           get("/", DeploymentController, :index)
           post("/", DeploymentController, :create)
