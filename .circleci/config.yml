@@ -164,6 +164,24 @@ jobs:
           key: docker-{{ .Branch }}-{{ .Revision }}
           paths: "/docker"
 
+  automerge:
+    docker:
+        - image: alpine:3.18.4
+    steps:
+      - run:
+          name: Install GitHub CLI
+          command: apk add --no-cache build-base github-cli
+      - run:
+          name: Attempt PR automerge
+          command: |
+            author=$(gh pr view "${CIRCLE_PULL_REQUEST}" --json author --jq '.author.login' || true)
+
+            if [ "$author" = "app/dependabot" ]; then
+              gh pr merge "${CIRCLE_PULL_REQUEST}" --auto --rebase || echo "Failed trying to set automerge"
+            else
+              echo "Not a dependabot PR, skipping automerge"
+            fi
+
 workflows:
   version: 2
   pipeline:
@@ -178,3 +196,10 @@ workflows:
         - build-docker:
             requires:
               - test_elixir
+        - automerge:
+            requires: 
+              - build-docker
+            context: org-global
+            filters:
+              branches:
+                only: /^dependabot.*/
