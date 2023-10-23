@@ -194,6 +194,11 @@ defmodule NervesHubWeb.LayoutView do
         href: Routes.firmware_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
       },
       %{
+        title: "Archives",
+        active: "",
+        href: Routes.archive_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+      },
+      %{
         title: "Deployments",
         active: "",
         href:

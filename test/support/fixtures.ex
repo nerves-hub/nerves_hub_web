@@ -1,19 +1,18 @@
 Code.compiler_options(ignore_module_conflict: true)
 
 defmodule NervesHub.Fixtures do
-  alias NervesHub.{
-    Accounts,
-    Accounts.Org,
-    Accounts.OrgKey,
-    Certificate,
-    Devices,
-    Deployments,
-    Firmwares,
-    Products,
-    Products.Product,
-    Repo
-  }
-
+  alias NervesHub.Accounts
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Archives
+  alias NervesHub.Certificate
+  alias NervesHub.Devices
+  alias NervesHub.Deployments
+  alias NervesHub.Firmwares
+  alias NervesHub.Products
+  alias NervesHub.Products.Product
+  alias NervesHub.Repo
+  alias NervesHub.Support
   alias NervesHub.Support.Fwup
 
   @after_compile {__MODULE__, :compiler_options}
@@ -180,6 +179,32 @@ defmodule NervesHub.Fixtures do
       |> Map.merge(params)
 
     Firmwares.create_firmware_transfer(params)
+  end
+
+  def archive_file_fixture(
+        %Accounts.OrgKey{} = org_key,
+        %Products.Product{} = product,
+        params \\ %{}
+      ) do
+    {:ok, filepath} =
+      Support.Archives.create_signed_archive(
+        org_key.name,
+        "unsigned-#{counter()}",
+        "signed-#{counter()}",
+        %{product: product.name} |> Enum.into(params)
+      )
+
+    filepath
+  end
+
+  def archive_fixture(
+        %Accounts.OrgKey{} = org_key,
+        %Products.Product{} = product,
+        params \\ %{}
+      ) do
+    filepath = archive_file_fixture(org_key, product, params)
+    {:ok, archive} = Archives.create(product, filepath)
+    archive
   end
 
   def deployment_fixture(%Org{} = org, %Firmwares.Firmware{} = firmware, params \\ %{}) do

@@ -32,6 +32,7 @@ defmodule NervesHubWeb.Endpoint do
 
   if firmware_upload == "local" do
     plug(NervesHubWeb.Plugs.FileUpload)
+    plug(NervesHubWeb.Plugs.StaticUploads)
   end
 
   # Code reloading can be explicitly enabled under the

@@ -48,6 +48,12 @@ config :nerves_hub, NervesHub.Firmwares.Upload.File,
   local_path: System.tmp_dir(),
   public_path: "/firmware"
 
+config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
+
+config :nerves_hub, NervesHub.Uploads.File,
+  local_path: System.tmp_dir(),
+  public_path: "/uploads"
+
 config :nerves_hub, NervesHub.Repo,
   ssl: false,
   pool: Ecto.Adapters.SQL.Sandbox

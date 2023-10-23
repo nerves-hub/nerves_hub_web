@@ -46,6 +46,8 @@ case firmware_upload do
     local_path = System.get_env("FIRMWARE_UPLOAD_PATH")
 
     config :nerves_hub, NervesHub.Firmwares.Upload.File, local_path: local_path
+
+    config :nerves_hub, NervesHub.Uploads.File, local_path: local_path
 end
 
 config :ex_aws, region: System.fetch_env!("AWS_REGION")
