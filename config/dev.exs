@@ -91,3 +91,5 @@ if System.get_env("OTEL_ENABLED", "false") == "true" do
 else
   config :opentelemetry, tracer: :otel_tracer_noop, traces_exporter: :none
 end
+
+config :sentry, environment_name: "developent"
