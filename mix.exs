@@ -70,7 +70,7 @@ defmodule NervesHubUmbrella.MixProject do
       {:finch, "~> 0.16.0"},
       {:floki, ">= 0.27.0", only: :test},
       {:gen_smtp, "~> 1.0"},
-      {:gettext, "~> 0.22.0"},
+      {:gettext, "~> 0.23.1"},
       {:hackney, "~> 1.16"},
       {:hlclock, "~> 1.0"},
       {:jason, "~> 1.2", override: true},
