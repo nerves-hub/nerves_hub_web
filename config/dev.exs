@@ -88,6 +88,11 @@ config :nerves_hub, NervesHub.RateLimit, limit: 10
 # NervesHubWWW
 #
 config :nerves_hub, NervesHubWeb.Endpoint,
+  url: [
+    host: System.get_env("WEB_HOST", "localhost"),
+    scheme: System.get_env("WEB_SCHEME", "http"),
+    port: String.to_integer(System.get_env("WEB_PORT", "4000"))
+  ],
   http: [ip: {0, 0, 0, 0}, port: 4000],
   debug_errors: true,
   code_reloader: true,

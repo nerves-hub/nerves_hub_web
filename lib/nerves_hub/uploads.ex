@@ -54,7 +54,17 @@ defmodule NervesHub.Uploads.File do
   def url("/" <> key, opts), do: url(key, opts)
 
   def url(key, _opts) do
-    "/uploads/#{key}"
+    config = Application.get_env(:nerves_hub, NervesHubWeb.Endpoint)[:url]
+    uri = URI.parse("/uploads/#{key}")
+
+    uri = %{
+      uri
+      | host: config[:host],
+        port: config[:port],
+        scheme: config[:scheme]
+    }
+
+    URI.to_string(uri)
   end
 end
 

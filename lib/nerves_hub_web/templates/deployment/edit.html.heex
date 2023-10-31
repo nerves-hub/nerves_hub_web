@@ -48,6 +48,15 @@
     <div class="has-error"><%= error_tag(f, :firmware_id) %></div>
   </div>
 
+  <div class="form-group">
+    <label for="firmware_id" class="tooltip-label">
+      <span>Additional Archive version</span>
+    </label>
+    <%= select(f, :archive_id, archive_dropdown_options(@archives), id: "archive_id", prompt: "Select an Archive", class: "form-control") %>
+    <div class="select-icon"></div>
+    <div class="has-error"><%= error_tag(f, :archive_id) %></div>
+  </div>
+
   <h3 class="mb-2">Conditions</h3>
 
   <p>Changing any conditions will reset any attached devices.</p>

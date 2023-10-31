@@ -93,7 +93,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(@socket_config)
       SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
+      SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
 
       device =
@@ -133,7 +133,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(config)
       SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
+      SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
 
       device =
@@ -211,7 +211,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
+      SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
 
       device =
@@ -289,7 +289,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
+      SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
 
       device =
@@ -331,7 +331,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(@socket_config)
       SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
+      SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
       update = SocketClient.wait_update(socket)
       assert %{"update_available" => true, "firmware_url" => _, "firmware_meta" => %{}} = update
@@ -370,7 +370,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(@socket_config)
       SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
+      SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
       reply = SocketClient.reply(socket)
 
@@ -405,7 +405,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(@socket_config)
       SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
+      SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
       reply = SocketClient.reply(socket)
       assert %{} = reply
@@ -449,6 +449,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       # Device has updated and no longer matches the attached deployment
       SocketClient.join(socket, "device", %{
+        "device_api_version" => "2.0.0",
         "nerves_fw_uuid" => Ecto.UUID.generate(),
         "nerves_fw_product" => "test",
         "nerves_fw_architecture" => "arm",
@@ -504,7 +505,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
+      SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
 
       device =
@@ -567,7 +568,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
+      SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
 
       device =
@@ -620,13 +621,13 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
+      SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
       GenServer.stop(socket)
 
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
+      SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
 
       [%{last_used: updated_last_used}] = Devices.get_ca_certificates(org)

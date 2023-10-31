@@ -77,6 +77,27 @@ defmodule NervesHubWeb.DeploymentView do
     "#{f.version} #{f.uuid}"
   end
 
+  def archive_dropdown_options(acrhives) do
+    acrhives
+    |> Enum.sort_by(
+      fn archive ->
+        case Version.parse(archive.version) do
+          {:ok, version} ->
+            version
+
+          :error ->
+            %Version{major: 0, minor: 0, patch: 0}
+        end
+      end,
+      {:desc, Version}
+    )
+    |> Enum.map(&[value: &1.id, key: archive_display_name(&1)])
+  end
+
+  def archive_display_name(%{} = a) do
+    "#{a.version} #{a.platform} #{a.architecture} #{a.uuid}"
+  end
+
   def help_message_for(field) do
     case field do
       :failure_threshold ->

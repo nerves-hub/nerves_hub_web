@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.DeploymentController do
   use NervesHubWeb, :controller
 
+  alias NervesHub.Archives
   alias NervesHub.AuditLogs
   alias NervesHub.Firmwares
   alias NervesHub.Deployments
@@ -172,18 +173,16 @@ defmodule NervesHubWeb.DeploymentController do
   end
 
   def edit(%{assigns: %{deployment: deployment}} = conn, _params) do
+    archives = Archives.all_by_product(deployment.product)
     firmwares = Firmwares.get_firmwares_for_deployment(deployment)
 
     conn
-    |> render(
-      "edit.html",
-      deployment: deployment,
-      firmware: deployment.firmware,
-      firmwares: firmwares,
-      changeset:
-        Deployment.changeset(deployment, %{})
-        |> tags_to_string()
-    )
+    |> assign(:archives, archives)
+    |> assign(:deployment, deployment)
+    |> assign(:firmware, deployment.firmware)
+    |> assign(:firmwares, firmwares)
+    |> assign(:changeset, Deployment.changeset(deployment, %{}) |> tags_to_string())
+    |> render("edit.html")
   end
 
   def update(conn, %{"deployment" => params}) do
@@ -218,6 +217,7 @@ defmodule NervesHubWeb.DeploymentController do
         conn
         |> assign(:deployment, deployment)
         |> assign(:firmware, deployment.firmware)
+        |> assign(:archives, Archives.all_by_product(deployment.product))
         |> assign(:firmwares, Firmwares.get_firmwares_by_product(product.id))
         |> assign(:changeset, tags_to_string(changeset))
         |> render("edit.html")
