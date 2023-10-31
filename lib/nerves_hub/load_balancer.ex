@@ -56,10 +56,12 @@ defmodule NervesHub.LoadBalancer do
 
     average_count = Enum.sum(Map.values(device_counts)) / Enum.count(Map.values(device_counts))
 
-    current_node_ratio = device_counts[node()] / average_count
+    if average_count > 0 do
+      current_node_ratio = device_counts[node()] / average_count
 
-    if current_node_ratio > 1.3 do
-      Logger.info("[LoadBalancer] Current node ratio is high - #{current_node_ratio}")
+      if current_node_ratio > 1.3 do
+        Logger.info("[LoadBalancer] Current node ratio is high - #{current_node_ratio}")
+      end
     end
 
     Process.send_after(self(), :tick, 60_000)
