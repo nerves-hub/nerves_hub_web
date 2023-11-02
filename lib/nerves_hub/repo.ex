@@ -7,8 +7,6 @@ defmodule NervesHub.Repo do
 
   import Ecto.Query, only: [where: 3]
 
-  alias NervesHub.Config
-
   @type transaction ::
           {:ok, any()}
           | {:error, any()}
@@ -19,14 +17,15 @@ defmodule NervesHub.Repo do
   DATABASE_URL environment variable.
   """
   def init(_, config) do
-    vapor_config = Vapor.load!(Config)
-    database_config = vapor_config.database
+    %{database: database_config} = NervesHub.Config.load!()
+    merge_opts = Keyword.new(Map.take(database_config, [:pool_size, :url, :ssl]))
+    config = Keyword.merge(config, merge_opts)
 
     config =
-      Keyword.merge(config,
-        pool_size: database_config.pool_size,
-        url: database_config.url
-      )
+      case database_config.ipv6 do
+        true -> Keyword.put(config, :socket_options, [:inet6])
+        false -> config
+      end
 
     {:ok, config}
   end

@@ -1,14 +1,14 @@
 import Config
 
 # Do not print debug messages in production
-config :logger, level: :info, backends: [:console, Sentry.LoggerBackend]
+config :logger, level: :info
 
 config :phoenix, logger: false
 
 ##
 # NervesHub Device
 #
-config :nerves_hub, NervesHubWeb.DeviceEndpoint, server: true
+config :nerves_hub, NervesHubWeb.DeviceEndpoint, https: [ip: {0, 0, 0, 0, 0, 0, 0, 0}]
 
 ##
 # NervesHub
@@ -21,20 +21,9 @@ case firmware_upload do
 
   "local" ->
     config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
-
-    config :nerves_hub, NervesHub.Firmwares.Upload.File,
-      enabled: true,
-      public_path: "/firmware"
 end
-
-config :nerves_hub, NervesHub.Repo, pool_size: 20
-
-config :nerves_hub, NervesHub.ObanRepo, pool_size: 10
 
 ##
 # NervesHubWWW
 #
-config :nerves_hub, NervesHubWeb.Endpoint,
-  load_from_system_env: true,
-  server: true,
-  force_ssl: [rewrite_on: [:x_forwarded_proto]]
+config :nerves_hub, NervesHubWeb.Endpoint, http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}]

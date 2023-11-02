@@ -33,7 +33,7 @@ defmodule NervesHub.Firmwares.Upload.File do
 
   @impl NervesHub.Firmwares.Upload
   def metadata(org_id, filename) do
-    vapor_config = Vapor.load!(NervesHub.Config)
+    vapor_config = NervesHub.Config.load!()
     web_config = vapor_config.web_endpoint
 
     config = Application.get_env(:nerves_hub, __MODULE__)

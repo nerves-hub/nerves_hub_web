@@ -1,8 +1,6 @@
 defmodule NervesHub.Supervisor do
   use Supervisor
 
-  require Logger
-
   def start_link(_opts) do
     Supervisor.start_link(__MODULE__, :undefined)
   end

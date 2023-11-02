@@ -3,11 +3,9 @@ defmodule NervesHub.Workers.TruncateAuditLogs do
     max_attempts: 5,
     queue: :truncate
 
-  alias NervesHub.Config
-
   @impl true
   def perform(_) do
-    vapor_config = Vapor.load!(Config)
+    vapor_config = NervesHub.Config.load!()
     config = vapor_config.audit_logs
 
     if config.enabled do

@@ -18,18 +18,20 @@ defmodule NervesHub.RateLimit do
 
     result = :ets.update_counter(:nerves_hub_rate_limit, bucket_key, 1, {bucket_key, 0})
 
-    config = Application.get_env(:nerves_hub, __MODULE__)
-
-    result < config[:limit]
+    result < :persistent_term.get(__MODULE__)
   end
 
   @doc false
-  def start_link(_) do
-    GenServer.start_link(__MODULE__, [])
+  def start_link(opts) do
+    limit = opts[:limit] || raise ArgumentError, ":limit is required"
+
+    GenServer.start_link(__MODULE__, limit)
   end
 
   @impl true
-  def init(_) do
+  def init(limit) do
+    :persistent_term.put(__MODULE__, limit)
+
     state = %{
       ets_key: :nerves_hub_rate_limit
     }

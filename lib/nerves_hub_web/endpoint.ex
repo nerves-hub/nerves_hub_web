@@ -1,8 +1,6 @@
 defmodule NervesHubWeb.Endpoint do
-  use Phoenix.Endpoint, otp_app: :nerves_hub
   use Sentry.PlugCapture
-
-  alias NervesHub.Config
+  use Phoenix.Endpoint, otp_app: :nerves_hub
 
   @session_options [
     store: :cookie,
@@ -81,28 +79,20 @@ defmodule NervesHubWeb.Endpoint do
   It receives the endpoint configuration and checks if
   configuration should be loaded from the system environment.
   """
-  def init(_key, config) do
-    vapor_config = Vapor.load!(Config)
-    endpoint_config = vapor_config.web_endpoint
+  @impl Phoenix.Endpoint
+  def init(_atom, config) do
+    %{web_endpoint: endpoint} = NervesHub.Config.load!()
 
-    config =
-      Keyword.merge(config,
-        secret_key_base: endpoint_config.secret_key_base,
-        live_view: [
-          signing_salt: endpoint_config.live_view_signing_salt
-        ],
-        url: [
-          host: endpoint_config.url_host,
-          port: endpoint_config.url_port,
-          scheme: endpoint_config.url_scheme
-        ]
-      )
-
-    if config[:load_from_system_env] do
-      port = System.get_env("PORT") || raise "expected the PORT environment variable to be set"
-      {:ok, Keyword.put(config, :http, [:inet6, port: port])}
-    else
-      {:ok, config}
-    end
+    {:ok,
+     config
+     |> update_in([:http], &Keyword.put(&1, :port, endpoint.http_port))
+     |> Keyword.put(:url,
+       host: endpoint.url_host,
+       port: endpoint.url_port,
+       scheme: endpoint.url_scheme
+     )
+     |> Keyword.put(:secret_key_base, endpoint.secret_key_base)
+     |> Keyword.put(:live_view, signing_salt: endpoint.live_view_signing_salt)
+     |> Keyword.put(:server, endpoint.server)}
   end
 end

@@ -5,10 +5,8 @@ defmodule NervesHub.EmailView do
 
   import Phoenix.HTML
 
-  alias NervesHub.Config
-
   def base_url do
-    vapor_config = Vapor.load!(Config)
+    vapor_config = NervesHub.Config.load!()
     endpoint_config = vapor_config.web_endpoint
 
     scheme = endpoint_config.url_scheme

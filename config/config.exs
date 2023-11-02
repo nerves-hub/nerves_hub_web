@@ -1,12 +1,6 @@
 import Config
 
-config :ex_aws,
-  access_key_id: [{:system, "AWS_ACCESS_KEY_ID"}, :instance_role],
-  json_codec: Jason,
-  secret_access_key: [{:system, "AWS_SECRET_ACCESS_KEY"}, :instance_role],
-  region: System.get_env("AWS_REGION")
-
-config :ex_aws_s3, json_codec: Jason
+config :ex_aws, json_codec: Jason
 
 # Configures Elixir's Logger
 config :logger, :console,
@@ -24,8 +18,27 @@ config :phoenix,
 # NervesHub Device
 #
 
-# Configures the endpoint
+# Configures the DeviceEndpoint
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
+  url: [],
+  http: false,
+  https: [
+    ip: {0, 0, 0, 0},
+    otp_app: :nerves_hub,
+    # Enable client SSL
+    # Older versions of OTP 25 may break using using devices
+    # that support TLS 1.3 or 1.2 negotiation. To mitigate that
+    # potential error, we enforce TLS 1.2. If you're using OTP >= 25.1
+    # on all devices, then it is safe to allow TLS 1.3 by removing
+    # the versions constraint and setting `certificate_authorities: false`
+    # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
+    #
+    # certificate_authorities: false,
+    versions: [:"tlsv1.2"],
+    verify: :verify_peer,
+    verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
+    fail_if_no_peer_cert: true
+  ],
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub
 
@@ -35,8 +48,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 config :nerves_hub,
   env: Mix.env(),
   namespace: NervesHub,
-  ecto_repos: [NervesHub.Repo],
-  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
+  ecto_repos: [NervesHub.Repo]
 
 config :nerves_hub, NervesHub.PubSub,
   name: NervesHub.PubSub,
@@ -55,6 +67,8 @@ config :nerves_hub, Oban,
      ]}
   ]
 
+config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
+
 config :nerves_hub, NervesHub.Repo,
   queue_target: 500,
   queue_interval: 5_000
@@ -62,16 +76,12 @@ config :nerves_hub, NervesHub.Repo,
 ##
 # NervesHubWWW
 #
-config :nerves_hub,
-  ecto_repos: [NervesHub.Repo],
-  # Options are :ssl or :header
-  websocket_auth_methods: [:ssl]
-
 config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
 
-# Configures the endpoint
+# Configures the Endpoint
 config :nerves_hub, NervesHubWeb.Endpoint,
-  secret_key_base: System.get_env("SECRET_KEY_BASE"),
+  url: [],
+  http: [ip: {0, 0, 0, 0}],
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub
 
@@ -81,6 +91,13 @@ config :opentelemetry,
   resource: %{service: %{name: "nerves_hub"}}
 
 config :swoosh, :api_client, Swoosh.ApiClient.Finch
+
+config :sentry,
+  dsn: System.get_env("SENTRY_DSN_URL"),
+  environment_name: System.get_env("DEPLOY_ENV"),
+  enable_source_code_context: true,
+  root_source_code_paths: [File.cwd!()],
+  included_environments: ["prod", "production", "staging", "qa"]
 
 # Environment specific config
 import_config "#{Mix.env()}.exs"
