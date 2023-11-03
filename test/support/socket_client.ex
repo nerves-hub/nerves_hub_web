@@ -57,6 +57,27 @@ defmodule SocketClient do
     end
   end
 
+  def received_archive?(socket) do
+    GenServer.call(socket, :received_archive?)
+  end
+
+  def wait_archive(_, _ \\ nil)
+
+  def wait_archive(socket, nil) do
+    timeout = 2_000
+    {:ok, t_ref} = :timer.exit_after(timeout, "Timed out waiting for a firmware archive")
+    wait_archive(socket, t_ref)
+  end
+
+  def wait_archive(socket, timer) do
+    if __MODULE__.received_archive?(socket) do
+      :timer.cancel(timer)
+      GenServer.call(socket, :archive_message)
+    else
+      wait_archive(socket, timer)
+    end
+  end
+
   def received_update?(socket) do
     GenServer.call(socket, :received_update?)
   end
@@ -90,6 +111,8 @@ defmodule SocketClient do
       |> assign(:reply, nil)
       |> assign(:received_update?, false)
       |> assign(:update, nil)
+      |> assign(:received_archive?, false)
+      |> assign(:archive, nil)
 
     {:ok, socket}
   end
@@ -119,6 +142,15 @@ defmodule SocketClient do
     {:ok, socket}
   end
 
+  def handle_message("device", "archive", message, socket) do
+    socket =
+      socket
+      |> assign(:received_archive?, true)
+      |> assign(:archive, message)
+
+    {:ok, socket}
+  end
+
   @impl true
   def handle_call(:connected?, _from, socket) do
     {:reply, socket.assigns.connected?, socket}
@@ -126,6 +158,14 @@ defmodule SocketClient do
 
   def handle_call(:joined?, _from, socket) do
     {:reply, socket.assigns.joined?, socket}
+  end
+
+  def handle_call(:received_archive?, _from, socket) do
+    {:reply, socket.assigns.received_archive?, socket}
+  end
+
+  def handle_call(:archive_message, _from, socket) do
+    {:reply, socket.assigns.archive, socket}
   end
 
   def handle_call(:received_update?, _from, socket) do
