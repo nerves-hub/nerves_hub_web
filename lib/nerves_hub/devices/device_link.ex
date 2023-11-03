@@ -8,6 +8,7 @@ defmodule NervesHub.Devices.DeviceLink do
 
   use GenServer
 
+  alias NervesHub.Archives
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments
   alias NervesHub.Devices
@@ -30,6 +31,7 @@ defmodule NervesHub.Devices.DeviceLink do
       :reference_id,
       :transport_pid,
       :transport_ref,
+      :device_api_version,
       :update_started?
     ]
   end
@@ -184,6 +186,8 @@ defmodule NervesHub.Devices.DeviceLink do
         Tracer.set_attribute("nerves_hub.device.id", device.id)
         Tracer.set_attribute("nerves_hub.device.identifier", device.identifier)
 
+        state = %{state | device_api_version: Map.get(params, "device_api_version", "1.0.0")}
+
         description = "device #{device.identifier} connected to the server"
 
         AuditLogs.audit_with_ref!(
@@ -197,7 +201,7 @@ defmodule NervesHub.Devices.DeviceLink do
           device
           |> Devices.verify_deployment()
           |> Deployments.set_deployment()
-          |> Repo.preload(deployment: [:firmware])
+          |> Repo.preload(deployment: [:archive, :firmware])
 
         # clear out any inflight updates, there shouldn't be one at this point
         # we might make a new one right below it, so clear it beforehand
@@ -255,6 +259,23 @@ defmodule NervesHub.Devices.DeviceLink do
               :telemetry.execute([:nerves_hub, :tracker, :exception], %{count: 1})
               {:error, ex}
           end
+
+        if Version.match?(state.device_api_version, ">= 2.0.0") do
+          if device.deployment && device.deployment.archive do
+            archive = device.deployment.archive
+
+            push_cb.("archive", %{
+              size: archive.size,
+              uuid: archive.uuid,
+              version: archive.version,
+              description: archive.description,
+              platform: archive.platform,
+              architecture: archive.architecture,
+              uploaded_at: archive.inserted_at,
+              url: Archives.url(archive)
+            })
+          end
+        end
 
         state =
           case monitor do
