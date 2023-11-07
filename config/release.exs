@@ -13,7 +13,3 @@ config :nerves_hub, NervesHub.SwooshMailer,
   ssl: false,
   tls: :always,
   retries: 1
-
-config :sentry,
-  dsn: System.get_env("SENTRY_DSN_URL"),
-  environment_name: System.get_env("NERVES_HUB_DEPLOY_ENV")

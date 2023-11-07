@@ -28,6 +28,9 @@ defmodule NervesHub.Application do
     Application.put_env(:nerves_hub, :app, vapor_config.nerves_hub.app)
     Application.put_env(:nerves_hub, :deploy_env, vapor_config.nerves_hub.deploy_env)
 
+    Application.put_env(:sentry, :dsn, vapor_config.sentry.dsn_url)
+    Application.put_env(:sentry, :environment_name, vapor_config.nerves_hub.deploy_env)
+
     children =
       [
         {Registry, keys: :unique, name: NervesHub.Devices},

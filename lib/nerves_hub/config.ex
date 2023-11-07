@@ -71,6 +71,8 @@ defmodule NervesHub.Config do
            {:port, "STATSD_PORT", default: 8125, map: &String.to_integer/1}
          ])
 
+  config :sentry, env([{:dsn_url, "SENTRY_DSN_URL"}])
+
   def to_boolean("true"), do: true
   def to_boolean(_), do: false
 

@@ -93,8 +93,7 @@ config :opentelemetry,
 config :swoosh, :api_client, Swoosh.ApiClient.Finch
 
 config :sentry,
-  dsn: System.get_env("SENTRY_DSN_URL"),
-  environment_name: System.get_env("DEPLOY_ENV"),
+  environment_name: Mix.env(),
   enable_source_code_context: true,
   root_source_code_paths: [File.cwd!()],
   included_environments: ["prod", "production", "staging", "qa"]
