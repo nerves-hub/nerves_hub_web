@@ -41,8 +41,6 @@ defmodule NervesHub.Config do
 
   config :device_endpoint,
          env([
-           {:live_view_signing_salt, "DEVICE_ENDPOINT_LIVE_VIEW_SIGNING_SALT", required: false},
-           {:secret_key_base, "DEVICE_ENDPOINT_SECRET_KEY_BASE"},
            {:https_port, "DEVICE_ENDPOINT_HTTPS_PORT", map: &String.to_integer/1},
            {:https_keyfile, "DEVICE_ENDPOINT_HTTPS_KEYFILE"},
            {:https_certfile, "DEVICE_ENDPOINT_HTTPS_CERTFILE"},

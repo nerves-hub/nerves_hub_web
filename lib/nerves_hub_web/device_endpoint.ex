@@ -36,8 +36,6 @@ defmodule NervesHubWeb.DeviceEndpoint do
        )
      )
      |> Keyword.put(:url, host: endpoint.url_host, port: endpoint.url_port, scheme: "https")
-     |> Keyword.put(:secret_key_base, endpoint.secret_key_base)
-     |> Keyword.put(:live_view, signing_salt: endpoint.live_view_signing_salt)
      |> Keyword.put(:server, endpoint.server)}
   end
 end
