@@ -1,0 +1,4 @@
+#!/bin/sh
+
+cd -P -- "$(dirname -- "$0")"
+POOL_SIZE=2 exec ./nerves_hub eval NervesHub.Release.Tasks.migrate

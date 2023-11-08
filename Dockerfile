@@ -1,78 +1,104 @@
+# Find eligible builder and runner images on Docker Hub. We use Ubuntu/Debian
+# instead of Alpine to avoid DNS resolution issues in production.
+#
+# https://hub.docker.com/r/hexpm/elixir/tags?page=1&name=ubuntu
+# https://hub.docker.com/_/ubuntu?tab=tags
+#
+# This file is based on these images:
+#
+#   - https://hub.docker.com/r/hexpm/elixir/tags - for the build image
+#   - https://hub.docker.com/_/debian?tab=tags&page=1&name=bullseye-20230612-slim - for the release image
+#   - https://pkgs.org/ - resource for finding needed packages
+#   - Ex: hexpm/elixir:1.15.4-erlang-26.0.2-debian-bullseye-20230612-slim
+#
 ARG ELIXIR_VERSION=1.15.4
-ARG ERLANG_VERSION=26.0.2
-ARG NODE_VERSION=16.18.1
+ARG OTP_VERSION=26.0.2
+ARG DEBIAN_VERSION=bullseye-20230612-slim
 
-# Fetch deps for building web assets
-FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-debian-buster-20230612 as deps
-RUN apt-get update && apt-get install -y git
-RUN mix local.hex --force && mix local.rebar --force
-ADD . /build
-WORKDIR /build
-RUN mix deps.clean --all && mix deps.get
+ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
+ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
 
-# Build web assets
-FROM node:${NODE_VERSION} as assets
-RUN mkdir -p /priv/static
-WORKDIR /build
-COPY assets assets
-COPY --from=deps /build/deps deps
-RUN cd assets \
-  && npm install \
-  && npm run deploy
+FROM ${BUILDER_IMAGE} as builder
 
-# Elixir build container
-FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-debian-buster-20230612 as builder
+ARG NODE_MAJOR=16
+ARG MIX_RELEASE_REL_TEMPLATES_PATH=rel
 
-ENV MIX_ENV=prod
+# install build dependencies
+RUN apt-get update -y && apt-get install -y build-essential git curl \
+  && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
-RUN apt-get update && apt-get install -y build-essential git curl sudo
-RUN mix local.hex --force && mix local.rebar --force
-RUN mkdir /build
-ADD . /build
-WORKDIR /build
-COPY --from=deps /build/deps deps
-COPY --from=assets /build/priv/static priv/static
+# Install nodejs
+RUN curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
+RUN apt-get install -y nodejs
 
-RUN mix do phx.digest, release nerves_hub --overwrite
-
-# Release Container
-FROM debian:buster-20230612 as release
-
-ENV MIX_ENV=prod
-ENV REPLACE_OS_VARS true
-ENV LC_ALL=en_US.UTF-8
-ENV AWS_ENV_SHA=1393537837dc67d237a9a31c8b4d3dd994022d65e99c1c1e1968edc347aae63f
-
-RUN apt-get update && apt-get install -y bash openssl curl python3 python3-pip jq xdelta3 zip unzip wget && \
-      wget https://github.com/fwup-home/fwup/releases/download/v1.10.1/fwup_1.10.1_amd64.deb && \
-      dpkg -i fwup_1.10.1_amd64.deb && rm fwup_1.10.1_amd64.deb && \
-      apt-get clean && rm -rf /var/lib/apt/lists/* && \
-      pip3 install awscli==1.29.19 PyYAML==6.0.1
-
-# Add SSM Parameter Store helper, which is used in the entrypoint script to set secrets
-RUN wget https://raw.githubusercontent.com/nerves-hub/aws-env/master/bin/aws-env-linux-amd64 && \
-    echo "$AWS_ENV_SHA  aws-env-linux-amd64" | sha256sum -c - && \
-    mv aws-env-linux-amd64 /bin/aws-env && \
-    chmod +x /bin/aws-env
-
+# prepare build dir
 WORKDIR /app
 
-EXPOSE 80
-EXPOSE 443
+# install hex + rebar
+RUN mix local.hex --force && \
+  mix local.rebar --force
 
-ENV LOCAL_IPV4=127.0.0.1
-ENV URL_SCHEME=https \
-  URL_PORT=443
+# set build ENV
+ENV MIX_ENV="prod"
 
-COPY --from=builder /build/_build/$MIX_ENV/rel/nerves_hub/ ./
-COPY --from=builder /build/rel/scripts/docker-entrypoint.sh .
-COPY --from=builder /build/rel/scripts/s3-sync.sh .
-COPY --from=builder /build/rel/scripts/ecs-cluster.sh .
+# install mix dependencies
+COPY mix.exs mix.lock ./
+RUN mix deps.get --only $MIX_ENV
+RUN mkdir config
 
-RUN ["chmod", "+x", "/app/docker-entrypoint.sh"]
-RUN ["chmod", "+x", "/app/s3-sync.sh"]
-RUN ["chmod", "+x", "/app/ecs-cluster.sh"]
+# copy compile-time config files before we compile dependencies
+# to ensure any relevant config change will trigger the dependencies
+# to be re-compiled.
+COPY config/config.exs config/${MIX_ENV}.exs config/
+RUN mix deps.compile
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+COPY priv priv
 
-CMD ["/app/ecs-cluster.sh"]
+COPY lib lib
+
+# Assets
+COPY assets assets
+RUN npm install --prefix assets
+RUN npm run deploy --prefix assets
+RUN mix phx.digest
+
+# Compile the release
+RUN mix compile
+
+# Changes to config/runtime.exs don't require recompiling the code
+COPY config/release.exs config/
+
+COPY rel rel
+RUN mix release
+
+# start a new build stage so that the final image will only contain
+# the compiled release and other runtime necessities
+FROM ${RUNNER_IMAGE}
+
+RUN apt-get update -y && \
+  apt-get install -y libstdc++6 openssl libncurses5 locales ca-certificates xdelta3 zip unzip wget && \
+  wget https://github.com/fwup-home/fwup/releases/download/v1.10.1/fwup_1.10.1_amd64.deb && \
+  dpkg -i fwup_1.10.1_amd64.deb && \
+  rm fwup_1.10.1_amd64.deb && \
+  apt-get clean && \
+  rm -f /var/lib/apt/lists/*_*
+
+# Set the locale
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+
+WORKDIR "/app"
+RUN chown nobody /app
+
+# set runner ENV
+ENV MIX_ENV="prod"
+
+# Only copy the final release from the build stage
+COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/nerves_hub ./
+
+USER nobody
+
+CMD ["/app/bin/server"]

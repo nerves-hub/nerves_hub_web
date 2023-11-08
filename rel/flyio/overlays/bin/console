@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# NOTE: At the time of writing `fly console` does not provide a way to
+# distinguish between existing or ephemeral connections so this scripts first
+# attempts to connect to a running application and falls back to starting the
+# application on failure.
+
+remote() {
+  ./nerves_hub remote 2>/dev/null
+}
+
+ephemeral() {
+  WEB_ENDPOINT_SERVER=false DEVICE_ENDPOINT_SERVER=false ./nerves_hub start_iex
+}
+
+cd -P -- "$(dirname -- "$0")"
+remote || ephemeral

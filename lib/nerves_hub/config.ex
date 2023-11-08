@@ -71,14 +71,33 @@ defmodule NervesHub.Config do
            {:port, "STATSD_PORT", default: 8125, map: &String.to_integer/1}
          ])
 
-  config :sentry, env([{:dsn_url, "SENTRY_DSN_URL"}])
+  config :sentry,
+         env([
+           {:dsn_url, "SENTRY_DSN_URL"},
+           {:included_environments, "SENTRY_INCLUDED_ENVIRONMENTS",
+            default: ["prod"], map: fn envs -> String.split(envs, ",") end}
+         ])
+
+  config :libcluster,
+         env([
+           {:strategy, "LIBCLUSTER_STRATEGY",
+            map: fn
+              strategy when strategy in ["gossip", "dns_poll"] -> strategy
+              strategy -> raise ArgumentError, ~s|unknown libcluster strategy "#{strategy}"|
+            end}
+         ])
 
   def to_boolean("true"), do: true
   def to_boolean(_), do: false
 
   def load! do
-    vapor = Vapor.load!(__MODULE__)
+    __MODULE__
+    |> Vapor.load!()
+    |> setup_firmware_upload_backend()
+    |> setup_libcluster()
+  end
 
+  defp setup_firmware_upload_backend(vapor) do
     case vapor.nerves_hub.firmware_upload_backend do
       "S3" ->
         %{firmware_backend: s3} = Vapor.load!(NervesHub.Config.FirmwareBackendS3)
@@ -100,5 +119,28 @@ defmodule NervesHub.Config do
     end
 
     vapor
+  end
+
+  defp setup_libcluster(vapor) do
+    put_in(
+      vapor,
+      [:libcluster, :topologies],
+      setup_libcluster_topologies(vapor.libcluster.strategy)
+    )
+  end
+
+  defp setup_libcluster_topologies("gossip") do
+    [gossip: [strategy: Cluster.Strategy.Gossip]]
+  end
+
+  defp setup_libcluster_topologies("dns_poll") do
+    %{dns_poll: dns} = Vapor.load!(NervesHub.Config.DNSPoll)
+
+    [
+      dns_poll: [
+        strategy: Cluster.Strategy.DNSPoll,
+        config: Map.to_list(dns)
+      ]
+    ]
   end
 end

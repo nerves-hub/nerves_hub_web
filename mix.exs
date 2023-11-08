@@ -15,10 +15,9 @@ defmodule NervesHubUmbrella.MixProject do
       elixir: "~> 1.11",
       releases: [
         nerves_hub: [
-          steps: [:assemble],
+          steps: [&set_rel_templates_path/1, :assemble],
           include_executables_for: [:unix],
           runtime_config_path: "config/release.exs",
-          reboot_system_after_config: true,
           applications: [
             nerves_hub: :permanent,
             opentelemetry: :temporary,
@@ -27,6 +26,12 @@ defmodule NervesHubUmbrella.MixProject do
         ]
       ]
     ]
+  end
+
+  def set_rel_templates_path(release) do
+    path = with nil <- System.get_env("MIX_RELEASE_REL_TEMPLATES_PATH"), do: "rel"
+
+    NervesHub.Release.rel_template_path(release, path)
   end
 
   # Configuration for the OTP application.
@@ -110,7 +115,8 @@ defmodule NervesHubUmbrella.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:timex, "~> 3.1"},
       {:vapor, "~> 0.10"},
-      {:x509, "~> 0.5.1 or ~> 0.6"}
+      {:x509, "~> 0.5.1 or ~> 0.6"},
+      {:libcluster, "~> 3.3.1"}
     ]
   end
 

@@ -1,0 +1,82 @@
+# fly.toml app configuration file generated for yt-nerves-hub on 2023-11-08T11:06:38+10:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = "yt-nerves-hub"
+primary_region = "sea"
+kill_signal = "SIGTERM"
+swap_size_mb = 512
+console_command = "/app/bin/console"
+
+[build]
+
+[deploy]
+  release_command = "/app/bin/migrate"
+
+[env]
+  AWS_ACCESS_KEY_ID = "x"
+  AWS_FIRMWARE_BUCKET = "x"
+  AWS_REGION = "us-east-1"
+  AWS_SECRET_ACCESS_KEY = "x"
+  DATABASE_IPV6 = "true"
+  DEVICE_ENDPOINT_HTTPS_PORT = "8081"
+  DEVICE_ENDPOINT_SERVER = "true"
+  DEVICE_ENDPOINT_URL_HOST = "nerves-hub.fly.dev"
+  DEVICE_ENDPOINT_URL_PORT = "8080"
+  ERL_AFLAGS = "-proto_dist inet6_tcp"
+  FIRMWARE_UPLOAD_BACKEND = "S3"
+  LIBCLUSTER_DNSPOLL_NODE_BASENAME = "nerves-hub"
+  LIBCLUSTER_DNSPOLL_QUERY = "nerves-hub.internal"
+  LIBCLUSTER_STRATEGY = "dns_poll"
+  NERVES_HUB_APP = "all"
+  NERVES_HUB_DEPLOY_ENV = "prod"
+  NERVES_HUB_FROM_EMAIL = "nerves-hub@app.name"
+  RELEASE_COOKIE = "xxxx"
+  SENTRY_DSN_URL = "x"
+  SES_PORT = "x"
+  SES_SERVER = "x"
+  SMTP_PASSWORD = "x"
+  SMTP_USERNAME = "x"
+  WEB_ENDPOINT_HTTP_PORT = "8080"
+  WEB_ENDPOINT_LIVE_VIEW_SIGNING_SALT = "xxx"
+  WEB_ENDPOINT_SECRET_KEY_BASE = "xxx"
+  WEB_ENDPOINT_SERVER = "true"
+  WEB_ENDPOINT_URL_HOST = "nerves-hub.fly.dev"
+  WEB_ENDPOINT_URL_PORT = "443"
+  WEB_ENDPOINT_URL_SCHEME = "https"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 1000
+    soft_limit = 1000
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "1s"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8081
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 8080
+    handlers = ["tls", "http"]
+  [services.concurrency]
+    type = "requests"
+    hard_limit = 2000
+    soft_limit = 1750
