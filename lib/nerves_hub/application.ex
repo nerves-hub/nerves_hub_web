@@ -8,7 +8,7 @@ defmodule NervesHub.Application do
   def start(_type, _args) do
     :logger.add_handler(:sentry_handler, Sentry.LoggerHandler, %{config: %{}})
 
-    vapor_config = NervesHub.Config.load!()
+    vapor = NervesHub.Config.load!()
 
     case System.cmd("fwup", ["--version"]) do
       {_, 0} ->
@@ -22,28 +22,30 @@ defmodule NervesHub.Application do
       :opentelemetry_cowboy.setup()
     end
 
-    Application.put_env(:nerves_hub, :host, vapor_config.web_endpoint.url_host)
-    Application.put_env(:nerves_hub, :port, vapor_config.web_endpoint.url_port)
-    Application.put_env(:nerves_hub, :from_email, vapor_config.nerves_hub.from_email)
-    Application.put_env(:nerves_hub, :app, vapor_config.nerves_hub.app)
-    Application.put_env(:nerves_hub, :deploy_env, vapor_config.nerves_hub.deploy_env)
+    Application.put_env(:nerves_hub, :host, vapor.web_endpoint.url_host)
+    Application.put_env(:nerves_hub, :port, vapor.web_endpoint.url_port)
+    Application.put_env(:nerves_hub, :from_email, vapor.nerves_hub.from_email)
+    Application.put_env(:nerves_hub, :app, vapor.nerves_hub.app)
+    Application.put_env(:nerves_hub, :deploy_env, vapor.nerves_hub.deploy_env)
 
-    Application.put_env(:sentry, :dsn, vapor_config.sentry.dsn_url)
-    Application.put_env(:sentry, :environment_name, vapor_config.nerves_hub.deploy_env)
+    Application.put_env(:sentry, :dsn, vapor.sentry.dsn_url)
+    Application.put_env(:sentry, :environment_name, vapor.nerves_hub.deploy_env)
+    Application.put_env(:sentry, :included_environments, vapor.sentry.included_environments)
 
     children =
       [
+        {Cluster.Supervisor, [vapor.libcluster.topologies, [name: NervesHub.ClusterSupervisor]]},
         {Registry, keys: :unique, name: NervesHub.Devices},
         {Registry, keys: :unique, name: NervesHub.DeviceLinks},
         {Finch, name: Swoosh.Finch}
       ] ++
-        metrics(@env, vapor_config) ++
+        metrics(@env, vapor) ++
         [
-          {NervesHub.RateLimit, vapor_config.rate_limit},
+          {NervesHub.RateLimit, vapor.rate_limit},
           NervesHub.LoadBalancer,
           NervesHub.Supervisor,
           NervesHub.Tracker
-        ] ++ endpoints(@env, vapor_config)
+        ] ++ endpoints(@env, vapor)
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
     Supervisor.start_link(children, opts)
@@ -56,8 +58,8 @@ defmodule NervesHub.Application do
 
   defp metrics(:test, _), do: []
 
-  defp metrics(_env, vapor_config) do
-    [{NervesHub.Metrics, vapor_config.statsd}]
+  defp metrics(_env, vapor) do
+    [{NervesHub.Metrics, vapor.statsd}]
   end
 
   defp endpoints(:test, _) do
@@ -68,11 +70,11 @@ defmodule NervesHub.Application do
     ]
   end
 
-  defp endpoints(_, vapor_config) do
-    socket_drano_config = vapor_config.socket_drano
+  defp endpoints(_, vapor) do
+    socket_drano_config = vapor.socket_drano
     socket_strategy = {:percentage, socket_drano_config.percentage, socket_drano_config.time}
 
-    case vapor_config.nerves_hub.app do
+    case vapor.nerves_hub.app do
       "all" ->
         [
           NervesHub.Deployments.Supervisor,

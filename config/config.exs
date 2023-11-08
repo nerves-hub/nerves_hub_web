@@ -96,7 +96,7 @@ config :sentry,
   environment_name: Mix.env(),
   enable_source_code_context: true,
   root_source_code_paths: [File.cwd!()],
-  included_environments: ["prod", "production", "staging", "qa"]
+  included_environments: ["prod"]
 
 # Environment specific config
 import_config "#{Mix.env()}.exs"
