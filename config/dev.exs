@@ -47,12 +47,10 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   ]
 
 if System.get_env("OTEL_ENABLED", "false") == "true" do
-  # Export to a local collector
-  config :opentelemetry_exporter,
-    otlp_protocol: :http_protobuf,
-    otlp_endpoint: "http://localhost:4318"
+  config :opentelemetry, :processors,
+    otel_batch_processor: %{
+      exporter: {:otel_exporter_stdout, []}
+    }
 else
-  config :opentelemetry, tracer: :otel_tracer_noop, traces_exporter: :none
+  config :opentelemetry, traces_exporter: :none
 end
-
-config :sentry, environment_name: "developent"

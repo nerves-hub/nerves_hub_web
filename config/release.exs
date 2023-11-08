@@ -1,8 +1,6 @@
 import Config
 
-logger_level = System.get_env("LOG_LEVEL", "info") |> String.to_atom()
-
-config :logger, level: logger_level
+config :logger, level: String.to_atom(System.get_env("LOG_LEVEL", "info"))
 
 config :nerves_hub, NervesHub.SwooshMailer,
   adapter: Swoosh.Adapters.SMTP,

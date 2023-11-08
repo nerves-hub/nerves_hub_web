@@ -29,14 +29,4 @@ config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test
 
 config :nerves_hub, Oban, queues: false, plugins: false
 
-# OTel
-config :opentelemetry, tracer: :otel_tracer_noop, traces_exporter: :none
-
-config :opentelemetry, :processors,
-  otel_batch_processor: %{
-    exporter: {:otel_exporter_tab, []}
-  }
-
-config :sentry,
-  environment_name: :test,
-  included_environments: []
+config :opentelemetry, traces_exporter: :none
