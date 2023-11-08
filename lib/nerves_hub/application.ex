@@ -18,9 +18,10 @@ defmodule NervesHub.Application do
         raise "fwup could not be found in the $PATH. This is a requirement of NervesHubWeb and cannot start otherwise"
     end
 
-    if @env != :test do
-      :opentelemetry_cowboy.setup()
-    end
+    :opentelemetry_cowboy.setup()
+    OpentelemetryPhoenix.setup(adapter: :cowboy2)
+    OpentelemetryEcto.setup([:nerves_hub, :repo])
+    OpentelemetryOban.setup(trace: [:jobs])
 
     Application.put_env(:nerves_hub, :host, vapor.web_endpoint.url_host)
     Application.put_env(:nerves_hub, :port, vapor.web_endpoint.url_port)

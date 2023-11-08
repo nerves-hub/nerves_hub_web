@@ -11,3 +11,35 @@ config :nerves_hub, NervesHub.SwooshMailer,
   ssl: false,
   tls: :always,
   retries: 1
+
+if token = System.get_env("HONEYCOMB_API_KEY") do
+  config :opentelemetry,
+    span_processor: :batch,
+    exporter: :otlp
+
+  config :opentelemetry_exporter,
+    otlp_protocol: :http_protobuf,
+    otlp_endpoint: "https://api.honeycomb.io:443",
+    otlp_headers: [
+      {"x-honeycomb-team", token},
+      {"x-honeycomb-dataset", System.fetch_env!("FLY_APP_NAME")}
+    ]
+else
+  config :opentelemetry, traces_exporter: :none
+end
+
+if token = System.get_env("LIGHTSTEP_ACCESS_TOKEN") do
+  config :opentelemetry,
+    span_processor: :batch,
+    exporter: :otlp
+
+  config :opentelemetry_exporter,
+    otlp_protocol: :http_protobuf,
+    otlp_traces_endpoint: "https://ingest.lightstep.com:443/traces/otlp/v0.9",
+    otlp_compression: :gzip,
+    otlp_headers: [
+      {"lightstep-access-token", token}
+    ]
+else
+  config :opentelemetry, traces_exporter: :none
+end

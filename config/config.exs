@@ -85,7 +85,9 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub
 
-config :opentelemetry, resource: %{service: %{name: "nerves_hub"}}
+config :opentelemetry,
+  sampler: {:parent_based, %{root: {NervesHub.OtelSampler, []}}},
+  resource: %{service: %{name: "nerves_hub"}}
 
 config :swoosh, :api_client, Swoosh.ApiClient.Finch
 
