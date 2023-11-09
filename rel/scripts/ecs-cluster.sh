@@ -23,19 +23,20 @@ METADATA=`curl $ECS_CONTAINER_METADATA_URI`
 export LOCAL_IPV4=$(echo $METADATA | jq -r '.Networks[0] .IPv4Addresses[0]')
 export AWS_REGION_NAME=us-east-1
 
-WWW_IPS=$(service_ip_addresses nerves-hub-www)
+if [[ -z ${WWW_SERVICE} ]]; then
+  export WWW_SERVICE="nerves-hub-www"
+fi
+if [[ -z ${DEVICE_SERVICE} ]]; then
+  export DEVICE_SERVICE="nerves-hub-device"
+fi
+
+WWW_IPS=$(service_ip_addresses ${WWW_SERVICE})
 WWW_NODES=$(format_nodes "$WWW_IPS")
 
-DEVICE_IPS=$(service_ip_addresses nerves-hub-device)
+DEVICE_IPS=$(service_ip_addresses ${DEVICE_SERVICE})
 DEVICE_NODES=$(format_nodes "$DEVICE_IPS")
 
-API_IPS=$(service_ip_addresses nerves-hub-api)
-API_NODES=$(format_nodes "$API_IPS")
-
-API_PUBLIC_IPS=$(service_ip_addresses nerves-hub-api-public)
-API_PUBLIC_NODES=$(format_nodes "$API_PUBLIC_IPS")
-
-NODES=$(echo "$DEVICE_NODES $WWW_NODES $API_NODES $API_PUBLIC_NODES" | tr '\n' ' ')
+NODES=$(echo "$DEVICE_NODES $WWW_NODES" | tr '\n' ' ')
 
 # we should now have something that looks like
 # nerves_hub_www@10.0.2.120 nerves_hub_device@10.0.3.99 nerves_hub_api@10.0.3.101
