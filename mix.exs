@@ -1,4 +1,4 @@
-defmodule NervesHubUmbrella.MixProject do
+defmodule NervesHub.MixProject do
   use Mix.Project
 
   def project do
