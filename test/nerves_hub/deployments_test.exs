@@ -156,6 +156,39 @@ defmodule NervesHub.DeploymentsTest do
       assert_broadcast("deployments/changed", %{}, 500)
     end
 
+    test "changing tags with empty version causes recalculation", state do
+      %{firmware: firmware, org: org, product: product} = state
+
+      deployment =
+        Fixtures.deployment_fixture(org, firmware, %{name: "name", conditions: %{tags: ["alpha"]}})
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      device_one = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+      device_two = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+
+      device_one = Deployments.set_deployment(device_one)
+      assert device_one.deployment_id == deployment.id
+      device_two = Deployments.set_deployment(device_two)
+      refute device_two.deployment_id == deployment.id
+
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+
+      {:ok, deployment} =
+        Deployments.update_deployment(deployment, %{
+          conditions: %{"tags" => ["beta"], "version" => ""}
+        })
+
+      assert deployment.conditions == %{"tags" => ["beta"], "version" => ""}
+
+      device_one = Repo.reload(device_one)
+      refute device_one.deployment_id
+      device_two = Repo.reload(device_two)
+      assert device_two.deployment_id
+
+      assert_broadcast("deployments/changed", %{}, 500)
+    end
+
     test "changing is_active causes a recaluation", state do
       %{firmware: firmware, org: org, product: product} = state
 
