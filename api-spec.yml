@@ -1,0 +1,165 @@
+openapi: '3.0.2'
+info:
+  title: NervesHub Web
+  version: '2.0'
+servers:
+  - url: http://localhost:4000/api
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    deployment:
+      type: object
+      nullable: true
+      properties:
+        name:
+          type: string
+          example: "production"
+        is_active:
+          type: boolean
+        firmware_uuid:
+          type: string
+          format: uuid
+        firmware_version:
+          type: string
+          format: version
+          example: "1.2.1"
+    device:
+      type: object
+      properties:
+        deployment:
+          $ref: '#/components/schemas/deployment'
+        description:
+          type: string
+          example: "A device"
+        firmware_metadata:
+          $ref: '#/components/schemas/firmware_metadata'
+        firmware_update_status:
+          type: string
+          enum: [latest, pending, updating]
+        identifier:
+          type: string
+          example: "NH1234"
+        last_communication:
+          type: string
+          format: date-time
+        online:
+          type: boolean
+        org_name:
+          type: string
+          example: "nerveshub"
+        product_name:
+          type: string
+          example: "sensors"
+        tags:
+          type: array
+          items:
+            type: string
+          example:
+            - "rpi"
+            - "production"
+        updates_blocked_until:
+          type: string
+          format: date-time
+          nullable: true
+          description: Automatic firmware update blocking by NervesHub
+        updates_enabled:
+          type: boolean
+          description: A hard block for devices if `false` and is set by a person
+        version:
+          type: string
+          format: version
+          example: "1.2.1"
+          description: Human readable firmware version
+    error:
+      type: object
+      properties:
+        errors:
+          type: object
+          properties:
+            detail:
+              type: string
+              example: "Not found"
+    firmware_metadata:
+      type: object
+      properties:
+        architecture:
+          type: string
+          example: "arm"
+        author:
+          type: string
+          nullable: true
+          example: "The Nerves Team"
+        description:
+          type: string
+          nullable: true
+          example: "Sensors platform"
+        fwup_version:
+          type: string
+          format: version
+          example: "1.2.1"
+        id:
+          type: string
+          format: uuid
+        misc:
+          type: string
+          nullable: true
+        platform:
+          type: string
+          example: "rpi"
+        product:
+          type: string
+          example: "sensors"
+        uuid:
+          type: string
+          format: uuid
+        vcs_identifier:
+          type: string
+          nullable: true
+        version:
+          type: string
+          format: version
+          example: "1.2.1"
+      description: |
+        Metadata of the active firmware.
+      nullable: true
+paths:
+  /devices/{id}:
+    get:
+      description: |
+        Fetch information about a device.
+
+        If the device is currently online, there will be `firmware_metadata` describing active firmware.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                description: |
+                  Fetch a device's information. You can learn about the update status of the device via the `firmware_metadata` and `deployment` keys.
+
+                  `firmware_metadata` map has the UUID and version of the active firmware.
+
+                  `deployment` contains information about what firmware version and UUID should eventually be running on the device.
+                properties:
+                  data:
+                    $ref: '#/components/schemas/device'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error"
