@@ -333,8 +333,8 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
-      reply = SocketClient.reply(socket)
-      assert %{"update_available" => true, "firmware_url" => _, "firmware_meta" => %{}} = reply
+      update = SocketClient.wait_update(socket)
+      assert %{"update_available" => true, "firmware_url" => _, "firmware_meta" => %{}} = update
 
       device =
         Device
@@ -374,7 +374,7 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.wait_join(socket)
       reply = SocketClient.reply(socket)
 
-      assert %{"update_available" => false} = reply
+      assert %{} = reply
 
       new_firmware = Fixtures.firmware_fixture(org_key, firmware.product, %{version: "0.0.2"})
 
@@ -408,7 +408,7 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
       reply = SocketClient.reply(socket)
-      assert %{"update_available" => false} = reply
+      assert %{} = reply
 
       device = Repo.preload(device, :org)
 

@@ -3,113 +3,542 @@ defmodule NervesHub.Devices.DeviceLink do
   GenServer to track a connected device
 
   Contains logic for a device separate from the transport layer,
-  e.g. websockets.
+  e.g. websockets, MQTT, etc
   """
 
   use GenServer
 
+  alias NervesHub.AuditLogs
+  alias NervesHub.Deployments
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares
+  alias NervesHub.Repo
+  alias NervesHub.Tracker
   alias Phoenix.Socket.Broadcast
 
   require Logger
   require OpenTelemetry.Tracer, as: Tracer
 
   defmodule State do
-    defstruct [:deployment_channel, :device, :transport_pid, :transport_ref]
+    defstruct [
+      :deployment_channel,
+      :device,
+      :penalty_timer,
+      :push_cb,
+      :reconnect_timer,
+      :reference_id,
+      :transport_pid,
+      :transport_ref,
+      :update_started?
+    ]
   end
 
+  @spec start_link(Device.t()) :: GenServer.on_start()
   def start_link(device) do
     GenServer.start_link(__MODULE__, device, name: name(device))
   end
 
+  @spec name(Device.t() | pos_integer()) ::
+          {:via, Registry, {NervesHub.DeviceLinks, {:link, pos_integer()}}}
   def name(device_id) when is_integer(device_id) do
     {:via, Registry, {NervesHub.DeviceLinks, {:link, device_id}}}
   end
 
   def name(device), do: name(device.id)
 
-  def connect(pid, transport_pid) do
+  @spec whereis(pid() | Device.t()) :: pid() | nil
+  def whereis(pid) when is_pid(pid), do: pid
+
+  def whereis(%Device{} = device) do
+    # Prefer the global registry, but fall back to potentially local
+    # process if there is not present globally for some reason
+    Tracker.whereis(device.identifier) || GenServer.whereis(name(device.id))
+  end
+
+  @doc """
+  Mark device as connected
+
+  The transport of choice would call this function when it detects
+  a device has connected to register a push callback which DeviceLink
+  will use to push events through the transport back to the device.
+
+  The push callback mush be arity 2 to accept an `event` and `payload`
+
+  Optionally, you can tell DeviceLink to monitor the calling process
+  to tie the DeviceLinks presence to the transport. This is mostly
+  applicable to the websocket transport.
+
+  Firmware metadata is expected to be a map with the following
+  string keys:
+    * `"nerves_fw_uuid"`
+    * `"nerves_fw_architecture"`
+    * `"nerves_fw_platform"`
+    * `"nerves_fw_product"`
+    * `"nerves_fw_version"`
+    * `"nerves_fw_author"`
+    * `"nerves_fw_description"`
+    * "fwup_version"
+    * `"nerves_fw_vcs_identifier"`
+    * `"nerves_fw_misc"`
+  """
+  @type push_callback :: (String.t(), map() -> :ok)
+  # TODO Maybe this should be atom keys so we can type it? ¬
+  @type firmware_metadata :: map()
+  @spec(
+    connect(Device.t(), push_callback(), firmware_metadata(), monitor: String.t()) :: :ok,
+    {:error, Tracker.Exception.t() | Ecto.Changeset.t()}
+  )
+  def connect(device, push_cb, params, opts \\ [])
+
+  def connect(%Device{} = device, push_cb, params, opts) do
+    link =
+      case whereis(device) do
+        nil ->
+          {:ok, pid} = NervesHub.Devices.Supervisor.start_device(device)
+          pid
+
+        link ->
+          link
+      end
+
+    connect(link, push_cb, params, opts)
+  end
+
+  def connect(link, push_cb, params, opts) when is_function(push_cb, 2) do
+    monitor =
+      case opts[:monitor] do
+        ref when is_binary(ref) ->
+          {self(), ref}
+
+        _ ->
+          nil
+      end
+
     ctx = OpenTelemetry.Ctx.get_current()
-    GenServer.call(pid, {:connect, transport_pid, ctx})
+    GenServer.call(link, {:connect, push_cb, params, monitor, ctx})
   end
 
-  def update_device(pid, device) do
-    GenServer.call(pid, {:update_device, device})
+  @doc """
+  Mark device as disconnected
+
+  For websocket transport, this will also close the DeviceLink process
+  """
+  def disconnect(link_or_pid) do
+    if link = whereis(link_or_pid) do
+      GenServer.call(link, :disconnect)
+    else
+      :ok
+    end
   end
 
+  @spec recv(GenServer.server(), String.t(), map()) :: :ok
+  def recv(link, event, payload) do
+    GenServer.call(link, {:receive, event, payload})
+  end
+
+  @impl GenServer
   def init(device) do
     {:ok, %State{device: device}, {:continue, :boot}}
   end
 
-  def handle_continue(:boot, state) do
-    subscribe("device:#{state.device.id}")
+  @impl GenServer
+  def handle_continue(:boot, %{device: device} = state) do
+    ref_id = Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
 
-    state =
-      if state.device.deployment_id do
-        subscribe("deployment:#{state.device.deployment_id}")
-        %{state | deployment_channel: "deployment:#{state.device.deployment_id}"}
+    deployment_channel =
+      if device.deployment_id do
+        "deployment:#{device.deployment_id}"
       else
-        subscribe("deployment:none")
-        %{state | deployment_channel: "deployment:none"}
+        "deployment:none"
       end
 
-    {:noreply, state}
+    subscribe("device:#{device.id}")
+    subscribe(deployment_channel)
+
+    # local node tracking
+    Registry.register(NervesHub.Devices, device.id, %{
+      deployment_id: device.deployment_id,
+      firmware_uuid: get_in(device, [Access.key(:firmware_uuid), Access.key(:uuid)]),
+      updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+      updating: false
+    })
+
+    {:noreply, %{state | deployment_channel: deployment_channel, reference_id: ref_id}}
   end
 
-  def handle_call({:update_device, device}, _from, state) do
-    unsubscribe(state.deployment_channel)
+  @impl GenServer
+  def handle_call(:disconnect, _from, state) do
+    {:reply, :ok, do_disconnect(state)}
+  end
 
-    state = %{state | device: device}
+  def handle_call({:connect, push_cb, params, monitor, ctx}, _from, %{device: device} = state) do
+    OpenTelemetry.Ctx.attach(ctx)
 
-    state =
-      if device.deployment_id do
-        subscribe("deployment:#{state.device.deployment_id}")
-        %{state | deployment_channel: "deployment:#{state.device.deployment_id}"}
+    # Cancel any pending reconnect timer before we get too busy doing work
+    _ = if state.reconnect_timer, do: Process.cancel_timer(state.reconnect_timer)
+
+    Tracer.with_span "DeviceLink.connect" do
+      with {:ok, device} <- update_metadata(device, params),
+           {:ok, device} <- Devices.device_connected(device) do
+        Tracer.set_attribute("nerves_hub.device.id", device.id)
+        Tracer.set_attribute("nerves_hub.device.identifier", device.identifier)
+
+        description = "device #{device.identifier} connected to the server"
+
+        AuditLogs.audit_with_ref!(
+          device,
+          device,
+          description,
+          state.reference_id
+        )
+
+        device =
+          device
+          |> Devices.verify_deployment()
+          |> Deployments.set_deployment()
+          |> Repo.preload(deployment: [:firmware])
+
+        # clear out any inflight updates, there shouldn't be one at this point
+        # we might make a new one right below it, so clear it beforehand
+        Devices.clear_inflight_update(device)
+
+        # Let the orchestrator handle this going forward ?
+        update_payload = Devices.resolve_update(device)
+
+        push_update? =
+          update_payload.update_available and not is_nil(update_payload.firmware_url) and
+            update_payload.firmware_meta[:uuid] != params["currently_downloading_uuid"]
+
+        if push_update? do
+          # Push the update to the device
+          push_cb.("update", update_payload)
+
+          deployment = device.deployment
+
+          description =
+            "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} on connect"
+
+          AuditLogs.audit_with_ref!(
+            deployment,
+            device,
+            description,
+            state.reference_id
+          )
+
+          # if there's an update, track it
+          Devices.told_to_update(device, deployment)
+        end
+
+        ## After join
+        :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1})
+
+        # local node tracking
+        Registry.update_value(NervesHub.Devices, device.id, fn value ->
+          update = %{
+            deployment_id: device.deployment_id,
+            firmware_uuid: device.firmware_metadata.uuid,
+            updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+            updating: push_update?
+          }
+
+          Map.merge(value, update)
+        end)
+
+        # Cluster tracking
+        reply =
+          try do
+            Tracker.online(device)
+            {:ok, self()}
+          rescue
+            ex in NervesHub.Tracker.Exception ->
+              :telemetry.execute([:nerves_hub, :tracker, :exception], %{count: 1})
+              {:error, ex}
+          end
+
+        state =
+          case monitor do
+            {transport_pid, ref_id} ->
+              ref = Process.monitor(transport_pid)
+              %{state | reference_id: ref_id, transport_pid: transport_pid, transport_ref: ref}
+
+            _ ->
+              state
+          end
+
+        state =
+          %{
+            state
+            | device: device,
+              push_cb: push_cb,
+              reconnect_timer: nil,
+              update_started?: push_update?
+          }
+          |> maybe_start_penalty_timer()
+
+        {:reply, reply, state}
       else
-        subscribe("deployment:none")
-        %{state | deployment_channel: "deployment:none"}
+        {:error, err} ->
+          {:reply, {:error, err}, state}
+
+        err ->
+          {:reply, {:error, err}, state}
+      end
+    end
+  end
+
+  def handle_call(
+        {:receive, "fwup_progress", %{"value" => percent}},
+        _from,
+        %{device: device} = state
+      ) do
+    NervesHubWeb.DeviceEndpoint.broadcast_from!(
+      self(),
+      "device:#{device.identifier}:internal",
+      "fwup_progress",
+      %{
+        percent: percent
+      }
+    )
+
+    # if this is the first fwup we see, then mark it as an update attempt
+    state =
+      if !state.update_started? do
+        # reload update attempts because they might have been cleared
+        # and we have a cached stale version
+        updated_device = Repo.reload(device)
+        device = %{device | update_attempts: updated_device.update_attempts}
+
+        {:ok, device} = Devices.update_attempted(device)
+
+        Registry.update_value(NervesHub.Devices, device.id, fn value ->
+          Map.put(value, :updating, true)
+        end)
+
+        %{state | device: device, update_started?: true}
+      else
+        state
       end
 
     {:reply, :ok, state}
   end
 
-  def handle_call({:connect, transport_pid, ctx}, _from, state) do
-    OpenTelemetry.Ctx.attach(ctx)
-
-    Tracer.with_span "DeviceLink.connect" do
-      ref = Process.monitor(transport_pid)
-      state = %{state | transport_pid: transport_pid, transport_ref: ref}
+  def handle_call({:receive, "status_update", %{"status" => _status}}, _from, state) do
+    trace("DeviceLink.status_update", state.device, fn ->
+      # TODO store in tracker or the database?
       {:reply, :ok, state}
-    end
+    end)
   end
 
-  def handle_info({:DOWN, transport_ref, :process, _pid, _reason}, state) do
-    state =
-      if transport_ref == state.transport_ref do
-        %{state | transport_ref: nil}
+  def handle_call({:receive, "rebooting", _}, _from, state) do
+    trace("DeviceLink.rebooting", state.device, fn ->
+      {:reply, :ok, state}
+    end)
+  end
+
+  def handle_call(
+        {:receive, "connection_types", %{"values" => types}},
+        _from,
+        %{device: device} = state
+      ) do
+    trace("DeviceLink.connection_types", device, fn ->
+      {:ok, device} = Devices.update_device(device, %{"connection_types" => types})
+      {:reply, :ok, %{state | device: device}}
+    end)
+  end
+
+  def handle_call({:receive, _event, _payload}, _from, state) do
+    {:reply, {:error, :unhandled}, state}
+  end
+
+  @impl GenServer
+  def handle_info(
+        {:DOWN, transport_ref, :process, _pid, _reason},
+        %{transport_ref: transport_ref} = state
+      ) do
+    {:noreply, do_disconnect(state)}
+  end
+
+  # We can save a fairly expensive query by checking the incoming deployment's payload
+  # If it matches, we can set the deployment directly and only do 3 queries (update, two preloads)
+  def handle_info(
+        %Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload},
+        %{device: device} = state
+      ) do
+    trace("DeviceLink.deployment_changed", device, fn ->
+      if device_matches_deployment_payload?(device, payload) do
+        {:noreply, assign_deployment(state, payload)}
       else
-        state
+        {:noreply, state}
       end
-
-    Process.send_after(self(), :timeout_device, 3_000)
-
-    {:noreply, state}
+    end)
   end
 
-  def handle_info(:timeout_device, state) do
-    if is_nil(state.transport_ref) do
-      {:stop, :normal, state}
-    else
+  def handle_info(
+        %Broadcast{event: "deployments/changed", payload: payload},
+        %{device: device} = state
+      ) do
+    trace("DeviceLink.deployment_changed", device, fn ->
+      if device_matches_deployment_payload?(device, payload) do
+        :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
+        {:noreply, assign_deployment(state, payload)}
+      else
+        # jitter over a minute but spaced out to attempt to not
+        # slam the database when all devices check
+        jitter = :rand.uniform(30) * 2 * 1000
+        Process.send_after(self(), :resolve_changed_deployment, jitter)
+        {:noreply, state}
+      end
+    end)
+  end
+
+  def handle_info(:resolve_changed_deployment, %{device: device} = state) do
+    trace("DeviceLink.resolve_changed_deployment", device, fn ->
+      :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
+
+      device =
+        device
+        |> Repo.reload()
+        |> Deployments.set_deployment()
+        |> Repo.preload([deployment: [:firmware]], force: true)
+
+      description =
+        if device.deployment_id do
+          "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+        else
+          "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
+        end
+
+      AuditLogs.audit_with_ref!(
+        device,
+        device,
+        description,
+        state.reference_id
+      )
+
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.put(value, :deployment_id, device.deployment_id)
+      end)
+
+      {:noreply, update_device(state, device)}
+    end)
+  end
+
+  # manually pushed
+  def handle_info(
+        %Broadcast{event: "deployments/update", payload: %{deployment_id: nil} = payload},
+        state
+      ) do
+    trace("DeviceLink.deployments_update", state.device, fn ->
+      :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
+      Tracer.set_attribute("nerves_hub.deployment.manual", true)
+      state.push_cb.("update", payload)
       {:noreply, state}
-    end
+    end)
   end
 
-  # Forward broadcasts to the channel for now
-  def handle_info(%Broadcast{} = broadcast, state) do
-    if state.transport_pid do
-      send(state.transport_pid, broadcast)
-    end
-
+  def handle_info(%Broadcast{event: "deployments/update"}, state) do
     {:noreply, state}
+  end
+
+  def handle_info({"deployments/update", inflight_update}, %{device: device} = state) do
+    trace("DeviceLink.deployments_update", device, fn ->
+      :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1})
+
+      device = Repo.preload(device, [deployment: [:firmware]], force: true)
+
+      payload = Devices.resolve_update(device)
+
+      case payload.update_available do
+        true ->
+          deployment = device.deployment
+          firmware = deployment.firmware
+
+          description =
+            "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
+
+          # If we get here, the device is connected and high probability it receives
+          # the update message so we can Audit and later assert on this audit event
+          # as a loosely valid attempt to update
+          AuditLogs.audit_with_ref!(
+            deployment,
+            device,
+            description,
+            state.reference_id
+          )
+
+          Devices.update_started!(inflight_update)
+          state.push_cb.("update", payload)
+
+          {:noreply, state}
+
+        false ->
+          {:noreply, state}
+      end
+    end)
+  end
+
+  def handle_info(%Broadcast{event: "moved"}, state) do
+    trace("DeviceLink.deployment_moved", state.device, fn ->
+      # The old deployment is no longer valid, so let's look one up again
+      handle_info(:resolve_changed_deployment, state)
+    end)
+  end
+
+  # Update local state and tell the various servers of the new information
+  def handle_info(%Broadcast{event: "devices/updated"}, %{device: device} = state) do
+    trace("DeviceLink.devices_updated", device, fn ->
+      device = Repo.reload(device)
+
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.merge(value, %{
+          updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
+        })
+      end)
+
+      state =
+        state
+        |> update_device(device)
+        |> maybe_start_penalty_timer()
+
+      {:noreply, state}
+    end)
+  end
+
+  def handle_info(%Broadcast{event: event, payload: payload}, state) do
+    # Forward broadcasts to the device for now
+    state.push_cb.(event, payload)
+    {:noreply, state}
+  end
+
+  def handle_info(:penalty_box_check, %{device: device} = state) do
+    trace("DeviceLink.penalty_box_check", device, fn ->
+      updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
+
+      Tracer.set_attribute("nerves_hub.device.updates_enabled", updates_enabled)
+
+      :telemetry.execute([:nerves_hub, :devices, :penalty_box, :check], %{
+        updates_enabled: updates_enabled
+      })
+
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.merge(value, %{updates_enabled: updates_enabled})
+      end)
+
+      # Just in case time is weird or it got placed back in between checks
+      state =
+        if !updates_enabled do
+          maybe_start_penalty_timer(state)
+        else
+          state
+        end
+
+      {:noreply, state}
+    end)
+  end
+
+  def handle_info(:timeout_reconnect, state) do
+    {:stop, :normal, state}
   end
 
   defp subscribe(topic) do
@@ -118,5 +547,118 @@ defmodule NervesHub.Devices.DeviceLink do
 
   defp unsubscribe(topic) do
     Phoenix.PubSub.unsubscribe(NervesHub.PubSub, topic)
+  end
+
+  # The reported firmware is the same as what we already know about
+  def update_metadata(%Device{firmware_metadata: %{uuid: uuid}} = device, %{
+        "nerves_fw_uuid" => uuid
+      }) do
+    {:ok, device}
+  end
+
+  # A new UUID is being reported from an update
+  def update_metadata(device, params) do
+    with {:ok, metadata} <- Firmwares.metadata_from_device(params),
+         {:ok, device} <- Devices.update_firmware_metadata(device, metadata) do
+      Devices.firmware_update_successful(device)
+    end
+  end
+
+  defp device_matches_deployment_payload?(device, payload) do
+    payload.active &&
+      device.product_id == payload.product_id &&
+      device.firmware_metadata.platform == payload.platform &&
+      device.firmware_metadata.architecture == payload.architecture &&
+      Enum.all?(payload.conditions["tags"], &Enum.member?(device.tags, &1)) &&
+      Deployments.version_match?(device, payload)
+  end
+
+  defp assign_deployment(%{device: device} = state, payload) do
+    trace("DeviceLink.assign_deployment", device, fn ->
+      device =
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, payload.id)
+        |> Repo.update!()
+        |> Repo.preload([deployment: [:firmware]], force: true)
+
+      description =
+        "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+
+      AuditLogs.audit_with_ref!(device, device, description, state.reference_id)
+
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.put(value, :deployment_id, device.deployment_id)
+      end)
+
+      update_device(state, device)
+    end)
+  end
+
+  def update_device(state, device) do
+    unsubscribe(state.deployment_channel)
+
+    deployment_channel =
+      if device.deployment_id do
+        "deployment:#{device.deployment_id}"
+      else
+        "deployment:none"
+      end
+
+    subscribe(deployment_channel)
+    %{state | device: device, deployment_channel: deployment_channel}
+  end
+
+  defp maybe_start_penalty_timer(%{device: %{updates_blocked_until: nil}} = state), do: state
+
+  defp maybe_start_penalty_timer(state) do
+    check_penalty_box_in =
+      DateTime.diff(state.device.updates_blocked_until, DateTime.utc_now(), :millisecond)
+
+    ref =
+      if check_penalty_box_in > 0 do
+        _ = if state.penalty_timer, do: Process.cancel_timer(state.penalty_timer)
+        # delay the check slightly to make sure the penalty is cleared when its updated
+        Process.send_after(self(), :penalty_box_check, check_penalty_box_in + 1000)
+      end
+
+    %{state | penalty_timer: ref}
+  end
+
+  defp trace(name, device, fun) do
+    Tracer.with_span name do
+      Tracer.set_attributes(%{
+        "nerves_hub.device.id" => device.id,
+        "nerves_hub.device.identifier" => device.identifier
+      })
+
+      fun.()
+    end
+  end
+
+  defp do_disconnect(state) do
+    _ =
+      if state.transport_ref do
+        Process.demonitor(state.transport_ref)
+      end
+
+    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1})
+
+    {:ok, device} = Devices.update_device(state.device, %{last_communication: DateTime.utc_now()})
+
+    description = "device #{device.identifier} disconnected from the server"
+
+    AuditLogs.audit_with_ref!(device, device, description, state.reference_id)
+
+    Registry.unregister(NervesHub.Devices, device.id)
+    Tracker.offline(device)
+
+    # Give the transport 3 seconds to reconnect to handle cases
+    # of a socket flapping quickly or something which can be costly
+    # when doing all the DB lookups on connect in quick succession
+    _ = if state.reconnect_timer, do: Process.cancel_timer(state.reconnect_timer)
+    ref = Process.send_after(self(), :timeout_reconnect, :timer.seconds(3))
+
+    %{state | device: device, reconnect_timer: ref, transport_pid: nil, transport_ref: nil}
   end
 end
