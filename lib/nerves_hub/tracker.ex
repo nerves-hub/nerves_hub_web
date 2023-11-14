@@ -83,7 +83,7 @@ defmodule NervesHub.Tracker do
   def online(identifier) when is_binary(identifier) do
     pid = whereis(identifier)
 
-    if pid != nil do
+    if pid != nil and pid != self() do
       # If this happens to fail because the process is already dead,
       # then goal achieved!
       try do
