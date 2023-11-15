@@ -84,6 +84,15 @@ components:
             detail:
               type: string
               example: "Not found"
+    firmware_key:
+      type: object
+      properties:
+        name:
+          type: string
+          example: test
+        key:
+          type: string
+          example: h8L1FcfK8mUSnIvM0rffjoapItsI4fimIU9x9Jq2TdU=
     firmware_metadata:
       type: object
       properties:
@@ -130,9 +139,8 @@ components:
 paths:
   /devices/{id}:
     get:
+      summary: Fetch information about a device.
       description: |
-        Fetch information about a device.
-
         If the device is currently online, there will be `firmware_metadata` describing active firmware.
       parameters:
         - in: path
@@ -163,3 +171,72 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/error"
+  /orgs/{org}/keys:
+    get:
+      summary: List all firmware signing keys for the organization
+      parameters:
+        - in: query
+          name: org
+          schema:
+            type: string
+            example: nerveshub
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: test
+                        key:
+                          type: string
+                          example: h8L1FcfK8mUSnIvM0rffjoapItsI4fimIU9x9Jq2TdU=
+    post:
+      summary: Add a new firmware signing key
+      parameters:
+        - in: query
+          name: org
+          schema:
+            type: string
+            example: nerveshub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/firmware_key'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/firmware_key'
+  /users/me:
+    get:
+      summary: View information about the authenticated user
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                    example: nerveshub
+                  email:
+                    type: string
+                    example: nerveshub@example.org
