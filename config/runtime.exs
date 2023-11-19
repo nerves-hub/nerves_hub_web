@@ -140,6 +140,23 @@ if config_env() == :prod do
           ]
         ]
       ]
+
+    if System.get_env("AWS_IOT_ENABLED") in ["1", "true", "t"] do
+      config :nerves_hub, NervesHub.AWSIoT,
+        queues: [
+          [
+            # AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be set
+            name: :nerves_hub_iot_messages,
+            producer: [
+              module:
+                {BroadwaySQS.Producer,
+                 queue_url: System.get_env("AWS_IOT_SQS_QUEUE", "nerves-hub-iot-messages")}
+            ],
+            processors: [default: []],
+            batchers: [default: [batch_size: 10, batch_timeout: 2000]]
+          ]
+        ]
+    end
   end
 end
 

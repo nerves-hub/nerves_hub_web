@@ -82,3 +82,36 @@ config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test
 config :nerves_hub, NervesHub.RateLimit, limit: 100
 
 config :sentry, environment_name: :test
+
+## AWS IoT
+broker_opts = [
+  name: NervesHub.AWSIoT.PintBroker,
+  rules: [{"nh/device_messages", &Broadway.test_message(:nerves_hub_iot_messages, &1.payload)}],
+  on_connect: fn client_id ->
+    payload = %{clientId: client_id, eventType: :connected}
+    Broadway.test_message(:nerves_hub_iot_messages, Jason.encode!(payload))
+  end,
+  on_disconnect: fn client_id ->
+    payload = %{
+      clientId: client_id,
+      eventType: :disconnected,
+      disconnectReason: "CONNECTION_LOST"
+    }
+
+    Broadway.test_message(:nerves_hub_iot_messages, Jason.encode!(payload))
+  end
+]
+
+config :nerves_hub, NervesHub.AWSIoT,
+  # Use PintBroker for local device connections in tests
+  local_broker: {PintBroker, broker_opts},
+  queues: [
+    [
+      name: :nerves_hub_iot_messages,
+      producer: [
+        module: {Broadway.DummyProducer, []}
+      ],
+      processors: [default: []],
+      batchers: [default: [batch_size: 10, batch_timeout: 2000]]
+    ]
+  ]
