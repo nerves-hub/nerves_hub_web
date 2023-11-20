@@ -91,28 +91,31 @@ defmodule NervesHubWeb.DeviceLive.Show do
   def handle_progress(:certificate, _entry, socket), do: {:noreply, socket}
 
   defp import_cert(%{assigns: %{device: device}} = socket, path) do
-    with {:ok, pem_or_der} <- File.read(path),
-         {:ok, otp_cert} <- Certificate.from_pem_or_der(pem_or_der),
-         {:ok, db_cert} <- Devices.create_device_certificate(device, otp_cert) do
-      updated = update_in(device.device_certificates, &[db_cert | &1])
+    socket =
+      with {:ok, pem_or_der} <- File.read(path),
+           {:ok, otp_cert} <- Certificate.from_pem_or_der(pem_or_der),
+           {:ok, db_cert} <- Devices.create_device_certificate(device, otp_cert) do
+        updated = update_in(device.device_certificates, &[db_cert | &1])
 
-      assign(socket, :device, updated)
-      |> put_flash(:info, "Certificate Upload Successful")
-    else
-      {:error, :malformed} ->
-        put_flash(socket, :error, "Incorrect filetype or malformed certificate")
+        assign(socket, :device, updated)
+        |> put_flash(:info, "Certificate Upload Successful")
+      else
+        {:error, :malformed} ->
+          put_flash(socket, :error, "Incorrect filetype or malformed certificate")
 
-      {:error, %Ecto.Changeset{errors: errors}} ->
-        formatted =
-          Enum.map_join(errors, "\n", fn {field, {msg, _}} ->
-            ["* ", to_string(field), " ", msg]
-          end)
+        {:error, %Ecto.Changeset{errors: errors}} ->
+          formatted =
+            Enum.map_join(errors, "\n", fn {field, {msg, _}} ->
+              ["* ", to_string(field), " ", msg]
+            end)
 
-        put_flash(socket, :error, IO.iodata_to_binary(["Failed to save:\n", formatted]))
+          put_flash(socket, :error, IO.iodata_to_binary(["Failed to save:\n", formatted]))
 
-      err ->
-        put_flash(socket, :error, "Unknown file error - #{inspect(err)}")
-    end
+        err ->
+          put_flash(socket, :error, "Unknown file error - #{inspect(err)}")
+      end
+
+    {:ok, socket}
   end
 
   def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
