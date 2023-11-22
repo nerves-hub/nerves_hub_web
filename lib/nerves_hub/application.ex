@@ -50,9 +50,11 @@ defmodule NervesHub.Application do
   end
 
   defp endpoints(:test) do
+    vapor = NervesHub.Config.DeviceEndpoint.load!()
+
     [
       NervesHub.Devices.Supervisor,
-      NervesHubWeb.DeviceEndpoint,
+      {NervesHubWeb.DeviceEndpoint, vapor},
       NervesHubWeb.Endpoint
     ]
   end
@@ -64,19 +66,23 @@ defmodule NervesHub.Application do
 
     case Application.get_env(:nerves_hub, :app) do
       "all" ->
+        vapor = NervesHub.Config.DeviceEndpoint.load!()
+
         [
           NervesHub.Deployments.Supervisor,
           NervesHub.Devices.Supervisor,
-          NervesHubWeb.DeviceEndpoint,
+          {NervesHubWeb.DeviceEndpoint, vapor},
           NervesHubWeb.Endpoint,
           {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS], strategy: socket_strategy}
         ]
 
       "device" ->
+        vapor = NervesHub.Config.DeviceEndpoint.load!()
+
         [
           NervesHub.Deployments.Supervisor,
           NervesHub.Devices.Supervisor,
-          NervesHubWeb.DeviceEndpoint,
+          {NervesHubWeb.DeviceEndpoint, vapor},
           {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS, strategy: socket_strategy]}
         ]
 

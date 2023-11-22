@@ -26,6 +26,11 @@ config :phoenix,
 
 # Configures the endpoint
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
+  https: [
+    ip: {0, 0, 0, 0},
+    otp_app: :nerves_hub,
+    verify_fun: {&NervesHub.SSL.verify_fun/3, nil}
+  ],
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub
 

@@ -9,48 +9,33 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Repo
   alias NervesHub.Tracker
-  alias NervesHubWeb.DeviceEndpoint
 
   @valid_serial "device-1234"
   @valid_product "test-product"
 
-  @device_port Application.compile_env(:nerves_hub, DeviceEndpoint) |> get_in([:https, :port])
+  defp device_port do
+    Keyword.fetch!(NervesHubWeb.DeviceEndpoint.config(:https), :port)
+  end
 
-  @bad_socket_config [
-    uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-    json_parser: Jason,
-    reconnect_after_msec: [500],
-    rejoin_after_msec: [500],
-    mint_opts: [
-      protocols: [:http1],
-      transport_opts: [
-        verify: :verify_peer,
-        versions: [:"tlsv1.2"],
-        certfile: Path.expand("test/fixtures/ssl/device-fake.pem") |> to_charlist,
-        keyfile: Path.expand("test/fixtures/ssl/device-fake-key.pem") |> to_charlist,
-        cacertfile: Path.expand("test/fixtures/ssl/ca-fake.pem") |> to_charlist,
-        server_name_indication: ~c"device.nerves-hub.org"
+  defp socket_config do
+    [
+      uri: "wss://127.0.0.1:#{device_port()}/socket/websocket",
+      json_parser: Jason,
+      reconnect_after_msec: [500],
+      rejoin_after_msec: [500],
+      mint_opts: [
+        protocols: [:http1],
+        transport_opts: [
+          verify: :verify_peer,
+          versions: [:"tlsv1.2"],
+          certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
+          keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
+          cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist,
+          server_name_indication: ~c"device.nerves-hub.org"
+        ]
       ]
     ]
-  ]
-
-  @socket_config [
-    uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-    json_parser: Jason,
-    reconnect_after_msec: [500],
-    rejoin_after_msec: [500],
-    mint_opts: [
-      protocols: [:http1],
-      transport_opts: [
-        verify: :verify_peer,
-        versions: [:"tlsv1.2"],
-        certfile: Path.expand("test/fixtures/ssl/device-1234-cert.pem") |> to_charlist,
-        keyfile: Path.expand("test/fixtures/ssl/device-1234-key.pem") |> to_charlist,
-        cacertfile: Path.expand("test/fixtures/ssl/ca.pem") |> to_charlist,
-        server_name_indication: ~c"device.nerves-hub.org"
-      ]
-    ]
-  ]
+  end
 
   def device_fixture(user, device_params \\ %{}, org \\ nil) do
     org = org || Fixtures.org_fixture(user)
@@ -91,7 +76,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       Fixtures.device_certificate_fixture(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(socket_config())
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
@@ -114,7 +99,7 @@ defmodule NervesHubWeb.WebsocketTest do
       Fixtures.device_certificate_fixture(device)
 
       config = [
-        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        uri: "wss://127.0.0.1:#{device_port()}/socket/websocket",
         json_parser: Jason,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],
@@ -147,7 +132,25 @@ defmodule NervesHubWeb.WebsocketTest do
     end
 
     test "authentication rejected to channel using incorrect client ssl certificate" do
-      {:ok, socket} = SocketClient.start_link(@bad_socket_config)
+      config = [
+        uri: "wss://127.0.0.1:#{device_port()}/socket/websocket",
+        json_parser: Jason,
+        reconnect_after_msec: [500],
+        rejoin_after_msec: [500],
+        mint_opts: [
+          protocols: [:http1],
+          transport_opts: [
+            verify: :verify_peer,
+            versions: [:"tlsv1.2"],
+            certfile: Path.expand("test/fixtures/ssl/device-fake.pem") |> to_charlist,
+            keyfile: Path.expand("test/fixtures/ssl/device-fake-key.pem") |> to_charlist,
+            cacertfile: Path.expand("test/fixtures/ssl/ca-fake.pem") |> to_charlist,
+            server_name_indication: ~c"device.nerves-hub.org"
+          ]
+        ]
+      ]
+
+      {:ok, socket} = SocketClient.start_link(config)
       refute SocketClient.connected?(socket)
 
       SocketClient.close(socket)
@@ -192,7 +195,7 @@ defmodule NervesHubWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        uri: "wss://127.0.0.1:#{device_port()}/socket/websocket",
         json_parser: Jason,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],
@@ -270,7 +273,7 @@ defmodule NervesHubWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        uri: "wss://127.0.0.1:#{device_port()}/socket/websocket",
         json_parser: Jason,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],
@@ -329,7 +332,7 @@ defmodule NervesHubWeb.WebsocketTest do
       })
       |> Deployments.update_deployment(%{is_active: true})
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(socket_config())
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
@@ -368,7 +371,7 @@ defmodule NervesHubWeb.WebsocketTest do
           is_active: true
         })
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(socket_config())
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
@@ -403,7 +406,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       query_uuid = firmware.uuid
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(socket_config())
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
@@ -444,7 +447,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       Fixtures.device_certificate_fixture(device)
 
-      {:ok, socket} = SocketClient.start_link(@socket_config)
+      {:ok, socket} = SocketClient.start_link(socket_config())
       SocketClient.wait_connect(socket)
 
       # Device has updated and no longer matches the attached deployment
@@ -485,7 +488,7 @@ defmodule NervesHubWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        uri: "wss://127.0.0.1:#{device_port()}/socket/websocket",
         json_parser: Jason,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],
@@ -546,7 +549,7 @@ defmodule NervesHubWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        uri: "wss://127.0.0.1:#{device_port()}/socket/websocket",
         json_parser: Jason,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],
@@ -601,7 +604,7 @@ defmodule NervesHubWeb.WebsocketTest do
         |> X509.Certificate.from_pem!()
 
       opts = [
-        uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
+        uri: "wss://127.0.0.1:#{device_port()}/socket/websocket",
         json_parser: Jason,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],

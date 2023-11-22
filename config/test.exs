@@ -18,19 +18,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   code_reloader: false,
   debug_errors: true,
   check_origin: false,
-  watchers: [],
-  server: true,
-  https: [
-    port: 4101,
-    otp_app: :nerves_hub,
-    # Enable client SSL
-    verify: :verify_peer,
-    verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
-    fail_if_no_peer_cert: true,
-    keyfile: Path.join([__DIR__, "../test/fixtures/ssl/device.nerves-hub.org-key.pem"]),
-    certfile: Path.join([__DIR__, "../test/fixtures/ssl/device.nerves-hub.org.pem"]),
-    cacertfile: Path.join([__DIR__, "../test/fixtures/ssl/ca.pem"])
-  ]
+  watchers: []
 
 ##
 # NervesHub
