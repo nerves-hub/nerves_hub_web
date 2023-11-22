@@ -259,6 +259,7 @@ defmodule NervesHub.Deployments do
   def alternate_deployments(device, active) do
     Deployment
     |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
+    |> preload([_, firmware: f], firmware: f)
     |> where([d], d.product_id == ^device.product_id)
     |> where([d], d.is_active in ^active)
     |> ignore_same_deployment(device)
@@ -266,9 +267,17 @@ defmodule NervesHub.Deployments do
     |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
     |> where([d], fragment("?->'tags' <@ to_jsonb(?::text[])", d.conditions, ^device.tags))
     |> Repo.all()
-    |> Enum.filter(fn deployment ->
-      version_match?(device, deployment)
-    end)
+    |> Enum.filter(&version_match?(device, &1))
+    |> Enum.sort_by(
+      &{&1.firmware.version, &1.id},
+      fn {a_vsn, a_id}, {b_vsn, b_id} ->
+        case Version.compare(a_vsn, b_vsn) do
+          :lt -> false
+          :eq -> a_id <= b_id
+          :gt -> true
+        end
+      end
+    )
   end
 
   @doc """
