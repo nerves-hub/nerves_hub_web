@@ -195,8 +195,6 @@ defmodule NervesHubWeb.Router do
       get("/coc", PolicyController, :coc)
     end
 
-    get("/sponsors", SponsorController, :index)
-
     get("/nerves_key", NervesKeyController, :index)
   end
 
