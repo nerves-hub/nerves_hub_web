@@ -205,29 +205,6 @@ defmodule NervesHubWeb.Router do
 
     get("/online-devices", HomeController, :online_devices)
 
-    scope "/settings/:org_name" do
-      pipe_through(:org)
-
-      get("/", OrgController, :edit)
-      put("/", OrgController, :update)
-
-      get("/invite", OrgController, :invite)
-      post("/invite", OrgController, :send_invite)
-      delete("/invite/:token", OrgController, :delete_invite)
-      get("/certificates", OrgCertificateController, :index)
-      post("/certificates", OrgCertificateController, :create)
-      get("/certificates/new", OrgCertificateController, :new)
-      delete("/certificates/:serial", OrgCertificateController, :delete)
-      get("/certificates/:serial/edit", OrgCertificateController, :edit)
-      put("/certificates/:serial", OrgCertificateController, :update)
-      get("/users", OrgUserController, :index)
-      get("/users/:user_id", OrgUserController, :edit)
-      put("/users/:user_id", OrgUserController, :update)
-      delete("/users/:user_id", OrgUserController, :delete)
-
-      resources("/keys", OrgKeyController)
-    end
-
     scope "/account/:user_name" do
       get("/", AccountController, :edit)
       put("/", AccountController, :update)
@@ -251,6 +228,27 @@ defmodule NervesHubWeb.Router do
       get("/", ProductController, :index)
       get("/new", ProductController, :new)
       post("/", ProductController, :create)
+
+      scope "/settings" do
+        get("/", OrgController, :edit)
+        put("/", OrgController, :update)
+
+        get("/invite", OrgController, :invite)
+        post("/invite", OrgController, :send_invite)
+        delete("/invite/:token", OrgController, :delete_invite)
+        get("/certificates", OrgCertificateController, :index)
+        post("/certificates", OrgCertificateController, :create)
+        get("/certificates/new", OrgCertificateController, :new)
+        delete("/certificates/:serial", OrgCertificateController, :delete)
+        get("/certificates/:serial/edit", OrgCertificateController, :edit)
+        put("/certificates/:serial", OrgCertificateController, :update)
+        get("/users", OrgUserController, :index)
+        get("/users/:user_id", OrgUserController, :edit)
+        put("/users/:user_id", OrgUserController, :update)
+        delete("/users/:user_id", OrgUserController, :delete)
+
+        resources("/keys", OrgKeyController)
+      end
 
       scope "/:product_name" do
         pipe_through(:product)
