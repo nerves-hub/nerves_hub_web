@@ -8,7 +8,7 @@
     <%= if logged_in?(@conn) do %>
       <ul class="navbar-nav mr-auto flex-grow">
         <li class="nav-item dropdown switcher">
-          <a class="nav-link dropdown-toggle org-select arrow-primary" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <a :if={@conn.assigns[:org]} class="nav-link dropdown-toggle org-select arrow-primary" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <%= if org = get_in(@conn.assigns, [:org]), do: org.name, else: @conn.assigns.user.username %><%= if product = product(@conn) do %> <span class="workspace-divider">:</span> <%= product.name %><% end %>
           </a>
 
