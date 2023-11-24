@@ -100,3 +100,38 @@ else
 end
 
 config :sentry, environment_name: "developent"
+
+broker_opts = [
+  name: NervesHub.AWSIoT.PintBroker,
+  rules: [{"nh/device_messages", &Broadway.test_message(:nerves_hub_iot_messages, &1.payload)}],
+  on_connect: fn client_id ->
+    payload = %{clientId: client_id, eventType: :connected}
+    Broadway.test_message(:nerves_hub_iot_messages, Jason.encode!(payload))
+  end,
+  on_disconnect: fn client_id ->
+    payload = %{
+      clientId: client_id,
+      eventType: :disconnected,
+      disconnectReason: "CONNECTION_LOST"
+    }
+
+    Broadway.test_message(:nerves_hub_iot_messages, Jason.encode!(payload))
+  end
+]
+
+config :nerves_hub, NervesHub.AWSIoT,
+  # Run a PintBroker for local process and/or device connections
+  local_broker: {PintBroker, broker_opts},
+  queues: [
+    [
+      name: :nerves_hub_iot_messages,
+      producer: [
+        module: {Broadway.DummyProducer, []}
+        # To test fetching from development queues registered with AWS, use the producer
+        # below. You may need to set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY ¬
+        # module: {BroadwaySQS.Producer, queue_url: "nerves-hub-iot-messages"}
+      ],
+      processors: [default: []],
+      batchers: [default: [batch_size: 10, batch_timeout: 2000]]
+    ]
+  ]

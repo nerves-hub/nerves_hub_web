@@ -51,6 +51,7 @@ defmodule NervesHub.Application do
 
   defp endpoints(:test) do
     [
+      NervesHub.AWSIoT,
       NervesHub.Devices.Supervisor,
       NervesHubWeb.DeviceEndpoint,
       NervesHubWeb.Endpoint
@@ -65,6 +66,7 @@ defmodule NervesHub.Application do
     case Application.get_env(:nerves_hub, :app) do
       "all" ->
         [
+          NervesHub.AWSIoT,
           NervesHub.Deployments.Supervisor,
           NervesHub.Devices.Supervisor,
           NervesHubWeb.DeviceEndpoint,
@@ -74,6 +76,7 @@ defmodule NervesHub.Application do
 
       "device" ->
         [
+          NervesHub.AWSIoT,
           NervesHub.Deployments.Supervisor,
           NervesHub.Devices.Supervisor,
           NervesHubWeb.DeviceEndpoint,
