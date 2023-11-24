@@ -123,22 +123,22 @@ defmodule NervesHubWeb.LayoutView do
     |> pagination_links()
   end
 
-  def sidebar_links(%{path_info: ["settings" | _tail]} = conn),
-    do: sidebar_settings(conn)
-
   def sidebar_links(%{path_info: ["account" | _tail]} = conn),
     do: sidebar_account(conn)
 
   def sidebar_links(%{path_info: ["org", "new"]}),
     do: []
 
-  def sidebar_links(%{path_info: ["org", _product_name]} = conn),
+  def sidebar_links(%{path_info: ["org", _org_name]} = conn),
     do: sidebar_settings(conn)
 
-  def sidebar_links(%{path_info: ["org", _product_name, "new"]} = conn),
+  def sidebar_links(%{path_info: ["org", _org_name, "new"]} = conn),
     do: sidebar_settings(conn)
 
-  def sidebar_links(%{path_info: ["org", _product_name | _tail]} = conn),
+  def sidebar_links(%{path_info: ["org", _org_name, "settings" | _tail]} = conn),
+    do: sidebar_settings(conn)
+
+  def sidebar_links(%{path_info: ["org", _org_name | _tail]} = conn),
     do: sidebar_org(conn)
 
   def sidebar_links(_conn), do: []
