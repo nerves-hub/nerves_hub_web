@@ -13,7 +13,7 @@
 # The seeds are run on every deploy. Therefore, it is important
 # that first check to see if the data you are trying to insert
 # has been run yet.
-alias NervesHub.{Accounts, Accounts.User, Repo, Firmwares}
+alias NervesHub.{Accounts, Accounts.User, Repo}
 
 defmodule NervesHub.SeedHelpers do
   alias NervesHub.Fixtures
