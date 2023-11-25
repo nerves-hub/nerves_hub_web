@@ -85,6 +85,4 @@ config :opentelemetry, :processors,
     exporter: {:otel_exporter_tab, []}
   }
 
-config :sentry,
-  environment_name: :test,
-  included_environments: []
+config :sentry, environment_name: :test

@@ -99,4 +99,4 @@ else
   config :opentelemetry, tracer: :otel_tracer_noop, traces_exporter: :none
 end
 
-config :sentry, environment_name: "developent"
+config :sentry, environment_name: :developent
