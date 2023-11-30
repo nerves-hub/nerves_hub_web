@@ -84,7 +84,6 @@ if nerves_hub_app in ["all", "device"] do
   config :nerves_hub, NervesHubWeb.DeviceEndpoint,
     url: [host: host],
     https: [
-      verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
       port: https_port,
       otp_app: :nerves_hub,
       thousand_island_options: [
@@ -101,6 +100,7 @@ if nerves_hub_app in ["all", "device"] do
           # certificate_authorities: false,
           versions: [:"tlsv1.2"],
           verify: :verify_peer,
+          verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
           fail_if_no_peer_cert: true,
           keyfile: "/etc/ssl/#{host}-key.pem",
           certfile: "/etc/ssl/#{host}.pem",
