@@ -28,12 +28,7 @@ defmodule NervesHubWeb.Endpoint do
     only: ~w(css fonts images js favicon.ico robots.txt)
   )
 
-  firmware_upload = System.get_env("FIRMWARE_UPLOAD_BACKEND", "S3")
-
-  if firmware_upload == "local" do
-    plug(NervesHubWeb.Plugs.FileUpload)
-    plug(NervesHubWeb.Plugs.StaticUploads)
-  end
+  plug(NervesHubWeb.Plugs.ConfigureUploads)
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.

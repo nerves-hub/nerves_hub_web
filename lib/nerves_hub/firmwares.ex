@@ -17,7 +17,7 @@ defmodule NervesHub.Firmwares do
 
   @type upload_file_2 :: (filepath :: String.t(), filename :: String.t() -> :ok | {:error, any()})
 
-  @uploader Application.compile_env!(:nerves_hub, :firmware_upload)
+  defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
 
   @spec get_firmwares_by_product(integer()) :: [Firmware.t()]
   def get_firmwares_by_product(product_id) do
@@ -142,7 +142,7 @@ defmodule NervesHub.Firmwares do
           {:ok, Firmware.t()}
           | {:error, Changeset.t() | :no_public_keys | :invalid_signature | any}
   def create_firmware(org, filepath, opts \\ []) do
-    upload_file_2 = opts[:upload_file_2] || (&@uploader.upload_file/2)
+    upload_file_2 = opts[:upload_file_2] || (&firmware_upload_config().upload_file/2)
 
     Repo.transaction(
       fn ->
@@ -362,7 +362,7 @@ defmodule NervesHub.Firmwares do
           {:ok, String.t()}
           | {:error, :failure}
   def get_firmware_url(fw_or_delta) do
-    @uploader.download_file(fw_or_delta)
+    firmware_upload_config().download_file(fw_or_delta)
   end
 
   @spec create_firmware_delta(Firmware.t(), Firmware.t()) ::
@@ -371,15 +371,16 @@ defmodule NervesHub.Firmwares do
 
   def create_firmware_delta(source_firmware, target_firmware) do
     %Firmware{org: org} = source_firmware |> Repo.preload(:org)
-    {:ok, source_url} = @uploader.download_file(source_firmware)
-    {:ok, target_url} = @uploader.download_file(target_firmware)
+    {:ok, source_url} = firmware_upload_config().download_file(source_firmware)
+    {:ok, target_url} = firmware_upload_config().download_file(target_firmware)
 
     firmware_delta_path = delta_updater().create_firmware_delta_file(source_url, target_url)
     firmware_delta_filename = Path.basename(firmware_delta_path)
 
     Repo.transaction(
       fn ->
-        with upload_metadata <- @uploader.metadata(org.id, firmware_delta_filename),
+        with upload_metadata <-
+               firmware_upload_config().metadata(org.id, firmware_delta_filename),
              {:ok, firmware_delta} <-
                insert_firmware_delta(%{
                  source_id: source_firmware.id,
@@ -387,7 +388,7 @@ defmodule NervesHub.Firmwares do
                  upload_metadata: upload_metadata
                }),
              {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
-             :ok <- @uploader.upload_file(firmware_delta_path, upload_metadata),
+             :ok <- firmware_upload_config().upload_file(firmware_delta_path, upload_metadata),
              :ok <- delta_updater().cleanup_firmware_delta_files(firmware_delta_path) do
           firmware_delta
         else
@@ -434,7 +435,7 @@ defmodule NervesHub.Firmwares do
           delta_updatable: delta_updater().delta_updatable?(filepath),
           platform: metadata.platform,
           product_name: metadata.product,
-          upload_metadata: @uploader.metadata(org_id, filename),
+          upload_metadata: firmware_upload_config().metadata(org_id, filename),
           size: :filelib.file_size(filepath),
           uuid: metadata.uuid,
           vcs_identifier: metadata.vcs_identifier,

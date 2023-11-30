@@ -5,8 +5,6 @@ defmodule NervesHub.Application do
 
   require Logger
 
-  @env Mix.env()
-
   def start(_type, _args) do
     case System.cmd("fwup", ["--version"]) do
       {_, 0} ->
@@ -22,7 +20,7 @@ defmodule NervesHub.Application do
         {Registry, keys: :unique, name: NervesHub.DeviceLinks},
         {Finch, name: Swoosh.Finch}
       ] ++
-        metrics(@env) ++
+        metrics(deploy_env()) ++
         [
           NervesHub.RateLimit,
           NervesHub.LoadBalancer,
@@ -39,13 +37,13 @@ defmodule NervesHub.Application do
     :ok
   end
 
-  defp metrics(:test), do: []
+  defp metrics("test"), do: []
 
   defp metrics(_env) do
     [NervesHub.Metrics]
   end
 
-  defp endpoints(:test) do
+  defp endpoints("test") do
     [
       NervesHub.Devices.Supervisor,
       NervesHubWeb.DeviceEndpoint,
@@ -80,4 +78,6 @@ defmodule NervesHub.Application do
         [NervesHubWeb.Endpoint]
     end
   end
+
+  defp deploy_env(), do: Application.get_env(:nerves_hub, :deploy_env)
 end
