@@ -33,7 +33,7 @@ WORKDIR /build
 COPY --from=deps /build/deps deps
 COPY --from=assets /build/priv/static priv/static
 
-RUN mix do phx.digest, release nerves_hub --overwrite
+RUN mix do phx.digest, sentry.package_source_code, release nerves_hub --overwrite
 
 # Release Container
 FROM debian:buster-20230612 as release
