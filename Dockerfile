@@ -57,6 +57,7 @@ WORKDIR /build
 
 RUN mix compile
 RUN mix phx.digest
+RUN mix sentry.package_source_code
 
 COPY config/runtime.exs config/
 
