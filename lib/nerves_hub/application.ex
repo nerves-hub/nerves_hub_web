@@ -24,6 +24,7 @@ defmodule NervesHub.Application do
           NervesHub.LoadBalancer,
           NervesHub.Repo,
           NervesHub.ObanRepo,
+          NervesHub.Release.DatabaseAutoMigrator,
           {Phoenix.PubSub, name: NervesHub.PubSub},
           {DNSCluster, query: Application.get_env(:nerves_hub, :dns_cluster_query) || :ignore},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
