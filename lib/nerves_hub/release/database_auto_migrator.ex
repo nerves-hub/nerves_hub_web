@@ -18,19 +18,20 @@ defmodule NervesHub.Release.DatabaseAutoMigrator do
   end
 
   def init(_) do
-    migrate!()
-    {:ok, nil}
+    if Application.get_env(:nerves_hub, :database_auto_migrator) do
+      migrate!()
+      {:ok, nil}
+    else
+      Logger.info("Database auto migrator not enabled")
+      :ignore
+    end
   end
 
   def migrate! do
-    if Application.get_env(:nerves_hub, :database_auto_migrator) do
-      Logger.info("Database auto migrator enabled and preparing to run migrations")
+    Logger.info("Database auto migrator enabled and preparing to run migrations")
 
-      path = Application.app_dir(:nerves_hub, "priv/repo/migrations")
+    path = Application.app_dir(:nerves_hub, "priv/repo/migrations")
 
-      Migrator.run(NervesHub.Repo, path, :up, all: true)
-    else
-      Logger.info("Database auto migrator not enabled")
-    end
+    Migrator.run(NervesHub.Repo, path, :up, all: true)
   end
 end
