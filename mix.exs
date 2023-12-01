@@ -20,8 +20,8 @@ defmodule NervesHub.MixProject do
           reboot_system_after_config: true,
           applications: [
             nerves_hub: :permanent,
-            opentelemetry: :temporary,
-            opentelemetry_exporter: :permanent
+            opentelemetry_exporter: :permanent,
+            opentelemetry: :temporary
           ]
         ]
       ]
