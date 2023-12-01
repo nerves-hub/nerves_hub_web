@@ -167,6 +167,8 @@ defmodule NervesHub.NodeReporter do
   end
 
   def handle_event([:nerves_hub, :nodes], %{count: count}, %{nodes: nodes}, _) do
-    Logger.info("Node count: #{count}; Node list: #{inspect(nodes)}")
+    if Application.get_env(:nerves_hub, NodeReporter)[:enabled] do
+      Logger.info("Node count: #{count}; Node list: #{inspect(nodes)}")
+    end
   end
 end
