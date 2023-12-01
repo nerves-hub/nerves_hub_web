@@ -83,7 +83,7 @@ defmodule NervesHubWeb.LayoutView do
 
     anchor = if opts.anchor, do: "##{opts.anchor}", else: ""
 
-    content_tag(:div, class: "btn-group btn-group-toggle", data: [toggle: "buttons"]) do
+    content_tag(:div, class: "btn-group btn-group-toggle") do
       opts
       |> Scrivener.HTML.raw_pagination_links(distance: Map.get(opts, :distance, 8))
       |> Enum.map(fn {text, page} ->
@@ -102,7 +102,7 @@ defmodule NervesHubWeb.LayoutView do
   def pagination_links(%{total_pages: _} = opts) do
     opts = Map.put_new(opts, :page_number, 1)
 
-    content_tag(:div, class: "btn-group btn-group-toggle", data: [toggle: "buttons"]) do
+    content_tag(:div, class: "btn-group btn-group-toggle") do
       opts
       |> Scrivener.HTML.raw_pagination_links(distance: Map.get(opts, :distance, 8))
       |> Enum.map(fn {text, page} ->
