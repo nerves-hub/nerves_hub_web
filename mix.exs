@@ -17,7 +17,6 @@ defmodule NervesHub.MixProject do
         nerves_hub: [
           steps: [:assemble],
           include_executables_for: [:unix],
-          runtime_config_path: "config/release.exs",
           reboot_system_after_config: true,
           applications: [
             nerves_hub: :permanent,
