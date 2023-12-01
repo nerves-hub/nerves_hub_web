@@ -1,8 +1,6 @@
 defmodule NervesHub.Application do
   use Application
 
-  alias NervesHub.Config
-
   require Logger
 
   def start(_type, _args) do
@@ -24,9 +22,15 @@ defmodule NervesHub.Application do
         [
           NervesHub.RateLimit,
           NervesHub.LoadBalancer,
-          NervesHub.Supervisor,
+          NervesHub.Repo,
+          NervesHub.ObanRepo,
+          {Phoenix.PubSub, name: NervesHub.PubSub},
+          {DNSCluster, query: Application.get_env(:nerves_hub, :dns_cluster_query) || :ignore},
+          {Task.Supervisor, name: NervesHub.TaskSupervisor},
+          {Oban, Application.fetch_env!(:nerves_hub, Oban)},
           NervesHub.Tracker
-        ] ++ endpoints(@env)
+        ] ++
+        endpoints(Application.get_env(:nerves_hub, :deploy_env))
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
     Supervisor.start_link(children, opts)
@@ -52,30 +56,37 @@ defmodule NervesHub.Application do
   end
 
   defp endpoints(_) do
-    vapor_config = Vapor.load!(Config)
-    socket_drano_config = vapor_config.socket_drano
-    socket_strategy = {:percentage, socket_drano_config.percentage, socket_drano_config.time}
-
     case Application.get_env(:nerves_hub, :app) do
       "all" ->
         [
           NervesHub.Deployments.Supervisor,
           NervesHub.Devices.Supervisor,
           NervesHubWeb.DeviceEndpoint,
-          NervesHubWeb.Endpoint,
-          {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS], strategy: socket_strategy}
-        ]
+          NervesHubWeb.Endpoint
+        ] ++ device_socket_drainer()
 
       "device" ->
         [
           NervesHub.Deployments.Supervisor,
           NervesHub.Devices.Supervisor,
-          NervesHubWeb.DeviceEndpoint,
-          {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS, strategy: socket_strategy]}
-        ]
+          NervesHubWeb.DeviceEndpoint
+        ] ++ device_socket_drainer()
 
       "web" ->
         [NervesHubWeb.Endpoint]
+    end
+  end
+
+  defp device_socket_drainer() do
+    socket_drano_config = Application.get_env(:nerves_hub, :socket_drano)
+
+    if socket_drano_config[:enabled] do
+      socket_strategy =
+        {:percentage, socket_drano_config[:percentage], socket_drano_config[:time]}
+
+      {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS], strategy: socket_strategy}
+    else
+      []
     end
   end
 

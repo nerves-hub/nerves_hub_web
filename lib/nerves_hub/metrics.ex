@@ -3,21 +3,18 @@ defmodule NervesHub.Metrics do
 
   import Telemetry.Metrics
 
-  alias NervesHub.Config
-
   def start_link(_) do
     Supervisor.start_link(__MODULE__, [])
   end
 
   def init(_) do
-    vapor_config = Vapor.load!(Config)
-    statsd_config = vapor_config.statsd
+    statsd_config = Application.get_env(:nerves_hub, :statsd)
 
     children = [
       NervesHub.Metrics.Reporters,
       {TelemetryMetricsStatsd,
-       host: statsd_config.host,
-       port: statsd_config.port,
+       host: statsd_config[:host],
+       port: statsd_config[:port],
        formatter: :datadog,
        metrics: [
          # NervesHub
