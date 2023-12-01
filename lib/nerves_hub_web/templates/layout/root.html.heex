@@ -7,7 +7,13 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>NervesHub</title>
+    <Phoenix.Component.live_title>
+      <%= assigns[:page_title] || "NervesHub" %>
+    </Phoenix.Component.live_title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.2/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.2/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.2/languages/bash.min.js"></script>
+    <script>hljs.highlightAll();</script>
     <link rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")}>
 
     <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/cookieconsent2/3.1.0/cookieconsent.min.css" />
@@ -34,5 +40,14 @@
 
   <body>
     <%= @inner_content %>
+
+    <%= render("_footer.html", conn: @conn) %>
+
+    <script>
+      window.userToken = "<%= assigns[:user_token] %>"
+      window.orgId = "<%= assigns[:org] && Map.get(assigns[:org], :id) %>"
+    </script>
+    <%= csrf_meta_tag() %>
+    <script type="text/javascript" src={Routes.static_path(@conn, "/js/app.js")}></script>
   </body>
 </html>
