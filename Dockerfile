@@ -1,9 +1,9 @@
-ARG ELIXIR_VERSION=1.15.4
-ARG ERLANG_VERSION=26.0.2
+ARG ELIXIR_VERSION=1.15.7
+ARG ERLANG_VERSION=26.1.2
 ARG NODE_VERSION=16.18.1
 
 # Fetch deps for building web assets
-FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-debian-buster-20230612 as deps
+FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-debian-buster-20231009 as deps
 RUN apt-get update && apt-get install -y git
 RUN mix local.hex --force && mix local.rebar --force
 ADD . /build
@@ -21,7 +21,7 @@ RUN cd assets \
   && npm run deploy
 
 # Elixir build container
-FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-debian-buster-20230612 as builder
+FROM hexpm/elixir:${ELIXIR_VERSION}-erlang-${ERLANG_VERSION}-debian-buster-20231009 as builder
 
 ENV MIX_ENV=prod
 
@@ -36,7 +36,7 @@ COPY --from=assets /build/priv/static priv/static
 RUN mix do phx.digest, release nerves_hub --overwrite
 
 # Release Container
-FROM debian:buster-20230612 as release
+FROM debian:buster-20231009 as release
 
 ENV MIX_ENV=prod
 ENV REPLACE_OS_VARS true
