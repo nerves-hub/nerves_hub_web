@@ -31,11 +31,15 @@ defmodule NervesHub.LoadBalancer do
 
   @impl GenServer
   def init(_opts) do
-    Process.send_after(self(), :tick, 60_000)
+    if enabled?() do
+      Process.send_after(self(), :tick, 60_000)
 
-    :net_kernel.monitor_nodes(true)
+      :net_kernel.monitor_nodes(true)
 
-    {:ok, :undefined}
+      {:ok, :undefined}
+    else
+      :ignore
+    end
   end
 
   @impl GenServer
@@ -81,5 +85,9 @@ defmodule NervesHub.LoadBalancer do
 
   def handle_info(_other, state) do
     {:noreply, state}
+  end
+
+  defp enabled?() do
+    Application.get_env(:nerves_hub, NervesHub.LoadBalancer)[:enabled] == true
   end
 end

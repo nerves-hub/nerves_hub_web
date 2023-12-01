@@ -18,6 +18,9 @@ config :nerves_hub, NervesHub.RateLimit, limit: rate_limit
 config :nerves_hub, NervesHub.NodeReporter,
   enabled: System.get_env("NODE_REPORTER", "false") == "true"
 
+config :nerves_hub, NervesHub.LoadBalancer,
+  enabled: System.get_env("LOAD_BALANCER", "false") == "true"
+
 logger_level = System.get_env("LOG_LEVEL", "info") |> String.to_atom()
 
 config :logger, level: logger_level
