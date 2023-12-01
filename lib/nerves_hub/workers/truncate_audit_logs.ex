@@ -5,10 +5,12 @@ defmodule NervesHub.Workers.TruncateAuditLogs do
 
   @impl true
   def perform(_) do
-    if enabled?(), do: NervesHub.AuditLogs.truncate(config)
+    if config()[:enabled] do
+      NervesHub.AuditLogs.truncate(config())
+    end
 
     :ok
   end
 
-  defp enabled?(), do: Application.get_env(:nerves_hub, :audit_logs)[:enabled]
+  defp config(), do: Application.get_env(:nerves_hub, :audit_logs)
 end
