@@ -1,24 +1,55 @@
 ARG ELIXIR_VERSION=1.15.7
 ARG OTP_VERSION=26.1.2
 ARG DISTRO=jammy-20231004
+ARG NODE_VERSION=16.20.2
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${DISTRO}"
 ARG RUNNER_IMAGE="ubuntu:${DISTRO}"
 ARG DEBIAN_FRONTEND=noninteractive
 
+
 ###
-### Fist Stage - Building the Release
+### First Stage - Fetch deps for building web assets
+###
+FROM ${BUILDER_IMAGE} as deps
+
+ENV MIX_ENV=prod
+
+RUN apt-get update && apt-get install -y git
+RUN mix local.hex --force && mix local.rebar --force
+
+WORKDIR /build
+
+COPY mix.* ./
+RUN mix deps.get --only $MIX_ENV
+
+
+###
+### Second Stage - Build web assets
+###
+FROM node:${NODE_VERSION} as assets
+
+RUN mkdir -p /priv/static
+
+WORKDIR /build
+
+COPY --from=deps /build/deps deps
+COPY assets assets
+
+WORKDIR /build/assets
+
+# RUN npm install -g npm@10.2.4
+RUN npm ci && npm cache clean --force && npm run deploy
+
+
+###
+### Third Stage - Building the Release
 ###
 FROM ${BUILDER_IMAGE} as build
 
 # install dependencies
 RUN apt-get update -y && apt-get install -y build-essential git ca-certificates curl gnupg \
   && apt-get clean && rm -f /var/lib/apt/lists/*_*
-
-RUN mkdir -p /etc/apt/keyrings \
-  && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-  && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-  && apt-get update -y && apt-get install -y nodejs && npm install -g npm
 
 WORKDIR /build
 
@@ -47,13 +78,8 @@ RUN mix deps.compile
 
 COPY priv priv
 COPY lib lib
-COPY assets assets
 
-WORKDIR /build/assets
-
-RUN npm ci && npm cache clean --force && npm run deploy
-
-WORKDIR /build
+COPY --from=assets /build/priv/static priv/static
 
 RUN mix compile
 RUN mix phx.digest
@@ -67,7 +93,7 @@ RUN mix release
 
 
 ###
-### Second Stage - Setup the Runtime Environment
+### Last Stage - Setup the Runtime Environment
 ###
 
 FROM ${RUNNER_IMAGE} AS app
