@@ -117,7 +117,6 @@ if config_env() == :prod do
   end
 end
 
-
 config :nerves_hub, :statsd,
   host: System.get_env("STATSD_HOST", "localhost"),
   port: String.to_integer(System.get_env("STATSD_PORT", "8125"))
@@ -235,7 +234,6 @@ if config_env() == :prod do
   config :nerves_hub,
     database_auto_migrator: System.get_env("DATABASE_AUTO_MIGRATOR", "true") == "true"
 end
-
 
 if config_env() == :prod and System.get_env("SENTRY_DSN_URL") do
   config :sentry,
