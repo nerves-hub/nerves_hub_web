@@ -59,7 +59,7 @@ config :nerves_hub, NervesHub.Uploads.File,
   public_path: "/uploads"
 
 config :nerves_hub, NervesHub.Repo,
-  url: "postgres://localhost/nerves_hub_test",
+  url: System.get_env("DATABASE_URL", "postgres://localhost/nerves_hub_test"),
   ssl: false,
   pool: Ecto.Adapters.SQL.Sandbox
 
