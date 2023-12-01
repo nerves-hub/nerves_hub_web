@@ -113,7 +113,7 @@ ENV LC_ALL en_US.UTF-8
 
 WORKDIR /app
 
-COPY --from=build --chown=nobody:nobody /build/_build/prod/rel/nerves_hub ./
+COPY --from=build /build/_build/prod/rel/nerves_hub ./
 
 ENV HOME=/app
 ENV MIX_ENV=prod
