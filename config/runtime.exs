@@ -90,13 +90,21 @@ if config_env() == :prod do
       config :nerves_hub, NervesHub.Firmwares.Upload.S3,
         bucket: System.fetch_env!("S3_BUCKET_NAME")
 
-      config :ex_aws,
-        access_key_id: [System.get_env("AWS_ACCESS_KEY_ID"), :instance_role],
-        json_codec: Jason,
-        secret_access_key: [System.get_env("AWS_SECRET_ACCESS_KEY"), :instance_role],
-        region: System.get_env("AWS_REGION")
+      config :ex_aws, :s3,
+        access_key_id: System.fetch_env!("S3_ACCESS_KEY_ID"),
+        secret_access_key: System.fetch_env!("S3_SECRET_ACCESS_KEY"),
+        bucket: System.fetch_env!("S3_BUCKET_NAME")
 
-      config :ex_aws_s3, json_codec: Jason
+      if region = System.get_env("S3_REGION") do
+        config :ex_aws, :s3, region: region
+      end
+
+      if s3_host = System.get_env("S3_HOST") do
+        config :ex_aws, :s3, host: s3_host
+      end
+
+      config :ex_aws,
+        json_codec: Jason
 
     "local" ->
       local_path = System.get_env("FIRMWARE_UPLOAD_PATH")
