@@ -79,13 +79,13 @@ defmodule NervesHub.AuditLogs do
   end
 
   def truncate(opts) do
-    oldest = DateTime.add(DateTime.utc_now(), -24 * 60 * 60 * opts.days_kept, :second)
+    oldest = DateTime.add(DateTime.utc_now(), -24 * 60 * 60 * opts[:days_kept], :second)
 
     to_delete =
       from(a in AuditLog,
         where: a.inserted_at < ^oldest,
         order_by: [asc: :inserted_at],
-        limit: ^opts.max_records_per_run,
+        limit: ^opts[:max_records_per_run],
         select: a.id
       )
 

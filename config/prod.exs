@@ -13,26 +13,6 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint, server: true
 ##
 # NervesHub
 #
-firmware_upload = System.get_env("FIRMWARE_UPLOAD_BACKEND", "S3")
-
-case firmware_upload do
-  "S3" ->
-    config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.S3
-
-  "local" ->
-    config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
-
-    config :nerves_hub, NervesHub.Firmwares.Upload.File,
-      enabled: true,
-      public_path: "/firmware"
-
-    config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.File
-
-    config :nerves_hub, NervesHub.Uploads.File,
-      enabled: true,
-      public_path: "/uploads"
-end
-
 config :nerves_hub, NervesHub.Repo, pool_size: 20
 
 config :nerves_hub, NervesHub.ObanRepo, pool_size: 10
@@ -41,6 +21,5 @@ config :nerves_hub, NervesHub.ObanRepo, pool_size: 10
 # NervesHubWWW
 #
 config :nerves_hub, NervesHubWeb.Endpoint,
-  load_from_system_env: true,
   server: true,
   force_ssl: [rewrite_on: [:x_forwarded_proto]]

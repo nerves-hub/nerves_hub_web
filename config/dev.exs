@@ -12,6 +12,17 @@ ssl_dir =
 config :logger, :console, format: "[$level] $message\n"
 config :phoenix, :stacktrace_depth, 20
 
+# Configure your database
+config :nerves_hub, NervesHub.Repo,
+  url: "postgres://localhost/nerves_hub_dev",
+  show_sensitive_data_on_connection_error: true,
+  pool_size: 10
+
+config :nerves_hub, NervesHub.ObanRepo,
+  url: "postgres://localhost/nerves_hub_dev",
+  show_sensitive_data_on_connection_error: true,
+  pool_size: 10
+
 ##
 # NervesHub Device
 #
@@ -81,9 +92,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
-  watchers: [npm: ["run", "watch", cd: Path.expand("../assets", __DIR__)]]
-
-config :nerves_hub, NervesHubWeb.Endpoint,
+  watchers: [npm: ["run", "watch", cd: Path.expand("../assets", __DIR__)]],
   live_reload: [
     patterns: [
       ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},

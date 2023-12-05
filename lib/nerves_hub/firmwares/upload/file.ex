@@ -33,18 +33,20 @@ defmodule NervesHub.Firmwares.Upload.File do
 
   @impl NervesHub.Firmwares.Upload
   def metadata(org_id, filename) do
-    vapor_config = Vapor.load!(NervesHub.Config)
-    web_config = vapor_config.web_endpoint
+    web_config = Application.get_env(:nerves_hub, NervesHubWeb.Endpoint)
 
     config = Application.get_env(:nerves_hub, __MODULE__)
+
     common_path = "#{org_id}"
     local_path = Path.join([config[:local_path], common_path, filename])
 
     port =
-      if Enum.member?([443, 80], web_config.url_port), do: "", else: ":#{web_config.url_port}"
+      if Enum.member?([443, 80], web_config[:url][:port]),
+        do: "",
+        else: ":#{web_config[:url][:port]}"
 
     public_path =
-      "#{web_config.url_scheme}://#{web_config.url_host}#{port}/" <>
+      "#{web_config[:url][:scheme]}://#{web_config[:url][:host]}#{port}/" <>
         (Path.join([config[:public_path], common_path, filename])
          |> String.trim("/"))
 

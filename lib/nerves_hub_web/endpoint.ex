@@ -2,8 +2,6 @@ defmodule NervesHubWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub
   use Sentry.PlugCapture
 
-  alias NervesHub.Config
-
   @session_options [
     store: :cookie,
     key: "_nerves_hub_key",
@@ -28,12 +26,7 @@ defmodule NervesHubWeb.Endpoint do
     only: ~w(css fonts images js favicon.ico robots.txt)
   )
 
-  firmware_upload = System.get_env("FIRMWARE_UPLOAD_BACKEND", "S3")
-
-  if firmware_upload == "local" do
-    plug(NervesHubWeb.Plugs.FileUpload)
-    plug(NervesHubWeb.Plugs.StaticUploads)
-  end
+  plug(NervesHubWeb.Plugs.ConfigureUploads)
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
@@ -75,40 +68,4 @@ defmodule NervesHubWeb.Endpoint do
   )
 
   plug(NervesHubWeb.Router)
-
-  @doc """
-  Callback invoked for dynamically configuring the endpoint.
-
-  It receives the endpoint configuration and checks if
-  configuration should be loaded from the system environment.
-  """
-  def init(_key, config) do
-    vapor_config = Vapor.load!(Config)
-    endpoint_config = vapor_config.web_endpoint
-
-    config =
-      Keyword.merge(config,
-        secret_key_base: endpoint_config.secret_key_base,
-        live_view: [
-          signing_salt: endpoint_config.live_view_signing_salt
-        ],
-        url: [
-          host: endpoint_config.url_host,
-          port: endpoint_config.url_port,
-          scheme: endpoint_config.url_scheme
-        ]
-      )
-
-    if config[:load_from_system_env] do
-      port = System.get_env("PORT") || raise "expected the PORT environment variable to be set"
-
-      {:ok,
-       Keyword.put(config, :http,
-         thousand_island_options: [transport_options: [:inet6]],
-         port: port
-       )}
-    else
-      {:ok, config}
-    end
-  end
 end

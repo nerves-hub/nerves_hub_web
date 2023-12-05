@@ -38,29 +38,27 @@ window.deploymentPolling = (url) => {
     headers: {
       "Accept": "application/json"
     }
-  }).then((response) =>  response.json())
-  .then((json) => {
-    console.log(json);
+  }).then((response) => response.json())
+    .then((json) => {
+      let inflightUpdateBadges = $("#inflight-update-badges");
+      inflightUpdateBadges.empty();
 
-    let inflightUpdateBadges = $("#inflight-update-badges");
-    inflightUpdateBadges.empty();
+      let inflightEmpty = $("#inflight-empty");
+      if (json.inflight_updates.length == 0) {
+        inflightEmpty.html("No inflight updates");
+      } else {
+        inflightEmpty.empty();
+      }
 
-    let inflightEmpty = $("#inflight-empty");
-    if (json.inflight_updates.length == 0) {
-      inflightEmpty.html("No inflight updates");
-    } else {
-      inflightEmpty.empty();
-    }
+      json.inflight_updates.map((inflightUpdate) => {
+        let badge = $(`<span class="ff-m badge"><a href="${inflightUpdate.href}">${inflightUpdate.identifier}</a></span>`);
+        inflightUpdateBadges.append(badge);
+      });
 
-    json.inflight_updates.map((inflightUpdate) => {
-      let badge = $(`<span class="ff-m badge"><a href="${inflightUpdate.href}">${inflightUpdate.identifier}</a></span>`);
-      inflightUpdateBadges.append(badge);
+      let deploymentPercentage = $("#deployment-percentage").first();
+      deploymentPercentage.html(`${json.percentage}%`);
+      deploymentPercentage.css("width", `${json.percentage}%`);
     });
-
-    let deploymentPercentage = $("#deployment-percentage").first();
-    deploymentPercentage.html(`${json.percentage}%`);
-    deploymentPercentage.css("width", `${json.percentage}%`);
-  });
 };
 
 document.querySelectorAll('.date-time').forEach(d => {

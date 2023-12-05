@@ -17,12 +17,11 @@ defmodule NervesHub.MixProject do
         nerves_hub: [
           steps: [:assemble],
           include_executables_for: [:unix],
-          runtime_config_path: "config/release.exs",
           reboot_system_after_config: true,
           applications: [
             nerves_hub: :permanent,
-            opentelemetry: :temporary,
-            opentelemetry_exporter: :permanent
+            opentelemetry_exporter: :permanent,
+            opentelemetry: :temporary
           ]
         ]
       ]
@@ -59,6 +58,10 @@ defmodule NervesHub.MixProject do
       {:bandit, "~> 1.0"},
       {:base62, "~> 1.2"},
       {:bcrypt_elixir, "~> 3.0"},
+      # {:dns_cluster, "~> 0.1.1"},
+      {:dns_cluster,
+       git: "https://github.com/davydog187/dns_cluster.git", branch: "support-multiple-queries"},
+      {:castore, "~> 1.0"},
       {:circular_buffer, "~> 0.4.1"},
       {:comeonin, "~> 5.3"},
       {:crontab, "~> 1.1"},
@@ -104,7 +107,6 @@ defmodule NervesHub.MixProject do
       {:telemetry_metrics_statsd, "~> 0.7.0"},
       {:telemetry_poller, "~> 1.0"},
       {:timex, "~> 3.1"},
-      {:vapor, "~> 0.10"},
       {:x509, "~> 0.5.1 or ~> 0.6"}
     ]
   end

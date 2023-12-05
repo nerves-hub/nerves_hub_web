@@ -23,7 +23,9 @@ defmodule NervesHub.Workers.ExpireInflightUpdates do
       |> where([iu], iu.expires_at < fragment("now()"))
       |> Repo.delete_all()
 
-    Logger.info("Expired #{count} inflight updates")
+    if count > 0 do
+      Logger.info("Expired #{count} inflight updates")
+    end
 
     :ok
   end
