@@ -61,7 +61,6 @@ RUN mix local.hex --force && \
 ENV MIX_ENV=prod
 ENV SECRET_KEY_BASE=nokey
 
-COPY bin/* bin/
 COPY mix.lock ./
 
 RUN mkdir config

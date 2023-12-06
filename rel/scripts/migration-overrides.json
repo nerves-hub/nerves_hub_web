@@ -1,8 +1,0 @@
-{
-  "containerOverrides": [
-    {
-      "name": "nerves_hub_www",
-      "command": ["/app/bin/nerves_hub", "eval", "NervesHub.Release.Tasks.migrate_and_seed()"]
-    }
-  ]
-}
