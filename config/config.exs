@@ -29,7 +29,7 @@ config :nerves_hub,
   env: Mix.env(),
   namespace: NervesHub,
   ecto_repos: [NervesHub.Repo],
-  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
+  from_email: "no-reply@nerves-hub.org"
 
 config :nerves_hub, Oban,
   repo: NervesHub.ObanRepo,
