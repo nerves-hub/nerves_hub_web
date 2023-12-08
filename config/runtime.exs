@@ -28,11 +28,9 @@ config :nerves_hub, dns_cluster_query: dns_cluster_query
 
 # Allow for all environments to override the database url
 if env!("DATABASE_URL", :string!, nil) do
-  config :nerves_hub, NervesHub.Repo,
-    url: env!("DATABASE_URL", :string!)
+  config :nerves_hub, NervesHub.Repo, url: env!("DATABASE_URL", :string!)
 
-  config :nerves_hub, NervesHub.ObanRepo,
-    url: env!("DATABASE_URL", :string!)
+  config :nerves_hub, NervesHub.ObanRepo, url: env!("DATABASE_URL", :string!)
 end
 
 config :nerves_hub,

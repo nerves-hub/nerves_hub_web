@@ -4,7 +4,6 @@ defmodule NervesHubWeb.Plugs.ConfigureUploads do
   def init(_opts), do: []
 
   def call(conn, _opts) do
-
     if local_uploads?() do
       conn
       |> NervesHubWeb.Plugs.FileUpload.call([])
