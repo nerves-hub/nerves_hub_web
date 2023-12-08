@@ -1,10 +1,5 @@
 import Config
 
-# Start all of the applications
-config :nerves_hub, app: "all"
-
-config :nerves_hub, deploy_env: "dev"
-
 ssl_dir =
   (System.get_env("NERVES_HUB_CA_DIR") || Path.join([__DIR__, "../test/fixtures/ssl/"]))
   |> Path.expand()
