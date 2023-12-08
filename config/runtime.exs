@@ -35,18 +35,14 @@ if env!("DATABASE_URL", :string?, nil) do
     url: env!("DATABASE_URL", :string!)
 end
 
+config :nerves_hub,
+  from_email: env!("FROM_EMAIL", :string!, "no-reply@nerves-hub.org")
+
 if env!("OTEL_ENABLED", :boolean?, nil) do
   # Export to a local collector
   config :opentelemetry_exporter,
     otlp_protocol: :http_protobuf,
     otlp_endpoint: "http://localhost:4318"
-end
-
-if nerves_hub_app in ["all", "web"] do
-  config :nerves_hub,
-    host: env!("HOST", :string?, "localhost"),
-    port: env!("PORT", :integer?, 4000),
-    from_email: env!("FROM_EMAIL", :string!, "no-reply@nerves-hub.org")
 end
 
 if config_env() == :prod do
