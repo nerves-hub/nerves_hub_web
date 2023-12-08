@@ -9,12 +9,12 @@ config :phoenix, :stacktrace_depth, 20
 
 # Configure your database
 config :nerves_hub, NervesHub.Repo,
-  url: "postgres://localhost/nerves_hub_dev",
+  url: System.get_env("DATABASE_URL", "postgres://localhost/nerves_hub_dev"),
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
 config :nerves_hub, NervesHub.ObanRepo,
-  url: "postgres://localhost/nerves_hub_dev",
+  url: System.get_env("DATABASE_URL", "postgres://localhost/nerves_hub_dev"),
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
