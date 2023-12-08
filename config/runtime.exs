@@ -4,21 +4,21 @@ import Dotenvy
 source!([".env", System.get_env()])
 
 if env!("LOG_LEVEL", :string?, nil) do
-  config :logger, level: env!("LOG_LEVEL", :atom?, :info)
+  config :logger, level: env!("LOG_LEVEL", :atom!, :info)
 end
 
-nerves_hub_app = env!("NERVES_HUB_APP", :string?, "all")
+nerves_hub_app = env!("NERVES_HUB_APP", :string!, "all")
 
 config :nerves_hub, app: nerves_hub_app
 
-config :nerves_hub, deploy_env: env!("DEPLOY_ENV", :string?, to_string(config_env()))
+config :nerves_hub, deploy_env: env!("DEPLOY_ENV", :string!, to_string(config_env()))
 
-config :nerves_hub, NervesHub.NodeReporter, enabled: env!("NODE_REPORTER", :boolean?, false)
+config :nerves_hub, NervesHub.NodeReporter, enabled: env!("NODE_REPORTER", :boolean!, false)
 
-config :nerves_hub, NervesHub.LoadBalancer, enabled: env!("LOAD_BALANCER", :boolean?, false)
+config :nerves_hub, NervesHub.LoadBalancer, enabled: env!("LOAD_BALANCER", :boolean!, false)
 
 dns_cluster_query =
-  if env!("DNS_CLUSTER_QUERY", :string?, nil) do
+  if env!("DNS_CLUSTER_QUERY", :string!, nil) do
     env!("DNS_CLUSTER_QUERY", :string!) |> String.split(",")
   else
     nil
@@ -27,7 +27,7 @@ dns_cluster_query =
 config :nerves_hub, dns_cluster_query: dns_cluster_query
 
 # Allow for all environments to override the database url
-if env!("DATABASE_URL", :string?, nil) do
+if env!("DATABASE_URL", :string!, nil) do
   config :nerves_hub, NervesHub.Repo,
     url: env!("DATABASE_URL", :string!)
 
@@ -38,7 +38,7 @@ end
 config :nerves_hub,
   from_email: env!("FROM_EMAIL", :string!, "no-reply@nerves-hub.org")
 
-if env!("OTEL_ENABLED", :boolean?, nil) do
+if env!("OTEL_ENABLED", :boolean!, nil) do
   # Export to a local collector
   config :opentelemetry_exporter,
     otlp_protocol: :http_protobuf,
@@ -48,7 +48,7 @@ end
 if config_env() == :prod do
   config :swoosh, local: false
 
-  if env!("SMTP_SERVER", :string?, nil) do
+  if env!("SMTP_SERVER", :string!, nil) do
     config :nerves_hub, NervesHub.SwooshMailer,
       adapter: Swoosh.Adapters.SMTP,
       relay: env!("SMTP_SERVER", :string!),
@@ -61,11 +61,11 @@ if config_env() == :prod do
   end
 
   config :nerves_hub, NervesHub.RateLimit,
-    limit: env!("DEVICE_CONNECT_RATE_LIMIT", :integer?, 100)
+    limit: env!("DEVICE_CONNECT_RATE_LIMIT", :integer!, 100)
 end
 
 if config_env() == :prod do
-  firmware_upload = env!("FIRMWARE_UPLOAD_BACKEND", :string?, "local")
+  firmware_upload = env!("FIRMWARE_UPLOAD_BACKEND", :string!, "local")
 
   case firmware_upload do
     "S3" ->
@@ -78,11 +78,11 @@ if config_env() == :prod do
         secret_access_key: env!("S3_SECRET_ACCESS_KEY", :string!),
         bucket: env!("S3_BUCKET_NAME", :string!)
 
-      if env!("S3_REGION", :string?) do
+      if env!("S3_REGION", :string, nil) do
         config :ex_aws, :s3, region: env!("S3_REGION", :string!)
       end
 
-      if env!("S3_HOST", :string?) do
+      if env!("S3_HOST", :string, nil) do
         config :ex_aws, :s3, host: env!("S3_HOST", :string!)
       end
 
@@ -109,24 +109,24 @@ if config_env() == :prod do
 end
 
 config :nerves_hub, :statsd,
-  host: env!("STATSD_HOST", :string?, "localhost"),
-  port: env!("STATSD_PORT", :integer?, 8125)
+  host: env!("STATSD_HOST", :string!, "localhost"),
+  port: env!("STATSD_PORT", :integer!, 8125)
 
 config :nerves_hub, :socket_drano,
-  enabled: env!("SOCKET_DRAIN_ENABLED", :boolean?, false),
-  percentage: env!("SOCKET_DRAIN_BATCH_PERCENTAGE", :integer?, 25),
-  time: env!("SOCKET_DRAIN_BATCH_TIME", :integer?, 100)
+  enabled: env!("SOCKET_DRAIN_ENABLED", :boolean!, false),
+  percentage: env!("SOCKET_DRAIN_BATCH_PERCENTAGE", :integer!, 25),
+  time: env!("SOCKET_DRAIN_BATCH_TIME", :integer!, 100)
 
 if config_env() == :prod do
   if nerves_hub_app in ["all", "web"] do
     config :nerves_hub, NervesHubWeb.Endpoint,
       url: [
         host: env!("WEB_HOST", :string!),
-        scheme: env!("WEB_SCHEME", :string?, "https"),
-        port: env!("WEB_PORT", :integer?, 443)
+        scheme: env!("WEB_SCHEME", :string!, "https"),
+        port: env!("WEB_PORT", :integer!, 443)
       ],
       http: [
-        port: env!("HTTP_PORT", :integer?, 4000)
+        port: env!("HTTP_PORT", :integer!, 4000)
       ],
       secret_key_base: env!("SECRET_KEY_BASE", :string!),
       live_view: [
@@ -136,8 +136,8 @@ if config_env() == :prod do
   end
 
   if nerves_hub_app in ["all", "device"] do
-    host = env!("DEVICE_HOST", :string?, nil) || env!("WEB_HOST", :string?, nil)
-    https_port = env!("DEVICE_PORT", :integer?, 443)
+    host = env!("DEVICE_HOST", :string!, nil) || env!("WEB_HOST", :string!, nil)
+    https_port = env!("DEVICE_PORT", :integer!, 443)
 
     ssl_key = env!("DEVICE_SSL_KEY", :string!) |> Base.decode64!()
     :ok = File.write("/app/tmp/ssl_key.crt", ssl_key)
@@ -182,7 +182,7 @@ if config_env() == :prod do
   :pubkey_os_cacerts.load([CAStore.file_path()])
 
   database_ssl_opts =
-    if database_pem = env!("DATABASE_PEM", :string?) do
+    if database_pem = env!("DATABASE_PEM", :string!, nil) do
       db_hostname_charlist =
         ~r/.*@(?<hostname>.*):\d{4}\/.*/
         |> Regex.named_captures(env!("DATABASE_URL", :string!))
@@ -204,7 +204,7 @@ if config_env() == :prod do
       []
     end
 
-  databse_socket_options = if env!("DATABASE_INET6", :boolean, false), do: [:inet6], else: []
+  databse_socket_options = if env!("DATABASE_INET6", :boolean!, false), do: [:inet6], else: []
 
   config :nerves_hub, NervesHub.Repo,
     ssl: env!("DATABASE_SSL", :boolean, true),
@@ -223,18 +223,18 @@ if config_env() == :prod do
     queue_target: 5000
 
   config :nerves_hub,
-    database_auto_migrator: env!("DATABASE_AUTO_MIGRATOR", :boolean?, true)
+    database_auto_migrator: env!("DATABASE_AUTO_MIGRATOR", :boolean!, true)
 end
 
-if config_env() == :prod and env!("SENTRY_DSN_URL", :string?, nil) do
+if config_env() == :prod and env!("SENTRY_DSN_URL", :string!, nil) do
   config :sentry,
     dsn: env!("SENTRY_DSN_URL", :string!),
-    environment_name: env!("DEPLOY_ENV", :string?, to_string(config_env())),
+    environment_name: env!("DEPLOY_ENV", :string!, to_string(config_env())),
     enable_source_code_context: true,
     root_source_code_path: File.cwd!()
 end
 
 config :nerves_hub, :audit_logs,
-  enabled: env!("TRUNATE_AUDIT_LOGS_ENABLED", :boolean?, false),
-  max_records_per_run: env!("TRUNCATE_AUDIT_LOGS_MAX_RECORDS_PER_RUN", :integer?, 10000),
-  days_kept: env!("TRUNCATE_AUDIT_LOGS_MAX_DAYS_KEPT", :integer?, 30)
+  enabled: env!("TRUNATE_AUDIT_LOGS_ENABLED", :boolean!, false),
+  max_records_per_run: env!("TRUNCATE_AUDIT_LOGS_MAX_RECORDS_PER_RUN", :integer!, 10000),
+  days_kept: env!("TRUNCATE_AUDIT_LOGS_MAX_DAYS_KEPT", :integer!, 30)

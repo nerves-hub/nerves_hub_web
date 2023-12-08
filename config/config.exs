@@ -28,8 +28,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 config :nerves_hub,
   env: Mix.env(),
   namespace: NervesHub,
-  ecto_repos: [NervesHub.Repo],
-  from_email: "no-reply@nerves-hub.org"
+  ecto_repos: [NervesHub.Repo]
 
 config :nerves_hub, Oban,
   repo: NervesHub.ObanRepo,
