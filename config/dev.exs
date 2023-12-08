@@ -69,8 +69,6 @@ config :nerves_hub, NervesHub.Uploads.File,
   local_path: Path.expand("tmp/uploads"),
   public_path: "/uploads"
 
-# config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: System.get_env("S3_BUCKET_NAME")
-
 config :nerves_hub, NervesHub.Repo, ssl: false
 
 config :nerves_hub, NervesHub.ObanRepo, ssl: false
@@ -79,9 +77,6 @@ config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Local
 
 config :nerves_hub, NervesHub.RateLimit, limit: 10
 
-##
-# NervesHubWWW
-#
 config :nerves_hub, NervesHubWeb.Endpoint,
   http: [ip: {0, 0, 0, 0}, port: 4000],
   debug_errors: true,
