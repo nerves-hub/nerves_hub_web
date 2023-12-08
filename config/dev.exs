@@ -9,12 +9,12 @@ config :phoenix, :stacktrace_depth, 20
 
 # Configure your database
 config :nerves_hub, NervesHub.Repo,
-  url: System.get_env("DATABASE_URL", "postgres://localhost/nerves_hub_dev"),
+  url: "postgres://postgres:postgres@localhost/nerves_hub_dev",
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
 config :nerves_hub, NervesHub.ObanRepo,
-  url: System.get_env("DATABASE_URL", "postgres://localhost/nerves_hub_dev"),
+  url: "postgres://postgres:postgres@localhost/nerves_hub_dev",
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
@@ -93,13 +93,6 @@ config :nerves_hub, NervesHubWeb.Endpoint,
     ]
   ]
 
-if System.get_env("OTEL_ENABLED", "false") == "true" do
-  # Export to a local collector
-  config :opentelemetry_exporter,
-    otlp_protocol: :http_protobuf,
-    otlp_endpoint: "http://localhost:4318"
-else
-  config :opentelemetry, tracer: :otel_tracer_noop, traces_exporter: :none
-end
+config :opentelemetry, tracer: :otel_tracer_noop, traces_exporter: :none
 
 config :sentry, environment_name: :development

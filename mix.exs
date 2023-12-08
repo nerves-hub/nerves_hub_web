@@ -66,6 +66,7 @@ defmodule NervesHub.MixProject do
       {:comeonin, "~> 5.3"},
       {:crontab, "~> 1.1"},
       {:decorator, "~> 1.2"},
+      {:dotenvy, "~> 0.8.0"},
       {:ecto, "~> 3.8", override: true},
       {:ecto_sql, "~> 3.0"},
       {:ex_aws, "~> 2.0"},
