@@ -124,8 +124,10 @@ jobs:
         with:
           images: ghcr.io/nerves-hub/nerves-hub
           tags: |
-            # set latest tag for default branch
-            type=raw,value=latest,enable={{is_default_branch}}
+            # short sha
+            type=sha,enable={{is_default_branch}},prefix=,suffix=,format=short
+            # latest tag for main branch
+            type=raw,enable={{is_default_branch}},value=latest
             # tag event (eg. "v1.2.3")
             type=ref,event=tag
 
