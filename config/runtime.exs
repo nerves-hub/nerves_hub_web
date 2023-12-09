@@ -1,6 +1,12 @@
 import Config
 import Dotenvy
 
+source!([
+  ".env",
+  ".env.#{config_env()}.local",
+  System.get_env()
+])
+
 source!([".env", System.get_env()])
 
 if env!("LOG_LEVEL", :string?, nil) do
