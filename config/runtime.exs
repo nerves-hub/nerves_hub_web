@@ -71,6 +71,9 @@ if config_env() == :prod do
         signing_salt: System.fetch_env!("LIVE_VIEW_SIGNING_SALT")
       ],
       server: true
+
+    config :nerves_hub, NervesHubWeb.DeviceSocketTokenAuth,
+      enabled: System.get_env("DEVICE_TOKEN_AUTH", "false") == "true"
   end
 
   if nerves_hub_app in ["all", "device"] do

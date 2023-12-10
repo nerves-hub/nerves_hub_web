@@ -21,10 +21,11 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
 
   def connect(_params, socket, %{x_headers: headers}) do
     parsed_data = parse_headers(headers)
-    verify_opts = verify_options(parsed_data)
+    verify_opts = verification_options(parsed_data)
     salt = expected_salt(headers)
 
-    with {:ok, access_id} <- Keyword.fetch(parsed_data, :access_id),
+    with {:ok, true} <- Application.fetch_env(:nerves_hub, __MODULE__)[:enabled],
+         {:ok, access_id} <- Keyword.fetch(parsed_data, :access_id),
          {:ok, token_auth} <- get_product_token_auth(access_id),
          {:ok, signature} <- Keyword.fetch(parsed_data, :signature),
          {:ok, identifier} <- Crypto.verify(token_auth.secret, salt, signature, verify_opts),
@@ -37,7 +38,7 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
 
       {:ok, socket}
     else
-      _ -> {:error, :invalud_auth}
+      _ -> :error
     end
   end
 
@@ -69,13 +70,14 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
           {:signature, v}
 
         _ ->
-          # TODO: What should we do with this unknown?
+          # Skip unknown x headers.
+          # It's not uncommon for x headers to be added by Load balancers
           nil
       end
     end
   end
 
-  defp verify_options(parsed_data) do
+  defp verification_options(parsed_data) do
     Keyword.take(parsed_data, [:key_digest, :key_iterations, :key_length, :signed_at])
     # TODO: Make max_age configurable?
     |> Keyword.put(:max_age, @default_max_age)
@@ -104,7 +106,4 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
   defp generate_reference_id() do
     Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
   end
-
-  def handle_error(conn, :invalud_auth),
-    do: Plug.Conn.send_resp(conn, 403, "Invalid authorization")
 end

@@ -15,10 +15,7 @@ defmodule NervesHubWeb.Endpoint do
   )
 
   socket("/device-socket", NervesHubWeb.DeviceSocketTokenAuth,
-    websocket: [
-      connect_info: [:x_headers],
-      error_handler: {NervesHubWeb.DeviceSocketTokenAuth, :handle_error, []}
-    ]
+    websocket: [connect_info: [:x_headers]]
   )
 
   # Serve at "/" the static files from "priv/static" directory.
