@@ -19,14 +19,31 @@ defmodule NervesHub.Devices do
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
   @min_fwup_delta_updatable_version ">=1.6.0"
 
-  def get_device(device_id), do: Repo.get(Device, device_id)
-  def get_device!(device_id), do: Repo.get!(Device, device_id)
+  def get_device!(device_id) do
+    Repo.get!(Device, device_id)
+  end
+
+  def get_device(device_id) when is_integer(device_id) do
+    Repo.get(Device, device_id)
+  end
+
+  def get_device(product_id: product_id, identifier: identifier) do
+    Device
+    |> where([d], d.product_id == ^product_id)
+    |> where([d], d.identifier == ^identifier)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      device -> {:ok, device}
+    end
+  end
 
   def get_devices_by_org_id(org_id) do
     query =
@@ -218,6 +235,22 @@ defmodule NervesHub.Devices do
     |> case do
       nil -> {:error, :not_found}
       device -> {:ok, device}
+    end
+  end
+
+  def get_or_create_device(token_auth: token_auth, identifier: identifier) do
+    with {:error, :not_found} <-
+           get_device(product_id: token_auth.product_id, identifier: identifier),
+         {:ok, product} <-
+           Products.get_product(token_auth.product_id) do
+      create_device(%{
+        org_id: product.org_id,
+        product_id: product.id,
+        identifier: identifier
+      })
+    else
+      result ->
+        result
     end
   end
 

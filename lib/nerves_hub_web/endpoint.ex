@@ -14,6 +14,13 @@ defmodule NervesHubWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]]
   )
 
+  socket("/device-socket", NervesHubWeb.DeviceSocketTokenAuth,
+    websocket: [
+      connect_info: [:x_headers],
+      error_handler: {NervesHubWeb.DeviceSocketTokenAuth, :handle_error, []}
+    ]
+  )
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # You should set gzip to true if you are running phoenix.digest

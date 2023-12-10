@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.DeviceSocket do
+defmodule NervesHubWeb.DeviceSocketCertAuth do
   use Phoenix.Socket
 
   alias NervesHub.Devices

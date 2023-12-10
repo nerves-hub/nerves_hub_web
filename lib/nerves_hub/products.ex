@@ -7,7 +7,7 @@ defmodule NervesHub.Products do
 
   alias Ecto.Multi
   alias NervesHub.{Certificate, Repo}
-  alias NervesHub.Products.Product
+  alias NervesHub.Products.{Product, TokenAuth}
   alias NervesHub.Accounts.{User, Org, OrgUser}
 
   alias NimbleCSV.RFC4180, as: CSV
@@ -52,6 +52,16 @@ defmodule NervesHub.Products do
     Product
     |> Repo.exclude_deleted()
     |> Repo.get!(id)
+  end
+
+  def get_product(id) do
+    Product
+    |> Repo.exclude_deleted()
+    |> Repo.get(id)
+    |> case do
+      nil -> {:error, :not_found}
+      product -> {:ok, product}
+    end
   end
 
   def get_product_by_org_id_and_name(org_id, name) do
@@ -128,6 +138,15 @@ defmodule NervesHub.Products do
   """
   def change_product(%Product{} = product) do
     Product.changeset(product, %{})
+  end
+
+  def get_token_auth(access_id: access_id) do
+    TokenAuth
+    |> join(:inner, [ta], p in assoc(ta, :product))
+    |> where([ta], ta.access_id == ^access_id)
+    |> where([ta], is_nil(ta.deactivated_at))
+    |> where([p], is_nil(p.deleted_at))
+    |> Repo.one()
   end
 
   def devices_csv(%Product{} = product) do

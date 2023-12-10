@@ -7,6 +7,7 @@ defmodule NervesHub.Products.Product do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Products.TokenAuth
   alias NervesHub.Repo
 
   @required_params [:name, :org_id]
@@ -19,6 +20,7 @@ defmodule NervesHub.Products.Product do
     has_many(:firmwares, Firmware)
     has_many(:jitp, CACertificate.JITP)
     has_many(:archives, Archive)
+    has_many(:auth_tokens, TokenAuth)
 
     belongs_to(:org, Org, where: [deleted_at: nil])
 
