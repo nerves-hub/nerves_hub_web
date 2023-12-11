@@ -237,7 +237,9 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def get_or_create_device(token_auth: token_auth, identifier: identifier) do
+  @spec get_or_create_device(TokenAuth.t(), String.t()) ::
+          {:ok, Device.t()} | {:error, :not_found}
+  def get_or_create_device(%TokenAuth{} = token_auth, identifier) do
     with {:error, :not_found} <-
            get_active_device(product_id: token_auth.product_id, identifier: identifier),
          {:ok, product} <-

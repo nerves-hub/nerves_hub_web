@@ -31,7 +31,7 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
          {:ok, identifier} <-
            Crypto.verify(token_auth.secret, salt, signature, verification_options),
          {:ok, device} <-
-           Devices.get_or_create_device(token_auth: token_auth, identifier: identifier) do
+           Devices.get_or_create_device(token_auth, identifier) do
       socket =
         socket
         |> assign(:device, device)
