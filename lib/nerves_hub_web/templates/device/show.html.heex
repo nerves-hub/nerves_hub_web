@@ -14,10 +14,10 @@
 <% end %>
 
 <div class="action-row">
-  <%= link "All Devices", to: Routes.device_path(@socket, :index, @org.name, @product.name), class: "back-link"%>
+  <%= link("All Devices", to: Routes.device_path(@socket, :index, @org.name, @product.name), class: "back-link") %>
   <div class="btn-group" role="group" aria-label="Device Actions">
     <%= if @device.deleted_at do %>
-      <button class="btn btn-outline-light btn-action"  aria-label="Restore" type="button" phx-click="restore">
+      <button class="btn btn-outline-light btn-action" aria-label="Restore" type="button" phx-click="restore">
         <span class="button-icon power"></span>
         <span class="action-text">Restore</span>
       </button>
@@ -26,15 +26,15 @@
         <span class="action-text">Destroy</span>
       </button>
     <% else %>
-      <button class="btn btn-outline-light btn-action"  aria-label="Reboot device" type="button" phx-click="reboot" data-confirm="Are you sure?">
+      <button class="btn btn-outline-light btn-action" aria-label="Reboot device" type="button" phx-click="reboot" data-confirm="Are you sure?">
         <span class="button-icon power"></span>
         <span class="action-text">Reboot</span>
       </button>
-      <button class="btn btn-outline-light btn-action"  aria-label="Reconnect device" type="button" phx-click="reconnect">
+      <button class="btn btn-outline-light btn-action" aria-label="Reconnect device" type="button" phx-click="reconnect">
         <span class="button-icon power"></span>
         <span class="action-text">Reconnect</span>
       </button>
-      <button class="btn btn-outline-light btn-action"  aria-label="Identify device" type="button" phx-click="identify">
+      <button class="btn btn-outline-light btn-action" aria-label="Identify device" type="button" phx-click="identify">
         <span class="button-icon identify"></span>
         <span class="action-text">Identify</span>
       </button>
@@ -133,7 +133,12 @@
   <div class="device-header-group">
     <h3 class="mb-2">Latest Activity</h3>
 
-    <a class="btn btn-outline-light btn-action" title="Download Audit Logs" aria-label="Download Audit Logs" href={Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, @device.identifier)}>
+    <a
+      class="btn btn-outline-light btn-action"
+      title="Download Audit Logs"
+      aria-label="Download Audit Logs"
+      href={Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, @device.identifier)}
+    >
       <div class="button-icon download"></div>
     </a>
   </div>
@@ -177,17 +182,17 @@
       <.live_file_input upload={@uploads.certificate} class="upload-select" />
     </div>
   </form>
-  <br/>
+  <br />
 </div>
 
 <%= if Enum.any?(@device.device_certificates, & &1.org_id != @device.org_id) do %>
   <div class="alert alert-warning">
     <div class="content-container">
       <center>Device was previously moved and has certificates associated with a Signer CA from another organization</center>
-      <br/>
+      <br />
       <center>In most cases, this should be okay (or was even intentional), but automatic device certificate creation</center>
       <center>will not work until the Signer CA is also moved the the same organization as this device.</center>
-      <br/>
+      <br />
       <center>If the intention is leave the Signer CA in the other organization, then this will continue to work</center>
       <center>so long as certificates are managed manually for this device and other metadata, such as the product</center>
       <center>and firmware signing keys appropiately match the existing firmware as well</center>
@@ -240,7 +245,11 @@
                 <%= link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: Routes.product_path(@socket, :index, Repo.preload(cert, :org).org.name)) %>
               <% end %>
               <%= if cert.der do %>
-                <%= link("Download", class: "dropdown-item", aria_label: "Download Device Certificate", to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)) %>
+                <%= link("Download",
+                  class: "dropdown-item",
+                  aria_label: "Download Device Certificate",
+                  to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)
+                ) %>
               <% end %>
               <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial={cert.serial} data-confirm={"Delete #{format_serial(cert.serial)}?"}>Delete</a>
             </div>

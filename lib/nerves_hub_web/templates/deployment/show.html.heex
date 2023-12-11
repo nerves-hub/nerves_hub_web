@@ -1,5 +1,5 @@
 <div class="action-row">
-  <%= link "All Deployments", to: Routes.deployment_path(@conn, :index, @org.name, @product.name), class: "back-link"%>
+  <%= link("All Deployments", to: Routes.deployment_path(@conn, :index, @org.name, @product.name), class: "back-link") %>
   <div class="btn-group" role="group" aria-label="Deployment Actions">
     <%= link(to: Routes.deployment_path(@conn, :toggle, @org.name, @product.name, @deployment.name), class: "btn btn-outline-light btn-action", method: :post, aria: [label: "Turn #{opposite_status(@deployment)} deployment"]) do %>
       <span class="button-icon power"></span>
@@ -53,7 +53,7 @@
         <% end %>
         <div>
           <div class="help-text mb-1">Firmware version</div>
-          <span> <a href={Routes.firmware_path(@conn, :show, @org.name, @product.name, @firmware.uuid)} class="badge ff-m"><%= firmware_summary(@firmware) %></a> </span>
+          <span><a href={Routes.firmware_path(@conn, :show, @org.name, @product.name, @firmware.uuid)} class="badge ff-m"><%= firmware_summary(@firmware) %></a></span>
         </div>
         <div>
           <div class="help-text mb-1">Version requirement</div>

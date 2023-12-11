@@ -15,7 +15,7 @@
       <th>Not before</th>
       <th>Not after</th>
       <th>Check expiration?</th>
-      <th>JITP Enabled? </th>
+      <th>JITP Enabled?</th>
     </tr>
   </thead>
   <tbody>
@@ -63,8 +63,13 @@
               <img src="/images/icons/more.svg" alt="options" />
             </a>
             <div class="dropdown-menu dropdown-menu-right">
-              <%= link "Edit", class: "dropdown-item", to: Routes.org_certificate_path(@conn, :edit, @org.name, cert.serial) %>
-              <%= link "Delete", class: "dropdown-item", to: Routes.org_certificate_path(@conn, :delete, @org.name, cert.serial), method: :delete, data: [confirm: "Are you sure you want to delete this certificate? This can not be undone."] %>
+              <%= link("Edit", class: "dropdown-item", to: Routes.org_certificate_path(@conn, :edit, @org.name, cert.serial)) %>
+              <%= link("Delete",
+                class: "dropdown-item",
+                to: Routes.org_certificate_path(@conn, :delete, @org.name, cert.serial),
+                method: :delete,
+                data: [confirm: "Are you sure you want to delete this certificate? This can not be undone."]
+              ) %>
             </div>
           </div>
         </td>

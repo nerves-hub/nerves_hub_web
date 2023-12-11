@@ -9,8 +9,8 @@
       <span class="tooltip-info"></span>
       <span class="tooltip-text">Must be one word</span>
     </label>
-    <%= text_input f, :name, class: "form-control", id: "name_input" %>
-    <div class="has-error"><%= error_tag f, :name %></div>
+    <%= text_input(f, :name, class: "form-control", id: "name_input") %>
+    <div class="has-error"><%= error_tag(f, :name) %></div>
   </div>
-  <%= submit "Save Changes", class: "btn btn-primary" %>
+  <%= submit("Save Changes", class: "btn btn-primary") %>
 <% end %>

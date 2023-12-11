@@ -2,13 +2,20 @@
   <div class="no-results-blowup-wrapper">
     <img src="/images/device.svg" alt="No devices" />
     <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any devices yet</h3>
-    <p class="mt-3">Or follow <a class="strong inline" target="_blank" rel="noopener noreferrer" href="https://docs.nerves-hub.org/nerves-hub/setup/devices">these steps</a> to add a device using the terminal.</p>
+    <p class="mt-3">
+      Or follow <a class="strong inline" target="_blank" rel="noopener noreferrer" href="https://docs.nerves-hub.org/nerves-hub/setup/devices">these steps</a> to add a device using the terminal.
+    </p>
   </div>
 <% else %>
   <div class="action-row">
     <div class="flex-row align-items-center">
       <h1 class="mr-3 mb-0">Devices</h1>
-      <button class={"btn btn-outline-light btn-action #{if @show_filters, do: "btn-filter-hide", else: "btn-filter-show"}"} type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
+      <button
+        class={"btn btn-outline-light btn-action #{if @show_filters, do: "btn-filter-hide", else: "btn-filter-show"}"}
+        type="button"
+        phx-click="toggle-filters"
+        phx-value-toggle={to_string(@show_filters)}
+      >
         <span class="action-text">
           <%= if @show_filters, do: "Hide Filters", else: "Show Filters" %>
         </span>
@@ -33,7 +40,7 @@
       </button>
     <% end %>
   </div>
-  <%= if @show_filters do%>
+  <%= if @show_filters do %>
     <div class="filter-wrapper">
       <h4 class="color-white mb-2">Filters</h4>
       <form id="filter-form" phx-change="update-filters" class="filter-form device-filters">
@@ -136,7 +143,9 @@
               <div class="select-icon"></div>
             </div>
 
-            <button class="btn btn-outline-light btn-action btn-primary ml-1" type="submit" data-confirm={move_alert(@target_product)} {unless @target_product, do: [disabled: true], else: []}>Move</button>
+            <button class="btn btn-outline-light btn-action btn-primary ml-1" type="submit" data-confirm={move_alert(@target_product)} {unless @target_product, do: [disabled: true], else: []}>
+              Move
+            </button>
           </div>
         </form>
 
@@ -146,7 +155,14 @@
             <div class="flex-grow">
               <input type="text" name="tags" id="input_tags" class="form-control" value={@current_filters["tag"]} phx-debounce="500" />
             </div>
-            <button class="btn btn-outline-light btn-action btn-primary ml-1" type="submit" data-confirm="This will update tags on all selected devices" {if @valid_tags && @device_tags != "", do: [], else: [disabled: true]}>Set</button>
+            <button
+              class="btn btn-outline-light btn-action btn-primary ml-1"
+              type="submit"
+              data-confirm="This will update tags on all selected devices"
+              {if @valid_tags && @device_tags != "", do: [], else: [disabled: true]}
+            >
+              Set
+            </button>
           </div>
           <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
         </form>
@@ -198,7 +214,7 @@
     <%= for device <- @devices do %>
       <tr class="item">
         <td>
-          <input class="checkbox" {if device.id in @selected_devices, do: [checked: true], else: []} type="checkbox" id={"#{device.id}-select"} phx-value-id={device.id} phx-click="select">
+          <input class="checkbox" {if device.id in @selected_devices, do: [checked: true], else: []} type="checkbox" id={"#{device.id}-select"} phx-value-id={device.id} phx-click="select" />
         </td>
         <td>
           <div class="mobile-label help-text">Identifier</div>
@@ -267,13 +283,13 @@
               <img src="/images/icons/more.svg" alt="options" />
             </a>
             <div class="dropdown-menu dropdown-menu-right">
-              <%= link "details", class: "dropdown-item", to: Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier) %>
+              <%= link("details", class: "dropdown-item", to: Routes.device_path(@socket, :show, @org.name, @product.name, device.identifier)) %>
               <div class="dropdown-divider"></div>
-              <%= link "Reboot", to: Routes.device_path(@socket, :reboot, @org.name, @product.name, device.identifier), method: :post, class: "dropdown-item"  %>
+              <%= link("Reboot", to: Routes.device_path(@socket, :reboot, @org.name, @product.name, device.identifier), method: :post, class: "dropdown-item") %>
               <div class="dropdown-divider"></div>
-              <%= link "Console", to: Routes.device_path(@socket, :console, @org.name, @product.name, device.identifier), class: "dropdown-item" %>
+              <%= link("Console", to: Routes.device_path(@socket, :console, @org.name, @product.name, device.identifier), class: "dropdown-item") %>
               <div class="dropdown-divider"></div>
-              <%= link "Edit", class: "dropdown-item", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier) %>
+              <%= link("Edit", class: "dropdown-item", to: Routes.device_path(@socket, :edit, @org.name, @product.name, device.identifier)) %>
               <div class="dropdown-divider"></div>
               <%= link to: Routes.device_path(@socket, :toggle_updates, @org.name, @product.name, device.identifier), method: :post, class: "dropdown-item" do %>
                 <span>

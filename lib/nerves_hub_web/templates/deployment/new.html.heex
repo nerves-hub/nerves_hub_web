@@ -3,21 +3,21 @@
 <%= form_for @changeset, Routes.deployment_path(@conn, :create, @org.name, @product.name), [as: :deployment], fn f -> %>
   <div class="form-group">
     <label for="name_input">Deployment name</label>
-    <%= text_input f, :name, class: "form-control", id: "name_input" %>
-    <div class="has-error"><%= error_tag f, :name %></div>
+    <%= text_input(f, :name, class: "form-control", id: "name_input") %>
+    <div class="has-error"><%= error_tag(f, :name) %></div>
   </div>
 
   <div class="form-group">
     <label for="tags_input">Tag(s) distributed to</label>
-    <%= text_input f, :tags,
-        class: "form-control",
-        id: "tags_input",
-        value:
-          @changeset
-          |> Ecto.Changeset.get_change(:conditions, %{})
-          |> Map.get("tags", "")
-      %>
-    <div class="has-error"><%= error_tag f, :tags %></div>
+    <%= text_input(f, :tags,
+      class: "form-control",
+      id: "tags_input",
+      value:
+        @changeset
+        |> Ecto.Changeset.get_change(:conditions, %{})
+        |> Map.get("tags", "")
+    ) %>
+    <div class="has-error"><%= error_tag(f, :tags) %></div>
   </div>
 
   <div class="form-group">
@@ -26,26 +26,26 @@
       <span class="tooltip-info"></span>
       <span class="tooltip-text">Once selected, deployments will use the same platform and architecture going forward.</span>
     </label>
-    <%= select f, :firmware_id, firmware_dropdown_options(@firmwares), required: true, id: "firmware_id", class: "form-control" %>
+    <%= select(f, :firmware_id, firmware_dropdown_options(@firmwares), required: true, id: "firmware_id", class: "form-control") %>
     <div class="select-icon"></div>
-    <div class="has-error"><%= error_tag f, :firmware_id %></div>
+    <div class="has-error"><%= error_tag(f, :firmware_id) %></div>
   </div>
 
   <div class="form-group">
     <label for="version_input">Version requirement</label>
-    <%= text_input f, :version,
+    <%= text_input(f, :version,
       class: "form-control",
       id: "version_input",
       value:
         @changeset
         |> Ecto.Changeset.get_change(:conditions, %{})
         |> Map.get("version", "")
-    %>
-    <div class="has-error"><%= error_tag f, :version %></div>
+    ) %>
+    <div class="has-error"><%= error_tag(f, :version) %></div>
   </div>
 
   <div class="button-submit-wrapper">
     <a class="btn btn-secondary" href={Routes.deployment_path(@conn, :new, @org.name, @product.name)}>Back</a>
-    <%= submit "Create Deployment", class: "btn btn-primary" %>
+    <%= submit("Create Deployment", class: "btn btn-primary") %>
   </div>
 <% end %>

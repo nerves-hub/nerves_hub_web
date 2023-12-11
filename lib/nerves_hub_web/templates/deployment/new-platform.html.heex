@@ -7,11 +7,11 @@
       <span class="tooltip-info"></span>
       <span class="tooltip-text">Only allow this platform to be chosen when selecting firmware.</span>
     </label>
-    <%= select f, :platform, @platforms, required: true, id: "platform", class: "form-control" %>
+    <%= select(f, :platform, @platforms, required: true, id: "platform", class: "form-control") %>
   </div>
 
   <div class="button-submit-wrapper">
     <a class="btn btn-secondary" href={Routes.deployment_path(@conn, :index, @org.name, @product.name)}>Cancel</a>
-    <%= submit "Next", class: "btn btn-primary" %>
+    <%= submit("Next", class: "btn btn-primary") %>
   </div>
 <% end %>
