@@ -1,4 +1,4 @@
-defmodule NervesHub.Products.TokenAuth do
+defmodule NervesHub.Products.SharedSecretAuth do
   use Ecto.Schema
 
   import Ecto.Changeset
@@ -7,12 +7,12 @@ defmodule NervesHub.Products.TokenAuth do
 
   @type t :: %__MODULE__{}
 
-  @access_id_prefix "nhp"
+  @key_prefix "nhp"
 
-  schema "product_auth_tokens" do
+  schema "product_shared_secret_auth" do
     belongs_to(:product, Product)
 
-    field(:access_id, :string)
+    field(:key, :string)
     field(:secret, :string)
 
     field(:deactivated_at, :utc_datetime)
@@ -22,13 +22,13 @@ defmodule NervesHub.Products.TokenAuth do
 
   def create_changeset(%Product{} = product) do
     change(%__MODULE__{}, product_id: product.id)
-    |> put_change(:access_id, "#{@access_id_prefix}_#{generate_token()}")
+    |> put_change(:key, "#{@key_prefix}_#{generate_token()}")
     |> put_change(:secret, generate_token())
-    |> validate_required([:product_id, :access_id, :secret])
-    |> validate_format(:access_id, ~r/^nhp_[a-zA-Z0-9\-\/\+]{43}$/)
+    |> validate_required([:product_id, :key, :secret])
+    |> validate_format(:key, ~r/^#{@key_prefix}_[a-zA-Z0-9\-\/\+]{43}$/)
     |> validate_format(:secret, ~r/^[a-zA-Z0-9\-\/\+]{43}$/)
     |> foreign_key_constraint(:product_id)
-    |> unique_constraint(:access_id)
+    |> unique_constraint(:key)
     |> unique_constraint(:secret)
   end
 

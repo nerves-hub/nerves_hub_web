@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]]
   )
 
-  socket("/device-socket", NervesHubWeb.DeviceSocketTokenAuth,
+  socket("/device-socket", NervesHubWeb.DeviceSocketSharedSecretAuth,
     websocket: [connect_info: [:x_headers]]
   )
 

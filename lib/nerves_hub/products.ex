@@ -7,7 +7,7 @@ defmodule NervesHub.Products do
 
   alias Ecto.Multi
   alias NervesHub.{Certificate, Repo}
-  alias NervesHub.Products.{Product, TokenAuth}
+  alias NervesHub.Products.{Product, SharedSecretAuth}
   alias NervesHub.Accounts.{User, Org, OrgUser}
 
   alias NimbleCSV.RFC4180, as: CSV
@@ -140,13 +140,17 @@ defmodule NervesHub.Products do
     Product.changeset(product, %{})
   end
 
-  def get_token_auth(access_id: access_id) do
-    TokenAuth
-    |> join(:inner, [ta], p in assoc(ta, :product))
-    |> where([ta], ta.access_id == ^access_id)
-    |> where([ta], is_nil(ta.deactivated_at))
+  def get_shared_secret_auth(access_id) do
+    SharedSecretAuth
+    |> join(:inner, [ssa], p in assoc(ssa, :product))
+    |> where([ssa], ssa.access_id == ^access_id)
+    |> where([ssa], is_nil(ssa.deactivated_at))
     |> where([p], is_nil(p.deleted_at))
     |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      auth -> {:ok, auth}
+    end
   end
 
   def devices_csv(%Product{} = product) do

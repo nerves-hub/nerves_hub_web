@@ -1,7 +1,8 @@
-defmodule NervesHubWeb.DeviceSocketTokenAuth do
+defmodule NervesHubWeb.DeviceSocketSharedSecretAuth do
   use Phoenix.Socket
 
   alias NervesHub.Devices
+  alias NervesHub.Products
 
   alias Plug.Crypto
 
@@ -9,29 +10,27 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
   channel("device", NervesHubWeb.DeviceChannel)
 
   @salt_headers [
-    "x-nh-key-digest",
-    "x-nh-key-iterations",
-    "x-nh-key-length",
-    "x-nh-access-id",
+    "x-nh-digest",
+    "x-nh-iterations",
+    "x-nh-length",
+    "x-nh-key",
     "x-nh-time"
   ]
 
-  # Default 15 min max age for the signature
-  @default_max_age 900
+  # Default 1 min max age for the signature
+  @default_max_age 60
 
   def connect(_params, socket, %{x_headers: headers}) do
-    parsed_data = parse_headers(headers)
-    verification_options = verification_options(parsed_data)
+    parsed_headers = parse_headers(headers)
+    verification_options = verification_options(parsed_headers)
     salt = expected_salt(headers)
 
     with {:ok, true} <- Application.fetch_env(:nerves_hub, __MODULE__)[:enabled],
-         {:ok, access_id} <- Keyword.fetch(parsed_data, :access_id),
-         {:ok, token_auth} <- get_product_token_auth(access_id),
-         {:ok, signature} <- Keyword.fetch(parsed_data, :signature),
-         {:ok, identifier} <-
-           Crypto.verify(token_auth.secret, salt, signature, verification_options),
-         {:ok, device} <-
-           Devices.get_or_create_device(token_auth, identifier) do
+         {:ok, key} <- Keyword.fetch(parsed_headers, :key),
+         {:ok, auth} <- Products.get_shared_secret_auth(key),
+         {:ok, signature} <- Keyword.fetch(parsed_headers, :signature),
+         {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_options),
+         {:ok, device} <- Devices.get_or_create_device(auth, identifier) do
       socket =
         socket
         |> assign(:device, device)
@@ -49,24 +48,24 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
   defp parse_headers(headers) do
     for {k, v} <- headers do
       case String.downcase(k) do
-        "x-nh-time" ->
-          {:signed_at, String.to_integer(v)}
-
-        "x-nh-key-length" ->
-          {:key_length, String.to_integer(v)}
-
-        "x-nh-key-iterations" ->
-          {:key_iterations, String.to_integer(v)}
-
-        "x-nh-key-digest" ->
+        "x-nh-digest" ->
           "NH1-HMAC-" <> digest_str = v
           {:key_digest, String.to_existing_atom(String.downcase(digest_str))}
 
-        "x-nh-access-id" ->
-          {:access_id, v}
+        "x-nh-iterations" ->
+          {:key_iterations, String.to_integer(v)}
+
+        "x-nh-length" ->
+          {:key_length, String.to_integer(v)}
+
+        "x-nh-key" ->
+          {:key, v}
 
         "x-nh-signature" ->
           {:signature, v}
+
+        "x-nh-time" ->
+          {:signed_at, String.to_integer(v)}
 
         _ ->
           # Skip unknown x headers.
@@ -78,7 +77,6 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
 
   defp verification_options(parsed_data) do
     Keyword.take(parsed_data, [:key_digest, :key_iterations, :key_length, :signed_at])
-    # TODO: Make max_age configurable?
     |> Keyword.put(:max_age, @default_max_age)
   end
 
@@ -93,13 +91,6 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
 
     #{salt_headers}
     """
-  end
-
-  defp get_product_token_auth(access_id) do
-    case NervesHub.Products.get_token_auth(access_id: access_id) do
-      nil -> {:error, :unknown_access_id}
-      token_auth -> {:ok, token_auth}
-    end
   end
 
   defp generate_reference_id() do

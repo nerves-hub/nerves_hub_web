@@ -21,6 +21,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHub.Products.SharedSecretAuth
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
@@ -237,13 +238,13 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec get_or_create_device(TokenAuth.t(), String.t()) ::
+  @spec get_or_create_device(SharedSecretAuth.t(), String.t()) ::
           {:ok, Device.t()} | {:error, :not_found}
-  def get_or_create_device(%TokenAuth{} = token_auth, identifier) do
+  def get_or_create_device(%SharedSecretAuth{} = auth, identifier) do
     with {:error, :not_found} <-
-           get_active_device(product_id: token_auth.product_id, identifier: identifier),
+           get_active_device(product_id: auth.product_id, identifier: identifier),
          {:ok, product} <-
-           Products.get_product(token_auth.product_id) do
+           Products.get_product(auth.product_id) do
       create_device(%{
         org_id: product.org_id,
         product_id: product.id,
