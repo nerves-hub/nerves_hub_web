@@ -28,7 +28,8 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
          {:ok, access_id} <- Keyword.fetch(parsed_data, :access_id),
          {:ok, token_auth} <- get_product_token_auth(access_id),
          {:ok, signature} <- Keyword.fetch(parsed_data, :signature),
-         {:ok, identifier} <- Crypto.verify(token_auth.secret, salt, signature, verification_options),
+         {:ok, identifier} <-
+           Crypto.verify(token_auth.secret, salt, signature, verification_options),
          {:ok, device} <-
            Devices.get_or_create_device(token_auth: token_auth, identifier: identifier) do
       socket =
