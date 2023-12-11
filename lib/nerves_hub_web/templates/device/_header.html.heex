@@ -50,12 +50,12 @@
         <% @device.updates_enabled == false -> %>
           <span>Disabled</span>
           <span class="ml-1">
-            <img src="/images/icons/firmware-disabled.svg" alt="Firmware blocked icon" style="width: 1.3rem; margin-top: -4px;"/>
+            <img src="/images/icons/firmware-disabled.svg" alt="Firmware blocked icon" style="width: 1.3rem; margin-top: -4px;" />
           </span>
         <% Devices.device_in_penalty_box?(@device) -> %>
           <span>In Penalty Box</span>
           <span class="ml-1">
-            <img src="/images/icons/firmware-penalty-box.svg" alt="Firmware penalty box icon" style="width: 1.3rem; margin-top: -4px;"/>
+            <img src="/images/icons/firmware-penalty-box.svg" alt="Firmware penalty box icon" style="width: 1.3rem; margin-top: -4px;" />
           </span>
           <a style="" class="btn btn-sm btn-outline-light btn-action" href="#" class="" title="Clear penalty box" aria-label="Clear penalty box" type="button" phx-click="clear-penalty-box">
             Clear
@@ -63,7 +63,7 @@
         <% true -> %>
           <span>Enabled</span>
           <span class="ml-1">
-            <img src="/images/icons/firmware-enabled.svg" alt="Firmware enabled icon" style="width: 1.3rem; margin-top: -4px;"/>
+            <img src="/images/icons/firmware-enabled.svg" alt="Firmware enabled icon" style="width: 1.3rem; margin-top: -4px;" />
           </span>
       <% end %>
     </p>

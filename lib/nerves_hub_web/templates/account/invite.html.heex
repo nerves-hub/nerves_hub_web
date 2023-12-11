@@ -2,20 +2,20 @@
   <h2 class="form-title">
     Create New Account
   </h2>
-  <h5 class="mt-2"><%= gettext "You will be added to the %{organization_name} organization", organization_name: @org.name %></h5>
+  <h5 class="mt-2"><%= gettext("You will be added to the %{organization_name} organization", organization_name: @org.name) %></h5>
 
   <%= form_for @changeset, Routes.account_path(@conn, :accept_invite, @token), [as: :user, method: "post", class: "form-page"], fn f -> %>
     <div class="form-group">
       <label for="username_input">Username</label>
-      <%= text_input f, :username, class: "form-control", id: "username_input" %>
-      <div class="has-error"><%= error_tag f, :username %></div>
+      <%= text_input(f, :username, class: "form-control", id: "username_input") %>
+      <div class="has-error"><%= error_tag(f, :username) %></div>
     </div>
     <div class="form-group">
       <label for="password_input">Password</label>
-      <%= password_input f, :password, class: "form-control", id: "password_input" %>
-      <div class="has-error"><%= error_tag f, :password %></div>
+      <%= password_input(f, :password, class: "form-control", id: "password_input") %>
+      <div class="has-error"><%= error_tag(f, :password) %></div>
     </div>
 
-    <%= submit "Register", class: "btn btn-primary btn-lg w-100" %>
+    <%= submit("Register", class: "btn btn-primary btn-lg w-100") %>
   <% end %>
 </div>
