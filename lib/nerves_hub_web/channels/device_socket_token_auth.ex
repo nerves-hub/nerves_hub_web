@@ -37,8 +37,6 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
         |> assign(:reference_id, generate_reference_id())
 
       {:ok, socket}
-    else
-      _ -> :error
     end
   end
 
