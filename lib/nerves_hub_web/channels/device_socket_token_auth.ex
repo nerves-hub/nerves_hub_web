@@ -21,14 +21,14 @@ defmodule NervesHubWeb.DeviceSocketTokenAuth do
 
   def connect(_params, socket, %{x_headers: headers}) do
     parsed_data = parse_headers(headers)
-    verify_opts = verification_options(parsed_data)
+    verification_options = verification_options(parsed_data)
     salt = expected_salt(headers)
 
     with {:ok, true} <- Application.fetch_env(:nerves_hub, __MODULE__)[:enabled],
          {:ok, access_id} <- Keyword.fetch(parsed_data, :access_id),
          {:ok, token_auth} <- get_product_token_auth(access_id),
          {:ok, signature} <- Keyword.fetch(parsed_data, :signature),
-         {:ok, identifier} <- Crypto.verify(token_auth.secret, salt, signature, verify_opts),
+         {:ok, identifier} <- Crypto.verify(token_auth.secret, salt, signature, verification_options),
          {:ok, device} <-
            Devices.get_or_create_device(token_auth: token_auth, identifier: identifier) do
       socket =
