@@ -140,10 +140,10 @@ defmodule NervesHub.Products do
     Product.changeset(product, %{})
   end
 
-  def get_shared_secret_auth(access_id) do
+  def get_shared_secret_auth(key) do
     SharedSecretAuth
     |> join(:inner, [ssa], p in assoc(ssa, :product))
-    |> where([ssa], ssa.access_id == ^access_id)
+    |> where([ssa], ssa.key == ^key)
     |> where([ssa], is_nil(ssa.deactivated_at))
     |> where([p], is_nil(p.deleted_at))
     |> Repo.one()
