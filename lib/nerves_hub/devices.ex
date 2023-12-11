@@ -34,11 +34,10 @@ defmodule NervesHub.Devices do
     Repo.get(Device, device_id)
   end
 
-  def get_device(product_id: product_id, identifier: identifier) do
+  def get_active_device(filters) do
     Device
-    |> where([d], d.product_id == ^product_id)
-    |> where([d], d.identifier == ^identifier)
-    |> Repo.one()
+    |> Repo.exclude_deleted()
+    |> Repo.get_by(filters)
     |> case do
       nil -> {:error, :not_found}
       device -> {:ok, device}
@@ -240,7 +239,7 @@ defmodule NervesHub.Devices do
 
   def get_or_create_device(token_auth: token_auth, identifier: identifier) do
     with {:error, :not_found} <-
-           get_device(product_id: token_auth.product_id, identifier: identifier),
+           get_active_device(product_id: token_auth.product_id, identifier: identifier),
          {:ok, product} <-
            Products.get_product(token_auth.product_id) do
       create_device(%{
