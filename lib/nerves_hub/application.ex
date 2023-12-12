@@ -29,8 +29,10 @@ defmodule NervesHub.Application do
           {DNSCluster, query: Application.get_env(:nerves_hub, :dns_cluster_query) || :ignore},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, Application.fetch_env!(:nerves_hub, Oban)},
-          NervesHub.Tracker
+          NervesHub.Tracker,
+          NervesHub.Devices.Supervisor
         ] ++
+        deployments_supervisor(Application.get_env(:nerves_hub, :deploy_env)) ++
         endpoints(Application.get_env(:nerves_hub, :deploy_env))
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
@@ -48,9 +50,14 @@ defmodule NervesHub.Application do
     [NervesHub.Metrics]
   end
 
+  defp deployments_supervisor("test"), do: []
+
+  defp deployments_supervisor(_) do
+    [NervesHub.Deployments.Supervisor]
+  end
+
   defp endpoints("test") do
     [
-      NervesHub.Devices.Supervisor,
       NervesHubWeb.DeviceEndpoint,
       NervesHubWeb.Endpoint
     ]
@@ -60,16 +67,12 @@ defmodule NervesHub.Application do
     case Application.get_env(:nerves_hub, :app) do
       "all" ->
         [
-          NervesHub.Deployments.Supervisor,
-          NervesHub.Devices.Supervisor,
           NervesHubWeb.DeviceEndpoint,
           NervesHubWeb.Endpoint
         ] ++ device_socket_drainer()
 
       "device" ->
         [
-          NervesHub.Deployments.Supervisor,
-          NervesHub.Devices.Supervisor,
           NervesHubWeb.DeviceEndpoint
         ] ++ device_socket_drainer()
 
