@@ -13,7 +13,8 @@ defmodule NervesHubWeb.DeviceSocketSharedSecretAuth do
   @default_max_age 60
 
   def connect(_params, socket, %{x_headers: headers}) do
-    with {:ok, true} <- Application.fetch_env(:nerves_hub, __MODULE__)[:enabled],
+    with {:ok, config} <- Application.get_env(:nerves_hub, __MODULE__, []),
+         {:ok, true} <- Keyword.fetch(config, :enabled),
          {:ok, key, salt, verification_opts} <- decode_from_headers(headers),
          {:ok, auth} <- Products.get_shared_secret_auth(key),
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
