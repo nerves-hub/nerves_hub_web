@@ -56,7 +56,7 @@ defmodule NervesHubWeb.DeviceSocketSharedSecretAuth do
         key_iterations: iterations,
         key_digest: digest,
         signed_at: signed_at,
-        max_age: @default_max_age
+        max_age: max_age()
       ]
 
       {:ok, key, expected_salt, opts}
@@ -67,5 +67,10 @@ defmodule NervesHubWeb.DeviceSocketSharedSecretAuth do
 
   defp generate_reference_id() do
     Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
+  end
+
+  defp max_age() do
+    Application.get_env(:nerves_hub, __MODULE__, [])
+    |> Keyword.get(:max_age, @default_max_age)
   end
 end
