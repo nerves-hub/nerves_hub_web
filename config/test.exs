@@ -74,6 +74,8 @@ config :nerves_hub, Oban, queues: false, plugins: false
 ##
 # Other
 #
+config :nerves_hub, NervesHubWeb.DeviceSocketSharedSecretAuth, enabled: true
+
 config :nerves_hub, delta_updater: NervesHub.DeltaUpdaterMock
 
 config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test

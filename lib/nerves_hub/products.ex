@@ -145,7 +145,7 @@ defmodule NervesHub.Products do
     |> join(:inner, [ssa], p in assoc(ssa, :product))
     |> where([ssa], ssa.key == ^key)
     |> where([ssa], is_nil(ssa.deactivated_at))
-    |> where([p], is_nil(p.deleted_at))
+    |> where([_, p], is_nil(p.deleted_at))
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
