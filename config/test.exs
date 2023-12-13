@@ -41,8 +41,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 ##
 # Firmware uploader
 #
-config :nerves_hub,
-  firmware_upload: NervesHub.UploadMock
+config :nerves_hub, firmware_upload: NervesHub.UploadMock
 
 config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: "mybucket"
 
