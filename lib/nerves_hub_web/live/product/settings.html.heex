@@ -77,9 +77,9 @@
   </table>
 
   <div>
-    <.link class="btn btn-secondary" phx-click="add-shared-secret">
+    <button class="btn btn-secondary" phx-click="add-shared-secret" data-confirm="Are you sure?">
       Add Shared Secret
-    </.link>
+    </button>
   </div>
 <% else %>
   <p>Shared Secret Auth hasn't been enabled for this server.</p>
