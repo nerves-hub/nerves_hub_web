@@ -171,6 +171,14 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
+  def get_device_count_by_product_id(product_id) do
+    Device
+    |> where([d], d.product_id == ^product_id)
+    |> Repo.exclude_deleted()
+    |> select([d], count(d))
+    |> Repo.one!()
+  end
+
   defp device_by_org_query(org_id, device_id) do
     from(
       d in Device,

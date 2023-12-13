@@ -207,7 +207,13 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Settings",
         active: "",
-        href: Routes.product_path(conn, :edit, conn.assigns.org.name, conn.assigns.product.name)
+        href:
+          Routes.live_path(
+            NervesHubWeb.Endpoint,
+            NervesHubWeb.Live.Product.Settings,
+            conn.assigns.org.name,
+            conn.assigns.product.name
+          )
       }
     ]
     |> sidebar_active(conn)

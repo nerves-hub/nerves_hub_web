@@ -153,6 +153,16 @@ defmodule NervesHub.Products do
     end
   end
 
+  def load_shared_secret_auth(product) do
+    Repo.preload(product, :shared_secret_auth)
+  end
+
+  def create_shared_secret_auth(product) do
+    product
+    |> SharedSecretAuth.create_changeset()
+    |> Repo.insert()
+  end
+
   def devices_csv(%Product{} = product) do
     product = Repo.preload(product, [:org, devices: :device_certificates])
     data = Enum.map(product.devices, &device_csv_line(&1, product))
