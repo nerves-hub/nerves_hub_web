@@ -14,8 +14,8 @@ config :nerves_hub,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
 
-if log_level = System.get_env("LOG_LEVEL") do
-  config :logger, level: String.to_atom(log_level)
+if level = System.get_env("LOG_LEVEL") do
+  config :logger, level: String.to_atom(level)
 end
 
 dns_cluster_query =
