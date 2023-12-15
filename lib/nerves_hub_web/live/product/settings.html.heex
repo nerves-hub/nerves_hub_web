@@ -56,16 +56,12 @@
   This authentication strategy is useful for small deployments of Devices, or when prototyping a new Product.<br />
   We highly recommend using Device Certificates for situations where security is paramount.
 </p>
-<p class="p-small mb-5">
+<p class="p-small mb-3">
   Please refer to the <.link navigate="https://docs.nerves-hub.org/nerves-hub-link/shared-secrets">documentation</.link>
   on how to configure this with <.link navigate="https://github.com/nerves-hub/nerves_hub_link">NervesHubLink</.link>.
 </p>
 
 <%= if @shared_auth_enabled do %>
-  <%= if Enum.empty?(@shared_secrets) do %>
-    No Shared Secrets added.
-  <% end %>
-
   <table :if={Enum.any?(@shared_secrets)} class="table table-sm table-hover">
     <thead>
       <tr>
@@ -107,8 +103,11 @@
   </table>
 
   <div>
-    <button class="btn btn-secondary" phx-click="add-shared-secret" data-confirm="Are you sure?">
-      Add Shared Secret
+    <button :if={Enum.empty?(@shared_secrets)} class="btn btn-secondary" phx-click="add-shared-secret" data-confirm="Are you sure?">
+      Add your first Shared Secret.
+    </button>
+    <button :if={Enum.any?(@shared_secrets)} class="btn btn-secondary" phx-click="add-shared-secret" data-confirm="Are you sure?">
+      Add a Shared Secret
     </button>
   </div>
 <% else %>
