@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
   def mount(_params, _session, socket) do
     socket =
       socket
+      |> assign(:page_title, "#{socket.assigns.product.name} Settings")
       |> assign(:shared_secrets, socket.assigns.product.shared_secret_auth)
       |> assign(:shared_auth_enabled, DeviceSocketSharedSecretAuth.enabled?())
 
