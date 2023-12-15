@@ -272,9 +272,14 @@ nav.navbar {
 
   .nav-item {
     margin-right: 2.75rem;
+    padding: 0 1.25rem;
 
     @media (max-width: 1100px) {
       margin-right: 0;
+    }
+
+    &:first-child {
+      padding: 0 1.25rem 0 0;
     }
 
     &:last-child {
@@ -290,7 +295,7 @@ nav.navbar {
     height: 76px;
     display: flex;
     align-items: center;
-    padding: 0 1.25rem;
+    padding: 0 0 0 0;
 
     @media (max-width: 1100px) {
       height: 60px;
