@@ -78,7 +78,7 @@ defmodule NervesHubWeb.Components.Navigation do
           </ul>
           <ul class="navbar-nav">
             <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle user-menu" href="#" id="menu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <a class="nav-link dropdown-toggle user-menu pr-1" href="#" id="menu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <span><%= @user.username %></span>
                 <img src="/images/icons/settings.svg" alt="settings" />
               </a>
@@ -123,7 +123,7 @@ defmodule NervesHubWeb.Components.Navigation do
       <div class="tab-bar">
         <nav>
           <ul class="nav">
-            <li :for={link <- @links} class="nav-item">
+            <li :for={link <- @links} class="nav-item ">
               <a class={"nav-link #{link.active}"} href={link.href}>
                 <span class="text"><%= link.title %></span>
               </a>
