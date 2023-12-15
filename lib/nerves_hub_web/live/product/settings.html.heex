@@ -37,10 +37,10 @@
 
 <div class="border-bottom border-dark mt-2 mb-4"></div>
 
-<div class="container pl-0">
+<div class="container pl-0 mb-2">
   <div class="row align-items-center">
-    <div class="col col-4">
-      <h3>Shared Secrets Settings</h3>
+    <div class="col col-6">
+      <h3>Device Shared Secret Authentication</h3>
     </div>
     <div class="col col-2">
       <span class="badge bg-warning">Experimental</span>
@@ -48,30 +48,60 @@
   </div>
 </div>
 
-<p class="p-small mb-3">
-  Key / Secret stuff
+<p class="p-small">
+  Shared Secret authentication allows Devices to connect to Nerves Hub using a shared key and secret.<br />
+  When a Device connects for the first time the Device will be registered with the Product ("Just-in-Time registration").
+</p>
+<p class="p-small">
+  This authentication strategy is useful for small deployments of Devices, or when prototyping a new Product.<br />
+  We highly recommend using Device Certificates for situations where security is paramount.
+</p>
+<p class="p-small mb-5">
+  Please refer to the <.link navigate="https://docs.nerves-hub.org/nerves-hub-link/shared-secrets">documentation</.link>
+  on how to configure this with <.link navigate="https://github.com/nerves-hub/nerves_hub_link">NervesHubLink</.link>.
 </p>
 
 <%= if @shared_auth_enabled do %>
-  <%= if Enum.empty?(@product.shared_secret_auth) do %>
+  <%= if Enum.empty?(@shared_secrets) do %>
     No Shared Secrets added.
   <% end %>
 
-  <table :if={Enum.any?(@product.shared_secret_auth)} class="table table-sm table-hover">
+  <table :if={Enum.any?(@shared_secrets)} class="table table-sm table-hover">
     <thead>
       <tr>
         <th>Key</th>
-        <th>Secret</th>
+        <th>Created at</th>
+        <th>Deactivated at</th>
+        <th></th>
+        <th></th>
       </tr>
     </thead>
-    <tr :for={auth <- @product.shared_secret_auth} class="item">
-      <td>
+    <tr :for={auth <- @shared_secrets} class="item">
+      <td class="ff-m">
         <div class="mobile-label help-text">Key</div>
         <%= auth.key %>
       </td>
       <td>
-        <div class="mobile-label help-text">Secret</div>
-        <%= auth.secret %>
+        <div class="mobile-label help-text">Created at</div>
+        <%= Date.to_string(auth.inserted_at) %>
+      </td>
+      <td>
+        <div class="mobile-label help-text">Deactivated at</div>
+        <%= if auth.deactivated_at, do: Date.to_string(auth.deactivated_at) %>
+      </td>
+      <td>
+        <button class="btn btn-secondary" phx-click="copy-shared-secret" value={auth.id}>
+          Copy Secret
+        </button>
+      </td>
+      <td>
+        <button :if={is_nil(auth.deactivated_at)} class="btn btn-secondary" phx-click="deactivate-shared-secret" phx-value-shared_secret_id={auth.id} data-confirm="Are you sure?">
+          Deactivate
+        </button>
+
+        <button :if={auth.deactivated_at} class="btn btn-secondary" disabled={true}>
+          Deactivated
+        </button>
       </td>
     </tr>
   </table>

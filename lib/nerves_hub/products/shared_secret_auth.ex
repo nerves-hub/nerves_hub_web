@@ -32,6 +32,11 @@ defmodule NervesHub.Products.SharedSecretAuth do
     |> unique_constraint(:secret)
   end
 
+  def deactivate_changeset(%__MODULE__{} = auth) do
+    change(auth)
+    |> put_change(:deactivated_at, DateTime.truncate(DateTime.utc_now(), :second))
+  end
+
   defp generate_token() do
     :crypto.strong_rand_bytes(32) |> Base.encode64(padding: false)
   end

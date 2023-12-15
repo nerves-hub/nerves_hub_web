@@ -140,6 +140,18 @@ defmodule NervesHub.Products do
     Product.changeset(product, %{})
   end
 
+  def get_shared_secret_auth(product_id, auth_id) do
+    SharedSecretAuth
+    |> join(:inner, [ssa], p in assoc(ssa, :product))
+    |> where([ssa], ssa.id == ^auth_id)
+    |> where([_, p], p.id == ^product_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      auth -> {:ok, auth}
+    end
+  end
+
   def get_shared_secret_auth(key) do
     SharedSecretAuth
     |> join(:inner, [ssa], p in assoc(ssa, :product))
@@ -161,6 +173,14 @@ defmodule NervesHub.Products do
     product
     |> SharedSecretAuth.create_changeset()
     |> Repo.insert()
+  end
+
+  def deactivate_shared_secret_auth(product, shared_secret_id) do
+    {:ok, auth} = get_shared_secret_auth(product.id, shared_secret_id)
+
+    auth
+    |> SharedSecretAuth.deactivate_changeset()
+    |> Repo.update()
   end
 
   def devices_csv(%Product{} = product) do

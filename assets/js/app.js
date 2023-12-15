@@ -64,3 +64,16 @@ window.deploymentPolling = (url) => {
 document.querySelectorAll('.date-time').forEach(d => {
   d.innerHTML = dates.formatDateTime(d.innerHTML)
 })
+
+window.addEventListener('phx:sharedsecret:clipcopy', (event) => {
+  if ("clipboard" in navigator) {
+    const text = event.detail.secret;
+    navigator.clipboard.writeText(text).then(() => {
+      confirm('Content copied to clipboard');
+    }, () => {
+      alert('Failed to copy');
+    });
+  } else {
+    alert("Sorry, your browser does not support clipboard copy.");
+  }
+});
