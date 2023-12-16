@@ -130,12 +130,9 @@ defmodule NervesHub.Accounts do
   end
 
   def get_org_user(org, user) do
-    from(
-      ou in OrgUser,
-      where:
-        ou.org_id == ^org.id and
-          ou.user_id == ^user.id
-    )
+    OrgUser
+    |> where([ou], ou.org_id == ^org.id)
+    |> where([ou], ou.user_id == ^user.id)
     |> OrgUser.with_user()
     |> Repo.exclude_deleted()
     |> Repo.one()

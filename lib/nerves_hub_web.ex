@@ -116,6 +116,8 @@ defmodule NervesHubWeb do
       # Translation
       import NervesHubWeb.Gettext
 
+      import NervesHub.Helpers.Authorization
+
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
 

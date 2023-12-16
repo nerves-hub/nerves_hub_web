@@ -256,6 +256,7 @@ defmodule NervesHubWeb.Router do
             NervesHubWeb.Mounts.AccountAuth,
             NervesHubWeb.Mounts.CurrentPath,
             NervesHubWeb.Mounts.FetchOrg,
+            NervesHubWeb.Mounts.FetchOrgUser,
             NervesHubWeb.Mounts.FetchProduct
           ] do
           live("/settings", Live.Product.Settings)
