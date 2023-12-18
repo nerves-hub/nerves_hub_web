@@ -144,7 +144,7 @@ if config_env() == :prod do
 end
 
 ##
-# Database connection settings
+# Database and Libcluster connection settings
 #
 if config_env() == :prod do
   database_ssl_opts =
@@ -190,6 +190,27 @@ if config_env() == :prod do
 
   config :nerves_hub,
     database_auto_migrator: System.get_env("DATABASE_AUTO_MIGRATOR", "true") == "true"
+
+  # Libcluster is using Postgres for Node discovery
+  # The library only accepts keyword configs, so the DATABASE_URL has to be
+  # parsed and put together with the ssl pieces from above.
+  postgres_config = Ecto.Repo.Supervisor.parse_url(System.fetch_env!("DATABASE_URL"))
+
+  libcluster_db_config =
+    [port: 5432]
+    |> Keyword.merge(postgres_config)
+    |> Keyword.take([:hostname, :username, :password, :database, :port])
+    |> Keyword.merge(ssl: System.get_env("DATABASE_SSL", "true") == "true")
+    |> Keyword.merge(ssl_opts: database_ssl_opts)
+    |> Keyword.merge(parameters: [])
+
+  config :libcluster,
+    topologies: [
+      postgres: [
+        strategy: LibclusterPostgres.Strategy,
+        config: libcluster_db_config
+      ]
+    ]
 end
 
 ##

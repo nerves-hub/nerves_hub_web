@@ -12,6 +12,8 @@ defmodule NervesHub.Application do
         raise "fwup could not be found in the $PATH. This is a requirement of NervesHubWeb and cannot start otherwise"
     end
 
+    topologies = Application.get_env(:libcluster, :topologies, [])
+
     children =
       [
         {Registry, keys: :unique, name: NervesHub.Devices},
@@ -26,7 +28,7 @@ defmodule NervesHub.Application do
           NervesHub.ObanRepo,
           NervesHub.Release.DatabaseAutoMigrator,
           {Phoenix.PubSub, name: NervesHub.PubSub},
-          {DNSCluster, query: Application.get_env(:nerves_hub, :dns_cluster_query) || :ignore},
+          {Cluster.Supervisor, [topologies]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, Application.fetch_env!(:nerves_hub, Oban)},
           NervesHub.Tracker
