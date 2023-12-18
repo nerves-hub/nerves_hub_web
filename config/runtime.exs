@@ -156,11 +156,35 @@ if config_env() == :prod do
     host = System.get_env("DEVICE_HOST") || System.fetch_env!("WEB_HOST")
     https_port = String.to_integer(System.get_env("DEVICE_PORT", "443"))
 
-    ssl_key = System.fetch_env!("DEVICE_SSL_KEY") |> Base.decode64!()
-    :ok = File.write("/app/tmp/ssl_key.crt", ssl_key)
+    keyfile =
+      if System.get_env("DEVICE_SSL_KEY") do
+        ssl_key = System.fetch_env!("DEVICE_SSL_KEY") |> Base.decode64!()
+        :ok = File.write("/app/tmp/ssl_key.crt", ssl_key)
+        "/app/tmp/ssl_key.crt"
+      else
+        ssl_keyfile = System.get_env("DEVICE_SSL_KEYFILE", "/ets/ssl/#{host}-key.pem")
 
-    ssl_cert = System.fetch_env!("DEVICE_SSL_CERT") |> Base.decode64!()
-    :ok = File.write("/app/tmp/ssl_cert.crt", ssl_cert)
+        if File.exists?(ssl_keyfile) do
+          ssl_keyfile
+        else
+          raise "Could not find keyfile"
+        end
+      end
+
+    certfile =
+      if System.get_env("DEVICE_SSL_CERT") do
+        ssl_cert = System.fetch_env!("DEVICE_SSL_CERT") |> Base.decode64!()
+        :ok = File.write("/app/tmp/ssl_cert.crt", ssl_cert)
+        "/app/tmp/ssl_cert.crt"
+      else
+        ssl_certfile = System.get_env("DEVICE_SSL_CERTFILE", "/ets/ssl/#{host}.pem")
+
+        if File.exists?(ssl_certfile) do
+          ssl_certfile
+        else
+          raise "Could not find certfile"
+        end
+      end
 
     config :nerves_hub, NervesHubWeb.DeviceEndpoint,
       url: [host: host],
@@ -184,8 +208,8 @@ if config_env() == :prod do
             verify: :verify_peer,
             verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
             fail_if_no_peer_cert: true,
-            keyfile: "/app/tmp/ssl_key.crt",
-            certfile: "/app/tmp/ssl_cert.crt",
+            keyfile: keyfile,
+            certfile: certfile,
             cacertfile: CAStore.file_path()
           ]
         ]
