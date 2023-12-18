@@ -19,9 +19,7 @@ defmodule NervesHub.MixProject do
           include_executables_for: [:unix],
           reboot_system_after_config: true,
           applications: [
-            nerves_hub: :permanent,
-            opentelemetry_exporter: :permanent,
-            opentelemetry: :temporary
+            nerves_hub: :permanent
           ]
         ]
       ]
@@ -40,8 +38,7 @@ defmodule NervesHub.MixProject do
         :jason,
         :logger,
         :runtime_tools,
-        :timex,
-        :tls_certificate_check
+        :timex
       ]
     ]
   end
@@ -81,9 +78,6 @@ defmodule NervesHub.MixProject do
       {:mox, "~> 1.0", only: [:test, :dev]},
       {:nimble_csv, "~> 1.1"},
       {:oban, "~> 2.11"},
-      {:opentelemetry, "~> 1.3"},
-      {:opentelemetry_api, "~> 1.2"},
-      {:opentelemetry_exporter, "~> 1.4"},
       {:phoenix, "~> 1.7.0"},
       {:phoenix_active_link, "~> 0.3.1"},
       {:phoenix_ecto, "~> 4.0"},
