@@ -2,7 +2,6 @@ defmodule NervesHub.Deployments do
   import Ecto.Query
 
   require Logger
-  require OpenTelemetry.Tracer, as: Tracer
 
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments.Deployment
@@ -305,41 +304,33 @@ defmodule NervesHub.Deployments do
   Do nothing if a deployment is already set
   """
   def set_deployment(%{deployment_id: nil} = device) do
-    Tracer.with_span "Deployments.set_deployment" do
-      Tracer.set_attribute("nerves_hub.deployment.status", "setting")
+    case alternate_deployments(device, [true]) do
+      [] ->
+        Logger.debug("No matching deployments for #{device.identifier}")
 
-      case alternate_deployments(device, [true]) do
-        [] ->
-          Logger.debug("No matching deployments for #{device.identifier}")
+        %{device | deployment: nil}
 
-          %{device | deployment: nil}
+      [deployment] ->
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+        |> Repo.update!()
+        |> Repo.preload([:deployment])
 
-        [deployment] ->
-          device
-          |> Ecto.Changeset.change()
-          |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
-          |> Repo.update!()
-          |> Repo.preload([:deployment])
+      [deployment | _] ->
+        Logger.debug(
+          "More than one deployment matches for #{device.identifier}, setting to the first"
+        )
 
-        [deployment | _] ->
-          Logger.debug(
-            "More than one deployment matches for #{device.identifier}, setting to the first"
-          )
-
-          device
-          |> Ecto.Changeset.change()
-          |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
-          |> Repo.update!()
-          |> Repo.preload([:deployment])
-      end
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+        |> Repo.update!()
+        |> Repo.preload([:deployment])
     end
   end
 
   def set_deployment(device) do
-    Tracer.with_span "Deployments.set_deployment" do
-      Tracer.set_attribute("nerves_hub.deployment.status", "existed")
-
-      Repo.preload(device, [:deployment])
-    end
+    Repo.preload(device, [:deployment])
   end
 end

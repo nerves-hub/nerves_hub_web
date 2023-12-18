@@ -10,20 +10,16 @@ defmodule NervesHubWeb.DeviceChannel do
 
   alias NervesHub.Devices.DeviceLink
 
-  require OpenTelemetry.Tracer, as: Tracer
-
   def join("device", params, %{assigns: %{device: device}} = socket) do
-    Tracer.with_span "DeviceChannel.join" do
-      socket_pid = self()
+    socket_pid = self()
 
-      push_cb = fn event, payload ->
-        send(socket_pid, {:push, event, payload})
-      end
+    push_cb = fn event, payload ->
+      send(socket_pid, {:push, event, payload})
+    end
 
-      with {:ok, link} <-
-             DeviceLink.connect(device, push_cb, params, monitor: socket.assigns.reference_id) do
-        {:ok, assign(socket, :device_link_pid, link)}
-      end
+    with {:ok, link} <-
+           DeviceLink.connect(device, push_cb, params, monitor: socket.assigns.reference_id) do
+      {:ok, assign(socket, :device_link_pid, link)}
     end
   end
 

@@ -23,8 +23,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
-  require OpenTelemetry.Tracer, as: Tracer
-
   @min_fwup_delta_updatable_version ">=1.6.0"
 
   def get_device(device_id), do: Repo.get(Device, device_id)
@@ -580,33 +578,21 @@ defmodule NervesHub.Devices do
   This may clear the deployment from the device if the version or tags are different.
   """
   def verify_deployment(%{deployment_id: nil} = device) do
-    Tracer.with_span "Devices.verify_deployment" do
-      Tracer.set_attribute("nerves_hub.device.deployment_id", nil)
-
-      device
-    end
+    device
   end
 
   def verify_deployment(device) do
-    Tracer.with_span "Devices.verify_deployment" do
-      Tracer.set_attribute("nerves_hub.device.deployment_id", device.deployment_id)
+    device = Repo.preload(device, [:deployment])
 
-      device = Repo.preload(device, [:deployment])
+    case matches_deployment?(device, device.deployment) do
+      true ->
+        device
 
-      case matches_deployment?(device, device.deployment) do
-        true ->
-          Tracer.set_attribute("nerves_hub.device.match_deployment", true)
-
-          device
-
-        false ->
-          Tracer.set_attribute("nerves_hub.device.match_deployment", false)
-
-          device
-          |> Ecto.Changeset.change()
-          |> Ecto.Changeset.put_change(:deployment_id, nil)
-          |> Repo.update!()
-      end
+      false ->
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, nil)
+        |> Repo.update!()
     end
   end
 

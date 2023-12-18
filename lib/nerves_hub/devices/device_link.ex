@@ -19,7 +19,6 @@ defmodule NervesHub.Devices.DeviceLink do
   alias Phoenix.Socket.Broadcast
 
   require Logger
-  require OpenTelemetry.Tracer, as: Tracer
 
   defmodule State do
     defstruct [
@@ -117,8 +116,7 @@ defmodule NervesHub.Devices.DeviceLink do
           nil
       end
 
-    ctx = OpenTelemetry.Ctx.get_current()
-    GenServer.call(link, {:connect, push_cb, params, monitor, ctx})
+    GenServer.call(link, {:connect, push_cb, params, monitor, :ctx})
   end
 
   @doc """
@@ -174,137 +172,130 @@ defmodule NervesHub.Devices.DeviceLink do
     {:reply, :ok, do_disconnect(state)}
   end
 
-  def handle_call({:connect, push_cb, params, monitor, ctx}, _from, %{device: device} = state) do
-    OpenTelemetry.Ctx.attach(ctx)
-
+  def handle_call({:connect, push_cb, params, monitor, _ctx}, _from, %{device: device} = state) do
     # Cancel any pending reconnect timer before we get too busy doing work
     _ = if state.reconnect_timer, do: Process.cancel_timer(state.reconnect_timer)
 
-    Tracer.with_span "DeviceLink.connect" do
-      with {:ok, device} <- update_metadata(device, params),
-           {:ok, device} <- Devices.device_connected(device) do
-        Tracer.set_attribute("nerves_hub.device.id", device.id)
-        Tracer.set_attribute("nerves_hub.device.identifier", device.identifier)
+    with {:ok, device} <- update_metadata(device, params),
+         {:ok, device} <- Devices.device_connected(device) do
+      state = %{state | device_api_version: Map.get(params, "device_api_version", "1.0.0")}
 
-        state = %{state | device_api_version: Map.get(params, "device_api_version", "1.0.0")}
+      description = "device #{device.identifier} connected to the server"
 
-        description = "device #{device.identifier} connected to the server"
+      AuditLogs.audit_with_ref!(
+        device,
+        device,
+        description,
+        state.reference_id
+      )
+
+      device =
+        device
+        |> Devices.verify_deployment()
+        |> Deployments.set_deployment()
+        |> Repo.preload(deployment: [:archive, :firmware])
+
+      # clear out any inflight updates, there shouldn't be one at this point
+      # we might make a new one right below it, so clear it beforehand
+      Devices.clear_inflight_update(device)
+
+      # Let the orchestrator handle this going forward ?
+      update_payload = Devices.resolve_update(device)
+
+      push_update? =
+        update_payload.update_available and not is_nil(update_payload.firmware_url) and
+          update_payload.firmware_meta[:uuid] != params["currently_downloading_uuid"]
+
+      if push_update? do
+        # Push the update to the device
+        push_cb.("update", update_payload)
+
+        deployment = device.deployment
+
+        description =
+          "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} on connect"
 
         AuditLogs.audit_with_ref!(
-          device,
+          deployment,
           device,
           description,
           state.reference_id
         )
 
-        device =
-          device
-          |> Devices.verify_deployment()
-          |> Deployments.set_deployment()
-          |> Repo.preload(deployment: [:archive, :firmware])
-
-        # clear out any inflight updates, there shouldn't be one at this point
-        # we might make a new one right below it, so clear it beforehand
-        Devices.clear_inflight_update(device)
-
-        # Let the orchestrator handle this going forward ?
-        update_payload = Devices.resolve_update(device)
-
-        push_update? =
-          update_payload.update_available and not is_nil(update_payload.firmware_url) and
-            update_payload.firmware_meta[:uuid] != params["currently_downloading_uuid"]
-
-        if push_update? do
-          # Push the update to the device
-          push_cb.("update", update_payload)
-
-          deployment = device.deployment
-
-          description =
-            "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} on connect"
-
-          AuditLogs.audit_with_ref!(
-            deployment,
-            device,
-            description,
-            state.reference_id
-          )
-
-          # if there's an update, track it
-          Devices.told_to_update(device, deployment)
-        end
-
-        ## After join
-        :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1})
-
-        # local node tracking
-        Registry.update_value(NervesHub.Devices, device.id, fn value ->
-          update = %{
-            deployment_id: device.deployment_id,
-            firmware_uuid: device.firmware_metadata.uuid,
-            updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-            updating: push_update?
-          }
-
-          Map.merge(value, update)
-        end)
-
-        # Cluster tracking
-        reply =
-          try do
-            Tracker.online(device)
-            {:ok, self()}
-          rescue
-            ex in NervesHub.Tracker.Exception ->
-              :telemetry.execute([:nerves_hub, :tracker, :exception], %{count: 1})
-              {:error, ex}
-          end
-
-        if Version.match?(state.device_api_version, ">= 2.0.0") do
-          if device.deployment && device.deployment.archive do
-            archive = device.deployment.archive
-
-            push_cb.("archive", %{
-              size: archive.size,
-              uuid: archive.uuid,
-              version: archive.version,
-              description: archive.description,
-              platform: archive.platform,
-              architecture: archive.architecture,
-              uploaded_at: archive.inserted_at,
-              url: Archives.url(archive)
-            })
-          end
-        end
-
-        state =
-          case monitor do
-            {transport_pid, ref_id} ->
-              ref = Process.monitor(transport_pid)
-              %{state | reference_id: ref_id, transport_pid: transport_pid, transport_ref: ref}
-
-            _ ->
-              state
-          end
-
-        state =
-          %{
-            state
-            | device: device,
-              push_cb: push_cb,
-              reconnect_timer: nil,
-              update_started?: push_update?
-          }
-          |> maybe_start_penalty_timer()
-
-        {:reply, reply, state}
-      else
-        {:error, err} ->
-          {:reply, {:error, err}, state}
-
-        err ->
-          {:reply, {:error, err}, state}
+        # if there's an update, track it
+        Devices.told_to_update(device, deployment)
       end
+
+      ## After join
+      :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1})
+
+      # local node tracking
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        update = %{
+          deployment_id: device.deployment_id,
+          firmware_uuid: device.firmware_metadata.uuid,
+          updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+          updating: push_update?
+        }
+
+        Map.merge(value, update)
+      end)
+
+      # Cluster tracking
+      reply =
+        try do
+          Tracker.online(device)
+          {:ok, self()}
+        rescue
+          ex in NervesHub.Tracker.Exception ->
+            :telemetry.execute([:nerves_hub, :tracker, :exception], %{count: 1})
+            {:error, ex}
+        end
+
+      if Version.match?(state.device_api_version, ">= 2.0.0") do
+        if device.deployment && device.deployment.archive do
+          archive = device.deployment.archive
+
+          push_cb.("archive", %{
+            size: archive.size,
+            uuid: archive.uuid,
+            version: archive.version,
+            description: archive.description,
+            platform: archive.platform,
+            architecture: archive.architecture,
+            uploaded_at: archive.inserted_at,
+            url: Archives.url(archive)
+          })
+        end
+      end
+
+      state =
+        case monitor do
+          {transport_pid, ref_id} ->
+            ref = Process.monitor(transport_pid)
+            %{state | reference_id: ref_id, transport_pid: transport_pid, transport_ref: ref}
+
+          _ ->
+            state
+        end
+
+      state =
+        %{
+          state
+          | device: device,
+            push_cb: push_cb,
+            reconnect_timer: nil,
+            update_started?: push_update?
+        }
+        |> maybe_start_penalty_timer()
+
+      {:reply, reply, state}
+    else
+      {:error, err} ->
+        {:reply, {:error, err}, state}
+
+      err ->
+        {:reply, {:error, err}, state}
     end
   end
 
@@ -345,16 +336,12 @@ defmodule NervesHub.Devices.DeviceLink do
   end
 
   def handle_call({:receive, "status_update", %{"status" => _status}}, _from, state) do
-    trace("DeviceLink.status_update", state.device, fn ->
-      # TODO store in tracker or the database?
-      {:reply, :ok, state}
-    end)
+    # TODO store in tracker or the database?
+    {:reply, :ok, state}
   end
 
   def handle_call({:receive, "rebooting", _}, _from, state) do
-    trace("DeviceLink.rebooting", state.device, fn ->
-      {:reply, :ok, state}
-    end)
+    {:reply, :ok, state}
   end
 
   def handle_call(
@@ -362,10 +349,8 @@ defmodule NervesHub.Devices.DeviceLink do
         _from,
         %{device: device} = state
       ) do
-    trace("DeviceLink.connection_types", device, fn ->
-      {:ok, device} = Devices.update_device(device, %{"connection_types" => types})
-      {:reply, :ok, %{state | device: device}}
-    end)
+    {:ok, device} = Devices.update_device(device, %{"connection_types" => types})
+    {:reply, :ok, %{state | device: device}}
   end
 
   def handle_call({:receive, _event, _payload}, _from, state) do
@@ -386,63 +371,57 @@ defmodule NervesHub.Devices.DeviceLink do
         %Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload},
         %{device: device} = state
       ) do
-    trace("DeviceLink.deployment_changed", device, fn ->
-      if device_matches_deployment_payload?(device, payload) do
-        {:noreply, assign_deployment(state, payload)}
-      else
-        {:noreply, state}
-      end
-    end)
+    if device_matches_deployment_payload?(device, payload) do
+      {:noreply, assign_deployment(state, payload)}
+    else
+      {:noreply, state}
+    end
   end
 
   def handle_info(
         %Broadcast{event: "deployments/changed", payload: payload},
         %{device: device} = state
       ) do
-    trace("DeviceLink.deployment_changed", device, fn ->
-      if device_matches_deployment_payload?(device, payload) do
-        :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
-        {:noreply, assign_deployment(state, payload)}
-      else
-        # jitter over a minute but spaced out to attempt to not
-        # slam the database when all devices check
-        jitter = :rand.uniform(30) * 2 * 1000
-        Process.send_after(self(), :resolve_changed_deployment, jitter)
-        {:noreply, state}
-      end
-    end)
+    if device_matches_deployment_payload?(device, payload) do
+      :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
+      {:noreply, assign_deployment(state, payload)}
+    else
+      # jitter over a minute but spaced out to attempt to not
+      # slam the database when all devices check
+      jitter = :rand.uniform(30) * 2 * 1000
+      Process.send_after(self(), :resolve_changed_deployment, jitter)
+      {:noreply, state}
+    end
   end
 
   def handle_info(:resolve_changed_deployment, %{device: device} = state) do
-    trace("DeviceLink.resolve_changed_deployment", device, fn ->
-      :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
+    :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
 
-      device =
-        device
-        |> Repo.reload()
-        |> Deployments.set_deployment()
-        |> Repo.preload([deployment: [:firmware]], force: true)
+    device =
+      device
+      |> Repo.reload()
+      |> Deployments.set_deployment()
+      |> Repo.preload([deployment: [:firmware]], force: true)
 
-      description =
-        if device.deployment_id do
-          "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
-        else
-          "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
-        end
+    description =
+      if device.deployment_id do
+        "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+      else
+        "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
+      end
 
-      AuditLogs.audit_with_ref!(
-        device,
-        device,
-        description,
-        state.reference_id
-      )
+    AuditLogs.audit_with_ref!(
+      device,
+      device,
+      description,
+      state.reference_id
+    )
 
-      Registry.update_value(NervesHub.Devices, device.id, fn value ->
-        Map.put(value, :deployment_id, device.deployment_id)
-      end)
-
-      {:noreply, update_device(state, device)}
+    Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Map.put(value, :deployment_id, device.deployment_id)
     end)
+
+    {:noreply, update_device(state, device)}
   end
 
   # manually pushed
@@ -450,12 +429,9 @@ defmodule NervesHub.Devices.DeviceLink do
         %Broadcast{event: "deployments/update", payload: %{deployment_id: nil} = payload},
         state
       ) do
-    trace("DeviceLink.deployments_update", state.device, fn ->
-      :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
-      Tracer.set_attribute("nerves_hub.deployment.manual", true)
-      state.push_cb.("update", payload)
-      {:noreply, state}
-    end)
+    :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
+    state.push_cb.("update", payload)
+    {:noreply, state}
   end
 
   def handle_info(%Broadcast{event: "deployments/update"}, state) do
@@ -463,67 +439,61 @@ defmodule NervesHub.Devices.DeviceLink do
   end
 
   def handle_info({"deployments/update", inflight_update}, %{device: device} = state) do
-    trace("DeviceLink.deployments_update", device, fn ->
-      :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1})
+    :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1})
 
-      device = Repo.preload(device, [deployment: [:firmware]], force: true)
+    device = Repo.preload(device, [deployment: [:firmware]], force: true)
 
-      payload = Devices.resolve_update(device)
+    payload = Devices.resolve_update(device)
 
-      case payload.update_available do
-        true ->
-          deployment = device.deployment
-          firmware = deployment.firmware
+    case payload.update_available do
+      true ->
+        deployment = device.deployment
+        firmware = deployment.firmware
 
-          description =
-            "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
+        description =
+          "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
 
-          # If we get here, the device is connected and high probability it receives
-          # the update message so we can Audit and later assert on this audit event
-          # as a loosely valid attempt to update
-          AuditLogs.audit_with_ref!(
-            deployment,
-            device,
-            description,
-            state.reference_id
-          )
+        # If we get here, the device is connected and high probability it receives
+        # the update message so we can Audit and later assert on this audit event
+        # as a loosely valid attempt to update
+        AuditLogs.audit_with_ref!(
+          deployment,
+          device,
+          description,
+          state.reference_id
+        )
 
-          Devices.update_started!(inflight_update)
-          state.push_cb.("update", payload)
+        Devices.update_started!(inflight_update)
+        state.push_cb.("update", payload)
 
-          {:noreply, state}
+        {:noreply, state}
 
-        false ->
-          {:noreply, state}
-      end
-    end)
+      false ->
+        {:noreply, state}
+    end
   end
 
   def handle_info(%Broadcast{event: "moved"}, state) do
-    trace("DeviceLink.deployment_moved", state.device, fn ->
-      # The old deployment is no longer valid, so let's look one up again
-      handle_info(:resolve_changed_deployment, state)
-    end)
+    # The old deployment is no longer valid, so let's look one up again
+    handle_info(:resolve_changed_deployment, state)
   end
 
   # Update local state and tell the various servers of the new information
   def handle_info(%Broadcast{event: "devices/updated"}, %{device: device} = state) do
-    trace("DeviceLink.devices_updated", device, fn ->
-      device = Repo.reload(device)
+    device = Repo.reload(device)
 
-      Registry.update_value(NervesHub.Devices, device.id, fn value ->
-        Map.merge(value, %{
-          updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
-        })
-      end)
-
-      state =
-        state
-        |> update_device(device)
-        |> maybe_start_penalty_timer()
-
-      {:noreply, state}
+    Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Map.merge(value, %{
+        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
+      })
     end)
+
+    state =
+      state
+      |> update_device(device)
+      |> maybe_start_penalty_timer()
+
+    {:noreply, state}
   end
 
   def handle_info(%Broadcast{event: event, payload: payload}, state) do
@@ -533,29 +503,25 @@ defmodule NervesHub.Devices.DeviceLink do
   end
 
   def handle_info(:penalty_box_check, %{device: device} = state) do
-    trace("DeviceLink.penalty_box_check", device, fn ->
-      updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
+    updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
 
-      Tracer.set_attribute("nerves_hub.device.updates_enabled", updates_enabled)
+    :telemetry.execute([:nerves_hub, :devices, :penalty_box, :check], %{
+      updates_enabled: updates_enabled
+    })
 
-      :telemetry.execute([:nerves_hub, :devices, :penalty_box, :check], %{
-        updates_enabled: updates_enabled
-      })
-
-      Registry.update_value(NervesHub.Devices, device.id, fn value ->
-        Map.merge(value, %{updates_enabled: updates_enabled})
-      end)
-
-      # Just in case time is weird or it got placed back in between checks
-      state =
-        if !updates_enabled do
-          maybe_start_penalty_timer(state)
-        else
-          state
-        end
-
-      {:noreply, state}
+    Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Map.merge(value, %{updates_enabled: updates_enabled})
     end)
+
+    # Just in case time is weird or it got placed back in between checks
+    state =
+      if !updates_enabled do
+        maybe_start_penalty_timer(state)
+      else
+        state
+      end
+
+    {:noreply, state}
   end
 
   def handle_info(:timeout_reconnect, state) do
@@ -595,25 +561,23 @@ defmodule NervesHub.Devices.DeviceLink do
   end
 
   defp assign_deployment(%{device: device} = state, payload) do
-    trace("DeviceLink.assign_deployment", device, fn ->
-      device =
-        device
-        |> Ecto.Changeset.change()
-        |> Ecto.Changeset.put_change(:deployment_id, payload.id)
-        |> Repo.update!()
-        |> Repo.preload([deployment: [:firmware]], force: true)
+    device =
+      device
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:deployment_id, payload.id)
+      |> Repo.update!()
+      |> Repo.preload([deployment: [:firmware]], force: true)
 
-      description =
-        "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+    description =
+      "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
 
-      AuditLogs.audit_with_ref!(device, device, description, state.reference_id)
+    AuditLogs.audit_with_ref!(device, device, description, state.reference_id)
 
-      Registry.update_value(NervesHub.Devices, device.id, fn value ->
-        Map.put(value, :deployment_id, device.deployment_id)
-      end)
-
-      update_device(state, device)
+    Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Map.put(value, :deployment_id, device.deployment_id)
     end)
+
+    update_device(state, device)
   end
 
   def update_device(state, device) do
@@ -644,17 +608,6 @@ defmodule NervesHub.Devices.DeviceLink do
       end
 
     %{state | penalty_timer: ref}
-  end
-
-  defp trace(name, device, fun) do
-    Tracer.with_span name do
-      Tracer.set_attributes(%{
-        "nerves_hub.device.id" => device.id,
-        "nerves_hub.device.identifier" => device.identifier
-      })
-
-      fun.()
-    end
   end
 
   defp do_disconnect(state) do
