@@ -221,12 +221,6 @@ if config_env() == :prod do
       ]
   end
 
-  #
-  # setup Erlang to use CAStore certs by default
-  #
-  :pubkey_os_cacerts.clear()
-  :pubkey_os_cacerts.load([CAStore.file_path()])
-
   database_ssl_opts =
     if System.get_env("DATABASE_PEM") do
       db_hostname_charlist =
@@ -247,7 +241,7 @@ if config_env() == :prod do
         server_name_indication: db_hostname_charlist
       ]
     else
-      []
+      [cacerts: :public_key.cacerts_get()]
     end
 
   databse_socket_options = if System.get_env("DATABASE_INET6") == "true", do: [:inet6], else: []
