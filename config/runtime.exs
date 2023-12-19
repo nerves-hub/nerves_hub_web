@@ -141,12 +141,12 @@ if config_env() == :prod do
   if nerves_hub_app in ["all", "web"] do
     config :nerves_hub, NervesHubWeb.Endpoint,
       url: [
-        host: System.fetch_env!("WEB_HOST"),
+        host: System.get_env("WEB_HOST") || System.fetch_env!("HOST"),
         scheme: System.get_env("WEB_SCHEME", "https"),
         port: String.to_integer(System.get_env("WEB_PORT", "443"))
       ],
       http: [
-        port: String.to_integer(System.get_env("HTTP_PORT", "4000"))
+        port: String.to_integer(System.get_env("HTTP_PORT", System.get_env("PORT", "4000")))
       ],
       secret_key_base: System.fetch_env!("SECRET_KEY_BASE"),
       live_view: [
@@ -156,7 +156,9 @@ if config_env() == :prod do
   end
 
   if nerves_hub_app in ["all", "device"] do
-    host = System.get_env("DEVICE_HOST") || System.fetch_env!("WEB_HOST")
+    host =
+      System.get_env("DEVICE_HOST") || System.get_env("WEB_HOST") || System.fetch_env!("HOST")
+
     https_port = String.to_integer(System.get_env("DEVICE_PORT", "443"))
 
     keyfile =
