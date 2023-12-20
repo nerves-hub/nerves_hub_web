@@ -208,7 +208,6 @@ if config_env() == :prod do
             # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
             #
             # certificate_authorities: false,
-            :inet6,
             versions: [:"tlsv1.2"],
             verify: :verify_peer,
             verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
