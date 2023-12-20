@@ -167,7 +167,7 @@ if config_env() == :prod do
         :ok = File.write("/app/tmp/ssl_key.crt", ssl_key)
         "/app/tmp/ssl_key.crt"
       else
-        ssl_keyfile = System.get_env("DEVICE_SSL_KEYFILE", "/ets/ssl/#{host}-key.pem")
+        ssl_keyfile = System.get_env("DEVICE_SSL_KEYFILE", "/etc/ssl/#{host}-key.pem")
 
         if File.exists?(ssl_keyfile) do
           ssl_keyfile
@@ -182,7 +182,7 @@ if config_env() == :prod do
         :ok = File.write("/app/tmp/ssl_cert.crt", ssl_cert)
         "/app/tmp/ssl_cert.crt"
       else
-        ssl_certfile = System.get_env("DEVICE_SSL_CERTFILE", "/ets/ssl/#{host}.pem")
+        ssl_certfile = System.get_env("DEVICE_SSL_CERTFILE", "/etc/ssl/#{host}.pem")
 
         if File.exists?(ssl_certfile) do
           ssl_certfile
