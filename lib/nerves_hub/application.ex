@@ -85,7 +85,7 @@ defmodule NervesHub.Application do
       socket_strategy =
         {:percentage, socket_drano_config[:percentage], socket_drano_config[:time]}
 
-      {SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS], strategy: socket_strategy}
+      [{SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS], strategy: socket_strategy}]
     else
       []
     end
