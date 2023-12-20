@@ -33,9 +33,5 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def terminate(_reason, %{assigns: %{device_link_pid: link}}) do
-    DeviceLink.disconnect(link)
-  end
-
   def terminate(_reason, _state), do: :ok
 end
