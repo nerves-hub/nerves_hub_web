@@ -20,7 +20,7 @@ defmodule NervesHub.RateLimit do
 
     config = Application.get_env(:nerves_hub, __MODULE__)
 
-    result < config[:limit]
+    result <= config[:limit]
   end
 
   @doc false
