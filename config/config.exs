@@ -36,6 +36,7 @@ config :nerves_hub, Oban,
   log: false,
   queues: [delete_firmware: 1, firmware_delta_builder: 2, truncate: 1],
   plugins: [
+    {Oban.Plugins.Pruner, max_age: 3_600},
     {Oban.Plugins.Cron,
      crontab: [
        {"0 * * * *", NervesHub.Workers.TruncateAuditLogs, max_attempts: 1},
