@@ -6,9 +6,8 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
 
   action_fallback(NervesHubWeb.API.FallbackController)
 
-  plug(:validate_role, [org: :delete] when action in [:delete])
-  plug(:validate_role, [org: :write] when action in [:create])
-  plug(:validate_role, [org: :read] when action in [:index, :show])
+  plug(:validate_role, [org: :manage] when action in [:create, :delete])
+  plug(:validate_role, [org: :view] when action in [:index, :show])
 
   def index(%{assigns: %{org: org}} = conn, %{"identifier" => identifier}) do
     with {:ok, device} <- Devices.get_device_by_identifier(org, identifier) do

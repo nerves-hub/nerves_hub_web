@@ -42,11 +42,11 @@ defmodule NervesHubWeb.API.ProductControllerTest do
   end
 
   describe "create products roles" do
-    test "ok: org write", %{user2: user, conn2: conn, org: org} do
+    test "ok: org manage", %{user2: user, conn2: conn, org: org} do
       name = "test"
       product = %{name: name}
 
-      Accounts.add_org_user(org, user, %{role: :write})
+      Accounts.add_org_user(org, user, %{role: :admin})
 
       conn = post(conn, Routes.api_product_path(conn, :create, org.name), product)
       assert json_response(conn, 201)["data"]
@@ -59,7 +59,7 @@ defmodule NervesHubWeb.API.ProductControllerTest do
       name = "test"
       product = %{name: name}
 
-      Accounts.add_org_user(org, user, %{role: :read})
+      Accounts.add_org_user(org, user, %{role: :view})
 
       conn = post(conn, Routes.api_product_path(conn, :create, org.name), product)
       assert json_response(conn, 403)["status"] != ""
@@ -98,7 +98,7 @@ defmodule NervesHubWeb.API.ProductControllerTest do
     setup [:create_product]
 
     test "ok: org delete", %{user2: user, conn2: conn, org: org, product: product} do
-      Accounts.add_org_user(org, user, %{role: :delete})
+      Accounts.add_org_user(org, user, %{role: :admin})
 
       conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
       assert response(conn, 204)
@@ -109,14 +109,14 @@ defmodule NervesHubWeb.API.ProductControllerTest do
     end
 
     test "error: org delete", %{user2: user, conn2: conn, org: org, product: product} do
-      Accounts.add_org_user(org, user, %{role: :read})
+      Accounts.add_org_user(org, user, %{role: :view})
 
       conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
       assert json_response(conn, 403)["status"] != ""
     end
 
     test "error: org read", %{user2: user, conn2: conn, org: org, product: product} do
-      Accounts.add_org_user(org, user, %{role: :read})
+      Accounts.add_org_user(org, user, %{role: :view})
 
       conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
       assert json_response(conn, 403)["status"] != ""

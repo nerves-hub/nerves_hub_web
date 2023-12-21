@@ -5,9 +5,8 @@ defmodule NervesHubWeb.OrgCertificateController do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.CACertificate.CSR
 
-  plug(:validate_role, [org: :delete] when action in [:delete])
-  plug(:validate_role, [org: :write] when action in [:new, :create])
-  plug(:validate_role, [org: :read] when action in [:index])
+  plug(:validate_role, [org: :manage] when action in [:new, :create, :delete])
+  plug(:validate_role, [org: :view] when action in [:index])
 
   def index(%{assigns: %{org: org}} = conn, _params) do
     conn

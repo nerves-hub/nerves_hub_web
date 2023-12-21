@@ -12,9 +12,8 @@ defmodule NervesHubWeb.API.DeviceController do
 
   action_fallback(NervesHubWeb.API.FallbackController)
 
-  plug(:validate_role, [org: :delete] when action in [:delete])
-  plug(:validate_role, [org: :write] when action in [:create, :update])
-  plug(:validate_role, [org: :read] when action in [:index, :auth])
+  plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
+  plug(:validate_role, [org: :view] when action in [:index, :auth])
 
   def index(%{assigns: %{org: org, product: product}} = conn, params) do
     opts = %{
@@ -55,7 +54,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
     case Devices.get_by_identifier(identifier) do
       {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :read) do
+        if Accounts.has_org_role?(device.org, user, :view) do
           conn
           |> assign(:device, device)
           |> render("show.json")
@@ -114,7 +113,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
     case Devices.get_by_identifier(identifier) do
       {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :write) do
+        if Accounts.has_org_role?(device.org, user, :manage) do
           message = "user #{user.username} rebooted device #{device.identifier}"
           AuditLogs.audit!(user, device, message)
 
@@ -140,7 +139,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
     case Devices.get_by_identifier(identifier) do
       {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :write) do
+        if Accounts.has_org_role?(device.org, user, :manage) do
           Endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
 
           send_resp(conn, 200, "Success")
@@ -163,7 +162,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
     case Devices.get_by_identifier(identifier) do
       {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :write) do
+        if Accounts.has_org_role?(device.org, user, :manage) do
           body
           |> String.graphemes()
           |> Enum.map(fn character ->
@@ -192,7 +191,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
     case Devices.get_by_identifier(identifier) do
       {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :write) do
+        if Accounts.has_org_role?(device.org, user, :manage) do
           {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(device.product, uuid)
 
           {:ok, url} = Firmwares.get_firmware_url(firmware)
@@ -238,7 +237,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
     case Devices.get_by_identifier(identifier) do
       {:ok, device} ->
-        if Accounts.has_org_role?(device.org, user, :write) do
+        if Accounts.has_org_role?(device.org, user, :manage) do
           case Devices.clear_penalty_box(device, user) do
             {:ok, _device} ->
               send_resp(conn, 204, "")

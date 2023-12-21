@@ -5,7 +5,7 @@ defmodule NervesHubWeb.OrgUserView do
 
   def role_options() do
     for {key, value} <- Ecto.Enum.mappings(OrgUser, :role),
-        key in [:admin, :read],
+        key in [:admin, :manage, :view],
         do: {String.capitalize(value), key}
   end
 end

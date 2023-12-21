@@ -4,6 +4,7 @@ defmodule NervesHub.Accounts.Invite do
   import Ecto.Changeset
 
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgUser
   alias __MODULE__
 
   @type t :: %__MODULE__{}
@@ -14,7 +15,7 @@ defmodule NervesHub.Accounts.Invite do
     field(:email, :string)
     field(:token, Ecto.UUID)
     field(:accepted, :boolean)
-    field(:role, Ecto.Enum, values: Ecto.Enum.values(NervesHub.Accounts.OrgUser, :role))
+    field(:role, Ecto.Enum, values: Ecto.Enum.values(OrgUser, :role))
 
     timestamps()
   end

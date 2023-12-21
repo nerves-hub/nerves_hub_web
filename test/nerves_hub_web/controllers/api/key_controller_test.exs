@@ -40,8 +40,8 @@ defmodule NervesHubWeb.API.KeyControllerTest do
   end
 
   describe "create keys roles" do
-    test "ok: org write", %{conn2: conn, org: org, user2: user} do
-      Accounts.add_org_user(org, user, %{role: :write})
+    test "ok: org manage", %{conn2: conn, org: org, user2: user} do
+      Accounts.add_org_user(org, user, %{role: :manage})
 
       name = "test"
       Fwup.gen_key_pair(name)
@@ -55,8 +55,8 @@ defmodule NervesHubWeb.API.KeyControllerTest do
       assert json_response(conn, 200)["data"]["name"] == name
     end
 
-    test "error: org read", %{conn2: conn, org: org, user2: user} do
-      Accounts.add_org_user(org, user, %{role: :read})
+    test "error: org view", %{conn2: conn, org: org, user2: user} do
+      Accounts.add_org_user(org, user, %{role: :view})
       name = "test"
       Fwup.gen_key_pair(name)
       pub_key = Fwup.get_public_key(name)
@@ -83,20 +83,14 @@ defmodule NervesHubWeb.API.KeyControllerTest do
   describe "delete key roles" do
     setup [:create_key]
 
-    test "ok: org delete", %{user2: user, conn2: conn, org: org, key: key} do
-      Accounts.add_org_user(org, user, %{role: :delete})
+    test "ok: org manage", %{user2: user, conn2: conn, org: org, key: key} do
+      Accounts.add_org_user(org, user, %{role: :manage})
       conn = delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))
       assert response(conn, 204)
     end
 
-    test "error: org write", %{user2: user, conn2: conn, org: org, key: key} do
-      Accounts.add_org_user(org, user, %{role: :write})
-      conn = delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))
-      assert json_response(conn, 403)["status"] != ""
-    end
-
-    test "error: org read", %{user2: user, conn2: conn, org: org, key: key} do
-      Accounts.add_org_user(org, user, %{role: :read})
+    test "error: org view", %{user2: user, conn2: conn, org: org, key: key} do
+      Accounts.add_org_user(org, user, %{role: :view})
       conn = delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))
       assert json_response(conn, 403)["status"] != ""
     end

@@ -77,7 +77,7 @@ defmodule NervesHub.ProductsTest do
       product: product
     } do
       user = Fixtures.user_fixture()
-      Accounts.add_org_user(org, user, %{role: :read})
+      Accounts.add_org_user(org, user, %{role: :view})
       assert [^product] = Products.get_products_by_user_and_org(user, org)
     end
 

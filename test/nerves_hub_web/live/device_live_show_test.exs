@@ -32,7 +32,7 @@ defmodule NervesHubWeb.DeviceLiveShowTest do
 
       Repo.preload(user, :org_users)
       |> Map.get(:org_users)
-      |> Enum.map(&NervesHub.Accounts.change_org_user_role(&1, :read))
+      |> Enum.map(&NervesHub.Accounts.change_org_user_role(&1, :view))
 
       {:ok, view, _html} = live(conn, device_show_path(fixture))
 

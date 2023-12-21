@@ -4,9 +4,8 @@ defmodule NervesHubWeb.OrgKeyController do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.OrgKey
 
-  plug(:validate_role, [org: :read] when action in [:index, :show])
-  plug(:validate_role, [org: :write] when action in [:new, :create, :update, :edit])
-  plug(:validate_role, [org: :delete] when action in [:delete])
+  plug(:validate_role, [org: :manage] when action in [:new, :create, :update, :edit, :delete])
+  plug(:validate_role, [org: :view] when action in [:index, :show])
 
   def index(%{assigns: %{org: org}} = conn, _params) do
     org_keys = Accounts.list_org_keys(org)

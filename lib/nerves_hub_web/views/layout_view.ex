@@ -151,7 +151,7 @@ defmodule NervesHubWeb.LayoutView do
          href: Routes.product_path(conn, :index, conn.assigns.org.name)
        }
      ] ++
-       if NervesHub.Accounts.has_org_role?(org, user, :read) do
+       if NervesHub.Accounts.has_org_role?(org, user, :view) do
          [
            %{
              title: "Firmware Keys",

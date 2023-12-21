@@ -25,7 +25,7 @@ defmodule NervesHub.Products do
         on: p.org_id == ou.org_id,
         where:
           p.org_id == ^org_id and ou.user_id == ^user_id and
-            ou.role in ^User.role_or_higher(:read),
+            ou.role in ^User.role_or_higher(:view),
         group_by: p.id
       )
 

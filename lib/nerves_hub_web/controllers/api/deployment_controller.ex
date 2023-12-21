@@ -8,9 +8,8 @@ defmodule NervesHubWeb.API.DeploymentController do
 
   action_fallback(NervesHubWeb.API.FallbackController)
 
-  plug(:validate_role, [org: :delete] when action in [:delete])
-  plug(:validate_role, [org: :write] when action in [:create, :update])
-  plug(:validate_role, [org: :read] when action in [:index, :show])
+  plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
+  plug(:validate_role, [org: :view] when action in [:index, :show])
 
   @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active]
 
