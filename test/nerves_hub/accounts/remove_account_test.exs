@@ -31,7 +31,7 @@ defmodule NervesHub.Accounts.RemoveAccountTest do
     org2 = Fixtures.org_fixture(user, %{name: "Test-Org2"})
 
     {:ok, invite} =
-      Accounts.add_or_invite_to_org(%{"email" => "test@test.org", "role" => "read"}, org2)
+      Accounts.add_or_invite_to_org(%{"email" => "test@test.org", "role" => "view"}, org2)
 
     params = %{username: "Test-User2", password: "Test-Password"}
     {:ok, org_user} = Accounts.create_user_from_invite(invite, org2, params)

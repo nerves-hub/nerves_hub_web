@@ -7,16 +7,14 @@ defmodule NervesHubWeb.DeviceController do
   alias NervesHubWeb.DeviceLive
   alias NervesHubWeb.Endpoint
 
-  plug(:validate_role, [org: :delete] when action in [:delete])
-
   plug(
     :validate_role,
-    [org: :write] when action in [:new, :create, :edit, :reboot, :toggle_updates]
+    [org: :manage] when action in [:new, :create, :edit, :delete, :reboot, :toggle_updates]
   )
 
   plug(
     :validate_role,
-    [org: :read]
+    [org: :view]
     when action in [:index, :console, :show, :download_certificate, :export_audit_logs]
   )
 

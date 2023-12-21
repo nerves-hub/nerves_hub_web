@@ -9,9 +9,12 @@ defmodule NervesHubWeb.DeploymentController do
   alias NervesHub.Devices
   alias Ecto.Changeset
 
-  plug(:validate_role, [org: :delete] when action in [:delete])
-  plug(:validate_role, [org: :write] when action in [:new, :create, :edit, :update, :toggle])
-  plug(:validate_role, [org: :read] when action in [:index, :show, :export_audit_logs])
+  plug(
+    :validate_role,
+    [org: :manage] when action in [:new, :create, :edit, :update, :delete, :toggle]
+  )
+
+  plug(:validate_role, [org: :view] when action in [:index, :show, :export_audit_logs])
 
   def index(%{assigns: %{org: _org, product: %{id: product_id}}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product_id)

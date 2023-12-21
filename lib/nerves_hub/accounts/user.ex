@@ -116,9 +116,8 @@ defmodule NervesHub.Accounts.User do
     |> preload(orgs: [:org_keys])
   end
 
-  def role_or_higher(:read), do: [:read, :write, :delete, :admin]
-  def role_or_higher(:write), do: [:write, :delete, :admin]
-  def role_or_higher(:delete), do: [:delete, :admin]
+  def role_or_higher(:view), do: [:view, :manage, :admin]
+  def role_or_higher(:manage), do: [:manage, :admin]
   def role_or_higher(:admin), do: [:admin]
 
   defp password_validations(%Changeset{} = changeset) do

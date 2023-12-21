@@ -36,14 +36,14 @@ defmodule NervesHubWeb.OrgUserControllerTest do
     test "updates role and redirects", %{conn: conn, org: org, user2: user} do
       conn =
         put(conn, Routes.org_user_path(conn, :update, org.name, user.id), %{
-          org_user: %{role: "write"}
+          org_user: %{role: "manage"}
         })
 
       assert redirected_to(conn) == Routes.org_user_path(conn, :index, org.name)
 
       conn = get(conn, Routes.org_user_path(conn, :index, org.name))
       assert html_response(conn, 200) =~ "Role updated"
-      assert html_response(conn, 200) =~ "write"
+      assert html_response(conn, 200) =~ "manage"
     end
 
     test "shows error", %{conn: conn, org: org, user2: user} do

@@ -7,7 +7,8 @@ defmodule NervesHubWeb.OrgUserViewTest do
     test "a list of formatted tuples is returned" do
       assert OrgUserView.role_options() == [
                {"Admin", :admin},
-               {"Read", :read}
+               {"Manage", :manage},
+               {"View", :view}
              ]
     end
   end

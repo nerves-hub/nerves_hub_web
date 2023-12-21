@@ -79,7 +79,7 @@ defmodule NervesHubWeb.OrgControllerTest do
     test "sends invite when user does not exist", %{conn: conn, org: org} do
       conn =
         post(conn, Routes.org_path(conn, :send_invite, org.name),
-          invite: %{email: "nunya@bid.ness", role: :read}
+          invite: %{email: "nunya@bid.ness", role: :view}
         )
 
       assert redirected_to(conn) == Routes.org_user_path(conn, :index, org.name)
@@ -94,7 +94,7 @@ defmodule NervesHubWeb.OrgControllerTest do
 
       conn =
         post(conn, Routes.org_path(conn, :send_invite, org.name),
-          invite: %{email: user.email, role: :read}
+          invite: %{email: user.email, role: :view}
         )
 
       assert redirected_to(conn) == Routes.org_user_path(conn, :index, org.name)
@@ -111,7 +111,7 @@ defmodule NervesHubWeb.OrgControllerTest do
     } do
       conn =
         post(conn, Routes.org_path(conn, :send_invite, org.name),
-          invite: %{email: user.email, role: :read}
+          invite: %{email: user.email, role: :view}
         )
 
       assert html_response(conn, 200) =~ user.email

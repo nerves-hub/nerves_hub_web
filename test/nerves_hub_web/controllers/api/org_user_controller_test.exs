@@ -21,7 +21,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
   end
 
   describe "index roles" do
-    for role <- [:delete, :write, :read] do
+    for role <- [:manage, :view] do
       @role role
 
       test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
 
   describe "add org_users" do
     test "renders org_user when data is valid", %{conn: conn, org: org, user2: user2} do
-      org_user = %{"username" => user2.username, "role" => "write"}
+      org_user = %{"username" => user2.username, "role" => "manage"}
       conn = post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
       assert json_response(conn, 201)["data"]
 
@@ -57,7 +57,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
   end
 
   describe "add role" do
-    for role <- [:delete, :write, :read] do
+    for role <- [:manage, :view] do
       @role role
 
       test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
@@ -89,7 +89,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
   end
 
   describe "remove role" do
-    for role <- [:delete, :write, :read] do
+    for role <- [:manage, :view] do
       @role role
 
       test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
@@ -105,18 +105,20 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
 
     test "renders org_user when data is valid", %{conn: conn, org: org, user2: user} do
       conn =
-        put(conn, Routes.api_org_user_path(conn, :update, org.name, user.username), role: "write")
+        put(conn, Routes.api_org_user_path(conn, :update, org.name, user.username),
+          role: "manage"
+        )
 
-      assert json_response(conn, 200)["data"]["role"] == "write"
+      assert json_response(conn, 200)["data"]["role"] == "manage"
 
       path = Routes.api_org_user_path(conn, :show, org.name, user.username)
       conn = get(conn, path)
-      assert json_response(conn, 200)["data"]["role"] == "write"
+      assert json_response(conn, 200)["data"]["role"] == "manage"
     end
   end
 
   describe "update role" do
-    for role <- [:delete, :write, :read] do
+    for role <- [:manage, :view] do
       @role role
 
       test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
@@ -124,7 +126,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
 
         conn =
           put(conn, Routes.api_org_user_path(conn, :update, org.name, user.username),
-            role: "write"
+            role: "manage"
           )
 
         assert json_response(conn, 403)["status"] != ""

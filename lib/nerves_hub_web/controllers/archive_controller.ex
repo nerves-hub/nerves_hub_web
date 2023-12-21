@@ -4,9 +4,8 @@ defmodule NervesHubWeb.ArchiveController do
   alias NervesHub.Accounts
   alias NervesHub.Archives
 
-  plug(:validate_role, [org: :delete] when action in [:delete])
-  plug(:validate_role, [org: :write] when action in [:new, :create])
-  plug(:validate_role, [org: :read] when action in [:index, :show])
+  plug(:validate_role, [org: :manage] when action in [:new, :create, :delete])
+  plug(:validate_role, [org: :view] when action in [:index, :show])
 
   def index(conn, _params) do
     %{product: product} = conn.assigns
@@ -21,7 +20,7 @@ defmodule NervesHubWeb.ArchiveController do
 
     case Archives.get(uuid) do
       {:ok, archive} ->
-        if Accounts.has_org_role?(archive.product.org, user, :read) do
+        if Accounts.has_org_role?(archive.product.org, user, :view) do
           conn
           |> assign(:archive, archive)
           |> render("show.html")
@@ -45,7 +44,7 @@ defmodule NervesHubWeb.ArchiveController do
 
     case Archives.get(uuid) do
       {:ok, archive} ->
-        if Accounts.has_org_role?(archive.product.org, user, :read) do
+        if Accounts.has_org_role?(archive.product.org, user, :view) do
           redirect(conn, external: Archives.url(archive))
         else
           conn
