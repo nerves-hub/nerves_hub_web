@@ -358,11 +358,17 @@ defmodule NervesHub.Devices.DeviceLink do
   end
 
   @impl GenServer
-  def handle_info(
-        {:DOWN, transport_ref, :process, _pid, _reason},
-        %{transport_ref: transport_ref} = state
-      ) do
-    {:noreply, do_disconnect(state)}
+  def handle_info({:DOWN, transport_ref, :process, _pid, _reason}, state) do
+    if state.transport_ref == transport_ref do
+      {:noreply, do_disconnect(state)}
+    else
+      # TCP sockets have longer timeouts. There is a chance the old socket
+      # was still around when the new one started which could result in
+      # getting this message later than expected
+      #
+      # For cases like that and when we no longer know the ref, simply ignore
+      {:noreply, state}
+    end
   end
 
   # We can save a fairly expensive query by checking the incoming deployment's payload
