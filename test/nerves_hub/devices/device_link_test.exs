@@ -491,6 +491,19 @@ defmodule NervesHub.DeviceLinkTest do
     assert {:stop, :normal, %{}} = DeviceLink.handle_info(:timeout_reconnect, %{})
   end
 
+  test "ignores unknown messages" do
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        # Prob good spot for prop test
+        DeviceLink.handle_info(12355, %{})
+        DeviceLink.handle_info("12355", %{})
+        DeviceLink.handle_info(:wat, %{})
+        DeviceLink.handle_info(nil, %{})
+      end)
+
+    assert log =~ ~r/Unhandled message!/
+  end
+
   defp create_device(context) do
     user = context[:user] || Fixtures.user_fixture()
     org = context[:org] || Fixtures.org_fixture(user)

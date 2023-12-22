@@ -534,6 +534,20 @@ defmodule NervesHub.Devices.DeviceLink do
     {:stop, :normal, state}
   end
 
+  def handle_info(msg, state) do
+    # Ignore unhandled messages so that it doesn't crash the link process
+    # preventing cascading problems.
+    Logger.warning("[DeviceLink] Unhandled message! - #{inspect(msg)}")
+
+    _ =
+      Sentry.capture_message("[DeviceLink] Unhandled message!",
+        extra: %{message: msg},
+        result: :none
+      )
+
+    {:noreply, state}
+  end
+
   defp subscribe(topic) do
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
   end
