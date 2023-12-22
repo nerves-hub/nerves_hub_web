@@ -1,6 +1,6 @@
 # NervesHub
 
-[![CircleCI](https://circleci.com/gh/nerves-hub/nerves_hub_web.svg?style=svg)](https://circleci.com/gh/nerves-hub/nerves_hub_web)
+![GitHub Actions](https://github.com/nerves-hub/nerves_hub_web/actions/workflows/ci.yml/badge.svg?branch=main)
 
 This is the source code for the NervesHub firmware update and device management
 server.
