@@ -13,23 +13,39 @@ config :phoenix,
   ]
 
 ##
+# NervesHub
+#
+config :nerves_hub,
+  env: Mix.env(),
+  namespace: NervesHub,
+  ecto_repos: [NervesHub.Repo]
+
+##
 # NervesHub Device
 #
-
-# Configures the endpoint
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   adapter: Bandit.PhoenixAdapter,
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub
 
 ##
-# NervesHub
+# NervesHub Web
 #
-config :nerves_hub,
-  env: Mix.env(),
-  namespace: NervesHub,
-  ecto_repos: [NervesHub.Repo],
-  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
+config :nerves_hub, NervesHubWeb.Endpoint,
+  adapter: Bandit.PhoenixAdapter,
+  secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
+  live_view: [
+    signing_salt: "Kct3W8U7uQ6KAczYjzNbiYS6A8Pbtk3f"
+  ],
+  render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
+  pubsub_server: NervesHub.PubSub
+
+##
+# Database and Oban
+#
+config :nerves_hub, NervesHub.Repo,
+  queue_target: 500,
+  queue_interval: 5_000
 
 config :nerves_hub, Oban,
   repo: NervesHub.ObanRepo,
@@ -45,29 +61,7 @@ config :nerves_hub, Oban,
      ]}
   ]
 
-config :nerves_hub, NervesHub.Repo,
-  queue_target: 500,
-  queue_interval: 5_000
-
-##
-# NervesHubWWW
-#
-config :nerves_hub,
-  ecto_repos: [NervesHub.Repo],
-  # Options are :ssl or :header
-  websocket_auth_methods: [:ssl]
-
 config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
-
-# Configures the endpoint
-config :nerves_hub, NervesHubWeb.Endpoint,
-  adapter: Bandit.PhoenixAdapter,
-  secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
-  live_view: [
-    signing_salt: "Kct3W8U7uQ6KAczYjzNbiYS6A8Pbtk3f"
-  ],
-  render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
-  pubsub_server: NervesHub.PubSub
 
 config :swoosh, :api_client, Swoosh.ApiClient.Finch
 
