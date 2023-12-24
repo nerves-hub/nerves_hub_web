@@ -62,12 +62,12 @@ config :nerves_hub, NervesHub.Uploads.File,
 # Database and Oban
 #
 config :nerves_hub, NervesHub.Repo,
-  url: "postgres://postgres:postgres@localhost/nerves_hub_test",
+  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
   ssl: false,
   pool: Ecto.Adapters.SQL.Sandbox
 
 config :nerves_hub, NervesHub.ObanRepo,
-  url: "postgres://postgres:postgres@localhost/nerves_hub_test",
+  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
   ssl: false,
   pool: Ecto.Adapters.SQL.Sandbox
 

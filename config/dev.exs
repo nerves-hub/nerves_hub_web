@@ -69,13 +69,13 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 # Database and Oban
 #
 config :nerves_hub, NervesHub.Repo,
-  url: "postgres://postgres:postgres@localhost/nerves_hub_dev",
+  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev"),
   show_sensitive_data_on_connection_error: true,
   pool_size: 10,
   ssl: false
 
 config :nerves_hub, NervesHub.ObanRepo,
-  url: "postgres://postgres:postgres@localhost/nerves_hub_dev",
+  url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev"),
   show_sensitive_data_on_connection_error: true,
   pool_size: 10,
   ssl: false
