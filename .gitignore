@@ -1,37 +1,17 @@
 # App artifacts
 /_build
-/db
-/deps
-/*.ez
+/deps/
+/assets/node_modules/
+/priv/static/
+/tmp/
 
 # Generated on crash by the VM
 erl_crash.dump
 
-# Files matching config/*.secret.exs pattern contain sensitive
-# data and you should not commit them into version control.
-#
-# Alternatively, you may comment the line below and commit the
-# secrets files as long as you replace their contents by environment
-# variables.
-/config/*.secret.exs
-
-.elixir_ls
-.vscode
-node_modules
-*.iml
-
-/config/*.secret.exs
-/priv/static
-.env
-.elixir_ls
-.vscode
-
-node_modules/
-assets/*.log
-tmp
-
-gproc_dist*
-
+# Test artifact
 test/fixtures/ssl/device-root-ca.srl
 
-/remote_host
+.elixir_ls
+.vscode
+
+.env*
