@@ -42,14 +42,12 @@ if System.get_env("RELEASE_MODE") do
       sync_nodes_timeout: 5000
   end
 
-  if port = System.get_env("INET_DIST_LISTEN_MIN") do
+  unless System.get_env("DEFAULT_INET_DIST_PORTS") do
     config :kernel,
-      inet_dist_listen_min: String.to_integer(port)
-  end
+      inet_dist_listen_min: System.get_env("INET_DIST_LISTEN_MIN", "9100") |> String.to_integer()
 
-  if port = System.get_env("INET_DIST_LISTEN_MAX") do
     config :kernel,
-      inet_dist_listen_max: String.to_integer(port)
+      inet_dist_listen_max: System.get_env("INET_DIST_LISTEN_MAX", "9155") |> String.to_integer()
   end
 end
 
