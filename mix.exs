@@ -79,7 +79,6 @@ defmodule NervesHub.MixProject do
       {:nimble_csv, "~> 1.1"},
       {:oban, "~> 2.11"},
       {:phoenix, "~> 1.7.0"},
-      {:phoenix_active_link, "~> 0.3.1"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 3.3.1", override: true},
       {:phoenix_live_reload, "~> 1.2", only: :dev},

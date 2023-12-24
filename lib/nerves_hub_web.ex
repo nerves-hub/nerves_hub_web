@@ -118,8 +118,6 @@ defmodule NervesHubWeb do
         root: "lib/nerves_hub_web/templates",
         namespace: NervesHubWeb
 
-      import PhoenixActiveLink
-
       alias NervesHubWeb.{DeviceLive, Endpoint}
 
       # Import convenience functions from controllers
@@ -127,6 +125,8 @@ defmodule NervesHubWeb do
         only: [get_flash: 1, get_flash: 2, view_module: 1, view_template: 1]
 
       import Phoenix.Component
+
+      import NervesHubWeb.Components.SimpleActiveLink
 
       # Include shared imports and aliases for views
       unquote(view_helpers())
@@ -152,6 +152,12 @@ defmodule NervesHubWeb do
           error: error
         }
       end
+    end
+  end
+
+  def component do
+    quote do
+      use Phoenix.Component
     end
   end
 
