@@ -1,7 +1,5 @@
 import Config
 
-web_port = 5000
-
 config :bcrypt_elixir, log_rounds: 4
 
 config :logger, :default_handler, false
@@ -10,7 +8,7 @@ config :logger, :default_handler, false
 # NervesHub Web
 #
 config :nerves_hub, NervesHubWeb.Endpoint,
-  http: [port: web_port],
+  http: [port: 5000],
   server: false,
   secret_key_base: "x7Vj9rmmRke//ctlapsPNGHXCRTnArTPbfsv6qX4PChFT9ARiNR5Ua8zoRilNCmX",
   live_view: [signing_salt: "FnV9rP_c2BL11dvh"]
