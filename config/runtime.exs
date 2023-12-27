@@ -182,13 +182,17 @@ if config_env() == :prod do
 
   config :nerves_hub, NervesHub.Repo,
     url: System.fetch_env!("DATABASE_URL"),
+    ssl: System.get_env("DATABASE_SSL", "true") == "true",
     ssl_opts: database_ssl_opts,
+    pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
     socket_options: databse_socket_options,
     queue_target: 5000
 
   config :nerves_hub, NervesHub.ObanRepo,
     url: System.fetch_env!("DATABASE_URL"),
+    ssl: System.get_env("DATABASE_SSL", "true") == "true",
     ssl_opts: database_ssl_opts,
+    pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
     socket_options: databse_socket_options,
     queue_target: 5000
 
