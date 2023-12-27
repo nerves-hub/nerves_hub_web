@@ -20,10 +20,6 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint, server: true
 ##
 # Database and Oban
 #
-config :nerves_hub, NervesHub.Repo,
-  ssl: true,
-  pool_size: 20
+config :nerves_hub, NervesHub.Repo, pool_size: 20
 
-config :nerves_hub, NervesHub.ObanRepo,
-  ssl: true,
-  pool_size: 10
+config :nerves_hub, NervesHub.ObanRepo, pool_size: 10
