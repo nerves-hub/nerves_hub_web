@@ -3,7 +3,7 @@ defmodule NervesHub.Helpers.Authorization do
   alias NervesHub.Accounts.User
 
   def authorized!(org_user, permission) do
-    true = authorized?(org_user, permission)
+    authorized?(org_user, permission) || raise "unauthorized"
   end
 
   def authorized?(:update_product, %OrgUser{role: user_role}), do: role_check(:manage, user_role)
