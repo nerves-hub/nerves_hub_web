@@ -21,7 +21,7 @@ defmodule NervesHub.Products.Product do
     has_many(:jitp, CACertificate.JITP)
     has_many(:archives, Archive)
 
-    has_many(:shared_secret_auth, SharedSecretAuth,
+    has_many(:shared_secret_auths, SharedSecretAuth,
       preload_order: [desc: :deactivated_at, asc: :id]
     )
 

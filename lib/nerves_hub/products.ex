@@ -166,7 +166,7 @@ defmodule NervesHub.Products do
   end
 
   def load_shared_secret_auth(product) do
-    Repo.preload(product, :shared_secret_auth)
+    Repo.preload(product, :shared_secret_auths)
   end
 
   def create_shared_secret_auth(product) do

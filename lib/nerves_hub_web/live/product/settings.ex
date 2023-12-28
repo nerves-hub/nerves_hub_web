@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     socket =
       socket
       |> assign(:page_title, "#{socket.assigns.product.name} Settings")
-      |> assign(:shared_secrets, socket.assigns.product.shared_secret_auth)
+      |> assign(:shared_secrets, socket.assigns.product.shared_secret_auths)
       |> assign(:shared_auth_enabled, DeviceSocketSharedSecretAuth.enabled?())
 
     {:ok, socket}
@@ -31,12 +31,12 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
     refreshed = Products.load_shared_secret_auth(socket.assigns.product)
 
-    {:reply, assign(socket, :shared_secrets, refreshed.shared_secret_auth)}
+    {:reply, assign(socket, :shared_secrets, refreshed.shared_secret_auths)}
   end
 
   def handle_event("copy-shared-secret", %{"value" => shared_secret_id}, socket) do
     auth =
-      Enum.find(socket.assigns.product.shared_secret_auth, fn ssa ->
+      Enum.find(socket.assigns.product.shared_secret_auths, fn ssa ->
         ssa.id == String.to_integer(shared_secret_id)
       end)
 
@@ -52,7 +52,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
     refreshed = Products.load_shared_secret_auth(product)
 
-    {:reply, assign(socket, :shared_secrets, refreshed.shared_secret_auth)}
+    {:reply, assign(socket, :shared_secrets, refreshed.shared_secret_auths)}
   end
 
   def handle_event("delete-product", _parmas, socket) do
