@@ -31,24 +31,16 @@ config :nerves_hub, dns_cluster_query: dns_cluster_query
 # Configure distributed erlang ports and nodes to connect to.
 #
 if System.get_env("RELEASE_MODE") do
-  if sync_nodes_optional = System.get_env("SYNC_NODES_OPTIONAL") do
-    node_list =
-      sync_nodes_optional
-      |> String.split(" ", trim: true)
-      |> Enum.map(&String.to_atom/1)
+  node_list =
+    System.get_env("SYNC_NODES_OPTIONAL")
+    |> String.split(" ", trim: true)
+    |> Enum.map(&String.to_atom/1)
 
-    config :kernel,
-      sync_nodes_optional: node_list,
-      sync_nodes_timeout: 5000
-  end
-
-  unless System.get_env("DEFAULT_INET_DIST_PORTS") do
-    config :kernel,
-      inet_dist_listen_min: System.get_env("INET_DIST_LISTEN_MIN", "9100") |> String.to_integer()
-
-    config :kernel,
-      inet_dist_listen_max: System.get_env("INET_DIST_LISTEN_MAX", "9155") |> String.to_integer()
-  end
+  config :kernel,
+    sync_nodes_optional: node_list,
+    sync_nodes_timeout: 5000,
+    inet_dist_listen_min: 9100,
+    inet_dist_listen_max: 9155
 end
 
 ##
