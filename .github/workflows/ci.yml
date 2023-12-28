@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - shared-secret-auth
   workflow_dispatch:
   pull_request:
 
@@ -124,6 +125,8 @@ jobs:
           tags: |
             # short sha
             type=sha,enable={{is_default_branch}},prefix=,suffix=,format=short
+            # branch image names, except for main
+            type=ref,enable=${{ github.ref != format('refs/heads/{0}', 'main') }},event=branch
             # latest tag for main branch
             type=raw,enable={{is_default_branch}},value=latest
             # tag event (eg. "v1.2.3")
@@ -133,6 +136,6 @@ jobs:
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
           context: .
-          push: ${{ github.ref == 'refs/heads/main' || github.ref_type == 'tag' }}
+          push: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/shared-secret-auth' || github.ref_type == 'tag' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
