@@ -1,10 +1,10 @@
 defmodule NervesHubWeb.Components.Navigation do
   use NervesHubWeb, :component
 
-  import PhoenixActiveLink
-
   alias NervesHub.Devices
   alias NervesHub.Products.Product
+
+  import NervesHubWeb.Components.SimpleActiveLink
 
   attr(:user, :any, default: nil)
   attr(:org, :any, default: nil)
@@ -83,11 +83,9 @@ defmodule NervesHubWeb.Components.Navigation do
                 <img src="/images/icons/settings.svg" alt="settings" />
               </a>
               <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">
-                <%= active_link(%{request_path: @current_path}, "My Account",
-                  to: ~p"/account/#{@user.username}",
-                  class_active: "dropdown-item user active",
-                  class_inactive: "dropdown-item user"
-                ) %>
+                <.simple_active_link href={~p"/account/#{@user.username}"} current_path={@current_path} class="dropdown-item user">
+                  My Account
+                </.simple_active_link>
                 <div class="dropdown-divider"></div>
                 <a class="dropdown-item user" href="https://docs.nerves-hub.org/">Documentation</a>
                 <div class="dropdown-divider"></div>
