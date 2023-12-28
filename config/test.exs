@@ -81,6 +81,4 @@ config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test
 
 config :nerves_hub, NervesHub.RateLimit, limit: 100
 
-config :nerves_hub, NervesHubWeb.DeviceSocketSharedSecretAuth, enabled: true
-
 config :sentry, environment_name: :test
