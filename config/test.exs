@@ -8,8 +8,8 @@ config :logger, :default_handler, false
 # NervesHub Web
 #
 config :nerves_hub, NervesHubWeb.Endpoint,
-  http: [port: 5000],
-  server: false,
+  http: [port: 4100],
+  server: true,
   secret_key_base: "x7Vj9rmmRke//ctlapsPNGHXCRTnArTPbfsv6qX4PChFT9ARiNR5Ua8zoRilNCmX",
   live_view: [signing_salt: "FnV9rP_c2BL11dvh"]
 
