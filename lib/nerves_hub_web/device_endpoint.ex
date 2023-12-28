@@ -4,7 +4,7 @@ defmodule NervesHubWeb.DeviceEndpoint do
 
   socket(
     "/socket",
-    NervesHubWeb.DeviceSocket,
+    NervesHubWeb.DeviceSocketCertAuth,
     websocket: [
       connect_info: [:peer_data, :x_headers]
     ]

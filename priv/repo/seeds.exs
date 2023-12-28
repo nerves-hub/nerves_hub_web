@@ -47,7 +47,6 @@ defmodule NervesHub.SeedHelpers do
   end
 
   def nerves_team_seed(root_user_params) do
-
     user = Fixtures.user_fixture(root_user_params)
     [default_user_org | _] = Accounts.get_user_orgs(user)
     org = Fixtures.org_fixture(user, %{name: "NervesTeam"})

@@ -7,14 +7,17 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHub.Tracker
   alias NervesHubWeb.DeviceEndpoint
+  alias NervesHubWeb.Endpoint
 
   @valid_serial "device-1234"
   @valid_product "test-product"
 
   @device_port Application.compile_env(:nerves_hub, DeviceEndpoint) |> get_in([:https, :port])
+  @web_port Application.compile_env(:nerves_hub, Endpoint) |> get_in([:http, :port])
 
   @bad_socket_config [
     uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
@@ -301,6 +304,90 @@ defmodule NervesHubWeb.WebsocketTest do
 
       SocketClient.close(socket)
     end
+  end
+
+  describe "shared secret auth NH1" do
+    test "can register device with product key/secret", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      assert {:ok, auth} = Products.create_shared_secret_auth(product)
+
+      identifier = Ecto.UUID.generate()
+      refute Repo.get_by(Device, identifier: identifier)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: nh1_key_secret_headers(auth, identifier)
+      ]
+
+      params = %{
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => product.name,
+        "nerves_fw_architecture" => "arm64",
+        "nerves_fw_version" => "0.0.0",
+        "nerves_fw_platform" => "test_host"
+      }
+
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device", params)
+      SocketClient.wait_join(socket)
+
+      assert device = Repo.get_by(Device, identifier: identifier) |> Repo.preload(:org)
+
+      assert Tracker.online?(device)
+
+      SocketClient.close(socket)
+    end
+
+    test "rejects expired signature", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      assert {:ok, auth} = Products.create_shared_secret_auth(product)
+
+      identifier = Ecto.UUID.generate()
+
+      # Default allowance is 1 minute
+      expired = System.system_time(:second) - 180
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: nh1_key_secret_headers(auth, identifier, signed_at: expired)
+      ]
+
+      {:ok, socket} = SocketClient.start_link(opts)
+      refute SocketClient.connected?(socket)
+
+      SocketClient.close(socket)
+    end
+  end
+
+  defp nh1_key_secret_headers(auth, identifier, opts \\ []) do
+    opts =
+      opts
+      |> Keyword.put_new(:key_digest, :sha256)
+      |> Keyword.put_new(:key_iterations, 1000)
+      |> Keyword.put_new(:key_length, 32)
+      |> Keyword.put_new(:signed_at, System.system_time(:second))
+
+    alg = "NH1-HMAC-#{opts[:key_digest]}-#{opts[:key_iterations]}-#{opts[:key_length]}"
+
+    salt = """
+    NH1:device-socket:shared-secret:connect
+
+    x-nh-alg=#{alg}
+    x-nh-key=#{auth.key}
+    x-nh-time=#{opts[:signed_at]}
+    """
+
+    [
+      {"x-nh-alg", alg},
+      {"x-nh-key", auth.key},
+      {"x-nh-time", to_string(opts[:signed_at])},
+      {"x-nh-signature", Plug.Crypto.sign(auth.secret, salt, identifier, opts)}
+    ]
   end
 
   describe "firmware update" do

@@ -8,8 +8,8 @@ config :logger, :default_handler, false
 # NervesHub Web
 #
 config :nerves_hub, NervesHubWeb.Endpoint,
-  http: [port: 5000],
-  server: false,
+  http: [port: 4100],
+  server: true,
   secret_key_base: "x7Vj9rmmRke//ctlapsPNGHXCRTnArTPbfsv6qX4PChFT9ARiNR5Ua8zoRilNCmX",
   live_view: [signing_salt: "FnV9rP_c2BL11dvh"]
 
@@ -41,8 +41,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 ##
 # Firmware uploader
 #
-config :nerves_hub,
-  firmware_upload: NervesHub.UploadMock
+config :nerves_hub, firmware_upload: NervesHub.UploadMock
 
 config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: "mybucket"
 
@@ -74,6 +73,8 @@ config :nerves_hub, Oban, queues: false, plugins: false
 ##
 # Other
 #
+config :nerves_hub, NervesHubWeb.DeviceSocketSharedSecretAuth, enabled: true
+
 config :nerves_hub, delta_updater: NervesHub.DeltaUpdaterMock
 
 config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test

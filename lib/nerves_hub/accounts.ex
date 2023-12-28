@@ -15,6 +15,8 @@ defmodule NervesHub.Accounts do
     RemoveAccount
   }
 
+  alias NervesHub.Products.Product
+
   alias NervesHub.Repo
 
   @spec create_org(User.t(), map) ::
@@ -128,12 +130,9 @@ defmodule NervesHub.Accounts do
   end
 
   def get_org_user(org, user) do
-    from(
-      ou in OrgUser,
-      where:
-        ou.org_id == ^org.id and
-          ou.user_id == ^user.id
-    )
+    OrgUser
+    |> where([ou], ou.org_id == ^org.id)
+    |> where([ou], ou.user_id == ^user.id)
     |> OrgUser.with_user()
     |> Repo.exclude_deleted()
     |> Repo.one()
@@ -224,12 +223,16 @@ defmodule NervesHub.Accounts do
     |> Repo.get!(user_id)
   end
 
-  def get_user_with_all_orgs(user_id) do
-    query = from(u in User, where: u.id == ^user_id)
+  def get_user_with_all_orgs_and_products(user_id) do
+    org_query = from(o in Org, where: is_nil(o.deleted_at))
+    product_query = from(p in Product, where: is_nil(p.deleted_at))
 
-    query
+    orgs_preload = {org_query, products: product_query}
+
+    User
+    |> where([u], u.id == ^user_id)
     |> Repo.exclude_deleted()
-    |> User.with_all_orgs()
+    |> preload(orgs: ^orgs_preload)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
