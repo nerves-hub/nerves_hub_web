@@ -32,8 +32,8 @@ defmodule NervesHub.Application do
           NervesHub.Tracker,
           NervesHub.Devices.Supervisor
         ] ++
-        deployments_supervisor(Application.get_env(:nerves_hub, :deploy_env)) ++
-        endpoints(Application.get_env(:nerves_hub, :deploy_env))
+        deployments_supervisor(deploy_env()) ++
+        endpoints(deploy_env())
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
     Supervisor.start_link(children, opts)
