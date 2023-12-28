@@ -72,8 +72,8 @@ if config_env() == :prod do
       ],
       server: true
 
-    config :nerves_hub, NervesHubWeb.DeviceSocketTokenAuth,
-      enabled: System.get_env("DEVICE_TOKEN_AUTH", "false") == "true"
+    config :nerves_hub, NervesHubWeb.DeviceSocketSharedSecretAuth,
+      enabled: System.get_env("DEVICE_SHARED_SECRET_AUTH", "false") == "true"
   end
 
   if nerves_hub_app in ["all", "device"] do
