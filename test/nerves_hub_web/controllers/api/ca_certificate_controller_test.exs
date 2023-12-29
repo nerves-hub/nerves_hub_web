@@ -26,6 +26,25 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
       assert %{"description" => ^description} = resp_data
     end
 
+    test "supports valid JITP", %{conn: conn, org: org, product: %{id: pid, name: pname}} do
+      ca_key = X509.PrivateKey.new_ec(:secp256r1)
+      ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
+      serial = X509.Certificate.serial(ca_cert) |> to_string
+      ca_cert_pem = X509.Certificate.to_pem(ca_cert)
+      description = "My ca"
+
+      jitp = %{description: "Jitter", tags: ["howdy"], product_id: pid}
+      params = %{cert: Base.encode64(ca_cert_pem), description: description, jitp: jitp}
+
+      conn = post(conn, Routes.api_ca_certificate_path(conn, :create, org.name), params)
+      resp_data = json_response(conn, 201)["data"]
+      assert %{"serial" => ^serial} = resp_data
+      assert %{"description" => ^description} = resp_data
+
+      assert %{"description" => "Jitter", "tags" => ["howdy"], "product_name" => ^pname} =
+               resp_data["jitp"]
+    end
+
     test "renders errors when data is invalid", %{conn: conn, org: org} do
       conn = post(conn, Routes.api_ca_certificate_path(conn, :create, org.name), cert: "")
 

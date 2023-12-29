@@ -33,7 +33,8 @@ defmodule NervesHubWeb.API.CACertificateController do
            not_before: not_before,
            not_after: not_after,
            der: X509.Certificate.to_der(cert),
-           description: Map.get(params, "description")
+           description: Map.get(params, "description"),
+           jitp: params["jitp"]
          },
          {:ok, ca_certificate} <- Devices.create_ca_certificate(org, params) do
       conn
