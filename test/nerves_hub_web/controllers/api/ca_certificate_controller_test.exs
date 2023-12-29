@@ -52,20 +52,39 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
     end
   end
 
-  defp create_ca_certificate(%{org: org}) do
+  test "includes jitp when available", context do
+    params = %{jitp: %{description: "Jitter", tags: ["howdy"], product_id: context.product.id}}
+    {:ok, %{ca_certificate: ca_cert}} = create_ca_certificate(context, params)
+
+    conn =
+      get(
+        context.conn,
+        Routes.api_ca_certificate_path(context.conn, :show, context.org.name, ca_cert.serial)
+      )
+
+    assert json_response(conn, 200)["data"]["jitp"] == %{
+             "description" => "Jitter",
+             "tags" => ["howdy"],
+             "product_name" => context.product.name
+           }
+  end
+
+  defp create_ca_certificate(%{org: org}, params \\ %{}) do
     ca_key = X509.PrivateKey.new_ec(:secp256r1)
     ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
     {not_before, not_after} = Certificate.get_validity(ca)
 
-    params = %{
-      serial: Certificate.get_serial_number(ca),
-      aki: Certificate.get_aki(ca),
-      ski: Certificate.get_ski(ca),
-      not_before: not_before,
-      not_after: not_after,
-      der: X509.Certificate.to_der(ca),
-      description: "My CA"
-    }
+    params =
+      %{
+        serial: Certificate.get_serial_number(ca),
+        aki: Certificate.get_aki(ca),
+        ski: Certificate.get_ski(ca),
+        not_before: not_before,
+        not_after: not_after,
+        der: X509.Certificate.to_der(ca),
+        description: "My CA"
+      }
+      |> Map.merge(params)
 
     {:ok, ca_certificate} = Devices.create_ca_certificate(org, params)
     {:ok, %{ca_certificate: ca_certificate}}
