@@ -11,7 +11,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Repo
   alias Ecto.Changeset
 
-  @valid_fwup_version "1.6.0"
+  @valid_fwup_version "1.10.0"
 
   setup do
     user = Fixtures.user_fixture()

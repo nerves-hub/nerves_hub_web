@@ -23,7 +23,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
-  @min_fwup_delta_updatable_version ">=1.6.0"
+  @min_fwup_delta_updatable_version ">=1.10.0"
 
   def get_device(device_id), do: Repo.get(Device, device_id)
   def get_device!(device_id), do: Repo.get!(Device, device_id)
