@@ -390,6 +390,13 @@ defmodule NervesHub.Devices do
     |> Ecto.build_assoc(:ca_certificates)
     |> CACertificate.changeset(params)
     |> Repo.insert()
+    |> case do
+      {:ok, ca_certificate} ->
+        {:ok, Repo.preload(ca_certificate, jitp: :product)}
+
+      err ->
+        err
+    end
   end
 
   @spec create_ca_certificate_from_x509(Org.t(), X509.Certificate.t(), binary() | nil) ::
