@@ -412,34 +412,37 @@ defmodule NervesHub.Devices do
   end
 
   def get_ca_certificates(%Org{id: org_id}) do
-    from(ca in CACertificate, where: ca.org_id == ^org_id, preload: :jitp)
+    from(ca in CACertificate, where: ca.org_id == ^org_id, preload: [jitp: :product])
     |> Repo.all()
   end
 
   @spec get_ca_certificate_by_aki(binary) :: {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_aki(aki) do
-    Repo.get_by(CACertificate, aki: aki)
-    |> case do
+    q = from(CACertificate, where: [aki: ^aki], preload: [jitp: :product])
+
+    case Repo.one(q) do
       nil -> {:error, :not_found}
-      ca_cert -> preload_cert(ca_cert)
+      ca_cert -> {:ok, ca_cert}
     end
   end
 
   @spec get_ca_certificate_by_ski(binary) :: {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_ski(ski) do
-    Repo.get_by(CACertificate, ski: ski)
-    |> case do
+    q = from(CACertificate, where: [ski: ^ski], preload: [jitp: :product])
+
+    case Repo.one(q) do
       nil -> {:error, :not_found}
-      ca_cert -> preload_cert(ca_cert)
+      ca_cert -> {:ok, ca_cert}
     end
   end
 
   @spec get_ca_certificate_by_serial(binary) :: {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_serial(serial) do
-    Repo.get_by(CACertificate, serial: serial)
-    |> case do
+    q = from(CACertificate, where: [serial: ^serial], preload: [jitp: :product])
+
+    case Repo.one(q) do
       nil -> {:error, :not_found}
-      ca_cert -> preload_cert(ca_cert)
+      ca_cert -> {:ok, ca_cert}
     end
   end
 
@@ -449,22 +452,17 @@ defmodule NervesHub.Devices do
     query =
       from(
         ca in CACertificate,
-        where: ca.serial == ^serial and ca.org_id == ^org_id
+        where: ca.serial == ^serial and ca.org_id == ^org_id,
+        preload: [jitp: :product]
       )
 
-    query
-    |> Repo.one()
-    |> case do
+    case Repo.one(query) do
       nil ->
         {:error, :not_found}
 
       ca_cert ->
-        preload_cert(ca_cert)
+        {:ok, ca_cert}
     end
-  end
-
-  def preload_cert(%CACertificate{} = certificate) do
-    {:ok, Repo.preload(certificate, [:jitp])}
   end
 
   def update_ca_certificate(%CACertificate{} = certificate, params) do
