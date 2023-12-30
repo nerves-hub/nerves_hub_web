@@ -17,8 +17,6 @@ jobs:
       packages: read
 
     env:
-      OTP_VERSION: "26.1.2"
-      ELIXIR_VERSION: "1.15.7"
       FWUP_VERSION: "1.10.1"
       MIX_ENV: "test"
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/nerves_hub_test
@@ -36,12 +34,6 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Set up Elixir
-        uses: erlef/setup-beam@v1
-        with:
-          otp-version: ${{env.OTP_VERSION}}
-          elixir-version: ${{env.ELIXIR_VERSION}}
-
       - name: Install system deps
         run: |
           wget https://github.com/fwup-home/fwup/releases/download/v${FWUP_VERSION}/fwup_${FWUP_VERSION}_amd64.deb
@@ -49,6 +41,12 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          version-file: .tool-versions
+          version-type: strict
 
       - name: Cache deps
         id: cache-deps
