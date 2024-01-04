@@ -14,6 +14,9 @@ defmodule NervesHub.Application do
 
     children =
       [
+        {Ecto.Migrator,
+         repos: Application.fetch_env!(:nerves_hub, :ecto_repos),
+         skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
         {Registry, keys: :unique, name: NervesHub.Devices},
         {Registry, keys: :unique, name: NervesHub.DeviceLinks},
         {Finch, name: Swoosh.Finch}
@@ -24,7 +27,6 @@ defmodule NervesHub.Application do
           NervesHub.LoadBalancer,
           NervesHub.Repo,
           NervesHub.ObanRepo,
-          NervesHub.Release.DatabaseAutoMigrator,
           {Phoenix.PubSub, name: NervesHub.PubSub},
           {DNSCluster, query: Application.get_env(:nerves_hub, :dns_cluster_query) || :ignore},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
