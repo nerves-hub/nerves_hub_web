@@ -17,10 +17,10 @@ defmodule NervesHubWeb.DeviceSocketSharedSecretAuth do
 
     with true <- enabled?(),
          {:ok, key, salt, verification_opts} <- decode_from_headers(headers),
-         {:ok, auth} <- Products.get_shared_secret_auth(key),
+         {:ok, auth} <- get_shared_secret_auth(key),
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
          {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_opts),
-         {:ok, device} <- Devices.get_or_create_device(auth, identifier) do
+         {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
       socket =
         socket
         |> assign(:device, device)
@@ -63,6 +63,19 @@ defmodule NervesHubWeb.DeviceSocketSharedSecretAuth do
   end
 
   defp decode_from_headers(_headers), do: :error
+
+  defp get_shared_secret_auth("nhp_" <> _ = key), do: Products.get_shared_secret_auth(key)
+  defp get_shared_secret_auth(key), do: Devices.get_shared_secret_auth(key)
+
+  defp get_or_maybe_create_device(%Products.SharedSecretAuth{} = auth, identifier) do
+    # TODO: Support JITP profile here to decide if enabled or what tags to use
+    Devices.get_or_create_device(auth, identifier)
+  end
+
+  defp get_or_maybe_create_device(%{device: %{identifier: identifier} = device}, identifier),
+    do: {:ok, device}
+
+  defp get_or_maybe_create_device(_auth, _identifier), do: {:error, :bad_identifier}
 
   defp generate_reference_id() do
     Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
