@@ -14,6 +14,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
@@ -21,7 +22,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Products
   alias NervesHub.Products.Product
-  alias NervesHub.Products.SharedSecretAuth
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
@@ -246,9 +246,33 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec get_or_create_device(SharedSecretAuth.t(), String.t()) ::
+  @spec get_shared_secret_auth(String.t()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, :not_found}
+  def get_shared_secret_auth(key) do
+    SharedSecretAuth
+    |> join(:inner, [ssa], d in assoc(ssa, :device))
+    |> where([ssa], ssa.key == ^key)
+    |> where([ssa], is_nil(ssa.deactivated_at))
+    |> where([_, d], is_nil(d.deleted_at))
+    |> preload([:device, :product_shared_secret_auth])
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      auth -> {:ok, auth}
+    end
+  end
+
+  @spec create_shared_secret_auth(Device.t(), %{product_shared_secret_auth_id: pos_integer()}) ::
+          {:ok, SharedSecretAuth.t()} | {:error, Changeset.t()}
+  def create_shared_secret_auth(device, attrs \\ %{}) do
+    device
+    |> SharedSecretAuth.create_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @spec get_or_create_device(Products.SharedSecretAuth.t(), String.t()) ::
           {:ok, Device.t()} | {:error, :not_found}
-  def get_or_create_device(%SharedSecretAuth{} = auth, identifier) do
+  def get_or_create_device(%Products.SharedSecretAuth{} = auth, identifier) do
     with {:error, :not_found} <-
            get_active_device(product_id: auth.product_id, identifier: identifier),
          {:ok, product} <-

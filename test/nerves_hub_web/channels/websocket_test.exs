@@ -75,7 +75,7 @@ defmodule NervesHubWeb.WebsocketTest do
         params
       )
 
-    {device, firmware}
+    {%{device | product: product, org: org}, firmware}
   end
 
   setup context do
@@ -361,6 +361,74 @@ defmodule NervesHubWeb.WebsocketTest do
       refute SocketClient.connected?(socket)
 
       SocketClient.close(socket)
+    end
+
+    test "can connect with device key/secret", %{user: user} do
+      {device, _firmware} = device_fixture(user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: nh1_key_secret_headers(auth, device.identifier)
+      ]
+
+      params = %{
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => device.product.name,
+        "nerves_fw_architecture" => "arm64",
+        "nerves_fw_version" => "0.0.0",
+        "nerves_fw_platform" => "test_host"
+      }
+
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device", params)
+      SocketClient.wait_join(socket)
+
+      assert Tracker.online?(device)
+
+      SocketClient.close(socket)
+    end
+
+    test "rejects device key/secret with mismatched identifier", %{user: user} do
+      {device, _firmware} = device_fixture(user)
+      assert {:ok, auth} = Devices.create_shared_secret_auth(device)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: nh1_key_secret_headers(auth, "this-is-not-the-device-identifier")
+      ]
+
+      {:ok, socket} = SocketClient.start_link(opts)
+      refute SocketClient.connected?(socket)
+      refute Tracker.online?(device)
+      SocketClient.close(socket)
+    end
+
+    test "rejects unknown secret keys", %{user: user} do
+      {device, _fw} = device_fixture(user)
+
+      bad_auths = [
+        %Devices.SharedSecretAuth{key: "nhd_12345unknown", secret: "shhhhh"},
+        %Devices.SharedSecretAuth{key: "badprefix_12345unknown", secret: "shhhhh"},
+        %Products.SharedSecretAuth{key: "nhp_12345unknown", secret: "shhhhh"},
+        %Products.SharedSecretAuth{key: "badproduct_12345unknown", secret: "shhhhh"}
+      ]
+
+      for auth <- bad_auths do
+        opts = [
+          mint_opts: [protocols: [:http1]],
+          uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+          headers: nh1_key_secret_headers(auth, device.identifier)
+        ]
+
+        {:ok, socket} = SocketClient.start_link(opts)
+        refute SocketClient.connected?(socket)
+        refute Tracker.online?(device)
+        SocketClient.close(socket)
+      end
     end
   end
 
