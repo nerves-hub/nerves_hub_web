@@ -187,6 +187,7 @@ if config_env() == :prod do
     |> Keyword.merge(ssl: System.get_env("DATABASE_SSL", "true") == "true")
     |> Keyword.merge(ssl_opts: database_ssl_opts)
     |> Keyword.merge(parameters: [])
+    |> Keyword.merge(channel_name: "nerves_hub_clustering")
 
   config :libcluster,
     topologies: [
