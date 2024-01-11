@@ -154,22 +154,25 @@ if config_env() == :prod do
       [cacerts: :public_key.cacerts_get()]
     end
 
-  databse_socket_options = if System.get_env("DATABASE_INET6") == "true", do: [:inet6], else: []
+  database_socket_options = if System.get_env("DATABASE_INET6") == "true", do: [:inet6], else: []
 
   config :nerves_hub, NervesHub.Repo,
     url: System.fetch_env!("DATABASE_URL"),
     ssl: System.get_env("DATABASE_SSL", "true") == "true",
     ssl_opts: database_ssl_opts,
     pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
-    socket_options: databse_socket_options,
+    socket_options: database_socket_options,
     queue_target: 5000
+
+  oban_pool_size =
+    System.get_env("OBAN_DATABASE_POOL_SIZE") || System.get_env("DATABASE_POOL_SIZE", "20")
 
   config :nerves_hub, NervesHub.ObanRepo,
     url: System.fetch_env!("DATABASE_URL"),
     ssl: System.get_env("DATABASE_SSL", "true") == "true",
     ssl_opts: database_ssl_opts,
-    pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
-    socket_options: databse_socket_options,
+    pool_size: String.to_integer(oban_pool_size),
+    socket_options: database_socket_options,
     queue_target: 5000
 
   config :nerves_hub,
