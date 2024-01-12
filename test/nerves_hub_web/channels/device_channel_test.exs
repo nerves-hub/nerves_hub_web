@@ -32,11 +32,5 @@ defmodule NervesHubWeb.DeviceChannelTest do
     push_cb = :sys.get_state(socket.assigns.device_link_pid).push_cb
     push_cb.("howdy", %{})
     assert_push("howdy", %{})
-
-    # Socket close starts DeviceLink reconnect timer
-    link = socket.assigns.device_link_pid
-    Process.unlink(socket.channel_pid)
-    close(socket)
-    assert :sys.get_state(link).reconnect_timer
   end
 end

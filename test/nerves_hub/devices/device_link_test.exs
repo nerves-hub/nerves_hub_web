@@ -124,8 +124,7 @@ defmodule NervesHub.DeviceLinkTest do
       assert Process.exit(monitor_pid, :kill)
       refute Process.alive?(monitor_pid)
 
-      # Timer for reconnect is started
-      assert :sys.get_state(context.link).reconnect_timer
+      :timer.sleep(50)
 
       # audits the disconnect
       assert al =
@@ -139,7 +138,7 @@ defmodule NervesHub.DeviceLinkTest do
       assert [] = Registry.lookup(Devices, context.device.id)
     end
 
-    test "calling disconnect/1 on a connected link adds audit log, removes presence, and starts reconnect timer",
+    test "calling disconnect/1 on a connected link adds audit log, removes presence",
          %{device: device, link: link} do
       push_cb = fn _, _ -> :ok end
       assert {:ok, ^link} = DeviceLink.connect(link, push_cb, %{})
@@ -151,13 +150,10 @@ defmodule NervesHub.DeviceLinkTest do
 
       refute Tracker.online?(device)
       assert [] = Registry.lookup(Devices, device.id)
-
-      # Timer for reconnect is started
-      assert :sys.get_state(link).reconnect_timer
     end
   end
 
-  test "disconnect/1 adds audit log, removes presence, and starts reconnect timer", context do
+  test "disconnect/1 adds audit log, removes presence", context do
     %{device: device, link: link} = create_device(context) |> start_device_link()
     assert :ok = DeviceLink.disconnect(link)
 
@@ -167,9 +163,6 @@ defmodule NervesHub.DeviceLinkTest do
 
     refute Tracker.online?(device)
     assert [] = Registry.lookup(Devices, device.id)
-
-    # Timer for reconnect is started
-    assert :sys.get_state(link).reconnect_timer
   end
 
   describe "recv/3 events" do
@@ -485,10 +478,6 @@ defmodule NervesHub.DeviceLinkTest do
       test_pid = self()
       assert [{^test_pid, %{updates_enabled: true}}] = Registry.lookup(Devices, device.id)
     end
-  end
-
-  test "reconnect_timer expiration closes the link" do
-    assert {:stop, :normal, %{}} = DeviceLink.handle_info(:timeout_reconnect, %{})
   end
 
   test "ignores unknown messages" do
