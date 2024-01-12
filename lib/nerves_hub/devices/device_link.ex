@@ -26,7 +26,6 @@ defmodule NervesHub.Devices.DeviceLink do
       :device,
       :penalty_timer,
       :push_cb,
-      :reconnect_timer,
       :reference_id,
       :transport_pid,
       :transport_ref,
@@ -169,13 +168,10 @@ defmodule NervesHub.Devices.DeviceLink do
 
   @impl GenServer
   def handle_call(:disconnect, _from, state) do
-    {:reply, :ok, do_disconnect(state)}
+    {:stop, :normal, :ok, do_disconnect(state)}
   end
 
   def handle_call({:connect, push_cb, params, monitor, _ctx}, _from, %{device: device} = state) do
-    # Cancel any pending reconnect timer before we get too busy doing work
-    _ = if state.reconnect_timer, do: Process.cancel_timer(state.reconnect_timer)
-
     with {:ok, device} <- update_metadata(device, params),
          {:ok, device} <- Devices.device_connected(device) do
       state = %{state | device_api_version: Map.get(params, "device_api_version", "1.0.0")}
@@ -284,7 +280,6 @@ defmodule NervesHub.Devices.DeviceLink do
           state
           | device: device,
             push_cb: push_cb,
-            reconnect_timer: nil,
             update_started?: push_update?
         }
         |> maybe_start_penalty_timer()
@@ -360,7 +355,7 @@ defmodule NervesHub.Devices.DeviceLink do
   @impl GenServer
   def handle_info({:DOWN, transport_ref, :process, _pid, _reason}, state) do
     if state.transport_ref == transport_ref do
-      {:noreply, do_disconnect(state)}
+      {:stop, :normal, do_disconnect(state)}
     else
       # TCP sockets have longer timeouts. There is a chance the old socket
       # was still around when the new one started which could result in
@@ -530,10 +525,6 @@ defmodule NervesHub.Devices.DeviceLink do
     {:noreply, state}
   end
 
-  def handle_info(:timeout_reconnect, state) do
-    {:stop, :normal, state}
-  end
-
   def handle_info(msg, state) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.
@@ -647,12 +638,6 @@ defmodule NervesHub.Devices.DeviceLink do
     Registry.unregister(NervesHub.Devices, device.id)
     Tracker.offline(device)
 
-    # Give the transport 3 seconds to reconnect to handle cases
-    # of a socket flapping quickly or something which can be costly
-    # when doing all the DB lookups on connect in quick succession
-    _ = if state.reconnect_timer, do: Process.cancel_timer(state.reconnect_timer)
-    ref = Process.send_after(self(), :timeout_reconnect, :timer.seconds(3))
-
-    %{state | device: device, reconnect_timer: ref, transport_pid: nil, transport_ref: nil}
+    %{state | device: device, transport_pid: nil, transport_ref: nil}
   end
 end
