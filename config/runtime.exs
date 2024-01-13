@@ -14,8 +14,8 @@ config :nerves_hub,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
 
-if log_level = System.get_env("LOG_LEVEL") do
-  config :logger, level: String.to_atom(log_level)
+if level = System.get_env("LOG_LEVEL") do
+  config :logger, level: String.to_atom(level)
 end
 
 dns_cluster_query =
@@ -55,6 +55,9 @@ if config_env() == :prod do
         signing_salt: System.fetch_env!("LIVE_VIEW_SIGNING_SALT")
       ],
       server: true
+
+    config :nerves_hub, NervesHubWeb.DeviceSocketSharedSecretAuth,
+      enabled: System.get_env("DEVICE_SHARED_SECRET_AUTH", "false") == "true"
   end
 
   if nerves_hub_app in ["all", "device"] do

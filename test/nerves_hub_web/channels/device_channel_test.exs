@@ -4,7 +4,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceChannel
-  alias NervesHubWeb.DeviceSocket
+  alias NervesHubWeb.DeviceSocketCertAuth
 
   test "basic connection to the channel" do
     user = Fixtures.user_fixture()
@@ -16,7 +16,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
-      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+      connect(DeviceSocketCertAuth, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     # Joins the channel
     assert {:ok, %{}, socket} = subscribe_and_join(socket, DeviceChannel, "device")

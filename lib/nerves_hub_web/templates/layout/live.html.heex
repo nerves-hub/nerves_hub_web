@@ -1,0 +1,19 @@
+<div class="normal-wrapper">
+  <Navigation.topbar user={assigns[:user]} org={assigns[:org]} orgs={assigns[:orgs]} product={assigns[:product]} current_path={@current_path} />
+  <main role="main" class="flex-column content-container">
+    <%= if Phoenix.Flash.get(@flash, :info) do %>
+      <div class="alert alert-info alert-dismissible">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <%= Phoenix.Flash.get(@flash, :info) %>
+      </div>
+    <% end %>
+    <%= if Phoenix.Flash.get(@flash, :error) do %>
+      <div class="alert alert-danger alert-dismissible">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <%= Phoenix.Flash.get(@flash, :error) %>
+      </div>
+    <% end %>
+    <Navigation.tabnav current_path={@current_path} org={assigns[:org]} product={assigns[:product]} />
+    <%= @inner_content %>
+  </main>
+</div>

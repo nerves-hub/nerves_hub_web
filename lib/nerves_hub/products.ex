@@ -7,7 +7,7 @@ defmodule NervesHub.Products do
 
   alias Ecto.Multi
   alias NervesHub.{Certificate, Repo}
-  alias NervesHub.Products.Product
+  alias NervesHub.Products.{Product, SharedSecretAuth}
   alias NervesHub.Accounts.{User, Org, OrgUser}
 
   alias NimbleCSV.RFC4180, as: CSV
@@ -52,6 +52,16 @@ defmodule NervesHub.Products do
     Product
     |> Repo.exclude_deleted()
     |> Repo.get!(id)
+  end
+
+  def get_product(id) do
+    Product
+    |> Repo.exclude_deleted()
+    |> Repo.get(id)
+    |> case do
+      nil -> {:error, :not_found}
+      product -> {:ok, product}
+    end
   end
 
   def get_product_by_org_id_and_name(org_id, name) do
@@ -128,6 +138,49 @@ defmodule NervesHub.Products do
   """
   def change_product(%Product{} = product) do
     Product.changeset(product, %{})
+  end
+
+  def get_shared_secret_auth(product_id, auth_id) do
+    SharedSecretAuth
+    |> join(:inner, [ssa], p in assoc(ssa, :product))
+    |> where([ssa], ssa.id == ^auth_id)
+    |> where([_, p], p.id == ^product_id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      auth -> {:ok, auth}
+    end
+  end
+
+  def get_shared_secret_auth(key) do
+    SharedSecretAuth
+    |> join(:inner, [ssa], p in assoc(ssa, :product))
+    |> where([ssa], ssa.key == ^key)
+    |> where([ssa], is_nil(ssa.deactivated_at))
+    |> where([_, p], is_nil(p.deleted_at))
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      auth -> {:ok, auth}
+    end
+  end
+
+  def load_shared_secret_auth(product) do
+    Repo.preload(product, :shared_secret_auths)
+  end
+
+  def create_shared_secret_auth(product) do
+    product
+    |> SharedSecretAuth.create_changeset()
+    |> Repo.insert()
+  end
+
+  def deactivate_shared_secret_auth(product, shared_secret_id) do
+    {:ok, auth} = get_shared_secret_auth(product.id, shared_secret_id)
+
+    auth
+    |> SharedSecretAuth.deactivate_changeset()
+    |> Repo.update()
   end
 
   def devices_csv(%Product{} = product) do

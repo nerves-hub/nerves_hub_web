@@ -17,6 +17,8 @@ defmodule NervesHubWeb do
   and import those modules here.
   """
 
+  def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
+
   def plug do
     quote do
       import Plug.Conn
@@ -104,6 +106,39 @@ defmodule NervesHubWeb do
     end
   end
 
+  def updated_live_view do
+    quote do
+      use Phoenix.LiveView,
+        layout: {NervesHubWeb.LayoutView, :live}
+
+      # HTML escaping functionality
+      import Phoenix.HTML
+      # Translation
+      import NervesHubWeb.Gettext
+
+      import NervesHub.Helpers.Authorization
+
+      # Shortcut for generating JS commands
+      alias Phoenix.LiveView.JS
+
+      alias NervesHubWeb.Components.Navigation
+
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
+
+      unquote(view_helpers())
+    end
+  end
+
+  def verified_routes do
+    quote do
+      use Phoenix.VerifiedRoutes,
+        endpoint: NervesHubWeb.Endpoint,
+        router: NervesHubWeb.Router,
+        statics: NervesHubWeb.static_paths()
+    end
+  end
+
   def live_component do
     quote do
       use Phoenix.LiveComponent
@@ -119,6 +154,8 @@ defmodule NervesHubWeb do
         namespace: NervesHubWeb
 
       alias NervesHubWeb.{DeviceLive, Endpoint}
+
+      alias NervesHubWeb.Components.Navigation
 
       # Import convenience functions from controllers
       import Phoenix.Controller,
@@ -158,6 +195,9 @@ defmodule NervesHubWeb do
   def component do
     quote do
       use Phoenix.Component
+
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
     end
   end
 

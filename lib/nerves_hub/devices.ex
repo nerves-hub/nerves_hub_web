@@ -14,19 +14,36 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
   @min_fwup_delta_updatable_version ">=1.10.0"
 
-  def get_device(device_id), do: Repo.get(Device, device_id)
-  def get_device!(device_id), do: Repo.get!(Device, device_id)
+  def get_device!(device_id) do
+    Repo.get!(Device, device_id)
+  end
+
+  def get_device(device_id) when is_integer(device_id) do
+    Repo.get(Device, device_id)
+  end
+
+  def get_active_device(filters) do
+    Device
+    |> Repo.exclude_deleted()
+    |> Repo.get_by(filters)
+    |> case do
+      nil -> {:error, :not_found}
+      device -> {:ok, device}
+    end
+  end
 
   def get_devices_by_org_id(org_id) do
     query =
@@ -154,6 +171,14 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
+  def get_device_count_by_product_id(product_id) do
+    Device
+    |> where([d], d.product_id == ^product_id)
+    |> Repo.exclude_deleted()
+    |> select([d], count(d))
+    |> Repo.one!()
+  end
+
   defp device_by_org_query(org_id, device_id) do
     from(
       d in Device,
@@ -218,6 +243,48 @@ defmodule NervesHub.Devices do
     |> case do
       nil -> {:error, :not_found}
       device -> {:ok, device}
+    end
+  end
+
+  @spec get_shared_secret_auth(String.t()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, :not_found}
+  def get_shared_secret_auth(key) do
+    SharedSecretAuth
+    |> join(:inner, [ssa], d in assoc(ssa, :device))
+    |> where([ssa], ssa.key == ^key)
+    |> where([ssa], is_nil(ssa.deactivated_at))
+    |> where([_, d], is_nil(d.deleted_at))
+    |> preload([:device, :product_shared_secret_auth])
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      auth -> {:ok, auth}
+    end
+  end
+
+  @spec create_shared_secret_auth(Device.t(), %{product_shared_secret_auth_id: pos_integer()}) ::
+          {:ok, SharedSecretAuth.t()} | {:error, Changeset.t()}
+  def create_shared_secret_auth(device, attrs \\ %{}) do
+    device
+    |> SharedSecretAuth.create_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @spec get_or_create_device(Products.SharedSecretAuth.t(), String.t()) ::
+          {:ok, Device.t()} | {:error, :not_found}
+  def get_or_create_device(%Products.SharedSecretAuth{} = auth, identifier) do
+    with {:error, :not_found} <-
+           get_active_device(product_id: auth.product_id, identifier: identifier),
+         {:ok, product} <-
+           Products.get_product(auth.product_id) do
+      create_device(%{
+        org_id: product.org_id,
+        product_id: product.id,
+        identifier: identifier
+      })
+    else
+      result ->
+        result
     end
   end
 

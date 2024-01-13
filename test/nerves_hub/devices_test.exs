@@ -8,6 +8,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
+  alias NervesHub.Products
   alias NervesHub.Repo
   alias Ecto.Changeset
 
@@ -527,6 +528,17 @@ defmodule NervesHub.DevicesTest do
     refute Devices.matches_deployment?(%{device | tags: nil}, deployment)
     assert Devices.matches_deployment?(%{device | tags: nil}, nil_tags_deployment)
     assert Devices.matches_deployment?(device, nil_tags_deployment)
+  end
+
+  test "create shared secret auth with associated product shared secret auth", context do
+    {:ok, %{id: product_ssa_id}} = Products.create_shared_secret_auth(context.product)
+
+    assert {:ok, auth} =
+             Devices.create_shared_secret_auth(context.device, %{
+               product_shared_secret_auth_id: product_ssa_id
+             })
+
+    assert auth.product_shared_secret_auth_id == product_ssa_id
   end
 
   describe "tracking update attempts and verifying eligibility" do
