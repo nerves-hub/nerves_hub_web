@@ -6,7 +6,9 @@ defmodule NervesHub.Devices.DeviceLink do
   e.g. websockets, MQTT, etc
   """
 
-  use GenServer
+  # NOTE: revisit this restart strategy as we add in more
+  # transport layers for devices, such as MQTT
+  use GenServer, restart: :transient
 
   alias NervesHub.Archives
   alias NervesHub.AuditLogs
@@ -35,8 +37,8 @@ defmodule NervesHub.Devices.DeviceLink do
   end
 
   @spec start_link(Device.t()) :: GenServer.on_start()
-  def start_link(device) do
-    GenServer.start_link(__MODULE__, device, name: name(device))
+  def start_link(device_id) do
+    GenServer.start_link(__MODULE__, device_id, name: name(device_id))
   end
 
   @spec name(Device.t() | pos_integer()) ::
@@ -95,7 +97,7 @@ defmodule NervesHub.Devices.DeviceLink do
     link =
       case whereis(device) do
         nil ->
-          {:ok, pid} = NervesHub.Devices.Supervisor.start_device(device)
+          {:ok, pid} = start_device(device)
           pid
 
         link ->
@@ -118,6 +120,19 @@ defmodule NervesHub.Devices.DeviceLink do
     GenServer.call(link, {:connect, push_cb, params, monitor, :ctx})
   end
 
+  defp start_device(device) do
+    case GenServer.whereis(name(device)) do
+      nil ->
+        DynamicSupervisor.start_child(
+          {:via, PartitionSupervisor, {NervesHub.Devices.Supervisors, self()}},
+          {__MODULE__, device.id}
+        )
+
+      pid when is_pid(pid) ->
+        {:ok, pid}
+    end
+  end
+
   @doc """
   Mark device as disconnected
 
@@ -137,12 +152,14 @@ defmodule NervesHub.Devices.DeviceLink do
   end
 
   @impl GenServer
-  def init(device) do
-    {:ok, %State{device: device}, {:continue, :boot}}
+  def init(device_id) do
+    {:ok, %State{}, {:continue, {:boot, device_id}}}
   end
 
   @impl GenServer
-  def handle_continue(:boot, %{device: device} = state) do
+  def handle_continue({:boot, device_id}, state) do
+    device = Devices.get_device(device_id)
+
     ref_id = Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
 
     deployment_channel =
@@ -163,7 +180,8 @@ defmodule NervesHub.Devices.DeviceLink do
       updating: false
     })
 
-    {:noreply, %{state | deployment_channel: deployment_channel, reference_id: ref_id}}
+    {:noreply,
+     %{state | device: device, deployment_channel: deployment_channel, reference_id: ref_id}}
   end
 
   @impl GenServer
