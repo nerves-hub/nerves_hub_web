@@ -90,7 +90,6 @@ defmodule NervesHub.MixProject do
       {:scrivener_html, git: "https://github.com/nerves-hub/scrivener_html", branch: "phx-1.5"},
       {:sentry, "~> 10.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
-      {:socket_drano, "~> 0.5.0"},
       {:sweet_xml, "~> 0.6"},
       {:swoosh, "~> 1.12"},
       {:telemetry_metrics, "~> 0.4"},
