@@ -34,7 +34,8 @@ defmodule NervesHub.Application do
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, Application.fetch_env!(:nerves_hub, Oban)},
           NervesHub.Tracker,
-          NervesHub.Devices.Supervisor
+          {PartitionSupervisor,
+           child_spec: DynamicSupervisor, name: NervesHub.Devices.Supervisors}
         ] ++
         deployments_supervisor(deploy_env()) ++
         endpoints(deploy_env())

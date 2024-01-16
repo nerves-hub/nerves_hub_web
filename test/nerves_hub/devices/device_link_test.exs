@@ -10,16 +10,24 @@ defmodule NervesHub.DeviceLinkTest do
   alias NervesHub.Tracker
   alias Phoenix.Socket.Broadcast
 
-  test "device without deployment subscribes deployment:none" do
-    state = %DeviceLink.State{device: %Device{id: 1, deployment_id: nil}}
-    assert {:noreply, updated} = DeviceLink.handle_continue(:boot, state)
+  test "device without deployment subscribes deployment:none", context do
+    %{device: %{id: id}} = create_device(context)
+    assert {:noreply, updated} = DeviceLink.handle_continue({:boot, id}, %DeviceLink.State{})
     assert updated.deployment_channel == "deployment:none"
   end
 
-  test "device with deployment subscribes deployment:\#{id}" do
-    state = %DeviceLink.State{device: %Device{id: 1, deployment_id: 1}}
-    assert {:noreply, updated} = DeviceLink.handle_continue(:boot, state)
-    assert updated.deployment_channel == "deployment:1"
+  test "device with deployment subscribes deployment:\#{id}", context do
+    %{device: device, deployment: deployment} = create_device(context)
+
+    device =
+      device
+      |> Ecto.Changeset.change(%{deployment_id: deployment.id})
+      |> NervesHub.Repo.update!()
+
+    assert {:noreply, updated} =
+             DeviceLink.handle_continue({:boot, device.id}, %DeviceLink.State{})
+
+    assert updated.deployment_channel == "deployment:#{deployment.id}"
   end
 
   describe "connect/4" do
@@ -531,7 +539,7 @@ defmodule NervesHub.DeviceLinkTest do
   end
 
   defp start_device_link(context) do
-    link = start_supervised!({DeviceLink, context.device}, restart: :temporary)
+    link = start_supervised!({DeviceLink, context.device.id}, restart: :temporary)
     Mox.allow(NervesHub.UploadMock, self(), link)
     Map.put(context, :link, link)
   end
