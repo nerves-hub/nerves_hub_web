@@ -292,11 +292,6 @@ config :nerves_hub, :statsd,
   host: System.get_env("STATSD_HOST", "localhost"),
   port: String.to_integer(System.get_env("STATSD_PORT", "8125"))
 
-config :nerves_hub, :socket_drano,
-  enabled: System.get_env("SOCKET_DRAIN_ENABLED", "false") == "true",
-  percentage: String.to_integer(System.get_env("SOCKET_DRAIN_BATCH_PERCENTAGE", "25")),
-  time: String.to_integer(System.get_env("SOCKET_DRAIN_BATCH_TIME", "100"))
-
 config :nerves_hub, :audit_logs,
   enabled: System.get_env("TRUNATE_AUDIT_LOGS_ENABLED", "false") == "true",
   max_records_per_run:

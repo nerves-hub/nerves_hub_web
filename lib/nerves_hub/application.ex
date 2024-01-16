@@ -73,28 +73,13 @@ defmodule NervesHub.Application do
         [
           NervesHubWeb.DeviceEndpoint,
           NervesHubWeb.Endpoint
-        ] ++ device_socket_drainer()
+        ]
 
       "device" ->
-        [
-          NervesHubWeb.DeviceEndpoint
-        ] ++ device_socket_drainer()
+        [NervesHubWeb.DeviceEndpoint]
 
       "web" ->
         [NervesHubWeb.Endpoint]
-    end
-  end
-
-  defp device_socket_drainer() do
-    socket_drano_config = Application.get_env(:nerves_hub, :socket_drano)
-
-    if socket_drano_config[:enabled] do
-      socket_strategy =
-        {:percentage, socket_drano_config[:percentage], socket_drano_config[:time]}
-
-      [{SocketDrano, refs: [NervesHubWeb.DeviceEndpoint.HTTPS], strategy: socket_strategy}]
-    else
-      []
     end
   end
 
