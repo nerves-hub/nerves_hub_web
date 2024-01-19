@@ -44,6 +44,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
     port: 4001,
     otp_app: :nerves_hub,
     thousand_island_options: [
+      transport_module: NervesHub.DeviceSSLTransport,
       transport_options: [
         # Enable client SSL
         # Older versions of OTP 25 may break using using devices
