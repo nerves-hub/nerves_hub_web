@@ -26,7 +26,6 @@ defmodule NervesHub.Application do
         metrics(deploy_env()) ++
         [
           NervesHub.RateLimit,
-          NervesHub.LoadBalancer,
           NervesHub.Repo,
           NervesHub.ObanRepo,
           {Phoenix.PubSub, name: NervesHub.PubSub},
