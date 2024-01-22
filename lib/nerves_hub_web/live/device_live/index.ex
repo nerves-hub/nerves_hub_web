@@ -8,10 +8,10 @@ defmodule NervesHubWeb.DeviceLive.Index do
 
   alias NervesHub.Accounts
   alias NervesHub.Devices
+  alias NervesHub.Devices.DeviceLink
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHub.Products.Product
-  alias NervesHub.Tracker
   alias NervesHubWeb.DeviceView
 
   alias Phoenix.Socket.Broadcast
@@ -314,7 +314,7 @@ defmodule NervesHubWeb.DeviceLive.Index do
       Enum.into(page.entries, %{}, fn device ->
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
 
-        {device.identifier, Tracker.status(device)}
+        {device.identifier, DeviceLink.status(device)}
       end)
 
     socket

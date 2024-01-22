@@ -17,7 +17,6 @@ defmodule NervesHub.Devices.DeviceLink do
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
   alias NervesHub.Repo
-  alias NervesHub.Tracker
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -57,6 +56,28 @@ defmodule NervesHub.Devices.DeviceLink do
   end
 
   @doc """
+  String version of `online?/1`
+  """
+  def status(device) do
+    if online?(device) do
+      "online"
+    else
+      "offline"
+    end
+  end
+
+  @doc """
+  Check if a device is currently online
+
+  Returns `false` immediately but sends a message to the device's channel asking if it's
+  online. If the device is online, it will send a connection state change of online.
+  """
+  def online?(device) do
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", :online?)
+    false
+  end
+
+  @doc """
   Mark device as connected
 
   The transport of choice would call this function when it detects
@@ -87,7 +108,7 @@ defmodule NervesHub.Devices.DeviceLink do
   @type firmware_metadata :: map()
   @spec(
     connect(Device.t(), push_callback(), firmware_metadata(), monitor: String.t()) :: :ok,
-    {:error, Tracker.Exception.t() | Ecto.Changeset.t()}
+    {:error, Ecto.Changeset.t()}
   )
   def connect(device, push_cb, params, opts \\ [])
 
@@ -253,16 +274,7 @@ defmodule NervesHub.Devices.DeviceLink do
         Map.merge(value, update)
       end)
 
-      # Cluster tracking
-      reply =
-        try do
-          Tracker.online(device)
-          {:ok, self()}
-        rescue
-          ex in NervesHub.Tracker.Exception ->
-            :telemetry.execute([:nerves_hub, :tracker, :exception], %{count: 1})
-            {:error, ex}
-        end
+      publish_connection(device, "online")
 
       if Version.match?(state.device_api_version, ">= 2.0.0") do
         if device.deployment && device.deployment.archive do
@@ -300,7 +312,7 @@ defmodule NervesHub.Devices.DeviceLink do
         }
         |> maybe_start_penalty_timer()
 
-      {:reply, reply, state}
+      {:reply, {:ok, self()}, state}
     else
       {:error, err} ->
         {:reply, {:error, err}, state}
@@ -514,7 +526,7 @@ defmodule NervesHub.Devices.DeviceLink do
   end
 
   def handle_info(:online?, state) do
-    NervesHub.Tracker.online(state.device)
+    publish_connection(state.device, "online")
     {:noreply, state}
   end
 
@@ -657,8 +669,22 @@ defmodule NervesHub.Devices.DeviceLink do
     AuditLogs.audit_with_ref!(device, device, description, state.reference_id)
 
     Registry.unregister(NervesHub.Devices, device.id)
-    Tracker.offline(device)
+    publish_connection(device, "offline")
 
     %{state | device: device, transport_pid: nil, transport_ref: nil}
+  end
+
+  defp publish_connection(device, status) do
+    message = %Phoenix.Socket.Broadcast{
+      event: "connection_change",
+      payload: %{
+        device_id: device.identifier,
+        status: status
+      }
+    }
+
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.identifier}:internal", message)
+
+    :ok
   end
 end

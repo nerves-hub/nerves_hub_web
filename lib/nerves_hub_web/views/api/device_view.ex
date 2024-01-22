@@ -2,7 +2,6 @@ defmodule NervesHubWeb.API.DeviceView do
   use NervesHubWeb, :api_view
 
   alias NervesHub.Devices
-  alias NervesHub.Tracker
 
   def render("index.json", %{devices: devices, pagination: pagination}) do
     %{
@@ -15,12 +14,14 @@ defmodule NervesHubWeb.API.DeviceView do
     %{data: render_one(device, __MODULE__, "device.json")}
   end
 
+  # TODO fix the online status for devices, it's always going to be wrong
+  # in the current state of quesiton/answer
   def render("device.json", %{device: device}) do
     %{
       identifier: device.identifier,
       tags: device.tags,
       version: version(device),
-      online: Tracker.online?(device),
+      online: false,
       last_communication: last_communication(device),
       description: device.description,
       firmware_metadata: device.firmware_metadata,
