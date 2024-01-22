@@ -2,12 +2,13 @@ defmodule NervesHub.DeviceLinkTest do
   use NervesHub.DataCase
   use DefaultMocks
 
+  import TrackerHelper
+
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceLink
   alias NervesHub.Fixtures
-  alias NervesHub.Tracker
   alias Phoenix.Socket.Broadcast
 
   test "device without deployment subscribes deployment:none", context do
@@ -39,10 +40,7 @@ defmodule NervesHub.DeviceLinkTest do
       # Make sure the channel has performed it's after join
       _ = :sys.get_state(link)
 
-      # Make sure the tracker is caught up as well
-      _ = :sys.get_state(Tracker.DeviceShard.name(Tracker.shard(device)))
-
-      assert Tracker.online?(device)
+      assert_online(device)
 
       expected_meta = %{
         firmware_uuid: device.firmware_metadata.uuid,
@@ -142,7 +140,7 @@ defmodule NervesHub.DeviceLinkTest do
                end)
 
       assert al.reference_id == updated.reference_id
-      refute Tracker.online?(context.device)
+      refute_online(context.device)
       assert [] = Registry.lookup(Devices, context.device.id)
     end
 
@@ -156,7 +154,7 @@ defmodule NervesHub.DeviceLinkTest do
                al.description == "device #{device.identifier} disconnected from the server"
              end)
 
-      refute Tracker.online?(device)
+      refute_online(device)
       assert [] = Registry.lookup(Devices, device.id)
     end
   end
@@ -169,7 +167,7 @@ defmodule NervesHub.DeviceLinkTest do
              al.description == "device #{device.identifier} disconnected from the server"
            end)
 
-    refute Tracker.online?(device)
+    refute_online(device)
     assert [] = Registry.lookup(Devices, device.id)
   end
 

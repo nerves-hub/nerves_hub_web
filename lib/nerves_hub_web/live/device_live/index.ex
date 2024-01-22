@@ -312,7 +312,9 @@ defmodule NervesHubWeb.DeviceLive.Index do
 
     statuses =
       Enum.into(page.entries, %{}, fn device ->
-        {device.id, Tracker.status(device)}
+        socket.endpoint.subscribe("device:#{device.identifier}:internal")
+
+        {device.identifier, Tracker.status(device)}
       end)
 
     socket
