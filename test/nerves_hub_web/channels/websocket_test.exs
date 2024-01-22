@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.WebsocketTest do
   use NervesHubWeb.ChannelCase
 
+  import TrackerHelper
+
   alias NervesHub.Fixtures
   alias NervesHub.Accounts
   alias NervesHub.Deployments
@@ -9,7 +11,6 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Products
   alias NervesHub.Repo
-  alias NervesHub.Tracker
   alias NervesHubWeb.DeviceEndpoint
   alias NervesHubWeb.Endpoint
 
@@ -103,8 +104,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Tracker.online?(device)
-      refute_receive({"presence_diff", _})
+      assert_online(device)
 
       SocketClient.close(socket)
     end
@@ -143,8 +143,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Tracker.online?(device)
-      refute_receive({"presence_diff", _})
+      assert_online(device)
 
       SocketClient.close(socket)
     end
@@ -221,8 +220,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Tracker.online?(device)
-      refute_receive({"presence_diff", _})
+      assert_online(device)
 
       SocketClient.close(socket)
     end
@@ -299,8 +297,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Tracker.online?(device)
-      refute_receive({"presence_diff", _})
+      assert_online(device)
 
       SocketClient.close(socket)
     end
@@ -336,7 +333,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert device = Repo.get_by(Device, identifier: identifier) |> Repo.preload(:org)
 
-      assert Tracker.online?(device)
+      assert_online(device)
 
       SocketClient.close(socket)
     end
@@ -386,7 +383,7 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.join(socket, "device", params)
       SocketClient.wait_join(socket)
 
-      assert Tracker.online?(device)
+      assert_online(device)
 
       SocketClient.close(socket)
     end
@@ -403,7 +400,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(opts)
       refute SocketClient.connected?(socket)
-      refute Tracker.online?(device)
+      refute_online(device)
       SocketClient.close(socket)
     end
 
@@ -426,7 +423,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
         {:ok, socket} = SocketClient.start_link(opts)
         refute SocketClient.connected?(socket)
-        refute Tracker.online?(device)
+        refute_online(device)
         SocketClient.close(socket)
       end
     end
@@ -573,7 +570,7 @@ defmodule NervesHubWeb.WebsocketTest do
         |> Repo.preload(:org)
 
       assert updated_device.firmware_metadata.uuid == query_uuid
-      assert Tracker.online?(device)
+      assert_online(device)
       assert Time.diff(DateTime.utc_now(), updated_device.last_communication) < 2
 
       SocketClient.close(socket)
@@ -666,8 +663,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Tracker.online?(device)
-      refute_receive({"presence_diff", _})
+      assert_online(device)
 
       SocketClient.close(socket)
     end
@@ -729,8 +725,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Tracker.online?(device)
-      refute_receive({"presence_diff", _})
+      assert_online(device)
 
       SocketClient.close(socket)
     end
@@ -826,7 +821,7 @@ defmodule NervesHubWeb.WebsocketTest do
         NervesHub.Repo.get(Device, device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Tracker.online?(device)
+      assert_online(device)
 
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive

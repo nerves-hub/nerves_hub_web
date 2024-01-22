@@ -228,12 +228,12 @@
         <td>
           <div class="mobile-label help-text">Connection</div>
           <div>
-            <%= if @device_statuses[device.id] == "offline" do %>
+            <%= if @device_statuses[device.identifier] == "online" do %>
+              <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
+            <% else %>
               <div title={"Last connected #{DateTimeFormat.from_now(device.last_communication)}"}>
                 <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
               </div>
-            <% else %>
-              <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
             <% end %>
           </div>
         </td>

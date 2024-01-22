@@ -33,7 +33,6 @@ defmodule NervesHub.Application do
           {Cluster.Supervisor, [topologies]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, Application.fetch_env!(:nerves_hub, Oban)},
-          NervesHub.Tracker,
           {PartitionSupervisor,
            child_spec: DynamicSupervisor, name: NervesHub.Devices.Supervisors}
         ] ++

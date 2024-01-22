@@ -53,9 +53,7 @@ defmodule NervesHub.Devices.DeviceLink do
   def whereis(pid) when is_pid(pid), do: pid
 
   def whereis(%Device{} = device) do
-    # Prefer the global registry, but fall back to potentially local
-    # process if there is not present globally for some reason
-    Tracker.whereis(device.identifier) || GenServer.whereis(name(device.id))
+    GenServer.whereis(name(device.id))
   end
 
   @doc """
@@ -512,6 +510,11 @@ defmodule NervesHub.Devices.DeviceLink do
       |> update_device(device)
       |> maybe_start_penalty_timer()
 
+    {:noreply, state}
+  end
+
+  def handle_info(:online?, state) do
+    NervesHub.Tracker.online(state.device)
     {:noreply, state}
   end
 
