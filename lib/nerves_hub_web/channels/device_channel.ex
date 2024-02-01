@@ -138,7 +138,7 @@ defmodule NervesHubWeb.DeviceChannel do
     # local node tracking
     Registry.register(NervesHub.Devices, device.id, %{
       deployment_id: device.deployment_id,
-      firmware_uuid: get_in(device, [Access.key(:firmware_uuid), Access.key(:uuid)]),
+      firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
       updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
       updating: false
     })
