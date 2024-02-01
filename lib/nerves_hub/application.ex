@@ -20,7 +20,6 @@ defmodule NervesHub.Application do
          repos: Application.fetch_env!(:nerves_hub, :ecto_repos),
          skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
         {Registry, keys: :unique, name: NervesHub.Devices},
-        {Registry, keys: :unique, name: NervesHub.DeviceLinks},
         {Finch, name: Swoosh.Finch}
       ] ++
         metrics(deploy_env()) ++
@@ -31,9 +30,7 @@ defmodule NervesHub.Application do
           {Phoenix.PubSub, name: NervesHub.PubSub},
           {Cluster.Supervisor, [topologies]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
-          {Oban, Application.fetch_env!(:nerves_hub, Oban)},
-          {PartitionSupervisor,
-           child_spec: DynamicSupervisor, name: NervesHub.Devices.Supervisors}
+          {Oban, Application.fetch_env!(:nerves_hub, Oban)}
         ] ++
         deployments_supervisor(deploy_env()) ++
         endpoints(deploy_env())
