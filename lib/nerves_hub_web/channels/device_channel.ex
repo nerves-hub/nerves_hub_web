@@ -109,6 +109,7 @@ defmodule NervesHubWeb.DeviceChannel do
         socket
         |> assign(:device, device)
         |> assign(:update_started?, push_update?)
+        |> assign(:penalty_timer, nil)
         |> maybe_start_penalty_timer()
 
       send(self(), :boot)
