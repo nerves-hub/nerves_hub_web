@@ -24,6 +24,7 @@ config :nerves_hub,
 # NervesHub Device
 #
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
+  adapter: NervesHubWeb.DeviceAdapter,
   render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
   pubsub_server: NervesHub.PubSub
 
