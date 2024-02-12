@@ -12,15 +12,19 @@ defmodule NervesHub.RateLimit do
   """
   @spec increment() :: boolean()
   def increment() do
-    bucket_key =
-      DateTime.utc_now()
-      |> DateTime.to_unix()
+    if Application.get_env(:nerves_hub, :allow_devices, true) do
+      bucket_key =
+        DateTime.utc_now()
+        |> DateTime.to_unix()
 
-    result = :ets.update_counter(:nerves_hub_rate_limit, bucket_key, 1, {bucket_key, 0})
+      result = :ets.update_counter(:nerves_hub_rate_limit, bucket_key, 1, {bucket_key, 0})
 
-    config = Application.get_env(:nerves_hub, __MODULE__)
+      config = Application.get_env(:nerves_hub, __MODULE__)
 
-    result <= config[:limit]
+      result <= config[:limit]
+    else
+      false
+    end
   end
 
   @doc false
