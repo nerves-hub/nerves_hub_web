@@ -100,6 +100,17 @@ if config_env() == :prod do
         end
       end
 
+    cacertfile =
+      if cacertfile = System.get_env("DEVICE_SSL_CACERTFILE") do
+        if File.exists?(cacertfile) do
+          cacertfile
+        else
+          raise "Could not find certfile"
+        end
+      else
+        CAStore.file_path()
+      end
+
     config :nerves_hub, NervesHubWeb.DeviceEndpoint,
       url: [host: host],
       https: [
@@ -121,7 +132,7 @@ if config_env() == :prod do
         fail_if_no_peer_cert: true,
         keyfile: keyfile,
         certfile: certfile,
-        cacertfile: CAStore.file_path(),
+        cacertfile: cacertfile,
         hibernate_after: 15_000
       ]
   end
