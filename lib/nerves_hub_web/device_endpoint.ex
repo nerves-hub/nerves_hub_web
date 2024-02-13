@@ -5,13 +5,13 @@ defmodule NervesHubWeb.DeviceEndpoint do
   socket(
     "/socket",
     NervesHubWeb.DeviceSocketCertAuth,
-    drainer: [
-      batch_size: 500,
-      batch_interval: 1_000,
-      shutdown: 30_000
-    ],
     websocket: [
-      connect_info: [:peer_data, :x_headers]
+      connect_info: [:peer_data, :x_headers],
+      drainer: [
+        batch_size: 500,
+        batch_interval: 1_000,
+        shutdown: 30_000
+      ]
     ]
   )
 
