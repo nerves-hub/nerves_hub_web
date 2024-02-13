@@ -116,24 +116,29 @@ if config_env() == :prod do
       https: [
         port: https_port,
         otp_app: :nerves_hub,
-        # Enable client SSL
-        # Older versions of OTP 25 may break using using devices
-        # that support TLS 1.3 or 1.2 negotiation. To mitigate that
-        # potential error, we enforce TLS 1.2. If you're using OTP >= 25.1
-        # on all devices, then it is safe to allow TLS 1.3 by removing
-        # the versions constraint and setting `certificate_authorities: false`
-        # since we don't expect devices to send full chains to the server
-        # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
-        #
-        # certificate_authorities: false,
-        versions: [:"tlsv1.2"],
-        verify: :verify_peer,
-        verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
-        fail_if_no_peer_cert: true,
-        keyfile: keyfile,
-        certfile: certfile,
-        cacertfile: cacertfile,
-        hibernate_after: 15_000
+        thousand_island_options: [
+          transport_module: NervesHub.DeviceSSLTransport,
+          transport_options: [
+            # Enable client SSL
+            # Older versions of OTP 25 may break using using devices
+            # that support TLS 1.3 or 1.2 negotiation. To mitigate that
+            # potential error, we enforce TLS 1.2. If you're using OTP >= 25.1
+            # on all devices, then it is safe to allow TLS 1.3 by removing
+            # the versions constraint and setting `certificate_authorities: false`
+            # since we don't expect devices to send full chains to the server
+            # See https://github.com/erlang/otp/issues/6492#issuecomment-1323874205
+            #
+            # certificate_authorities: false,
+            versions: [:"tlsv1.2"],
+            verify: :verify_peer,
+            verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
+            fail_if_no_peer_cert: true,
+            keyfile: keyfile,
+            certfile: certfile,
+            cacertfile: CAStore.file_path(),
+            hibernate_after: 15_000
+          ]
+        ]
       ]
   end
 end
