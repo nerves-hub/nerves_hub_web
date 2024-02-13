@@ -1,7 +1,6 @@
 defmodule NervesHub.SSL do
   alias NervesHub.Devices
   alias NervesHub.Certificate
-  alias NervesHub.RateLimit
 
   @type pkix_path_validation_reason ::
           :cert_expired
@@ -34,13 +33,9 @@ defmodule NervesHub.SSL do
   # or the signer cert was included by the client and is valid
   # for the peer (device) cert
   def verify_fun(otp_cert, :valid_peer, state) do
-    if RateLimit.increment() do
-      :telemetry.execute([:nerves_hub, :rate_limit, :accepted], %{count: 1})
-      do_verify(otp_cert, state)
-    else
-      :telemetry.execute([:nerves_hub, :rate_limit, :rejected], %{count: 1})
-      {:fail, :rate_limit}
-    end
+    :telemetry.execute([:nerves_hub, :rate_limit, :accepted], %{count: 1})
+
+    do_verify(otp_cert, state)
   end
 
   def verify_fun(_certificate, :valid, state) do
@@ -48,37 +43,32 @@ defmodule NervesHub.SSL do
   end
 
   def verify_fun(otp_cert, {:bad_cert, err}, state) when err in [:unknown_ca, :cert_expired] do
-    if RateLimit.increment() do
-      :telemetry.execute([:nerves_hub, :rate_limit, :accepted], %{count: 1})
+    :telemetry.execute([:nerves_hub, :rate_limit, :accepted], %{count: 1})
 
-      aki = Certificate.get_aki(otp_cert)
-      ski = Certificate.get_ski(otp_cert)
+    aki = Certificate.get_aki(otp_cert)
+    ski = Certificate.get_ski(otp_cert)
 
-      cond do
-        aki == ski ->
-          # If the signer CA is also the root, then AKI == SKI. We can skip
-          # checking as it will be validated later on if the device needs
-          # registration
-          {:valid, state}
+    cond do
+      aki == ski ->
+        # If the signer CA is also the root, then AKI == SKI. We can skip
+        # checking as it will be validated later on if the device needs
+        # registration
+        {:valid, state}
 
-        is_binary(ski) and match?({:ok, _db_ca}, Devices.get_ca_certificate_by_ski(ski)) ->
-          # Signer CA sent with the device certificate, but is an intermediary
-          # so the chain is incomplete labeling it as unknown_ca.
-          #
-          # Since we have this CA registered, validate so we can move on to the device
-          # cert next and expiration will be checked later if registration of a new
-          # device cert needs to happen.
-          {:valid, state}
+      is_binary(ski) and match?({:ok, _db_ca}, Devices.get_ca_certificate_by_ski(ski)) ->
+        # Signer CA sent with the device certificate, but is an intermediary
+        # so the chain is incomplete labeling it as unknown_ca.
+        #
+        # Since we have this CA registered, validate so we can move on to the device
+        # cert next and expiration will be checked later if registration of a new
+        # device cert needs to happen.
+        {:valid, state}
 
-        true ->
-          # The signer CA was not included in the request, so this is most
-          # likely a device cert that needs verification. If it isn't, then
-          # this is some other unknown CA that will fail
-          do_verify(otp_cert, state)
-      end
-    else
-      :telemetry.execute([:nerves_hub, :rate_limit, :rejected], %{count: 1})
-      {:fail, :rate_limit}
+      true ->
+        # The signer CA was not included in the request, so this is most
+        # likely a device cert that needs verification. If it isn't, then
+        # this is some other unknown CA that will fail
+        do_verify(otp_cert, state)
     end
   end
 
