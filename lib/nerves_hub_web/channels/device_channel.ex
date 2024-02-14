@@ -76,7 +76,9 @@ defmodule NervesHubWeb.DeviceChannel do
     end
 
     ## After join
-    :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1})
+    :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
+      identifier: device.identifier
+    })
 
     # local node tracking
     Registry.update_value(NervesHub.Devices, device.id, fn value ->
@@ -383,8 +385,10 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def terminate(_reason, socket) do
-    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1})
+  def terminate(_reason, %{assigns: %{device: device}} = socket) do
+    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
+      identifier: device.identifier
+    })
 
     {:ok, device} =
       Devices.update_device(socket.assigns.device, %{last_communication: DateTime.utc_now()})
