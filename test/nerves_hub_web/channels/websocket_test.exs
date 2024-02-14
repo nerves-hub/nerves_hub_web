@@ -610,6 +610,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       SocketClient.wait_join(socket)
 
+      Process.sleep(100)
+
       device = Repo.reload(device)
       refute device.deployment_id
 
