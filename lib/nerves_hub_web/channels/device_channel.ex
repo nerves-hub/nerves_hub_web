@@ -52,7 +52,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
       if push_update? do
         # Push the update to the device
-        push("update", update_payload)
+        push(socket, "update", update_payload)
 
         deployment = device.deployment
 
@@ -92,7 +92,7 @@ defmodule NervesHubWeb.DeviceChannel do
         if device.deployment && device.deployment.archive do
           archive = device.deployment.archive
 
-          push("archive", %{
+          push(socket, "archive", %{
             size: archive.size,
             uuid: archive.uuid,
             version: archive.version,
@@ -486,9 +486,5 @@ defmodule NervesHubWeb.DeviceChannel do
     socket
     |> assign(:device, device)
     |> assign(:deployment_channel, deployment_channel)
-  end
-
-  defp push(event, payload) do
-    send(self(), {:push, event, payload})
   end
 end
