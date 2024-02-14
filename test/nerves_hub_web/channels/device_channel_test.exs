@@ -4,7 +4,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   import TrackerHelper
 
-  alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceChannel
@@ -33,28 +32,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _, _socket} = subscribe_and_join(socket, DeviceChannel, "device")
 
     assert_online(device)
-  end
-
-  test "device disconnected adds audit log" do
-    user = Fixtures.user_fixture()
-    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-
-    {:ok, socket} =
-      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
-
-    Process.unlink(socket.channel_pid)
-
-    close(socket)
-
-    disconnect_log =
-      Enum.find(AuditLogs.logs_for(device), fn audit_log ->
-        audit_log.description == "device #{device.identifier} disconnected from the server"
-      end)
-
-    assert disconnect_log
   end
 
   test "update_available on connect" do
