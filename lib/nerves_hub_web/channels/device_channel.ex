@@ -22,97 +22,9 @@ defmodule NervesHubWeb.DeviceChannel do
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
          {:ok, device} <- Devices.device_connected(device) do
-      socket = assign(socket, :device_api_version, Map.get(params, "device_api_version", "1.0.0"))
+      socket = assign(socket, :device, device)
 
-      description = "device #{device.identifier} connected to the server"
-
-      AuditLogs.audit_with_ref!(
-        device,
-        device,
-        description,
-        socket.assigns.reference_id
-      )
-
-      device =
-        device
-        |> Devices.verify_deployment()
-        |> Deployments.set_deployment()
-        |> Repo.preload(deployment: [:archive, :firmware])
-
-      # clear out any inflight updates, there shouldn't be one at this point
-      # we might make a new one right below it, so clear it beforehand
-      Devices.clear_inflight_update(device)
-
-      # Let the orchestrator handle this going forward ?
-      update_payload = Devices.resolve_update(device)
-
-      push_update? =
-        update_payload.update_available and not is_nil(update_payload.firmware_url) and
-          update_payload.firmware_meta[:uuid] != params["currently_downloading_uuid"]
-
-      if push_update? do
-        # Push the update to the device
-        push(socket, "update", update_payload)
-
-        deployment = device.deployment
-
-        description =
-          "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} on connect"
-
-        AuditLogs.audit_with_ref!(
-          deployment,
-          device,
-          description,
-          socket.assigns.reference_id
-        )
-
-        # if there's an update, track it
-        Devices.told_to_update(device, deployment)
-      end
-
-      ## After join
-      :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1})
-
-      # local node tracking
-      Registry.update_value(NervesHub.Devices, device.id, fn value ->
-        update = %{
-          deployment_id: device.deployment_id,
-          firmware_uuid: device.firmware_metadata.uuid,
-          updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-          updating: push_update?
-        }
-
-        Map.merge(value, update)
-      end)
-
-      # Cluster tracking
-      Tracker.online(device)
-
-      if Version.match?(socket.assigns.device_api_version, ">= 2.0.0") do
-        if device.deployment && device.deployment.archive do
-          archive = device.deployment.archive
-
-          push(socket, "archive", %{
-            size: archive.size,
-            uuid: archive.uuid,
-            version: archive.version,
-            description: archive.description,
-            platform: archive.platform,
-            architecture: archive.architecture,
-            uploaded_at: archive.inserted_at,
-            url: Archives.url(archive)
-          })
-        end
-      end
-
-      socket =
-        socket
-        |> assign(:device, device)
-        |> assign(:update_started?, push_update?)
-        |> assign(:penalty_timer, nil)
-        |> maybe_start_penalty_timer()
-
-      send(self(), :boot)
+      send(self(), {:after_join, params})
 
       {:ok, socket}
     else
@@ -121,6 +33,102 @@ defmodule NervesHubWeb.DeviceChannel do
 
         {:error, %{error: "could not connect"}}
     end
+  end
+
+  def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
+    socket = assign(socket, :device_api_version, Map.get(params, "device_api_version", "1.0.0"))
+
+    description = "device #{device.identifier} connected to the server"
+
+    AuditLogs.audit_with_ref!(
+      device,
+      device,
+      description,
+      socket.assigns.reference_id
+    )
+
+    device =
+      device
+      |> Devices.verify_deployment()
+      |> Deployments.set_deployment()
+      |> Repo.preload(deployment: [:archive, :firmware])
+
+    # clear out any inflight updates, there shouldn't be one at this point
+    # we might make a new one right below it, so clear it beforehand
+    Devices.clear_inflight_update(device)
+
+    # Let the orchestrator handle this going forward ?
+    update_payload = Devices.resolve_update(device)
+
+    push_update? =
+      update_payload.update_available and not is_nil(update_payload.firmware_url) and
+        update_payload.firmware_meta[:uuid] != params["currently_downloading_uuid"]
+
+    if push_update? do
+      # Push the update to the device
+      push(socket, "update", update_payload)
+
+      deployment = device.deployment
+
+      description =
+        "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} on connect"
+
+      AuditLogs.audit_with_ref!(
+        deployment,
+        device,
+        description,
+        socket.assigns.reference_id
+      )
+
+      # if there's an update, track it
+      Devices.told_to_update(device, deployment)
+    end
+
+    ## After join
+    :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1})
+
+    # local node tracking
+    Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      update = %{
+        deployment_id: device.deployment_id,
+        firmware_uuid: device.firmware_metadata.uuid,
+        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+        updating: push_update?
+      }
+
+      Map.merge(value, update)
+    end)
+
+    # Cluster tracking
+    Tracker.online(device)
+
+    if Version.match?(socket.assigns.device_api_version, ">= 2.0.0") do
+      if device.deployment && device.deployment.archive do
+        archive = device.deployment.archive
+
+        push(socket, "archive", %{
+          size: archive.size,
+          uuid: archive.uuid,
+          version: archive.version,
+          description: archive.description,
+          platform: archive.platform,
+          architecture: archive.architecture,
+          uploaded_at: archive.inserted_at,
+          url: Archives.url(archive)
+        })
+      end
+    end
+
+    socket =
+      socket
+      |> assign(:device, device)
+      |> assign(:update_started?, push_update?)
+      |> assign(:penalty_timer, nil)
+      |> maybe_start_penalty_timer()
+
+    send(self(), :boot)
+
+    {:noreply, socket}
   end
 
   def handle_info(:boot, %{assigns: %{device: device}} = socket) do
