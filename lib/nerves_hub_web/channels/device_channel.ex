@@ -38,15 +38,6 @@ defmodule NervesHubWeb.DeviceChannel do
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
     socket = assign(socket, :device_api_version, Map.get(params, "device_api_version", "1.0.0"))
 
-    description = "device #{device.identifier} connected to the server"
-
-    AuditLogs.audit_with_ref!(
-      device,
-      device,
-      description,
-      socket.assigns.reference_id
-    )
-
     device =
       device
       |> Devices.verify_deployment()
@@ -398,11 +389,8 @@ defmodule NervesHubWeb.DeviceChannel do
     {:ok, device} =
       Devices.update_device(socket.assigns.device, %{last_communication: DateTime.utc_now()})
 
-    description = "device #{device.identifier} disconnected from the server"
-
-    AuditLogs.audit_with_ref!(device, device, description, socket.assigns.reference_id)
-
     Registry.unregister(NervesHub.Devices, device.id)
+
     Tracker.offline(device)
 
     :ok
