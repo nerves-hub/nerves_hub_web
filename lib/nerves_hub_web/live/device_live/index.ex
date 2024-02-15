@@ -299,6 +299,11 @@ defmodule NervesHubWeb.DeviceLive.Index do
     end
   end
 
+  # Unknown broadcasts get ignored, likely from the device:id:internal channel
+  def handle_info(%Broadcast{}, socket) do
+    {:noreply, socket}
+  end
+
   defp assign_display_devices(
          %{assigns: %{org: org, product: product, paginate_opts: paginate_opts}} = socket
        ) do
