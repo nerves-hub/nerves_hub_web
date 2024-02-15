@@ -381,7 +381,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_call("rebooting", _, socket) do
+  def handle_in("rebooting", _, socket) do
     {:noreply, socket}
   end
 
