@@ -294,6 +294,11 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_info({:online?, pid}, socket) do
+    send(pid, :online)
+    {:noreply, socket}
+  end
+
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
     # Forward broadcasts to the device for now
     push(socket, event, payload)

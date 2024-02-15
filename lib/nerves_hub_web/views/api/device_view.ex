@@ -20,7 +20,7 @@ defmodule NervesHubWeb.API.DeviceView do
       identifier: device.identifier,
       tags: device.tags,
       version: version(device),
-      online: Tracker.online?(device),
+      online: Tracker.sync_online?(device),
       last_communication: last_communication(device),
       description: device.description,
       firmware_metadata: device.firmware_metadata,
