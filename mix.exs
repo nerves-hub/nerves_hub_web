@@ -75,6 +75,7 @@ defmodule NervesHub.MixProject do
       {:mox, "~> 1.0", only: [:test, :dev]},
       {:nimble_csv, "~> 1.1"},
       {:oban, "~> 2.11"},
+      {:observer_cli, "~> 1.7"},
       {:phoenix, "~> 1.7.0"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 3.3.1", override: true},
