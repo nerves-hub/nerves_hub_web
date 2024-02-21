@@ -33,8 +33,6 @@ defmodule NervesHub.SSL do
   # or the signer cert was included by the client and is valid
   # for the peer (device) cert
   def verify_fun(otp_cert, :valid_peer, state) do
-    :telemetry.execute([:nerves_hub, :rate_limit, :accepted], %{count: 1})
-
     do_verify(otp_cert, state)
   end
 
@@ -43,8 +41,6 @@ defmodule NervesHub.SSL do
   end
 
   def verify_fun(otp_cert, {:bad_cert, err}, state) when err in [:unknown_ca, :cert_expired] do
-    :telemetry.execute([:nerves_hub, :rate_limit, :accepted], %{count: 1})
-
     aki = Certificate.get_aki(otp_cert)
     ski = Certificate.get_ski(otp_cert)
 
