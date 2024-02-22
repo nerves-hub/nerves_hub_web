@@ -135,7 +135,7 @@ if config_env() == :prod do
             fail_if_no_peer_cert: true,
             keyfile: keyfile,
             certfile: certfile,
-            cacertfile: CAStore.file_path(),
+            cacertfile: cacertfile,
             hibernate_after: 15_000
           ]
         ]
