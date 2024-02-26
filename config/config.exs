@@ -1,9 +1,9 @@
 import Config
 
 # Configures Elixir's Logger
-config :logger, :console,
-  format: "$time $metadata level=$level $message\n",
-  metadata: [:user_id, :request_id, :trace_id, :span_id]
+config :logger, :default_formatter,
+  format: {NervesHub.LoggerFormatter, :format},
+  metadata: :all
 
 config :phoenix,
   json_library: Jason,

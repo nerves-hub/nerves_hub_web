@@ -77,7 +77,8 @@ defmodule NervesHubWeb.DeviceChannel do
 
     ## After join
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
-      identifier: device.identifier
+      identifier: device.identifier,
+      firmware_uuid: device.firmware_metadata.uuid
     })
 
     # local node tracking
@@ -228,14 +229,17 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({"deployments/update", inflight_update}, %{assigns: %{device: device}} = socket) do
-    :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1})
-
     device = Repo.preload(device, [deployment: [:firmware]], force: true)
 
     payload = Devices.resolve_update(device)
 
     case payload.update_available do
       true ->
+        :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1}, %{
+          identifier: device.identifier,
+          firmware_uuid: inflight_update.firmware_uuid
+        })
+
         deployment = device.deployment
         firmware = deployment.firmware
 
