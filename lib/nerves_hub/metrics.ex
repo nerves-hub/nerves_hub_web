@@ -119,6 +119,7 @@ defmodule NervesHub.Metrics.Reporters do
   def handle_continue(:initialize, state) do
     reporters = [
       NervesHub.EctoReporter,
+      NervesHub.DeviceReporter,
       NervesHub.NodeReporter
     ]
 
@@ -150,6 +151,49 @@ defmodule NervesHub.EctoReporter do
   # No queue time
   def handle_event([:nerves_hub, :repo, :query], _, _, _) do
     :ok
+  end
+end
+
+defmodule NervesHub.DeviceReporter do
+  require Logger
+
+  def events() do
+    [
+      [:nerves_hub, :devices, :connect],
+      [:nerves_hub, :devices, :disconnect],
+      [:nerves_hub, :devices, :update, :automatic]
+    ]
+  end
+
+  def handle_event([:nerves_hub, :devices, :connect], _, metadata, _) do
+    Logger.info("Device connected",
+      event: "nerves_hub.devices.connect",
+      identifier: metadata[:identifier],
+      firmware_uuid: metadata[:firmware_uuid]
+    )
+  end
+
+  def handle_event([:nerves_hub, :devices, :disconnect], _, metadata, _) do
+    Logger.info("Device disconnected",
+      event: "nerves_hub.devices.disconnect",
+      identifier: metadata[:identifier]
+    )
+  end
+
+  def handle_event([:nerves_hub, :devices, :update, :automatic], _, metadata, _) do
+    Logger.info("Device received update",
+      event: "nerves_hub.devices.update.automatic",
+      identifier: metadata[:identifier],
+      firmware_uuid: metadata[:firmware_uuid]
+    )
+  end
+
+  def handle_event([:nerves_hub, :devices, :update, :successful], _, metadata, _) do
+    Logger.info("Device updated firmware",
+      event: "nerves_hub.devices.update.successful",
+      identifier: metadata[:identifier],
+      firmware_uuid: metadata[:firmware_uuid]
+    )
   end
 end
 
