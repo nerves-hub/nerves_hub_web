@@ -47,7 +47,7 @@ defmodule NervesHub.Archives do
   end
 
   def url(archive) do
-    NervesHub.Uploads.url(archive_path(archive))
+    NervesHub.Uploads.url(archive_path(archive), signed: [expires_in: 3600])
   end
 
   defp archive_path(archive) do
