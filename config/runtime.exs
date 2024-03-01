@@ -229,6 +229,8 @@ if config_env() == :prod do
 
       config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.S3
 
+      config :nerves_hub, NervesHub.Uploads.S3, bucket: System.fetch_env!("S3_BUCKET_NAME")
+
       config :nerves_hub, NervesHub.Firmwares.Upload.S3,
         bucket: System.fetch_env!("S3_BUCKET_NAME")
 
