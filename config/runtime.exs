@@ -150,7 +150,7 @@ if config_env() == :prod do
   database_ssl_opts =
     if System.get_env("DATABASE_PEM") do
       db_hostname_charlist =
-        ~r/.*@(?<hostname>.*):\d{4}\/.*/
+        ~r/.*@(?<hostname>[^:\/]+)(?::\d+)?\/.*/
         |> Regex.named_captures(System.fetch_env!("DATABASE_URL"))
         |> Map.get("hostname")
         |> to_charlist()
