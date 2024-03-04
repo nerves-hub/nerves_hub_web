@@ -16,9 +16,9 @@ defmodule NervesHubWeb.ArchiveController do
   end
 
   def show(conn, %{"uuid" => uuid}) do
-    %{user: user} = conn.assigns
+    %{product: product, user: user} = conn.assigns
 
-    case Archives.get(uuid) do
+    case Archives.get(product, uuid) do
       {:ok, archive} ->
         if Accounts.has_org_role?(archive.product.org, user, :view) do
           conn
@@ -40,9 +40,9 @@ defmodule NervesHubWeb.ArchiveController do
   end
 
   def download(conn, %{"uuid" => uuid}) do
-    %{user: user} = conn.assigns
+    %{product: product, user: user} = conn.assigns
 
-    case Archives.get(uuid) do
+    case Archives.get(product, uuid) do
       {:ok, archive} ->
         if Accounts.has_org_role?(archive.product.org, user, :view) do
           redirect(conn, external: Archives.url(archive))
@@ -73,6 +73,29 @@ defmodule NervesHubWeb.ArchiveController do
         conn
         |> put_flash(:info, "Archive Uploaded")
         |> redirect(to: Routes.archive_path(conn, :index, org.name, product.name))
+
+      {:error, :no_public_keys} ->
+        conn
+        |> put_flash(
+          :error,
+          "Please register public keys for verifying firmware signatures first"
+        )
+        |> redirect(to: Routes.archive_path(conn, :new, org.name, product.name))
+
+      {:error, :invalid_signature} ->
+        conn
+        |> put_flash(:error, "Firmware corrupt, signature invalid, or missing public key")
+        |> redirect(to: Routes.archive_path(conn, :new, org.name, product.name))
+
+      {:error, %{errors: [uuid: _]}} ->
+        conn
+        |> put_flash(:error, "Firmware UUID is not unique for the product")
+        |> redirect(to: Routes.archive_path(conn, :new, org.name, product.name))
+
+      _error ->
+        conn
+        |> put_flash(:error, "Unknown error when uploading archive")
+        |> redirect(to: Routes.archive_path(conn, :new, org.name, product.name))
     end
   end
 

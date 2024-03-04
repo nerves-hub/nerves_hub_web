@@ -17,8 +17,13 @@ defmodule NervesHub.Archives do
     |> Repo.all()
   end
 
-  def get(uuid) when is_binary(uuid) do
-    case Repo.get_by(Archive, uuid: uuid) do
+  def get(product, uuid) when is_binary(uuid) do
+    query =
+      Archive
+      |> where([a], a.uuid == ^uuid)
+      |> where([a], a.product_id == ^product.id)
+
+    case Repo.one(query) do
       nil ->
         {:error, :not_found}
 
@@ -31,15 +36,14 @@ defmodule NervesHub.Archives do
     product = Repo.preload(product, org: [:org_keys])
 
     with {:ok, org_key} <- validate_signature(product.org, file_path),
-         {:ok, metadata} <- Fwup.metadata(file_path) do
-      {:ok, archive} =
-        product
-        |> Ecto.build_assoc(:archives)
-        |> Map.put(:org_key_id, org_key.id)
-        |> Map.put(:size, :filelib.file_size(file_path))
-        |> Archive.create_changeset(metadata)
-        |> Repo.insert()
-
+         {:ok, metadata} <- Fwup.metadata(file_path),
+         {:ok, archive} <-
+           product
+           |> Ecto.build_assoc(:archives)
+           |> Map.put(:org_key_id, org_key.id)
+           |> Map.put(:size, :filelib.file_size(file_path))
+           |> Archive.create_changeset(metadata)
+           |> Repo.insert() do
       NervesHub.Uploads.upload(file_path, archive_path(archive))
 
       {:ok, archive}
