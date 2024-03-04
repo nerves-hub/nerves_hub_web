@@ -77,7 +77,7 @@ defmodule NervesHub.MixProject do
       {:oban, "~> 2.11"},
       {:phoenix, "~> 1.7.0"},
       {:phoenix_ecto, "~> 4.0"},
-      {:phoenix_html, "~> 3.3.1", override: true},
+      {:phoenix_html, "~> 4.1.1", override: true},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 0.20.1"},
       {:phoenix_markdown, "~> 1.0"},
