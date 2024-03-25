@@ -293,6 +293,7 @@ if config_env() == :prod do
       password: System.fetch_env!("SMTP_PASSWORD"),
       ssl: System.get_env("SMTP_SSL", "false") == "true",
       tls: :always,
+      tls_options: :tls_certificate_check.options(System.fetch_env!("SMTP_SERVER")),
       retries: 1
   end
 end
