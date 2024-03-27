@@ -8,8 +8,6 @@ defmodule NervesHub.Release.Tasks do
   ]
 
   def migrate() do
-    :ok = Application.ensure_started(:tls_certificate_check)
-
     Application.load(@app)
 
     for repo <- Application.fetch_env!(@app, :ecto_repos) do

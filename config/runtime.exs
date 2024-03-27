@@ -293,7 +293,15 @@ if config_env() == :prod do
       password: System.fetch_env!("SMTP_PASSWORD"),
       ssl: System.get_env("SMTP_SSL", "false") == "true",
       tls: :always,
-      tls_options: :tls_certificate_check.options(System.fetch_env!("SMTP_SERVER")),
+      tls_options: [
+        verify: :verify_peer,
+        cacerts: :public_key.cacerts_get(),
+        depth: 99,
+        server_name_indication: String.to_charlist(System.get_env("SMTP_SERVER")),
+        customize_hostname_check: [
+          match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+        ]
+      ],
       retries: 1
   end
 end
