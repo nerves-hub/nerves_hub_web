@@ -42,7 +42,12 @@ defmodule NervesHubWeb.DeviceChannel do
       device
       |> Devices.verify_deployment()
       |> Deployments.set_deployment()
+      |> Repo.preload(:org)
       |> Repo.preload(deployment: [:archive, :firmware])
+
+    if params["fwup_public_keys"] == "on_connect" do
+      send_fwup_public_keys(device, socket)
+    end
 
     # clear out any inflight updates, there shouldn't be one at this point
     # we might make a new one right below it, so clear it beforehand
@@ -415,6 +420,14 @@ defmodule NervesHubWeb.DeviceChannel do
 
   defp unsubscribe(topic) do
     Phoenix.PubSub.unsubscribe(NervesHub.PubSub, topic)
+  end
+
+  defp send_fwup_public_keys(device, socket) do
+    org_keys = NervesHub.Accounts.list_org_keys(device.org)
+
+    push(socket, "fwup_public_keys", %{
+      keys: Enum.map(org_keys, fn ok -> ok.key end)
+    })
   end
 
   # The reported firmware is the same as what we already know about
