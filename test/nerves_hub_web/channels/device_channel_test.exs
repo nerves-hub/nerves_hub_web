@@ -34,6 +34,29 @@ defmodule NervesHubWeb.DeviceChannelTest do
     assert_online(device)
   end
 
+  test "fwup_public_keys requested on connect" do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    params =
+      for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+        case k do
+          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
+          _ -> {"nerves_fw_#{k}", v}
+        end
+      end
+
+    params = Map.put(params, "fwup_public_keys", "on_connect")
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, %{}, _socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+    assert_push("fwup_public_keys", %{keys: [_]})
+  end
+
   test "update_available on connect" do
     user = Fixtures.user_fixture()
     {device, _firmware, deployment} = device_fixture(user, %{identifier: "123"})
