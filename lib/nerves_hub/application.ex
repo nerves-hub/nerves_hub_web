@@ -30,7 +30,8 @@ defmodule NervesHub.Application do
           {Phoenix.PubSub, name: NervesHub.PubSub},
           {Cluster.Supervisor, [topologies]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
-          {Oban, Application.fetch_env!(:nerves_hub, Oban)}
+          {Oban, Application.fetch_env!(:nerves_hub, Oban)},
+          NervesHub.AWSIoT
         ] ++
         deployments_supervisor(deploy_env()) ++
         endpoints(deploy_env())
