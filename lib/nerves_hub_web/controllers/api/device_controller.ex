@@ -166,10 +166,12 @@ defmodule NervesHubWeb.API.DeviceController do
           body
           |> String.graphemes()
           |> Enum.map(fn character ->
-            Endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => character})
+            Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{
+              "data" => character
+            })
           end)
 
-          Endpoint.broadcast_from!(self(), "console:#{device.id}", "dn", %{"data" => "\r"})
+          Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{"data" => "\r"})
 
           send_resp(conn, 200, "Success")
         else
