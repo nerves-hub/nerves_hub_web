@@ -75,6 +75,9 @@ defmodule NervesHubWeb.Router do
       post("/:identifier/code", DeviceController, :code)
       post("/:identifier/upgrade", DeviceController, :upgrade)
       delete("/:identifier/penalty", DeviceController, :penalty)
+
+      get("/:identifier/commands", CommandController, :index)
+      post("/:identifier/commands/:id", CommandController, :send)
     end
 
     scope "/" do
