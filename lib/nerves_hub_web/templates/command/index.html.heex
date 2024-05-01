@@ -1,0 +1,51 @@
+<%= if @commands == [] do %>
+  <div class="no-results-blowup-wrapper">
+    <img src="/images/command.svg" alt="No commands" />
+    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any commands yet</h3>
+    <div class="flex-row align-items-center mt-3">
+      <a class="btn btn-outline-light" aria-label="Create command" href={Routes.command_path(@conn, :new, @org.name, @product.name)}>
+        <span class="action-text">Create Command</span>
+        <span class="button-icon add"></span>
+      </a>
+    </div>
+  </div>
+<% else %>
+  <div class="action-row">
+    <h1>Commands</h1>
+    <a class="btn btn-outline-light btn-action" aria-label="Create command" href={Routes.command_path(@conn, :new, @org.name, @product.name)}>
+      <span class="button-icon add"></span>
+      <span class="action-text">Create Command</span>
+    </a>
+  </div>
+
+  <table class="table">
+    <tr>
+      <th>Name</th>
+      <th>Text</th>
+      <th>Actions</th>
+    </tr>
+    <%= for command <- @commands do %>
+      <tr class="item">
+        <td>
+          <%= command.name %>
+        </td>
+        <td>
+          <pre><code><%= command.text %></code></pre>
+        </td>
+        <td class="actions">
+          <div class="mobile-label help-text">Actions</div>
+          <div class="dropdown options">
+            <a class="dropdown-toggle options" data-target="#" id={"command-#{command.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <div class="mobile-label pr-2">Open</div>
+              <img src="/images/icons/more.svg" alt="options" />
+            </a>
+            <div class="dropdown-menu dropdown-menu-right">
+              <%= link("edit", class: "dropdown-item", to: Routes.command_path(@conn, :edit, @org.name, @product.name, command.id)) %>
+              <%= link("delete", class: "dropdown-item", method: :delete, to: Routes.command_path(@conn, :delete, @org.name, @product.name, command.id)) %>
+            </div>
+          </div>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+<% end %>
