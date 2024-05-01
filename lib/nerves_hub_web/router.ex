@@ -307,6 +307,8 @@ defmodule NervesHubWeb.Router do
           param: "uuid"
         )
 
+        resources("/commands", CommandController)
+
         get("/archives/:uuid/download", ArchiveController, :download)
 
         scope "/deployments" do
