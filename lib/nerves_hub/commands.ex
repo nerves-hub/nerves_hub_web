@@ -19,13 +19,6 @@ defmodule NervesHub.Commands.Command do
     |> cast(params, [:name, :text])
     |> validate_required([:name, :text])
     |> validate_length(:name, lte: 255)
-    |> validate_change(:text, fn :text, text ->
-      if String.contains?(text, "\n") do
-        [text: "cannot contain newlines"]
-      else
-        []
-      end
-    end)
   end
 
   def update_changeset(struct, params) do
@@ -80,7 +73,7 @@ defmodule NervesHub.Commands.Runner do
   alias NervesHubWeb.Endpoint
 
   defmodule State do
-    defstruct [:buffer, :clear?, :from, :receive_channel, :send_channel]
+    defstruct [:buffer, :from, :receive_channel, :send_channel]
   end
 
   def send(device, command) do
@@ -95,7 +88,6 @@ defmodule NervesHub.Commands.Runner do
   def init(device_id) do
     state = %State{
       buffer: <<>>,
-      clear?: true,
       from: nil,
       receive_channel: "user:console:#{device_id}",
       send_channel: "device:console:#{device_id}"
@@ -105,7 +97,7 @@ defmodule NervesHub.Commands.Runner do
   end
 
   def handle_call({:send, text}, from, state) do
-    text = ~s/IO.puts("[NERVESHUB:START]"); #{text}; IO.puts("[NERVESHUB:END]")/
+    text = ~s/#{text}\n# [NERVESHUB:END]/
 
     text
     |> String.graphemes()
@@ -123,19 +115,12 @@ defmodule NervesHub.Commands.Runner do
   def handle_info(%Phoenix.Socket.Broadcast{event: "up", payload: %{"data" => text}}, state) do
     state = %{state | buffer: state.buffer <> text}
 
-    state =
-      if state.clear? && String.contains?(state.buffer, ~s/[NERVESHUB:END]/) do
-        %{state | buffer: <<>>, clear?: false}
-      else
-        state
-      end
-
-    if String.contains?(state.buffer, "[NERVESHUB:START]") &&
-         String.contains?(state.buffer, "[NERVESHUB:END]") do
+    if String.contains?(state.buffer, "[NERVESHUB:END]") do
       buffer =
         state.buffer
-        |> String.replace(~r/\A.+\[NERVESHUB:START\]\r\n/s, "")
-        |> String.replace(~r/\[NERVESHUB:END].+\z/s, "")
+        |> String.split("\n")
+        |> Enum.slice(0..-2)
+        |> Enum.join("\n")
 
       GenServer.reply(state.from, buffer)
 

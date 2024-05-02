@@ -22,17 +22,5 @@ defmodule NervesHub.CommandsTest do
 
       assert command.product_id == product.id
     end
-
-    test "no newline allowed", %{product: product} do
-      {:error, changeset} =
-        Commands.create(product, %{
-          name: "MOTD",
-          text: """
-          Hello there
-          """
-        })
-
-      assert changeset.errors[:text]
-    end
   end
 end
