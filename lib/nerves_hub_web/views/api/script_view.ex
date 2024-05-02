@@ -1,9 +1,9 @@
-defmodule NervesHubWeb.API.CommandView do
+defmodule NervesHubWeb.API.ScriptView do
   use NervesHubWeb, :api_view
 
-  def render("index.json", %{commands: commands}) do
+  def render("index.json", %{scripts: scripts}) do
     %{
-      data: render_many(commands, __MODULE__, "command.json")
+      data: render_many(scripts, __MODULE__, "command.json")
     }
   end
 

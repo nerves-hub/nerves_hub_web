@@ -1,8 +1,8 @@
-defmodule NervesHubWeb.API.CommandController do
+defmodule NervesHubWeb.API.ScriptController do
   use NervesHubWeb, :controller
 
   alias NervesHub.Accounts
-  alias NervesHub.Commands
+  alias NervesHub.Scripts
   alias NervesHub.Devices
 
   def index(conn, %{"identifier" => identifier}) do
@@ -12,7 +12,7 @@ defmodule NervesHubWeb.API.CommandController do
       {:ok, device} ->
         if Accounts.has_org_role?(device.org, user, :view) do
           conn
-          |> assign(:commands, Commands.all_by_product(device.product))
+          |> assign(:scripts, Scripts.all_by_product(device.product))
           |> render("index.json")
         else
           conn
@@ -34,9 +34,9 @@ defmodule NervesHubWeb.API.CommandController do
     case Devices.get_by_identifier(identifier) do
       {:ok, device} ->
         if Accounts.has_org_role?(device.org, user, :view) do
-          case Commands.get(device.product, id) do
+          case Scripts.get(device.product, id) do
             {:ok, command} ->
-              text(conn, Commands.Runner.send(device, command))
+              text(conn, Scripts.Runner.send(device, command))
 
             {:error, :not_found} ->
               conn

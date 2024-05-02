@@ -1,0 +1,20 @@
+<h1>Add Script</h1>
+
+<%= form_for @changeset, Routes.script_path(@conn, :create, @org.name, @product.name), [as: :command], fn f -> %>
+  <div class="form-group">
+    <label for="name_input">Script name</label>
+    <%= text_input(f, :name, class: "form-control", id: "name_input") %>
+    <div class="has-error"><%= error_tag(f, :name) %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="text_input">Script text</label>
+    <%= text_input(f, :text, class: "form-control", id: "text_input") %>
+    <div class="has-error"><%= error_tag(f, :text) %></div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <a class="btn btn-secondary" href={Routes.script_path(@conn, :new, @org.name, @product.name)}>Back</a>
+    <%= submit("Add Script", class: "btn btn-primary") %>
+  </div>
+<% end %>
