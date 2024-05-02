@@ -1,7 +1,7 @@
-defmodule NervesHubWeb.CommandController do
+defmodule NervesHubWeb.ScriptController do
   use NervesHubWeb, :controller
 
-  alias NervesHub.Commands
+  alias NervesHub.Scripts
   alias NervesHub.Repo
 
   plug(:validate_role, [org: :manage] when action in [:new, :create, :delete])
@@ -11,14 +11,14 @@ defmodule NervesHubWeb.CommandController do
     %{product: product} = conn.assigns
 
     conn
-    |> assign(:commands, Commands.all_by_product(product))
+    |> assign(:scripts, Scripts.all_by_product(product))
     |> render("index.html")
   end
 
   def new(conn, _params) do
     changeset =
-      %Commands.Command{}
-      |> Commands.Command.create_changeset(%{})
+      %Scripts.Script{}
+      |> Scripts.Script.create_changeset(%{})
 
     conn
     |> assign(:changeset, changeset)
@@ -28,11 +28,11 @@ defmodule NervesHubWeb.CommandController do
   def create(conn, %{"command" => params}) do
     %{org: org, product: product} = conn.assigns
 
-    case Commands.create(product, params) do
+    case Scripts.create(product, params) do
       {:ok, _command} ->
         conn
-        |> put_flash(:info, "Command created")
-        |> redirect(to: Routes.command_path(conn, :index, org.name, product.name))
+        |> put_flash(:info, "Script created")
+        |> redirect(to: Routes.script_path(conn, :index, org.name, product.name))
 
       {:error, changeset} ->
         conn
@@ -44,9 +44,9 @@ defmodule NervesHubWeb.CommandController do
   def edit(conn, %{"id" => id}) do
     %{org: org, product: product} = conn.assigns
 
-    case Commands.get(product, id) do
+    case Scripts.get(product, id) do
       {:ok, command} ->
-        changeset = Commands.Command.update_changeset(command, %{})
+        changeset = Scripts.Script.update_changeset(command, %{})
 
         conn
         |> assign(:command, command)
@@ -56,20 +56,20 @@ defmodule NervesHubWeb.CommandController do
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Not found")
-        |> redirect(to: Routes.command_path(conn, :index, org.name, product.name))
+        |> redirect(to: Routes.script_path(conn, :index, org.name, product.name))
     end
   end
 
   def update(conn, %{"id" => id, "command" => params}) do
     %{org: org, product: product} = conn.assigns
 
-    case Commands.get(product, id) do
+    case Scripts.get(product, id) do
       {:ok, command} ->
-        case Commands.update(command, params) do
+        case Scripts.update(command, params) do
           {:ok, _command} ->
             conn
-            |> put_flash(:info, "Command updated")
-            |> redirect(to: Routes.command_path(conn, :index, org.name, product.name))
+            |> put_flash(:info, "Script updated")
+            |> redirect(to: Routes.script_path(conn, :index, org.name, product.name))
 
           {:error, changeset} ->
             conn
@@ -81,25 +81,25 @@ defmodule NervesHubWeb.CommandController do
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Not found")
-        |> redirect(to: Routes.command_path(conn, :index, org.name, product.name))
+        |> redirect(to: Routes.script_path(conn, :index, org.name, product.name))
     end
   end
 
   def delete(conn, %{"id" => id}) do
     %{org: org, product: product} = conn.assigns
 
-    case Commands.get(product, id) do
+    case Scripts.get(product, id) do
       {:ok, command} ->
         Repo.delete!(command)
 
         conn
-        |> put_flash(:info, "Command deleted")
-        |> redirect(to: Routes.command_path(conn, :index, org.name, product.name))
+        |> put_flash(:info, "Script deleted")
+        |> redirect(to: Routes.script_path(conn, :index, org.name, product.name))
 
       {:error, :not_found} ->
         conn
         |> put_flash(:error, "Not found")
-        |> redirect(to: Routes.command_path(conn, :index, org.name, product.name))
+        |> redirect(to: Routes.script_path(conn, :index, org.name, product.name))
     end
   end
 end

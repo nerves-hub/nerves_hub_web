@@ -76,8 +76,8 @@ defmodule NervesHubWeb.Router do
       post("/:identifier/upgrade", DeviceController, :upgrade)
       delete("/:identifier/penalty", DeviceController, :penalty)
 
-      get("/:identifier/commands", CommandController, :index)
-      post("/:identifier/commands/:id", CommandController, :send)
+      get("/:identifier/scripts", ScriptController, :index)
+      post("/:identifier/scripts/:id", ScriptController, :send)
     end
 
     scope "/" do
@@ -310,7 +310,7 @@ defmodule NervesHubWeb.Router do
           param: "uuid"
         )
 
-        resources("/commands", CommandController)
+        resources("/scripts", ScriptController)
 
         get("/archives/:uuid/download", ArchiveController, :download)
 

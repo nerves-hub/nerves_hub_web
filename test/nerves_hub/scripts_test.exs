@@ -1,7 +1,7 @@
-defmodule NervesHub.CommandsTest do
+defmodule NervesHub.ScriptsTest do
   use NervesHub.DataCase
 
-  alias NervesHub.Commands
+  alias NervesHub.Scripts
   alias NervesHub.Fixtures
 
   setup do
@@ -15,7 +15,7 @@ defmodule NervesHub.CommandsTest do
   describe "creating a command" do
     test "successful", %{product: product} do
       {:ok, command} =
-        Commands.create(product, %{
+        Scripts.create(product, %{
           name: "MOTD",
           text: "NervesMOTD.print()"
         })
