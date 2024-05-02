@@ -136,6 +136,18 @@ components:
       description: |
         Metadata of the active firmware.
       nullable: true
+    script:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "MOTD"
+        text:
+          type: string
+          example: "NervesMOTD.print()"
 paths:
   /devices/{id}:
     get:
@@ -171,6 +183,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/error"
+  /devices/{identifier}/scripts:
+    get:
+      summary: List all scripts for a device
+      parameters:
+        - in: query
+          name: identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/script'
+  /devices/{identifier}/scripts/{id}:
+    post:
+      summary: Trigger a script to run
+      parameters:
+        - in: query
+          name: identifier
+          schema:
+            type: string
+        - in: query
+          name: id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  iex(1)> IO.inspect("Hello there")
+                  "Hello there"
   /orgs/{org}/keys:
     get:
       summary: List all firmware signing keys for the organization
