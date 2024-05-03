@@ -14,14 +14,10 @@ defmodule NervesHub.Scripts.Script do
     timestamps()
   end
 
-  def create_changeset(struct, params) do
+  def changeset(struct, params) do
     struct
     |> cast(params, [:name, :text])
     |> validate_required([:name, :text])
     |> validate_length(:name, lte: 255)
-  end
-
-  def update_changeset(struct, params) do
-    create_changeset(struct, params)
   end
 end
