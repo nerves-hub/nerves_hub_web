@@ -4,7 +4,7 @@ defmodule NervesHubWeb.ScriptController do
   alias NervesHub.Scripts
   alias NervesHub.Repo
 
-  plug(:validate_role, [org: :manage] when action in [:new, :create, :delete])
+  plug(:validate_role, [org: :manage] when action in [:new, :create, :edit, :update, :delete])
   plug(:validate_role, [org: :view] when action in [:index])
 
   def index(conn, _params) do
@@ -18,7 +18,7 @@ defmodule NervesHubWeb.ScriptController do
   def new(conn, _params) do
     changeset =
       %Scripts.Script{}
-      |> Scripts.Script.create_changeset(%{})
+      |> Scripts.Script.changeset(%{})
 
     conn
     |> assign(:changeset, changeset)
@@ -46,7 +46,7 @@ defmodule NervesHubWeb.ScriptController do
 
     case Scripts.get(product, id) do
       {:ok, command} ->
-        changeset = Scripts.Script.update_changeset(command, %{})
+        changeset = Scripts.Script.changeset(command, %{})
 
         conn
         |> assign(:command, command)

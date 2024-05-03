@@ -28,13 +28,13 @@ defmodule NervesHub.Scripts do
   def create(product, params) do
     product
     |> Ecto.build_assoc(:scripts)
-    |> Script.create_changeset(params)
+    |> Script.changeset(params)
     |> Repo.insert()
   end
 
   def update(command, params) do
     command
-    |> Script.update_changeset(params)
+    |> Script.changeset(params)
     |> Repo.update()
   end
 end
