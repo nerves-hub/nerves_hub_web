@@ -3,15 +3,15 @@ defmodule NervesHubWeb.API.ScriptView do
 
   def render("index.json", %{scripts: scripts}) do
     %{
-      data: render_many(scripts, __MODULE__, "command.json")
+      data: render_many(scripts, __MODULE__, "script.json")
     }
   end
 
-  def render("command.json", %{command: command}) do
+  def render("script.json", %{script: script}) do
     %{
-      id: command.id,
-      name: command.name,
-      text: command.text
+      id: script.id,
+      name: script.name,
+      text: script.text
     }
   end
 end
