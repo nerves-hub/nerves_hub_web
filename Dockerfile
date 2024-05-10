@@ -1,6 +1,6 @@
-ARG ELIXIR_VERSION=1.16.0
-ARG OTP_VERSION=26.2.1
-ARG DISTRO=jammy-20231004
+ARG ELIXIR_VERSION=1.16.2
+ARG OTP_VERSION=26.2.5
+ARG DISTRO=jammy-20240427
 ARG NODE_VERSION=16.20.2
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${DISTRO}"
@@ -49,7 +49,7 @@ FROM ${BUILDER_IMAGE} as build
 
 # install dependencies
 RUN apt-get update -y && apt-get install -y build-essential git ca-certificates curl gnupg \
-  && apt-get clean && rm -f /var/lib/apt/lists/*_*
+    && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
 WORKDIR /build
 
@@ -98,10 +98,10 @@ RUN mix release
 FROM ${RUNNER_IMAGE} AS app
 
 RUN apt-get update -y \
-  && apt-get install -y libstdc++6 openssl libncurses5 locales bash openssl curl python3 python3-pip jq xdelta3 zip unzip wget \
-  && wget https://github.com/fwup-home/fwup/releases/download/v1.10.1/fwup_1.10.1_amd64.deb \
-  && dpkg -i fwup_1.10.1_amd64.deb && rm fwup_1.10.1_amd64.deb \
-  && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y libstdc++6 openssl libncurses5 locales bash openssl curl python3 python3-pip jq xdelta3 zip unzip wget \
+    && wget https://github.com/fwup-home/fwup/releases/download/v1.10.1/fwup_1.10.1_amd64.deb \
+    && dpkg -i fwup_1.10.1_amd64.deb && rm fwup_1.10.1_amd64.deb \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
