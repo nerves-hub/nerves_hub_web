@@ -83,6 +83,7 @@ defmodule NervesHub.Accounts.SwooshEmail do
 
   defp from_address() do
     email = Application.fetch_env!(:nerves_hub, :from_email)
-    {"NervesHub", email}
+    sender = Application.fetch_env!(:nerves_hub, :email_sender)
+    {sender, email}
   end
 end

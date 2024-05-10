@@ -12,7 +12,8 @@ end
 config :nerves_hub,
   app: nerves_hub_app,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
-  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
+  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
+  email_sender: System.get_env("EMAIL_SENDER", "NervesHub")
 
 if level = System.get_env("LOG_LEVEL") do
   config :logger, level: String.to_atom(level)
@@ -288,9 +289,10 @@ if config_env() == :prod do
     config :nerves_hub, NervesHub.SwooshMailer,
       adapter: Swoosh.Adapters.SMTP,
       relay: System.fetch_env!("SMTP_SERVER"),
-      port: System.fetch_env!("SMTP_PORT"),
+      port: System.fetch_env!("SMTP_PORT") |> String.to_integer(),
       username: System.fetch_env!("SMTP_USERNAME"),
       password: System.fetch_env!("SMTP_PASSWORD"),
+      auth: :always,
       ssl: System.get_env("SMTP_SSL", "false") == "true",
       tls: :always,
       tls_options: [
