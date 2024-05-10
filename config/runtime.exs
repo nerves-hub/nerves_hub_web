@@ -64,7 +64,8 @@ if config_env() == :prod do
     keyfile =
       if System.get_env("DEVICE_SSL_KEY") do
         ssl_key = System.fetch_env!("DEVICE_SSL_KEY") |> Base.decode64!()
-        :ok = File.write("/app/tmp/ssl_key.crt", ssl_key)
+        File.mkdir_p!("/app/tmp")
+        File.write!("/app/tmp/ssl_key.crt", ssl_key)
         "/app/tmp/ssl_key.crt"
       else
         ssl_keyfile = System.get_env("DEVICE_SSL_KEYFILE", "/etc/ssl/#{host}-key.pem")
@@ -79,7 +80,8 @@ if config_env() == :prod do
     certfile =
       if encoded_cert = System.get_env("DEVICE_SSL_CERT") do
         ssl_cert = Base.decode64!(encoded_cert)
-        :ok = File.write("/app/tmp/ssl_cert.crt", ssl_cert)
+        File.mkdir_p!("/app/tmp")
+        File.write!("/app/tmp/ssl_cert.crt", ssl_cert)
         "/app/tmp/ssl_cert.crt"
       else
         ssl_certfile = System.get_env("DEVICE_SSL_CERTFILE", "/etc/ssl/#{host}.pem")
