@@ -18,15 +18,6 @@ if level = System.get_env("LOG_LEVEL") do
   config :logger, level: String.to_atom(level)
 end
 
-dns_cluster_query =
-  if System.get_env("DNS_CLUSTER_QUERY") do
-    System.get_env("DNS_CLUSTER_QUERY") |> String.split(",")
-  else
-    nil
-  end
-
-config :nerves_hub, dns_cluster_query: dns_cluster_query
-
 ##
 # Web and Device endpoints
 #
