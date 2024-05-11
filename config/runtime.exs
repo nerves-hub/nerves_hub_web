@@ -12,7 +12,9 @@ end
 config :nerves_hub,
   app: nerves_hub_app,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
-  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org")
+  from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
+  device_endpoint_redirect:
+    System.get_env("DEVICE_ENDPOINT_REDIRECT", "https://docs.nerves-hub.org/")
 
 if level = System.get_env("LOG_LEVEL") do
   config :logger, level: String.to_atom(level)
