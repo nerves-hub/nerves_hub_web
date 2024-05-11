@@ -14,9 +14,7 @@ defmodule NervesHubWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]]
   )
 
-  socket("/device-socket", NervesHubWeb.DeviceSocketSharedSecretAuth,
-    websocket: [connect_info: [:x_headers]]
-  )
+  socket("/device-socket", NervesHubWeb.DeviceSocket, websocket: [connect_info: [:x_headers]])
 
   # Serve at "/" the static files from "priv/static" directory.
   #

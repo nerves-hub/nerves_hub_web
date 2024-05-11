@@ -7,7 +7,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceChannel
-  alias NervesHubWeb.DeviceSocketCertAuth, as: DeviceSocket
+  alias NervesHubWeb.DeviceSocket
 
   test "basic connection to the channel" do
     user = Fixtures.user_fixture()
