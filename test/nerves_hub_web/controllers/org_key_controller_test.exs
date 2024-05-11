@@ -9,14 +9,14 @@ defmodule NervesHubWeb.OrgKeyControllerTest do
   describe "index" do
     test "lists all org_keys", %{conn: conn, org: org} do
       conn = get(conn, Routes.org_key_path(conn, :index, org.name))
-      assert html_response(conn, 200) =~ "Firmware Keys"
+      assert html_response(conn, 200) =~ "Signing Keys"
     end
   end
 
   describe "new org_keys" do
     test "renders form", %{conn: conn, org: org} do
       conn = get(conn, Routes.org_key_path(conn, :new, org.name))
-      assert html_response(conn, 200) =~ "New Firmware Key"
+      assert html_response(conn, 200) =~ "New Signing Key"
     end
   end
 
@@ -41,7 +41,7 @@ defmodule NervesHubWeb.OrgKeyControllerTest do
     test "renders form for editing chosen org_keys", %{conn: conn, org: org} do
       org_key = Fixtures.org_key_fixture(org)
       conn = get(conn, Routes.org_key_path(conn, :edit, org.name, org_key))
-      assert html_response(conn, 200) =~ "Edit Firmware Key"
+      assert html_response(conn, 200) =~ "Edit Signing Key"
     end
   end
 
@@ -68,7 +68,7 @@ defmodule NervesHubWeb.OrgKeyControllerTest do
           org_key: @invalid_attrs
         )
 
-      assert html_response(conn, 200) =~ "Edit Firmware Key"
+      assert html_response(conn, 200) =~ "Edit Signing Key"
     end
   end
 

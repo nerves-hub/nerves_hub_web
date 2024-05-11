@@ -21,7 +21,7 @@ defmodule NervesHubWeb.OrgKeyController do
     case Accounts.create_org_key(org_key_params |> Enum.into(%{"org_id" => org.id})) do
       {:ok, _org_key} ->
         conn
-        |> put_flash(:info, "Firmware key created successfully.")
+        |> put_flash(:info, "Signing key created successfully.")
         |> redirect(to: Routes.org_key_path(conn, :index, org.name))
 
       {:error, %Ecto.Changeset{}} ->
@@ -54,7 +54,7 @@ defmodule NervesHubWeb.OrgKeyController do
          ) do
       {:ok, _org_key} ->
         conn
-        |> put_flash(:info, "Firmware key updated successfully.")
+        |> put_flash(:info, "Signing key updated successfully.")
         |> redirect(to: Routes.org_key_path(conn, :index, org.name))
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -67,7 +67,7 @@ defmodule NervesHubWeb.OrgKeyController do
 
     with {:ok, _org_key} <- Accounts.delete_org_key(org_key) do
       conn
-      |> put_flash(:info, "Firmware key deleted successfully.")
+      |> put_flash(:info, "Signing key deleted successfully.")
       |> redirect(to: Routes.org_key_path(conn, :index, org.name))
     else
       {:error, %Ecto.Changeset{} = changeset} ->

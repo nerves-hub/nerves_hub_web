@@ -1,13 +1,13 @@
 <div class="action-row">
-  <h1>Firmware Keys</h1>
-  <a class="btn btn-outline-light btn-action" aria-label="Add new firmware key" href={Routes.org_key_path(@conn, :new, @org.name)}>
+  <h1>Signing Keys</h1>
+  <a class="btn btn-outline-light btn-action" aria-label="Add new signing key" href={Routes.org_key_path(@conn, :new, @org.name)}>
     <span class="button-icon add"></span>
     <span class="action-text">Add Key</span>
   </a>
 </div>
 
 <div style="max-width: 650px">
-  <p class="p-small mb-3">Firmware keys refer to the raw or base64-encoded public and private keys used to sign and authenticate firmware files.</p>
+  <p class="p-small mb-3">Signing Keys are used to sign uploaded firmware, and verify the firmware on the device before the device is updated.</p>
 
   <%= for org_keys <- @org_keys do %>
     <a class="firmware-key box-item" href={Routes.org_key_path(@conn, :edit, @org.name, org_keys)}>
@@ -23,6 +23,6 @@
 </div>
 
 <%= link to: "https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys", class: "mt-3", target: "_blank", rel: "noopener noreferrer" do %>
-  <span>How to generate a firmware key</span>
+  <span>How to generate a signing key</span>
   <img src="/images/icons/arrow-forward-red.svg" alt="arrow" class="ml-2" />
 <% end %>
