@@ -14,20 +14,12 @@ config :nerves_hub,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   device_endpoint_redirect:
-    System.get_env("DEVICE_ENDPOINT_REDIRECT", "https://docs.nerves-hub.org/")
+    System.get_env("DEVICE_ENDPOINT_REDIRECT", "https://docs.nerves-hub.org/"),
+  email_sender: System.get_env("EMAIL_SENDER", "NervesHub")
 
 if level = System.get_env("LOG_LEVEL") do
   config :logger, level: String.to_atom(level)
 end
-
-dns_cluster_query =
-  if System.get_env("DNS_CLUSTER_QUERY") do
-    System.get_env("DNS_CLUSTER_QUERY") |> String.split(",")
-  else
-    nil
-  end
-
-config :nerves_hub, dns_cluster_query: dns_cluster_query
 
 ##
 # Web and Device endpoints
@@ -75,7 +67,8 @@ if config_env() == :prod do
     keyfile =
       if System.get_env("DEVICE_SSL_KEY") do
         ssl_key = System.fetch_env!("DEVICE_SSL_KEY") |> Base.decode64!()
-        :ok = File.write("/app/tmp/ssl_key.crt", ssl_key)
+        File.mkdir_p!("/app/tmp")
+        File.write!("/app/tmp/ssl_key.crt", ssl_key)
         "/app/tmp/ssl_key.crt"
       else
         ssl_keyfile = System.get_env("DEVICE_SSL_KEYFILE", "/etc/ssl/#{host}-key.pem")
@@ -90,7 +83,8 @@ if config_env() == :prod do
     certfile =
       if encoded_cert = System.get_env("DEVICE_SSL_CERT") do
         ssl_cert = Base.decode64!(encoded_cert)
-        :ok = File.write("/app/tmp/ssl_cert.crt", ssl_cert)
+        File.mkdir_p!("/app/tmp")
+        File.write!("/app/tmp/ssl_cert.crt", ssl_cert)
         "/app/tmp/ssl_cert.crt"
       else
         ssl_certfile = System.get_env("DEVICE_SSL_CERTFILE", "/etc/ssl/#{host}.pem")
@@ -290,9 +284,10 @@ if config_env() == :prod do
     config :nerves_hub, NervesHub.SwooshMailer,
       adapter: Swoosh.Adapters.SMTP,
       relay: System.fetch_env!("SMTP_SERVER"),
-      port: System.fetch_env!("SMTP_PORT"),
+      port: System.fetch_env!("SMTP_PORT") |> String.to_integer(),
       username: System.fetch_env!("SMTP_USERNAME"),
       password: System.fetch_env!("SMTP_PASSWORD"),
+      auth: :always,
       ssl: System.get_env("SMTP_SSL", "false") == "true",
       tls: :always,
       tls_options: [
