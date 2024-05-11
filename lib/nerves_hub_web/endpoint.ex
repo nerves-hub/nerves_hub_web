@@ -49,6 +49,8 @@ defmodule NervesHubWeb.Endpoint do
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])
   plug(NervesHubWeb.Plugs.Logger)
 
+  plug(NervesHubWeb.Plugs.ImAlive)
+
   plug(
     Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
