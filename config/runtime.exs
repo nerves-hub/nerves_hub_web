@@ -112,6 +112,9 @@ if config_env() == :prod do
       https: [
         port: https_port,
         otp_app: :nerves_hub,
+        http_options: [
+          log_protocol_errors: false
+        ],
         thousand_island_options: [
           transport_module: NervesHub.DeviceSSLTransport,
           transport_options: [
