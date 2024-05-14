@@ -176,6 +176,7 @@ defmodule NervesHub.DeviceReporter do
   def handle_event([:nerves_hub, :devices, :disconnect], _, metadata, _) do
     Logger.info("Device disconnected",
       event: "nerves_hub.devices.disconnect",
+      ref_id: metadata[:ref_id],
       identifier: metadata[:identifier]
     )
   end
@@ -183,6 +184,7 @@ defmodule NervesHub.DeviceReporter do
   def handle_event([:nerves_hub, :devices, :update, :automatic], _, metadata, _) do
     Logger.info("Device received update",
       event: "nerves_hub.devices.update.automatic",
+      ref_id: metadata[:ref_id],
       identifier: metadata[:identifier],
       firmware_uuid: metadata[:firmware_uuid]
     )

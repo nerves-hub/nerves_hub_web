@@ -86,6 +86,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     ## After join
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
+      ref_id: socket.assigns.reference_id,
       identifier: device.identifier,
       firmware_uuid: device.firmware_metadata.uuid
     })
@@ -405,6 +406,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   def terminate(_reason, %{assigns: %{device: device}} = socket) do
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
+      ref_id: socket.assigns.reference_id,
       identifier: device.identifier
     })
 
