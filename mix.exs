@@ -83,7 +83,6 @@ defmodule NervesHub.MixProject do
       {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 0.20.1"},
-      {:phoenix_markdown, "~> 1.0"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_swoosh, "~> 1.0"},
       {:phoenix_view, "~> 2.0"},
