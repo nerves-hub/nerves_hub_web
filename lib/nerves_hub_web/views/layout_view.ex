@@ -154,7 +154,7 @@ defmodule NervesHubWeb.LayoutView do
        if NervesHub.Accounts.has_org_role?(org, user, :view) do
          [
            %{
-             title: "Firmware Keys",
+             title: "Signing Keys",
              active: "",
              href: Routes.org_key_path(conn, :index, conn.assigns.org.name)
            },

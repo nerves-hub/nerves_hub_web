@@ -836,13 +836,13 @@ defmodule NervesHub.Devices do
   Move a device to a different product
 
   If the new target product is in a different organization, this will
-  attempt to also copy any firmware keys the device might be expecting
+  attempt to also copy any signing keys the device might be expecting
   to the new organization. However, it is best effort only.
 
   Moving a device will also trigger a deployment check to see if there
   is an update available from the new product/org for the device. It is
   up to the user to ensure the new device is configured with any new/different
-  firmware keys from the new org before moving otherwise the device
+  signing keys from the new org before moving otherwise the device
   might fail to update because of an unknown key.
   """
   @spec move(Device.t() | [Device.t()], Product.t(), User.t()) :: Repo.transaction()

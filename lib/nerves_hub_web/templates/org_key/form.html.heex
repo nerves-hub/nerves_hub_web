@@ -23,7 +23,7 @@
       <%= link("Remove",
         to: Routes.org_key_path(@conn, :delete, @org.name, @org_key),
         method: :delete,
-        data: [confirm: "Are you sure you want to delete this firmware key? This can not be undone."],
+        data: [confirm: "Are you sure you want to delete this signing key? This can not be undone."],
         class: "btn btn-secondary"
       ) %>
       <%= submit("Save Changes", class: "btn btn-primary") %>

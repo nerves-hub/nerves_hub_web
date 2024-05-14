@@ -68,9 +68,9 @@ defmodule NervesHubWeb.DeviceView do
     """
     This will move the selected device(s) to the #{product_name} product
 
-    Any existing firmware keys the devices may use will attempt to be migrated if they do not exist on the target organization.
+    Any existing signing keys the devices may use will attempt to be migrated if they do not exist on the target organization.
 
-    Moving devices may also trigger an update if there are matching deployments on the new product. It is up to the user to ensure any required firmware keys are on the device before migrating them to a new product with a new firmware or the device may fail to update.
+    Moving devices may also trigger an update if there are matching deployments on the new product. It is up to the user to ensure any required signing keys are on the device before migrating them to a new product with a new firmware or the device may fail to update.
 
     Do you wish to continue?
     """
