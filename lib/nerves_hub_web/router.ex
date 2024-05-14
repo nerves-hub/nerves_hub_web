@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Router do
   use NervesHubWeb, :router
 
+  import Phoenix.LiveDashboard.Router
+
   pipeline :browser do
     plug(:accepts, ["html", "json"])
     plug(:fetch_session)
@@ -15,6 +17,10 @@ defmodule NervesHubWeb.Router do
 
   pipeline :logged_in do
     plug(NervesHubWeb.Plugs.EnsureLoggedIn)
+  end
+
+  pipeline :admins_only do
+    plug(NervesHubWeb.Plugs.AdminBasicAuth)
   end
 
   pipeline :org do
@@ -333,6 +339,11 @@ defmodule NervesHubWeb.Router do
         end
       end
     end
+  end
+
+  scope "/" do
+    pipe_through([:browser, :admins_only])
+    live_dashboard("/status/dashboard")
   end
 
   if Mix.env() in [:dev] do

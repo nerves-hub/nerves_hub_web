@@ -36,6 +36,7 @@ defmodule NervesHub.MixProject do
         :inets,
         :jason,
         :logger,
+        :os_mon,
         :runtime_tools,
         :timex
       ]
@@ -60,6 +61,7 @@ defmodule NervesHub.MixProject do
       {:crontab, "~> 1.1"},
       {:decorator, "~> 1.2"},
       {:ecto, "~> 3.8", override: true},
+      {:ecto_psql_extras, "~> 0.7"},
       {:ecto_sql, "~> 3.0"},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
@@ -78,6 +80,7 @@ defmodule NervesHub.MixProject do
       {:phoenix, "~> 1.7.0"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 3.3.1", override: true},
+      {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 0.20.1"},
       {:phoenix_markdown, "~> 1.0"},
