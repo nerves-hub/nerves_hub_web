@@ -8,7 +8,6 @@ config :logger, :default_formatter,
 config :phoenix,
   json_library: Jason,
   template_engines: [
-    md: PhoenixMarkdown.Engine,
     leex: Phoenix.LiveView.Engine
   ]
 

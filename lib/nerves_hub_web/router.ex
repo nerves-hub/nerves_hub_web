@@ -198,12 +198,6 @@ defmodule NervesHubWeb.Router do
     get("/invite/:token", AccountController, :invite)
     post("/invite/:token", AccountController, :accept_invite)
 
-    scope "/policy" do
-      get("/tos", PolicyController, :tos)
-      get("/privacy", PolicyController, :privacy)
-      get("/coc", PolicyController, :coc)
-    end
-
     get("/nerves_key", NervesKeyController, :index)
   end
 
