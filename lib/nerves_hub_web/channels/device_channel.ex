@@ -345,10 +345,10 @@ defmodule NervesHubWeb.DeviceChannel do
   def handle_info(msg, socket) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.
-    Logger.warning("[DeviceChannel] Unhandled message! - #{inspect(msg)}")
+    Logger.warning("[DeviceChannel] Unhandled handle_info message! - #{inspect(msg)}")
 
     _ =
-      Sentry.capture_message("[DeviceChannel] Unhandled message!",
+      Sentry.capture_message("[DeviceChannel] Unhandled handle_info message!",
         extra: %{message: msg},
         result: :none
       )
@@ -401,6 +401,22 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("rebooting", _, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_in(msg, params, socket) do
+    # Ignore unhandled messages so that it doesn't crash the link process
+    # preventing cascading problems.
+    Logger.warning(
+      "[DeviceChannel] Unhandled handle_in message! - #{inspect(msg)} - #{inspect(params)}"
+    )
+
+    _ =
+      Sentry.capture_message("[DeviceChannel] Unhandled message!",
+        extra: %{message: msg},
+        result: :none
+      )
+
     {:noreply, socket}
   end
 

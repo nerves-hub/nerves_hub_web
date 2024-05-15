@@ -265,6 +265,39 @@ defmodule NervesHubWeb.DeviceChannelTest do
     refute is_nil(socket_alpha.assigns.device.deployment_id)
   end
 
+  describe "unhandled messages are caught" do
+    test "handle_info" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, _join_reply, socket} =
+        subscribe_and_join(socket, DeviceChannel, "device")
+
+      send(socket.channel_pid, {"do_you_like_dem_apples", %{"apples" => 5}})
+      Process.sleep(100)
+      assert_online(device)
+    end
+
+    test "handle_in" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, _join_reply, socket} =
+        subscribe_and_join(socket, DeviceChannel, "device")
+
+      ref = push(socket, "do_you_like_dem_apples", %{"apples" => 5})
+      refute_reply(ref, %{})
+    end
+  end
+
   def device_fixture(user, device_params \\ %{}, org \\ nil) do
     org = org || Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
