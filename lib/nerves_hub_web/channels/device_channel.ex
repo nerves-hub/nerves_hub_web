@@ -400,6 +400,20 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_in("check_update_available", _params, socket) do
+    device =
+      socket.assigns.device
+      |> Devices.verify_deployment()
+      |> Deployments.set_deployment()
+      |> Repo.preload(:org)
+      |> Repo.preload(deployment: [:archive, :firmware])
+
+    # Let the orchestrator handle this going forward ?
+    update_payload = Devices.resolve_update(device)
+
+    {:reply, {:ok, update_payload}, socket}
+  end
+
   def handle_in("rebooting", _, socket) do
     {:noreply, socket}
   end
