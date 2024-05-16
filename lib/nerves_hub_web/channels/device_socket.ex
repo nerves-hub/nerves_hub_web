@@ -31,7 +31,7 @@ defmodule NervesHubWeb.DeviceSocket do
         {:ok, socket}
 
       _e ->
-        :error
+        {:error, :invalid_auth}
     end
   end
 
@@ -54,11 +54,13 @@ defmodule NervesHubWeb.DeviceSocket do
     else
       error ->
         Logger.info("device authentication failed : #{inspect(error)}")
-        :error
+        {:error, :invalid_auth}
     end
   end
 
-  def connect(_params, _socket, _connect_info), do: :error
+  def connect(_params, _socket, _connect_info) do
+    {:error, :no_auth}
+  end
 
   def id(%{assigns: %{device: device}}), do: "device_socket:#{device.id}"
   def id(_socket), do: nil

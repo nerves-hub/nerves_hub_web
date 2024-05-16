@@ -2,6 +2,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub
   use Sentry.PlugCapture
 
+  alias NervesHub.Helpers.WebsocketConnectionError
+
   # both `/socket` and `/device-socket` are supported for compatibility
   # with the web endpoint, where `/socket` is used by the `UserSocket`
 
@@ -14,7 +16,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
         batch_size: 500,
         batch_interval: 1_000,
         shutdown: 30_000
-      ]
+      ],
+      error_handler: {WebsocketConnectionError, :handle_error, []}
     ]
   )
 
@@ -27,7 +30,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
         batch_size: 500,
         batch_interval: 1_000,
         shutdown: 30_000
-      ]
+      ],
+      error_handler: {WebsocketConnectionError, :handle_error, []}
     ]
   )
 

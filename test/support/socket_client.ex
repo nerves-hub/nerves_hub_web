@@ -9,6 +9,10 @@ defmodule SocketClient do
     GenServer.call(socket, :connected?)
   end
 
+  def connecting?(socket) do
+    GenServer.call(socket, :connecting?)
+  end
+
   def joined?(socket) do
     GenServer.call(socket, :joined?)
   end
@@ -25,6 +29,14 @@ defmodule SocketClient do
     GenServer.call(socket, {:join, channel, params})
   end
 
+  def status(socket) do
+    GenServer.call(socket, :status)
+  end
+
+  def state(socket) do
+    GenServer.call(socket, :state)
+  end
+
   def wait_connect(_, _ \\ nil)
 
   def wait_connect(socket, nil) do
@@ -34,10 +46,10 @@ defmodule SocketClient do
   end
 
   def wait_connect(socket, timer) do
-    if __MODULE__.connected?(socket) do
-      :timer.cancel(timer)
-    else
+    if __MODULE__.connecting?(socket) do
       wait_connect(socket, timer)
+    else
+      :timer.cancel(timer)
     end
   end
 
@@ -104,22 +116,30 @@ defmodule SocketClient do
     Process.flag(:trap_exit, true)
 
     socket =
-      config
-      |> connect!()
+      new_socket()
       |> assign(:connected?, false)
+      |> assign(:connecting?, true)
       |> assign(:joined?, false)
       |> assign(:reply, nil)
       |> assign(:received_update?, false)
       |> assign(:update, nil)
       |> assign(:received_archive?, false)
       |> assign(:archive, nil)
+      |> assign(:error_code, nil)
+      |> assign(:error_reason, nil)
+      |> connect!(config)
 
     {:ok, socket}
   end
 
   @impl true
   def handle_connect(socket) do
-    {:ok, assign(socket, :connected?, true)}
+    socket =
+      socket
+      |> assign(:connected?, true)
+      |> assign(:connecting?, false)
+
+    {:ok, socket}
   end
 
   @impl true
@@ -154,6 +174,10 @@ defmodule SocketClient do
   @impl true
   def handle_call(:connected?, _from, socket) do
     {:reply, socket.assigns.connected?, socket}
+  end
+
+  def handle_call(:connecting?, _from, socket) do
+    {:reply, socket.assigns.connecting?, socket}
   end
 
   def handle_call(:joined?, _from, socket) do
@@ -191,5 +215,33 @@ defmodule SocketClient do
 
   def handle_call(:status, _from, socket) do
     {:reply, :ok, socket}
+  end
+
+  def handle_call(:state, _from, socket) do
+    {:reply, socket, socket}
+  end
+
+  @impl Slipstream
+  def handle_disconnect(
+        {:error, {:upgrade_failure, %{reason: %{status_code: 401} = reason}}},
+        socket
+      ) do
+    socket =
+      socket
+      |> assign(:connecting?, false)
+      |> assign(:error_code, reason.status_code)
+      |> maybe_add_error_reasons(reason)
+
+    {:ok, socket}
+  end
+
+  defp maybe_add_error_reasons(socket, reason) do
+    error_reason = Enum.find(reason.headers, fn {k, _v} -> k == "nh-connection-error-reason" end)
+
+    if is_tuple(error_reason) do
+      assign(socket, :error_reason, elem(error_reason, 1))
+    else
+      socket
+    end
   end
 end
