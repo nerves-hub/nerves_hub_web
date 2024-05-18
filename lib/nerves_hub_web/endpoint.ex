@@ -2,6 +2,8 @@ defmodule NervesHubWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :nerves_hub
   use Sentry.PlugCapture
 
+  alias NervesHub.Helpers.WebsocketConnectionError
+
   @session_options [
     store: :cookie,
     key: "_nerves_hub_key",
@@ -14,8 +16,18 @@ defmodule NervesHubWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]]
   )
 
-  socket("/device-socket", NervesHubWeb.DeviceSocketSharedSecretAuth,
-    websocket: [connect_info: [:x_headers]]
+  socket(
+    "/device-socket",
+    NervesHubWeb.DeviceSocket,
+    websocket: [
+      connect_info: [:x_headers],
+      drainer: [
+        batch_size: 500,
+        batch_interval: 1_000,
+        shutdown: 30_000
+      ],
+      error_handler: {WebsocketConnectionError, :handle_error, []}
+    ]
   )
 
   # Serve at "/" the static files from "priv/static" directory.

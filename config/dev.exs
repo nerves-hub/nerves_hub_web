@@ -101,7 +101,10 @@ config :nerves_hub, NervesHub.Uploads.File,
 ##
 # Other
 #
-config :nerves_hub, NervesHubWeb.DeviceSocketSharedSecretAuth, enabled: true
+config :nerves_hub, NervesHubWeb.DeviceSocket,
+  shared_secrets: [
+    enabled: true
+  ]
 
 config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Local
 

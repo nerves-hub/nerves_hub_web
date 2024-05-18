@@ -429,6 +429,28 @@ defmodule NervesHubWeb.WebsocketTest do
     end
   end
 
+  test "returns 401 and a nice message if auth is missing" do
+    opts = [
+      mint_opts: [protocols: [:http1]],
+      uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket"
+    ]
+
+    {:ok, socket} = SocketClient.start_link(opts)
+
+    SocketClient.wait_connect(socket)
+
+    refute SocketClient.connected?(socket)
+
+    assigns = SocketClient.state(socket).assigns
+
+    assert assigns.error_code == 401
+
+    assert assigns.error_reason ==
+             "no certificate pair or shared secrets connection settings were provided"
+
+    SocketClient.close(socket)
+  end
+
   defp nh1_key_secret_headers(auth, identifier, opts \\ []) do
     opts =
       opts

@@ -1,7 +1,10 @@
-defmodule NervesHubWeb.DeviceSocketSharedSecretAuth do
+defmodule NervesHubWeb.DeviceSocket do
   use Phoenix.Socket
 
+  require Logger
+
   alias NervesHub.Devices
+  alias NervesHub.Devices.Device
   alias NervesHub.Products
 
   alias Plug.Crypto
@@ -9,13 +12,34 @@ defmodule NervesHubWeb.DeviceSocketSharedSecretAuth do
   channel("console", NervesHubWeb.ConsoleChannel)
   channel("device", NervesHubWeb.DeviceChannel)
 
-  # Default 1 min max age for the signature
-  @default_max_age 60
+  # Default 90 seconds max age for the signature
+  @default_max_hmac_age 90
 
-  def connect(_params, socket, %{x_headers: headers}) do
+  # Used by Devices connecting with SSL certificates
+  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
+    X509.Certificate.from_der!(ssl_cert)
+    |> Devices.get_device_certificate_by_x509()
+    |> case do
+      {:ok, %{device: %Device{} = device}} ->
+        reference_id = Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
+
+        socket =
+          socket
+          |> assign(:device, device)
+          |> assign(:reference_id, reference_id)
+
+        {:ok, socket}
+
+      _e ->
+        {:error, :invalid_auth}
+    end
+  end
+
+  # Used by Devices connecting with HMAC Shared Secrets
+  def connect(_params, socket, %{x_headers: [{"x-nh-signature", _} | _] = headers}) do
     headers = Map.new(headers)
 
-    with true <- enabled?(),
+    with true <- shared_secrets_enabled?(),
          {:ok, key, salt, verification_opts} <- decode_from_headers(headers),
          {:ok, auth} <- get_shared_secret_auth(key),
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
@@ -27,10 +51,16 @@ defmodule NervesHubWeb.DeviceSocketSharedSecretAuth do
         |> assign(:reference_id, generate_reference_id())
 
       {:ok, socket}
+    else
+      error ->
+        Logger.info("device authentication failed : #{inspect(error)}")
+        {:error, :invalid_auth}
     end
   end
 
-  def connect(_params, _socket, _connect_info), do: :error
+  def connect(_params, _socket, _connect_info) do
+    {:error, :no_auth}
+  end
 
   def id(%{assigns: %{device: device}}), do: "device_socket:#{device.id}"
   def id(_socket), do: nil
@@ -55,7 +85,7 @@ defmodule NervesHubWeb.DeviceSocketSharedSecretAuth do
         key_iterations: iterations,
         key_digest: digest,
         signed_at: signed_at,
-        max_age: max_age()
+        max_age: max_hmac_age()
       ]
 
       {:ok, key, expected_salt, opts}
@@ -81,13 +111,21 @@ defmodule NervesHubWeb.DeviceSocketSharedSecretAuth do
     Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
   end
 
-  defp max_age() do
+  defp max_hmac_age() do
     Application.get_env(:nerves_hub, __MODULE__, [])
-    |> Keyword.get(:max_age, @default_max_age)
+    |> Keyword.get(:max_age, @default_max_hmac_age)
   end
 
-  def enabled?() do
-    Application.get_env(:nerves_hub, __MODULE__, [])
-    |> Keyword.get(:enabled, false)
+  def shared_secrets_enabled?() do
+    enabled =
+      Application.get_env(:nerves_hub, __MODULE__, [])
+      |> Keyword.get(:shared_secrets, [])
+      |> Keyword.get(:enabled, false)
+
+    if enabled do
+      true
+    else
+      {:error, :shared_secrets_not_enabled}
+    end
   end
 end

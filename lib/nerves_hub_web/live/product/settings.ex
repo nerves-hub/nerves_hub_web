@@ -2,14 +2,14 @@ defmodule NervesHubWeb.Live.Product.Settings do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Products
-  alias NervesHubWeb.DeviceSocketSharedSecretAuth
+  alias NervesHubWeb.DeviceSocket
 
   def mount(_params, _session, socket) do
     socket =
       socket
       |> assign(:page_title, "#{socket.assigns.product.name} Settings")
       |> assign(:shared_secrets, socket.assigns.product.shared_secret_auths)
-      |> assign(:shared_auth_enabled, DeviceSocketSharedSecretAuth.enabled?())
+      |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
 
     {:ok, socket}
   end
