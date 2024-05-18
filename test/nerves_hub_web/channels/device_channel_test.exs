@@ -104,6 +104,32 @@ defmodule NervesHubWeb.DeviceChannelTest do
     assert_push("update", %{})
   end
 
+  test "devices can request available updates via check_update_available" do
+    user = Fixtures.user_fixture()
+    {device, _firmware, deployment} = device_fixture(user, %{identifier: "123"})
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    assert {:ok, device} = Devices.update_device(device, %{deployment_id: deployment.id})
+    assert device.updates_enabled
+
+    params =
+      for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+        case k do
+          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
+          _ -> {"nerves_fw_#{k}", v}
+        end
+      end
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, %{}, socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+    ref = push(socket, "check_update_available", %{"value" => 10})
+
+    assert_reply(ref, :ok, %NervesHub.Devices.UpdatePayload{update_available: true})
+  end
+
   test "the first fwup_progress marks an update as happening" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
