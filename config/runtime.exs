@@ -243,6 +243,16 @@ if config_env() == :prod do
           secret_access_key: System.fetch_env!("S3_SECRET_ACCESS_KEY")
       end
 
+      if System.get_env("S3_BUCKET_AS_HOST", "false") == "true" do
+        config :nerves_hub, NervesHub.Firmwares.Upload.S3,
+          presigned_url_opts: [
+            virtual_host: true,
+            bucket_as_host: true
+          ]
+      else
+        config :nerves_hub, NervesHub.Firmwares.Upload.S3, presigned_url_opts: []
+      end
+
       config :ex_aws, :s3, bucket: System.fetch_env!("S3_BUCKET_NAME")
 
       if region = System.get_env("S3_REGION") do
