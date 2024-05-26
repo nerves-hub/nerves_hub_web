@@ -12,6 +12,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
     NervesHubWeb.DeviceSocket,
     websocket: [
       connect_info: [:peer_data, :x_headers],
+      compress: true,
+      timeout: 180_000,
       drainer: [
         batch_size: 500,
         batch_interval: 1_000,
@@ -26,6 +28,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
     NervesHubWeb.DeviceSocket,
     websocket: [
       connect_info: [:peer_data, :x_headers],
+      compress: true,
+      timeout: 180_000,
       drainer: [
         batch_size: 500,
         batch_interval: 1_000,
