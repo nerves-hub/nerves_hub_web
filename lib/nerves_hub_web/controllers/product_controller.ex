@@ -11,7 +11,10 @@ defmodule NervesHubWeb.ProductController do
 
   def index(%{assigns: %{user: user, org: org}} = conn, _params) do
     products = Products.get_products_by_user_and_org(user, org)
-    render(conn, "index.html", products: products)
+
+    conn
+    |> put_session("latest_org", org.name)
+    |> render("index.html", products: products)
   end
 
   def new(conn, _params) do
