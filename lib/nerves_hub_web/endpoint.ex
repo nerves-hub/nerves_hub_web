@@ -23,11 +23,6 @@ defmodule NervesHubWeb.Endpoint do
       connect_info: [:x_headers],
       compress: true,
       timeout: 180_000,
-      drainer: [
-        batch_size: 500,
-        batch_interval: 1_000,
-        shutdown: 30_000
-      ],
       error_handler: {WebsocketConnectionError, :handle_error, []}
     ]
   )

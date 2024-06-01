@@ -14,11 +14,6 @@ defmodule NervesHubWeb.DeviceEndpoint do
       connect_info: [:peer_data, :x_headers],
       compress: true,
       timeout: 180_000,
-      drainer: [
-        batch_size: 500,
-        batch_interval: 1_000,
-        shutdown: 30_000
-      ],
       error_handler: {WebsocketConnectionError, :handle_error, []}
     ]
   )
@@ -30,11 +25,6 @@ defmodule NervesHubWeb.DeviceEndpoint do
       connect_info: [:peer_data, :x_headers],
       compress: true,
       timeout: 180_000,
-      drainer: [
-        batch_size: 500,
-        batch_interval: 1_000,
-        shutdown: 30_000
-      ],
       error_handler: {WebsocketConnectionError, :handle_error, []}
     ]
   )
