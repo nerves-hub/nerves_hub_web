@@ -12,7 +12,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
     NervesHubWeb.DeviceSocket,
     websocket: [
       connect_info: [:peer_data, :x_headers],
-      error_handler: {WebsocketConnectionError, :handle_error, []}
+      error_handler: {WebsocketConnectionError, :handle_error, []},
+      fullsweep_after: 0
     ]
   )
 
@@ -21,7 +22,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
     NervesHubWeb.DeviceSocket,
     websocket: [
       connect_info: [:peer_data, :x_headers],
-      error_handler: {WebsocketConnectionError, :handle_error, []}
+      error_handler: {WebsocketConnectionError, :handle_error, []},
+      fullsweep_after: 0
     ]
   )
 
