@@ -25,8 +25,8 @@ defmodule NervesHubWeb.OrgCertificateControllerTest do
     end
   end
 
-  @tag :tmp_dir
   describe "create" do
+    @tag :tmp_dir
     test "CA is created on success", %{conn: conn, org: org, tmp_dir: tmp_dir} do
       conn = get(conn, Routes.org_certificate_path(conn, :new, org.name))
       session = Plug.Conn.get_session(conn)
