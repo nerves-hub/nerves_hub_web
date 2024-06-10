@@ -183,6 +183,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/error"
+  /devices/{identifier}/move:
+    post:
+      summary: Move a device to another product, in the same or different organization
+      parameters:
+        - in: query
+          name: identifier
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                org_name:
+                  type: string
+                  example: "nerveshub"
+                product_name:
+                  type: string
+                  example: "kiosk"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/device"
   /devices/{identifier}/scripts:
     get:
       summary: List all scripts for a device

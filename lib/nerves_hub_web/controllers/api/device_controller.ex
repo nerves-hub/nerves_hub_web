@@ -7,6 +7,7 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
+  alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
 
@@ -258,6 +259,38 @@ defmodule NervesHubWeb.API.DeviceController do
         |> put_status(404)
         |> put_view(NervesHubWeb.API.ErrorView)
         |> render(:"404")
+    end
+  end
+
+  def move(conn, %{
+        "identifier" => identifier,
+        "org_name" => org_name,
+        "product_name" => product_name
+      }) do
+    %{user: user} = conn.assigns
+
+    with {:ok, device} <- Devices.get_by_identifier(identifier),
+         {:ok, org} <- Accounts.get_org_by_name(org_name),
+         {:ok, product} <- Products.get_product_by_org_id_and_name(org.id, product_name) do
+      if Accounts.has_org_role?(device.org, user, :manage) &&
+           Accounts.has_org_role?(org, user, :manage) do
+        case Devices.move(device, product, user) do
+          {:ok, device} ->
+            device = Repo.preload(device, [:org, :product])
+
+            conn
+            |> assign(:device, device)
+            |> render("show.json")
+
+          {:error, changeset} ->
+            # fallback controller will render this
+            {:error, changeset}
+        end
+      else
+        conn
+        |> put_resp_header("content-type", "application/json")
+        |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
+      end
     end
   end
 end

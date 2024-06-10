@@ -80,6 +80,7 @@ defmodule NervesHubWeb.Router do
       post("/:identifier/reconnect", DeviceController, :reconnect)
       post("/:identifier/code", DeviceController, :code)
       post("/:identifier/upgrade", DeviceController, :upgrade)
+      post("/:identifier/move", DeviceController, :move)
       delete("/:identifier/penalty", DeviceController, :penalty)
 
       get("/:identifier/scripts", ScriptController, :index)

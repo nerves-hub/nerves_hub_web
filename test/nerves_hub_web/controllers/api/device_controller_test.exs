@@ -173,4 +173,59 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       refute device.updates_blocked_until
     end
   end
+
+  describe "move device to a new product" do
+    test "success", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      org2 = Fixtures.org_fixture(user, %{name: "org2"})
+      product2 = Fixtures.product_fixture(user, org2, %{name: "product2"})
+
+      {:ok, device} = Devices.update_device(device, %{updates_blocked_until: DateTime.utc_now()})
+
+      conn =
+        post(
+          conn,
+          Routes.api_device_path(conn, :move, device.identifier),
+          %{
+            "org_name" => org2.name,
+            "product_name" => product2.name
+          }
+        )
+
+      assert response(conn, 200)
+
+      device = Repo.reload(device)
+      assert device.org_id == org2.id
+      assert device.product_id == product2.id
+    end
+
+    test "failure: missing permissions in new product", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      user2 = Fixtures.user_fixture()
+      org2 = Fixtures.org_fixture(user2, %{name: "org2"})
+      product2 = Fixtures.product_fixture(user2, org2, %{name: "product2"})
+
+      {:ok, device} = Devices.update_device(device, %{updates_blocked_until: DateTime.utc_now()})
+
+      conn =
+        post(
+          conn,
+          Routes.api_device_path(conn, :move, device.identifier),
+          %{
+            "org_name" => org2.name,
+            "product_name" => product2.name
+          }
+        )
+
+      assert response(conn, 403)
+    end
+  end
 end
