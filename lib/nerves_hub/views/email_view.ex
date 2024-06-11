@@ -36,6 +36,7 @@ defmodule NervesHub.EmailView do
       """
     else
       """
+          <p>If you run into problems, please contact your NervesHub admin.</p>
       """
     end
   end
