@@ -72,9 +72,7 @@ defmodule NervesHub.Accounts.EmailTest do
 
     email |> SwooshMailer.deliver()
 
-    assert_email_sent(
-      subject: "[NervesHub] User Instigator added #{new_user.username} to #{org.name}"
-    )
+    assert_email_sent(subject: "User Instigator added #{new_user.username} to #{org.name}")
   end
 
   test "tell org about removing a user" do
@@ -104,8 +102,6 @@ defmodule NervesHub.Accounts.EmailTest do
 
     email |> SwooshMailer.deliver()
 
-    assert_email_sent(
-      subject: "[NervesHub] User Instigator removed #{user.username} from #{org.name}"
-    )
+    assert_email_sent(subject: "User Instigator removed #{user.username} from #{org.name}")
   end
 end

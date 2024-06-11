@@ -47,7 +47,7 @@ defmodule NervesHubWeb.AccountControllerTest do
       # An email should have been sent
       instigator = conn.assigns.user.username
 
-      assert_email_sent(subject: "[NervesHub] User #{instigator} added MyName to #{org.name}")
+      assert_email_sent(subject: "User #{instigator} added MyName to #{org.name}")
     end
   end
 
