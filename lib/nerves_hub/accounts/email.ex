@@ -2,10 +2,12 @@ defmodule NervesHub.Accounts.SwooshEmail do
   use Phoenix.Swoosh, view: NervesHub.EmailView, layout: {NervesHub.EmailView, :layout}
 
   def invite(invite, org) do
+    platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
+
     new()
     |> from(from_address())
     |> to(invite.email)
-    |> subject("[NervesHub] Hi from NervesHub!")
+    |> subject("Hi from #{platform_name}!")
     |> render_body("invite.html", %{invite: invite, org: org})
   end
 
@@ -13,7 +15,7 @@ defmodule NervesHub.Accounts.SwooshEmail do
     new()
     |> from(from_address())
     |> to(user.email)
-    |> subject("[NervesHub] Reset NervesHub Password")
+    |> subject("Reset your password")
     |> render_body("forgot_password.html", user: user)
   end
 
@@ -21,7 +23,7 @@ defmodule NervesHub.Accounts.SwooshEmail do
     new()
     |> from(from_address())
     |> to(email)
-    |> subject("[NervesHub] Welcome to #{org.name}")
+    |> subject("Welcome to #{org.name}")
     |> render_body("org_user_created.html", org: org)
   end
 
@@ -40,9 +42,9 @@ defmodule NervesHub.Accounts.SwooshEmail do
 
     email_subject =
       if instigator do
-        "[NervesHub] User #{instigator} added #{new_user.username} to #{org.name}"
+        "User #{instigator} added #{new_user.username} to #{org.name}"
       else
-        "[NervesHub] User #{new_user.username} added to #{org.name}"
+        "User #{new_user.username} added to #{org.name}"
       end
 
     new()
@@ -63,7 +65,7 @@ defmodule NervesHub.Accounts.SwooshEmail do
 
     new()
     |> from(from_address())
-    |> subject("[NervesHub] User #{instigator} removed #{user_removed.username} from #{org.name}")
+    |> subject("User #{instigator} removed #{user_removed.username} from #{org.name}")
     |> to(from_address())
     |> bcc(org_users_emails)
     |> render_body("tell_org_user_removed.html", %{

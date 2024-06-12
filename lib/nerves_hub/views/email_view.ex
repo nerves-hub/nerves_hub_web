@@ -23,9 +23,34 @@ defmodule NervesHub.EmailView do
 
   def closing do
     """
-        <p>If you run into problems, please file an <a href="https://github.com/nerves-hub/nerves_hub_web/issues">issue</a> or email support@nerves-hub.org.</p>
-        <p>Thanks,</p>
-        <p>Your friends at NervesHub</p>
+        #{closing_message()}
+
+        #{signoff()}
     """
+  end
+
+  defp closing_message() do
+    if email = Application.get_env(:nerves_hub, :support_email_address) do
+      """
+          <p>If you run into problems, please email <a href="mailto:#{email}">#{email}</a>.</p>
+      """
+    else
+      """
+          <p>If you run into problems, please contact your NervesHub admin.</p>
+      """
+    end
+  end
+
+  defp signoff() do
+    if signoff = Application.get_env(:nerves_hub, :support_email_signoff) do
+      """
+          <p>Thanks,</p>
+
+          <p>#{signoff}</p>
+      """
+    else
+      """
+      """
+    end
   end
 end

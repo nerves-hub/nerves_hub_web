@@ -14,6 +14,9 @@ config :nerves_hub,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   email_sender: System.get_env("EMAIL_SENDER", "NervesHub"),
+  support_email_platform_name: System.get_env("SUPPORT_EMAIL_PLATFORM_NAME", "NervesHub"),
+  support_email_address: System.get_env("SUPPORT_EMAIL_ADDRESS"),
+  support_email_signoff: System.get_env("SUPPORT_EMAIL_SIGNOFF"),
   device_endpoint_redirect:
     System.get_env("DEVICE_ENDPOINT_REDIRECT", "https://docs.nerves-hub.org/"),
   admin_auth: [

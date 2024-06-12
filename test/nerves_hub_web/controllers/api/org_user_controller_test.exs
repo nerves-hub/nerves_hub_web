@@ -44,9 +44,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       # An email should have been sent
       instigator = conn.assigns.user.username
 
-      assert_email_sent(
-        subject: "[NervesHub] User #{instigator} added #{user2.username} to #{org.name}"
-      )
+      assert_email_sent(subject: "User #{instigator} added #{user2.username} to #{org.name}")
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, user2: user2} do
@@ -79,9 +77,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       # An email should have been sent
       instigator = conn.assigns.user.username
 
-      assert_email_sent(
-        subject: "[NervesHub] User #{instigator} removed #{user.username} from #{org.name}"
-      )
+      assert_email_sent(subject: "User #{instigator} removed #{user.username} from #{org.name}")
 
       conn = get(conn, Routes.api_org_user_path(conn, :show, org.name, user.username))
       assert response(conn, 404)

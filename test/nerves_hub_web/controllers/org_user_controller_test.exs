@@ -67,9 +67,7 @@ defmodule NervesHubWeb.OrgUserControllerTest do
       # An email should have been sent
       instigator = conn.assigns.user.username
 
-      assert_email_sent(
-        subject: "[NervesHub] User #{instigator} removed #{user.username} from #{org.name}"
-      )
+      assert_email_sent(subject: "User #{instigator} removed #{user.username} from #{org.name}")
 
       assert {:error, :not_found} = Accounts.get_org_user(org, user)
 
