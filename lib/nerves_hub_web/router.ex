@@ -336,7 +336,6 @@ defmodule NervesHubWeb.Router do
     end
   end
 
-
   if Mix.env() in [:dev] do
     scope "/dev" do
       pipe_through([:browser])
