@@ -36,30 +36,31 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
-  def connect(_params, socket, %{x_headers: [{"x-nh-signature", _} | _] = headers}) do
-    headers = Map.new(headers)
+  def connect(_params, socket, headers) do
+    case Enum.find(headers.x_headers, fn {key, _} ->
+      key == "x-nh-signature"
+    end) do
+      nil -> {:error, :no_auth}
+      {_key, signature} ->
+        headers = Map.new(headers.x_headers)
 
-    with true <- shared_secrets_enabled?(),
-         {:ok, key, salt, verification_opts} <- decode_from_headers(headers),
-         {:ok, auth} <- get_shared_secret_auth(key),
-         {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
-         {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_opts),
-         {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
-      socket =
-        socket
-        |> assign(:device, device)
-        |> assign(:reference_id, generate_reference_id())
+        with true <- shared_secrets_enabled?(),
+            {:ok, key, salt, verification_opts} <- decode_from_headers(headers),
+            {:ok, auth} <- get_shared_secret_auth(key),
+            {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_opts),
+            {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
+          socket =
+            socket
+            |> assign(:device, device)
+            |> assign(:reference_id, generate_reference_id())
 
-      {:ok, socket}
-    else
-      error ->
-        Logger.info("device authentication failed : #{inspect(error)}")
-        {:error, :invalid_auth}
+          {:ok, socket}
+        else
+          error ->
+            Logger.info("device authentication failed : #{inspect(error)}")
+            {:error, :invalid_auth}
+        end
     end
-  end
-
-  def connect(_params, _socket, _connect_info) do
-    {:error, :no_auth}
   end
 
   def id(%{assigns: %{device: device}}), do: "device_socket:#{device.id}"
