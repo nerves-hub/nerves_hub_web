@@ -336,16 +336,18 @@ defmodule NervesHubWeb.Router do
     end
   end
 
-  scope "/" do
-    pipe_through([:browser, :admins_only])
-    live_dashboard("/status/dashboard")
-  end
 
   if Mix.env() in [:dev] do
     scope "/dev" do
       pipe_through([:browser])
 
       forward("/mailbox", Plug.Swoosh.MailboxPreview)
+      live_dashboard("/dashboard")
+    end
+  else
+    scope "/" do
+      pipe_through([:browser, :admins_only])
+      live_dashboard("/status/dashboard")
     end
   end
 end
