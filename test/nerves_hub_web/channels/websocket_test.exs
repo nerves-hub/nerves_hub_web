@@ -372,7 +372,6 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.close(socket)
     end
 
-
     test "rejects expired signature", %{user: user} do
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
