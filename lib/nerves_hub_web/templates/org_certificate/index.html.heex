@@ -16,6 +16,7 @@
       <th>Not after</th>
       <th>Check expiration?</th>
       <th>JITP Enabled?</th>
+      <th>Status</th>
     </tr>
   </thead>
   <tbody>
@@ -54,6 +55,12 @@
         </td>
         <td>
           <span class="text-muted"><%= if is_nil(cert.jitp), do: "no", else: "yes" %></span>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Status</div>
+          <div class={"certificate-status-#{(certificate_status_class(cert))}"}>
+            <%= certificate_status(cert) %>
+          </div>
         </td>
         <td class="actions">
           <div class="mobile-label help-text">Actions</div>
