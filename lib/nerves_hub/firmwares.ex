@@ -393,6 +393,7 @@ defmodule NervesHub.Firmwares do
           firmware_delta
         else
           {:error, error} ->
+            delta_updater().cleanup_firmware_delta_files(firmware_delta_path)
             Repo.rollback(error)
         end
       end,
