@@ -338,6 +338,40 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.close(socket)
     end
 
+    test "can register device with product key/secret, don't rely on header order", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      assert {:ok, auth} = Products.create_shared_secret_auth(product)
+
+      identifier = Ecto.UUID.generate()
+      refute Repo.get_by(Device, identifier: identifier)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: nh1_key_secret_headers(auth, identifier) |> Enum.reverse()
+      ]
+
+      params = %{
+        "nerves_fw_uuid" => Ecto.UUID.generate(),
+        "nerves_fw_product" => product.name,
+        "nerves_fw_architecture" => "arm64",
+        "nerves_fw_version" => "0.0.0",
+        "nerves_fw_platform" => "test_host"
+      }
+
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+      SocketClient.join(socket, "device", params)
+      SocketClient.wait_join(socket)
+
+      assert device = Repo.get_by(Device, identifier: identifier) |> Repo.preload(:org)
+
+      assert_online(device)
+
+      SocketClient.close(socket)
+    end
+
     test "rejects expired signature", %{user: user} do
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)

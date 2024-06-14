@@ -36,8 +36,9 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
-  def connect(_params, socket, %{x_headers: [{"x-nh-signature", _} | _] = headers}) do
-    headers = Map.new(headers)
+  def connect(_params, socket, %{x_headers: x_headers})
+      when is_list(x_headers) and length(x_headers) > 0 do
+    headers = Map.new(x_headers)
 
     with true <- shared_secrets_enabled?(),
          {:ok, key, salt, verification_opts} <- decode_from_headers(headers),
