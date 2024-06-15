@@ -72,7 +72,7 @@ config :nerves_hub, Oban,
     {Oban.Plugins.Cron,
      crontab: [
        {"*/1 * * * *", NervesHub.Workers.CleanDeviceConnectionStates},
-       {"0 * * * *", NervesHub.Workers.TruncateAuditLogs, max_attempts: 1},
+       {"0 * * * *", NervesHub.Workers.ScheduleOrgAuditLogTruncation, max_attempts: 1},
        {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates}
      ]}
   ]
