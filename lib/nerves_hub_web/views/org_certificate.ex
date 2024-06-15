@@ -23,4 +23,21 @@ defmodule NervesHubWeb.OrgCertificateView do
     from being created from an expired signing CA certificate.
     """
   end
+
+  def certificate_status(cert) do
+    cond do
+      cert.not_after > DateTime.utc_now() ->
+        "Expired"
+
+      cert.not_after > DateTime.shift(DateTime.utc_now(), month: -3) ->
+        "Expiring Soon"
+
+      true ->
+        "Current"
+    end
+  end
+
+  def certificate_status_class(cert) do
+    certificate_status(cert) |> String.downcase() |> String.replace(" ", "-")
+  end
 end

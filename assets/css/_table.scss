@@ -117,4 +117,12 @@ html {
       background-image: url("/images/icons/cross.svg");
     }
   }
+
+  .certificate-status-expired {
+    color: var(--danger);;
+  }
+
+  .certificate-status-expiring-soon {
+    color: var(--warning);
+  }
 }
