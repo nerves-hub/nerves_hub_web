@@ -295,6 +295,13 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @spec get_orgs() :: [Org.t()]
+  def get_orgs() do
+    Org
+    |> Repo.exclude_deleted()
+    |> Repo.all()
+  end
+
   @spec get_org(integer()) ::
           {:ok, Org.t()}
           | {:error, :org_not_found}
