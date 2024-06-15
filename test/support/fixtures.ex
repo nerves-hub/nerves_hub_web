@@ -3,6 +3,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Archives
+  alias NervesHub.AuditLogs
   alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Devices.InflightUpdate
@@ -386,6 +387,22 @@ defmodule NervesHub.Fixtures do
     |> Map.merge(params)
     |> InflightUpdate.create_changeset()
     |> Repo.insert()
+  end
+
+  def add_audit_logs(device_id, org_id, days_to_add) do
+    now = NaiveDateTime.utc_now()
+
+    Enum.map(0..(days_to_add - 1), fn days ->
+      inserted_at = NaiveDateTime.shift(now, day: -days)
+
+      AuditLogs.audit!(
+        %Devices.Device{id: device_id},
+        %Devices.Device{id: device_id, org_id: org_id},
+        "Updating"
+      )
+      |> Ecto.Changeset.change(%{inserted_at: inserted_at})
+      |> Repo.update!()
+    end)
   end
 
   def standard_fixture(dir \\ System.tmp_dir()) do
