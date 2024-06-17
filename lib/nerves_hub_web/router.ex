@@ -198,14 +198,10 @@ defmodule NervesHubWeb.Router do
 
     get("/invite/:token", AccountController, :invite)
     post("/invite/:token", AccountController, :accept_invite)
-
-    get("/nerves_key", NervesKeyController, :index)
   end
 
   scope "/", NervesHubWeb do
     pipe_through([:browser, :logged_in])
-
-    get("/online-devices", HomeController, :online_devices)
 
     scope "/account/:user_name" do
       get("/", AccountController, :edit)
