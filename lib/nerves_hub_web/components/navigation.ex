@@ -123,9 +123,9 @@ defmodule NervesHubWeb.Components.Navigation do
         <nav>
           <ul class="nav">
             <li :for={link <- @links} class="nav-item ">
-              <a class={"nav-link #{link.active}"} href={link.href}>
+              <.link class={"nav-link #{link.active}"} navigate={link.href}>
                 <span class="text"><%= link.title %></span>
-              </a>
+              </.link>
             </li>
           </ul>
           <div :if={device_count = device_count(@product)} class="device-limit-indicator" title="Device total" aria-label="Device total">
