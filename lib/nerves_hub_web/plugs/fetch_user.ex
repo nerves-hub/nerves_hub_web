@@ -28,6 +28,7 @@ defmodule NervesHubWeb.Plugs.FetchUser do
             |> assign(:user, user)
             |> assign(:orgs, user.orgs)
             |> assign(:user_token, Phoenix.Token.sign(conn, "user salt", user.id))
+            |> assign(:latest_org, get_session(conn, "latest_org"))
 
           _ ->
             conn
