@@ -4,7 +4,7 @@ defmodule NervesHubWeb.HomeController do
   def index(conn, _params) do
     case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do
       true ->
-        render(conn, "index.html")
+        redirect(conn, to: ~p"/orgs")
 
       false ->
         redirect(conn, to: Routes.session_path(conn, :new))

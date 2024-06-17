@@ -217,8 +217,28 @@ defmodule NervesHubWeb.Router do
       delete("/tokens/:id", TokenController, :delete)
     end
 
-    get("/org/new", OrgController, :new)
-    post("/org", OrgController, :create)
+    live_session :orgs,
+      on_mount: [
+        NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.CurrentPath
+      ] do
+      live("/orgs", Live.Orgs.Index)
+      live("/orgs/new", Live.Orgs.New)
+    end
+
+    live_session :org,
+      on_mount: [
+        NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.CurrentPath,
+        NervesHubWeb.Mounts.FetchOrg,
+        NervesHubWeb.Mounts.FetchOrgUser
+      ] do
+      live("/orgs/:org_name", Live.Org.Products)
+      live("/orgs/:org_name/settings/keys", Live.Org.SigningKeys)
+      live("/orgs/:org_name/settings/users", Live.Org.Users)
+      live("/orgs/:org_name/settings/certificates", Live.Org.CertificateAuthorities)
+      live("/orgs/:org_name/settings", Live.Org.Settings)
+    end
 
     scope "/org/:org_name" do
       pipe_through(:org)

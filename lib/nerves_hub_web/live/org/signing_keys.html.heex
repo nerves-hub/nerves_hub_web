@@ -1,0 +1,31 @@
+<div class="action-row">
+  <h1>Signing Keys</h1>
+  <a class="btn btn-outline-light btn-action" aria-label="Add new signing key" href={}>
+    <span class="button-icon add"></span>
+    <span class="action-text">Add Key</span>
+  </a>
+</div>
+
+<div style="max-width: 650px">
+  <p class="p-small mb-3">Signing Keys are used to sign uploaded firmware, and verify the firmware on the device before the device is updated.</p>
+
+  <%= for signing_key <- @signing_keys do %>
+    <div class="firmware-key box-item">
+      <img src="/images/icons/key.svg" alt="key" />
+      <div>
+        <h3>
+          <%= signing_key.name %>
+        </h3>
+        <div class="key-value"><%= signing_key.key %></div>
+      </div>
+      <button class="btn btn-secondary" phx-click="delete" phx-value-signing_key_id={signing_key.id} disabled={!authorized?(:delete_signing_key, @org_user)} data-confirm="Are you sure?">
+        Delete
+      </button>
+    </div>
+  <% end %>
+</div>
+
+<%= link to: "https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys", class: "mt-3", target: "_blank", rel: "noopener noreferrer" do %>
+  <span>How to generate a signing key</span>
+  <img src="/images/icons/arrow-forward-red.svg" alt="arrow" class="ml-2" />
+<% end %>

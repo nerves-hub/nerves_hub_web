@@ -44,7 +44,10 @@ defmodule NervesHub.Accounts.OrgKey do
   def delete_changeset(%OrgKey{id: _} = org_key, params) do
     org_key
     |> cast(params, @required_params ++ @optional_params)
-    |> foreign_key_constraint(:firmwares, name: :firmwares_tenant_key_id_fkey)
+    |> foreign_key_constraint(:firmwares,
+      name: :firmwares_tenant_key_id_fkey,
+      message: "Firmware exists which uses the Signing Key"
+    )
   end
 
   def with_org(%OrgKey{} = o) do

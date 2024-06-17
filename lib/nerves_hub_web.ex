@@ -39,6 +39,9 @@ defmodule NervesHubWeb do
 
       alias NervesHubWeb.Router.Helpers, as: Routes
 
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
+
       def whitelist(params, keys) do
         keys
         |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
@@ -127,6 +130,12 @@ defmodule NervesHubWeb do
       unquote(verified_routes())
 
       unquote(view_helpers())
+
+      def whitelist(params, keys) do
+        keys
+        |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
+        |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
+      end
     end
   end
 
@@ -167,6 +176,9 @@ defmodule NervesHubWeb do
 
       # Include shared imports and aliases for views
       unquote(view_helpers())
+
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
     end
   end
 
