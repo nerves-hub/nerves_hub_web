@@ -234,7 +234,8 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrgUser
       ] do
       live("/orgs/:org_name", Live.Org.Products)
-      live("/orgs/:org_name/settings/keys", Live.Org.SigningKeys)
+      live("/orgs/:org_name/settings/keys", Live.Org.SigningKeys, :index)
+      live("/orgs/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
       live("/orgs/:org_name/settings/users", Live.Org.Users)
       live("/orgs/:org_name/settings/certificates", Live.Org.CertificateAuthorities)
       live("/orgs/:org_name/settings", Live.Org.Settings)

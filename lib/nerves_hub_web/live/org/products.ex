@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Live.Org.Products do
 
     socket =
       socket
-      |> assign(:page_title, "#{socket.assigns.org.name} / Products")
+      |> assign(:page_title, "#{socket.assigns.org.name} - Products")
       |> assign(:products, products)
 
     {:ok, socket}

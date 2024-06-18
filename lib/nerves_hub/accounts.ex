@@ -370,9 +370,10 @@ defmodule NervesHub.Accounts do
   end
 
   def list_org_keys(%Org{id: org_id}) do
-    query = from(tk in OrgKey, where: tk.org_id == ^org_id)
-
-    query
+    OrgKey
+    |> where(org_id: ^org_id)
+    |> preload(:created_by)
+    |> order_by(:id)
     |> Repo.all()
   end
 
