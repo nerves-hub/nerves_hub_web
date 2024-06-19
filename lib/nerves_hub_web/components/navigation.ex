@@ -34,9 +34,9 @@ defmodule NervesHubWeb.Components.Navigation do
               <div class="dropdown-menu workspace-dropdown" aria-labelledby="navbarDropdownMenuLink">
                 <div class="help-text">Select an organization</div>
                 <div class="dropdown-divider"></div>
-                <%= for org <- @orgs do %>
+                <%= for org <- @user.orgs do %>
                   <div class="dropdown-submenu">
-                    <.link href={~p"/org/#{org.name}"} class={"dropdown-item org #{org_classes(@current_path, org.name)}"}>
+                    <.link href={~p"/orgs/#{org.name}"} class={"dropdown-item org #{org_classes(@current_path, org.name)}"}>
                       <%= org.name %>
                       <div class="active-checkmark"></div>
                     </.link>
@@ -136,7 +136,6 @@ defmodule NervesHubWeb.Components.Navigation do
       """
     else
       ~H"""
-
       """
     end
   end
@@ -165,7 +164,7 @@ defmodule NervesHubWeb.Components.Navigation do
          href: ~p"/orgs/#{assigns.org.name}"
        }
      ] ++
-       if NervesHub.Accounts.has_org_role?(assigns.org, assigns.user, :view) do
+       if assigns.org_user.role in NervesHub.Accounts.User.role_or_higher(:manage) do
          [
            %{
              title: "Signing Keys",
@@ -228,7 +227,7 @@ defmodule NervesHubWeb.Components.Navigation do
 
   defp sidebar_active(links, path) do
     full_path = "/" <> Enum.join(path, "/")
-    path_minus_actions = String.replace(full_path, ~r/\/(new|edit|invite|\d\/edit)$/, "")
+    path_minus_actions = String.replace(full_path, ~r/\/(new|edit|invite|\d+\/edit)$/, "")
 
     Enum.map(links, fn link ->
       if link.href == path_minus_actions do

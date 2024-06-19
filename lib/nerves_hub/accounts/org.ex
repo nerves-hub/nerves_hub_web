@@ -30,7 +30,7 @@ defmodule NervesHub.Accounts.Org do
     timestamps()
   end
 
-  defp changeset(%Org{} = org, params) do
+  def changeset(%Org{} = org, params) do
     org
     |> cast(params, @params)
     |> validate_required(@params)

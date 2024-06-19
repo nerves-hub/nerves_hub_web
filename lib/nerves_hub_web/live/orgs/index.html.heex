@@ -1,6 +1,6 @@
 <h1 class="mt-2">My Organizations</h1>
 <div class="x3-grid">
-  <%= for org <- @orgs do %>
+  <%= for org <- @user.orgs do %>
     <%= link to: ~p"/orgs/#{org.name}", class: "grid-item" do %>
       <h3><%= org.name %></h3>
       <div class="flex-row">

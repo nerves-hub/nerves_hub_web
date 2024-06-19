@@ -13,7 +13,7 @@
         <%= Phoenix.Flash.get(@flash, :error) %>
       </div>
     <% end %>
-    <Navigation.tabnav current_path={@current_path} user={assigns[:user]} org={assigns[:org]} product={assigns[:product]} />
+    <Navigation.tabnav current_path={@current_path} user={assigns[:user]} org={assigns[:org]} org_user={assigns[:org_user]} product={assigns[:product]} />
     <%= @inner_content %>
   </main>
 </div>

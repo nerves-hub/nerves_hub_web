@@ -131,6 +131,11 @@ defmodule NervesHubWeb do
 
       unquote(view_helpers())
 
+      def ok(socket), do: {:ok, socket}
+      def noreply(socket), do: {:noreply, socket}
+
+      def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
+
       def whitelist(params, keys) do
         keys
         |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)

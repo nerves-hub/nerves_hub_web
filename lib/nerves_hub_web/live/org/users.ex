@@ -6,7 +6,7 @@ defmodule NervesHubWeb.Live.Org.Users do
   alias NervesHub.Accounts.SwooshEmail
   alias NervesHub.SwooshMailer
 
-  embed_templates "user_templates/*"
+  embed_templates("user_templates/*")
 
   @impl true
   def mount(_params, _session, socket) do
@@ -22,13 +22,13 @@ defmodule NervesHubWeb.Live.Org.Users do
     socket
     |> org_users()
     |> org_invites()
-    |> assign(:page_title, "#{socket.assigns.org.name} - Users")
+    |> page_title("Users - #{socket.assigns.org.name}")
     |> render_with(&users_template/1)
   end
 
   defp apply_action(socket, :invite, _params) do
     socket
-    |> assign(:page_title, "#{socket.assigns.org.name} - Invite User")
+    |> page_title("Invite User - #{socket.assigns.org.name}")
     |> assign(:form, to_form(Invite.changeset(%Invite{}, %{})))
     |> render_with(&invite_template/1)
   end
@@ -38,7 +38,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     {:ok, org_user} = Accounts.get_org_user(socket.assigns.org, user)
 
     socket
-    |> assign(:page_title, "#{socket.assigns.org.name} - Edit User")
+    |> page_title("Edit User - #{socket.assigns.org.name}")
     |> assign(:membership, org_user)
     |> assign(:form, to_form(Org.change_user_role(org_user, %{})))
     |> render_with(&edit_user_template/1)
@@ -69,7 +69,6 @@ defmodule NervesHubWeb.Live.Org.Users do
 
       {:error, changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
-
     end
   end
 
@@ -95,11 +94,11 @@ defmodule NervesHubWeb.Live.Org.Users do
 
     with {:ok, _org_user} <- Accounts.change_org_user_role(socket.assigns.membership, role) do
       {:noreply,
-        socket
-        |> put_flash(:info, "Role updated")
-        |> push_patch(to: "/orgs/#{socket.assigns.org.name}/settings/users")}
+       socket
+       |> put_flash(:info, "Role updated")
+       |> push_patch(to: "/orgs/#{socket.assigns.org.name}/settings/users")}
     else
-      {:error, changeset} ->
+      {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Error updating role")}
     end
   end

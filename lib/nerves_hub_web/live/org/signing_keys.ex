@@ -15,13 +15,13 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
 
   defp apply_action(socket, :index, _params) do
     socket
-    |> assign(:page_title, "#{socket.assigns.org.name} - Signing Keys")
+    |> page_title("Signing Keys - #{socket.assigns.org.name}")
     |> assign(:signing_keys, list_signing_keys(socket.assigns.org))
   end
 
   defp apply_action(socket, :new, _params) do
     socket
-    |> assign(:page_title, "#{socket.assigns.org.name} - New Signing Key")
+    |> page_title("New Signing Key - #{socket.assigns.org.name}")
     |> assign(:form, to_form(Accounts.OrgKey.changeset(%Accounts.OrgKey{}, %{})))
   end
 
