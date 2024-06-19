@@ -12,10 +12,10 @@ defmodule NervesHubWeb.Router do
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
     plug(NervesHubWeb.Plugs.SetLocale)
-    plug(NervesHubWeb.Plugs.FetchUser)
   end
 
   pipeline :logged_in do
+    plug(NervesHubWeb.Plugs.FetchUser)
     plug(NervesHubWeb.Plugs.EnsureLoggedIn)
   end
 
@@ -201,21 +201,7 @@ defmodule NervesHubWeb.Router do
   end
 
   scope "/", NervesHubWeb do
-    pipe_through([:browser, :logged_in])
-
-    scope "/account/:user_name" do
-      get("/", AccountController, :edit)
-      put("/", AccountController, :update)
-      get("/delete_account", AccountController, :confirm_delete)
-      delete("/delete_account", AccountController, :delete)
-
-      get("/organizations", OrgController, :index)
-
-      get("/tokens", TokenController, :index)
-      get("/tokens/new", TokenController, :new)
-      post("/tokens", TokenController, :create)
-      delete("/tokens/:id", TokenController, :delete)
-    end
+    pipe_through([:browser])
 
     live_session :orgs,
       on_mount: [
@@ -239,8 +225,36 @@ defmodule NervesHubWeb.Router do
       live("/orgs/:org_name/settings/users", Live.Org.Users, :index)
       live("/orgs/:org_name/settings/users/invite", Live.Org.Users, :invite)
       live("/orgs/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
-      live("/orgs/:org_name/settings/certificates", Live.Org.CertificateAuthorities)
+      live("/orgs/:org_name/settings/certificates", Live.Org.CertificateAuthorities, :index)
+      live("/orgs/:org_name/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
+
+      live(
+        "/orgs/:org_name/settings/certificates/:serial/edit",
+        Live.Org.CertificateAuthorities,
+        :edit
+      )
+
       live("/orgs/:org_name/settings", Live.Org.Settings)
+    end
+  end
+
+  scope "/", NervesHubWeb do
+    pipe_through([:browser, :logged_in])
+
+    get("/online-devices", HomeController, :online_devices)
+
+    scope "/account/:user_name" do
+      get("/", AccountController, :edit)
+      put("/", AccountController, :update)
+      get("/delete_account", AccountController, :confirm_delete)
+      delete("/delete_account", AccountController, :delete)
+
+      get("/organizations", OrgController, :index)
+
+      get("/tokens", TokenController, :index)
+      get("/tokens/new", TokenController, :new)
+      post("/tokens", TokenController, :create)
+      delete("/tokens/:id", TokenController, :delete)
     end
 
     scope "/org/:org_name" do
