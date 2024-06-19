@@ -8,8 +8,6 @@ defmodule NervesHubWeb.DeviceView do
   import NervesHubWeb.LayoutView,
     only: [pagination_links: 1]
 
-  import NervesHubWeb.OrgCertificateView, only: [format_serial: 1]
-
   def architecture_options do
     [
       "aarch64",
@@ -111,5 +109,13 @@ defmodule NervesHubWeb.DeviceView do
     else
       device.connecting_code
     end
+  end
+
+  defp format_serial(big_long_integer) when is_integer(big_long_integer) do
+    big_long_integer
+    |> Integer.to_string(16)
+    |> to_charlist()
+    |> Enum.chunk_every(2)
+    |> Enum.join(":")
   end
 end
