@@ -129,7 +129,7 @@ defmodule NervesHub.Devices do
         {"updates", "disabled"} ->
           where(query, [d], d.updates_enabled == false)
 
-        {"id", value} ->
+        {"device_id", value} ->
           where(query, [d], ilike(d.identifier, ^"#{value}%"))
 
         {"tag", value} ->
