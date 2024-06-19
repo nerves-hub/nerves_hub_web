@@ -27,6 +27,8 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
 
   @impl true
   def handle_event("save", %{"org_key" => key_params}, socket) do
+    authorized!(:save_signing_key, socket.assigns.org_user)
+
     params =
       key_params
       |> Enum.into(%{"org_id" => socket.assigns.org.id})

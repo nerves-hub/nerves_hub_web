@@ -228,7 +228,7 @@ defmodule NervesHubWeb.Components.Navigation do
 
   defp sidebar_active(links, path) do
     full_path = "/" <> Enum.join(path, "/")
-    path_minus_actions = String.replace(full_path, ~r/\/new|edit$/, "")
+    path_minus_actions = String.replace(full_path, ~r/\/(new|edit|invite|\d\/edit)$/, "")
 
     Enum.map(links, fn link ->
       if link.href == path_minus_actions do

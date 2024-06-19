@@ -6,14 +6,14 @@ defmodule NervesHub.Helpers.Authorization do
     authorized?(org_user, permission) || raise "unauthorized"
   end
 
-  def authorized?(:delete_signing_key, %OrgUser{role: user_role}),
-    do: role_check(:manage, user_role)
+  def authorized?(:save_signing_key, %OrgUser{role: ur}), do: role_check(:manage, ur)
+  def authorized?(:delete_signing_key, %OrgUser{role: ur}), do: role_check(:manage, ur)
 
-  def authorized?(:delete_org_user, %OrgUser{role: user_role}),
-    do: role_check(:admin, user_role)
+  def authorized?(:update_org_user, %OrgUser{role: ur}), do: role_check(:admin, ur)
+  def authorized?(:delete_org_user, %OrgUser{role: ur}), do: role_check(:admin, ur)
 
-  def authorized?(:rescind_invite, %OrgUser{role: user_role}),
-    do: role_check(:admin, user_role)
+  def authorized?(:invite_user, %OrgUser{role: ur}), do: role_check(:admin, ur)
+  def authorized?(:rescind_invite, %OrgUser{role: ur}), do: role_check(:admin, ur)
 
   def authorized?(:update_product, %OrgUser{role: user_role}), do: role_check(:manage, user_role)
   def authorized?(:delete_product, %OrgUser{role: user_role}), do: role_check(:admin, user_role)

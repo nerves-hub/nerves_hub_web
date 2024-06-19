@@ -236,7 +236,9 @@ defmodule NervesHubWeb.Router do
       live("/orgs/:org_name", Live.Org.Products)
       live("/orgs/:org_name/settings/keys", Live.Org.SigningKeys, :index)
       live("/orgs/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
-      live("/orgs/:org_name/settings/users", Live.Org.Users)
+      live("/orgs/:org_name/settings/users", Live.Org.Users, :index)
+      live("/orgs/:org_name/settings/users/invite", Live.Org.Users, :invite)
+      live("/orgs/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
       live("/orgs/:org_name/settings/certificates", Live.Org.CertificateAuthorities)
       live("/orgs/:org_name/settings", Live.Org.Settings)
     end

@@ -1,0 +1,21 @@
+<h1>
+  <%= @membership.user.username %>
+</h1>
+
+<.form :let={f} for={@form} phx-submit="update_org_user">
+  <div class="form-group">
+    <label for="role_input" class="tooltip-label h3 mb-1">
+      <span>Role</span>
+    </label>
+    <div class="pos-rel">
+      <%= select(f, :role, role_options(), class: "form-control", id: "role_input") %>
+      <div class="select-icon"></div>
+    </div>
+    <div class="has-error"><%= error_tag(f, :role) %></div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <.link class="btn btn-outline-light" navigate={~p"/orgs/#{@org.name}/settings/users"}>Cancel</.link>
+    <%= submit("Update", class: "btn btn-primary") %>
+  </div>
+</.form>
