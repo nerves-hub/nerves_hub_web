@@ -25,7 +25,7 @@
       <span class="tooltip-text">Defines the type of access this user has in this org</span>
     </label>
     <div class="pos-rel">
-      <%= select(f, :role, NervesHubWeb.OrgUserView.role_options(), selected: :view, class: "form-control") %>
+      <%= select(f, :role, role_options(), selected: :view, class: "form-control") %>
       <div class="select-icon"></div>
     </div>
   </div>
