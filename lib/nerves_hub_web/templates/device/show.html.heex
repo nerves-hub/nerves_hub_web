@@ -6,7 +6,7 @@
   </div>
 <% end %>
 
-<%= if info = live_flash(@flash, :info) do %>
+<%= if info = Phoenix.Flash.get(@flash, :info) do %>
   <div class="alert alert-info alert-dismissible">
     <button type="button" class="close" phx-click="clear-flash-info">&times;</button>
     <%= info %>
@@ -146,7 +146,7 @@
   <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
 </div>
 
-<%= if err = live_flash(@flash, :error) do %>
+<%= if err = Phoenix.Flash.get(@flash, :error) do %>
   <div class="alert alert-danger alert-dismissible">
     <button type="button" class="close" phx-click="clear-flash-error">&times;</button>
     <%= for line <- String.split(err, "\n") do %>
@@ -155,7 +155,7 @@
   </div>
 <% end %>
 
-<%= if info = live_flash(@flash, :info) do %>
+<%= if info = Phoenix.Flash.get(@flash, :info) do %>
   <div class="alert alert-info alert-dismissible">
     <button type="button" class="close" phx-click="clear-flash-info">&times;</button>
     <%= info %>
