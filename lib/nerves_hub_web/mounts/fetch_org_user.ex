@@ -4,8 +4,12 @@ defmodule NervesHubWeb.Mounts.FetchOrgUser do
   alias NervesHub.Accounts
 
   def on_mount(_, _, _, socket) do
-    {:ok, org_user} = Accounts.get_org_user(socket.assigns.org, socket.assigns.user)
+    socket =
+      assign_new(socket, :org_user, fn ->
+        {:ok, org_user} = Accounts.get_org_user(socket.assigns.org, socket.assigns.user)
+        org_user
+      end)
 
-    {:cont, assign(socket, :org_user, org_user)}
+    {:cont, socket}
   end
 end
