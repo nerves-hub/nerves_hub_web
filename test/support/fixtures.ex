@@ -78,15 +78,19 @@ defmodule NervesHub.Fixtures do
     org
   end
 
-  def org_key_fixture(%Accounts.Org{} = org) do
-    params = %{org_id: org.id}
-
+  def org_key_fixture(%Accounts.Org{} = org, %Accounts.User{} = user) do
     fwup_key_name = "org_key-#{counter()}"
     Fwup.gen_key_pair(fwup_key_name)
     key = Fwup.get_public_key(fwup_key_name)
 
-    {:ok, org_key} =
-      Accounts.create_org_key(params |> Map.put(:key, key) |> Map.put(:name, fwup_key_name))
+    params = %{
+      org_id: org.id,
+      key: key,
+      name: fwup_key_name,
+      created_by_id: user.id
+    }
+
+    {:ok, org_key} = Accounts.create_org_key(params)
 
     org_key
   end
@@ -372,7 +376,7 @@ defmodule NervesHub.Fixtures do
     user = user_fixture(%{name: user_name})
     org = org_fixture(user, %{name: user_name})
     product = product_fixture(user, org, %{name: "Hop"})
-    org_key = org_key_fixture(org)
+    org_key = org_key_fixture(org, user)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(org, firmware)
     device = device_fixture(org, product, firmware)
@@ -395,7 +399,7 @@ defmodule NervesHub.Fixtures do
     org = org_fixture(user, %{name: "Very"})
     product = product_fixture(user, org, %{name: "Hop"})
 
-    org_key = org_key_fixture(org)
+    org_key = org_key_fixture(org, user)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(org, firmware)
     device = device_fixture(org, product, firmware, %{tags: ["beta", "beta-edge"]})
@@ -417,7 +421,7 @@ defmodule NervesHub.Fixtures do
     user = user_fixture(%{name: "Frank"})
     org = org_fixture(user, %{name: "SmartRent"})
     product = product_fixture(user, org, %{name: "Smart Rent Thing"})
-    org_key = org_key_fixture(org)
+    org_key = org_key_fixture(org, user)
     firmware = firmware_fixture(org_key, product)
     deployment = deployment_fixture(org, firmware)
     device = device_fixture(org, product, firmware, %{identifier: "smartrent_1234"})

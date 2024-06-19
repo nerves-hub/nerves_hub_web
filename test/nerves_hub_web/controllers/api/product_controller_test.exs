@@ -80,11 +80,12 @@ defmodule NervesHubWeb.API.ProductControllerTest do
 
     test "product delete with associated firmwares", %{
       conn: conn,
+      user: user,
       org: org,
       product: product
     } do
       # Create firmware for product
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
       Fixtures.device_fixture(org, product, firmware)
 

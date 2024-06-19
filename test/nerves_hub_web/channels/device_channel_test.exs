@@ -174,7 +174,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
 
     firmware =
       Fixtures.firmware_fixture(org_key, product, %{
@@ -247,7 +247,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
 
     firmware =
       Fixtures.firmware_fixture(org_key, product, %{
@@ -327,7 +327,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   def device_fixture(user, device_params \\ %{}, org \\ nil) do
     org = org || Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
 
     firmware =
       Fixtures.firmware_fixture(org_key, product, %{

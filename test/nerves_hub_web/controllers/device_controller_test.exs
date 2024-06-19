@@ -43,8 +43,8 @@ defmodule NervesHubWeb.DeviceControllerTest do
   end
 
   describe "delete device" do
-    test "deletes chosen device", %{conn: conn, org: org, product: product} do
-      org_key = Fixtures.org_key_fixture(org)
+    test "deletes chosen device", %{conn: conn, user: user, org: org, product: product} do
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       Fixtures.device_fixture(org, product, firmware)
@@ -68,8 +68,8 @@ defmodule NervesHubWeb.DeviceControllerTest do
   end
 
   describe "console" do
-    test "shows information about device", %{conn: conn, org: org, product: product} do
-      org_key = Fixtures.org_key_fixture(org)
+    test "shows information about device", %{conn: conn, user: user, org: org, product: product} do
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
       device = Fixtures.device_fixture(org, product, firmware)
 

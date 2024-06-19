@@ -154,7 +154,7 @@ defmodule NervesHubWeb.FirmwareControllerTest do
       org: org
     } do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       conn =
@@ -170,7 +170,7 @@ defmodule NervesHubWeb.FirmwareControllerTest do
       org: org
     } do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       # Create a deployment from the firmware
@@ -197,7 +197,7 @@ defmodule NervesHubWeb.FirmwareControllerTest do
       org: org
     } do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       conn =

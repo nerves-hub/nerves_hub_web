@@ -61,11 +61,12 @@ defmodule NervesHubWeb.ProductControllerTest do
 
     test "error when product has associated firmwares and devices", %{
       conn: conn,
+      user: user,
       org: org,
       product: product
     } do
       # Create a firmware for the product
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
       Fixtures.device_fixture(org, product, firmware)
       redirect_path = Routes.product_path(conn, :index, org.name)

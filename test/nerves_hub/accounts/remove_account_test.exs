@@ -6,7 +6,7 @@ defmodule NervesHub.Accounts.RemoveAccountTest do
   test "remove_account for basic account" do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
     product = Fixtures.product_fixture(user, org)
     firmware = Fixtures.firmware_fixture(org_key, product)
     Fixtures.deployment_fixture(org, firmware)
@@ -36,7 +36,7 @@ defmodule NervesHub.Accounts.RemoveAccountTest do
     params = %{username: "Test-User2", password: "Test-Password"}
     {:ok, org_user} = Accounts.create_user_from_invite(invite, org2, params)
 
-    org2_key = Fixtures.org_key_fixture(org2)
+    org2_key = Fixtures.org_key_fixture(org2, org_user.user)
     org2_product = Fixtures.product_fixture(org_user.user, org2)
     org2_firmware = Fixtures.firmware_fixture(org2_key, org2_product)
     Fixtures.deployment_fixture(org, org2_firmware)
@@ -45,7 +45,7 @@ defmodule NervesHub.Accounts.RemoveAccountTest do
     Fixtures.firmware_delta_fixture(firmware1, firmware2)
 
     org3 = Fixtures.org_fixture(org_user.user, %{name: "org3"})
-    org3_key = Fixtures.org_key_fixture(org3)
+    org3_key = Fixtures.org_key_fixture(org3, org_user.user)
     org3_product = Fixtures.product_fixture(org_user.user, org3)
     org3_firmware = Fixtures.firmware_fixture(org3_key, org3_product)
     Fixtures.deployment_fixture(org, org3_firmware)

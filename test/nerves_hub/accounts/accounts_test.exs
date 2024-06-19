@@ -187,7 +187,7 @@ defmodule NervesHub.AccountsTest do
   test "org_key key must be unique", %{user: user} do
     {:ok, org} = Accounts.create_org(user, @required_org_params)
 
-    {:ok, _} = Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foo"})
+    {:ok, _} = Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foo", created_by_id: user.id})
 
     {:error, %Ecto.Changeset{}} =
       Accounts.create_org_key(%{name: "org's second key", org_id: org.id, key: "foo"})
@@ -196,7 +196,7 @@ defmodule NervesHub.AccountsTest do
   test "cannot change org_id of a org_key once created", %{user: user} do
     org = Fixtures.org_fixture(user)
     first_id = org.id
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
 
     other_org = Fixtures.org_fixture(user, %{name: "another_org"})
 
@@ -272,7 +272,7 @@ defmodule NervesHub.AccountsTest do
   def setup_org_metric(%{user: user}) do
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     device = Fixtures.device_fixture(org, product, firmware)
     _ = create_firmware_transfer(org, firmware)

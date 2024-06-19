@@ -19,7 +19,7 @@ defmodule NervesHub.FirmwaresTest do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(org, firmware)
     device = Fixtures.device_fixture(org, product, firmware)
@@ -159,13 +159,14 @@ defmodule NervesHub.FirmwaresTest do
     end
 
     test "returns {:ok, key} when signature passes", %{
+      user: user,
       org: org,
       org_key: org_key
     } do
       {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
 
       assert Firmwares.verify_signature(signed_path, [org_key]) == {:ok, org_key}
-      other_org_key = Fixtures.org_key_fixture(org)
+      other_org_key = Fixtures.org_key_fixture(org, user)
 
       assert Firmwares.verify_signature(signed_path, [
                org_key,
@@ -179,11 +180,12 @@ defmodule NervesHub.FirmwaresTest do
     end
 
     test "returns {:error, :invalid_signature} when signature fails", %{
+      user: user,
       org: org,
       org_key: org_key
     } do
       {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
-      other_org_key = Fixtures.org_key_fixture(org)
+      other_org_key = Fixtures.org_key_fixture(org, user)
 
       assert Firmwares.verify_signature(signed_path, [other_org_key]) ==
                {:error, :invalid_signature}

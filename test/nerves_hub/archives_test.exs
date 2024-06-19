@@ -9,7 +9,7 @@ defmodule NervesHub.ArchivesTest do
     test "success: on a product" do
       user = Fixtures.user_fixture(%{name: "user"})
       org = Fixtures.org_fixture(user, %{name: "user"})
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       product = Fixtures.product_fixture(user, org, %{name: "Hop"})
 
       {:ok, file_path} =
