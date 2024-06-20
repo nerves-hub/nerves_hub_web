@@ -19,12 +19,15 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Tracker
   alias Phoenix.Socket.Broadcast
 
+  @default_health_check_interval 3600
+
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
          {:ok, device} <- Devices.device_connected(device) do
       socket = assign(socket, :device, device)
 
       send(self(), {:after_join, params})
+      schedule_health_check()
 
       {:ok, socket}
     else
@@ -393,6 +396,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_info(:health_check, socket) do
+    push(socket, "check_health", %{})
+    {:noreply, socket}
+  end
+
+
   def handle_info(msg, socket) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.
@@ -474,6 +483,17 @@ defmodule NervesHubWeb.DeviceChannel do
       output = Enum.join([params["output"], params["return"]], "\n")
       output = String.trim(output)
       send(pid, {:output, output})
+    end
+
+    {:noreply, socket}
+  end
+
+  def handle_in("health_check_report", %{value: device_status}, socket) do
+    case Devices.save_device_health(device_status) do
+      {:ok, _} ->
+        :ok
+      {:error, err} ->
+        Logger.warning("Failed to save health check data: #{inspect(err)}")
     end
 
     {:noreply, socket}
@@ -610,5 +630,10 @@ defmodule NervesHubWeb.DeviceChannel do
   defp device_deployment_change_jitter_ms() do
     jitter = Application.get_env(:nerves_hub, :device_deployment_change_jitter_seconds)
     :rand.uniform(jitter) * 1000
+  end
+
+  defp schedule_health_check() do
+    interval = Application.get_env(:nerves_hub, :health_check, %{})[:interval] || @default_health_check_interval
+    Process.send_after(self(), :health_check, interval)
   end
 end
