@@ -242,7 +242,8 @@ defmodule NervesHub.AccountsTest do
     {:ok, %Invite{} = invite} =
       Accounts.add_or_invite_to_org(
         %{"email" => "accepted_invite@test.org", "role" => "view"},
-        org
+        org,
+        user
       )
 
     assert {:ok, %OrgUser{}} =
@@ -258,7 +259,8 @@ defmodule NervesHub.AccountsTest do
     {:ok, %Invite{} = invite} =
       Accounts.add_or_invite_to_org(
         %{"email" => "failed_accepted_invite@test.org", "role" => "view"},
-        org
+        org,
+        user
       )
 
     {:error, changeset} = Accounts.create_user_from_invite(invite, org, %{invalid: "params"})
@@ -271,10 +273,14 @@ defmodule NervesHub.AccountsTest do
     new_user = Fixtures.user_fixture()
 
     assert {:ok, %OrgUser{}} =
-             Accounts.add_or_invite_to_org(%{"email" => new_user.email, "role" => "view"}, org)
+             Accounts.add_or_invite_to_org(
+               %{"email" => new_user.email, "role" => "view"},
+               org,
+               user
+             )
 
     {:error, changeset} =
-      Accounts.add_or_invite_to_org(%{"email" => new_user.email, "role" => "view"}, org)
+      Accounts.add_or_invite_to_org(%{"email" => new_user.email, "role" => "view"}, org, user)
 
     assert "is already member" in errors_on(changeset).org_users
   end

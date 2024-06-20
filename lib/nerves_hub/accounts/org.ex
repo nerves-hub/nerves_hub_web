@@ -17,7 +17,7 @@ defmodule NervesHub.Accounts.Org do
 
   schema "orgs" do
     has_many(:org_keys, OrgKey)
-    has_many(:products, Product)
+    has_many(:products, Product, where: [deleted_at: nil])
     has_many(:devices, Device, where: [deleted_at: nil])
     has_many(:ca_certificates, CACertificate)
 

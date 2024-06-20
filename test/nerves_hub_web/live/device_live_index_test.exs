@@ -50,6 +50,6 @@ defmodule NervesHubWeb.DeviceLiveIndexTest do
   end
 
   def device_index_path(%{org: org, product: product}) do
-    Routes.device_path(Endpoint, :index, org.name, product.name)
+    ~p"/org/#{org.name}/#{product.name}/devices"
   end
 end

@@ -49,9 +49,9 @@ defmodule NervesHubWeb.Live.Org.Users do
   def handle_event("send_invite", %{"invite" => invite_params}, socket) do
     authorized!(:invite_user, socket.assigns.org_user)
 
-    case Accounts.add_or_invite_to_org(invite_params, socket.assigns.org) do
+    case Accounts.add_or_invite_to_org(invite_params, socket.assigns.org, socket.assigns.user) do
       {:ok, %Invite{} = invite} ->
-        SwooshEmail.invite(invite, socket.assigns.org)
+        SwooshEmail.invite(invite, socket.assigns.org, socket.assigns.user)
         |> SwooshMailer.deliver()
 
         {:noreply,
@@ -60,7 +60,11 @@ defmodule NervesHubWeb.Live.Org.Users do
          |> push_patch(to: "/orgs/#{socket.assigns.org.name}/settings/users")}
 
       {:ok, %OrgUser{}} ->
-        SwooshEmail.org_user_created(invite_params["email"], socket.assigns.org)
+        SwooshEmail.org_user_created(
+          invite_params["email"],
+          socket.assigns.org,
+          socket.assigns.user
+        )
         |> SwooshMailer.deliver()
 
         {:noreply,

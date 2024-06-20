@@ -15,8 +15,6 @@ defmodule NervesHub.Accounts do
     RemoveAccount
   }
 
-  alias NervesHub.Products.Product
-
   alias NervesHub.Repo
 
   @spec create_org(User.t(), map) ::
@@ -224,15 +222,10 @@ defmodule NervesHub.Accounts do
   end
 
   def get_user_with_all_orgs_and_products(user_id) do
-    org_query = from(o in Org, where: is_nil(o.deleted_at))
-    product_query = from(p in Product, where: is_nil(p.deleted_at))
-
-    orgs_preload = {org_query, products: product_query}
-
     User
-    |> where([u], u.id == ^user_id)
+    |> where(id: ^user_id)
     |> Repo.exclude_deleted()
-    |> preload(orgs: ^orgs_preload)
+    |> preload(orgs: [:products])
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -437,22 +430,27 @@ defmodule NervesHub.Accounts do
     OrgKey.update_changeset(org_key, params)
   end
 
-  @spec add_or_invite_to_org(%{required(String.t()) => String.t()}, Org.t()) ::
+  @spec add_or_invite_to_org(%{required(String.t()) => String.t()}, Org.t(), User.t()) ::
           {:ok, Invite.t()}
           | {:ok, OrgUser.t()}
           | {:error, Changeset.t()}
-  def add_or_invite_to_org(%{"email" => email} = params, org) do
+  def add_or_invite_to_org(%{"email" => email} = params, org, invited_by) do
     case get_user_by_email(email) do
-      {:error, :not_found} -> invite(params, org)
+      {:error, :not_found} -> invite(params, org, invited_by)
       {:ok, user} -> add_org_user(org, user, %{role: params["role"]})
     end
   end
 
-  @spec invite(%{email: String.t()}, Org.t()) ::
+  @spec invite(%{email: String.t()}, Org.t(), User.t()) ::
           {:ok, Invite.t()}
           | {:error, Changeset.t()}
-  def invite(params, org) do
-    params = Map.merge(params, %{"org_id" => org.id, "token" => Ecto.UUID.generate()})
+  def invite(params, org, invited_by) do
+    params =
+      Map.merge(params, %{
+        "org_id" => org.id,
+        "token" => Ecto.UUID.generate(),
+        "invited_by_id" => invited_by.id
+      })
 
     %Invite{}
     |> Invite.changeset(params)
@@ -468,15 +466,11 @@ defmodule NervesHub.Accounts do
           {:ok, Invite.t()}
           | {:error, :invite_not_found}
   def get_valid_invite(token) do
-    query =
-      from(
-        i in Invite,
-        where: i.token == ^token,
-        where: i.accepted == false,
-        where: i.inserted_at >= fragment("NOW() - INTERVAL '48 hours'")
-      )
-
-    query
+    Invite
+    |> where(token: ^token)
+    |> where(accepted: false)
+    |> where([i], i.inserted_at >= fragment("NOW() - INTERVAL '48 hours'"))
+    |> preload(:invited_by)
     |> Repo.one()
     |> case do
       nil -> {:error, :invite_not_found}

@@ -1,3 +1,5 @@
-<p>Hello,</p>
-<p>The user <%= @user.username %> is no longer with our <%= @org.name %> organization.
+<p>Hi</p>
+
+<p>The user <strong><%= @user.username %></strong> has been removed from the <strong><%= @org.name %></strong> organization by <%= @instigator.username %>.</p>
+
 <%= raw(closing()) %>

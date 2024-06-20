@@ -21,7 +21,7 @@ defmodule NervesHubWeb.API.OrgUserController do
          {:ok, org_user} <- Accounts.add_org_user(org, user, %{role: role}) do
       # Now let everyone in the organization - except the new guy -
       # know about this new user.
-      instigator = conn.assigns.user.username
+      instigator = conn.assigns.user
 
       SwooshEmail.tell_org_user_added(org, Accounts.get_org_users(org), instigator, user)
       |> SwooshMailer.deliver()
@@ -49,7 +49,7 @@ defmodule NervesHubWeb.API.OrgUserController do
          :ok <- Accounts.remove_org_user(org, user) do
       # Now let everyone in the organization know
       # that this user has been removed from the organization.
-      instigator = conn.assigns.user.username
+      instigator = conn.assigns.user
 
       SwooshEmail.tell_org_user_removed(org, Accounts.get_org_users(org), instigator, user)
       |> SwooshMailer.deliver()
