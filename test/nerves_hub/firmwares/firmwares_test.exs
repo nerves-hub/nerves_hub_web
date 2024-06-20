@@ -297,6 +297,8 @@ defmodule NervesHub.FirmwaresTest do
 
       Mox.expect(UploadMock, :upload_file, fn _p, _m -> {:error, :failed} end)
 
+      Mox.expect(DeltaUpdaterMock, :cleanup_firmware_delta_files, fn _p -> :ok end)
+
       Firmwares.create_firmware_delta(source, target)
 
       assert {:error, :not_found} =
