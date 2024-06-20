@@ -14,6 +14,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
@@ -1019,6 +1020,26 @@ defmodule NervesHub.Devices do
       "device:#{id}",
       %Phoenix.Socket.Broadcast{event: event, payload: payload}
     )
+  end
+
+  def save_device_health(device_status) do
+    device_status
+    |> flatten_health()
+    |> DeviceHealth.save()
+    |> Repo.insert()
+  end
+
+  defp flatten_health(part, prefix \\ "") do
+    part
+    |> Enum.reduce(%{}, fn {key, value}, flat ->
+      if is_map(value) do
+        more_flat = flatten_health(value, "#{key}_")
+        Map.merge(flat, more_flat)
+      else
+        # Assumed value, device_status is limited to maps, should be no lists in there
+        Map.put(flat, prefix <> key, value)
+      end
+    end)
   end
 
   defp version_match?(_vsn, ""), do: true
