@@ -4,6 +4,7 @@ defmodule NervesHubWeb.DeviceView do
   alias NervesHub.Devices
   alias NervesHub.Repo
   alias NervesHubWeb.LayoutView.DateTimeFormat
+  alias NervesHubWeb.Components.Utils
 
   import NervesHubWeb.LayoutView,
     only: [pagination_links: 1]
@@ -109,13 +110,5 @@ defmodule NervesHubWeb.DeviceView do
     else
       device.connecting_code
     end
-  end
-
-  defp format_serial(big_long_integer) when is_integer(big_long_integer) do
-    big_long_integer
-    |> Integer.to_string(16)
-    |> to_charlist()
-    |> Enum.chunk_every(2)
-    |> Enum.join(":")
   end
 end

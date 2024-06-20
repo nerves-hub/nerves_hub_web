@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   alias NervesHub.Devices.CACertificate.CSR
   alias NervesHub.Products
   alias NervesHubWeb.LayoutView.DateTimeFormat
+  alias NervesHubWeb.Components.Utils
 
   embed_templates("certificate_authority_templates/*")
 
@@ -190,19 +191,6 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
       [csr] -> {:ok, csr}
       [] -> {:error, :empty_csr}
     end
-  end
-
-  defp format_serial(big_long_integer) when is_integer(big_long_integer) do
-    big_long_integer
-    |> Integer.to_string(16)
-    |> to_charlist()
-    |> Enum.chunk_every(2)
-    |> Enum.join(":")
-  end
-
-  defp format_serial(serial_str) when is_binary(serial_str) do
-    String.to_integer(serial_str)
-    |> format_serial()
   end
 
   defp check_expiration_help_text() do

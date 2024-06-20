@@ -8,7 +8,7 @@
       <span>Role</span>
     </label>
     <div class="pos-rel">
-      <%= select(f, :role, role_options(), class: "form-control", id: "role_input") %>
+      <%= select(f, :role, Utils.role_options(), class: "form-control", id: "role_input") %>
       <div class="select-icon"></div>
     </div>
     <div class="has-error"><%= error_tag(f, :role) %></div>

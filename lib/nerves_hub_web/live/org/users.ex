@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Org.Users do
   alias NervesHub.Accounts.{Invite, Org, OrgUser}
   alias NervesHub.Accounts.SwooshEmail
   alias NervesHub.SwooshMailer
+  alias NervesHubWeb.Components.Utils
 
   embed_templates("user_templates/*")
 
@@ -134,11 +135,5 @@ defmodule NervesHubWeb.Live.Org.Users do
 
   defp org_invites(socket) do
     assign(socket, :invites, Accounts.get_invites_for_org(socket.assigns.org))
-  end
-
-  defp role_options() do
-    for {key, value} <- Ecto.Enum.mappings(OrgUser, :role),
-        key in [:admin, :manage, :view],
-        do: {String.capitalize(value), key}
   end
 end

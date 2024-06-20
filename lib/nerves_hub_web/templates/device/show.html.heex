@@ -214,7 +214,7 @@
       <tr class="item" style={if mismatch?, do: "border: 2px dashed var(--warning)"}>
         <td>
           <div class="mobile-label help-text">Serial</div>
-          <code class="color-white wb-ba ff-m"><%= format_serial(cert.serial) %></code>
+          <code class="color-white wb-ba ff-m"><%= Utils.format_serial(cert.serial) %></code>
         </td>
         <td title={cert.last_used}>
           <div class="mobile-label help-text">Last used</div>
@@ -251,7 +251,7 @@
                   to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)
                 ) %>
               <% end %>
-              <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial={cert.serial} data-confirm={"Delete #{format_serial(cert.serial)}?"}>Delete</a>
+              <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial={cert.serial} data-confirm={"Delete #{Utils.format_serial(cert.serial)}?"}>Delete</a>
             </div>
           </div>
         </td>
