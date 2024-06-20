@@ -12,7 +12,7 @@ defmodule NervesHubWeb.AccountControllerTest do
       {:ok, invite} =
         Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, conn.assigns.org)
 
-      conn = get(conn, Routes.account_path(conn, :invite, invite.token))
+      conn = get(build_conn(), ~p"/invite/#{invite.token}")
 
       assert html_response(conn, 200) =~
                "You will be added to the #{conn.assigns.org.name} organization"

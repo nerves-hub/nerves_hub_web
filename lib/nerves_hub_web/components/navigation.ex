@@ -148,6 +148,9 @@ defmodule NervesHubWeb.Components.Navigation do
   def sidebar_links(["orgs", _org_name] = path, assigns),
     do: sidebar_org(assigns, path)
 
+  def sidebar_links(["orgs", _org_name, "new"] = path, assigns),
+    do: sidebar_org(assigns, path)
+
   def sidebar_links(["orgs", _org_name, "settings" | _tail] = path, assigns),
     do: sidebar_org(assigns, path)
 

@@ -19,6 +19,10 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.Plugs.EnsureLoggedIn)
   end
 
+  pipeline :live_logged_in do
+    plug(NervesHubWeb.Plugs.EnsureAuthenticated)
+  end
+
   pipeline :admins_only do
     plug(NervesHubWeb.Plugs.AdminBasicAuth)
   end
@@ -201,7 +205,7 @@ defmodule NervesHubWeb.Router do
   end
 
   scope "/", NervesHubWeb do
-    pipe_through([:browser])
+    pipe_through([:browser, :live_logged_in])
 
     live_session :orgs,
       on_mount: [
@@ -219,7 +223,8 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser
       ] do
-      live("/orgs/:org_name", Live.Org.Products)
+      live("/orgs/:org_name", Live.Org.Products, :index)
+      live("/orgs/:org_name/new", Live.Org.Products, :new)
       live("/orgs/:org_name/settings/keys", Live.Org.SigningKeys, :index)
       live("/orgs/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
       live("/orgs/:org_name/settings/users", Live.Org.Users, :index)
@@ -257,10 +262,6 @@ defmodule NervesHubWeb.Router do
 
     scope "/org/:org_name" do
       pipe_through(:org)
-
-      get("/", ProductController, :index)
-      get("/new", ProductController, :new)
-      post("/", ProductController, :create)
 
       scope "/:product_name" do
         pipe_through(:product)

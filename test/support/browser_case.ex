@@ -10,6 +10,7 @@ defmodule NervesHubWeb.ConnCase.Browser do
     quote do
       use DefaultMocks
       use ConnCase, unquote(opts)
+      use NervesHubWeb, :verified_routes
       import Test
       import Phoenix.LiveViewTest
 

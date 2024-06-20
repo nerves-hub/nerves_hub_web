@@ -242,7 +242,7 @@
             </a>
             <div class="dropdown-menu dropdown-menu-right">
               <%= if mismatch? do %>
-                <%= link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: Routes.product_path(@socket, :index, Repo.preload(cert, :org).org.name)) %>
+                <%= link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: ~p"/orgs/#{Repo.preload(cert, :org).org.name}") %>
               <% end %>
               <%= if cert.der do %>
                 <%= link("Download",

@@ -21,6 +21,7 @@ defmodule NervesHub.Helpers.Authorization do
   def authorized?(:update_certificate_authority, %OrgUser{role: ur}), do: role_check(:admin, ur)
   def authorized?(:delete_certificate_authority, %OrgUser{role: ur}), do: role_check(:admin, ur)
 
+  def authorized?(:create_product, %OrgUser{role: user_role}), do: role_check(:manage, user_role)
   def authorized?(:update_product, %OrgUser{role: user_role}), do: role_check(:manage, user_role)
   def authorized?(:delete_product, %OrgUser{role: user_role}), do: role_check(:admin, user_role)
 
