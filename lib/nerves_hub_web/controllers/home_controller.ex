@@ -14,8 +14,4 @@ defmodule NervesHubWeb.HomeController do
   def error(_conn, _params) do
     raise "Error"
   end
-
-  def online_devices(conn, _params) do
-    render(conn, "online_devices.html", devices: [])
-  end
 end
