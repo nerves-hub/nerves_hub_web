@@ -42,9 +42,9 @@ defmodule NervesHubWeb.SessionControllerTest do
         build_conn()
         |> get(~p"/orgs/new")
         |> post(
-             ~p"/login",
-             login: %{email_or_username: user.email, password: user.password}
-           )
+          ~p"/login",
+          login: %{email_or_username: user.email, password: user.password}
+        )
 
       assert redirected_to(conn) == ~p"/orgs/new"
     end

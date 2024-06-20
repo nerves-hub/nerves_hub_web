@@ -17,7 +17,12 @@ defmodule NervesHubWeb.ArchiveControllerTest do
   end
 
   describe "create archive" do
-    test "redirects to show when data is valid", %{conn: conn, user: user, org: org, product: product} do
+    test "redirects to show when data is valid", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product
+    } do
       org_key = Fixtures.org_key_fixture(org, user)
 
       {:ok, file_path} =

@@ -178,16 +178,33 @@ defmodule NervesHub.AccountsTest do
   test "org_key name must be unique", %{user: user} do
     {:ok, org} = Accounts.create_org(user, @required_org_params)
 
-    {:ok, _} = Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foo", created_by_id: user.id})
+    {:ok, _} =
+      Accounts.create_org_key(%{
+        name: "org's key",
+        org_id: org.id,
+        key: "foo",
+        created_by_id: user.id
+      })
 
     assert {:error, %Ecto.Changeset{errors: [name: {"has already been taken", [_ | _]}]}} =
-             Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foobar", created_by_id: user.id})
+             Accounts.create_org_key(%{
+               name: "org's key",
+               org_id: org.id,
+               key: "foobar",
+               created_by_id: user.id
+             })
   end
 
   test "org_key key must be unique", %{user: user} do
     {:ok, org} = Accounts.create_org(user, @required_org_params)
 
-    {:ok, _} = Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foo", created_by_id: user.id})
+    {:ok, _} =
+      Accounts.create_org_key(%{
+        name: "org's key",
+        org_id: org.id,
+        key: "foo",
+        created_by_id: user.id
+      })
 
     {:error, %Ecto.Changeset{}} =
       Accounts.create_org_key(%{name: "org's second key", org_id: org.id, key: "foo"})
