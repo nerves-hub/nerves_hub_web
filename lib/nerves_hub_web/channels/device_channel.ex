@@ -401,7 +401,6 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-
   def handle_info(msg, socket) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.
@@ -488,10 +487,23 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_in("health_check_report", %{value: device_status}, socket) do
-    case Devices.save_device_health(device_status) do
+  def handle_in("health_check_report", %{"value" => device_status}, socket) do
+    device_meta =
+      for {key, val} <- Map.from_struct(socket.assigns.device.firmware_metadata),
+          into: %{},
+          do: {to_string(key), to_string(val)}
+
+    full_report =
+      device_status
+      |> Map.put("metadata", Map.merge(device_status["metadata"], device_meta))
+
+    device_health = %{"device_id" => socket.assigns.device.id, "data" => full_report}
+    dbg(device_health)
+
+    case Devices.save_device_health(device_health) do
       {:ok, _} ->
         :ok
+
       {:error, err} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
     end
@@ -633,7 +645,10 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp schedule_health_check() do
-    interval = Application.get_env(:nerves_hub, :health_check, %{})[:interval] || @default_health_check_interval
+    interval =
+      Application.get_env(:nerves_hub, :health_check, %{})[:interval] ||
+        @default_health_check_interval
+
     Process.send_after(self(), :health_check, interval)
   end
 end

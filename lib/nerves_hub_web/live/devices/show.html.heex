@@ -111,6 +111,15 @@
   </div>
 
   <div class="col-lg-6">
+    <h3 class="mb-2">Device Health</h3>
+    <%= if @health do %>
+      <pre>
+      <%= inspect(@health.data, pretty: true) %>
+      </pre>
+    <% end %>
+  </div>
+
+  <div class="col-lg-6">
     <h3 class="mb-2">First Connect Code</h3>
     <%= if code = connecting_code(@device) do %>
       <pre class="hljs"><code class="hljs elixir"><%= code %></code></pre>

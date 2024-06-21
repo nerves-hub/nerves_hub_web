@@ -1026,22 +1026,44 @@ defmodule NervesHub.Devices do
     )
   end
 
-  def save_device_health(device_status) do
+  def save_device_health(%{"data" => data} = device_status) do
     device_status
-    |> flatten_health()
+    |> Map.put("data", flatten_health(data))
     |> DeviceHealth.save()
     |> Repo.insert()
+  end
+
+  def get_latest_health(device_id) do
+    results =
+      from(DeviceHealth,
+        order_by: {:desc, :inserted_at},
+        limit: 1,
+        where: [device_id: ^device_id]
+      )
+      |> Repo.all()
+
+    case results do
+      [] -> nil
+      [latest] -> latest
+    end
   end
 
   defp flatten_health(part, prefix \\ "") do
     part
     |> Enum.reduce(%{}, fn {key, value}, flat ->
       if is_map(value) do
+        value =
+          if is_struct(value) do
+            Map.from_struct(value)
+          else
+            value
+          end
+
         more_flat = flatten_health(value, "#{key}_")
         Map.merge(flat, more_flat)
       else
         # Assumed value, device_status is limited to maps, should be no lists in there
-        Map.put(flat, prefix <> key, value)
+        Map.put(flat, "#{prefix}#{key}", value)
       end
     end)
   end
