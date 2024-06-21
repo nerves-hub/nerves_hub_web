@@ -38,6 +38,7 @@ defmodule NervesHubWeb.DeviceLive.Show do
       |> assign_new(:device, fn ->
         Devices.get_device_by_product(device_id, product_id, org_id)
       end)
+      |> assign_new(:health, fn -> Devices.get_latest_health(device_id) end)
 
     device = socket.assigns.device
 

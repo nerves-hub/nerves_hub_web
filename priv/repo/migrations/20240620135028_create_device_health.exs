@@ -8,6 +8,6 @@ defmodule NervesHub.Repo.Migrations.CreateDeviceHealth do
       timestamps(type: :utc_datetime_usec, updated_at: false)
     end
 
-    create index(:device_id_over_time, [:device_id, :created_at])
+    create index(:device_health, [:device_id, :inserted_at])
   end
 end
