@@ -441,6 +441,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     case Devices.save_device_health(device_health) do
       {:ok, _} ->
+        Devices.clean_device_health(socket.assigns.device.id)
         :ok
 
       {:error, err} ->

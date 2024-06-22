@@ -3,6 +3,7 @@ defmodule NervesHubWeb.DeviceView do
 
   alias NervesHub.Devices
   alias NervesHub.Repo
+  import NervesHubWeb.Components.DeviceHealth
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
   import NervesHubWeb.LayoutView,

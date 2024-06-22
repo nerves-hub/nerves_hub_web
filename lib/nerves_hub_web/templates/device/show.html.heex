@@ -119,11 +119,27 @@
 
   <div class="col-lg-6">
     <h3 class="mb-2">Device Health</h3>
-    <%= if @health do %>
-      <pre>
-      <%= inspect(@health.data, pretty: true) %>
-      </pre>
-    <% end %>
+
+    <div :if={@health.data["alarms"] && @health.data["alarms"] != %{}}>
+      <h5>Alarms</h5>
+      <table>
+      <.health_section data={@health.data["alarms"]} />
+      </table>
+    </div>
+
+    <div :if={@health.data["metrics"]}>
+      <h5>Metrics</h5>
+      <table>
+      <.health_section data={@health.data["metrics"]} />
+      </table>
+    </div>
+
+    <div :if={@health.data["metadata"]}>
+      <h5>Metadata</h5>
+      <table>
+      <.health_section data={@health.data["metadata"]} />
+      </table>
+    </div>
   </div>
 
   <div class="col-lg-6">

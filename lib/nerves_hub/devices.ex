@@ -27,6 +27,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.TaskSupervisor, as: Tasks
 
   @min_fwup_delta_updatable_version ">=1.10.0"
+  @default_device_health_retain_count_per_device 48
 
   def get_device!(device_id) do
     Repo.get!(Device, device_id)
@@ -1022,11 +1023,27 @@ defmodule NervesHub.Devices do
     )
   end
 
-  def save_device_health(%{"data" => data} = device_status) do
+  def save_device_health(device_status) do
     device_status
-    |> Map.put("data", flatten_health(data))
     |> DeviceHealth.save()
     |> Repo.insert()
+  end
+
+  def clean_device_health(device_id) do
+    max = Application.get_env(:nerves_hub, :health_check, %{})[:retain_items_per_device] || @default_device_health_retain_count_per_device
+    health_ids =
+      from(DeviceHealth,
+        select: [:id],
+        order_by: {:desc, :inserted_at},
+        offset: ^max,
+        where: [device_id: ^device_id]
+      )
+      |> Repo.all()
+      |> Enum.map(& &1.id)
+
+    from(dh in DeviceHealth)
+    |> where([dh], dh.id in ^health_ids)
+    |> Repo.delete_all()
   end
 
   def get_latest_health(device_id) do
@@ -1042,26 +1059,6 @@ defmodule NervesHub.Devices do
       [] -> nil
       [latest] -> latest
     end
-  end
-
-  defp flatten_health(part, prefix \\ "") do
-    part
-    |> Enum.reduce(%{}, fn {key, value}, flat ->
-      if is_map(value) do
-        value =
-          if is_struct(value) do
-            Map.from_struct(value)
-          else
-            value
-          end
-
-        more_flat = flatten_health(value, "#{key}_")
-        Map.merge(flat, more_flat)
-      else
-        # Assumed value, device_status is limited to maps, should be no lists in there
-        Map.put(flat, "#{prefix}#{key}", value)
-      end
-    end)
   end
 
   defp version_match?(_vsn, ""), do: true
