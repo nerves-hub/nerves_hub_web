@@ -78,9 +78,11 @@ defmodule NervesHub.Products.Product do
     end
   end
 
-  defp trim(string) do
+  defp trim(string) when is_binary(string) do
     string
     |> String.split(" ", trim: true)
     |> Enum.join(" ")
   end
+
+  defp trim(string), do: string
 end
