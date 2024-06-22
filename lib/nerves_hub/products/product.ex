@@ -45,6 +45,7 @@ defmodule NervesHub.Products.Product do
   def changeset(product, params) do
     product
     |> cast(params, @required_params ++ @optional_params)
+    |> update_change(:name, &trim/1)
     |> validate_required(@required_params)
     |> unique_constraint(:name, name: :products_org_id_name_index)
   end
@@ -75,5 +76,11 @@ defmodule NervesHub.Products.Product do
     else
       add_error(changeset, assoc, message)
     end
+  end
+
+  defp trim(string) do
+    string
+    |> String.split(" ", trim: true)
+    |> Enum.join(" ")
   end
 end

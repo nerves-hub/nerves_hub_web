@@ -11,7 +11,7 @@ defmodule NervesHubWeb.Mounts.FetchOrg do
         {:cont, assign(socket, :org, org)}
 
       false ->
-        raise Ecto.NoResultsError
+        raise NervesHubWeb.NotFoundError
     end
   end
 end

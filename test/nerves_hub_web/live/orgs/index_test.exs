@@ -16,11 +16,11 @@ defmodule NervesHubWeb.Live.Orgs.IndexTest do
 
   describe "has orgs memberships" do
     test "all orgs listed", %{conn: conn, org: org, user: user} do
-      {:ok, _view, html} = live(conn, ~p"/orgs")
-
-      assert html =~ "<h1 class=\"mt-2\">My Organizations</h1>"
-      assert html =~ "<h3>#{user.username}</h3>"
-      assert html =~ "<h3>#{org.name}</h3>"
+      conn
+      |> visit("/orgs")
+      |> assert_has("h1", text: "My Organizations")
+      |> assert_has("h3", text: user.username)
+      |> assert_has("h3", text: org.name)
     end
   end
 end

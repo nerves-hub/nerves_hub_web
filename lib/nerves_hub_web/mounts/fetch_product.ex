@@ -18,7 +18,7 @@ defmodule NervesHubWeb.Mounts.FetchProduct do
         {:cont, socket}
 
       false ->
-        raise Ecto.NoResultsError
+        raise NervesHubWeb.NotFoundError
     end
   end
 end

@@ -11,8 +11,10 @@ defmodule NervesHubWeb.ConnCase.Browser do
       use DefaultMocks
       use ConnCase, unquote(opts)
       use NervesHubWeb, :verified_routes
+
       import Test
       import Phoenix.LiveViewTest
+      import PhoenixTest
 
       setup do
         fixture = Fixtures.standard_fixture()

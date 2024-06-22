@@ -9,7 +9,7 @@ config :logger, :default_handler, false
 #
 config :nerves_hub, NervesHubWeb.Endpoint,
   http: [port: 4100],
-  server: true,
+  server: false,
   secret_key_base: "x7Vj9rmmRke//ctlapsPNGHXCRTnArTPbfsv6qX4PChFT9ARiNR5Ua8zoRilNCmX",
   live_view: [signing_salt: "FnV9rP_c2BL11dvh"]
 
@@ -18,7 +18,6 @@ config :nerves_hub, NervesHubWeb.Endpoint,
 #
 config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   code_reloader: false,
-  debug_errors: true,
   check_origin: false,
   watchers: [],
   server: true,
@@ -85,3 +84,8 @@ config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test
 config :nerves_hub, NervesHub.RateLimit, limit: 100
 
 config :sentry, environment_name: :test
+
+config :phoenix_test, :endpoint, NervesHubWeb.Endpoint
+
+# Initialize plugs at runtime for faster test compilation
+config :phoenix, :plug_init_mode, :runtime

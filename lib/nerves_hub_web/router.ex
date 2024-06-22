@@ -186,8 +186,6 @@ defmodule NervesHubWeb.Router do
 
     get("/", HomeController, :index)
 
-    get("/error", HomeController, :error)
-
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
     get("/logout", SessionController, :delete)
