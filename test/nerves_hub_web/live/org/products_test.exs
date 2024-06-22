@@ -78,7 +78,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
   end
 
   describe "authorization and scoping" do
-    test "can't view products from other orgs", %{conn: conn, org: org, user: user} do
+    test "can't view products from other orgs", %{conn: conn, user: user} do
       user = Fixtures.user_fixture(%{name: "Josh"})
 
       assert_error_sent(404, fn ->
