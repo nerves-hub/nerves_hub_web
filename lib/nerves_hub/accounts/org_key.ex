@@ -26,6 +26,7 @@ defmodule NervesHub.Accounts.OrgKey do
   def changeset(%OrgKey{} = org, params) do
     org
     |> cast(params, @required_params ++ @optional_params)
+    |> update_change(:name, &trim/1)
     |> validate_required(@required_params)
     |> unique_constraint(:name, name: :org_keys_org_id_name_index)
     |> unique_constraint(:key, name: :org_keys_org_id_key_index)
@@ -47,5 +48,11 @@ defmodule NervesHub.Accounts.OrgKey do
       name: :firmwares_tenant_key_id_fkey,
       message: "Firmware exists which uses the Signing Key"
     )
+  end
+
+  defp trim(string) do
+    string
+    |> String.split(" ", trim: true)
+    |> Enum.join(" ")
   end
 end
