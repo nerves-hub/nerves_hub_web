@@ -73,7 +73,9 @@ defmodule NervesHubWeb.Live.Org.SigningKeysTest do
       |> assert_has("h1", text: "Signing Keys")
       |> assert_has(".firmware-key div h3", count: 1)
       |> click_button("[phx-value-signing_key_id=\"#{key.id}\"]", "Delete")
-      |> assert_has("div", text: "Error deleting Signing Key : Firmware exists which uses the Signing Key")
+      |> assert_has("div",
+        text: "Error deleting Signing Key : Firmware exists which uses the Signing Key"
+      )
       |> assert_has(".firmware-key div h3", count: 1)
     end
   end
