@@ -81,9 +81,9 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
     test "can't view products from other orgs", %{conn: conn, org: org, user: user} do
       user = Fixtures.user_fixture(%{name: "Josh"})
 
-      assert_error_sent 404, fn ->
+      assert_error_sent(404, fn ->
         visit(conn, "/orgs/#{user.username}")
-      end
+      end)
     end
   end
 end
