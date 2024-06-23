@@ -521,6 +521,41 @@ defmodule NervesHub.Accounts do
     end)
   end
 
+  @spec accept_invite(Invite.t(), Org.t()) ::
+          {:ok, OrgUser.t()} | {:error, Ecto.Changeset.t()}
+  def accept_invite(invite, org) do
+    Repo.transaction(fn ->
+      with {:ok, user} <- get_user_by_email(invite.email),
+           {:ok, user} <- add_org_user(org, user, %{role: invite.role}),
+           {:ok, _invite} <- set_invite_accepted(invite) do
+        # Repo.transaction will wrap this in an {:ok, user}
+        user
+      else
+        {:error, error} -> Repo.rollback(error)
+      end
+    end)
+  end
+
+  @spec user_invite_recipient?(Invite.t(), User.t()) ::
+          {:ok, Invite.t()} | {:error, :invite_not_for_user}
+  def user_invite_recipient?(invite, user) do
+    if invite.email == user.email do
+      {:ok, invite}
+    else
+      {:error, :invite_not_for_user}
+    end
+  end
+
+  @spec user_invite_recipient?(Invite.t(), User.t()) ::
+          {:ok, Invite.t()} | {:error, :invite_not_for_user}
+  def user_invite_recipient?(invite, user) do
+    if invite.email == user.email do
+      {:ok, invite}
+    else
+      {:error, :invite_not_for_user}
+    end
+  end
+
   @spec update_user(User.t(), map) ::
           {:ok, User.t()}
           | {:error, Changeset.t()}
