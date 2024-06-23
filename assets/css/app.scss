@@ -203,6 +203,18 @@ html body {
   font-size: 0.4em;
 }
 
+.device-health.tight .callout {
+  display: flex;
+  gap: 16px;
+  font-size: 0.8em;
+}
+
+.device-health.tight .callout .label {
+  font-size: 1em;
+}
+
+
+
 .device-health .callout.ok {
   color: green;
 }

@@ -305,6 +305,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     }
 
     page = Devices.get_devices_by_org_id_and_product_id(org.id, product.id, opts)
+    health = Devices.get_health_by_org_id_and_product_id(org.id, product.id, opts)
 
     statuses =
       Enum.into(page.entries, %{}, fn device ->
@@ -315,6 +316,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(:device_statuses, statuses)
+    |> assign(:health, health)
     |> assign_display_devices(page)
   end
 

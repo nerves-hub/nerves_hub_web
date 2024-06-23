@@ -122,6 +122,7 @@
         <div class="label">Memory used</div>
         <%= round(@health.data["metrics"]["used_percent"]) %>%
       </div>
+      <!-- load avg 15 -->
     </div>
 
     <div :if={@health.data["alarms"] && @health.data["alarms"] != %{}}>

@@ -93,6 +93,38 @@ defmodule NervesHub.Devices do
     |> Repo.paginate(pagination)
   end
 
+  def get_health_by_org_id_and_product_id(org_id, product_id, opts) do
+    query =
+      from(
+        d in Device,
+        join: dh in DeviceHealth,
+        on: dh.device_id == d.id,
+        select: [dh.device_id, dh.data, d.deleted_at],
+        distinct: dh.device_id,
+        order_by: [desc: dh.inserted_at],
+        where: d.org_id == ^org_id,
+        where: d.product_id == ^product_id
+      )
+
+    filters = Map.get(opts, :filters, %{})
+
+    query
+    |> Repo.exclude_deleted()
+    |> filtering(filters)
+    |> Repo.all()
+    |> Enum.reduce(%{max_cpu: 0, max_memory_percent: 0, max_load_15: 0}, fn health, acc ->
+      case Enum.at(health, 1) do
+        %{"metrics" => %{"cpu_temp" => cpu_temp, "used_percent" => memory_percent, "load_15min" => load_15_min}} ->
+          %{acc |
+            max_cpu: max(cpu_temp, acc.max_cpu),
+            max_memory_percent: max(memory_percent, acc.max_memory_percent),
+            max_load_15: max(load_15_min, acc.max_load_15)
+          }
+        _ -> acc
+      end
+    end)
+  end
+
   defp sort_devices({:asc, :last_communication}), do: {:asc_nulls_first, :last_communication}
 
   defp sort_devices({:desc, :last_communication}), do: {:desc_nulls_last, :last_communication}
