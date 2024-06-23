@@ -5,7 +5,7 @@ defmodule NervesHubWeb.Components.DeviceHealth do
     dbg(assigns)
     ~H"""
     <tr :if={is_map(@data)} :for={{key, value} <- @data}>
-      <td style="font-weight: bold; text-transform: capitalize;"><%= String.replace(key, "_", " ") %></td>
+      <td style="text-transform: capitalize;"><%= String.replace(key, "_", " ") %></td>
       <td style="padding-left: 8px;">
       <%= cond do
             is_map(value) -> health_section(%{data: value})

@@ -113,6 +113,17 @@
   <div class="col-lg-6" :if={@health}>
     <h3 class="mb-2">Device Health</h3>
 
+    <div class="device-health">
+      <div :if={@health.data["metrics"] && @health.data["metrics"]["cpu_temp"]} class={"callout #{cpu_temp_to_status(@health.data["metrics"]["cpu_temp"])}"}>
+        <div class="label">CPU</div>
+        <%= round(@health.data["metrics"]["cpu_temp"]) %>°
+      </div>
+      <div :if={@health.data["metrics"] && @health.data["metrics"]["used_percent"]} class={"callout #{memory_to_status(@health.data["metrics"]["used_percent"])}"}x>
+        <div class="label">Memory used</div>
+        <%= round(@health.data["metrics"]["used_percent"]) %>%
+      </div>
+    </div>
+
     <div :if={@health.data["alarms"] && @health.data["alarms"] != %{}}>
       <h5>Alarms</h5>
       <table>
