@@ -73,7 +73,7 @@ defmodule NervesHubWeb.AccountController do
             end
           false ->
             case Accounts.get_user_by_email(invite.email) do
-              {:ok, recipient} -> # Invites for existing users
+              {:ok, _recipient} -> # Invites for existing users
                 conn
                 |> put_flash(:error, "You must be logged in to accept this invite")
                 |> redirect(to: "/login")
@@ -181,7 +181,6 @@ defmodule NervesHubWeb.AccountController do
         )
     end
   end
-
   defp _accept_invite_existing(conn, token, invite, org) do
     with {:ok, new_org_user} <- Accounts.accept_invite(invite, org) do
       # Now let everyone in the organization - except the new guy -
