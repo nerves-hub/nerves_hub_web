@@ -442,8 +442,11 @@ defmodule NervesHub.Accounts do
           | {:error, Changeset.t()}
   def add_or_invite_to_org(%{"email" => email} = params, org) do
     case get_user_by_email(email) do
-      {:error, :not_found} -> invite(params, org)
-      {:ok, _user} -> invite(params, org)
+      {:error, :not_found} ->
+        invite(params, org)
+
+      {:ok, _user} ->
+        invite(params, org)
         # add_org_user(org, user, %{role: params["role"]})
     end
   end

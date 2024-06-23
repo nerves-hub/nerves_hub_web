@@ -56,37 +56,43 @@ defmodule NervesHubWeb.AccountController do
   def invite(conn, %{"token" => token} = _) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
-        case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do # QUESTION: Should this be here raw or in a method somewhere else?
-          true ->
-            if invite.email == conn.assigns.user.email do
+      # QUESTION: Should this be here raw or in a method somewhere else?
+      case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do
+        true ->
+          if invite.email == conn.assigns.user.email do
+            render(
+              conn,
+              # QUESTION: Should this be a separate template or the same one with conditional rendering?
+              "invite_existing.html",
+              changeset: %Changeset{data: invite},
+              org: org,
+              token: token
+            )
+          else
+            conn
+            |> put_flash(:error, "Invite not intended for the current user")
+            |> redirect(to: "/")
+          end
+
+        false ->
+          case Accounts.get_user_by_email(invite.email) do
+            # Invites for existing users
+            {:ok, _recipient} ->
+              conn
+              |> put_flash(:error, "You must be logged in to accept this invite")
+              |> redirect(to: "/login")
+
+            # Invites for new users
+            {:error, :not_found} ->
               render(
                 conn,
-                "invite_existing.html", # QUESTION: Should this be a separate template or the same one with conditional rendering?
+                "invite.html",
                 changeset: %Changeset{data: invite},
                 org: org,
                 token: token
               )
-            else
-              conn
-              |> put_flash(:error, "Invite not intended for the current user")
-              |> redirect(to: "/")
-            end
-          false ->
-            case Accounts.get_user_by_email(invite.email) do
-              {:ok, _recipient} -> # Invites for existing users
-                conn
-                |> put_flash(:error, "You must be logged in to accept this invite")
-                |> redirect(to: "/login")
-              {:error, :not_found} -> # Invites for new users
-                render(
-                  conn,
-                  "invite.html",
-                  changeset: %Changeset{data: invite},
-                  org: org,
-                  token: token
-                )
-            end
-        end
+          end
+      end
     else
       _ ->
         conn
@@ -115,12 +121,12 @@ defmodule NervesHubWeb.AccountController do
   end
 
   def accept_invite_existing(conn, %{"token" => token} = _) do
-    case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do # QUESTION rep: Should this be here raw or in a method somewhere else?
+    # QUESTION rep: Should this be here raw or in a method somewhere else?
+    case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do
       true ->
         with {:ok, invite} <- Accounts.get_valid_invite(token),
-            {:ok, org} <- Accounts.get_org(invite.org_id),
-            {:ok, _} <- Accounts.user_invite_recipient?(invite, conn.assigns.user) do
-
+             {:ok, org} <- Accounts.get_org(invite.org_id),
+             {:ok, _} <- Accounts.user_invite_recipient?(invite, conn.assigns.user) do
           _accept_invite_existing(conn, token, invite, org)
         else
           {:error, :invite_not_found} ->
@@ -132,11 +138,13 @@ defmodule NervesHubWeb.AccountController do
             conn
             |> put_flash(:error, "Invalid org")
             |> redirect(to: "/")
+
           {:error, :invite_not_for_user} ->
             conn
             |> put_flash(:error, "Invite not intended for the current user")
             |> redirect(to: "/")
         end
+
       false ->
         conn
         |> put_flash(:error, "You must be logged in to accept this invite")
@@ -181,6 +189,7 @@ defmodule NervesHubWeb.AccountController do
         )
     end
   end
+
   defp _accept_invite_existing(conn, token, invite, org) do
     with {:ok, new_org_user} <- Accounts.accept_invite(invite, org) do
       # Now let everyone in the organization - except the new guy -
