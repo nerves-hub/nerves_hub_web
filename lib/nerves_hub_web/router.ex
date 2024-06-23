@@ -239,6 +239,17 @@ defmodule NervesHubWeb.Router do
 
       live("/orgs/:org_name/settings", Live.Org.Settings)
     end
+
+    live_session :product,
+      on_mount: [
+        NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.CurrentPath,
+        NervesHubWeb.Mounts.FetchOrg,
+        NervesHubWeb.Mounts.FetchOrgUser,
+        NervesHubWeb.Mounts.FetchProduct
+      ] do
+      live("/org/:org_name/:product_name/settings", Live.Product.Settings)
+    end
   end
 
   scope "/", NervesHubWeb do
@@ -263,17 +274,6 @@ defmodule NervesHubWeb.Router do
 
       scope "/:product_name" do
         pipe_through(:product)
-
-        live_session :product,
-          on_mount: [
-            NervesHubWeb.Mounts.AccountAuth,
-            NervesHubWeb.Mounts.CurrentPath,
-            NervesHubWeb.Mounts.FetchOrg,
-            NervesHubWeb.Mounts.FetchOrgUser,
-            NervesHubWeb.Mounts.FetchProduct
-          ] do
-          live("/settings", Live.Product.Settings)
-        end
 
         get("/edit", ProductController, :edit)
         put("/", ProductController, :update)

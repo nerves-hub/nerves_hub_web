@@ -40,7 +40,7 @@ defmodule NervesHubWeb.DeviceSocket do
       when is_list(x_headers) and length(x_headers) > 0 do
     headers = Map.new(x_headers)
 
-    with true <- shared_secrets_enabled?(),
+    with true <- shared_secrets_enabled_with_error?(),
          {:ok, key, salt, verification_opts} <- decode_from_headers(headers),
          {:ok, auth} <- get_shared_secret_auth(key),
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
@@ -117,16 +117,17 @@ defmodule NervesHubWeb.DeviceSocket do
     |> Keyword.get(:max_age, @default_max_hmac_age)
   end
 
-  def shared_secrets_enabled?() do
-    enabled =
-      Application.get_env(:nerves_hub, __MODULE__, [])
-      |> Keyword.get(:shared_secrets, [])
-      |> Keyword.get(:enabled, false)
-
-    if enabled do
+  def shared_secrets_enabled_with_error?() do
+    if shared_secrets_enabled?() do
       true
     else
       {:error, :shared_secrets_not_enabled}
     end
+  end
+
+  def shared_secrets_enabled?() do
+    Application.get_env(:nerves_hub, __MODULE__, [])
+    |> Keyword.get(:shared_secrets, [])
+    |> Keyword.get(:enabled, false)
   end
 end

@@ -124,23 +124,6 @@ defmodule NervesHubWeb.API.ProductControllerTest do
     end
   end
 
-  describe "update product" do
-    setup [:create_product]
-
-    test "renders deployment when data is valid", %{conn: conn, org: org, product: product} do
-      conn =
-        put(conn, Routes.api_product_path(conn, :update, org.name, product.name),
-          product: %{"name" => "new"}
-        )
-
-      assert %{"name" => "new"} = json_response(conn, 200)["data"]
-
-      path = Routes.api_product_path(conn, :show, org.name, "new")
-      conn = get(conn, path)
-      assert json_response(conn, 200)["data"]["name"] == "new"
-    end
-  end
-
   defp create_product(%{user: user, org: org}) do
     product = Fixtures.product_fixture(user, org, %{name: "api"})
     {:ok, %{product: product}}

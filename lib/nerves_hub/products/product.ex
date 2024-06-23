@@ -50,6 +50,10 @@ defmodule NervesHub.Products.Product do
     |> unique_constraint(:name, name: :products_org_id_name_index)
   end
 
+  def update_changeset(product, params) do
+    cast(product, params, @optional_params)
+  end
+
   def delete_changeset(product, params \\ %{}) do
     deleted_at = DateTime.truncate(DateTime.utc_now(), :second)
 
