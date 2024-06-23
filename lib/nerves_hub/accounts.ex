@@ -546,16 +546,6 @@ defmodule NervesHub.Accounts do
     end
   end
 
-  @spec user_invite_recipient?(Invite.t(), User.t()) ::
-          {:ok, Invite.t()} | {:error, :invite_not_for_user}
-  def user_invite_recipient?(invite, user) do
-    if invite.email == user.email do
-      {:ok, invite}
-    else
-      {:error, :invite_not_for_user}
-    end
-  end
-
   @spec update_user(User.t(), map) ::
           {:ok, User.t()}
           | {:error, Changeset.t()}
