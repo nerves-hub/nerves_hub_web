@@ -56,13 +56,37 @@ defmodule NervesHubWeb.AccountController do
   def invite(conn, %{"token" => token} = _) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
-      render(
-        conn,
-        "invite.html",
-        changeset: %Changeset{data: invite},
-        org: org,
-        token: token
-      )
+        case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do # QUESTION: Should this be here raw or in a method somewhere else?
+          true ->
+            if invite.email == conn.assigns.user.email do
+              render(
+                conn,
+                "invite_existing.html", # QUESTION: Should this be a separate template or the same one with conditional rendering?
+                changeset: %Changeset{data: invite},
+                org: org,
+                token: token
+              )
+            else
+              conn
+              |> put_flash(:error, "Invite not intended for the current user")
+              |> redirect(to: "/")
+            end
+          false ->
+            case Accounts.get_user_by_email(invite.email) do
+              {:ok, recipient} -> # Invites for existing users
+                conn
+                |> put_flash(:error, "You must be logged in to accept this invite")
+                |> redirect(to: "/login")
+              {:error, :not_found} -> # Invites for new users
+                render(
+                  conn,
+                  "invite.html",
+                  changeset: %Changeset{data: invite},
+                  org: org,
+                  token: token
+                )
+            end
+        end
     else
       _ ->
         conn
@@ -86,6 +110,36 @@ defmodule NervesHubWeb.AccountController do
       {:error, :org_not_found} ->
         conn
         |> put_flash(:error, "Invalid org")
+        |> redirect(to: "/")
+    end
+  end
+
+  def accept_invite_existing(conn, %{"token" => token} = _) do
+    case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do # QUESTION rep: Should this be here raw or in a method somewhere else?
+      true ->
+        with {:ok, invite} <- Accounts.get_valid_invite(token),
+            {:ok, org} <- Accounts.get_org(invite.org_id),
+            {:ok, _} <- Accounts.user_invite_recipient?(invite, conn.assigns.user) do
+
+          _accept_invite_existing(conn, token, invite, org)
+        else
+          {:error, :invite_not_found} ->
+            conn
+            |> put_flash(:error, "Invalid or expired invite")
+            |> redirect(to: "/")
+
+          {:error, :org_not_found} ->
+            conn
+            |> put_flash(:error, "Invalid org")
+            |> redirect(to: "/")
+          {:error, :invite_not_for_user} ->
+            conn
+            |> put_flash(:error, "Invite not intended for the current user")
+            |> redirect(to: "/")
+        end
+      false ->
+        conn
+        |> put_flash(:error, "You must be logged in to accept this invite")
         |> redirect(to: "/")
     end
   end
@@ -121,6 +175,44 @@ defmodule NervesHubWeb.AccountController do
         render(
           conn,
           "invite.html",
+          changeset: changeset,
+          org: org,
+          token: token
+        )
+    end
+  end
+
+  defp _accept_invite_existing(conn, token, invite, org) do
+    with {:ok, new_org_user} <- Accounts.accept_invite(invite, org) do
+      # Now let everyone in the organization - except the new guy -
+      # know about this new user.
+
+      # TODO: Fix this - We don't have the instigating user in the conn
+      # anymore, and the new user is not always the instigator.
+      instigator =
+        case conn.assigns do
+          %{user: %{username: username}} -> username
+          _ -> nil
+        end
+
+      email =
+        SwooshEmail.tell_org_user_added(
+          org,
+          Accounts.get_org_users(org),
+          instigator,
+          new_org_user.user
+        )
+
+      SwooshMailer.deliver(email)
+
+      conn
+      |> put_flash(:info, "Organization successfully joined")
+      |> redirect(to: "/")
+    else
+      {:error, %Changeset{} = changeset} ->
+        render(
+          conn,
+          "invite_existing.html",
           changeset: changeset,
           org: org,
           token: token
