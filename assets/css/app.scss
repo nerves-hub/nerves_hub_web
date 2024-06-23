@@ -74,8 +74,8 @@ html body {
 
 .badge {
   height: 36px;
-  background-color: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.05);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   padding: .75rem;
   border-radius: 4px;
   display: inline-flex;
@@ -181,4 +181,36 @@ html body {
 
 .hidden {
   display: none;
+}
+
+.device-health {
+  display: flex;
+  gap: 4px;
+
+}
+
+.device-health .callout {
+  display: inline-block;
+  background-color: var(--backgroundLight);
+  flex-grow: 1;
+  padding: 8px;
+
+  font-size: 2em;
+  margin-bottom: 32px;
+}
+
+.device-health .callout .label {
+  font-size: 0.4em;
+}
+
+.device-health .callout.ok {
+  color: green;
+}
+
+.device-health .callout.warn {
+  color: orange;
+}
+
+.device-health .callout.danger {
+  color: orangered;
 }

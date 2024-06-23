@@ -113,4 +113,20 @@ defmodule NervesHubWeb.DeviceView do
       device.connecting_code
     end
   end
+
+  def cpu_temp_to_status(temp) do
+    case temp do
+      temp when temp < 60 -> ""
+      temp when temp < 90 -> "warn"
+      _ -> "danger"
+    end
+  end
+
+  def memory_to_status(percent) do
+    case percent do
+      _ when percent > 80 -> "warn"
+      _ when percent > 90 -> "danger"
+      _ -> ""
+    end
+  end
 end
