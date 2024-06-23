@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Orgs.IndexTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
 
   #
   # this is a UI/UX we should take into account

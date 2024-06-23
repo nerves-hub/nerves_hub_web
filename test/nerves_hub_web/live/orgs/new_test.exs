@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Orgs.NewTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
 
   describe "new org" do
     test "requires a name", %{conn: conn} do

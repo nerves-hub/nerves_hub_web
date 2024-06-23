@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Product.SettingsTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Fixtures
   alias NervesHub.Products

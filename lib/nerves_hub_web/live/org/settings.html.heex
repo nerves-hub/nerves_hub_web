@@ -2,11 +2,13 @@
 
 <.form :let={f} for={@form} phx-submit="update">
   <div class="form-group">
-    <label for="name_input" class="tooltip-label">
-      <span>Organization Name</span>
-      <span class="tooltip-info"></span>
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="name_input" class="tooltip-label">
+        Organization Name
+      </label>
+      <span class="tooltip-info mb-1"></span>
       <span class="tooltip-text">Must be one word</span>
-    </label>
+    </div>
     <%= text_input(f, :name, class: "form-control", id: "name_input") %>
     <div class="has-error"><%= error_tag(f, :name) %></div>
   </div>
