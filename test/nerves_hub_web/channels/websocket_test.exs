@@ -304,6 +304,16 @@ defmodule NervesHubWeb.WebsocketTest do
   end
 
   describe "shared secret auth NH1" do
+    setup do
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
+
+      on_exit(fn ->
+        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
+          shared_secrets: [enabled: false]
+        )
+      end)
+    end
+
     test "can register device with product key/secret", %{user: user} do
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
