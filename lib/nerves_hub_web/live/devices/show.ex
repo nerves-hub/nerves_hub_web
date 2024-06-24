@@ -154,7 +154,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("check_health", _value, socket) do
-    socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "check_health", %{})
+    socket.endpoint.broadcast_from(
+      self(),
+      "device:#{socket.assigns.device.id}",
+      "check_health",
+      %{}
+    )
+
     {:noreply, socket}
   end
 

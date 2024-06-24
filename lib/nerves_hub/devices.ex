@@ -114,13 +114,22 @@ defmodule NervesHub.Devices do
     |> Repo.all()
     |> Enum.reduce(%{max_cpu: 0, max_memory_percent: 0, max_load_15: 0}, fn health, acc ->
       case Enum.at(health, 1) do
-        %{"metrics" => %{"cpu_temp" => cpu_temp, "used_percent" => memory_percent, "load_15min" => load_15_min}} ->
-          %{acc |
-            max_cpu: max(cpu_temp, acc.max_cpu),
-            max_memory_percent: max(memory_percent, acc.max_memory_percent),
-            max_load_15: max(load_15_min, acc.max_load_15)
+        %{
+          "metrics" => %{
+            "cpu_temp" => cpu_temp,
+            "used_percent" => memory_percent,
+            "load_15min" => load_15_min
           }
-        _ -> acc
+        } ->
+          %{
+            acc
+            | max_cpu: max(cpu_temp, acc.max_cpu),
+              max_memory_percent: max(memory_percent, acc.max_memory_percent),
+              max_load_15: max(load_15_min, acc.max_load_15)
+          }
+
+        _ ->
+          acc
       end
     end)
   end
@@ -1066,7 +1075,10 @@ defmodule NervesHub.Devices do
   end
 
   def clean_device_health(device_id) do
-    max = Application.get_env(:nerves_hub, :health_check, %{})[:retain_items_per_device] || @default_device_health_retain_count_per_device
+    max =
+      Application.get_env(:nerves_hub, :health_check, %{})[:retain_items_per_device] ||
+        @default_device_health_retain_count_per_device
+
     health_ids =
       from(DeviceHealth,
         select: [:id],
