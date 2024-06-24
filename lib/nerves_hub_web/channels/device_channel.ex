@@ -498,10 +498,15 @@ defmodule NervesHubWeb.DeviceChannel do
       |> Map.put("metadata", Map.merge(device_status["metadata"], device_meta))
 
     device_health = %{"device_id" => socket.assigns.device.id, "data" => full_report}
-    dbg(device_health)
 
     case Devices.save_device_health(device_health) do
       {:ok, _} ->
+        NervesHubWeb.DeviceEndpoint.broadcast_from!(
+          self(),
+          "device:#{socket.assigns.device.identifier}:internal",
+          "health_check_report",
+          %{}
+        )
         Devices.clean_device_health(socket.assigns.device.id)
         :ok
 

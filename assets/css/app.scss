@@ -185,6 +185,7 @@ html body {
 
 .device-health {
   display: flex;
+  flex-wrap: row;
   gap: 4px;
 
 }
