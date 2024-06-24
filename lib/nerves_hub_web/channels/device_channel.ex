@@ -446,6 +446,7 @@ defmodule NervesHubWeb.DeviceChannel do
           "health_check_report",
           %{}
         )
+
         Devices.clean_device_health(socket.assigns.device.id)
         :ok
 

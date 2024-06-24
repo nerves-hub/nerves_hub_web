@@ -120,7 +120,7 @@
     </div>
   </div>
 
-  <div class="col-lg-6" :if={@health}>
+  <div :if={@health} class="col-lg-6">
     <h3 class="mb-2">Device Health</h3>
 
     <div class="device-health">
@@ -128,11 +128,11 @@
         <div class="label">CPU</div>
         <%= round(@health.data["metrics"]["cpu_temp"]) %>°
       </div>
-      <div :if={@health.data["metrics"] && @health.data["metrics"]["used_percent"]} class={"callout #{memory_to_status(@health.data["metrics"]["used_percent"])}"}x>
+      <div :if={@health.data["metrics"] && @health.data["metrics"]["used_percent"]} class={"callout #{memory_to_status(@health.data["metrics"]["used_percent"])}"} x>
         <div class="label">Memory used</div>
         <%= round(@health.data["metrics"]["used_percent"]) %>%
       </div>
-      <div :if={@health.data["metrics"] && @health.data["metrics"]["load_15min"]} class={"callout"}>
+      <div :if={@health.data["metrics"] && @health.data["metrics"]["load_15min"]} class="callout">
         <div class="label">Load avg, 15m</div>
         <%= round(@health.data["metrics"]["load_15min"]) %>
       </div>
@@ -145,21 +145,21 @@
     <div :if={@health.data["alarms"] && @health.data["alarms"] != %{}}>
       <h5>Alarms</h5>
       <table>
-      <.health_section data={@health.data["alarms"]} />
+        <.health_section data={@health.data["alarms"]} />
       </table>
     </div>
 
     <div :if={@health.data["metrics"]}>
       <h5>Metrics</h5>
       <table>
-      <.health_section data={@health.data["metrics"]} />
+        <.health_section data={@health.data["metrics"]} />
       </table>
     </div>
 
     <div :if={@health.data["metadata"]}>
       <h5>Metadata</h5>
       <table>
-      <.health_section data={@health.data["metadata"]} />
+        <.health_section data={@health.data["metadata"]} />
       </table>
     </div>
   </div>

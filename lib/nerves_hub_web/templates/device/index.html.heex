@@ -118,19 +118,19 @@
     </div>
   <% end %>
 
-  <div class="device-health tight" :if={@health}>
+  <div :if={@health} class="device-health tight">
     <div :if={@health.max_cpu} class={"callout #{cpu_temp_to_status(@health.max_cpu)}"}>
-        <div class="label">CPU</div>
-        <%= round(@health.max_cpu) %>°
-      </div>
-      <div :if={@health.max_memory_percent} class={"callout #{memory_to_status(@health.max_memory_percent)}"}x>
-        <div class="label">Memory used</div>
-        <%= round(@health.max_memory_percent) %>%
-      </div>
-      <div :if={@health.max_load_15} class={"callout"}x>
-        <div class="label">Load avg, 15m</div>
-        <%= round(@health.max_load_15) %>%
-      </div>
+      <div class="label">CPU</div>
+      <%= round(@health.max_cpu) %>°
+    </div>
+    <div :if={@health.max_memory_percent} class={"callout #{memory_to_status(@health.max_memory_percent)}"} x>
+      <div class="label">Memory used</div>
+      <%= round(@health.max_memory_percent) %>%
+    </div>
+    <div :if={@health.max_load_15} class="callout" x>
+      <div class="label">Load avg, 15m</div>
+      <%= round(@health.max_load_15) %>%
+    </div>
   </div>
   <div class={if length(@selected_devices) == 0, do: "hidden"}>
     <div class="filter-wrapper">
