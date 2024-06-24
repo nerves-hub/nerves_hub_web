@@ -132,6 +132,10 @@ defmodule NervesHubWeb.DeviceLive.Show do
     {:noreply, assign(socket, :fwup_progress, payload.percent)}
   end
 
+  def handle_info(%Broadcast{event: "health_check_report"}, socket) do
+    {:noreply, assign(socket, health: Devices.get_latest_health(socket.assigns.device.id))}
+  end
+
   # Ignore unknown messages
   def handle_info(_unknown, socket), do: {:noreply, socket}
 
@@ -151,6 +155,11 @@ defmodule NervesHubWeb.DeviceLive.Show do
 
   def handle_event("identify", _value, socket) do
     socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "identify", %{})
+    {:noreply, socket}
+  end
+
+  def handle_event("check_health", _value, socket) do
+    socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "check_health", %{})
     {:noreply, socket}
   end
 

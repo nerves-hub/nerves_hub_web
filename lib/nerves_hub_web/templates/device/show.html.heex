@@ -31,8 +31,11 @@
         <span class="action-text">Reboot</span>
       </button>
       <button class="btn btn-outline-light btn-action" aria-label="Reconnect device" type="button" phx-click="reconnect">
-        <span class="button-icon power"></span>
+        <span class="button-icon reconnect"></span>
         <span class="action-text">Reconnect</span>
+      </button>
+      <button class="btn btn-outline-light btn-action" aria-label="Check health" type="button" phx-click="check_health">
+        <span class="action-text">Check health</span>
       </button>
       <button class="btn btn-outline-light btn-action" aria-label="Identify device" type="button" phx-click="identify">
         <span class="button-icon identify"></span>
@@ -129,7 +132,14 @@
         <div class="label">Memory used</div>
         <%= round(@health.data["metrics"]["used_percent"]) %>%
       </div>
-      <!-- load avg 15 -->
+      <div :if={@health.data["metrics"] && @health.data["metrics"]["load_15min"]} class={"callout"}>
+        <div class="label">Load avg, 15m</div>
+        <%= round(@health.data["metrics"]["load_15min"]) %>
+      </div>
+      <div class="callout">
+        <div class="label">Checked</div>
+        <%= Timex.from_now(@health.inserted_at) %>
+      </div>
     </div>
 
     <div :if={@health.data["alarms"] && @health.data["alarms"] != %{}}>
