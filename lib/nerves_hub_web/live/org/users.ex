@@ -118,7 +118,7 @@ defmodule NervesHubWeb.Live.Org.Users do
         SwooshEmail.tell_org_user_removed(
           socket.assigns.org,
           Accounts.get_org_users(socket.assigns.org),
-          socket.user.username,
+          socket.assigns.user,
           user
         )
         |> SwooshMailer.deliver()

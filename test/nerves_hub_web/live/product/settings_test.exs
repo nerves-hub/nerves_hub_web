@@ -85,10 +85,6 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
         shared_secrets: [enabled: false]
       )
-
-      # on_exit(fn ->
-      #   Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: false])
-      # end)
     end
 
     test "shared secrets not enabled", %{conn: conn, org: org, user: user} do

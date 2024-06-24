@@ -74,7 +74,7 @@
               <.link
                 :if={authorized?(:delete_org_user, @org_user)}
                 class="dropdown-item"
-                phx-click="delete"
+                phx-click="delete_org_user"
                 phx-value-user_id={org_user.user_id}
                 data-confirm="Are you sure you want to remove this user? This can not be undone."
               >
