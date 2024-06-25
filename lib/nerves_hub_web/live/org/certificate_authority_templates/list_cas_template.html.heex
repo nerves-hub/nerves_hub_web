@@ -1,6 +1,6 @@
 <div class="action-row">
   <h1>Certificate Authorities</h1>
-  <.link class="btn btn-outline-light btn-action" aria-label="Add certificate authority" navigate={~p"/orgs/#{@org.name}/settings/certificates/new"}>
+  <.link class="btn btn-outline-light btn-action" aria-label="Add certificate authority" navigate={~p"/org/#{@org.name}/settings/certificates/new"}>
     <span class="button-icon add"></span>
     <span class="action-text">Add Certificate Authority</span>
   </.link>
@@ -68,7 +68,7 @@
               <img src="/images/icons/more.svg" alt="options" />
             </a>
             <div :if={authorized?(:update_certificate_authority, @org_user)} class="dropdown-menu dropdown-menu-right">
-              <.link navigate={~p"/orgs/#{@org.name}/settings/certificates/#{cert.serial}/edit"} class="dropdown-item">
+              <.link navigate={~p"/org/#{@org.name}/settings/certificates/#{cert.serial}/edit"} class="dropdown-item">
                 Edit
               </.link>
               <.link

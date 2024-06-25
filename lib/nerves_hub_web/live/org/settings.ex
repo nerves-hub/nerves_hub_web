@@ -22,7 +22,7 @@ defmodule NervesHubWeb.Live.Org.Settings do
       {:ok, org} ->
         socket
         |> put_flash(:info, "Organization updated")
-        |> push_navigate(to: "/orgs/#{org.name}/settings")
+        |> push_navigate(to: ~p"/org/#{org.name}/settings")
         |> noreply()
 
       {:error, changeset} ->

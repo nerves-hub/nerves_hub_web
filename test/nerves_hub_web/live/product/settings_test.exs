@@ -28,7 +28,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       |> assert_has("h1", text: "Product Settings")
       |> click_button("Remove Product")
       |> assert_has("div", text: "Product deleted successfully.")
-      |> assert_path("/orgs/#{org.name}")
+      |> assert_path("/org/#{org.name}")
 
       product = NervesHub.Repo.reload(product)
       refute is_nil(product.deleted_at)

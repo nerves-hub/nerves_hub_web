@@ -221,23 +221,23 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser
       ] do
-      live("/orgs/:org_name", Live.Org.Products, :index)
-      live("/orgs/:org_name/new", Live.Org.Products, :new)
-      live("/orgs/:org_name/settings/keys", Live.Org.SigningKeys, :index)
-      live("/orgs/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
-      live("/orgs/:org_name/settings/users", Live.Org.Users, :index)
-      live("/orgs/:org_name/settings/users/invite", Live.Org.Users, :invite)
-      live("/orgs/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
-      live("/orgs/:org_name/settings/certificates", Live.Org.CertificateAuthorities, :index)
-      live("/orgs/:org_name/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
+      live("/org/:org_name", Live.Org.Products, :index)
+      live("/org/:org_name/new", Live.Org.Products, :new)
+      live("/org/:org_name/settings/keys", Live.Org.SigningKeys, :index)
+      live("/org/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
+      live("/org/:org_name/settings/users", Live.Org.Users, :index)
+      live("/org/:org_name/settings/users/invite", Live.Org.Users, :invite)
+      live("/org/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
+      live("/org/:org_name/settings/certificates", Live.Org.CertificateAuthorities, :index)
+      live("/org/:org_name/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
 
       live(
-        "/orgs/:org_name/settings/certificates/:serial/edit",
+        "/org/:org_name/settings/certificates/:serial/edit",
         Live.Org.CertificateAuthorities,
         :edit
       )
 
-      live("/orgs/:org_name/settings", Live.Org.Settings)
+      live("/org/:org_name/settings", Live.Org.Settings)
     end
 
     live_session :product,

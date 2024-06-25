@@ -27,7 +27,7 @@
 
 <div class="action-row">
   <h1>Users</h1>
-  <.link navigate={~p"/orgs/#{@org.name}/settings/users/invite"} class="btn btn-outline-light btn-action" aria-label="Add new user">
+  <.link navigate={~p"/org/#{@org.name}/settings/users/invite"} class="btn btn-outline-light btn-action" aria-label="Add new user">
     <span class="button-icon add"></span>
     <span class="action-text">Add New User</span>
   </.link>
@@ -67,7 +67,7 @@
               <img src="/images/icons/more.svg" alt="options" />
             </a>
             <div class="dropdown-menu dropdown-menu-right">
-              <.link patch={~p"/orgs/#{@org.name}/settings/users/#{org_user.user_id}/edit"} class="dropdown-item">
+              <.link patch={~p"/org/#{@org.name}/settings/users/#{org_user.user_id}/edit"} class="dropdown-item">
                 Edit
               </.link>
               <div class="dropdown-divider"></div>

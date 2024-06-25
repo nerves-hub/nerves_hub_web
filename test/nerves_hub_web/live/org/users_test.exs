@@ -12,7 +12,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       {:ok, _} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
 
       conn
-      |> visit("/orgs/#{org.name}/settings/users")
+      |> visit("/org/#{org.name}/settings/users")
       |> assert_has("h1", text: "Users")
       |> tap(fn conn ->
         for org_user <- Accounts.get_org_users(org) do
@@ -23,7 +23,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
 
     test "you can't remove yourself from the org", %{conn: conn, org: org, user: user} do
       conn
-      |> visit("/orgs/#{org.name}/settings/users")
+      |> visit("/org/#{org.name}/settings/users")
       |> assert_has("h1", text: "Users")
       |> assert_has("td", text: user.username)
       |> refute_has("a[phx-value-user_id=\"#{user.id}\"]", text: "Delete")
@@ -33,11 +33,11 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
 
       conn
-      |> visit("/orgs/#{org.name}/settings/users/#{org_user.user_id}/edit")
+      |> visit("/org/#{org.name}/settings/users/#{org_user.user_id}/edit")
       |> assert_has("h1", text: org_user.user.username)
       |> select("Admin", from: "Role")
       |> click_button("Update")
-      |> assert_path("/orgs/#{org.name}/settings/users")
+      |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "Role updated")
     end
 
@@ -45,10 +45,10 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
 
       conn
-      |> visit("/orgs/#{org.name}/settings/users")
+      |> visit("/org/#{org.name}/settings/users")
       |> assert_has("h1", text: "Users")
       |> click_link("a[phx-value-user_id=\"#{org_user.user_id}\"]", "Delete")
-      |> assert_path("/orgs/#{org.name}/settings/users")
+      |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User removed")
 
       assert_email_sent(
@@ -60,11 +60,11 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
   describe "invites" do
     test "sends invite to user if they aren't registed", %{conn: conn, org: org} do
       conn
-      |> visit("/orgs/#{org.name}/settings/users/invite")
+      |> visit("/org/#{org.name}/settings/users/invite")
       |> assert_has("h1", text: "Add New User")
       |> fill_in("Email", with: "josh@mrjosh.com")
       |> click_button("Send Invitation")
-      |> assert_path("/orgs/#{org.name}/settings/users")
+      |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User has been invited")
       |> assert_has("h1", text: "Outstanding Invites")
       |> assert_has("td", text: "josh@mrjosh.com")
@@ -76,11 +76,11 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       morejosh = Fixtures.user_fixture(%{name: "morejosh"})
 
       conn
-      |> visit("/orgs/#{org.name}/settings/users/invite")
+      |> visit("/org/#{org.name}/settings/users/invite")
       |> assert_has("h1", text: "Add New User")
       |> fill_in("Email", with: morejosh.email)
       |> click_button("Send Invitation")
-      |> assert_path("/orgs/#{org.name}/settings/users")
+      |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User has been added to #{org.name}")
       |> refute_has("h1", text: "Outstanding Invites")
       |> assert_has("td", text: morejosh.email)
@@ -92,10 +92,10 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       {:ok, _} = Accounts.invite(%{"email" => "josh@mrjosh.com", "role" => "view"}, org, user)
 
       conn
-      |> visit("/orgs/#{org.name}/settings/users")
+      |> visit("/org/#{org.name}/settings/users")
       |> click_link("Rescind")
       |> assert_has("div", text: "Invite rescinded")
-      |> assert_path("/orgs/#{org.name}/settings/users")
+      |> assert_path("/org/#{org.name}/settings/users")
       |> refute_has("h1", text: "Outstanding Invites")
     end
 
@@ -105,11 +105,11 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       user: user
     } do
       conn
-      |> visit("/orgs/#{org.name}/settings/users/invite")
+      |> visit("/org/#{org.name}/settings/users/invite")
       |> assert_has("h1", text: "Add New User")
       |> fill_in("Email", with: user.email)
       |> click_button("Send Invitation")
-      |> assert_path("/orgs/#{org.name}/settings/users/invite")
+      |> assert_path("/org/#{org.name}/settings/users/invite")
       |> assert_has("p", text: "Something went wrong, please check the errors below.")
       |> assert_has("span", text: "is already member")
 

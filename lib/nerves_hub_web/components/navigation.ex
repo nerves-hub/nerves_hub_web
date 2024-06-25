@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Components.Navigation do
                 <div class="dropdown-divider"></div>
                 <%= for org <- @user.orgs do %>
                   <div class="dropdown-submenu">
-                    <.link href={~p"/orgs/#{org.name}"} class={"dropdown-item org #{org_classes(@current_path, org.name)}"}>
+                    <.link href={~p"/org/#{org.name}"} class={"dropdown-item org #{org_classes(@current_path, org.name)}"}>
                       <%= org.name %>
                       <div class="active-checkmark"></div>
                     </.link>
@@ -69,7 +69,7 @@ defmodule NervesHubWeb.Components.Navigation do
                   </div>
                 <% end %>
 
-                <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization" href={~p"/orgs/new"}>
+                <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization" href={~p"/org/new"}>
                   <span class="action-text">Create Organization</span>
                   <div class="button-icon add"></div>
                 </a>
@@ -140,21 +140,18 @@ defmodule NervesHubWeb.Components.Navigation do
     end
   end
 
-  def sidebar_links(["org", _org_name | _tail] = path, assigns),
-    do: sidebar_product(assigns, path)
-
   def sidebar_links(["orgs", "new"], _assigns), do: []
 
-  def sidebar_links(["orgs", _org_name] = path, assigns),
+  def sidebar_links(["org", _org_name] = path, assigns),
     do: sidebar_org(assigns, path)
 
-  def sidebar_links(["orgs", _org_name, "new"] = path, assigns),
+  def sidebar_links(["org", _org_name, "new"] = path, assigns),
     do: sidebar_org(assigns, path)
 
-  def sidebar_links(["orgs", _org_name, "settings" | _tail] = path, assigns),
+  def sidebar_links(["org", _org_name, "settings" | _tail] = path, assigns),
     do: sidebar_org(assigns, path)
 
-  def sidebar_links(["orgs", _org_name | _tail] = path, assigns),
+  def sidebar_links(["org", _org_name | _tail] = path, assigns),
     do: sidebar_product(assigns, path)
 
   def sidebar_links(_path, _assigns), do: []
@@ -164,7 +161,7 @@ defmodule NervesHubWeb.Components.Navigation do
        %{
          title: "Products",
          active: "",
-         href: ~p"/orgs/#{assigns.org.name}"
+         href: ~p"/org/#{assigns.org.name}"
        }
      ] ++
        if assigns.org_user.role in NervesHub.Accounts.User.role_or_higher(:manage) do
@@ -172,22 +169,22 @@ defmodule NervesHubWeb.Components.Navigation do
            %{
              title: "Signing Keys",
              active: "",
-             href: ~p"/orgs/#{assigns.org.name}/settings/keys"
+             href: ~p"/org/#{assigns.org.name}/settings/keys"
            },
            %{
              title: "Users",
              active: "",
-             href: ~p"/orgs/#{assigns.org.name}/settings/users"
+             href: ~p"/org/#{assigns.org.name}/settings/users"
            },
            %{
              title: "Certificates",
              active: "",
-             href: ~p"/orgs/#{assigns.org.name}/settings/certificates"
+             href: ~p"/org/#{assigns.org.name}/settings/certificates"
            },
            %{
              title: "Settings",
              active: "",
-             href: ~p"/orgs/#{assigns.org.name}/settings"
+             href: ~p"/org/#{assigns.org.name}/settings"
            }
          ]
        else

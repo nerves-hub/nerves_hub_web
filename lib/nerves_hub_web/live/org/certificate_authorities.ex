@@ -59,7 +59,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
       {:error, :not_found} ->
         socket
         |> put_flash(:error, "Certificate Authority not found")
-        |> push_patch(to: "/orgs/#{socket.assigns.org.name}/settings/certificates")
+        |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/certificates")
     end
   end
 
@@ -93,7 +93,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
          {:ok, _cert} <- Devices.update_ca_certificate(cert, params) do
       socket
       |> put_flash(:info, "Certificate Authority updated")
-      |> push_patch(to: "/orgs/#{socket.assigns.org.name}/settings/certificates")
+      |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/certificates")
       |> noreply()
     else
       {:error, :not_found} ->
@@ -143,7 +143,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
          {:ok, _ca_certificate} <- Devices.create_ca_certificate(socket.assigns.org, params) do
       socket
       |> put_flash(:info, "Certificate Authority created")
-      |> push_patch(to: "/orgs/#{socket.assigns.org.name}/settings/certificates")
+      |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/certificates")
       |> noreply()
     else
       {:error, :empty_cert} ->

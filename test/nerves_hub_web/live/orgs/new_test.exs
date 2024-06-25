@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Live.Orgs.NewTest do
       |> assert_has("h1", text: "Create New Organization")
       |> fill_in("Organization Name", with: "my-big-org")
       |> click_button("Create Organization")
-      |> assert_path("/orgs/my-big-org")
+      |> assert_path("/org/my-big-org")
       |> assert_has("h3", text: "my-big-org doesn’t have any products yet")
     end
   end

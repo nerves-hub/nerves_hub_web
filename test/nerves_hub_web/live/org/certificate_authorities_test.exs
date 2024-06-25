@@ -11,7 +11,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       %{db_cert: db2_cert} = Fixtures.ca_certificate_fixture(org)
 
       conn
-      |> visit("/orgs/#{org.name}/settings/certificates")
+      |> visit("/org/#{org.name}/settings/certificates")
       |> assert_has("h1", text: "Certificate Authorities")
       |> assert_has("code", text: Utils.format_serial(db1_cert.serial))
       |> assert_has("code", text: Utils.format_serial(db2_cert.serial))
@@ -23,7 +23,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
     test "CA is created on success", %{conn: conn, org: org, tmp_dir: tmp_dir} do
       conn =
         conn
-        |> visit("/orgs/#{org.name}/settings/certificates/new")
+        |> visit("/org/#{org.name}/settings/certificates/new")
         |> assert_has("h1", text: "New Certificate Authority")
 
       code = registration_code(conn.view)
@@ -46,7 +46,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       conn
       |> fill_in("Description", with: description)
       |> click_button("Create Certificate")
-      |> assert_path("/orgs/#{org.name}/settings/certificates")
+      |> assert_path("/org/#{org.name}/settings/certificates")
       |> assert_has("div", text: "Certificate Authority created")
       |> assert_has("h1", text: "Certificate Authorities")
       |> assert_has("tr > td > code")
@@ -59,7 +59,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
     test "renders errors when cert is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
       conn =
         conn
-        |> visit("/orgs/#{org.name}/settings/certificates/new")
+        |> visit("/org/#{org.name}/settings/certificates/new")
         |> assert_has("h1", text: "New Certificate Authority")
 
       code = registration_code(conn.view)
@@ -77,7 +77,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> click_button("Create Certificate")
-      |> assert_path("/orgs/#{org.name}/settings/certificates/new")
+      |> assert_path("/org/#{org.name}/settings/certificates/new")
       |> assert_has("div", text: "Certificate Authority pem file is empty or invalid")
 
       assert [] = Devices.get_ca_certificates(org)
@@ -87,7 +87,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
     test "renders errors when csr is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
       conn =
         conn
-        |> visit("/orgs/#{org.name}/settings/certificates/new")
+        |> visit("/org/#{org.name}/settings/certificates/new")
         |> assert_has("h1", text: "New Certificate Authority")
 
       ca_file_path = Fixtures.device_certificate_authority_file()
@@ -106,7 +106,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn
       |> click_button("Create Certificate")
-      |> assert_path("/orgs/#{org.name}/settings/certificates/new")
+      |> assert_path("/org/#{org.name}/settings/certificates/new")
       |> assert_has("div",
         text:
           "Error validating certificate signing request. Please check if the right registration code was used."
@@ -122,7 +122,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       conn =
         conn
-        |> visit("/orgs/#{org.name}/settings/certificates/new")
+        |> visit("/org/#{org.name}/settings/certificates/new")
         |> assert_has("h1", text: "New Certificate Authority")
 
       code = registration_code(conn.view)
@@ -149,7 +149,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> fill_in("JITP Tags", with: "prod")
       |> select(product.name, from: "JITP Product")
       |> click_button("Create Certificate")
-      |> assert_path("/orgs/#{org.name}/settings/certificates")
+      |> assert_path("/org/#{org.name}/settings/certificates")
       |> assert_has("div", text: "Certificate Authority created")
       |> assert_has("h1", text: "Certificate Authorities")
       |> assert_has("tr > td > code")
@@ -168,7 +168,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       %{db_cert: ca} = Fixtures.ca_certificate_fixture(org)
 
       conn
-      |> visit("/orgs/#{org.name}/settings/certificates")
+      |> visit("/org/#{org.name}/settings/certificates")
       |> assert_has("h1", text: "Certificate Authorities")
       |> assert_has("code", text: Utils.format_serial(ca.serial))
       |> click_link("Delete")
@@ -184,11 +184,11 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       %{db_cert: %{serial: serial}} = Fixtures.ca_certificate_fixture(org)
 
       conn
-      |> visit("/orgs/#{org.name}/settings/certificates/#{serial}/edit")
+      |> visit("/org/#{org.name}/settings/certificates/#{serial}/edit")
       |> assert_has("h1", text: "Edit Certificate Authority")
       |> fill_in("Description", with: "a new description")
       |> click_button("Update Certificate")
-      |> assert_path("/orgs/#{org.name}/settings/certificates")
+      |> assert_path("/org/#{org.name}/settings/certificates")
       |> assert_has("div", text: "Certificate Authority updated")
 
       assert {:ok, %{description: "a new description", serial: ^serial}} =
@@ -200,14 +200,14 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       product = Fixtures.product_fixture(user, org)
 
       conn
-      |> visit("/orgs/#{org.name}/settings/certificates/#{serial}/edit")
+      |> visit("/org/#{org.name}/settings/certificates/#{serial}/edit")
       |> assert_has("h1", text: "Edit Certificate Authority")
       |> check("Enable Just In Time Provisioning")
       |> fill_in("JITP Description", with: "")
       |> fill_in("JITP Tags", with: "prod")
       |> select(product.name, from: "JITP Product")
       |> click_button("Update Certificate")
-      |> assert_path("/orgs/#{org.name}/settings/certificates/#{serial}/edit")
+      |> assert_path("/org/#{org.name}/settings/certificates/#{serial}/edit")
       |> assert_has("div", text: "Error updating certificate")
       |> assert_has("span", text: "can't be blank")
     end
