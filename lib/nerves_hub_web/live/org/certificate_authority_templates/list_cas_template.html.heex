@@ -58,9 +58,7 @@
         </td>
         <td>
           <div class="mobile-label help-text">Status</div>
-          <div class={"certificate-status-#{(certificate_status_class(cert))}"}>
-            <%= certificate_status(cert) %>
-          </div>
+          <CAHelpers.certificate_status not_after={cert.not_after} />
         </td>
         <td class="actions">
           <div class="mobile-label help-text">Actions</div>

@@ -260,25 +260,25 @@ defmodule NervesHub.Fixtures do
   end
 
   def generate_certificate_authority_csr(ca_file, ca_key_file, code, dir) do
-    verification_key_pem = Path.expand("verification-key.pem", dir)
-    verification_csr_pem = Path.expand("verification-csr.pem", dir)
-    verification_cert_pem = Path.expand("verification-cert.pem", dir)
-    openssl(~w(genrsa -out #{verification_key_pem} 2048), dir)
+    verification_cert_key = Path.expand("verification-cert.key", dir)
+    verification_cert_csr = Path.expand("verification-cert.csr", dir)
+    verification_cert_crt = Path.expand("verification-cert.crt", dir)
+    openssl(~w(genrsa -out #{verification_cert_key} 2048), dir)
 
     openssl(
-      ~w(req -new -key #{verification_key_pem} -out #{verification_csr_pem} -subj /CN=#{code}),
+      ~w(req -new -key #{verification_cert_key} -out #{verification_cert_csr} -subj /CN=#{code}),
       dir
     )
 
     openssl(
-      ~w(x509 -req -in #{verification_csr_pem} -CA #{ca_file} -CAkey #{ca_key_file} -CAcreateserial -out #{verification_cert_pem} -days 500 -sha256),
+      ~w(x509 -req -in #{verification_cert_csr} -CA #{ca_file} -CAkey #{ca_key_file} -CAcreateserial -out #{verification_cert_crt} -days 500 -sha256),
       dir
     )
 
     %{
-      verification_key_pem: verification_key_pem,
-      verification_cert_pem: verification_cert_pem,
-      verification_csr_pem: verification_csr_pem
+      verification_cert_key: verification_cert_key,
+      verification_cert_csr: verification_cert_csr,
+      verification_cert_crt: verification_cert_crt
     }
   end
 

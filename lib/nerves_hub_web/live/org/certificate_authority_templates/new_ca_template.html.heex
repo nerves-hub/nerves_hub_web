@@ -1,6 +1,14 @@
 <h1>New Certificate Authority</h1>
 
 <.form :let={f} for={@form} phx-submit="add_certificate_authority" phx-change="validate_new_certificate_authority">
+  <div :if={f.action && !Keyword.has_key?(f.errors, :serial)} class="alert alert-danger">
+    <p>Something went wrong! Please check the errors below.</p>
+  </div>
+
+  <div :if={Keyword.has_key?(f.errors, :serial)} class="alert alert-danger">
+    <p>A Certificate Authority with the same Serial already exists.</p>
+  </div>
+
   <h3>Step 1</h3>
   <p>Generate a key pair for the private key verification certificate</p>
   <pre class="hljs"><code class="language-bash hljs">
@@ -9,7 +17,7 @@
 
   <h3>Step 2</h3>
   <p>Copy this registration code to your clipboard</p>
-  <pre class="hljs"><code class="language-bash hljs">
+  <pre id="registration_code" class="hljs"><code class="language-bash hljs">
   <%= @registration_code %>
   </code></pre>
 
@@ -30,6 +38,11 @@
   Email Address []:
   </code></pre>
 
+  <p>Or you can do this in one line with</p>
+  <pre><code class="language-bash hljs">
+  openssl req -new -key verificationCert.key -out verificationCert.csr -subj /CN=<%= @registration_code %>
+  </code></pre>
+
   <h3>Step 4</h3>
   <p>Use the CSR that was signed with the CA private key to create a private key verification certificate</p>
   <pre class="hljs"><code class="language-bash hljs">
@@ -45,8 +58,7 @@
   <div class="form-group">
     <div class="help-text mb-1 tooltip-label help-tooltip">
       <%= label(f, :check_expiration, for: "check_expiration_input") %>
-      <span class="tooltip-info"></span>
-      <span class="tooltip-text"><%= check_expiration_help_text() %></span>
+      <CAHelpers.check_expiration_tooltip />
     </div>
     <%= checkbox(f, :check_expiration, class: "", id: "check_expiration_input") %>
     <div class="has-error"><%= error_tag(f, :check_expiration) %></div>
@@ -54,9 +66,9 @@
 
   <%= inputs_for f, :jitp, fn fp -> %>
     <label for="jitp_toggle"> Enable Just In Time Provisioning </label>
-    <input id="jitp_toggle" type="hidden" name="ca_certificate[jitp][jitp_toggle]" value="false" />
-    <input id="jitp_toggle_ui" type="checkbox" value="true" phx-click={JS.toggle_class("hidden", to: "#jitp_form") |> JS.toggle_attribute({"value", "true", "false"}, to: "#jitp_toggle")} } />
-    <div class="hidden" id="jitp_form">
+    <input id="jitp_toggle" type="hidden" name="ca_certificate[jitp][jitp_toggle]" value="false" checked={@show_jitp_form} />
+    <input id="jitp_toggle_ui" type="checkbox" value="true" checked={@show_jitp_form} phx-click={JS.dispatch("ca:new:jitp")} } />
+    <div class={unless @show_jitp_form, do: "hidden"} id="jitp_form">
       <div class="form-group">
         <label for="jitp_description_input" class="tooltip-label h3 mb-1">
           <span>JITP Description</span>

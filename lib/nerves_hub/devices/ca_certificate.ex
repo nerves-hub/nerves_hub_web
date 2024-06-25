@@ -50,7 +50,8 @@ defmodule NervesHub.Devices.CACertificate do
   end
 
   def update_changeset(%CACertificate{} = ca_certificate, params) do
-    cast(ca_certificate, params, @optional_params)
+    ca_certificate
+    |> cast(params, @optional_params)
     |> cast_assoc(:jitp)
   end
 end

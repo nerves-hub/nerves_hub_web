@@ -10,29 +10,19 @@
   <div class="form-group">
     <div class="help-text mb-1 tooltip-label help-tooltip">
       <%= label(f, :check_expiration, for: "check_expiration_input") %>
-      <span class="tooltip-info"></span>
-      <span class="tooltip-text"><%= check_expiration_help_text() %></span>
+      <CAHelpers.check_expiration_tooltip />
     </div>
     <%= checkbox(f, :check_expiration, class: "", id: "check_expiration_input") %>
     <div class="has-error"><%= error_tag(f, :check_expiration) %></div>
   </div>
 
-  <script>
-    document.getElementById("jitp_toggle").onclick = function() {
-      document.getElementById("jitp_form").hidden = !this.checked;
-      document.getElementById("jitp-delete").value = !this.checked;
-    }
-  </script>
-
   <%= inputs_for f, :jitp, fn fp -> %>
     <label for="jitp_toggle"> Enable Just In Time Provisioning </label>
-    <input type="checkbox" name="jitp_toggle" id="jitp_toggle" {if f.data.jitp, do: [checked: true], else: []} />
-    <%= hidden_input(fp, :delete, id: "jitp-delete") %>
 
-    <label for="jitp_toggle"> Enable Just In Time Provisioning </label>
-    <input id="jitp_toggle" type="hidden" name="ca_certificate[jitp][delete]" value="false" />
-    <input id="jitp_toggle_ui" type="checkbox" value="true" phx-click={JS.toggle_class("hidden", to: "#jitp_form") |> JS.toggle_attribute({"value", "true", "false"}, to: "#jitp_toggle")} } />
-    <div {unless f.data.jitp, do: [hidden: true], else: []} id="jitp_form">
+    <%= hidden_input(fp, :delete, id: "jitp-delete") %>
+    <input id="jitp_toggle_ui" type="checkbox" value="true" checked={@show_jitp_form} phx-click={JS.dispatch("ca:edit:jitp")} />
+
+    <div class={unless @show_jitp_form, do: "hidden"} id="jitp_form">
       <div class="form-group">
         <label for="jitp_description_input" class="tooltip-label h3 mb-1">
           <span>JITP Description</span>

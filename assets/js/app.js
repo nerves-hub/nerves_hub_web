@@ -95,3 +95,27 @@ window.addEventListener('phx:sharedsecret:clipcopy', event => {
     alert('Sorry, your browser does not support clipboard copy.')
   }
 })
+
+window.addEventListener('ca:edit:jitp', event => {
+  const checked = document.getElementById('jitp_toggle_ui').checked
+
+  document.getElementById('jitp-delete').value = !checked
+
+  if (checked) {
+    document.getElementById('jitp_form').classList.remove('hidden')
+  } else {
+    document.getElementById('jitp_form').classList.add('hidden')
+  }
+})
+
+window.addEventListener('ca:new:jitp', event => {
+  const checked = document.getElementById('jitp_toggle_ui').checked
+
+  document.getElementById('jitp_toggle').value = checked
+
+  if (checked) {
+    document.getElementById('jitp_form').classList.remove('hidden')
+  } else {
+    document.getElementById('jitp_form').classList.add('hidden')
+  }
+})
