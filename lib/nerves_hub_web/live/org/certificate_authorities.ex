@@ -153,13 +153,19 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
         {:noreply, put_flash(socket, :error, "Certificate Authority files required")}
 
       {:error, :not_found} ->
-        {:noreply, put_flash(socket, :error, "Error decoding certificate")}
+        {:noreply,
+         put_flash(socket, :error, "Certificate Authority pem file is empty or invalid")}
 
       {:error, :cert_expired} ->
         {:noreply, put_flash(socket, :error, "Certificate is expired")}
 
       {:error, :invalid_csr} ->
-        {:noreply, put_flash(socket, :error, "Error validating certificate signing request")}
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Error validating certificate signing request. Please check if the right registration code was used."
+         )}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
@@ -174,10 +180,9 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   defp uploaded_cert(socket) do
     case consume_uploaded_entries(socket, :cert, fn %{path: path}, _entry ->
            {:ok, cert_pem} = File.read(path)
-           {:ok, cert} = X509.Certificate.from_pem(cert_pem)
-           {:postpone, cert}
+           {:postpone, cert_pem}
          end) do
-      [cert] -> {:ok, cert}
+      [cert] -> X509.Certificate.from_pem(cert)
       [] -> {:error, :empty_cert}
     end
   end
@@ -227,6 +232,11 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   defp maybe_delete_jitp(%{"jitp" => %{"delete" => "true"}} = params) do
     # View was loaded, JITP not changed, but the toggle was pressed a few times
     {:ok, Map.delete(params, "jitp")}
+  end
+
+  defp maybe_delete_jitp(%{"jitp" => %{"jitp_toggle" => "true"}} = params) do
+    # JITP is toggled and should be saved
+    {:ok, params}
   end
 
   defp maybe_delete_jitp(%{"jitp" => %{"delete" => ""}} = params) do

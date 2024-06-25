@@ -65,36 +65,42 @@
   </div>
 
   <%= inputs_for f, :jitp, fn fp -> %>
-    <label for="jitp_toggle"> Enable Just In Time Provisioning </label>
+    <label for="jitp_toggle_ui"> Enable Just In Time Provisioning </label>
     <input id="jitp_toggle" type="hidden" name="ca_certificate[jitp][jitp_toggle]" value="false" checked={@show_jitp_form} />
-    <input id="jitp_toggle_ui" type="checkbox" value="true" checked={@show_jitp_form} phx-click={JS.dispatch("ca:new:jitp")} } />
+    <input id="jitp_toggle_ui" type="checkbox" name="ca_certificate[jitp][jitp_toggle]" value="true" checked={@show_jitp_form} phx-click={JS.dispatch("ca:new:jitp")} } />
     <div class={unless @show_jitp_form, do: "hidden"} id="jitp_form">
       <div class="form-group">
-        <label for="jitp_description_input" class="tooltip-label h3 mb-1">
-          <span>JITP Description</span>
-          <span class="tooltip-info"></span>
+        <div class="tooltip-label mb-1">
+          <label for="jitp_description_input" class="h3">
+            JITP Description
+          </label>
+          <span class="tooltip-info mb-1"></span>
           <span class="tooltip-text">Device Description</span>
-        </label>
+        </div>
         <%= text_input(fp, :description, class: "form-control", id: "jitp_description_input") %>
         <div class="has-error"><%= error_tag(fp, :description) %></div>
       </div>
 
-      <div class="form-group" aria-hidden="true">
-        <label for="tag_input" class="tooltip-label h3 mb-1">
-          <span>JITP Tags</span>
-          <span class="tooltip-info"></span>
+      <div class="form-group">
+        <div class="tooltip-label mb-1">
+          <label for="tag_input" class="h3">
+            JITP Tags
+          </label>
+          <span class="tooltip-info mb-1"></span>
           <span class="tooltip-text">Tags are used by deployments to target a device. A device must have matching tag(s) for the deployment to update it</span>
-        </label>
+        </div>
         <%= text_input(fp, :tags, class: "form-control", id: "tag_input") %>
         <div class="has-error"><%= error_tag(fp, :tags) %></div>
       </div>
 
-      <div class="form-group" aria-hidden="true">
-        <label for="tag_input" class="tooltip-label h3 mb-1">
-          <span>JITP Product</span>
-          <span class="tooltip-info"></span>
+      <div class="form-group">
+        <div class="tooltip-label mb-1">
+          <label for="product_input" class="h3">
+            JITP Product
+          </label>
+          <span class="tooltip-info mb-1"></span>
           <span class="tooltip-text">JITP must be configured to use a particular product</span>
-        </label>
+        </div>
         <%= select(fp, :product_id, Enum.map(@products, &{&1.name, &1.id}), class: "form-control", id: "product_input", prompt: "Select Product") %>
         <div class="has-error"><%= error_tag(fp, :product_id) %></div>
       </div>

@@ -26,14 +26,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
         |> visit("/orgs/#{org.name}/settings/certificates/new")
         |> assert_has("h1", text: "New Certificate Authority")
 
-      code =
-        conn.view
-        |> render()
-        |> Floki.parse_fragment!()
-        |> Floki.find("#registration_code > code")
-        |> Enum.map(&Floki.text(&1, sep: " "))
-        |> List.first()
-        |> String.trim()
+      code = registration_code(conn.view)
 
       ca_file_path = Fixtures.device_certificate_authority_file()
       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
@@ -47,27 +40,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       description = "My ca"
 
-      cert =
-        file_input(conn.view, "form", :cert, [
-          %{
-            last_modified: 1_594_171_879_000,
-            name: "rootCA.pem",
-            content: File.read!(ca_file_path)
-          }
-        ])
-
-      render_upload(cert, "rootCA.pem")
-
-      csr =
-        file_input(conn.view, "form", :csr, [
-          %{
-            last_modified: 1_594_171_879_000,
-            name: "verificationCert.crt",
-            content: File.read!(verification_cert_crt)
-          }
-        ])
-
-      render_upload(csr, "verificationCert.crt")
+      upload_file(conn, "rootCA.pem", ca_file_path, :cert)
+      upload_file(conn, "verificationCert.crt", verification_cert_crt, :csr)
 
       conn
       |> fill_in("Description", with: description)
@@ -79,6 +53,113 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
 
       assert {:ok, %{description: ^description, serial: ^serial}} =
                Devices.get_ca_certificate_by_serial(serial)
+    end
+
+    @tag :tmp_dir
+    test "renders errors when cert is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      conn =
+        conn
+        |> visit("/orgs/#{org.name}/settings/certificates/new")
+        |> assert_has("h1", text: "New Certificate Authority")
+
+      code = registration_code(conn.view)
+
+      ca_file_path = Fixtures.device_certificate_authority_file()
+      ca_key_file_path = Fixtures.device_certificate_authority_key_file()
+
+      %{verification_cert_crt: verification_cert_crt} =
+        Fixtures.generate_certificate_authority_csr(ca_file_path, ca_key_file_path, code, tmp_dir)
+
+      bad_ca_file_path = Fixtures.bad_device_certificate_authority_file()
+
+      upload_file(conn, "rootCA.pem", bad_ca_file_path, :cert)
+      upload_file(conn, "verificationCert.crt", verification_cert_crt, :csr)
+
+      conn
+      |> click_button("Create Certificate")
+      |> assert_path("/orgs/#{org.name}/settings/certificates/new")
+      |> assert_has("div", text: "Certificate Authority pem file is empty or invalid")
+
+      assert [] = Devices.get_ca_certificates(org)
+    end
+
+    @tag :tmp_dir
+    test "renders errors when csr is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
+      conn =
+        conn
+        |> visit("/orgs/#{org.name}/settings/certificates/new")
+        |> assert_has("h1", text: "New Certificate Authority")
+
+      ca_file_path = Fixtures.device_certificate_authority_file()
+      ca_key_file_path = Fixtures.device_certificate_authority_key_file()
+
+      %{verification_cert_crt: verification_cert_crt} =
+        Fixtures.generate_certificate_authority_csr(
+          ca_file_path,
+          ca_key_file_path,
+          "oops",
+          tmp_dir
+        )
+
+      upload_file(conn, "rootCA.pem", ca_file_path, :cert)
+      upload_file(conn, "verificationCert.crt", verification_cert_crt, :csr)
+
+      conn
+      |> click_button("Create Certificate")
+      |> assert_path("/orgs/#{org.name}/settings/certificates/new")
+      |> assert_has("div",
+        text:
+          "Error validating certificate signing request. Please check if the right registration code was used."
+      )
+
+      assert [] = Devices.get_ca_certificates(org)
+    end
+
+    @tag :tmp_dir
+    @tag timeout: :infinity
+    test "create with JITP", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
+      product = Fixtures.product_fixture(user, org)
+
+      conn =
+        conn
+        |> visit("/orgs/#{org.name}/settings/certificates/new")
+        |> assert_has("h1", text: "New Certificate Authority")
+
+      code = registration_code(conn.view)
+
+      ca_file_path = Fixtures.device_certificate_authority_file()
+      ca_key_file_path = Fixtures.device_certificate_authority_key_file()
+
+      %{verification_cert_crt: verification_cert_crt} =
+        Fixtures.generate_certificate_authority_csr(ca_file_path, ca_key_file_path, code, tmp_dir)
+
+      {:ok, ca} = File.read!(ca_file_path) |> X509.Certificate.from_pem()
+
+      serial = Certificate.get_serial_number(ca)
+
+      description = "My ca"
+
+      upload_file(conn, "rootCA.pem", ca_file_path, :cert)
+      upload_file(conn, "verificationCert.crt", verification_cert_crt, :csr)
+
+      conn
+      |> fill_in("Description", with: description)
+      |> check("Enable Just In Time Provisioning")
+      |> fill_in("JITP Description", with: "a jitp description")
+      |> fill_in("JITP Tags", with: "prod")
+      |> select(product.name, from: "JITP Product")
+      |> click_button("Create Certificate")
+      |> assert_path("/orgs/#{org.name}/settings/certificates")
+      |> assert_has("div", text: "Certificate Authority created")
+      |> assert_has("h1", text: "Certificate Authorities")
+      |> assert_has("tr > td > code")
+
+      assert {:ok,
+              %{
+                description: ^description,
+                serial: ^serial,
+                jitp: %{tags: ["prod"], description: "a jitp description"}
+              }} = Devices.get_ca_certificate_by_serial(serial)
     end
   end
 
@@ -114,154 +195,44 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
                Devices.get_ca_certificate_by_serial(serial)
     end
 
-    # test "update fails when description is blank", %{conn: conn, user: user, org: org} do
-    #   %{db_cert: %{serial: serial}} = Fixtures.ca_certificate_fixture(org)
+    test "update fails when description is blank", %{conn: conn, user: user, org: org} do
+      %{db_cert: %{serial: serial}} = Fixtures.ca_certificate_fixture(org)
+      product = Fixtures.product_fixture(user, org)
 
-    #   conn
-    #   |> visit("/orgs/#{org.name}/settings/certificates/#{serial}/edit")
-    #   |> assert_has("h1", text: "Edit Certificate Authority")
-    #   |> fill_in("Description", with: "a new description")
-    #   |> click_button("Update Certificate")
-    #   |> assert_path("/orgs/#{org.name}/settings/certificates/#{serial}/edit")
-    #   |> assert_has("div", text: "Error updating certificate")
-    #   |> assert_has("p", text: "Can't be blank")
-
-    #   {:ok, ca} = Devices.get_ca_certificate_by_serial(serial)
-
-    #   refute "a new description" == ca.description
-    # end
+      conn
+      |> visit("/orgs/#{org.name}/settings/certificates/#{serial}/edit")
+      |> assert_has("h1", text: "Edit Certificate Authority")
+      |> check("Enable Just In Time Provisioning")
+      |> fill_in("JITP Description", with: "")
+      |> fill_in("JITP Tags", with: "prod")
+      |> select(product.name, from: "JITP Product")
+      |> click_button("Update Certificate")
+      |> assert_path("/orgs/#{org.name}/settings/certificates/#{serial}/edit")
+      |> assert_has("div", text: "Error updating certificate")
+      |> assert_has("span", text: "can't be blank")
+    end
   end
 
-  #   describe "create" do
-  #
+  defp registration_code(view) do
+    view
+    |> render()
+    |> Floki.parse_fragment!()
+    |> Floki.find("#registration_code > code")
+    |> Enum.map(&Floki.text(&1, sep: " "))
+    |> List.first()
+    |> String.trim()
+  end
 
-  #     @tag :tmp_dir
-  #     test "renders errors when cert is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
-  #       conn = get(conn, Routes.org_certificate_path(conn, :new, org.name))
-  #       session = Plug.Conn.get_session(conn)
-  #       code = session["registration_code"]
-  #       ca_file_path = Fixtures.device_certificate_authority_file()
-  #       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
+  defp upload_file(conn, file_name, file_path, form_field) do
+    csr =
+      file_input(conn.view, "form", form_field, [
+        %{
+          last_modified: 1_594_171_879_000,
+          name: file_name,
+          content: File.read!(file_path)
+        }
+      ])
 
-  #       %{verification_cert_pem: verification_cert_pem} =
-  #         Fixtures.generate_certificate_authority_csr(ca_file_path, ca_key_file_path, code, tmp_dir)
-
-  #       bad_ca_file_path = Fixtures.bad_device_certificate_authority_file()
-
-  #       cert_upload = %Plug.Upload{path: bad_ca_file_path}
-  #       csr_upload = %Plug.Upload{path: verification_cert_pem}
-
-  #       params = %{ca_certificate: %{cert: cert_upload, csr: csr_upload}}
-
-  #       conn = post(conn, Routes.org_certificate_path(conn, :create, org.name), params)
-  #       assert redirected_to(conn) == Routes.org_certificate_path(conn, :new, org.name)
-  #       conn = get(conn, Routes.org_certificate_path(conn, :new, org.name))
-  #       assert html_response(conn, 200) =~ "Error decoding certificate"
-  #     end
-
-  #     @tag :tmp_dir
-  #     test "renders errors when params are invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
-  #       conn = get(conn, Routes.org_certificate_path(conn, :new, org.name))
-  #       session = Plug.Conn.get_session(conn)
-  #       code = session["registration_code"]
-  #       ca_file_path = Fixtures.device_certificate_authority_file()
-  #       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
-
-  #       %{verification_cert_pem: verification_cert_pem} =
-  #         Fixtures.generate_certificate_authority_csr(ca_file_path, ca_key_file_path, code, tmp_dir)
-
-  #       {:ok, ca} = File.read!(ca_file_path) |> X509.Certificate.from_pem()
-  #       serial = Certificate.get_serial_number(ca)
-  #       description = 123
-
-  #       cert_upload = %Plug.Upload{path: ca_file_path}
-  #       csr_upload = %Plug.Upload{path: verification_cert_pem}
-  #       params = %{ca_certificate: %{cert: cert_upload, csr: csr_upload, description: description}}
-
-  #       conn = post(conn, Routes.org_certificate_path(conn, :create, org.name), params)
-  #       assert html_response(conn, 200) =~ "Error creating certificate"
-
-  #       assert {:error, :not_found} = Devices.get_ca_certificate_by_serial(serial)
-  #     end
-
-  #     @tag :tmp_dir
-  #     test "renders errors when csr is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
-  #       ca_file_path = Fixtures.device_certificate_authority_file()
-  #       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
-
-  #       %{verification_cert_pem: verification_cert_pem} =
-  #         Fixtures.generate_certificate_authority_csr(
-  #           ca_file_path,
-  #           ca_key_file_path,
-  #           "oops",
-  #           tmp_dir
-  #         )
-
-  #       {:ok, ca} = File.read!(ca_file_path) |> X509.Certificate.from_pem()
-  #       serial = Certificate.get_serial_number(ca)
-  #       description = "test"
-
-  #       cert_upload = %Plug.Upload{path: ca_file_path}
-  #       csr_upload = %Plug.Upload{path: verification_cert_pem}
-  #       params = %{ca_certificate: %{cert: cert_upload, csr: csr_upload, description: description}}
-
-  #       conn = post(conn, Routes.org_certificate_path(conn, :create, org.name), params)
-  #       assert redirected_to(conn) == Routes.org_certificate_path(conn, :new, org.name)
-
-  #       assert {:error, :not_found} = Devices.get_ca_certificate_by_serial(serial)
-  #     end
-
-  #     @tag :tmp_dir
-  #     @tag timeout: :infinity
-  #     test "create with JITP", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
-  #       conn = get(conn, Routes.org_certificate_path(conn, :new, org.name))
-  #       session = Plug.Conn.get_session(conn)
-  #       code = session["registration_code"]
-  #       ca_file_path = Fixtures.device_certificate_authority_file()
-  #       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
-  #       product = Fixtures.product_fixture(user, org)
-
-  #       %{verification_cert_pem: verification_cert_pem} =
-  #         Fixtures.generate_certificate_authority_csr(ca_file_path, ca_key_file_path, code, tmp_dir)
-
-  #       {:ok, ca} = File.read!(ca_file_path) |> X509.Certificate.from_pem()
-  #       serial = Certificate.get_serial_number(ca)
-  #       description = "My JITP ca"
-
-  #       cert_upload = %Plug.Upload{path: ca_file_path}
-  #       csr_upload = %Plug.Upload{path: verification_cert_pem}
-
-  #       params = %{
-  #         ca_certificate: %{
-  #           cert: cert_upload,
-  #           csr: csr_upload,
-  #           description: description,
-  #           jitp: %{tags: ["prod"], description: "jitp", product_id: product.id}
-  #         }
-  #       }
-
-  #       conn = post(conn, Routes.org_certificate_path(conn, :create, org.name), params)
-  #       assert redirected_to(conn) == Routes.org_certificate_path(conn, :index, org.name)
-
-  #       assert {:ok,
-  #               %{
-  #                 description: ^description,
-  #                 serial: ^serial,
-  #                 jitp: %{tags: ["prod"], description: "jitp"}
-  #               }} = Devices.get_ca_certificate_by_serial(serial)
-  #     end
-  #   end
-
-  #   describe "edit" do
-  #     test "renders form", %{conn: conn, org: org} do
-  #       %{db_cert: ca} = Fixtures.ca_certificate_fixture(org)
-  #       conn = get(conn, Routes.org_certificate_path(conn, :edit, org.name, ca.serial))
-  #       assert html_response(conn, 200) =~ "Edit Certificate Authority"
-  #     end
-
-  #     test "redirects to index when not found", %{conn: conn, org: org} do
-  #       conn = get(conn, Routes.org_certificate_path(conn, :edit, org.name, "unknown-serial"))
-  #       assert redirected_to(conn, 302) =~ Routes.org_certificate_path(conn, :index, org.name)
-  #     end
-  #   end
+    render_upload(csr, file_name)
+  end
 end
