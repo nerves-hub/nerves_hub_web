@@ -1,5 +1,3 @@
-Code.compiler_options(ignore_module_conflict: true)
-
 defmodule NervesHub.Support.Fwup do
   @moduledoc """
   This module is intended to help with testing and development
@@ -13,10 +11,6 @@ defmodule NervesHub.Support.Fwup do
   make sure you pass unique names to avoid collisions if necessary.  This module
   takes little effort to avoid collisions on its own.
   """
-
-  @after_compile {__MODULE__, :compiler_options}
-
-  def compiler_options(_, _), do: Code.compiler_options(ignore_module_conflict: false)
 
   defmodule MetaParams do
     defstruct product: "nerves-hub",

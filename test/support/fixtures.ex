@@ -1,5 +1,3 @@
-Code.compiler_options(ignore_module_conflict: true)
-
 defmodule NervesHub.Fixtures do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
@@ -14,10 +12,6 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Repo
   alias NervesHub.Support
   alias NervesHub.Support.Fwup
-
-  @after_compile {__MODULE__, :compiler_options}
-
-  def compiler_options(_, _), do: Code.compiler_options(ignore_module_conflict: false)
 
   @uploader Application.compile_env(:nerves_hub, :firmware_upload)
 
