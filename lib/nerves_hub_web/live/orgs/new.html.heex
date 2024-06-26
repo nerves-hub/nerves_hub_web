@@ -1,0 +1,27 @@
+<h1 class="pt-4">Create New Organization</h1>
+
+<.form :let={f} for={@form} phx-submit="save_org">
+  <%= if @form.action do %>
+    <div class="alert alert-danger">
+      <p>Oops, something went wrong! Please check the errors below.</p>
+    </div>
+  <% end %>
+
+  <div class="form-group">
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="name_input" class="tooltip-label">
+        Organization Name
+      </label>
+      <span class="tooltip-info mb-1"></span>
+      <span class="tooltip-text">Must be one word</span>
+    </div>
+    <%= text_input(f, :name, class: "form-control", id: "name_input") %>
+    <div class="has-error">
+      <%= error_tag(f, :name) %>
+    </div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <%= submit("Create Organization", class: "btn btn-primary") %>
+  </div>
+</.form>

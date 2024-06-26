@@ -96,8 +96,8 @@ defmodule NervesHubWeb.API.KeyControllerTest do
     end
   end
 
-  defp create_key(%{org: org}) do
-    key = Fixtures.org_key_fixture(org)
+  defp create_key(%{user: user, org: org}) do
+    key = Fixtures.org_key_fixture(org, user)
     {:ok, %{key: key}}
   end
 end

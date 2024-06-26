@@ -11,6 +11,11 @@ config :phoenix,
     leex: Phoenix.LiveView.Engine
   ]
 
+config :mime, :types, %{
+  "application/pem" => ["pem"],
+  "application/crt" => ["crt"]
+}
+
 ##
 # NervesHub
 #

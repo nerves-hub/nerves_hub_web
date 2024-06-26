@@ -6,7 +6,7 @@
   </div>
 <% end %>
 
-<%= if info = live_flash(@flash, :info) do %>
+<%= if info = Phoenix.Flash.get(@flash, :info) do %>
   <div class="alert alert-info alert-dismissible">
     <button type="button" class="close" phx-click="clear-flash-info">&times;</button>
     <%= info %>
@@ -146,7 +146,7 @@
   <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
 </div>
 
-<%= if err = live_flash(@flash, :error) do %>
+<%= if err = Phoenix.Flash.get(@flash, :error) do %>
   <div class="alert alert-danger alert-dismissible">
     <button type="button" class="close" phx-click="clear-flash-error">&times;</button>
     <%= for line <- String.split(err, "\n") do %>
@@ -155,7 +155,7 @@
   </div>
 <% end %>
 
-<%= if info = live_flash(@flash, :info) do %>
+<%= if info = Phoenix.Flash.get(@flash, :info) do %>
   <div class="alert alert-info alert-dismissible">
     <button type="button" class="close" phx-click="clear-flash-info">&times;</button>
     <%= info %>
@@ -214,7 +214,7 @@
       <tr class="item" style={if mismatch?, do: "border: 2px dashed var(--warning)"}>
         <td>
           <div class="mobile-label help-text">Serial</div>
-          <code class="color-white wb-ba ff-m"><%= format_serial(cert.serial) %></code>
+          <code class="color-white wb-ba ff-m"><%= Utils.format_serial(cert.serial) %></code>
         </td>
         <td title={cert.last_used}>
           <div class="mobile-label help-text">Last used</div>
@@ -242,7 +242,7 @@
             </a>
             <div class="dropdown-menu dropdown-menu-right">
               <%= if mismatch? do %>
-                <%= link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: Routes.product_path(@socket, :index, Repo.preload(cert, :org).org.name)) %>
+                <%= link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: ~p"/org/#{Repo.preload(cert, :org).org.name}") %>
               <% end %>
               <%= if cert.der do %>
                 <%= link("Download",
@@ -251,7 +251,7 @@
                   to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)
                 ) %>
               <% end %>
-              <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial={cert.serial} data-confirm={"Delete #{format_serial(cert.serial)}?"}>Delete</a>
+              <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial={cert.serial} data-confirm={"Delete #{Utils.format_serial(cert.serial)}?"}>Delete</a>
             </div>
           </div>
         </td>

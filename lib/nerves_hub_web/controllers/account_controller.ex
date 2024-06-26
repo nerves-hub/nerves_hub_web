@@ -94,20 +94,11 @@ defmodule NervesHubWeb.AccountController do
     with {:ok, new_org_user} <- Accounts.create_user_from_invite(invite, org, clean_params) do
       # Now let everyone in the organization - except the new guy -
       # know about this new user.
-
-      # TODO: Fix this - We don't have the instigating user in the conn
-      # anymore, and the new user is not always the instigator.
-      instigator =
-        case conn.assigns do
-          %{user: %{username: username}} -> username
-          _ -> nil
-        end
-
       email =
         SwooshEmail.tell_org_user_added(
           org,
           Accounts.get_org_users(org),
-          instigator,
+          invite.invited_by,
           new_org_user.user
         )
 

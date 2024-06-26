@@ -17,7 +17,7 @@ defmodule NervesHubWeb.DeviceLiveIndexTest do
       {:ok, view, html} = live(conn, device_index_path(fixture))
       assert html =~ device2.identifier
 
-      refute render_change(view, "update-filters", %{"id" => device.identifier}) =~
+      refute render_change(view, "update-filters", %{"device_id" => device.identifier}) =~
                device2.identifier
     end
 
@@ -50,6 +50,6 @@ defmodule NervesHubWeb.DeviceLiveIndexTest do
   end
 
   def device_index_path(%{org: org, product: product}) do
-    Routes.device_path(Endpoint, :index, org.name, product.name)
+    ~p"/org/#{org.name}/#{product.name}/devices"
   end
 end

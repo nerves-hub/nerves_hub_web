@@ -6,37 +6,30 @@ defmodule NervesHubWeb.AccountControllerTest do
   alias NervesHub.Accounts
 
   describe "invite" do
-    test "renders invite creation form", %{
-      conn: conn
-    } do
+    test "renders invite creation form", %{org: org, user: user} do
       {:ok, invite} =
-        Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, conn.assigns.org)
+        Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, org, user)
 
-      conn = get(conn, Routes.account_path(conn, :invite, invite.token))
+      conn = get(build_conn(), ~p"/invite/#{invite.token}")
 
       assert html_response(conn, 200) =~
-               "You will be added to the #{conn.assigns.org.name} organization"
+               "You will be added to the #{org.name} organization"
     end
   end
 
   describe "accept_invite" do
-    test "accepts submitted invitation", %{
-      conn: conn
-    } do
-      org = conn.assigns.org
-      {:ok, invite} = Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, org)
+    test "accepts submitted invitation", %{user: user, org: org} do
+      {:ok, invite} =
+        Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, org, user)
 
       conn =
-        post(
-          conn,
-          Routes.account_path(conn, :accept_invite, invite.token, %{
-            "user" => %{
-              "username" => "MyName",
-              "email" => "not_joe@example.com",
-              "password" => "12345678"
-            }
-          })
-        )
+        post(build_conn(), ~p"/invite/#{invite.token}", %{
+          "user" => %{
+            "username" => "MyName",
+            "email" => "not_joe@example.com",
+            "password" => "12345678"
+          }
+        })
 
       assert redirected_to(conn, 302) =~ "/"
 
@@ -44,10 +37,7 @@ defmodule NervesHubWeb.AccountControllerTest do
                "info" => "Account successfully created, login below"
              }
 
-      # An email should have been sent
-      instigator = conn.assigns.user.username
-
-      assert_email_sent(subject: "User #{instigator} added MyName to #{org.name}")
+      assert_email_sent(subject: "User #{user.username} added MyName to #{org.name}")
     end
   end
 

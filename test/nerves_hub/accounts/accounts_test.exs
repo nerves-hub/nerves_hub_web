@@ -178,16 +178,33 @@ defmodule NervesHub.AccountsTest do
   test "org_key name must be unique", %{user: user} do
     {:ok, org} = Accounts.create_org(user, @required_org_params)
 
-    {:ok, _} = Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foo"})
+    {:ok, _} =
+      Accounts.create_org_key(%{
+        name: "org's key",
+        org_id: org.id,
+        key: "foo",
+        created_by_id: user.id
+      })
 
     assert {:error, %Ecto.Changeset{errors: [name: {"has already been taken", [_ | _]}]}} =
-             Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foobar"})
+             Accounts.create_org_key(%{
+               name: "org's key",
+               org_id: org.id,
+               key: "foobar",
+               created_by_id: user.id
+             })
   end
 
   test "org_key key must be unique", %{user: user} do
     {:ok, org} = Accounts.create_org(user, @required_org_params)
 
-    {:ok, _} = Accounts.create_org_key(%{name: "org's key", org_id: org.id, key: "foo"})
+    {:ok, _} =
+      Accounts.create_org_key(%{
+        name: "org's key",
+        org_id: org.id,
+        key: "foo",
+        created_by_id: user.id
+      })
 
     {:error, %Ecto.Changeset{}} =
       Accounts.create_org_key(%{name: "org's second key", org_id: org.id, key: "foo"})
@@ -196,7 +213,7 @@ defmodule NervesHub.AccountsTest do
   test "cannot change org_id of a org_key once created", %{user: user} do
     org = Fixtures.org_fixture(user)
     first_id = org.id
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
 
     other_org = Fixtures.org_fixture(user, %{name: "another_org"})
 
@@ -225,7 +242,8 @@ defmodule NervesHub.AccountsTest do
     {:ok, %Invite{} = invite} =
       Accounts.add_or_invite_to_org(
         %{"email" => "accepted_invite@test.org", "role" => "view"},
-        org
+        org,
+        user
       )
 
     assert {:ok, %OrgUser{}} =
@@ -241,7 +259,8 @@ defmodule NervesHub.AccountsTest do
     {:ok, %Invite{} = invite} =
       Accounts.add_or_invite_to_org(
         %{"email" => "failed_accepted_invite@test.org", "role" => "view"},
-        org
+        org,
+        user
       )
 
     {:error, changeset} = Accounts.create_user_from_invite(invite, org, %{invalid: "params"})
@@ -254,10 +273,14 @@ defmodule NervesHub.AccountsTest do
     new_user = Fixtures.user_fixture()
 
     assert {:ok, %OrgUser{}} =
-             Accounts.add_or_invite_to_org(%{"email" => new_user.email, "role" => "view"}, org)
+             Accounts.add_or_invite_to_org(
+               %{"email" => new_user.email, "role" => "view"},
+               org,
+               user
+             )
 
     {:error, changeset} =
-      Accounts.add_or_invite_to_org(%{"email" => new_user.email, "role" => "view"}, org)
+      Accounts.add_or_invite_to_org(%{"email" => new_user.email, "role" => "view"}, org, user)
 
     assert "is already member" in errors_on(changeset).org_users
   end
@@ -272,7 +295,7 @@ defmodule NervesHub.AccountsTest do
   def setup_org_metric(%{user: user}) do
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     device = Fixtures.device_fixture(org, product, firmware)
     _ = create_firmware_transfer(org, firmware)

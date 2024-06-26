@@ -1,0 +1,65 @@
+<%= if @live_action == :index do %>
+  <div class="action-row">
+    <h1>Signing Keys</h1>
+    <.link patch={~p"/org/#{@org.name}/settings/keys/new"} class="btn btn-outline-light btn-action" aria-label="Add new signing key">
+      <span class="button-icon add"></span>
+      <span class="action-text">Add Key</span>
+    </.link>
+  </div>
+
+  <div style="max-width: 650px">
+    <p class="p-small mb-3">Signing Keys are used to sign uploaded firmware, and verify the firmware on the device before the device is updated.</p>
+
+    <%= for signing_key <- @signing_keys do %>
+      <div class="firmware-key box-item">
+        <img src="/images/icons/key.svg" alt="key" />
+        <div>
+          <h3>
+            <%= signing_key.name %>
+          </h3>
+          <div class="key-value"><%= signing_key.key %></div>
+          <div :if={signing_key.created_by} class="key-value">
+            Created by: <%= signing_key.created_by.username %> (<%= signing_key.created_by.email %>)
+          </div>
+        </div>
+        <button class="btn btn-secondary" phx-click="delete" phx-value-signing_key_id={signing_key.id} disabled={!authorized?(:delete_signing_key, @org_user)} data-confirm="Are you sure?">
+          Delete
+        </button>
+      </div>
+    <% end %>
+  </div>
+
+  <%= link to: "https://docs.nerves-hub.org/nerves-hub/setup/firmware-signing-keys", class: "mt-3", target: "_blank", rel: "noopener noreferrer" do %>
+    <span>How to generate a signing key</span>
+    <img src="/images/icons/arrow-forward-red.svg" alt="arrow" class="ml-2" />
+  <% end %>
+<% end %>
+
+<%= if @live_action == :new do %>
+  <h1>New Signing Key</h1>
+
+  <.form :let={f} for={@form} phx-submit="save">
+    <%= if @form.action do %>
+      <div class="alert alert-danger">
+        <p>Something went wrong! Please check the errors below.</p>
+      </div>
+    <% end %>
+
+    <div class="form-group">
+      <%= label(f, :name, for: "name_input") %>
+      <%= text_input(f, :name, class: "form-control", id: "name_input") %>
+      <div class="has-error"><%= error_tag(f, :name) %></div>
+    </div>
+
+    <div class="form-group">
+      <%= label(f, :key, for: "key_input") %>
+      <%= text_input(f, :key, class: "form-control", id: "key_input") %>
+      <div class="has-error"><%= error_tag(f, :key) %></div>
+    </div>
+
+    <div class="button-submit-wrapper">
+      <.link patch={~p"/org/#{@org.name}/settings/keys"} class="btn btn-outline-light">Back</.link>
+      <%= submit("Create Key", class: "btn btn-primary") %>
+    </div>
+  </.form>
+<% end %>

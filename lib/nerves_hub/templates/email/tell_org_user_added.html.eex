@@ -1,3 +1,5 @@
-<p>Hi!</p>
-<p>Welcome <%= @user.username %> to our <%= @org.name %> organization!
+<p>Hi</p>
+
+<p>The user <strong><%= @user.username %></strong> has been added from the <strong><%= @org.name %></strong> organization by <%= @invited_by.username %>.</p>
+
 <%= raw(closing()) %>

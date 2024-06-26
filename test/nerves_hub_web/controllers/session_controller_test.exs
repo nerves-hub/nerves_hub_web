@@ -38,17 +38,15 @@ defmodule NervesHubWeb.SessionControllerTest do
     end
 
     test "redirected to original URL when logging in", %{user: user} do
-      conn = build_conn(:get, "/org/new")
-      conn = get(conn, Routes.org_path(conn, :new))
-
       conn =
-        post(
-          conn,
-          Routes.session_path(conn, :create),
+        build_conn()
+        |> get(~p"/orgs/new")
+        |> post(
+          ~p"/login",
           login: %{email_or_username: user.email, password: user.password}
         )
 
-      assert redirected_to(conn) == Routes.org_path(conn, :new)
+      assert redirected_to(conn) == ~p"/orgs/new"
     end
   end
 end

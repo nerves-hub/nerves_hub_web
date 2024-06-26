@@ -17,8 +17,13 @@ defmodule NervesHubWeb.ArchiveControllerTest do
   end
 
   describe "create archive" do
-    test "redirects to show when data is valid", %{conn: conn, org: org, product: product} do
-      org_key = Fixtures.org_key_fixture(org)
+    test "redirects to show when data is valid", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product
+    } do
+      org_key = Fixtures.org_key_fixture(org, user)
 
       {:ok, file_path} =
         Support.Archives.create_signed_archive(org_key.name, "manifest", "signed-manifest", %{
@@ -42,8 +47,8 @@ defmodule NervesHubWeb.ArchiveControllerTest do
   end
 
   describe "delete archive" do
-    test "deletes chosen archive", %{conn: conn, org: org, product: product} do
-      org_key = Fixtures.org_key_fixture(org)
+    test "deletes chosen archive", %{conn: conn, user: user, org: org, product: product} do
+      org_key = Fixtures.org_key_fixture(org, user)
       archive = Fixtures.archive_fixture(org_key, product)
 
       conn =

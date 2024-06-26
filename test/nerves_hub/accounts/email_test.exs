@@ -3,7 +3,7 @@ defmodule NervesHub.Accounts.EmailTest do
 
   import Swoosh.TestAssertions
 
-  alias NervesHub.Accounts.SwooshEmail
+  alias NervesHub.Accounts.{SwooshEmail, User}
   alias NervesHub.EmailView
   alias NervesHub.SwooshMailer
 
@@ -11,7 +11,7 @@ defmodule NervesHub.Accounts.EmailTest do
     invite = %{email: "foo@bar.com", token: "token"}
     org = %{name: "My Org Name"}
 
-    email = SwooshEmail.invite(invite, org)
+    email = SwooshEmail.invite(invite, org, %User{username: "tony"})
 
     assert email.to == [{"", invite.email}]
     assert email.html_body =~ org.name
@@ -37,12 +37,12 @@ defmodule NervesHub.Accounts.EmailTest do
   test "org user created email" do
     org = %{name: "My Org Name"}
 
-    email = SwooshEmail.org_user_created("nunya@bidness.com", org)
+    email = SwooshEmail.org_user_created("nunya@bidness.com", org, %User{username: "tony"})
 
     assert email.to == [{"", "nunya@bidness.com"}]
 
     assert email.html_body =~
-             "You've been added to the <strong>#{org.name}</strong> organization on #{EmailView.base_url()}."
+             "You've been added to the <strong>#{org.name}</strong> organization on #{EmailView.base_url()} by tony."
   end
 
   test "tell org about new user" do
@@ -61,7 +61,8 @@ defmodule NervesHub.Accounts.EmailTest do
         %{user: %{email: email}}
       end)
 
-    email = SwooshEmail.tell_org_user_added(org, org_users, "Instigator", new_user)
+    email =
+      SwooshEmail.tell_org_user_added(org, org_users, %User{username: "instigator"}, new_user)
 
     # Not sending new guy this email
     refute "happy_guy@knows_password.com" in email.bcc
@@ -72,7 +73,7 @@ defmodule NervesHub.Accounts.EmailTest do
 
     email |> SwooshMailer.deliver()
 
-    assert_email_sent(subject: "User Instigator added #{new_user.username} to #{org.name}")
+    assert_email_sent(subject: "User instigator added #{new_user.username} to #{org.name}")
   end
 
   test "tell org about removing a user" do
@@ -91,7 +92,7 @@ defmodule NervesHub.Accounts.EmailTest do
         %{user: %{email: email}}
       end)
 
-    email = SwooshEmail.tell_org_user_removed(org, org_users, "Instigator", user)
+    email = SwooshEmail.tell_org_user_removed(org, org_users, %User{username: "instigator"}, user)
 
     # Not sending new guy this email
     refute "sad_guy@knows_password.com" in email.bcc
@@ -102,6 +103,6 @@ defmodule NervesHub.Accounts.EmailTest do
 
     email |> SwooshMailer.deliver()
 
-    assert_email_sent(subject: "User Instigator removed #{user.username} from #{org.name}")
+    assert_email_sent(subject: "User instigator removed #{user.username} from #{org.name}")
   end
 end

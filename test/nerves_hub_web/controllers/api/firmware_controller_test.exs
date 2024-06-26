@@ -13,8 +13,13 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
   end
 
   describe "create firmware" do
-    test "renders firmware when data is valid", %{conn: conn, org: org, product: product} do
-      org_key = Fixtures.org_key_fixture(org)
+    test "renders firmware when data is valid", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product
+    } do
+      org_key = Fixtures.org_key_fixture(org, user)
 
       {:ok, signed_firmware_path} =
         Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: product.name})
@@ -76,8 +81,8 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
     end
   end
 
-  defp create_firmware(%{org: org, product: product}) do
-    org_key = Fixtures.org_key_fixture(org)
+  defp create_firmware(%{user: user, org: org, product: product}) do
+    org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     {:ok, %{firmware: firmware}}
   end

@@ -12,11 +12,15 @@ defmodule NervesHubWeb.Router do
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
     plug(NervesHubWeb.Plugs.SetLocale)
-    plug(NervesHubWeb.Plugs.FetchUser)
   end
 
   pipeline :logged_in do
+    plug(NervesHubWeb.Plugs.FetchUser)
     plug(NervesHubWeb.Plugs.EnsureLoggedIn)
+  end
+
+  pipeline :live_logged_in do
+    plug(NervesHubWeb.Plugs.EnsureAuthenticated)
   end
 
   pipeline :admins_only do
@@ -182,8 +186,6 @@ defmodule NervesHubWeb.Router do
 
     get("/", HomeController, :index)
 
-    get("/error", HomeController, :error)
-
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
     get("/logout", SessionController, :delete)
@@ -201,7 +203,59 @@ defmodule NervesHubWeb.Router do
   end
 
   scope "/", NervesHubWeb do
+    pipe_through([:browser, :live_logged_in])
+
+    live_session :orgs,
+      on_mount: [
+        NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.CurrentPath
+      ] do
+      live("/orgs", Live.Orgs.Index)
+      live("/orgs/new", Live.Orgs.New)
+    end
+
+    live_session :org,
+      on_mount: [
+        NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.CurrentPath,
+        NervesHubWeb.Mounts.FetchOrg,
+        NervesHubWeb.Mounts.FetchOrgUser
+      ] do
+      live("/org/:org_name", Live.Org.Products, :index)
+      live("/org/:org_name/new", Live.Org.Products, :new)
+      live("/org/:org_name/settings/keys", Live.Org.SigningKeys, :index)
+      live("/org/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
+      live("/org/:org_name/settings/users", Live.Org.Users, :index)
+      live("/org/:org_name/settings/users/invite", Live.Org.Users, :invite)
+      live("/org/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
+      live("/org/:org_name/settings/certificates", Live.Org.CertificateAuthorities, :index)
+      live("/org/:org_name/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
+
+      live(
+        "/org/:org_name/settings/certificates/:serial/edit",
+        Live.Org.CertificateAuthorities,
+        :edit
+      )
+
+      live("/org/:org_name/settings", Live.Org.Settings)
+    end
+
+    live_session :product,
+      on_mount: [
+        NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.CurrentPath,
+        NervesHubWeb.Mounts.FetchOrg,
+        NervesHubWeb.Mounts.FetchOrgUser,
+        NervesHubWeb.Mounts.FetchProduct
+      ] do
+      live("/org/:org_name/:product_name/settings", Live.Product.Settings)
+    end
+  end
+
+  scope "/", NervesHubWeb do
     pipe_through([:browser, :logged_in])
+
+    get("/online-devices", HomeController, :online_devices)
 
     scope "/account/:user_name" do
       get("/", AccountController, :edit)
@@ -209,58 +263,17 @@ defmodule NervesHubWeb.Router do
       get("/delete_account", AccountController, :confirm_delete)
       delete("/delete_account", AccountController, :delete)
 
-      get("/organizations", OrgController, :index)
-
       get("/tokens", TokenController, :index)
       get("/tokens/new", TokenController, :new)
       post("/tokens", TokenController, :create)
       delete("/tokens/:id", TokenController, :delete)
     end
 
-    get("/org/new", OrgController, :new)
-    post("/org", OrgController, :create)
-
     scope "/org/:org_name" do
       pipe_through(:org)
 
-      get("/", ProductController, :index)
-      get("/new", ProductController, :new)
-      post("/", ProductController, :create)
-
-      scope "/settings" do
-        get("/", OrgController, :edit)
-        put("/", OrgController, :update)
-
-        get("/invite", OrgController, :invite)
-        post("/invite", OrgController, :send_invite)
-        delete("/invite/:token", OrgController, :delete_invite)
-        get("/certificates", OrgCertificateController, :index)
-        post("/certificates", OrgCertificateController, :create)
-        get("/certificates/new", OrgCertificateController, :new)
-        delete("/certificates/:serial", OrgCertificateController, :delete)
-        get("/certificates/:serial/edit", OrgCertificateController, :edit)
-        put("/certificates/:serial", OrgCertificateController, :update)
-        get("/users", OrgUserController, :index)
-        get("/users/:user_id", OrgUserController, :edit)
-        put("/users/:user_id", OrgUserController, :update)
-        delete("/users/:user_id", OrgUserController, :delete)
-
-        resources("/keys", OrgKeyController)
-      end
-
       scope "/:product_name" do
         pipe_through(:product)
-
-        live_session :product,
-          on_mount: [
-            NervesHubWeb.Mounts.AccountAuth,
-            NervesHubWeb.Mounts.CurrentPath,
-            NervesHubWeb.Mounts.FetchOrg,
-            NervesHubWeb.Mounts.FetchOrgUser,
-            NervesHubWeb.Mounts.FetchProduct
-          ] do
-          live("/settings", Live.Product.Settings)
-        end
 
         get("/edit", ProductController, :edit)
         put("/", ProductController, :update)

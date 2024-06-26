@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Components.Navigation do
               <div class="dropdown-menu workspace-dropdown" aria-labelledby="navbarDropdownMenuLink">
                 <div class="help-text">Select an organization</div>
                 <div class="dropdown-divider"></div>
-                <%= for org <- @orgs do %>
+                <%= for org <- @user.orgs do %>
                   <div class="dropdown-submenu">
                     <.link href={~p"/org/#{org.name}"} class={"dropdown-item org #{org_classes(@current_path, org.name)}"}>
                       <%= org.name %>
@@ -103,6 +103,7 @@ defmodule NervesHubWeb.Components.Navigation do
     """
   end
 
+  attr(:user, :any)
   attr(:org, :any, default: nil)
   attr(:product, :any, default: nil)
   attr(:current_path, :string)
@@ -122,9 +123,9 @@ defmodule NervesHubWeb.Components.Navigation do
         <nav>
           <ul class="nav">
             <li :for={link <- @links} class="nav-item ">
-              <a class={"nav-link #{link.active}"} href={link.href}>
+              <.link class={"nav-link #{link.active}"} navigate={link.href}>
                 <span class="text"><%= link.title %></span>
-              </a>
+              </.link>
             </li>
           </ul>
           <div :if={device_count = device_count(@product)} class="device-limit-indicator" title="Device total" aria-label="Device total">
@@ -135,13 +136,62 @@ defmodule NervesHubWeb.Components.Navigation do
       """
     else
       ~H"""
-
       """
     end
   end
 
+  def sidebar_links(["orgs", "new"], _assigns), do: []
+
+  def sidebar_links(["org", _org_name] = path, assigns),
+    do: sidebar_org(assigns, path)
+
+  def sidebar_links(["org", _org_name, "new"] = path, assigns),
+    do: sidebar_org(assigns, path)
+
+  def sidebar_links(["org", _org_name, "settings" | _tail] = path, assigns),
+    do: sidebar_org(assigns, path)
+
   def sidebar_links(["org", _org_name | _tail] = path, assigns),
     do: sidebar_product(assigns, path)
+
+  def sidebar_links(_path, _assigns), do: []
+
+  def sidebar_org(assigns, path) do
+    ([
+       %{
+         title: "Products",
+         active: "",
+         href: ~p"/org/#{assigns.org.name}"
+       }
+     ] ++
+       if assigns.org_user.role in NervesHub.Accounts.User.role_or_higher(:manage) do
+         [
+           %{
+             title: "Signing Keys",
+             active: "",
+             href: ~p"/org/#{assigns.org.name}/settings/keys"
+           },
+           %{
+             title: "Users",
+             active: "",
+             href: ~p"/org/#{assigns.org.name}/settings/users"
+           },
+           %{
+             title: "Certificates",
+             active: "",
+             href: ~p"/org/#{assigns.org.name}/settings/certificates"
+           },
+           %{
+             title: "Settings",
+             active: "",
+             href: ~p"/org/#{assigns.org.name}/settings"
+           }
+         ]
+       else
+         []
+       end)
+    |> sidebar_active(path)
+  end
 
   def sidebar_product(assigns, path) do
     [
@@ -177,9 +227,10 @@ defmodule NervesHubWeb.Components.Navigation do
 
   defp sidebar_active(links, path) do
     full_path = "/" <> Enum.join(path, "/")
+    path_minus_actions = String.replace(full_path, ~r/\/(new|edit|invite|\d+\/edit)$/, "")
 
     Enum.map(links, fn link ->
-      if link.href == full_path do
+      if link.href == path_minus_actions do
         %{link | active: "active"}
       else
         link

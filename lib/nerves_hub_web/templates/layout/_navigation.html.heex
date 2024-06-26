@@ -20,7 +20,7 @@
             <div class="dropdown-divider"></div>
             <%= for org <- @orgs do %>
               <div class="dropdown-submenu">
-                <%= link(to: Routes.product_path(@conn, :index, org.name), class: "dropdown-item org #{org_classes(@conn, org.name)}", aria_haspopup: "true") do %>
+                <%= link(to: ~p"/org/#{org.name}", class: "dropdown-item org #{org_classes(@conn, org.name)}", aria_haspopup: "true") do %>
                   <%= org.name %>
                   <div class="active-checkmark"></div>
                 <% end %>
@@ -42,7 +42,7 @@
                     <div class="dropdown-divider"></div>
                   <% end %>
 
-                  <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create product" href={Routes.product_path(@conn, :new, org.name)}>
+                  <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create product" href={~p"/org/#{org.name}/new"}>
                     <span class="action-text">Create Product</span>
                     <span class="button-icon add"></span>
                   </a>
@@ -51,7 +51,7 @@
               </div>
             <% end %>
 
-            <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization" href={Routes.org_path(@conn, :new)}>
+            <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization" href={~p"/orgs/new"}>
               <span class="action-text">Create Organization</span>
               <div class="button-icon add"></div>
             </a>

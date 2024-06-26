@@ -35,7 +35,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "index" do
     test "lists all devices for an org", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       device = Fixtures.device_fixture(org, product, firmware)
@@ -53,7 +53,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "delete devices" do
     test "deletes chosen device", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       Fixtures.device_fixture(org, product, firmware)
@@ -77,7 +77,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "update devices" do
     test "updates chosen device", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       Fixtures.device_fixture(org, product, firmware)
@@ -105,7 +105,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "authenticate devices" do
     test "valid certificate", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       device = Fixtures.device_fixture(org, product, firmware)
@@ -135,7 +135,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "upgrade firmware" do
     test "pushing new firmware to a device", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware_one = Fixtures.firmware_fixture(org_key, product)
       firmware_two = Fixtures.firmware_fixture(org_key, product)
 
@@ -154,7 +154,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "clear penalty box" do
     test "success", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
       device = Fixtures.device_fixture(org, product, firmware)
 
@@ -177,7 +177,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "move device to a new product" do
     test "success", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
       device = Fixtures.device_fixture(org, product, firmware)
 
@@ -205,7 +205,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
     test "failure: missing permissions in new product", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
       device = Fixtures.device_fixture(org, product, firmware)
 

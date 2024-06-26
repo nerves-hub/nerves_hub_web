@@ -1,14 +1,14 @@
 defmodule NervesHub.Accounts.SwooshEmail do
   use Phoenix.Swoosh, view: NervesHub.EmailView, layout: {NervesHub.EmailView, :layout}
 
-  def invite(invite, org) do
+  def invite(invite, org, invited_by) do
     platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
 
     new()
     |> from(from_address())
     |> to(invite.email)
     |> subject("Hi from #{platform_name}!")
-    |> render_body("invite.html", %{invite: invite, org: org})
+    |> render_body("invite.html", %{invite: invite, org: org, invited_by: invited_by})
   end
 
   def forgot_password(%{password_reset_token: token} = user) when is_binary(token) do
@@ -19,12 +19,12 @@ defmodule NervesHub.Accounts.SwooshEmail do
     |> render_body("forgot_password.html", user: user)
   end
 
-  def org_user_created(email, org) do
+  def org_user_created(email, org, invited_by) do
     new()
     |> from(from_address())
     |> to(email)
     |> subject("Welcome to #{org.name}")
-    |> render_body("org_user_created.html", org: org)
+    |> render_body("org_user_created.html", org: org, invited_by: invited_by)
   end
 
   @doc """
@@ -40,19 +40,14 @@ defmodule NervesHub.Accounts.SwooshEmail do
         email != new_user.email
       end)
 
-    email_subject =
-      if instigator do
-        "User #{instigator} added #{new_user.username} to #{org.name}"
-      else
-        "User #{new_user.username} added to #{org.name}"
-      end
+    email_subject = "User #{instigator.username} added #{new_user.username} to #{org.name}"
 
     new()
     |> from(from_address())
     |> subject(email_subject)
     |> to(from_address())
     |> bcc(org_users_emails)
-    |> render_body("tell_org_user_added.html", user: new_user, org: org)
+    |> render_body("tell_org_user_added.html", user: new_user, org: org, invited_by: instigator)
   end
 
   @doc """
@@ -65,7 +60,7 @@ defmodule NervesHub.Accounts.SwooshEmail do
 
     new()
     |> from(from_address())
-    |> subject("User #{instigator} removed #{user_removed.username} from #{org.name}")
+    |> subject("User #{instigator.username} removed #{user_removed.username} from #{org.name}")
     |> to(from_address())
     |> bcc(org_users_emails)
     |> render_body("tell_org_user_removed.html", %{
