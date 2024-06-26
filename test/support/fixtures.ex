@@ -394,50 +394,6 @@ defmodule NervesHub.Fixtures do
     }
   end
 
-  def very_fixture() do
-    user = user_fixture(%{name: "Jeff"})
-    org = org_fixture(user, %{name: "Very"})
-    product = product_fixture(user, org, %{name: "Hop"})
-
-    org_key = org_key_fixture(org, user)
-    firmware = firmware_fixture(org_key, product)
-    deployment = deployment_fixture(org, firmware)
-    device = device_fixture(org, product, firmware, %{tags: ["beta", "beta-edge"]})
-    %{db_cert: device_certificate} = device_certificate_fixture(device)
-
-    %{
-      deployment: deployment,
-      device: device,
-      device_certificate: device_certificate,
-      firmware: firmware,
-      org: org,
-      org_key: org_key,
-      product: product,
-      user: user
-    }
-  end
-
-  def smartrent_fixture() do
-    user = user_fixture(%{name: "Frank"})
-    org = org_fixture(user, %{name: "SmartRent"})
-    product = product_fixture(user, org, %{name: "Smart Rent Thing"})
-    org_key = org_key_fixture(org, user)
-    firmware = firmware_fixture(org_key, product)
-    deployment = deployment_fixture(org, firmware)
-    device = device_fixture(org, product, firmware, %{identifier: "smartrent_1234"})
-    %{db_cert: device_certificate} = device_certificate_fixture(device)
-
-    %{
-      deployment: deployment,
-      device: device,
-      device_certificate: device_certificate,
-      firmware: firmware,
-      org: org,
-      org_key: org_key,
-      product: product
-    }
-  end
-
   defp counter do
     System.unique_integer([:positive])
   end
