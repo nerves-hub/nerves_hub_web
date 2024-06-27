@@ -494,6 +494,14 @@ defmodule NervesHub.Accounts do
     |> Repo.all()
   end
 
+  @spec get_invites_for_user(User.t()) :: [Invite.t()]
+  def get_invites_for_user(user) do
+    Invite
+    |> where([i], i.email == ^user.email)
+    |> where([i], i.accepted == false)
+    |> Repo.all()
+  end
+
   def delete_invite(org, token) do
     Invite
     |> where([i], i.org_id == ^org.id)
