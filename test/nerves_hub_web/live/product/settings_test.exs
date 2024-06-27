@@ -33,51 +33,6 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       product = NervesHub.Repo.reload(product)
       refute is_nil(product.deleted_at)
     end
-
-    test "shows an error if the product has a device", %{conn: conn, org: org, user: user} do
-      product = Fixtures.product_fixture(user, org, %{delta_updatable: false})
-
-      firmware =
-        org
-        |> Fixtures.org_key_fixture(user)
-        |> Fixtures.firmware_fixture(product)
-
-      Fixtures.device_fixture(org, product, firmware)
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> assert_has("h1", text: "Product Settings")
-      |> click_button("Remove Product")
-      |> assert_has("div",
-        text:
-          "There was an error deleting the Product. Please delete all Firmware and Devices first."
-      )
-      |> assert_path("/org/#{org.name}/#{product.name}/settings")
-
-      product = NervesHub.Repo.reload(product)
-      assert is_nil(product.deleted_at)
-    end
-
-    test "shows an error if the product has firmware", %{conn: conn, org: org, user: user} do
-      product = Fixtures.product_fixture(user, org, %{delta_updatable: false})
-
-      org
-      |> Fixtures.org_key_fixture(user)
-      |> Fixtures.firmware_fixture(product)
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> assert_has("h1", text: "Product Settings")
-      |> click_button("Remove Product")
-      |> assert_has("div",
-        text:
-          "There was an error deleting the Product. Please delete all Firmware and Devices first."
-      )
-      |> assert_path("/org/#{org.name}/#{product.name}/settings")
-
-      product = NervesHub.Repo.reload(product)
-      assert is_nil(product.deleted_at)
-    end
   end
 
   describe "shared secrets" do

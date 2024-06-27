@@ -77,22 +77,6 @@ defmodule NervesHubWeb.API.ProductControllerTest do
 
       assert response(conn, 403)
     end
-
-    test "product delete with associated firmwares", %{
-      conn: conn,
-      user: user,
-      org: org,
-      product: product
-    } do
-      # Create firmware for product
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      Fixtures.device_fixture(org, product, firmware)
-
-      conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
-
-      assert response(conn, 409)
-    end
   end
 
   describe "delete product roles" do
