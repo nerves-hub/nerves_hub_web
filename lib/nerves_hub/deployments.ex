@@ -136,43 +136,12 @@ defmodule NervesHub.Deployments do
           conditions: deployment.conditions
         }
 
-        # if the conditions changed, we should reset all devices and tell any connected
+        # if the conditions changed, we should  tell any connected devices
         if Map.has_key?(changeset.changes, :conditions) do
-          Device
-          |> where([d], d.deployment_id == ^deployment.id)
-          |> Repo.update_all(set: [deployment_id: nil])
-
-          if deployment.conditions["version"] in [nil, ""] and deployment.is_active do
-            # The version condition is the only one not done with the DB.
-            # This opens up a minor optimization to preemptively set matching
-            # devices to the new deployment all at once since the version
-            # condition can be skipped.
-            # 
-            # This also helps with offline devices by potentially reducing the
-            # need to do the expensive deployment check on next connect which
-            # reduces the load when a lot of devices come online at once.
-            Device
-            |> where([d], d.product_id == ^deployment.product_id)
-            |> where(
-              [d],
-              fragment("?->>'platform' = ?", d.firmware_metadata, ^deployment.firmware.platform)
-            )
-            |> where(
-              [d],
-              fragment(
-                "?->>'architecture' = ?",
-                d.firmware_metadata,
-                ^deployment.firmware.architecture
-              )
-            )
-            |> where([d], fragment("? <@ ?", ^deployment.conditions["tags"], d.tags))
-            |> Repo.update_all(set: [deployment_id: deployment.id])
-          end
-
           broadcast(deployment, "deployments/changed", payload)
           broadcast(:none, "deployments/changed", payload)
 
-          description = "deployment #{deployment.name} conditions changed and removed all devices"
+          description = "deployment #{deployment.name} conditions changed"
           AuditLogs.audit!(deployment, deployment, description)
         end
 
@@ -301,7 +270,7 @@ defmodule NervesHub.Deployments do
   @doc """
   If the device is missing a deployment, find a matching deployment
 
-  Do nothing if a deployment is already set
+  Do nothing if a deployment is already set and it matches the attached deployment
   """
   def set_deployment(%{deployment_id: nil} = device) do
     case alternate_deployments(device, [true]) do
@@ -331,6 +300,23 @@ defmodule NervesHub.Deployments do
   end
 
   def set_deployment(device) do
-    Repo.preload(device, [:deployment])
+    # if the device matches the deployment it's attached to, do nothing
+    # otherwise blank it and re-evaluate deployments
+    device = Repo.preload(device, [:deployment])
+
+    tags_match? =
+      Enum.all?(device.deployment.conditions["tags"], fn tag ->
+        Enum.member?(device.tags, tag)
+      end)
+
+    if version_match?(device, device.deployment) && tags_match? do
+      device
+    else
+      device
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:deployment_id, nil)
+      |> Repo.update!()
+      |> set_deployment()
+    end
   end
 end

@@ -258,7 +258,7 @@ defmodule NervesHubWeb.DeploymentControllerTest do
 
       assert audit_log_one.resource_type == Deployment
 
-      assert audit_log_two.description =~ ~r/removed all devices/
+      assert audit_log_two.description =~ ~r/conditions changed/
     end
   end
 
