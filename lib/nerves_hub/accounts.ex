@@ -486,12 +486,22 @@ defmodule NervesHub.Accounts do
   end
 
   def delete_invite(org, token) do
-    Invite
-    |> where([i], i.org_id == ^org.id)
-    |> where([i], i.token == ^token)
-    |> where([i], i.accepted == false)
-    |> Repo.one()
-    |> Repo.delete()
+    query =
+      Invite
+      |> where([i], i.org_id == ^org.id)
+      |> where([i], i.token == ^token)
+      |> where([i], i.accepted == false)
+
+    with %Invite{} = invite <- Repo.one(query),
+         {:ok, invite} <- Repo.delete(invite) do
+      {:ok, invite}
+    else
+      nil ->
+        {:error, :not_found}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
 
   @doc """
