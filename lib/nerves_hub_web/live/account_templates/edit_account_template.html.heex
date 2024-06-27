@@ -3,15 +3,12 @@
 </h1>
 
 <div class="mb-4">
-  <%= link(
-    "Delete Account",
-    class: "btn btn-outline-light",
-    aria_label: "Delete Account",
-    to: Routes.account_path(@conn, :confirm_delete, @user.username)
-  ) %>
+  <.link href={~p"/account/delete"} class="btn btn-outline-light">
+    Delete Account
+  </.link>
 </div>
 
-<%= form_for @changeset, Routes.account_path(@conn, :update, @user.username), fn f -> %>
+<.form :let={f} for={@form} phx-submit="update">
   <div class="form-group">
     <label for="username_input">Username</label>
     <%= text_input(f, :username, class: "form-control", id: "username_input") %>
@@ -41,4 +38,4 @@
   <div class="button-submit-wrapper">
     <%= submit("Save Changes", class: "btn btn-primary") %>
   </div>
-<% end %>
+</.form>

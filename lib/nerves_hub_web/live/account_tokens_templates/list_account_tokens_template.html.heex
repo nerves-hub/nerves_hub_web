@@ -3,10 +3,10 @@
     <h1 class="mr-3 mb-0">User Access Tokens</h1>
   </div>
   <div>
-    <%= link(to: Routes.token_path(@conn, :new, @user.username), class: "btn btn-outline-light btn-action", aria: [label: "Generate new token"]) do %>
+    <.link href={~p"/account/tokens/new"} class="btn btn-outline-light btn-action">
       <div class="button-icon add"></div>
       <span class="action-text">Generate new token</span>
-    <% end %>
+    </.link>
   </div>
 </div>
 
@@ -19,7 +19,7 @@
       <th></th>
     </tr>
   </thead>
-  <%= for token <- @user_tokens do %>
+  <%= for token <- @tokens do %>
     <tr class="item">
       <td>
         <div class="mobile-label help-text">Note</div>
@@ -45,9 +45,9 @@
             <img src="/images/icons/more.svg" alt="options" />
           </a>
           <div class="dropdown-menu dropdown-menu-right">
-            <%= link(to: Routes.token_path(@conn, :delete, @user.username, token.id), method: :delete, class: "dropdown-item", data: [confirm: "Are you sure?"]) do %>
-              <span>Delete</span>
-            <% end %>
+            <.link class="dropdown-item" phx-click="delete" phx-value-access_token_id={token.id} data-confirm="Are you sure?">
+              Delete
+            </.link>
           </div>
         </div>
       </td>

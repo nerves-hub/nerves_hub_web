@@ -3,12 +3,12 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
 
   alias NervesHub.Accounts
 
-  @impl true
+  @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     {:ok, socket}
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_params(params, _url, socket) do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
@@ -25,7 +25,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
     |> assign(:form, to_form(Accounts.OrgKey.changeset(%Accounts.OrgKey{}, %{})))
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_event("save", %{"org_key" => key_params}, socket) do
     authorized!(:save_signing_key, socket.assigns.org_user)
 

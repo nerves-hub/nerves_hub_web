@@ -5,12 +5,12 @@ defmodule NervesHubWeb.SessionController do
 
   @session_key "auth_user_id"
 
-  def new(conn, _params) do
+  def new(conn, params) do
     conn
     |> get_session(@session_key)
     |> case do
       nil ->
-        render(conn, "new.html")
+        render(conn, "new.html", message: params["message"])
 
       user_id ->
         case Accounts.get_user(user_id) do
@@ -18,7 +18,7 @@ defmodule NervesHubWeb.SessionController do
             redirect(conn, to: Routes.home_path(conn, :index))
 
           _ ->
-            render(conn, "new.html")
+            render(conn, "new.html", message: params["message"])
         end
     end
   end

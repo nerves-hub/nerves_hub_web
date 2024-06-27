@@ -669,4 +669,15 @@ defmodule NervesHub.Accounts do
         {:ok, user_token}
     end
   end
+
+  def get_user_tokens(user) do
+    UserToken
+    |> where(user_id: ^user.id)
+    |> Repo.all()
+  end
+
+  def delete_user_token(user, token_id) do
+    {:ok, token} = get_user_token(user, token_id)
+    Repo.delete(token)
+  end
 end

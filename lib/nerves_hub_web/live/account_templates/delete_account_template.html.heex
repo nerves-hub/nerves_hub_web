@@ -2,7 +2,7 @@
 <p>Unexpected bad things will happen if you don’t read this!</p>
 <p>This action cannot be undone. This will permanently delete the <%= @user.username %> and orgs.</p>
 
-<%= form_for @conn, Routes.account_path(@conn, :delete, @user.username), [method: "delete"], fn f -> %>
+<.form :let={f} for={@form} phx-submit="delete">
   <div class="form-group">
     <label for="username_input">Please type <%= @user.username %> to confirm.</label>
     <%= text_input(f, :confirm_username, class: "form-control", id: "username_input") %>
@@ -11,4 +11,4 @@
   <div class="button-submit-wrapper">
     <%= submit("I understand the consequences, delete this account", class: "btn btn-primary") %>
   </div>
-<% end %>
+</.form>
