@@ -44,20 +44,12 @@ defmodule NervesHub.AccountsTest do
     assert {:error, %Changeset{}} = Accounts.create_org(user, %{})
   end
 
-  test "create_user adds org with user name" do
-    params = %{
-      username: "Testy-McTesterson",
-      org_name: "mctesterson.com",
-      email: "testy@mctesterson.com",
-      password: "test_password"
-    }
+  test "soft_delete_org" do
+    user = Fixtures.user_fixture()
+    {:ok, %Org{} = org} = Accounts.create_org(user, %{name: "An_Org"})
 
-    {:ok, %User{} = user} = Accounts.create_user(params)
-
-    [result_org | _] = Accounts.get_user_orgs(user)
-
-    assert result_org.name == user.username
-    assert user.username == params.username
+    assert {:ok, _org} = Accounts.soft_delete_org(org)
+    refute is_nil(Repo.reload(org).deleted_at)
   end
 
   test "user cannot have two of the same org" do
@@ -69,8 +61,9 @@ defmodule NervesHub.AccountsTest do
     }
 
     {:ok, %User{} = user} = Accounts.create_user(params)
+    {:ok, %Org{}} = Accounts.create_org(user, %{name: "An_Org"})
 
-    [result_org | _] = Accounts.get_user_orgs(user)
+    [result_org] = Accounts.get_user_orgs(user)
 
     assert {:error, %Changeset{}} = Accounts.add_org_user(result_org, user, %{role: :admin})
   end
@@ -85,9 +78,8 @@ defmodule NervesHub.AccountsTest do
     {:ok, %User{} = user} = Accounts.create_user(user_params)
     {:ok, %Org{} = org_1} = Accounts.create_org(user, %{name: "org1"})
 
-    [default_org, result_org_1 | _] = Accounts.get_user_orgs(user)
+    [result_org_1] = Accounts.get_user_orgs(user)
 
-    assert default_org.name == user.username
     assert result_org_1.name == org_1.name
     assert user.username == user_params.username
 
@@ -98,17 +90,18 @@ defmodule NervesHub.AccountsTest do
 
     assert org_1 in user_orgs
     assert org_2 in user_orgs
-    assert Enum.count(user_orgs) == 3
+    assert Enum.count(user_orgs) == 2
 
     :ok = Accounts.remove_org_user(org_2, user)
     user_orgs = Accounts.get_user_orgs(user)
 
-    assert user_orgs == [default_org, org_1]
+    assert user_orgs == [org_1]
   end
 
   test "Unable to remove the last user from an org" do
     user = Fixtures.user_fixture()
-    [org] = Accounts.get_user_orgs(user)
+    {:ok, org} = Accounts.create_org(user, %{name: "org1"})
+
     assert {:error, :last_user} = Accounts.remove_org_user(org, user)
   end
 
@@ -129,7 +122,7 @@ defmodule NervesHub.AccountsTest do
     test "with valid credentials", %{user: user} do
       target_email = user.email
 
-      assert {:ok, %User{email: ^target_email, orgs: [%Org{}]}} =
+      assert {:ok, %User{email: ^target_email, orgs: []}} =
                Accounts.authenticate(user.email, user.password)
     end
 
@@ -158,7 +151,7 @@ defmodule NervesHub.AccountsTest do
 
     assert user.email == expected_email
 
-    assert {:ok, %User{email: ^expected_email, orgs: [%Org{}]}} =
+    assert {:ok, %User{email: ^expected_email, orgs: []}} =
              Accounts.authenticate(user.email, user.password)
   end
 
@@ -219,11 +212,6 @@ defmodule NervesHub.AccountsTest do
 
     assert {:ok, %OrgKey{org_id: ^first_id}} =
              Accounts.update_org_key(org_key, %{org_id: other_org.id})
-  end
-
-  test "cannot remove user from their own org", %{user: user} do
-    {:ok, org} = Accounts.get_org_by_name_and_user(user.username, user)
-    assert {:error, _} = Accounts.remove_org_user(org, user)
   end
 
   describe "org_metrics" do

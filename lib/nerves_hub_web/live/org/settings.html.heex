@@ -14,3 +14,9 @@
   </div>
   <%= submit("Save Changes", class: "btn btn-primary") %>
 </.form>
+
+<div class="border-bottom border-dark mt-5 mb-2"></div>
+
+<div>
+  <.link patch={~p"/org/#{@org.name}/settings/delete"} class="btn btn-primary">Delete Organization</.link>
+</div>

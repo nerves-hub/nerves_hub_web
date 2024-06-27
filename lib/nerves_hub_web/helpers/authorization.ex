@@ -7,6 +7,7 @@ defmodule NervesHub.Helpers.Authorization do
   end
 
   def authorized?(:update_organization, %OrgUser{role: ur}), do: role_check(:admin, ur)
+  def authorized?(:delete_organization, %OrgUser{role: ur}), do: role_check(:admin, ur)
 
   def authorized?(:save_signing_key, %OrgUser{role: ur}), do: role_check(:manage, ur)
   def authorized?(:delete_signing_key, %OrgUser{role: ur}), do: role_check(:manage, ur)

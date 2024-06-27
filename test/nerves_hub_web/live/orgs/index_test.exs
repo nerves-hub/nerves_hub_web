@@ -1,25 +1,22 @@
 defmodule NervesHubWeb.Live.Orgs.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
-  #
-  # this is a UI/UX we should take into account
-  #
-  # describe "no org memberships" do
-  #   test "no orgs listed", %{conn: conn, org: org, user: user} do
-  #     {:ok, view, html} = live(conn, ~p"/orgs")
+  describe "no org memberships" do
+    test "no orgs listed" do
+      user = NervesHub.Fixtures.user_fixture()
 
-  #     assert html =~ "<h1 class=\"mt-2\">My Organizations</h1>"
-  #     assert html =~ "<h3>#{user.name}</h3>"
-  #     assert html =~ "<h3>#{org.name}</h3>"
-  #   end
-  # end
+      build_conn()
+      |> init_test_session(%{"auth_user_id" => user.id})
+      |> visit("/orgs")
+      |> assert_has("h3", text: "You aren't a member of any organizations.")
+    end
+  end
 
   describe "has orgs memberships" do
-    test "all orgs listed", %{conn: conn, org: org, user: user} do
+    test "all orgs listed", %{conn: conn, org: org} do
       conn
       |> visit("/orgs")
       |> assert_has("h1", text: "My Organizations")
-      |> assert_has("h3", text: user.username)
       |> assert_has("h3", text: org.name)
     end
   end

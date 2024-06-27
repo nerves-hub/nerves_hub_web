@@ -9,7 +9,6 @@ defmodule NervesHub.Products.Product do
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.SharedSecretAuth
-  alias NervesHub.Repo
 
   @required_params [:name, :org_id]
   @optional_params [:delta_updatable]
@@ -54,32 +53,12 @@ defmodule NervesHub.Products.Product do
     cast(product, params, @optional_params)
   end
 
-  def delete_changeset(product, params \\ %{}) do
+  def delete_changeset(product, _params \\ %{}) do
     deleted_at = DateTime.truncate(DateTime.utc_now(), :second)
 
     product
-    |> cast(params, @required_params ++ @optional_params)
-    |> no_soft_deleted_assoc(:devices, message: "Product has associated devices")
-    |> no_soft_deleted_assoc(:firmwares, message: "Product has associated firmwares")
+    |> change()
     |> put_change(:deleted_at, deleted_at)
-  end
-
-  defp no_soft_deleted_assoc(%{data: data} = changeset, assoc, opts) do
-    default_message = "is still associated with this entry"
-    message = Keyword.get(opts, :message, default_message)
-
-    empty? =
-      data
-      |> Repo.preload(assoc)
-      |> Map.get(assoc, [])
-      |> Enum.filter(&is_nil(Map.get(&1, :deleted_at)))
-      |> Enum.empty?()
-
-    if empty? do
-      changeset
-    else
-      add_error(changeset, assoc, message)
-    end
   end
 
   defp trim(string) when is_binary(string) do

@@ -43,6 +43,25 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @spec soft_delete_org(Org.t()) :: {:ok, Org.t()} | {:error, Changeset.t()}
+  def soft_delete_org(%Org{} = org) do
+    deleted_at = DateTime.truncate(DateTime.utc_now(), :second)
+
+    Multi.new()
+    |> Multi.update_all(:soft_delete_products, Ecto.assoc(org, :products),
+      set: [deleted_at: deleted_at]
+    )
+    |> Multi.update(:soft_delete_org, Org.delete_changeset(org))
+    |> Repo.transaction()
+    |> case do
+      {:ok, _result} ->
+        {:ok, org}
+
+      {:error, _, changeset, _} ->
+        {:error, changeset}
+    end
+  end
+
   def change_user(user, params \\ %{})
 
   def change_user(%User{id: nil} = user, params) do
@@ -58,29 +77,9 @@ defmodule NervesHub.Accounts do
   """
   @spec create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def create_user(user_params) do
-    org_params = %{name: user_params[:username]}
-
-    multi =
-      Multi.new()
-      |> Multi.insert(:user, User.creation_changeset(%User{}, user_params))
-      |> Multi.insert(:org, Org.creation_changeset(%Org{}, org_params))
-      |> Multi.insert(:org_user, fn %{user: user, org: org} ->
-        org_user = %OrgUser{
-          org_id: org.id,
-          user_id: user.id,
-          role: :admin
-        }
-
-        Org.add_user(org_user, %{})
-      end)
-
-    case Repo.transaction(multi) do
-      {:ok, result} ->
-        {:ok, result.user}
-
-      {:error, :user, changeset, _} ->
-        {:error, changeset}
-    end
+    %User{}
+    |> User.creation_changeset(user_params)
+    |> Repo.insert()
   end
 
   @doc """

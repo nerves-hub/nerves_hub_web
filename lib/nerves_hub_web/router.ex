@@ -236,6 +236,7 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
       live("/org/:org_name/settings/certificates", Live.Org.CertificateAuthorities, :index)
       live("/org/:org_name/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
+      live("/org/:org_name/settings/delete", Live.Org.Delete)
 
       live(
         "/org/:org_name/settings/certificates/:serial/edit",
