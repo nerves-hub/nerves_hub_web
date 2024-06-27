@@ -6,53 +6,6 @@ defmodule NervesHubWeb.AccountController do
   alias NervesHub.Accounts.SwooshEmail
   alias NervesHub.SwooshMailer
 
-  def edit(conn, _params) do
-    conn
-    |> render(
-      "edit.html",
-      changeset: %Changeset{data: conn.assigns.user}
-    )
-  end
-
-  def confirm_delete(conn, _) do
-    render(conn, "delete.html")
-  end
-
-  def delete(conn, %{"user_name" => username, "confirm_username" => confirmed_username})
-      when username != confirmed_username do
-    conn
-    |> put_flash(:error, "Please type #{username} to confirm.")
-    |> redirect(to: Routes.account_path(conn, :confirm_delete, username))
-  end
-
-  def delete(conn, %{"user_name" => username}) do
-    with {:ok, user} <- Accounts.get_user_by_username(username),
-         {:ok, _} <- Accounts.remove_account(user.id) do
-      conn
-      |> put_flash(:info, "Success")
-      |> redirect(to: "/login")
-    end
-  end
-
-  def update(conn, params) do
-    cleaned =
-      params["user"]
-      |> whitelist([:current_password, :password, :username, :email, :orgs])
-
-    conn.assigns.user
-    |> Accounts.update_user(cleaned)
-    |> case do
-      {:ok, user} ->
-        conn
-        |> put_flash(:info, "Account updated")
-        |> redirect(to: Routes.account_path(conn, :edit, user.username))
-
-      {:error, changeset} ->
-        conn
-        |> render("edit.html", changeset: changeset)
-    end
-  end
-
   def invite(conn, %{"token" => token} = _) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do

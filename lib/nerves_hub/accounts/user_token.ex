@@ -1,7 +1,7 @@
 defmodule NervesHub.Accounts.UserToken do
   use Ecto.Schema
+  import Ecto.Changeset
 
-  alias Ecto.Changeset
   alias NervesHub.Accounts.User
 
   @type t :: %__MODULE__{}
@@ -18,16 +18,17 @@ defmodule NervesHub.Accounts.UserToken do
 
   def create_changeset(%User{} = user, attrs) do
     %__MODULE__{user_id: user.id}
-    |> Changeset.cast(attrs, [:note, :user_id])
-    |> Changeset.put_change(:token, generate(user))
-    |> Changeset.validate_required([:token, :note, :user_id])
-    |> Changeset.validate_format(:token, ~r/^nhu_[a-zA-Z0-9]{36}$/)
-    |> Changeset.foreign_key_constraint(:user_id)
-    |> Changeset.unique_constraint(:token)
+    |> cast(attrs, [:note, :user_id])
+    |> update_change(:note, &trim/1)
+    |> put_change(:token, generate(user))
+    |> validate_required([:token, :note, :user_id])
+    |> validate_format(:token, ~r/^nhu_[a-zA-Z0-9]{36}$/)
+    |> foreign_key_constraint(:user_id)
+    |> unique_constraint(:token)
   end
 
   def update_chagneset(%__MODULE__{} = token, attrs) do
-    Changeset.cast(token, attrs, [:note, :last_used])
+    cast(token, attrs, [:note, :last_used])
   end
 
   defp generate(user) do
@@ -42,4 +43,12 @@ defmodule NervesHub.Accounts.UserToken do
 
     "nhu_#{rand}#{crc}"
   end
+
+  defp trim(string) when is_binary(string) do
+    string
+    |> String.split(" ", trim: true)
+    |> Enum.join(" ")
+  end
+
+  defp trim(string), do: string
 end

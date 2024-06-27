@@ -183,12 +183,12 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Personal Info",
         active: "",
-        href: Routes.account_path(conn, :edit, conn.assigns.user.username)
+        href: ~p"/account"
       },
       %{
         title: "Access Tokens",
         active: "",
-        href: Routes.token_path(conn, :index, conn.assigns.user.username)
+        href: ~p"/account/tokens"
       }
     ]
     |> sidebar_active(conn)

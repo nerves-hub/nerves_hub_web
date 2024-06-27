@@ -1,0 +1,11 @@
+<h1 class="mr-3 mb-0">New User Access Token</h1>
+
+<.form :let={f} for={@form} phx-submit="create_account_token" class="form-group mt-5">
+  <label for="user_token_note">Note</label>
+  <%= text_input(f, :note, class: "form-control") %>
+  <div class="has-error"><%= error_tag(f, :note) %></div>
+  <div class="button-submit-wrapper">
+    <.link href={~p"/account/tokens"} class="btn btn-secondary">Cancel</.link>
+    <%= submit("Generate", class: "btn btn-primary") %>
+  </div>
+</.form>

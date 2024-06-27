@@ -13,7 +13,8 @@ defmodule NervesHubWeb.Plugs.EnsureAuthenticated do
     case get_session(conn, "auth_user_id") do
       nil ->
         conn
-        |> put_session(:login_redirect_path, conn.request_path)
+        |> delete_session("auth_user_id")
+        |> put_session("login_redirect_path", conn.request_path)
         |> Controller.put_flash(:error, "You must login to access this page.")
         |> Controller.redirect(to: ~p"/login")
         |> halt()

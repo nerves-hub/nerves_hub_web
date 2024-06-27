@@ -205,69 +205,56 @@ defmodule NervesHubWeb.Router do
   scope "/", NervesHubWeb do
     pipe_through([:browser, :live_logged_in])
 
-    live_session :orgs,
+    live_session :account,
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
         NervesHubWeb.Mounts.CurrentPath
       ] do
+      live("/account", Live.Account, :edit)
+      live("/account/delete", Live.Account, :delete)
+      live("/account/tokens", Live.AccountTokens, :index)
+      live("/account/tokens/new", Live.AccountTokens, :new)
+
       live("/orgs", Live.Orgs.Index)
       live("/orgs/new", Live.Orgs.New)
     end
 
-    live_session :org,
-      on_mount: [
-        NervesHubWeb.Mounts.AccountAuth,
-        NervesHubWeb.Mounts.CurrentPath,
-        NervesHubWeb.Mounts.FetchOrg,
-        NervesHubWeb.Mounts.FetchOrgUser
-      ] do
-      live("/org/:org_name", Live.Org.Products, :index)
-      live("/org/:org_name/new", Live.Org.Products, :new)
-      live("/org/:org_name/settings/keys", Live.Org.SigningKeys, :index)
-      live("/org/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
-      live("/org/:org_name/settings/users", Live.Org.Users, :index)
-      live("/org/:org_name/settings/users/invite", Live.Org.Users, :invite)
-      live("/org/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
-      live("/org/:org_name/settings/certificates", Live.Org.CertificateAuthorities, :index)
-      live("/org/:org_name/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
+    scope "/org/:org_name" do
+      live_session :org,
+        on_mount: [
+          NervesHubWeb.Mounts.AccountAuth,
+          NervesHubWeb.Mounts.CurrentPath,
+          NervesHubWeb.Mounts.FetchOrg,
+          NervesHubWeb.Mounts.FetchOrgUser
+        ] do
+        live("/", Live.Org.Products, :index)
+        live("/new", Live.Org.Products, :new)
+        live("/settings/keys", Live.Org.SigningKeys, :index)
+        live("/settings/keys/new", Live.Org.SigningKeys, :new)
+        live("/settings/users", Live.Org.Users, :index)
+        live("/settings/users/invite", Live.Org.Users, :invite)
+        live("/settings/users/:user_id/edit", Live.Org.Users, :edit)
+        live("/settings/certificates", Live.Org.CertificateAuthorities, :index)
+        live("/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
+        live("/settings/certificates/:serial/edit", Live.Org.CertificateAuthorities, :edit)
+        live("/settings", Live.Org.Settings)
+      end
 
-      live(
-        "/org/:org_name/settings/certificates/:serial/edit",
-        Live.Org.CertificateAuthorities,
-        :edit
-      )
-
-      live("/org/:org_name/settings", Live.Org.Settings)
-    end
-
-    live_session :product,
-      on_mount: [
-        NervesHubWeb.Mounts.AccountAuth,
-        NervesHubWeb.Mounts.CurrentPath,
-        NervesHubWeb.Mounts.FetchOrg,
-        NervesHubWeb.Mounts.FetchOrgUser,
-        NervesHubWeb.Mounts.FetchProduct
-      ] do
-      live("/org/:org_name/:product_name/settings", Live.Product.Settings)
+      live_session :product,
+        on_mount: [
+          NervesHubWeb.Mounts.AccountAuth,
+          NervesHubWeb.Mounts.CurrentPath,
+          NervesHubWeb.Mounts.FetchOrg,
+          NervesHubWeb.Mounts.FetchOrgUser,
+          NervesHubWeb.Mounts.FetchProduct
+        ] do
+        live("/:product_name/settings", Live.Product.Settings)
+      end
     end
   end
 
   scope "/", NervesHubWeb do
     pipe_through([:browser, :logged_in])
-
-    get("/online-devices", HomeController, :online_devices)
-
-    scope "/account/:user_name" do
-      get("/", AccountController, :edit)
-      put("/", AccountController, :update)
-      get("/delete_account", AccountController, :confirm_delete)
-      delete("/delete_account", AccountController, :delete)
-
-      get("/tokens", TokenController, :index)
-      get("/tokens/new", TokenController, :new)
-      post("/tokens", TokenController, :create)
-      delete("/tokens/:id", TokenController, :delete)
-    end
 
     scope "/org/:org_name" do
       pipe_through(:org)

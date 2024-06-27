@@ -83,7 +83,7 @@ defmodule NervesHubWeb.Components.Navigation do
                 <img src="/images/icons/settings.svg" alt="settings" />
               </a>
               <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">
-                <.simple_active_link href={~p"/account/#{@user.username}"} current_path={@current_path} class="dropdown-item user">
+                <.simple_active_link href={~p"/account"} current_path={@current_path} class="dropdown-item user">
                   My Account
                 </.simple_active_link>
                 <div class="dropdown-divider"></div>
@@ -154,6 +154,9 @@ defmodule NervesHubWeb.Components.Navigation do
   def sidebar_links(["org", _org_name | _tail] = path, assigns),
     do: sidebar_product(assigns, path)
 
+  def sidebar_links(["account" | _tail] = path, assigns),
+    do: sidebar_account(assigns, path)
+
   def sidebar_links(_path, _assigns), do: []
 
   def sidebar_org(assigns, path) do
@@ -220,6 +223,22 @@ defmodule NervesHubWeb.Components.Navigation do
         title: "Settings",
         active: "",
         href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/settings"
+      }
+    ]
+    |> sidebar_active(path)
+  end
+
+  def sidebar_account(_assigns, path) do
+    [
+      %{
+        title: "Personal Info",
+        active: "",
+        href: ~p"/account"
+      },
+      %{
+        title: "Access Tokens",
+        active: "",
+        href: ~p"/account/tokens"
       }
     ]
     |> sidebar_active(path)
