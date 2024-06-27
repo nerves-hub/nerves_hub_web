@@ -43,6 +43,25 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @spec soft_delete_org(Org.t()) :: {:ok, Org.t()} | {:error, Changeset.t()}
+  def soft_delete_org(%Org{} = org) do
+    deleted_at = DateTime.truncate(DateTime.utc_now(), :second)
+
+    Multi.new()
+    |> Multi.update_all(:soft_delete_products, Ecto.assoc(org, :products),
+      set: [deleted_at: deleted_at]
+    )
+    |> Multi.update(:soft_delete_org, Org.delete_changeset(org))
+    |> Repo.transaction()
+    |> case do
+      {:ok, _result} ->
+        {:ok, org}
+
+      {:error, _, changeset, _} ->
+        {:error, changeset}
+    end
+  end
+
   def change_user(user, params \\ %{})
 
   def change_user(%User{id: nil} = user, params) do

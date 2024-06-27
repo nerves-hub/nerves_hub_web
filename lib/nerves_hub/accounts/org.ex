@@ -63,6 +63,12 @@ defmodule NervesHub.Accounts.Org do
     |> changeset(params)
   end
 
+  def delete_changeset(%Org{} = org) do
+    deleted_at = DateTime.truncate(DateTime.utc_now(), :second)
+
+    change(org, deleted_at: deleted_at)
+  end
+
   def with_org_keys(%Org{} = o) do
     o
     |> Repo.preload(:org_keys)
