@@ -22,7 +22,7 @@ defmodule NervesHubWeb.Components.Navigation do
         </a>
 
         <%= if @user do %>
-          <ul class="navbar-nav mr-auto flex-grow">
+          <ul :if={Enum.any?(@user.orgs)} class="navbar-nav mr-auto flex-grow">
             <li class="nav-item dropdown switcher">
               <a class="nav-link dropdown-toggle org-select arrow-primary" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <%= if org = assigns[:org], do: org.name, else: "Select Org" %>
