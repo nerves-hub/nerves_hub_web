@@ -102,20 +102,20 @@ defmodule NervesHubWeb.AccountController do
   end
 
   def accept_invite(conn, %{"token" => token} = params) do
-
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
-          case Accounts.get_user_by_email(invite.email) do
-            {:ok, _recipient} ->
-              _accept_invite_existing(conn, token, invite, org)
+      case Accounts.get_user_by_email(invite.email) do
+        {:ok, _recipient} ->
+          _accept_invite_existing(conn, token, invite, org)
 
-            {:error, :not_found} ->
-              clean_params =
-                params
-                |> Map.fetch!("user")
-                |> whitelist([:password, :username])
-              _accept_invite(conn, token, clean_params, invite, org)
-          end
+        {:error, :not_found} ->
+          clean_params =
+            params
+            |> Map.fetch!("user")
+            |> whitelist([:password, :username])
+
+          _accept_invite(conn, token, clean_params, invite, org)
+      end
     else
       {:error, :invite_not_found} ->
         conn
@@ -209,13 +209,20 @@ defmodule NervesHubWeb.AccountController do
     case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do
       true ->
         case conn.assigns.user
-              |> Accounts.get_invites_for_user() do
+             |> Accounts.get_invites_for_user() do
           [] ->
             conn
+
           invites ->
             conn
-            |> put_flash(:info, "You have " <> (length(invites) |> Integer.to_string()) <> " pending invite" <> (if length(invites) > 1, do: "s", else: "") <> ".")
+            |> put_flash(
+              :info,
+              "You have " <>
+                (length(invites) |> Integer.to_string()) <>
+                " pending invite" <> if(length(invites) > 1, do: "s", else: "") <> "."
+            )
         end
+
       false ->
         conn
     end
