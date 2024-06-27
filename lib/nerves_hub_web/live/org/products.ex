@@ -6,12 +6,12 @@ defmodule NervesHubWeb.Live.Org.Products do
 
   embed_templates("product_templates/*")
 
-  @impl true
+  @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     {:ok, socket}
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_params(params, _url, socket) do
     socket
     |> apply_action(socket.assigns.live_action, params)
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Live.Org.Products do
     |> render_with(&new_product_template/1)
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_event("create_product", %{"product" => product_params}, socket) do
     authorized!(:create_product, socket.assigns.org_user)
 

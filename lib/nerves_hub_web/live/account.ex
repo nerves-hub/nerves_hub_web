@@ -5,12 +5,12 @@ defmodule NervesHubWeb.Live.Account do
 
   embed_templates("account_templates/*")
 
-  @impl true
+  @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     {:ok, socket}
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_params(params, _url, socket) do
     socket
     |> apply_action(socket.assigns.live_action, params)
@@ -31,7 +31,7 @@ defmodule NervesHubWeb.Live.Account do
     |> render_with(&delete_account_template/1)
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_event("update", %{"user" => params}, socket) do
     cleaned = whitelist(params, [:current_password, :password, :username, :email, :orgs])
 

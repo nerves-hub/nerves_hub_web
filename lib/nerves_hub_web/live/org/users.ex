@@ -9,12 +9,12 @@ defmodule NervesHubWeb.Live.Org.Users do
 
   embed_templates("user_templates/*")
 
-  @impl true
+  @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     {:ok, socket}
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_params(params, _url, socket) do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
@@ -45,7 +45,7 @@ defmodule NervesHubWeb.Live.Org.Users do
     |> render_with(&edit_user_template/1)
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_event("send_invite", %{"invite" => invite_params}, socket) do
     authorized!(:invite_user, socket.assigns.org_user)
 

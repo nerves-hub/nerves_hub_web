@@ -27,10 +27,6 @@ defmodule NervesHub.Accounts.UserToken do
     |> unique_constraint(:token)
   end
 
-  def update_chagneset(%__MODULE__{} = token, attrs) do
-    cast(token, attrs, [:note, :last_used])
-  end
-
   defp generate(user) do
     secret =
       <<user.username::binary, user.email::binary, DateTime.to_unix(DateTime.utc_now())::32>>

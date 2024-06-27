@@ -10,12 +10,12 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
 
   embed_templates("certificate_authority_templates/*")
 
-  @impl true
+  @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     {:ok, socket}
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_params(params, _url, socket) do
     socket
     |> apply_action(socket.assigns.live_action, params)
@@ -63,7 +63,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
     end
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_event("delete_certificate_authority", %{"certificate_serial" => serial}, socket) do
     authorized!(:delete_certificate_authority, socket.assigns.org_user)
 

@@ -4,7 +4,7 @@ defmodule NervesHubWeb.Live.Org.Settings do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
 
-  @impl true
+  @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     socket =
       socket
@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Live.Org.Settings do
     {:ok, socket}
   end
 
-  @impl true
+  @impl Phoenix.LiveView
   def handle_event("update", %{"org" => org_params}, socket) do
     authorized!(:update_organization, socket.assigns.org_user)
 
