@@ -101,12 +101,21 @@ defmodule NervesHubWeb.AccountController do
     end
   end
 
-  def accept_invite(conn, %{"user" => user_params, "token" => token} = _) do
-    clean_params = whitelist(user_params, [:password, :username])
+  def accept_invite(conn, %{"token" => token} = params) do
 
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
-      _accept_invite(conn, token, clean_params, invite, org)
+          case Accounts.get_user_by_email(invite.email) do
+            {:ok, _recipient} ->
+              _accept_invite_existing(conn, token, invite, org)
+
+            {:error, :not_found} ->
+              clean_params =
+                params
+                |> Map.fetch!("user")
+                |> whitelist([:password, :username])
+              _accept_invite(conn, token, clean_params, invite, org)
+          end
     else
       {:error, :invite_not_found} ->
         conn
@@ -116,38 +125,6 @@ defmodule NervesHubWeb.AccountController do
       {:error, :org_not_found} ->
         conn
         |> put_flash(:error, "Invalid org")
-        |> redirect(to: "/")
-    end
-  end
-
-  def accept_invite_existing(conn, %{"token" => token} = _) do
-    # QUESTION rep: Should this be here raw or in a method somewhere else?
-    case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do
-      true ->
-        with {:ok, invite} <- Accounts.get_valid_invite(token),
-             {:ok, org} <- Accounts.get_org(invite.org_id),
-             {:ok, _} <- Accounts.user_invite_recipient?(invite, conn.assigns.user) do
-          _accept_invite_existing(conn, token, invite, org)
-        else
-          {:error, :invite_not_found} ->
-            conn
-            |> put_flash(:error, "Invalid or expired invite")
-            |> redirect(to: "/")
-
-          {:error, :org_not_found} ->
-            conn
-            |> put_flash(:error, "Invalid org")
-            |> redirect(to: "/")
-
-          {:error, :invite_not_for_user} ->
-            conn
-            |> put_flash(:error, "Invite not intended for the current user")
-            |> redirect(to: "/")
-        end
-
-      false ->
-        conn
-        |> put_flash(:error, "You must be logged in to accept this invite")
         |> redirect(to: "/")
     end
   end
