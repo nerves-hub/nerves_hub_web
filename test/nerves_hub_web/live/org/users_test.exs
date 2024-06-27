@@ -115,5 +115,31 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
 
       refute_email_sent()
     end
+
+    test "displays an error if you rescind an invite after it was accepted", %{
+      conn: conn,
+      org: org,
+      user: user
+    } do
+      {:ok, invite} =
+        Accounts.invite(%{"email" => "josh@mrjosh.com", "role" => "view"}, org, user)
+
+      conn =
+        conn
+        |> visit("/org/#{org.name}/settings/users")
+        |> assert_has("h1", text: "Outstanding Invites")
+        |> assert_has("td", text: "josh@mrjosh.com")
+
+      invite
+      |> Accounts.Invite.changeset(%{accepted: true})
+      |> NervesHub.Repo.update()
+
+      conn
+      |> click_link("Rescind")
+      |> refute_has("td", text: "josh@mrjosh.com")
+      |> assert_has("div", text: "Invite couldn't be rescinded as the invite has been accepted.")
+
+      refute_email_sent()
+    end
   end
 end

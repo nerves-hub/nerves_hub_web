@@ -87,6 +87,12 @@ defmodule NervesHubWeb.Live.Org.Users do
          |> org_invites()
          |> put_flash(:info, "Invite rescinded")}
 
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> org_invites()
+         |> put_flash(:error, "Invite couldn't be rescinded as the invite has been accepted.")}
+
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Invite failed to rescind")}
     end
