@@ -214,7 +214,7 @@ defmodule NervesHubWeb.AccountController do
             conn
           invites ->
             conn
-            |> put_flash(:info, "You have " <> (length(invites) |> Integer.to_string()) <>" pending invite" <> (if length(invites) > 1, do: "s", else: "") <> ".")
+            |> put_flash(:info, "You have " <> (length(invites) |> Integer.to_string()) <> " pending invite" <> (if length(invites) > 1, do: "s", else: "") <> ".")
         end
       false ->
         conn
