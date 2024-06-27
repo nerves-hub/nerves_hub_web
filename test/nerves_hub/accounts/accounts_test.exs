@@ -105,6 +105,20 @@ defmodule NervesHub.AccountsTest do
     assert {:error, :last_user} = Accounts.remove_org_user(org, user)
   end
 
+  test "find_org_user_with_device : fetch OrgUser for a user and device id" do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
+    product = Fixtures.product_fixture(user, org)
+    org_key = Fixtures.org_key_fixture(org, user)
+    firmware = Fixtures.firmware_fixture(org_key, product)
+    device = Fixtures.device_fixture(org, product, firmware)
+
+    user2 = Fixtures.user_fixture()
+
+    assert %OrgUser{} = Accounts.find_org_user_with_device(user, device.id)
+    assert nil == Accounts.find_org_user_with_device(user2, device.id)
+  end
+
   describe "authenticate" do
     setup do
       user_params = %{
