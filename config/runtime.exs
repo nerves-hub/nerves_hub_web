@@ -19,7 +19,9 @@ config :nerves_hub,
   admin_auth: [
     username: System.get_env("ADMIN_AUTH_USERNAME"),
     password: System.get_env("ADMIN_AUTH_PASSWORD")
-  ]
+  ],
+  device_deployment_change_jitter_seconds:
+    String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10"))
 
 if level = System.get_env("LOG_LEVEL") do
   config :logger, level: String.to_atom(level)
