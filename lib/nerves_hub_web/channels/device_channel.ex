@@ -172,10 +172,24 @@ defmodule NervesHubWeb.DeviceChannel do
         %{assigns: %{device: device}} = socket
       ) do
     if device_matches_deployment_payload?(device, payload) do
-      {:noreply, assign_deployment(socket, payload)}
+      if timer = Map.get(socket.assigns, :assign_deployment_timer) do
+        Process.cancel_timer(timer)
+      end
+
+      # jitter over five minutes to attempt to not slam the database when
+      # any matching devices go to set their deployment. This is for very large
+      # deployments, to prevent ecto pool contention.
+      jitter = :rand.uniform(300) * 1000
+      timer = Process.send_after(self(), {:assign_deployment, payload}, jitter)
+      {:noreply, assign(socket, :assign_deployment_timer, timer)}
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_info({:assign_deployment, payload}, socket) do
+    socket = assign(socket, :assign_deployment_timer, nil)
+    {:noreply, assign_deployment(socket, payload)}
   end
 
   def handle_info(
@@ -186,9 +200,10 @@ defmodule NervesHubWeb.DeviceChannel do
       :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
       {:noreply, assign_deployment(socket, payload)}
     else
-      # jitter over a minute but spaced out to attempt to not
-      # slam the database when all devices check
-      jitter = :rand.uniform(30) * 2 * 1000
+      # jitter over five minutes to attempt to not slam the database when
+      # any matching devices go to resolve their deployment. This is for very large
+      # deployments, to prevent ecto pool contention.
+      jitter = :rand.uniform(300) * 1000
       Process.send_after(self(), :resolve_changed_deployment, jitter)
       {:noreply, socket}
     end
