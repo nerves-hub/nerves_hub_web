@@ -49,7 +49,8 @@ config :nerves_hub, NervesHubWeb.Endpoint,
 #
 config :nerves_hub, NervesHub.Repo,
   queue_target: 500,
-  queue_interval: 5_000
+  queue_interval: 5_000,
+  migration_lock: :pg_advisory_lock
 
 config :nerves_hub, Oban,
   repo: NervesHub.ObanRepo,
@@ -60,7 +61,7 @@ config :nerves_hub, Oban,
     {Oban.Plugins.Pruner, max_age: 604_800},
     {Oban.Plugins.Cron,
      crontab: [
-       {"0 * * * *", NervesHub.Workers.TruncateAuditLogs, max_attempts: 1},
+       {"0 * * * *", NervesHub.Workers.ScheduleOrgAuditLogTruncation, max_attempts: 1},
        {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates}
      ]}
   ]

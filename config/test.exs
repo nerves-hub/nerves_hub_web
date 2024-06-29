@@ -67,7 +67,7 @@ config :nerves_hub, NervesHub.ObanRepo,
   ssl: false,
   pool: Ecto.Adapters.SQL.Sandbox
 
-config :nerves_hub, Oban, queues: false, plugins: false
+config :nerves_hub, Oban, testing: :manual
 
 ##
 # Other

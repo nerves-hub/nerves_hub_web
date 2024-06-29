@@ -23,14 +23,18 @@ defmodule NervesHub.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import NervesHub.DataCase
+
+      use Oban.Testing, repo: NervesHub.ObanRepo
     end
   end
 
   setup tags do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.ObanRepo)
 
     unless tags[:async] do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(NervesHub.ObanRepo, {:shared, self()})
     end
 
     :ok
