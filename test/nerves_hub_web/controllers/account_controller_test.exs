@@ -25,7 +25,7 @@ defmodule NervesHubWeb.AccountControllerTest do
       conn =
         post(build_conn(), ~p"/invite/#{invite.token}", %{
           "user" => %{
-            "username" => "MyName",
+            "name" => "My Name",
             "email" => "not_joe@example.com",
             "password" => "12345678"
           }
@@ -37,7 +37,7 @@ defmodule NervesHubWeb.AccountControllerTest do
                "info" => "Account successfully created, login below"
              }
 
-      assert_email_sent(subject: "User #{user.username} added MyName to #{org.name}")
+      assert_email_sent(subject: "#{user.name} added My Name to #{org.name}")
     end
   end
 end

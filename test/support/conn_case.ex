@@ -84,7 +84,7 @@ defmodule NervesHubWeb.APIConnCase do
     user = Fixtures.user_fixture()
     {:ok, token} = NervesHub.Accounts.create_user_token(user, "test-token")
 
-    user2 = Fixtures.user_fixture(%{username: user.username <> "0"})
+    user2 = Fixtures.user_fixture()
     {:ok, token2} = NervesHub.Accounts.create_user_token(user2, "test-token")
 
     org = Fixtures.org_fixture(user)

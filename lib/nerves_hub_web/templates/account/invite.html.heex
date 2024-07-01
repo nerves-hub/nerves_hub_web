@@ -6,9 +6,9 @@
 
   <%= form_for @changeset, Routes.account_path(@conn, :accept_invite, @token), [as: :user, method: "post", class: "form-page"], fn f -> %>
     <div class="form-group">
-      <label for="username_input">Username</label>
-      <%= text_input(f, :username, class: "form-control", id: "username_input") %>
-      <div class="has-error"><%= error_tag(f, :username) %></div>
+      <label for="name_input">Name</label>
+      <%= text_input(f, :name, class: "form-control", id: "name_input") %>
+      <div class="has-error"><%= error_tag(f, :name) %></div>
     </div>
     <div class="form-group">
       <label for="password_input">Password</label>

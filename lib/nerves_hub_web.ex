@@ -47,6 +47,10 @@ defmodule NervesHubWeb do
         |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
         |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
       end
+
+      def atomize_params(params) do
+        for {key, val} <- params, into: %{}, do: {String.to_atom(key), val}
+      end
     end
   end
 
