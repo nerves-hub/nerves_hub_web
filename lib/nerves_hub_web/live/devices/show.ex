@@ -1,9 +1,6 @@
-defmodule NervesHubWeb.DeviceLive.Show do
-  use NervesHubWeb, :live_view
+defmodule NervesHubWeb.Live.Devices.Show do
+  use NervesHubWeb, :updated_live_view
 
-  require Logger
-
-  alias NervesHub.Accounts
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
   alias NervesHub.Deployments
@@ -11,71 +8,39 @@ defmodule NervesHubWeb.DeviceLive.Show do
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Repo
-  alias NervesHub.Products
   alias NervesHub.Tracker
 
   alias Phoenix.Socket.Broadcast
 
-  def render(assigns) do
-    NervesHubWeb.DeviceView.render("show.html", assigns)
-  end
+  alias NervesHubWeb.Components.Utils
+  alias NervesHubWeb.LayoutView.DateTimeFormat
+  import NervesHubWeb.DeviceView, only: [connecting_code: 1]
 
-  def mount(
-        _params,
-        %{
-          "auth_user_id" => user_id,
-          "org_id" => org_id,
-          "product_id" => product_id,
-          "device_id" => device_id
-        },
-        socket
-      ) do
-    socket =
-      socket
-      |> assign_new(:user, fn -> Accounts.get_user!(user_id) end)
-      |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
-      |> assign_new(:product, fn -> Products.get_product!(product_id) end)
-      |> assign_new(:device, fn ->
-        Devices.get_device_by_product(device_id, product_id, org_id)
-      end)
+  on_mount NervesHubWeb.Mounts.FetchDevice
 
+  def mount(_params, _session, socket) do
     device = socket.assigns.device
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
     end
 
-    socket =
-      socket
-      |> assign(:device, Repo.preload(device, [:device_certificates]))
-      |> assign(:status, Tracker.status(device))
-      |> assign(:deployment, device.deployment)
-      |> assign(:page_title, device.identifier)
-      |> assign(:toggle_upload, false)
-      |> assign(:results, [])
-      |> assign(:deployments, Deployments.alternate_deployments(device))
-      |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
-      |> allow_upload(:certificate,
-        accept: :any,
-        auto_upload: true,
-        max_entries: 1,
-        progress: &handle_progress/3
-      )
-      |> audit_log_assigns(1)
-
-    {:ok, socket}
-  rescue
-    exception ->
-      Logger.error(Exception.format(:error, exception, __STACKTRACE__))
-      socket_error(socket, live_view_error(exception))
-  end
-
-  # Catch-all to handle when LV sessions change.
-  # Typically this is after a deploy when the
-  # session structure in the module has changed
-  # for mount/3
-  def mount(_, _, socket) do
-    socket_error(socket, live_view_error(:update))
+    socket
+    |> page_title("Device - #{device.identifier}")
+    |> assign(:status, Tracker.status(device))
+    |> assign(:deployment, device.deployment)
+    |> assign(:toggle_upload, false)
+    |> assign(:results, [])
+    |> assign(:deployments, Deployments.alternate_deployments(device))
+    |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
+    |> allow_upload(:certificate,
+      accept: :any,
+      auto_upload: true,
+      max_entries: 1,
+      progress: &handle_progress/3
+    )
+    |> audit_log_assigns(1)
+    |> ok()
   end
 
   def handle_progress(:certificate, %{done?: true} = entry, socket) do
@@ -119,12 +84,10 @@ defmodule NervesHubWeb.DeviceLive.Show do
   end
 
   def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
-    socket =
       socket
       |> assign(:status, payload.status)
       |> assign(:fwup_progress, nil)
-
-    {:noreply, socket}
+      |> noreply()
   end
 
   def handle_info(%Broadcast{event: "fwup_progress", payload: payload}, socket) do
@@ -135,20 +98,23 @@ defmodule NervesHubWeb.DeviceLive.Show do
   def handle_info(_unknown, socket), do: {:noreply, socket}
 
   def handle_event("reboot", _value, %{assigns: %{device: device, user: user}} = socket) do
-    user = Repo.preload(user, :org_users)
+    authorized!(:reboot_device, socket.assigns.org_user)
 
-    case Enum.find(user.org_users, &(&1.org_id == device.org_id)) do
-      %{role: :admin} -> do_reboot(socket, :allowed)
-      _ -> do_reboot(socket, :blocked)
-    end
+    AuditLogs.audit!(user, device, "#{user.name} rebooted device #{device.identifier}")
+
+    socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "reboot", %{})
+
+    {:noreply, put_flash(socket, :info, "Device Reboot Requested")}
   end
 
   def handle_event("reconnect", _value, %{assigns: %{device: device}} = socket) do
+    authorized!(:reconnect_device, socket.assigns.org_user)
     socket.endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
     {:noreply, socket}
   end
 
   def handle_event("identify", _value, socket) do
+    authorized!(:identify_device, socket.assigns.org_user)
     socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "identify", %{})
     {:noreply, socket}
   end
@@ -158,18 +124,17 @@ defmodule NervesHubWeb.DeviceLive.Show do
   end
 
   def handle_event("clear-penalty-box", _params, socket) do
+    authorized!(:clear_penalty_box_device, socket.assigns.org_user)
+
     %{device: device, user: user} = socket.assigns
 
-    socket =
-      case Devices.clear_penalty_box(device, user) do
-        {:ok, updated_device} ->
-          assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))
+    case Devices.clear_penalty_box(device, user) do
+      {:ok, updated_device} ->
+        {:noreply, assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))}
 
-        {:error, _changeset} ->
-          put_flash(socket, :error, "Failed to mark health state")
-      end
-
-    {:noreply, socket}
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to mark health state")}
+    end
   end
 
   def handle_event(
@@ -177,16 +142,15 @@ defmodule NervesHubWeb.DeviceLive.Show do
         _params,
         %{assigns: %{device: device, user: user}} = socket
       ) do
-    socket =
-      case Devices.toggle_health(device, user) do
-        {:ok, updated_device} ->
-          assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))
+    authorized!(:toggle_updates_device, socket.assigns.org_user)
 
-        {:error, _changeset} ->
-          put_flash(socket, :error, "Failed to mark health state")
-      end
+    case Devices.toggle_health(device, user) do
+      {:ok, updated_device} ->
+        {:noreply, assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))}
 
-    {:noreply, socket}
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to mark health state")}
+    end
   end
 
   def handle_event(
@@ -207,6 +171,8 @@ defmodule NervesHubWeb.DeviceLive.Show do
   end
 
   def handle_event("restore", _, socket) do
+    authorized!(:restore_device, socket.assigns.org_user)
+
     case Devices.restore_device(socket.assigns.device) do
       {:ok, device} ->
         {:noreply, assign(socket, device: device)}
@@ -217,10 +183,11 @@ defmodule NervesHubWeb.DeviceLive.Show do
   end
 
   def handle_event("destroy", _, socket) do
+    authorized!(:destroy_device, socket.assigns.org_user)
+
     case Repo.destroy(socket.assigns.device) do
       {:ok, _device} ->
-        path =
-          Routes.device_path(socket, :index, socket.assigns.org.name, socket.assigns.product.name)
+        path = ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices"
 
         {:noreply, redirect(socket, to: path)}
 
@@ -230,6 +197,8 @@ defmodule NervesHubWeb.DeviceLive.Show do
   end
 
   def handle_event("delete", _, socket) do
+    authorized!(:delete_device, socket.assigns.org_user)
+
     case Devices.delete_device(socket.assigns.device) do
       {:ok, %{device: device}} ->
         {:noreply, assign(socket, device: device)}
@@ -250,6 +219,8 @@ defmodule NervesHubWeb.DeviceLive.Show do
   def handle_event("validate-cert", _, socket), do: {:noreply, socket}
 
   def handle_event("push-update", %{"uuid" => uuid}, socket) do
+    authorized!(:push_update_device, socket.assigns.org_user)
+
     product = socket.assigns.product
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
@@ -287,25 +258,5 @@ defmodule NervesHubWeb.DeviceLive.Show do
     socket
     |> assign(:audit_logs, logs)
     |> assign(:resource_id, device.id)
-  end
-
-  defp do_reboot(%{assigns: %{device: device, user: user}} = socket, :allowed) do
-    AuditLogs.audit!(user, device, "user #{user.username} rebooted device #{device.identifier}")
-
-    socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "reboot", %{})
-
-    {:noreply, put_flash(socket, :info, "Device Reboot Requested")}
-  end
-
-  defp do_reboot(%{assigns: %{device: device, user: user}} = socket, :blocked) do
-    msg = "User not authorized to reboot this device"
-
-    AuditLogs.audit!(
-      user,
-      device,
-      "user #{user.username} attempted to reboot device #{device.identifier}"
-    )
-
-    {:noreply, put_flash(socket, :error, msg)}
   end
 end

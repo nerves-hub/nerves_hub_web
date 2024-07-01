@@ -253,6 +253,23 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrgUser,
         NervesHubWeb.Mounts.FetchProduct
       ] do
+        # scope "/devices" do
+        #   get("/export", ProductController, :devices_export)
+
+        #   scope "/:device_identifier" do
+        #     pipe_through(:device)
+
+        #     get("/console", DeviceController, :console)
+        #     get("/certificate/:cert_serial/download", DeviceController, :download_certificate)
+        #     get("/audit_logs/download", DeviceController, :export_audit_logs)
+        #   end
+        # end
+      live("/org/:org_name/:product_name/devices", Live.Devices.Index)
+      live("/org/:org_name/:product_name/devices/new", Live.Devices.New)
+
+      live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show)
+      live("/org/:org_name/:product_name/devices/:device_identifier/edit", Live.Devices.Edit)
+
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
     end
   end
@@ -266,24 +283,13 @@ defmodule NervesHubWeb.Router do
       scope "/:product_name" do
         pipe_through(:product)
 
-        get("/edit", ProductController, :edit)
-        put("/", ProductController, :update)
-        delete("/", ProductController, :delete)
-
         scope "/devices" do
-          get("/", DeviceController, :index)
-          post("/", DeviceController, :create)
-          get("/new", DeviceController, :new)
           get("/export", ProductController, :devices_export)
 
           scope "/:device_identifier" do
             pipe_through(:device)
 
-            get("/", DeviceController, :show)
             get("/console", DeviceController, :console)
-            get("/edit", DeviceController, :edit)
-            patch("/", DeviceController, :update)
-            put("/", DeviceController, :update)
             delete("/", DeviceController, :delete)
             post("/reboot", DeviceController, :reboot)
             post("/toggle-updates", DeviceController, :toggle_updates)

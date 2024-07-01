@@ -14,7 +14,7 @@
 <% end %>
 
 <div class="action-row">
-  <%= link("All Devices", to: Routes.device_path(@socket, :index, @org.name, @product.name), class: "back-link") %>
+  <%= link("All Devices", to: ~p"/org/#{@org.name}/#{@product.name}/devices", class: "back-link") %>
   <div class="btn-group" role="group" aria-label="Device Actions">
     <%= if @device.deleted_at do %>
       <button class="btn btn-outline-light btn-action" aria-label="Restore" type="button" phx-click="restore">
@@ -38,7 +38,7 @@
         <span class="button-icon identify"></span>
         <span class="action-text">Identify</span>
       </button>
-      <%= link(class: "btn btn-outline-light btn-action", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
+      <%= link(class: "btn btn-outline-light btn-action", aria_label: "Console", target: "_blank", to: ~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/console") do %>
         <span class="button-icon console-icon"></span>
         <span class="action-text">Console</span>
       <% end %>
@@ -50,7 +50,7 @@
         <span class="button-icon delete"></span>
         <span class="action-text">Delete</span>
       </button>
-      <%= link(class: "btn btn-outline-light btn-action", aria_label: "Edit", to: Routes.device_path(@socket, :edit, @org.name, @product.name, @device.identifier)) do %>
+      <%= link(class: "btn btn-outline-light btn-action", aria_label: "Edit", to: ~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/edit") do %>
         <span class="button-icon edit"></span>
         <span class="action-text">Edit</span>
       <% end %>
@@ -58,7 +58,88 @@
   </div>
 </div>
 
-<%= render("_header.html", assigns) %>
+<h1 class="ff-m mb-0"><%= @device.identifier %></h1>
+
+<%= if @device.description do %>
+  <p class="help-text large"><%= @device.description %></p>
+<% end %>
+
+<div class="device-meta-grid">
+  <div>
+    <div class="help-text">Status</div>
+    <p class="flex-row align-items-center tt-c">
+      <span><%= @status %></span>
+      <span class="ml-1">
+        <%= if @status in ["offline"] do %>
+          <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
+        <% else %>
+          <img src="/images/icons/check.svg" alt="online" class="table-icon" />
+        <% end %>
+      </span>
+    </p>
+  </div>
+  <div>
+    <div class="help-text mb-1">Version</div>
+    <%= if is_nil(@device.firmware_metadata) do %>
+      <p>Unknown</p>
+    <% else %>
+      <a href={Routes.firmware_path(@socket, :show, @org.name, @product.name, @device.firmware_metadata.uuid)} class="badge ff-m">
+        <%= @device.firmware_metadata.version %>
+        <%= @device.firmware_metadata.uuid %>
+      </a>
+    <% end %>
+  </div>
+  <div>
+    <div class="help-text mb-1 tooltip-label help-tooltip">
+      <span>Last Handshake</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text"><%= @device.last_communication %></span>
+    </div>
+    <p>
+      <%= if is_nil(@device.last_communication) do %>
+        Never
+      <% else %>
+        <%= DateTimeFormat.from_now(@device.last_communication) %>
+      <% end %>
+    </p>
+  </div>
+  <div>
+    <div class="help-text">Firmware Updates</div>
+    <p>
+      <%= cond do %>
+        <% @device.updates_enabled == false -> %>
+          <span>Disabled</span>
+          <span class="ml-1">
+            <img src="/images/icons/firmware-disabled.svg" alt="Firmware blocked icon" style="width: 1.3rem; margin-top: -4px;" />
+          </span>
+        <% Devices.device_in_penalty_box?(@device) -> %>
+          <span>In Penalty Box</span>
+          <span class="ml-1">
+            <img src="/images/icons/firmware-penalty-box.svg" alt="Firmware penalty box icon" style="width: 1.3rem; margin-top: -4px;" />
+          </span>
+          <a style="" class="btn btn-sm btn-outline-light btn-action" href="#" class="" title="Clear penalty box" aria-label="Clear penalty box" type="button" phx-click="clear-penalty-box">
+            Clear
+          </a>
+        <% true -> %>
+          <span>Enabled</span>
+          <span class="ml-1">
+            <img src="/images/icons/firmware-enabled.svg" alt="Firmware enabled icon" style="width: 1.3rem; margin-top: -4px;" />
+          </span>
+      <% end %>
+    </p>
+  </div>
+</div>
+
+<%= if Map.has_key?(assigns, :fwup_progress) && assigns.fwup_progress do %>
+  <div class="help-text mt-3">Progress</div>
+  <div class="progress device-show">
+    <div class="progress-bar" role="progressbar" style={"width: #{@fwup_progress}%"}>
+      <%= @fwup_progress %>%
+    </div>
+  </div>
+<% end %>
+
+<div class="divider"></div>
 
 <div class="row">
   <div class="col-lg-6">
@@ -137,7 +218,7 @@
       class="btn btn-outline-light btn-action"
       title="Download Audit Logs"
       aria-label="Download Audit Logs"
-      href={Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, @device.identifier)}
+      href={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/audit_logs/download"}
     >
       <div class="button-icon download"></div>
     </a>
@@ -248,8 +329,7 @@
                 <%= link("Download",
                   class: "dropdown-item",
                   aria_label: "Download Device Certificate",
-                  to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)
-                ) %>
+                  to: ~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/certificate/#{cert.serial}/download")%>
               <% end %>
               <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial={cert.serial} data-confirm={"Delete #{Utils.format_serial(cert.serial)}?"}>Delete</a>
             </div>

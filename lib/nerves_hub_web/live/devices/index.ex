@@ -1,20 +1,20 @@
-defmodule NervesHubWeb.DeviceLive.Index do
-  use NervesHubWeb, :live_view
-
-  # For the preloads below
-  import Ecto.Query
+defmodule NervesHubWeb.Live.Devices.Index do
+  use NervesHubWeb, :updated_live_view
 
   require Logger
 
-  alias NervesHub.Accounts
   alias NervesHub.Devices
   alias NervesHub.Firmwares
-  alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
-  alias NervesHubWeb.DeviceView
 
   alias Phoenix.Socket.Broadcast
+
+  alias NervesHubWeb.Components.Pagination
+
+  # FIX
+  import NervesHubWeb.DeviceView
+  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   @default_filters %{
     "connection" => "",
@@ -29,48 +29,23 @@ defmodule NervesHubWeb.DeviceLive.Index do
   @default_page 1
   @default_page_size 25
 
-  def render(assigns) do
-    DeviceView.render("index.html", assigns)
-  end
+  def mount(_params, _session, socket) do
+    product = socket.assigns.product
 
-  def mount(
-        _params,
-        %{
-          "auth_user_id" => user_id,
-          "org_id" => org_id,
-          "product_id" => product_id
-        },
-        socket
-      ) do
     if connected?(socket) do
-      socket.endpoint.subscribe("product:#{product_id}:devices")
+      socket.endpoint.subscribe("product:#{product.id}:devices")
     end
-
-    user = Accounts.get_user!(user_id)
 
     socket =
       socket
-      |> assign(:user, user)
-      |> assign_new(:orgs, fn ->
-        # Taken from the FetchUser plug
-        # Duplicated because we can't pass in what the plug already loaded
-        org_query = from(o in NervesHub.Accounts.Org, where: is_nil(o.deleted_at))
-        product_query = from(p in NervesHub.Products.Product, where: is_nil(p.deleted_at))
-        user = Repo.preload(user, orgs: {org_query, products: product_query})
-        user.orgs
-      end)
-      |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
-      |> assign_new(:product, fn -> Products.get_product!(product_id) end)
       |> assign(:current_sort, "identifier")
       |> assign(:sort_direction, :asc)
-      |> assign(:paginate_opts, %{
-        page_number: @default_page,
-        page_size: @default_page_size,
-        page_sizes: [25, 50, 75],
-        total_pages: 0
-      })
-      |> assign(:firmware_versions, firmware_versions(product_id))
-      |> assign(:platforms, Devices.platforms(product_id))
+      |> assign(:page_number, @default_page)
+      |> assign(:page_size, @default_page_size)
+      |> assign(:page_sizes, [25, 50, 75])
+      |> assign(:total_pages, 1)
+      |> assign(:firmware_versions, firmware_versions(product.id))
+      |> assign(:platforms, Devices.platforms(product.id))
       |> assign(:show_filters, false)
       |> assign(:current_filters, @default_filters)
       |> assign(:currently_filtering, false)
@@ -78,104 +53,65 @@ defmodule NervesHubWeb.DeviceLive.Index do
       |> assign(:target_product, nil)
       |> assign(:valid_tags, true)
       |> assign(:device_tags, "")
-      |> assign_display_devices()
 
     {:ok, socket}
-  rescue
-    exception ->
-      Logger.error(Exception.format(:error, exception, __STACKTRACE__))
-      socket_error(socket, live_view_error(exception))
   end
 
-  # Catch-all to handle when LV sessions change.
-  # Typically this is after a deploy when the
-  # session structure in the module has changed
-  # for mount/3
-  def mount(_params, _session, socket) do
-    socket_error(socket, live_view_error(:update))
-  end
-
-  # Handles event of user clicking the same field that is already sorted
-  # For this case, we switch the sorting direction of same field
-  def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
-      when value == current_sort do
-    %{sort_direction: sort_direction} = socket.assigns
-
-    # switch sort direction for column because
-    sort_direction = if sort_direction == :desc, do: :asc, else: :desc
-
+  def handle_params(params, _uri, socket) do
     socket =
       socket
-      |> assign(sort_direction: sort_direction)
+      |> assign_sort_column(params)
+      |> assign_sort_direction(params)
       |> assign_display_devices()
 
     {:noreply, socket}
   end
 
-  # User has clicked a new column to sort
-  def handle_event("sort", %{"sort" => value}, socket) do
-    socket =
+  def assign_sort_column(socket, params) do
+    if value = params["sort"] do
+      assign(socket, :current_sort, value)
+    else
       socket
-      |> assign(:current_sort, value)
-      |> assign(:sort_direction, :asc)
-      |> assign_display_devices()
-
-    {:noreply, socket}
+    end
   end
 
-  def handle_event(
-        "paginate",
-        %{"page" => page_num},
-        %{assigns: %{paginate_opts: paginate_opts}} = socket
-      ) do
-    page_num = String.to_integer(page_num)
-
-    socket =
+  def assign_sort_direction(socket, params) do
+    if value = params["sort_direction"] do
+      assign(socket, :sort_direction, value)
+    else
       socket
-      |> assign(:paginate_opts, %{paginate_opts | page_number: page_num})
-      |> assign_display_devices()
+    end
+  end
 
-    {:noreply, socket}
+  def assign_paginate_opts(socket, params) do
+    if page = params["page"] do
+      page_num = String.to_integer(page)
+
+      assign(socket, :page_number, page_num)
+    else
+      socket
+    end
   end
 
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     page_size = String.to_integer(page_size)
 
-    paginate_opts =
-      socket.assigns.paginate_opts
-      |> Map.put(:page_size, page_size)
-      |> Map.put(:page_number, 1)
-
     socket =
       socket
-      |> assign(:paginate_opts, paginate_opts)
+      |> assign(:page_size, page_size)
+      |> assign(:page_number, 1)
       |> assign_display_devices()
 
     {:noreply, socket}
   end
 
-  def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
-    {:noreply, assign(socket, :show_filters, toggle != "true")}
-  end
-
-  def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
+  def handle_event("update-filters", params, socket) do
     socket =
       socket
-      |> assign(:paginate_opts, %{paginate_opts | page_number: @default_page})
+      |> assign(:page_number, @default_page)
       |> assign(:current_filters, params)
       |> assign(:currently_filtering, params != @default_filters)
       |> assign(:selected_devices, [])
-      |> assign_display_devices()
-
-    {:noreply, socket}
-  end
-
-  def handle_event("reset-filters", _, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
-    socket =
-      socket
-      |> assign(:paginate_opts, %{paginate_opts | page_number: @default_page})
-      |> assign(:current_filters, @default_filters)
-      |> assign(:currently_filtering, false)
       |> assign_display_devices()
 
     {:noreply, socket}
@@ -305,10 +241,10 @@ defmodule NervesHubWeb.DeviceLive.Index do
   end
 
   defp assign_display_devices(
-         %{assigns: %{org: org, product: product, paginate_opts: paginate_opts}} = socket
+         %{assigns: %{org: org, product: product, page_number: page_number, page_size: page_size}} = socket
        ) do
     opts = %{
-      pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
+      pagination: %{page: page_number, page_size: page_size},
       sort: {socket.assigns.sort_direction, String.to_atom(socket.assigns.current_sort)},
       filters: socket.assigns.current_filters
     }
@@ -327,16 +263,12 @@ defmodule NervesHubWeb.DeviceLive.Index do
     |> assign_display_devices(page)
   end
 
-  defp assign_display_devices(%{assigns: %{paginate_opts: paginate_opts}} = socket, page) do
-    paginate_opts =
-      paginate_opts
-      |> Map.put(:page_number, page.page_number)
-      |> Map.put(:page_size, page.page_size)
-      |> Map.put(:total_pages, page.total_pages)
-
+  defp assign_display_devices(socket, page) do
     socket
     |> assign(:devices, page.entries)
-    |> assign(:paginate_opts, paginate_opts)
+    |> assign(:page_number, page.page_number)
+    |> assign(:page_size, page.page_size)
+    |> assign(:total_pages, page.total_pages)
   end
 
   defp firmware_versions(product_id) do

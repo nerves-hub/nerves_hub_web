@@ -11,112 +11,109 @@
     <div class="flex-row align-items-center">
       <h1 class="mr-3 mb-0">Devices</h1>
       <button
-        class={"btn btn-outline-light btn-action #{if @show_filters, do: "btn-filter-hide", else: "btn-filter-show"}"}
+        class={"btn btn-outline-light btn-action btn-filter-show"}
         type="button"
-        phx-click="toggle-filters"
-        phx-value-toggle={to_string(@show_filters)}
+        phx-click={JS.toggle_class("btn-filter-hide") |> JS.toggle_class("btn-filter-show") |> JS.toggle(to: "#filters")}
       >
         <span class="action-text">
-          <%= if @show_filters, do: "Hide Filters", else: "Show Filters" %>
+          Filters
         </span>
         <span class="button-icon filter"></span>
       </button>
     </div>
     <div>
-      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href={Routes.product_path(@socket, :devices_export, @org.name, @product.name)}>
+      <.link class="btn btn-outline-light btn-action" aria-label="Export" href={~p"/org/#{@org.name}/#{@product.name}/devices/export"} download>
         <div class="button-icon download"></div>
         <span class="action-text">Export</span>
-      </a>
-      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href={Routes.device_path(@socket, :new, @org.name, @product.name)}>
+      </.link>
+      <.link class="btn btn-outline-light btn-action" aria-label="Add new device" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"}>
         <div class="button-icon add"></div>
         <span class="action-text">Add Device</span>
-      </a>
+      </.link>
     </div>
   </div>
   <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex; gap: 4px;">
-    <%= for size <- @paginate_opts.page_sizes do %>
-      <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"btn btn-secondary btn-sm #{if size == @paginate_opts.page_size, do: "active"}"}>
+    <%= for size <- @page_sizes do %>
+      <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"btn btn-secondary btn-sm #{if size == @page_size, do: "active"}"}>
         <%= size %>
       </button>
     <% end %>
   </div>
-  <%= if @show_filters do %>
-    <div class="filter-wrapper">
-      <h4 class="color-white mb-2">Filters</h4>
-      <form id="filter-form" phx-change="update-filters" class="filter-form device-filters">
-        <div class="form-group">
-          <label for="input_id">ID</label>
-          <input type="text" name="device_id" id="input_id" class="form-control" value={@current_filters["id"]} phx-debounce="500" />
+  <div id="filters" class="filter-wrapper hidden">
+    <h4 class="color-white mb-2">Filters</h4>
+    <form id="filter-form" phx-change="update-filters" class="filter-form device-filters">
+      <div class="form-group">
+        <label for="input_id">ID</label>
+        <input type="text" name="device_id" id="input_id" class="form-control" value={@current_filters["id"]} phx-debounce="500" />
+      </div>
+      <div class="form-group">
+        <label for="connection_type">Connection Type</label>
+        <div class="pos-rel">
+          <select name="connection_type" id="connection_type" class="form-control">
+            <option {selected?(@current_filters, "connection_type", "")} value="">All</option>
+            <option {selected?(@current_filters, "connection_type", "cellular")} value="cellular">Cellular</option>
+            <option {selected?(@current_filters, "connection_type", "ethernet")} value="ethernet">Ethernet</option>
+            <option {selected?(@current_filters, "connection_type", "wifi")} value="wifi">WiFi</option>
+          </select>
+          <div class="select-icon"></div>
         </div>
-        <div class="form-group">
-          <label for="connection_type">Connection Type</label>
-          <div class="pos-rel">
-            <select name="connection_type" id="connection_type" class="form-control">
-              <option {selected?(@current_filters, "connection_type", "")} value="">All</option>
-              <option {selected?(@current_filters, "connection_type", "cellular")} value="cellular">Cellular</option>
-              <option {selected?(@current_filters, "connection_type", "ethernet")} value="ethernet">Ethernet</option>
-              <option {selected?(@current_filters, "connection_type", "wifi")} value="wifi">WiFi</option>
-            </select>
-            <div class="select-icon"></div>
-          </div>
+      </div>
+      <div class="form-group">
+        <label for="input_health">Firmware Updates</label>
+        <div class="pos-rel">
+          <select name="updates" id="input_health" class="form-control">
+            <option {selected?(@current_filters, "updates", "")} value="">All</option>
+            <option {selected?(@current_filters, "updates", "enabled")} value="enabled">Enabled</option>
+            <option {selected?(@current_filters, "updates", "penalty-box")} value="penalty-box">Penalty Box</option>
+            <option {selected?(@current_filters, "updates", "disabled")} value="disabled">Disabled</option>
+          </select>
+          <div class="select-icon"></div>
         </div>
-        <div class="form-group">
-          <label for="input_health">Firmware Updates</label>
-          <div class="pos-rel">
-            <select name="updates" id="input_health" class="form-control">
-              <option {selected?(@current_filters, "updates", "")} value="">All</option>
-              <option {selected?(@current_filters, "updates", "enabled")} value="enabled">Enabled</option>
-              <option {selected?(@current_filters, "updates", "penalty-box")} value="penalty-box">Penalty Box</option>
-              <option {selected?(@current_filters, "updates", "disabled")} value="disabled">Disabled</option>
-            </select>
-            <div class="select-icon"></div>
-          </div>
+      </div>
+      <!--
+      <div class="form-group">
+        <label for="input_connection">Connection</label>
+        <div class="pos-rel">
+          <select name="connection" id="input_connection" class="form-control">
+            <option {selected?(@current_filters, "connection", "")} value="">All</option>
+            <option {selected?(@current_filters, "connection", "1")} value="1">Connected</option>
+            <option {selected?(@current_filters, "connection", "0")} value="0">Disconnected</option>
+          </select>
+          <div class="select-icon"></div>
         </div>
-        <!--
-        <div class="form-group">
-          <label for="input_connection">Connection</label>
-          <div class="pos-rel">
-            <select name="connection" id="input_connection" class="form-control">
-              <option {selected?(@current_filters, "connection", "")} value="">All</option>
-              <option {selected?(@current_filters, "connection", "1")} value="1">Connected</option>
-              <option {selected?(@current_filters, "connection", "0")} value="0">Disconnected</option>
-            </select>
-            <div class="select-icon"></div>
-          </div>
+      </div>
+      -->
+      <div class="form-group">
+        <label for="input_firmware">Firmware</label>
+        <div class="pos-rel">
+          <select name="firmware_version" id="input_firmware" class="form-control">
+            <option {selected?(@current_filters, "firmware_version", "")} value="">All</option>
+            <%= for version <- @firmware_versions do %>
+              <option {selected?(@current_filters, "firmware_version", version)}><%= version %></option>
+            <% end %>
+          </select>
+          <div class="select-icon"></div>
         </div>
-        -->
-        <div class="form-group">
-          <label for="input_firmware">Firmware</label>
-          <div class="pos-rel">
-            <select name="firmware_version" id="input_firmware" class="form-control">
-              <option {selected?(@current_filters, "firmware_version", "")} value="">All</option>
-              <%= for version <- @firmware_versions do %>
-                <option {selected?(@current_filters, "firmware_version", version)}><%= version %></option>
-              <% end %>
-            </select>
-            <div class="select-icon"></div>
-          </div>
+      </div>
+      <div class="form-group">
+        <label for="input_platform">Platform</label>
+        <div class="pos-rel">
+          <select name="platform" id="platform" class="form-control">
+            <option {selected?(@current_filters, "platform", "")} value="">All</option>
+            <%= for platform <- @platforms do %>
+              <option {selected?(@current_filters, "platform", platform)}><%= platform %></option>
+            <% end %>
+          </select>
+          <div class="select-icon"></div>
         </div>
-        <div class="form-group">
-          <label for="input_platform">Platform</label>
-          <div class="pos-rel">
-            <select name="platform" id="platform" class="form-control">
-              <option {selected?(@current_filters, "platform", "")} value="">All</option>
-              <%= for platform <- @platforms do %>
-                <option {selected?(@current_filters, "platform", platform)}><%= platform %></option>
-              <% end %>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="input_tags">Tags</label>
-          <input type="text" name="tag" id="input_tags" class="form-control" value={@current_filters["tag"]} phx-debounce="500" />
-        </div>
-      </form>
-      <button class="btn btn-secondary" type="button" phx-click="reset-filters">Reset Filters</button>
-    </div>
-  <% end %>
+      </div>
+      <div class="form-group">
+        <label for="input_tags">Tags</label>
+        <input type="text" name="tag" id="input_tags" class="form-control" value={@current_filters["tag"]} phx-debounce="500" />
+      </div>
+    </form>
+    <.link patch={~p"/org/#{@org.name}/#{@product.name}/devices"} class="btn btn-secondary">Reset Filters</.link>
+  </div>
   <div class={if length(@selected_devices) == 0, do: "hidden"}>
     <div class="filter-wrapper">
       <div class="flex-row">
@@ -132,7 +129,7 @@
             <div class="flex-grow pos-rel">
               <select name="product" id="move_to" class="form-control">
                 <option value=""></option>
-                <%= for org <- @orgs, products = org.products, length(products) > 0 do %>
+                <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
                   <optgroup label={org.name}>
                     <%= for product <- products, product.id != @product.id do %>
                       <option value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>
@@ -153,7 +150,7 @@
           <label for="move_to">Set tag(s) to:</label>
           <div class="flex-row align-items-center">
             <div class="flex-grow">
-              <input type="text" name="tags" id="input_tags" class="form-control" value={@current_filters["tag"]} phx-debounce="500" />
+              <input type="text" name="tags" id="bulk_input_tags" class="form-control" value={@current_filters["tag"]} phx-debounce="500" />
             </div>
             <button
               class="btn btn-outline-light btn-action btn-primary ml-1"
@@ -309,5 +306,5 @@
       </tr>
     <% end %>
   </table>
-  <%= pagination_links(@paginate_opts) %>
+  <Pagination.links total_pages={@total_pages} page_number={@page_number} page_size={@page_size} />
 <% end %>
