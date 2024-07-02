@@ -140,39 +140,33 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Devices",
         active: "",
-        href: Routes.device_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/devices"
       },
       %{
         title: "Firmware",
         active: "",
-        href: Routes.firmware_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/firmware"
       },
       %{
         title: "Archives",
         active: "",
-        href: Routes.archive_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/archives"
       },
       %{
         title: "Deployments",
         active: "",
         href:
-          Routes.deployment_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+          ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/deployments"
       },
       %{
         title: "Scripts",
         active: "",
-        href: Routes.script_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/scripts"
       },
       %{
         title: "Settings",
         active: "",
-        href:
-          Routes.live_path(
-            NervesHubWeb.Endpoint,
-            NervesHubWeb.Live.Product.Settings,
-            conn.assigns.org.name,
-            conn.assigns.product.name
-          )
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/settings"
       }
     ]
     |> sidebar_active(conn)

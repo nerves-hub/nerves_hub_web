@@ -1,6 +1,6 @@
 <h1>Add Device</h1>
 
-<%= form_for @changeset, Routes.device_path(@conn, :create, @org.name, @product.name), fn f -> %>
+<.form :let={f} for={@form} phx-submit="create_device">
   <div class="form-group">
     <label for="identifier_input" class="tooltip-label h3 mb-1">
       <span>ID</span>
@@ -34,4 +34,4 @@
   <div class="button-submit-wrapper">
     <%= submit("Add Device", class: "btn btn-primary") %>
   </div>
-<% end %>
+</.form>

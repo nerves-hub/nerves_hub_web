@@ -30,7 +30,7 @@
                   <%= if org.products !== [] do %>
                     <%= for product <- org.products do %>
                       <li>
-                        <.link href={Routes.device_path(@conn, :index, org.name, product.name)} class={"dropdown-item product #{@conn.assigns[:product] == product && "active"}"}>
+                        <.link href={~p"/org/#{org.name}/#{product.name}/devices"} class={"dropdown-item product #{@conn.assigns[:product] == product && "active"}"}>
                           <%= product.name %>
                           <div class="active-checkmark"></div>
                         </.link>
