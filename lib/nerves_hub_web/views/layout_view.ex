@@ -161,7 +161,7 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Scripts",
         active: "",
-        href: Routes.script_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/scripts"
       },
       %{
         title: "Settings",
