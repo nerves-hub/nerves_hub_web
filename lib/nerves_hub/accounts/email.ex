@@ -40,7 +40,7 @@ defmodule NervesHub.Accounts.SwooshEmail do
         email != new_user.email
       end)
 
-    email_subject = "User #{instigator.username} added #{new_user.username} to #{org.name}"
+    email_subject = "#{instigator.name} added #{new_user.name} to #{org.name}"
 
     new()
     |> from(from_address())
@@ -60,7 +60,7 @@ defmodule NervesHub.Accounts.SwooshEmail do
 
     new()
     |> from(from_address())
-    |> subject("User #{instigator.username} removed #{user_removed.username} from #{org.name}")
+    |> subject("#{instigator.name} removed #{user_removed.name} from #{org.name}")
     |> to(from_address())
     |> bcc(org_users_emails)
     |> render_body("tell_org_user_removed.html", %{

@@ -79,7 +79,7 @@ defmodule NervesHubWeb.Components.Navigation do
           <ul class="navbar-nav">
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle user-menu pr-1" href="#" id="menu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <span><%= @user.username %></span>
+                <span><%= @user.name %></span>
                 <img src="/images/icons/settings.svg" alt="settings" />
               </a>
               <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">

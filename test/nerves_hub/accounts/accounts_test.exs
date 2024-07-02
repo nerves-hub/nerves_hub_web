@@ -54,7 +54,7 @@ defmodule NervesHub.AccountsTest do
 
   test "user cannot have two of the same org" do
     params = %{
-      username: "Testy-McTesterson",
+      name: "Testy McTesterson",
       org_name: "mctesterson.com",
       email: "testy@mctesterson.com",
       password: "test_password"
@@ -70,7 +70,7 @@ defmodule NervesHub.AccountsTest do
 
   test "add user and remove user from an org" do
     user_params = %{
-      username: "Testy-McTesterson",
+      name: "Testy McTesterson",
       email: "testy@mctesterson.com",
       password: "test_password"
     }
@@ -81,7 +81,7 @@ defmodule NervesHub.AccountsTest do
     [result_org_1] = Accounts.get_user_orgs(user)
 
     assert result_org_1.name == org_1.name
-    assert user.username == user_params.username
+    assert user.name == user_params.name
 
     tmp_user = Fixtures.user_fixture()
     {:ok, %Org{} = org_2} = Accounts.create_org(tmp_user, %{name: "org2"})
@@ -123,7 +123,7 @@ defmodule NervesHub.AccountsTest do
     setup do
       user_params = %{
         orgs: [%{name: "test org 1"}],
-        username: "Testy-McTesterson",
+        name: "Testy McTesterson",
         email: "testy@mctesterson.com",
         password: "test_password"
       }
@@ -136,7 +136,7 @@ defmodule NervesHub.AccountsTest do
     test "with valid credentials", %{user: user} do
       target_email = user.email
 
-      assert {:ok, %User{email: ^target_email, orgs: []}} =
+      assert {:ok, %User{email: ^target_email}} =
                Accounts.authenticate(user.email, user.password)
     end
 
@@ -155,7 +155,7 @@ defmodule NervesHub.AccountsTest do
     expected_email = "ThatsTesty@mctesterson.com"
 
     params = %{
-      username: "Testy-McTesterson",
+      name: "Testy McTesterson",
       org_name: "mctesterson.com",
       email: expected_email,
       password: "test_password"
@@ -165,21 +165,8 @@ defmodule NervesHub.AccountsTest do
 
     assert user.email == expected_email
 
-    assert {:ok, %User{email: ^expected_email, orgs: []}} =
+    assert {:ok, %User{email: ^expected_email}} =
              Accounts.authenticate(user.email, user.password)
-  end
-
-  test "authenticate with username instead of email" do
-    params = %{
-      username: "Testy-McTesterson",
-      org_name: "mctesterson.com",
-      email: "ThatsTesty@mctesterson.com",
-      password: "test_password"
-    }
-
-    {:ok, %User{} = user} = Accounts.create_user(params)
-
-    assert {:ok, %User{}} = Accounts.authenticate(user.username, user.password)
   end
 
   test "org_key name must be unique", %{user: user} do
@@ -251,7 +238,7 @@ defmodule NervesHub.AccountsTest do
     assert {:ok, %OrgUser{}} =
              Accounts.create_user_from_invite(invite, org, %{
                password: "password123",
-               username: "invited_user"
+               name: "Invited"
              })
   end
 
@@ -267,7 +254,7 @@ defmodule NervesHub.AccountsTest do
 
     {:error, changeset} = Accounts.create_user_from_invite(invite, org, %{invalid: "params"})
     assert "can't be blank" in errors_on(changeset).password
-    assert "can't be blank" in errors_on(changeset).username
+    assert "can't be blank" in errors_on(changeset).name
   end
 
   test "invite existing user", %{user: user} do

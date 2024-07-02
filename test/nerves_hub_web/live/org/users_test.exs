@@ -16,7 +16,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("h1", text: "Users")
       |> tap(fn conn ->
         for org_user <- Accounts.get_org_users(org) do
-          assert_has(conn, "td", text: org_user.user.username)
+          assert_has(conn, "td", text: org_user.user.name)
         end
       end)
     end
@@ -25,7 +25,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       conn
       |> visit("/org/#{org.name}/settings/users")
       |> assert_has("h1", text: "Users")
-      |> assert_has("td", text: user.username)
+      |> assert_has("td", text: user.name)
       |> refute_has("a[phx-value-user_id=\"#{user.id}\"]", text: "Delete")
     end
 
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
 
       conn
       |> visit("/org/#{org.name}/settings/users/#{org_user.user_id}/edit")
-      |> assert_has("h1", text: org_user.user.username)
+      |> assert_has("h1", text: org_user.user.name)
       |> select("Admin", from: "Role")
       |> click_button("Update")
       |> assert_path("/org/#{org.name}/settings/users")
@@ -51,9 +51,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User removed")
 
-      assert_email_sent(
-        subject: "User #{user.username} removed #{org_user.user.username} from #{org.name}"
-      )
+      assert_email_sent(subject: "#{user.name} removed #{org_user.user.name} from #{org.name}")
     end
   end
 

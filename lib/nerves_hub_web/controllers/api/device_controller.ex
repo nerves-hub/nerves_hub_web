@@ -115,7 +115,7 @@ defmodule NervesHubWeb.API.DeviceController do
     case Devices.get_by_identifier(identifier) do
       {:ok, device} ->
         if Accounts.has_org_role?(device.org, user, :manage) do
-          message = "user #{user.username} rebooted device #{device.identifier}"
+          message = "#{user.name} rebooted device #{device.identifier}"
           AuditLogs.audit!(user, device, message)
 
           Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
@@ -204,7 +204,7 @@ defmodule NervesHubWeb.API.DeviceController do
           device = Repo.preload(device, [:device_certificates])
 
           description =
-            "user #{user.username} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+            "#{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
 
           AuditLogs.audit!(user, device, description)
 

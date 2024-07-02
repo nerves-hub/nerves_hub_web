@@ -31,7 +31,7 @@ defmodule NervesHubWeb.SessionControllerTest do
         post(
           conn,
           Routes.session_path(conn, :create),
-          login: %{email_or_username: user.email, password: user.password}
+          login: %{email: user.email, password: user.password}
         )
 
       assert redirected_to(conn) == Routes.home_path(conn, :index)
@@ -43,7 +43,7 @@ defmodule NervesHubWeb.SessionControllerTest do
         |> get(~p"/orgs/new")
         |> post(
           ~p"/login",
-          login: %{email_or_username: user.email, password: user.password}
+          login: %{email: user.email, password: user.password}
         )
 
       assert redirected_to(conn) == ~p"/orgs/new"

@@ -13,7 +13,7 @@ defmodule NervesHubWeb.API.OrgUserView do
 
   def render("org_user.json", %{org_user: org_user}) do
     %{
-      username: org_user.user.username,
+      name: org_user.user.name,
       email: org_user.user.email,
       role: org_user.role
     }
