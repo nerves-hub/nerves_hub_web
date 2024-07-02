@@ -309,6 +309,42 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_info({:run_script, pid, text}, socket) do
+    if Version.match?(socket.assigns.device_api_version, ">= 2.1.0") do
+      ref = Base.encode64(:crypto.strong_rand_bytes(4), padding: false)
+
+      push(socket, "scripts/run", %{"text" => text, "ref" => ref})
+
+      script_refs =
+        socket.assigns
+        |> Map.get(:script_refs, %{})
+        |> Map.put(ref, pid)
+
+      socket = assign(socket, :script_refs, script_refs)
+
+      Process.send_after(self(), {:clear_script_ref, ref}, 15_000)
+
+      {:noreply, socket}
+    else
+      send(pid, {:error, :incompatible_version})
+
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info({:clear_script_ref, ref}, socket) do
+    Logger.info("[DeviceChannel] clearing ref #{ref}")
+
+    script_refs =
+      socket.assigns
+      |> Map.get(:script_refs, %{})
+      |> Map.delete(ref)
+
+    socket = assign(socket, :script_refs, script_refs)
+
+    {:noreply, socket}
+  end
+
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
     # Forward broadcasts to the device for now
     push(socket, event, payload)
@@ -415,6 +451,16 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("rebooting", _, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_in("scripts/run", params, socket) do
+    if pid = socket.assigns.script_refs[params["ref"]] do
+      output = Enum.join([params["output"], params["return"]], "\n")
+      output = String.trim(output)
+      send(pid, {:output, output})
+    end
+
     {:noreply, socket}
   end
 
