@@ -796,7 +796,7 @@ defmodule NervesHub.Devices do
   def firmware_update_successful(device) do
     :telemetry.execute([:nerves_hub, :devices, :update, :successful], %{count: 1}, %{
       identifier: device.identifier,
-      firmware_uuid: device.firmware_metadata.uuid
+      firmware_uuid: device.firmware_metadata && device.firmware_metadata.uuid
     })
 
     description =
