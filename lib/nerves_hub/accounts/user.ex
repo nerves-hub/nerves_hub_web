@@ -24,7 +24,8 @@ defmodule NervesHub.Accounts.User do
     has_many(:org_users, OrgUser, where: [deleted_at: nil])
     has_many(:orgs, through: [:org_users, :org], where: [deleted_at: nil])
 
-    field(:name, :string)
+    # The username column has been repurposed as a name field
+    field(:name, :string, source: :username)
     field(:email, :string)
     field(:password, :string, virtual: true)
     field(:password_confirmation, :string, virtual: true)
