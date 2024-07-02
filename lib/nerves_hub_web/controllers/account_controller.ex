@@ -3,8 +3,30 @@ defmodule NervesHubWeb.AccountController do
 
   alias Ecto.Changeset
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.SwooshEmail
+  alias NervesHub.Accounts.{User, SwooshEmail}
   alias NervesHub.SwooshMailer
+
+  plug(:registrations_allowed when action in [:new, :create])
+
+  def new(conn, _params) do
+    render(conn, "new.html", changeset: Ecto.Changeset.change(%User{}))
+  end
+
+  def create(conn, %{"user" => user_params} = _) do
+    case Accounts.create_user(user_params) do
+      {:ok, new_user} ->
+        new_user
+        |> SwooshEmail.welcome_user()
+        |> SwooshMailer.deliver()
+
+        conn
+        |> put_flash(:info, "Account successfully created, login below")
+        |> redirect(to: "/login")
+
+      {:error, %Changeset{} = changeset} ->
+        render(conn, "new.html", changeset: changeset)
+    end
+  end
 
   def invite(conn, %{"token" => token} = _) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
@@ -69,6 +91,17 @@ defmodule NervesHubWeb.AccountController do
           org: org,
           token: token
         )
+    end
+  end
+
+  defp registrations_allowed(conn, _options) do
+    if Application.get_env(:nerves_hub, :open_for_registrations) do
+      conn
+    else
+      conn
+      |> put_flash(:info, "Please contact support for an invite to this platform.")
+      |> redirect(to: "/login")
+      |> halt()
     end
   end
 end
