@@ -1,0 +1,35 @@
+<%= if @scripts == [] do %>
+  <div class="no-results-blowup-wrapper">
+    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any Support Scripts yet</h3>
+    <div class="flex-row align-items-center mt-3">
+      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} class="btn btn-outline-light" aria-label="Create Support Script">
+        <span class="action-text">Create Support Script</span>
+        <span class="button-icon add"></span>
+      </.link>
+    </div>
+  </div>
+<% else %>
+  <div class="action-row">
+    <h1>Support Scripts</h1>
+    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} class="btn btn-outline-light btn-action" aria-label="Create Support Script">
+      <span class="button-icon add"></span>
+      <span class="action-text">Create Support Script</span>
+    </.link>
+  </div>
+
+  <table class="table">
+    <tr :for={command <- @scripts} class="item">
+      <td>
+        <%= command.name %>
+      </td>
+      <td class="actions">
+        <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/#{command.id}/edit"} class="btn btn-outline-light btn-action mr-1">
+          Edit
+        </.link>
+        <.link phx-click="delete-support-script" phx-value-script_id={command.id} class="btn btn-outline-light btn-action" data-confirm="Are you sure?">
+          Delete
+        </.link>
+      </td>
+    </tr>
+  </table>
+<% end %>
