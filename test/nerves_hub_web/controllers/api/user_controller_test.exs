@@ -7,7 +7,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
     conn = get(conn, Routes.api_user_path(conn, :me))
 
     assert json_response(conn, 200)["data"] == %{
-             "username" => user.username,
+             "name" => user.name,
              "email" => user.email
            }
   end
@@ -17,7 +17,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
 
     user =
       Fixtures.user_fixture(%{
-        username: "new_user",
+        name: "New User",
         email: "account_test@test.com",
         password: password
       })
@@ -26,7 +26,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
     conn = post(conn, Routes.api_user_path(conn, :auth), %{email: user.email, password: password})
 
     assert json_response(conn, 200)["data"] == %{
-             "username" => user.username,
+             "name" => user.name,
              "email" => user.email
            }
   end
@@ -36,7 +36,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
 
     user =
       Fixtures.user_fixture(%{
-        username: "new_user",
+        name: "New User",
         email: "account_test@test.com",
         password: password
       })
@@ -51,29 +51,8 @@ defmodule NervesHubWeb.API.UserControllerTest do
       })
 
     resp = json_response(conn, 200)
-    assert resp["data"]["username"] == user.username
+    assert resp["data"]["name"] == user.name
     assert resp["data"]["email"] == user.email
     assert "nhu_" <> _ = resp["data"]["token"]
-  end
-
-  test "authenticate existing accounts with username instead of email" do
-    password = "12345678"
-
-    user =
-      Fixtures.user_fixture(%{
-        username: "new_user",
-        email: "account_test@test.com",
-        password: password
-      })
-
-    conn = build_conn()
-
-    conn =
-      post(conn, Routes.api_user_path(conn, :auth), %{username: user.username, password: password})
-
-    assert json_response(conn, 200)["data"] == %{
-             "username" => user.username,
-             "email" => user.email
-           }
   end
 end

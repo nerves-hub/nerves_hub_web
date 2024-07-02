@@ -33,10 +33,8 @@ defmodule NervesHubWeb.Live.Account do
 
   @impl Phoenix.LiveView
   def handle_event("update", %{"user" => params}, socket) do
-    cleaned = whitelist(params, [:current_password, :password, :username, :email, :orgs])
-
     socket.assigns.user
-    |> Accounts.update_user(cleaned)
+    |> Accounts.update_user(params)
     |> case do
       {:ok, user} ->
         socket
@@ -52,7 +50,7 @@ defmodule NervesHubWeb.Live.Account do
   end
 
   def handle_event("delete", params, socket) do
-    if params["confirm_username"] == socket.assigns.user.username do
+    if params["confirm_email"] == socket.assigns.user.email do
       {:ok, _} = Accounts.remove_account(socket.assigns.user.id)
 
       params = %{message: "Your account has successfully been deleted"}
@@ -62,7 +60,7 @@ defmodule NervesHubWeb.Live.Account do
       |> noreply()
     else
       socket
-      |> put_flash(:error, "Please type #{socket.assigns.user.username} to confirm.")
+      |> put_flash(:error, "Please type #{socket.assigns.user.email} to confirm.")
       |> noreply()
     end
   end

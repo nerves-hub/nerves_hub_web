@@ -198,10 +198,10 @@ defmodule NervesHub.Accounts do
   @spec authenticate(String.t(), String.t()) ::
           {:ok, User.t()}
           | {:error, :authentication_failed}
-  def authenticate(email_or_username, password) do
-    with {:ok, user} <- get_user_by_email_or_username(email_or_username),
+  def authenticate(email, password) do
+    with {:ok, user} <- get_user_by_email(email),
          true <- Bcrypt.verify_pass(password, user.password_hash) do
-      {:ok, user |> User.with_default_org() |> User.with_org_keys()}
+      {:ok, user}
     else
       _ ->
         # User wasn't found; do dummy check to make user enumeration more difficult
@@ -250,28 +250,6 @@ defmodule NervesHub.Accounts do
     |> case do
       nil -> {:error, :not_found}
       user -> {:ok, user}
-    end
-  end
-
-  def get_user_by_username(username) do
-    User
-    |> Repo.exclude_deleted()
-    |> Repo.get_by(username: username)
-    |> case do
-      nil -> {:error, :not_found}
-      user -> {:ok, user}
-    end
-  end
-
-  def get_user_by_email_or_username(email_or_username) do
-    User
-    |> Repo.exclude_deleted()
-    |> where(username: ^email_or_username)
-    |> or_where(email: ^email_or_username)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      cert -> {:ok, cert}
     end
   end
 

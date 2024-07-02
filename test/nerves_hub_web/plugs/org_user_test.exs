@@ -29,8 +29,8 @@ defmodule NervesHubWeb.Plugs.OrgUserTest do
     assert html_response(conn, 404) =~ "Sorry, the page you are looking for does not exist."
   end
 
-  test "404 is rendered when org_user is not found", %{conn: conn, user: user, org: org} do
-    user2 = Fixtures.user_fixture(%{username: user.username <> "0"})
+  test "404 is rendered when org_user is not found", %{conn: conn, org: org} do
+    user2 = Fixtures.user_fixture()
 
     conn =
       conn

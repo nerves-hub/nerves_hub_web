@@ -1,11 +1,13 @@
 <h1>Are you absolutely sure?</h1>
+
 <p>Unexpected bad things will happen if you don’t read this!</p>
-<p>This action cannot be undone. This will permanently delete the <%= @user.username %> and orgs.</p>
+
+<p>This action cannot be undone. This will permanently delete your account.</p>
 
 <.form :let={f} for={@form} phx-submit="delete">
   <div class="form-group">
-    <label for="username_input">Please type <%= @user.username %> to confirm.</label>
-    <%= text_input(f, :confirm_username, class: "form-control", id: "username_input") %>
+    <label for="email_input">Please type <%= @user.email %> to confirm.</label>
+    <%= text_input(f, :confirm_email, class: "form-control", id: "email_input") %>
   </div>
 
   <div class="button-submit-wrapper">

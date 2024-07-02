@@ -133,7 +133,7 @@ defmodule NervesHubWeb.DeploymentController do
         AuditLogs.audit!(
           user,
           deployment,
-          "user #{user.username} created deployment #{deployment.name}"
+          "#{user.name} created deployment #{deployment.name}"
         )
 
         conn
@@ -200,7 +200,7 @@ defmodule NervesHubWeb.DeploymentController do
         AuditLogs.audit!(
           user,
           deployment,
-          "user #{user.username} updated deployment #{deployment.name}"
+          "#{user.name} updated deployment #{deployment.name}"
         )
 
         conn
@@ -234,7 +234,7 @@ defmodule NervesHubWeb.DeploymentController do
     {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: value})
 
     active_str = if value, do: "active", else: "inactive"
-    description = "user #{user.username} marked deployment #{deployment.name} #{active_str}"
+    description = "#{user.name} marked deployment #{deployment.name} #{active_str}"
     AuditLogs.audit!(user, deployment, description)
 
     conn
@@ -245,7 +245,7 @@ defmodule NervesHubWeb.DeploymentController do
   def delete(conn, _params) do
     %{deployment: deployment, org: org, product: product, user: user} = conn.assigns
 
-    description = "user #{user.username} deleted deployment #{deployment.name}"
+    description = "#{user.name} deleted deployment #{deployment.name}"
 
     AuditLogs.audit!(user, deployment, description)
 

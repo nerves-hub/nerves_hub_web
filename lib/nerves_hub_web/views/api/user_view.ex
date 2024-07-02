@@ -16,7 +16,7 @@ defmodule NervesHubWeb.API.UserView do
   end
 
   def render("user.json", %{user: user}) do
-    %{username: user.username, email: user.email}
+    %{name: user.name, email: user.email}
   end
 
   def render("cert.json", %{cert: cert}) do

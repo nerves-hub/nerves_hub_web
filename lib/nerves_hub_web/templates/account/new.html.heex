@@ -2,13 +2,17 @@
   <h2 class="form-title">
     Create New Account
   </h2>
-  <h5 class="mt-2"><%= gettext("You will be added to the %{organization_name} organization", organization_name: @org.name) %></h5>
 
-  <%= form_for @changeset, Routes.account_path(@conn, :accept_invite, @token), [as: :user, method: "post", class: "form-page"], fn f -> %>
+  <%= form_for @changeset, ~p"/register", [as: :user, method: "post", class: "form-page"], fn f -> %>
     <div class="form-group">
       <label for="name_input">Name</label>
       <%= text_input(f, :name, class: "form-control", id: "name_input") %>
       <div class="has-error"><%= error_tag(f, :name) %></div>
+    </div>
+    <div class="form-group">
+      <label for="email_input">Email</label>
+      <%= text_input(f, :email, class: "form-control", id: "email_input") %>
+      <div class="has-error"><%= error_tag(f, :email) %></div>
     </div>
     <div class="form-group">
       <label for="password_input">Password</label>

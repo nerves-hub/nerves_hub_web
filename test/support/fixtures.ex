@@ -36,7 +36,7 @@ defmodule NervesHub.Fixtures do
     %{
       org_name: "org-#{counter()}.com",
       email: "email-#{counter()}@mctesterson.com",
-      username: "user-#{counter()}",
+      name: "User #{counter_in_alpha()}",
       password: "test_password"
     }
   end
@@ -390,5 +390,16 @@ defmodule NervesHub.Fixtures do
 
   defp counter do
     System.unique_integer([:positive])
+  end
+
+  defp counter_in_alpha do
+    counter()
+    |> Integer.to_string()
+    |> String.split("")
+    |> Enum.filter(fn x -> x != "" end)
+    |> Enum.map(fn x -> String.to_integer(x) end)
+    |> Enum.map(fn x -> <<x + 97::utf8>> end)
+    |> to_string()
+    |> String.capitalize()
   end
 end

@@ -15,9 +15,9 @@ defmodule NervesHubWeb.API.OrgUserController do
   end
 
   def add(%{assigns: %{org: org}} = conn, params) do
-    with {:ok, username} <- Map.fetch(params, "username"),
+    with {:ok, user_id} <- Map.fetch(params, "user_id"),
          {:ok, role} <- Map.fetch(params, "role"),
-         {:ok, user} <- Accounts.get_user_by_username(username),
+         {:ok, user} <- Accounts.get_user(user_id),
          {:ok, org_user} <- Accounts.add_org_user(org, user, %{role: role}) do
       # Now let everyone in the organization - except the new guy -
       # know about this new user.
@@ -30,21 +30,21 @@ defmodule NervesHubWeb.API.OrgUserController do
       |> put_status(:created)
       |> put_resp_header(
         "location",
-        Routes.api_org_user_path(conn, :show, org.name, user.username)
+        Routes.api_org_user_path(conn, :show, org.name, user.id)
       )
       |> render("show.json", org_user: org_user)
     end
   end
 
-  def show(%{assigns: %{org: org}} = conn, %{"username" => username}) do
-    with {:ok, user} <- Accounts.get_user_by_username(username),
+  def show(%{assigns: %{org: org}} = conn, %{"user_id" => user_id}) do
+    with {:ok, user} <- Accounts.get_user(user_id),
          {:ok, org_user} <- Accounts.get_org_user(org, user) do
       render(conn, "show.json", org_user: org_user)
     end
   end
 
-  def remove(%{assigns: %{org: org}} = conn, %{"username" => username}) do
-    with {:ok, user} <- Accounts.get_user_by_username(username),
+  def remove(%{assigns: %{org: org}} = conn, %{"user_id" => user_id}) do
+    with {:ok, user} <- Accounts.get_user(user_id),
          {:ok, _org_user} <- Accounts.get_org_user(org, user),
          :ok <- Accounts.remove_org_user(org, user) do
       # Now let everyone in the organization know
@@ -58,8 +58,8 @@ defmodule NervesHubWeb.API.OrgUserController do
     end
   end
 
-  def update(%{assigns: %{org: org}} = conn, %{"username" => username} = params) do
-    with {:ok, user} <- Accounts.get_user_by_username(username),
+  def update(%{assigns: %{org: org}} = conn, %{"user_id" => user_id} = params) do
+    with {:ok, user} <- Accounts.get_user(user_id),
          {:ok, org_user} <- Accounts.get_org_user(org, user),
          {:ok, role} <- Map.fetch(params, "role"),
          {:ok, org_user} <- Accounts.change_org_user_role(org_user, role) do

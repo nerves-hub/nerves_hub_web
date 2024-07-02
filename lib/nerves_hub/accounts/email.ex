@@ -1,13 +1,19 @@
 defmodule NervesHub.Accounts.SwooshEmail do
   use Phoenix.Swoosh, view: NervesHub.EmailView, layout: {NervesHub.EmailView, :layout}
 
-  def invite(invite, org, invited_by) do
-    platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
+  def welcome_user(user) do
+    new()
+    |> from(from_address())
+    |> to(user.email)
+    |> subject("Welcome to #{platform_name()}!")
+    |> render_body("welcome.html", %{user: user, platform_name: platform_name()})
+  end
 
+  def invite(invite, org, invited_by) do
     new()
     |> from(from_address())
     |> to(invite.email)
-    |> subject("Hi from #{platform_name}!")
+    |> subject("Hi from #{platform_name()}!")
     |> render_body("invite.html", %{invite: invite, org: org, invited_by: invited_by})
   end
 
@@ -40,7 +46,7 @@ defmodule NervesHub.Accounts.SwooshEmail do
         email != new_user.email
       end)
 
-    email_subject = "User #{instigator.username} added #{new_user.username} to #{org.name}"
+    email_subject = "#{instigator.name} added #{new_user.name} to #{org.name}"
 
     new()
     |> from(from_address())
@@ -60,7 +66,7 @@ defmodule NervesHub.Accounts.SwooshEmail do
 
     new()
     |> from(from_address())
-    |> subject("User #{instigator.username} removed #{user_removed.username} from #{org.name}")
+    |> subject("#{instigator.name} removed #{user_removed.name} from #{org.name}")
     |> to(from_address())
     |> bcc(org_users_emails)
     |> render_body("tell_org_user_removed.html", %{
@@ -83,4 +89,6 @@ defmodule NervesHub.Accounts.SwooshEmail do
     sender = Application.fetch_env!(:nerves_hub, :email_sender)
     {sender, email}
   end
+
+  defp platform_name(), do: Application.get_env(:nerves_hub, :support_email_platform_name)
 end
