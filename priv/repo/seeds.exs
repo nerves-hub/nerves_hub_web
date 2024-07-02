@@ -48,16 +48,17 @@ defmodule NervesHub.SeedHelpers do
 
   def nerves_team_seed(root_user_params) do
     user = Fixtures.user_fixture(root_user_params)
-    [default_user_org | _] = Accounts.get_user_orgs(user)
-    org = Fixtures.org_fixture(user, %{name: "NervesTeam"})
-    for _ <- 0..2, do: Fixtures.org_key_fixture(org, user)
-    for _ <- 0..2, do: Fixtures.org_key_fixture(default_user_org, user)
+    team = Fixtures.org_fixture(user, %{name: "NervesTeam"})
+    personal = Fixtures.org_fixture(user, %{name: "MyPersonalSpace"})
+
+    for _ <- 0..2, do: Fixtures.org_key_fixture(team, user)
+    for _ <- 0..2, do: Fixtures.org_key_fixture(personal, user)
 
     ["SmartKiosk", "SmartRentHub"]
-    |> Enum.map(fn name -> seed_product(name, user, org) end)
+    |> Enum.map(fn name -> seed_product(name, user, team) end)
 
     ["ToyProject", "ConsultingProject"]
-    |> Enum.map(fn name -> seed_product(name, user, default_user_org) end)
+    |> Enum.map(fn name -> seed_product(name, user, personal) end)
   end
 end
 
