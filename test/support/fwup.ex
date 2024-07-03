@@ -27,8 +27,8 @@ defmodule NervesHub.Support.Fwup do
   specify the private key to be used for signing a firmware image via
   `sign_firmware/3` and `create_signed_firmware/4`
   """
-  def gen_key_pair(key_name) do
-    key_path_no_extension = Path.join([System.tmp_dir(), key_name])
+  def gen_key_pair(key_name, dir \\ System.tmp_dir()) do
+    key_path_no_extension = Path.join([dir, key_name])
 
     for ext <- ~w(.priv .pub) do
       File.rm(key_path_no_extension <> ext)
@@ -40,16 +40,16 @@ defmodule NervesHub.Support.Fwup do
   @doc """
   Get a public key which has been generated via `gen_key_pair/1`.
   """
-  def get_public_key(key_name) do
-    File.read!(Path.join([System.tmp_dir(), key_name <> ".pub"]))
+  def get_public_key(key_name, dir \\ System.tmp_dir()) do
+    File.read!(Path.join([dir, key_name <> ".pub"]))
   end
 
   @doc """
   Create an unsigned firmware image, and return the path to that image.
   """
-  def create_firmware(firmware_name, meta_params \\ %{}) do
+  def create_firmware(dir, firmware_name, meta_params \\ %{}) do
     conf_path = make_conf(struct(MetaParams, meta_params))
-    out_path = Path.join([System.tmp_dir(), firmware_name <> ".fw"])
+    out_path = Path.join([dir, firmware_name <> ".fw"])
     File.rm(out_path)
 
     System.cmd("fwup", [
@@ -67,8 +67,7 @@ defmodule NervesHub.Support.Fwup do
   Sign a firmware image, and return the path to that image. The `firmware_name`
   argument must match the name of a firmware created with `create_firmware/2`.
   """
-  def sign_firmware(key_name, firmware_name, output_name) do
-    dir = System.tmp_dir()
+  def sign_firmware(dir, key_name, firmware_name, output_name) do
     output_path = Path.join([dir, output_name <> ".fw"])
 
     System.cmd(
@@ -92,15 +91,16 @@ defmodule NervesHub.Support.Fwup do
   Create a signed firmware image, and return the path to that image.
   """
   def create_signed_firmware(key_name, firmware_name, output_name, meta_params \\ %{}) do
-    create_firmware(firmware_name, meta_params)
-    sign_firmware(key_name, firmware_name, output_name)
+    {dir, meta_params} = Map.pop(meta_params, :dir, System.tmp_dir())
+    create_firmware(dir, firmware_name, meta_params)
+    sign_firmware(dir, key_name, firmware_name, output_name)
   end
 
   @doc """
   Corrupt an existing firmware image.
   """
-  def corrupt_firmware_file(input_path, output_name \\ "corrupt") do
-    output_path = Path.join([System.tmp_dir(), output_name <> ".fw"])
+  def corrupt_firmware_file(input_path, dir \\ System.tmp_dir()) do
+    output_path = Path.join([dir, "corrupt.fw"])
 
     System.cmd("dd", ["if=" <> input_path, "of=" <> output_path, "bs=512", "count=1"],
       stderr_to_stdout: true

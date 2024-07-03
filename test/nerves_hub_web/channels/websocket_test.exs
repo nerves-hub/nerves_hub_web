@@ -856,16 +856,17 @@ defmodule NervesHubWeb.WebsocketTest do
   end
 
   describe "archives" do
-    test "on connect receive an archive", %{user: user} do
+    @tag :tmp_dir
+    test "on connect receive an archive", %{user: user, tmp_dir: tmp_dir} do
       org = Fixtures.org_fixture(user)
-      org_key = Fixtures.org_key_fixture(org, user)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
       {device, firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
 
       firmware = Repo.preload(firmware, [:product])
       product = firmware.product
 
-      archive = Fixtures.archive_fixture(org_key, product)
+      archive = Fixtures.archive_fixture(tmp_dir, org_key, product)
 
       deployment =
         Fixtures.deployment_fixture(org, firmware, %{

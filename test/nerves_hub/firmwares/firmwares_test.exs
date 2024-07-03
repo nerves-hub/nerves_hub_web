@@ -179,24 +179,28 @@ defmodule NervesHub.FirmwaresTest do
              ]) == {:ok, org_key}
     end
 
+    @tag :tmp_dir
     test "returns {:error, :invalid_signature} when signature fails", %{
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
-      other_org_key = Fixtures.org_key_fixture(org, user)
+      other_org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
       assert Firmwares.verify_signature(signed_path, [other_org_key]) ==
                {:error, :invalid_signature}
     end
 
+    @tag :tmp_dir
     test "returns {:error, :invalid_signature} on corrupt files", %{
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       {:ok, signed_path} = Fwup.create_signed_firmware(org_key.name, "unsigned", "signed")
 
-      {:ok, corrupt_path} = Fwup.corrupt_firmware_file(signed_path)
+      {:ok, corrupt_path} = Fwup.corrupt_firmware_file(signed_path, tmp_dir)
 
       assert Firmwares.verify_signature(corrupt_path, [
                org_key
