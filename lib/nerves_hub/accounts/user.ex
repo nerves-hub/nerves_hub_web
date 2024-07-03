@@ -4,7 +4,7 @@ defmodule NervesHub.Accounts.User do
   import Ecto.Changeset
   import Ecto.Query
 
-  alias NervesHub.Accounts.{Org, OrgUser, UserToken}
+  alias NervesHub.Accounts.{OrgUser, UserToken}
   alias NervesHub.Repo
 
   alias Ecto.Changeset
@@ -15,7 +15,7 @@ defmodule NervesHub.Accounts.User do
 
   @password_min_length 8
 
-  @required_params [:username, :email, :password_hash]
+  @required_params [:name, :email, :password_hash]
   @optional_params [:password, :password_reset_token, :password_reset_token_expires]
 
   schema "users" do
@@ -24,7 +24,8 @@ defmodule NervesHub.Accounts.User do
     has_many(:org_users, OrgUser, where: [deleted_at: nil])
     has_many(:orgs, through: [:org_users, :org], where: [deleted_at: nil])
 
-    field(:username, :string)
+    # The username column has been repurposed as a name field
+    field(:name, :string, source: :username)
     field(:email, :string)
     field(:password, :string, virtual: true)
     field(:password_confirmation, :string, virtual: true)
@@ -41,10 +42,10 @@ defmodule NervesHub.Accounts.User do
     |> cast(params, @required_params ++ @optional_params)
     |> hash_password()
     |> password_validations()
+    |> update_change(:name, &trim/1)
+    |> validate_format(:name, ~r/^[a-zA-Z\'\- ]+$/, message: "has invalid character(s)")
     |> validate_required(@required_params)
-    |> validate_username()
     |> unique_constraint(:email)
-    |> unique_constraint(:username)
   end
 
   def creation_changeset(%User{} = user, params) do
@@ -66,34 +67,6 @@ defmodule NervesHub.Accounts.User do
     changeset(user, params)
     |> generate_password_reset_token_expires()
     |> email_password_update_valid?(user, params)
-  end
-
-  defp validate_username(%Changeset{changes: %{username: username}} = changeset) do
-    case Regex.match?(~r/^[A-Za-z0-9-_]+$/, username) do
-      true -> changeset
-      false -> add_error(changeset, :username, "invalid character(s) in username")
-    end
-  end
-
-  defp validate_username(changeset), do: changeset
-
-  defp default_org_query() do
-    # For now just get first inserted org
-    from(o in Org) |> first(:inserted_at) |> Repo.exclude_deleted()
-  end
-
-  def with_default_org(%User{} = u) do
-    q = default_org_query()
-
-    u
-    |> Repo.preload(orgs: q)
-  end
-
-  def with_default_org(user_query) do
-    q = default_org_query()
-
-    user_query
-    |> preload(orgs: ^q)
   end
 
   def with_all_orgs(%User{} = u) do
@@ -130,8 +103,9 @@ defmodule NervesHub.Accounts.User do
   end
 
   defp email_password_update_valid?(%Changeset{changes: changes} = changeset, %User{} = user, %{
-         current_password: curr_pass
-       }) do
+         "current_password" => curr_pass
+       })
+       when curr_pass != "" do
     case Map.has_key?(changes, :email) or Map.has_key?(changes, :password) do
       true ->
         if Bcrypt.verify_pass(curr_pass, user.password_hash) do
@@ -206,4 +180,12 @@ defmodule NervesHub.Accounts.User do
   def password_reset_window do
     [hours: 8]
   end
+
+  defp trim(string) when is_binary(string) do
+    string
+    |> String.split(" ", trim: true)
+    |> Enum.join(" ")
+  end
+
+  defp trim(string), do: string
 end

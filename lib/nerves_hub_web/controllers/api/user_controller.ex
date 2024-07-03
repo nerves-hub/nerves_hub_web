@@ -9,18 +9,14 @@ defmodule NervesHubWeb.API.UserController do
     render(conn, "show.json", user: user)
   end
 
-  def auth(conn, %{"password" => password} = opts) do
-    username_or_email = opts["username"] || opts["email"]
-
-    with {:ok, user} <- Accounts.authenticate(username_or_email, password) do
+  def auth(conn, %{"email" => email, "password" => password}) do
+    with {:ok, user} <- Accounts.authenticate(email, password) do
       render(conn, "show.json", user: user)
     end
   end
 
-  def login(conn, %{"password" => password, "note" => note} = opts) do
-    username_or_email = opts["username"] || opts["email"]
-
-    with {:ok, user} <- Accounts.authenticate(username_or_email, password),
+  def login(conn, %{"email" => email, "password" => password, "note" => note}) do
+    with {:ok, user} <- Accounts.authenticate(email, password),
          {:ok, %{token: token}} <- Accounts.create_user_token(user, note) do
       render(conn, "show.json", user: user, token: token)
     end

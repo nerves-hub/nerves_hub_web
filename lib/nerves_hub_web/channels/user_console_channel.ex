@@ -16,7 +16,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
   end
 
   def handle_in("message", payload, socket) do
-    payload = Map.put(payload, :username, socket.assigns.user.username)
+    payload = Map.put(payload, :name, socket.assigns.user.name)
     broadcast(socket, "message", payload)
     {:noreply, socket}
   end
@@ -65,7 +65,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
 
   def terminate(_reason, socket) do
     broadcast(socket, "message", %{
-      username: socket.assigns.user.username,
+      name: socket.assigns.user.name,
       event: "closed the console"
     })
 

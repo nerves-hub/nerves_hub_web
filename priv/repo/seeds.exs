@@ -27,14 +27,14 @@ defmodule NervesHub.SeedHelpers do
       org |> NervesHub.Accounts.Org.with_org_keys() |> Repo.preload(:users)
 
     org_keys = org_with_keys_and_users |> Map.get(:org_keys)
-    user_names = org_with_keys_and_users |> Map.get(:users) |> Enum.map(fn x -> x.username end)
+    names = org_with_keys_and_users |> Map.get(:users) |> Enum.map(fn x -> x.name end)
 
     firmwares =
       for v <- firmware_versions,
           do:
             Fixtures.firmware_fixture(Enum.random(org_keys), product, %{
               version: v,
-              author: Enum.random(user_names)
+              author: Enum.random(names)
             })
 
     firmwares = firmwares |> List.to_tuple()
@@ -48,8 +48,9 @@ defmodule NervesHub.SeedHelpers do
 
   def nerves_team_seed(root_user_params) do
     user = Fixtures.user_fixture(root_user_params)
+
     team = Fixtures.org_fixture(user, %{name: "NervesTeam"})
-    personal = Fixtures.org_fixture(user, %{name: "MyPersonalSpace"})
+    personal = Fixtures.org_fixture(user, %{name: "Personal"})
 
     for _ <- 0..2, do: Fixtures.org_key_fixture(team, user)
     for _ <- 0..2, do: Fixtures.org_key_fixture(personal, user)

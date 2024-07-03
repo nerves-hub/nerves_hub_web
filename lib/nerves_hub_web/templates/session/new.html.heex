@@ -7,9 +7,9 @@
   <h2 class="form-title">Login</h2>
   <%= form_for @conn, Routes.session_path(@conn, :create), [as: :login, class: "form-page"], fn f -> %>
     <div class="form-group">
-      <label for="email_or_username">Email/Username</label>
-      <%= text_input(f, :email_or_username, class: "form-control", id: "email_or_username") %>
-      <%= error_tag(f, :email_or_username) %>
+      <label for="email">Email</label>
+      <%= text_input(f, :email, class: "form-control", id: "email") %>
+      <%= error_tag(f, :email) %>
     </div>
 
     <div class="form-group">
