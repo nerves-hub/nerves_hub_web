@@ -10,7 +10,7 @@ defmodule NervesHub.Accounts.UserTest do
       %Changeset{errors: errors} =
         User.creation_changeset(%NervesHub.Accounts.User{}, %{name: "Name#{char}"})
 
-      assert {"invalid character(s) in name", []} = errors[:name]
+      assert {"has invalid character(s)", [{:validation, :format}]} = errors[:name]
     end)
 
     %Changeset{errors: errors} =
