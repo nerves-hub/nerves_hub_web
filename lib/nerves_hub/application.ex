@@ -12,10 +12,6 @@ defmodule NervesHub.Application do
         raise "fwup could not be found in the $PATH. This is a requirement of NervesHubWeb and cannot start otherwise"
     end
 
-    :logger.add_handler(:my_sentry_handler, Sentry.LoggerHandler, %{
-      config: %{metadata: [:file, :line]}
-    })
-
     topologies = Application.get_env(:libcluster, :topologies, [])
 
     children =
