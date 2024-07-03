@@ -499,7 +499,7 @@ defmodule NervesHub.Accounts do
   @spec create_user_from_invite(Invite.t(), Org.t(), map()) ::
           {:ok, OrgUser.t()} | {:error, Ecto.Changeset.t()}
   def create_user_from_invite(invite, org, user_params) do
-    user_params = Map.put(user_params, :email, invite.email)
+    user_params = Map.put(user_params, "email", invite.email)
 
     Repo.transaction(fn ->
       with {:ok, user} <- create_user(user_params),
