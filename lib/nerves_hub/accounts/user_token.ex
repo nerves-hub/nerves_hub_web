@@ -29,7 +29,7 @@ defmodule NervesHub.Accounts.UserToken do
 
   defp generate(user) do
     secret =
-      <<user.username::binary, user.email::binary, DateTime.to_unix(DateTime.utc_now())::32>>
+      <<user.name::binary, user.email::binary, DateTime.to_unix(DateTime.utc_now())::32>>
 
     <<initial::160>> = Plug.Crypto.KeyGenerator.generate(secret, "user-#{user.id}", length: 20)
 
