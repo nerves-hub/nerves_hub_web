@@ -253,6 +253,10 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrgUser,
         NervesHubWeb.Mounts.FetchProduct
       ] do
+      live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)
+      live("/org/:org_name/:product_name/scripts/new", Live.SupportScripts.New)
+      live("/org/:org_name/:product_name/scripts/:script_id/edit", Live.SupportScripts.Edit)
+
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
 
       live("/org/:org_name/:product_name/firmware", Live.Firmware, :index)
@@ -300,8 +304,6 @@ defmodule NervesHubWeb.Router do
           only: [:index, :show, :new, :create, :delete],
           param: "uuid"
         )
-
-        resources("/scripts", ScriptController)
 
         get("/archives/:uuid/download", ArchiveController, :download)
 
