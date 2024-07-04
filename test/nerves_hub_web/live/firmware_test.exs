@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Live.FirmwareTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Fixtures
-  # alias NervesHub.Firmwares
   alias NervesHub.Support.Fwup
 
   describe "index" do
@@ -143,84 +142,109 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("h1", text: "Firmware")
     end
 
-    # test "error if corrupt firmware uploaded", %{
-    #   conn: conn,
-    #   user: user,
-    #   org: org,
-    #   org_key: org_key
-    # } do
-    #   product = Fixtures.product_fixture(user, org, %{name: "starter"})
+    @tag :tmp_dir
+    test "error if corrupt firmware uploaded", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
-    #   {:ok, signed_firmware_path} =
-    #     Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: "starter"})
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{
+          product: product.name,
+          dir: tmp_dir
+        })
 
-    #   {:ok, corrupt_firmware_path} = Fwup.corrupt_firmware_file(signed_firmware_path)
+      {:ok, corrupt_firmware_path} = Fwup.corrupt_firmware_file(signed_firmware_path, tmp_dir)
 
-    #   upload = %Plug.Upload{
-    #     path: corrupt_firmware_path,
-    #     filename: "doesnt_matter.fw"
-    #   }
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware/upload")
+      |> assert_has("h1", text: "Add Firmware")
+      |> unwrap(fn view ->
+        file_input(view, "form", :firmware, [
+          %{
+            name: "signed.fw",
+            content: File.read!(corrupt_firmware_path)
+          }
+        ])
+        |> render_upload("signed.fw")
 
-    #   # check for the error message
-    #   conn =
-    #     post(conn, Routes.firmware_path(conn, :upload, org.name, product.name), %{
-    #       "firmware" => %{"file" => upload}
-    #     })
+        render(view)
+      end)
+      |> assert_path("/org/#{org.name}/#{product.name}/firmware/upload")
+      |> assert_has("div", text: "Firmware corrupt, signature invalid, or missing public key")
+    end
 
-    #   assert html_response(conn, 200) =~
-    #            "Firmware corrupt, signature invalid, or missing public key"
-    # end
+    @tag :tmp_dir
+    test "error if org keys do not match firmware", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
 
-    # test "error if org keys do not match firmware", %{
-    #   conn: conn,
-    #   user: user,
-    #   org: org
-    # } do
-    #   product = Fixtures.product_fixture(user, org, %{name: "starter"})
+      Fwup.gen_key_pair("wrong", tmp_dir)
 
-    #   Fwup.gen_key_pair("wrong")
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware("wrong", "unsigned", "signed", %{
+          product: product.name,
+          dir: tmp_dir
+        })
 
-    #   {:ok, signed_firmware_path} =
-    #     Fwup.create_signed_firmware("wrong", "unsigned", "signed", %{product: "starter"})
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware/upload")
+      |> assert_has("h1", text: "Add Firmware")
+      |> unwrap(fn view ->
+        file_input(view, "form", :firmware, [
+          %{
+            name: "signed.fw",
+            content: File.read!(signed_firmware_path)
+          }
+        ])
+        |> render_upload("signed.fw")
 
-    #   upload = %Plug.Upload{
-    #     path: signed_firmware_path,
-    #     filename: "doesnt_matter.fw"
-    #   }
+        render(view)
+      end)
+      |> assert_path("/org/#{org.name}/#{product.name}/firmware/upload")
+      |> assert_has("div", text: "Firmware corrupt, signature invalid, or missing public key")
+    end
 
-    #   # check for the error message
-    #   conn =
-    #     post(conn, Routes.firmware_path(conn, :upload, org.name, product.name), %{
-    #       "firmware" => %{"file" => upload}
-    #     })
+    @tag :tmp_dir
+    test "error if meta-product does not match product name", %{
+      conn: conn,
+      user: user,
+      org: org,
+      tmp_dir: tmp_dir
+    } do
+      product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
-    #   assert html_response(conn, 200) =~
-    #            "Firmware corrupt, signature invalid, or missing public key"
-    # end
+      {:ok, signed_firmware_path} =
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{
+          product: "AnotherProduct",
+          dir: tmp_dir
+        })
 
-    # test "error if meta-product does not match product name", %{
-    #   conn: conn,
-    #   user: user,
-    #   org: org,
-    #   org_key: org_key
-    # } do
-    #   product = Fixtures.product_fixture(user, org, %{name: "non-matching name"})
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/firmware/upload")
+      |> assert_has("h1", text: "Add Firmware")
+      |> unwrap(fn view ->
+        file_input(view, "form", :firmware, [
+          %{
+            name: "signed.fw",
+            content: File.read!(signed_firmware_path)
+          }
+        ])
+        |> render_upload("signed.fw")
 
-    #   {:ok, signed_firmware_path} =
-    #     Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: "name"})
-
-    #   upload = %Plug.Upload{
-    #     path: signed_firmware_path,
-    #     filename: "doesnt_matter.fw"
-    #   }
-
-    #   # check for the error message
-    #   conn =
-    #     post(conn, Routes.firmware_path(conn, :upload, org.name, product.name), %{
-    #       "firmware" => %{"file" => upload}
-    #     })
-
-    #   assert html_response(conn, 200) =~ "No matching product could be found."
-    # end
+        render(view)
+      end)
+      |> assert_path("/org/#{org.name}/#{product.name}/firmware/upload")
+      |> assert_has("div", text: "No matching product could be found.")
+    end
   end
 end
