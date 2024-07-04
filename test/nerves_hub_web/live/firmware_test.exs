@@ -135,8 +135,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
           }
         ])
         |> render_upload("signed.fw")
-      end)
-      |> unwrap(fn view ->
+
         render(view)
       end)
       |> assert_path("/org/#{org.name}/#{product.name}/firmware")
