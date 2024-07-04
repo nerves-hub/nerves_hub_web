@@ -94,44 +94,54 @@ defmodule NervesHubWeb.Live.Firmware do
     if entry.done? do
       [filepath] =
         consume_uploaded_entries(socket, :firmware, fn %{path: path}, _entry ->
-          {:ok, path}
+          dest = Path.join(System.tmp_dir(), Path.basename(path))
+          File.cp!(path, dest)
+          {:ok, dest}
         end)
 
-      case Firmwares.create_firmware(socket.assigns.org, filepath) do
-        {:ok, _firmware} ->
-          socket
-          |> put_flash(:info, "Firmware uploaded")
-          |> push_patch(
-            to: ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/firmware"
-          )
-          |> noreply()
-
-        {:error, :no_public_keys} ->
-          error_feedback(
-            socket,
-            "Please register public keys for verifying firmware signatures first"
-          )
-
-        {:error, :invalid_signature} ->
-          error_feedback(socket, "Firmware corrupt, signature invalid, or missing public key")
-
-        {:error,
-         %Ecto.Changeset{
-           errors: [product_id: {"can't be blank", [validation: :required]}]
-         }} ->
-          error_feedback(socket, "No matching product could be found.")
-
-        {:error, %Ecto.Changeset{}} ->
-          error_feedback(socket, "Unknown error uploading firmware.")
-
-        {:error, error} when is_binary(error) ->
-          error_feedback(socket, error)
-
-        _ ->
-          error_feedback(socket, "Unknown error uploading firmware")
+      try do
+        create_firmware(socket, filepath)
+      after
+        File.rm(filepath)
       end
     else
       {:noreply, assign(socket, status: "uploading...")}
+    end
+  end
+
+  defp create_firmware(socket, filepath) do
+    case Firmwares.create_firmware(socket.assigns.org, filepath) do
+      {:ok, _firmware} ->
+        socket
+        |> put_flash(:info, "Firmware uploaded")
+        |> push_patch(
+          to: ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/firmware"
+        )
+        |> noreply()
+
+      {:error, :no_public_keys} ->
+        error_feedback(
+          socket,
+          "Please register public keys for verifying firmware signatures first"
+        )
+
+      {:error, :invalid_signature} ->
+        error_feedback(socket, "Firmware corrupt, signature invalid, or missing public key")
+
+      {:error,
+       %Ecto.Changeset{
+         errors: [product_id: {"can't be blank", [validation: :required]}]
+       }} ->
+        error_feedback(socket, "No matching product could be found.")
+
+      {:error, %Ecto.Changeset{}} ->
+        error_feedback(socket, "Unknown error uploading firmware.")
+
+      {:error, error} when is_binary(error) ->
+        error_feedback(socket, error)
+
+      _ ->
+        error_feedback(socket, "Unknown error uploading firmware")
     end
   end
 
