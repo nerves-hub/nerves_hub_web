@@ -40,11 +40,12 @@ defmodule NervesHubWeb.Live.Firmware do
   defp apply_action(%{assigns: %{product: product}} = socket, :upload, _params) do
     socket
     |> page_title("Upload Firmware - #{product.name}")
-    |> assign(status: nil, error_message: nil)
+    |> assign(:error_message, nil)
     |> allow_upload(:firmware,
       accept: ~w(.fw),
       max_entries: 1,
       auto_upload: true,
+      max_file_size: 200_000_000,
       progress: &handle_progress/3
     )
     |> render_with(&upload_firmware_template/1)

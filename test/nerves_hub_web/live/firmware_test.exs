@@ -136,7 +136,6 @@ defmodule NervesHubWeb.Live.FirmwareTest do
         ])
         |> render_upload("signed.fw")
       end)
-      |> PhoenixTest.open_browser()
       |> assert_path("/org/#{org.name}/#{product.name}/firmware")
       |> assert_has("div", text: "Firmware uploaded")
       |> assert_has("h1", text: "Firmware")

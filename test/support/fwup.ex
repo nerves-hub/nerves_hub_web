@@ -69,7 +69,7 @@ defmodule NervesHub.Support.Fwup do
   def sign_firmware(dir, key_name, firmware_name, output_name) do
     output_path = Path.join([dir, output_name <> ".fw"])
 
-    System.cmd(
+    {_, 0} = System.cmd(
       "fwup",
       [
         "-S",

@@ -2,15 +2,17 @@
 <label for="file_input">Upload a firmware file (.fw)</label>
 
 <form phx-change="firmware-selected">
-  <p :if={@status}><%= @status %></p>
   <div class="form-group custom-upload-group" phx-drop-target={@uploads.firmware.ref}>
     <label for={@uploads.firmware.ref} class="custom-upload-label not-selected">Click to upload file, or drag your file here.</label>
+
     <.live_file_input upload={@uploads.firmware} required />
+
     <div class="has-error">
       <span :if={@error_message} class="help-block"><%= @error_message %></span>
     </div>
+
+    <div :for={entry <- @uploads.firmware.entries}>
+      Uploading: <%= entry.progress %>%
+    </div>
   </div>
-  <%= for entry <- @uploads.firmware.entries do %>
-    <%= entry.progress %>%
-  <% end %>
 </form>
