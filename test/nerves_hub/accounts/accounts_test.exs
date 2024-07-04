@@ -237,8 +237,8 @@ defmodule NervesHub.AccountsTest do
 
     assert {:ok, %OrgUser{}} =
              Accounts.create_user_from_invite(invite, org, %{
-               password: "password123",
-               name: "Invited"
+               "password" => "password123",
+               "name" => "Invited"
              })
   end
 
@@ -252,7 +252,7 @@ defmodule NervesHub.AccountsTest do
         user
       )
 
-    {:error, changeset} = Accounts.create_user_from_invite(invite, org, %{invalid: "params"})
+    {:error, changeset} = Accounts.create_user_from_invite(invite, org, %{"invalid" => "params"})
     assert "can't be blank" in errors_on(changeset).password
     assert "can't be blank" in errors_on(changeset).name
   end

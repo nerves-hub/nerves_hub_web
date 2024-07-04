@@ -1,0 +1,20 @@
+<h1>Edit Support Script</h1>
+
+<.form :let={f} for={@form} phx-submit="update_script">
+  <div class="form-group">
+    <label for="name_input">Script name</label>
+    <%= text_input(f, :name, class: "form-control", id: "name_input") %>
+    <div class="has-error"><%= error_tag(f, :name) %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="text_input">Script text</label>
+    <%= text_input(f, :text, class: "form-control", id: "text_input") %>
+    <div class="has-error"><%= error_tag(f, :text) %></div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts"} class="btn btn-secondary">Back</.link>
+    <%= submit("Save Changes", class: "btn btn-primary") %>
+  </div>
+</.form>

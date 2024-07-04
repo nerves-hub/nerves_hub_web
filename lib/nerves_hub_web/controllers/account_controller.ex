@@ -64,9 +64,7 @@ defmodule NervesHubWeb.AccountController do
   end
 
   defp _accept_invite(conn, token, user_params, invite, org) do
-    updated_params = atomize_params(user_params)
-
-    with {:ok, new_org_user} <- Accounts.create_user_from_invite(invite, org, updated_params) do
+    with {:ok, new_org_user} <- Accounts.create_user_from_invite(invite, org, user_params) do
       # Now let everyone in the organization - except the new guy -
       # know about this new user.
       email =

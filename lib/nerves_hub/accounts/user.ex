@@ -24,7 +24,8 @@ defmodule NervesHub.Accounts.User do
     has_many(:org_users, OrgUser, where: [deleted_at: nil])
     has_many(:orgs, through: [:org_users, :org], where: [deleted_at: nil])
 
-    field(:name, :string)
+    # The username column has been repurposed as a name field
+    field(:name, :string, source: :username)
     field(:email, :string)
     field(:password, :string, virtual: true)
     field(:password_confirmation, :string, virtual: true)
@@ -42,7 +43,7 @@ defmodule NervesHub.Accounts.User do
     |> hash_password()
     |> password_validations()
     |> update_change(:name, &trim/1)
-    |> validate_name()
+    |> validate_format(:name, ~r/^[a-zA-Z\'\- ]+$/, message: "has invalid character(s)")
     |> validate_required(@required_params)
     |> unique_constraint(:email)
   end
@@ -67,15 +68,6 @@ defmodule NervesHub.Accounts.User do
     |> generate_password_reset_token_expires()
     |> email_password_update_valid?(user, params)
   end
-
-  defp validate_name(%Changeset{changes: %{name: name}} = changeset) do
-    case Regex.match?(~r/^[a-zA-Z\'\- ]+$/, name) do
-      true -> changeset
-      false -> add_error(changeset, :name, "invalid character(s) in name")
-    end
-  end
-
-  defp validate_name(changeset), do: changeset
 
   def with_all_orgs(%User{} = u) do
     u
