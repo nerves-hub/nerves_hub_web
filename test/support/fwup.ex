@@ -30,10 +30,6 @@ defmodule NervesHub.Support.Fwup do
   def gen_key_pair(key_name, dir \\ System.tmp_dir()) do
     key_path_no_extension = Path.join([dir, key_name])
 
-    # for ext <- ~w(.priv .pub) do
-    #   File.rm(key_path_no_extension <> ext)
-    # end
-
     System.cmd("fwup", ["-g", "-o", key_path_no_extension], stderr_to_stdout: true)
   end
 
