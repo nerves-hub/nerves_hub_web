@@ -69,19 +69,20 @@ defmodule NervesHub.Support.Fwup do
   def sign_firmware(dir, key_name, firmware_name, output_name) do
     output_path = Path.join([dir, output_name <> ".fw"])
 
-    {_, 0} = System.cmd(
-      "fwup",
-      [
-        "-S",
-        "-s",
-        Path.join([dir, key_name <> ".priv"]),
-        "-i",
-        Path.join([dir, firmware_name <> ".fw"]),
-        "-o",
-        output_path
-      ],
-      stderr_to_stdout: true
-    )
+    {_, 0} =
+      System.cmd(
+        "fwup",
+        [
+          "-S",
+          "-s",
+          Path.join([dir, key_name <> ".priv"]),
+          "-i",
+          Path.join([dir, firmware_name <> ".fw"]),
+          "-o",
+          output_path
+        ],
+        stderr_to_stdout: true
+      )
 
     {:ok, output_path}
   end
