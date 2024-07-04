@@ -13,7 +13,8 @@ config :phoenix,
 
 config :mime, :types, %{
   "application/pem" => ["pem"],
-  "application/crt" => ["crt"]
+  "application/crt" => ["crt"],
+  "application/fwup" => ["fw"]
 }
 
 ##

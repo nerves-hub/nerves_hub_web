@@ -72,10 +72,10 @@ defmodule NervesHub.Fixtures do
     org
   end
 
-  def org_key_fixture(%Accounts.Org{} = org, %Accounts.User{} = user) do
+  def org_key_fixture(%Accounts.Org{} = org, %Accounts.User{} = user, dir \\ System.tmp_dir()) do
     fwup_key_name = "org_key-#{counter()}"
-    Fwup.gen_key_pair(fwup_key_name)
-    key = Fwup.get_public_key(fwup_key_name)
+    Fwup.gen_key_pair(fwup_key_name, dir)
+    key = Fwup.get_public_key(fwup_key_name, dir)
 
     params = %{
       org_id: org.id,
