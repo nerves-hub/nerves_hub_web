@@ -19,7 +19,6 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
   end
 
   describe "new" do
-    @tag :tmp_dir
     test "CA is created on success", %{conn: conn, org: org, tmp_dir: tmp_dir} do
       description = "My ca"
 
@@ -58,7 +57,6 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
                Devices.get_ca_certificate_by_serial(serial)
     end
 
-    @tag :tmp_dir
     test "renders errors when cert is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
       ca_file_path = Fixtures.device_certificate_authority_file()
       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
@@ -89,7 +87,6 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       assert [] = Devices.get_ca_certificates(org)
     end
 
-    @tag :tmp_dir
     test "renders errors when csr is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
       ca_file_path = Fixtures.device_certificate_authority_file()
       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
@@ -119,7 +116,6 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       assert [] = Devices.get_ca_certificates(org)
     end
 
-    @tag :tmp_dir
     @tag timeout: :infinity
     test "create with JITP", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)

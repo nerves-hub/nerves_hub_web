@@ -17,10 +17,11 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       conn: conn,
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       conn =
         get(
@@ -51,10 +52,11 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       conn: conn,
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org)
-      Fixtures.firmware_fixture(org_key, product)
+      Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       conn = get(conn, Routes.deployment_path(conn, :new, org.name, product.name))
 
       assert html_response(conn, 200) =~ "Add Deployment"
@@ -85,13 +87,15 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       conn: conn,
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org)
 
       firmware =
         Fixtures.firmware_fixture(org_key, product, %{
-          version: "relatively unusual version"
+          version: "relatively unusual version",
+          dir: tmp_dir
         })
 
       deployment_params = %{
@@ -155,10 +159,11 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       conn: conn,
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       deployment = Fixtures.deployment_fixture(org, firmware)
 
       conn =
@@ -176,10 +181,11 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       conn: conn,
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       deployment = Fixtures.deployment_fixture(org, firmware)
 
       conn =
@@ -214,10 +220,11 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       conn: conn,
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       deployment = Fixtures.deployment_fixture(org, firmware)
 
       conn =
@@ -260,10 +267,11 @@ defmodule NervesHubWeb.DeploymentControllerTest do
       conn: conn,
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org)
-      firmware = Fixtures.firmware_fixture(org_key, product)
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
       deployment = Fixtures.deployment_fixture(org, firmware)
 
       conn =

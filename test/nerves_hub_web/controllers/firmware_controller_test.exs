@@ -38,13 +38,17 @@ defmodule NervesHubWeb.FirmwareControllerTest do
       conn: conn,
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       product_name = "cool product"
       product = Fixtures.product_fixture(user, org, %{name: product_name})
 
       {:ok, signed_firmware_path} =
-        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: product_name})
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{
+          product: product_name,
+          dir: tmp_dir
+        })
 
       upload = %Plug.Upload{
         path: signed_firmware_path,
@@ -70,14 +74,15 @@ defmodule NervesHubWeb.FirmwareControllerTest do
       conn: conn,
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org, %{name: "starter"})
 
       {:ok, signed_firmware_path} =
         Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: "starter"})
 
-      {:ok, corrupt_firmware_path} = Fwup.corrupt_firmware_file(signed_firmware_path)
+      {:ok, corrupt_firmware_path} = Fwup.corrupt_firmware_file(signed_firmware_path, tmp_dir)
 
       upload = %Plug.Upload{
         path: corrupt_firmware_path,
@@ -125,12 +130,16 @@ defmodule NervesHubWeb.FirmwareControllerTest do
       conn: conn,
       user: user,
       org: org,
-      org_key: org_key
+      org_key: org_key,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org, %{name: "non-matching name"})
 
       {:ok, signed_firmware_path} =
-        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{product: "name"})
+        Fwup.create_signed_firmware(org_key.name, "unsigned", "signed", %{
+          product: "name",
+          dir: tmp_dir
+        })
 
       upload = %Plug.Upload{
         path: signed_firmware_path,
