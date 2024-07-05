@@ -9,17 +9,17 @@ defmodule NervesHub.Support.Archives do
   end
 
   def create_signed_archive(key_name, archive_name, output_name, meta_params \\ %{}) do
-    create_archive(archive_name, meta_params)
-    sign_archive(key_name, archive_name, output_name)
+    {dir, meta_params} = Map.pop(meta_params, :dir, System.tmp_dir())
+    create_archive(dir, archive_name, meta_params)
+    sign_archive(dir, key_name, archive_name, output_name)
   end
 
   @doc """
   Create an unsigned archive image, and return the path to that image.
   """
-  def create_archive(archive_name, meta_params \\ %{}) do
+  def create_archive(dir, archive_name, meta_params \\ %{}) do
     conf_path = make_conf(struct(MetaParams, meta_params))
-    out_path = Path.join([System.tmp_dir(), archive_name <> ".fw"])
-    File.rm(out_path)
+    out_path = Path.join([dir, archive_name <> ".fw"])
 
     System.cmd("fwup", [
       "-c",
@@ -36,8 +36,7 @@ defmodule NervesHub.Support.Archives do
   Sign a archive image, and return the path to that image. The `archive_name`
   argument must match the name of a archive created with `create_archive/2`.
   """
-  def sign_archive(key_name, archive_name, output_name) do
-    dir = System.tmp_dir()
+  def sign_archive(dir, key_name, archive_name, output_name) do
     output_path = Path.join([dir, output_name <> ".fw"])
 
     System.cmd(
