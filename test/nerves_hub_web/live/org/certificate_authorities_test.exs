@@ -19,31 +19,29 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
   end
 
   describe "new" do
-    @tag :tmp_dir
     test "CA is created on success", %{conn: conn, org: org, tmp_dir: tmp_dir} do
-      conn =
-        conn
-        |> visit("/org/#{org.name}/settings/certificates/new")
-        |> assert_has("h1", text: "New Certificate Authority")
-
-      code = registration_code(conn.view)
+      description = "My ca"
 
       ca_file_path = Fixtures.device_certificate_authority_file()
       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
 
-      %{verification_cert_crt: verification_cert_crt} =
-        Fixtures.generate_certificate_authority_csr(ca_file_path, ca_key_file_path, code, tmp_dir)
-
-      {:ok, ca} = File.read!(ca_file_path) |> X509.Certificate.from_pem()
-
-      serial = Certificate.get_serial_number(ca)
-
-      description = "My ca"
-
-      upload_file(conn, "rootCA.pem", ca_file_path, :cert)
-      upload_file(conn, "verificationCert.crt", verification_cert_crt, :csr)
-
       conn
+      |> visit("/org/#{org.name}/settings/certificates/new")
+      |> assert_has("h1", text: "New Certificate Authority")
+      |> unwrap(fn view ->
+        code = registration_code(view)
+
+        %{verification_cert_crt: verification_cert_crt} =
+          Fixtures.generate_certificate_authority_csr(
+            ca_file_path,
+            ca_key_file_path,
+            code,
+            tmp_dir
+          )
+
+        upload_file(view, "rootCA.pem", ca_file_path, :cert)
+        upload_file(view, "verificationCert.crt", verification_cert_crt, :csr)
+      end)
       |> fill_in("Description", with: description)
       |> click_button("Create Certificate")
       |> assert_path("/org/#{org.name}/settings/certificates")
@@ -51,31 +49,37 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> assert_has("h1", text: "Certificate Authorities")
       |> assert_has("tr > td > code")
 
+      {:ok, ca} = File.read!(ca_file_path) |> X509.Certificate.from_pem()
+
+      serial = Certificate.get_serial_number(ca)
+
       assert {:ok, %{description: ^description, serial: ^serial}} =
                Devices.get_ca_certificate_by_serial(serial)
     end
 
-    @tag :tmp_dir
     test "renders errors when cert is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
-      conn =
-        conn
-        |> visit("/org/#{org.name}/settings/certificates/new")
-        |> assert_has("h1", text: "New Certificate Authority")
-
-      code = registration_code(conn.view)
-
       ca_file_path = Fixtures.device_certificate_authority_file()
       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
 
-      %{verification_cert_crt: verification_cert_crt} =
-        Fixtures.generate_certificate_authority_csr(ca_file_path, ca_key_file_path, code, tmp_dir)
-
-      bad_ca_file_path = Fixtures.bad_device_certificate_authority_file()
-
-      upload_file(conn, "rootCA.pem", bad_ca_file_path, :cert)
-      upload_file(conn, "verificationCert.crt", verification_cert_crt, :csr)
-
       conn
+      |> visit("/org/#{org.name}/settings/certificates/new")
+      |> assert_has("h1", text: "New Certificate Authority")
+      |> unwrap(fn view ->
+        code = registration_code(view)
+
+        %{verification_cert_crt: verification_cert_crt} =
+          Fixtures.generate_certificate_authority_csr(
+            ca_file_path,
+            ca_key_file_path,
+            code,
+            tmp_dir
+          )
+
+        bad_ca_file_path = Fixtures.bad_device_certificate_authority_file()
+
+        upload_file(view, "rootCA.pem", bad_ca_file_path, :cert)
+        upload_file(view, "verificationCert.crt", verification_cert_crt, :csr)
+      end)
       |> click_button("Create Certificate")
       |> assert_path("/org/#{org.name}/settings/certificates/new")
       |> assert_has("div", text: "Certificate Authority pem file is empty or invalid")
@@ -83,13 +87,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       assert [] = Devices.get_ca_certificates(org)
     end
 
-    @tag :tmp_dir
     test "renders errors when csr is invalid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
-      conn =
-        conn
-        |> visit("/org/#{org.name}/settings/certificates/new")
-        |> assert_has("h1", text: "New Certificate Authority")
-
       ca_file_path = Fixtures.device_certificate_authority_file()
       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
 
@@ -101,10 +99,13 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
           tmp_dir
         )
 
-      upload_file(conn, "rootCA.pem", ca_file_path, :cert)
-      upload_file(conn, "verificationCert.crt", verification_cert_crt, :csr)
-
       conn
+      |> visit("/org/#{org.name}/settings/certificates/new")
+      |> assert_has("h1", text: "New Certificate Authority")
+      |> unwrap(fn view ->
+        upload_file(view, "rootCA.pem", ca_file_path, :cert)
+        upload_file(view, "verificationCert.crt", verification_cert_crt, :csr)
+      end)
       |> click_button("Create Certificate")
       |> assert_path("/org/#{org.name}/settings/certificates/new")
       |> assert_has("div",
@@ -115,34 +116,32 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       assert [] = Devices.get_ca_certificates(org)
     end
 
-    @tag :tmp_dir
     @tag timeout: :infinity
     test "create with JITP", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
 
-      conn =
-        conn
-        |> visit("/org/#{org.name}/settings/certificates/new")
-        |> assert_has("h1", text: "New Certificate Authority")
-
-      code = registration_code(conn.view)
-
       ca_file_path = Fixtures.device_certificate_authority_file()
       ca_key_file_path = Fixtures.device_certificate_authority_key_file()
 
-      %{verification_cert_crt: verification_cert_crt} =
-        Fixtures.generate_certificate_authority_csr(ca_file_path, ca_key_file_path, code, tmp_dir)
-
-      {:ok, ca} = File.read!(ca_file_path) |> X509.Certificate.from_pem()
-
-      serial = Certificate.get_serial_number(ca)
-
       description = "My ca"
 
-      upload_file(conn, "rootCA.pem", ca_file_path, :cert)
-      upload_file(conn, "verificationCert.crt", verification_cert_crt, :csr)
-
       conn
+      |> visit("/org/#{org.name}/settings/certificates/new")
+      |> assert_has("h1", text: "New Certificate Authority")
+      |> unwrap(fn view ->
+        code = registration_code(view)
+
+        %{verification_cert_crt: verification_cert_crt} =
+          Fixtures.generate_certificate_authority_csr(
+            ca_file_path,
+            ca_key_file_path,
+            code,
+            tmp_dir
+          )
+
+        upload_file(view, "rootCA.pem", ca_file_path, :cert)
+        upload_file(view, "verificationCert.crt", verification_cert_crt, :csr)
+      end)
       |> fill_in("Description", with: description)
       |> check("Enable Just In Time Provisioning")
       |> fill_in("JITP Description", with: "a jitp description")
@@ -153,6 +152,10 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
       |> assert_has("div", text: "Certificate Authority created")
       |> assert_has("h1", text: "Certificate Authorities")
       |> assert_has("tr > td > code")
+
+      {:ok, ca} = File.read!(ca_file_path) |> X509.Certificate.from_pem()
+
+      serial = Certificate.get_serial_number(ca)
 
       assert {:ok,
               %{
@@ -223,9 +226,9 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
     |> String.trim()
   end
 
-  defp upload_file(conn, file_name, file_path, form_field) do
+  defp upload_file(view, file_name, file_path, form_field) do
     csr =
-      file_input(conn.view, "form", form_field, [
+      file_input(view, "form", form_field, [
         %{
           last_modified: 1_594_171_879_000,
           name: file_name,

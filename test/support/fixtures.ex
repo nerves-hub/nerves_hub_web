@@ -74,6 +74,7 @@ defmodule NervesHub.Fixtures do
 
   def org_key_fixture(%Accounts.Org{} = org, %Accounts.User{} = user, dir \\ System.tmp_dir()) do
     fwup_key_name = "org_key-#{counter()}"
+
     Fwup.gen_key_pair(fwup_key_name, dir)
     key = Fwup.get_public_key(fwup_key_name, dir)
 
@@ -180,12 +181,14 @@ defmodule NervesHub.Fixtures do
   end
 
   def archive_file_fixture(
+        dir,
         %Accounts.OrgKey{} = org_key,
         %Products.Product{} = product,
         params \\ %{}
       ) do
     {:ok, filepath} =
       Support.Archives.create_signed_archive(
+        dir,
         org_key.name,
         "unsigned-#{counter()}",
         "signed-#{counter()}",
@@ -196,11 +199,12 @@ defmodule NervesHub.Fixtures do
   end
 
   def archive_fixture(
+        dir,
         %Accounts.OrgKey{} = org_key,
         %Products.Product{} = product,
         params \\ %{}
       ) do
-    filepath = archive_file_fixture(org_key, product, params)
+    filepath = archive_file_fixture(dir, org_key, product, params)
     {:ok, archive} = Archives.create(product, filepath)
     archive
   end
@@ -365,13 +369,13 @@ defmodule NervesHub.Fixtures do
     %{fixture | db_cert: db_cert}
   end
 
-  def standard_fixture() do
+  def standard_fixture(dir \\ System.tmp_dir()) do
     user_name = "Jeff"
     user = user_fixture(%{name: user_name})
     org = org_fixture(user, %{name: user_name})
     product = product_fixture(user, org, %{name: "Hop"})
-    org_key = org_key_fixture(org, user)
-    firmware = firmware_fixture(org_key, product)
+    org_key = org_key_fixture(org, user, dir)
+    firmware = firmware_fixture(org_key, product, %{dir: dir})
     deployment = deployment_fixture(org, firmware)
     device = device_fixture(org, product, firmware)
     %{db_cert: device_certificate} = device_certificate_fixture(device)

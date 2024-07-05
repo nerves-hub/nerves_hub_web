@@ -7,18 +7,25 @@ defmodule NervesHub.ArchivesTest do
   alias NervesHub.Support
 
   describe "creating archives" do
-    test "success: on a product" do
+    @tag :tmp_dir
+    test "success: on a product", %{tmp_dir: tmp_dir} do
       user = Fixtures.user_fixture(%{name: "user"})
       org = Fixtures.org_fixture(user, %{name: "user"})
-      org_key = Fixtures.org_key_fixture(org, user)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       product = Fixtures.product_fixture(user, org, %{name: "Hop"})
 
       {:ok, file_path} =
-        Support.Archives.create_signed_archive(org_key.name, "manifest", "signed-manifest", %{
-          platform: "generic",
-          architecture: "generic",
-          version: "0.1.0"
-        })
+        Support.Archives.create_signed_archive(
+          tmp_dir,
+          org_key.name,
+          "manifest",
+          "signed-manifest",
+          %{
+            platform: "generic",
+            architecture: "generic",
+            version: "0.1.0"
+          }
+        )
 
       {:ok, archive} = Archives.create(product, file_path)
 

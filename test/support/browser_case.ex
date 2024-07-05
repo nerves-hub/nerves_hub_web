@@ -16,8 +16,10 @@ defmodule NervesHubWeb.ConnCase.Browser do
       import Phoenix.LiveViewTest
       import PhoenixTest
 
-      setup do
-        fixture = Fixtures.standard_fixture()
+      @moduletag :tmp_dir
+
+      setup context do
+        fixture = Fixtures.standard_fixture(context.tmp_dir)
 
         %{org: org, org_key: org_key, user: user} = fixture
 
