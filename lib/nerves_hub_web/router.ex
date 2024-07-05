@@ -294,8 +294,8 @@ defmodule NervesHubWeb.Router do
       end
     end
 
-    get("/archives/:uuid/download", ArchiveController, :download)
-    get("/firmware/:uuid/download", FirmwareController, :download)
+    get("/archives/:uuid/download", DownloadController, :archive)
+    get("/firmware/:uuid/download", DownloadController, :firmware)
 
     scope "/deployments" do
       get("/", DeploymentController, :index)
