@@ -269,67 +269,49 @@ defmodule NervesHubWeb.Router do
     end
   end
 
-  scope "/", NervesHubWeb do
-    pipe_through([:browser, :logged_in])
+  scope "/org/:org_name/:product_name", NervesHubWeb do
+    pipe_through([:browser, :logged_in, :org, :product])
 
-    scope "/org/:org_name" do
-      pipe_through(:org)
+    scope "/devices" do
+      get("/", DeviceController, :index)
+      post("/", DeviceController, :create)
+      get("/new", DeviceController, :new)
+      get("/export", ProductController, :devices_export)
 
-      scope "/:product_name" do
-        pipe_through(:product)
+      scope "/:device_identifier" do
+        pipe_through(:device)
 
-        get("/edit", ProductController, :edit)
-        put("/", ProductController, :update)
-        delete("/", ProductController, :delete)
+        get("/", DeviceController, :show)
+        get("/console", DeviceController, :console)
+        get("/edit", DeviceController, :edit)
+        patch("/", DeviceController, :update)
+        put("/", DeviceController, :update)
+        delete("/", DeviceController, :delete)
+        post("/reboot", DeviceController, :reboot)
+        post("/toggle-updates", DeviceController, :toggle_updates)
+        get("/certificate/:cert_serial/download", DeviceController, :download_certificate)
+        get("/audit_logs/download", DeviceController, :export_audit_logs)
+      end
+    end
 
-        scope "/devices" do
-          get("/", DeviceController, :index)
-          post("/", DeviceController, :create)
-          get("/new", DeviceController, :new)
-          get("/export", ProductController, :devices_export)
+    get("/archives/:uuid/download", ArchiveController, :download)
+    get("/firmware/:uuid/download", FirmwareController, :download)
 
-          scope "/:device_identifier" do
-            pipe_through(:device)
+    scope "/deployments" do
+      get("/", DeploymentController, :index)
+      post("/", DeploymentController, :create)
+      get("/new", DeploymentController, :new)
 
-            get("/", DeviceController, :show)
-            get("/console", DeviceController, :console)
-            get("/edit", DeviceController, :edit)
-            patch("/", DeviceController, :update)
-            put("/", DeviceController, :update)
-            delete("/", DeviceController, :delete)
-            post("/reboot", DeviceController, :reboot)
-            post("/toggle-updates", DeviceController, :toggle_updates)
-            get("/certificate/:cert_serial/download", DeviceController, :download_certificate)
-            get("/audit_logs/download", DeviceController, :export_audit_logs)
-          end
-        end
+      scope "/:deployment_name" do
+        pipe_through(:deployment)
 
-        resources("/archives", ArchiveController,
-          only: [:index, :show, :new, :create, :delete],
-          param: "uuid"
-        )
-
-        get("/archives/:uuid/download", ArchiveController, :download)
-
-        get("/firmware/:firmware_uuid/download", FirmwareController, :download)
-
-        scope "/deployments" do
-          get("/", DeploymentController, :index)
-          post("/", DeploymentController, :create)
-          get("/new", DeploymentController, :new)
-
-          scope "/:deployment_name" do
-            pipe_through(:deployment)
-
-            get("/", DeploymentController, :show)
-            get("/edit", DeploymentController, :edit)
-            patch("/", DeploymentController, :update)
-            put("/", DeploymentController, :update)
-            post("/toggle", DeploymentController, :toggle)
-            delete("/", DeploymentController, :delete)
-            get("/audit_logs/download", DeploymentController, :export_audit_logs)
-          end
-        end
+        get("/", DeploymentController, :show)
+        get("/edit", DeploymentController, :edit)
+        patch("/", DeploymentController, :update)
+        put("/", DeploymentController, :update)
+        post("/toggle", DeploymentController, :toggle)
+        delete("/", DeploymentController, :delete)
+        get("/audit_logs/download", DeploymentController, :export_audit_logs)
       end
     end
   end
