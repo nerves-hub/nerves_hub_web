@@ -8,7 +8,9 @@ defmodule NervesHub.Support.Archives do
               author: "me"
   end
 
-  def create_signed_archive(dir, key_name, archive_name, output_name, meta_params \\ %{}) do
+
+  def create_signed_archive(key_name, archive_name, output_name, meta_params \\ %{}) do
+    {dir, meta_params} = Map.pop(meta_params, :dir, System.tmp_dir())
     create_archive(dir, archive_name, meta_params)
     sign_archive(dir, key_name, archive_name, output_name)
   end
@@ -19,7 +21,6 @@ defmodule NervesHub.Support.Archives do
   def create_archive(dir, archive_name, meta_params \\ %{}) do
     conf_path = make_conf(struct(MetaParams, meta_params))
     out_path = Path.join([dir, archive_name <> ".fw"])
-    File.rm(out_path)
 
     System.cmd("fwup", [
       "-c",

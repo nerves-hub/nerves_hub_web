@@ -67,19 +67,22 @@ defmodule NervesHubWeb.Live.ArchivesTest do
   end
 
   describe "upload archive" do
+    @tag :tmp_dir
     test "redirects after successful upload", %{
       conn: conn,
       user: user,
-      org: org
+      org: org,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
-      org_key = Fixtures.org_key_fixture(org, user)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
       {:ok, signed_archive_path} =
         Support.Archives.create_signed_archive(org_key.name, "manifest", "signed-manifest", %{
           platform: "generic",
           architecture: "generic",
-          version: "0.1.0"
+          version: "0.1.0",
+          dir: tmp_dir
         })
 
       conn
@@ -109,13 +112,14 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
-      org_key = Fixtures.org_key_fixture(org, user)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
       {:ok, signed_archive_path} =
         Support.Archives.create_signed_archive(org_key.name, "manifest", "signed-manifest", %{
           platform: "generic",
           architecture: "generic",
-          version: "0.1.0"
+          version: "0.1.0",
+          dir: tmp_dir
         })
 
       {:ok, corrupt_archive_path} = Fwup.corrupt_firmware_file(signed_archive_path, tmp_dir)
@@ -138,20 +142,23 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       |> assert_has("div", text: "Archive corrupt, signature invalid, or missing public key")
     end
 
+    @tag :tmp_dir
     test "error if org keys do not match firmware", %{
       conn: conn,
       user: user,
-      org: org
+      org: org,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org, %{name: "CoolProduct"})
 
-      Fwup.gen_key_pair("wrong")
+      Fwup.gen_key_pair("wrong", tmp_dir)
 
       {:ok, signed_archive_path} =
         Support.Archives.create_signed_archive("wrong", "manifest", "signed-manifest", %{
           platform: "generic",
           architecture: "generic",
-          version: "0.1.0"
+          version: "0.1.0",
+          dir: tmp_dir
         })
 
       conn
