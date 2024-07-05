@@ -1,24 +1,16 @@
 <div class="action-row">
-  <%= link("All Firmware", to: Routes.firmware_path(@conn, :index, @org.name, @product.name), class: "back-link") %>
+  <.link patch={~p"/org/#{@org.name}/#{@product.name}/firmware"} class="back-link">
+    All Firmware
+  </.link>
   <div class="btn-group" role="group" aria-label="Device Actions">
-    <%= link(
-      class: "btn btn-outline-light btn-action",
-      aria_label: "Download",
-      to: Routes.firmware_path(@conn, :download, @org.name, @product.name, @firmware.uuid))
-      do %>
+    <.link class="btn btn-outline-light btn-action" aria-label="Download" href={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@firmware.uuid}/download"}>
       <span class="button-icon download"></span>
       <span class="action-text">Download</span>
-    <% end %>
-    <%= link(
-      class: "btn btn-outline-light btn-action",
-      aria_label: "Delete",
-      to: Routes.firmware_path(@conn, :delete, @org.name, @product.name, @firmware.uuid),
-      method: :delete,
-      data: [confirm: "Are you sure you want to delete this firmware? This can not be undone."])
-      do %>
+    </.link>
+    <.link class="btn btn-outline-light btn-action" aria-label="Delete" phx-click="delete-firmware" data-confirm="Are you sure you want to delete this firmware? This can not be undone.">
       <span class="button-icon delete"></span>
       <span class="action-text">Delete</span>
-    <% end %>
+    </.link>
   </div>
 </div>
 
@@ -43,7 +35,7 @@
   </div>
   <div class="gr-2">
     <div class="help-text">Uploaded On</div>
-    <p class="date-time">
+    <p class="date-time" phx-hook="LocalTime" id={"firmware-#{@firmware.id}-inserted_at"}>
       <%= @firmware.inserted_at %>
     </p>
   </div>
@@ -55,6 +47,12 @@
       <% else %>
         <%= @firmware.vcs_identifier %>
       <% end %>
+    </p>
+  </div>
+  <div class="gr-2">
+    <div class="help-text">Signing Key</div>
+    <p class="ff-m">
+      <span class="badge"><%= format_signed(@firmware, @org_keys) %></span>
     </p>
   </div>
 </div>

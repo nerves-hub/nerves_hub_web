@@ -16,11 +16,18 @@ Hooks.LocalTime = {
     this.updated()
   },
   updated() {
-    let dt = new Date(this.el.textContent)
-    this.el.textContent =
-      dt.toLocaleString() +
-      ' ' +
-      Intl.DateTimeFormat().resolvedOptions().timeZone
+    let dt = new Date(this.el.textContent.trim())
+
+    dt.setSeconds(null)
+
+    let formatted = new Intl.DateTimeFormat('en-GB', {
+      dateStyle: 'medium',
+      timeStyle: 'long',
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      hour12: true
+    }).format(dt)
+
+    this.el.textContent = formatted
   }
 }
 

@@ -258,6 +258,10 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/scripts/:script_id/edit", Live.SupportScripts.Edit)
 
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
+
+      live("/org/:org_name/:product_name/firmware", Live.Firmware, :index)
+      live("/org/:org_name/:product_name/firmware/upload", Live.Firmware, :upload)
+      live("/org/:org_name/:product_name/firmware/:firmware_uuid", Live.Firmware, :show)
     end
   end
 
@@ -296,26 +300,14 @@ defmodule NervesHubWeb.Router do
           end
         end
 
-        scope "/firmware" do
-          get("/", FirmwareController, :index)
-          get("/upload", FirmwareController, :upload)
-          post("/upload", FirmwareController, :do_upload)
-
-          scope "/:firmware_uuid" do
-            pipe_through(:firmware)
-
-            get("/", FirmwareController, :show)
-            get("/download", FirmwareController, :download)
-            delete("/", FirmwareController, :delete)
-          end
-        end
-
         resources("/archives", ArchiveController,
           only: [:index, :show, :new, :create, :delete],
           param: "uuid"
         )
 
         get("/archives/:uuid/download", ArchiveController, :download)
+
+        get("/firmware/:firmware_uuid/download", FirmwareController, :download)
 
         scope "/deployments" do
           get("/", DeploymentController, :index)

@@ -30,10 +30,6 @@ defmodule NervesHub.Support.Fwup do
   def gen_key_pair(key_name, dir \\ System.tmp_dir()) do
     key_path_no_extension = Path.join([dir, key_name])
 
-    for ext <- ~w(.priv .pub) do
-      File.rm(key_path_no_extension <> ext)
-    end
-
     System.cmd("fwup", ["-g", "-o", key_path_no_extension], stderr_to_stdout: true)
   end
 
@@ -48,9 +44,8 @@ defmodule NervesHub.Support.Fwup do
   Create an unsigned firmware image, and return the path to that image.
   """
   def create_firmware(dir, firmware_name, meta_params \\ %{}) do
-    conf_path = make_conf(struct(MetaParams, meta_params))
+    conf_path = make_conf(struct(MetaParams, meta_params), dir)
     out_path = Path.join([dir, firmware_name <> ".fw"])
-    File.rm(out_path)
 
     System.cmd("fwup", [
       "-c",
@@ -70,19 +65,20 @@ defmodule NervesHub.Support.Fwup do
   def sign_firmware(dir, key_name, firmware_name, output_name) do
     output_path = Path.join([dir, output_name <> ".fw"])
 
-    System.cmd(
-      "fwup",
-      [
-        "-S",
-        "-s",
-        Path.join([dir, key_name <> ".priv"]),
-        "-i",
-        Path.join([dir, firmware_name <> ".fw"]),
-        "-o",
-        output_path
-      ],
-      stderr_to_stdout: true
-    )
+    {_, 0} =
+      System.cmd(
+        "fwup",
+        [
+          "-S",
+          "-s",
+          Path.join([dir, key_name <> ".priv"]),
+          "-i",
+          Path.join([dir, firmware_name <> ".fw"]),
+          "-o",
+          output_path
+        ],
+        stderr_to_stdout: true
+      )
 
     {:ok, output_path}
   end
@@ -109,8 +105,8 @@ defmodule NervesHub.Support.Fwup do
     {:ok, output_path}
   end
 
-  defp make_conf(%MetaParams{} = meta_params) do
-    path = Path.join([System.tmp_dir(), "#{Ecto.UUID.generate()}.conf"])
+  defp make_conf(%MetaParams{} = meta_params, dir) do
+    path = Path.join([dir, "#{Ecto.UUID.generate()}.conf"])
     File.write!(path, build_conf_contents(meta_params))
 
     path
