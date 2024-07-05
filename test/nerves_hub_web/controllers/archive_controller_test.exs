@@ -1,17 +1,19 @@
 defmodule NervesHubWeb.ArchiveControllerTest do
-  use NervesHubWeb.ConnCase.Browser, async: false
+  use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.Fixtures
 
   describe "download archive" do
+    @tag :tmp_dir
     test "downloads chosen archive", %{
       conn: conn,
       user: user,
-      org: org
+      org: org,
+      tmp_dir: tmp_dir
     } do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      archive = Fixtures.archive_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       conn = get(conn, ~p"/org/#{org.name}/#{product.name}/archives/#{archive.uuid}/download")
 
