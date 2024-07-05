@@ -150,7 +150,7 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Archives",
         active: "",
-        href: Routes.archive_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/archives"
       },
       %{
         title: "Deployments",
@@ -166,13 +166,7 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Settings",
         active: "",
-        href:
-          Routes.live_path(
-            NervesHubWeb.Endpoint,
-            NervesHubWeb.Live.Product.Settings,
-            conn.assigns.org.name,
-            conn.assigns.product.name
-          )
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/settings"
       }
     ]
     |> sidebar_active(conn)
