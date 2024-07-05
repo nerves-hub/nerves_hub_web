@@ -89,7 +89,7 @@ defmodule NervesHubWeb.Components.Navigation do
                 <div class="dropdown-divider"></div>
                 <a class="dropdown-item user" href="https://docs.nerves-hub.org/">Documentation</a>
                 <div class="dropdown-divider"></div>
-                <.link href={~p"/logout"} method="delete" class="dropdown-item user">Logout</.link>
+                <.link href={~p"/logout"} class="dropdown-item user">Logout</.link>
               </div>
             </li>
           </ul>
