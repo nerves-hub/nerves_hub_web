@@ -1,5 +1,6 @@
 defmodule NervesHub.ArchivesTest do
-  use NervesHub.DataCase
+  use NervesHub.DataCase, async: true
+  use Oban.Testing, repo: NervesHub.Repo
 
   alias NervesHub.Archives
   alias NervesHub.Fixtures
@@ -33,6 +34,27 @@ defmodule NervesHub.ArchivesTest do
       assert archive.architecture == "generic"
       assert archive.version == "0.1.0"
       assert archive.uuid
+    end
+  end
+
+  describe "delete_archive/1" do
+    test "delete archive" do
+      user = Fixtures.user_fixture()
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      archive = Fixtures.archive_fixture(org_key, product)
+
+      {:ok, _} = Archives.delete_archive(archive)
+
+      assert_enqueued(
+        worker: NervesHub.Workers.DeleteArchive,
+        args: %{
+          "archive_path" => "/archives/#{archive.uuid}.fw"
+        }
+      )
+
+      assert {:error, :not_found} = Archives.get(product, archive.uuid)
     end
   end
 end

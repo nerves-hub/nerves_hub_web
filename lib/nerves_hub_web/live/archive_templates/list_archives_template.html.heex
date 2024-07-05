@@ -1,0 +1,87 @@
+<%= if Enum.empty?(@archives) do %>
+  <div class="no-results-blowup-wrapper">
+    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any archives yet</h3>
+    <div class="flex-row align-items-center mt-3">
+      <.link patch={~p"/org/#{@org.name}/#{@product.name}/archives/upload"} class="btn btn-outline-light" aria-label="Upload archive">
+        <span class="button-icon add"></span>
+        <span class="action-text">Upload Archive</span>
+      </.link>
+    </div>
+  </div>
+<% else %>
+  <div class="action-row">
+    <h1>Archives</h1>
+    <.link patch={~p"/org/#{@org.name}/#{@product.name}/archives/upload"} class="btn btn-outline-light" aria-label="Upload archive">
+      <span class="button-icon add"></span>
+      <span class="action-text">Upload Archive</span>
+    </.link>
+  </div>
+
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th>UUID</th>
+        <th>Version</th>
+        <th>Platform</th>
+        <th>Architecture</th>
+        <th>Archive key</th>
+        <th>Uploaded on</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tr :for={archive <- @archives} class="item">
+      <td>
+        <div class="mobile-label help-text">UUID</div>
+        <div>
+          <.link patch={~p"/org/#{@org.name}/#{@product.name}/archives/#{archive.uuid}"} class="badge ff-m"><%= archive.uuid %></.link>
+        </div>
+      </td>
+      <td>
+        <div class="mobile-label help-text">Version</div>
+        <%= archive.version %>
+      </td>
+      <td>
+        <div class="mobile-label help-text">Platform</div>
+        <%= archive.platform %>
+      </td>
+      <td>
+        <div class="mobile-label help-text">Architecture</div>
+        <%= archive.architecture %>
+      </td>
+      <td>
+        <div class="mobile-label help-text">Archive key</div>
+        <div>
+          <span class="badge"><%= format_signed(archive, @org_keys) %></span>
+        </div>
+      </td>
+      <td>
+        <div class="mobile-label help-text">Uploaded on</div>
+        <div>
+          <%= if is_nil(archive.inserted_at) do %>
+            <span class="color-white-50">Never</span>
+          <% else %>
+            <span class="date-time"><%= archive.inserted_at %></span>
+          <% end %>
+        </div>
+      </td>
+      <td class="actions">
+        <div class="mobile-label help-text">Actions</div>
+        <div class="dropdown options">
+          <a class="dropdown-toggle options" href="#" id={archive.uuid} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <div class="mobile-label pr-2">Open</div>
+            <img src="/images/icons/more.svg" alt="options" />
+          </a>
+          <div class="dropdown-menu dropdown-menu-right">
+            <.link href={~p"/org/#{@org.name}/#{@product.name}/archives/#{archive.uuid}/download"} class="dropdown-item" download>
+              Download
+            </.link>
+            <div class="dropdown-divider"></div>
+            <.link phx-click="delete-archive" phx-value-archive_uuid={archive.uuid} class="dropdown-item" data-confirm="Are you sure you want to delete this archive? This can not be undone.">
+              Delete
+            </.link>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </table>
+<% end %>

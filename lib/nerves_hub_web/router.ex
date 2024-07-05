@@ -262,6 +262,10 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/firmware", Live.Firmware, :index)
       live("/org/:org_name/:product_name/firmware/upload", Live.Firmware, :upload)
       live("/org/:org_name/:product_name/firmware/:firmware_uuid", Live.Firmware, :show)
+
+      live("/org/:org_name/:product_name/archives", Live.Archives, :index)
+      live("/org/:org_name/:product_name/archives/upload", Live.Archives, :upload)
+      live("/org/:org_name/:product_name/archives/:archive_uuid", Live.Archives, :show)
     end
   end
 
