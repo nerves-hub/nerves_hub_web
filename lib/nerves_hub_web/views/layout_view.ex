@@ -108,11 +108,13 @@ defmodule NervesHubWeb.LayoutView do
       |> Enum.map(fn {text, page} ->
         text = if text == :ellipsis, do: page, else: text
 
-        content_tag(:button, text,
-          phx_click: "paginate",
-          phx_value_page: page,
-          class: "btn btn-secondary btn-sm #{if page == opts.page_number, do: "active"}"
-        )
+        content_tag(:div) do
+          content_tag(:button, text,
+            phx_click: "paginate",
+            phx_value_page: page,
+            class: "btn btn-secondary btn-sm #{if page == opts.page_number, do: "active"}"
+          )
+        end
       end)
     end
   end
@@ -140,12 +142,12 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Devices",
         active: "",
-        href: Routes.device_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/devices"
       },
       %{
         title: "Firmware",
         active: "",
-        href: Routes.firmware_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/firmware"
       },
       %{
         title: "Archives",

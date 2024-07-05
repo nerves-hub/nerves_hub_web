@@ -28,6 +28,18 @@ defmodule NervesHub.Helpers.Authorization do
 
   def authorized?(:device_console, %OrgUser{role: user_role}), do: role_check(:manage, user_role)
 
+  def authorized?(:"device:create", org_user), do: role_check(:manage, org_user.role)
+  def authorized?(:"device:update", org_user), do: role_check(:manage, org_user.role)
+  def authorized?(:"device:push-update", org_user), do: role_check(:manage, org_user.role)
+  def authorized?(:"device:toggle-updates", org_user), do: role_check(:manage, org_user.role)
+  def authorized?(:"device:clear-penalty-box", org_user), do: role_check(:manage, org_user.role)
+  def authorized?(:"device:identify", org_user), do: role_check(:manage, org_user.role)
+  def authorized?(:"device:reboot", org_user), do: role_check(:manage, org_user.role)
+  def authorized?(:"device:reconnect", org_user), do: role_check(:manage, org_user.role)
+  def authorized?(:"device:delete", org_user), do: role_check(:manage, org_user.role)
+  def authorized?(:"device:restore", org_user), do: role_check(:manage, org_user.role)
+  def authorized?(:"device:destroy", org_user), do: role_check(:manage, org_user.role)
+
   def authorized?(:upload_firmware, %OrgUser{role: user_role}), do: role_check(:manage, user_role)
   def authorized?(:delete_firmware, %OrgUser{role: user_role}), do: role_check(:manage, user_role)
 

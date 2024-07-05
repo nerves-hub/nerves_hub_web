@@ -333,6 +333,10 @@ defmodule NervesHub.Devices do
     |> Multi.delete_all(:device_certificates, device_certificates_query)
     |> Multi.update(:device, changeset)
     |> Repo.transaction()
+    |> case do
+      {:ok, %{device: device}} -> {:ok, device}
+      error -> error
+    end
   end
 
   @spec create_device_certificate(Device.t(), map() | X509.Certificate.t()) ::

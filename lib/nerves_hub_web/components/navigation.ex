@@ -220,6 +220,11 @@ defmodule NervesHubWeb.Components.Navigation do
         href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/deployments"
       },
       %{
+        title: "Scripts",
+        active: "",
+        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/scripts"
+      },
+      %{
         title: "Settings",
         active: "",
         href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/settings"

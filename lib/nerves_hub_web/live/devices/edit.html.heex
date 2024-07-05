@@ -1,7 +1,9 @@
-<%= link("Back to Device", to: Routes.device_path(@conn, :show, @org.name, @product.name, @device.identifier), class: "back-link") %>
+<.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"} class="back-link">
+  Back to Device
+</.link>
 <h1>Edit Device</h1>
 
-<%= form_for @changeset, Routes.device_path(@conn, :update, @org.name, @product.name, @device.identifier), [method: :patch], fn f -> %>
+<.form :let={f} for={@form} phx-submit="update-device">
   <div class="form-group">
     <label for="identifier_input" class="tooltip-label h3 mb-1">
       <span>ID</span>
@@ -28,7 +30,7 @@
       <span class="tooltip-info"></span>
       <span class="tooltip-text">Use tags to manage firmware deployments for different sets of devices.</span>
     </label>
-    <%= text_input(f, :tags, class: "form-control", id: "tags", value: tags_to_string(@changeset)) %>
+    <%= text_input(f, :tags, class: "form-control", id: "tags", value: tags_to_string(@form)) %>
     <small class="form-text text-muted mt-1">
       Every device is added to the 'all' tag by default. You can have multiple tags separated by commas.
     </small>
@@ -51,4 +53,4 @@
   <div class="button-submit-wrapper">
     <%= submit("Save Changes", class: "btn btn-primary") %>
   </div>
-<% end %>
+</.form>

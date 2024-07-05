@@ -1,20 +1,13 @@
-<%= if @device.deleted_at do %>
-  <div class="alert alert-danger">
-    <div class="content-container">
-      <center>Device is deleted and must be restored to use</center>
-    </div>
+<div :if={@device.deleted_at} class="alert alert-danger mt-0">
+  <div class="content-container">
+    <center>Device is deleted and must be restored to use</center>
   </div>
-<% end %>
-
-<%= if info = Phoenix.Flash.get(@flash, :info) do %>
-  <div class="alert alert-info alert-dismissible">
-    <button type="button" class="close" phx-click="clear-flash-info">&times;</button>
-    <%= info %>
-  </div>
-<% end %>
+</div>
 
 <div class="action-row">
-  <%= link("All Devices", to: Routes.device_path(@socket, :index, @org.name, @product.name), class: "back-link") %>
+  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="back-link">
+    All Devices
+  </.link>
   <div class="btn-group" role="group" aria-label="Device Actions">
     <%= if @device.deleted_at do %>
       <button class="btn btn-outline-light btn-action" aria-label="Restore" type="button" phx-click="restore">
@@ -50,15 +43,15 @@
         <span class="button-icon delete"></span>
         <span class="action-text">Delete</span>
       </button>
-      <%= link(class: "btn btn-outline-light btn-action", aria_label: "Edit", to: Routes.device_path(@socket, :edit, @org.name, @product.name, @device.identifier)) do %>
+      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/edit"} class="btn btn-outline-light btn-action" aria-label="Edit">
         <span class="button-icon edit"></span>
         <span class="action-text">Edit</span>
-      <% end %>
+      </.link>
     <% end %>
   </div>
 </div>
 
-<%= render("_header.html", assigns) %>
+<DeviceHeader.render device={@device} status={@status} />
 
 <div class="row">
   <div class="col-lg-6">
@@ -102,7 +95,7 @@
           <span class="tooltip-info"></span>
           <span class="tooltip-text">Push a specific version of firmware to a device. This disables updates to prevent a deployment pushing an update on reconnect.</span>
         </div>
-        <form action="#" phx-submit="push-update">
+        <form phx-submit="push-update">
           <div class="flex-row justify-content-between">
             <select name="uuid" class="form-control">
               <option value="">Select a version</option>
@@ -145,22 +138,6 @@
 
   <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
 </div>
-
-<%= if err = Phoenix.Flash.get(@flash, :error) do %>
-  <div class="alert alert-danger alert-dismissible">
-    <button type="button" class="close" phx-click="clear-flash-error">&times;</button>
-    <%= for line <- String.split(err, "\n") do %>
-      <p><%= line %></p>
-    <% end %>
-  </div>
-<% end %>
-
-<%= if info = Phoenix.Flash.get(@flash, :info) do %>
-  <div class="alert alert-info alert-dismissible">
-    <button type="button" class="close" phx-click="clear-flash-info">&times;</button>
-    <%= info %>
-  </div>
-<% end %>
 
 <div class="device-header-group">
   <h3 class="mb-2">Certificates</h3>
