@@ -21,16 +21,23 @@ defmodule NervesHubWeb.ArchiveControllerTest do
       conn: conn,
       user: user,
       org: org,
-      product: product
+      product: product,
+      tmp_dir: tmp_dir
     } do
-      org_key = Fixtures.org_key_fixture(org, user)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
       {:ok, file_path} =
-        Support.Archives.create_signed_archive(org_key.name, "manifest", "signed-manifest", %{
-          platform: "generic",
-          architecture: "generic",
-          version: "0.1.0"
-        })
+        Support.Archives.create_signed_archive(
+          tmp_dir,
+          org_key.name,
+          "manifest",
+          "signed-manifest",
+          %{
+            platform: "generic",
+            architecture: "generic",
+            version: "0.1.0"
+          }
+        )
 
       upload = %Plug.Upload{
         path: file_path,
@@ -47,9 +54,15 @@ defmodule NervesHubWeb.ArchiveControllerTest do
   end
 
   describe "delete archive" do
-    test "deletes chosen archive", %{conn: conn, user: user, org: org, product: product} do
-      org_key = Fixtures.org_key_fixture(org, user)
-      archive = Fixtures.archive_fixture(org_key, product)
+    test "deletes chosen archive", %{
+      conn: conn,
+      user: user,
+      org: org,
+      product: product,
+      tmp_dir: tmp_dir
+    } do
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      archive = Fixtures.archive_fixture(tmp_dir, org_key, product)
 
       conn =
         delete(
