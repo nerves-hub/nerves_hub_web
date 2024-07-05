@@ -23,7 +23,8 @@ config :nerves_hub,
   admin_auth: [
     username: System.get_env("ADMIN_AUTH_USERNAME"),
     password: System.get_env("ADMIN_AUTH_PASSWORD")
-  ]
+  ],
+  open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true"
 
 if level = System.get_env("LOG_LEVEL") do
   config :logger, level: String.to_atom(level)

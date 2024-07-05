@@ -1,0 +1,7 @@
+<p>Hi there!</p>
+
+<p>Welcome to <%= @platform_name %>.</p>
+
+<p><%= @platform_name %> helps you manage your firmware updates across your Nerves devices.</p>
+
+<%= raw(closing()) %>
