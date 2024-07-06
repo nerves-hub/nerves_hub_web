@@ -16,14 +16,14 @@ defmodule NervesHub.ArchivesTest do
 
       {:ok, file_path} =
         Support.Archives.create_signed_archive(
-          tmp_dir,
           org_key.name,
           "manifest",
           "signed-manifest",
           %{
             platform: "generic",
             architecture: "generic",
-            version: "0.1.0"
+            version: "0.1.0",
+            dir: tmp_dir
           }
         )
 

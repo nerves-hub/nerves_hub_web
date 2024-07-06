@@ -866,7 +866,7 @@ defmodule NervesHubWeb.WebsocketTest do
       firmware = Repo.preload(firmware, [:product])
       product = firmware.product
 
-      archive = Fixtures.archive_fixture(tmp_dir, org_key, product)
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       deployment =
         Fixtures.deployment_fixture(org, firmware, %{
