@@ -22,7 +22,7 @@
             Created by: <%= signing_key.created_by.name %> (<%= signing_key.created_by.email %>)
           </div>
         </div>
-        <button class="btn btn-secondary" phx-click="delete" phx-value-signing_key_id={signing_key.id} disabled={!authorized?(:delete_signing_key, @org_user)} data-confirm="Are you sure?">
+        <button class="btn btn-secondary" phx-click="delete" phx-value-signing_key_id={signing_key.id} disabled={!authorized?(:"signing_key:delete", @org_user)} data-confirm="Are you sure?">
           Delete
         </button>
       </div>
