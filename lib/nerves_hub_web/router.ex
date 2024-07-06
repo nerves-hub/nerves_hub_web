@@ -35,14 +35,6 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.Plugs.Product)
   end
 
-  pipeline :device do
-    plug(NervesHubWeb.Plugs.Device)
-  end
-
-  pipeline :deployment do
-    plug(NervesHubWeb.Plugs.Deployment)
-  end
-
   pipeline :firmware do
     plug(NervesHubWeb.Plugs.Firmware)
   end
@@ -202,6 +194,22 @@ defmodule NervesHubWeb.Router do
     post("/invite/:token", AccountController, :accept_invite)
   end
 
+  scope "/org/:org_name/:product_name", NervesHubWeb do
+    pipe_through([:browser, :logged_in, :org, :product])
+
+    get("/devices/export", ProductController, :devices_export)
+
+    scope "/devices/:identifier" do
+      get("/console", DeviceController, :console)
+      get("/certificate/:serial/download", DeviceController, :download_certificate)
+      get("/audit_logs/download", DeviceController, :export_audit_logs)
+    end
+
+    get("/archives/:uuid/download", DownloadController, :archive)
+    get("/firmware/:uuid/download", DownloadController, :firmware)
+    get("/deployments/:name/audit_logs/download", DeploymentController, :export_audit_logs)
+  end
+
   scope "/", NervesHubWeb do
     pipe_through([:browser, :live_logged_in])
 
@@ -266,49 +274,16 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/archives/upload", Live.Archives, :upload)
       live("/org/:org_name/:product_name/archives/:archive_uuid", Live.Archives, :show)
 
+      live("/org/:org_name/:product_name/deployments", Live.Deployments.Index)
+      live("/org/:org_name/:product_name/deployments/new", Live.Deployments.New)
+      live("/org/:org_name/:product_name/deployments/:name", Live.Deployments.Show)
+      live("/org/:org_name/:product_name/deployments/:name/edit", Live.Deployments.Edit)
+
       live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)
       live("/org/:org_name/:product_name/scripts/new", Live.SupportScripts.New)
       live("/org/:org_name/:product_name/scripts/:script_id/edit", Live.SupportScripts.Edit)
 
       live("/org/:org_name/:product_name/settings", Live.Product.Settings)
-    end
-  end
-
-  scope "/org/:org_name/:product_name", NervesHubWeb do
-    pipe_through([:browser, :logged_in, :org, :product])
-
-    scope "/devices" do
-      get("/export", ProductController, :devices_export)
-
-      scope "/:device_identifier" do
-        pipe_through(:device)
-
-        get("/console", DeviceController, :console)
-
-        get("/certificate/:cert_serial/download", DeviceController, :download_certificate)
-        get("/audit_logs/download", DeviceController, :export_audit_logs)
-      end
-    end
-
-    get("/archives/:uuid/download", DownloadController, :archive)
-    get("/firmware/:uuid/download", DownloadController, :firmware)
-
-    scope "/deployments" do
-      get("/", DeploymentController, :index)
-      post("/", DeploymentController, :create)
-      get("/new", DeploymentController, :new)
-
-      scope "/:deployment_name" do
-        pipe_through(:deployment)
-
-        get("/", DeploymentController, :show)
-        get("/edit", DeploymentController, :edit)
-        patch("/", DeploymentController, :update)
-        put("/", DeploymentController, :update)
-        post("/toggle", DeploymentController, :toggle)
-        delete("/", DeploymentController, :delete)
-        get("/audit_logs/download", DeploymentController, :export_audit_logs)
-      end
     end
   end
 

@@ -3,6 +3,8 @@ defmodule NervesHubWeb.DeviceController do
 
   alias NervesHub.AuditLogs
 
+  plug(NervesHubWeb.Plugs.Device)
+
   plug(
     :validate_role,
     [org: :view] when action in [:console, :download_certificate, :export_audit_logs]
@@ -15,7 +17,7 @@ defmodule NervesHubWeb.DeviceController do
     |> render("console.html")
   end
 
-  def download_certificate(%{assigns: %{device: device}} = conn, %{"cert_serial" => serial}) do
+  def download_certificate(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
     case Enum.find(device.device_certificates, &(&1.serial == serial)) do
       %{der: der} ->
         filename = "#{device.identifier}-cert.pem"
@@ -28,19 +30,18 @@ defmodule NervesHubWeb.DeviceController do
   end
 
   def export_audit_logs(%{assigns: %{org: org, product: product, device: device}} = conn, _params) do
-    conn =
-      case AuditLogs.logs_for(device) do
-        [] ->
-          put_flash(conn, :error, "No audit logs exist for this device.")
-          |> redirect(to: ~p"/org/#{org.name}/#{product.name}/devices")
+    case AuditLogs.logs_for(device) do
+      [] ->
+        conn
+        |> put_flash(:error, "No audit logs exist for this device.")
+        |> redirect(to: ~p"/org/#{org.name}/#{product.name}/devices")
 
-        audit_logs ->
-          audit_logs = AuditLogs.format_for_csv(audit_logs)
+      audit_logs ->
+        audit_logs = AuditLogs.format_for_csv(audit_logs)
 
-          conn
-          |> send_download({:binary, audit_logs}, filename: "#{device.identifier}-audit-logs.csv")
-      end
-
-    {:noreply, conn}
+        send_download(conn, {:binary, audit_logs},
+          filename: "#{device.identifier}-audit-logs.csv"
+        )
+    end
   end
 end

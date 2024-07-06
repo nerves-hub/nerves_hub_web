@@ -1,4 +1,6 @@
-<%= link("Back to Deployment", to: Routes.deployment_path(@conn, :show, @org.name, @product.name, @deployment.name), class: "back-link") %>
+<.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"} class="back-link">
+  Back to Deployment
+</.link>
 <h1>Edit Deployment</h1>
 
 <h5 class="mb-2">Firmware version details</h5>
@@ -28,7 +30,7 @@
 
 <div class="divider"></div>
 
-<%= form_for @changeset, Routes.deployment_path(@conn, :update, @org.name, @product.name, @deployment.name), [as: :deployment], fn f -> %>
+<.form :let={f} for={@form} phx-submit="update-deployment">
   <%= hidden_input(f, :firmware_id, value: @firmware.id) %>
 
   <div class="form-group">
@@ -38,18 +40,20 @@
   </div>
 
   <div class="form-group">
-    <label for="firmware_id" class="tooltip-label">
-      <span>Firmware version</span>
-      <span class="tooltip-info"></span>
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="firmware_id" class="tooltip-label">
+        Firmware version
+      </label>
+      <span class="tooltip-info mb-1"></span>
       <span class="tooltip-text">Firmware listed is the same platform and architecture as the currently selected firmware.</span>
-    </label>
+    </div>
     <%= select(f, :firmware_id, firmware_dropdown_options(@firmwares), required: true, id: "firmware_id", class: "form-control") %>
     <div class="select-icon"></div>
     <div class="has-error"><%= error_tag(f, :firmware_id) %></div>
   </div>
 
   <div class="form-group">
-    <label for="firmware_id" class="tooltip-label">
+    <label for="archive_id" class="tooltip-label">
       <span>Additional Archive version</span>
     </label>
     <%= select(f, :archive_id, archive_dropdown_options(@archives), id: "archive_id", prompt: "Select an Archive", class: "form-control") %>
@@ -62,16 +66,18 @@
   <p>Changing any conditions will reset any attached devices.</p>
 
   <div class="form-group">
-    <label for="tags_input" class="tooltip-label">
-      <span>Tag(s) distributed to</span>
-      <span class="tooltip-info"></span>
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="tags_input" class="tooltip-label">
+        Tag(s) distributed to
+      </label>
+      <span class="tooltip-info mb-1"></span>
       <span class="tooltip-text">Changing tags will reset all devices on this deployment</span>
-    </label>
+    </div>
     <%= text_input(f, :tags,
       class: "form-control",
       id: "tags_input",
       value:
-        @changeset
+        @form.source
         |> Ecto.Changeset.get_change(:conditions, %{})
         |> Map.get("tags", "")
     ) %>
@@ -79,16 +85,18 @@
   </div>
 
   <div class="form-group">
-    <label for="version_requirement" class="tooltip-label">
-      <span>Version requirement</span>
-      <span class="tooltip-info"></span>
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="version_requirement" class="tooltip-label">
+        Version requirement
+      </label>
+      <span class="tooltip-info mb-1"></span>
       <span class="tooltip-text">Changing the version requirement will reset all devices on this deployment</span>
-    </label>
+    </div>
     <%= text_input(f, :version,
       class: "form-control",
       id: "version_requirement",
       value:
-        @changeset
+        @form.source
         |> Ecto.Changeset.get_change(:conditions, %{})
         |> Map.get("version", "")
     ) %>
@@ -108,12 +116,12 @@
   </div>
 
   <div class="form-group">
-    <label for="version_requirement" class="tooltip-label">
+    <label for="inflight_update_expiration_minutes" class="tooltip-label">
       <span>Number of Minutes Before Expiring Updates</span>
       <span class="tooltip-info"></span>
       <span class="tooltip-text">The number of minutes before an inflight update expires to clear the queue</span>
     </label>
-    <%= number_input(f, :inflight_update_expiration_minutes, class: "form-control", id: "concurrent_updates") %>
+    <%= number_input(f, :inflight_update_expiration_minutes, class: "form-control", id: "inflight_update_expiration_minutes") %>
     <div class="has-error"><%= error_tag(f, :inflight_update_expiration_minutes) %></div>
   </div>
   <!-- Advanced Options -->
@@ -220,4 +228,4 @@
   <div class="button-submit-wrapper">
     <%= submit("Save Changes", class: "btn btn-primary") %>
   </div>
-<% end %>
+</.form>

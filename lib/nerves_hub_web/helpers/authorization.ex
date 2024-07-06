@@ -50,7 +50,10 @@ defmodule NervesHub.Helpers.Authorization do
   def authorized?(:"archive:upload", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"archive:delete", %OrgUser{role: role}), do: role_check(:manage, role)
 
+  def authorized?(:"deployment:create", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"deployment:update", %OrgUser{role: role}), do: role_check(:manage, role)
+  def authorized?(:"deployment:toggle", %OrgUser{role: role}), do: role_check(:manage, role)
+  def authorized?(:"deployment:delete", %OrgUser{role: role}), do: role_check(:manage, role)
 
   def authorized?(:"support_script:create", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"support_script:update", %OrgUser{role: role}), do: role_check(:manage, role)

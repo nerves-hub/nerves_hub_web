@@ -37,10 +37,10 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         <%= if is_nil(@device.firmware_metadata) do %>
           <p>Unknown</p>
         <% else %>
-          <a href={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m">
+          <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m">
             <%= @device.firmware_metadata.version %>
             <%= @device.firmware_metadata.uuid %>
-          </a>
+          </.link>
         <% end %>
       </div>
       <div>
