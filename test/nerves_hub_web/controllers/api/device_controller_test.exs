@@ -35,7 +35,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "index" do
     test "lists all devices for an org", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       device = Fixtures.device_fixture(org, product, firmware)
@@ -53,7 +53,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "delete devices" do
     test "deletes chosen device", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       Fixtures.device_fixture(org, product, firmware)
@@ -77,7 +77,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "update devices" do
     test "updates chosen device", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       Fixtures.device_fixture(org, product, firmware)
@@ -105,7 +105,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "authenticate devices" do
     test "valid certificate", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       device = Fixtures.device_fixture(org, product, firmware)
@@ -135,7 +135,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "upgrade firmware" do
     test "pushing new firmware to a device", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware_one = Fixtures.firmware_fixture(org_key, product)
       firmware_two = Fixtures.firmware_fixture(org_key, product)
 
@@ -154,7 +154,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
   describe "clear penalty box" do
     test "success", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
       device = Fixtures.device_fixture(org, product, firmware)
 
@@ -171,6 +171,61 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       assert device.updates_blocked_until
       device = Repo.reload(device)
       refute device.updates_blocked_until
+    end
+  end
+
+  describe "move device to a new product" do
+    test "success", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      org2 = Fixtures.org_fixture(user, %{name: "org2"})
+      product2 = Fixtures.product_fixture(user, org2, %{name: "product2"})
+
+      {:ok, device} = Devices.update_device(device, %{updates_blocked_until: DateTime.utc_now()})
+
+      conn =
+        post(
+          conn,
+          Routes.api_device_path(conn, :move, device.identifier),
+          %{
+            "org_name" => org2.name,
+            "product_name" => product2.name
+          }
+        )
+
+      assert response(conn, 200)
+
+      device = Repo.reload(device)
+      assert device.org_id == org2.id
+      assert device.product_id == product2.id
+    end
+
+    test "failure: missing permissions in new product", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      user2 = Fixtures.user_fixture()
+      org2 = Fixtures.org_fixture(user2, %{name: "org2"})
+      product2 = Fixtures.product_fixture(user2, org2, %{name: "product2"})
+
+      {:ok, device} = Devices.update_device(device, %{updates_blocked_until: DateTime.utc_now()})
+
+      conn =
+        post(
+          conn,
+          Routes.api_device_path(conn, :move, device.identifier),
+          %{
+            "org_name" => org2.name,
+            "product_name" => product2.name
+          }
+        )
+
+      assert response(conn, 403)
     end
   end
 end

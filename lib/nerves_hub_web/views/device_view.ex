@@ -4,11 +4,10 @@ defmodule NervesHubWeb.DeviceView do
   alias NervesHub.Devices
   alias NervesHub.Repo
   alias NervesHubWeb.LayoutView.DateTimeFormat
+  alias NervesHubWeb.Components.Utils
 
   import NervesHubWeb.LayoutView,
     only: [pagination_links: 1]
-
-  import NervesHubWeb.OrgCertificateView, only: [format_serial: 1]
 
   def architecture_options do
     [

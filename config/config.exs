@@ -11,6 +11,12 @@ config :phoenix,
     leex: Phoenix.LiveView.Engine
   ]
 
+config :mime, :types, %{
+  "application/pem" => ["pem"],
+  "application/crt" => ["crt"],
+  "application/fwup" => ["fw"]
+}
+
 ##
 # NervesHub
 #
@@ -49,7 +55,7 @@ config :nerves_hub, NervesHub.Repo,
 config :nerves_hub, Oban,
   repo: NervesHub.ObanRepo,
   log: false,
-  queues: [delete_firmware: 1, firmware_delta_builder: 2, truncate: 1],
+  queues: [delete_archive: 1, delete_firmware: 1, firmware_delta_builder: 2, truncate: 1],
   plugins: [
     # 1 week
     {Oban.Plugins.Pruner, max_age: 604_800},

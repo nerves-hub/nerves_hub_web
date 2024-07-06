@@ -12,8 +12,12 @@ end
 config :nerves_hub,
   app: nerves_hub_app,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
+  web_title_suffix: System.get_env("WEB_TITLE_SUFFIX", "NervesHub"),
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   email_sender: System.get_env("EMAIL_SENDER", "NervesHub"),
+  support_email_platform_name: System.get_env("SUPPORT_EMAIL_PLATFORM_NAME", "NervesHub"),
+  support_email_address: System.get_env("SUPPORT_EMAIL_ADDRESS"),
+  support_email_signoff: System.get_env("SUPPORT_EMAIL_SIGNOFF"),
   device_endpoint_redirect:
     System.get_env("DEVICE_ENDPOINT_REDIRECT", "https://docs.nerves-hub.org/"),
   admin_auth: [
@@ -21,7 +25,8 @@ config :nerves_hub,
     password: System.get_env("ADMIN_AUTH_PASSWORD")
   ],
   device_deployment_change_jitter_seconds:
-    String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10"))
+    String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10")),
+  open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true"
 
 if level = System.get_env("LOG_LEVEL") do
   config :logger, level: String.to_atom(level)

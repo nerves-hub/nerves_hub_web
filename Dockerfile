@@ -1,6 +1,6 @@
-ARG ELIXIR_VERSION=1.16.2
-ARG OTP_VERSION=26.2.5
-ARG DISTRO=jammy-20240427
+ARG ELIXIR_VERSION=1.17.1
+ARG OTP_VERSION=27.0
+ARG DISTRO=noble-20240605
 ARG NODE_VERSION=16.20.2
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-${DISTRO}"
@@ -98,7 +98,7 @@ RUN mix release
 FROM ${RUNNER_IMAGE} AS app
 
 RUN apt-get update -y \
-    && apt-get install -y libstdc++6 openssl libncurses5 locales bash openssl curl python3 python3-pip jq xdelta3 zip unzip wget \
+    && apt-get install -y libstdc++6 openssl libncurses6 locales bash openssl curl python3 python3-pip jq xdelta3 zip unzip wget \
     && wget https://github.com/fwup-home/fwup/releases/download/v1.10.1/fwup_1.10.1_amd64.deb \
     && dpkg -i fwup_1.10.1_amd64.deb && rm fwup_1.10.1_amd64.deb \
     && apt-get clean && rm -rf /var/lib/apt/lists/*

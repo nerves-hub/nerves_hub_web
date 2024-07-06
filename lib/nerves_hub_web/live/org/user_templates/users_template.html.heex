@@ -1,0 +1,89 @@
+<%= if !Enum.empty?(@invites) do %>
+  <h1>Outstanding Invites</h1>
+
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Invite Link</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <%= for invite <- @invites do %>
+        <tr>
+          <td><%= invite.email %></td>
+          <td><pre style="background: white; margin: auto;"><%= Routes.account_url(@socket, :invite, invite.token) %></pre></td>
+          <td :if={authorized?(:rescind_invite, @org_user)}>
+            <.link class="btn btn-outline-light" phx-click="rescind_invite" phx-value-invite_token={invite.token} data-confirm="Are you sure you want to rescind the invite?">
+              Rescind
+            </.link>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
+
+<div class="action-row">
+  <h1>Users</h1>
+  <.link navigate={~p"/org/#{@org.name}/settings/users/invite"} class="btn btn-outline-light btn-action" aria-label="Add new user">
+    <span class="button-icon add"></span>
+    <span class="action-text">Add New User</span>
+  </.link>
+</div>
+
+<table class="table table-sm table-hover">
+  <thead>
+    <tr>
+      <th>User name</th>
+      <th>Email</th>
+      <th>Role</th>
+      <th>Added on</th>
+    </tr>
+  </thead>
+  <tbody>
+    <%= for org_user <- @org_users do %>
+      <tr class="item">
+        <td>
+          <div class="mobile-label help-text">User name</div>
+          <%= org_user.user.name %>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Email</div>
+          <%= org_user.user.email %>
+        </td>
+        <td class="tt-c">
+          <div class="mobile-label help-text">Role</div>
+          <%= org_user.role %>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Added on</div>
+          <div class="date-time"><%= org_user.user.inserted_at %></div>
+        </td>
+        <td :if={authorized?(:delete_org_user, @org_user) && org_user.user.id != assigns.user.id} class="actions">
+          <div class="dropdown options">
+            <a class="dropdown-toggle options" href="#" id={"org-user-#{org_user.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <img src="/images/icons/more.svg" alt="options" />
+            </a>
+            <div class="dropdown-menu dropdown-menu-right">
+              <.link patch={~p"/org/#{@org.name}/settings/users/#{org_user.user_id}/edit"} class="dropdown-item">
+                Edit
+              </.link>
+              <div class="dropdown-divider"></div>
+              <.link
+                :if={authorized?(:delete_org_user, @org_user)}
+                class="dropdown-item"
+                phx-click="delete_org_user"
+                phx-value-user_id={org_user.user_id}
+                data-confirm="Are you sure you want to remove this user? This can not be undone."
+              >
+                Delete
+              </.link>
+            </div>
+          </div>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

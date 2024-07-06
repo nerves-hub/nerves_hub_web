@@ -79,7 +79,7 @@ defmodule NervesHubWeb.DeviceController do
   def update(conn, %{"device" => params}) do
     %{user: user, org: org, product: product, device: device} = conn.assigns
 
-    message = "user #{user.username} updated device #{device.identifier}"
+    message = "#{user.name} updated device #{device.identifier}"
 
     case Devices.update_device_with_audit(device, params, user, message) do
       {:ok, device} ->
@@ -107,7 +107,7 @@ defmodule NervesHubWeb.DeviceController do
   def reboot(conn, _params) do
     %{user: user, org: org, product: product, device: device} = conn.assigns
 
-    AuditLogs.audit!(user, device, "user #{user.username} rebooted device #{device.identifier}")
+    AuditLogs.audit!(user, device, "#{user.name} rebooted device #{device.identifier}")
 
     Endpoint.broadcast_from!(self(), "device:#{device.id}", "reboot", %{})
 

@@ -12,11 +12,15 @@ defmodule NervesHubWeb.Router do
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
     plug(NervesHubWeb.Plugs.SetLocale)
-    plug(NervesHubWeb.Plugs.FetchUser)
   end
 
   pipeline :logged_in do
+    plug(NervesHubWeb.Plugs.FetchUser)
     plug(NervesHubWeb.Plugs.EnsureLoggedIn)
+  end
+
+  pipeline :live_logged_in do
+    plug(NervesHubWeb.Plugs.EnsureAuthenticated)
   end
 
   pipeline :admins_only do
@@ -80,6 +84,7 @@ defmodule NervesHubWeb.Router do
       post("/:identifier/reconnect", DeviceController, :reconnect)
       post("/:identifier/code", DeviceController, :code)
       post("/:identifier/upgrade", DeviceController, :upgrade)
+      post("/:identifier/move", DeviceController, :move)
       delete("/:identifier/penalty", DeviceController, :penalty)
 
       get("/:identifier/scripts", ScriptController, :index)
@@ -98,9 +103,9 @@ defmodule NervesHubWeb.Router do
           scope "/users" do
             get("/", OrgUserController, :index)
             post("/", OrgUserController, :add)
-            get("/:username", OrgUserController, :show)
-            put("/:username", OrgUserController, :update)
-            delete("/:username", OrgUserController, :remove)
+            get("/:user_id", OrgUserController, :show)
+            put("/:user_id", OrgUserController, :update)
+            delete("/:user_id", OrgUserController, :remove)
           end
 
           scope "/keys" do
@@ -181,8 +186,6 @@ defmodule NervesHubWeb.Router do
 
     get("/", HomeController, :index)
 
-    get("/error", HomeController, :error)
-
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
     get("/logout", SessionController, :delete)
@@ -197,147 +200,120 @@ defmodule NervesHubWeb.Router do
 
     get("/invite/:token", AccountController, :invite)
     post("/invite/:token", AccountController, :accept_invite)
-
-    get("/nerves_key", NervesKeyController, :index)
   end
 
   scope "/", NervesHubWeb do
-    pipe_through([:browser, :logged_in])
+    pipe_through([:browser, :live_logged_in])
 
-    get("/online-devices", HomeController, :online_devices)
+    live_session :account,
+      on_mount: [
+        NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.CurrentPath
+      ] do
+      live("/account", Live.Account, :edit)
+      live("/account/delete", Live.Account, :delete)
+      live("/account/tokens", Live.AccountTokens, :index)
+      live("/account/tokens/new", Live.AccountTokens, :new)
 
-    scope "/account/:user_name" do
-      get("/", AccountController, :edit)
-      put("/", AccountController, :update)
-      get("/delete_account", AccountController, :confirm_delete)
-      delete("/delete_account", AccountController, :delete)
-
-      get("/organizations", OrgController, :index)
-
-      get("/tokens", TokenController, :index)
-      get("/tokens/new", TokenController, :new)
-      post("/tokens", TokenController, :create)
-      delete("/tokens/:id", TokenController, :delete)
+      live("/orgs", Live.Orgs.Index)
+      live("/orgs/new", Live.Orgs.New)
     end
 
-    get("/org/new", OrgController, :new)
-    post("/org", OrgController, :create)
+    live_session :org,
+      on_mount: [
+        NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.CurrentPath,
+        NervesHubWeb.Mounts.FetchOrg,
+        NervesHubWeb.Mounts.FetchOrgUser
+      ] do
+      live("/org/:org_name", Live.Org.Products, :index)
+      live("/org/:org_name/new", Live.Org.Products, :new)
+      live("/org/:org_name/settings", Live.Org.Settings)
+      live("/org/:org_name/settings/keys", Live.Org.SigningKeys, :index)
+      live("/org/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
+      live("/org/:org_name/settings/users", Live.Org.Users, :index)
+      live("/org/:org_name/settings/users/invite", Live.Org.Users, :invite)
+      live("/org/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
+      live("/org/:org_name/settings/certificates", Live.Org.CertificateAuthorities, :index)
+      live("/org/:org_name/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
+      live("/org/:org_name/settings/delete", Live.Org.Delete)
 
-    scope "/org/:org_name" do
-      pipe_through(:org)
+      live(
+        "/org/:org_name/settings/certificates/:serial/edit",
+        Live.Org.CertificateAuthorities,
+        :edit
+      )
+    end
 
-      get("/", ProductController, :index)
-      get("/new", ProductController, :new)
-      post("/", ProductController, :create)
+    live_session :product,
+      on_mount: [
+        NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.CurrentPath,
+        NervesHubWeb.Mounts.FetchOrg,
+        NervesHubWeb.Mounts.FetchOrgUser,
+        NervesHubWeb.Mounts.FetchProduct
+      ] do
+      live("/org/:org_name/:product_name/firmware", Live.Firmware, :index)
+      live("/org/:org_name/:product_name/firmware/upload", Live.Firmware, :upload)
+      live("/org/:org_name/:product_name/firmware/:firmware_uuid", Live.Firmware, :show)
 
-      scope "/settings" do
-        get("/", OrgController, :edit)
-        put("/", OrgController, :update)
+      live("/org/:org_name/:product_name/archives", Live.Archives, :index)
+      live("/org/:org_name/:product_name/archives/upload", Live.Archives, :upload)
+      live("/org/:org_name/:product_name/archives/:archive_uuid", Live.Archives, :show)
 
-        get("/invite", OrgController, :invite)
-        post("/invite", OrgController, :send_invite)
-        delete("/invite/:token", OrgController, :delete_invite)
-        get("/certificates", OrgCertificateController, :index)
-        post("/certificates", OrgCertificateController, :create)
-        get("/certificates/new", OrgCertificateController, :new)
-        delete("/certificates/:serial", OrgCertificateController, :delete)
-        get("/certificates/:serial/edit", OrgCertificateController, :edit)
-        put("/certificates/:serial", OrgCertificateController, :update)
-        get("/users", OrgUserController, :index)
-        get("/users/:user_id", OrgUserController, :edit)
-        put("/users/:user_id", OrgUserController, :update)
-        delete("/users/:user_id", OrgUserController, :delete)
+      live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)
+      live("/org/:org_name/:product_name/scripts/new", Live.SupportScripts.New)
+      live("/org/:org_name/:product_name/scripts/:script_id/edit", Live.SupportScripts.Edit)
 
-        resources("/keys", OrgKeyController)
-      end
-
-      scope "/:product_name" do
-        pipe_through(:product)
-
-        live_session :product,
-          on_mount: [
-            NervesHubWeb.Mounts.AccountAuth,
-            NervesHubWeb.Mounts.CurrentPath,
-            NervesHubWeb.Mounts.FetchOrg,
-            NervesHubWeb.Mounts.FetchOrgUser,
-            NervesHubWeb.Mounts.FetchProduct
-          ] do
-          live("/settings", Live.Product.Settings)
-        end
-
-        get("/edit", ProductController, :edit)
-        put("/", ProductController, :update)
-        delete("/", ProductController, :delete)
-
-        scope "/devices" do
-          get("/", DeviceController, :index)
-          post("/", DeviceController, :create)
-          get("/new", DeviceController, :new)
-          get("/export", ProductController, :devices_export)
-
-          scope "/:device_identifier" do
-            pipe_through(:device)
-
-            get("/", DeviceController, :show)
-            get("/console", DeviceController, :console)
-            get("/edit", DeviceController, :edit)
-            patch("/", DeviceController, :update)
-            put("/", DeviceController, :update)
-            delete("/", DeviceController, :delete)
-            post("/reboot", DeviceController, :reboot)
-            post("/toggle-updates", DeviceController, :toggle_updates)
-            get("/certificate/:cert_serial/download", DeviceController, :download_certificate)
-            get("/audit_logs/download", DeviceController, :export_audit_logs)
-          end
-        end
-
-        scope "/firmware" do
-          get("/", FirmwareController, :index)
-          get("/upload", FirmwareController, :upload)
-          post("/upload", FirmwareController, :do_upload)
-
-          scope "/:firmware_uuid" do
-            pipe_through(:firmware)
-
-            get("/", FirmwareController, :show)
-            get("/download", FirmwareController, :download)
-            delete("/", FirmwareController, :delete)
-          end
-        end
-
-        resources("/archives", ArchiveController,
-          only: [:index, :show, :new, :create, :delete],
-          param: "uuid"
-        )
-
-        resources("/scripts", ScriptController)
-
-        get("/archives/:uuid/download", ArchiveController, :download)
-
-        scope "/deployments" do
-          get("/", DeploymentController, :index)
-          post("/", DeploymentController, :create)
-          get("/new", DeploymentController, :new)
-
-          scope "/:deployment_name" do
-            pipe_through(:deployment)
-
-            get("/", DeploymentController, :show)
-            get("/edit", DeploymentController, :edit)
-            patch("/", DeploymentController, :update)
-            put("/", DeploymentController, :update)
-            post("/toggle", DeploymentController, :toggle)
-            delete("/", DeploymentController, :delete)
-            get("/audit_logs/download", DeploymentController, :export_audit_logs)
-          end
-        end
-      end
+      live("/org/:org_name/:product_name/settings", Live.Product.Settings)
     end
   end
 
-  scope "/" do
-    pipe_through([:browser, :admins_only])
-    live_dashboard("/status/dashboard")
+  scope "/org/:org_name/:product_name", NervesHubWeb do
+    pipe_through([:browser, :logged_in, :org, :product])
+
+    scope "/devices" do
+      get("/", DeviceController, :index)
+      post("/", DeviceController, :create)
+      get("/new", DeviceController, :new)
+      get("/export", ProductController, :devices_export)
+
+      scope "/:device_identifier" do
+        pipe_through(:device)
+
+        get("/", DeviceController, :show)
+        get("/console", DeviceController, :console)
+        get("/edit", DeviceController, :edit)
+        patch("/", DeviceController, :update)
+        put("/", DeviceController, :update)
+        delete("/", DeviceController, :delete)
+        post("/reboot", DeviceController, :reboot)
+        post("/toggle-updates", DeviceController, :toggle_updates)
+        get("/certificate/:cert_serial/download", DeviceController, :download_certificate)
+        get("/audit_logs/download", DeviceController, :export_audit_logs)
+      end
+    end
+
+    get("/archives/:uuid/download", DownloadController, :archive)
+    get("/firmware/:uuid/download", DownloadController, :firmware)
+
+    scope "/deployments" do
+      get("/", DeploymentController, :index)
+      post("/", DeploymentController, :create)
+      get("/new", DeploymentController, :new)
+
+      scope "/:deployment_name" do
+        pipe_through(:deployment)
+
+        get("/", DeploymentController, :show)
+        get("/edit", DeploymentController, :edit)
+        patch("/", DeploymentController, :update)
+        put("/", DeploymentController, :update)
+        post("/toggle", DeploymentController, :toggle)
+        delete("/", DeploymentController, :delete)
+        get("/audit_logs/download", DeploymentController, :export_audit_logs)
+      end
+    end
   end
 
   if Mix.env() in [:dev] do
@@ -345,6 +321,12 @@ defmodule NervesHubWeb.Router do
       pipe_through([:browser])
 
       forward("/mailbox", Plug.Swoosh.MailboxPreview)
+      live_dashboard("/dashboard")
+    end
+  else
+    scope "/" do
+      pipe_through([:browser, :admins_only])
+      live_dashboard("/status/dashboard")
     end
   end
 end

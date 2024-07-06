@@ -5,17 +5,16 @@ defmodule NervesHubWeb.Mounts.AccountAuth do
   alias NervesHub.Accounts
 
   def on_mount(_, _, %{"auth_user_id" => user_id} = _session, socket) do
-    case Accounts.get_user_with_all_orgs_and_products(user_id) do
-      {:ok, user} ->
-        socket =
-          socket
-          |> assign(:user, user)
-          |> assign(:orgs, user.orgs)
+    socket =
+      assign_new(socket, :user, fn ->
+        {:ok, user} = Accounts.get_user_with_all_orgs_and_products(user_id)
+        user
+      end)
 
-        {:cont, socket}
-
-      _ ->
-        {:halt, redirect(socket, to: "/login")}
+    if socket.assigns.user do
+      {:cont, socket}
+    else
+      {:halt, redirect(socket, to: "/login")}
     end
   end
 

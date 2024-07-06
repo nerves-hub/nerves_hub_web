@@ -1,0 +1,18 @@
+<h1>Add Archive</h1>
+<label for={@uploads.archive.ref}>Upload a firmware file (.fw)</label>
+
+<form phx-change="archive-selected">
+  <div class="form-group custom-upload-group" phx-drop-target={@uploads.archive.ref}>
+    <label for={@uploads.archive.ref} class="custom-upload-label not-selected">Click to upload file, or drag your file here.</label>
+
+    <.live_file_input upload={@uploads.archive} required />
+
+    <div class="has-error">
+      <span :if={@error_message} class="help-block"><%= @error_message %></span>
+    </div>
+
+    <div :for={entry <- @uploads.archive.entries} class="mt-1">
+      Uploading: <%= entry.progress %>%
+    </div>
+  </div>
+</form>

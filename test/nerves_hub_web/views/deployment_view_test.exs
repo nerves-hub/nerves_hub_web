@@ -9,7 +9,7 @@ defmodule NervesHubWeb.DeploymentViewTest do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0"})
       firmware2 = Fixtures.firmware_fixture(org_key, product, %{version: "1.10.0"})
       firmware3 = Fixtures.firmware_fixture(org_key, product, %{version: "1.8.6"})

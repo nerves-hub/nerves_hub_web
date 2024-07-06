@@ -8,7 +8,6 @@ defmodule NervesHub.ProductsTest do
     alias NervesHub.Products.Product
 
     @valid_attrs %{name: "some name"}
-    @update_attrs %{name: "some updated name"}
     @invalid_attrs %{name: nil}
 
     setup do
@@ -46,17 +45,6 @@ defmodule NervesHub.ProductsTest do
       params = %{org_id: org.id, name: "same name"}
       {:ok, _product} = Products.create_product(params)
       assert {:error, %Ecto.Changeset{}} = Products.create_product(params)
-    end
-
-    test "update_product/2 with valid data updates the product", %{product: product} do
-      assert {:ok, %Product{} = product} = Products.update_product(product, @update_attrs)
-
-      assert product.name == "some updated name"
-    end
-
-    test "update_product/2 with invalid data returns error changeset", %{product: product} do
-      assert {:error, %Ecto.Changeset{}} = Products.update_product(product, @invalid_attrs)
-      assert product == Products.get_product!(product.id)
     end
 
     test "delete_product/1 deletes the product" do

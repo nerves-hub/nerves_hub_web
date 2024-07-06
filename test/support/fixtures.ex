@@ -1,5 +1,3 @@
-Code.compiler_options(ignore_module_conflict: true)
-
 defmodule NervesHub.Fixtures do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
@@ -14,10 +12,6 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Repo
   alias NervesHub.Support
   alias NervesHub.Support.Fwup
-
-  @after_compile {__MODULE__, :compiler_options}
-
-  def compiler_options(_, _), do: Code.compiler_options(ignore_module_conflict: false)
 
   @uploader Application.compile_env(:nerves_hub, :firmware_upload)
 
@@ -42,7 +36,7 @@ defmodule NervesHub.Fixtures do
     %{
       org_name: "org-#{counter()}.com",
       email: "email-#{counter()}@mctesterson.com",
-      username: "user-#{counter()}",
+      name: "User #{counter_in_alpha()}",
       password: "test_password"
     }
   end
@@ -78,15 +72,20 @@ defmodule NervesHub.Fixtures do
     org
   end
 
-  def org_key_fixture(%Accounts.Org{} = org) do
-    params = %{org_id: org.id}
-
+  def org_key_fixture(%Accounts.Org{} = org, %Accounts.User{} = user, dir \\ System.tmp_dir()) do
     fwup_key_name = "org_key-#{counter()}"
-    Fwup.gen_key_pair(fwup_key_name)
-    key = Fwup.get_public_key(fwup_key_name)
 
-    {:ok, org_key} =
-      Accounts.create_org_key(params |> Map.put(:key, key) |> Map.put(:name, fwup_key_name))
+    Fwup.gen_key_pair(fwup_key_name, dir)
+    key = Fwup.get_public_key(fwup_key_name, dir)
+
+    params = %{
+      org_id: org.id,
+      key: key,
+      name: fwup_key_name,
+      created_by_id: user.id
+    }
+
+    {:ok, org_key} = Accounts.create_org_key(params)
 
     org_key
   end
@@ -256,25 +255,25 @@ defmodule NervesHub.Fixtures do
   end
 
   def generate_certificate_authority_csr(ca_file, ca_key_file, code, dir) do
-    verification_key_pem = Path.expand("verification-key.pem", dir)
-    verification_csr_pem = Path.expand("verification-csr.pem", dir)
-    verification_cert_pem = Path.expand("verification-cert.pem", dir)
-    openssl(~w(genrsa -out #{verification_key_pem} 2048), dir)
+    verification_cert_key = Path.expand("verification-cert.key", dir)
+    verification_cert_csr = Path.expand("verification-cert.csr", dir)
+    verification_cert_crt = Path.expand("verification-cert.crt", dir)
+    openssl(~w(genrsa -out #{verification_cert_key} 2048), dir)
 
     openssl(
-      ~w(req -new -key #{verification_key_pem} -out #{verification_csr_pem} -subj /CN=#{code}),
+      ~w(req -new -key #{verification_cert_key} -out #{verification_cert_csr} -subj /CN=#{code}),
       dir
     )
 
     openssl(
-      ~w(x509 -req -in #{verification_csr_pem} -CA #{ca_file} -CAkey #{ca_key_file} -CAcreateserial -out #{verification_cert_pem} -days 500 -sha256),
+      ~w(x509 -req -in #{verification_cert_csr} -CA #{ca_file} -CAkey #{ca_key_file} -CAcreateserial -out #{verification_cert_crt} -days 500 -sha256),
       dir
     )
 
     %{
-      verification_key_pem: verification_key_pem,
-      verification_cert_pem: verification_cert_pem,
-      verification_csr_pem: verification_csr_pem
+      verification_cert_key: verification_cert_key,
+      verification_cert_csr: verification_cert_csr,
+      verification_cert_crt: verification_cert_crt
     }
   end
 
@@ -367,13 +366,13 @@ defmodule NervesHub.Fixtures do
     %{fixture | db_cert: db_cert}
   end
 
-  def standard_fixture() do
+  def standard_fixture(dir \\ System.tmp_dir()) do
     user_name = "Jeff"
     user = user_fixture(%{name: user_name})
     org = org_fixture(user, %{name: user_name})
     product = product_fixture(user, org, %{name: "Hop"})
-    org_key = org_key_fixture(org)
-    firmware = firmware_fixture(org_key, product)
+    org_key = org_key_fixture(org, user, dir)
+    firmware = firmware_fixture(org_key, product, %{dir: dir})
     deployment = deployment_fixture(org, firmware)
     device = device_fixture(org, product, firmware)
     %{db_cert: device_certificate} = device_certificate_fixture(device)
@@ -390,51 +389,18 @@ defmodule NervesHub.Fixtures do
     }
   end
 
-  def very_fixture() do
-    user = user_fixture(%{name: "Jeff"})
-    org = org_fixture(user, %{name: "Very"})
-    product = product_fixture(user, org, %{name: "Hop"})
-
-    org_key = org_key_fixture(org)
-    firmware = firmware_fixture(org_key, product)
-    deployment = deployment_fixture(org, firmware)
-    device = device_fixture(org, product, firmware, %{tags: ["beta", "beta-edge"]})
-    %{db_cert: device_certificate} = device_certificate_fixture(device)
-
-    %{
-      deployment: deployment,
-      device: device,
-      device_certificate: device_certificate,
-      firmware: firmware,
-      org: org,
-      org_key: org_key,
-      product: product,
-      user: user
-    }
-  end
-
-  def smartrent_fixture() do
-    user = user_fixture(%{name: "Frank"})
-    org = org_fixture(user, %{name: "SmartRent"})
-    product = product_fixture(user, org, %{name: "Smart Rent Thing"})
-    org_key = org_key_fixture(org)
-    firmware = firmware_fixture(org_key, product)
-    deployment = deployment_fixture(org, firmware)
-    device = device_fixture(org, product, firmware, %{identifier: "smartrent_1234"})
-    %{db_cert: device_certificate} = device_certificate_fixture(device)
-
-    %{
-      deployment: deployment,
-      device: device,
-      device_certificate: device_certificate,
-      firmware: firmware,
-      org: org,
-      org_key: org_key,
-      product: product
-    }
-  end
-
   defp counter do
     System.unique_integer([:positive])
+  end
+
+  defp counter_in_alpha do
+    counter()
+    |> Integer.to_string()
+    |> String.split("")
+    |> Enum.filter(fn x -> x != "" end)
+    |> Enum.map(fn x -> String.to_integer(x) end)
+    |> Enum.map(fn x -> <<x + 97::utf8>> end)
+    |> to_string()
+    |> String.capitalize()
   end
 end

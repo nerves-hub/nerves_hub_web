@@ -33,7 +33,7 @@
       </a>
     </div>
   </div>
-  <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex;">
+  <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex; gap: 4px;">
     <%= for size <- @paginate_opts.page_sizes do %>
       <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"btn btn-secondary btn-sm #{if size == @paginate_opts.page_size, do: "active"}"}>
         <%= size %>
@@ -46,7 +46,7 @@
       <form id="filter-form" phx-change="update-filters" class="filter-form device-filters">
         <div class="form-group">
           <label for="input_id">ID</label>
-          <input type="text" name="id" id="input_id" class="form-control" value={@current_filters["id"]} phx-debounce="500" />
+          <input type="text" name="device_id" id="input_id" class="form-control" value={@current_filters["id"]} phx-debounce="500" />
         </div>
         <div class="form-group">
           <label for="connection_type">Connection Type</label>
