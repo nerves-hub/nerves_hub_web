@@ -1,10 +1,23 @@
 defmodule NervesHub.Scripts.Runner do
+  @moduledoc """
+  The runner will send the text the device channel in an attempt to
+  use NervesHubLink on the device to evaluate the script directly.
+
+  If the device has not been updated then the console channel will be
+  used as a back up for catpuring output.
+
+  Runner - {:send, text} -> DeviceChannel
+
+  DeviceChannel - {:output, text} -> Runner
+  DeviceChannel - {:error, :incompatible_version} -> Runner
+  """
+
   use GenServer
 
   alias NervesHubWeb.Endpoint
 
   defmodule State do
-    defstruct [:buffer, :from, :receive_channel, :send_channel]
+    defstruct [:buffer, :device_channel, :from, :receive_channel, :send_channel, :text]
   end
 
   def send(device, command) do
@@ -20,6 +33,7 @@ defmodule NervesHub.Scripts.Runner do
     state = %State{
       buffer: <<>>,
       from: nil,
+      device_channel: "device:#{device_id}",
       receive_channel: "user:console:#{device_id}",
       send_channel: "device:console:#{device_id}"
     }
@@ -28,7 +42,23 @@ defmodule NervesHub.Scripts.Runner do
   end
 
   def handle_call({:send, text}, from, state) do
-    text = ~s/#{text}\n# [NERVESHUB:END]/
+    Phoenix.PubSub.broadcast_from!(
+      NervesHub.PubSub,
+      self(),
+      state.device_channel,
+      {:run_script, self(), text}
+    )
+
+    {:noreply, %{state | from: from, text: text}}
+  end
+
+  def handle_info({:output, response}, state) do
+    GenServer.reply(state.from, response)
+    {:stop, :normal, state}
+  end
+
+  def handle_info({:error, :incompatible_version}, state) do
+    text = ~s/#{state.text}\n# [NERVESHUB:END]/
 
     text
     |> String.graphemes()
@@ -40,7 +70,7 @@ defmodule NervesHub.Scripts.Runner do
 
     Endpoint.broadcast_from!(self(), state.send_channel, "dn", %{"data" => "\r"})
 
-    {:noreply, %{state | from: from}}
+    {:noreply, state}
   end
 
   def handle_info(%Phoenix.Socket.Broadcast{event: "up", payload: %{"data" => text}}, state) do
