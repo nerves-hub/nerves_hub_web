@@ -4,7 +4,6 @@ defmodule NervesHubWeb.ArchiveControllerTest do
   alias NervesHub.Fixtures
 
   describe "download archive" do
-    @tag :tmp_dir
     test "downloads chosen archive", %{
       conn: conn,
       user: user,

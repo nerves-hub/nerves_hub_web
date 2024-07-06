@@ -47,11 +47,8 @@ defmodule NervesHub.Helpers.Authorization do
   def authorized?(:upload_firmware, %OrgUser{role: user_role}), do: role_check(:manage, user_role)
   def authorized?(:delete_firmware, %OrgUser{role: user_role}), do: role_check(:manage, user_role)
 
-  def authorized?(:"archive:upload", %OrgUser{role: user_role}),
-    do: role_check(:manage, user_role)
-
-  def authorized?(:"archive:delete", %OrgUser{role: user_role}),
-    do: role_check(:manage, user_role)
+  def authorized?(:"archive:upload", %OrgUser{role: role}), do: role_check(:manage, role)
+  def authorized?(:"archive:delete", %OrgUser{role: role}), do: role_check(:manage, role)
 
   def authorized?(:create_support_script, %OrgUser{role: user_role}),
     do: role_check(:manage, user_role)

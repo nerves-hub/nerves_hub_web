@@ -284,6 +284,7 @@ defmodule NervesHubWeb.Router do
         pipe_through(:device)
 
         get("/console", DeviceController, :console)
+
         get("/certificate/:cert_serial/download", DeviceController, :download_certificate)
         get("/audit_logs/download", DeviceController, :export_audit_logs)
       end
