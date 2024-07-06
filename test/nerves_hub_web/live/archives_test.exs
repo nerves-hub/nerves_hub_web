@@ -14,10 +14,10 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       |> assert_has("h3", text: "#{product.name} doesn’t have any archives yet")
     end
 
-    test "lists all archives", %{conn: conn, user: user, org: org} do
+    test "lists all archives", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      archive = Fixtures.archive_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/archives")
@@ -25,10 +25,10 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       |> assert_has("a", text: archive.uuid)
     end
 
-    test "delete archive from list", %{conn: conn, user: user, org: org} do
+    test "delete archive from list", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      archive = Fixtures.archive_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/archives")
@@ -41,20 +41,20 @@ defmodule NervesHubWeb.Live.ArchivesTest do
   end
 
   describe "show" do
-    test "shows the archive information", %{conn: conn, user: user, org: org} do
+    test "shows the archive information", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      archive = Fixtures.archive_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/archives/#{archive.uuid}")
       |> assert_has("h1", text: "Archive #{archive.version}")
     end
 
-    test "delete archive", %{conn: conn, user: user, org: org} do
+    test "delete archive", %{conn: conn, user: user, org: org, tmp_dir: tmp_dir} do
       product = Fixtures.product_fixture(user, org, %{name: "AmazingProduct"})
-      org_key = Fixtures.org_key_fixture(org, user)
-      archive = Fixtures.archive_fixture(org_key, product)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/archives/#{archive.uuid}")
@@ -67,7 +67,6 @@ defmodule NervesHubWeb.Live.ArchivesTest do
   end
 
   describe "upload archive" do
-    @tag :tmp_dir
     test "redirects after successful upload", %{
       conn: conn,
       user: user,
@@ -104,7 +103,6 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       |> assert_has("h1", text: "Archives")
     end
 
-    @tag :tmp_dir
     test "error if corrupt firmware uploaded", %{
       conn: conn,
       user: user,
@@ -142,7 +140,6 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       |> assert_has("div", text: "Archive corrupt, signature invalid, or missing public key")
     end
 
-    @tag :tmp_dir
     test "error if org keys do not match firmware", %{
       conn: conn,
       user: user,

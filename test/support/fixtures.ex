@@ -181,14 +181,12 @@ defmodule NervesHub.Fixtures do
   end
 
   def archive_file_fixture(
-        dir,
         %Accounts.OrgKey{} = org_key,
         %Products.Product{} = product,
         params \\ %{}
       ) do
     {:ok, filepath} =
       Support.Archives.create_signed_archive(
-        dir,
         org_key.name,
         "unsigned-#{counter()}",
         "signed-#{counter()}",
@@ -199,12 +197,11 @@ defmodule NervesHub.Fixtures do
   end
 
   def archive_fixture(
-        dir,
         %Accounts.OrgKey{} = org_key,
         %Products.Product{} = product,
         params \\ %{}
       ) do
-    filepath = archive_file_fixture(dir, org_key, product, params)
+    filepath = archive_file_fixture(org_key, product, params)
     {:ok, archive} = Archives.create(product, filepath)
     archive
   end
