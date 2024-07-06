@@ -5,32 +5,38 @@
 
 <.form :let={f} for={@form} phx-submit="update-device">
   <div class="form-group">
-    <label for="identifier_input" class="tooltip-label h3 mb-1">
-      <span>ID</span>
-      <span class="tooltip-info"></span>
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="identifier_input" class="tooltip-label">
+        ID
+      </label>
+      <span class="tooltip-info mb-1"></span>
       <span class="tooltip-text">Device ID cannot be changed once created</span>
-    </label>
+    </div>
     <%= text_input(f, :identifier, class: "form-control", id: "identifier_input", disabled: "true") %>
     <div class="has-error"><%= error_tag(f, :identifier) %></div>
   </div>
 
   <div class="form-group">
-    <label for="description_input" class="tooltip-label h3 mb-1">
-      <span>Description</span>
-      <span class="tooltip-info"></span>
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="description_input" class="tooltip-label">
+        Description
+      </label>
+      <span class="tooltip-info mb-1"></span>
       <span class="tooltip-text">Description for this device</span>
-    </label>
+    </div>
     <%= text_input(f, :description, class: "form-control", id: "description_input") %>
     <div class="has-error"><%= error_tag(f, :description) %></div>
   </div>
 
   <div class="form-group">
-    <label for="tags" class="tooltip-label h3 mb-1">
-      <span>Tag(s)</span>
-      <span class="tooltip-info"></span>
-      <span class="tooltip-text">Use tags to manage firmware deployments for different sets of devices.</span>
-    </label>
-    <%= text_input(f, :tags, class: "form-control", id: "tags", value: tags_to_string(@form)) %>
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="tags_input" class="tooltip-label">
+        Tags
+      </label>
+      <span class="tooltip-info mb-1"></span>
+      <span class="tooltip-text">Tags are used by deployments to target a device. A device must have matching tag(s) for the deployment to update it</span>
+    </div>
+    <%= text_input(f, :tags, class: "form-control", id: "tags_input", value: tags_to_string(@form)) %>
     <small class="form-text text-muted mt-1">
       Every device is added to the 'all' tag by default. You can have multiple tags separated by commas.
     </small>
@@ -38,11 +44,13 @@
   </div>
 
   <div class="form-group">
-    <label for="connecting_code" class="tooltip-label h3 mb-1">
-      <span>First Connect Code</span>
-      <span class="tooltip-info"></span>
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="connecting_code" class="tooltip-label">
+        First Connect Code
+      </label>
+      <span class="tooltip-info mb-1"></span>
       <span class="tooltip-text">Run this code when the device first connects to the console.</span>
-    </label>
+    </div>
     <%= textarea(f, :connecting_code, rows: 6, class: "form-control", id: "connecting_code") %>
     <small class="form-text text-muted mt-1">
       Make sure this is valid Elixir and will not crash the device.

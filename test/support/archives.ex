@@ -8,7 +8,6 @@ defmodule NervesHub.Support.Archives do
               author: "me"
   end
 
-
   def create_signed_archive(key_name, archive_name, output_name, meta_params \\ %{}) do
     {dir, meta_params} = Map.pop(meta_params, :dir, System.tmp_dir())
     create_archive(dir, archive_name, meta_params)

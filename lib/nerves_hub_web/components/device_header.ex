@@ -5,6 +5,8 @@ defmodule NervesHubWeb.Components.DeviceHeader do
 
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
+  attr(:org, :any)
+  attr(:product, :any)
   attr(:device, :any)
   attr(:status, :any)
 
