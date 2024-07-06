@@ -98,7 +98,7 @@ defmodule NervesHub.Support.Fwup do
   def corrupt_firmware_file(input_path, dir \\ System.tmp_dir()) do
     output_path = Path.join([dir, "corrupt.fw"])
 
-    System.cmd("dd", ["if=" <> input_path, "of=" <> output_path, "bs=512", "count=1"],
+    System.cmd("dd", ["if=" <> input_path, "of=" <> output_path, "bs=256", "count=1"],
       stderr_to_stdout: true
     )
 

@@ -10,6 +10,7 @@ defmodule NervesHub.Archives do
   alias NervesHub.Archives.Archive
   alias NervesHub.Fwup
   alias NervesHub.Repo
+  alias NervesHub.Workers.DeleteArchive
 
   def all_by_product(product) do
     Archive
@@ -50,11 +51,28 @@ defmodule NervesHub.Archives do
     end
   end
 
+  def delete_archive(%Archive{} = archive) do
+    Repo.transaction(fn ->
+      with {:ok, archive} <- Repo.delete(archive),
+           {:ok, _} <- delete_artifacts(archive) do
+        {:ok, archive}
+      else
+        {:error, error} -> Repo.rollback(error)
+      end
+    end)
+  end
+
+  defp delete_artifacts(archive) do
+    %{archive_path: archive_path(archive)}
+    |> DeleteArchive.new()
+    |> Oban.insert()
+  end
+
   def url(archive) do
     NervesHub.Uploads.url(archive_path(archive), signed: [expires_in: 3600])
   end
 
-  defp archive_path(archive) do
+  def archive_path(archive) do
     "/archives/#{archive.uuid}.fw"
   end
 

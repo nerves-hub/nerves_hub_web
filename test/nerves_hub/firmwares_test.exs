@@ -179,7 +179,6 @@ defmodule NervesHub.FirmwaresTest do
              ]) == {:ok, org_key}
     end
 
-    @tag :tmp_dir
     test "returns {:error, :invalid_signature} when signature fails", %{
       user: user,
       org: org,
@@ -193,7 +192,6 @@ defmodule NervesHub.FirmwaresTest do
                {:error, :invalid_signature}
     end
 
-    @tag :tmp_dir
     test "returns {:error, :invalid_signature} on corrupt files", %{
       org_key: org_key,
       tmp_dir: tmp_dir

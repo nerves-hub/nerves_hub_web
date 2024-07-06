@@ -1,5 +1,6 @@
 <h1>Add Firmware</h1>
-<label for="file_input">Upload a firmware file (.fw)</label>
+
+<label for={@uploads.firmware.ref}>Upload a firmware file (.fw)</label>
 
 <form phx-change="firmware-selected">
   <div class="form-group custom-upload-group" phx-drop-target={@uploads.firmware.ref}>
@@ -11,7 +12,7 @@
       <span :if={@error_message} class="help-block"><%= @error_message %></span>
     </div>
 
-    <div :for={entry <- @uploads.firmware.entries}>
+    <div :for={entry <- @uploads.firmware.entries} class="mt-1">
       Uploading: <%= entry.progress %>%
     </div>
   </div>
