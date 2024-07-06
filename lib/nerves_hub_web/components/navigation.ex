@@ -69,7 +69,7 @@ defmodule NervesHubWeb.Components.Navigation do
                   </div>
                 <% end %>
 
-                <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization" href={~p"/org/new"}>
+                <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization" href={~p"/orgs/new"}>
                   <span class="action-text">Create Organization</span>
                   <div class="button-icon add"></div>
                 </a>
@@ -218,6 +218,11 @@ defmodule NervesHubWeb.Components.Navigation do
         title: "Deployments",
         active: "",
         href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/deployments"
+      },
+      %{
+        title: "Scripts",
+        active: "",
+        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/scripts"
       },
       %{
         title: "Settings",

@@ -21,7 +21,7 @@ defmodule NervesHubWeb.ConnCase.Browser do
       setup context do
         fixture = Fixtures.standard_fixture(context.tmp_dir)
 
-        %{org: org, org_key: org_key, user: user} = fixture
+        %{org: org, org_key: org_key, user: user, product: product, device: device} = fixture
 
         conn =
           build_conn()
@@ -29,7 +29,15 @@ defmodule NervesHubWeb.ConnCase.Browser do
             "auth_user_id" => user.id
           })
 
-        %{conn: conn, user: user, org: org, fixture: fixture, org_key: org_key}
+        %{
+          conn: conn,
+          user: user,
+          org: org,
+          fixture: fixture,
+          org_key: org_key,
+          product: product,
+          device: device
+        }
       end
     end
   end

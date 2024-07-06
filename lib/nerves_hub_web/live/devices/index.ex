@@ -1,20 +1,20 @@
-defmodule NervesHubWeb.DeviceLive.Index do
-  use NervesHubWeb, :live_view
-
-  # For the preloads below
-  import Ecto.Query
+defmodule NervesHubWeb.Live.Devices.Index do
+  use NervesHubWeb, :updated_live_view
 
   require Logger
 
-  alias NervesHub.Accounts
+  alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Firmwares
-  alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
-  alias NervesHubWeb.DeviceView
 
   alias Phoenix.Socket.Broadcast
+
+  alias NervesHubWeb.LayoutView.DateTimeFormat
+
+  import NervesHubWeb.LayoutView,
+    only: [pagination_links: 1]
 
   @default_filters %{
     "connection" => "",
@@ -29,70 +29,33 @@ defmodule NervesHubWeb.DeviceLive.Index do
   @default_page 1
   @default_page_size 25
 
-  def render(assigns) do
-    DeviceView.render("index.html", assigns)
-  end
+  def mount(_params, _session, socket) do
+    %{product: product} = socket.assigns
 
-  def mount(
-        _params,
-        %{
-          "auth_user_id" => user_id,
-          "org_id" => org_id,
-          "product_id" => product_id
-        },
-        socket
-      ) do
     if connected?(socket) do
-      socket.endpoint.subscribe("product:#{product_id}:devices")
+      socket.endpoint.subscribe("product:#{product.id}:devices")
     end
 
-    user = Accounts.get_user!(user_id)
-
-    socket =
-      socket
-      |> assign(:user, user)
-      |> assign_new(:orgs, fn ->
-        # Taken from the FetchUser plug
-        # Duplicated because we can't pass in what the plug already loaded
-        org_query = from(o in NervesHub.Accounts.Org, where: is_nil(o.deleted_at))
-        product_query = from(p in NervesHub.Products.Product, where: is_nil(p.deleted_at))
-        user = Repo.preload(user, orgs: {org_query, products: product_query})
-        user.orgs
-      end)
-      |> assign_new(:org, fn -> Accounts.get_org!(org_id) end)
-      |> assign_new(:product, fn -> Products.get_product!(product_id) end)
-      |> assign(:current_sort, "identifier")
-      |> assign(:sort_direction, :asc)
-      |> assign(:paginate_opts, %{
-        page_number: @default_page,
-        page_size: @default_page_size,
-        page_sizes: [25, 50, 75],
-        total_pages: 0
-      })
-      |> assign(:firmware_versions, firmware_versions(product_id))
-      |> assign(:platforms, Devices.platforms(product_id))
-      |> assign(:show_filters, false)
-      |> assign(:current_filters, @default_filters)
-      |> assign(:currently_filtering, false)
-      |> assign(:selected_devices, [])
-      |> assign(:target_product, nil)
-      |> assign(:valid_tags, true)
-      |> assign(:device_tags, "")
-      |> assign_display_devices()
-
-    {:ok, socket}
-  rescue
-    exception ->
-      Logger.error(Exception.format(:error, exception, __STACKTRACE__))
-      socket_error(socket, live_view_error(exception))
-  end
-
-  # Catch-all to handle when LV sessions change.
-  # Typically this is after a deploy when the
-  # session structure in the module has changed
-  # for mount/3
-  def mount(_params, _session, socket) do
-    socket_error(socket, live_view_error(:update))
+    socket
+    |> assign(:current_sort, "identifier")
+    |> assign(:sort_direction, :asc)
+    |> assign(:paginate_opts, %{
+      page_number: @default_page,
+      page_size: @default_page_size,
+      page_sizes: [25, 50, 75],
+      total_pages: 0
+    })
+    |> assign(:firmware_versions, firmware_versions(product.id))
+    |> assign(:platforms, Devices.platforms(product.id))
+    |> assign(:show_filters, false)
+    |> assign(:current_filters, @default_filters)
+    |> assign(:currently_filtering, false)
+    |> assign(:selected_devices, [])
+    |> assign(:target_product, nil)
+    |> assign(:valid_tags, true)
+    |> assign(:device_tags, "")
+    |> assign_display_devices()
+    |> ok()
   end
 
   # Handles event of user clicking the same field that is already sorted
@@ -289,6 +252,34 @@ defmodule NervesHubWeb.DeviceLive.Index do
     {:noreply, socket}
   end
 
+  def handle_event("reboot-device", %{"device_identifier" => device_identifier}, socket) do
+    %{org: org, org_user: org_user, user: user} = socket.assigns
+
+    authorized!(:"device:reboot", org_user)
+
+    {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
+
+    AuditLogs.audit!(user, device, "#{user.name} rebooted device #{device.identifier}")
+
+    socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
+
+    {:noreply, put_flash(socket, :info, "Device Reboot Requested")}
+  end
+
+  def handle_event("toggle-device-updates", %{"device_identifier" => device_identifier}, socket) do
+    %{org: org, org_user: org_user, user: user} = socket.assigns
+
+    authorized!(:"device:toggle-updates", org_user)
+
+    {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
+    {:ok, device} = Devices.toggle_health(device, user)
+
+    socket
+    |> put_flash(:info, "Toggled device firmware updates")
+    |> assign(:device, device)
+    |> noreply()
+  end
+
   def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
     # Only sync devices currently on display
     if Map.has_key?(socket.assigns.device_statuses, payload.device_id) do
@@ -341,5 +332,79 @@ defmodule NervesHubWeb.DeviceLive.Index do
 
   defp firmware_versions(product_id) do
     Firmwares.get_firmware_versions_by_product(product_id)
+  end
+
+  #
+  # MOVE TO COMPONENTS
+  #
+  defp selected?(filters, field, value) do
+    if filters[field] == value do
+      [selected: true]
+    else
+      []
+    end
+  end
+
+  defp devices_table_header(title, value, current_sort, sort_direction)
+       when value == current_sort do
+    caret_class = if sort_direction == :asc, do: "up", else: "down"
+
+    assigns = %{value: value, title: title, caret_class: caret_class}
+
+    ~H"""
+    <th phx-click="sort" phx-value_sort={@value} class="pointer sort-selected">
+      <%= @title %><i class="icon-caret icon-caret-#{@caret_class}" />
+    </th>
+    """
+  end
+
+  defp devices_table_header(title, value, _current_sort, _sort_direction) do
+    assigns = %{value: value, title: title}
+
+    ~H"""
+    <th phx-click="sort" phx-value_sort={@value} class="pointer">
+      <%= @title %>
+    </th>
+    """
+  end
+
+  defp firmware_update_status(device) do
+    cond do
+      Devices.device_in_penalty_box?(device) ->
+        "firmware-penalty-box"
+
+      device.updates_enabled == false ->
+        "firmware-disabled"
+
+      true ->
+        "firmware-enabled"
+    end
+  end
+
+  defp firmware_update_title(device) do
+    cond do
+      Devices.device_in_penalty_box?(device) ->
+        "Automatic Penalty Box"
+
+      device.updates_enabled == false ->
+        "Firmware Disabled"
+
+      true ->
+        "Firmware Enabled"
+    end
+  end
+
+  defp move_alert(nil), do: ""
+
+  defp move_alert(%{name: product_name}) do
+    """
+    This will move the selected device(s) to the #{product_name} product
+
+    Any existing signing keys the devices may use will attempt to be migrated if they do not exist on the target organization.
+
+    Moving devices may also trigger an update if there are matching deployments on the new product. It is up to the user to ensure any required signing keys are on the device before migrating them to a new product with a new firmware or the device may fail to update.
+
+    Do you wish to continue?
+    """
   end
 end

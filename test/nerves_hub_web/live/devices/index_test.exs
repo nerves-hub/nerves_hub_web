@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.DeviceLiveIndexTest do
+defmodule NervesHubWeb.Live.Devices.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Fixtures
