@@ -219,7 +219,7 @@ defmodule NervesHubWeb.AccountController do
               :info,
               "You have " <>
                 (length(invites) |> Integer.to_string()) <>
-                " pending invite" <> if(length(invites) > 1, do: "s", else: "") <> "."
+                " pending invite" <> if(length(invites) > 1, do: "s", else: "") <> " to organizations."
             )
         end
 
