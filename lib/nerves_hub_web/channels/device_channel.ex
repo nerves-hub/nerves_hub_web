@@ -519,6 +519,11 @@ defmodule NervesHubWeb.DeviceChannel do
     {:ok, device}
   end
 
+  # Firmware is unknown (new device with unpublished firmware, typically)
+  defp update_metadata(%Device{firmware_metadata: nil} = device, _) do
+    {:ok, device}
+  end
+
   # A new UUID is being reported from an update
   defp update_metadata(device, params) do
     with {:ok, metadata} <- Firmwares.metadata_from_device(params),
