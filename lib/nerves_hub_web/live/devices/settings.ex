@@ -18,6 +18,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
     |> assign(:toggle_upload, false)
     |> assign(:device, device)
     |> assign(:form, to_form(changeset))
+    |> assign(:tab_hint, :devices)
     |> allow_upload(:certificate,
       accept: :any,
       auto_upload: true,

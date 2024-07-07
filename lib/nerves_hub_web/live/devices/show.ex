@@ -32,6 +32,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:results, [])
     |> assign(:deployments, Deployments.alternate_deployments(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
+    |> assign(:tab_hint, :devices)
     |> audit_log_assigns(1)
     |> ok()
   end
