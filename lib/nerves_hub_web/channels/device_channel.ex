@@ -84,18 +84,24 @@ defmodule NervesHubWeb.DeviceChannel do
       Devices.told_to_update(device, deployment)
     end
 
+    firmware_uuid =
+      case device.firmware_metadata do
+        nil -> nil
+        %{uuid: uuid} -> uuid
+      end
+
     ## After join
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: socket.assigns.reference_id,
       identifier: device.identifier,
-      firmware_uuid: device.firmware_metadata.uuid
+      firmware_uuid: firmware_uuid
     })
 
     # local node tracking
     Registry.update_value(NervesHub.Devices, device.id, fn value ->
       update = %{
         deployment_id: device.deployment_id,
-        firmware_uuid: device.firmware_metadata.uuid,
+        firmware_uuid: firmware_uuid,
         updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
         updating: push_update?
       }
