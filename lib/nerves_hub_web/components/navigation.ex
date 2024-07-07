@@ -255,14 +255,14 @@ defmodule NervesHubWeb.Components.Navigation do
     full_path = "/" <> Enum.join(path, "/")
     path_minus_actions = String.replace(full_path, ~r/\/(new|edit|invite|\d+\/edit|upload)$/, "")
 
-    dbg(tab_hint)
     Enum.map(links, fn link ->
-      dbg(link)
       cond do
         link[:tab] && link[:tab] == tab_hint ->
           %{link | active: "active"}
+
         link.href == path_minus_actions ->
           %{link | active: "active"}
+
         true ->
           link
       end
