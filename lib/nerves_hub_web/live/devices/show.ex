@@ -38,12 +38,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
-    socket =
-      socket
-      |> assign(:status, payload.status)
-      |> assign(:fwup_progress, nil)
+    device = Repo.reload(socket.assigns.device)
 
-    {:noreply, socket}
+    socket
+    |> assign(:device, device)
+    |> assign(:status, payload.status)
+    |> assign(:fwup_progress, nil)
+    |> noreply()
   end
 
   def handle_info(%Broadcast{event: "fwup_progress", payload: payload}, socket) do
