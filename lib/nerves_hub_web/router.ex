@@ -264,7 +264,11 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
       live("/org/:org_name/:product_name/devices/new", Live.Devices.New)
       live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show)
-      live("/org/:org_name/:product_name/devices/:device_identifier/edit", Live.Devices.Edit)
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/settings",
+        Live.Devices.Settings
+      )
 
       live("/org/:org_name/:product_name/firmware", Live.Firmware, :index)
       live("/org/:org_name/:product_name/firmware/upload", Live.Firmware, :upload)
