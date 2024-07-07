@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Live.Org.Users do
 
   @impl Phoenix.LiveView
   def handle_event("send_invite", %{"invite" => invite_params}, socket) do
-    authorized!(:invite_user, socket.assigns.org_user)
+    authorized!(:"org_user:invite", socket.assigns.org_user)
 
     case Accounts.add_or_invite_to_org(invite_params, socket.assigns.org, socket.assigns.user) do
       {:ok, %Invite{} = invite} ->
@@ -57,7 +57,7 @@ defmodule NervesHubWeb.Live.Org.Users do
         {:noreply,
          socket
          |> put_flash(:info, "User has been invited")
-         |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/users")}
+         |> push_patch(to: ~p"/orgs/#{hashid(socket.assigns.org)}/settings/users")}
 
       {:ok, %OrgUser{}} ->
         SwooshEmail.org_user_created(
@@ -70,7 +70,7 @@ defmodule NervesHubWeb.Live.Org.Users do
         {:noreply,
          socket
          |> put_flash(:info, "User has been added to #{socket.assigns.org.name}")
-         |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/users")}
+         |> push_patch(to: ~p"/orgs/#{hashid(socket.assigns.org)}/settings/users")}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
@@ -78,7 +78,7 @@ defmodule NervesHubWeb.Live.Org.Users do
   end
 
   def handle_event("rescind_invite", %{"invite_token" => invite_token}, socket) do
-    authorized!(:rescind_invite, socket.assigns.org_user)
+    authorized!(:"org_user:invite:rescind", socket.assigns.org_user)
 
     case Accounts.delete_invite(socket.assigns.org, invite_token) do
       {:ok, _} ->
@@ -98,8 +98,8 @@ defmodule NervesHubWeb.Live.Org.Users do
     end
   end
 
-  def handle_event("update_org_user", %{"org_user" => params}, socket) do
-    authorized!(:update_org_user, socket.assigns.org_user)
+  def handle_event("update-org-user", %{"org_user" => params}, socket) do
+    authorized!(:"org_user:update", socket.assigns.org_user)
 
     {:ok, role} = Map.fetch(params, "role")
 
@@ -107,7 +107,7 @@ defmodule NervesHubWeb.Live.Org.Users do
       {:noreply,
        socket
        |> put_flash(:info, "Role updated")
-       |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/users")}
+       |> push_patch(to: ~p"/orgs/#{hashid(socket.assigns.org)}/settings/users")}
     else
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Error updating role")}
@@ -115,7 +115,7 @@ defmodule NervesHubWeb.Live.Org.Users do
   end
 
   def handle_event("delete_org_user", %{"user_id" => user_id}, socket) do
-    authorized!(:delete_org_user, socket.assigns.org_user)
+    authorized!(:"org_user:delete", socket.assigns.org_user)
 
     {:ok, user} = Accounts.get_user(user_id)
 

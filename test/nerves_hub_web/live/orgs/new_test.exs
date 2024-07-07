@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Live.Orgs.NewTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.Accounts
+
   describe "new org" do
     test "requires a name", %{conn: conn} do
       conn
@@ -29,7 +31,10 @@ defmodule NervesHubWeb.Live.Orgs.NewTest do
       |> assert_has("h1", text: "Create New Organization")
       |> fill_in("Organization Name", with: "my-big-org")
       |> click_button("Create Organization")
-      |> assert_path("/org/my-big-org")
+      |> tap(fn view ->
+        {:ok, org} = Accounts.get_org_by_name("my-big-org")
+        assert_path(view, "/orgs/#{hashid(org)}")
+      end)
       |> assert_has("h3", text: "my-big-org doesn’t have any products yet")
     end
   end

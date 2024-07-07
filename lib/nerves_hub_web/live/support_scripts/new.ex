@@ -7,22 +7,22 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     socket
-    |> page_title("New Support Script - #{socket.assigns.org.name}")
+    |> page_title("New Support Script - #{socket.assigns.product.name}")
     |> assign(:form, to_form(Script.changeset(%Script{}, %{})))
     |> ok()
   end
 
   @impl Phoenix.LiveView
   def handle_event("create_script", %{"script" => script_params}, socket) do
-    authorized!(:create_support_script, socket.assigns.org_user)
+    authorized!(:"support_script:create", socket.assigns.org_user)
 
-    %{org: org, product: product} = socket.assigns
+    %{product: product} = socket.assigns
 
     case Scripts.create(product, script_params) do
       {:ok, _command} ->
         socket
         |> put_flash(:info, "Support Script created")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/scripts")
+        |> push_navigate(to: ~p"/products/#{hashid(product)}/scripts")
         |> noreply()
 
       {:error, changeset} ->

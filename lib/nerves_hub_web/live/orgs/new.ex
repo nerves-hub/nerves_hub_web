@@ -21,7 +21,7 @@ defmodule NervesHubWeb.Live.Orgs.New do
       {:noreply,
        socket
        |> put_flash(:info, "Organization created successfully.")
-       |> push_navigate(to: ~p"/org/#{org.name}")}
+       |> push_navigate(to: ~p"/orgs/#{hashid(org)}")}
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}

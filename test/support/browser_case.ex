@@ -16,12 +16,21 @@ defmodule NervesHubWeb.ConnCase.Browser do
       import Phoenix.LiveViewTest
       import PhoenixTest
 
+      import NervesHubWeb.Helpers.Hashids
+
       @moduletag :tmp_dir
 
       setup context do
         fixture = Fixtures.standard_fixture(context.tmp_dir)
 
-        %{org: org, org_key: org_key, user: user, product: product, device: device} = fixture
+        %{
+          org: org,
+          org_key: org_key,
+          user: user,
+          product: product,
+          device: device,
+          deployment: deployment
+        } = fixture
 
         conn =
           build_conn()
@@ -36,7 +45,8 @@ defmodule NervesHubWeb.ConnCase.Browser do
           fixture: fixture,
           org_key: org_key,
           product: product,
-          device: device
+          device: device,
+          deployment: deployment
         }
       end
     end

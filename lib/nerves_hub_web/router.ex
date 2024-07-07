@@ -27,20 +27,8 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.Plugs.AdminBasicAuth)
   end
 
-  pipeline :org do
-    plug(NervesHubWeb.Plugs.Org)
-  end
-
   pipeline :product do
     plug(NervesHubWeb.Plugs.Product)
-  end
-
-  pipeline :device do
-    plug(NervesHubWeb.Plugs.Device)
-  end
-
-  pipeline :deployment do
-    plug(NervesHubWeb.Plugs.Deployment)
   end
 
   pipeline :firmware do
@@ -72,7 +60,6 @@ defmodule NervesHubWeb.Router do
 
     get("/health", HealthCheckController, :health_check)
 
-    post("/users/register", UserController, :register)
     post("/users/auth", UserController, :auth)
     post("/users/login", UserController, :login)
 
@@ -202,6 +189,22 @@ defmodule NervesHubWeb.Router do
     post("/invite/:token", AccountController, :accept_invite)
   end
 
+  scope "/products/:hashid", NervesHubWeb do
+    pipe_through([:browser, :logged_in, :product])
+
+    get("/devices/export", ProductController, :devices_export)
+
+    scope "/devices/:identifier" do
+      get("/console", DeviceController, :console)
+      get("/certificate/:serial/download", DeviceController, :download_certificate)
+      get("/audit_logs/download", DeviceController, :export_audit_logs)
+    end
+
+    get("/archives/:uuid/download", DownloadController, :archive)
+    get("/firmware/:uuid/download", DownloadController, :firmware)
+    get("/deployments/:name/audit_logs/download", DeploymentController, :export_audit_logs)
+  end
+
   scope "/", NervesHubWeb do
     pipe_through([:browser, :live_logged_in])
 
@@ -226,20 +229,20 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser
       ] do
-      live("/org/:org_name", Live.Org.Products, :index)
-      live("/org/:org_name/new", Live.Org.Products, :new)
-      live("/org/:org_name/settings", Live.Org.Settings)
-      live("/org/:org_name/settings/keys", Live.Org.SigningKeys, :index)
-      live("/org/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
-      live("/org/:org_name/settings/users", Live.Org.Users, :index)
-      live("/org/:org_name/settings/users/invite", Live.Org.Users, :invite)
-      live("/org/:org_name/settings/users/:user_id/edit", Live.Org.Users, :edit)
-      live("/org/:org_name/settings/certificates", Live.Org.CertificateAuthorities, :index)
-      live("/org/:org_name/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
-      live("/org/:org_name/settings/delete", Live.Org.Delete)
+      live("/orgs/:hashid", Live.Org.Products, :index)
+      live("/orgs/:hashid/new", Live.Org.Products, :new)
+      live("/orgs/:hashid/settings", Live.Org.Settings)
+      live("/orgs/:hashid/settings/keys", Live.Org.SigningKeys, :index)
+      live("/orgs/:hashid/settings/keys/new", Live.Org.SigningKeys, :new)
+      live("/orgs/:hashid/settings/users", Live.Org.Users, :index)
+      live("/orgs/:hashid/settings/users/invite", Live.Org.Users, :invite)
+      live("/orgs/:hashid/settings/users/:user_id/edit", Live.Org.Users, :edit)
+      live("/orgs/:hashid/settings/certificates", Live.Org.CertificateAuthorities, :index)
+      live("/orgs/:hashid/settings/certificates/new", Live.Org.CertificateAuthorities, :new)
+      live("/orgs/:hashid/settings/delete", Live.Org.Delete)
 
       live(
-        "/org/:org_name/settings/certificates/:serial/edit",
+        "/orgs/:hashid/settings/certificates/:serial/edit",
         Live.Org.CertificateAuthorities,
         :edit
       )
@@ -249,66 +252,32 @@ defmodule NervesHubWeb.Router do
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
         NervesHubWeb.Mounts.CurrentPath,
-        NervesHubWeb.Mounts.FetchOrg,
-        NervesHubWeb.Mounts.FetchOrgUser,
-        NervesHubWeb.Mounts.FetchProduct
+        NervesHubWeb.Mounts.FetchProduct,
+        NervesHubWeb.Mounts.FetchOrgUser
       ] do
-      live("/org/:org_name/:product_name/devices", Live.Devices.Index)
-      live("/org/:org_name/:product_name/devices/new", Live.Devices.New)
-      live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show)
-      live("/org/:org_name/:product_name/devices/:device_identifier/edit", Live.Devices.Edit)
+      live("/products/:hashid/devices", Live.Devices.Index)
+      live("/products/:hashid/devices/new", Live.Devices.New)
+      live("/products/:hashid/devices/:device_identifier", Live.Devices.Show)
+      live("/products/:hashid/devices/:device_identifier/edit", Live.Devices.Edit)
 
-      live("/org/:org_name/:product_name/firmware", Live.Firmware, :index)
-      live("/org/:org_name/:product_name/firmware/upload", Live.Firmware, :upload)
-      live("/org/:org_name/:product_name/firmware/:firmware_uuid", Live.Firmware, :show)
+      live("/products/:hashid/firmware", Live.Firmware, :index)
+      live("/products/:hashid/firmware/upload", Live.Firmware, :upload)
+      live("/products/:hashid/firmware/:firmware_uuid", Live.Firmware, :show)
 
-      live("/org/:org_name/:product_name/archives", Live.Archives, :index)
-      live("/org/:org_name/:product_name/archives/upload", Live.Archives, :upload)
-      live("/org/:org_name/:product_name/archives/:archive_uuid", Live.Archives, :show)
+      live("/products/:hashid/archives", Live.Archives, :index)
+      live("/products/:hashid/archives/upload", Live.Archives, :upload)
+      live("/products/:hashid/archives/:archive_uuid", Live.Archives, :show)
 
-      live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)
-      live("/org/:org_name/:product_name/scripts/new", Live.SupportScripts.New)
-      live("/org/:org_name/:product_name/scripts/:script_id/edit", Live.SupportScripts.Edit)
+      live("/products/:hashid/deployments", Live.Deployments.Index)
+      live("/products/:hashid/deployments/new", Live.Deployments.New)
+      live("/products/:hashid/deployments/:name", Live.Deployments.Show)
+      live("/products/:hashid/deployments/:name/edit", Live.Deployments.Edit)
 
-      live("/org/:org_name/:product_name/settings", Live.Product.Settings)
-    end
-  end
+      live("/products/:hashid/scripts", Live.SupportScripts.Index)
+      live("/products/:hashid/scripts/new", Live.SupportScripts.New)
+      live("/products/:hashid/scripts/:script_id/edit", Live.SupportScripts.Edit)
 
-  scope "/org/:org_name/:product_name", NervesHubWeb do
-    pipe_through([:browser, :logged_in, :org, :product])
-
-    scope "/devices" do
-      get("/export", ProductController, :devices_export)
-
-      scope "/:device_identifier" do
-        pipe_through(:device)
-
-        get("/console", DeviceController, :console)
-
-        get("/certificate/:cert_serial/download", DeviceController, :download_certificate)
-        get("/audit_logs/download", DeviceController, :export_audit_logs)
-      end
-    end
-
-    get("/archives/:uuid/download", DownloadController, :archive)
-    get("/firmware/:uuid/download", DownloadController, :firmware)
-
-    scope "/deployments" do
-      get("/", DeploymentController, :index)
-      post("/", DeploymentController, :create)
-      get("/new", DeploymentController, :new)
-
-      scope "/:deployment_name" do
-        pipe_through(:deployment)
-
-        get("/", DeploymentController, :show)
-        get("/edit", DeploymentController, :edit)
-        patch("/", DeploymentController, :update)
-        put("/", DeploymentController, :update)
-        post("/toggle", DeploymentController, :toggle)
-        delete("/", DeploymentController, :delete)
-        get("/audit_logs/download", DeploymentController, :export_audit_logs)
-      end
+      live("/products/:hashid/settings", Live.Product.Settings)
     end
   end
 

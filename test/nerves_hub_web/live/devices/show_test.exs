@@ -15,12 +15,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   describe "handle_event" do
-    test "delete device", %{conn: conn, org: org, product: product, device: device} do
+    test "delete device", %{conn: conn, product: product, device: device} do
       conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> visit("/products/#{hashid(product)}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> click_button("Delete")
-      |> assert_path("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_path("/products/#{hashid(product)}/devices/#{device.identifier}")
       |> assert_has("div.alert div center", text: "Device is deleted and must be restored to use")
 
       device = Devices.get_device(device.id)
@@ -77,7 +77,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
-  def device_show_path(%{device: device, org: org, product: product}) do
-    ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}"
+  def device_show_path(%{device: device, product: product}) do
+    ~p"/products/#{hashid(product)}/devices/#{device.identifier}"
   end
 end

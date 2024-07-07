@@ -16,13 +16,13 @@ defmodule NervesHubWeb.Live.Org.Settings do
 
   @impl Phoenix.LiveView
   def handle_event("update", %{"org" => org_params}, socket) do
-    authorized!(:update_organization, socket.assigns.org_user)
+    authorized!(:"organization:update", socket.assigns.org_user)
 
     case Accounts.update_org(socket.assigns.org, org_params) do
       {:ok, org} ->
         socket
         |> put_flash(:info, "Organization updated")
-        |> push_navigate(to: ~p"/org/#{org.name}/settings")
+        |> push_navigate(to: ~p"/orgs/#{hashid(org)}/settings")
         |> noreply()
 
       {:error, changeset} ->

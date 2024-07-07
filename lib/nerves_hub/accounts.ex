@@ -126,6 +126,15 @@ defmodule NervesHub.Accounts do
     |> Repo.update()
   end
 
+  def get_org_user!(org, user) do
+    OrgUser
+    |> where([ou], ou.org_id == ^org.id)
+    |> where([ou], ou.user_id == ^user.id)
+    |> OrgUser.with_user()
+    |> Repo.exclude_deleted()
+    |> Repo.one!()
+  end
+
   def get_org_user(org, user) do
     OrgUser
     |> where([ou], ou.org_id == ^org.id)
@@ -234,8 +243,10 @@ defmodule NervesHub.Accounts do
   def get_user_with_all_orgs_and_products(user_id) do
     User
     |> where(id: ^user_id)
+    |> join(:left, [u], o in assoc(u, :orgs))
+    |> join(:left, [u, o], p in assoc(o, :products))
     |> Repo.exclude_deleted()
-    |> preload(orgs: [:products])
+    |> preload([u, o, p], orgs: {o, products: p})
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}

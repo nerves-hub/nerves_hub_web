@@ -18,17 +18,17 @@ defmodule NervesHubWeb.Live.Devices.New do
   def handle_event("save-device", %{"device" => device_params}, socket) do
     authorized!(:"device:create", socket.assigns.org_user)
 
-    %{org: org, product: product} = socket.assigns
+    %{product: product} = socket.assigns
 
     device_params
-    |> Map.put("org_id", org.id)
+    |> Map.put("org_id", product.org.id)
     |> Map.put("product_id", product.id)
     |> Devices.create_device()
     |> case do
       {:ok, _device} ->
         socket
         |> put_flash(:info, "Device created successfully.")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
+        |> push_navigate(to: ~p"/products/#{hashid(product)}/devices")
         |> noreply()
 
       {:error, changeset} ->

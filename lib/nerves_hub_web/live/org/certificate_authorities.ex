@@ -59,13 +59,13 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
       {:error, :not_found} ->
         socket
         |> put_flash(:error, "Certificate Authority not found")
-        |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/certificates")
+        |> push_patch(to: ~p"/orgs/#{hashid(socket.assigns.org)}/settings/certificates")
     end
   end
 
   @impl Phoenix.LiveView
-  def handle_event("delete_certificate_authority", %{"certificate_serial" => serial}, socket) do
-    authorized!(:delete_certificate_authority, socket.assigns.org_user)
+  def handle_event("delete-certificate-authority", %{"certificate_serial" => serial}, socket) do
+    authorized!(:"certificate_authority:delete", socket.assigns.org_user)
 
     with {:ok, ca_certificate} <-
            Devices.get_ca_certificate_by_org_and_serial(socket.assigns.org, serial),
@@ -86,14 +86,14 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   end
 
   def handle_event("update_certificate_authority", %{"ca_certificate" => ca_certificate}, socket) do
-    authorized!(:update_certificate_authority, socket.assigns.org_user)
+    authorized!(:"certificate_authority:update", socket.assigns.org_user)
 
     with {:ok, cert} <- Devices.get_ca_certificate_by_serial(socket.assigns.serial),
          {:ok, params} <- maybe_delete_jitp(ca_certificate),
          {:ok, _cert} <- Devices.update_ca_certificate(cert, params) do
       socket
       |> put_flash(:info, "Certificate Authority updated")
-      |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/certificates")
+      |> push_patch(to: ~p"/orgs/#{hashid(socket.assigns.org)}/settings/certificates")
       |> noreply()
     else
       {:error, :not_found} ->
@@ -115,7 +115,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   end
 
   def handle_event("add_certificate_authority", %{"ca_certificate" => params}, socket) do
-    authorized!(:add_certificate_authority, socket.assigns.org_user)
+    authorized!(:"certificate_authority:create", socket.assigns.org_user)
 
     socket = set_show_jitp_form(socket, params)
 
@@ -143,7 +143,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
          {:ok, _ca_certificate} <- Devices.create_ca_certificate(socket.assigns.org, params) do
       socket
       |> put_flash(:info, "Certificate Authority created")
-      |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/certificates")
+      |> push_patch(to: ~p"/orgs/#{hashid(socket.assigns.org)}/settings/certificates")
       |> noreply()
     else
       {:error, :empty_cert} ->

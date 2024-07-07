@@ -21,7 +21,7 @@ defmodule NervesHubWeb.Live.Firmware do
     socket
     |> page_title("Firmware - #{product.name}")
     |> assign(:firmware, Firmwares.get_firmwares_by_product(product.id))
-    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
+    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.product.org))
     |> render_with(&list_firmware_template/1)
   end
 
@@ -33,7 +33,7 @@ defmodule NervesHubWeb.Live.Firmware do
     socket
     |> page_title("Firmware #{firmware_uuid} - #{product.name}")
     |> assign(:firmware, firmware)
-    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
+    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.product.org))
     |> render_with(&show_firmware_template/1)
   end
 
@@ -58,7 +58,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # the delete handler for the list page
   def handle_event("delete-firmware", %{"firmware_uuid" => uuid}, socket) do
-    authorized!(:delete_firmware, socket.assigns.org_user)
+    authorized!(:"firmware:delete", socket.assigns.org_user)
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(socket.assigns.product, uuid)
 
@@ -76,9 +76,9 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # the delete handler for the show page
   def handle_event("delete-firmware", _params, socket) do
-    authorized!(:delete_firmware, socket.assigns.org_user)
+    authorized!(:"firmware:delete", socket.assigns.org_user)
 
-    %{org: org, product: product, firmware: firmware} = socket.assigns
+    %{product: product, firmware: firmware} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, firmware.uuid)
 
@@ -86,7 +86,7 @@ defmodule NervesHubWeb.Live.Firmware do
       {:ok, _} ->
         socket
         |> put_flash(:info, "Firmware successfully deleted")
-        |> push_patch(to: ~p"/org/#{org.name}/#{product.name}/firmware")
+        |> push_patch(to: ~p"/products/#{hashid(product)}/firmware")
         |> noreply()
 
       {:error, changeset} ->
@@ -95,7 +95,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   def handle_progress(:firmware, entry, socket) do
-    authorized!(:upload_firmware, socket.assigns.org_user)
+    authorized!(:"firmware:upload", socket.assigns.org_user)
 
     if entry.done? do
       [filepath] =
@@ -116,13 +116,11 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   defp create_firmware(socket, filepath) do
-    case Firmwares.create_firmware(socket.assigns.org, filepath) do
+    case Firmwares.create_firmware(socket.assigns.product.org, filepath) do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Firmware uploaded")
-        |> push_patch(
-          to: ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/firmware"
-        )
+        |> push_patch(to: ~p"/products/#{hashid(socket.assigns.product)}/firmware")
         |> noreply()
 
       {:error, :no_public_keys} ->

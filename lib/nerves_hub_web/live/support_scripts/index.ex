@@ -12,7 +12,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   end
 
   def handle_event("delete-support-script", %{"script_id" => script_id}, socket) do
-    authorized!(:delete_support_script, socket.assigns.org_user)
+    authorized!(:"support_script:delete", socket.assigns.org_user)
 
     %{product: product} = socket.assigns
 

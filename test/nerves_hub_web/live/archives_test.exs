@@ -10,7 +10,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       product = Fixtures.product_fixture(user, org)
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/archives")
+      |> visit("/products/#{hashid(product)}/archives")
       |> assert_has("h3", text: "#{product.name} doesn’t have any archives yet")
     end
 
@@ -20,7 +20,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/archives")
+      |> visit("/products/#{hashid(product)}/archives")
       |> assert_has("h1", text: "Archives")
       |> assert_has("a", text: archive.uuid)
     end
@@ -31,7 +31,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/archives")
+      |> visit("/products/#{hashid(product)}/archives")
       |> assert_has("h1", text: "Archives")
       |> assert_has("a", text: archive.uuid)
       |> click_link("Delete")
@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/archives/#{archive.uuid}")
+      |> visit("/products/#{hashid(product)}/archives/#{archive.uuid}")
       |> assert_has("h1", text: "Archive #{archive.version}")
     end
 
@@ -57,16 +57,17 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/archives/#{archive.uuid}")
+      |> visit("/products/#{hashid(product)}/archives/#{archive.uuid}")
       |> assert_has("h1", text: "Archive #{archive.version}")
       |> click_link("Delete")
-      |> assert_path("/org/#{org.name}/#{product.name}/archives")
+      |> assert_path("/products/#{hashid(product)}/archives")
       |> assert_has("div", text: "Archive successfully deleted")
       |> assert_has("h3", text: "#{product.name} doesn’t have any archives yet")
     end
   end
 
   describe "upload archive" do
+    @tag :tmp_dir
     test "redirects after successful upload", %{
       conn: conn,
       user: user,
@@ -85,7 +86,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
         })
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/archives/upload")
+      |> visit("/products/#{hashid(product)}/archives/upload")
       |> assert_has("h1", text: "Add Archive")
       |> unwrap(fn view ->
         file_input(view, "form", :archive, [
@@ -98,7 +99,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
 
         render(view)
       end)
-      |> assert_path("/org/#{org.name}/#{product.name}/archives")
+      |> assert_path("/products/#{hashid(product)}/archives")
       |> assert_has("div", text: "Archive uploaded")
       |> assert_has("h1", text: "Archives")
     end
@@ -123,7 +124,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       {:ok, corrupt_archive_path} = Fwup.corrupt_firmware_file(signed_archive_path, tmp_dir)
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/archives/upload")
+      |> visit("/products/#{hashid(product)}/archives/upload")
       |> assert_has("h1", text: "Add Archive")
       |> unwrap(fn view ->
         file_input(view, "form", :archive, [
@@ -136,10 +137,11 @@ defmodule NervesHubWeb.Live.ArchivesTest do
 
         render(view)
       end)
-      |> assert_path("/org/#{org.name}/#{product.name}/archives/upload")
+      |> assert_path("/products/#{hashid(product)}/archives/upload")
       |> assert_has("div", text: "Archive corrupt, signature invalid, or missing public key")
     end
 
+    @tag :tmp_dir
     test "error if org keys do not match firmware", %{
       conn: conn,
       user: user,
@@ -159,7 +161,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
         })
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/archives/upload")
+      |> visit("/products/#{hashid(product)}/archives/upload")
       |> assert_has("h1", text: "Add Archive")
       |> unwrap(fn view ->
         file_input(view, "form", :archive, [
@@ -172,7 +174,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
 
         render(view)
       end)
-      |> assert_path("/org/#{org.name}/#{product.name}/archives/upload")
+      |> assert_path("/products/#{hashid(product)}/archives/upload")
       |> assert_has("div", text: "Archive corrupt, signature invalid, or missing public key")
     end
   end

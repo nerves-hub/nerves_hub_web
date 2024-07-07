@@ -19,9 +19,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias Phoenix.Socket.Broadcast
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
-    %{org: org} = socket.assigns
+    %{product: product} = socket.assigns
 
-    {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
+    {:ok, device} = Devices.get_device_by_identifier(product.org, device_identifier)
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
@@ -198,7 +198,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("destroy", _, socket) do
-    %{org: org, org_user: org_user, product: product, device: device} = socket.assigns
+    %{org_user: org_user, product: product, device: device} = socket.assigns
 
     authorized!(:"device:destroy", org_user)
 
@@ -206,7 +206,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> put_flash(:info, "Device destroyed successfully.")
-    |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
+    |> push_navigate(to: ~p"/products/#{hashid(product)}/devices")
     |> noreply()
   end
 
