@@ -1,9 +1,9 @@
 <div class="action-row">
-  <.link patch={~p"/org/#{@org.name}/#{@product.name}/archives"} class="back-link">
+  <.link patch={~p"/products/#{hashid(@product)}/archives"} class="back-link">
     All Archives
   </.link>
   <div class="btn-group" role="group" aria-label="Device Actions">
-    <.link class="btn btn-outline-light btn-action" aria-label="Download" href={~p"/org/#{@org.name}/#{@product.name}/archives/#{@archive.uuid}/download"} download>
+    <.link class="btn btn-outline-light btn-action" aria-label="Download" href={~p"/products/#{hashid(@product)}/archives/#{@archive.uuid}/download"} download>
       <span class="button-icon download"></span>
       <span class="action-text">Download</span>
     </.link>

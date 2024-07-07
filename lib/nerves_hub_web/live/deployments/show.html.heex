@@ -1,5 +1,5 @@
 <div class="action-row">
-  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments"} class="back-link">
+  <.link navigate={~p"/products/#{hashid(@product)}/deployments"} class="back-link">
     All Deployments
   </.link>
   <div class="btn-group" role="group" aria-label="Deployment Actions">
@@ -8,7 +8,7 @@
       <span class="action-text">Turn <%= opposite_status(@deployment) %></span>
     </.link>
 
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/edit"} class="btn btn-outline-light btn-action" aria-label="Edit">
+    <.link navigate={~p"/products/#{hashid(@product)}/deployments/#{@deployment.name}/edit"} class="btn btn-outline-light btn-action" aria-label="Edit">
       <span class="button-icon edit"></span>
       <span class="action-text">Edit</span>
     </.link>
@@ -18,7 +18,7 @@
       <span class="action-text">Delete</span>
     </.link>
 
-    <.link href={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/audit_logs/download"} class="btn btn-outline-light btn-action" aria-label="Download Audit Logs" download>
+    <.link href={~p"/products/#{hashid(@product)}/deployments/#{@deployment.name}/audit_logs/download"} class="btn btn-outline-light btn-action" aria-label="Download Audit Logs" download>
       <div class="button-icon download"></div>
       <span class="action-text">Download Audit Logs</span>
     </.link>
@@ -56,7 +56,7 @@
         <div>
           <div class="help-text mb-1">Firmware version</div>
           <span>
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@firmware.uuid}"} class="badge ff-m">
+            <.link navigate={~p"/products/#{hashid(@product)}/firmware/#{@firmware.uuid}"} class="badge ff-m">
               <%= firmware_summary(@firmware) %>
             </.link>
           </span>
@@ -172,7 +172,7 @@
     <div id="inflight-update-badges">
       <%= for inflight_update <- @inflight_updates do %>
         <span class="ff-m badge">
-          <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{inflight_update.device.identifier}"}>
+          <.link navigate={~p"/products/#{hashid(@product)}/devices/#{inflight_update.device.identifier}"}>
             <%= inflight_update.device.identifier %>
           </.link>
         </span>

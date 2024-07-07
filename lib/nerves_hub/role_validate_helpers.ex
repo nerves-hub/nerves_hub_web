@@ -7,6 +7,10 @@ defmodule NervesHub.RoleValidateHelpers do
     validate_org_user_role(conn, org, user, role)
   end
 
+  def validate_role(%{assigns: %{product: product, user: user}} = conn, org: role) do
+    validate_org_user_role(conn, product.org, user, role)
+  end
+
   def validate_role(conn, [{key, value}]) do
     halt_role(conn, "#{key} #{value}")
   end

@@ -19,7 +19,7 @@ defmodule NervesHubWeb.Live.Deployments.NewTest do
         Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "taramasalata"})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployments/new")
+      |> visit("/products/#{hashid(product)}/deployments/new")
       |> assert_has("h1", text: "Create Deployment")
       |> assert_has("option", text: "Choose a platform")
       |> select(firmware.platform, from: "Platform")
@@ -27,7 +27,7 @@ defmodule NervesHubWeb.Live.Deployments.NewTest do
       |> fill_in("Tag(s) distributed to", with: "josh, lars")
       |> fill_in("Firmware version", with: firmware.id)
       |> click_button("Create Deployment")
-      |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployments"))
+      |> assert_path("/products/#{hashid(product)}/deployments")
       |> assert_has("h1", text: "Deployments")
       |> assert_has("div", text: "Deployment created")
       |> assert_has("a", text: "Moussaka")
@@ -48,14 +48,14 @@ defmodule NervesHubWeb.Live.Deployments.NewTest do
         Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir, platform: "taramasalata"})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployments/new")
+      |> visit("/products/#{hashid(product)}/deployments/new")
       |> select(firmware.platform, from: "Platform")
       |> unwrap(fn view ->
         view
         |> element("form")
         |> render_submit(%{deployment: %{"firmware_id" => -1}})
       end)
-      |> assert_path("/org/#{org.name}/#{product.name}/deployments/new")
+      |> assert_path("/products/#{hashid(product)}/deployments/new")
       |> assert_has("div", text: "Invalid firmware selected")
     end
 
@@ -70,8 +70,8 @@ defmodule NervesHubWeb.Live.Deployments.NewTest do
         |> init_test_session(%{"auth_user_id" => user.id})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployments/new")
-      |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/firmware/upload"))
+      |> visit("/products/#{hashid(product)}/deployments/new")
+      |> assert_path("/products/#{hashid(product)}/firmware/upload")
       |> assert_has("h1", text: "Add Firmware")
       |> assert_has("div",
         text: "You must upload a firmware version before creating a deployment"

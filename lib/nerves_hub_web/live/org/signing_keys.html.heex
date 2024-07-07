@@ -1,7 +1,7 @@
 <%= if @live_action == :index do %>
   <div class="action-row">
     <h1>Signing Keys</h1>
-    <.link patch={~p"/org/#{@org.name}/settings/keys/new"} class="btn btn-outline-light btn-action" aria-label="Add new signing key">
+    <.link patch={~p"/orgs/#{hashid(@org.name)}/settings/keys/new"} class="btn btn-outline-light btn-action" aria-label="Add new signing key">
       <span class="button-icon add"></span>
       <span class="action-text">Add Key</span>
     </.link>
@@ -58,7 +58,7 @@
     </div>
 
     <div class="button-submit-wrapper">
-      <.link patch={~p"/org/#{@org.name}/settings/keys"} class="btn btn-outline-light">Back</.link>
+      <.link patch={~p"/orgs/#{hashid(@org)}/settings/keys"} class="btn btn-outline-light">Back</.link>
       <%= submit("Create Key", class: "btn btn-primary") %>
     </div>
   </.form>

@@ -8,13 +8,13 @@ defmodule NervesHubWeb.Live.Deployments.New do
   alias NervesHub.Firmwares.Firmware
 
   @impl Phoenix.LiveView
-  def mount(_params, _session, %{assigns: %{org: org, product: product}} = socket) do
+  def mount(_params, _session, %{assigns: %{product: product}} = socket) do
     firmware = Firmwares.get_firmwares_by_product(socket.assigns.product.id)
 
     if Enum.empty?(firmware) do
       socket
       |> put_flash(:error, "You must upload a firmware version before creating a deployment")
-      |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/firmware/upload")
+      |> push_navigate(to: ~p"/products/#{hashid(product)}/firmware/upload")
       |> ok()
     else
       platforms =
@@ -55,16 +55,16 @@ defmodule NervesHubWeb.Live.Deployments.New do
   def handle_event("create-deployment", %{"deployment" => params}, socket) do
     authorized!(:"deployment:create", socket.assigns.org_user)
 
-    %{user: user, org: org, product: product} = socket.assigns
+    %{user: user, product: product} = socket.assigns
 
     params =
       params
       |> inject_conditions_map()
       |> whitelist([:name, :conditions, :firmware_id])
-      |> Map.put(:org_id, org.id)
+      |> Map.put(:org_id, product.org.id)
       |> Map.put(:is_active, false)
 
-    org
+    product.org
     |> Firmwares.get_firmware(params[:firmware_id])
     |> case do
       {:ok, firmware} ->
@@ -88,7 +88,7 @@ defmodule NervesHubWeb.Live.Deployments.New do
 
         socket
         |> put_flash(:info, "Deployment created")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployments")
+        |> push_navigate(to: ~p"/products/#{hashid(product)}/deployments")
         |> noreply()
 
       {_firmware, {:error, changeset}} ->

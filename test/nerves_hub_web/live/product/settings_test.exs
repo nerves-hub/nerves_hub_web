@@ -10,7 +10,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       refute product.delta_updatable
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> visit("/products/#{hashid(product)}/settings")
       |> assert_has("h1", text: "Product Settings")
       |> check("Enable delta firmware updates")
 
@@ -24,11 +24,11 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       product = Fixtures.product_fixture(user, org, %{delta_updatable: false})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> visit("/products/#{hashid(product)}/settings")
       |> assert_has("h1", text: "Product Settings")
       |> click_button("Remove Product")
       |> assert_has("div", text: "Product deleted successfully.")
-      |> assert_path("/org/#{org.name}")
+      |> assert_path("/orgs/#{hashid(org)}")
 
       product = NervesHub.Repo.reload(product)
       refute is_nil(product.deleted_at)
@@ -50,7 +50,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       product = Fixtures.product_fixture(user, org, %{})
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> visit("/products/#{hashid(product)}/settings")
       |> assert_has("p", text: "This feature hasn't been enabled for this server.")
     end
 
@@ -61,7 +61,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
       conn =
         conn
-        |> visit("/org/#{org.name}/#{product.name}/settings")
+        |> visit("/products/#{hashid(product)}/settings")
         |> click_button("Add your first Shared Secret.")
 
       for ss <- Products.load_shared_secret_auth(product).shared_secret_auths do
@@ -77,7 +77,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
       {:ok, _} = Products.create_shared_secret_auth(product)
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/settings")
+      |> visit("/products/#{hashid(product)}/settings")
       |> tap(fn conn ->
         for ss <- Products.load_shared_secret_auth(product).shared_secret_auths do
           assert_has(conn, "td", text: ss.key)

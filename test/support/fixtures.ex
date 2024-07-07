@@ -127,7 +127,8 @@ defmodule NervesHub.Fixtures do
       |> Enum.into(@product_params)
 
     {:ok, product} = Products.create_product(params)
-    product
+
+    Repo.preload(product, :org)
   end
 
   @spec firmware_file_fixture(OrgKey.t(), Product.t()) :: String.t()

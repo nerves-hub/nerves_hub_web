@@ -142,32 +142,32 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Devices",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/devices"
+        href: ~p"/products/#{hashid(conn.assigns.product)}/devices"
       },
       %{
         title: "Firmware",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/firmware"
+        href: ~p"/products/#{hashid(conn.assigns.product)}/firmware"
       },
       %{
         title: "Archives",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/archives"
+        href: ~p"/products/#{hashid(conn.assigns.product)}/archives"
       },
       %{
         title: "Deployments",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/deployments"
+        href: ~p"/products/#{hashid(conn.assigns.product)}/deployments"
       },
       %{
         title: "Scripts",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/scripts"
+        href: ~p"/products/#{hashid(conn.assigns.product)}/scripts"
       },
       %{
         title: "Settings",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/settings"
+        href: ~p"/products/#{hashid(conn.assigns.product)}/settings"
       }
     ]
     |> sidebar_active(conn)

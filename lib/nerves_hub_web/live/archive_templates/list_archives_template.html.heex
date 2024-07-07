@@ -2,7 +2,7 @@
   <div class="no-results-blowup-wrapper">
     <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any archives yet</h3>
     <div class="flex-row align-items-center mt-3">
-      <.link patch={~p"/org/#{@org.name}/#{@product.name}/archives/upload"} class="btn btn-outline-light" aria-label="Upload archive">
+      <.link patch={~p"/products/#{hashid(@product)}/archives/upload"} class="btn btn-outline-light" aria-label="Upload archive">
         <span class="button-icon add"></span>
         <span class="action-text">Upload Archive</span>
       </.link>
@@ -11,7 +11,7 @@
 <% else %>
   <div class="action-row">
     <h1>Archives</h1>
-    <.link patch={~p"/org/#{@org.name}/#{@product.name}/archives/upload"} class="btn btn-outline-light" aria-label="Upload archive">
+    <.link patch={~p"/products/#{hashid(@product)}/archives/upload"} class="btn btn-outline-light" aria-label="Upload archive">
       <span class="button-icon add"></span>
       <span class="action-text">Upload Archive</span>
     </.link>
@@ -33,7 +33,7 @@
       <td>
         <div class="mobile-label help-text">UUID</div>
         <div>
-          <.link patch={~p"/org/#{@org.name}/#{@product.name}/archives/#{archive.uuid}"} class="badge ff-m"><%= archive.uuid %></.link>
+          <.link patch={~p"/products/#{hashid(@product)}/archives/#{archive.uuid}"} class="badge ff-m"><%= archive.uuid %></.link>
         </div>
       </td>
       <td>
@@ -72,7 +72,7 @@
             <img src="/images/icons/more.svg" alt="options" />
           </a>
           <div class="dropdown-menu dropdown-menu-right">
-            <.link href={~p"/org/#{@org.name}/#{@product.name}/archives/#{archive.uuid}/download"} class="dropdown-item" download>
+            <.link href={~p"/products/#{hashid(@product)}/archives/#{archive.uuid}/download"} class="dropdown-item" download>
               Download
             </.link>
             <div class="dropdown-divider"></div>

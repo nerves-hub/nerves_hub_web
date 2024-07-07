@@ -3,7 +3,7 @@
     <img src="/images/firmware.svg" alt="No products" />
     <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any firmware yet</h3>
     <div class="flex-row align-items-center mt-3">
-      <.link patch={~p"/org/#{@org.name}/#{@product.name}/firmware/upload"} class="btn btn-outline-light" aria-label="Upload firmware">
+      <.link patch={~p"/products/#{hashid(@product)}/firmware/upload"} class="btn btn-outline-light" aria-label="Upload firmware">
         <span class="button-icon add"></span>
         <span class="action-text">Upload Firmware</span>
       </.link>
@@ -12,7 +12,7 @@
 <% else %>
   <div class="action-row">
     <h1>Firmware</h1>
-    <.link patch={~p"/org/#{@org.name}/#{@product.name}/firmware/upload"} class="btn btn-outline-light btn-action" aria-label="Upload firmware">
+    <.link patch={~p"/products/#{hashid(@product)}/firmware/upload"} class="btn btn-outline-light btn-action" aria-label="Upload firmware">
       <span class="button-icon add"></span>
       <span class="action-text">Upload Firmware</span>
     </.link>
@@ -35,7 +35,7 @@
         <td>
           <div class="mobile-label help-text">UUID</div>
           <div>
-            <.link patch={~p"/org/#{@org.name}/#{@product.name}/firmware/#{firmware.uuid}"} class="badge ff-m"><%= firmware.uuid %></.link>
+            <.link patch={~p"/products/#{hashid(@product)}/firmware/#{firmware.uuid}"} class="badge ff-m"><%= firmware.uuid %></.link>
           </div>
         </td>
         <td>
@@ -74,7 +74,7 @@
               <img src="/images/icons/more.svg" alt="options" />
             </a>
             <div class="dropdown-menu dropdown-menu-right">
-              <.link class="dropdown-item" href={~p"/org/#{@org.name}/#{@product.name}/firmware/#{firmware.uuid}/download"} download>
+              <.link class="dropdown-item" href={~p"/products/#{hashid(@product)}/firmware/#{firmware.uuid}/download"} download>
                 Download
               </.link>
               <div class="dropdown-divider"></div>

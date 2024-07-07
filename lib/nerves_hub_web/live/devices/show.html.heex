@@ -5,7 +5,7 @@
 </div>
 
 <div class="action-row">
-  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="back-link">
+  <.link navigate={~p"/products/#{hashid(@product)}/devices"} class="back-link">
     All Devices
   </.link>
   <div class="btn-group" role="group" aria-label="Device Actions">
@@ -31,7 +31,7 @@
         <span class="button-icon identify"></span>
         <span class="action-text">Identify</span>
       </button>
-      <%= link(class: "btn btn-outline-light btn-action", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
+      <%= link(class: "btn btn-outline-light btn-action", aria_label: "Console", target: "_blank", to: ~p"/products/#{hashid(@product)}/devices/#{@device.identifier}/console") do %>
         <span class="button-icon console-icon"></span>
         <span class="action-text">Console</span>
       <% end %>
@@ -43,7 +43,7 @@
         <span class="button-icon delete"></span>
         <span class="action-text">Delete</span>
       </button>
-      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/edit"} class="btn btn-outline-light btn-action" aria-label="Edit">
+      <.link navigate={~p"/products/#{hashid(@product)}/devices/#{@device.identifier}/edit"} class="btn btn-outline-light btn-action" aria-label="Edit">
         <span class="button-icon edit"></span>
         <span class="action-text">Edit</span>
       </.link>
@@ -51,7 +51,7 @@
   </div>
 </div>
 
-<DeviceHeader.render org={@org} product={@product} device={@device} status={@status} />
+<DeviceHeader.render product={@product} device={@device} status={@status} />
 
 <div class="row">
   <div class="col-lg-6">
@@ -80,7 +80,7 @@
         <div class="help-text mb-1">Alternate Deployments</div>
         <%= if !Enum.empty?(@deployments) do %>
           <%= for deployment <- @deployments do %>
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{deployment.name}"} class="badge">
+            <.link navigate={~p"/products/#{hashid(@product)}/deployments/#{deployment.name}"} class="badge">
               <div class={"deployment-state state-#{if deployment.is_active, do: "on", else: "off"}"}><%= deployment.name %></div>
             </.link>
           <% end %>
@@ -126,12 +126,7 @@
   <div class="device-header-group">
     <h3 class="mb-2">Latest Activity</h3>
 
-    <a
-      class="btn btn-outline-light btn-action"
-      title="Download Audit Logs"
-      aria-label="Download Audit Logs"
-      href={Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, @device.identifier)}
-    >
+    <a class="btn btn-outline-light btn-action" title="Download Audit Logs" aria-label="Download Audit Logs" href={~p"/products/#{hashid(@product)}/devices/#{@device.identifier}/audit_logs/download"}>
       <div class="button-icon download"></div>
     </a>
   </div>
@@ -219,13 +214,13 @@
             </a>
             <div class="dropdown-menu dropdown-menu-right">
               <%= if mismatch? do %>
-                <%= link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: ~p"/org/#{Repo.preload(cert, :org).org.name}") %>
+                <%= link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: ~p"/orgs/#{hashid(Repo.preload(cert, :org).org)}") %>
               <% end %>
               <%= if cert.der do %>
                 <%= link("Download",
                   class: "dropdown-item",
                   aria_label: "Download Device Certificate",
-                  to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)
+                  to: ~p"/products/#{hashid(@product)}/devices/#{@device.identifier}/certificate/#{cert.serial}/download"
                 ) %>
               <% end %>
               <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial={cert.serial} data-confirm={"Delete #{Utils.format_serial(cert.serial)}?"}>Delete</a>

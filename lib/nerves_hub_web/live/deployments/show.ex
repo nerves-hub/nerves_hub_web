@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
   def handle_event("delete", _params, socket) do
     authorized!(:"deployment:delete", socket.assigns.org_user)
 
-    %{deployment: deployment, org: org, product: product, user: user} = socket.assigns
+    %{deployment: deployment, product: product, user: user} = socket.assigns
 
     description = "#{user.name} deleted deployment #{deployment.name}"
 
@@ -74,7 +74,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
     socket
     |> put_flash(:info, "Deployment successfully deleted")
-    |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployments")
+    |> push_navigate(to: ~p"/products/#{hashid(product)}/deployments")
     |> noreply()
   end
 

@@ -44,7 +44,7 @@ defmodule NervesHubWeb.Live.Org.Products do
       {:ok, product} ->
         socket
         |> put_flash(:info, "Product created successfully.")
-        |> push_navigate(to: "/org/#{socket.assigns.org.name}/#{product.name}/devices")
+        |> push_navigate(to: "/products/#{hashid(product)}/devices")
         |> noreply()
 
       {:error, %Ecto.Changeset{} = changeset} ->

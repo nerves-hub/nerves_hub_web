@@ -39,6 +39,8 @@ defmodule NervesHubWeb do
 
       alias NervesHubWeb.Router.Helpers, as: Routes
 
+      import NervesHubWeb.Helpers.Hashids
+
       # Routes generation with the ~p sigil
       unquote(verified_routes())
 
@@ -131,6 +133,8 @@ defmodule NervesHubWeb do
 
       unquote(view_helpers())
 
+      import NervesHubWeb.Helpers.Hashids
+
       def ok(socket), do: {:ok, socket}
       def noreply(socket), do: {:noreply, socket}
 
@@ -179,6 +183,8 @@ defmodule NervesHubWeb do
 
       import NervesHubWeb.Components.SimpleActiveLink
 
+      import NervesHubWeb.Helpers.Hashids
+
       # Include shared imports and aliases for views
       unquote(view_helpers())
 
@@ -215,6 +221,8 @@ defmodule NervesHubWeb do
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
+
+      import NervesHubWeb.Helpers.Hashids
     end
   end
 

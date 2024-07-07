@@ -19,7 +19,7 @@ defmodule NervesHubWeb.Live.Deployments.EditTest do
 
     conn =
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}/edit")
+      |> visit("/products/#{hashid(product)}/deployments/#{deployment.name}/edit")
       |> assert_has("h1", text: "Edit Deployment")
       |> assert_has("a", text: product.name)
       |> fill_in("Deployment name", with: "Moussaka")
@@ -32,7 +32,7 @@ defmodule NervesHubWeb.Live.Deployments.EditTest do
 
     conn
     |> assert_path(
-      URI.encode("/org/#{org.name}/#{product.name}/deployments/#{reloaded_deployment.name}")
+      URI.encode("/products/#{hashid(product)}/deployments/#{reloaded_deployment.name}")
     )
     |> assert_has("div", text: "Deployment updated")
 
@@ -58,13 +58,13 @@ defmodule NervesHubWeb.Live.Deployments.EditTest do
     deployment = Fixtures.deployment_fixture(org, firmware)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}/edit")
+    |> visit("/products/#{hashid(product)}/deployments/#{deployment.name}/edit")
     |> assert_has("h1", text: "Edit Deployment")
     |> assert_has("a", text: product.name)
     |> fill_in("Tag(s) distributed to", with: "")
     |> fill_in("Version requirement", with: "")
     |> click_button("Save Change")
-    |> assert_path("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}/edit")
+    |> assert_path("/products/#{hashid(product)}/deployments/#{deployment.name}/edit")
     |> assert_has("div", text: "should have at least 1 item(s)")
   end
 end

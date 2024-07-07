@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     socket =
       socket
       |> assign(:page_title, "#{socket.assigns.product.name} Settings")
-      |> assign(:shared_secrets, socket.assigns.product.shared_secret_auths)
+      |> assign(:product, Products.load_shared_secret_auth(socket.assigns.product))
       |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
       |> assign(:form, to_form(Ecto.Changeset.change(socket.assigns.product)))
 
@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
     refreshed = Products.load_shared_secret_auth(socket.assigns.product)
 
-    {:noreply, assign(socket, :shared_secrets, refreshed.shared_secret_auths)}
+    {:noreply, assign(socket, :product, refreshed)}
   end
 
   def handle_event("copy-shared-secret", %{"value" => shared_secret_id}, socket) do
@@ -50,7 +50,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
     refreshed = Products.load_shared_secret_auth(product)
 
-    {:noreply, assign(socket, :shared_secrets, refreshed.shared_secret_auths)}
+    {:noreply, assign(socket, :product, refreshed)}
   end
 
   def handle_event("delete-product", _parmas, socket) do
@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       socket =
         socket
         |> put_flash(:info, "Product deleted successfully.")
-        |> push_navigate(to: ~p"/org/#{socket.assigns.org.name}")
+        |> push_navigate(to: ~p"/orgs/#{hashid(socket.assigns.product.org)}")
 
       {:noreply, socket}
     else

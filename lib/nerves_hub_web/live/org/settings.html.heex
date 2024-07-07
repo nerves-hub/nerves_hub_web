@@ -18,5 +18,5 @@
 <div class="border-bottom border-dark mt-5 mb-2"></div>
 
 <div>
-  <.link patch={~p"/org/#{@org.name}/settings/delete"} class="btn btn-primary">Delete Organization</.link>
+  <.link patch={~p"/orgs/#{hashid(@org)}/settings/delete"} class="btn btn-primary">Delete Organization</.link>
 </div>

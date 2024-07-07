@@ -7,7 +7,7 @@ defmodule NervesHubWeb.DeploymentController do
   plug(:validate_role, org: :view)
 
   def export_audit_logs(
-        %{assigns: %{org: org, product: product}} = conn,
+        %{assigns: %{product: product}} = conn,
         %{"name" => deployment_name}
       ) do
     {:ok, deployment} = Deployments.get_deployment_by_name(product, deployment_name)
@@ -16,7 +16,7 @@ defmodule NervesHubWeb.DeploymentController do
       [] ->
         conn
         |> put_flash(:error, "No audit logs exist for this deployment.")
-        |> redirect(to: ~p"/org/#{org.name}/#{product.name}/deployments")
+        |> redirect(to: ~p"/products/#{hashid(product)}/deployments")
 
       audit_logs ->
         audit_logs = AuditLogs.format_for_csv(audit_logs)

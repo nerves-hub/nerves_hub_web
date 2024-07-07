@@ -31,7 +31,7 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
 
   @impl Phoenix.LiveView
   def handle_event("update-deployment", %{"deployment" => params}, socket) do
-    %{org_user: org_user, org: org, product: product, user: user, deployment: deployment} =
+    %{org_user: org_user, product: product, user: user, deployment: deployment} =
       socket.assigns
 
     authorized!(:"deployment:update", org_user)
@@ -50,7 +50,7 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
 
         socket
         |> put_flash(:info, "Deployment updated")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployments/#{updated.name}")
+        |> push_navigate(to: ~p"/products/#{hashid(product)}/deployments/#{updated.name}")
         |> noreply()
 
       {:error, changeset} ->

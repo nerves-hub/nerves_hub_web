@@ -14,7 +14,7 @@
   </div>
 
   <div class="button-submit-wrapper">
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts"} class="btn btn-secondary">Back</.link>
+    <.link navigate={~p"/products/#{hashid(@product)}/scripts"} class="btn btn-secondary">Back</.link>
     <%= submit("Save Changes", class: "btn btn-primary") %>
   </div>
 </.form>

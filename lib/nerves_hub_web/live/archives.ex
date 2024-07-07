@@ -21,7 +21,7 @@ defmodule NervesHubWeb.Live.Archives do
     socket
     |> page_title("Archives - #{product.name}")
     |> assign(:archives, Archives.all_by_product(product))
-    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
+    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.product.org))
     |> render_with(&list_archives_template/1)
   end
 
@@ -33,7 +33,7 @@ defmodule NervesHubWeb.Live.Archives do
     socket
     |> page_title("Archive #{archive_uuid} - #{product.name}")
     |> assign(:archive, archive)
-    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
+    |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.product.org))
     |> render_with(&show_archive_template/1)
   end
 
@@ -78,7 +78,7 @@ defmodule NervesHubWeb.Live.Archives do
   def handle_event("delete-archive", _params, socket) do
     authorized!(:"archive:delete", socket.assigns.org_user)
 
-    %{org: org, product: product, archive: archive} = socket.assigns
+    %{product: product, archive: archive} = socket.assigns
 
     {:ok, archive} = Archives.get(socket.assigns.product, archive.uuid)
 
@@ -86,7 +86,7 @@ defmodule NervesHubWeb.Live.Archives do
       {:ok, _} ->
         socket
         |> put_flash(:info, "Archive successfully deleted")
-        |> push_patch(to: ~p"/org/#{org.name}/#{product.name}/archives")
+        |> push_patch(to: ~p"/products/#{hashid(product)}/archives")
         |> noreply()
 
       {:error, changeset} ->
@@ -120,9 +120,7 @@ defmodule NervesHubWeb.Live.Archives do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Archive uploaded")
-        |> push_patch(
-          to: ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/archives"
-        )
+        |> push_patch(to: ~p"/products/#{hashid(socket.assigns.product)}/archives")
         |> noreply()
 
       {:error, :no_public_keys} ->

@@ -31,6 +31,18 @@ if level = System.get_env("LOG_LEVEL") do
 end
 
 ##
+# Hashid configurations
+#
+alphabet = "abcdefghijkmnopqrstuvwxyz1234567890"
+
+hashid_salt_org = System.get_env("HASHID_SALT_ORG", "ASUPERAMAZINGSALT")
+hashid_salt_product = System.get_env("HASHID_SALT_PRODUCT", "ANOTHERSUPERAMAZINGSALT")
+
+config :nerves_hub,
+  hashid_for_orgs: Hashids.new(alphabet: alphabet, salt: hashid_salt_org, min_len: 6),
+  hashid_for_products: Hashids.new(alphabet: alphabet, salt: hashid_salt_product, min_len: 6)
+
+##
 # Web and Device endpoints
 #
 if config_env() == :prod do

@@ -4,7 +4,8 @@ defmodule NervesHubWeb.Live.Devices.Edit do
   alias NervesHub.Devices
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
-    {:ok, device} = Devices.get_device_by_identifier(socket.assigns.org, device_identifier)
+    {:ok, device} =
+      Devices.get_device_by_identifier(socket.assigns.product.org, device_identifier)
 
     changeset = Ecto.Changeset.change(device)
 
@@ -18,7 +19,7 @@ defmodule NervesHubWeb.Live.Devices.Edit do
   def handle_event("update-device", %{"device" => device_params}, socket) do
     authorized!(:"device:update", socket.assigns.org_user)
 
-    %{org: org, product: product, device: device, user: user} = socket.assigns
+    %{product: product, device: device, user: user} = socket.assigns
 
     message = "#{user.name} updated device #{device.identifier}"
 
@@ -26,7 +27,7 @@ defmodule NervesHubWeb.Live.Devices.Edit do
       {:ok, _device} ->
         socket
         |> put_flash(:info, "Device updated")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
+        |> push_navigate(to: ~p"/products/#{hashid(product)}/devices")
         |> noreply()
 
       {:error, changeset} ->

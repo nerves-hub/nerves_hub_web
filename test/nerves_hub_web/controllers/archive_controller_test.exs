@@ -15,7 +15,7 @@ defmodule NervesHubWeb.ArchiveControllerTest do
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
       archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
-      conn = get(conn, ~p"/org/#{org.name}/#{product.name}/archives/#{archive.uuid}/download")
+      conn = get(conn, ~p"/products/#{hashid(product)}/archives/#{archive.uuid}/download")
 
       assert redirected_to(conn) == "/uploads/archives/#{archive.uuid}.fw"
     end

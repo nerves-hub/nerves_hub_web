@@ -1,28 +1,22 @@
 defmodule NervesHubWeb.Plugs.Product do
   use NervesHubWeb, :plug
 
+  alias NervesHub.Products
+
   def init(opts) do
     opts
   end
 
-  def call(%{params: %{"product_name" => product_name}} = conn, _opts) do
-    %{org: org} = conn.assigns
+  def call(%{params: %{"hashid" => hashid}} = conn, _opts) do
+    {:ok, [product_id]} = decode(hashid)
 
-    product =
-      Enum.find(org.products, fn product ->
-        product.name == product_name
-      end)
+    product = Products.get_product_by_user_and_id!(conn.assigns.user, product_id)
 
-    case !is_nil(product) do
-      true ->
-        assign(conn, :product, product)
+    assign(conn, :product, product)
+  end
 
-      false ->
-        conn
-        |> put_status(:not_found)
-        |> put_view(NervesHubWeb.ErrorView)
-        |> render("404.html")
-        |> halt()
-    end
+  defp decode(product_hashid) do
+    hashid = Application.get_env(:nerves_hub, :hashid_for_products)
+    Hashids.decode(hashid, product_hashid)
   end
 end

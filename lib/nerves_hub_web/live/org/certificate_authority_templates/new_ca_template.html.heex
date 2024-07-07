@@ -142,7 +142,7 @@
   </div>
 
   <div class="button-submit-wrapper">
-    <.link id="back-button" class="btn btn-outline-light" patch={~p"/org/#{@org.name}/settings/certificates"}>Cancel</.link>
+    <.link id="back-button" class="btn btn-outline-light" patch={~p"/orgs/#{hashid(@org)}/settings/certificates"}>Cancel</.link>
     <%= submit("Create Certificate", class: "btn btn-primary") %>
   </div>
 </.form>

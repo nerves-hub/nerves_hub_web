@@ -14,7 +14,7 @@
     </div>
 
     <div class="button-submit-wrapper">
-      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments"} class="btn btn-secondary">
+      <.link navigate={~p"/products/#{hashid(@product)}/deployments"} class="btn btn-secondary">
         Cancel
       </.link>
     </div>
@@ -67,7 +67,7 @@
     </div>
 
     <div class="button-submit-wrapper">
-      <.link class="btn btn-secondary" navigate={~p"/org/#{@org.name}/#{@product.name}/deployments"}>Back</.link>
+      <.link class="btn btn-secondary" navigate={~p"/products/#{hashid(@product)}/deployments"}>Back</.link>
       <%= submit("Create Deployment", class: "btn btn-primary") %>
     </div>
   </.form>

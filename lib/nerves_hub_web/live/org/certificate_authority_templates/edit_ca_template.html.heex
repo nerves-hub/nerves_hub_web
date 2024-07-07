@@ -62,7 +62,7 @@
   <% end %>
 
   <div class="button-submit-wrapper">
-    <.link class="btn btn-outline-light" patch={~p"/org/#{@org.name}/settings/certificates"}>Cancel</.link>
+    <.link class="btn btn-outline-light" patch={~p"/orgs/#{hashid(@org)}/settings/certificates"}>Cancel</.link>
     <%= submit("Update Certificate", class: "btn btn-primary") %>
   </div>
 </.form>

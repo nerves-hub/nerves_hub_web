@@ -70,6 +70,7 @@ defmodule NervesHub.MixProject do
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.24.0"},
       {:hackney, "~> 1.16"},
+      {:hashids, "~> 2.0"},
       {:hlclock, "~> 1.0"},
       {:jason, "~> 1.2", override: true},
       {:libcluster_postgres, "~> 0.1.2"},

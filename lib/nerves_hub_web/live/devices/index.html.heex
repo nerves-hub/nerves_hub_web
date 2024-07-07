@@ -3,7 +3,7 @@
     <img src="/images/device.svg" alt="No devices" />
     <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any devices yet</h3>
     <div class="mt-3">
-      <.link class="btn btn-outline-light btn-action" aria-label="Add new device" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"}>
+      <.link class="btn btn-outline-light btn-action" aria-label="Add new device" navigate={~p"/products/#{hashid(@product)}/devices/new"}>
         <div class="button-icon add"></div>
         <span class="action-text">Add your first Device</span>
       </.link>
@@ -29,11 +29,11 @@
       </button>
     </div>
     <div>
-      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href={Routes.product_path(@socket, :devices_export, @org.name, @product.name)}>
+      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href={~p"/products/#{hashid(@product)}/devices/export"}>
         <div class="button-icon download"></div>
         <span class="action-text">Export</span>
       </a>
-      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"} class="btn btn-outline-light btn-action" aria-label="Add new device">
+      <.link navigate={~p"/products/#{hashid(@product)}/devices/new"} class="btn btn-outline-light btn-action" aria-label="Add new device">
         <div class="button-icon add"></div>
         <span class="action-text">Add Device</span>
       </.link>
@@ -225,7 +225,7 @@
         <td>
           <div class="mobile-label help-text">Identifier</div>
           <div>
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class={"badge ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
+            <.link navigate={~p"/products/#{hashid(@product)}/devices/#{device.identifier}"} class={"badge ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
               <%= device.identifier %>
             </.link>
           </div>
@@ -293,7 +293,7 @@
                 Reboot
               </.link>
               <div class="dropdown-divider"></div>
-              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}/console"} class="dropdown-item">
+              <.link navigate={~p"/products/#{hashid(@product)}/devices/#{device.identifier}/console"} class="dropdown-item">
                 Console
               </.link>
               <div class="dropdown-divider"></div>
@@ -306,7 +306,7 @@
 
               <div class="dropdown-divider"></div>
 
-              <%= link to: Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier), class: "dropdown-item", aria: [label: "Download Audit Logs"] do %>
+              <%= link to: ~p"/products/#{hashid(@product)}/devices/#{device.identifier}/audit_logs/download", class: "dropdown-item", aria: [label: "Download Audit Logs"] do %>
                 <div class="button-icon download"></div>
                 <span class="action-text">Download Audit Logs</span>
               <% end %>

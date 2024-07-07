@@ -17,6 +17,17 @@ defmodule NervesHub.Products do
 
   def __csv_header__, do: @csv_header
 
+  def get_product_by_user_and_id!(%User{id: user_id}, product_id) do
+    Product
+    |> join(:inner, [p], o in Org, on: p.org_id == o.id and is_nil(o.deleted_at))
+    |> join(:inner, [p, o], ou in OrgUser, on: o.id == ou.org_id and is_nil(ou.deleted_at))
+    |> join(:inner, [p, o, ou], u in User, on: ou.user_id == u.id and is_nil(u.deleted_at))
+    |> where([p, o, ou, u], u.id == ^user_id)
+    |> where([p, o, ou, u], p.id == ^product_id)
+    |> preload([p, o, ou, u], org: {o, org_users: ou})
+    |> Repo.one!()
+  end
+
   def get_products_by_user_and_org(%User{id: user_id}, %Org{id: org_id}) do
     query =
       from(
@@ -67,6 +78,8 @@ defmodule NervesHub.Products do
   def get_product_by_org_id_and_name(org_id, name) do
     Product
     |> Repo.exclude_deleted()
+    |> join(:inner, [p], o in Org, on: p.org_id == o.id and is_nil(o.deleted_at))
+    |> preload([p, o], org: o)
     |> Repo.get_by(org_id: org_id, name: name)
     |> case do
       nil -> {:error, :not_found}

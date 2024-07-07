@@ -72,7 +72,7 @@
 </p>
 
 <%= if @shared_auth_enabled do %>
-  <table :if={Enum.any?(@shared_secrets)} class="table table-sm table-hover">
+  <table :if={Enum.any?(@product.shared_secret_auths)} class="table table-sm table-hover">
     <thead>
       <tr>
         <th>Key</th>
@@ -82,7 +82,7 @@
         <th></th>
       </tr>
     </thead>
-    <tr :for={auth <- @shared_secrets} class="item">
+    <tr :for={auth <- @product.shared_secret_auths} class="item">
       <td class="ff-m">
         <div class="mobile-label help-text">Key</div>
         <%= auth.key %>
@@ -120,10 +120,10 @@
   </table>
 
   <div>
-    <button :if={Enum.empty?(@shared_secrets)} class="btn btn-secondary" phx-click="add-shared-secret" disabled={!authorized?(:"product:update", @org_user)} data-confirm="Are you sure?">
+    <button :if={Enum.empty?(@product.shared_secret_auths)} class="btn btn-secondary" phx-click="add-shared-secret" disabled={!authorized?(:"product:update", @org_user)} data-confirm="Are you sure?">
       Add your first Shared Secret.
     </button>
-    <button :if={Enum.any?(@shared_secrets)} class="btn btn-secondary" phx-click="add-shared-secret" disabled={!authorized?(:"product:update", @org_user)} data-confirm="Are you sure?">
+    <button :if={Enum.any?(@product.shared_secret_auths)} class="btn btn-secondary" phx-click="add-shared-secret" disabled={!authorized?(:"product:update", @org_user)} data-confirm="Are you sure?">
       Add a Shared Secret
     </button>
   </div>

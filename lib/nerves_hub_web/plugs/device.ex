@@ -8,10 +8,10 @@ defmodule NervesHubWeb.Plugs.Device do
   end
 
   def call(
-        %{params: %{"identifier" => device_identifier}, assigns: %{org: org}} = conn,
+        %{params: %{"identifier" => device_identifier}, assigns: %{product: product}} = conn,
         _opts
       ) do
-    with {:ok, device} <- Devices.get_device_by_identifier(org, device_identifier) do
+    with {:ok, device} <- Devices.get_device_by_identifier(product.org, device_identifier) do
       conn
       |> assign(:device, device)
     else

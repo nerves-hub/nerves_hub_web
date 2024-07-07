@@ -29,12 +29,12 @@ defmodule NervesHubWeb.DeviceController do
     end
   end
 
-  def export_audit_logs(%{assigns: %{org: org, product: product, device: device}} = conn, _params) do
+  def export_audit_logs(%{assigns: %{product: product, device: device}} = conn, _params) do
     case AuditLogs.logs_for(device) do
       [] ->
         conn
         |> put_flash(:error, "No audit logs exist for this device.")
-        |> redirect(to: ~p"/org/#{org.name}/#{product.name}/devices")
+        |> redirect(to: ~p"/products/#{hashid(product)}/devices")
 
       audit_logs ->
         audit_logs = AuditLogs.format_for_csv(audit_logs)

@@ -25,7 +25,7 @@ defmodule NervesHubWeb.Components.Navigation do
           <ul :if={Enum.any?(@user.orgs)} class="navbar-nav mr-auto flex-grow">
             <li class="nav-item dropdown switcher">
               <a class="nav-link dropdown-toggle org-select arrow-primary" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <%= if org = assigns[:org], do: org.name, else: "Select Org" %>
+                <%= org_name_header(assigns) %>
                 <%= if product = assigns[:product] do %>
                   <span class="workspace-divider">:</span> <%= product.name %>
                 <% end %>
@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Components.Navigation do
                 <div class="dropdown-divider"></div>
                 <%= for org <- @user.orgs do %>
                   <div class="dropdown-submenu">
-                    <.link href={~p"/org/#{org.name}"} class={"dropdown-item org #{org_classes(@current_path, org.name)}"}>
+                    <.link href={~p"/orgs/#{hashid(org)}"} class={"dropdown-item org #{org_classes(@current_path, org.name)}"}>
                       <%= org.name %>
                       <div class="active-checkmark"></div>
                     </.link>
@@ -46,7 +46,7 @@ defmodule NervesHubWeb.Components.Navigation do
                       <%= unless Enum.empty?(org.products) do %>
                         <%= for product <- org.products do %>
                           <li>
-                            <.link href={~p"/org/#{org.name}/#{product.name}/devices"} class={"dropdown-item product #{product_classes(@current_path, product.name)}"}>
+                            <.link href={~p"/products/#{hashid(product)}/devices"} class={"dropdown-item product #{product_classes(@current_path, product.name)}"}>
                               <%= product.name %>
                               <div class="active-checkmark"></div>
                             </.link>
@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Components.Navigation do
                         <div class="dropdown-divider"></div>
                       <% end %>
 
-                      <.link navigate={~p"/org/#{org.name}/new"} class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create product">
+                      <.link navigate={~p"/orgs/#{hashid(org)}/new"} class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create product">
                         <span class="action-text">Create Product</span>
                         <span class="button-icon add"></span>
                       </.link>
@@ -142,16 +142,16 @@ defmodule NervesHubWeb.Components.Navigation do
 
   def sidebar_links(["orgs", "new"], _assigns), do: []
 
-  def sidebar_links(["org", _org_name] = path, assigns),
+  def sidebar_links(["orgs", _org_name] = path, assigns),
     do: sidebar_org(assigns, path)
 
-  def sidebar_links(["org", _org_name, "new"] = path, assigns),
+  def sidebar_links(["orgs", _org_name, "new"] = path, assigns),
     do: sidebar_org(assigns, path)
 
-  def sidebar_links(["org", _org_name, "settings" | _tail] = path, assigns),
+  def sidebar_links(["orgs", _org_name, "settings" | _tail] = path, assigns),
     do: sidebar_org(assigns, path)
 
-  def sidebar_links(["org", _org_name | _tail] = path, assigns),
+  def sidebar_links(["products", _org_name | _tail] = path, assigns),
     do: sidebar_product(assigns, path)
 
   def sidebar_links(["account" | _tail] = path, assigns),
@@ -164,7 +164,7 @@ defmodule NervesHubWeb.Components.Navigation do
        %{
          title: "Products",
          active: "",
-         href: ~p"/org/#{assigns.org.name}"
+         href: ~p"/orgs/#{hashid(assigns.org)}"
        }
      ] ++
        if assigns.org_user.role in NervesHub.Accounts.User.role_or_higher(:manage) do
@@ -172,22 +172,22 @@ defmodule NervesHubWeb.Components.Navigation do
            %{
              title: "Signing Keys",
              active: "",
-             href: ~p"/org/#{assigns.org.name}/settings/keys"
+             href: ~p"/orgs/#{hashid(assigns.org)}/settings/keys"
            },
            %{
              title: "Users",
              active: "",
-             href: ~p"/org/#{assigns.org.name}/settings/users"
+             href: ~p"/orgs/#{hashid(assigns.org)}/settings/users"
            },
            %{
              title: "Certificates",
              active: "",
-             href: ~p"/org/#{assigns.org.name}/settings/certificates"
+             href: ~p"/orgs/#{hashid(assigns.org)}/settings/certificates"
            },
            %{
              title: "Settings",
              active: "",
-             href: ~p"/org/#{assigns.org.name}/settings"
+             href: ~p"/orgs/#{hashid(assigns.org)}/settings"
            }
          ]
        else
@@ -202,32 +202,32 @@ defmodule NervesHubWeb.Components.Navigation do
       %{
         title: "Devices",
         active: "",
-        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/devices"
+        href: ~p"/products/#{hashid(assigns.product)}/devices"
       },
       %{
         title: "Firmware",
         active: "",
-        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/firmware"
+        href: ~p"/products/#{hashid(assigns.product)}/firmware"
       },
       %{
         title: "Archives",
         active: "",
-        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/archives"
+        href: ~p"/products/#{hashid(assigns.product)}/archives"
       },
       %{
         title: "Deployments",
         active: "",
-        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/deployments"
+        href: ~p"/products/#{hashid(assigns.product)}/deployments"
       },
       %{
         title: "Scripts",
         active: "",
-        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/scripts"
+        href: ~p"/products/#{hashid(assigns.product)}/scripts"
       },
       %{
         title: "Settings",
         active: "",
-        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/settings"
+        href: ~p"/products/#{hashid(assigns.product)}/settings"
       }
     ]
     |> sidebar_active(path)
@@ -264,7 +264,7 @@ defmodule NervesHubWeb.Components.Navigation do
 
   defp org_classes(current_path, org_name) do
     case path_pieces(current_path) do
-      ["org", ^org_name | _] ->
+      ["orgs", ^org_name | _] ->
         "active"
 
       _ ->
@@ -274,7 +274,7 @@ defmodule NervesHubWeb.Components.Navigation do
 
   defp product_classes(current_path, product_name) do
     case path_pieces(current_path) do
-      ["org", _, ^product_name | _] ->
+      ["orgs", _, ^product_name | _] ->
         "active"
 
       _ ->
@@ -294,5 +294,13 @@ defmodule NervesHubWeb.Components.Navigation do
 
   def device_count(_conn) do
     nil
+  end
+
+  defp org_name_header(assigns) do
+    cond do
+      org = assigns[:org] -> org.name
+      product = assigns[:product] -> product.org.name
+      true -> "Select Org"
+    end
   end
 end

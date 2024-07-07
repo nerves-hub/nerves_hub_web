@@ -49,7 +49,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     end
   end
 
-  def device_index_path(%{org: org, product: product}) do
-    ~p"/org/#{org.name}/#{product.name}/devices"
+  def device_index_path(%{product: product}) do
+    ~p"/products/#{hashid(product)}/devices"
   end
 end

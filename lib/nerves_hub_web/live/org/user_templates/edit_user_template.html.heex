@@ -15,7 +15,7 @@
   </div>
 
   <div class="button-submit-wrapper">
-    <.link class="btn btn-outline-light" patch={~p"/org/#{@org.name}/settings/users"}>Cancel</.link>
+    <.link class="btn btn-outline-light" patch={~p"/orgs/#{hashid(@org)}/settings/users"}>Cancel</.link>
     <%= submit("Update", class: "btn btn-primary") %>
   </div>
 </.form>

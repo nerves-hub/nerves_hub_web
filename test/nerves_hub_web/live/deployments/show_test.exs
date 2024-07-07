@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
     deployment = Fixtures.deployment_fixture(org, firmware)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> visit("/products/#{hashid(product)}/deployments/#{deployment.name}")
     |> assert_has("h1", text: deployment.name)
     |> assert_has("p.deployment-state", text: "Off")
     |> then(fn conn ->
@@ -41,10 +41,10 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
     deployment = Fixtures.deployment_fixture(org, firmware)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> visit("/products/#{hashid(product)}/deployments/#{deployment.name}")
     |> assert_has("h1", text: deployment.name)
     |> click_link("Delete")
-    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployments"))
+    |> assert_path(URI.encode("/products/#{hashid(product)}/deployments"))
     |> assert_has("div", text: "Deployment successfully deleted")
 
     assert Deployments.get_deployment(product, deployment.id) == {:error, :not_found}
@@ -66,10 +66,10 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
     deployment = Fixtures.deployment_fixture(org, firmware)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> visit("/products/#{hashid(product)}/deployments/#{deployment.name}")
     |> assert_has("h1", text: deployment.name)
     |> click_link("Turn On")
-    |> assert_path("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> assert_path("/products/#{hashid(product)}/deployments/#{deployment.name}")
     |> then(fn conn ->
       {:ok, reloaded_deployment} = Deployments.get_deployment(product, deployment.id)
 
@@ -82,7 +82,7 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
       conn
     end)
     |> click_link("Turn Off")
-    |> assert_path("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> assert_path("/products/#{hashid(product)}/deployments/#{deployment.name}")
     |> then(fn conn ->
       {:ok, reloaded_deployment} = Deployments.get_deployment(product, deployment.id)
 

@@ -5,7 +5,6 @@ defmodule NervesHubWeb.Components.DeviceHeader do
 
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
-  attr(:org, :any)
   attr(:product, :any)
   attr(:device, :any)
   attr(:status, :any)
@@ -37,7 +36,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         <%= if is_nil(@device.firmware_metadata) do %>
           <p>Unknown</p>
         <% else %>
-          <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m">
+          <.link navigate={~p"/products/#{hashid(@product)}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m">
             <%= @device.firmware_metadata.version %>
             <%= @device.firmware_metadata.uuid %>
           </.link>

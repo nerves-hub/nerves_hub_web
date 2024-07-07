@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
         {:noreply,
          socket
          |> put_flash(:info, "Signing Key created successfully.")
-         |> push_navigate(to: ~p"/org/#{socket.assigns.org.name}/settings/keys")}
+         |> push_navigate(to: ~p"/orgs/#{hashid(socket.assigns.org)}/settings/keys")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}

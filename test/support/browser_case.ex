@@ -16,6 +16,8 @@ defmodule NervesHubWeb.ConnCase.Browser do
       import Phoenix.LiveViewTest
       import PhoenixTest
 
+      import NervesHubWeb.Helpers.Hashids
+
       @moduletag :tmp_dir
 
       setup context do

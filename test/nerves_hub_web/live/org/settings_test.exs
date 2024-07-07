@@ -3,31 +3,31 @@ defmodule NervesHubWeb.Live.Org.SettingsTest do
 
   test "updates org name", %{conn: conn, org: org} do
     conn
-    |> visit("/org/#{org.name}/settings")
+    |> visit("/orgs/#{hashid(org)}/settings")
     |> assert_has("h1", text: "Organization Settings")
     |> fill_in("Organization Name", with: "MyAmazingOrganization")
     |> click_button("Save Changes")
-    |> assert_path("/org/MyAmazingOrganization/settings")
+    |> assert_path("/orgs/#{hashid(org)}/settings")
     |> assert_has("div", text: "Organization updated")
   end
 
   test "requires a name with no spaces", %{conn: conn, org: org} do
     conn
-    |> visit("/org/#{org.name}/settings")
+    |> visit("/orgs/#{hashid(org)}/settings")
     |> assert_has("h1", text: "Organization Settings")
     |> fill_in("Organization Name", with: "My Amazing Organization")
     |> click_button("Save Changes")
-    |> assert_path("/org/#{org.name}/settings")
+    |> assert_path("/orgs/#{hashid(org)}/settings")
     |> assert_has(".help-block", text: "has invalid format")
   end
 
   describe "delete" do
     test "requires the user to confirm their username", %{conn: conn, org: org} do
       conn
-      |> visit("/org/#{org.name}/settings/delete")
+      |> visit("/orgs/#{hashid(org)}/settings/delete")
       |> assert_has("h1", text: "Are you absolutely sure?")
       |> click_button("I understand the consequences, delete this organization")
-      |> assert_path("/org/#{org.name}/settings/delete")
+      |> assert_path("/orgs/#{hashid(org)}/settings/delete")
       |> assert_has("div", text: "Please type #{org.name} to confirm.")
 
       org = NervesHub.Repo.reload(org)
@@ -39,11 +39,11 @@ defmodule NervesHubWeb.Live.Org.SettingsTest do
       org: org
     } do
       conn
-      |> visit("/org/#{org.name}/settings/delete")
+      |> visit("/orgs/#{hashid(org)}/settings/delete")
       |> assert_has("h1", text: "Are you absolutely sure?")
       |> fill_in("Please type #{org.name} to confirm.", with: "#{org.name}-nah")
       |> click_button("I understand the consequences, delete this organization")
-      |> assert_path("/org/#{org.name}/settings/delete")
+      |> assert_path("/orgs/#{hashid(org)}/settings/delete")
       |> assert_has("div", text: "Please type #{org.name} to confirm.")
 
       org = NervesHub.Repo.reload(org)
@@ -52,7 +52,7 @@ defmodule NervesHubWeb.Live.Org.SettingsTest do
 
     test "deletes the org", %{conn: conn, org: org} do
       conn
-      |> visit("/org/#{org.name}/settings/delete")
+      |> visit("/orgs/#{hashid(org)}/settings/delete")
       |> assert_has("h1", text: "Are you absolutely sure?")
       |> fill_in("Please type #{org.name} to confirm.", with: org.name)
       |> click_button("I understand the consequences, delete this organization")

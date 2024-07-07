@@ -13,7 +13,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
     {:ok, script} = Scripts.get(product, script_id)
 
     socket
-    |> page_title("Edit Support Script - #{socket.assigns.org.name}")
+    |> page_title("Edit Support Script - #{socket.assigns.product.name}")
     |> assign(:form, to_form(Script.changeset(script, %{})))
     |> assign(:script, script)
     |> ok()
@@ -23,13 +23,13 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   def handle_event("update_script", %{"script" => script_params}, socket) do
     authorized!(:"support_script:update", socket.assigns.org_user)
 
-    %{org: org, product: product} = socket.assigns
+    %{product: product} = socket.assigns
 
     case Scripts.update(socket.assigns.script, script_params) do
       {:ok, _command} ->
         socket
         |> put_flash(:info, "Support Script updated")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/scripts")
+        |> push_navigate(to: ~p"/products/#{hashid(product)}/scripts")
         |> noreply()
 
       {:error, changeset} ->

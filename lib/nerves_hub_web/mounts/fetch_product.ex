@@ -3,22 +3,18 @@ defmodule NervesHubWeb.Mounts.FetchProduct do
 
   alias NervesHub.Products
 
-  def on_mount(:default, %{"product_name" => product_name}, _session, socket) do
-    %{org: org} = socket.assigns
+  def on_mount(:default, %{"hashid" => hashid}, _session, socket) do
+    socket =
+      assign_new(socket, :product, fn ->
+        {:ok, [product_id]} = decode(hashid)
+        Products.get_product_by_user_and_id!(socket.assigns.user, product_id)
+      end)
 
-    product = Enum.find(org.products, &(&1.name == product_name))
+    {:cont, socket}
+  end
 
-    case !is_nil(product) do
-      true ->
-        socket =
-          assign_new(socket, :product, fn ->
-            Products.load_shared_secret_auth(product)
-          end)
-
-        {:cont, socket}
-
-      false ->
-        raise NervesHubWeb.NotFoundError
-    end
+  defp decode(product_hashid) do
+    hashid = Application.get_env(:nerves_hub, :hashid_for_products)
+    Hashids.decode(hashid, product_hashid)
   end
 end

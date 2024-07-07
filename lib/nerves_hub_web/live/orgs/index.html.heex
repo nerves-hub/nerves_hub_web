@@ -13,7 +13,7 @@
   <h1 class="mt-2">My Organizations</h1>
   <div class="x3-grid">
     <%= for org <- @user.orgs do %>
-      <.link navigate={~p"/org/#{org.name}"} class="grid-item">
+      <.link navigate={~p"/orgs/#{hashid(org)}"} class="grid-item">
         <h3><%= org.name %></h3>
         <div class="flex-row">
           <div>
