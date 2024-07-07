@@ -16,7 +16,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias Phoenix.Socket.Broadcast
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
-    %{org: org} = socket.assigns
+    %{org: org, product: product} = socket.assigns
 
     {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
 
@@ -24,18 +24,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
     end
 
-    socket =
-      socket
-      |> assign(:device, Repo.preload(device, [:device_certificates]))
-      |> assign(:status, Tracker.status(device))
-      |> assign(:deployment, device.deployment)
-      |> assign(:page_title, device.identifier)
-      |> assign(:results, [])
-      |> assign(:deployments, Deployments.alternate_deployments(device))
-      |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
-      |> audit_log_assigns(1)
-
-    {:ok, socket}
+    socket
+    |> page_title("Device #{device.identifier} - #{product.name}")
+    |> assign(:device, device)
+    |> assign(:status, Tracker.status(device))
+    |> assign(:deployment, device.deployment)
+    |> assign(:results, [])
+    |> assign(:deployments, Deployments.alternate_deployments(device))
+    |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
+    |> audit_log_assigns(1)
+    |> ok()
   end
 
   def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do

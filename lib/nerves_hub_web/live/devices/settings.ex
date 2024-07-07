@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
     changeset = Ecto.Changeset.change(device)
 
     socket
-    |> assign(:page_title, "Edit Device")
+    |> page_title("Device Settings #{device.identifier} - #{socket.assigns.product.name}")
     |> assign(:toggle_upload, false)
     |> assign(:device, device)
     |> assign(:form, to_form(changeset))
