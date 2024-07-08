@@ -23,8 +23,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   describe "geolocation isn't enabled" do
     setup do
-      Application.delete_env(:nerves_hub, :geoip_maxmind_auth)
-      Application.delete_env(:nerves_hub, :geolocate_middleware)
+      Application.put_env(:nerves_hub, :geoip_maxmind_auth, nil)
+      Application.put_env(:nerves_hub, :geolocate_middleware, nil)
+
+      on_exit(fn ->
+        Application.put_env(:nerves_hub, :geoip_maxmind_auth, nil)
+        Application.put_env(:nerves_hub, :geolocate_middleware, nil)
+      end)
     end
 
     test "ip address is extracted from peer_data" do
