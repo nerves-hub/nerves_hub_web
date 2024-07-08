@@ -124,19 +124,26 @@
   </div>
 
   <div class="col-lg-6">
-    <div class="device-header-group justify-content-between">
-      <h3 class="mb-2">Latest Activity</h3>
-
-      <a
-        class="btn btn-outline-light btn-action"
-        title="Download Audit Logs"
-        aria-label="Download Audit Logs"
-        href={Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, @device.identifier)}
-      >
-        <div class="button-icon download"></div>
-      </a>
+    <div>
+      <h3 class="mb-2">Information</h3>
+      <DeviceLocation.render connection_metadata={@device.connection_metadata} />
     </div>
 
-    <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
+    <div>
+      <div class="device-header-group justify-content-between">
+        <h3 class="mb-2">Latest Activity</h3>
+
+        <a
+          class="btn btn-outline-light btn-action"
+          title="Download Audit Logs"
+          aria-label="Download Audit Logs"
+          href={Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, @device.identifier)}
+        >
+          <div class="button-icon download"></div>
+        </a>
+      </div>
+
+      <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
+    </div>
   </div>
 </div>

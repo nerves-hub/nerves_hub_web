@@ -24,7 +24,9 @@ config :nerves_hub,
     username: System.get_env("ADMIN_AUTH_USERNAME"),
     password: System.get_env("ADMIN_AUTH_PASSWORD")
   ],
-  open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true"
+  open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true",
+  geoip_maxmind_auth: System.get_env("GEOIP_MAXMIND_AUTH"),
+  mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN")
 
 if level = System.get_env("LOG_LEVEL") do
   config :logger, level: String.to_atom(level)
