@@ -174,10 +174,24 @@ defmodule NervesHubWeb.DeviceChannel do
         %{assigns: %{device: device}} = socket
       ) do
     if device_matches_deployment_payload?(device, payload) do
-      {:noreply, assign_deployment(socket, payload)}
+      if timer = Map.get(socket.assigns, :assign_deployment_timer) do
+        Process.cancel_timer(timer)
+      end
+
+      # jitter to attempt to not slam the database when any matching
+      # devices go to set their deployment. This is for very large
+      # deployments, to prevent ecto pool contention.
+      jitter = device_deployment_change_jitter_ms()
+      timer = Process.send_after(self(), {:assign_deployment, payload}, jitter)
+      {:noreply, assign(socket, :assign_deployment_timer, timer)}
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_info({:assign_deployment, payload}, socket) do
+    socket = assign(socket, :assign_deployment_timer, nil)
+    {:noreply, assign_deployment(socket, payload)}
   end
 
   def handle_info(
@@ -188,9 +202,10 @@ defmodule NervesHubWeb.DeviceChannel do
       :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
       {:noreply, assign_deployment(socket, payload)}
     else
-      # jitter over a minute but spaced out to attempt to not
-      # slam the database when all devices check
-      jitter = :rand.uniform(30) * 2 * 1000
+      # jitter to attempt to not slam the database when any matching
+      # devices go to set their deployment. This is for very large
+      # deployments, to prevent ecto pool contention.
+      jitter = device_deployment_change_jitter_ms()
       Process.send_after(self(), :resolve_changed_deployment, jitter)
       {:noreply, socket}
     end
@@ -601,5 +616,10 @@ defmodule NervesHubWeb.DeviceChannel do
     socket
     |> assign(:device, device)
     |> assign(:deployment_channel, deployment_channel)
+  end
+
+  defp device_deployment_change_jitter_ms() do
+    jitter = Application.get_env(:nerves_hub, :device_deployment_change_jitter_seconds)
+    :rand.uniform(jitter) * 1000
   end
 end

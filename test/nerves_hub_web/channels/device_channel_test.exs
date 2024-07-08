@@ -376,6 +376,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
     socket_alpha = :sys.get_state(socket_alpha.channel_pid)
     assert is_nil(socket_alpha.assigns.device.deployment_id)
 
+    # skip the jitter
+    send(socket_beta.channel_pid, :resolve_changed_deployment)
     socket_beta = :sys.get_state(socket_beta.channel_pid)
     refute is_nil(socket_beta.assigns.device.deployment_id)
   end
