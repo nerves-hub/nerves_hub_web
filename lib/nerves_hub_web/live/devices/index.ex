@@ -13,6 +13,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
+  alias NervesHubWeb.Components.Utils
+
   import NervesHubWeb.LayoutView,
     only: [pagination_links: 1]
 

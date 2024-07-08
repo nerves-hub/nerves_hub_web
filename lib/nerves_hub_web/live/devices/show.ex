@@ -18,6 +18,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias Phoenix.Socket.Broadcast
 
+  import NervesHubWeb.Components.DeviceHealth
+
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org} = socket.assigns
 
@@ -31,7 +33,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       socket
       |> assign(:device, Repo.preload(device, [:device_certificates]))
       |> assign(:status, Tracker.status(device))
-      |> assign(:health, fn -> Devices.get_latest_health(device_id) end)
+      |> assign_new(:health, fn -> Devices.get_latest_health(device.id) end)
       |> assign(:deployment, device.deployment)
       |> assign(:page_title, device.identifier)
       |> assign(:toggle_upload, false)

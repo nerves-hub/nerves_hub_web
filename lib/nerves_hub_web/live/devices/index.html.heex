@@ -125,11 +125,11 @@
   <% end %>
 
   <div :if={@health} class="device-health tight">
-    <div :if={@health.max_cpu} class={"callout #{cpu_temp_to_status(@health.max_cpu)}"}>
+    <div :if={@health.max_cpu} class={"callout #{Utils.cpu_temp_to_status(@health.max_cpu)}"}>
       <div class="label">CPU</div>
       <%= round(@health.max_cpu) %>°
     </div>
-    <div :if={@health.max_memory_percent} class={"callout #{memory_to_status(@health.max_memory_percent)}"} x>
+    <div :if={@health.max_memory_percent} class={"callout #{Utils.memory_to_status(@health.max_memory_percent)}"} x>
       <div class="label">Memory used</div>
       <%= round(@health.max_memory_percent) %>%
     </div>
