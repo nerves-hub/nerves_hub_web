@@ -7,8 +7,8 @@
     <meta name="description" content="" />
     <meta name="author" content="" />
 
-    <Phoenix.Component.live_title>
-      <%= assigns[:page_title] || "NervesHub" %>
+    <Phoenix.Component.live_title suffix={" | " <> Application.get_env(:nerves_hub, :web_title_suffix)}>
+      <%= assigns[:page_title] || "Welcome" %>
     </Phoenix.Component.live_title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.2/styles/default.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.2/highlight.min.js">

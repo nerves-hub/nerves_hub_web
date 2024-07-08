@@ -5,12 +5,14 @@ defmodule NervesHub.Accounts.Invite do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.User
   alias __MODULE__
 
   @type t :: %__MODULE__{}
 
   schema "invites" do
-    belongs_to(:org, Org, where: [deleted_at: nil])
+    belongs_to(:org, Org)
+    belongs_to(:invited_by, User)
 
     field(:email, :string)
     field(:token, Ecto.UUID)
@@ -22,7 +24,7 @@ defmodule NervesHub.Accounts.Invite do
 
   def changeset(%Invite{} = invite, params) do
     invite
-    |> cast(params, [:email, :token, :org_id, :accepted, :role])
-    |> validate_required([:email, :token, :org_id, :role])
+    |> cast(params, [:email, :token, :org_id, :accepted, :role, :invited_by_id])
+    |> validate_required([:email, :token, :org_id, :role, :invited_by_id])
   end
 end

@@ -340,7 +340,7 @@ defmodule NervesHub.SSLTest do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user, %{name: "verify_device"})
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     ca_fix = Fixtures.ca_certificate_fixture(org)
     device = Fixtures.device_fixture(org, product, firmware)

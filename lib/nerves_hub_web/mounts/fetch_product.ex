@@ -10,10 +10,15 @@ defmodule NervesHubWeb.Mounts.FetchProduct do
 
     case !is_nil(product) do
       true ->
-        {:cont, assign(socket, :product, Products.load_shared_secret_auth(product))}
+        socket =
+          assign_new(socket, :product, fn ->
+            Products.load_shared_secret_auth(product)
+          end)
+
+        {:cont, socket}
 
       false ->
-        raise Ecto.NoResultsError
+        raise NervesHubWeb.NotFoundError
     end
   end
 end

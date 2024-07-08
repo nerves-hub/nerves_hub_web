@@ -1,0 +1,68 @@
+<h1>Edit Certificate Authority</h1>
+
+<.form :let={f} for={@form} phx-submit="update_certificate_authority">
+  <div class="form-group">
+    <%= label(f, :description, for: "description_input") %>
+    <%= text_input(f, :description, class: "form-control", id: "description_input") %>
+    <div class="has-error"><%= error_tag(f, :description) %></div>
+  </div>
+
+  <div class="form-group">
+    <div class="help-text mb-1 tooltip-label help-tooltip">
+      <%= label(f, :check_expiration, for: "check_expiration_input") %>
+      <CAHelpers.check_expiration_tooltip />
+    </div>
+    <%= checkbox(f, :check_expiration, class: "", id: "check_expiration_input") %>
+    <div class="has-error"><%= error_tag(f, :check_expiration) %></div>
+  </div>
+
+  <%= inputs_for f, :jitp, fn fp -> %>
+    <label for="jitp_toggle_ui">Enable Just In Time Provisioning</label>
+
+    <%= hidden_input(fp, :delete, id: "jitp-delete") %>
+    <input id="jitp_toggle_ui" type="checkbox" value="true" name="ca_certificate[jitp][jitp_toggle]" checked={@show_jitp_form} phx-click={JS.dispatch("ca:edit:jitp")} />
+
+    <div class={unless @show_jitp_form, do: "hidden"} id="jitp_form">
+      <div class="form-group">
+        <div class="tooltip-label mb-1">
+          <label for="jitp_description_input" class="h3">
+            JITP Description
+          </label>
+          <span class="tooltip-info mb-1"></span>
+          <span class="tooltip-text">Device Description</span>
+        </div>
+        <%= text_input(fp, :description, class: "form-control", id: "jitp_description_input") %>
+        <div class="has-error"><%= error_tag(fp, :description) %></div>
+      </div>
+
+      <div class="form-group">
+        <div class="tooltip-label mb-1">
+          <label for="tag_input" class="h3">
+            JITP Tags
+          </label>
+          <span class="tooltip-info mb-1"></span>
+          <span class="tooltip-text">Tags are used by deployments to target a device. A device must have matching tag(s) for the deployment to update it</span>
+        </div>
+        <%= text_input(fp, :tags, class: "form-control", id: "tag_input") %>
+        <div class="has-error"><%= error_tag(fp, :tags) %></div>
+      </div>
+
+      <div class="form-group">
+        <div class="tooltip-label mb-1">
+          <label for="product_input" class="h3">
+            JITP Product
+          </label>
+          <span class="tooltip-info mb-1"></span>
+          <span class="tooltip-text">JITP must be configured to use a particular product</span>
+        </div>
+        <%= select(fp, :product_id, Enum.map(@products, &{&1.name, &1.id}), class: "form-control", id: "product_input", prompt: "Select Product") %>
+        <div class="has-error"><%= error_tag(fp, :product_id) %></div>
+      </div>
+    </div>
+  <% end %>
+
+  <div class="button-submit-wrapper">
+    <.link class="btn btn-outline-light" patch={~p"/org/#{@org.name}/settings/certificates"}>Cancel</.link>
+    <%= submit("Update Certificate", class: "btn btn-primary") %>
+  </div>
+</.form>

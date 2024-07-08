@@ -18,7 +18,7 @@ defmodule NervesHub.DevicesTest do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(org, firmware)
     device = Fixtures.device_fixture(org, product, firmware)
@@ -106,7 +106,7 @@ defmodule NervesHub.DevicesTest do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
 
@@ -121,7 +121,7 @@ defmodule NervesHub.DevicesTest do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     device = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
     device2 = Fixtures.device_fixture(org, product, firmware, %{updates_enabled: false})
@@ -138,7 +138,7 @@ defmodule NervesHub.DevicesTest do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user, %{name: "Test-Org-2"})
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
 
     device =
@@ -717,7 +717,7 @@ defmodule NervesHub.DevicesTest do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user, %{name: "org"})
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       deployment =
@@ -737,7 +737,7 @@ defmodule NervesHub.DevicesTest do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user, %{name: "org"})
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       deployment_one =
@@ -770,7 +770,7 @@ defmodule NervesHub.DevicesTest do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user, %{name: "org"})
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
@@ -783,7 +783,7 @@ defmodule NervesHub.DevicesTest do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user, %{name: "org"})
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
       deployment =
@@ -807,7 +807,7 @@ defmodule NervesHub.DevicesTest do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user, %{name: "org"})
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware_one = Fixtures.firmware_fixture(org_key, product)
       firmware_two = Fixtures.firmware_fixture(org_key, product)
 
@@ -833,7 +833,7 @@ defmodule NervesHub.DevicesTest do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user, %{name: "org"})
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware_one = Fixtures.firmware_fixture(org_key, product)
       firmware_two = Fixtures.firmware_fixture(org_key, product)
 
@@ -859,7 +859,7 @@ defmodule NervesHub.DevicesTest do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user, %{name: "org"})
       product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
       firmware_one = Fixtures.firmware_fixture(org_key, product)
       firmware_two = Fixtures.firmware_fixture(org_key, product)
 

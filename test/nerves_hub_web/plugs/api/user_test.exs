@@ -20,7 +20,7 @@ defmodule NervesHubWeb.API.Plugs.UserTest do
 
     assert json_response(conn, 200)["data"] == %{
              "email" => user.email,
-             "username" => user.username
+             "name" => user.name
            }
 
     conn =
@@ -31,7 +31,7 @@ defmodule NervesHubWeb.API.Plugs.UserTest do
 
     assert json_response(conn, 200)["data"] == %{
              "email" => user.email,
-             "username" => user.username
+             "name" => user.name
            }
   end
 

@@ -105,7 +105,7 @@ defmodule NervesHub.Products do
   """
   def update_product(%Product{} = product, attrs) do
     product
-    |> Product.changeset(attrs)
+    |> Product.update_changeset(attrs)
     |> Repo.update()
   end
 
@@ -166,7 +166,9 @@ defmodule NervesHub.Products do
   end
 
   def load_shared_secret_auth(product) do
-    Repo.preload(product, :shared_secret_auths)
+    product
+    |> Ecto.reset_fields([:shared_secret_auths])
+    |> Repo.preload(:shared_secret_auths)
   end
 
   def create_shared_secret_auth(product) do

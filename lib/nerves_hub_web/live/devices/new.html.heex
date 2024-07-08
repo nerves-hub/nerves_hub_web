@@ -1,0 +1,43 @@
+<h1>Add Device</h1>
+
+<.form :let={f} for={@form} phx-submit="save-device">
+  <div class="form-group">
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="identifier_input" class="tooltip-label">
+        ID
+      </label>
+      <span class="tooltip-info mb-1"></span>
+      <span class="tooltip-text">Device ID cannot be changed once created</span>
+    </div>
+    <%= text_input(f, :identifier, class: "form-control", id: "identifier_input") %>
+    <div class="has-error"><%= error_tag(f, :identifier) %></div>
+  </div>
+
+  <div class="form-group">
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="description_input" class="tooltip-label">
+        Description
+      </label>
+      <span class="tooltip-info mb-1"></span>
+      <span class="tooltip-text">Description for this device</span>
+    </div>
+    <%= text_input(f, :description, class: "form-control", id: "description_input") %>
+    <div class="has-error"><%= error_tag(f, :description) %></div>
+  </div>
+
+  <div class="form-group" aria-hidden="true">
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="tags_input" class="tooltip-label">
+        Tags
+      </label>
+      <span class="tooltip-info mb-1"></span>
+      <span class="tooltip-text">Tags are used by deployments to target a device. A device must have matching tag(s) for the deployment to update it</span>
+    </div>
+    <%= text_input(f, :tags, class: "form-control", id: "tags_input") %>
+    <div class="has-error"><%= error_tag(f, :tags) %></div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <%= submit("Add Device", class: "btn btn-primary") %>
+  </div>
+</.form>

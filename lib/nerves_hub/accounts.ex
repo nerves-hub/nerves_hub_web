@@ -15,8 +15,6 @@ defmodule NervesHub.Accounts do
     RemoveAccount
   }
 
-  alias NervesHub.Products.Product
-
   alias NervesHub.Repo
 
   @spec create_org(User.t(), map) ::
@@ -45,6 +43,25 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @spec soft_delete_org(Org.t()) :: {:ok, Org.t()} | {:error, Changeset.t()}
+  def soft_delete_org(%Org{} = org) do
+    deleted_at = DateTime.truncate(DateTime.utc_now(), :second)
+
+    Multi.new()
+    |> Multi.update_all(:soft_delete_products, Ecto.assoc(org, :products),
+      set: [deleted_at: deleted_at]
+    )
+    |> Multi.update(:soft_delete_org, Org.delete_changeset(org))
+    |> Repo.transaction()
+    |> case do
+      {:ok, _result} ->
+        {:ok, org}
+
+      {:error, _, changeset, _} ->
+        {:error, changeset}
+    end
+  end
+
   def change_user(user, params \\ %{})
 
   def change_user(%User{id: nil} = user, params) do
@@ -60,29 +77,9 @@ defmodule NervesHub.Accounts do
   """
   @spec create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def create_user(user_params) do
-    org_params = %{name: user_params[:username]}
-
-    multi =
-      Multi.new()
-      |> Multi.insert(:user, User.creation_changeset(%User{}, user_params))
-      |> Multi.insert(:org, Org.creation_changeset(%Org{}, org_params))
-      |> Multi.insert(:org_user, fn %{user: user, org: org} ->
-        org_user = %OrgUser{
-          org_id: org.id,
-          user_id: user.id,
-          role: :admin
-        }
-
-        Org.add_user(org_user, %{})
-      end)
-
-    case Repo.transaction(multi) do
-      {:ok, result} ->
-        {:ok, result.user}
-
-      {:error, :user, changeset, _} ->
-        {:error, changeset}
-    end
+    %User{}
+    |> User.creation_changeset(user_params)
+    |> Repo.insert()
   end
 
   @doc """
@@ -183,6 +180,17 @@ defmodule NervesHub.Accounts do
     |> Repo.all()
   end
 
+  def find_org_user_with_device(user, device_id) do
+    OrgUser
+    |> join(:left, [ou], o in assoc(ou, :org))
+    |> join(:left, [ou, o], p in assoc(o, :products))
+    |> join(:left, [ou, o, p], d in assoc(p, :devices))
+    |> where([_, _, _, d], d.id == ^device_id)
+    |> where([ou], ou.user_id == ^user.id)
+    |> where([ou], is_nil(ou.deleted_at))
+    |> Repo.one()
+  end
+
   @doc """
   Authenticates a user by their email and password. Returns the user if the
   user is found and the password is correct, otherwise nil.
@@ -190,10 +198,10 @@ defmodule NervesHub.Accounts do
   @spec authenticate(String.t(), String.t()) ::
           {:ok, User.t()}
           | {:error, :authentication_failed}
-  def authenticate(email_or_username, password) do
-    with {:ok, user} <- get_user_by_email_or_username(email_or_username),
+  def authenticate(email, password) do
+    with {:ok, user} <- get_user_by_email(email),
          true <- Bcrypt.verify_pass(password, user.password_hash) do
-      {:ok, user |> User.with_default_org() |> User.with_org_keys()}
+      {:ok, user}
     else
       _ ->
         # User wasn't found; do dummy check to make user enumeration more difficult
@@ -224,15 +232,10 @@ defmodule NervesHub.Accounts do
   end
 
   def get_user_with_all_orgs_and_products(user_id) do
-    org_query = from(o in Org, where: is_nil(o.deleted_at))
-    product_query = from(p in Product, where: is_nil(p.deleted_at))
-
-    orgs_preload = {org_query, products: product_query}
-
     User
-    |> where([u], u.id == ^user_id)
+    |> where(id: ^user_id)
     |> Repo.exclude_deleted()
-    |> preload(orgs: ^orgs_preload)
+    |> preload(orgs: [:products])
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -247,28 +250,6 @@ defmodule NervesHub.Accounts do
     |> case do
       nil -> {:error, :not_found}
       user -> {:ok, user}
-    end
-  end
-
-  def get_user_by_username(username) do
-    User
-    |> Repo.exclude_deleted()
-    |> Repo.get_by(username: username)
-    |> case do
-      nil -> {:error, :not_found}
-      user -> {:ok, user}
-    end
-  end
-
-  def get_user_by_email_or_username(email_or_username) do
-    User
-    |> Repo.exclude_deleted()
-    |> where(username: ^email_or_username)
-    |> or_where(email: ^email_or_username)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      cert -> {:ok, cert}
     end
   end
 
@@ -370,9 +351,10 @@ defmodule NervesHub.Accounts do
   end
 
   def list_org_keys(%Org{id: org_id}) do
-    query = from(tk in OrgKey, where: tk.org_id == ^org_id)
-
-    query
+    OrgKey
+    |> where(org_id: ^org_id)
+    |> preload(:created_by)
+    |> order_by(:id)
     |> Repo.all()
   end
 
@@ -436,11 +418,11 @@ defmodule NervesHub.Accounts do
     OrgKey.update_changeset(org_key, params)
   end
 
-  @spec add_or_invite_to_org(%{required(String.t()) => String.t()}, Org.t()) ::
+  @spec add_or_invite_to_org(%{required(String.t()) => String.t()}, Org.t(), User.t()) ::
           {:ok, Invite.t()}
           | {:ok, OrgUser.t()}
           | {:error, Changeset.t()}
-  def add_or_invite_to_org(%{"email" => email} = params, org) do
+  def add_or_invite_to_org(%{"email" => email} = params, org, invited_by) do
     case get_user_by_email(email) do
       {:error, :not_found} ->
         invite(params, org)
@@ -451,11 +433,16 @@ defmodule NervesHub.Accounts do
     end
   end
 
-  @spec invite(%{email: String.t()}, Org.t()) ::
+  @spec invite(%{email: String.t()}, Org.t(), User.t()) ::
           {:ok, Invite.t()}
           | {:error, Changeset.t()}
-  def invite(params, org) do
-    params = Map.merge(params, %{"org_id" => org.id, "token" => Ecto.UUID.generate()})
+  def invite(params, org, invited_by) do
+    params =
+      Map.merge(params, %{
+        "org_id" => org.id,
+        "token" => Ecto.UUID.generate(),
+        "invited_by_id" => invited_by.id
+      })
 
     %Invite{}
     |> Invite.changeset(params)
@@ -471,15 +458,11 @@ defmodule NervesHub.Accounts do
           {:ok, Invite.t()}
           | {:error, :invite_not_found}
   def get_valid_invite(token) do
-    query =
-      from(
-        i in Invite,
-        where: i.token == ^token,
-        where: i.accepted == false,
-        where: i.inserted_at >= fragment("NOW() - INTERVAL '48 hours'")
-      )
-
-    query
+    Invite
+    |> where(token: ^token)
+    |> where(accepted: false)
+    |> where([i], i.inserted_at >= fragment("NOW() - INTERVAL '48 hours'"))
+    |> preload(:invited_by)
     |> Repo.one()
     |> case do
       nil -> {:error, :invite_not_found}
@@ -503,12 +486,22 @@ defmodule NervesHub.Accounts do
   end
 
   def delete_invite(org, token) do
-    Invite
-    |> where([i], i.org_id == ^org.id)
-    |> where([i], i.token == ^token)
-    |> where([i], i.accepted == false)
-    |> Repo.one()
-    |> Repo.delete()
+    query =
+      Invite
+      |> where([i], i.org_id == ^org.id)
+      |> where([i], i.token == ^token)
+      |> where([i], i.accepted == false)
+
+    with %Invite{} = invite <- Repo.one(query),
+         {:ok, invite} <- Repo.delete(invite) do
+      {:ok, invite}
+    else
+      nil ->
+        {:error, :not_found}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
 
   @doc """
@@ -518,7 +511,7 @@ defmodule NervesHub.Accounts do
   @spec create_user_from_invite(Invite.t(), Org.t(), map()) ::
           {:ok, OrgUser.t()} | {:error, Ecto.Changeset.t()}
   def create_user_from_invite(invite, org, user_params) do
-    user_params = Map.put(user_params, :email, invite.email)
+    user_params = Map.put(user_params, "email", invite.email)
 
     Repo.transaction(fn ->
       with {:ok, user} <- create_user(user_params),
@@ -710,5 +703,16 @@ defmodule NervesHub.Accounts do
       user_token ->
         {:ok, user_token}
     end
+  end
+
+  def get_user_tokens(user) do
+    UserToken
+    |> where(user_id: ^user.id)
+    |> Repo.all()
+  end
+
+  def delete_user_token(user, token_id) do
+    {:ok, token} = get_user_token(user, token_id)
+    Repo.delete(token)
   end
 end

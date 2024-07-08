@@ -129,7 +129,7 @@ defmodule NervesHub.Devices do
         {"updates", "disabled"} ->
           where(query, [d], d.updates_enabled == false)
 
-        {"id", value} ->
+        {"device_id", value} ->
           where(query, [d], ilike(d.identifier, ^"#{value}%"))
 
         {"tag", value} ->
@@ -333,6 +333,10 @@ defmodule NervesHub.Devices do
     |> Multi.delete_all(:device_certificates, device_certificates_query)
     |> Multi.update(:device, changeset)
     |> Repo.transaction()
+    |> case do
+      {:ok, %{device: device}} -> {:ok, device}
+      error -> error
+    end
   end
 
   @spec create_device_certificate(Device.t(), map() | X509.Certificate.t()) ::
@@ -858,7 +862,7 @@ defmodule NervesHub.Devices do
     _ = maybe_copy_firmware_keys(device, product.org)
 
     description =
-      "user #{user.username} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
+      "user #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
 
     source_product = %Product{
       id: device.product_id,
@@ -889,7 +893,7 @@ defmodule NervesHub.Devices do
 
   @spec tag_device(Device.t() | [Device.t()], User.t(), List.t()) :: Repo.transaction()
   def tag_device(%Device{} = device, user, tags) do
-    description = "user #{user.username} updated device #{device.identifier} tags"
+    description = "user #{user.name} updated device #{device.identifier} tags"
     params = %{tags: tags}
     update_device_with_audit(device, params, user, description)
   end
@@ -916,14 +920,14 @@ defmodule NervesHub.Devices do
 
   @spec enable_updates(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
   def enable_updates(%Device{} = device, user) do
-    description = "user #{user.username} enabled updates for device #{device.identifier}"
+    description = "user #{user.name} enabled updates for device #{device.identifier}"
     params = %{updates_enabled: true, update_attempts: []}
     update_device_with_audit(device, params, user, description)
   end
 
   @spec disable_updates(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
   def disable_updates(%Device{} = device, user) do
-    description = "user #{user.username} disabled updates for device #{device.identifier}"
+    description = "user #{user.name} disabled updates for device #{device.identifier}"
     params = %{updates_enabled: false}
     update_device_with_audit(device, params, user, description)
   end
@@ -939,7 +943,7 @@ defmodule NervesHub.Devices do
   end
 
   def clear_penalty_box(%Device{} = device, user) do
-    description = "user #{user.username} removed device #{device.identifier} from the penalty box"
+    description = "user #{user.name} removed device #{device.identifier} from the penalty box"
     params = %{updates_blocked_until: nil, update_attempts: []}
     update_device_with_audit(device, params, user, description)
   end

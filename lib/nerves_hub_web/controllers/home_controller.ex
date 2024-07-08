@@ -11,7 +11,7 @@ defmodule NervesHubWeb.HomeController do
         |> render("index.html")
 
       false ->
-        redirect(conn, to: Routes.session_path(conn, :new))
+        redirect(conn, to: ~p"/orgs")
     end
   end
 

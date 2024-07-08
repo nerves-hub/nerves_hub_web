@@ -2,7 +2,7 @@ defmodule NervesHubWeb.ConnCase.Browser do
   @moduledoc """
   conn case for browser related tests
   """
-  alias NervesHub.{Accounts, Fixtures}
+  alias NervesHub.Fixtures
   alias NervesHubWeb.ConnCase
   alias Plug.Test
 
@@ -10,24 +10,34 @@ defmodule NervesHubWeb.ConnCase.Browser do
     quote do
       use DefaultMocks
       use ConnCase, unquote(opts)
+      use NervesHubWeb, :verified_routes
+
       import Test
       import Phoenix.LiveViewTest
+      import PhoenixTest
 
-      setup do
-        fixture = Fixtures.standard_fixture()
+      @moduletag :tmp_dir
 
-        %{org: org, org_key: org_key, user: user} = fixture
+      setup context do
+        fixture = Fixtures.standard_fixture(context.tmp_dir)
 
-        {:ok, org_with_org_keys} = Accounts.get_org_with_org_keys(org.id)
+        %{org: org, org_key: org_key, user: user, product: product, device: device} = fixture
 
         conn =
           build_conn()
-          |> Map.put(:assigns, %{org: org_with_org_keys, user: user, orgs: [org]})
           |> init_test_session(%{
             "auth_user_id" => user.id
           })
 
-        %{conn: conn, user: user, org: org, fixture: fixture, org_key: org_key}
+        %{
+          conn: conn,
+          user: user,
+          org: org,
+          fixture: fixture,
+          org_key: org_key,
+          product: product,
+          device: device
+        }
       end
     end
   end

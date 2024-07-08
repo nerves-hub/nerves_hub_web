@@ -1,0 +1,15 @@
+<h1>Are you absolutely sure?</h1>
+
+<p>Unexpected bad things will happen if you don’t read this!</p>
+<p>This action cannot be undone. This will permanently delete the <%= @org.name %> organization.</p>
+
+<.form :let={f} for={@form} phx-submit="delete">
+  <div class="form-group">
+    <label for="org_name_input">Please type <%= @org.name %> to confirm.</label>
+    <%= text_input(f, :confirm_name, class: "form-control", id: "org_name_input") %>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <%= submit("I understand the consequences, delete this organization.", class: "btn btn-primary") %>
+  </div>
+</.form>

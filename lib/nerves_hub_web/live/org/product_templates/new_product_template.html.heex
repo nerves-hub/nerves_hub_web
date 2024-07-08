@@ -1,0 +1,47 @@
+<h1>Create Product</h1>
+
+<.form :let={f} for={@form} phx-submit="create_product">
+  <%= if f.action do %>
+    <div class="alert alert-danger">
+      <p>Something went wrong! Please check the errors below.</p>
+    </div>
+  <% end %>
+
+  <div class="form-group">
+    <div class="help-text tooltip-label help-tooltip">
+      <label for="name_input" class="tooltip-label">
+        Name
+      </label>
+      <span class="tooltip-info mb-1"></span>
+      <span class="tooltip-text">Once created, a product name cannot be changed</span>
+    </div>
+    <%= if assigns[:product] do %>
+      <%= text_input(f, :name, class: "form-control", disabled: "true", id: "name_input") %>
+    <% else %>
+      <%= text_input(f, :name, class: "form-control", id: "name_input") %>
+    <% end %>
+    <div class="has-error"><%= error_tag(f, :name) %></div>
+  </div>
+
+  <div class="form-group">
+    <label for="delta_updatable_input" class="tooltip-label">
+      <span>Firmware updates</span>
+      <span class="tooltip-info"></span>
+      <span class="tooltip-text">
+        Check out the documentation at <a href="https://docs.nerves-hub.org" target="_blank" class="inline">https://docs.nerves-hub.org </a>
+        for more information about <a href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank" class="inline">delta updates</a>
+      </span>
+    </label>
+    <div class="flex-row align-items-center">
+      <%= checkbox(f, :delta_updatable, class: "form-control checkbox", id: "delta_updatable_input") %>
+      <label for="delta_updatable_input" class="color-white pl-1 m-0">Enable delta firmware updates</label>
+    </div>
+
+    <div class="has-error"><%= error_tag(f, :delta_updatable) %></div>
+  </div>
+
+  <div class="button-submit-wrapper">
+    <.link class="btn btn-outline-light" patch={~p"/org/#{@org.name}"}>Cancel</.link>
+    <%= submit("Create Product", class: "btn btn-primary") %>
+  </div>
+</.form>
