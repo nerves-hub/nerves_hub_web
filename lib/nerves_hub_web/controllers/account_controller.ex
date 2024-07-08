@@ -136,4 +136,33 @@ defmodule NervesHubWeb.AccountController do
         )
     end
   end
+
+  def maybe_show_invites(conn) do
+    case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do
+      true ->
+        case conn.assigns.user
+             |> Accounts.get_invites_for_user() do
+          [] ->
+            conn
+
+          invites ->
+            conn
+            |> put_flash(
+              :info,
+              [
+                "You have " <>
+                  (length(invites) |> Integer.to_string()) <>
+                  " pending invite" <>
+                  if(length(invites) > 1, do: "s", else: "") <> " to organizations. ",
+                  link("Click here to view pending invites.",
+                  to: "/org/" <> conn.assigns.user.username <> "/invites"
+                )
+              ]
+            )
+        end
+
+      false ->
+        conn
+      end
+    end
 end

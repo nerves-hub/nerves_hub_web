@@ -4,18 +4,8 @@ defmodule NervesHubWeb.HomeController do
   alias NervesHubWeb.AccountController
 
   def index(conn, _params) do
-    case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do
-      true ->
-        conn
-        |> AccountController.maybe_show_invites()
-        |> render("index.html")
-
-      false ->
-        redirect(conn, to: ~p"/orgs")
-    end
-  end
-
-  def error(_conn, _params) do
-    raise "Error"
+    conn
+    |> AccountController.maybe_show_invites()
+    |> redirect(to: ~p"/orgs")
   end
 end
