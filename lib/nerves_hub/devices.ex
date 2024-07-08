@@ -76,7 +76,8 @@ defmodule NervesHub.Devices do
   def get_devices_by_org_id_and_product_id(org_id, product_id, opts) do
     query =
       from(
-        d in Device, as: :device,
+        d in Device,
+        as: :device,
         where: d.org_id == ^org_id,
         where: d.product_id == ^product_id
       )
@@ -96,8 +97,10 @@ defmodule NervesHub.Devices do
   def get_health_by_org_id_and_product_id(org_id, product_id, opts) do
     query =
       from(
-        d in Device, as: :device,
-        join: dh in DeviceHealth, as: :device_health,
+        d in Device,
+        as: :device,
+        join: dh in DeviceHealth,
+        as: :device_health,
         on: dh.device_id == d.id,
         select: [dh.device_id, dh.data, d.deleted_at],
         distinct: dh.device_id,
