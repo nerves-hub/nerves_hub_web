@@ -31,7 +31,7 @@ defmodule NervesHubWeb.AccountController do
     conn.assigns.user
     |> Accounts.update_user(cleaned)
     |> case do
-      {:ok, user} ->
+      {:ok, _user} ->
         conn
         |> put_flash(:info, "Account successfully created, login below")
         |> redirect(to: "/login")
@@ -165,4 +165,15 @@ defmodule NervesHubWeb.AccountController do
         conn
       end
     end
+
+  defp registrations_allowed(conn, _options) do
+    if Application.get_env(:nerves_hub, :open_for_registrations) do
+      conn
+    else
+      conn
+      |> put_flash(:info, "Please contact support for an invite to this platform.")
+      |> redirect(to: "/login")
+      |> halt()
+    end
+  end
 end
