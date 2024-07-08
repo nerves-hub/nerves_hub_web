@@ -77,7 +77,8 @@ defmodule NervesHubWeb.OrgController do
         |> put_flash(:info, "User has been invited")
         |> redirect(to: Routes.org_user_path(conn, :index, conn.assigns.org.name))
 
-      {:ok, %OrgUser{}} -> # TODO: (Beltran) review this case statement and delete unused matches
+      # TODO: (Beltran) review this case statement and delete unused matches
+      {:ok, %OrgUser{}} ->
         SwooshEmail.org_user_created(invite_params["email"], org)
         |> SwooshMailer.deliver()
 

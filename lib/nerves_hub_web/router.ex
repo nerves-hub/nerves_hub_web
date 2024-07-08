@@ -199,7 +199,11 @@ defmodule NervesHubWeb.Router do
     get("/invite/:token", AccountController, :invite)
     post("/invite/:token", AccountController, :accept_invite)
 
-    get("/invites/:user_name", AccountController, :invites)
+    scope "/invites/:user_name" do
+      pipe_through([:logged_in])
+
+      get("/", AccountController, :invites)
+    end
   end
 
   scope "/", NervesHubWeb do
