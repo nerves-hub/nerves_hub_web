@@ -1113,6 +1113,11 @@ defmodule NervesHub.Devices do
     end
   end
 
+  def get_all_health(device_id) do
+    from(DeviceHealth,where: [device_id: ^device_id])
+    |> Repo.all()
+  end
+
   defp version_match?(_vsn, ""), do: true
 
   defp version_match?(version, requirement) do
