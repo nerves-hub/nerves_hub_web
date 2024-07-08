@@ -19,7 +19,8 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Tracker
   alias Phoenix.Socket.Broadcast
 
-  @default_health_check_interval 3600
+  # 1 hour in ms
+  @default_health_check_interval 3600 * 1000
 
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
@@ -27,6 +28,7 @@ defmodule NervesHubWeb.DeviceChannel do
       socket = assign(socket, :device, device)
 
       send(self(), {:after_join, params})
+      send(self(), :health_check)
       schedule_health_check()
 
       {:ok, socket}
@@ -398,6 +400,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   def handle_info(:health_check, socket) do
     push(socket, "check_health", %{})
+    schedule_health_check()
     {:noreply, socket}
   end
 
