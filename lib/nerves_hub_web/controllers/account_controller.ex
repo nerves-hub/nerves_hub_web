@@ -6,6 +6,8 @@ defmodule NervesHubWeb.AccountController do
   alias NervesHub.Accounts.SwooshEmail
   alias NervesHub.SwooshMailer
 
+  import Phoenix.HTML.Link
+
   def edit(conn, _params) do
     conn
     |> render(
@@ -216,10 +218,12 @@ defmodule NervesHubWeb.AccountController do
           invites ->
             conn
             |> put_flash(
-              :info,
+              :info, [
               "You have " <>
                 (length(invites) |> Integer.to_string()) <>
-                " pending invite" <> if(length(invites) > 1, do: "s", else: "") <> " to organizations."
+                " pending invite" <> if(length(invites) > 1, do: "s", else: "") <> " to organizations. ",
+                link("View pending invites.", to: "/org/" <> conn.assigns.user <> "/invites")
+              ]
             )
         end
 
