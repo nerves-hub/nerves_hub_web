@@ -17,7 +17,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Firmwares
   alias NervesHub.Repo
   alias NervesHub.Tracker
-  alias NervesHub.Utils
+  alias NervesHub.Utils.Geolocate
   alias Phoenix.Socket.Broadcast
 
   def join("device", params, %{assigns: %{device: device}} = socket) do
@@ -533,7 +533,7 @@ defmodule NervesHubWeb.DeviceChannel do
     metadata =
       device.connection_metadata
       |> Map.put("request_ip", request_ip)
-      |> Map.put("location", Utils.geolocate_ip(request_ip))
+      |> Map.put("location", Geolocate.resolve(request_ip))
 
     Devices.update_device(device, %{connection_metadata: metadata})
   end
