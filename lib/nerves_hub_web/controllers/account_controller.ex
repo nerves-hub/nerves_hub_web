@@ -36,6 +36,27 @@ defmodule NervesHubWeb.AccountController do
     end
   end
 
+  def invites(conn, params) do
+    case Accounts.get_user_by_username(params["username"]) do
+      {:ok, user} ->
+        case Accounts.get_invites_for_user(user) do
+          [] ->
+            conn
+            |> put_flash(:info, "No pending invites")
+            |> redirect(to: Routes.account_path(conn, :edit, user.username))
+
+          invites ->
+            conn
+            |> render("invites.html", invites: invites)
+        end
+
+      {:error, :not_found} ->
+        conn
+        |> put_flash(:error, "User not found")
+        |> redirect(to: "/")
+    end
+  end
+
   def update(conn, params) do
     cleaned =
       params["user"]
@@ -218,11 +239,15 @@ defmodule NervesHubWeb.AccountController do
           invites ->
             conn
             |> put_flash(
-              :info, [
-              "You have " <>
-                (length(invites) |> Integer.to_string()) <>
-                " pending invite" <> if(length(invites) > 1, do: "s", else: "") <> " to organizations. ",
-                link("View pending invites.", to: "/org/" <> conn.assigns.user <> "/invites")
+              :info,
+              [
+                "You have " <>
+                  (length(invites) |> Integer.to_string()) <>
+                  " pending invite" <>
+                  if(length(invites) > 1, do: "s", else: "") <> " to organizations. ",
+                link("Click here to view pending invites.",
+                  to: "/org/" <> conn.assigns.user.username <> "/invites"
+                )
               ]
             )
         end

@@ -198,6 +198,8 @@ defmodule NervesHubWeb.Router do
 
     get("/invite/:token", AccountController, :invite)
     post("/invite/:token", AccountController, :accept_invite)
+
+    get("/invites/:user_name", AccountController, :invites)
   end
 
   scope "/", NervesHubWeb do
