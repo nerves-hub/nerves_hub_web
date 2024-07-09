@@ -1,14 +1,11 @@
 defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :updated_live_view
 
-  require Logger
-
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
-  alias NervesHub.Repo
   alias NervesHub.Tracker
 
   alias NervesHubWeb.Components.DeviceHeader
@@ -138,7 +135,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:destroy", org_user)
 
-    {:ok, _device} = Repo.destroy(device)
+    {:ok, _device} = Devices.destroy_device(device)
 
     socket
     |> put_flash(:info, "Device destroyed successfully.")
