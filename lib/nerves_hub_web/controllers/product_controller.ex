@@ -5,8 +5,7 @@ defmodule NervesHubWeb.ProductController do
 
   action_fallback(NervesHubWeb.FallbackController)
 
-  plug(:validate_role, [org: :manage] when action in [:new, :create, :update, :delete])
-  plug(:validate_role, [org: :view] when action in [:index])
+  plug(:validate_role, [org: :view] when action in [:devices_export])
 
   def devices_export(%{assigns: %{product: product}} = conn, _params) do
     filename = "#{product.name}-devices.csv"

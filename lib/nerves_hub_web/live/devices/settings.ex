@@ -39,7 +39,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
       {:ok, _device} ->
         socket
         |> put_flash(:info, "Device updated")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
+        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
         |> noreply()
 
       {:error, changeset} ->

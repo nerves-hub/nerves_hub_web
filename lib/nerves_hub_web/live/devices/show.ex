@@ -1,17 +1,14 @@
 defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :updated_live_view
 
-  require Logger
-
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
-  alias NervesHub.Repo
   alias NervesHub.Tracker
 
   alias NervesHubWeb.Components.DeviceHeader
+  alias NervesHubWeb.Components.DeviceLocation
 
   alias Phoenix.Socket.Broadcast
 
@@ -29,8 +26,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> assign(:status, Tracker.status(device))
     |> assign(:deployment, device.deployment)
-    |> assign(:results, [])
-    |> assign(:deployments, Deployments.alternate_deployments(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:tab_hint, :devices)
     |> audit_log_assigns(1)
@@ -111,7 +106,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     {:ok, updated_device} = Devices.clear_penalty_box(device, user)
 
-    {:noreply, assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))}
+    {:noreply, assign(socket, :device, updated_device)}
   end
 
   def handle_event("toggle_health_state", _params, socket) do
@@ -121,7 +116,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     {:ok, updated_device} = Devices.toggle_health(device, user)
 
-    {:noreply, assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))}
+    {:noreply, assign(socket, :device, updated_device)}
   end
 
   def handle_event("restore", _, socket) do
@@ -137,7 +132,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:destroy", org_user)
 
-    {:ok, _device} = Repo.destroy(device)
+    {:ok, _device} = Devices.destroy_device(device)
 
     socket
     |> put_flash(:info, "Device destroyed successfully.")
@@ -181,7 +176,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "deployments/update", payload)
 
     socket
-    |> assign(:device, Repo.preload(device, [:device_certificates]))
+    |> assign(:device, device)
     |> put_flash(:info, "Pushing firmware update")
     |> noreply()
   end
@@ -189,9 +184,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
     logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 10})
 
-    socket
-    |> assign(:audit_logs, logs)
-    |> assign(:resource_id, device.id)
+    assign(socket, :audit_logs, logs)
   end
 
   defp connecting_code(device) do
