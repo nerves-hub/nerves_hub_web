@@ -112,7 +112,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     {:ok, updated_device} = Devices.clear_penalty_box(device, user)
 
-    {:noreply, assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))}
+    {:noreply, assign(socket, :device, updated_device)}
   end
 
   def handle_event("toggle_health_state", _params, socket) do
@@ -122,7 +122,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     {:ok, updated_device} = Devices.toggle_health(device, user)
 
-    {:noreply, assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))}
+    {:noreply, assign(socket, :device, updated_device)}
   end
 
   def handle_event("restore", _, socket) do
@@ -182,7 +182,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "deployments/update", payload)
 
     socket
-    |> assign(:device, Repo.preload(device, [:device_certificates]))
+    |> assign(:device, device)
     |> put_flash(:info, "Pushing firmware update")
     |> noreply()
   end
