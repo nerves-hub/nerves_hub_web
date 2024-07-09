@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
@@ -28,7 +27,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:status, Tracker.status(device))
     |> assign(:deployment, device.deployment)
     |> assign(:results, [])
-    |> assign(:deployments, Deployments.alternate_deployments(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:tab_hint, :devices)
     |> audit_log_assigns(1)
