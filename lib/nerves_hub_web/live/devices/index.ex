@@ -34,6 +34,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     if connected?(socket) do
       socket.endpoint.subscribe("product:#{product.id}:devices")
+      Process.send_after(self(), :refresh_device_list, 5000)
     end
 
     socket
@@ -294,6 +295,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # Unknown broadcasts get ignored, likely from the device:id:internal channel
   def handle_info(%Broadcast{}, socket) do
     {:noreply, socket}
+  end
+
+  def handle_info(:refresh_device_list, socket) do
+    Process.send_after(self(), :refresh_device_list, 5000)
+
+    if socket.assigns.paginate_opts.total_pages == 1 do
+      {:noreply, assign_display_devices(socket)}
+    else
+      {:noreply, socket}
+    end
   end
 
   defp assign_display_devices(
