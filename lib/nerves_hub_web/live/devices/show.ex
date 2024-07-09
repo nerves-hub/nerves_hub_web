@@ -26,7 +26,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> assign(:status, Tracker.status(device))
     |> assign(:deployment, device.deployment)
-    |> assign(:results, [])
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:tab_hint, :devices)
     |> audit_log_assigns(1)
@@ -185,9 +184,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
     logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 10})
 
-    socket
-    |> assign(:audit_logs, logs)
-    |> assign(:resource_id, device.id)
+    assign(socket, :audit_logs, logs)
   end
 
   defp connecting_code(device) do
