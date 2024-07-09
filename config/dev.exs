@@ -111,3 +111,6 @@ config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Local
 config :nerves_hub, NervesHub.RateLimit, limit: 10
 
 config :sentry, environment_name: :development
+
+config :nerves_hub,
+  open_for_registrations: true
