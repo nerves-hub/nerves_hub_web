@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
 
   @impl Phoenix.LiveView
   def handle_event("create_script", %{"script" => script_params}, socket) do
-    authorized!(:create_support_script, socket.assigns.org_user)
+    authorized!(:"support_script:create", socket.assigns.org_user)
 
     %{org: org, product: product} = socket.assigns
 

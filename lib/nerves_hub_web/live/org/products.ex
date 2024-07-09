@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Live.Org.Products do
 
   @impl Phoenix.LiveView
   def handle_event("create_product", %{"product" => product_params}, socket) do
-    authorized!(:create_product, socket.assigns.org_user)
+    authorized!(:"product:create", socket.assigns.org_user)
 
     params = Enum.into(product_params, %{"org_id" => socket.assigns.org.id})
 

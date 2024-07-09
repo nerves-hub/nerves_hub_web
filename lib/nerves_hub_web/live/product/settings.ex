@@ -16,14 +16,14 @@ defmodule NervesHubWeb.Live.Product.Settings do
   end
 
   def handle_event("update", %{"product" => params}, socket) do
-    authorized!(:update_product, socket.assigns.org_user)
+    authorized!(:"product:update", socket.assigns.org_user)
 
     {:ok, product} = Products.update_product(socket.assigns.product, params)
     {:noreply, assign(socket, :product, product)}
   end
 
   def handle_event("add-shared-secret", _params, socket) do
-    authorized!(:update_product, socket.assigns.org_user)
+    authorized!(:"product:update", socket.assigns.org_user)
 
     {:ok, _} = Products.create_shared_secret_auth(socket.assigns.product)
 
@@ -42,7 +42,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
   end
 
   def handle_event("deactivate-shared-secret", %{"shared_secret_id" => shared_secret_id}, socket) do
-    authorized!(:update_product, socket.assigns.org_user)
+    authorized!(:"product:update", socket.assigns.org_user)
 
     product = socket.assigns.product
 
@@ -54,7 +54,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
   end
 
   def handle_event("delete-product", _parmas, socket) do
-    authorized!(:delete_product, socket.assigns.org_user)
+    authorized!(:"product:delete", socket.assigns.org_user)
 
     with {:ok, _product} <- Products.delete_product(socket.assigns.product) do
       socket =

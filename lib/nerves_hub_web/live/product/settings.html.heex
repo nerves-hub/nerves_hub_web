@@ -36,7 +36,7 @@
         value="true"
         checked={Phoenix.HTML.Form.normalize_value("checkbox", @product.delta_updatable)}
         class="form-control checkbox"
-        disabled={!authorized?(:update_product, @org_user)}
+        disabled={!authorized?(:"product:update", @org_user)}
       />
       <label for="delta_updatable_input" class="color-white pl-1 m-0">
         Enable delta firmware updates
@@ -106,7 +106,7 @@
           class="btn btn-secondary"
           phx-click="deactivate-shared-secret"
           phx-value-shared_secret_id={auth.id}
-          disabled={!authorized?(:update_product, @org_user)}
+          disabled={!authorized?(:"product:update", @org_user)}
           data-confirm="Are you sure?"
         >
           Deactivate
@@ -120,10 +120,10 @@
   </table>
 
   <div>
-    <button :if={Enum.empty?(@shared_secrets)} class="btn btn-secondary" phx-click="add-shared-secret" disabled={!authorized?(:update_product, @org_user)} data-confirm="Are you sure?">
+    <button :if={Enum.empty?(@shared_secrets)} class="btn btn-secondary" phx-click="add-shared-secret" disabled={!authorized?(:"product:update", @org_user)} data-confirm="Are you sure?">
       Add your first Shared Secret.
     </button>
-    <button :if={Enum.any?(@shared_secrets)} class="btn btn-secondary" phx-click="add-shared-secret" disabled={!authorized?(:update_product, @org_user)} data-confirm="Are you sure?">
+    <button :if={Enum.any?(@shared_secrets)} class="btn btn-secondary" phx-click="add-shared-secret" disabled={!authorized?(:"product:update", @org_user)} data-confirm="Are you sure?">
       Add a Shared Secret
     </button>
   </div>
@@ -135,7 +135,7 @@
 <div class="border-bottom border-dark mt-5 mb-2"></div>
 
 <div class="mt-4">
-  <button class="btn btn-primary" phx-click="delete-product" data-confirm="Are you sure you want to delete this product?" disabled={!authorized?(:delete_product, @org_user)}>
+  <button class="btn btn-primary" phx-click="delete-product" data-confirm="Are you sure you want to delete this product?" disabled={!authorized?(:"product:delete", @org_user)}>
     Remove Product
   </button>
 </div>

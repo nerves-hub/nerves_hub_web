@@ -157,8 +157,7 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Deployments",
         active: "",
-        href:
-          Routes.deployment_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/deployments"
       },
       %{
         title: "Scripts",

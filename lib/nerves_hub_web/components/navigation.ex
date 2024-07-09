@@ -60,19 +60,19 @@ defmodule NervesHubWeb.Components.Navigation do
                         <div class="dropdown-divider"></div>
                       <% end %>
 
-                      <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create product" href={~p"/org/#{org.name}/new"}>
+                      <.link navigate={~p"/org/#{org.name}/new"} class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create product">
                         <span class="action-text">Create Product</span>
                         <span class="button-icon add"></span>
-                      </a>
+                      </.link>
                     </ul>
                     <div class="dropdown-divider"></div>
                   </div>
                 <% end %>
 
-                <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization" href={~p"/orgs/new"}>
+                <.link navigate={~p"/orgs/new"} class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization">
                   <span class="action-text">Create Organization</span>
                   <div class="button-icon add"></div>
-                </a>
+                </.link>
               </div>
             </li>
           </ul>

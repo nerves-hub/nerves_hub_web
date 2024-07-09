@@ -16,7 +16,7 @@ defmodule NervesHubWeb.Live.Org.Settings do
 
   @impl Phoenix.LiveView
   def handle_event("update", %{"org" => org_params}, socket) do
-    authorized!(:update_organization, socket.assigns.org_user)
+    authorized!(:"organization:update", socket.assigns.org_user)
 
     case Accounts.update_org(socket.assigns.org, org_params) do
       {:ok, org} ->

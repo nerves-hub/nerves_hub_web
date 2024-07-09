@@ -27,7 +27,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
 
   @impl Phoenix.LiveView
   def handle_event("save", %{"org_key" => key_params}, socket) do
-    authorized!(:save_signing_key, socket.assigns.org_user)
+    authorized!(:"signing_key:create", socket.assigns.org_user)
 
     params =
       key_params
@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
   end
 
   def handle_event("delete", %{"signing_key_id" => signing_key_id}, socket) do
-    authorized!(:delete_signing_key, socket.assigns.org_user)
+    authorized!(:"signing_key:delete", socket.assigns.org_user)
 
     {:ok, signing_key} = Accounts.get_org_key(socket.assigns.org, signing_key_id)
 

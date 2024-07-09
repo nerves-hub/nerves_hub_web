@@ -58,7 +58,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # the delete handler for the list page
   def handle_event("delete-firmware", %{"firmware_uuid" => uuid}, socket) do
-    authorized!(:delete_firmware, socket.assigns.org_user)
+    authorized!(:"firmware:delete", socket.assigns.org_user)
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(socket.assigns.product, uuid)
 
@@ -76,7 +76,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   # the delete handler for the show page
   def handle_event("delete-firmware", _params, socket) do
-    authorized!(:delete_firmware, socket.assigns.org_user)
+    authorized!(:"firmware:delete", socket.assigns.org_user)
 
     %{org: org, product: product, firmware: firmware} = socket.assigns
 
@@ -95,7 +95,7 @@ defmodule NervesHubWeb.Live.Firmware do
   end
 
   def handle_progress(:firmware, entry, socket) do
-    authorized!(:upload_firmware, socket.assigns.org_user)
+    authorized!(:"firmware:upload", socket.assigns.org_user)
 
     if entry.done? do
       [filepath] =

@@ -14,7 +14,7 @@
         <tr>
           <td><%= invite.email %></td>
           <td><pre style="background: white; margin: auto;"><%= Routes.account_url(@socket, :invite, invite.token) %></pre></td>
-          <td :if={authorized?(:rescind_invite, @org_user)}>
+          <td :if={authorized?(:"org_user:invite:rescind", @org_user)}>
             <.link class="btn btn-outline-light" phx-click="rescind_invite" phx-value-invite_token={invite.token} data-confirm="Are you sure you want to rescind the invite?">
               Rescind
             </.link>
@@ -61,7 +61,7 @@
           <div class="mobile-label help-text">Added on</div>
           <div class="date-time"><%= org_user.user.inserted_at %></div>
         </td>
-        <td :if={authorized?(:delete_org_user, @org_user) && org_user.user.id != assigns.user.id} class="actions">
+        <td :if={authorized?(:"org_user:delete", @org_user) && org_user.user.id != assigns.user.id} class="actions">
           <div class="dropdown options">
             <a class="dropdown-toggle options" href="#" id={"org-user-#{org_user.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               <img src="/images/icons/more.svg" alt="options" />
@@ -72,7 +72,7 @@
               </.link>
               <div class="dropdown-divider"></div>
               <.link
-                :if={authorized?(:delete_org_user, @org_user)}
+                :if={authorized?(:"org_user:delete", @org_user)}
                 class="dropdown-item"
                 phx-click="delete_org_user"
                 phx-value-user_id={org_user.user_id}

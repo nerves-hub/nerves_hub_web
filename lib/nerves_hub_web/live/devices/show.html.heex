@@ -80,9 +80,9 @@
         <div class="help-text mb-1">Alternate Deployments</div>
         <%= if !Enum.empty?(@deployments) do %>
           <%= for deployment <- @deployments do %>
-            <%= link(to: Routes.deployment_path(@socket, :show, @org.name, @product.name, deployment.name), class: "badge") do %>
+            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{deployment.name}"} class="badge">
               <div class={"deployment-state state-#{if deployment.is_active, do: "on", else: "off"}"}><%= deployment.name %></div>
-            <% end %>
+            </.link>
           <% end %>
         <% else %>
           <span class="color-white-50">No Alternate Deployments</span>

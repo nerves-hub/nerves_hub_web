@@ -13,7 +13,7 @@ defmodule NervesHubWeb.Live.Org.Delete do
 
   @impl Phoenix.LiveView
   def handle_event("delete", params, socket) do
-    authorized!(:delete_organization, socket.assigns.org_user)
+    authorized!(:"organization:delete", socket.assigns.org_user)
 
     if params["confirm_name"] == socket.assigns.org.name do
       case Accounts.soft_delete_org(socket.assigns.org) do
