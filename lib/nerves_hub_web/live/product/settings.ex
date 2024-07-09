@@ -5,12 +5,15 @@ defmodule NervesHubWeb.Live.Product.Settings do
   alias NervesHubWeb.DeviceSocket
 
   def mount(_params, _session, socket) do
+    product = Products.load_shared_secret_auth(socket.assigns.product)
+
     socket =
       socket
-      |> assign(:page_title, "#{socket.assigns.product.name} Settings")
-      |> assign(:shared_secrets, socket.assigns.product.shared_secret_auths)
+      |> assign(:page_title, "#{product.name} Settings")
+      |> assign(:product, product)
+      |> assign(:shared_secrets, product.shared_secret_auths)
       |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
-      |> assign(:form, to_form(Ecto.Changeset.change(socket.assigns.product)))
+      |> assign(:form, to_form(Ecto.Changeset.change(product)))
 
     {:ok, socket}
   end
