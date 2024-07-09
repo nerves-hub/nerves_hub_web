@@ -339,6 +339,10 @@ defmodule NervesHub.Devices do
     end
   end
 
+  def destroy_device(%Device{} = device) do
+    Repo.delete(device)
+  end
+
   @spec create_device_certificate(Device.t(), map() | X509.Certificate.t()) ::
           {:ok, DeviceCertificate.t()}
           | {:error, Changeset.t()}
