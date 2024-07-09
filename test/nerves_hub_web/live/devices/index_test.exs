@@ -39,7 +39,8 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     test "filters devices by several tags", %{conn: conn, fixture: fixture} do
       %{device: _device, firmware: firmware, org: org, product: product} = fixture
 
-      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["filtertest", "testfilter"]})
+      device2 =
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["filtertest", "testfilter"]})
 
       {:ok, view, html} = live(conn, device_index_path(fixture))
       assert html =~ device2.identifier

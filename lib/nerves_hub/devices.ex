@@ -135,8 +135,13 @@ defmodule NervesHub.Devices do
           case NervesHub.Types.Tag.cast(value) do
             {:ok, tags} ->
               Enum.reduce(tags, query, fn tag, query ->
-                where(query, [d], fragment("array_to_string(?, ',') ILIKE ?", d.tags, ^"%#{tag}%"))
+                where(
+                  query,
+                  [d],
+                  fragment("array_to_string(?, ',') ILIKE ?", d.tags, ^"%#{tag}%")
+                )
               end)
+
             {:error, _} ->
               query
           end
