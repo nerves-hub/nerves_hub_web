@@ -72,22 +72,21 @@ defmodule NervesHub.Devices do
   end
 
   def get_devices_by_org_id_and_product_id(org_id, product_id, opts) do
-    query =
-      from(
-        d in Device,
-        where: d.org_id == ^org_id,
-        where: d.product_id == ^product_id
-      )
-
     pagination = Map.get(opts, :pagination, %{})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
     filters = Map.get(opts, :filters, %{})
 
-    query
+    Device
+    |> where([d], d.org_id == ^org_id)
+    |> where([d], d.product_id == ^product_id)
+    |> join(:left, [d], o in assoc(d, :org))
+    |> join(:left, [d, o], p in assoc(d, :product))
+    |> join(:left, [d, o, p], dp in assoc(d, :deployment))
+    |> join(:left, [d, o, p, dp], f in assoc(dp, :firmware))
     |> Repo.exclude_deleted()
     |> order_by(^sort_devices(sorting))
     |> filtering(filters)
-    |> preload([:org, :product, deployment: [:firmware]])
+    |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
     |> Repo.paginate(pagination)
   end
 
@@ -135,22 +134,9 @@ defmodule NervesHub.Devices do
         {"tag", value} ->
           case NervesHub.Types.Tag.cast(value) do
             {:ok, tags} ->
-              # This query here joins the table back to itself to unnest `tags` in a
-              # way that is ILIKE-able. It's ugly but it works.
-              query =
-                query
-                |> join(
-                  :inner_lateral,
-                  [d],
-                  t in fragment("select unnest(tags) as tags from devices where id = ?", d.id),
-                  on: true
-                )
-                |> group_by([d], d.id)
-
               Enum.reduce(tags, query, fn tag, query ->
-                where(query, [d, t], ilike(t.tags, ^"#{tag}%"))
+                where(query, [d], fragment("array_to_string(?, ',') ILIKE ?", d.tags, ^"%#{tag}%"))
               end)
-
             {:error, _} ->
               query
           end
