@@ -12,7 +12,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
 
   def render(assigns) do
     ~H"""
-    <h1 class="ff-m mb-0"><%= @device.identifier %></h1>
+    <h1 class="ff-m mt-2 mb-2"><%= @device.identifier %></h1>
 
     <%= if @device.description do %>
       <p class="help-text large"><%= @device.description %></p>

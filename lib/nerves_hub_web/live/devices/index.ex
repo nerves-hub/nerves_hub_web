@@ -37,6 +37,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
 
     socket
+    |> page_title("Devices - #{product.name}")
     |> assign(:current_sort, "identifier")
     |> assign(:sort_direction, :asc)
     |> assign(:paginate_opts, %{

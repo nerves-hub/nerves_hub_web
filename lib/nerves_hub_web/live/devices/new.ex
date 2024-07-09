@@ -9,7 +9,8 @@ defmodule NervesHubWeb.Live.Devices.New do
 
     socket =
       socket
-      |> assign(:page_title, "New Device")
+      |> page_title("New Device - #{socket.assigns.product.name}")
+      |> assign(:tab_hint, :devices)
       |> assign(:form, to_form(changeset))
 
     {:ok, socket}
