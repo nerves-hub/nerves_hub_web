@@ -571,23 +571,28 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp assign_deployment(%{assigns: %{device: device}} = socket, payload) do
-    device =
-      device
-      |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_change(:deployment_id, payload.id)
-      |> Repo.update!()
-      |> Repo.preload([deployment: [:firmware]], force: true)
+    # if there's no change don't do anything
+    if device.deployment_id == payload.id do
+      socket
+    else
+      device =
+        device
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:deployment_id, payload.id)
+        |> Repo.update!()
+        |> Repo.preload([deployment: [:firmware]], force: true)
 
-    description =
-      "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+      description =
+        "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
 
-    AuditLogs.audit_with_ref!(device, device, description, socket.assigns.reference_id)
+      AuditLogs.audit_with_ref!(device, device, description, socket.assigns.reference_id)
 
-    Registry.update_value(NervesHub.Devices, device.id, fn value ->
-      Map.put(value, :deployment_id, device.deployment_id)
-    end)
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.put(value, :deployment_id, device.deployment_id)
+      end)
 
-    update_device(socket, device)
+      update_device(socket, device)
+    end
   end
 
   def update_device(socket, device) do
