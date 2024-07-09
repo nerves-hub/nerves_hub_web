@@ -173,21 +173,6 @@ defmodule NervesHub.Devices do
     )
   end
 
-  defp device_by_product_query(device_id, product_id, org_id) do
-    from(
-      d in Device,
-      where: d.org_id == ^org_id,
-      where: d.id == ^device_id,
-      where: d.product_id == ^product_id
-    )
-  end
-
-  def get_device_by_product(device_id, product_id, org_id) do
-    device_by_product_query(device_id, product_id, org_id)
-    |> preload([:deployment])
-    |> Repo.one!()
-  end
-
   def get_device_by_org(%Org{id: org_id}, device_id) do
     device_by_org_query(org_id, device_id)
     |> Repo.exclude_deleted()
