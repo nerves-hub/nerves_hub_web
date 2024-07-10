@@ -42,9 +42,14 @@ defmodule NervesHubWeb.Live.Devices.Settings do
         |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
         |> noreply()
 
-      {:error, changeset} ->
+      {:error, :update_with_audit, changeset, _} ->
         socket
         |> assign(:form, to_form(changeset))
+        |> noreply()
+
+      {:error, _, _, _} ->
+        socket
+        |> put_flash(:error, "An unknown error occured, please contact support.")
         |> noreply()
     end
   end

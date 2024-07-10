@@ -12,7 +12,7 @@ defmodule NervesHubWeb.DeviceController do
 
   def console(conn, _params) do
     conn
-    |> put_root_layout({NervesHubWeb.LayoutView, :console})
+    |> put_root_layout(html: {NervesHubWeb.LayoutView, :console})
     |> put_layout(false)
     |> render("console.html")
   end
