@@ -23,16 +23,20 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> page_title("Device #{device.identifier} - #{product.name}")
+    |> assign(:tab_hint, :devices)
     |> assign(:device, device)
     |> assign(:status, Tracker.status(device))
     |> assign(:deployment, device.deployment)
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
-    |> assign(:tab_hint, :devices)
     |> audit_log_assigns(1)
     |> ok()
   end
 
-  def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
+  def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
+    {:noreply, assign(socket, :status, payload.status)}
+  end
+
+  def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
     %{device: device, org: org} = socket.assigns
 
     {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)

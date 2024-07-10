@@ -168,12 +168,14 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
+    subscribe_for_updates(device)
+
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, _socket} = subscribe_and_join(socket, DeviceChannel, "device")
 
-    assert_online(device)
+    assert_connection_change()
   end
 
   test "fwup_public_keys requested on connect" do
@@ -441,6 +443,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
       %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
+      subscribe_for_updates(device)
+
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
@@ -448,8 +452,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
         subscribe_and_join(socket, DeviceChannel, "device")
 
       send(socket.channel_pid, {"do_you_like_dem_apples", %{"apples" => 5}})
-      Process.sleep(100)
-      assert_online(device)
+
+      assert_connection_change()
     end
 
     test "handle_in" do

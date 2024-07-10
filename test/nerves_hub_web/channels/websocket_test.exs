@@ -56,14 +56,15 @@ defmodule NervesHubWeb.WebsocketTest do
     ]
   ]
 
-  def device_fixture(user, device_params \\ %{}, org \\ nil) do
+  def device_fixture(dir, user, device_params \\ %{}, org \\ nil) do
     org = org || Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
+    org_key = Fixtures.org_key_fixture(org, user, dir)
 
     firmware =
       Fixtures.firmware_fixture(org_key, product, %{
-        version: "0.0.1"
+        version: "0.0.1",
+        dir: dir
       })
 
     params = Enum.into(device_params, %{tags: ["beta", "beta-edge"]})
@@ -90,29 +91,33 @@ defmodule NervesHubWeb.WebsocketTest do
   end
 
   describe "socket auth" do
-    test "Can connect and authenticate to channel using client ssl certificate", %{user: user} do
-      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial})
+    @describetag :tmp_dir
+
+    test "Can connect and authenticate to channel using client ssl certificate", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
 
       Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
 
       {:ok, socket} = SocketClient.start_link(@socket_config)
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
 
-      device =
-        NervesHub.Repo.get(Device, device.id)
-        |> NervesHub.Repo.preload(:org)
-
-      assert_online(device)
+      assert_connection_change()
 
       SocketClient.close(socket)
     end
 
     test "Can connect and authenticate to channel using client ssl certificate with TLS 1.3", %{
-      user: user
+      user: user,
+      tmp_dir: tmp_dir
     } do
-      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial})
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
 
       Fixtures.device_certificate_fixture(device)
 
@@ -134,16 +139,14 @@ defmodule NervesHubWeb.WebsocketTest do
         ]
       ]
 
+      subscribe_for_updates(device)
+
       {:ok, socket} = SocketClient.start_link(config)
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
 
-      device =
-        NervesHub.Repo.get(Device, device.id)
-        |> NervesHub.Repo.preload(:org)
-
-      assert_online(device)
+      assert_connection_change()
 
       SocketClient.close(socket)
     end
@@ -155,9 +158,12 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.close(socket)
     end
 
-    test "already registered expired certificate without signer CA can connect", %{user: user} do
+    test "already registered expired certificate without signer CA can connect", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
-      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
       ca_key = X509.PrivateKey.new_ec(:secp256r1)
       ca = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
@@ -211,25 +217,24 @@ defmodule NervesHubWeb.WebsocketTest do
         ]
       ]
 
+      subscribe_for_updates(device)
+
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
 
-      device =
-        NervesHub.Repo.get(Device, device.id)
-        |> NervesHub.Repo.preload(:org)
-
-      assert_online(device)
+      assert_connection_change()
 
       SocketClient.close(socket)
     end
 
     test "already registered expired certificate with expired signer CA can connect", %{
-      user: user
+      user: user,
+      tmp_dir: tmp_dir
     } do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
-      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
       not_before = Timex.now() |> Timex.shift(days: -3)
       not_after = Timex.now() |> Timex.shift(days: -1)
@@ -288,22 +293,22 @@ defmodule NervesHubWeb.WebsocketTest do
         ]
       ]
 
+      subscribe_for_updates(device)
+
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
 
-      device =
-        NervesHub.Repo.get(Device, device.id)
-        |> NervesHub.Repo.preload(:org)
-
-      assert_online(device)
+      assert_connection_change()
 
       SocketClient.close(socket)
     end
   end
 
   describe "shared secret auth NH1" do
+    @describetag :tmp_dir
+
     setup do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
 
@@ -336,14 +341,16 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
+      subscribe_for_updates(%Device{identifier: identifier})
+
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device", params)
       SocketClient.wait_join(socket)
 
-      assert device = Repo.get_by(Device, identifier: identifier) |> Repo.preload(:org)
+      assert %Device{} = Repo.get_by(Device, identifier: identifier)
 
-      assert_online(device)
+      assert_connection_change()
 
       SocketClient.close(socket)
     end
@@ -370,14 +377,15 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
+      subscribe_for_updates(%Device{identifier: identifier})
+
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device", params)
       SocketClient.wait_join(socket)
 
-      assert device = Repo.get_by(Device, identifier: identifier) |> Repo.preload(:org)
-
-      assert_online(device)
+      assert %Device{} = Repo.get_by(Device, identifier: identifier)
+      assert_connection_change()
 
       SocketClient.close(socket)
     end
@@ -404,8 +412,8 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.close(socket)
     end
 
-    test "can connect with device key/secret", %{user: user} do
-      {device, _firmware} = device_fixture(user)
+    test "can connect with device key/secret", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
       assert {:ok, auth} = Devices.create_shared_secret_auth(device)
 
       opts = [
@@ -422,18 +430,20 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_platform" => "test_host"
       }
 
+      subscribe_for_updates(device)
+
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device", params)
       SocketClient.wait_join(socket)
 
-      assert_online(device)
+      assert_connection_change()
 
       SocketClient.close(socket)
     end
 
-    test "rejects device key/secret with mismatched identifier", %{user: user} do
-      {device, _firmware} = device_fixture(user)
+    test "rejects device key/secret with mismatched identifier", %{user: user, tmp_dir: tmp_dir} do
+      {device, _firmware} = device_fixture(tmp_dir, user)
       assert {:ok, auth} = Devices.create_shared_secret_auth(device)
 
       opts = [
@@ -448,8 +458,8 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.close(socket)
     end
 
-    test "rejects unknown secret keys", %{user: user} do
-      {device, _fw} = device_fixture(user)
+    test "rejects unknown secret keys", %{user: user, tmp_dir: tmp_dir} do
+      {device, _fw} = device_fixture(tmp_dir, user)
 
       bad_auths = [
         %Devices.SharedSecretAuth{key: "nhd_12345unknown", secret: "shhhhh"},
@@ -522,18 +532,24 @@ defmodule NervesHubWeb.WebsocketTest do
   end
 
   describe "firmware update" do
-    test "receives update message when eligible deployment is available", %{user: user} do
-      {device, firmware} = device_fixture(user, %{identifier: @valid_serial})
+    @describetag :tmp_dir
+
+    test "receives update message when eligible deployment is available", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
 
       firmware = NervesHub.Repo.preload(firmware, :product)
       Fixtures.device_certificate_fixture(device)
 
       org = %Accounts.Org{id: device.org_id}
-      org_key = Fixtures.org_key_fixture(org, user)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
       firmware2 =
         Fixtures.firmware_fixture(org_key, firmware.product, %{
-          version: "0.0.2"
+          version: "0.0.2",
+          dir: tmp_dir
         })
 
       Fixtures.firmware_delta_fixture(firmware, firmware2)
@@ -564,14 +580,17 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.close(socket)
     end
 
-    test "receives update message when a deployment gets a new version", %{user: user} do
-      {device, firmware} = device_fixture(user, %{identifier: @valid_serial})
+    test "receives update message when a deployment gets a new version", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
 
       device = NervesHub.Repo.preload(device, :org)
       firmware = NervesHub.Repo.preload(firmware, :product)
 
       Fixtures.device_certificate_fixture(device)
-      org_key = Fixtures.org_key_fixture(device.org, user)
+      org_key = Fixtures.org_key_fixture(device.org, user, tmp_dir)
 
       deployment =
         Fixtures.deployment_fixture(device.org, firmware, %{
@@ -594,7 +613,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert %{} = reply
 
-      new_firmware = Fixtures.firmware_fixture(org_key, firmware.product, %{version: "0.0.2"})
+      new_firmware =
+        Fixtures.firmware_fixture(org_key, firmware.product, %{version: "0.0.2", dir: tmp_dir})
 
       {:ok, deployment} =
         Deployments.update_deployment(deployment, %{
@@ -612,14 +632,17 @@ defmodule NervesHubWeb.WebsocketTest do
     end
 
     test "does not receive update message when current_version matches target_version", %{
-      user: user
+      user: user,
+      tmp_dir: tmp_dir
     } do
       {device, firmware} =
-        device_fixture(user, %{identifier: @valid_serial, product: @valid_product})
+        device_fixture(tmp_dir, user, %{identifier: @valid_serial, product: @valid_product})
 
       Fixtures.device_certificate_fixture(device)
 
       query_uuid = firmware.uuid
+
+      subscribe_for_updates(device)
 
       {:ok, socket} = SocketClient.start_link(@socket_config)
       SocketClient.wait_connect(socket)
@@ -636,15 +659,17 @@ defmodule NervesHubWeb.WebsocketTest do
         |> Repo.preload(:org)
 
       assert updated_device.firmware_metadata.uuid == query_uuid
-      assert_online(device)
+
+      assert_connection_change()
+
       assert Time.diff(DateTime.utc_now(), updated_device.last_communication) < 2
 
       SocketClient.close(socket)
     end
 
-    test "checks version requirements on connect", %{user: user} do
+    test "checks version requirements on connect", %{user: user, tmp_dir: tmp_dir} do
       {device, firmware} =
-        device_fixture(user, %{identifier: @valid_serial, product: @valid_product})
+        device_fixture(tmp_dir, user, %{identifier: @valid_serial, product: @valid_product})
 
       org = %Accounts.Org{id: device.org_id}
 
@@ -686,9 +711,11 @@ defmodule NervesHubWeb.WebsocketTest do
   end
 
   describe "Custom CA Signers" do
-    test "valid certificate can connect", %{user: user} do
+    @describetag :tmp_dir
+
+    test "valid certificate can connect", %{user: user, tmp_dir: tmp_dir} do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
-      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
       %{cert: ca, key: ca_key} = Fixtures.ca_certificate_fixture(org)
 
@@ -722,23 +749,21 @@ defmodule NervesHubWeb.WebsocketTest do
         ]
       ]
 
+      subscribe_for_updates(device)
+
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
 
-      device =
-        NervesHub.Repo.get(Device, device.id)
-        |> NervesHub.Repo.preload(:org)
-
-      assert_online(device)
+      assert_connection_change()
 
       SocketClient.close(socket)
     end
 
-    test "vaild certificate expired signer can connect", %{user: user} do
+    test "vaild certificate expired signer can connect", %{user: user, tmp_dir: tmp_dir} do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
-      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
       not_before = Timex.now() |> Timex.shift(days: -1)
       not_after = Timex.now() |> Timex.shift(seconds: 1)
@@ -784,24 +809,22 @@ defmodule NervesHubWeb.WebsocketTest do
 
       :timer.sleep(2_000)
 
+      subscribe_for_updates(device)
+
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
 
-      device =
-        NervesHub.Repo.get(Device, device.id)
-        |> NervesHub.Repo.preload(:org)
-
-      assert_online(device)
+      assert_connection_change()
 
       SocketClient.close(socket)
     end
 
-    test "ca signer last used is updated", %{user: user} do
+    test "ca signer last used is updated", %{user: user, tmp_dir: tmp_dir} do
       org = Fixtures.org_fixture(user, %{name: "ca_cert_is_updated"})
 
-      {device, _firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
+      {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
       %{cert: ca, key: ca_key, db_cert: %{last_used: last_used}} =
         Fixtures.ca_certificate_fixture(org)
@@ -861,7 +884,7 @@ defmodule NervesHubWeb.WebsocketTest do
       org = Fixtures.org_fixture(user)
       org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
-      {device, firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
+      {device, firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
       firmware = Repo.preload(firmware, [:product])
       product = firmware.product
@@ -881,16 +904,14 @@ defmodule NervesHubWeb.WebsocketTest do
 
       Fixtures.device_certificate_fixture(device)
 
+      subscribe_for_updates(device)
+
       {:ok, socket} = SocketClient.start_link(@socket_config)
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device", %{"device_api_version" => "2.0.0"})
       SocketClient.wait_join(socket)
 
-      device =
-        NervesHub.Repo.get(Device, device.id)
-        |> NervesHub.Repo.preload(:org)
-
-      assert_online(device)
+      assert_connection_change()
 
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive

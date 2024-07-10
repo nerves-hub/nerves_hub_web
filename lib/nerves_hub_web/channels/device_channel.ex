@@ -317,7 +317,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info(:online?, socket) do
-    NervesHub.Tracker.online(socket.assigns.device)
+    NervesHub.Tracker.confirm_online(socket.assigns.device)
     {:noreply, socket}
   end
 
