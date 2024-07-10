@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Router do
     plug(:fetch_session)
     plug(:fetch_flash)
     plug(:fetch_live_flash)
-    plug(:put_root_layout, {NervesHubWeb.LayoutView, :root})
+    plug(:put_root_layout, html: {NervesHubWeb.LayoutView, :root})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
     plug(NervesHubWeb.Plugs.SetLocale)
