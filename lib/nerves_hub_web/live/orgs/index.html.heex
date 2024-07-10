@@ -3,17 +3,17 @@
     <img src="/images/product.svg" alt="No organizations" />
     <h3 style="margin-top: 2.75rem">You aren't a member of any organizations.</h3>
     <div class="flex-row align-items-center mt-3">
-      <a class="btn btn-outline-light" aria-label="Create new organization" href={~p"/orgs/new"} role="button">
+      <.link navigate={~p"/orgs/new"} class="btn btn-outline-light" aria-label="Create new organization" role="button">
         <span class="button-icon add"></span>
         <span class="action-text">Create your first organization!</span>
-      </a>
+      </.link>
     </div>
   </div>
 <% else %>
   <h1 class="mt-2">My Organizations</h1>
   <div class="x3-grid">
     <%= for org <- @user.orgs do %>
-      <%= link to: ~p"/org/#{org.name}", class: "grid-item" do %>
+      <.link navigate={~p"/org/#{org.name}"} class="grid-item">
         <h3><%= org.name %></h3>
         <div class="flex-row">
           <div>
@@ -24,7 +24,7 @@
             </div>
           </div>
         </div>
-      <% end %>
+      </.link>
     <% end %>
   </div>
 <% end %>

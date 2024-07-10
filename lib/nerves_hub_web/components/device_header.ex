@@ -12,7 +12,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
 
   def render(assigns) do
     ~H"""
-    <h1 class="ff-m mb-0"><%= @device.identifier %></h1>
+    <h1 class="ff-m mt-2 mb-2"><%= @device.identifier %></h1>
 
     <%= if @device.description do %>
       <p class="help-text large"><%= @device.description %></p>
@@ -37,10 +37,10 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         <%= if is_nil(@device.firmware_metadata) do %>
           <p>Unknown</p>
         <% else %>
-          <a href={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m">
+          <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m mt-0">
             <%= @device.firmware_metadata.version %>
             <%= @device.firmware_metadata.uuid %>
-          </a>
+          </.link>
         <% end %>
       </div>
       <div>

@@ -1,27 +1,21 @@
 defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :updated_live_view
 
-  require Logger
-
   alias NervesHub.AuditLogs
-  alias NervesHub.Certificate
-  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
-  alias NervesHub.Repo
   alias NervesHub.Tracker
 
   alias NervesHubWeb.Components.DeviceHeader
-  alias NervesHubWeb.Components.Utils
-  alias NervesHubWeb.LayoutView.DateTimeFormat
+  alias NervesHubWeb.Components.DeviceLocation
 
   alias Phoenix.Socket.Broadcast
 
   import NervesHubWeb.Components.DeviceHealth
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
-    %{org: org} = socket.assigns
+    %{org: org, product: product} = socket.assigns
 
     {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
 
@@ -29,75 +23,28 @@ defmodule NervesHubWeb.Live.Devices.Show do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
     end
 
-    socket =
-      socket
-      |> assign(:device, Repo.preload(device, [:device_certificates]))
-      |> assign(:status, Tracker.status(device))
-      |> assign_new(:health, fn -> Devices.get_latest_health(device.id) end)
-      |> assign(:deployment, device.deployment)
-      |> assign(:page_title, device.identifier)
-      |> assign(:toggle_upload, false)
-      |> assign(:results, [])
-      |> assign(:deployments, Deployments.alternate_deployments(device))
-      |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
-      |> allow_upload(:certificate,
-        accept: :any,
-        auto_upload: true,
-        max_entries: 1,
-        progress: &handle_progress/3
-      )
-      |> audit_log_assigns(1)
-
-    {:ok, socket}
-  end
-
-  def handle_progress(:certificate, %{done?: true} = entry, socket) do
-    socket =
-      socket
-      |> clear_flash(:info)
-      |> clear_flash(:error)
-      |> consume_uploaded_entry(entry, &import_cert(socket, &1.path))
-
-    {:noreply, socket}
-  end
-
-  def handle_progress(:certificate, _entry, socket), do: {:noreply, socket}
-
-  defp import_cert(%{assigns: %{device: device}} = socket, path) do
-    socket =
-      with {:ok, pem_or_der} <- File.read(path),
-           {:ok, otp_cert} <- Certificate.from_pem_or_der(pem_or_der),
-           {:ok, db_cert} <- Devices.create_device_certificate(device, otp_cert) do
-        updated = update_in(device.device_certificates, &[db_cert | &1])
-
-        assign(socket, :device, updated)
-        |> put_flash(:info, "Certificate Upload Successful")
-      else
-        {:error, :malformed} ->
-          put_flash(socket, :error, "Incorrect filetype or malformed certificate")
-
-        {:error, %Ecto.Changeset{errors: errors}} ->
-          formatted =
-            Enum.map_join(errors, "\n", fn {field, {msg, _}} ->
-              ["* ", to_string(field), " ", msg]
-            end)
-
-          put_flash(socket, :error, IO.iodata_to_binary(["Failed to save:\n", formatted]))
-
-        err ->
-          put_flash(socket, :error, "Unknown file error - #{inspect(err)}")
-      end
-
-    {:ok, socket}
+    socket
+    |> page_title("Device #{device.identifier} - #{product.name}")
+    |> assign(:device, device)
+    |> assign(:status, Tracker.status(device))
+    |> assign(:deployment, device.deployment)
+    |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
+    |> assign(:health, Devices.get_latest_health(device.id))
+    |> assign(:tab_hint, :devices)
+    |> audit_log_assigns(1)
+    |> ok()
   end
 
   def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
-    socket =
-      socket
-      |> assign(:status, payload.status)
-      |> assign(:fwup_progress, nil)
+    %{device: device, org: org} = socket.assigns
 
-    {:noreply, socket}
+    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
+
+    socket
+    |> assign(:device, device)
+    |> assign(:status, payload.status)
+    |> assign(:fwup_progress, nil)
+    |> noreply()
   end
 
   def handle_info(%Broadcast{event: "fwup_progress", payload: payload}, socket) do
@@ -177,7 +124,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     {:ok, updated_device} = Devices.clear_penalty_box(device, user)
 
-    {:noreply, assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))}
+    {:noreply, assign(socket, :device, updated_device)}
   end
 
   def handle_event("toggle_health_state", _params, socket) do
@@ -187,24 +134,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     {:ok, updated_device} = Devices.toggle_health(device, user)
 
-    {:noreply, assign(socket, :device, Repo.preload(updated_device, [:device_certificates]))}
-  end
-
-  def handle_event(
-        "delete-certificate",
-        %{"serial" => serial},
-        %{assigns: %{device: device}} = socket
-      ) do
-    certs = device.device_certificates
-
-    with db_cert <- Enum.find(certs, &(&1.serial == serial)),
-         {:ok, _db_cert} <- Devices.delete_device_certificate(db_cert),
-         updated_certs = Enum.reject(certs, &(&1.serial == serial)) do
-      {:noreply, assign(socket, device: %{device | device_certificates: updated_certs})}
-    else
-      _ ->
-        {:noreply, put_flash(socket, :error, "Failed to delete certificate #{serial}")}
-    end
+    {:noreply, assign(socket, :device, updated_device)}
   end
 
   def handle_event("restore", _, socket) do
@@ -220,7 +150,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:destroy", org_user)
 
-    {:ok, _device} = Repo.destroy(device)
+    {:ok, _device} = Devices.destroy_device(device)
 
     socket
     |> put_flash(:info, "Device destroyed successfully.")
@@ -236,15 +166,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, assign(socket, :device, device)}
   end
 
-  def handle_event("toggle-upload", %{"toggle" => toggle}, socket) do
-    {:noreply, assign(socket, :toggle_upload, toggle != "true")}
-  end
-
   def handle_event("clear-flash-" <> key_str, _, socket) do
     {:noreply, clear_flash(socket, String.to_existing_atom(key_str))}
   end
-
-  def handle_event("validate-cert", _, socket), do: {:noreply, socket}
 
   def handle_event("push-update", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
@@ -270,7 +194,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "deployments/update", payload)
 
     socket
-    |> assign(:device, Repo.preload(device, [:device_certificates]))
+    |> assign(:device, device)
     |> put_flash(:info, "Pushing firmware update")
     |> noreply()
   end
@@ -278,9 +202,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
     logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 10})
 
-    socket
-    |> assign(:audit_logs, logs)
-    |> assign(:resource_id, device.id)
+    assign(socket, :audit_logs, logs)
   end
 
   defp connecting_code(device) do

@@ -77,6 +77,85 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "geo location" do
+    setup do
+      Application.put_env(:nerves_hub, :mapbox_access_token, "abc")
+    end
+
+    test "mapbox not enabled", %{conn: conn, org: org, product: product, device: device} do
+      Application.put_env(:nerves_hub, :mapbox_access_token, nil)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "Device location")
+      |> assert_has("span", text: "Device maps haven't been enabled on your platform.")
+    end
+
+    test "no location information found attached to the device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "Device location")
+      |> assert_has("span", text: "No location was found for the device.")
+    end
+
+    test "location information is empty", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      Devices.update_device(device, %{connection_metadata: %{"location" => %{}}})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "Device location")
+      |> assert_has("span", text: "No location was found for the device.")
+    end
+
+    test "ip address reserved", %{conn: conn, org: org, product: product, device: device} do
+      metadata = %{
+        "request_ip" => "127.0.0.1",
+        "location" => %{"error_code" => "IP_ADDRESS_RESERVED"}
+      }
+
+      Devices.update_device(device, %{connection_metadata: metadata})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "Device location")
+      |> assert_has("span", text: "The IP address is reporting as 127.0.0.1")
+    end
+
+    test "the happy path", %{conn: conn, org: org, product: product, device: device} do
+      metadata = %{
+        "location" => %{
+          "latitude" => "-41.3159",
+          "longitude" => "174.8185",
+          "accuracy_radius" => "20"
+        }
+      }
+
+      Devices.update_device(device, %{connection_metadata: metadata})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "Device location")
+      |> assert_has(
+        "img[src=\"https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/174.8185,-41.3159,10,0/463x250@2x?access_token=abc\"]"
+      )
+    end
+  end
+
   def device_show_path(%{device: device, org: org, product: product}) do
     ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}"
   end

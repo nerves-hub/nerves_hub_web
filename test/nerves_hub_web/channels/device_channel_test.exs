@@ -22,6 +22,148 @@ defmodule NervesHubWeb.DeviceChannelTest do
     assert_push("check_health", %{})
   end
 
+  describe "geolocation isn't enabled" do
+    setup do
+      Application.put_env(:nerves_hub, :geoip_maxmind_auth, nil)
+      Application.put_env(:nerves_hub, :geolocate_middleware, nil)
+
+      on_exit(fn ->
+        Application.put_env(:nerves_hub, :geoip_maxmind_auth, nil)
+        Application.put_env(:nerves_hub, :geolocate_middleware, nil)
+      end)
+    end
+
+    test "ip address is extracted from peer_data" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{},
+          connect_info: %{peer_data: %{address: {12, 34, 56, 78}, ssl_cert: certificate.der}}
+        )
+
+      {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+      assert socket.assigns.request_ip == "12.34.56.78"
+
+      device = NervesHub.Repo.reload(device)
+
+      assert device.connection_metadata["request_ip"] == "12.34.56.78"
+      assert device.connection_metadata["location"] == %{}
+    end
+
+    test "ip address is extracted from x_headers" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{},
+          connect_info: %{
+            peer_data: %{ssl_cert: certificate.der},
+            x_headers: [{"x-forwarded-for", "12.34.56.78"}]
+          }
+        )
+
+      {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+      assert socket.assigns.request_ip == "12.34.56.78"
+
+      device = NervesHub.Repo.reload(device)
+
+      assert device.connection_metadata["request_ip"] == "12.34.56.78"
+      assert device.connection_metadata["location"] == %{}
+    end
+  end
+
+  describe "geolocation is enabled" do
+    setup do
+      Application.put_env(:nerves_hub, :geoip_maxmind_auth, "abc")
+
+      Req.Test.stub(NervesHub.Utils.GeolocateStub, fn conn ->
+        Req.Test.json(conn, %{
+          "city" => %{
+            "names" => %{
+              "en" => "Wellington"
+            }
+          },
+          "country" => %{
+            "iso_code" => "NZ",
+            "names" => %{"en" => "New Zealand"}
+          },
+          "location" => %{
+            "accuracy_radius" => 20,
+            "latitude" => -41.3159,
+            "longitude" => 174.8185,
+            "time_zone" => "Pacific/Auckland"
+          }
+        })
+      end)
+
+      Application.put_env(:nerves_hub, :geolocate_middleware,
+        plug: {Req.Test, NervesHub.Utils.GeolocateStub}
+      )
+    end
+
+    test "ip address is extracted from peer_data" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{},
+          connect_info: %{peer_data: %{address: {12, 34, 56, 78}, ssl_cert: certificate.der}}
+        )
+
+      {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+      assert socket.assigns.request_ip == "12.34.56.78"
+
+      device = NervesHub.Repo.reload(device)
+
+      assert device.connection_metadata["request_ip"] == "12.34.56.78"
+
+      assert device.connection_metadata["location"] == %{
+               "city" => "Wellington",
+               "country" => %{"iso_code" => "NZ", "name" => "New Zealand"},
+               "accuracy_radius" => 20,
+               "latitude" => -41.3159,
+               "longitude" => 174.8185,
+               "time_zone" => "Pacific/Auckland",
+               "resolution" => "geoip"
+             }
+    end
+
+    test "ip address is extracted from x_headers" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{},
+          connect_info: %{
+            peer_data: %{ssl_cert: certificate.der},
+            x_headers: [{"x-forwarded-for", "12.34.56.78"}]
+          }
+        )
+
+      {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+      assert socket.assigns.request_ip == "12.34.56.78"
+
+      device = NervesHub.Repo.reload(device)
+
+      assert device.connection_metadata["request_ip"] == "12.34.56.78"
+
+      assert device.connection_metadata["location"] == %{
+               "city" => "Wellington",
+               "country" => %{"iso_code" => "NZ", "name" => "New Zealand"},
+               "accuracy_radius" => 20,
+               "latitude" => -41.3159,
+               "longitude" => 174.8185,
+               "time_zone" => "Pacific/Auckland",
+               "resolution" => "geoip"
+             }
+    end
+  end
+
   test "presence connection information" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})

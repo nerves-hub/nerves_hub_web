@@ -67,6 +67,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
   end
 
   describe "upload archive" do
+    @tag :tmp_dir
     test "redirects after successful upload", %{
       conn: conn,
       user: user,
@@ -140,6 +141,7 @@ defmodule NervesHubWeb.Live.ArchivesTest do
       |> assert_has("div", text: "Archive corrupt, signature invalid, or missing public key")
     end
 
+    @tag :tmp_dir
     test "error if org keys do not match firmware", %{
       conn: conn,
       user: user,

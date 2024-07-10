@@ -23,7 +23,8 @@ defmodule NervesHub.Devices.Device do
     :updates_blocked_until,
     :connection_types,
     :connecting_code,
-    :deployment_id
+    :deployment_id,
+    :connection_metadata
   ]
   @required_params [:org_id, :product_id, :identifier]
 
@@ -44,6 +45,7 @@ defmodule NervesHub.Devices.Device do
     field(:updates_blocked_until, :utc_datetime)
     field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
     field(:connecting_code, :string)
+    field(:connection_metadata, :map, default: %{})
 
     timestamps()
   end

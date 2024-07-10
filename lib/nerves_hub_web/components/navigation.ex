@@ -60,19 +60,19 @@ defmodule NervesHubWeb.Components.Navigation do
                         <div class="dropdown-divider"></div>
                       <% end %>
 
-                      <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create product" href={~p"/org/#{org.name}/new"}>
+                      <.link navigate={~p"/org/#{org.name}/new"} class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create product">
                         <span class="action-text">Create Product</span>
                         <span class="button-icon add"></span>
-                      </a>
+                      </.link>
                     </ul>
                     <div class="dropdown-divider"></div>
                   </div>
                 <% end %>
 
-                <a class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization" href={~p"/orgs/new"}>
+                <.link navigate={~p"/orgs/new"} class="btn btn-outline-light mt-2 mb-3 ml-3 mr-3" aria-label="Create organization">
                   <span class="action-text">Create Organization</span>
                   <div class="button-icon add"></div>
-                </a>
+                </.link>
               </div>
             </li>
           </ul>
@@ -106,6 +106,7 @@ defmodule NervesHubWeb.Components.Navigation do
   attr(:user, :any)
   attr(:org, :any, default: nil)
   attr(:product, :any, default: nil)
+  attr(:tab, :any, default: nil)
   attr(:current_path, :string)
 
   def tabnav(assigns) do
@@ -152,7 +153,7 @@ defmodule NervesHubWeb.Components.Navigation do
     do: sidebar_org(assigns, path)
 
   def sidebar_links(["org", _org_name | _tail] = path, assigns),
-    do: sidebar_product(assigns, path)
+    do: sidebar_product(assigns, path, assigns[:tab_hint])
 
   def sidebar_links(["account" | _tail] = path, assigns),
     do: sidebar_account(assigns, path)
@@ -196,13 +197,14 @@ defmodule NervesHubWeb.Components.Navigation do
     |> sidebar_active(path)
   end
 
-  def sidebar_product(assigns, path) do
+  def sidebar_product(assigns, path, tab_hint) do
     [
       # %{title: "Dashboard", icon: "tachometer-alt", active: "", href: Routes.product_path(conn, :show, conn.assigns.org.name, conn.assigns.product.name)},
       %{
         title: "Devices",
         active: "",
-        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/devices"
+        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/devices",
+        tab: :devices
       },
       %{
         title: "Firmware",
@@ -230,7 +232,7 @@ defmodule NervesHubWeb.Components.Navigation do
         href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/settings"
       }
     ]
-    |> sidebar_active(path)
+    |> sidebar_active(path, tab_hint)
   end
 
   def sidebar_account(_assigns, path) do
@@ -249,15 +251,20 @@ defmodule NervesHubWeb.Components.Navigation do
     |> sidebar_active(path)
   end
 
-  defp sidebar_active(links, path) do
+  defp sidebar_active(links, path, tab_hint \\ nil) do
     full_path = "/" <> Enum.join(path, "/")
     path_minus_actions = String.replace(full_path, ~r/\/(new|edit|invite|\d+\/edit|upload)$/, "")
 
     Enum.map(links, fn link ->
-      if link.href == path_minus_actions do
-        %{link | active: "active"}
-      else
-        link
+      cond do
+        link[:tab] && link[:tab] == tab_hint ->
+          %{link | active: "active"}
+
+        link.href == path_minus_actions ->
+          %{link | active: "active"}
+
+        true ->
+          link
       end
     end)
   end

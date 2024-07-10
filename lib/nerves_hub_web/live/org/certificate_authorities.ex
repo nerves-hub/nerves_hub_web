@@ -64,8 +64,8 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   end
 
   @impl Phoenix.LiveView
-  def handle_event("delete_certificate_authority", %{"certificate_serial" => serial}, socket) do
-    authorized!(:delete_certificate_authority, socket.assigns.org_user)
+  def handle_event("delete-certificate-authority", %{"certificate_serial" => serial}, socket) do
+    authorized!(:"certificate_authority:delete", socket.assigns.org_user)
 
     with {:ok, ca_certificate} <-
            Devices.get_ca_certificate_by_org_and_serial(socket.assigns.org, serial),
@@ -86,7 +86,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   end
 
   def handle_event("update_certificate_authority", %{"ca_certificate" => ca_certificate}, socket) do
-    authorized!(:update_certificate_authority, socket.assigns.org_user)
+    authorized!(:"certificate_authority:update", socket.assigns.org_user)
 
     with {:ok, cert} <- Devices.get_ca_certificate_by_serial(socket.assigns.serial),
          {:ok, params} <- maybe_delete_jitp(ca_certificate),
@@ -115,7 +115,7 @@ defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   end
 
   def handle_event("add_certificate_authority", %{"ca_certificate" => params}, socket) do
-    authorized!(:add_certificate_authority, socket.assigns.org_user)
+    authorized!(:"certificate_authority:create", socket.assigns.org_user)
 
     socket = set_show_jitp_form(socket, params)
 

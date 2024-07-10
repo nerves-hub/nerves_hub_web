@@ -78,7 +78,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
         false
 
       org_user ->
-        Authorization.authorized?(:device_console, org_user)
+        Authorization.authorized?(:"device:console", org_user)
     end
   end
 end

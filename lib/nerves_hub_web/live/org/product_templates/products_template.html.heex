@@ -3,26 +3,26 @@
     <img src="/images/product.svg" alt="No products" />
     <h3 style="margin-top: 2.75rem"><%= @org.name %> doesn’t have any products yet</h3>
     <div class="flex-row align-items-center mt-3">
-      <a class="btn btn-outline-light" aria-label="Create new product" href={~p"/org/#{@org.name}/new"} role="button">
+      <.link navigate={~p"/org/#{@org.name}/new"} class="btn btn-outline-light" aria-label="Create new product" role="button">
         <span class="button-icon add"></span>
         <span class="action-text">Create New</span>
-      </a>
+      </.link>
     </div>
   </div>
 <% else %>
   <div class="action-row">
     <h1>Products</h1>
-    <a class="btn btn-outline-light btn-action" aria-label="Create new product" href={~p"/org/#{@org.name}/new"} role="button">
+    <.link navigate={~p"/org/#{@org.name}/new"} class="btn btn-outline-light btn-action" aria-label="Create new product" role="button">
       <div class="button-icon add"></div>
       <span class="action-text">Create New</span>
-    </a>
+    </.link>
   </div>
 
   <div class="x3-grid">
     <%= for product <- @products do %>
-      <a class="grid-item" href={~p"/org/#{@org.name}/#{product.name}/devices"}>
+      <.link navigate={~p"/org/#{@org.name}/#{product.name}/devices"} class="grid-item">
         <h3><%= product.name %></h3>
-      </a>
+      </.link>
     <% end %>
   </div>
 <% end %>
