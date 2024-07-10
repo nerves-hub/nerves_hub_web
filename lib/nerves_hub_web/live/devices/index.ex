@@ -282,14 +282,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "connection_change", payload: payload}, socket) do
-    # Only sync devices currently on display
-    if Map.has_key?(socket.assigns.device_statuses, payload.device_id) do
-      device_statuses = Map.put(socket.assigns.device_statuses, payload.device_id, payload.status)
-      {:noreply, assign(socket, :device_statuses, device_statuses)}
-    else
-      {:noreply, socket}
-    end
+  def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
+    update_device_statuses(socket, payload)
+  end
+
+  def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
+    update_device_statuses(socket, payload)
   end
 
   # Unknown broadcasts get ignored, likely from the device:id:internal channel
@@ -342,6 +340,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
     socket
     |> assign(:devices, page.entries)
     |> assign(:paginate_opts, paginate_opts)
+  end
+
+  defp update_device_statuses(socket, payload) do
+    # Only sync devices currently on display
+    if Map.has_key?(socket.assigns.device_statuses, payload.device_id) do
+      device_statuses = Map.put(socket.assigns.device_statuses, payload.device_id, payload.status)
+      {:noreply, assign(socket, :device_statuses, device_statuses)}
+    else
+      {:noreply, socket}
+    end
   end
 
   defp firmware_versions(product_id) do

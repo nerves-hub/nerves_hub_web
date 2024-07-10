@@ -21,6 +21,9 @@ defmodule NervesHub.MixProject do
             nerves_hub: :permanent
           ]
         ]
+      ],
+      dialyzer: [
+        plt_add_apps: [:ex_unit]
       ]
     ]
   end
@@ -61,6 +64,7 @@ defmodule NervesHub.MixProject do
       {:comeonin, "~> 5.3"},
       {:crontab, "~> 1.1"},
       {:decorator, "~> 1.2"},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ecto, "~> 3.8", override: true},
       {:ecto_psql_extras, "~> 0.7"},
       {:ecto_sql, "~> 3.0"},
