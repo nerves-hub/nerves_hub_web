@@ -900,11 +900,15 @@ defmodule NervesHub.DevicesTest do
       assert %Devices.DeviceHealth{} = Devices.get_latest_health(device.id)
     end
 
-    test "create health reports over limit and then clean down to default limit", %{device: device} do
+    test "create health reports over limit and then clean down to default limit", %{
+      device: device
+    } do
       device_health = %{"device_id" => device.id, "data" => %{"literally_any_map" => "values"}}
+
       for _ <- 1..50 do
         assert {:ok, %Devices.DeviceHealth{}} = Devices.save_device_health(device_health)
       end
+
       healths = Devices.get_all_health(device.id)
       assert 50 = Enum.count(healths)
       Devices.clean_device_health(device.id)

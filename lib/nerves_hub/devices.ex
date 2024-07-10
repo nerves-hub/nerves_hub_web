@@ -1091,14 +1091,11 @@ defmodule NervesHub.Devices do
     end
   end
 
-<<<<<<< HEAD
-=======
   def get_all_health(device_id) do
-    from(DeviceHealth,where: [device_id: ^device_id])
+    from(DeviceHealth, where: [device_id: ^device_id])
     |> Repo.all()
   end
 
->>>>>>> 21740fb1c9767baa6cdc2cfd100ca32d3afb119b
   defp version_match?(_vsn, ""), do: true
 
   defp version_match?(version, requirement) do
