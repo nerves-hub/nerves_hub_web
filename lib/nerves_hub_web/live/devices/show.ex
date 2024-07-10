@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias NervesHubWeb.Components.DeviceHeader
   alias NervesHubWeb.Components.DeviceLocation
+  alias NervesHubWeb.Components.Utils
 
   alias Phoenix.Socket.Broadcast
 
