@@ -7,7 +7,7 @@
     <meta name="description" content="" />
     <meta name="author" content="" />
 
-    <title>Device Console : <%= @device.identifier %></title>
+    <title><%= String.slice(@device.identifier, -6..-1) %> - Console Session</title>
     <link rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")} />
   </head>
 
