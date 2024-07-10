@@ -6,6 +6,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
   alias NervesHub.Deployments
@@ -205,21 +206,28 @@ defmodule NervesHub.Devices do
   end
 
   @spec get_device_by_identifier(Org.t(), String.t()) :: {:ok, Device.t()} | {:error, :not_found}
-  def get_device_by_identifier(%Org{id: org_id}, identifier) when is_binary(identifier) do
-    query =
-      from(
-        d in Device,
-        where: d.identifier == ^identifier and d.org_id == ^org_id,
-        preload: [:device_certificates, :deployment]
-      )
-
-    query
-    |> Device.with_org()
+  def get_device_by_identifier(%Org{id: org_id}, identifier, preload_assoc \\ nil)
+      when is_binary(identifier) do
+    Device
+    |> where(identifier: ^identifier)
+    |> where(org_id: ^org_id)
+    |> join(:left, [d], o in assoc(d, :org))
+    |> join(:left, [d], dp in assoc(d, :deployment))
+    |> join_and_preload(preload_assoc)
+    |> preload([d, o, dp], org: o, deployment: dp)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
       device -> {:ok, device}
     end
+  end
+
+  defp join_and_preload(query, nil), do: query
+
+  defp join_and_preload(query, :device_certificates) do
+    query
+    |> join(:left, [d], dc in assoc(d, :device_certificates), as: :device_certificates)
+    |> preload([d, device_certificates: dc], device_certificates: dc)
   end
 
   @spec get_shared_secret_auth(String.t()) ::

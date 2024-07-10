@@ -130,7 +130,8 @@ defmodule NervesHub.Accounts do
     OrgUser
     |> where([ou], ou.org_id == ^org.id)
     |> where([ou], ou.user_id == ^user.id)
-    |> OrgUser.with_user()
+    |> join(:inner, [ou], u in assoc(ou, :user), as: :user)
+    |> preload([ou, user: user], user: user)
     |> Repo.exclude_deleted()
     |> Repo.one()
     |> case do
@@ -146,8 +147,8 @@ defmodule NervesHub.Accounts do
       order_by: [desc: ou.role]
     )
     |> join(:inner, [ou], u in assoc(ou, :user), as: :user)
+    |> preload([ou, user: user], user: user)
     |> where([ou, user: user], is_nil(user.deleted_at))
-    |> OrgUser.with_user()
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
@@ -235,7 +236,9 @@ defmodule NervesHub.Accounts do
     User
     |> where(id: ^user_id)
     |> Repo.exclude_deleted()
-    |> preload(orgs: [:products])
+    |> join(:left, [d], o in assoc(d, :orgs))
+    |> join(:left, [d, o], p in assoc(o, :products))
+    |> preload([d, o, p], orgs: {o, products: p})
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
