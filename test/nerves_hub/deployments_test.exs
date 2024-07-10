@@ -11,14 +11,14 @@ defmodule NervesHub.DeploymentsTest do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(org, firmware)
 
-    user2 = Fixtures.user_fixture(%{username: "user2", email: "user2@test.com"})
+    user2 = Fixtures.user_fixture(%{email: "user2@test.com"})
     org2 = Fixtures.org_fixture(user2, %{name: "org2"})
     product2 = Fixtures.product_fixture(user2, org2)
-    org_key2 = Fixtures.org_key_fixture(org2)
+    org_key2 = Fixtures.org_key_fixture(org2, user2)
     firmware2 = Fixtures.firmware_fixture(org_key2, product2)
     deployment2 = Fixtures.deployment_fixture(org2, firmware2)
 

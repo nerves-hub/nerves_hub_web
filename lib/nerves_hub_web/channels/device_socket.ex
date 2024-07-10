@@ -16,19 +16,13 @@ defmodule NervesHubWeb.DeviceSocket do
   @default_max_hmac_age 90
 
   # Used by Devices connecting with SSL certificates
-  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}}) when not is_nil(ssl_cert) do
+  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}} = connect_info)
+      when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
     |> Devices.get_device_certificate_by_x509()
     |> case do
       {:ok, %{device: %Device{} = device}} ->
-        reference_id = Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
-
-        socket =
-          socket
-          |> assign(:device, device)
-          |> assign(:reference_id, reference_id)
-
-        {:ok, socket}
+        socket_and_assigns(socket, device, connect_info)
 
       _e ->
         {:error, :invalid_auth}
@@ -36,22 +30,17 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
-  def connect(_params, socket, %{x_headers: x_headers})
+  def connect(_params, socket, %{x_headers: x_headers} = connect_info)
       when is_list(x_headers) and length(x_headers) > 0 do
     headers = Map.new(x_headers)
 
-    with true <- shared_secrets_enabled?(),
+    with :ok <- check_shared_secret_enabled(),
          {:ok, key, salt, verification_opts} <- decode_from_headers(headers),
          {:ok, auth} <- get_shared_secret_auth(key),
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
          {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_opts),
          {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
-      socket =
-        socket
-        |> assign(:device, device)
-        |> assign(:reference_id, generate_reference_id())
-
-      {:ok, socket}
+      socket_and_assigns(socket, device, connect_info)
     else
       error ->
         Logger.info("device authentication failed : #{inspect(error)}")
@@ -117,16 +106,51 @@ defmodule NervesHubWeb.DeviceSocket do
     |> Keyword.get(:max_age, @default_max_hmac_age)
   end
 
-  def shared_secrets_enabled?() do
-    enabled =
-      Application.get_env(:nerves_hub, __MODULE__, [])
-      |> Keyword.get(:shared_secrets, [])
-      |> Keyword.get(:enabled, false)
-
-    if enabled do
-      true
+  defp check_shared_secret_enabled() do
+    if shared_secrets_enabled?() do
+      :ok
     else
       {:error, :shared_secrets_not_enabled}
     end
+  end
+
+  def shared_secrets_enabled?() do
+    Application.get_env(:nerves_hub, __MODULE__, [])
+    |> Keyword.get(:shared_secrets, [])
+    |> Keyword.get(:enabled, false)
+  end
+
+  defp ip_information(connect_info) do
+    cond do
+      forwarded_for = x_forwarded_for(connect_info) ->
+        elem(forwarded_for, 1)
+        |> String.split(",")
+        |> List.first()
+
+      address = connect_info[:peer_data][:address] ->
+        address
+        |> Tuple.to_list()
+        |> Enum.join(".")
+
+      true ->
+        nil
+    end
+  end
+
+  defp x_forwarded_for(connect_info) do
+    (connect_info[:x_headers] || [])
+    |> Enum.find(fn header ->
+      elem(header, 0) == "x-forwarded-for"
+    end)
+  end
+
+  defp socket_and_assigns(socket, device, connect_info) do
+    socket =
+      socket
+      |> assign(:device, device)
+      |> assign(:reference_id, generate_reference_id())
+      |> assign(:request_ip, ip_information(connect_info))
+
+    {:ok, socket}
   end
 end

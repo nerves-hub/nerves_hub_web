@@ -1,19 +1,14 @@
 defmodule NervesHubWeb.Mounts.FetchProduct do
   import Phoenix.Component
 
-  alias NervesHub.Products
-
   def on_mount(:default, %{"product_name" => product_name}, _session, socket) do
     %{org: org} = socket.assigns
 
-    product = Enum.find(org.products, &(&1.name == product_name))
+    socket =
+      assign_new(socket, :product, fn ->
+        Enum.find(org.products, &(&1.name == product_name))
+      end)
 
-    case !is_nil(product) do
-      true ->
-        {:cont, assign(socket, :product, Products.load_shared_secret_auth(product))}
-
-      false ->
-        raise Ecto.NoResultsError
-    end
+    {:cont, socket}
   end
 end

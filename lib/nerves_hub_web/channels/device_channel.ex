@@ -17,17 +17,18 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Firmwares
   alias NervesHub.Repo
   alias NervesHub.Tracker
+  alias NervesHub.Utils.Geolocate
   alias Phoenix.Socket.Broadcast
 
-  @default_health_check_interval 3600
+  @default_health_check_interval 3600 * 1000
 
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
-         {:ok, device} <- Devices.device_connected(device) do
+         {:ok, device} <- Devices.device_connected(device),
+         {:ok, device} <- update_connection_metadata(device, socket) do
       socket = assign(socket, :device, device)
 
       send(self(), {:after_join, params})
-      schedule_health_check()
 
       {:ok, socket}
     else
@@ -135,6 +136,9 @@ defmodule NervesHubWeb.DeviceChannel do
 
     send(self(), :boot)
 
+    send(self(), :health_check)
+    schedule_health_check()
+
     {:noreply, socket}
   end
 
@@ -175,10 +179,24 @@ defmodule NervesHubWeb.DeviceChannel do
         %{assigns: %{device: device}} = socket
       ) do
     if device_matches_deployment_payload?(device, payload) do
-      {:noreply, assign_deployment(socket, payload)}
+      if timer = Map.get(socket.assigns, :assign_deployment_timer) do
+        Process.cancel_timer(timer)
+      end
+
+      # jitter to attempt to not slam the database when any matching
+      # devices go to set their deployment. This is for very large
+      # deployments, to prevent ecto pool contention.
+      jitter = device_deployment_change_jitter_ms()
+      timer = Process.send_after(self(), {:assign_deployment, payload}, jitter)
+      {:noreply, assign(socket, :assign_deployment_timer, timer)}
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_info({:assign_deployment, payload}, socket) do
+    socket = assign(socket, :assign_deployment_timer, nil)
+    {:noreply, assign_deployment(socket, payload)}
   end
 
   def handle_info(
@@ -189,9 +207,10 @@ defmodule NervesHubWeb.DeviceChannel do
       :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
       {:noreply, assign_deployment(socket, payload)}
     else
-      # jitter over a minute but spaced out to attempt to not
-      # slam the database when all devices check
-      jitter = :rand.uniform(30) * 2 * 1000
+      # jitter to attempt to not slam the database when any matching
+      # devices go to set their deployment. This is for very large
+      # deployments, to prevent ecto pool contention.
+      jitter = device_deployment_change_jitter_ms()
       Process.send_after(self(), :resolve_changed_deployment, jitter)
       {:noreply, socket}
     end
@@ -312,6 +331,42 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_info({:run_script, pid, text}, socket) do
+    if Version.match?(socket.assigns.device_api_version, ">= 2.1.0") do
+      ref = Base.encode64(:crypto.strong_rand_bytes(4), padding: false)
+
+      push(socket, "scripts/run", %{"text" => text, "ref" => ref})
+
+      script_refs =
+        socket.assigns
+        |> Map.get(:script_refs, %{})
+        |> Map.put(ref, pid)
+
+      socket = assign(socket, :script_refs, script_refs)
+
+      Process.send_after(self(), {:clear_script_ref, ref}, 15_000)
+
+      {:noreply, socket}
+    else
+      send(pid, {:error, :incompatible_version})
+
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info({:clear_script_ref, ref}, socket) do
+    Logger.info("[DeviceChannel] clearing ref #{ref}")
+
+    script_refs =
+      socket.assigns
+      |> Map.get(:script_refs, %{})
+      |> Map.delete(ref)
+
+    socket = assign(socket, :script_refs, script_refs)
+
+    {:noreply, socket}
+  end
+
   def handle_info(%Broadcast{event: event, payload: payload}, socket) do
     # Forward broadcasts to the device for now
     push(socket, event, payload)
@@ -347,6 +402,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   def handle_info(:health_check, socket) do
     push(socket, "check_health", %{})
+    schedule_health_check()
     {:noreply, socket}
   end
 
@@ -423,6 +479,16 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("rebooting", _, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_in("scripts/run", params, socket) do
+    if pid = socket.assigns.script_refs[params["ref"]] do
+      output = Enum.join([params["output"], params["return"]], "\n")
+      output = String.trim(output)
+      send(pid, {:output, output})
+    end
+
     {:noreply, socket}
   end
 
@@ -520,6 +586,15 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  defp update_connection_metadata(device, %{assigns: %{request_ip: request_ip}}) do
+    metadata =
+      device.connection_metadata
+      |> Map.put("request_ip", request_ip)
+      |> Map.put("location", Geolocate.resolve(request_ip))
+
+    Devices.update_device(device, %{connection_metadata: metadata})
+  end
+
   defp maybe_start_penalty_timer(%{assigns: %{device: %{updates_blocked_until: nil}}} = socket),
     do: socket
 
@@ -583,6 +658,11 @@ defmodule NervesHubWeb.DeviceChannel do
     socket
     |> assign(:device, device)
     |> assign(:deployment_channel, deployment_channel)
+  end
+
+  defp device_deployment_change_jitter_ms() do
+    jitter = Application.get_env(:nerves_hub, :device_deployment_change_jitter_seconds)
+    :rand.uniform(jitter) * 1000
   end
 
   defp schedule_health_check() do

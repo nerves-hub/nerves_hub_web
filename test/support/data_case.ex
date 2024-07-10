@@ -23,6 +23,8 @@ defmodule NervesHub.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import NervesHub.DataCase
+
+      @moduletag :tmp_dir
     end
   end
 

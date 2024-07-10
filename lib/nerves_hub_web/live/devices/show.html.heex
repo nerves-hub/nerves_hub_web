@@ -1,0 +1,182 @@
+<div :if={@device.deleted_at} class="alert alert-danger mt-0">
+  <div class="content-container">
+    <center>Device is deleted and must be restored to use</center>
+  </div>
+</div>
+
+<div class="action-row mb-1">
+  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="back-link">
+    All Devices
+  </.link>
+  <div class="btn-group" role="group" aria-label="Device Actions">
+    <%= if @device.deleted_at do %>
+      <button class="btn btn-outline-light btn-action" aria-label="Restore" type="button" phx-click="restore">
+        <span class="button-icon power"></span>
+        <span class="action-text">Restore</span>
+      </button>
+      <button class="btn btn-outline-light btn-action btn-primary" aria-label="Destroy" type="button" phx-click="destroy" data-confirm="Are you sure?">
+        <span class="button-icon delete"></span>
+        <span class="action-text">Destroy</span>
+      </button>
+    <% else %>
+      <button class="btn btn-outline-light btn-action" aria-label="Reboot device" type="button" phx-click="reboot" data-confirm="Are you sure?">
+        <span class="button-icon power"></span>
+        <span class="action-text">Reboot</span>
+      </button>
+      <button class="btn btn-outline-light btn-action" aria-label="Reconnect device" type="button" phx-click="reconnect">
+        <span class="button-icon reconnect"></span>
+        <span class="action-text">Reconnect</span>
+      </button>
+      <button class="btn btn-outline-light btn-action" aria-label="Check health" type="button" phx-click="check_health">
+        <span class="action-text">Check health</span>
+      </button>
+      <button class="btn btn-outline-light btn-action" aria-label="Identify device" type="button" phx-click="identify">
+        <span class="button-icon identify"></span>
+        <span class="action-text">Identify</span>
+      </button>
+      <%= link(class: "btn btn-outline-light btn-action", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
+        <span class="button-icon console-icon"></span>
+        <span class="action-text">Console</span>
+      <% end %>
+      <button class="btn btn-outline-light btn-action" aria-label={if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"} type="button" phx-click="toggle_health_state">
+        <span class="button-icon firmware-disabled"></span>
+        <span class="action-text"><%= if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates" %></span>
+      </button>
+      <button class="btn btn-outline-light btn-action" aria-label="Delete" type="button" phx-click="delete" data-confirm="Are you sure?">
+        <span class="button-icon delete"></span>
+        <span class="action-text">Delete</span>
+      </button>
+      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/settings"} class="btn btn-outline-light btn-action" aria-label="Edit">
+        <span class="button-icon edit"></span>
+        <span class="action-text">Settings</span>
+      </.link>
+    <% end %>
+  </div>
+</div>
+
+<DeviceHeader.render org={@org} product={@product} device={@device} status={@status} />
+
+<div class="row">
+  <div class="col-lg-6">
+    <div>
+      <h3 class="mb-2">Information</h3>
+
+      <div class="display-box">
+        <div class="help-text mb-1">Tags</div>
+        <p :if={is_nil(@device.tags)}>No Tags</p>
+        <span :for={tag <- @device.tags || []} class="badge"><%= tag %></span>
+      </div>
+
+      <DeviceLocation.render connection_metadata={@device.connection_metadata} />
+    </div>
+
+    <div>
+      <h3 class="mb-2">First Connect Code</h3>
+      <%= if code = connecting_code(@device) do %>
+        <pre class="hljs"><code class="hljs elixir"><%= code %></code></pre>
+      <% else %>
+        <div class="display-box">
+          No code sent
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <div :if={@health} class="col-lg-6">
+    <h3 class="mb-2">Device Health</h3>
+
+    <div class="device-health">
+      <div :if={@health.data["metrics"] && @health.data["metrics"]["cpu_temp"]} class={"callout #{Utils.cpu_temp_to_status(@health.data["metrics"]["cpu_temp"])}"}>
+        <div class="label">CPU</div>
+        <%= round(@health.data["metrics"]["cpu_temp"]) %>°
+      </div>
+      <div :if={@health.data["metrics"] && @health.data["metrics"]["used_percent"]} class={"callout #{Utils.memory_to_status(@health.data["metrics"]["used_percent"])}"} x>
+        <div class="label">Memory used</div>
+        <%= round(@health.data["metrics"]["used_percent"]) %>%
+      </div>
+      <div :if={@health.data["metrics"] && @health.data["metrics"]["load_15min"]} class="callout">
+        <div class="label">Load avg, 15m</div>
+        <%= round(@health.data["metrics"]["load_15min"]) %>
+      </div>
+      <div class="callout">
+        <div class="label">Checked</div>
+        <%= Timex.from_now(@health.inserted_at) %>
+      </div>
+    </div>
+
+    <div :if={@health.data["alarms"] && @health.data["alarms"] != %{}}>
+      <h5>Alarms</h5>
+      <table>
+        <.health_section data={@health.data["alarms"]} />
+      </table>
+    </div>
+
+    <div :if={@health.data["metrics"]}>
+      <h5>Metrics</h5>
+      <table>
+        <.health_section data={@health.data["metrics"]} />
+      </table>
+    </div>
+
+    <div :if={@health.data["metadata"]}>
+      <h5>Metadata</h5>
+      <table>
+        <.health_section data={@health.data["metadata"]} />
+      </table>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div>
+      <h3 class="mb-2">Deployments</h3>
+      <div class="display-box">
+        <div>
+          <div class="help-text mb-1">Assigned Deployment</div>
+          <.link :if={@deployment} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"} class="badge">
+            <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}><%= @deployment.name %></div>
+          </.link>
+          <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
+        </div>
+
+        <div class="mt-4">
+          <div class="help-text mb-1 tooltip-label help-tooltip">
+            <span>Send update</span>
+            <span class="tooltip-info"></span>
+            <span class="tooltip-text">Push a specific version of firmware to a device. This disables updates to prevent a deployment pushing an update on reconnect.</span>
+          </div>
+          <form :if={Enum.any?(@firmwares)} phx-submit="push-update">
+            <div class="flex-row justify-content-between">
+              <select name="uuid" class="form-control">
+                <option value="">Select a version</option>
+                <%= for firmware <- @firmwares do %>
+                  <option value={firmware.uuid}><%= firmware.version %></option>
+                <% end %>
+              </select>
+              <button class="btn btn-secondary ml-2">Send</button>
+            </div>
+          </form>
+          <div :if={Enum.empty?(@firmwares)} class="color-white-50">
+            No firmware is available for this device.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="device-header-group justify-content-between">
+        <h3 class="mb-2">Latest Activity</h3>
+
+        <a
+          class="btn btn-outline-light btn-action"
+          title="Download Audit Logs"
+          aria-label="Download Audit Logs"
+          href={Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, @device.identifier)}
+        >
+          <div class="button-icon download"></div>
+        </a>
+      </div>
+
+      <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
+    </div>
+  </div>
+</div>

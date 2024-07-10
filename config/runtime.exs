@@ -12,6 +12,7 @@ end
 config :nerves_hub,
   app: nerves_hub_app,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
+  web_title_suffix: System.get_env("WEB_TITLE_SUFFIX", "NervesHub"),
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   email_sender: System.get_env("EMAIL_SENDER", "NervesHub"),
   support_email_platform_name: System.get_env("SUPPORT_EMAIL_PLATFORM_NAME", "NervesHub"),
@@ -22,7 +23,17 @@ config :nerves_hub,
   admin_auth: [
     username: System.get_env("ADMIN_AUTH_USERNAME"),
     password: System.get_env("ADMIN_AUTH_PASSWORD")
-  ]
+  ],
+  device_deployment_change_jitter_seconds:
+    String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10")),
+  geoip_maxmind_auth: System.get_env("GEOIP_MAXMIND_AUTH"),
+  mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN")
+
+# only set this in :prod as not to override the :dev config
+if config_env() == :prod do
+  config :nerves_hub,
+    open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true"
+end
 
 if level = System.get_env("LOG_LEVEL") do
   config :logger, level: String.to_atom(level)

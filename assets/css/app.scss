@@ -6,23 +6,23 @@ $fa-font-path: '~@fortawesome/fontawesome-free/webfonts';
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=block');
 
-@import "_animate.css";
-@import "audit_log_feed";
-@import "console";
-@import "layout";
-@import "colors";
-@import "typography";
-@import "buttons";
-@import "form";
-@import "navigation";
-@import "sidebar";
-@import "home";
-@import "custom";
-@import "footer";
-@import "table";
-@import "modal";
-@import "import";
-@import "~bootstrap/scss/bootstrap";
+@import '_animate.css';
+@import 'audit_log_feed';
+@import 'console';
+@import 'layout';
+@import 'colors';
+@import 'typography';
+@import 'buttons';
+@import 'form';
+@import 'navigation';
+@import 'sidebar';
+@import 'home';
+@import 'custom';
+@import 'footer';
+@import 'table';
+@import 'modal';
+@import 'import';
+@import '~bootstrap/scss/bootstrap';
 
 html {
   margin: 0;
@@ -62,7 +62,7 @@ html body {
 
   .home-wrapper {
     height: 100%;
-    color: #24282A;
+    color: #24282a;
 
     main {
       margin: 0 auto;
@@ -76,7 +76,7 @@ html body {
   height: 36px;
   background-color: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: .75rem;
+  padding: 0.75rem;
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
@@ -84,15 +84,15 @@ html body {
   font-size: 16px;
   overflow: hidden;
   position: relative;
-  margin-right: .5rem;
-  margin-top: .5rem;
-  margin-bottom: .5rem;
+  margin-right: 0.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 
   &.firmware-penalty-box {
     background-color: rgba(202, 138, 4, 0.5);
     padding-right: 2.5rem;
-    background-image: url("/images/icons/firmware-penalty-box.svg");
-    background-position: right .5rem center;
+    background-image: url('/images/icons/firmware-penalty-box.svg');
+    background-position: right 0.5rem center;
     background-repeat: no-repeat;
     background-size: 1.1rem;
 
@@ -104,8 +104,8 @@ html body {
 
   &.firmware-disabled {
     padding-right: 2.5rem;
-    background-image: url("/images/icons/firmware-disabled.svg");
-    background-position: right .5rem center;
+    background-image: url('/images/icons/firmware-disabled.svg');
+    background-position: right 0.5rem center;
     background-repeat: no-repeat;
     background-size: 1.1rem;
 
@@ -131,10 +131,10 @@ html body {
 }
 
 .firmware-penalty-box {
-  background-image: url("/images/icons/error.svg");
+  background-image: url('/images/icons/error.svg');
   background-size: 1.5rem;
   background-repeat: no-repeat;
-  background-position: right .5rem center;
+  background-position: right 0.5rem center;
   padding-right: 2.5rem;
 }
 
@@ -167,13 +167,13 @@ html body {
 
   &.device-show {
     height: 1.5rem;
-    margin-top: .5rem;
+    margin-top: 0.5rem;
 
     .progress-bar {
       height: 1.5rem;
-      font-size: .875rem;
+      font-size: 0.875rem;
       text-align: right;
-      padding: 0 .5rem;
+      padding: 0 0.5rem;
       min-width: 2rem;
     }
   }
@@ -187,7 +187,6 @@ html body {
   display: flex;
   flex-wrap: row;
   gap: 4px;
-
 }
 
 .device-health .callout {
@@ -196,7 +195,7 @@ html body {
   flex-grow: 1;
   padding: 8px;
 
-  font-size: 2em;
+  font-size: 1.5em;
   margin-bottom: 32px;
 }
 
@@ -213,8 +212,6 @@ html body {
 .device-health.tight .callout .label {
   font-size: 1em;
 }
-
-
 
 .device-health .callout.ok {
   color: green;

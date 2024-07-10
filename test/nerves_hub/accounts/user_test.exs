@@ -8,14 +8,14 @@ defmodule NervesHub.Accounts.UserTest do
 
     Enum.each(invalid_chars, fn char ->
       %Changeset{errors: errors} =
-        User.creation_changeset(%NervesHub.Accounts.User{}, %{username: "username#{char}"})
+        User.creation_changeset(%NervesHub.Accounts.User{}, %{name: "Name#{char}"})
 
-      assert {"invalid character(s) in username", []} = errors[:username]
+      assert {"has invalid character(s)", [{:validation, :format}]} = errors[:name]
     end)
 
     %Changeset{errors: errors} =
       User.creation_changeset(%NervesHub.Accounts.User{}, %{
-        username: "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_"
+        name: "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_"
       })
 
     assert is_nil(errors[:username])

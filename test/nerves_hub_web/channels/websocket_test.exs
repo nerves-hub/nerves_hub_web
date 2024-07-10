@@ -59,7 +59,7 @@ defmodule NervesHubWeb.WebsocketTest do
   def device_fixture(user, device_params \\ %{}, org \\ nil) do
     org = org || Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org)
+    org_key = Fixtures.org_key_fixture(org, user)
 
     firmware =
       Fixtures.firmware_fixture(org_key, product, %{
@@ -304,6 +304,16 @@ defmodule NervesHubWeb.WebsocketTest do
   end
 
   describe "shared secret auth NH1" do
+    setup do
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
+
+      on_exit(fn ->
+        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
+          shared_secrets: [enabled: false]
+        )
+      end)
+    end
+
     test "can register device with product key/secret", %{user: user} do
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
@@ -519,7 +529,7 @@ defmodule NervesHubWeb.WebsocketTest do
       Fixtures.device_certificate_fixture(device)
 
       org = %Accounts.Org{id: device.org_id}
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user)
 
       firmware2 =
         Fixtures.firmware_fixture(org_key, firmware.product, %{
@@ -561,7 +571,7 @@ defmodule NervesHubWeb.WebsocketTest do
       firmware = NervesHub.Repo.preload(firmware, :product)
 
       Fixtures.device_certificate_fixture(device)
-      org_key = Fixtures.org_key_fixture(device.org)
+      org_key = Fixtures.org_key_fixture(device.org, user)
 
       deployment =
         Fixtures.deployment_fixture(device.org, firmware, %{
@@ -846,16 +856,17 @@ defmodule NervesHubWeb.WebsocketTest do
   end
 
   describe "archives" do
-    test "on connect receive an archive", %{user: user} do
+    @tag :tmp_dir
+    test "on connect receive an archive", %{user: user, tmp_dir: tmp_dir} do
       org = Fixtures.org_fixture(user)
-      org_key = Fixtures.org_key_fixture(org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
 
       {device, firmware} = device_fixture(user, %{identifier: @valid_serial}, org)
 
       firmware = Repo.preload(firmware, [:product])
       product = firmware.product
 
-      archive = Fixtures.archive_fixture(org_key, product)
+      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
 
       deployment =
         Fixtures.deployment_fixture(org, firmware, %{

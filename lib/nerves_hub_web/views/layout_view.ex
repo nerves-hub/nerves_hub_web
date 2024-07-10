@@ -108,11 +108,13 @@ defmodule NervesHubWeb.LayoutView do
       |> Enum.map(fn {text, page} ->
         text = if text == :ellipsis, do: page, else: text
 
-        content_tag(:button, text,
-          phx_click: "paginate",
-          phx_value_page: page,
-          class: "btn btn-secondary btn-sm #{if page == opts.page_number, do: "active"}"
-        )
+        content_tag(:div) do
+          content_tag(:button, text,
+            phx_click: "paginate",
+            phx_value_page: page,
+            class: "btn btn-secondary btn-sm #{if page == opts.page_number, do: "active"}"
+          )
+        end
       end)
     end
   end
@@ -129,56 +131,10 @@ defmodule NervesHubWeb.LayoutView do
   def sidebar_links(%{path_info: ["org", "new"]}),
     do: []
 
-  def sidebar_links(%{path_info: ["org", _org_name]} = conn),
-    do: sidebar_settings(conn)
-
-  def sidebar_links(%{path_info: ["org", _org_name, "new"]} = conn),
-    do: sidebar_settings(conn)
-
-  def sidebar_links(%{path_info: ["org", _org_name, "settings" | _tail]} = conn),
-    do: sidebar_settings(conn)
-
   def sidebar_links(%{path_info: ["org", _org_name | _tail]} = conn),
     do: sidebar_org(conn)
 
   def sidebar_links(_conn), do: []
-
-  def sidebar_settings(%{assigns: %{user: user, org: org}} = conn) do
-    ([
-       %{
-         title: "Products",
-         active: "",
-         href: Routes.product_path(conn, :index, conn.assigns.org.name)
-       }
-     ] ++
-       if NervesHub.Accounts.has_org_role?(org, user, :view) do
-         [
-           %{
-             title: "Signing Keys",
-             active: "",
-             href: Routes.org_key_path(conn, :index, conn.assigns.org.name)
-           },
-           %{
-             title: "Users",
-             active: "",
-             href: Routes.org_user_path(conn, :index, conn.assigns.org.name)
-           },
-           %{
-             title: "Certificates",
-             active: "",
-             href: Routes.org_certificate_path(conn, :index, conn.assigns.org.name)
-           },
-           %{
-             title: "Settings",
-             active: "",
-             href: Routes.org_path(conn, :edit, conn.assigns.org.name)
-           }
-         ]
-       else
-         []
-       end)
-    |> sidebar_active(conn)
-  end
 
   def sidebar_org(conn) do
     [
@@ -186,39 +142,32 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Devices",
         active: "",
-        href: Routes.device_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/devices"
       },
       %{
         title: "Firmware",
         active: "",
-        href: Routes.firmware_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/firmware"
       },
       %{
         title: "Archives",
         active: "",
-        href: Routes.archive_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/archives"
       },
       %{
         title: "Deployments",
         active: "",
-        href:
-          Routes.deployment_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/deployments"
       },
       %{
         title: "Scripts",
         active: "",
-        href: Routes.script_path(conn, :index, conn.assigns.org.name, conn.assigns.product.name)
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/scripts"
       },
       %{
         title: "Settings",
         active: "",
-        href:
-          Routes.live_path(
-            NervesHubWeb.Endpoint,
-            NervesHubWeb.Live.Product.Settings,
-            conn.assigns.org.name,
-            conn.assigns.product.name
-          )
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/settings"
       }
     ]
     |> sidebar_active(conn)
@@ -229,17 +178,12 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Personal Info",
         active: "",
-        href: Routes.account_path(conn, :edit, conn.assigns.user.username)
-      },
-      %{
-        title: "My Organizations",
-        active: "",
-        href: Routes.org_path(conn, :index, conn.assigns.user.username)
+        href: ~p"/account"
       },
       %{
         title: "Access Tokens",
         active: "",
-        href: Routes.token_path(conn, :index, conn.assigns.user.username)
+        href: ~p"/account/tokens"
       }
     ]
     |> sidebar_active(conn)

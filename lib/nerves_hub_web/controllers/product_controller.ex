@@ -2,64 +2,10 @@ defmodule NervesHubWeb.ProductController do
   use NervesHubWeb, :controller
 
   alias NervesHub.Products
-  alias NervesHub.Products.Product
 
   action_fallback(NervesHubWeb.FallbackController)
 
-  plug(:validate_role, [org: :manage] when action in [:new, :create, :update, :delete])
-  plug(:validate_role, [org: :view] when action in [:index])
-
-  def index(%{assigns: %{user: user, org: org}} = conn, _params) do
-    products = Products.get_products_by_user_and_org(user, org)
-    render(conn, "index.html", products: products)
-  end
-
-  def new(conn, _params) do
-    changeset = Products.change_product(%Product{})
-    render(conn, "new.html", changeset: changeset)
-  end
-
-  def create(%{assigns: %{org: org}} = conn, %{"product" => product_params}) do
-    params = Enum.into(product_params, %{"org_id" => org.id})
-
-    case Products.create_product(params) do
-      {:ok, product} ->
-        conn
-        |> put_flash(:info, "Product created successfully.")
-        |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, "new.html", changeset: changeset)
-    end
-  end
-
-  def edit(%{assigns: %{product: product}} = conn, _params) do
-    changeset = Products.change_product(product)
-    render(conn, "edit.html", product: product, changeset: changeset)
-  end
-
-  def update(%{assigns: %{org: org, product: product}} = conn, %{"product" => product_params}) do
-    case Products.update_product(
-           product,
-           product_params |> Enum.into(%{"org_id" => org.id})
-         ) do
-      {:ok, product} ->
-        conn
-        |> put_flash(:info, "Product updated successfully.")
-        |> redirect(to: Routes.device_path(conn, :index, org.name, product.name))
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, "edit.html", product: product, changeset: changeset)
-    end
-  end
-
-  def delete(%{assigns: %{org: org, product: product}} = conn, _params) do
-    with {:ok, _product} <- Products.delete_product(product) do
-      conn
-      |> put_flash(:info, "Product deleted successfully.")
-      |> redirect(to: Routes.product_path(conn, :index, org.name))
-    end
-  end
+  plug(:validate_role, [org: :view] when action in [:devices_export])
 
   def devices_export(%{assigns: %{product: product}} = conn, _params) do
     filename = "#{product.name}-devices.csv"

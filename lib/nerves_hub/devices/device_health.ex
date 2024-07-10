@@ -17,8 +17,6 @@ defmodule NervesHub.Devices.DeviceHealth do
   end
 
   def save(params) do
-    dbg(params)
-
     %DeviceHealth{}
     |> cast(params, @required_params)
     |> validate_required(@required_params)

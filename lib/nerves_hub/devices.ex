@@ -74,22 +74,21 @@ defmodule NervesHub.Devices do
   end
 
   def get_devices_by_org_id_and_product_id(org_id, product_id, opts) do
-    query =
-      from(
-        d in Device,
-        where: d.org_id == ^org_id,
-        where: d.product_id == ^product_id
-      )
-
     pagination = Map.get(opts, :pagination, %{})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
     filters = Map.get(opts, :filters, %{})
 
-    query
+    Device
+    |> where([d], d.org_id == ^org_id)
+    |> where([d], d.product_id == ^product_id)
+    |> join(:left, [d], o in assoc(d, :org))
+    |> join(:left, [d, o], p in assoc(d, :product))
+    |> join(:left, [d, o, p], dp in assoc(d, :deployment))
+    |> join(:left, [d, o, p, dp], f in assoc(dp, :firmware))
     |> Repo.exclude_deleted()
     |> order_by(^sort_devices(sorting))
     |> filtering(filters)
-    |> preload([:org, :product, deployment: [:firmware]])
+    |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
     |> Repo.paginate(pagination)
   end
 
@@ -97,7 +96,9 @@ defmodule NervesHub.Devices do
     query =
       from(
         d in Device,
+        as: :device,
         join: dh in DeviceHealth,
+        as: :device_health,
         on: dh.device_id == d.id,
         select: [dh.device_id, dh.data, d.deleted_at],
         distinct: dh.device_id,
@@ -172,26 +173,18 @@ defmodule NervesHub.Devices do
         {"updates", "disabled"} ->
           where(query, [d], d.updates_enabled == false)
 
-        {"id", value} ->
+        {"device_id", value} ->
           where(query, [d], ilike(d.identifier, ^"#{value}%"))
 
         {"tag", value} ->
           case NervesHub.Types.Tag.cast(value) do
             {:ok, tags} ->
-              # This query here joins the table back to itself to unnest `tags` in a
-              # way that is ILIKE-able. It's ugly but it works.
-              query =
-                query
-                |> join(
-                  :inner_lateral,
-                  [d],
-                  t in fragment("select unnest(tags) as tags from devices where id = ?", d.id),
-                  on: true
-                )
-                |> group_by([d], d.id)
-
               Enum.reduce(tags, query, fn tag, query ->
-                where(query, [d, t], ilike(t.tags, ^"#{tag}%"))
+                where(
+                  query,
+                  [d],
+                  fragment("array_to_string(?, ',') ILIKE ?", d.tags, ^"%#{tag}%")
+                )
               end)
 
             {:error, _} ->
@@ -228,21 +221,6 @@ defmodule NervesHub.Devices do
       where: d.org_id == ^org_id,
       where: d.id == ^device_id
     )
-  end
-
-  defp device_by_product_query(device_id, product_id, org_id) do
-    from(
-      d in Device,
-      where: d.org_id == ^org_id,
-      where: d.id == ^device_id,
-      where: d.product_id == ^product_id
-    )
-  end
-
-  def get_device_by_product(device_id, product_id, org_id) do
-    device_by_product_query(device_id, product_id, org_id)
-    |> preload([:deployment])
-    |> Repo.one!()
   end
 
   def get_device_by_org(%Org{id: org_id}, device_id) do
@@ -376,6 +354,14 @@ defmodule NervesHub.Devices do
     |> Multi.delete_all(:device_certificates, device_certificates_query)
     |> Multi.update(:device, changeset)
     |> Repo.transaction()
+    |> case do
+      {:ok, %{device: device}} -> {:ok, device}
+      error -> error
+    end
+  end
+
+  def destroy_device(%Device{} = device) do
+    Repo.delete(device)
   end
 
   @spec create_device_certificate(Device.t(), map() | X509.Certificate.t()) ::
@@ -901,7 +887,7 @@ defmodule NervesHub.Devices do
     _ = maybe_copy_firmware_keys(device, product.org)
 
     description =
-      "user #{user.username} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
+      "user #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
 
     source_product = %Product{
       id: device.product_id,
@@ -932,7 +918,7 @@ defmodule NervesHub.Devices do
 
   @spec tag_device(Device.t() | [Device.t()], User.t(), List.t()) :: Repo.transaction()
   def tag_device(%Device{} = device, user, tags) do
-    description = "user #{user.username} updated device #{device.identifier} tags"
+    description = "user #{user.name} updated device #{device.identifier} tags"
     params = %{tags: tags}
     update_device_with_audit(device, params, user, description)
   end
@@ -959,14 +945,14 @@ defmodule NervesHub.Devices do
 
   @spec enable_updates(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
   def enable_updates(%Device{} = device, user) do
-    description = "user #{user.username} enabled updates for device #{device.identifier}"
+    description = "user #{user.name} enabled updates for device #{device.identifier}"
     params = %{updates_enabled: true, update_attempts: []}
     update_device_with_audit(device, params, user, description)
   end
 
   @spec disable_updates(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
   def disable_updates(%Device{} = device, user) do
-    description = "user #{user.username} disabled updates for device #{device.identifier}"
+    description = "user #{user.name} disabled updates for device #{device.identifier}"
     params = %{updates_enabled: false}
     update_device_with_audit(device, params, user, description)
   end
@@ -982,7 +968,7 @@ defmodule NervesHub.Devices do
   end
 
   def clear_penalty_box(%Device{} = device, user) do
-    description = "user #{user.username} removed device #{device.identifier} from the penalty box"
+    description = "user #{user.name} removed device #{device.identifier} from the penalty box"
     params = %{updates_blocked_until: nil, update_attempts: []}
     update_device_with_audit(device, params, user, description)
   end
@@ -1105,6 +1091,14 @@ defmodule NervesHub.Devices do
     end
   end
 
+<<<<<<< HEAD
+=======
+  def get_all_health(device_id) do
+    from(DeviceHealth,where: [device_id: ^device_id])
+    |> Repo.all()
+  end
+
+>>>>>>> 21740fb1c9767baa6cdc2cfd100ca32d3afb119b
   defp version_match?(_vsn, ""), do: true
 
   defp version_match?(version, requirement) do
