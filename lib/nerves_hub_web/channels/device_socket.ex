@@ -123,14 +123,10 @@ defmodule NervesHubWeb.DeviceSocket do
   defp ip_information(connect_info) do
     cond do
       forwarded_for = x_forwarded_for(connect_info) ->
-        elem(forwarded_for, 1)
-        |> String.split(",")
-        |> List.first()
+        forwarded_for
 
       address = connect_info[:peer_data][:address] ->
-        address
-        |> Tuple.to_list()
-        |> Enum.join(".")
+        to_string(:inet.ntoa(address))
 
       true ->
         nil
@@ -139,8 +135,12 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defp x_forwarded_for(connect_info) do
     (connect_info[:x_headers] || [])
-    |> Enum.find(fn header ->
-      elem(header, 0) == "x-forwarded-for"
+    |> Enum.find_value(fn
+      {"x-forwarded-for", val} ->
+        hd(String.split(val, ","))
+
+      _ ->
+        nil
     end)
   end
 
