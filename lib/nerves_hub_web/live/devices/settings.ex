@@ -9,7 +9,12 @@ defmodule NervesHubWeb.Live.Devices.Settings do
   alias NervesHub.Repo
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
-    {:ok, device} = Devices.get_device_by_identifier(socket.assigns.org, device_identifier)
+    {:ok, device} =
+      Devices.get_device_by_identifier(
+        socket.assigns.org,
+        device_identifier,
+        :device_certificates
+      )
 
     changeset = Ecto.Changeset.change(device)
 
