@@ -13,9 +13,10 @@ defmodule NervesHubWeb.DeviceControllerTest do
       firmware = Fixtures.firmware_fixture(org_key, product)
       device = Fixtures.device_fixture(org, product, firmware)
 
-      result = get(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/console")
-
-      assert html_response(result, 200) =~ device.identifier
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/console")
+      |> assert_has("p", text: "Console")
+      |> assert_has("p", text: "Chat")
     end
   end
 end

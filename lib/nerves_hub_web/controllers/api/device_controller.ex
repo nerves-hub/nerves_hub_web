@@ -245,7 +245,7 @@ defmodule NervesHubWeb.API.DeviceController do
             {:ok, _device} ->
               send_resp(conn, 204, "")
 
-            {:error, _changeset} ->
+            {:error, _, _, _} ->
               send_resp(conn, 400, "")
           end
         else

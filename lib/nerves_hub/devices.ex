@@ -6,6 +6,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
   alias NervesHub.Deployments
@@ -205,21 +206,28 @@ defmodule NervesHub.Devices do
   end
 
   @spec get_device_by_identifier(Org.t(), String.t()) :: {:ok, Device.t()} | {:error, :not_found}
-  def get_device_by_identifier(%Org{id: org_id}, identifier) when is_binary(identifier) do
-    query =
-      from(
-        d in Device,
-        where: d.identifier == ^identifier and d.org_id == ^org_id,
-        preload: [:device_certificates, :deployment]
-      )
-
-    query
-    |> Device.with_org()
+  def get_device_by_identifier(%Org{id: org_id}, identifier, preload_assoc \\ nil)
+      when is_binary(identifier) do
+    Device
+    |> where(identifier: ^identifier)
+    |> where(org_id: ^org_id)
+    |> join(:left, [d], o in assoc(d, :org))
+    |> join(:left, [d], dp in assoc(d, :deployment))
+    |> join_and_preload(preload_assoc)
+    |> preload([d, o, dp], org: o, deployment: dp)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
       device -> {:ok, device}
     end
+  end
+
+  defp join_and_preload(query, nil), do: query
+
+  defp join_and_preload(query, :device_certificates) do
+    query
+    |> join(:left, [d], dc in assoc(d, :device_certificates), as: :device_certificates)
+    |> preload([d, device_certificates: dc], device_certificates: dc)
   end
 
   @spec get_shared_secret_auth(String.t()) ::
@@ -238,7 +246,9 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec create_shared_secret_auth(Device.t(), %{product_shared_secret_auth_id: pos_integer()}) ::
+  @spec create_shared_secret_auth(Device.t()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, Changeset.t()}
+  @spec create_shared_secret_auth(Device.t(), map()) ::
           {:ok, SharedSecretAuth.t()} | {:error, Changeset.t()}
   def create_shared_secret_auth(device, attrs \\ %{}) do
     device
@@ -871,14 +881,16 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec tag_device(Device.t() | [Device.t()], User.t(), List.t()) :: Repo.transaction()
+  @spec tag_device(Device.t() | [Device.t()], User.t(), list(String.t())) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
   def tag_device(%Device{} = device, user, tags) do
     description = "user #{user.name} updated device #{device.identifier} tags"
     params = %{tags: tags}
     update_device_with_audit(device, params, user, description)
   end
 
-  @spec update_device_with_audit(Device.t(), Map.t(), User.t(), Map.t()) :: Repo.transaction()
+  @spec update_device_with_audit(Device.t(), map(), User.t(), String.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
   def update_device_with_audit(device, params, user, description) do
     Multi.new()
     |> Multi.run(:update_with_audit, fn _, _ ->
@@ -898,14 +910,16 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec enable_updates(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
+  @spec enable_updates(Device.t() | [Device.t()], User.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
   def enable_updates(%Device{} = device, user) do
     description = "user #{user.name} enabled updates for device #{device.identifier}"
     params = %{updates_enabled: true, update_attempts: []}
     update_device_with_audit(device, params, user, description)
   end
 
-  @spec disable_updates(Device.t() | [Device.t()], User.t()) :: Repo.transaction()
+  @spec disable_updates(Device.t() | [Device.t()], User.t()) ::
+          {:ok, Device.t()} | {:error, any(), any(), any()}
   def disable_updates(%Device{} = device, user) do
     description = "user #{user.name} disabled updates for device #{device.identifier}"
     params = %{updates_enabled: false}
@@ -956,7 +970,7 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  @spec tag_devices([Device.t()], User.t(), List.t()) :: %{
+  @spec tag_devices([Device.t()], User.t(), list(String.t())) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]
         }

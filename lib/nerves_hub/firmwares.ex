@@ -111,7 +111,7 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  @spec get_firmware_by_uuid(String.t()) :: [Firmware.t()]
+  @spec get_firmware_by_uuid(String.t()) :: Firmware.t() | nil
   def get_firmware_by_uuid(uuid) do
     Repo.get_by(Firmware, uuid: uuid)
   end
