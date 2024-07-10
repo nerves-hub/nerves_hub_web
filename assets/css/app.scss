@@ -189,18 +189,32 @@ html body {
   gap: 4px;
 }
 
+.device-health-section .last-report {
+  margin-bottom: 2em;
+}
+
+.device-health-section .last-report .label {
+  font-size: 1em;
+}
+
+.device-health-section time {
+  font-size: 1em;
+}
+
 .device-health .callout {
   display: inline-block;
   background-color: var(--backgroundLight);
   flex-grow: 1;
-  padding: 8px;
+  flex-basis: 0;
 
-  font-size: 1.5em;
-  margin-bottom: 32px;
+  padding: 20px 14px;
+
+  font-size: 1.125rem;
+  margin-bottom: 14px;
 }
 
 .device-health .callout .label {
-  font-size: 0.4em;
+  font-size: 0.875rem;
 }
 
 .device-health.tight .callout {

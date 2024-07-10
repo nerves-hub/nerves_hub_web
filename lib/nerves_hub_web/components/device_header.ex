@@ -3,8 +3,6 @@ defmodule NervesHubWeb.Components.DeviceHeader do
 
   alias NervesHub.Devices
 
-  alias NervesHubWeb.LayoutView.DateTimeFormat
-
   attr(:org, :any)
   attr(:product, :any)
   attr(:device, :any)
@@ -47,14 +45,23 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last Handshake</span>
           <span class="tooltip-info"></span>
-          <span class="tooltip-text"><%= @device.last_communication %></span>
+          <span :if={@device.last_communication} class="tooltip-text" id="last-communication-at-tooltip" phx-hook="LocalTime">
+            <%= DateTime.to_string(@device.last_communication) %>
+          </span>
+          <span :if={!@device.last_communication} class="tooltip-text">
+            Never
+          </span>
         </div>
         <p>
-          <%= if is_nil(@device.last_communication) do %>
-            Never
-          <% else %>
-            <%= DateTimeFormat.from_now(@device.last_communication) %>
-          <% end %>
+          <span :if={!@device.last_communication}>Never</span>
+          <time
+            :if={@device.last_communication}
+            id="last-communication-at"
+            phx-hook="UpdatingTimeAgo"
+            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.last_communication, :second)), " ", "T")}
+          >
+            <%= Timex.from_now(@device.last_communication) %>
+          </time>
         </p>
       </div>
       <div>

@@ -27,9 +27,6 @@
         <span class="button-icon reconnect"></span>
         <span class="action-text">Reconnect</span>
       </button>
-      <button class="btn btn-outline-light btn-action" aria-label="Check health" type="button" phx-click="check_health">
-        <span class="action-text">Check health</span>
-      </button>
       <button class="btn btn-outline-light btn-action" aria-label="Identify device" type="button" phx-click="identify">
         <span class="button-icon identify"></span>
         <span class="action-text">Identify</span>
@@ -82,51 +79,61 @@
     </div>
   </div>
 
-  <div :if={@health} class="col-lg-6">
-    <h3 class="mb-2">Device Health</h3>
-
-    <div class="device-health">
-      <div :if={@health.data["metrics"] && @health.data["metrics"]["cpu_temp"]} class={"callout #{Utils.cpu_temp_to_status(@health.data["metrics"]["cpu_temp"])}"}>
-        <div class="label">CPU</div>
-        <%= round(@health.data["metrics"]["cpu_temp"]) %>°
-      </div>
-      <div :if={@health.data["metrics"] && @health.data["metrics"]["used_percent"]} class={"callout #{Utils.memory_to_status(@health.data["metrics"]["used_percent"])}"} x>
-        <div class="label">Memory used</div>
-        <%= round(@health.data["metrics"]["used_percent"]) %>%
-      </div>
-      <div :if={@health.data["metrics"] && @health.data["metrics"]["load_15min"]} class="callout">
-        <div class="label">Load avg, 15m</div>
-        <%= round(@health.data["metrics"]["load_15min"]) %>
-      </div>
-      <div class="callout">
-        <div class="label">Checked</div>
-        <%= Timex.from_now(@health.inserted_at) %>
-      </div>
-    </div>
-
-    <div :if={@health.data["alarms"] && @health.data["alarms"] != %{}}>
-      <h5>Alarms</h5>
-      <table>
-        <.health_section data={@health.data["alarms"]} />
-      </table>
-    </div>
-
-    <div :if={@health.data["metrics"]}>
-      <h5>Metrics</h5>
-      <table>
-        <.health_section data={@health.data["metrics"]} />
-      </table>
-    </div>
-
-    <div :if={@health.data["metadata"]}>
-      <h5>Metadata</h5>
-      <table>
-        <.health_section data={@health.data["metadata"]} />
-      </table>
-    </div>
-  </div>
-
   <div class="col-lg-6">
+    <div class="device-health-section">
+      <div class="device-header-group justify-content-between">
+        <h3 class="mb-2">Health</h3>
+
+        <button
+          class="btn btn-outline-light btn-action"
+          aria-label={if @health_check_timer, do: "Disable Auto Refresh", else: "Enable Auto Refresh"}
+          type="button"
+          phx-click="toggle-health-check-auto-refresh"
+        >
+          <span :if={@health_check_timer} class="action-text">Disable Auto Refresh</span>
+          <span :if={!@health_check_timer} class="action-text">Enable Auto Refresh</span>
+        </button>
+      </div>
+
+      <div :if={!@health} class="display-box">
+        No health information have been received for this device.
+      </div>
+
+      <div>
+        <div :if={@health} class="device-health">
+          <div :if={@health.data["metrics"] && @health.data["metrics"]["load_15min"]} class="callout">
+            <div class="help-text label">Load avg</div>
+            <%= @health.data["metrics"]["load_1min"] %> | <%= @health.data["metrics"]["load_5min"] %> | <%= @health.data["metrics"]["load_15min"] %>
+          </div>
+
+          <div :if={@health.data["metrics"] && @health.data["metrics"]["used_percent"]} class={"callout #{Utils.memory_to_status(60)}"} x>
+            <div class="help-text label">Memory used</div>
+            <%= round(@health.data["metrics"]["used_mb"]) %>MB (<%= round(@health.data["metrics"]["used_percent"]) %>%)
+          </div>
+          <div :if={!(@health.data["metrics"] && @health.data["metrics"]["used_percent"])} class="callout">
+            <div class="help-text label">Memory used</div>
+            Not reported
+          </div>
+
+          <div :if={@health.data["metrics"] && @health.data["metrics"]["cpu_temp"]} class={"callout #{Utils.cpu_temp_to_status(@health.data["metrics"]["cpu_temp"])}"}>
+            <div class="help-text label">CPU</div>
+            <%= round(@health.data["metrics"]["cpu_temp"]) %>°
+          </div>
+          <div :if={!(@health.data["metrics"] && @health.data["metrics"]["cpu_temp"])} class="callout">
+            <div class="help-text label">CPU</div>
+            Not reported
+          </div>
+        </div>
+
+        <div :if={@health} class="last-report">
+          <span class="label pr-1">Last report :</span>
+          <time id="health-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@health.inserted_at, :second)), " ", "T")}>
+            <%= Timex.from_now(@health.inserted_at) %>
+          </time>
+        </div>
+      </div>
+    </div>
+
     <div>
       <h3 class="mb-2">Deployments</h3>
       <div class="display-box">

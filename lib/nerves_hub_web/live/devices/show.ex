@@ -13,8 +13,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias Phoenix.Socket.Broadcast
 
-  import NervesHubWeb.Components.DeviceHealth
-
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product} = socket.assigns
 
@@ -32,6 +30,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:deployment, device.deployment)
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:health, Devices.get_latest_health(device.id))
+    |> schedule_health_check_timer()
     |> audit_log_assigns(1)
     |> ok()
   end
@@ -58,6 +57,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   def handle_info(%Broadcast{event: "health_check_report"}, socket) do
     {:noreply, assign(socket, health: Devices.get_latest_health(socket.assigns.device.id))}
+  end
+
+  def handle_info(:check_health_interval, socket) do
+    timer_ref = Process.send_after(self(), :check_health_interval, 65_000)
+
+    socket.endpoint.broadcast("device:#{socket.assigns.device.id}", "check_health", %{})
+
+    {:noreply, assign(socket, :health_check_timer, timer_ref)}
   end
 
   # Ignore unknown messages
@@ -107,15 +114,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, put_flash(socket, :info, "Device identification requested")}
   end
 
-  def handle_event("check_health", _value, socket) do
-    socket.endpoint.broadcast_from(
-      self(),
-      "device:#{socket.assigns.device.id}",
-      "check_health",
-      %{}
-    )
-
-    {:noreply, socket}
+  def handle_event("toggle-health-check-auto-refresh", _value, socket) do
+    if timer_ref = socket.assigns.health_check_timer do
+      Process.cancel_timer(timer_ref)
+      {:noreply, assign(socket, :health_check_timer, nil)}
+    else
+      {:noreply, schedule_health_check_timer(socket)}
+    end
   end
 
   def handle_event("paginate", %{"page" => page_num}, socket) do
@@ -202,6 +207,15 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> put_flash(:info, "Pushing firmware update")
     |> noreply()
+  end
+
+  defp schedule_health_check_timer(socket) do
+    if connected?(socket) do
+      timer_ref = Process.send_after(self(), :check_health_interval, 500)
+      assign(socket, :health_check_timer, timer_ref)
+    else
+      assign(socket, :health_check_timer, nil)
+    end
   end
 
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do

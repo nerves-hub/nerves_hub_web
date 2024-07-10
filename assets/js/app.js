@@ -7,9 +7,49 @@ import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
 import Josh from 'joshjs'
 
+import TimeAgo from 'javascript-time-ago'
+import en from 'javascript-time-ago/locale/en'
+
+TimeAgo.addDefaultLocale(en)
+
 let dates = require('./dates')
 
 let Hooks = {}
+
+Hooks.UpdatingTimeAgo = {
+  updateTimer: null,
+  mounted() {
+    this.updateTimer = null
+    this.updated()
+  },
+  updated(element) {
+    let hook = arguments.length > 0 ? element : this
+
+    if (hook.updateTimer) {
+      clearTimeout(hook.updateTimer)
+    }
+
+    const timeAgo = new TimeAgo('en-US')
+
+    let dtString = hook.el.dateTime
+    let dt = new Date(dtString)
+
+    // Format the date.
+    // const [formattedDate, timeToNextUpdate] = timeAgo.format(dt, 'round', {
+    //   getTimeToNextUpdate: true
+    // })
+
+    const formattedDate = timeAgo.format(dt, 'round')
+
+    hook.el.textContent = formattedDate
+
+    // https://www.npmjs.com/package/javascript-time-ago#update-interval
+    // let interval = Math.min(timeToNextUpdate || 60 * 1000, 2147483647)
+    let interval = 1000
+
+    hook.updateTimer = setTimeout(hook.updated, interval, hook)
+  }
+}
 
 Hooks.LocalTime = {
   mounted() {
@@ -21,10 +61,13 @@ Hooks.LocalTime = {
     dt.setSeconds(null)
 
     let formatted = new Intl.DateTimeFormat('en-GB', {
-      dateStyle: 'medium',
-      timeStyle: 'long',
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      hour12: true
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      hourCycle: 'h12'
     }).format(dt)
 
     this.el.textContent = formatted
