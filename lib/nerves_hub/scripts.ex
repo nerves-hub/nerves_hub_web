@@ -15,6 +15,10 @@ defmodule NervesHub.Scripts do
     Repo.get!(Script, id)
   end
 
+  def get_by_product_and_id!(product, id) do
+    Repo.get_by!(Script, id: id, product_id: product.id)
+  end
+
   def get(product, id) do
     case Repo.get_by(Script, id: id, product_id: product.id) do
       nil ->

@@ -206,8 +206,24 @@ defmodule NervesHub.Devices do
   end
 
   @spec get_device_by_identifier(Org.t(), String.t()) :: {:ok, Device.t()} | {:error, :not_found}
-  def get_device_by_identifier(%Org{id: org_id}, identifier, preload_assoc \\ nil)
+  def get_device_by_identifier(org, identifier, preload_assoc \\ nil)
       when is_binary(identifier) do
+    get_device_by_identifier_query(org, identifier, preload_assoc)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      device -> {:ok, device}
+    end
+  end
+
+  @spec get_device_by_identifier!(Org.t(), String.t()) :: Device.t()
+  def get_device_by_identifier!(org, identifier, preload_assoc \\ nil)
+      when is_binary(identifier) do
+    get_device_by_identifier_query(org, identifier, preload_assoc)
+    |> Repo.one!()
+  end
+
+  defp get_device_by_identifier_query(%Org{id: org_id}, identifier, preload_assoc) do
     Device
     |> where(identifier: ^identifier)
     |> where(org_id: ^org_id)
@@ -215,11 +231,6 @@ defmodule NervesHub.Devices do
     |> join(:left, [d], dp in assoc(d, :deployment))
     |> join_and_preload(preload_assoc)
     |> preload([d, o, dp], org: o, deployment: dp)
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      device -> {:ok, device}
-    end
   end
 
   defp join_and_preload(query, nil), do: query

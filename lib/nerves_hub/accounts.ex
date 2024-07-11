@@ -126,18 +126,27 @@ defmodule NervesHub.Accounts do
     |> Repo.update()
   end
 
+  def get_org_user!(org, user) do
+    get_org_user_query(org, user)
+    |> Repo.one!()
+  end
+
   def get_org_user(org, user) do
+    get_org_user_query(org, user)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      org_user -> {:ok, org_user}
+    end
+  end
+
+  defp get_org_user_query(org, user) do
     OrgUser
     |> where([ou], ou.org_id == ^org.id)
     |> where([ou], ou.user_id == ^user.id)
     |> join(:inner, [ou], u in assoc(ou, :user), as: :user)
     |> preload([ou, user: user], user: user)
     |> Repo.exclude_deleted()
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      org_user -> {:ok, org_user}
-    end
   end
 
   def get_org_users(org) do

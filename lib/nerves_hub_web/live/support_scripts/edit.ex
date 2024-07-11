@@ -10,7 +10,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
         _session,
         %{assigns: %{product: product}} = socket
       ) do
-    {:ok, script} = Scripts.get(product, script_id)
+    script = Scripts.get_by_product_and_id!(product, script_id)
 
     socket
     |> page_title("Edit Support Script - #{socket.assigns.org.name}")
