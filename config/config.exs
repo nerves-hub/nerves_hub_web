@@ -53,17 +53,25 @@ config :nerves_hub, NervesHubWeb.Endpoint,
 #
 config :nerves_hub, NervesHub.Repo,
   queue_target: 500,
-  queue_interval: 5_000
+  queue_interval: 5_000,
+  migration_lock: :pg_advisory_lock
 
 config :nerves_hub, Oban,
   repo: NervesHub.ObanRepo,
   log: false,
-  queues: [delete_archive: 1, delete_firmware: 1, firmware_delta_builder: 2, truncate: 1],
+  queues: [
+    delete_archive: 1,
+    delete_firmware: 1,
+    device: 1,
+    firmware_delta_builder: 2,
+    truncate: 1
+  ],
   plugins: [
     # 1 week
     {Oban.Plugins.Pruner, max_age: 604_800},
     {Oban.Plugins.Cron,
      crontab: [
+       {"*/1 * * * *", NervesHub.Workers.CleanDeviceConnectionStates},
        {"0 * * * *", NervesHub.Workers.TruncateAuditLogs, max_attempts: 1},
        {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates}
      ]}

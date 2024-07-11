@@ -70,8 +70,8 @@ defmodule NervesHub.Tracker do
   online. If the device is online, it will send a connection state change of online.
   """
   def online?(device) do
-    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", :online?)
-    false
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", :online?)
+    device.connection_status == :connected
   end
 
   @doc """

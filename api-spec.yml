@@ -1,7 +1,7 @@
-openapi: '3.0.2'
+openapi: "3.0.2"
 info:
   title: NervesHub Web
-  version: '2.0'
+  version: "2.0"
 servers:
   - url: http://localhost:4000/api
 security:
@@ -31,13 +31,25 @@ components:
     device:
       type: object
       properties:
+        connection_status:
+          type: string
+          example: "connected"
+        connection_established_at:
+          type: string
+          format: date-time
+        connection_disconnected_at:
+          type: string
+          format: date-time
+        connection_last_seen_at:
+          type: string
+          format: date-time
         deployment:
-          $ref: '#/components/schemas/deployment'
+          $ref: "#/components/schemas/deployment"
         description:
           type: string
           example: "A device"
         firmware_metadata:
-          $ref: '#/components/schemas/firmware_metadata'
+          $ref: "#/components/schemas/firmware_metadata"
         firmware_update_status:
           type: string
           enum: [latest, pending, updating]
@@ -162,7 +174,7 @@ paths:
             format: uuid
           required: true
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
@@ -176,8 +188,8 @@ paths:
                   `deployment` contains information about what firmware version and UUID should eventually be running on the device.
                 properties:
                   data:
-                    $ref: '#/components/schemas/device'
-        '404':
+                    $ref: "#/components/schemas/device"
+        "404":
           description: Not found
           content:
             application/json:
@@ -204,7 +216,7 @@ paths:
                   type: string
                   example: "kiosk"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
@@ -219,7 +231,7 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
@@ -229,7 +241,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/script'
+                      $ref: "#/components/schemas/script"
   /devices/{identifier}/scripts/{id}:
     post:
       summary: Trigger a script to run
@@ -243,7 +255,7 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: OK
           content:
             text/plain:
@@ -262,7 +274,7 @@ paths:
             type: string
             example: nerveshub
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
@@ -293,9 +305,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/firmware_key'
+              $ref: "#/components/schemas/firmware_key"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
@@ -303,12 +315,12 @@ paths:
                 type: object
                 properties:
                   data:
-                    $ref: '#/components/schemas/firmware_key'
+                    $ref: "#/components/schemas/firmware_key"
   /users/me:
     get:
       summary: View information about the authenticated user
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:

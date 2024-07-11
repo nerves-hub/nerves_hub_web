@@ -43,7 +43,7 @@ defmodule NervesHub.SeedHelpers do
       conditions: %{"version" => "< 1.0.0", "tags" => ["beta"]}
     })
 
-    Fixtures.device_fixture(org, product, firmwares |> elem(1), %{last_communication: DateTime.utc_now()})
+    Fixtures.device_fixture(org, product, firmwares |> elem(1), %{connection_last_seen_at: DateTime.utc_now()})
   end
 
   def nerves_team_seed(root_user_params) do
