@@ -200,7 +200,7 @@
 .device-meta-grid,
 .deployment-meta-grid {
   display: grid;
-  grid-template-columns: max-content max-content max-content 1fr;
+  grid-template-columns: max-content max-content max-content max-content 1fr;
   grid-column-gap: 5.5rem;
 
   @media (max-width: 900px) {

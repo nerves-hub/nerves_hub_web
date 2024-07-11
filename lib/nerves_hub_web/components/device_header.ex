@@ -33,29 +33,42 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         </p>
       </div>
       <div>
+        <div class="help-text mb-1 tooltip-label help-tooltip">
+          <span>Last connected at</span>
+          <span class="tooltip-info"></span>
+          <span class="tooltip-text"><%= @device.connection_established_at %></span>
+        </div>
+        <p>
+          <%= if is_nil(@device.connection_established_at) do %>
+            Never
+          <% else %>
+            <%= DateTimeFormat.from_now(@device.connection_established_at) %>
+          <% end %>
+        </p>
+      </div>
+      <div>
+        <div class="help-text mb-1 tooltip-label help-tooltip">
+          <span>Last seen at</span>
+          <span class="tooltip-info"></span>
+          <span class="tooltip-text"><%= @device.connection_last_seen_at %></span>
+        </div>
+        <p>
+          <%= if is_nil(@device.connection_last_seen_at) do %>
+            Never
+          <% else %>
+            <%= DateTimeFormat.from_now(@device.connection_last_seen_at) %>
+          <% end %>
+        </p>
+      </div>
+      <div>
         <div class="help-text mb-1">Version</div>
         <%= if is_nil(@device.firmware_metadata) do %>
           <p>Unknown</p>
         <% else %>
           <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m mt-0">
-            <%= @device.firmware_metadata.version %>
-            <%= @device.firmware_metadata.uuid %>
+            <%= @device.firmware_metadata.version %> (<%= String.slice(@device.firmware_metadata.uuid, 0..7) %>)
           </.link>
         <% end %>
-      </div>
-      <div>
-        <div class="help-text mb-1 tooltip-label help-tooltip">
-          <span>Last Handshake</span>
-          <span class="tooltip-info"></span>
-          <span class="tooltip-text"><%= @device.last_communication %></span>
-        </div>
-        <p>
-          <%= if is_nil(@device.last_communication) do %>
-            Never
-          <% else %>
-            <%= DateTimeFormat.from_now(@device.last_communication) %>
-          <% end %>
-        </p>
       </div>
       <div>
         <div class="help-text">Firmware Updates</div>

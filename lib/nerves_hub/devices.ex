@@ -74,9 +74,11 @@ defmodule NervesHub.Devices do
     |> Repo.paginate(pagination)
   end
 
-  defp sort_devices({:asc, :last_communication}), do: {:asc_nulls_first, :last_communication}
+  defp sort_devices({:asc, :connection_last_seen_at}),
+    do: {:asc_nulls_first, :connection_last_seen_at}
 
-  defp sort_devices({:desc, :last_communication}), do: {:desc_nulls_last, :last_communication}
+  defp sort_devices({:desc, :connection_last_seen_at}),
+    do: {:desc_nulls_last, :connection_last_seen_at}
 
   defp sort_devices(sort), do: sort
 
@@ -90,9 +92,7 @@ defmodule NervesHub.Devices do
           query
 
         {"connection", _value} ->
-          # TODO make this something in the database that we can query against
-          # where(query, [d], d.connection == ^value)
-          query
+          where(query, [d], d.connection_status == ^String.to_atom(value))
 
         {"connection_type", value} ->
           where(query, [d], ^value in d.connection_types)
@@ -532,7 +532,50 @@ defmodule NervesHub.Devices do
   end
 
   def device_connected(device) do
-    update_device(device, %{last_communication: DateTime.utc_now()})
+    update_device(device, %{
+      connection_status: :connected,
+      connection_established_at: DateTime.utc_now(),
+      connection_disconnected_at: nil,
+      connection_last_seen_at: DateTime.utc_now()
+    })
+  end
+
+  def device_heartbeat(device) do
+    update_device(device, %{
+      connection_status: :connected,
+      connection_disconnected_at: nil,
+      connection_last_seen_at: DateTime.utc_now()
+    })
+  end
+
+  def device_disconnected(device) do
+    update_device(device, %{
+      connection_status: :disconnected,
+      connection_disconnected_at: DateTime.utc_now(),
+      connection_last_seen_at: DateTime.utc_now()
+    })
+  end
+
+  def clean_connection_states() do
+    interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+    a_minute_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + 1))
+
+    Device
+    |> where(connection_status: :connected)
+    |> where([d], d.connection_last_seen_at < ^a_minute_ago)
+    |> Repo.update_all(
+      set: [
+        connection_status: :disconnected,
+        connection_disconnected_at: DateTime.utc_now()
+      ]
+    )
+  end
+
+  def connected_count(product) do
+    Device
+    |> where(connection_status: :connected)
+    |> where(product_id: ^product.id)
+    |> Repo.aggregate(:count)
   end
 
   def update_firmware_metadata(device, nil) do

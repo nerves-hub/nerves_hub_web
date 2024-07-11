@@ -30,7 +30,7 @@ defmodule NervesHubWeb.DeviceChannel do
     else
       err ->
         Logger.warning("[DeviceChannel] failure to connect - #{inspect(err)}")
-
+        Devices.device_disconnected(device)
         {:error, %{error: "could not connect"}}
     end
   end
@@ -140,12 +140,20 @@ defmodule NervesHubWeb.DeviceChannel do
         updating: false
       })
 
+    Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
+
     socket =
       socket
       |> assign(:device, device)
       |> assign(:deployment_channel, deployment_channel)
       |> assign(:reference_id, ref_id)
 
+    {:noreply, socket}
+  end
+
+  def handle_info(:update_connection_last_seen, socket) do
+    {:ok, _device} = Devices.device_heartbeat(socket.assigns.device)
+    Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
     {:noreply, socket}
   end
 
@@ -508,8 +516,7 @@ defmodule NervesHubWeb.DeviceChannel do
       identifier: device.identifier
     })
 
-    {:ok, device} =
-      Devices.update_device(socket.assigns.device, %{last_communication: DateTime.utc_now()})
+    {:ok, device} = Devices.device_disconnected(device)
 
     Registry.unregister(NervesHub.Devices, device.id)
 
@@ -654,5 +661,10 @@ defmodule NervesHubWeb.DeviceChannel do
   defp device_deployment_change_jitter_ms() do
     jitter = Application.get_env(:nerves_hub, :device_deployment_change_jitter_seconds)
     :rand.uniform(jitter) * 1000
+  end
+
+  defp last_seen_update_interval() do
+    Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+    |> :timer.minutes()
   end
 end
