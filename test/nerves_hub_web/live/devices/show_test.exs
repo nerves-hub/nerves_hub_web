@@ -156,6 +156,85 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "device health" do
+    test "no device health", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Health")
+      |> assert_has("div", text: "No health information have been received for this device.")
+    end
+
+    test "full set of information", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      device_health = %{
+        "device_id" => device.id,
+        "data" => %{
+          "metrics" => %{
+            "load_1min" => "0.00",
+            "load_5min" => "0.00",
+            "load_15min" => "0.00",
+            "used_percent" => 60,
+            "used_mb" => 100,
+            "cpu_temp" => 30
+          }
+        }
+      }
+
+      assert {:ok, %Devices.DeviceHealth{}} = Devices.save_device_health(device_health)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Health")
+      |> assert_has("div", text: "Load avg")
+      |> assert_has("div", text: "0.00 | 0.00 | 0.00")
+      |> assert_has("div", text: "Memory used")
+      |> assert_has("div", text: "100MB (60%)")
+      |> assert_has("div", text: "CPU")
+      |> assert_has("div", text: "30")
+    end
+
+    test "cpu temp missing", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      device_health = %{
+        "device_id" => device.id,
+        "data" => %{
+          "metrics" => %{
+            "load_1min" => "0.00",
+            "load_5min" => "0.00",
+            "load_15min" => "0.00",
+            "used_percent" => 60,
+            "used_mb" => 100
+          }
+        }
+      }
+
+      assert {:ok, %Devices.DeviceHealth{}} = Devices.save_device_health(device_health)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Health")
+      |> assert_has("div", text: "Load avg")
+      |> assert_has("div", text: "0.00 | 0.00 | 0.00")
+      |> assert_has("div", text: "Memory used")
+      |> assert_has("div", text: "100MB (60%)")
+      |> assert_has("div", text: "CPU")
+      |> assert_has("div", text: "Not reported")
+      |> assert_has("span", text: "Last reported :")
+      |> assert_has("time", text: "now")
+    end
+  end
+
   def device_show_path(%{device: device, org: org, product: product}) do
     ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}"
   end

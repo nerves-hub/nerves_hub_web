@@ -126,7 +126,7 @@
         </div>
 
         <div :if={@health} class="last-report">
-          <span class="label pr-1">Last report :</span>
+          <span class="label pr-1">Last reported :</span>
           <time id="health-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@health.inserted_at, :second)), " ", "T")}>
             <%= Timex.from_now(@health.inserted_at) %>
           </time>
