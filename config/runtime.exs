@@ -24,6 +24,8 @@ config :nerves_hub,
     username: System.get_env("ADMIN_AUTH_USERNAME"),
     password: System.get_env("ADMIN_AUTH_PASSWORD")
   ],
+  health_check_interval_minutes:
+    String.to_integer(System.get_env("HEALTH_CHECK_INTERVAL_MINUTES", "60")),
   device_deployment_change_jitter_seconds:
     String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10")),
   geoip_maxmind_auth: System.get_env("GEOIP_MAXMIND_AUTH"),

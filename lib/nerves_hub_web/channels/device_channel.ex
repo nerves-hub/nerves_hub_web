@@ -20,8 +20,6 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Utils.Geolocate
   alias Phoenix.Socket.Broadcast
 
-  @default_health_check_interval 3600 * 1000
-
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
          {:ok, device} <- Devices.device_connected(device),
@@ -666,10 +664,8 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp schedule_health_check() do
-    interval =
-      Application.get_env(:nerves_hub, :health_check, %{})[:interval] ||
-        @default_health_check_interval
+    interval = Application.get_env(:nerves_hub, :health_check_interval_minutes)
 
-    Process.send_after(self(), :health_check, interval)
+    Process.send_after(self(), :health_check, :timer.minutes(interval))
   end
 end
