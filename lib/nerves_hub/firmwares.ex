@@ -116,10 +116,25 @@ defmodule NervesHub.Firmwares do
     Repo.get_by(Firmware, uuid: uuid)
   end
 
+  @spec get_firmware_by_product_and_uuid!(Product.t(), String.t()) :: Firmware.t()
+  def get_firmware_by_product_and_uuid!(product, uuid) do
+    get_firmware_by_product_and_uuid_query(product, uuid)
+    |> Repo.one!()
+  end
+
   @spec get_firmware_by_product_and_uuid(Product.t(), String.t()) ::
           {:ok, Firmware.t()}
           | {:error, :not_found}
-  def get_firmware_by_product_and_uuid(%Product{id: product_id}, uuid) do
+  def get_firmware_by_product_and_uuid(product, uuid) do
+    get_firmware_by_product_and_uuid_query(product, uuid)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      firmware -> {:ok, firmware}
+    end
+  end
+
+  defp get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid) do
     from(
       f in Firmware,
       where: f.uuid == ^uuid,
@@ -127,11 +142,6 @@ defmodule NervesHub.Firmwares do
       preload: [product: p],
       where: p.id == ^product_id
     )
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
   end
 
   @spec create_firmware(

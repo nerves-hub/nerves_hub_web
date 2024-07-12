@@ -5,10 +5,7 @@ defmodule NervesHubWeb.ErrorViewTest do
   import Phoenix.View
 
   test "render 500.html" do
-    assert render_to_string(NervesHubWeb.ErrorView, "500.html", []) == "Internal server error"
-  end
-
-  test "render any other" do
-    assert render_to_string(NervesHubWeb.ErrorView, "505.html", []) == "Internal server error"
+    assert render_to_string(NervesHubWeb.ErrorView, "500.html", []) =~
+             "Sorry, we tried to process your request but things didn't go so well."
   end
 end

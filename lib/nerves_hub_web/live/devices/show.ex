@@ -15,7 +15,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product} = socket.assigns
 
-    {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
+    device = Devices.get_device_by_identifier!(org, device_identifier)
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")

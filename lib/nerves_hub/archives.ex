@@ -19,18 +19,27 @@ defmodule NervesHub.Archives do
   end
 
   def get(product, uuid) when is_binary(uuid) do
-    query =
-      Archive
-      |> where([a], a.uuid == ^uuid)
-      |> where([a], a.product_id == ^product.id)
-
-    case Repo.one(query) do
+    Archive
+    |> where([a], a.uuid == ^uuid)
+    |> where([a], a.product_id == ^product.id)
+    |> Repo.one()
+    |> case do
       nil ->
         {:error, :not_found}
 
       archive ->
         {:ok, Repo.preload(archive, product: [:org])}
     end
+  end
+
+  def get_by_product_and_uuid!(product, uuid) do
+    Archive
+    |> where(uuid: ^uuid)
+    |> where(product_id: ^product.id)
+    |> join(:inner, [a], p in assoc(a, :product))
+    |> join(:inner, [a, p], o in assoc(p, :org))
+    |> preload([a, p, o], product: {p, org: o})
+    |> Repo.one!()
   end
 
   def create(product, file_path) do
