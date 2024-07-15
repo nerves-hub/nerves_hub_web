@@ -47,6 +47,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> assign(:status, payload.status)
     |> assign(:fwup_progress, nil)
+    |> then(fn socket ->
+      if(payload.status == "online", do: clear_flash(socket), else: socket)
+    end)
     |> noreply()
   end
 

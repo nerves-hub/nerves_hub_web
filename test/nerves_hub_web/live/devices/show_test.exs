@@ -116,6 +116,43 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> refute_has("div.progress")
       |> assert_has("div", text: "Update complete: The device will reboot shortly.")
     end
+
+    test "hides flash after the device has restarted", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> unwrap(fn view ->
+        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 100}})
+        render(view)
+      end)
+      |> refute_has("div", text: "Progress")
+      |> refute_has("div.progress")
+      |> assert_has("div", text: "Update complete: The device will reboot shortly.")
+      |> unwrap(fn view ->
+        send(view.pid, %Broadcast{
+          topic: "device:#{device.identifier}:internal",
+          event: "connection:change",
+          payload: %{status: "offline"}
+        })
+
+        render(view)
+      end)
+      |> assert_has("div", text: "Update complete: The device will reboot shortly.")
+      |> unwrap(fn view ->
+        send(view.pid, %Broadcast{
+          topic: "device:#{device.identifier}:internal",
+          event: "connection:change",
+          payload: %{status: "online"}
+        })
+
+        render(view)
+      end)
+      |> refute_has("div", text: "Update complete: The device will reboot shortly.")
+    end
   end
 
   describe "geo location" do
