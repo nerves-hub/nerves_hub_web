@@ -53,6 +53,10 @@
 
 <DeviceHeader.render org={@org} product={@product} device={@device} status={@status} />
 
+<FwupProgress.render :if={assigns.fwup_progress} fwup_progress={@fwup_progress} />
+
+<div class="divider"></div>
+
 <div class="row">
   <div class="col-lg-6">
     <div>

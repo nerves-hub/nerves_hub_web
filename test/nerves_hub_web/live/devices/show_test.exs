@@ -77,6 +77,47 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "fwup progress" do
+    test "no fwup progress", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> refute_has("div", text: "Progress")
+      |> refute_has("div.progress")
+    end
+
+    test "some fwup progress", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> unwrap(fn view ->
+        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 50}})
+        render(view)
+      end)
+      |> assert_has("div", text: "Progress")
+      |> assert_has("div.progress", text: "50%")
+    end
+
+    test "complete fwup progress", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> unwrap(fn view ->
+        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 50}})
+        render(view)
+      end)
+      |> assert_has("div", text: "Progress")
+      |> assert_has("div.progress", text: "50%")
+      |> unwrap(fn view ->
+        send(view.pid, %Broadcast{event: "fwup_progress", payload: %{percent: 100}})
+        render(view)
+      end)
+      |> refute_has("div", text: "Progress")
+      |> refute_has("div.progress")
+      |> assert_has("div", text: "Update complete: The device will reboot shortly.")
+    end
+  end
+
   describe "geo location" do
     setup do
       Application.put_env(:nerves_hub, :mapbox_access_token, "abc")
