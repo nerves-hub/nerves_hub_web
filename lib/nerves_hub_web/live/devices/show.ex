@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Tracker
 
   alias NervesHubWeb.Components.DeviceHeader
+  alias NervesHubWeb.Components.FwupProgress
   alias NervesHubWeb.Components.DeviceLocation
 
   alias Phoenix.Socket.Broadcast
@@ -28,6 +29,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:status, Tracker.status(device))
     |> assign(:deployment, device.deployment)
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
+    |> assign(:fwup_progress, nil)
     |> audit_log_assigns(1)
     |> ok()
   end
@@ -45,11 +47,21 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> assign(:status, payload.status)
     |> assign(:fwup_progress, nil)
+    |> then(fn socket ->
+      if(payload.status == "online", do: clear_flash(socket), else: socket)
+    end)
     |> noreply()
   end
 
   def handle_info(%Broadcast{event: "fwup_progress", payload: payload}, socket) do
-    {:noreply, assign(socket, :fwup_progress, payload.percent)}
+    if payload.percent == 100 do
+      socket
+      |> put_flash(:info, "Update complete: The device will reboot shortly.")
+      |> assign(:fwup_progress, nil)
+      |> noreply()
+    else
+      {:noreply, assign(socket, :fwup_progress, payload.percent)}
+    end
   end
 
   # Ignore unknown messages

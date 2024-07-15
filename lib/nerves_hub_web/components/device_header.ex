@@ -83,17 +83,6 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         </p>
       </div>
     </div>
-
-    <%= if Map.has_key?(assigns, :fwup_progress) && assigns.fwup_progress do %>
-      <div class="help-text mt-3">Progress</div>
-      <div class="progress device-show">
-        <div class="progress-bar" role="progressbar" style={"width: #{@fwup_progress}%"}>
-          <%= @fwup_progress %>%
-        </div>
-      </div>
-    <% end %>
-
-    <div class="divider"></div>
     """
   end
 end
