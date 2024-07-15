@@ -19,6 +19,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
+      socket.endpoint.subscribe("firmware")
     end
 
     socket
@@ -30,6 +31,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> audit_log_assigns(1)
     |> ok()
+  end
+
+  def handle_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
+    firmware = Firmwares.get_firmware_for_device(socket.assigns.device)
+    {:noreply, assign(socket, :firmwares, firmware)}
   end
 
   def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
