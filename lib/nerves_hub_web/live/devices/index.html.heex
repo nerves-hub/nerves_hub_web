@@ -156,7 +156,7 @@
         </form>
 
         <form id="bulk-tag-input" class="col-lg-6" phx-submit="tag-devices" phx-change="validate-tags">
-          <label for="move_to">Set tag(s) to:</label>
+          <label for="input_tags">Set tag(s) to:</label>
           <div class="flex-row align-items-center">
             <div class="flex-grow">
               <input type="text" name="tags" id="input_tags" class="form-control" value={@current_filters["tag"]} phx-debounce="500" />
