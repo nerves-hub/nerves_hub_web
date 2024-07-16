@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Tracker
 
   alias NervesHubWeb.Components.DeviceHeader
+  alias NervesHubWeb.Components.FwupProgress
   alias NervesHubWeb.Components.DeviceLocation
   alias NervesHubWeb.Components.Utils
 
@@ -16,7 +17,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product} = socket.assigns
 
-    {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
+    device = Devices.get_device_by_identifier!(org, device_identifier)
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
@@ -31,6 +32,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:health, Devices.get_latest_health(device.id))
     |> schedule_health_check_timer()
+    |> assign(:fwup_progress, nil)
     |> audit_log_assigns(1)
     |> ok()
   end
@@ -48,11 +50,21 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> assign(:status, payload.status)
     |> assign(:fwup_progress, nil)
+    |> then(fn socket ->
+      if(payload.status == "online", do: clear_flash(socket), else: socket)
+    end)
     |> noreply()
   end
 
   def handle_info(%Broadcast{event: "fwup_progress", payload: payload}, socket) do
-    {:noreply, assign(socket, :fwup_progress, payload.percent)}
+    if payload.percent == 100 do
+      socket
+      |> put_flash(:info, "Update complete: The device will reboot shortly.")
+      |> assign(:fwup_progress, nil)
+      |> noreply()
+    else
+      {:noreply, assign(socket, :fwup_progress, payload.percent)}
+    end
   end
 
   def handle_info(%Broadcast{event: "health_check_report"}, socket) do

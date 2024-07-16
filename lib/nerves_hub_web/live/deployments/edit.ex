@@ -10,10 +10,10 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
 
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
-    %{"name" => deployment_name} = params
+    %{"name" => name} = params
     %{product: product} = socket.assigns
 
-    {:ok, deployment} = Deployments.get_deployment_by_name(product, deployment_name)
+    deployment = Deployments.get_by_product_and_name!(product, name)
 
     archives = Archives.all_by_product(deployment.product)
     firmwares = Firmwares.get_firmwares_for_deployment(deployment)

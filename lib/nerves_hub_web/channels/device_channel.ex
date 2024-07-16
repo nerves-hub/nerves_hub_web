@@ -528,6 +528,15 @@ defmodule NervesHubWeb.DeviceChannel do
       "[DeviceChannel] Unhandled handle_in message! - #{inspect(msg)} - #{inspect(params)}"
     )
 
+    device = socket.assigns.device
+
+    Sentry.Context.set_tags_context(%{
+      device_identifier: device.identifier,
+      device_id: device.id,
+      product_id: device.product_id,
+      org_id: device.org_id
+    })
+
     _ =
       Sentry.capture_message("[DeviceChannel] Unhandled message!",
         extra: %{message: msg},

@@ -2,7 +2,6 @@ import '../css/app.scss'
 
 import 'phoenix_html'
 import 'bootstrap'
-import $ from 'jquery'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
 import Josh from 'joshjs'
@@ -115,7 +114,7 @@ window.addEventListener('phx:sharedsecret:clipcopy', event => {
   }
 })
 
-window.addEventListener('ca:edit:jitp', event => {
+window.addEventListener('ca:edit:jitp', () => {
   const checked = document.getElementById('jitp_toggle_ui').checked
 
   document.getElementById('jitp-delete').value = !checked
@@ -127,7 +126,7 @@ window.addEventListener('ca:edit:jitp', event => {
   }
 })
 
-window.addEventListener('ca:new:jitp', event => {
+window.addEventListener('ca:new:jitp', () => {
   const checked = document.getElementById('jitp_toggle_ui').checked
 
   document.getElementById('jitp_toggle').value = checked

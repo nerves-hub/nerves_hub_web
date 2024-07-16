@@ -28,7 +28,7 @@ defmodule NervesHubWeb.Live.Firmware do
   defp apply_action(%{assigns: %{product: product}} = socket, :show, %{
          "firmware_uuid" => firmware_uuid
        }) do
-    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, firmware_uuid)
+    firmware = Firmwares.get_firmware_by_product_and_uuid!(product, firmware_uuid)
 
     socket
     |> page_title("Firmware #{firmware_uuid} - #{product.name}")
