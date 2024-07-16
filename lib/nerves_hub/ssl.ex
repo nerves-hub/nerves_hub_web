@@ -27,7 +27,7 @@ defmodule NervesHub.SSL do
           | :valid_peer
 
   @spec verify_fun(X509.Certificate.t(), event(), any()) ::
-          {:valid, any()} | {:fail, reason()} | {:unknown, any()}
+          {:valid, any()} | {:fail, reason()}
   # The certificate is a valid_peer, which means it has been
   # signed by the NervesHub CA and the signer cert is still valid
   # or the signer cert was included by the client and is valid
