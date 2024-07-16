@@ -105,7 +105,7 @@ defmodule NervesHub.MixProject do
       {:telemetry_metrics_statsd, "~> 0.7.0"},
       {:telemetry_poller, "~> 1.0"},
       {:timex, "~> 3.1"},
-      {:x509, "~> 0.5.1 or ~> 0.6"}
+      {:x509, github: "voltone/x509", commit: "cfb852e"}
     ]
   end
 
