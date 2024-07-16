@@ -5,7 +5,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
   import TrackerHelper
 
   alias NervesHub.Devices
-  alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
@@ -36,7 +35,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
       location_payload = %{"source" => "geoip", "latitude" => -41.29710, "longitude" => 174.79320}
 
       ref = push(socket, "location:update", location_payload)
-      assert_reply(ref, :ok, %Device{connection_metadata: %{"location" => location_payload}})
+      assert_reply(ref, :ok, %{})
 
       device = NervesHub.Repo.reload(device)
 
