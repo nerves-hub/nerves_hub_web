@@ -1,7 +1,7 @@
 defmodule NervesHub.Uploads do
   @callback delete(key :: String.t()) :: :ok | {:error, any()}
 
-  @callback upload(file :: File.io_device(), key :: String.t(), opts :: Keyword.t()) ::
+  @callback upload(file_path :: String.t(), key :: String.t(), opts :: Keyword.t()) ::
               :ok | {:error, any()}
 
   @callback url(key :: String.t(), opts :: Keyword.t()) :: String.t()
