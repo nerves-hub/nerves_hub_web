@@ -9,7 +9,7 @@ defmodule NervesHub.SSL do
           | :name_not_permitted
           | :missing_basic_constraint
           | :invalid_key_usage
-          | {:revoked, :public_key.crl_reason()}
+          | {:revoked, any()}
   @type reason ::
           :unknown_ca
           | :unknown_server_error

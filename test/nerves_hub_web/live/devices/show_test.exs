@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
+  alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
 
@@ -310,6 +311,29 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "Not reported")
       |> assert_has("span", text: "Last reported :")
       |> assert_has("time", text: "now")
+    end
+  end
+
+  describe "firmware selection" do
+    test "updates when new firmware is available", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      session =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+        |> assert_has("h1", text: device.identifier)
+        |> assert_has("option[value=\"#{firmware.uuid}\"]", text: firmware.version)
+
+      new_firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      assert_has(session, "option[value=\"#{new_firmware.uuid}\"]", text: new_firmware.version)
     end
   end
 

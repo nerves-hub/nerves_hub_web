@@ -23,7 +23,7 @@ defmodule NervesHub.MixProject do
         ]
       ],
       dialyzer: [
-        plt_add_apps: [:ex_unit]
+        plt_add_apps: [:ex_unit, :mix]
       ]
     ]
   end
@@ -41,7 +41,9 @@ defmodule NervesHub.MixProject do
         :logger,
         :os_mon,
         :runtime_tools,
-        :timex
+        :timex,
+        :crypto,
+        :public_key
       ]
     ]
   end

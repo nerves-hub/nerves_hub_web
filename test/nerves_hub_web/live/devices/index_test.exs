@@ -68,6 +68,24 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     end
   end
 
+  describe "bulk actions" do
+    test "changes tags", %{conn: conn, fixture: fixture} do
+      %{device: device, org: org, product: product} = fixture
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("h1", text: "Devices")
+      |> assert_has("span", text: "beta")
+      |> assert_has("span", text: "beta-edge")
+      |> unwrap(fn view ->
+        render_change(view, "select", %{"id" => device.id})
+      end)
+      |> fill_in("Set tag(s) to:", with: "moussaka")
+      |> click_button("Set")
+      |> assert_has("span", text: "moussaka")
+    end
+  end
+
   def device_index_path(%{org: org, product: product}) do
     ~p"/org/#{org.name}/#{product.name}/devices"
   end
