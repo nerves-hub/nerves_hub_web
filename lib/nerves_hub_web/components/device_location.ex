@@ -41,10 +41,10 @@ defmodule NervesHubWeb.Components.DeviceLocation do
       <.location_header tooltip="The devices location is announced by the device after it connects." />
 
       <div>
-        <span class="color-white-50">No location was found for the device.</span>
+        <span class="color-white-50">No location information found.</span>
       </div>
       <div>
-        <span class="color-white-50">Please check if the Geo extension has been included if your firmware.</span>
+        <span class="color-white-50">Please check if the Geo extension has been included in your firmware.</span>
       </div>
     </div>
     """

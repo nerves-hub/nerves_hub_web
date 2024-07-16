@@ -196,7 +196,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("span", text: "Device location")
-      |> assert_has("span", text: "No location was found for the device.")
+      |> assert_has("span", text: "No location information found.")
     end
 
     test "ip address reserved", %{conn: conn, org: org, product: product, device: device} do
