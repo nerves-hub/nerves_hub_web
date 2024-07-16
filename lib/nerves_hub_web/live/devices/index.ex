@@ -32,11 +32,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def mount(_params, _session, socket) do
     %{product: product} = socket.assigns
 
-    if connected?(socket) do
-      socket.endpoint.subscribe("product:#{product.id}:devices")
-      Process.send_after(self(), :refresh_device_list, 5000)
-    end
-
     socket
     |> page_title("Devices - #{product.name}")
     |> assign(:current_sort, "identifier")
@@ -57,7 +52,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
     |> assign_display_devices()
+    |> subscribe_and_refresh_device_list()
     |> ok()
+  end
+
+  defp subscribe_and_refresh_device_list(socket) do
+    if connected?(socket) do
+      socket.endpoint.subscribe("product:#{socket.assigns.product.id}:devices")
+      Process.send_after(self(), :refresh_device_list, 5000)
+      socket
+    else
+      socket
+    end
   end
 
   # Handles event of user clicking the same field that is already sorted
