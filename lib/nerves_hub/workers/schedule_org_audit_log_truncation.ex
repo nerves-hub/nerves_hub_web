@@ -18,6 +18,7 @@ defmodule NervesHub.Workers.ScheduleOrgAuditLogTruncation do
           |> Oban.insert()
       end)
     end
+
     :ok
   end
 
