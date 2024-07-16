@@ -28,18 +28,23 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
       %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
-      {:ok, socket} = connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
       {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
 
       location_payload = %{"source" => "geoip", "latitude" => -41.29710, "longitude" => 174.79320}
 
       ref = push(socket, "location:update", location_payload)
-      assert_reply ref, :ok, %Device{connection_metadata: %{"location" => location_payload}}
+      assert_reply(ref, :ok, %Device{connection_metadata: %{"location" => location_payload}})
 
       device = NervesHub.Repo.reload(device)
 
-      assert device.connection_metadata["location"] == %{"source" => "geoip", "latitude" => -41.29710, "longitude" => 174.79320}
+      assert device.connection_metadata["location"] == %{
+               "source" => "geoip",
+               "latitude" => -41.29710,
+               "longitude" => 174.79320
+             }
     end
   end
 
