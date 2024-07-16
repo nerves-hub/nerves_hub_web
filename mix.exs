@@ -23,7 +23,7 @@ defmodule NervesHub.MixProject do
         ]
       ],
       dialyzer: [
-        plt_add_apps: [:ex_unit]
+        plt_add_apps: [:ex_unit, :mix]
       ]
     ]
   end
