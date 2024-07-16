@@ -364,6 +364,3 @@ config :nerves_hub, NervesHub.RateLimit,
 
 config :nerves_hub, NervesHub.NodeReporter,
   enabled: System.get_env("NODE_REPORTER", "false") == "true"
-
-config :nerves_hub, NervesHub.LoadBalancer,
-  enabled: System.get_env("LOAD_BALANCER", "false") == "true"
