@@ -41,7 +41,9 @@ defmodule NervesHub.MixProject do
         :logger,
         :os_mon,
         :runtime_tools,
-        :timex
+        :timex,
+        :crypto,
+        :public_key
       ]
     ]
   end
