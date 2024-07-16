@@ -407,13 +407,6 @@ defmodule NervesHub.Firmwares do
   end
 
   defp resolve_product(params) do
-    params.org_id
-    |> Products.get_product_by_org_id_and_name(params.product_name)
-    |> case do
-      {:ok, product} -> Map.put(params, :product_id, product.id)
-      _ -> params
-    end
-
     with {:ok, product} <-
            Products.get_product_by_org_id_and_name(params.org_id, params.product_name) do
       Map.put(params, :product_id, product.id)
