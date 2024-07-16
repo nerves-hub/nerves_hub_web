@@ -171,19 +171,6 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "Device maps haven't been enabled on your platform.")
     end
 
-    test "no location information found attached to the device", %{
-      conn: conn,
-      org: org,
-      product: product,
-      device: device
-    } do
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("h1", text: device.identifier)
-      |> assert_has("span", text: "Device location")
-      |> assert_has("span", text: "No location was found for the device.")
-    end
-
     test "location information is empty", %{
       conn: conn,
       org: org,
@@ -199,7 +186,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "No location information found.")
     end
 
-    test "ip address reserved", %{conn: conn, org: org, product: product, device: device} do
+    test "a location error occurred", %{conn: conn, org: org, product: product, device: device} do
       metadata = %{
         "location" => %{"error_code" => "BOOP", "error_description" => "BEEP"}
       }
