@@ -166,7 +166,7 @@ defmodule NervesHubWeb.API.DeviceController do
         if Accounts.has_org_role?(device.org, user, :manage) do
           body
           |> String.graphemes()
-          |> Enum.map(fn character ->
+          |> Enum.each(fn character ->
             Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{
               "data" => character
             })

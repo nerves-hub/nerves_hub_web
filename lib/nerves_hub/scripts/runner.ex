@@ -62,7 +62,7 @@ defmodule NervesHub.Scripts.Runner do
 
     text
     |> String.graphemes()
-    |> Enum.map(fn character ->
+    |> Enum.each(fn character ->
       Endpoint.broadcast_from!(self(), state.send_channel, "dn", %{"data" => character})
     end)
 
