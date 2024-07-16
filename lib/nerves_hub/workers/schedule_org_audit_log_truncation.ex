@@ -17,11 +17,8 @@ defmodule NervesHub.Workers.ScheduleOrgAuditLogTruncation do
           |> OrgAuditLogTruncation.new()
           |> Oban.insert()
       end)
-
-      {:ok, Enum.count(orgs)}
-    else
-      {:ok, :disabled}
     end
+    :ok
   end
 
   defp truncation_args(org) do
