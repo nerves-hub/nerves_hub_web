@@ -72,7 +72,7 @@ defmodule NervesHubWeb.ConsoleChannel do
     if deployment && deployment.connecting_code do
       device.deployment.connecting_code
       |> String.graphemes()
-      |> Enum.map(fn character ->
+      |> Enum.each(fn character ->
         push(socket, "dn", %{"data" => character})
       end)
 
@@ -82,7 +82,7 @@ defmodule NervesHubWeb.ConsoleChannel do
     if device.connecting_code do
       device.connecting_code
       |> String.graphemes()
-      |> Enum.map(fn character ->
+      |> Enum.each(fn character ->
         push(socket, "dn", %{"data" => character})
       end)
 
