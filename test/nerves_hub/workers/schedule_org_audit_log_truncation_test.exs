@@ -15,15 +15,17 @@ defmodule NervesHub.Workers.ScheduleOrgAuditLogTruncationTest do
     test "skips scheduling of audit log truncation", %{org: org} do
       Application.put_env(:nerves_hub, :audit_logs, enabled: false)
 
-      {:ok, :disabled} = perform_job(ScheduleOrgAuditLogTruncation, %{})
+      :ok = perform_job(ScheduleOrgAuditLogTruncation, %{})
 
       refute_enqueued(worker: OrgAuditLogTruncation, args: %{org_id: org.id})
     end
   end
 
   describe "audit log truncation enabled" do
-    test "scheduling audit log truncation for an org" do
-      {:ok, 2} = perform_job(ScheduleOrgAuditLogTruncation, %{})
+    test "scheduling audit log truncation for an org", %{user: user} do
+      Fixtures.org_fixture(user, %{name: "user"})
+
+      :ok = perform_job(ScheduleOrgAuditLogTruncation, %{})
 
       all_truncation_jobs = all_enqueued(worker: OrgAuditLogTruncation)
 
