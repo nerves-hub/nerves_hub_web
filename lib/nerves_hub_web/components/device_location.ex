@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.Components.DeviceLocation do
   use NervesHubWeb, :component
 
-  attr(:connection_metadata, :any)
+  attr(:location, :any)
 
   # catch all to add the mapbox token
   def render(assigns) when not is_map_key(assigns, :mapbox_access_token) do
@@ -29,13 +29,12 @@ defmodule NervesHubWeb.Components.DeviceLocation do
   end
 
   # location information is nil, geo location might not be enabled
-  def render(%{connection_metadata: connection_metadata})
-      when not is_map_key(connection_metadata, "location") do
-    render(%{connection_metadata: Map.put(connection_metadata, "location", %{})})
+  def render(%{location: nil}) do
+    render(%{location: %{}})
   end
 
   # location information is empty, geo location might not be enabled
-  def render(%{connection_metadata: %{"location" => location}} = assigns)
+  def render(%{location: location} = assigns)
       when map_size(location) == 0 do
     ~H"""
     <div class="display-box">
@@ -53,8 +52,8 @@ defmodule NervesHubWeb.Components.DeviceLocation do
 
   # the IP address was a reserved IP (https://en.wikipedia.org/wiki/Reserved_IP_addresses)
   # maps can't be shown for reserved IPs
-  def render(%{connection_metadata: %{"location" => %{"error_code" => _} = location}}) do
-    assigns = %{ location: location }
+  def render(%{location: %{"error_code" => _} = location}) do
+    assigns = %{location: location}
 
     ~H"""
     <div class="display-box">
@@ -70,8 +69,12 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     """
   end
 
+  ###
+  # TODO: add support for marker and increased zoom when source is gps
+  ###
+
   # yay, we have a location and map key, lets display a map
-  def render(%{connection_metadata: %{"location" => location}} = assigns) do
+  def render(%{location: location} = assigns) do
     assigns = %{
       lat: location["latitude"],
       lng: location["longitude"],

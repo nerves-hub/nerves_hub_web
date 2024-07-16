@@ -68,7 +68,7 @@
         <span :for={tag <- @device.tags || []} class="badge"><%= tag %></span>
       </div>
 
-      <DeviceLocation.render connection_metadata={@device.connection_metadata} />
+      <DeviceLocation.render location={@device.connection_metadata["location"]} />
     </div>
 
     <div>

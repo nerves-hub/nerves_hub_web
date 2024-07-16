@@ -441,6 +441,20 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_in("location:update", location, %{assigns: %{device: device}} = socket) do
+    metadata = Map.put(device.connection_metadata, "location", location)
+
+    {:ok, device} = Devices.update_device(device, %{connection_metadata: metadata})
+
+    NervesHubWeb.DeviceEndpoint.broadcast(
+      "device:#{device.identifier}:internal",
+      "location:updated",
+      location
+    )
+
+    {:reply, :ok, assign(socket, :device, device)}
+  end
+
   def handle_in("connection_types", %{"values" => types}, %{assigns: %{device: device}} = socket) do
     {:ok, device} = Devices.update_device(device, %{"connection_types" => types})
     {:noreply, assign(socket, :device, device)}
