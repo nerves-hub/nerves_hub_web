@@ -4,7 +4,6 @@ import 'phoenix_html'
 import 'bootstrap'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
-import Josh from 'joshjs'
 
 let dates = require('./dates')
 
@@ -48,8 +47,6 @@ let liveSocket = new LiveSocket('/live', Socket, {
 })
 
 liveSocket.connect()
-
-new Josh()
 
 document.querySelectorAll('.date-time').forEach(d => {
   d.innerHTML = dates.formatDateTime(d.innerHTML)

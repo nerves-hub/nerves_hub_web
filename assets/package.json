@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "bootstrap": "^4.6.0",
-    "joshjs": "^1.0.7",
     "jquery": "^3.6.0",
     "moment": "^2.29.4",
     "phoenix": "file:../deps/phoenix",
