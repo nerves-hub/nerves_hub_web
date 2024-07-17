@@ -99,18 +99,6 @@ defmodule NervesHub.Firmwares do
     Repo.all(q)
   end
 
-  @spec get_firmware_by_product_and_version(Org.t(), String.t(), String.t()) ::
-          {:ok, Firmware.t()}
-          | {:error, :not_found}
-  def get_firmware_by_product_and_version(%Org{} = org, product, version) do
-    Firmware
-    |> Repo.get_by(org_id: org.id, product: product, version: version)
-    |> case do
-      nil -> {:error, :not_found}
-      firmware -> {:ok, firmware}
-    end
-  end
-
   @spec get_firmware_by_uuid(String.t()) :: Firmware.t() | nil
   def get_firmware_by_uuid(uuid) do
     Repo.get_by(Firmware, uuid: uuid)
@@ -227,23 +215,6 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  def metadata_from_conn(%Plug.Conn{} = conn) do
-    params = %{
-      uuid: get_metadata_req_header(conn, "uuid"),
-      architecture: get_metadata_req_header(conn, "architecture"),
-      platform: get_metadata_req_header(conn, "platform"),
-      product: get_metadata_req_header(conn, "product"),
-      version: get_metadata_req_header(conn, "version"),
-      author: get_metadata_req_header(conn, "author"),
-      description: get_metadata_req_header(conn, "description"),
-      fwup_version: get_metadata_req_header(conn, "fwup-version"),
-      vcs_identifier: get_metadata_req_header(conn, "vcs-identifier"),
-      misc: get_metadata_req_header(conn, "misc")
-    }
-
-    metadata_or_firmware(params)
-  end
-
   @doc """
   Returns metadata for a Firmware struct
   """
@@ -318,19 +289,6 @@ defmodule NervesHub.Firmwares do
     %FirmwareTransfer{}
     |> FirmwareTransfer.changeset(params)
     |> Repo.insert()
-  end
-
-  def get_firmware_transfers_by_org_id_between_dates(org_id, from_datetime, to_datetime) do
-    q =
-      from(
-        ft in FirmwareTransfer,
-        where:
-          ft.org_id == ^org_id and
-            ft.timestamp >= ^from_datetime and
-            ft.timestamp <= ^to_datetime
-      )
-
-    Repo.all(q)
   end
 
   @spec get_firmware_delta(integer()) ::
@@ -528,14 +486,6 @@ defmodule NervesHub.Firmwares do
     case fetch_fwup_metadata_value(metadata, key) do
       {:ok, metadata_item} -> metadata_item
       {:error, {_, :not_found}} -> nil
-    end
-  end
-
-  defp get_metadata_req_header(conn, header) do
-    case Plug.Conn.get_req_header(conn, "x-nerveshub-#{header}") do
-      [] -> nil
-      ["" | _] -> nil
-      [value | _] -> value
     end
   end
 
