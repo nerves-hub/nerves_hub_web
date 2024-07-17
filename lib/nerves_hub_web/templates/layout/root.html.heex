@@ -14,19 +14,20 @@
     <link rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")} />
 
     <link href="https://fonts.googleapis.com/css?family=Audiowide" rel="stylesheet" />
+
+    <script>
+      window.userToken = "<%= assigns[:user_token] %>"
+    </script>
+
+    <%= csrf_meta_tag() %>
+
+    <script type="text/javascript" src={Routes.static_path(@conn, "/js/app.js")}>
+    </script>
   </head>
 
   <body>
     <%= @inner_content %>
 
     <%= render("_footer.html", conn: @conn) %>
-
-    <script>
-      window.userToken = "<%= assigns[:user_token] %>"
-      window.orgId = "<%= assigns[:org] && Map.get(assigns[:org], :id) %>"
-    </script>
-    <%= csrf_meta_tag() %>
-    <script type="text/javascript" src={Routes.static_path(@conn, "/js/app.js")}>
-    </script>
   </body>
 </html>
