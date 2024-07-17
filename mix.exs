@@ -96,7 +96,6 @@ defmodule NervesHub.MixProject do
       {:phoenix_test, "~> 0.3.0", only: :test, runtime: false},
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
-      {:req, "~> 0.5.0"},
       {:scrivener_ecto, "~> 2.7"},
       {:scrivener_html, git: "https://github.com/nerves-hub/scrivener_html", branch: "phx-1.5"},
       {:sentry, "~> 10.0"},
