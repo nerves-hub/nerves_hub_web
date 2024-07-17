@@ -24,21 +24,19 @@ defmodule NervesHub.Firmwares do
     Firmware
     |> where([f], f.product_id == ^product_id)
     |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
-    |> Firmware.with_product()
+    |> with_product()
     |> Repo.all()
   end
 
   def get_firmwares_for_deployment(deployment) do
     deployment = Repo.preload(deployment, [:firmware])
 
-    from(
-      f in Firmware,
-      where: f.product_id == ^deployment.product_id,
-      where: f.platform == ^deployment.firmware.platform,
-      where: f.architecture == ^deployment.firmware.architecture,
-      order_by: [fragment("? collate numeric desc", f.version), desc: :inserted_at]
-    )
-    |> Firmware.with_product()
+    Firmware
+    |> where([f], f.product_id == ^deployment.product_id)
+    |> where([f], f.platform == ^deployment.firmware.platform)
+    |> where([f], f.architecture == ^deployment.firmware.architecture)
+    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> with_product()
     |> Repo.all()
   end
 
@@ -59,13 +57,10 @@ defmodule NervesHub.Firmwares do
           {:ok, Firmware.t()}
           | {:error, :not_found}
   def get_firmware(%Org{id: org_id}, id) do
-    from(
-      f in Firmware,
-      where: f.id == ^id,
-      join: p in assoc(f, :product),
-      where: p.org_id == ^org_id
-    )
-    |> Firmware.with_product()
+    Firmware
+    |> with_product()
+    |> where([f], f.id == ^id)
+    |> where([f, p], p.org_id == ^org_id)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -89,14 +84,10 @@ defmodule NervesHub.Firmwares do
 
   @spec get_firmware_by_org_id(non_neg_integer()) :: [Firmware.t()]
   def get_firmware_by_org_id(org_id) do
-    q =
-      from(
-        f in Firmware,
-        join: p in assoc(f, :product),
-        where: p.org_id == ^org_id
-      )
-
-    Repo.all(q)
+    Firmware
+    |> with_product()
+    |> where([f, p], p.org_id == ^org_id)
+    |> Repo.all()
   end
 
   @spec get_firmware_by_uuid(String.t()) :: Firmware.t() | nil
@@ -123,13 +114,10 @@ defmodule NervesHub.Firmwares do
   end
 
   defp get_firmware_by_product_and_uuid_query(%Product{id: product_id}, uuid) do
-    from(
-      f in Firmware,
-      where: f.uuid == ^uuid,
-      join: p in assoc(f, :product),
-      preload: [product: p],
-      where: p.id == ^product_id
-    )
+    Firmware
+    |> with_product()
+    |> where([f], f.uuid == ^uuid)
+    |> where([f, p], p.id == ^product_id)
   end
 
   @spec create_firmware(
@@ -313,15 +301,11 @@ defmodule NervesHub.Firmwares do
           {:ok, FirmwareDelta.t()}
           | {:error, :not_found}
   def get_firmware_delta_by_source_and_target(source_id, target_id) do
-    q =
-      from(
-        fd in FirmwareDelta,
-        where:
-          fd.source_id == ^source_id and
-            fd.target_id == ^target_id
-      )
-
-    case Repo.one(q) do
+    FirmwareDelta
+    |> where([fd], source_id: ^source_id)
+    |> where([fd], target_id: ^target_id)
+    |> Repo.one()
+    |> case do
       nil -> {:error, :not_found}
       firmware_delta -> {:ok, firmware_delta}
     end
@@ -371,6 +355,12 @@ defmodule NervesHub.Firmwares do
   end
 
   # Private functions
+
+  defp with_product(query) do
+    query
+    |> join(:left, [f], p in assoc(f, :product))
+    |> preload([d, p], product: p)
+  end
 
   def insert_firmware_delta(params) do
     %FirmwareDelta{}
