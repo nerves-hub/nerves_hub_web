@@ -135,7 +135,7 @@ defmodule NervesHub.Firmwares do
         with {:ok, params} <- build_firmware_params(org, filepath),
              {:ok, firmware} <- insert_firmware(params),
              :ok <- upload_file_2.(filepath, firmware.upload_metadata) do
-          NervesHubWeb.Endpoint.broadcast("firmware", "created", %{firmware: firmware})
+          _ = NervesHubWeb.Endpoint.broadcast("firmware", "created", %{firmware: firmware})
           firmware
         else
           {:error, error} ->

@@ -22,7 +22,7 @@ defmodule NervesHub.Deployments.Monitor do
   end
 
   def init(_) do
-    PubSub.subscribe(NervesHub.PubSub, "deployment:monitor")
+    _ = PubSub.subscribe(NervesHub.PubSub, "deployment:monitor")
 
     {:ok, %State{}, {:continue, :boot}}
   end

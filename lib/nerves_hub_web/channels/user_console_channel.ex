@@ -8,7 +8,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
   def join("user:console:" <> device_id, _, socket) do
     if authorized?(socket.assigns.user, device_id) do
       topic = "device:console:#{device_id}"
-      Phoenix.PubSub.broadcast(NervesHub.PubSub, topic, {:connect, self()})
+      _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, topic, {:connect, self()})
       {:ok, assign(socket, :device_id, device_id)}
     else
       {:error, %{reason: "unauthorized"}}
@@ -17,7 +17,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
 
   def handle_in("message", payload, socket) do
     payload = Map.put(payload, :name, socket.assigns.user.name)
-    broadcast(socket, "message", payload)
+    _ = broadcast(socket, "message", payload)
     {:noreply, socket}
   end
 
@@ -64,10 +64,11 @@ defmodule NervesHubWeb.UserConsoleChannel do
   end
 
   def terminate(_reason, socket) do
-    broadcast(socket, "message", %{
-      name: socket.assigns.user.name,
-      event: "closed the console"
-    })
+    _ =
+      broadcast(socket, "message", %{
+        name: socket.assigns.user.name,
+        event: "closed the console"
+      })
 
     socket
   end

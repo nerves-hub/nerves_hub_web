@@ -118,7 +118,7 @@ defmodule NervesHubWeb.API.DeviceController do
           message = "#{user.name} rebooted device #{device.identifier}"
           AuditLogs.audit!(user, device, message)
 
-          Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
+          _ = Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
           send_resp(conn, 200, "Success")
         else
@@ -141,7 +141,7 @@ defmodule NervesHubWeb.API.DeviceController do
     case Devices.get_by_identifier(identifier) do
       {:ok, device} ->
         if Accounts.has_org_role?(device.org, user, :manage) do
-          Endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
+          _ = Endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
 
           send_resp(conn, 200, "Success")
         else
@@ -214,11 +214,12 @@ defmodule NervesHubWeb.API.DeviceController do
             firmware_meta: meta
           }
 
-          NervesHubWeb.Endpoint.broadcast(
-            "device:#{device.id}",
-            "deployments/update",
-            payload
-          )
+          _ =
+            NervesHubWeb.Endpoint.broadcast(
+              "device:#{device.id}",
+              "deployments/update",
+              payload
+            )
 
           send_resp(conn, 204, "")
         else

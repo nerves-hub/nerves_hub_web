@@ -535,7 +535,8 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp subscribe(topic) do
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+    _ = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+    :ok
   end
 
   defp unsubscribe(topic) do
