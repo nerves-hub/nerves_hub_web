@@ -32,16 +32,10 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
     refreshed = Products.load_shared_secret_auth(socket.assigns.product)
 
-    {:noreply, assign(socket, :shared_secrets, refreshed.shared_secret_auths)}
-  end
-
-  def handle_event("copy-shared-secret", %{"value" => shared_secret_id}, socket) do
-    auth =
-      Enum.find(socket.assigns.product.shared_secret_auths, fn ssa ->
-        ssa.id == String.to_integer(shared_secret_id)
-      end)
-
-    {:noreply, push_event(socket, "sharedsecret:clipcopy", %{secret: auth.secret})}
+    socket
+    |> assign(:shared_secrets, refreshed.shared_secret_auths)
+    |> push_event("sharedsecret:created", %{})
+    |> noreply()
   end
 
   def handle_event("deactivate-shared-secret", %{"shared_secret_id" => shared_secret_id}, socket) do

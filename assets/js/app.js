@@ -10,6 +10,35 @@ let dates = require('./dates')
 
 let Hooks = {}
 
+Hooks.SharedSecretClipboardClick = {
+  mounted() {
+    const parent = this.el
+    this.el.addEventListener('click', () => {
+      const secret = document.getElementById('shared-secret-' + parent.value)
+        .value
+      if (typeof ClipboardItem && navigator.clipboard.write) {
+        // NOTE: Safari locks down the clipboard API to only work when triggered
+        //   by a direct user interaction. You can't use it async in a promise.
+        //   But! You can wrap the promise in a ClipboardItem, and give that to
+        //   the clipboard API.
+        //   Found this on https://developer.apple.com/forums/thread/691873
+        const clipboardItem = new ClipboardItem({
+          'text/plain': secret
+        })
+        navigator.clipboard.write([clipboardItem])
+        confirm('Secret copied to your clipboard')
+      } else {
+        // NOTE: Firefox has support for ClipboardItem and navigator.clipboard.write,
+        //   but those are behind `dom.events.asyncClipboard.clipboardItem` preference.
+        //   Good news is that other than Safari, Firefox does not care about
+        //   Clipboard API being used async in a Promise.
+        navigator.clipboard.writeText(secret)
+        confirm('Secret copied to your clipboard')
+      }
+    })
+  }
+}
+
 Hooks.LocalTime = {
   mounted() {
     this.updated()
@@ -55,20 +84,8 @@ document.querySelectorAll('.date-time').forEach(d => {
   d.innerHTML = dates.formatDateTime(d.innerHTML)
 })
 
-window.addEventListener('phx:sharedsecret:clipcopy', event => {
-  if ('clipboard' in navigator) {
-    const text = event.detail.secret
-    navigator.clipboard.writeText(text).then(
-      () => {
-        confirm('Content copied to clipboard')
-      },
-      () => {
-        alert('Failed to copy')
-      }
-    )
-  } else {
-    alert('Sorry, your browser does not support clipboard copy.')
-  }
+window.addEventListener('phx:sharedsecret:created', () => {
+  confirm('A new Shared Secret has been created.')
 })
 
 window.addEventListener('ca:edit:jitp', () => {
