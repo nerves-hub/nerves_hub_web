@@ -30,7 +30,9 @@ defmodule NervesHub.Support.Fwup do
   def gen_key_pair(key_name, dir \\ System.tmp_dir()) do
     key_path_no_extension = Path.join([dir, key_name])
 
-    System.cmd("fwup", ["-g", "-o", key_path_no_extension], stderr_to_stdout: true)
+    {_, 0} = System.cmd("fwup", ["-g", "-o", key_path_no_extension], stderr_to_stdout: true)
+
+    :ok
   end
 
   @doc """
@@ -47,13 +49,14 @@ defmodule NervesHub.Support.Fwup do
     conf_path = make_conf(struct(MetaParams, meta_params), dir)
     out_path = Path.join([dir, firmware_name <> ".fw"])
 
-    System.cmd("fwup", [
-      "-c",
-      "-f",
-      conf_path,
-      "-o",
-      out_path
-    ])
+    {_, 0} =
+      System.cmd("fwup", [
+        "-c",
+        "-f",
+        conf_path,
+        "-o",
+        out_path
+      ])
 
     {:ok, out_path}
   end
@@ -88,7 +91,7 @@ defmodule NervesHub.Support.Fwup do
   """
   def create_signed_firmware(key_name, firmware_name, output_name, meta_params \\ %{}) do
     {dir, meta_params} = Map.pop(meta_params, :dir, System.tmp_dir())
-    create_firmware(dir, firmware_name, meta_params)
+    {:ok, _} = create_firmware(dir, firmware_name, meta_params)
     sign_firmware(dir, key_name, firmware_name, output_name)
   end
 
@@ -98,9 +101,10 @@ defmodule NervesHub.Support.Fwup do
   def corrupt_firmware_file(input_path, dir \\ System.tmp_dir()) do
     output_path = Path.join([dir, "corrupt.fw"])
 
-    System.cmd("dd", ["if=" <> input_path, "of=" <> output_path, "bs=256", "count=1"],
-      stderr_to_stdout: true
-    )
+    {_, 0} =
+      System.cmd("dd", ["if=" <> input_path, "of=" <> output_path, "bs=256", "count=1"],
+        stderr_to_stdout: true
+      )
 
     {:ok, output_path}
   end
