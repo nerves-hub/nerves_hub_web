@@ -92,13 +92,14 @@ defmodule NervesHubWeb.DeviceChannel do
     })
 
     # local node tracking
-    Registry.update_value(NervesHub.Devices, device.id, fn value ->
-      update = %{
-        deployment_id: device.deployment_id,
-        firmware_uuid: device.firmware_metadata.uuid,
-        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-        updating: push_update?
-      }
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        update = %{
+          deployment_id: device.deployment_id,
+          firmware_uuid: device.firmware_metadata.uuid,
+          updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+          updating: push_update?
+        }
 
       Map.merge(value, update)
     end)
@@ -149,12 +150,13 @@ defmodule NervesHubWeb.DeviceChannel do
     subscribe(deployment_channel)
 
     # local node tracking
-    Registry.register(NervesHub.Devices, device.id, %{
-      deployment_id: device.deployment_id,
-      firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
-      updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-      updating: false
-    })
+    _ =
+      Registry.register(NervesHub.Devices, device.id, %{
+        deployment_id: device.deployment_id,
+        firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
+        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+        updating: false
+      })
 
     socket =
       socket
@@ -232,9 +234,10 @@ defmodule NervesHubWeb.DeviceChannel do
       socket.assigns.reference_id
     )
 
-    Registry.update_value(NervesHub.Devices, device.id, fn value ->
-      Map.put(value, :deployment_id, device.deployment_id)
-    end)
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.put(value, :deployment_id, device.deployment_id)
+      end)
 
     {:noreply, update_device(socket, device)}
   end
@@ -300,11 +303,12 @@ defmodule NervesHubWeb.DeviceChannel do
   def handle_info(%Broadcast{event: "devices/updated"}, %{assigns: %{device: device}} = socket) do
     device = Repo.reload(device)
 
-    Registry.update_value(NervesHub.Devices, device.id, fn value ->
-      Map.merge(value, %{
-        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
-      })
-    end)
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.merge(value, %{
+          updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
+        })
+      end)
 
     socket =
       socket
@@ -373,9 +377,10 @@ defmodule NervesHubWeb.DeviceChannel do
       updates_enabled: updates_enabled
     })
 
-    Registry.update_value(NervesHub.Devices, device.id, fn value ->
-      Map.merge(value, %{updates_enabled: updates_enabled})
-    end)
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.merge(value, %{updates_enabled: updates_enabled})
+      end)
 
     # Just in case time is weird or it got placed back in between checks
     socket =
@@ -427,9 +432,10 @@ defmodule NervesHubWeb.DeviceChannel do
 
         {:ok, device} = Devices.update_attempted(device)
 
-        Registry.update_value(NervesHub.Devices, device.id, fn value ->
-          Map.put(value, :updating, true)
-        end)
+        _ =
+          Registry.update_value(NervesHub.Devices, device.id, fn value ->
+            Map.put(value, :updating, true)
+          end)
 
         socket
         |> assign(:device, device)
@@ -607,9 +613,10 @@ defmodule NervesHubWeb.DeviceChannel do
 
     AuditLogs.audit_with_ref!(device, device, description, socket.assigns.reference_id)
 
-    Registry.update_value(NervesHub.Devices, device.id, fn value ->
-      Map.put(value, :deployment_id, device.deployment_id)
-    end)
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.put(value, :deployment_id, device.deployment_id)
+      end)
 
     update_device(socket, device)
   end
