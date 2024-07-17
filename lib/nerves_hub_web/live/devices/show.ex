@@ -203,7 +203,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       firmware_meta: meta
     }
 
-    NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "deployments/update", payload)
+    _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "deployments/update", payload)
 
     socket
     |> assign(:device, device)

@@ -66,7 +66,7 @@ defmodule NervesHub.Scripts.Runner do
       Endpoint.broadcast_from!(self(), state.send_channel, "dn", %{"data" => character})
     end)
 
-    Endpoint.subscribe(state.receive_channel)
+    _ = Endpoint.subscribe(state.receive_channel)
 
     Endpoint.broadcast_from!(self(), state.send_channel, "dn", %{"data" => "\r"})
 

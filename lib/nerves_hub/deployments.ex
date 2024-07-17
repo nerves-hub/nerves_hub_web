@@ -99,7 +99,7 @@ defmodule NervesHub.Deployments do
         {:error, :not_found}
 
       {:ok, deployment} ->
-        broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
+        _ = broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
 
         {:ok, deployment}
     end
@@ -177,8 +177,8 @@ defmodule NervesHub.Deployments do
             |> Repo.update_all(set: [deployment_id: deployment.id])
           end
 
-          broadcast(deployment, "deployments/changed", payload)
-          broadcast(:none, "deployments/changed", payload)
+          _ = broadcast(deployment, "deployments/changed", payload)
+          _ = broadcast(:none, "deployments/changed", payload)
 
           description = "deployment #{deployment.name} conditions changed and removed all devices"
           AuditLogs.audit!(deployment, deployment, description)
@@ -194,14 +194,14 @@ defmodule NervesHub.Deployments do
             |> where([d], d.deployment_id == ^deployment.id)
             |> Repo.update_all(set: [deployment_id: nil])
 
-            broadcast(deployment, "deployments/changed", payload)
+            _ = broadcast(deployment, "deployments/changed", payload)
 
             description = "deployment #{deployment.name} is inactive and removed all devices"
             AuditLogs.audit!(deployment, deployment, description)
           end
         end
 
-        broadcast(deployment, "deployments/update")
+        _ = broadcast(deployment, "deployments/update")
 
         {:ok, deployment}
 
@@ -216,7 +216,7 @@ defmodule NervesHub.Deployments do
 
     case Repo.insert(changeset) do
       {:ok, deployment} ->
-        broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
+        _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
 
         {:ok, deployment}
 
