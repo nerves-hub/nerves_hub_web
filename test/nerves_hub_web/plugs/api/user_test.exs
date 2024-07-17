@@ -2,15 +2,6 @@ defmodule NervesHubWeb.API.Plugs.UserTest do
   use ExUnit.Case, async: false
   use NervesHubWeb.APIConnCase
 
-  setup do
-    conn =
-      build_conn()
-      |> bypass_through(NervesHubWeb.Router)
-      |> dispatch(NervesHubWeb.Endpoint, :get, "/api/users/me")
-
-    %{conn: conn}
-  end
-
   test "can use API token auth", %{user: user, user_token: %{token: token}} do
     conn =
       build_conn()
