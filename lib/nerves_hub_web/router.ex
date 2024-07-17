@@ -64,7 +64,6 @@ defmodule NervesHubWeb.Router do
 
     get("/health", HealthCheckController, :health_check)
 
-    post("/users/register", UserController, :register)
     post("/users/auth", UserController, :auth)
     post("/users/login", UserController, :login)
 
