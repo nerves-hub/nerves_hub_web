@@ -35,10 +35,6 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.Plugs.Product)
   end
 
-  pipeline :firmware do
-    plug(NervesHubWeb.Plugs.Firmware)
-  end
-
   pipeline :api do
     plug(:accepts, ["json"])
   end
