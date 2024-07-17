@@ -21,9 +21,10 @@ defmodule NervesHubWeb.API.KeyControllerTest do
   end
 
   describe "create keys" do
-    test "renders key when data is valid", %{conn: conn, org: org} do
+    @tags :tmp_dir
+    test "renders key when data is valid", %{conn: conn, org: org, tmp_dir: tmp_dir} do
       name = "test"
-      Fwup.gen_key_pair(name)
+      Fwup.gen_key_pair(name, tmp_dir)
       pub_key = Fwup.get_public_key(name)
       key = %{name: name, key: pub_key, org_id: org.id}
 
@@ -41,11 +42,12 @@ defmodule NervesHubWeb.API.KeyControllerTest do
   end
 
   describe "create keys roles" do
-    test "ok: org manage", %{conn2: conn, org: org, user2: user} do
+    @tags :tmp_dir
+    test "ok: org manage", %{conn2: conn, org: org, user2: user, tmp_dir: tmp_dir} do
       Accounts.add_org_user(org, user, %{role: :manage})
 
       name = "test"
-      Fwup.gen_key_pair(name)
+      Fwup.gen_key_pair(name, tmp_dir)
       pub_key = Fwup.get_public_key(name)
       key = %{name: name, key: pub_key, org_id: org.id}
 
