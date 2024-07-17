@@ -64,25 +64,7 @@ defmodule NervesHubWeb.DeviceChannel do
       update_payload.update_available and not is_nil(update_payload.firmware_url) and
         update_payload.firmware_meta[:uuid] != params["currently_downloading_uuid"]
 
-    if push_update? do
-      # Push the update to the device
-      push(socket, "update", update_payload)
-
-      deployment = device.deployment
-
-      description =
-        "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} on connect"
-
-      AuditLogs.audit_with_ref!(
-        deployment,
-        device,
-        description,
-        socket.assigns.reference_id
-      )
-
-      # if there's an update, track it
-      Devices.told_to_update(device, deployment)
-    end
+    maybe_push_update(socket, update_payload, device, push_update?)
 
     ## After join
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
@@ -101,8 +83,8 @@ defmodule NervesHubWeb.DeviceChannel do
           updating: push_update?
         }
 
-      Map.merge(value, update)
-    end)
+        Map.merge(value, update)
+      end)
 
     # Cluster tracking
     Tracker.online(device)
@@ -174,9 +156,7 @@ defmodule NervesHubWeb.DeviceChannel do
         %{assigns: %{device: device}} = socket
       ) do
     if device_matches_deployment_payload?(device, payload) do
-      if timer = Map.get(socket.assigns, :assign_deployment_timer) do
-        Process.cancel_timer(timer)
-      end
+      cancel_deployment_timer(socket)
 
       # jitter to attempt to not slam the database when any matching
       # devices go to set their deployment. This is for very large
@@ -540,6 +520,32 @@ defmodule NervesHubWeb.DeviceChannel do
     :ok
   end
 
+  defp maybe_push_update(_socket, _update_payload, _device, false) do
+    :ok
+  end
+
+  defp maybe_push_update(socket, update_payload, device, true) do
+    # Push the update to the device
+    push(socket, "update", update_payload)
+
+    deployment = device.deployment
+
+    description =
+      "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} on connect"
+
+    AuditLogs.audit_with_ref!(
+      deployment,
+      device,
+      description,
+      socket.assigns.reference_id
+    )
+
+    # if there's an update, track it
+    _ = Devices.told_to_update(device, deployment)
+
+    :ok
+  end
+
   defp subscribe(topic) do
     _ = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
     :ok
@@ -555,6 +561,15 @@ defmodule NervesHubWeb.DeviceChannel do
     push(socket, key_type, %{
       keys: Enum.map(org_keys, fn ok -> ok.key end)
     })
+  end
+
+  defp cancel_deployment_timer(%{assigns: %{assign_deployment_timer: timer}}) do
+    _ = Process.cancel_timer(timer)
+    :ok
+  end
+
+  defp cancel_deployment_timer(_socket) do
+    :ok
   end
 
   # The reported firmware is the same as what we already know about
