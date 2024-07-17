@@ -72,7 +72,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
 
     with db_cert <- Enum.find(certs, &(&1.serial == serial)),
          {:ok, _db_cert} <- Devices.delete_device_certificate(db_cert),
-         updated_certs = Enum.reject(certs, &(&1.serial == serial)) do
+         updated_certs <- Enum.reject(certs, &(&1.serial == serial)) do
       {:noreply, assign(socket, device: %{device | device_certificates: updated_certs})}
     else
       _ ->
