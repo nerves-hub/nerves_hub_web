@@ -110,7 +110,7 @@ defmodule NervesHub.Deployments.Orchestrator do
     _ = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
     # trigger every 5 minutes as a back up
-    :timer.send_interval(5 * 60 * 1000, :trigger)
+    _ = :timer.send_interval(5 * 60 * 1000, :trigger)
 
     deployment =
       deployment
