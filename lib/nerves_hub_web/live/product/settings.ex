@@ -53,14 +53,15 @@ defmodule NervesHubWeb.Live.Product.Settings do
   def handle_event("delete-product", _parmas, socket) do
     authorized!(:"product:delete", socket.assigns.org_user)
 
-    with {:ok, _product} <- Products.delete_product(socket.assigns.product) do
-      socket =
-        socket
-        |> put_flash(:info, "Product deleted successfully.")
-        |> push_navigate(to: ~p"/org/#{socket.assigns.org.name}")
+    case Products.delete_product(socket.assigns.product) do
+      {:ok, _product} ->
+        socket =
+          socket
+          |> put_flash(:info, "Product deleted successfully.")
+          |> push_navigate(to: ~p"/org/#{socket.assigns.org.name}")
 
-      {:noreply, socket}
-    else
+        {:noreply, socket}
+
       {:error, _changeset} ->
         {:noreply,
          put_flash(

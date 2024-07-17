@@ -51,17 +51,17 @@ defmodule NervesHubWeb.Live.Org.SigningKeys do
 
     {:ok, signing_key} = Accounts.get_org_key(socket.assigns.org, signing_key_id)
 
-    with {:ok, _} <- Accounts.delete_org_key(signing_key) do
-      {:noreply,
-       socket
-       |> put_flash(:info, "Signing Key deleted successfully.")
-       |> assign(:signing_keys, list_signing_keys(socket.assigns.org))}
-    else
+    case Accounts.delete_org_key(signing_key) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Signing Key deleted successfully.")
+         |> assign(:signing_keys, list_signing_keys(socket.assigns.org))}
+
       {:error, %Ecto.Changeset{} = changeset} ->
         message =
           changeset.errors
-          |> Enum.map(fn {_k, v} -> elem(v, 0) end)
-          |> Enum.join(", ")
+          |> Enum.map_join(", ", fn {_k, v} -> elem(v, 0) end)
 
         {:noreply, put_flash(socket, :error, "Error deleting Signing Key : " <> message)}
     end
