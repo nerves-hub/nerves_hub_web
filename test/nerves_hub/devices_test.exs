@@ -565,7 +565,7 @@ defmodule NervesHub.DevicesTest do
       assert Enum.count(device.update_attempts) == 1
 
       {:ok, device} = Devices.firmware_update_successful(device)
-      assert Enum.count(device.update_attempts) == 0
+      assert Enum.empty?(device.update_attempts)
     end
 
     test "clears an inflight update if it matches", %{device: device, deployment: deployment} do
