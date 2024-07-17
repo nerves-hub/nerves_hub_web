@@ -43,7 +43,7 @@ defmodule NervesHub.RateLimit do
         write_concurrency: true
       ])
 
-    :timer.send_interval(10_000, :prune)
+    {:ok, _} = :timer.send_interval(10_000, :prune)
 
     {:ok, state}
   end
