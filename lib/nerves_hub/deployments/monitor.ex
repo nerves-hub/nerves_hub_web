@@ -57,7 +57,7 @@ defmodule NervesHub.Deployments.Monitor do
 
   def handle_info(%Broadcast{event: "deployments/delete", payload: payload}, state) do
     pid = GenServer.whereis(Orchestrator.name(payload.deployment_id))
-    DynamicSupervisor.terminate_child(DeploymentDynamicSupervisor, pid)
+    _ = DynamicSupervisor.terminate_child(DeploymentDynamicSupervisor, pid)
     deployments = Map.delete(state.deployments, payload.deployment_id)
     {:noreply, %{state | deployments: deployments}}
   end
