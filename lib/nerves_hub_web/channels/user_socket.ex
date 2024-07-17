@@ -6,7 +6,7 @@ defmodule NervesHubWeb.UserSocket do
   channel("user:console:*", NervesHubWeb.UserConsoleChannel)
 
   def connect(%{"token" => token}, socket) do
-    case Phoenix.Token.verify(socket, "user salt", token, max_age: 86400) do
+    case Phoenix.Token.verify(socket, "user salt", token, max_age: 86_400) do
       {:ok, user_id} ->
         case Accounts.get_user(user_id) do
           {:ok, user} ->
