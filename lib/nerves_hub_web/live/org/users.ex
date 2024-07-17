@@ -105,12 +105,13 @@ defmodule NervesHubWeb.Live.Org.Users do
 
     {:ok, role} = Map.fetch(params, "role")
 
-    with {:ok, _org_user} <- Accounts.change_org_user_role(socket.assigns.membership, role) do
-      {:noreply,
-       socket
-       |> put_flash(:info, "Role updated")
-       |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/users")}
-    else
+    case Accounts.change_org_user_role(socket.assigns.membership, role) do
+      {:ok, _org_user} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Role updated")
+         |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/users")}
+
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Error updating role")}
     end

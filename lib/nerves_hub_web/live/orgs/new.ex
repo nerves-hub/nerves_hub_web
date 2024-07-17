@@ -17,12 +17,13 @@ defmodule NervesHubWeb.Live.Orgs.New do
   def handle_event("save_org", %{"org" => org_params}, socket) do
     params = org_params |> whitelist([:name])
 
-    with {:ok, org} <- Accounts.create_org(socket.assigns.user, params) do
-      {:noreply,
-       socket
-       |> put_flash(:info, "Organization created successfully.")
-       |> push_navigate(to: ~p"/org/#{org.name}")}
-    else
+    case Accounts.create_org(socket.assigns.user, params) do
+      {:ok, org} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Organization created successfully.")
+         |> push_navigate(to: ~p"/org/#{org.name}")}
+
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
     end
