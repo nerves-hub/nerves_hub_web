@@ -5,9 +5,30 @@ import 'bootstrap'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
 
+import hljs from 'highlight.js/lib/core'
+import bash from 'highlight.js/lib/languages/bash'
+import elixir from 'highlight.js/lib/languages/elixir'
+import plaintext from 'highlight.js/lib/languages/plaintext'
+import shell from 'highlight.js/lib/languages/shell'
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('elixir', elixir)
+hljs.registerLanguage('plaintext', plaintext)
+hljs.registerLanguage('shell', shell)
+
+import 'highlight.js/styles/stackoverflow-light.css'
+
 let dates = require('./dates')
 
 let Hooks = {}
+
+Hooks.HighlightCode = {
+  mounted() {
+    this.updated()
+  },
+  updated() {
+    hljs.highlightElement(this.el)
+  }
+}
 
 Hooks.LocalTime = {
   mounted() {
@@ -50,6 +71,12 @@ liveSocket.connect()
 
 document.querySelectorAll('.date-time').forEach(d => {
   d.innerHTML = dates.formatDateTime(d.innerHTML)
+})
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('pre code').forEach(el => {
+    hljs.highlightElement(el)
+  })
 })
 
 window.addEventListener('phx:sharedsecret:clipcopy', event => {
