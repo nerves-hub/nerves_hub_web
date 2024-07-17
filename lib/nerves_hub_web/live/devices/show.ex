@@ -70,6 +70,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
+  def handle_info(%Broadcast{event: "location:updated"}, socket) do
+    %{device: device, org: org} = socket.assigns
+
+    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
+
+    {:noreply, assign(socket, :device, device)}
+  end
+
   # Ignore unknown messages
   def handle_info(_unknown, socket), do: {:noreply, socket}
 

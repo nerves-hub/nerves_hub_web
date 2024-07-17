@@ -17,13 +17,11 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Firmwares
   alias NervesHub.Repo
   alias NervesHub.Tracker
-  alias NervesHub.Utils.Geolocate
   alias Phoenix.Socket.Broadcast
 
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
-         {:ok, device} <- Devices.device_connected(device),
-         {:ok, device} <- update_connection_metadata(device, socket) do
+         {:ok, device} <- Devices.device_connected(device) do
       socket = assign(socket, :device, device)
 
       send(self(), {:after_join, params})
@@ -443,6 +441,20 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_in("location:update", location, %{assigns: %{device: device}} = socket) do
+    metadata = Map.put(device.connection_metadata, "location", location)
+
+    {:ok, device} = Devices.update_device(device, %{connection_metadata: metadata})
+
+    NervesHubWeb.DeviceEndpoint.broadcast(
+      "device:#{device.identifier}:internal",
+      "location:updated",
+      location
+    )
+
+    {:reply, :ok, assign(socket, :device, device)}
+  end
+
   def handle_in("connection_types", %{"values" => types}, %{assigns: %{device: device}} = socket) do
     {:ok, device} = Devices.update_device(device, %{"connection_types" => types})
     {:noreply, assign(socket, :device, device)}
@@ -551,15 +563,6 @@ defmodule NervesHubWeb.DeviceChannel do
          {:ok, device} <- Devices.update_firmware_metadata(device, metadata) do
       Devices.firmware_update_successful(device)
     end
-  end
-
-  defp update_connection_metadata(device, %{assigns: %{request_ip: request_ip}}) do
-    metadata =
-      device.connection_metadata
-      |> Map.put("request_ip", request_ip)
-      |> Map.put("location", Geolocate.resolve(request_ip))
-
-    Devices.update_device(device, %{connection_metadata: metadata})
   end
 
   defp maybe_start_penalty_timer(%{assigns: %{device: %{updates_blocked_until: nil}}} = socket),
