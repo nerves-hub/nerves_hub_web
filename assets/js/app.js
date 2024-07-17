@@ -73,12 +73,6 @@ document.querySelectorAll('.date-time').forEach(d => {
   d.innerHTML = dates.formatDateTime(d.innerHTML)
 })
 
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('pre code').forEach(el => {
-    hljs.highlightElement(el)
-  })
-})
-
 window.addEventListener('phx:sharedsecret:clipcopy', event => {
   if ('clipboard' in navigator) {
     const text = event.detail.secret
