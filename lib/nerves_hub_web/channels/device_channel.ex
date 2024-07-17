@@ -363,14 +363,11 @@ defmodule NervesHubWeb.DeviceChannel do
       end)
 
     # Just in case time is weird or it got placed back in between checks
-    socket =
-      if !updates_enabled do
-        maybe_start_penalty_timer(socket)
-      else
-        socket
-      end
-
-    {:noreply, socket}
+    if updates_enabled do
+      {:noreply, socket}
+    else
+      {:noreply, maybe_start_penalty_timer(socket)}
+    end
   end
 
   def handle_info({:push, event, payload}, socket) do
@@ -403,28 +400,28 @@ defmodule NervesHubWeb.DeviceChannel do
     )
 
     # if this is the first fwup we see, then mark it as an update attempt
-    socket =
-      if !socket.assigns.update_started? do
-        # reload update attempts because they might have been cleared
-        # and we have a cached stale version
-        updated_device = Repo.reload(device)
-        device = %{device | update_attempts: updated_device.update_attempts}
+    if socket.assigns.update_started? do
+      {:noreply, socket}
+    else
+      # reload update attempts because they might have been cleared
+      # and we have a cached stale version
+      updated_device = Repo.reload(device)
+      device = %{device | update_attempts: updated_device.update_attempts}
 
-        {:ok, device} = Devices.update_attempted(device)
+      {:ok, device} = Devices.update_attempted(device)
 
-        _ =
-          Registry.update_value(NervesHub.Devices, device.id, fn value ->
-            Map.put(value, :updating, true)
-          end)
+      _ =
+        Registry.update_value(NervesHub.Devices, device.id, fn value ->
+          Map.put(value, :updating, true)
+        end)
 
+      socket =
         socket
         |> assign(:device, device)
         |> assign(:update_started?, true)
-      else
-        socket
-      end
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   def handle_in("location:update", location, %{assigns: %{device: device}} = socket) do
