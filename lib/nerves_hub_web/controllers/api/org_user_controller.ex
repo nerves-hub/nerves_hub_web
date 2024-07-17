@@ -23,8 +23,9 @@ defmodule NervesHubWeb.API.OrgUserController do
       # know about this new user.
       instigator = conn.assigns.user
 
-      SwooshEmail.tell_org_user_added(org, Accounts.get_org_users(org), instigator, user)
-      |> SwooshMailer.deliver()
+      _ =
+        SwooshEmail.tell_org_user_added(org, Accounts.get_org_users(org), instigator, user)
+        |> SwooshMailer.deliver()
 
       conn
       |> put_status(:created)
@@ -51,8 +52,9 @@ defmodule NervesHubWeb.API.OrgUserController do
       # that this user has been removed from the organization.
       instigator = conn.assigns.user
 
-      SwooshEmail.tell_org_user_removed(org, Accounts.get_org_users(org), instigator, user)
-      |> SwooshMailer.deliver()
+      _ =
+        SwooshEmail.tell_org_user_removed(org, Accounts.get_org_users(org), instigator, user)
+        |> SwooshMailer.deliver()
 
       send_resp(conn, :no_content, "")
     end
