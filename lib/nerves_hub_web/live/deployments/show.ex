@@ -76,7 +76,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
     AuditLogs.audit!(user, deployment, description)
 
-    Deployments.delete_deployment(deployment)
+    {:ok, _} = Deployments.delete_deployment(deployment)
 
     socket
     |> put_flash(:info, "Deployment successfully deleted")
