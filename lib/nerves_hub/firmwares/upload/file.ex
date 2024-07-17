@@ -9,10 +9,8 @@ defmodule NervesHub.Firmwares.Upload.File do
 
   @impl NervesHub.Firmwares.Upload
   def upload_file(source, %{local_path: local_path}) do
-    with :ok <- local_path |> Path.dirname() |> File.mkdir_p(),
-         :ok <- File.cp(source, local_path) do
-      :ok
-    end
+    :ok = local_path |> Path.dirname() |> File.mkdir_p()
+    :ok = File.cp(source, local_path)
   end
 
   @impl NervesHub.Firmwares.Upload
