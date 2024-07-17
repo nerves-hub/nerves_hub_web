@@ -112,12 +112,19 @@ defmodule NervesHub.Accounts do
     else
       org_user = Repo.get_by(Ecto.assoc(org, :org_users), user_id: user.id)
 
-      if org_user do
-        {:ok, _result} = Repo.soft_delete(org_user)
-      end
+      maybe_soft_delete_org_user(org_user)
 
       :ok
     end
+  end
+
+  defp maybe_soft_delete_org_user(nil), do: :ok
+
+  defp maybe_soft_delete_org_user(org_user), do: soft_delete_org_user(org_user)
+
+  def soft_delete_org_user(org_user) do
+    {:ok, _result} = Repo.soft_delete(org_user)
+    :ok
   end
 
   def change_org_user_role(%OrgUser{} = ou, role) do
