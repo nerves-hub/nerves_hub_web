@@ -64,14 +64,24 @@ defmodule NervesHub.Products do
     end
   end
 
+  def get_product_by_org_id_and_name!(org_id, name) do
+    get_product_by_org_id_and_name_query(org_id, name)
+    |> Repo.one!()
+  end
+
   def get_product_by_org_id_and_name(org_id, name) do
-    Product
-    |> Repo.exclude_deleted()
-    |> Repo.get_by(org_id: org_id, name: name)
+    get_product_by_org_id_and_name_query(org_id, name)
+    |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
       product -> {:ok, product}
     end
+  end
+
+  def get_product_by_org_id_and_name_query(org_id, name) do
+    Product
+    |> where(org_id: ^org_id, name: ^name)
+    |> Repo.exclude_deleted()
   end
 
   @doc """
