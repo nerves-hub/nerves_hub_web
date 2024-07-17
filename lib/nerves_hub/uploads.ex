@@ -29,7 +29,7 @@ defmodule NervesHub.Uploads.File do
   @impl NervesHub.Uploads
   def delete(key) do
     path = Path.join(local_path(), key)
-    File.rm(path)
+    :ok = File.rm(path)
 
     :ok
   end
@@ -39,7 +39,7 @@ defmodule NervesHub.Uploads.File do
     path = Path.join(local_path(), key)
 
     dirname = Path.dirname(path)
-    File.mkdir_p(dirname)
+    _ = File.mkdir_p(dirname)
 
     case File.copy(file_path, path) do
       {:ok, _} ->
@@ -79,9 +79,10 @@ defmodule NervesHub.Uploads.S3 do
 
   @impl NervesHub.Uploads
   def delete(key) do
-    bucket()
-    |> S3.delete_object(key)
-    |> ExAws.request()
+    {:ok, _} =
+      bucket()
+      |> S3.delete_object(key)
+      |> ExAws.request()
 
     :ok
   end

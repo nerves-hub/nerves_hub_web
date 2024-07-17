@@ -9,7 +9,7 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
   def create_firmware_delta_file(source_url, target_url) do
     uuid = Ecto.UUID.generate()
     work_dir = Path.join(System.tmp_dir(), uuid) |> Path.expand()
-    File.mkdir_p(work_dir)
+    _ = File.mkdir_p(work_dir)
 
     source_path = Path.join(work_dir, "source.fw") |> Path.expand()
     target_path = Path.join(work_dir, "target.fw") |> Path.expand()
@@ -38,9 +38,10 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
 
   @impl NervesHub.Firmwares.DeltaUpdater
   def cleanup_firmware_delta_files(firmware_delta_path) do
-    firmware_delta_path
-    |> Path.dirname()
-    |> File.rm_rf!()
+    _ =
+      firmware_delta_path
+      |> Path.dirname()
+      |> File.rm_rf!()
 
     :ok
   end
@@ -54,15 +55,15 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
   end
 
   def do_delta_file(source_path, target_path, output_path, work_dir) do
-    File.mkdir_p(work_dir)
+    _ = File.mkdir_p(work_dir)
 
     source_work_dir = Path.join(work_dir, "source")
     target_work_dir = Path.join(work_dir, "target")
     output_work_dir = Path.join(work_dir, "output")
 
-    File.mkdir_p(source_work_dir)
-    File.mkdir_p(target_work_dir)
-    File.mkdir_p(output_work_dir)
+    _ = File.mkdir_p(source_work_dir)
+    _ = File.mkdir_p(target_work_dir)
+    _ = File.mkdir_p(output_work_dir)
 
     {_, 0} = System.cmd("unzip", ["-qq", source_path, "-d", source_work_dir])
     {_, 0} = System.cmd("unzip", ["-qq", target_path, "-d", target_work_dir])
@@ -71,21 +72,22 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
       for absolute <- Path.wildcard(target_work_dir <> "/**"), not File.dir?(absolute) do
         path = Path.relative_to(absolute, target_work_dir)
 
-        if String.starts_with?(path, "meta.") do
-          File.cp!(Path.join(target_work_dir, path), Path.join(output_work_dir, path))
-        else
-          args = [
-            "-A",
-            "-S",
-            "-f",
-            "-s",
-            Path.join(source_work_dir, path),
-            Path.join(target_work_dir, path),
-            Path.join(output_work_dir, path)
-          ]
+        _ =
+          if String.starts_with?(path, "meta.") do
+            File.cp!(Path.join(target_work_dir, path), Path.join(output_work_dir, path))
+          else
+            args = [
+              "-A",
+              "-S",
+              "-f",
+              "-s",
+              Path.join(source_work_dir, path),
+              Path.join(target_work_dir, path),
+              Path.join(output_work_dir, path)
+            ]
 
-          {_, 0} = System.cmd("xdelta3", args)
-        end
+            {_, 0} = System.cmd("xdelta3", args)
+          end
       end
 
     # firmware archive files order matters:
