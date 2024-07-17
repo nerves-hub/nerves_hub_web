@@ -15,9 +15,10 @@ defmodule NervesHubWeb.AccountController do
   def create(conn, %{"user" => user_params} = _) do
     case Accounts.create_user(user_params) do
       {:ok, new_user} ->
-        new_user
-        |> SwooshEmail.welcome_user()
-        |> SwooshMailer.deliver()
+        _ =
+          new_user
+          |> SwooshEmail.welcome_user()
+          |> SwooshMailer.deliver()
 
         conn
         |> put_flash(:info, "Account successfully created, login below")
@@ -75,7 +76,7 @@ defmodule NervesHubWeb.AccountController do
           new_org_user.user
         )
 
-      SwooshMailer.deliver(email)
+      _ = SwooshMailer.deliver(email)
 
       conn
       |> put_flash(:info, "Account successfully created, login below")
