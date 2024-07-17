@@ -28,10 +28,6 @@ defmodule NervesHub.Devices do
 
   @min_fwup_delta_updatable_version ">=1.10.0"
 
-  def get_device!(device_id) do
-    Repo.get!(Device, device_id)
-  end
-
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
   end
@@ -44,19 +40,6 @@ defmodule NervesHub.Devices do
       nil -> {:error, :not_found}
       device -> {:ok, device}
     end
-  end
-
-  def get_devices_by_org_id(org_id) do
-    query =
-      from(
-        d in Device,
-        where: d.org_id == ^org_id
-      )
-
-    query
-    |> Repo.exclude_deleted()
-    |> order_by(asc: :identifier)
-    |> Repo.all()
   end
 
   def get_devices_by_org_id_and_product_id(org_id, product_id) do
@@ -187,12 +170,6 @@ defmodule NervesHub.Devices do
       nil -> {:error, :not_found}
       device -> {:ok, device}
     end
-  end
-
-  def get_device_by_org!(%Org{id: org_id}, device_id) do
-    device_by_org_query(org_id, device_id)
-    |> Repo.exclude_deleted()
-    |> Repo.one!()
   end
 
   def get_by_identifier(identifier) do
