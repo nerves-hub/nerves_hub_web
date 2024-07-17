@@ -15,10 +15,7 @@ defmodule NervesHubWeb.API.Plugs.User do
         assign(conn, :user, user)
 
       _error ->
-        conn
-        |> put_resp_header("content-type", "application/json")
-        |> send_resp(403, Jason.encode!(%{status: "forbidden"}))
-        |> halt()
+        raise NervesHubWeb.Unauthorized
     end
   end
 

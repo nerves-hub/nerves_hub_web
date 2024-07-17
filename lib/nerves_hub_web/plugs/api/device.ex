@@ -8,16 +8,8 @@ defmodule NervesHubWeb.API.Plugs.Device do
   end
 
   def call(%{params: %{"identifier" => identifier}} = conn, _opts) do
-    case Devices.get_device_by_identifier(conn.assigns.org, identifier) do
-      {:ok, device} ->
-        conn
-        |> assign(:device, device)
+    device = Devices.get_device_by_identifier!(conn.assigns.org, identifier)
 
-      _ ->
-        conn
-        |> put_resp_header("content-type", "application/json")
-        |> send_resp(403, Jason.encode!(%{status: "Invalid device: #{identifier}"}))
-        |> halt()
-    end
+    assign(conn, :device, device)
   end
 end
