@@ -4,11 +4,31 @@ import 'phoenix_html'
 import 'bootstrap'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
-import Josh from 'joshjs'
+
+import hljs from 'highlight.js/lib/core'
+import bash from 'highlight.js/lib/languages/bash'
+import elixir from 'highlight.js/lib/languages/elixir'
+import plaintext from 'highlight.js/lib/languages/plaintext'
+import shell from 'highlight.js/lib/languages/shell'
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('elixir', elixir)
+hljs.registerLanguage('plaintext', plaintext)
+hljs.registerLanguage('shell', shell)
+
+import 'highlight.js/styles/stackoverflow-light.css'
 
 let dates = require('./dates')
 
 let Hooks = {}
+
+Hooks.HighlightCode = {
+  mounted() {
+    this.updated()
+  },
+  updated() {
+    hljs.highlightElement(this.el)
+  }
+}
 
 Hooks.LocalTime = {
   mounted() {
@@ -48,8 +68,6 @@ let liveSocket = new LiveSocket('/live', Socket, {
 })
 
 liveSocket.connect()
-
-new Josh()
 
 document.querySelectorAll('.date-time').forEach(d => {
   d.innerHTML = dates.formatDateTime(d.innerHTML)

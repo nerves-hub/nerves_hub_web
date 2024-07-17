@@ -74,7 +74,7 @@
     <div>
       <h3 class="mb-2">First Connect Code</h3>
       <%= if code = connecting_code(@device) do %>
-        <pre class="hljs"><code class="hljs elixir"><%= code %></code></pre>
+        <pre class="hljs"><code class="hljs elixir" phx-hook="HighlightCode" id={"connecting-code-#{@device.id}"}><%= code %></code></pre>
       <% else %>
         <div class="display-box">
           No code sent
