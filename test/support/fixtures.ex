@@ -280,6 +280,7 @@ defmodule NervesHub.Fixtures do
 
   defp openssl(args, dir) do
     {_, 0} = System.cmd("openssl", args, cd: dir, stderr_to_stdout: true)
+    :ok
   end
 
   def bad_device_certificate_authority_file() do

@@ -68,5 +68,6 @@ defmodule NervesHub.Devices.CACertificate.CSRTest do
 
   defp openssl(args, dir) do
     {_, 0} = System.cmd("openssl", args, cd: dir, stderr_to_stdout: true)
+    :ok
   end
 end
