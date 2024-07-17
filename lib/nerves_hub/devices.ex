@@ -584,16 +584,12 @@ defmodule NervesHub.Devices do
             device = %{device | deployment_id: nil, deployment: nil}
             device = Deployments.set_deployment(device)
 
-            if Keyword.get(opts, :broadcast, true) do
-              broadcast(device, "devices/updated")
-            end
+            _ = maybe_broadcast(device, "devices/updated", opts)
 
             {:ok, device}
 
           false ->
-            if Keyword.get(opts, :broadcast, true) do
-              broadcast(device, "devices/updated")
-            end
+            _ = maybe_broadcast(device, "devices/updated", opts)
 
             {:ok, device}
         end
@@ -884,7 +880,7 @@ defmodule NervesHub.Devices do
     |> Repo.transaction()
     |> case do
       {:ok, %{move: updated}} ->
-        broadcast(updated, "moved")
+        _ = broadcast(updated, "moved")
         {:ok, updated}
 
       err ->
@@ -913,7 +909,7 @@ defmodule NervesHub.Devices do
     |> Repo.transaction()
     |> case do
       {:ok, %{update_with_audit: updated}} ->
-        broadcast(device, "devices/updated")
+        _ = broadcast(device, "devices/updated")
         {:ok, updated}
 
       err ->
@@ -1022,11 +1018,19 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  def broadcast(%Device{id: id}, event, payload \\ %{}) do
+  defp maybe_broadcast(device, event, opts) do
+    if Keyword.get(opts, :broadcast, true) do
+      broadcast(device, event)
+    else
+      :ok
+    end
+  end
+
+  defp broadcast(%Device{id: id}, event) do
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
       "device:#{id}",
-      %Phoenix.Socket.Broadcast{event: event, payload: payload}
+      %Phoenix.Socket.Broadcast{event: event}
     )
   end
 
