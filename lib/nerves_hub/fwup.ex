@@ -7,7 +7,9 @@ defmodule NervesHub.Fwup do
   Decode and parse metadata from a FWUP file.
   """
   @spec metadata(String.t()) ::
-          {:ok, map()} | {:error, :invalid_metadata} | {:error, atom()}
+          {:ok, map()}
+          | {:error, :invalid_fwup_file}
+          | {:error, :invalid_metadata}
   def metadata(file_path) do
     with {:ok, metadata} <- get_metadata(file_path),
          {:ok, uuid} <- metadata_value(metadata, "meta-uuid"),
@@ -32,8 +34,6 @@ defmodule NervesHub.Fwup do
       }
 
       {:ok, metadata}
-    else
-      {:error, {_, :not_found}} -> {:error, :invalid_metadata}
     end
   end
 
@@ -42,8 +42,8 @@ defmodule NervesHub.Fwup do
       {metadata, 0} ->
         {:ok, metadata}
 
-      {error, _} ->
-        {:error, error}
+      {_error, _} ->
+        {:error, :invalid_fwup_file}
     end
   end
 
@@ -55,7 +55,7 @@ defmodule NervesHub.Fwup do
         {:ok, value}
 
       _ ->
-        {:error, {key, :not_found}}
+        {:error, :invalid_metadata}
     end
   end
 
@@ -64,7 +64,7 @@ defmodule NervesHub.Fwup do
       {:ok, metadata_item} ->
         {:ok, metadata_item}
 
-      {:error, {_, :not_found}} ->
+      {:error, :invalid_metadata} ->
         {:ok, default}
     end
   end
