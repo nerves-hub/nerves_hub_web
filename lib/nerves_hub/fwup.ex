@@ -1,4 +1,11 @@
 defmodule NervesHub.Fwup do
+  @moduledoc """
+  Helpers for dealing with files created by FWUP.
+  """
+
+  @doc """
+  Decode and parse metadata from a FWUP file.
+  """
   @spec metadata(String.t()) ::
           {:ok, map()} | {:error, :invalid_metadata} | {:error, atom()}
   def metadata(file_path) do
