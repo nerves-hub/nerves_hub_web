@@ -5,7 +5,6 @@ defmodule NervesHub.Products do
 
   import Ecto.Query, warn: false
 
-  alias Ecto.Multi
   alias NervesHub.Repo
 
   alias NervesHub.Accounts.Org
@@ -99,17 +98,8 @@ defmodule NervesHub.Products do
   """
   @spec create_product(map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def create_product(params) do
-    multi =
-      Multi.new()
-      |> Multi.insert(:product, Product.changeset(%Product{}, params))
-
-    case Repo.transaction(multi) do
-      {:ok, result} ->
-        {:ok, result.product}
-
-      {:error, :product, changeset, _} ->
-        {:error, changeset}
-    end
+    Product.changeset(%Product{}, params)
+    |> Repo.insert()
   end
 
   @doc """
