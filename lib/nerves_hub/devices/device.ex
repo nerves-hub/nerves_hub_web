@@ -2,7 +2,6 @@ defmodule NervesHub.Devices.Device do
   use Ecto.Schema
 
   import Ecto.Changeset
-  import Ecto.Query
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Devices.DeviceCertificate
@@ -57,10 +56,5 @@ defmodule NervesHub.Devices.Device do
     |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
     |> unique_constraint(:identifier)
-  end
-
-  def with_org(device_query) do
-    device_query
-    |> preload(:org)
   end
 end
