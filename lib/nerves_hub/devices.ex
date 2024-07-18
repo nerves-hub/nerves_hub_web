@@ -1085,19 +1085,16 @@ defmodule NervesHub.Devices do
       |> DateTime.add(60 * deployment.inflight_update_expiration_minutes, :second)
       |> DateTime.truncate(:second)
 
-    changeset =
-      %InflightUpdate{}
-      |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_change(:device_id, device.id)
-      |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
-      |> Ecto.Changeset.put_change(:firmware_id, deployment.firmware_id)
-      |> Ecto.Changeset.put_change(:firmware_uuid, deployment.firmware.uuid)
-      |> Ecto.Changeset.put_change(:expires_at, expires_at)
-      |> Ecto.Changeset.unique_constraint(:deployment_id,
-        name: :inflight_updates_device_id_deployment_id_index
-      )
-
-    case Repo.insert(changeset) do
+    %{
+      device_id: device.id,
+      deployment_id: deployment.id,
+      firmware_id: deployment.firmware_id,
+      firmware_uuid: deployment.firmware.uuid,
+      expires_at: expires_at
+    }
+    |> InflightUpdate.create_changeset()
+    |> Repo.insert()
+    |> case do
       {:ok, inflight_update} ->
         {:ok, inflight_update}
 
@@ -1116,6 +1113,12 @@ defmodule NervesHub.Devices do
   def clear_inflight_update(device) do
     InflightUpdate
     |> where([iu], iu.device_id == ^device.id)
+    |> Repo.delete_all()
+  end
+
+  def delete_expired_inflight_updates() do
+    InflightUpdate
+    |> where([iu], iu.expires_at < fragment("now()"))
     |> Repo.delete_all()
   end
 

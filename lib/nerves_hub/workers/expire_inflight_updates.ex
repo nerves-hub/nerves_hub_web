@@ -9,24 +9,22 @@ defmodule NervesHub.Workers.ExpireInflightUpdates do
     max_attempts: 1,
     queue: :truncate
 
-  import Ecto.Query
-
   require Logger
 
-  alias NervesHub.Devices.InflightUpdate
-  alias NervesHub.Repo
+  alias NervesHub.Devices
 
   @impl true
   def perform(_) do
-    {count, _} =
-      InflightUpdate
-      |> where([iu], iu.expires_at < fragment("now()"))
-      |> Repo.delete_all()
+    {count, _} = Devices.delete_expired_inflight_updates()
 
-    if count > 0 do
+    if count > 0 && prod?() do
       Logger.info("Expired #{count} inflight updates")
     end
 
     :ok
+  end
+
+  def prod?() do
+    Application.get_env(:nerves_hub, :deploy_env) == "prod"
   end
 end
