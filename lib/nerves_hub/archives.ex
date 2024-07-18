@@ -93,11 +93,11 @@ defmodule NervesHub.Archives do
     NervesHub.Uploads.url(archive_path(archive), signed: [expires_in: 3600])
   end
 
-  def archive_path(archive) do
+  defp archive_path(archive) do
     "/archives/#{archive.uuid}.fw"
   end
 
-  def validate_signature(org, file_path) do
+  defp validate_signature(org, file_path) do
     signed_key =
       Enum.find(org.org_keys, fn %{key: key} ->
         case System.cmd("fwup", ["--verify", "--public-key", key, "-i", file_path]) do
