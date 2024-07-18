@@ -1,4 +1,6 @@
 defmodule NervesHub.Fwup do
+  @spec metadata(String.t()) ::
+          {:ok, map()} | {:error, :invalid_metadata} | {:error, atom()}
   def metadata(file_path) do
     with {:ok, metadata} <- get_metadata(file_path),
          {:ok, uuid} <- metadata_value(metadata, "meta-uuid"),
@@ -23,6 +25,8 @@ defmodule NervesHub.Fwup do
       }
 
       {:ok, metadata}
+    else
+      {:error, {_, :not_found}} -> {:error, :invalid_metadata}
     end
   end
 
