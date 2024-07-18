@@ -5,6 +5,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Archives
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Deployments
   alias NervesHub.Firmwares
   alias NervesHub.Products
@@ -364,6 +365,26 @@ defmodule NervesHub.Fixtures do
       |> Repo.update()
 
     %{fixture | db_cert: db_cert}
+  end
+
+  def inflight_update(device, deployment, params \\ %{}) do
+    expires_at =
+      DateTime.utc_now()
+      |> DateTime.shift(hour: 1)
+      |> DateTime.truncate(:second)
+
+    defaults = %{
+      "device_id" => device.id,
+      "deployment_id" => deployment.id,
+      "firmware_id" => deployment.firmware_id,
+      "firmware_uuid" => deployment.firmware.uuid,
+      "expires_at" => expires_at
+    }
+
+    defaults
+    |> Map.merge(params)
+    |> InflightUpdate.create_changeset()
+    |> Repo.insert()
   end
 
   def standard_fixture(dir \\ System.tmp_dir()) do

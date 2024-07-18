@@ -881,6 +881,24 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
+  describe "inflight updates" do
+    test "clears expired inflight updates", %{device: device, deployment: deployment} do
+      deployment = Repo.preload(deployment, :firmware)
+      Fixtures.inflight_update(device, deployment)
+      assert {0, _} = Devices.delete_expired_inflight_updates()
+
+      Devices.clear_inflight_update(device)
+
+      expires_at =
+        DateTime.utc_now()
+        |> DateTime.shift(hour: -1)
+        |> DateTime.truncate(:second)
+
+      Fixtures.inflight_update(device, deployment, %{"expires_at" => expires_at})
+      assert {1, _} = Devices.delete_expired_inflight_updates()
+    end
+  end
+
   defp update_firmware_uuid(device, uuid) do
     firmware_metadata = %{
       architecture: "x86_64",
