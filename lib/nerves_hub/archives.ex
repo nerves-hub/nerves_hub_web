@@ -9,15 +9,18 @@ defmodule NervesHub.Archives do
 
   alias NervesHub.Archives.Archive
   alias NervesHub.Fwup
+  alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteArchive
 
+  @spec all_by_product(Product.t()) :: [Archive.t()]
   def all_by_product(product) do
     Archive
     |> where([a], a.product_id == ^product.id)
     |> Repo.all()
   end
 
+  @spec get(Product.t(), String.t()) :: {:ok, Archive.t()} | {:error, :not_found}
   def get(product, uuid) when is_binary(uuid) do
     Archive
     |> where([a], a.uuid == ^uuid)
@@ -32,6 +35,7 @@ defmodule NervesHub.Archives do
     end
   end
 
+  @spec get_by_product_and_uuid!(Product.t(), String.t()) :: Archive.t()
   def get_by_product_and_uuid!(product, uuid) do
     Archive
     |> where(uuid: ^uuid)
@@ -42,6 +46,12 @@ defmodule NervesHub.Archives do
     |> Repo.one!()
   end
 
+  # TODO: check on other return signatures
+  @spec create(Product.t(), String.t()) ::
+          {:ok, Archive.t()}
+          | {:error, :invalid_signature}
+          | {:error, any()}
+          | {:error, {any(), :not_found}}
   def create(product, file_path) do
     product = Repo.preload(product, org: [:org_keys])
 
@@ -60,6 +70,7 @@ defmodule NervesHub.Archives do
     end
   end
 
+  @spec delete_archive(Archive.t()) :: {:ok, Archive.t()} | {:error, any()}
   def delete_archive(%Archive{} = archive) do
     Repo.transaction(fn ->
       with {:ok, archive} <- Repo.delete(archive),
@@ -77,6 +88,7 @@ defmodule NervesHub.Archives do
     |> Oban.insert()
   end
 
+  @spec url(Archive.t()) :: String.t()
   def url(archive) do
     NervesHub.Uploads.url(archive_path(archive), signed: [expires_in: 3600])
   end
