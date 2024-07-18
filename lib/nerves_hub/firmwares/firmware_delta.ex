@@ -2,7 +2,6 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
   use Ecto.Schema
 
   import Ecto.Changeset
-  import Ecto.Query
 
   alias NervesHub.Firmwares.Firmware
 
@@ -32,11 +31,5 @@ defmodule NervesHub.Firmwares.FirmwareDelta do
     |> unique_constraint(:unique_firmware_delta, name: :source_id_target_id_unique_index)
     |> foreign_key_constraint(:source_id, name: :firmware_deltas_source_id_fkey)
     |> foreign_key_constraint(:target_id, name: :firmware_deltas_target_id_fkey)
-  end
-
-  def with_firmwares(firmware_delta_query) do
-    firmware_delta_query
-    |> preload(:source)
-    |> preload(:target)
   end
 end
