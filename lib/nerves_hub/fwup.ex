@@ -26,7 +26,7 @@ defmodule NervesHub.Fwup do
     end
   end
 
-  def get_metadata(filepath) do
+  defp get_metadata(filepath) do
     case System.cmd("fwup", ["-m", "-i", filepath]) do
       {metadata, 0} ->
         {:ok, metadata}
@@ -36,7 +36,7 @@ defmodule NervesHub.Fwup do
     end
   end
 
-  def metadata_value(metadata, key) when is_binary(key) do
+  defp metadata_value(metadata, key) when is_binary(key) do
     {:ok, regex} = "#{key}=\"(?<value>[^\n]+)\"" |> Regex.compile()
 
     case Regex.named_captures(regex, metadata) do
@@ -48,7 +48,7 @@ defmodule NervesHub.Fwup do
     end
   end
 
-  def metadata_value(metadata, key, default) when is_binary(key) do
+  defp metadata_value(metadata, key, default) when is_binary(key) do
     case metadata_value(metadata, key) do
       {:ok, metadata_item} ->
         {:ok, metadata_item}
