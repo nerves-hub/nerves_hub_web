@@ -9,6 +9,7 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareTransfer
+  alias NervesHub.Fwup
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -225,37 +226,6 @@ defmodule NervesHub.Firmwares do
     {:ok, metadata}
   end
 
-  @doc """
-  Same as `metadata_from_firmware/1` but takes a file path instead of a firmware struct
-  """
-  @spec metadata_from_fwup(Path.t()) :: {:ok, FirmwareMetadata.metadata()} | {:error, any()}
-  def metadata_from_fwup(firmware_file) do
-    with {:ok, fwup_metadata} <- get_fwup_metadata(firmware_file),
-         {:ok, uuid} <- fetch_fwup_metadata_value(fwup_metadata, "meta-uuid"),
-         {:ok, architecture} <- fetch_fwup_metadata_value(fwup_metadata, "meta-architecture"),
-         {:ok, platform} <- fetch_fwup_metadata_value(fwup_metadata, "meta-platform"),
-         {:ok, product} <- fetch_fwup_metadata_value(fwup_metadata, "meta-product"),
-         {:ok, version} <- fetch_fwup_metadata_value(fwup_metadata, "meta-version"),
-         author <- get_fwup_metadata_value(fwup_metadata, "meta-author"),
-         description <- get_fwup_metadata_value(fwup_metadata, "meta-description"),
-         misc <- get_fwup_metadata_value(fwup_metadata, "meta-misc"),
-         vcs_identifier <- get_fwup_metadata_value(fwup_metadata, "meta-vcs-identifier") do
-      metadata = %{
-        architecture: architecture,
-        author: author,
-        description: description,
-        misc: misc,
-        platform: platform,
-        product: product,
-        uuid: uuid,
-        vcs_identifier: vcs_identifier,
-        version: version
-      }
-
-      {:ok, metadata}
-    end
-  end
-
   def metadata_from_device(metadata) do
     params = %{
       uuid: Map.get(metadata, "nerves_fw_uuid"),
@@ -379,7 +349,7 @@ defmodule NervesHub.Firmwares do
     org = NervesHub.Repo.preload(org, :org_keys)
 
     with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
-         {:ok, metadata} <- metadata_from_fwup(filepath) do
+         {:ok, metadata} <- Fwup.metadata(filepath) do
       filename = metadata.uuid <> ".fw"
 
       params =
@@ -439,37 +409,11 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  @typep metadata_string() :: String.t()
-  @typep metadata_key() :: String.t()
-  @typep metadata_value() :: String.t() | nil
-
-  @spec get_fwup_metadata(Path.t()) :: {:ok, metadata_string()} | {:error, String.t()}
-  defp get_fwup_metadata(filepath) do
-    case System.cmd("fwup", ["-m", "-i", filepath]) do
-      {metadata, 0} ->
-        {:ok, metadata}
-
-      {error, _} ->
-        {:error, error}
-    end
-  end
-
-  @spec fetch_fwup_metadata_value(metadata_string(), metadata_key()) ::
-          {:ok, metadata_value()} | {:error, {metadata_key(), :not_found}}
-  defp fetch_fwup_metadata_value(metadata, key) when is_binary(key) do
-    {:ok, regex} = "#{key}=\"(?<value>[^\n]+)\"" |> Regex.compile()
-
-    case Regex.named_captures(regex, metadata) do
-      %{"value" => value} -> {:ok, value}
-      _ -> {:error, {key, :not_found}}
-    end
-  end
-
-  @spec get_fwup_metadata_value(metadata_string(), metadata_key()) :: metadata_value()
-  defp get_fwup_metadata_value(metadata, key) when is_binary(key) do
-    case fetch_fwup_metadata_value(metadata, key) do
-      {:ok, metadata_item} -> metadata_item
-      {:error, {_, :not_found}} -> nil
+  defp get_metadata_req_header(conn, header) do
+    case Plug.Conn.get_req_header(conn, "x-nerveshub-#{header}") do
+      [] -> nil
+      ["" | _] -> nil
+      [value | _] -> value
     end
   end
 
