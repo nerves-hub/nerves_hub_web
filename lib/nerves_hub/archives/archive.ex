@@ -5,6 +5,7 @@ defmodule NervesHub.Archives.Archive do
 
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Products.Product
+  alias NervesHub.Fwup.Metadata
 
   schema "archives" do
     belongs_to(:product, Product, where: [deleted_at: nil])
@@ -22,6 +23,10 @@ defmodule NervesHub.Archives.Archive do
     field(:vcs_identifier, :string)
 
     timestamps()
+  end
+
+  def create_changeset(archive, %Metadata{} = metadata) do
+    create_changeset(archive, Map.from_struct(metadata))
   end
 
   def create_changeset(archive, params) do
