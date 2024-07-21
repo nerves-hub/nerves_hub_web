@@ -3,10 +3,22 @@ defmodule NervesHub.Fwup do
   Helpers for dealing with files created by FWUP.
   """
 
-  @required_metadata_keys [:architecture, :platform, :product, :uuid, :version]
-  @optional_metadata_keys [:author, :description, :misc, :vcs_identifier]
-
   @metadata_regex Regex.compile!("meta-(?<key>[^\n]+)=\"(?<value>[^\n]+)\"")
+
+  defmodule Metadata do
+    @enforce_keys [:architecture, :platform, :product, :uuid, :version]
+    defstruct [
+      :architecture,
+      :platform,
+      :product,
+      :uuid,
+      :version,
+      :author,
+      :description,
+      :misc,
+      :vcs_identifier
+    ]
+  end
 
   @doc """
   Decode and parse metadata from a FWUP file.
@@ -18,10 +30,8 @@ defmodule NervesHub.Fwup do
   def metadata(file_path) do
     with {:ok, metadata} <- get_metadata(file_path),
          parsed_metadata <- parse_metadata(metadata),
-         {:ok, required_metadata} <- required_values(parsed_metadata),
-         optional_metadata <- optional_values(parsed_metadata),
-         complete <- Map.merge(required_metadata, optional_metadata) do
-      {:ok, complete}
+         {:ok, metadata_struct} <- transform_to_struct(parsed_metadata) do
+      {:ok, metadata_struct}
     end
   end
 
@@ -49,22 +59,11 @@ defmodule NervesHub.Fwup do
     end)
   end
 
-  defp required_values(metadata) do
-    slice = Map.take(metadata, @required_metadata_keys)
-    slice_keys = Map.keys(slice)
-
-    if Enum.sort(slice_keys) == @required_metadata_keys do
-      {:ok, slice}
-    else
-      {:error, :invalid_metadata}
-    end
-  end
-
-  defp optional_values(metadata) do
-    defaults = Map.new(@optional_metadata_keys, fn x -> {x, nil} end)
-
-    slice = Map.take(metadata, @optional_metadata_keys)
-
-    Map.merge(defaults, slice)
+  defp transform_to_struct(metadata) do
+    keys = Map.keys(Map.from_struct(Metadata))
+    filtered = Map.take(metadata, keys)
+    {:ok, struct!(Metadata, filtered)}
+  rescue
+    _ -> {:error, :invalid_metadata}
   end
 end
