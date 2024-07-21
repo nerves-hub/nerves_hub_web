@@ -3,8 +3,6 @@ defmodule NervesHub.Fwup do
   Helpers for dealing with files created by FWUP.
   """
 
-  @metadata_regex Regex.compile!("meta-(?<key>[^\n]+)=\"(?<value>[^\n]+)\"")
-
   defmodule Metadata do
     @enforce_keys [:architecture, :platform, :product, :uuid, :version]
     defstruct [
@@ -46,7 +44,7 @@ defmodule NervesHub.Fwup do
   end
 
   defp parse_metadata(metadata) do
-    Regex.scan(@metadata_regex, metadata)
+    Regex.scan(~r/meta-(?<key>[^\n]+)=\"(?<value>[^\n]+)\"/, metadata)
     |> Enum.reduce(%{}, fn line, acc ->
       [_, key, value] = line
 
