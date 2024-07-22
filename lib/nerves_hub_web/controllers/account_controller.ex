@@ -6,19 +6,32 @@ defmodule NervesHubWeb.AccountController do
   alias NervesHub.Accounts.{User, SwooshEmail}
   alias NervesHub.SwooshMailer
 
+  import Phoenix.HTML.Link
+
   plug(:registrations_allowed when action in [:new, :create])
 
   def new(conn, _params) do
     render(conn, "new.html", changeset: Ecto.Changeset.change(%User{}))
   end
 
-  def create(conn, %{"user" => user_params} = _) do
-    case Accounts.create_user(user_params) do
-      {:ok, new_user} ->
-        new_user
-        |> SwooshEmail.welcome_user()
-        |> SwooshMailer.deliver()
+  def delete(conn, %{"user_name" => username}) do
+    with {:ok, user} <- Accounts.get_user_by_username(username),
+         {:ok, _} <- Accounts.remove_account(user.id) do
+      conn
+      |> put_flash(:info, "Success")
+      |> redirect(to: "/login")
+    end
+  end
 
+  def update(conn, params) do
+    cleaned =
+      params["user"]
+      |> whitelist([:current_password, :password, :username, :email, :orgs])
+
+    conn.assigns.user
+    |> Accounts.update_user(cleaned)
+    |> case do
+      {:ok, _user} ->
         conn
         |> put_flash(:info, "Account successfully created, login below")
         |> redirect(to: "/login")
@@ -31,13 +44,43 @@ defmodule NervesHubWeb.AccountController do
   def invite(conn, %{"token" => token} = _) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
-      render(
-        conn,
-        "invite.html",
-        changeset: %Changeset{data: invite},
-        org: org,
-        token: token
-      )
+      # QUESTION: Should this be here raw or in a method somewhere else?
+      case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do
+        true ->
+          if invite.email == conn.assigns.user.email do
+            render(
+              conn,
+              # QUESTION: Should this be a separate template or the same one with conditional rendering?
+              "invite_existing.html",
+              changeset: %Changeset{data: invite},
+              org: org,
+              token: token
+            )
+          else
+            conn
+            |> put_flash(:error, "Invite not intended for the current user")
+            |> redirect(to: "/")
+          end
+
+        false ->
+          case Accounts.get_user_by_email(invite.email) do
+            # Invites for existing users
+            {:ok, _recipient} ->
+              conn
+              |> put_flash(:error, "You must be logged in to accept this invite")
+              |> redirect(to: "/login")
+
+            # Invites for new users
+            {:error, :not_found} ->
+              render(
+                conn,
+                "invite.html",
+                changeset: %Changeset{data: invite},
+                org: org,
+                token: token
+              )
+          end
+      end
     else
       _ ->
         conn
@@ -47,9 +90,11 @@ defmodule NervesHubWeb.AccountController do
   end
 
   def accept_invite(conn, %{"user" => user_params, "token" => token} = _) do
+    clean_params = whitelist(user_params, [:password, :username])
+
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
-      _accept_invite(conn, token, user_params, invite, org)
+      _accept_invite(conn, token, clean_params, invite, org)
     else
       {:error, :invite_not_found} ->
         conn
@@ -91,6 +136,35 @@ defmodule NervesHubWeb.AccountController do
         )
     end
   end
+
+  def maybe_show_invites(conn) do
+    case Map.has_key?(conn.assigns, :user) && !is_nil(conn.assigns.user) do
+      true ->
+        case conn.assigns.user
+             |> Accounts.get_invites_for_user() do
+          [] ->
+            conn
+
+          invites ->
+            conn
+            |> put_flash(
+              :info,
+              [
+                "You have " <>
+                  (length(invites) |> Integer.to_string()) <>
+                  " pending invite" <>
+                  if(length(invites) > 1, do: "s", else: "") <> " to organizations. ",
+                  link("Click here to view pending invites.",
+                  to: "/org/" <> conn.assigns.user.username <> "/invites"
+                )
+              ]
+            )
+        end
+
+      false ->
+        conn
+      end
+    end
 
   defp registrations_allowed(conn, _options) do
     if Application.get_env(:nerves_hub, :open_for_registrations) do
