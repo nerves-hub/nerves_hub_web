@@ -182,7 +182,7 @@ defmodule NervesHub.Products do
     end
   end
 
-  @spec load_shared_secret_auth(Product.t()) :: Product.t()
+  @spec load_shared_secret_auth(Product.t()) :: Product.t() | [Product.t()] | nil
   def load_shared_secret_auth(product) do
     product
     |> Ecto.reset_fields([:shared_secret_auths])

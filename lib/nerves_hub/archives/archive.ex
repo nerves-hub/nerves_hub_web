@@ -7,6 +7,20 @@ defmodule NervesHub.Archives.Archive do
   alias NervesHub.Products.Product
   alias NervesHub.Fwup.Metadata
 
+  @type t :: %__MODULE__{
+          architecture: String.t(),
+          author: String.t() | nil,
+          description: String.t() | nil,
+          misc: String.t() | nil,
+          org_key: Ecto.Association.NotLoaded.t() | OrgKey.t(),
+          platform: String.t(),
+          product: Ecto.Association.NotLoaded.t() | Product.t(),
+          size: pos_integer(),
+          uuid: Ecto.UUID.t(),
+          vcs_identifier: String.t() | nil,
+          version: Version.build()
+        }
+
   schema "archives" do
     belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:org_key, OrgKey)
