@@ -182,11 +182,15 @@ defmodule NervesHub.Products do
     end
   end
 
-  @spec load_shared_secret_auth(Product.t()) :: Product.t() | [Product.t()] | nil
+  @spec load_shared_secret_auth(Product.t()) :: Product.t()
   def load_shared_secret_auth(product) do
     product
     |> Ecto.reset_fields([:shared_secret_auths])
     |> Repo.preload(:shared_secret_auths)
+    |> case do
+      %Product{} = reloaded -> reloaded
+      _ -> raise "Product not found"
+    end
   end
 
   @spec create_shared_secret_auth(Product.t()) ::
