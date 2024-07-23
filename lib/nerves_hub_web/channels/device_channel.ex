@@ -429,11 +429,12 @@ defmodule NervesHubWeb.DeviceChannel do
 
     {:ok, device} = Devices.update_device(device, %{connection_metadata: metadata})
 
-    NervesHubWeb.DeviceEndpoint.broadcast(
-      "device:#{device.identifier}:internal",
-      "location:updated",
-      location
-    )
+    _ =
+      NervesHubWeb.DeviceEndpoint.broadcast(
+        "device:#{device.identifier}:internal",
+        "location:updated",
+        location
+      )
 
     {:reply, :ok, assign(socket, :device, device)}
   end

@@ -76,13 +76,14 @@ defmodule NervesHub.Support.Fwup do
     conf_path = make_conf(struct(InvalidMetaParams, meta_params), dir)
     out_path = Path.join([dir, firmware_name <> ".fw"])
 
-    System.cmd("fwup", [
-      "-c",
-      "-f",
-      conf_path,
-      "-o",
-      out_path
-    ])
+    {_, 0} =
+      System.cmd("fwup", [
+        "-c",
+        "-f",
+        conf_path,
+        "-o",
+        out_path
+      ])
 
     {:ok, out_path}
   end

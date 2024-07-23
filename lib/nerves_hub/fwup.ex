@@ -22,9 +22,8 @@ defmodule NervesHub.Fwup do
   Decode and parse metadata from a FWUP file.
   """
   @spec metadata(String.t()) ::
-          {:ok, map()}
-          | {:error, :invalid_fwup_file}
-          | {:error, :invalid_metadata}
+          {:ok, struct()}
+          | {:error, :invalid_fwup_file | :invalid_metadata}
   def metadata(file_path) do
     with {:ok, metadata} <- get_metadata(file_path),
          parsed_metadata <- parse_metadata(metadata),
