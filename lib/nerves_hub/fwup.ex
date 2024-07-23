@@ -5,6 +5,7 @@ defmodule NervesHub.Fwup do
 
   defmodule Metadata do
     @enforce_keys [:architecture, :platform, :product, :uuid, :version]
+
     defstruct [
       :architecture,
       :platform,
@@ -16,13 +17,25 @@ defmodule NervesHub.Fwup do
       :misc,
       :vcs_identifier
     ]
+
+    @type t() :: %__MODULE__{
+            architecture: String.t(),
+            platform: String.t(),
+            product: String.t(),
+            uuid: String.t(),
+            version: String.t(),
+            author: String.t(),
+            description: String.t(),
+            misc: String.t(),
+            vcs_identifier: String.t()
+          }
   end
 
   @doc """
   Decode and parse metadata from a FWUP file.
   """
   @spec metadata(String.t()) ::
-          {:ok, struct()}
+          {:ok, Metadata.t()}
           | {:error, :invalid_fwup_file | :invalid_metadata}
   def metadata(file_path) do
     with {:ok, metadata} <- get_metadata(file_path),
