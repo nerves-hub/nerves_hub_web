@@ -409,14 +409,6 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  defp get_metadata_req_header(conn, header) do
-    case Plug.Conn.get_req_header(conn, "x-nerveshub-#{header}") do
-      [] -> nil
-      ["" | _] -> nil
-      [value | _] -> value
-    end
-  end
-
   defp delta_updater() do
     Application.get_env(
       :nerves_hub,
