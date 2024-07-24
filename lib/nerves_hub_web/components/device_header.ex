@@ -35,13 +35,13 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last connected at</span>
           <span class="tooltip-info"></span>
-          <span class="tooltip-text"><%= @device.connection_established_at %></span>
+          <span class="tooltip-text"><%= @device.connection_last_seen_at %></span>
         </div>
         <p>
-          <%= if is_nil(@device.connection_established_at) do %>
+          <%= if is_nil(@device.connection_last_seen_at) do %>
             Never
           <% else %>
-            <%= DateTimeFormat.from_now(@device.connection_established_at) %>
+            <%= DateTimeFormat.from_now(@device.connection_last_seen_at) %>
           <% end %>
         </p>
       </div>
@@ -49,22 +49,22 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last seen at</span>
           <span class="tooltip-info"></span>
-          <span :if={@device.last_communication} class="tooltip-text" id="last-communication-at-tooltip" phx-hook="LocalTime">
-            <%= DateTime.to_string(@device.last_communication) %>
+          <span :if={@device.connection_last_seen_at} class="tooltip-text" id="last-communication-at-tooltip" phx-hook="LocalTime">
+            <%= DateTime.to_string(@device.connection_last_seen_at) %>
           </span>
-          <span :if={!@device.last_communication} class="tooltip-text">
+          <span :if={!@device.connection_last_seen_at} class="tooltip-text">
             Never
           </span>
         </div>
         <p>
-          <span :if={!@device.last_communication}>Never</span>
+          <span :if={!@device.connection_last_seen_at}>Never</span>
           <time
-            :if={@device.last_communication}
+            :if={@device.connection_last_seen_at}
             id="last-communication-at"
             phx-hook="UpdatingTimeAgo"
-            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.last_communication, :second)), " ", "T")}
+            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.connection_last_seen_at, :second)), " ", "T")}
           >
-            <%= Timex.from_now(@device.last_communication) %>
+            <%= Timex.from_now(@device.connection_last_seen_at) %>
           </time>
         </p>
       </div>
