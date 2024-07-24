@@ -24,8 +24,9 @@ config :nerves_hub,
     username: System.get_env("ADMIN_AUTH_USERNAME"),
     password: System.get_env("ADMIN_AUTH_PASSWORD")
   ],
-  health_check_interval_minutes:
-    String.to_integer(System.get_env("HEALTH_CHECK_INTERVAL_MINUTES", "60")),
+  device_health_check_enabled: System.get_env("DEVICE_HEALTH_CHECK_ENABLED", "true") == "true",
+  device_health_check_interval_minutes:
+    String.to_integer(System.get_env("DEVICE_HEALTH_CHECK_INTERVAL_MINUTES", "60")),
   device_health_days_to_retain:
     String.to_integer(System.get_env("HEALTH_CHECK_DAYS_TO_RETAIN", "7")),
   device_deployment_change_jitter_seconds:

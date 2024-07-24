@@ -236,12 +236,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   defp schedule_health_check_timer(socket) do
-    if connected?(socket) do
+    if connected?(socket) and device_health_check_enabled?() do
       timer_ref = Process.send_after(self(), :check_health_interval, 500)
       assign(socket, :health_check_timer, timer_ref)
     else
       assign(socket, :health_check_timer, nil)
     end
+  end
+
+  defp device_health_check_enabled?() do
+    Application.get_env(:nerves_hub, :device_health_check_enabled)
   end
 
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do

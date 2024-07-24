@@ -703,13 +703,21 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp schedule_health_check() do
-    interval = Application.get_env(:nerves_hub, :health_check_interval_minutes)
-
-    Process.send_after(self(), :health_check, :timer.minutes(interval))
+    if device_health_check_enabled?() do
+      interval = Application.get_env(:nerves_hub, :device_health_check_interval_minutes)
+      Process.send_after(self(), :health_check, :timer.minutes(interval))
+      :ok
+    else
+      :ok
+    end
   end
 
   defp last_seen_update_interval() do
     Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
     |> :timer.minutes()
+  end
+
+  defp device_health_check_enabled?() do
+    Application.get_env(:nerves_hub, :device_health_check_enabled)
   end
 end
