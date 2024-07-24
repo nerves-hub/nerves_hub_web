@@ -5,7 +5,7 @@ defmodule NervesHub.Workers.OrgAuditLogTruncation do
 
   @impl true
   def perform(%Oban.Job{args: %{"org_id" => id, "days_to_keep" => days_to_keep}}) do
-    NervesHub.AuditLogs.truncate(id, days_to_keep)
+    {:ok, _} = NervesHub.AuditLogs.truncate(id, days_to_keep)
 
     :ok
   end
