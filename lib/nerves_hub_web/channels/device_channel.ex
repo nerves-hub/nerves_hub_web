@@ -30,7 +30,7 @@ defmodule NervesHubWeb.DeviceChannel do
     else
       err ->
         Logger.warning("[DeviceChannel] failure to connect - #{inspect(err)}")
-        Devices.device_disconnected(device)
+        _ = Devices.device_disconnected(device)
         {:error, %{error: "could not connect"}}
     end
   end
