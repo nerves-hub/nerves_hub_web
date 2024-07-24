@@ -14,8 +14,9 @@ defmodule NervesHubWeb.API.KeyControllerTest do
 
   describe "index roles" do
     test "error: missing org read", %{conn2: conn, org: org} do
-      conn = get(conn, Routes.api_key_path(conn, :index, org.name))
-      assert json_response(conn, 403)["status"] != ""
+      assert_raise(Ecto.NoResultsError, fn ->
+        get(conn, Routes.api_key_path(conn, :index, org.name))
+      end)
     end
   end
 

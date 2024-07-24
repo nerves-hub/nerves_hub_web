@@ -16,13 +16,13 @@ defmodule NervesHubWeb.DeviceSocket do
   @default_max_hmac_age 90
 
   # Used by Devices connecting with SSL certificates
-  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}} = connect_info)
+  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}})
       when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
     |> Devices.get_device_certificate_by_x509()
     |> case do
       {:ok, %{device: %Device{} = device}} ->
-        socket_and_assigns(socket, device, connect_info)
+        socket_and_assigns(socket, device)
 
       _e ->
         {:error, :invalid_auth}
@@ -30,7 +30,7 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
-  def connect(_params, socket, %{x_headers: x_headers} = connect_info)
+  def connect(_params, socket, %{x_headers: x_headers})
       when is_list(x_headers) and length(x_headers) > 0 do
     headers = Map.new(x_headers)
 
@@ -40,7 +40,7 @@ defmodule NervesHubWeb.DeviceSocket do
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
          {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_opts),
          {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
-      socket_and_assigns(socket, device, connect_info)
+      socket_and_assigns(socket, device)
     else
       error ->
         Logger.info("device authentication failed : #{inspect(error)}")
@@ -120,36 +120,11 @@ defmodule NervesHubWeb.DeviceSocket do
     |> Keyword.get(:enabled, false)
   end
 
-  defp ip_information(connect_info) do
-    cond do
-      forwarded_for = x_forwarded_for(connect_info) ->
-        forwarded_for
-
-      address = connect_info[:peer_data][:address] ->
-        to_string(:inet.ntoa(address))
-
-      true ->
-        nil
-    end
-  end
-
-  defp x_forwarded_for(connect_info) do
-    (connect_info[:x_headers] || [])
-    |> Enum.find_value(fn
-      {"x-forwarded-for", val} ->
-        hd(String.split(val, ","))
-
-      _ ->
-        nil
-    end)
-  end
-
-  defp socket_and_assigns(socket, device, connect_info) do
+  defp socket_and_assigns(socket, device) do
     socket =
       socket
       |> assign(:device, device)
       |> assign(:reference_id, generate_reference_id())
-      |> assign(:request_ip, ip_information(connect_info))
 
     {:ok, socket}
   end

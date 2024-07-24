@@ -171,19 +171,6 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("span", text: "Device maps haven't been enabled on your platform.")
     end
 
-    test "no location information found attached to the device", %{
-      conn: conn,
-      org: org,
-      product: product,
-      device: device
-    } do
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("h1", text: device.identifier)
-      |> assert_has("span", text: "Device location")
-      |> assert_has("span", text: "No location was found for the device.")
-    end
-
     test "location information is empty", %{
       conn: conn,
       org: org,
@@ -196,13 +183,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("span", text: "Device location")
-      |> assert_has("span", text: "No location was found for the device.")
+      |> assert_has("span", text: "No location information found.")
     end
 
-    test "ip address reserved", %{conn: conn, org: org, product: product, device: device} do
+    test "a location error occurred", %{conn: conn, org: org, product: product, device: device} do
       metadata = %{
-        "request_ip" => "127.0.0.1",
-        "location" => %{"error_code" => "IP_ADDRESS_RESERVED"}
+        "location" => %{"error_code" => "BOOP", "error_description" => "BEEP"}
       }
 
       Devices.update_device(device, %{connection_metadata: metadata})
@@ -211,7 +197,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("span", text: "Device location")
-      |> assert_has("span", text: "The IP address is reporting as 127.0.0.1")
+      |> assert_has("span", text: "An error occurred during location resolution : BOOP")
+      |> assert_has("span", text: "BEEP")
     end
 
     test "the happy path", %{conn: conn, org: org, product: product, device: device} do
@@ -219,7 +206,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "location" => %{
           "latitude" => "-41.3159",
           "longitude" => "174.8185",
-          "accuracy_radius" => "20"
+          "accuracy" => "20",
+          "source" => "geoip"
         }
       }
 

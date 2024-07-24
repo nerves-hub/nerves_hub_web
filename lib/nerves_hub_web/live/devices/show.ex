@@ -85,6 +85,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, assign(socket, :health_check_timer, timer_ref)}
   end
 
+  def handle_info(%Broadcast{event: "location:updated"}, socket) do
+    %{device: device, org: org} = socket.assigns
+
+    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
+
+    {:noreply, assign(socket, :device, device)}
+  end
+
   # Ignore unknown messages
   def handle_info(_unknown, socket), do: {:noreply, socket}
 
@@ -219,7 +227,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       firmware_meta: meta
     }
 
-    NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "deployments/update", payload)
+    _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "deployments/update", payload)
 
     socket
     |> assign(:device, device)
@@ -237,7 +245,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
-    logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 10})
+    logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 5})
 
     assign(socket, :audit_logs, logs)
   end

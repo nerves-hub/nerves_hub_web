@@ -35,10 +35,6 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.Plugs.Product)
   end
 
-  pipeline :firmware do
-    plug(NervesHubWeb.Plugs.Firmware)
-  end
-
   pipeline :api do
     plug(:accepts, ["json"])
   end
@@ -64,7 +60,6 @@ defmodule NervesHubWeb.Router do
 
     get("/health", HealthCheckController, :health_check)
 
-    post("/users/register", UserController, :register)
     post("/users/auth", UserController, :auth)
     post("/users/login", UserController, :login)
 

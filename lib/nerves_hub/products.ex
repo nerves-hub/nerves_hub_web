@@ -5,10 +5,13 @@ defmodule NervesHub.Products do
 
   import Ecto.Query, warn: false
 
-  alias Ecto.Multi
-  alias NervesHub.{Certificate, Repo}
-  alias NervesHub.Products.{Product, SharedSecretAuth}
-  alias NervesHub.Accounts.{User, Org, OrgUser}
+  alias NervesHub.Repo
+
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Products.Product
+  alias NervesHub.Products.SharedSecretAuth
+  alias NervesHub.Accounts.User
 
   alias NimbleCSV.RFC4180, as: CSV
 
@@ -17,6 +20,7 @@ defmodule NervesHub.Products do
 
   def __csv_header__, do: @csv_header
 
+  @spec get_products_by_user_and_org(User.t(), Org.t()) :: [Product.t()]
   def get_products_by_user_and_org(%User{id: user_id}, %Org{id: org_id}) do
     query =
       from(
@@ -48,12 +52,14 @@ defmodule NervesHub.Products do
       ** (Ecto.NoResultsError)
 
   """
+  @spec get_product!(pos_integer()) :: Product.t()
   def get_product!(id) do
     Product
     |> Repo.exclude_deleted()
     |> Repo.get!(id)
   end
 
+  @spec get_product(pos_integer()) :: {:ok, Product.t()} | {:error, :not_found}
   def get_product(id) do
     Product
     |> Repo.exclude_deleted()
@@ -64,31 +70,36 @@ defmodule NervesHub.Products do
     end
   end
 
+  @spec get_product_by_org_id_and_name!(pos_integer(), String.t()) :: Product.t()
+  def get_product_by_org_id_and_name!(org_id, name) do
+    get_product_by_org_id_and_name_query(org_id, name)
+    |> Repo.one!()
+  end
+
+  @spec get_product_by_org_id_and_name(pos_integer(), String.t()) ::
+          {:ok, Product.t()} | {:error, :not_found}
   def get_product_by_org_id_and_name(org_id, name) do
-    Product
-    |> Repo.exclude_deleted()
-    |> Repo.get_by(org_id: org_id, name: name)
+    get_product_by_org_id_and_name_query(org_id, name)
+    |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
       product -> {:ok, product}
     end
   end
 
+  def get_product_by_org_id_and_name_query(org_id, name) do
+    Product
+    |> where(org_id: ^org_id, name: ^name)
+    |> Repo.exclude_deleted()
+  end
+
   @doc """
   Creates a product.
   """
+  @spec create_product(map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def create_product(params) do
-    multi =
-      Multi.new()
-      |> Multi.insert(:product, Product.changeset(%Product{}, params))
-
-    case Repo.transaction(multi) do
-      {:ok, result} ->
-        {:ok, result.product}
-
-      {:error, :product, changeset, _} ->
-        {:error, changeset}
-    end
+    Product.changeset(%Product{}, params)
+    |> Repo.insert()
   end
 
   @doc """
@@ -103,6 +114,7 @@ defmodule NervesHub.Products do
       {:error, %Ecto.Changeset{}}
 
   """
+  @spec update_product(Product.t(), map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def update_product(%Product{} = product, attrs) do
     product
     |> Product.update_changeset(attrs)
@@ -121,6 +133,7 @@ defmodule NervesHub.Products do
       {:error, %Ecto.Changeset{}}
 
   """
+  @spec delete_product(Product.t()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
   def delete_product(%Product{} = product) do
     product
     |> Product.delete_changeset()
@@ -136,10 +149,13 @@ defmodule NervesHub.Products do
       %Ecto.Changeset{source: %Product{}}
 
   """
+  @spec change_product(Product.t()) :: Ecto.Changeset.t()
   def change_product(%Product{} = product) do
     Product.changeset(product, %{})
   end
 
+  @spec get_shared_secret_auth(pos_integer(), pos_integer()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, :not_found}
   def get_shared_secret_auth(product_id, auth_id) do
     SharedSecretAuth
     |> join(:inner, [ssa], p in assoc(ssa, :product))
@@ -152,6 +168,7 @@ defmodule NervesHub.Products do
     end
   end
 
+  @spec get_shared_secret_auth(String.t()) :: {:ok, SharedSecretAuth.t()} | {:error, :not_found}
   def get_shared_secret_auth(key) do
     SharedSecretAuth
     |> join(:inner, [ssa], p in assoc(ssa, :product))
@@ -165,18 +182,27 @@ defmodule NervesHub.Products do
     end
   end
 
+  @spec load_shared_secret_auth(Product.t()) :: Product.t()
   def load_shared_secret_auth(product) do
     product
     |> Ecto.reset_fields([:shared_secret_auths])
     |> Repo.preload(:shared_secret_auths)
+    |> case do
+      %Product{} = reloaded -> reloaded
+      _ -> raise "Product not found"
+    end
   end
 
+  @spec create_shared_secret_auth(Product.t()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, Ecto.Changeset.t()}
   def create_shared_secret_auth(product) do
     product
     |> SharedSecretAuth.create_changeset()
     |> Repo.insert()
   end
 
+  @spec deactivate_shared_secret_auth(Product.t(), pos_integer()) ::
+          {:ok, SharedSecretAuth.t()} | {:error, Ecto.Changeset.t()}
   def deactivate_shared_secret_auth(product, shared_secret_id) do
     {:ok, auth} = get_shared_secret_auth(product.id, shared_secret_id)
 
@@ -185,6 +211,7 @@ defmodule NervesHub.Products do
     |> Repo.update()
   end
 
+  @spec devices_csv(Product.t()) :: binary()
   def devices_csv(%Product{} = product) do
     product = Repo.preload(product, [:org, devices: :device_certificates])
     data = Enum.map(product.devices, &device_csv_line(&1, product))
@@ -192,73 +219,6 @@ defmodule NervesHub.Products do
     [@csv_header | data]
     |> CSV.dump_to_iodata()
     |> IO.iodata_to_binary()
-  end
-
-  def parse_csv_line(line) do
-    parsed =
-      for {k_str, v} <- Enum.zip(@csv_header, line),
-          key = String.to_existing_atom(k_str),
-          into: %{} do
-        val = if key == :certificates, do: parse_csv_device_certs(v), else: v
-        {key, val}
-      end
-
-    if length(line) == length(@csv_header) do
-      parsed
-    else
-      {:malformed, line, parsed}
-    end
-  end
-
-  defp parse_csv_device_certs(certs_str) do
-    for str <- String.split(certs_str, ~r/#{@csv_certs_sep}|\r\n\r\n/, trim: true) do
-      parse_cert_type(str)
-    end
-  end
-
-  defp parse_cert_type("{" <> _ = str) do
-    case Jason.decode(str) do
-      {:ok, attrs} ->
-        # We have a hard requirement for DERs to be included with the cert,
-        # but this JSON only appears when there was no DER to export.
-        # So mark it with from_json: true that can then be used later
-        # on to still allow cert creation in the import
-        for {k, v} <- attrs, key = String.to_existing_atom(k), into: %{from_json: true} do
-          val = if key in [:ski, :aki], do: decode(v), else: v
-          {key, val}
-        end
-
-      _ ->
-        :malformed_json
-    end
-  end
-
-  defp parse_cert_type(str) do
-    case Certificate.from_pem(str) do
-      {:ok, otp_cert} ->
-        parse_cert(otp_cert)
-
-      _ ->
-        with {:ok, der} <- Base.decode64(str),
-             {:ok, otp_cert} <- Certificate.from_der(der) do
-          parse_cert(otp_cert)
-        else
-          _ -> :malformed
-        end
-    end
-  end
-
-  defp parse_cert(otp_cert) do
-    {nb, na} = Certificate.get_validity(otp_cert)
-
-    %{
-      serial: Certificate.get_serial_number(otp_cert),
-      aki: Certificate.get_aki(otp_cert),
-      ski: Certificate.get_ski(otp_cert),
-      not_before: nb,
-      not_after: na,
-      der: Certificate.to_der(otp_cert)
-    }
   end
 
   defp device_csv_line(device, product) do
@@ -291,7 +251,4 @@ defmodule NervesHub.Products do
       end
     end
   end
-
-  defp decode(val) when is_binary(val), do: Base.decode16!(val)
-  defp decode(val), do: val
 end

@@ -17,13 +17,11 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Firmwares
   alias NervesHub.Repo
   alias NervesHub.Tracker
-  alias NervesHub.Utils.Geolocate
   alias Phoenix.Socket.Broadcast
 
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
-         {:ok, device} <- Devices.device_connected(device),
-         {:ok, device} <- update_connection_metadata(device, socket) do
+         {:ok, device} <- Devices.device_connected(device) do
       socket = assign(socket, :device, device)
 
       send(self(), {:after_join, params})
@@ -32,7 +30,7 @@ defmodule NervesHubWeb.DeviceChannel do
     else
       err ->
         Logger.warning("[DeviceChannel] failure to connect - #{inspect(err)}")
-
+        _ = Devices.device_disconnected(device)
         {:error, %{error: "could not connect"}}
     end
   end
@@ -66,25 +64,7 @@ defmodule NervesHubWeb.DeviceChannel do
       update_payload.update_available and not is_nil(update_payload.firmware_url) and
         update_payload.firmware_meta[:uuid] != params["currently_downloading_uuid"]
 
-    if push_update? do
-      # Push the update to the device
-      push(socket, "update", update_payload)
-
-      deployment = device.deployment
-
-      description =
-        "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} on connect"
-
-      AuditLogs.audit_with_ref!(
-        deployment,
-        device,
-        description,
-        socket.assigns.reference_id
-      )
-
-      # if there's an update, track it
-      Devices.told_to_update(device, deployment)
-    end
+    maybe_push_update(socket, update_payload, device, push_update?)
 
     ## After join
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
@@ -94,16 +74,17 @@ defmodule NervesHubWeb.DeviceChannel do
     })
 
     # local node tracking
-    Registry.update_value(NervesHub.Devices, device.id, fn value ->
-      update = %{
-        deployment_id: device.deployment_id,
-        firmware_uuid: device.firmware_metadata.uuid,
-        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-        updating: push_update?
-      }
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        update = %{
+          deployment_id: device.deployment_id,
+          firmware_uuid: device.firmware_metadata.uuid,
+          updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+          updating: push_update?
+        }
 
-      Map.merge(value, update)
-    end)
+        Map.merge(value, update)
+      end)
 
     # Cluster tracking
     Tracker.online(device)
@@ -154,12 +135,15 @@ defmodule NervesHubWeb.DeviceChannel do
     subscribe(deployment_channel)
 
     # local node tracking
-    Registry.register(NervesHub.Devices, device.id, %{
-      deployment_id: device.deployment_id,
-      firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
-      updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-      updating: false
-    })
+    _ =
+      Registry.register(NervesHub.Devices, device.id, %{
+        deployment_id: device.deployment_id,
+        firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
+        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+        updating: false
+      })
+
+    Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
 
     socket =
       socket
@@ -170,6 +154,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_info(:update_connection_last_seen, socket) do
+    {:ok, _device} = Devices.device_heartbeat(socket.assigns.device)
+    Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
+    {:noreply, socket}
+  end
+
   # We can save a fairly expensive query by checking the incoming deployment's payload
   # If it matches, we can set the deployment directly and only do 3 queries (update, two preloads)
   def handle_info(
@@ -177,9 +167,7 @@ defmodule NervesHubWeb.DeviceChannel do
         %{assigns: %{device: device}} = socket
       ) do
     if device_matches_deployment_payload?(device, payload) do
-      if timer = Map.get(socket.assigns, :assign_deployment_timer) do
-        Process.cancel_timer(timer)
-      end
+      cancel_deployment_timer(socket)
 
       # jitter to attempt to not slam the database when any matching
       # devices go to set their deployment. This is for very large
@@ -237,9 +225,10 @@ defmodule NervesHubWeb.DeviceChannel do
       socket.assigns.reference_id
     )
 
-    Registry.update_value(NervesHub.Devices, device.id, fn value ->
-      Map.put(value, :deployment_id, device.deployment_id)
-    end)
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.put(value, :deployment_id, device.deployment_id)
+      end)
 
     {:noreply, update_device(socket, device)}
   end
@@ -305,11 +294,12 @@ defmodule NervesHubWeb.DeviceChannel do
   def handle_info(%Broadcast{event: "devices/updated"}, %{assigns: %{device: device}} = socket) do
     device = Repo.reload(device)
 
-    Registry.update_value(NervesHub.Devices, device.id, fn value ->
-      Map.merge(value, %{
-        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
-      })
-    end)
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.merge(value, %{
+          updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
+        })
+      end)
 
     socket =
       socket
@@ -378,19 +368,17 @@ defmodule NervesHubWeb.DeviceChannel do
       updates_enabled: updates_enabled
     })
 
-    Registry.update_value(NervesHub.Devices, device.id, fn value ->
-      Map.merge(value, %{updates_enabled: updates_enabled})
-    end)
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.merge(value, %{updates_enabled: updates_enabled})
+      end)
 
     # Just in case time is weird or it got placed back in between checks
-    socket =
-      if !updates_enabled do
-        maybe_start_penalty_timer(socket)
-      else
-        socket
-      end
-
-    {:noreply, socket}
+    if updates_enabled do
+      {:noreply, socket}
+    else
+      {:noreply, maybe_start_penalty_timer(socket)}
+    end
   end
 
   def handle_info({:push, event, payload}, socket) do
@@ -429,27 +417,43 @@ defmodule NervesHubWeb.DeviceChannel do
     )
 
     # if this is the first fwup we see, then mark it as an update attempt
-    socket =
-      if !socket.assigns.update_started? do
-        # reload update attempts because they might have been cleared
-        # and we have a cached stale version
-        updated_device = Repo.reload(device)
-        device = %{device | update_attempts: updated_device.update_attempts}
+    if socket.assigns.update_started? do
+      {:noreply, socket}
+    else
+      # reload update attempts because they might have been cleared
+      # and we have a cached stale version
+      updated_device = Repo.reload(device)
+      device = %{device | update_attempts: updated_device.update_attempts}
 
-        {:ok, device} = Devices.update_attempted(device)
+      {:ok, device} = Devices.update_attempted(device)
 
+      _ =
         Registry.update_value(NervesHub.Devices, device.id, fn value ->
           Map.put(value, :updating, true)
         end)
 
+      socket =
         socket
         |> assign(:device, device)
         |> assign(:update_started?, true)
-      else
-        socket
-      end
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
+  end
+
+  def handle_in("location:update", location, %{assigns: %{device: device}} = socket) do
+    metadata = Map.put(device.connection_metadata, "location", location)
+
+    {:ok, device} = Devices.update_device(device, %{connection_metadata: metadata})
+
+    _ =
+      NervesHubWeb.DeviceEndpoint.broadcast(
+        "device:#{device.identifier}:internal",
+        "location:updated",
+        location
+      )
+
+    {:reply, :ok, assign(socket, :device, device)}
   end
 
   def handle_in("connection_types", %{"values" => types}, %{assigns: %{device: device}} = socket) do
@@ -552,8 +556,7 @@ defmodule NervesHubWeb.DeviceChannel do
       identifier: device.identifier
     })
 
-    {:ok, device} =
-      Devices.update_device(socket.assigns.device, %{last_communication: DateTime.utc_now()})
+    {:ok, device} = Devices.device_disconnected(device)
 
     Registry.unregister(NervesHub.Devices, device.id)
 
@@ -562,8 +565,35 @@ defmodule NervesHubWeb.DeviceChannel do
     :ok
   end
 
+  defp maybe_push_update(_socket, _update_payload, _device, false) do
+    :ok
+  end
+
+  defp maybe_push_update(socket, update_payload, device, true) do
+    # Push the update to the device
+    push(socket, "update", update_payload)
+
+    deployment = device.deployment
+
+    description =
+      "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} on connect"
+
+    AuditLogs.audit_with_ref!(
+      deployment,
+      device,
+      description,
+      socket.assigns.reference_id
+    )
+
+    # if there's an update, track it
+    _ = Devices.told_to_update(device, deployment)
+
+    :ok
+  end
+
   defp subscribe(topic) do
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+    _ = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
+    :ok
   end
 
   defp unsubscribe(topic) do
@@ -576,6 +606,15 @@ defmodule NervesHubWeb.DeviceChannel do
     push(socket, key_type, %{
       keys: Enum.map(org_keys, fn ok -> ok.key end)
     })
+  end
+
+  defp cancel_deployment_timer(%{assigns: %{assign_deployment_timer: timer}}) do
+    _ = Process.cancel_timer(timer)
+    :ok
+  end
+
+  defp cancel_deployment_timer(_socket) do
+    :ok
   end
 
   # The reported firmware is the same as what we already know about
@@ -591,15 +630,6 @@ defmodule NervesHubWeb.DeviceChannel do
          {:ok, device} <- Devices.update_firmware_metadata(device, metadata) do
       Devices.firmware_update_successful(device)
     end
-  end
-
-  defp update_connection_metadata(device, %{assigns: %{request_ip: request_ip}}) do
-    metadata =
-      device.connection_metadata
-      |> Map.put("request_ip", request_ip)
-      |> Map.put("location", Geolocate.resolve(request_ip))
-
-    Devices.update_device(device, %{connection_metadata: metadata})
   end
 
   defp maybe_start_penalty_timer(%{assigns: %{device: %{updates_blocked_until: nil}}} = socket),
@@ -643,9 +673,10 @@ defmodule NervesHubWeb.DeviceChannel do
 
     AuditLogs.audit_with_ref!(device, device, description, socket.assigns.reference_id)
 
-    Registry.update_value(NervesHub.Devices, device.id, fn value ->
-      Map.put(value, :deployment_id, device.deployment_id)
-    end)
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.put(value, :deployment_id, device.deployment_id)
+      end)
 
     update_device(socket, device)
   end
@@ -676,5 +707,10 @@ defmodule NervesHubWeb.DeviceChannel do
     interval = Application.get_env(:nerves_hub, :health_check_interval_minutes)
 
     Process.send_after(self(), :health_check, :timer.minutes(interval))
+  end
+
+  defp last_seen_update_interval() do
+    Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+    |> :timer.minutes()
   end
 end

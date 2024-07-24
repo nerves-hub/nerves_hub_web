@@ -11,24 +11,24 @@
 
   <h3>Step 1</h3>
   <p>Generate a key pair for the private key verification certificate</p>
-  <pre class="hljs"><code class="language-bash hljs">
-  openssl genrsa -out verificationCert.key 2048
+  <pre><code class="shell" phx-hook="HighlightCode" id={"step-1"}>
+  $ openssl genrsa -out verificationCert.key 2048
   </code></pre>
 
   <h3>Step 2</h3>
   <p>Copy this registration code to your clipboard</p>
-  <pre id="registration_code" class="hljs"><code class="language-bash hljs">
+  <pre id="registration_code"><code class="plaintext pl-4" phx-hook="HighlightCode" id={"step-2"}>
   <%= @registration_code %>
   </code></pre>
 
   <h3>Step 3</h3>
   <p>Create a CSR with this registration code</p>
-  <pre><code class="language-bash hljs">
-  openssl req -new -key verificationCert.key -out verificationCert.csr
+  <pre><code class="shell" phx-hook="HighlightCode" id={"step-3"}>
+  $ openssl req -new -key verificationCert.key -out verificationCert.csr
   </code></pre>
 
   <p>Put the registration code in the <b> Common Name </b> field</p>
-  <pre class="hljs"><code class="language-bash hljs">
+  <pre><code class="plaintext" phx-hook="HighlightCode" id={"step-3-details"}>
   Country Name (2 letter code) [AU]:
   State or Province Name (full name) [Some-State]:
   Locality Name (eg, city) []:
@@ -39,14 +39,17 @@
   </code></pre>
 
   <p>Or you can do this in one line with</p>
-  <pre><code class="language-bash hljs">
-  openssl req -new -key verificationCert.key -out verificationCert.csr -subj /CN=<%= @registration_code %>
+  <pre><code class="shell" phx-hook="HighlightCode" id={"step-3-alt"}>
+  $ openssl req -new -key verificationCert.key -out verificationCert.csr \
+      -subj /CN=<%= @registration_code %>
   </code></pre>
 
   <h3>Step 4</h3>
   <p>Use the CSR that was signed with the CA private key to create a private key verification certificate</p>
-  <pre class="hljs"><code class="language-bash hljs">
-  openssl x509 -req -in verificationCert.csr -CA rootCA.pem -CAkey rootCA.key -CAcreateserial -out verificationCert.crt -days 500 -sha256
+  <pre><code class="shell" phx-hook="HighlightCode" id={"step-4"}>
+  $ openssl x509 -req -in verificationCert.csr \
+      -CA rootCA.pem -CAkey rootCA.key -CAcreateserial \
+      -out verificationCert.crt -days 500 -sha256
   </code></pre>
 
   <div class="form-group">

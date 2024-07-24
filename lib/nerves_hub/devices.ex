@@ -30,10 +30,6 @@ defmodule NervesHub.Devices do
   @min_fwup_delta_updatable_version ">=1.10.0"
   @default_device_health_retain_count_per_device 48
 
-  def get_device!(device_id) do
-    Repo.get!(Device, device_id)
-  end
-
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
   end
@@ -46,19 +42,6 @@ defmodule NervesHub.Devices do
       nil -> {:error, :not_found}
       device -> {:ok, device}
     end
-  end
-
-  def get_devices_by_org_id(org_id) do
-    query =
-      from(
-        d in Device,
-        where: d.org_id == ^org_id
-      )
-
-    query
-    |> Repo.exclude_deleted()
-    |> order_by(asc: :identifier)
-    |> Repo.all()
   end
 
   def get_devices_by_org_id_and_product_id(org_id, product_id) do
@@ -136,9 +119,11 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  defp sort_devices({:asc, :last_communication}), do: {:asc_nulls_first, :last_communication}
+  defp sort_devices({:asc, :connection_last_seen_at}),
+    do: {:asc_nulls_first, :connection_last_seen_at}
 
-  defp sort_devices({:desc, :last_communication}), do: {:desc_nulls_last, :last_communication}
+  defp sort_devices({:desc, :connection_last_seen_at}),
+    do: {:desc_nulls_last, :connection_last_seen_at}
 
   defp sort_devices(sort), do: sort
 
@@ -152,9 +137,7 @@ defmodule NervesHub.Devices do
           query
 
         {"connection", _value} ->
-          # TODO make this something in the database that we can query against
-          # where(query, [d], d.connection == ^value)
-          query
+          where(query, [d], d.connection_status == ^String.to_atom(value))
 
         {"connection_type", value} ->
           where(query, [d], ^value in d.connection_types)
@@ -232,12 +215,6 @@ defmodule NervesHub.Devices do
       nil -> {:error, :not_found}
       device -> {:ok, device}
     end
-  end
-
-  def get_device_by_org!(%Org{id: org_id}, device_id) do
-    device_by_org_query(org_id, device_id)
-    |> Repo.exclude_deleted()
-    |> Repo.one!()
   end
 
   def get_by_identifier(identifier) do
@@ -600,7 +577,50 @@ defmodule NervesHub.Devices do
   end
 
   def device_connected(device) do
-    update_device(device, %{last_communication: DateTime.utc_now()})
+    update_device(device, %{
+      connection_status: :connected,
+      connection_established_at: DateTime.utc_now(),
+      connection_disconnected_at: nil,
+      connection_last_seen_at: DateTime.utc_now()
+    })
+  end
+
+  def device_heartbeat(device) do
+    update_device(device, %{
+      connection_status: :connected,
+      connection_disconnected_at: nil,
+      connection_last_seen_at: DateTime.utc_now()
+    })
+  end
+
+  def device_disconnected(device) do
+    update_device(device, %{
+      connection_status: :disconnected,
+      connection_disconnected_at: DateTime.utc_now(),
+      connection_last_seen_at: DateTime.utc_now()
+    })
+  end
+
+  def clean_connection_states() do
+    interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+    a_minute_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + 1))
+
+    Device
+    |> where(connection_status: :connected)
+    |> where([d], d.connection_last_seen_at < ^a_minute_ago)
+    |> Repo.update_all(
+      set: [
+        connection_status: :disconnected,
+        connection_disconnected_at: DateTime.utc_now()
+      ]
+    )
+  end
+
+  def connected_count(product) do
+    Device
+    |> where(connection_status: :connected)
+    |> where(product_id: ^product.id)
+    |> Repo.aggregate(:count)
   end
 
   def update_firmware_metadata(device, nil) do
@@ -629,16 +649,12 @@ defmodule NervesHub.Devices do
             device = %{device | deployment_id: nil, deployment: nil}
             device = Deployments.set_deployment(device)
 
-            if Keyword.get(opts, :broadcast, true) do
-              broadcast(device, "devices/updated")
-            end
+            _ = maybe_broadcast(device, "devices/updated", opts)
 
             {:ok, device}
 
           false ->
-            if Keyword.get(opts, :broadcast, true) do
-              broadcast(device, "devices/updated")
-            end
+            _ = maybe_broadcast(device, "devices/updated", opts)
 
             {:ok, device}
         end
@@ -929,7 +945,7 @@ defmodule NervesHub.Devices do
     |> Repo.transaction()
     |> case do
       {:ok, %{move: updated}} ->
-        broadcast(updated, "moved")
+        _ = broadcast(updated, "moved")
         {:ok, updated}
 
       err ->
@@ -958,7 +974,7 @@ defmodule NervesHub.Devices do
     |> Repo.transaction()
     |> case do
       {:ok, %{update_with_audit: updated}} ->
-        broadcast(device, "devices/updated")
+        _ = broadcast(device, "devices/updated")
         {:ok, updated}
 
       err ->
@@ -1067,11 +1083,19 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  def broadcast(%Device{id: id}, event, payload \\ %{}) do
+  defp maybe_broadcast(device, event, opts) do
+    if Keyword.get(opts, :broadcast, true) do
+      broadcast(device, event)
+    else
+      :ok
+    end
+  end
+
+  defp broadcast(%Device{id: id}, event) do
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
       "device:#{id}",
-      %Phoenix.Socket.Broadcast{event: event, payload: payload}
+      %Phoenix.Socket.Broadcast{event: event}
     )
   end
 
@@ -1176,19 +1200,16 @@ defmodule NervesHub.Devices do
       |> DateTime.add(60 * deployment.inflight_update_expiration_minutes, :second)
       |> DateTime.truncate(:second)
 
-    changeset =
-      %InflightUpdate{}
-      |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_change(:device_id, device.id)
-      |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
-      |> Ecto.Changeset.put_change(:firmware_id, deployment.firmware_id)
-      |> Ecto.Changeset.put_change(:firmware_uuid, deployment.firmware.uuid)
-      |> Ecto.Changeset.put_change(:expires_at, expires_at)
-      |> Ecto.Changeset.unique_constraint(:deployment_id,
-        name: :inflight_updates_device_id_deployment_id_index
-      )
-
-    case Repo.insert(changeset) do
+    %{
+      device_id: device.id,
+      deployment_id: deployment.id,
+      firmware_id: deployment.firmware_id,
+      firmware_uuid: deployment.firmware.uuid,
+      expires_at: expires_at
+    }
+    |> InflightUpdate.create_changeset()
+    |> Repo.insert()
+    |> case do
       {:ok, inflight_update} ->
         {:ok, inflight_update}
 
@@ -1207,6 +1228,12 @@ defmodule NervesHub.Devices do
   def clear_inflight_update(device) do
     InflightUpdate
     |> where([iu], iu.device_id == ^device.id)
+    |> Repo.delete_all()
+  end
+
+  def delete_expired_inflight_updates() do
+    InflightUpdate
+    |> where([iu], iu.expires_at < fragment("now()"))
     |> Repo.delete_all()
   end
 

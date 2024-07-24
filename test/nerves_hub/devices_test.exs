@@ -565,7 +565,7 @@ defmodule NervesHub.DevicesTest do
       assert Enum.count(device.update_attempts) == 1
 
       {:ok, device} = Devices.firmware_update_successful(device)
-      assert Enum.count(device.update_attempts) == 0
+      assert Enum.empty?(device.update_attempts)
     end
 
     test "clears an inflight update if it matches", %{device: device, deployment: deployment} do
@@ -878,6 +878,107 @@ defmodule NervesHub.DevicesTest do
       assert device.updates_enabled
 
       assert Devices.firmware_status(device) == "pending"
+    end
+  end
+
+  describe "updates connection details" do
+    test "marks a device as connected", %{org: org, product: product, firmware: firmware} do
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, updated} = Devices.device_connected(device)
+
+      assert updated.connection_status == :connected
+      assert recent_datetime(updated.connection_established_at)
+      assert recent_datetime(updated.connection_last_seen_at)
+      assert updated.connection_disconnected_at == nil
+    end
+
+    test "marks a device as disconnected", %{org: org, product: product, firmware: firmware} do
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, updated} = Devices.device_connected(device)
+      {:ok, again} = Devices.device_disconnected(updated)
+
+      assert again.connection_status == :disconnected
+      assert recent_datetime(again.connection_established_at)
+      assert recent_datetime(again.connection_last_seen_at)
+      assert recent_datetime(again.connection_disconnected_at)
+    end
+
+    test "marks a devices last seen information", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, updated} = Devices.device_heartbeat(device)
+
+      assert updated.connection_status == :connected
+      assert recent_datetime(updated.connection_last_seen_at)
+      assert updated.connection_disconnected_at == nil
+    end
+  end
+
+  defp recent_datetime(datetime) do
+    DateTime.diff(DateTime.utc_now(), datetime, :second) <= 5
+  end
+
+  describe "clean up device connection statuses" do
+    test "don't change the connection status of devices with a recent heartbeat", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -10),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -1)
+      })
+
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -9),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -2)
+      })
+
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -11),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -1)
+      })
+
+      assert Devices.connected_count(product) == 3
+      Devices.clean_connection_states()
+      assert Devices.connected_count(product) == 3
+    end
+
+    test "clean connection status of devices not seen recently", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -10),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -1)
+      })
+
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -25),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -15)
+      })
+
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -47),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -9)
+      })
+
+      assert Devices.connected_count(product) == 3
+      Devices.clean_connection_states()
+      assert Devices.connected_count(product) == 1
     end
   end
 

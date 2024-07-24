@@ -32,16 +32,10 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
     refreshed = Products.load_shared_secret_auth(socket.assigns.product)
 
-    {:noreply, assign(socket, :shared_secrets, refreshed.shared_secret_auths)}
-  end
-
-  def handle_event("copy-shared-secret", %{"value" => shared_secret_id}, socket) do
-    auth =
-      Enum.find(socket.assigns.product.shared_secret_auths, fn ssa ->
-        ssa.id == String.to_integer(shared_secret_id)
-      end)
-
-    {:noreply, push_event(socket, "sharedsecret:clipcopy", %{secret: auth.secret})}
+    socket
+    |> assign(:shared_secrets, refreshed.shared_secret_auths)
+    |> push_event("sharedsecret:created", %{})
+    |> noreply()
   end
 
   def handle_event("deactivate-shared-secret", %{"shared_secret_id" => shared_secret_id}, socket) do
@@ -59,14 +53,15 @@ defmodule NervesHubWeb.Live.Product.Settings do
   def handle_event("delete-product", _parmas, socket) do
     authorized!(:"product:delete", socket.assigns.org_user)
 
-    with {:ok, _product} <- Products.delete_product(socket.assigns.product) do
-      socket =
-        socket
-        |> put_flash(:info, "Product deleted successfully.")
-        |> push_navigate(to: ~p"/org/#{socket.assigns.org.name}")
+    case Products.delete_product(socket.assigns.product) do
+      {:ok, _product} ->
+        socket =
+          socket
+          |> put_flash(:info, "Product deleted successfully.")
+          |> push_navigate(to: ~p"/org/#{socket.assigns.org.name}")
 
-      {:noreply, socket}
-    else
+        {:noreply, socket}
+
       {:error, _changeset} ->
         {:noreply,
          put_flash(

@@ -575,7 +575,7 @@ defmodule NervesHubWeb.WebsocketTest do
         |> NervesHub.Repo.get(device.id)
         |> NervesHub.Repo.preload(:org)
 
-      assert Time.diff(DateTime.utc_now(), device.last_communication) < 2
+      assert Time.diff(DateTime.utc_now(), device.connection_last_seen_at) < 2
 
       SocketClient.close(socket)
     end
@@ -662,7 +662,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert_connection_change()
 
-      assert Time.diff(DateTime.utc_now(), updated_device.last_communication) < 2
+      assert Time.diff(DateTime.utc_now(), updated_device.connection_last_seen_at) < 2
 
       SocketClient.close(socket)
     end

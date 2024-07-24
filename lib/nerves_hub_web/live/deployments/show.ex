@@ -29,17 +29,23 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
     inflight_updates = Devices.inflight_updates_for(deployment)
 
-    if connected?(socket) do
-      Process.send_after(self(), :update_inflight_updates, 5000)
-    end
-
     socket
     |> page_title("Deployment - #{deployment.name} - #{product.name}")
     |> assign(:deployment, deployment)
     |> assign(:audit_logs, logs)
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:firmware, deployment.firmware)
+    |> schedule_inflight_updates_updater()
     |> ok()
+  end
+
+  defp schedule_inflight_updates_updater(socket) do
+    if connected?(socket) do
+      Process.send_after(self(), :update_inflight_updates, 5000)
+      socket
+    else
+      socket
+    end
   end
 
   @impl Phoenix.LiveView
@@ -70,7 +76,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
     AuditLogs.audit!(user, deployment, description)
 
-    Deployments.delete_deployment(deployment)
+    {:ok, _} = Deployments.delete_deployment(deployment)
 
     socket
     |> put_flash(:info, "Deployment successfully deleted")

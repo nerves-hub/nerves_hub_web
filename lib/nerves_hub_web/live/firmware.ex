@@ -154,8 +154,7 @@ defmodule NervesHubWeb.Live.Firmware do
   defp error_feedback(socket, %Ecto.Changeset{} = changeset) do
     error_message =
       changeset.errors
-      |> Enum.map(fn {_field, {message, _info}} -> message end)
-      |> Enum.join(", ")
+      |> Enum.map_join(", ", fn {_field, {message, _info}} -> message end)
 
     socket
     |> put_flash(:error, error_message)

@@ -21,6 +21,14 @@ defmodule NervesHub.Support.Fwup do
               author: "me"
   end
 
+  defmodule InvalidMetaParams do
+    defstruct description: "D",
+              version: "1.0.0",
+              platform: "platform",
+              architecture: "x86_64",
+              author: "me"
+  end
+
   @doc """
   Generate a public/private key pair for firmware signing. The `key_name`
   argument can be used to lookup the public key via `get_public_key/1` or to
@@ -30,7 +38,9 @@ defmodule NervesHub.Support.Fwup do
   def gen_key_pair(key_name, dir \\ System.tmp_dir()) do
     key_path_no_extension = Path.join([dir, key_name])
 
-    System.cmd("fwup", ["-g", "-o", key_path_no_extension], stderr_to_stdout: true)
+    _ = System.cmd("fwup", ["-g", "-o", key_path_no_extension], stderr_to_stdout: true)
+
+    :ok
   end
 
   @doc """
@@ -47,13 +57,33 @@ defmodule NervesHub.Support.Fwup do
     conf_path = make_conf(struct(MetaParams, meta_params), dir)
     out_path = Path.join([dir, firmware_name <> ".fw"])
 
-    System.cmd("fwup", [
-      "-c",
-      "-f",
-      conf_path,
-      "-o",
-      out_path
-    ])
+    {_, 0} =
+      System.cmd("fwup", [
+        "-c",
+        "-f",
+        conf_path,
+        "-o",
+        out_path
+      ])
+
+    {:ok, out_path}
+  end
+
+  @doc """
+  Create an unsigned firmware image with invalid metadata, and return the path to that image.
+  """
+  def create_firmware_with_invalid_metadata(dir, firmware_name, meta_params \\ %{}) do
+    conf_path = make_conf(struct(InvalidMetaParams, meta_params), dir)
+    out_path = Path.join([dir, firmware_name <> ".fw"])
+
+    {_, 0} =
+      System.cmd("fwup", [
+        "-c",
+        "-f",
+        conf_path,
+        "-o",
+        out_path
+      ])
 
     {:ok, out_path}
   end
@@ -88,7 +118,7 @@ defmodule NervesHub.Support.Fwup do
   """
   def create_signed_firmware(key_name, firmware_name, output_name, meta_params \\ %{}) do
     {dir, meta_params} = Map.pop(meta_params, :dir, System.tmp_dir())
-    create_firmware(dir, firmware_name, meta_params)
+    {:ok, _} = create_firmware(dir, firmware_name, meta_params)
     sign_firmware(dir, key_name, firmware_name, output_name)
   end
 
@@ -98,14 +128,15 @@ defmodule NervesHub.Support.Fwup do
   def corrupt_firmware_file(input_path, dir \\ System.tmp_dir()) do
     output_path = Path.join([dir, "corrupt.fw"])
 
-    System.cmd("dd", ["if=" <> input_path, "of=" <> output_path, "bs=256", "count=1"],
-      stderr_to_stdout: true
-    )
+    {_, 0} =
+      System.cmd("dd", ["if=" <> input_path, "of=" <> output_path, "bs=256", "count=1"],
+        stderr_to_stdout: true
+      )
 
     {:ok, output_path}
   end
 
-  defp make_conf(%MetaParams{} = meta_params, dir) do
+  defp make_conf(meta_params, dir) do
     path = Path.join([dir, "#{Ecto.UUID.generate()}.conf"])
     File.write!(path, build_conf_contents(meta_params))
 
@@ -115,6 +146,20 @@ defmodule NervesHub.Support.Fwup do
   defp build_conf_contents(%MetaParams{} = meta_params) do
     """
     meta-product = "#{meta_params.product}"
+    meta-description = "#{meta_params.description} "
+    meta-version = "#{meta_params.version}"
+    meta-platform = "#{meta_params.platform}"
+    meta-architecture = "#{meta_params.architecture}"
+    meta-author = "#{meta_params.author}"
+
+    file-resource  #{Ecto.UUID.generate()}.txt {
+    contents = "Hello, world!"
+    }
+    """
+  end
+
+  defp build_conf_contents(%InvalidMetaParams{} = meta_params) do
+    """
     meta-description = "#{meta_params.description} "
     meta-version = "#{meta_params.version}"
     meta-platform = "#{meta_params.platform}"

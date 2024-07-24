@@ -83,7 +83,7 @@ defmodule SocketClient do
 
   def wait_archive(socket, timer) do
     if __MODULE__.received_archive?(socket) do
-      :timer.cancel(timer)
+      {:ok, :cancel} = :timer.cancel(timer)
       GenServer.call(socket, :archive_message)
     else
       wait_archive(socket, timer)
@@ -104,7 +104,7 @@ defmodule SocketClient do
 
   def wait_update(socket, timer) do
     if __MODULE__.received_update?(socket) do
-      :timer.cancel(timer)
+      {:ok, :cancel} = :timer.cancel(timer)
       GenServer.call(socket, :update_message)
     else
       wait_update(socket, timer)

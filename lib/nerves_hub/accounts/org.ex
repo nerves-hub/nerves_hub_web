@@ -26,6 +26,7 @@ defmodule NervesHub.Accounts.Org do
 
     field(:name, :string)
     field(:deleted_at, :utc_datetime)
+    field(:audit_log_days_to_keep, :integer)
 
     timestamps()
   end

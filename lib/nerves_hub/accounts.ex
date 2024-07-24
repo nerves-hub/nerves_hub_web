@@ -112,12 +112,19 @@ defmodule NervesHub.Accounts do
     else
       org_user = Repo.get_by(Ecto.assoc(org, :org_users), user_id: user.id)
 
-      if org_user do
-        {:ok, _result} = Repo.soft_delete(org_user)
-      end
+      maybe_soft_delete_org_user(org_user)
 
       :ok
     end
+  end
+
+  defp maybe_soft_delete_org_user(nil), do: :ok
+
+  defp maybe_soft_delete_org_user(org_user), do: soft_delete_org_user(org_user)
+
+  def soft_delete_org_user(org_user) do
+    {:ok, _result} = Repo.soft_delete(org_user)
+    :ok
   end
 
   def change_org_user_role(%OrgUser{} = ou, role) do
@@ -288,6 +295,13 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @spec get_orgs() :: [Org.t()]
+  def get_orgs() do
+    Org
+    |> Repo.exclude_deleted()
+    |> Repo.all()
+  end
+
   @spec get_org(integer()) ::
           {:ok, Org.t()}
           | {:error, :org_not_found}
@@ -327,21 +341,13 @@ defmodule NervesHub.Accounts do
     end
   end
 
-  def get_org_by_name_and_user(org_name, %User{id: user_id}) do
-    query =
-      from(
-        o in Org,
-        join: u in assoc(o, :users),
-        where: u.id == ^user_id and o.name == ^org_name
-      )
-
-    query
+  def get_org_by_name_and_user!(org_name, %User{id: user_id}) do
+    Org
+    |> join(:left, [o], u in assoc(o, :users))
+    |> where([o], o.name == ^org_name)
+    |> where([o, u], u.id == ^user_id)
     |> Repo.exclude_deleted()
-    |> Repo.one()
-    |> case do
-      nil -> {:error, :not_found}
-      org -> {:ok, org}
-    end
+    |> Repo.one!()
   end
 
   @spec update_org(Org.t(), map) ::

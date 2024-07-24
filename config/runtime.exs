@@ -28,7 +28,8 @@ config :nerves_hub,
     String.to_integer(System.get_env("HEALTH_CHECK_INTERVAL_MINUTES", "60")),
   device_deployment_change_jitter_seconds:
     String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10")),
-  geoip_maxmind_auth: System.get_env("GEOIP_MAXMIND_AUTH"),
+  device_last_seen_update_interval_minutes:
+    String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_MINUTES", "5")),
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN")
 
 # only set this in :prod as not to override the :dev config
@@ -358,15 +359,11 @@ config :nerves_hub, :statsd,
 
 config :nerves_hub, :audit_logs,
   enabled: System.get_env("TRUNATE_AUDIT_LOGS_ENABLED", "false") == "true",
-  max_records_per_run:
-    String.to_integer(System.get_env("TRUNCATE_AUDIT_LOGS_MAX_RECORDS_PER_RUN", "10000")),
-  days_kept: String.to_integer(System.get_env("TRUNCATE_AUDIT_LOGS_MAX_DAYS_KEPT", "30"))
+  default_days_kept:
+    String.to_integer(System.get_env("TRUNCATE_AUDIT_LOGS_DEFAULT_DAYS_KEPT", "30"))
 
 config :nerves_hub, NervesHub.RateLimit,
   limit: System.get_env("DEVICE_CONNECT_RATE_LIMIT", "100") |> String.to_integer()
 
 config :nerves_hub, NervesHub.NodeReporter,
   enabled: System.get_env("NODE_REPORTER", "false") == "true"
-
-config :nerves_hub, NervesHub.LoadBalancer,
-  enabled: System.get_env("LOAD_BALANCER", "false") == "true"
