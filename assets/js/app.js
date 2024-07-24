@@ -26,41 +26,6 @@ let dates = require('./dates')
 
 let Hooks = {}
 
-Hooks.UpdatingTimeAgo = {
-  updateTimer: null,
-  mounted() {
-    this.updateTimer = null
-    this.updated()
-  },
-  updated(element) {
-    let hook = arguments.length > 0 ? element : this
-
-    if (hook.updateTimer) {
-      clearTimeout(hook.updateTimer)
-    }
-
-    const timeAgo = new TimeAgo('en-US')
-
-    let dtString = hook.el.dateTime
-    let dt = new Date(dtString)
-
-    // Format the date.
-    // const [formattedDate, timeToNextUpdate] = timeAgo.format(dt, 'round', {
-    //   getTimeToNextUpdate: true
-    // })
-
-    const formattedDate = timeAgo.format(dt, 'round')
-
-    hook.el.textContent = formattedDate
-
-    // https://www.npmjs.com/package/javascript-time-ago#update-interval
-    // let interval = Math.min(timeToNextUpdate || 60 * 1000, 2147483647)
-    let interval = 1000
-
-    hook.updateTimer = setTimeout(hook.updated, interval, hook)
-  }
-}
-
 Hooks.SharedSecretClipboardClick = {
   mounted() {
     const parent = this.el
@@ -99,6 +64,41 @@ Hooks.HighlightCode = {
   }
 }
 
+Hooks.UpdatingTimeAgo = {
+  updateTimer: null,
+  mounted() {
+    this.updateTimer = null
+    this.updated()
+  },
+  updated(element) {
+    let hook = arguments.length > 0 ? element : this
+
+    if (hook.updateTimer) {
+      clearTimeout(hook.updateTimer)
+    }
+
+    const timeAgo = new TimeAgo('en-US')
+
+    let dtString = hook.el.dateTime
+    let dt = new Date(dtString)
+
+    // Format the date.
+    // const [formattedDate, timeToNextUpdate] = timeAgo.format(dt, 'round', {
+    //   getTimeToNextUpdate: true
+    // })
+
+    const formattedDate = timeAgo.format(dt, 'round')
+
+    hook.el.textContent = formattedDate
+
+    // https://www.npmjs.com/package/javascript-time-ago#update-interval
+    // let interval = Math.min(timeToNextUpdate || 60 * 1000, 2147483647)
+    let interval = 1000
+
+    hook.updateTimer = setTimeout(hook.updated, interval, hook)
+  }
+}
+
 Hooks.LocalTime = {
   mounted() {
     this.updated()
@@ -109,13 +109,13 @@ Hooks.LocalTime = {
     dt.setSeconds(null)
 
     let formatted = new Intl.DateTimeFormat('en-GB', {
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       day: 'numeric',
       month: 'short',
       year: 'numeric',
       hour: 'numeric',
       minute: 'numeric',
-      hourCycle: 'h12'
+      hourCycle: 'h12',
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
     }).format(dt)
 
     this.el.textContent = formatted

@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Components.DeviceHeader do
   use NervesHubWeb, :component
 
   alias NervesHub.Devices
-  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   attr(:org, :any)
   attr(:product, :any)
@@ -35,25 +34,28 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last connected at</span>
           <span class="tooltip-info"></span>
-          <span class="tooltip-text"><%= @device.connection_last_seen_at %></span>
+          <span class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
+            <%= @device.connection_established_at %>
+          </span>
         </div>
         <p>
-          <%= if is_nil(@device.connection_last_seen_at) do %>
-            Never
-          <% else %>
-            <%= DateTimeFormat.from_now(@device.connection_last_seen_at) %>
-          <% end %>
+          <span :if={!@device.connection_established_at}>Never</span>
+          <time
+            :if={@device.connection_established_at}
+            id="connection-establisted-at"
+            phx-hook="UpdatingTimeAgo"
+            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.connection_established_at, :second)), " ", "T")}
+          >
+            <%= Timex.from_now(@device.connection_established_at) %>
+          </time>
         </p>
       </div>
       <div>
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last seen at</span>
           <span class="tooltip-info"></span>
-          <span :if={@device.connection_last_seen_at} class="tooltip-text" id="last-communication-at-tooltip" phx-hook="LocalTime">
-            <%= DateTime.to_string(@device.connection_last_seen_at) %>
-          </span>
-          <span :if={!@device.connection_last_seen_at} class="tooltip-text">
-            Never
+          <span class="tooltip-text" id="connection-last-seen-at-tooltip" phx-hook="LocalTime">
+            <%= @device.connection_last_seen_at %>
           </span>
         </div>
         <p>
