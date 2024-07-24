@@ -58,6 +58,8 @@ Hooks.UpdatingTimeAgo = {
     let interval = 1000
 
     hook.updateTimer = setTimeout(hook.updated, interval, hook)
+  }
+}
 
 Hooks.SharedSecretClipboardClick = {
   mounted() {
