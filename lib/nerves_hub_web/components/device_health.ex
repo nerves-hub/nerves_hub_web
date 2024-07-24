@@ -2,8 +2,6 @@ defmodule NervesHubWeb.Components.DeviceHealth do
   use NervesHubWeb, :component
 
   def health_section(assigns) do
-    dbg(assigns)
-
     ~H"""
     <tr :for={{key, value} <- @data} :if={is_map(@data)}>
       <td style="text-transform: capitalize;"><%= String.replace(key, "_", " ") %></td>
