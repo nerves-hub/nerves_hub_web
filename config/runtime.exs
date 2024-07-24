@@ -26,6 +26,8 @@ config :nerves_hub,
   ],
   health_check_interval_minutes:
     String.to_integer(System.get_env("HEALTH_CHECK_INTERVAL_MINUTES", "60")),
+  device_health_days_to_retain:
+    String.to_integer(System.get_env("HEALTH_CHECK_DAYS_TO_RETAIN", "7")),
   device_deployment_change_jitter_seconds:
     String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10")),
   device_last_seen_update_interval_minutes:

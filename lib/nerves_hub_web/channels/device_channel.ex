@@ -515,7 +515,6 @@ defmodule NervesHubWeb.DeviceChannel do
           %{}
         )
 
-        Devices.clean_device_health(socket.assigns.device.id)
         :ok
 
       {:error, err} ->

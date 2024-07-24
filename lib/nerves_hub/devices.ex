@@ -28,7 +28,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.TaskSupervisor, as: Tasks
 
   @min_fwup_delta_updatable_version ">=1.10.0"
-  @default_device_health_retain_count_per_device 48
 
   def get_device(device_id) when is_integer(device_id) do
     Repo.get(Device, device_id)
@@ -1105,36 +1104,27 @@ defmodule NervesHub.Devices do
     |> Repo.insert()
   end
 
-  def clean_device_health(device_id) do
-    max =
-      Application.get_env(:nerves_hub, :health_check, %{})[:retain_items_per_device] ||
-        @default_device_health_retain_count_per_device
+  def truncate_device_health() do
+    days_to_retain =
+      Application.get_env(:nerves_hub, :device_health_days_to_retain)
 
-    health_ids =
-      from(DeviceHealth,
-        select: [:id],
-        order_by: {:desc, :inserted_at},
-        offset: ^max,
-        where: [device_id: ^device_id]
-      )
-      |> Repo.all()
-      |> Enum.map(& &1.id)
+    days_ago = DateTime.shift(DateTime.utc_now(), day: -days_to_retain)
 
-    from(dh in DeviceHealth)
-    |> where([dh], dh.id in ^health_ids)
-    |> Repo.delete_all()
+    {count, _} =
+      DeviceHealth
+      |> where([dh], dh.inserted_at < ^days_ago)
+      |> Repo.delete_all()
+
+    {:ok, count}
   end
 
   def get_latest_health(device_id) do
-    results =
-      from(DeviceHealth,
-        order_by: {:desc, :inserted_at},
-        limit: 1,
-        where: [device_id: ^device_id]
-      )
-      |> Repo.all()
-
-    case results do
+    DeviceHealth
+    |> where(device_id: ^device_id)
+    |> order_by(desc: :inserted_at)
+    |> limit(1)
+    |> Repo.all()
+    |> case do
       [] -> nil
       [latest] -> latest
     end
