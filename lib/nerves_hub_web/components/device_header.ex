@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
   use NervesHubWeb, :component
 
   alias NervesHub.Devices
+  alias NervesHubWeb.LayoutView.DateTimeFormat
 
   attr(:org, :any)
   attr(:product, :any)
