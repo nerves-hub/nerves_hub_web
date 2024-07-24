@@ -142,7 +142,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   def handle_event("toggle-health-check-auto-refresh", _value, socket) do
     if timer_ref = socket.assigns.health_check_timer do
-      Process.cancel_timer(timer_ref)
+      _ = Process.cancel_timer(timer_ref)
       {:noreply, assign(socket, :health_check_timer, nil)}
     else
       {:noreply, schedule_health_check_timer(socket)}
