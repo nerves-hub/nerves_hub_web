@@ -40,6 +40,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, assign(socket, :firmwares, firmware)}
   end
 
+  def handle_info(%Broadcast{event: "connection:heartbeat"}, socket) do
+    %{device: device, org: org} = socket.assigns
+
+    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
+
+    {:noreply, assign(socket, :device, device)}
+  end
+
   def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
     {:noreply, assign(socket, :status, payload.status)}
   end

@@ -151,9 +151,13 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(:update_connection_last_seen, socket) do
-    {:ok, _device} = Devices.device_heartbeat(socket.assigns.device)
+  def handle_info(:update_connection_last_seen, %{assigns: %{device: device}} = socket) do
+    {:ok, _device} = Devices.device_heartbeat(device)
+
+    device_broadcast(device, "connection:heartbeat")
+
     Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
+
     {:noreply, socket}
   end
 
@@ -558,6 +562,12 @@ defmodule NervesHubWeb.DeviceChannel do
 
   defp unsubscribe(topic) do
     Phoenix.PubSub.unsubscribe(NervesHub.PubSub, topic)
+  end
+
+  defp device_broadcast(device, event, payload \\ %{}) do
+    topic = "device:#{device.identifier}:internal"
+    _ = NervesHubWeb.DeviceEndpoint.broadcast(topic, event, payload)
+    :ok
   end
 
   defp send_public_keys(device, socket, key_type) do
