@@ -5,7 +5,6 @@ defmodule NervesHub.Devices.DeviceHealth do
 
   alias NervesHub.Devices.Device
 
-
   @type t :: %__MODULE__{}
   @required_params [:device_id, :data]
 
