@@ -122,6 +122,7 @@
       <button class="btn btn-secondary" type="button" phx-click="reset-filters">Reset Filters</button>
     </div>
   <% end %>
+
   <div class={if length(@selected_devices) == 0, do: "hidden"}>
     <div class="filter-wrapper">
       <div class="flex-row">

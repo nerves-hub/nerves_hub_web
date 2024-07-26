@@ -15,6 +15,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
@@ -72,6 +73,49 @@ defmodule NervesHub.Devices do
     |> filtering(filters)
     |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
     |> Repo.paginate(pagination)
+  end
+
+  def get_health_by_org_id_and_product_id(org_id, product_id, opts) do
+    query =
+      from(
+        d in Device,
+        as: :device,
+        join: dh in DeviceHealth,
+        as: :device_health,
+        on: dh.device_id == d.id,
+        select: [dh.device_id, dh.data, d.deleted_at],
+        distinct: dh.device_id,
+        order_by: [desc: dh.inserted_at],
+        where: d.org_id == ^org_id,
+        where: d.product_id == ^product_id
+      )
+
+    filters = Map.get(opts, :filters, %{})
+
+    query
+    |> Repo.exclude_deleted()
+    |> filtering(filters)
+    |> Repo.all()
+    |> Enum.reduce(%{max_cpu: 0, max_memory_percent: 0, max_load_15: 0}, fn health, acc ->
+      case Enum.at(health, 1) do
+        %{
+          "metrics" => %{
+            "cpu_temp" => cpu_temp,
+            "used_percent" => memory_percent,
+            "load_15min" => load_15_min
+          }
+        } ->
+          %{
+            acc
+            | max_cpu: max(cpu_temp, acc.max_cpu),
+              max_memory_percent: max(memory_percent, acc.max_memory_percent),
+              max_load_15: max(load_15_min, acc.max_load_15)
+          }
+
+        _ ->
+          acc
+      end
+    end)
   end
 
   defp sort_devices({:asc, :connection_last_seen_at}),
@@ -1052,6 +1096,43 @@ defmodule NervesHub.Devices do
       "device:#{id}",
       %Phoenix.Socket.Broadcast{event: event}
     )
+  end
+
+  def save_device_health(device_status) do
+    device_status
+    |> DeviceHealth.save()
+    |> Repo.insert()
+  end
+
+  def truncate_device_health() do
+    days_to_retain =
+      Application.get_env(:nerves_hub, :device_health_days_to_retain)
+
+    days_ago = DateTime.shift(DateTime.utc_now(), day: -days_to_retain)
+
+    {count, _} =
+      DeviceHealth
+      |> where([dh], dh.inserted_at < ^days_ago)
+      |> Repo.delete_all()
+
+    {:ok, count}
+  end
+
+  def get_latest_health(device_id) do
+    DeviceHealth
+    |> where(device_id: ^device_id)
+    |> order_by(desc: :inserted_at)
+    |> limit(1)
+    |> Repo.all()
+    |> case do
+      [] -> nil
+      [latest] -> latest
+    end
+  end
+
+  def get_all_health(device_id) do
+    from(DeviceHealth, where: [device_id: ^device_id])
+    |> Repo.all()
   end
 
   defp version_match?(_vsn, ""), do: true

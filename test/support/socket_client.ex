@@ -124,6 +124,7 @@ defmodule SocketClient do
       |> assign(:received_update?, false)
       |> assign(:update, nil)
       |> assign(:received_archive?, false)
+      |> assign(:received_check_health?, false)
       |> assign(:archive, nil)
       |> assign(:error_code, nil)
       |> assign(:error_reason, nil)
@@ -167,6 +168,14 @@ defmodule SocketClient do
       socket
       |> assign(:received_archive?, true)
       |> assign(:archive, message)
+
+    {:ok, socket}
+  end
+
+  def handle_message("device", "check_health", %{}, socket) do
+    socket =
+      socket
+      |> assign(:receive_check_helth?, true)
 
     {:ok, socket}
   end

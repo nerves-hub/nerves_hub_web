@@ -1011,4 +1011,38 @@ defmodule NervesHub.DevicesTest do
 
     Devices.update_firmware_metadata(device, firmware_metadata)
   end
+
+  describe "device health reports" do
+    test "create new device health", %{device: device} do
+      device_health = %{"device_id" => device.id, "data" => %{"literally_any_map" => "values"}}
+      assert {:ok, %Devices.DeviceHealth{}} = Devices.save_device_health(device_health)
+      assert %Devices.DeviceHealth{} = Devices.get_latest_health(device.id)
+    end
+
+    test "create health reports over limit and then clean down to default limit", %{
+      device: device
+    } do
+      device_health = %{"device_id" => device.id, "data" => %{"literally_any_map" => "values"}}
+
+      for x <- 0..9 do
+        days_ago = DateTime.shift(DateTime.utc_now(), day: -x)
+
+        inserted =
+          device_health
+          |> Devices.DeviceHealth.save()
+          |> Ecto.Changeset.put_change(:inserted_at, days_ago)
+          |> Repo.insert()
+
+        assert {:ok, %Devices.DeviceHealth{}} = inserted
+      end
+
+      healths = Devices.get_all_health(device.id)
+      assert 10 = Enum.count(healths)
+
+      Devices.truncate_device_health()
+
+      healths = Devices.get_all_health(device.id)
+      assert 7 = Enum.count(healths)
+    end
+  end
 end

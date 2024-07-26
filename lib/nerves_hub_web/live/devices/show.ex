@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DeviceHeader
   alias NervesHubWeb.Components.FwupProgress
   alias NervesHubWeb.Components.DeviceLocation
+  alias NervesHubWeb.Components.Utils
 
   alias Phoenix.Socket.Broadcast
 
@@ -30,6 +31,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:status, Tracker.status(device))
     |> assign(:deployment, device.deployment)
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
+    |> assign(:health, Devices.get_latest_health(device.id))
+    |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
     |> audit_log_assigns(1)
     |> ok()
@@ -76,6 +79,18 @@ defmodule NervesHubWeb.Live.Devices.Show do
     else
       {:noreply, assign(socket, :fwup_progress, payload.percent)}
     end
+  end
+
+  def handle_info(%Broadcast{event: "health_check_report"}, socket) do
+    {:noreply, assign(socket, health: Devices.get_latest_health(socket.assigns.device.id))}
+  end
+
+  def handle_info(:check_health_interval, socket) do
+    timer_ref = Process.send_after(self(), :check_health_interval, 65_000)
+
+    socket.endpoint.broadcast("device:#{socket.assigns.device.id}", "check_health", %{})
+
+    {:noreply, assign(socket, :health_check_timer, timer_ref)}
   end
 
   def handle_info(%Broadcast{event: "location:updated"}, socket) do
@@ -131,6 +146,15 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "identify", %{})
 
     {:noreply, put_flash(socket, :info, "Device identification requested")}
+  end
+
+  def handle_event("toggle-health-check-auto-refresh", _value, socket) do
+    if timer_ref = socket.assigns.health_check_timer do
+      _ = Process.cancel_timer(timer_ref)
+      {:noreply, assign(socket, :health_check_timer, nil)}
+    else
+      {:noreply, schedule_health_check_timer(socket)}
+    end
   end
 
   def handle_event("paginate", %{"page" => page_num}, socket) do
@@ -217,6 +241,19 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> put_flash(:info, "Pushing firmware update")
     |> noreply()
+  end
+
+  defp schedule_health_check_timer(socket) do
+    if connected?(socket) and device_health_check_enabled?() do
+      timer_ref = Process.send_after(self(), :check_health_interval, 500)
+      assign(socket, :health_check_timer, timer_ref)
+    else
+      assign(socket, :health_check_timer, nil)
+    end
+  end
+
+  defp device_health_check_enabled?() do
+    Application.get_env(:nerves_hub, :device_health_check_enabled)
   end
 
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do

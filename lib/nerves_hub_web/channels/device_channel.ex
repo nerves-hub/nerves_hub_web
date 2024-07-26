@@ -115,6 +115,9 @@ defmodule NervesHubWeb.DeviceChannel do
 
     send(self(), :boot)
 
+    send(self(), :health_check)
+    schedule_health_check()
+
     {:noreply, socket}
   end
 
@@ -387,6 +390,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_info(:health_check, socket) do
+    push(socket, "check_health", %{})
+    schedule_health_check()
+    {:noreply, socket}
+  end
+
   def handle_info(msg, socket) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.
@@ -484,6 +493,36 @@ defmodule NervesHubWeb.DeviceChannel do
       output = Enum.join([params["output"], params["return"]], "\n")
       output = String.trim(output)
       send(pid, {:output, output})
+    end
+
+    {:noreply, socket}
+  end
+
+  def handle_in("health_check_report", %{"value" => device_status}, socket) do
+    device_meta =
+      for {key, val} <- Map.from_struct(socket.assigns.device.firmware_metadata),
+          into: %{},
+          do: {to_string(key), to_string(val)}
+
+    full_report =
+      device_status
+      |> Map.put("metadata", Map.merge(device_status["metadata"], device_meta))
+
+    device_health = %{"device_id" => socket.assigns.device.id, "data" => full_report}
+
+    case Devices.save_device_health(device_health) do
+      {:ok, _} ->
+        NervesHubWeb.DeviceEndpoint.broadcast_from!(
+          self(),
+          "device:#{socket.assigns.device.identifier}:internal",
+          "health_check_report",
+          %{}
+        )
+
+        :ok
+
+      {:error, err} ->
+        Logger.warning("Failed to save health check data: #{inspect(err)}")
     end
 
     {:noreply, socket}
@@ -673,8 +712,22 @@ defmodule NervesHubWeb.DeviceChannel do
     :rand.uniform(jitter) * 1000
   end
 
+  defp schedule_health_check() do
+    if device_health_check_enabled?() do
+      interval = Application.get_env(:nerves_hub, :device_health_check_interval_minutes)
+      Process.send_after(self(), :health_check, :timer.minutes(interval))
+      :ok
+    else
+      :ok
+    end
+  end
+
   defp last_seen_update_interval() do
     Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
     |> :timer.minutes()
+  end
+
+  defp device_health_check_enabled?() do
+    Application.get_env(:nerves_hub, :device_health_check_enabled)
   end
 end

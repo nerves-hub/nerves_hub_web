@@ -19,6 +19,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
     assert socket
+    assert_push("check_health", %{})
   end
 
   describe "device location" do
