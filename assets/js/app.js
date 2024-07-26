@@ -82,18 +82,13 @@ Hooks.UpdatingTimeAgo = {
     let dtString = hook.el.dateTime
     let dt = new Date(dtString)
 
-    // Format the date.
-    // const [formattedDate, timeToNextUpdate] = timeAgo.format(dt, 'round', {
-    //   getTimeToNextUpdate: true
-    // })
-
-    const formattedDate = timeAgo.format(dt, 'round')
+    const formattedDate = timeAgo.format(dt, 'round-minute')
 
     hook.el.textContent = formattedDate
 
     // https://www.npmjs.com/package/javascript-time-ago#update-interval
-    // let interval = Math.min(timeToNextUpdate || 60 * 1000, 2147483647)
-    let interval = 1000
+    // set update interval to 10sec
+    let interval = 10000
 
     hook.updateTimer = setTimeout(hook.updated, interval, hook)
   }
