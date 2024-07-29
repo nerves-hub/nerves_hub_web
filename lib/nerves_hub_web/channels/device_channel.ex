@@ -43,7 +43,7 @@ defmodule NervesHubWeb.DeviceChannel do
       |> Devices.verify_deployment()
       |> Deployments.set_deployment()
       |> Repo.preload(:org)
-      |> Repo.preload(deployment: [:archive, :firmware])
+      |> deployment_preload()
 
     if params["fwup_public_keys"] == "on_connect" do
       send_public_keys(device, socket, "fwup_public_keys")
@@ -89,29 +89,13 @@ defmodule NervesHubWeb.DeviceChannel do
     # Cluster tracking
     Tracker.online(device)
 
-    if Version.match?(socket.assigns.device_api_version, ">= 2.0.0") do
-      if device.deployment && device.deployment.archive do
-        archive = device.deployment.archive
-
-        push(socket, "archive", %{
-          size: archive.size,
-          uuid: archive.uuid,
-          version: archive.version,
-          description: archive.description,
-          platform: archive.platform,
-          architecture: archive.architecture,
-          uploaded_at: archive.inserted_at,
-          url: Archives.url(archive)
-        })
-      end
-    end
-
     socket =
       socket
       |> assign(:device, device)
       |> assign(:update_started?, push_update?)
       |> assign(:penalty_timer, nil)
       |> maybe_start_penalty_timer()
+      |> maybe_send_archive()
 
     send(self(), :boot)
 
@@ -213,7 +197,7 @@ defmodule NervesHubWeb.DeviceChannel do
       device
       |> Repo.reload()
       |> Deployments.set_deployment()
-      |> Repo.preload([deployment: [:firmware]], force: true)
+      |> deployment_preload()
 
     description =
       if device.deployment_id do
@@ -234,7 +218,12 @@ defmodule NervesHubWeb.DeviceChannel do
         Map.put(value, :deployment_id, device.deployment_id)
       end)
 
-    {:noreply, update_device(socket, device)}
+    socket =
+      socket
+      |> update_device(device)
+      |> maybe_send_archive()
+
+    {:noreply, socket}
   end
 
   # manually pushed
@@ -252,7 +241,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({"deployments/update", inflight_update}, %{assigns: %{device: device}} = socket) do
-    device = Repo.preload(device, [deployment: [:firmware]], force: true)
+    device = deployment_preload(device)
 
     payload = Devices.resolve_update(device)
 
@@ -289,6 +278,17 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  def handle_info(%Broadcast{event: "archives/updated"}, socket) do
+    device = deployment_preload(socket.assigns.device)
+
+    socket =
+      socket
+      |> assign(:device, device)
+      |> maybe_send_archive()
+
+    {:noreply, socket}
+  end
+
   def handle_info(%Broadcast{event: "moved"}, socket) do
     # The old deployment is no longer valid, so let's look one up again
     handle_info(:resolve_changed_deployment, socket)
@@ -309,6 +309,7 @@ defmodule NervesHubWeb.DeviceChannel do
       socket
       |> update_device(device)
       |> maybe_start_penalty_timer()
+      |> maybe_send_archive()
 
     {:noreply, socket}
   end
@@ -438,7 +439,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
       socket =
         socket
-        |> assign(:device, device)
+        |> assign(:device, deployment_preload(device))
         |> assign(:update_started?, true)
 
       {:noreply, socket}
@@ -675,7 +676,7 @@ defmodule NervesHubWeb.DeviceChannel do
       |> Ecto.Changeset.change()
       |> Ecto.Changeset.put_change(:deployment_id, payload.id)
       |> Repo.update!()
-      |> Repo.preload([deployment: [:firmware]], force: true)
+      |> deployment_preload()
 
     description =
       "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
@@ -687,7 +688,9 @@ defmodule NervesHubWeb.DeviceChannel do
         Map.put(value, :deployment_id, device.deployment_id)
       end)
 
-    update_device(socket, device)
+    socket
+    |> update_device(device)
+    |> maybe_send_archive()
   end
 
   def update_device(socket, device) do
@@ -703,7 +706,7 @@ defmodule NervesHubWeb.DeviceChannel do
     subscribe(deployment_channel)
 
     socket
-    |> assign(:device, device)
+    |> assign(:device, deployment_preload(device))
     |> assign(:deployment_channel, deployment_channel)
   end
 
@@ -729,5 +732,35 @@ defmodule NervesHubWeb.DeviceChannel do
 
   defp device_health_check_enabled?() do
     Application.get_env(:nerves_hub, :device_health_check_enabled)
+  end
+
+  defp deployment_preload(device) do
+    Repo.preload(device, [deployment: [:archive, :firmware]], force: true)
+  end
+
+  defp maybe_send_archive(socket) do
+    device = socket.assigns.device
+
+    updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
+    version_match = Version.match?(socket.assigns.device_api_version, ">= 2.0.0")
+
+    if updates_enabled && version_match do
+      if device.deployment && device.deployment.archive do
+        archive = device.deployment.archive
+
+        push(socket, "archive", %{
+          size: archive.size,
+          uuid: archive.uuid,
+          version: archive.version,
+          description: archive.description,
+          platform: archive.platform,
+          architecture: archive.architecture,
+          uploaded_at: archive.inserted_at,
+          url: Archives.url(archive)
+        })
+      end
+    end
+
+    socket
   end
 end

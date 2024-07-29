@@ -184,6 +184,18 @@ defmodule NervesHub.Deployments do
           AuditLogs.audit!(deployment, deployment, description)
         end
 
+        # Trigger the new archive to get downloaded by devices
+        if Map.has_key?(changeset.changes, :archive_id) do
+          payload = %{
+            archive_id: deployment.archive_id
+          }
+
+          broadcast(deployment, "archives/updated", payload)
+
+          description = "deployment #{deployment.name} has a new archive"
+          AuditLogs.audit!(deployment, deployment, description)
+        end
+
         # if is_active is false, wipe it out like above
         # if its now true, tell the none deployment devices
         if Map.has_key?(changeset.changes, :is_active) do

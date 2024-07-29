@@ -198,6 +198,7 @@ defmodule SocketClient do
   end
 
   def handle_call(:archive_message, _from, socket) do
+    socket = assign(socket, :received_archive?, false)
     {:reply, socket.assigns.archive, socket}
   end
 
