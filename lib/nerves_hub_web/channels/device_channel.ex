@@ -99,8 +99,10 @@ defmodule NervesHubWeb.DeviceChannel do
 
     send(self(), :boot)
 
-    send(self(), :health_check)
-    schedule_health_check()
+    if device_health_check_enabled?() do
+      send(self(), :health_check)
+      schedule_health_check()
+    end
 
     {:noreply, socket}
   end
