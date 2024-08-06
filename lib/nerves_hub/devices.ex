@@ -576,28 +576,40 @@ defmodule NervesHub.Devices do
   end
 
   def device_connected(device) do
-    update_device(device, %{
-      connection_status: :connected,
-      connection_established_at: DateTime.utc_now(),
-      connection_disconnected_at: nil,
-      connection_last_seen_at: DateTime.utc_now()
-    })
+    update_device(
+      device,
+      %{
+        connection_status: :connected,
+        connection_established_at: DateTime.utc_now(),
+        connection_disconnected_at: nil,
+        connection_last_seen_at: DateTime.utc_now()
+      },
+      broadcast: false
+    )
   end
 
   def device_heartbeat(device) do
-    update_device(device, %{
-      connection_status: :connected,
-      connection_disconnected_at: nil,
-      connection_last_seen_at: DateTime.utc_now()
-    })
+    update_device(
+      device,
+      %{
+        connection_status: :connected,
+        connection_disconnected_at: nil,
+        connection_last_seen_at: DateTime.utc_now()
+      },
+      broadcast: false
+    )
   end
 
   def device_disconnected(device) do
-    update_device(device, %{
-      connection_status: :disconnected,
-      connection_disconnected_at: DateTime.utc_now(),
-      connection_last_seen_at: DateTime.utc_now()
-    })
+    update_device(
+      device,
+      %{
+        connection_status: :disconnected,
+        connection_disconnected_at: DateTime.utc_now(),
+        connection_last_seen_at: DateTime.utc_now()
+      },
+      broadcast: false
+    )
   end
 
   def clean_connection_states() do
