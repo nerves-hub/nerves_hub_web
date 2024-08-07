@@ -18,6 +18,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Repo
   alias NervesHub.Tracker
   alias Phoenix.Socket.Broadcast
+  alias NervesHubWeb.DeviceChannel.Messages
 
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
@@ -413,7 +414,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_in("fwup_progress", %{"value" => percent}, %{assigns: %{device: device}} = socket) do
+  def handle_in(event, params, socket) when is_binary(event) do
+    {event_atom, parsed_params} = Messages.parse(event, params)
+    handle_in(event_atom, parsed_params, socket)
+  end
+
+  def handle_in(:fwup_progress, %{percent: percent}, %{assigns: %{device: device}} = socket) do
     NervesHubWeb.DeviceEndpoint.broadcast_from!(
       self(),
       "device:#{device.identifier}:internal",
@@ -448,7 +454,7 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  def handle_in("location:update", location, %{assigns: %{device: device}} = socket) do
+  def handle_in(:location_update, location, %{assigns: %{device: device}} = socket) do
     metadata = Map.put(device.connection_metadata, "location", location)
 
     {:ok, device} = Devices.update_device(device, %{connection_metadata: metadata})
@@ -463,17 +469,17 @@ defmodule NervesHubWeb.DeviceChannel do
     {:reply, :ok, assign(socket, :device, device)}
   end
 
-  def handle_in("connection_types", %{"values" => types}, %{assigns: %{device: device}} = socket) do
+  def handle_in(:connection_types, %{types: types}, %{assigns: %{device: device}} = socket) do
     {:ok, device} = Devices.update_device(device, %{"connection_types" => types})
     {:noreply, assign(socket, :device, device)}
   end
 
-  def handle_in("status_update", %{"status" => _status}, socket) do
+  def handle_in(:status_update, %{}, socket) do
     # TODO store in tracker or the database?
     {:noreply, socket}
   end
 
-  def handle_in("check_update_available", _params, socket) do
+  def handle_in(:check_update_available, _params, socket) do
     device =
       socket.assigns.device
       |> Devices.verify_deployment()
@@ -487,13 +493,13 @@ defmodule NervesHubWeb.DeviceChannel do
     {:reply, {:ok, update_payload}, socket}
   end
 
-  def handle_in("rebooting", _, socket) do
+  def handle_in(:rebooting, %{}, socket) do
     {:noreply, socket}
   end
 
-  def handle_in("scripts/run", params, socket) do
-    if pid = socket.assigns.script_refs[params["ref"]] do
-      output = Enum.join([params["output"], params["return"]], "\n")
+  def handle_in(:scripts_run, %{ref: ref, output: output, return: return}, socket) do
+    if pid = socket.assigns.script_refs[ref] do
+      output = Enum.join([output, return], "\n")
       output = String.trim(output)
       send(pid, {:output, output})
     end
@@ -501,15 +507,15 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_in("health_check_report", %{"value" => device_status}, socket) do
+  def handle_in(:health_check_report, device_status, socket) do
     device_meta =
       for {key, val} <- Map.from_struct(socket.assigns.device.firmware_metadata),
           into: %{},
-          do: {to_string(key), to_string(val)}
+          do: {key, to_string(val)}
 
     full_report =
       device_status
-      |> Map.put("metadata", Map.merge(device_status["metadata"], device_meta))
+      |> Map.put(:metadata, Map.merge(device_status.metadata, device_meta))
 
     device_health = %{"device_id" => socket.assigns.device.id, "data" => full_report}
 

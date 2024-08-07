@@ -190,7 +190,7 @@ defmodule NervesHub.Deployments do
             archive_id: deployment.archive_id
           }
 
-          broadcast(deployment, "archives/updated", payload)
+          _ = broadcast(deployment, "archives/updated", payload)
 
           description = "deployment #{deployment.name} has a new archive"
           AuditLogs.audit!(deployment, deployment, description)

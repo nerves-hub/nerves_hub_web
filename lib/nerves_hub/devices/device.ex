@@ -28,6 +28,7 @@ defmodule NervesHub.Devices.Device do
     :connection_types,
     :connection_metadata
   ]
+  @connection_types [:cellular, :ethernet, :wifi]
   @required_params [:org_id, :product_id, :identifier]
 
   schema "devices" do
@@ -53,7 +54,7 @@ defmodule NervesHub.Devices.Device do
     field(:connection_established_at, :utc_datetime)
     field(:connection_disconnected_at, :utc_datetime)
     field(:connection_last_seen_at, :utc_datetime)
-    field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
+    field(:connection_types, {:array, Ecto.Enum}, values: @connection_types)
     field(:connecting_code, :string)
     field(:connection_metadata, :map, default: %{})
 
@@ -68,4 +69,6 @@ defmodule NervesHub.Devices.Device do
     |> validate_length(:tags, min: 1)
     |> unique_constraint(:identifier)
   end
+
+  def connection_types, do: @connection_types
 end
