@@ -204,8 +204,7 @@ if config_env() == :prod do
 
   config :nerves_hub, NervesHub.Repo,
     url: System.fetch_env!("DATABASE_URL"),
-    ssl: System.get_env("DATABASE_SSL", "true") == "true",
-    ssl_opts: database_ssl_opts,
+    ssl: database_ssl_opts,
     pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
     socket_options: database_socket_options,
     queue_target: 5000
@@ -215,8 +214,7 @@ if config_env() == :prod do
 
   config :nerves_hub, NervesHub.ObanRepo,
     url: System.fetch_env!("DATABASE_URL"),
-    ssl: System.get_env("DATABASE_SSL", "true") == "true",
-    ssl_opts: database_ssl_opts,
+    ssl: database_ssl_opts,
     pool_size: String.to_integer(oban_pool_size),
     socket_options: database_socket_options,
     queue_target: 5000
@@ -233,8 +231,7 @@ if config_env() == :prod do
     [port: 5432]
     |> Keyword.merge(postgres_config)
     |> Keyword.take([:hostname, :username, :password, :database, :port])
-    |> Keyword.merge(ssl: System.get_env("DATABASE_SSL", "true") == "true")
-    |> Keyword.merge(ssl_opts: database_ssl_opts)
+    |> Keyword.merge(ssl: database_ssl_opts)
     |> Keyword.merge(parameters: [])
     |> Keyword.merge(channel_name: "nerves_hub_clustering")
 
