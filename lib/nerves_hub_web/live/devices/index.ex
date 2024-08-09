@@ -28,6 +28,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @default_page 1
   @default_page_size 25
+  @modes [:list, :map]
 
   def mount(_params, _session, socket) do
     %{product: product} = socket.assigns
@@ -51,6 +52,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:target_product, nil)
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
+    |> assign(:mode, :list)
     |> assign_display_devices()
     |> subscribe_and_refresh_device_list()
     |> ok()

@@ -205,6 +205,86 @@
     </div>
   </div>
 
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+    crossorigin=""
+  />
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin="">
+  </script>
+  <div id="map" style="position: absolute; top: 0; left: 0; z-index: 9999; height: 100vh; width: 100vw; background: #000022;"></div>
+
+  <script>
+      var devices = [
+        {type: "Feature",
+         properties: {
+          name: "4707",
+          status: "connected"
+         },
+         geometry: {
+          type: "Point",
+          coordinates: [11.967, 57.7065]
+         }
+        },
+        {type: "Feature",
+         properties: {
+          name: "4708",
+          status: "offline"
+         },
+         geometry: {
+          type: "Point",
+          coordinates: [12.867, 58.6065]
+         }
+        }
+      ];
+      // initialize the map
+      var map = L.map('map').setView([57.7065, 11.967], 3);
+
+    var myStyle = {
+        "fillColor": "#224422",
+        "weight": 0,
+        "opacity": 0,
+        "fillOpacity": 1.0
+    };
+
+    var markerConnectedOptions = {
+        radius: 4,
+        fillColor: "#00ff00",
+        weight: 1,
+        opacity: 0,
+        fillOpacity: 1.0
+    };
+
+    var markerOfflineOptions = {
+        radius: 4,
+        fillColor: "#cacaca",
+        weight: 1,
+        opacity: 0,
+        fillOpacity: 1.0
+    };
+
+      var mytilelayer = L.tileLayer(
+          "http://{s}.tile.osm.org/{z}/{x}/{y}.png"
+        ).addTo(map);
+
+      // load GeoJSON from an external file
+      /*fetch("/geo/world.geojson").then(res => res.json()).then(data => {
+        // add GeoJSON layer to the map once the file is loaded
+        L.geoJson(data, {style: myStyle}).addTo(map);
+      });
+      */
+        L.geoJson(devices, {pointToLayer: function (feature, latlng) {
+          if (feature.properties.status == "connected") {
+            return L.circleMarker(latlng, markerConnectedOptions);
+          } else {
+            return L.circleMarker(latlng, markerOfflineOptions);
+          }
+        }}).addTo(map);
+
+      
+  </script>
+
   <table class="table table-sm table-hover">
     <thead>
       <tr>

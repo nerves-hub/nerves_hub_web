@@ -79,6 +79,7 @@ defmodule NervesHub.MixProject do
       {:gettext, "~> 0.24.0"},
       {:hackney, "~> 1.16"},
       {:hlclock, "~> 1.0"},
+      {:hpax, "~> 1.0", override: true},
       {:jason, "~> 1.2", override: true},
       {:libcluster_postgres, "~> 0.1.2"},
       {:logfmt, "~> 3.3"},
