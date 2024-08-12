@@ -126,6 +126,83 @@ Hooks.SimpleDate = {
   }
 }
 
+Hooks.WorldMap = {
+  mounted() {
+    let mapId = this.el.id;
+    var devices = [
+      {type: "Feature",
+       properties: {
+        name: "4707",
+        status: "connected"
+       },
+       geometry: {
+        type: "Point",
+        coordinates: [11.967, 57.7065]
+       }
+      },
+      {type: "Feature",
+       properties: {
+        name: "4708",
+        status: "offline"
+       },
+       geometry: {
+        type: "Point",
+        coordinates: [12.867, 58.6065]
+       }
+      }
+    ];
+    // initialize the map
+    var map = L.map(mapId).setView([57.7065, 11.967], 3);
+
+  var myStyle = {
+      stroke: true,
+      color: "#224422",
+      fillColor: "#224422",
+      weight: 4,
+      opacity: 1.0,
+      fillOpacity: 1.0
+  };
+
+  var markerConnectedOptions = {
+      radius: 4,
+      fillColor: "#00ff00",
+      weight: 1,
+      opacity: 0,
+      fillOpacity: 1.0
+  };
+
+  var markerOfflineOptions = {
+      radius: 4,
+      fillColor: "#660000",
+      weight: 1,
+      opacity: 0,
+      fillOpacity: 1.0
+  };
+
+    // var mytilelayer = L.tileLayer(
+    //     "http://{s}.tile.osm.org/{z}/{x}/{y}.png"
+    //   ).addTo(map);
+
+    // load GeoJSON from an external file
+    fetch("/geo/world.geojson").then(res => res.json()).then(data => {
+      // add GeoJSON layer to the map once the file is loaded
+      L.geoJson(data, {style: myStyle}).addTo(map);
+      L.geoJson(devices, {pointToLayer: function (feature, latlng) {
+        if (feature.properties.status == "connected") {
+          return L.circleMarker(latlng, markerConnectedOptions);
+        } else {
+          return L.circleMarker(latlng, markerOfflineOptions);
+        }
+      }}).addTo(map);
+    });
+
+    
+  },
+  updated() {
+
+  }
+}
+
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute('content')
