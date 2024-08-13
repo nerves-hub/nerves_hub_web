@@ -200,7 +200,7 @@ defmodule NervesHubWeb.Router do
       get("/audit_logs/download", DeviceController, :export_audit_logs)
     end
 
-    get("/archives/:uuid/download", DownloadController, :archive)
+    get("/artifacts/:uuid/download", DownloadController, :archive)
     get("/firmware/:uuid/download", DownloadController, :firmware)
     get("/deployments/:name/audit_logs/download", DeploymentController, :export_audit_logs)
   end
@@ -255,7 +255,10 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser,
         NervesHubWeb.Mounts.FetchProduct
-      ] do
+      ],
+      root_layout: {NervesHubWeb.Layouts, :root},
+      layout: {NervesHubWeb.Layouts, :live} do
+
       live("/org/:org_name/:product_name/dashboard", Live.Dashboard.Index)
 
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
@@ -276,9 +279,9 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/firmware/upload", Live.Firmware, :upload)
       live("/org/:org_name/:product_name/firmware/:firmware_uuid", Live.Firmware, :show)
 
-      live("/org/:org_name/:product_name/archives", Live.Archives, :index)
-      live("/org/:org_name/:product_name/archives/upload", Live.Archives, :upload)
-      live("/org/:org_name/:product_name/archives/:archive_uuid", Live.Archives, :show)
+      live("/org/:org_name/:product_name/artifacts", Live.Archives, :index)
+      live("/org/:org_name/:product_name/artifacts/upload", Live.Archives, :upload)
+      live("/org/:org_name/:product_name/artifacts/:archive_uuid", Live.Archives, :show)
 
       live("/org/:org_name/:product_name/deployments", Live.Deployments.Index)
       live("/org/:org_name/:product_name/deployments/new", Live.Deployments.New)

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#141417]">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+
+    <meta name="description" content="" />
+    <meta name="author" content="" />
+
+    <.live_title suffix={" · #{Application.get_env(:nerves_hub, :web_title_suffix)}"}>
+      <%= assigns[:page_title] || "Welcome" %>
+    </.live_title>
+
+    <link phx-track-static rel="stylesheet" href={~p"/assets/redux/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/redux/app.js"}>
+    </script>
+  </head>
+  <body class="h-full">
+    <%= @inner_content %>
+  </body>
+</html>

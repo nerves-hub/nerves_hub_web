@@ -1,13 +1,13 @@
 <div class="action-row">
-  <.link patch={~p"/org/#{@org.name}/#{@product.name}/archives"} class="back-link">
-    All Archives
+  <.link patch={~p"/org/#{@org.name}/#{@product.name}/artifacts"} class="back-link">
+    All Artifacts
   </.link>
   <div class="btn-group" role="group" aria-label="Device Actions">
-    <.link class="btn btn-outline-light btn-action" aria-label="Download" href={~p"/org/#{@org.name}/#{@product.name}/archives/#{@archive.uuid}/download"} download>
+    <.link class="btn btn-outline-light btn-action" aria-label="Download" href={~p"/org/#{@org.name}/#{@product.name}/artifacts/#{@archive.uuid}/download"} download>
       <span class="button-icon download"></span>
       <span class="action-text">Download</span>
     </.link>
-    <.link class="btn btn-outline-light btn-action" aria-label="Delete" phx-click="delete-archive" data-confirm="Are you sure you want to delete this archive? This can not be undone.">
+    <.link class="btn btn-outline-light btn-action" aria-label="Delete" phx-click="delete-archive" data-confirm="Are you sure you want to delete this artifact? This can not be undone.">
       <span class="button-icon delete"></span>
       <span class="action-text">Delete</span>
     </.link>

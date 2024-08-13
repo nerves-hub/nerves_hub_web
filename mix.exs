@@ -72,6 +72,7 @@ defmodule NervesHub.MixProject do
       {:ecto, "~> 3.8", override: true},
       {:ecto_psql_extras, "~> 0.7"},
       {:ecto_sql, "~> 3.0"},
+      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
       {:finch, "~> 0.18.0"},
@@ -104,6 +105,7 @@ defmodule NervesHub.MixProject do
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:sweet_xml, "~> 0.6"},
       {:swoosh, "~> 1.12"},
+      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
       {:telemetry_metrics, "~> 0.4"},
       {:telemetry_metrics_statsd, "~> 0.7.0"},
       {:telemetry_poller, "~> 1.0"},
@@ -120,6 +122,7 @@ defmodule NervesHub.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
+      "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"],
       "assets.setup": ["assets.install", "assets.build"],
       "ecto.setup": [
         "ecto.create",
