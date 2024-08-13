@@ -3,7 +3,7 @@ defmodule NervesHub.Repo.Migrations.CreateOrgLimitsTable do
 
   def change do
     create table(:org_limits) do
-      add(:org_id, references(:orgs, null: false))
+      add(:org_id, references(:orgs), null: false)
       add(:firmware_size, :integer, null: false)
 
       timestamps()

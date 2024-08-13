@@ -5,7 +5,7 @@ defmodule NervesHub.Repo.Migrations.CreateUserCertificates do
     create table(:user_certificates) do
       add(:serial, :string, null: false)
       add(:description, :string, null: false)
-      add(:user_id, references(:users, null: false))
+      add(:user_id, references(:users), null: false)
 
       timestamps()
     end
