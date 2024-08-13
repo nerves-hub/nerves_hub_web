@@ -3,7 +3,7 @@ defmodule NervesHub.Repo.Migrations.AddCaCertificates do
 
   def change do
     create table(:ca_certificates) do
-      add(:org_id, references(:orgs, null: false))
+      add(:org_id, references(:orgs), null: false)
       add(:serial, :string, null: false)
       add(:aki, :binary)
       add(:ski, :binary)
