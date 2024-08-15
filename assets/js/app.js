@@ -129,77 +129,111 @@ Hooks.SimpleDate = {
 Hooks.WorldMap = {
   mounted() {
     let mapId = this.el.id;
-    var devices = [
-      {type: "Feature",
-       properties: {
+    let markers = JSON.parse(this.el.dataset.markers);
+
+    var devices = [];
+    for (let i = 0; i < markers.length; i++) {
+      let marker = markers[i];
+      let location = marker["location"];
+      let newMarker = {
+        type: "Feature",
+        properties: {
+          name: marker["identifier"],
+          status: marker["status"],
+
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [location["latitude"], location["longitude"]]
+        }
+      }
+      devices.push(newMarker);
+    }
+
+    // Todo: Remove test-stuff
+    var testDevices = [{
+      type: "Feature",
+      properties: {
         name: "4707",
         status: "connected"
-       },
-       geometry: {
+
+      },
+      geometry: {
         type: "Point",
         coordinates: [11.967, 57.7065]
-       }
-      },
-      {type: "Feature",
-       properties: {
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
         name: "4708",
         status: "offline"
-       },
-       geometry: {
+      },
+      geometry: {
         type: "Point",
         coordinates: [12.867, 58.6065]
-       }
       }
+    }
     ];
+
+    devices = devices.concat(testDevices);
+
+
+    // Apply this when initializing map to disable all zooming and dragging
+    var mapOptionsNoZoom = {
+      attributionControl: false,
+      zoomControl: false,
+      scrollWheelZoom: false,
+      boxZoom: false,
+      doubleClickZoom: false,
+      dragging: false,
+      keyboard: false
+    };
+
     // initialize the map
-    var map = L.map(mapId).setView([57.7065, 11.967], 3);
+    var map = L.map(mapId, mapOptionsNoZoom).setView([36.7065, 20.967], 2);
 
-  var myStyle = {
+    var mapStyle = {
       stroke: true,
-      color: "#224422",
-      fillColor: "#224422",
-      weight: 4,
-      opacity: 1.0,
-      fillOpacity: 1.0
-  };
+      color: "#2A2D30",
+      fillColor: "#b7bec5",
+      weight: 0.5,
+      opacity: 1,
+      fillOpacity: 0.5
+    };
 
-  var markerConnectedOptions = {
-      radius: 4,
-      fillColor: "#00ff00",
+    var markerConnectedOptions = {
+      radius: 6,
+      fillColor: "#97df97",
       weight: 1,
       opacity: 0,
-      fillOpacity: 1.0
-  };
+      fillOpacity: 0.7
+    };
 
-  var markerOfflineOptions = {
-      radius: 4,
-      fillColor: "#660000",
+    var markerOfflineOptions = {
+      radius: 6,
+      fillColor: "#c43131",
       weight: 1,
       opacity: 0,
-      fillOpacity: 1.0
-  };
-
-    // var mytilelayer = L.tileLayer(
-    //     "http://{s}.tile.osm.org/{z}/{x}/{y}.png"
-    //   ).addTo(map);
+      fillOpacity: 0.7
+    };
 
     // load GeoJSON from an external file
     fetch("/geo/world.geojson").then(res => res.json()).then(data => {
       // add GeoJSON layer to the map once the file is loaded
-      L.geoJson(data, {style: myStyle}).addTo(map);
-      L.geoJson(devices, {pointToLayer: function (feature, latlng) {
-        if (feature.properties.status == "connected") {
-          return L.circleMarker(latlng, markerConnectedOptions);
-        } else {
-          return L.circleMarker(latlng, markerOfflineOptions);
+      L.geoJson(data, { style: mapStyle }).addTo(map);
+      L.geoJson(devices, {
+        pointToLayer: function (feature, latlng) {
+          if (feature.properties.status == "connected") {
+            return L.circleMarker(latlng, markerConnectedOptions);
+          } else {
+            return L.circleMarker(latlng, markerOfflineOptions);
+          }
         }
-      }}).addTo(map);
+      }).addTo(map);
     });
-
-    
   },
   updated() {
-
   }
 }
 

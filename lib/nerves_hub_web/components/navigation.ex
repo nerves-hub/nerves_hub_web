@@ -201,6 +201,11 @@ defmodule NervesHubWeb.Components.Navigation do
     [
       # %{title: "Dashboard", icon: "tachometer-alt", active: "", href: Routes.product_path(conn, :show, conn.assigns.org.name, conn.assigns.product.name)},
       %{
+        title: "Dashboard",
+        active: "",
+        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/dashboard"
+      },
+      %{
         title: "Devices",
         active: "",
         href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/devices",
