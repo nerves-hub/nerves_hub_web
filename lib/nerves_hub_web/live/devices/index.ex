@@ -74,6 +74,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     }
 
     socket
+    |> assign(:current_sort, Map.get(unsigned_params, "sort", "identifier"))
+    |> assign(:sort_direction, Map.get(unsigned_params, "sort_direction", :asc) |> sort_dir())
     |> assign(:current_filters, filters)
     |> assign(:paginate_opts, pagination_opts)
     |> assign(:currently_filtering, filters != @default_filters)
@@ -91,23 +93,41 @@ defmodule NervesHubWeb.Live.Devices.Index do
     end
   end
 
+  defp sort_dir(maybe_string) do
+    if is_binary(maybe_string) do
+      String.to_existing_atom(maybe_string)
+    else
+      maybe_string
+    end
+  end
+
   defp self_path(socket, extra) do
     params =
       extra
       |> Enum.into(socket.assigns.params)
+      # Remove all params that are set to default values to keep URL clean
       |> Enum.reject(fn {key, value} ->
-        if @default_filters[key] do
-          # Removing all default filters from params
-          value == @default_filters[key]
-        else
-          atom_key = String.to_existing_atom(key)
+        case key do
+          "sort_direction" ->
+            value == :asc or value == "asc"
 
-          if val = @default_pagination[atom_key] do
-            # Remove all default pagination options
-            value == val or value == to_string(val)
-          else
-            false
-          end
+          "sort" ->
+            value == "identifier"
+
+          _ ->
+            if @default_filters[key] do
+              # Removing all default filters from params
+              value == @default_filters[key]
+            else
+              atom_key = String.to_existing_atom(key)
+
+              if val = @default_pagination[atom_key] do
+                # Remove all default pagination options
+                value == val or value == to_string(val)
+              else
+                false
+              end
+            end
         end
       end)
 
@@ -138,24 +158,20 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     # switch sort direction for column because
     sort_direction = if sort_direction == :desc, do: :asc, else: :desc
+    params = %{"sort_direction" => sort_direction, "sort" => value}
 
-    socket =
-      socket
-      |> assign(sort_direction: sort_direction)
-      |> assign_display_devices()
-
-    {:noreply, socket}
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
   end
 
   # User has clicked a new column to sort
   def handle_event("sort", %{"sort" => value}, socket) do
-    socket =
-      socket
-      |> assign(:current_sort, value)
-      |> assign(:sort_direction, :asc)
-      |> assign_display_devices()
+    params = %{"sort_direction" => :asc, "sort" => value}
 
-    {:noreply, socket}
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
   end
 
   def handle_event("paginate", %{"page" => page_num}, socket) do
@@ -427,8 +443,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     assigns = %{value: value, title: title, caret_class: caret_class}
 
     ~H"""
-    <th phx-click="sort" phx-value_sort={@value} class="pointer sort-selected">
-      <%= @title %><i class="icon-caret icon-caret-#{@caret_class}" />
+    <th phx-click="sort" phx-value-sort={@value} class="pointer sort-selected">
+      <%= @title %><i class={"icon-caret icon-caret-#{@caret_class}"} />
     </th>
     """
   end
@@ -437,7 +453,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     assigns = %{value: value, title: title}
 
     ~H"""
-    <th phx-click="sort" phx-value_sort={@value} class="pointer">
+    <th phx-click="sort" phx-value-sort={@value} class="pointer">
       <%= @title %>
     </th>
     """
