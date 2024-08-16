@@ -18,16 +18,24 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   @default_filters %{
     "connection" => "",
-    "connection_types" => "",
+    "connection_type" => "",
     "firmware_version" => "",
     "platform" => "",
     "healthy" => "",
-    "id" => "",
-    "tag" => ""
+    "device_id" => "",
+    "tag" => "",
+    "updates" => ""
   }
 
   @default_page 1
   @default_page_size 25
+
+  @default_pagination %{
+    page_number: @default_page,
+    page_size: @default_page_size,
+    page_sizes: [25, 50, 100],
+    total_pages: 0
+  }
 
   def mount(_params, _session, socket) do
     %{product: product} = socket.assigns
@@ -36,12 +44,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> page_title("Devices - #{product.name}")
     |> assign(:current_sort, "identifier")
     |> assign(:sort_direction, :asc)
-    |> assign(:paginate_opts, %{
-      page_number: @default_page,
-      page_size: @default_page_size,
-      page_sizes: [25, 50, 75],
-      total_pages: 0
-    })
+    |> assign(:paginate_opts, @default_pagination)
     |> assign(:firmware_versions, firmware_versions(product.id))
     |> assign(:platforms, Devices.platforms(product.id))
     |> assign(:show_filters, false)
@@ -51,9 +54,70 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:target_product, nil)
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
+    |> ok()
+  end
+
+  def handle_params(unsigned_params, _uri, socket) do
+    filters =
+      Enum.reduce(@default_filters, %{}, fn {key, _}, curr ->
+        new = Map.get(unsigned_params, key, "")
+        Map.put(curr, key, new)
+      end)
+
+    pagination_opts = %{
+      page_number:
+        Map.get(unsigned_params, "page_number", socket.assigns.paginate_opts.page_number) |> num(),
+      page_size:
+        Map.get(unsigned_params, "page_size", socket.assigns.paginate_opts.page_size) |> num(),
+      page_sizes: socket.assigns.paginate_opts.page_sizes,
+      total_pages: socket.assigns.paginate_opts.total_pages
+    }
+
+    socket
+    |> assign(:current_filters, filters)
+    |> assign(:paginate_opts, pagination_opts)
+    |> assign(:currently_filtering, filters != @default_filters)
+    |> assign(:params, unsigned_params)
     |> assign_display_devices()
     |> subscribe_and_refresh_device_list()
-    |> ok()
+    |> noreply()
+  end
+
+  defp num(maybe_string) do
+    if is_binary(maybe_string) do
+      String.to_integer(maybe_string)
+    else
+      maybe_string
+    end
+  end
+
+  defp self_path(socket, extra) do
+    params =
+      extra
+      |> Enum.into(socket.assigns.params)
+      |> Enum.reject(fn {key, value} ->
+        if @default_filters[key] do
+          # Removing all default filters from params
+          value == @default_filters[key]
+        else
+          atom_key = String.to_existing_atom(key)
+
+          if val = @default_pagination[atom_key] do
+            # Remove all default pagination options
+            value == val or value == to_string(val)
+          else
+            false
+          end
+        end
+      end)
+
+    NervesHubWeb.Router.Helpers.live_path(
+      socket,
+      __MODULE__,
+      socket.assigns.org.name,
+      socket.assigns.product.name,
+      params
+    )
   end
 
   defp subscribe_and_refresh_device_list(socket) do
@@ -94,62 +158,47 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, socket}
   end
 
-  def handle_event(
-        "paginate",
-        %{"page" => page_num},
-        %{assigns: %{paginate_opts: paginate_opts}} = socket
-      ) do
-    page_num = String.to_integer(page_num)
+  def handle_event("paginate", %{"page" => page_num}, socket) do
+    params = %{"page_number" => page_num}
 
-    socket =
-      socket
-      |> assign(:paginate_opts, %{paginate_opts | page_number: page_num})
-      |> assign_display_devices()
-
-    {:noreply, socket}
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
   end
 
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    page_size = String.to_integer(page_size)
+    params = %{"page_size" => page_size, "page_number" => 1}
 
-    paginate_opts =
-      socket.assigns.paginate_opts
-      |> Map.put(:page_size, page_size)
-      |> Map.put(:page_number, 1)
-
-    socket =
-      socket
-      |> assign(:paginate_opts, paginate_opts)
-      |> assign_display_devices()
-
-    {:noreply, socket}
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
   end
 
   def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
     {:noreply, assign(socket, :show_filters, toggle != "true")}
   end
 
-  def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
-    socket =
-      socket
-      |> assign(:paginate_opts, %{paginate_opts | page_number: @default_page})
-      |> assign(:current_filters, params)
-      |> assign(:currently_filtering, params != @default_filters)
-      |> assign(:selected_devices, [])
-      |> assign_display_devices()
+  def handle_event(
+        "update-filters",
+        params,
+        %{assigns: %{paginate_opts: paginate_opts}} = socket
+      ) do
+    page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
+    params = Map.take(params, Map.keys(@default_filters))
 
-    {:noreply, socket}
+    socket
+    |> assign(:selected_devices, [])
+    |> push_patch(to: self_path(socket, Map.merge(params, page_params)))
+    |> noreply()
   end
 
   def handle_event("reset-filters", _, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
-    socket =
-      socket
-      |> assign(:paginate_opts, %{paginate_opts | page_number: @default_page})
-      |> assign(:current_filters, @default_filters)
-      |> assign(:currently_filtering, false)
-      |> assign_display_devices()
+    page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
-    {:noreply, socket}
+    socket
+    |> assign(:selected_devices, [])
+    |> push_patch(to: self_path(socket, Map.merge(@default_filters, page_params)))
+    |> noreply()
   end
 
   def handle_event("select", %{"id" => id_str}, socket) do
