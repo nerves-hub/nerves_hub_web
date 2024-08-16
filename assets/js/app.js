@@ -4,6 +4,7 @@ import 'phoenix_html'
 import 'bootstrap'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
+import L from 'leaflet/dist/leaflet.js'
 
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
@@ -16,6 +17,7 @@ hljs.registerLanguage('plaintext', plaintext)
 hljs.registerLanguage('shell', shell)
 
 import 'highlight.js/styles/stackoverflow-light.css'
+import 'leaflet/dist/leaflet.css'
 
 import TimeAgo from 'javascript-time-ago'
 import en from 'javascript-time-ago/locale/en'
@@ -150,7 +152,7 @@ Hooks.WorldMap = {
     };
 
     // initialize the map
-    this.map = L.map(mapId, mapOptionsNoZoom).setView([36.7065, 20.967], 2);
+    this.map = L.map(mapId, mapOptionsNoZoom).setView([40.5, 10], 2);
 
     // load GeoJSON from an external file
     fetch("/geo/world.geojson").then(res => res.json()).then(data => {

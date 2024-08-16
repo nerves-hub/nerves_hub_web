@@ -203,7 +203,7 @@ defmodule NervesHubWeb.Components.Navigation do
         title: "Dashboard",
         active: "",
         href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/dashboard",
-        deactivated?: Application.get_env(:nerves_hub, :enable_dashboard?) != true
+        deactivated?: Application.get_env(:nerves_hub, :dashboard_enabled) != true
       },
       %{
         title: "Devices",
