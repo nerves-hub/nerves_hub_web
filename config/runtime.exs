@@ -178,34 +178,37 @@ end
 #
 if config_env() == :prod do
   database_ssl_opts =
-    if System.get_env("DATABASE_PEM") do
-      db_hostname_charlist =
-        ~r/.*@(?<hostname>[^:\/]+)(?::\d+)?\/.*/
-        |> Regex.named_captures(System.fetch_env!("DATABASE_URL"))
-        |> Map.get("hostname")
-        |> to_charlist()
+    if System.get_env("DATABASE_SSL", "true") == "true" do
+      if System.get_env("DATABASE_PEM") do
+        db_hostname_charlist =
+          ~r/.*@(?<hostname>[^:\/]+)(?::\d+)?\/.*/
+          |> Regex.named_captures(System.fetch_env!("DATABASE_URL"))
+          |> Map.get("hostname")
+          |> to_charlist()
 
-      cacerts =
-        System.fetch_env!("DATABASE_PEM")
-        |> Base.decode64!()
-        |> :public_key.pem_decode()
-        |> Enum.map(fn {_, der, _} -> der end)
+        cacerts =
+          System.fetch_env!("DATABASE_PEM")
+          |> Base.decode64!()
+          |> :public_key.pem_decode()
+          |> Enum.map(fn {_, der, _} -> der end)
 
-      [
-        verify: :verify_peer,
-        cacerts: cacerts,
-        server_name_indication: db_hostname_charlist
-      ]
+        [
+          verify: :verify_peer,
+          cacerts: cacerts,
+          server_name_indication: db_hostname_charlist
+        ]
+      else
+        [cacerts: :public_key.cacerts_get()]
+      end
     else
-      [cacerts: :public_key.cacerts_get()]
+      false
     end
 
   database_socket_options = if System.get_env("DATABASE_INET6") == "true", do: [:inet6], else: []
 
   config :nerves_hub, NervesHub.Repo,
     url: System.fetch_env!("DATABASE_URL"),
-    ssl: System.get_env("DATABASE_SSL", "true") == "true",
-    ssl_opts: database_ssl_opts,
+    ssl: database_ssl_opts,
     pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
     socket_options: database_socket_options,
     queue_target: 5000
@@ -215,8 +218,7 @@ if config_env() == :prod do
 
   config :nerves_hub, NervesHub.ObanRepo,
     url: System.fetch_env!("DATABASE_URL"),
-    ssl: System.get_env("DATABASE_SSL", "true") == "true",
-    ssl_opts: database_ssl_opts,
+    ssl: database_ssl_opts,
     pool_size: String.to_integer(oban_pool_size),
     socket_options: database_socket_options,
     queue_target: 5000
@@ -233,8 +235,7 @@ if config_env() == :prod do
     [port: 5432]
     |> Keyword.merge(postgres_config)
     |> Keyword.take([:hostname, :username, :password, :database, :port])
-    |> Keyword.merge(ssl: System.get_env("DATABASE_SSL", "true") == "true")
-    |> Keyword.merge(ssl_opts: database_ssl_opts)
+    |> Keyword.merge(ssl: database_ssl_opts)
     |> Keyword.merge(parameters: [])
     |> Keyword.merge(channel_name: "nerves_hub_clustering")
 

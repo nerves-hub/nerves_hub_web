@@ -3,7 +3,7 @@ defmodule NervesHub.Repo.Migrations.AddJitpToCaCertificates do
 
   def change do
     create table(:jitp) do
-      add :product_id, references(:products, null: false)
+      add :product_id, references(:products), null: false
       add :tags, {:array, :string}
       add :description, :string
       timestamps()
