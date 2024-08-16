@@ -129,57 +129,7 @@ Hooks.SimpleDate = {
 Hooks.WorldMap = {
   mounted() {
     let mapId = this.el.id;
-    let markers = JSON.parse(this.el.dataset.markers);
 
-    var devices = [];
-    for (let i = 0; i < markers.length; i++) {
-      let marker = markers[i];
-      let location = marker["location"];
-      let newMarker = {
-        type: "Feature",
-        properties: {
-          name: marker["identifier"],
-          status: marker["status"],
-
-        },
-        geometry: {
-          type: "Point",
-          coordinates: [location["latitude"], location["longitude"]]
-        }
-      }
-      devices.push(newMarker);
-    }
-
-    // Todo: Remove test-stuff
-    var testDevices = [{
-      type: "Feature",
-      properties: {
-        name: "4707",
-        status: "connected"
-
-      },
-      geometry: {
-        type: "Point",
-        coordinates: [11.967, 57.7065]
-      }
-    },
-    {
-      type: "Feature",
-      properties: {
-        name: "4708",
-        status: "offline"
-      },
-      geometry: {
-        type: "Point",
-        coordinates: [12.867, 58.6065]
-      }
-    }
-    ];
-
-    devices = devices.concat(testDevices);
-
-
-    // Apply this when initializing map to disable all zooming and dragging
     var mapOptionsNoZoom = {
       attributionControl: false,
       zoomControl: false,
@@ -190,9 +140,6 @@ Hooks.WorldMap = {
       keyboard: false
     };
 
-    // initialize the map
-    var map = L.map(mapId, mapOptionsNoZoom).setView([36.7065, 20.967], 2);
-
     var mapStyle = {
       stroke: true,
       color: "#2A2D30",
@@ -202,12 +149,42 @@ Hooks.WorldMap = {
       fillOpacity: 0.5
     };
 
+    // initialize the map
+    this.map = L.map(mapId, mapOptionsNoZoom).setView([36.7065, 20.967], 2);
+
+    // load GeoJSON from an external file
+    fetch("/geo/world.geojson").then(res => res.json()).then(data => {
+      L.geoJson(data, { style: mapStyle }).addTo(this.map);
+      this.updated();
+    });
+  },
+  updated() {
+    let markers = JSON.parse(this.el.dataset.markers);
+    var devices = [];
+
+    for (let i = 0; i < markers.length; i++) {
+      let marker = markers[i];
+      let location = marker["location"];
+      let newMarker = {
+        type: "Feature",
+        properties: {
+          name: marker["identifier"],
+          status: marker["status"],
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [location["latitude"], location["longitude"]]
+        }
+      }
+      devices.push(newMarker);
+    }
+
     var markerConnectedOptions = {
       radius: 6,
       fillColor: "#97df97",
       weight: 1,
       opacity: 0,
-      fillOpacity: 0.7
+      fillOpacity: 0.8
     };
 
     var markerOfflineOptions = {
@@ -215,25 +192,23 @@ Hooks.WorldMap = {
       fillColor: "#c43131",
       weight: 1,
       opacity: 0,
-      fillOpacity: 0.7
+      fillOpacity: 0.8
     };
 
-    // load GeoJSON from an external file
-    fetch("/geo/world.geojson").then(res => res.json()).then(data => {
-      // add GeoJSON layer to the map once the file is loaded
-      L.geoJson(data, { style: mapStyle }).addTo(map);
-      L.geoJson(devices, {
-        pointToLayer: function (feature, latlng) {
-          if (feature.properties.status == "connected") {
-            return L.circleMarker(latlng, markerConnectedOptions);
-          } else {
-            return L.circleMarker(latlng, markerOfflineOptions);
-          }
+    // Clear previous defined device layer before adding markers
+    if (this.deviceLayer !== undefined) { this.map.removeLayer(this.deviceLayer); }
+
+    this.deviceLayer = L.geoJson(devices, {
+      pointToLayer: function (feature, latlng) {
+        if (feature.properties.status == "connected") {
+          return L.circleMarker(latlng, markerConnectedOptions);
+        } else {
+          return L.circleMarker(latlng, markerOfflineOptions);
         }
-      }).addTo(map);
+      }
     });
-  },
-  updated() {
+
+    this.deviceLayer.addTo(this.map);
   }
 }
 

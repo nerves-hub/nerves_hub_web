@@ -5,4 +5,5 @@
     integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
     crossorigin="">
     </script>
-<div id="map" phx-hook="WorldMap" data-markers={@map_markers} style="height: 720px; background: #2A2D30;"></div>
+<div id="map" phx-hook="WorldMap" phx-update="ignore" data-markers={@map_markers}
+    style="height: 720px; background: #2A2D30;"></div>

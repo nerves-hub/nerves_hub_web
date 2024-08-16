@@ -4,17 +4,66 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
 
+  alias Phoenix.Socket.Broadcast
+
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     %{product: product} = socket.assigns
 
     socket
     |> page_title("Dashboard - #{product.name}")
-    |> assign_map_devices()
+    |> assign_devices_and_markers()
+    |> subscribe_to_devices()
+    |> start_refresh_cycle()
     |> ok()
   end
 
-  defp assign_map_devices(%{assigns: %{org: org, product: product}} = socket) do
+  @impl Phoenix.LiveView
+  def handle_info(%Broadcast{event: "location:updated"}, socket) do
+    socket
+    |> assign_devices_and_markers()
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{event: "connection:status"}, socket) do
+    socket
+    |> assign_devices_and_markers()
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{event: "connection:change"}, socket) do
+    socket
+    |> assign_devices_and_markers()
+    |> noreply()
+  end
+
+  def handle_info(:refresh_device_list, socket) do
+    Process.send_after(self(), :refresh_device_list, 5000)
+
+    socket
+    |> assign_devices_and_markers()
+    |> subscribe_to_devices()
+    |> noreply()
+  end
+
+  defp start_refresh_cycle(socket) do
+    Process.send_after(self(), :refresh_device_list, 5000)
+    socket
+  end
+
+  defp subscribe_to_devices(socket) do
+    if connected?(socket) do
+      Enum.map(socket.assigns.devices, fn device ->
+        socket.endpoint.subscribe("device:#{device.identifier}:internal")
+      end)
+
+      socket
+    else
+      socket
+    end
+  end
+
+  defp assign_devices_and_markers(%{assigns: %{org: org, product: product}} = socket) do
     devices = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
 
     map_markers =
@@ -23,6 +72,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
       end)
 
     socket
+    |> assign(:devices, devices)
     |> assign(:map_markers, Jason.encode!(map_markers))
   end
 
@@ -52,6 +102,5 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
   end
 
   defp get_connection_status(:connected), do: "connected"
-  defp get_connection_status(:disconnected), do: "offline"
-  defp get_connection_status(:not_seen), do: "offline"
+  defp get_connection_status(_), do: "offline"
 end
