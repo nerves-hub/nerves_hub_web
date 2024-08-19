@@ -879,6 +879,17 @@ defmodule NervesHub.DevicesTest do
 
       assert Devices.firmware_status(device) == "pending"
     end
+
+    test "safe against missing metadata", %{device: device} do
+      # This is mostly for race conditions between finishing the DB write
+      # of related firmware metadata or deployment update and reading the
+      # record back in with a firmware_status (i.e via API request)
+      # In those rare cases we might have missing data and need to be able to
+      # handle it
+      missing_meta_device = %{device | deployment: nil, firmware_metadata: nil}
+
+      assert Devices.firmware_status(missing_meta_device) == "latest"
+    end
   end
 
   describe "inflight updates" do
