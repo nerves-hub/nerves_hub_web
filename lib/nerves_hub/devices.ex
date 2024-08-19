@@ -1272,7 +1272,7 @@ defmodule NervesHub.Devices do
       is_nil(device.deployment_id) ->
         "latest"
 
-      device.firmware_metadata.uuid == device.deployment.firmware.uuid ->
+      get_in(device.firmware_metadata.uuid) == get_in(device.deployment.firmware.uuid) ->
         "latest"
 
       !Enum.empty?(device.update_attempts) ->
