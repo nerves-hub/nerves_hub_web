@@ -183,18 +183,18 @@ Hooks.WorldMap = {
 
     var markerConnectedOptions = {
       radius: 6,
-      fillColor: "#97df97",
+      fillColor: "#4dd54f",
       weight: 1,
       opacity: 0,
-      fillOpacity: 0.8
+      fillOpacity: 1
     };
 
     var markerOfflineOptions = {
       radius: 6,
-      fillColor: "#c43131",
+      fillColor: "rgba(196,49,49,1)",
       weight: 1,
       opacity: 0,
-      fillOpacity: 0.8
+      fillOpacity: 1
     };
 
     // Clear previous defined device layer before adding markers
