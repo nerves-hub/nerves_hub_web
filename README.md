@@ -20,10 +20,7 @@ we complete the 2.0 release.
 
 ### Development environment setup
 
-For best compatibility with Erlang SSL versions, we use Erlang/OTP 23.0.4. If
-you're coming to NervesHub without OTP 23 or earlier devices, don't worry about
-this. OTP 23.0.4 is difficult to install on Apple M1/M2 hardware so developing
-on Linux is highly recommended if you're keeping to the OTP 23.0.4 requirement.
+For best compatibility with Erlang SSL versions, we use Erlang/OTP 27.0.1.
 
 The `.tool-versions` files contains the Erlang, Elixir and NodeJS versions.
 Install [asdf-vm](https://asdf-vm.com/) and run the following for quick setup:
