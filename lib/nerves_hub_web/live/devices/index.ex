@@ -95,12 +95,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
     params = Enum.into(stringify_keys(extra), socket.assigns.params)
     pagination = pagination_changes(params)
     filter = filter_changes(params)
-    sort = sort_changes(params) |> dbg()
+    sort = sort_changes(params)
+
     query =
       filter
       |> Map.merge(pagination)
       |> Map.merge(sort)
-      |> dbg()
+
     ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices?#{query}"
   end
 
@@ -118,15 +119,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # For this case, we switch the sorting direction of same field
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
-        dbg(current_sort)
     %{sort_direction: sort_direction} = socket.assigns
 
-    dbg(sort_direction)
     # switch sort direction for column because
     sort_direction = if sort_direction == "desc", do: "asc", else: "desc"
     params = %{sort_direction: sort_direction, sort: value}
-
-    dbg(params)
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -135,10 +132,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # User has clicked a new column to sort
   def handle_event("sort", %{"sort" => value}, socket) do
-    dbg(socket.assigns.current_sort)
     params = %{sort_direction: "asc", sort: value}
-
-    dbg(params)
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -351,7 +345,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
        ) do
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
-      sort: {String.to_existing_atom(socket.assigns.sort_direction), String.to_atom(socket.assigns.current_sort)},
+      sort:
+        {String.to_existing_atom(socket.assigns.sort_direction),
+         String.to_atom(socket.assigns.current_sort)},
       filters: socket.assigns.current_filters
     }
 
@@ -486,7 +482,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
   @sort_default %{sort_direction: "asc", sort: "identifier"}
   @sort_types %{sort_direction: :string, sort: :string}
   defp sort_changes(params) do
-    dbg(params)
     Ecto.Changeset.cast({@sort_default, @sort_types}, params, Map.keys(@sort_default)).changes
   end
 
