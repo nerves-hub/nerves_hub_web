@@ -132,34 +132,31 @@ defmodule NervesHub.Devices do
         {_, ""} ->
           query
 
-        {"_target", _} ->
-          query
-
-        {"connection", _value} ->
+        {:connection, _value} ->
           where(query, [d], d.connection_status == ^String.to_atom(value))
 
-        {"connection_type", value} ->
+        {:connection_type, value} ->
           where(query, [d], ^value in d.connection_types)
 
-        {"firmware_version", value} ->
+        {:firmware_version, value} ->
           where(query, [d], d.firmware_metadata["version"] == ^value)
 
-        {"platform", value} ->
+        {:platform, value} ->
           where(query, [d], d.firmware_metadata["platform"] == ^value)
 
-        {"updates", "enabled"} ->
+        {:updates, "enabled"} ->
           where(query, [d], d.updates_enabled == true)
 
-        {"updates", "penalty-box"} ->
+        {:updates, "penalty-box"} ->
           where(query, [d], d.updates_blocked_until > fragment("now() at time zone 'utc'"))
 
-        {"updates", "disabled"} ->
+        {:updates, "disabled"} ->
           where(query, [d], d.updates_enabled == false)
 
-        {"device_id", value} ->
+        {:device_id, value} ->
           where(query, [d], ilike(d.identifier, ^"#{value}%"))
 
-        {"tag", value} ->
+        {:tag, value} ->
           case NervesHub.Types.Tag.cast(value) do
             {:ok, tags} ->
               Enum.reduce(tags, query, fn tag, query ->

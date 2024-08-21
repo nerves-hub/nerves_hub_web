@@ -17,17 +17,43 @@ defmodule NervesHubWeb.Live.Devices.Index do
     only: [pagination_links: 1]
 
   @default_filters %{
-    "connection" => "",
-    "connection_types" => "",
-    "firmware_version" => "",
-    "platform" => "",
-    "healthy" => "",
-    "id" => "",
-    "tag" => ""
+    connection: "",
+    connection_type: "",
+    firmware_version: "",
+    platform: "",
+    healthy: "",
+    device_id: "",
+    tag: "",
+    updates: ""
+  }
+
+  @filter_types %{
+    connection: :string,
+    connection_type: :string,
+    firmware_version: :string,
+    platform: :string,
+    healthy: :string,
+    device_id: :string,
+    tag: :string,
+    updates: :string
   }
 
   @default_page 1
   @default_page_size 25
+
+  @default_pagination %{
+    page_number: @default_page,
+    page_size: @default_page_size,
+    page_sizes: [25, 50, 100],
+    total_pages: 0
+  }
+
+  @pagination_types %{
+    page_number: :integer,
+    page_size: :integer,
+    page_sizes: {:array, :integer},
+    total_pages: :integer
+  }
 
   def mount(_params, _session, socket) do
     %{product: product} = socket.assigns
@@ -35,13 +61,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     socket
     |> page_title("Devices - #{product.name}")
     |> assign(:current_sort, "identifier")
-    |> assign(:sort_direction, :asc)
-    |> assign(:paginate_opts, %{
-      page_number: @default_page,
-      page_size: @default_page_size,
-      page_sizes: [25, 50, 75],
-      total_pages: 0
-    })
+    |> assign(:sort_direction, "asc")
+    |> assign(:paginate_opts, @default_pagination)
     |> assign(:firmware_versions, firmware_versions(product.id))
     |> assign(:platforms, Devices.platforms(product.id))
     |> assign(:show_filters, false)
@@ -51,9 +72,37 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:target_product, nil)
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
+    |> ok()
+  end
+
+  def handle_params(unsigned_params, _uri, socket) do
+    filters = Map.merge(@default_filters, filter_changes(unsigned_params))
+    pagination_opts = Map.merge(socket.assigns.paginate_opts, pagination_changes(unsigned_params))
+
+    socket
+    |> assign(:current_sort, Map.get(unsigned_params, "sort", "identifier"))
+    |> assign(:sort_direction, Map.get(unsigned_params, "sort_direction", "asc"))
+    |> assign(:current_filters, filters)
+    |> assign(:paginate_opts, pagination_opts)
+    |> assign(:currently_filtering, filters != @default_filters)
+    |> assign(:params, unsigned_params)
     |> assign_display_devices()
     |> subscribe_and_refresh_device_list()
-    |> ok()
+    |> noreply()
+  end
+
+  defp self_path(socket, extra) do
+    params = Enum.into(stringify_keys(extra), socket.assigns.params)
+    pagination = pagination_changes(params)
+    filter = filter_changes(params)
+    sort = sort_changes(params)
+
+    query =
+      filter
+      |> Map.merge(pagination)
+      |> Map.merge(sort)
+
+    ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices?#{query}"
   end
 
   defp subscribe_and_refresh_device_list(socket) do
@@ -73,83 +122,63 @@ defmodule NervesHubWeb.Live.Devices.Index do
     %{sort_direction: sort_direction} = socket.assigns
 
     # switch sort direction for column because
-    sort_direction = if sort_direction == :desc, do: :asc, else: :desc
+    sort_direction = if sort_direction == "desc", do: "asc", else: "desc"
+    params = %{sort_direction: sort_direction, sort: value}
 
-    socket =
-      socket
-      |> assign(sort_direction: sort_direction)
-      |> assign_display_devices()
-
-    {:noreply, socket}
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
   end
 
   # User has clicked a new column to sort
   def handle_event("sort", %{"sort" => value}, socket) do
-    socket =
-      socket
-      |> assign(:current_sort, value)
-      |> assign(:sort_direction, :asc)
-      |> assign_display_devices()
+    params = %{sort_direction: "asc", sort: value}
 
-    {:noreply, socket}
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
   end
 
-  def handle_event(
-        "paginate",
-        %{"page" => page_num},
-        %{assigns: %{paginate_opts: paginate_opts}} = socket
-      ) do
-    page_num = String.to_integer(page_num)
+  def handle_event("paginate", %{"page" => page_num}, socket) do
+    params = %{"page_number" => page_num}
 
-    socket =
-      socket
-      |> assign(:paginate_opts, %{paginate_opts | page_number: page_num})
-      |> assign_display_devices()
-
-    {:noreply, socket}
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
   end
 
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
-    page_size = String.to_integer(page_size)
+    params = %{"page_size" => page_size, "page_number" => 1}
 
-    paginate_opts =
-      socket.assigns.paginate_opts
-      |> Map.put(:page_size, page_size)
-      |> Map.put(:page_number, 1)
-
-    socket =
-      socket
-      |> assign(:paginate_opts, paginate_opts)
-      |> assign_display_devices()
-
-    {:noreply, socket}
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
   end
 
   def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
     {:noreply, assign(socket, :show_filters, toggle != "true")}
   end
 
-  def handle_event("update-filters", params, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
-    socket =
-      socket
-      |> assign(:paginate_opts, %{paginate_opts | page_number: @default_page})
-      |> assign(:current_filters, params)
-      |> assign(:currently_filtering, params != @default_filters)
-      |> assign(:selected_devices, [])
-      |> assign_display_devices()
+  def handle_event(
+        "update-filters",
+        params,
+        %{assigns: %{paginate_opts: paginate_opts}} = socket
+      ) do
+    page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
-    {:noreply, socket}
+    socket
+    |> assign(:selected_devices, [])
+    |> push_patch(to: self_path(socket, Map.merge(params, page_params)))
+    |> noreply()
   end
 
   def handle_event("reset-filters", _, %{assigns: %{paginate_opts: paginate_opts}} = socket) do
-    socket =
-      socket
-      |> assign(:paginate_opts, %{paginate_opts | page_number: @default_page})
-      |> assign(:current_filters, @default_filters)
-      |> assign(:currently_filtering, false)
-      |> assign_display_devices()
+    page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
 
-    {:noreply, socket}
+    socket
+    |> assign(:selected_devices, [])
+    |> push_patch(to: self_path(socket, Map.merge(@default_filters, page_params)))
+    |> noreply()
   end
 
   def handle_event("select", %{"id" => id_str}, socket) do
@@ -316,7 +345,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
        ) do
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
-      sort: {socket.assigns.sort_direction, String.to_atom(socket.assigns.current_sort)},
+      sort:
+        {String.to_existing_atom(socket.assigns.sort_direction),
+         String.to_atom(socket.assigns.current_sort)},
       filters: socket.assigns.current_filters
     }
 
@@ -373,13 +404,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp devices_table_header(title, value, current_sort, sort_direction)
        when value == current_sort do
-    caret_class = if sort_direction == :asc, do: "up", else: "down"
+    caret_class = if sort_direction == "asc", do: "up", else: "down"
 
     assigns = %{value: value, title: title, caret_class: caret_class}
 
     ~H"""
-    <th phx-click="sort" phx-value_sort={@value} class="pointer sort-selected">
-      <%= @title %><i class="icon-caret icon-caret-#{@caret_class}" />
+    <th phx-click="sort" phx-value-sort={@value} class="pointer sort-selected">
+      <%= @title %><i class={"icon-caret icon-caret-#{@caret_class}"} />
     </th>
     """
   end
@@ -388,7 +419,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     assigns = %{value: value, title: title}
 
     ~H"""
-    <th phx-click="sort" phx-value_sort={@value} class="pointer">
+    <th phx-click="sort" phx-value-sort={@value} class="pointer">
       <%= @title %>
     </th>
     """
@@ -432,5 +463,35 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     Do you wish to continue?
     """
+  end
+
+  defp pagination_changes(params) do
+    Ecto.Changeset.cast(
+      {@default_pagination, @pagination_types},
+      params,
+      Map.keys(@default_pagination)
+    ).changes
+  end
+
+  defp filter_changes(params) do
+    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
+      empty_values: []
+    ).changes
+  end
+
+  @sort_default %{sort_direction: "asc", sort: "identifier"}
+  @sort_types %{sort_direction: :string, sort: :string}
+  defp sort_changes(params) do
+    Ecto.Changeset.cast({@sort_default, @sort_types}, params, Map.keys(@sort_default)).changes
+  end
+
+  defp stringify_keys(params) do
+    for {key, value} <- params, into: %{} do
+      if is_atom(key) do
+        {to_string(key), value}
+      else
+        {key, value}
+      end
+    end
   end
 end
