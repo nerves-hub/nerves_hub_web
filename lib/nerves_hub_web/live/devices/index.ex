@@ -61,7 +61,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     socket
     |> page_title("Devices - #{product.name}")
     |> assign(:current_sort, "identifier")
-    |> assign(:sort_direction, :asc)
+    |> assign(:sort_direction, "asc")
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:firmware_versions, firmware_versions(product.id))
     |> assign(:platforms, Devices.platforms(product.id))
@@ -81,7 +81,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(:current_sort, Map.get(unsigned_params, "sort", "identifier"))
-    |> assign(:sort_direction, Map.get(unsigned_params, "sort_direction", :asc) |> sort_dir())
+    |> assign(:sort_direction, Map.get(unsigned_params, "sort_direction", "asc"))
     |> assign(:current_filters, filters)
     |> assign(:paginate_opts, pagination_opts)
     |> assign(:currently_filtering, filters != @default_filters)
@@ -91,19 +91,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  defp sort_dir(maybe_string) do
-    if is_binary(maybe_string) do
-      String.to_existing_atom(maybe_string)
-    else
-      maybe_string
-    end
-  end
-
   defp self_path(socket, extra) do
     params = Enum.into(stringify_keys(extra), socket.assigns.params)
     pagination = pagination_changes(params)
     filter = filter_changes(params)
-    query = Map.merge(filter, pagination)
+    sort = sort_changes(params) |> dbg()
+    query =
+      filter
+      |> Map.merge(pagination)
+      |> Map.merge(sort)
+      |> dbg()
     ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices?#{query}"
   end
 
@@ -121,11 +118,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
   # For this case, we switch the sorting direction of same field
   def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
       when value == current_sort do
+        dbg(current_sort)
     %{sort_direction: sort_direction} = socket.assigns
 
+    dbg(sort_direction)
     # switch sort direction for column because
-    sort_direction = if sort_direction == :desc, do: :asc, else: :desc
-    params = %{"sort_direction" => sort_direction, "sort" => value}
+    sort_direction = if sort_direction == "desc", do: "asc", else: "desc"
+    params = %{sort_direction: sort_direction, sort: value}
+
+    dbg(params)
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -134,7 +135,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   # User has clicked a new column to sort
   def handle_event("sort", %{"sort" => value}, socket) do
-    params = %{"sort_direction" => :asc, "sort" => value}
+    dbg(socket.assigns.current_sort)
+    params = %{sort_direction: "asc", sort: value}
+
+    dbg(params)
 
     socket
     |> push_patch(to: self_path(socket, params))
@@ -347,7 +351,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
        ) do
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
-      sort: {socket.assigns.sort_direction, String.to_atom(socket.assigns.current_sort)},
+      sort: {String.to_existing_atom(socket.assigns.sort_direction), String.to_atom(socket.assigns.current_sort)},
       filters: socket.assigns.current_filters
     }
 
@@ -404,7 +408,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp devices_table_header(title, value, current_sort, sort_direction)
        when value == current_sort do
-    caret_class = if sort_direction == :asc, do: "up", else: "down"
+    caret_class = if sort_direction == "asc", do: "up", else: "down"
 
     assigns = %{value: value, title: title, caret_class: caret_class}
 
@@ -477,6 +481,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
     Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
       empty_values: []
     ).changes
+  end
+
+  @sort_default %{sort_direction: "asc", sort: "identifier"}
+  @sort_types %{sort_direction: :string, sort: :string}
+  defp sort_changes(params) do
+    dbg(params)
+    Ecto.Changeset.cast({@sort_default, @sort_types}, params, Map.keys(@sort_default)).changes
   end
 
   defp stringify_keys(params) do
