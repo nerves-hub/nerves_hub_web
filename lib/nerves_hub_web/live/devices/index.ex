@@ -17,14 +17,25 @@ defmodule NervesHubWeb.Live.Devices.Index do
     only: [pagination_links: 1]
 
   @default_filters %{
-    "connection" => "",
-    "connection_type" => "",
-    "firmware_version" => "",
-    "platform" => "",
-    "healthy" => "",
-    "device_id" => "",
-    "tag" => "",
-    "updates" => ""
+    connection: "",
+    connection_type: "",
+    firmware_version: "",
+    platform: "",
+    healthy: "",
+    device_id: "",
+    tag: "",
+    updates: ""
+  }
+
+  @filter_types %{
+    connection: :string,
+    connection_type: :string,
+    firmware_version: :string,
+    platform: :string,
+    healthy: :string,
+    device_id: :string,
+    tag: :string,
+    updates: :string
   }
 
   @default_page 1
@@ -35,6 +46,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
     page_size: @default_page_size,
     page_sizes: [25, 50, 100],
     total_pages: 0
+  }
+
+  @pagination_types %{
+    page_number: :integer,
+    page_size: :integer,
+    page_sizes: {:array, :integer},
+    total_pages: :integer
   }
 
   def mount(_params, _session, socket) do
@@ -58,20 +76,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_params(unsigned_params, _uri, socket) do
-    filters =
-      Enum.reduce(@default_filters, %{}, fn {key, _}, curr ->
-        new = Map.get(unsigned_params, key, "")
-        Map.put(curr, key, new)
-      end)
-
-    pagination_opts = %{
-      page_number:
-        Map.get(unsigned_params, "page_number", socket.assigns.paginate_opts.page_number) |> num(),
-      page_size:
-        Map.get(unsigned_params, "page_size", socket.assigns.paginate_opts.page_size) |> num(),
-      page_sizes: socket.assigns.paginate_opts.page_sizes,
-      total_pages: socket.assigns.paginate_opts.total_pages
-    }
+    filters = Map.merge(@default_filters, filter_changes(unsigned_params))
+    pagination_opts = Map.merge(socket.assigns.paginate_opts, pagination_changes(unsigned_params))
 
     socket
     |> assign(:current_sort, Map.get(unsigned_params, "sort", "identifier"))
@@ -85,14 +91,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  defp num(maybe_string) do
-    if is_binary(maybe_string) do
-      String.to_integer(maybe_string)
-    else
-      maybe_string
-    end
-  end
-
   defp sort_dir(maybe_string) do
     if is_binary(maybe_string) do
       String.to_existing_atom(maybe_string)
@@ -102,42 +100,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp self_path(socket, extra) do
-    params =
-      extra
-      |> Enum.into(socket.assigns.params)
-      # Remove all params that are set to default values to keep URL clean
-      |> Enum.reject(fn {key, value} ->
-        case key do
-          "sort_direction" ->
-            value == :asc or value == "asc"
-
-          "sort" ->
-            value == "identifier"
-
-          _ ->
-            if @default_filters[key] do
-              # Removing all default filters from params
-              value == @default_filters[key]
-            else
-              atom_key = String.to_existing_atom(key)
-
-              if val = @default_pagination[atom_key] do
-                # Remove all default pagination options
-                value == val or value == to_string(val)
-              else
-                false
-              end
-            end
-        end
-      end)
-
-    NervesHubWeb.Router.Helpers.live_path(
-      socket,
-      __MODULE__,
-      socket.assigns.org.name,
-      socket.assigns.product.name,
-      params
-    )
+    params = Enum.into(stringify_keys(extra), socket.assigns.params)
+    pagination = pagination_changes(params)
+    filter = filter_changes(params)
+    query = Map.merge(filter, pagination)
+    ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices?#{query}"
   end
 
   defp subscribe_and_refresh_device_list(socket) do
@@ -200,7 +167,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
         %{assigns: %{paginate_opts: paginate_opts}} = socket
       ) do
     page_params = %{"page_number" => @default_page, "page_size" => paginate_opts.page_size}
-    params = Map.take(params, Map.keys(@default_filters))
 
     socket
     |> assign(:selected_devices, [])
@@ -497,5 +463,29 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     Do you wish to continue?
     """
+  end
+
+  defp pagination_changes(params) do
+    Ecto.Changeset.cast(
+      {@default_pagination, @pagination_types},
+      params,
+      Map.keys(@default_pagination)
+    ).changes
+  end
+
+  defp filter_changes(params) do
+    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
+      empty_values: []
+    ).changes
+  end
+
+  defp stringify_keys(params) do
+    for {key, value} <- params, into: %{} do
+      if is_atom(key) do
+        {to_string(key), value}
+      else
+        {key, value}
+      end
+    end
   end
 end

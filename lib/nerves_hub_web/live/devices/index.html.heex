@@ -52,16 +52,16 @@
       <form id="filter-form" phx-change="update-filters" class="filter-form device-filters">
         <div class="form-group">
           <label for="input_id">ID</label>
-          <input type="text" name="device_id" id="input_id" class="form-control" value={@current_filters["device_id"]} phx-debounce="500" />
+          <input type="text" name="device_id" id="input_id" class="form-control" value={@current_filters[:device_id]} phx-debounce="500" />
         </div>
         <div class="form-group">
           <label for="input_connection">Connection</label>
           <div class="pos-rel">
             <select name="connection" id="input_connection" class="form-control">
-              <option {selected?(@current_filters, "connection", "")} value="">All</option>
-              <option {selected?(@current_filters, "connection", "connected")} value="connected">Connected</option>
-              <option {selected?(@current_filters, "connection", "disconnected")} value="disconnected">Disconnected</option>
-              <option {selected?(@current_filters, "connection", "not_seen")} value="not_seen">Not Seen</option>
+              <option {selected?(@current_filters, :connection, "")} value="">All</option>
+              <option {selected?(@current_filters, :connection, "connected")} value="connected">Connected</option>
+              <option {selected?(@current_filters, :connection, "disconnected")} value="disconnected">Disconnected</option>
+              <option {selected?(@current_filters, :connection, "not_seen")} value="not_seen">Not Seen</option>
             </select>
             <div class="select-icon"></div>
           </div>
@@ -70,10 +70,10 @@
           <label for="connection_type">Connection Type</label>
           <div class="pos-rel">
             <select name="connection_type" id="connection_type" class="form-control">
-              <option {selected?(@current_filters, "connection_type", "")} value="">All</option>
-              <option {selected?(@current_filters, "connection_type", "cellular")} value="cellular">Cellular</option>
-              <option {selected?(@current_filters, "connection_type", "ethernet")} value="ethernet">Ethernet</option>
-              <option {selected?(@current_filters, "connection_type", "wifi")} value="wifi">WiFi</option>
+              <option {selected?(@current_filters, :connection_type, "")} value="">All</option>
+              <option {selected?(@current_filters, :connection_type, "cellular")} value="cellular">Cellular</option>
+              <option {selected?(@current_filters, :connection_type, "ethernet")} value="ethernet">Ethernet</option>
+              <option {selected?(@current_filters, :connection_type, "wifi")} value="wifi">WiFi</option>
             </select>
             <div class="select-icon"></div>
           </div>
@@ -82,10 +82,10 @@
           <label for="input_health">Firmware Updates</label>
           <div class="pos-rel">
             <select name="updates" id="input_health" class="form-control">
-              <option {selected?(@current_filters, "updates", "")} value="">All</option>
-              <option {selected?(@current_filters, "updates", "enabled")} value="enabled">Enabled</option>
-              <option {selected?(@current_filters, "updates", "penalty-box")} value="penalty-box">Penalty Box</option>
-              <option {selected?(@current_filters, "updates", "disabled")} value="disabled">Disabled</option>
+              <option {selected?(@current_filters, :updates, "")} value="">All</option>
+              <option {selected?(@current_filters, :updates, "enabled")} value="enabled">Enabled</option>
+              <option {selected?(@current_filters, :updates, "penalty-box")} value="penalty-box">Penalty Box</option>
+              <option {selected?(@current_filters, :updates, "disabled")} value="disabled">Disabled</option>
             </select>
             <div class="select-icon"></div>
           </div>
@@ -94,9 +94,9 @@
           <label for="input_firmware">Firmware</label>
           <div class="pos-rel">
             <select name="firmware_version" id="input_firmware" class="form-control">
-              <option {selected?(@current_filters, "firmware_version", "")} value="">All</option>
+              <option {selected?(@current_filters, :firmware_version, "")} value="">All</option>
               <%= for version <- @firmware_versions do %>
-                <option {selected?(@current_filters, "firmware_version", version)}><%= version %></option>
+                <option {selected?(@current_filters, :firmware_version, version)}><%= version %></option>
               <% end %>
             </select>
             <div class="select-icon"></div>
@@ -106,9 +106,9 @@
           <label for="input_platform">Platform</label>
           <div class="pos-rel">
             <select name="platform" id="platform" class="form-control">
-              <option {selected?(@current_filters, "platform", "")} value="">All</option>
+              <option {selected?(@current_filters, :platform, "")} value="">All</option>
               <%= for platform <- @platforms do %>
-                <option {selected?(@current_filters, "platform", platform)}><%= platform %></option>
+                <option {selected?(@current_filters, :platform, platform)}><%= platform %></option>
               <% end %>
             </select>
             <div class="select-icon"></div>
@@ -116,7 +116,7 @@
         </div>
         <div class="form-group">
           <label for="input_tags">Tags</label>
-          <input type="text" name="tag" id="input_tags" class="form-control" value={@current_filters["tag"]} phx-debounce="500" />
+          <input type="text" name="tag" id="input_tags" class="form-control" value={@current_filters[:tag]} phx-debounce="500" />
         </div>
       </form>
       <button class="btn btn-secondary" type="button" phx-click="reset-filters">Reset Filters</button>
@@ -159,7 +159,7 @@
           <label for="input_tags">Set tag(s) to:</label>
           <div class="flex-row align-items-center">
             <div class="flex-grow">
-              <input type="text" name="tags" id="input_tags" class="form-control" value={@current_filters["tag"]} phx-debounce="500" />
+              <input type="text" name="tags" id="input_tags" class="form-control" value={@current_filters[:tag]} phx-debounce="500" />
             </div>
             <button
               class="btn btn-outline-light btn-action btn-primary ml-1"
