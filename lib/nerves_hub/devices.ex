@@ -1144,6 +1144,33 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
+  @empty_metrics_map %{
+    cpu_temp: [],
+    load_15min: [],
+    load_1min: [],
+    load_5min: [],
+    size_mb: [],
+    used_mb: [],
+    used_percent: []
+  }
+  def get_device_metrics(device_id) do
+    health = get_all_health(device_id)
+
+    Enum.reduce(health, @empty_metrics_map, fn h, acc ->
+      # TODO: Handle case with no metrics key
+      metrics = h.data["metrics"]
+
+      acc
+      |> Map.put(:cpu_temp, acc.cpu_temp ++ [metrics["cpu_temp"]])
+      |> Map.put(:load_15min, acc.load_1min ++ [metrics["load_15min"]])
+      |> Map.put(:load_1min, acc.load_1min ++ [metrics["load_1min"]])
+      |> Map.put(:load_5min, acc.load_1min ++ [metrics["load_5min"]])
+      |> Map.put(:size_mb, acc.load_1min ++ [metrics["size_mb"]])
+      |> Map.put(:used_mb, acc.load_1min ++ [metrics["used_mb"]])
+      |> Map.put(:used_percent, acc.load_1min ++ [metrics["used_percent"]])
+    end)
+  end
+
   defp version_match?(_vsn, ""), do: true
 
   defp version_match?(version, requirement) do

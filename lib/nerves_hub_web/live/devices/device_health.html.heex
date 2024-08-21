@@ -1,0 +1,55 @@
+<div class="action-row mb-1">
+    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"} class="back-link">Back to
+        device
+    </.link>
+</div>
+<HealthHeader.render org={@org} product={@product} device={@device} status={@status} />
+
+<div class="divider"></div>
+
+<h3 class="mb-2">Device Metrics</h3>
+
+
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="metrics-section">
+            <div>
+                <%= @cpu_temp %>
+            </div>
+            <div class="help-text mt-1">CPU Temp</div>
+        </div>
+        <div class="metrics-section">
+            <div>
+                <%= @used_mb %>
+            </div>
+            <div class="help-text mt-1">MB Used</div>
+        </div>
+        <div class="metrics-section">
+            <div>
+                <%= @used_percent %>
+            </div>
+            <div class="help-text mt-1">Percent Used</div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="metrics-section">
+            <div>
+                <%= @load_1min %>
+            </div>
+            <div class="help-text mt-1">Load 1 min</div>
+        </div>
+        <div class="metrics-section">
+            <div>
+                <%= @load_5min %>
+            </div>
+            <div class="help-text mt-1">Load 5 min</div>
+        </div>
+        <div class="metrics-section">
+            <div>
+                <%= @load_15min %>
+            </div>
+            <div class="help-text mt-1">Load 15 min</div>
+        </div>
+    </div>
+</div>
