@@ -167,18 +167,20 @@ Hooks.WorldMap = {
     for (let i = 0; i < markers.length; i++) {
       let marker = markers[i];
       let location = marker["location"];
-      let newMarker = {
-        type: "Feature",
-        properties: {
-          name: marker["identifier"],
-          status: marker["status"],
-        },
-        geometry: {
-          type: "Point",
-          coordinates: [location["longitude"], location["latitude"]]
+      if (location["longitude"] !== undefined && location["latitude"] !== undefined) {
+        let newMarker = {
+          type: "Feature",
+          properties: {
+            name: marker["identifier"],
+            status: marker["status"],
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [location["longitude"], location["latitude"]]
+          }
         }
+        devices.push(newMarker);
       }
-      devices.push(newMarker);
     }
 
     var markerConnectedOptions = {
