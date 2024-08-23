@@ -9,25 +9,23 @@
 
 <h3 class="mb-2">Device Metrics</h3>
 
-
-
 <div class="row">
     <div class="col-lg-6">
         <div class="metrics-section">
             <div>
-                <%= @cpu_temp %>
+                <%= @cpu_temp_line_plot %>
             </div>
-            <div class="help-text mt-1">CPU Temp</div>
+            <div class="help-text mt-1">CPU Temperature in Celcius</div>
         </div>
         <div class="metrics-section">
             <div>
-                <%= @used_mb %>
+                <%= @used_mb_line_plot %>
             </div>
             <div class="help-text mt-1">MB Used</div>
         </div>
         <div class="metrics-section">
             <div>
-                <%= @used_percent %>
+                <%= @used_percent_line_plot %>
             </div>
             <div class="help-text mt-1">Percent Used</div>
         </div>
@@ -35,19 +33,19 @@
     <div class="col-lg-6">
         <div class="metrics-section">
             <div>
-                <%= @load_1min %>
+                <%= @load_1min_line_plot %>
             </div>
             <div class="help-text mt-1">Load 1 min</div>
         </div>
         <div class="metrics-section">
             <div>
-                <%= @load_5min %>
+                <%= @load_15min_line_plot %>
             </div>
             <div class="help-text mt-1">Load 5 min</div>
         </div>
         <div class="metrics-section">
             <div>
-                <%= @load_15min %>
+                <%= @load_15min_line_plot %>
             </div>
             <div class="help-text mt-1">Load 15 min</div>
         </div>
