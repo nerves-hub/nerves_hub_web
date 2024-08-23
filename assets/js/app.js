@@ -4,6 +4,7 @@ import 'phoenix_html'
 import 'bootstrap'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
+import L from 'leaflet/dist/leaflet.js'
 
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
@@ -16,6 +17,7 @@ hljs.registerLanguage('plaintext', plaintext)
 hljs.registerLanguage('shell', shell)
 
 import 'highlight.js/styles/stackoverflow-light.css'
+import 'leaflet/dist/leaflet.css'
 
 import TimeAgo from 'javascript-time-ago'
 import en from 'javascript-time-ago/locale/en'
@@ -123,6 +125,92 @@ Hooks.SimpleDate = {
   },
   updated() {
     this.el.textContent = dates.formatDate(this.el.textContent)
+  }
+}
+
+Hooks.WorldMap = {
+  mounted() {
+    let mapId = this.el.id;
+
+    var mapOptionsNoZoom = {
+      attributionControl: false,
+      zoomControl: false,
+      scrollWheelZoom: false,
+      boxZoom: false,
+      doubleClickZoom: false,
+      dragging: false,
+      keyboard: false
+    };
+
+    var mapStyle = {
+      stroke: true,
+      color: "#2A2D30",
+      fillColor: "#b7bec5",
+      weight: 0.5,
+      opacity: 1,
+      fillOpacity: 0.5
+    };
+
+    // initialize the map
+    this.map = L.map(mapId, mapOptionsNoZoom).setView([40.5, 10], 2);
+
+    // load GeoJSON from an external file
+    fetch("/geo/world.geojson").then(res => res.json()).then(data => {
+      L.geoJson(data, { style: mapStyle }).addTo(this.map);
+      this.updated();
+    });
+  },
+  updated() {
+    let markers = JSON.parse(this.el.dataset.markers);
+    var devices = [];
+
+    for (let i = 0; i < markers.length; i++) {
+      let marker = markers[i];
+      let location = marker["location"];
+      let newMarker = {
+        type: "Feature",
+        properties: {
+          name: marker["identifier"],
+          status: marker["status"],
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [location["longitude"], location["latitude"]]
+        }
+      }
+      devices.push(newMarker);
+    }
+
+    var markerConnectedOptions = {
+      radius: 6,
+      fillColor: "#4dd54f",
+      weight: 1,
+      opacity: 0,
+      fillOpacity: 1
+    };
+
+    var markerOfflineOptions = {
+      radius: 6,
+      fillColor: "rgba(196,49,49,1)",
+      weight: 1,
+      opacity: 0,
+      fillOpacity: 1
+    };
+
+    // Clear previous defined device layer before adding markers
+    if (this.deviceLayer !== undefined) { this.map.removeLayer(this.deviceLayer); }
+
+    this.deviceLayer = L.geoJson(devices, {
+      pointToLayer: function (feature, latlng) {
+        if (feature.properties.status == "connected") {
+          return L.circleMarker(latlng, markerConnectedOptions);
+        } else {
+          return L.circleMarker(latlng, markerOfflineOptions);
+        }
+      }
+    });
+
+    this.deviceLayer.addTo(this.map);
   }
 }
 

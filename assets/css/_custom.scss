@@ -6,6 +6,16 @@
   margin-top: 10vh;
 }
 
+.no-map-results-positioned {
+  position: absolute;
+  top: 400px;
+  left: 0;
+  right: 0;
+  margin: auto;
+  z-index: 999;
+  // text-align: center;
+}
+
 .opacity-1 {
   opacity: 1;
 }
@@ -290,6 +300,33 @@ html {
       margin-top: 0;
     }
   }
+}
+
+// Dashboard world map
+
+#map-markers {
+  gap: 48px;
+}
+
+
+.map-marker {
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.green-marker {
+  background-color: #4dd54f;
+}
+
+.red-marker {
+  background-color: var(--primary);
+}
+
+.map-marker-gap {
+  gap: 8px;
 }
 
 @media (max-width: 1000px) and (min-width: 480px) {
