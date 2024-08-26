@@ -9,7 +9,7 @@
 
   <div class="form-group">
     <label for="text_input">Script text</label>
-    <%= text_input(f, :text, class: "form-control", id: "text_input") %>
+    <%= textarea(f, :text, rows: 5, class: "form-control", id: "text_input") %>
     <div class="has-error"><%= error_tag(f, :text) %></div>
   </div>
 
