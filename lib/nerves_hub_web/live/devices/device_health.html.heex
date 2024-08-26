@@ -1,53 +1,34 @@
 <div class="action-row mb-1">
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"} class="back-link">Back to
-        device
-    </.link>
+  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"} class="back-link">Back to
+    device </.link>
 </div>
 <HealthHeader.render org={@org} product={@product} device={@device} status={@status} />
 
 <div class="divider"></div>
 
-<h3 class="mb-2">Device Metrics</h3>
+<div class="action-row mb-2">
+  <h3 class="mb-2">Device Metrics</h3>
+  <div class="btn-group" role="group" aria-label="Metrics Time Interval">
+    <%= for {unit, amount} <- @time_frame_opts do %>
+      <button class={"btn btn-outline-light btn-action #{if {unit, amount}==@time_frame, do: "active" }"}
+        aria-label="1 Hour" type="button" phx-click="set-time-frame" phx-value-unit={unit} phx-value-amount={amount}>
+        <span class="action-text">
+          <%= Integer.to_string(amount) <> " " <> unit <> if amount> 1, do: "s", else: "" %>
+        </span>
+      </button>
+      <% end %>
+  </div>
+</div>
 
 <div class="row">
-    <div class="col-lg-6">
-        <div class="metrics-section">
-            <div>
-                <%= @cpu_temp_line_plot %>
-            </div>
-            <div class="help-text mt-1">CPU Temperature in Celcius</div>
-        </div>
-        <div class="metrics-section">
-            <div>
-                <%= @used_mb_line_plot %>
-            </div>
-            <div class="help-text mt-1">MB Used</div>
-        </div>
-        <div class="metrics-section">
-            <div>
-                <%= @used_percent_line_plot %>
-            </div>
-            <div class="help-text mt-1">Percent Used</div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="metrics-section">
-            <div>
-                <%= @load_1min_line_plot %>
-            </div>
-            <div class="help-text mt-1">Load 1 min</div>
-        </div>
-        <div class="metrics-section">
-            <div>
-                <%= @load_15min_line_plot %>
-            </div>
-            <div class="help-text mt-1">Load 5 min</div>
-        </div>
-        <div class="metrics-section">
-            <div>
-                <%= @load_15min_line_plot %>
-            </div>
-            <div class="help-text mt-1">Load 15 min</div>
-        </div>
-    </div>
+  <div class="col-lg-6">
+    <HealthSection.render title="CPU Temperature in Celcius" svg={@cpu_temp_line_plot} />
+    <HealthSection.render title="MB Used" svg={@used_mb_line_plot} />
+    <HealthSection.render title="Percent Used" svg={@used_percent_line_plot} />
+  </div>
+  <div class="col-lg-6">
+    <HealthSection.render title="Load 1 min" svg={@load_1min_line_plot} />
+    <HealthSection.render title="Load 5 min" svg={@load_5min_line_plot} />
+    <HealthSection.render title="Load 15 min" svg={@load_15min_line_plot} />
+  </div>
 </div>

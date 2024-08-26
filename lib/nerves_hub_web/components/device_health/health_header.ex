@@ -8,8 +8,9 @@ defmodule NervesHubWeb.Components.HealthHeader do
 
   def render(assigns) do
     ~H"""
-    <h1 class="ff-m mt-2 mb-0">Device health</h1>
-    <p class="help-text large">Showing metrics etc for device <%= @device.identifier %></p>
+    <h1 class="ff-m mt-2 mb-1">Device Health</h1>
+    <p class="help-text large">Device identifier: <%= @device.identifier %></p>
+
 
     <div class="device-meta-grid">
       <div>

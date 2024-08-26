@@ -1139,11 +1139,27 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def get_all_health(device_id) do
+
+  @doc """
+  Get all health for Device.
+  """
+  def get_device_health(device_id) do
     DeviceHealth
     |> from()
     |> where(device_id: ^device_id)
-    # |> where([d], d.inserted_at > ago(10, "minute"))
+    |> order_by(asc: :inserted_at)
+    |> Repo.all()
+  end
+
+  def get_device_health(device_id, "all", _amount) do
+    get_device_health(device_id)
+  end
+
+  def get_device_health(device_id, unit, amount) do
+    DeviceHealth
+    |> from()
+    |> where(device_id: ^device_id)
+    |> where([d], d.inserted_at > ago(^amount, ^unit))
     |> order_by(asc: :inserted_at)
     |> Repo.all()
   end
@@ -1157,24 +1173,47 @@ defmodule NervesHub.Devices do
     used_mb: [],
     used_percent: []
   }
-  def get_device_metrics(device_id) do
-    health = get_all_health(device_id)
+
+  def get_device_metrics(device_id, unit, amount) do
+    health = get_device_health(device_id, unit, amount)
 
     Enum.reduce(health, @empty_metrics_map, fn h, acc ->
       # TODO:
       # - Handle case with no metrics key.
-      # - Organize data according to Contex.LinePlot, or pass metrics as is.
+      # - Move structuring of data to LiveView?
 
       metrics = h.data["metrics"]
+      timestamp = h.data["timestamp"]
 
       acc
-      |> Map.put(:cpu_temp, acc.cpu_temp ++ [metrics["cpu_temp"]])
-      |> Map.put(:load_15min, acc.load_1min ++ [metrics["load_15min"]])
-      |> Map.put(:load_1min, acc.load_1min ++ [metrics["load_1min"]])
-      |> Map.put(:load_5min, acc.load_1min ++ [metrics["load_5min"]])
-      |> Map.put(:size_mb, acc.load_1min ++ [metrics["size_mb"]])
-      |> Map.put(:used_mb, acc.load_1min ++ [metrics["used_mb"]])
-      |> Map.put(:used_percent, acc.load_1min ++ [metrics["used_percent"]])
+      |> Map.put(
+        :cpu_temp,
+        acc.cpu_temp ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["cpu_temp"]]]
+      )
+      |> Map.put(
+        :load_15min,
+        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_15min"]]]
+      )
+      |> Map.put(
+        :load_1min,
+        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_1min"]]]
+      )
+      |> Map.put(
+        :load_5min,
+        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_5min"]]]
+      )
+      |> Map.put(
+        :size_mb,
+        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["size_mb"]]]
+      )
+      |> Map.put(
+        :used_mb,
+        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["used_mb"]]]
+      )
+      |> Map.put(
+        :used_percent,
+        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["used_percent"]]]
+      )
     end)
   end
 

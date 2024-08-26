@@ -1,3 +1,16 @@
+.metrics-section {
+    background: var(--backgroundLight);
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 2rem;
+
+}
+
+
+.metrics-text {
+    color: aqua;
+}
+
 /* Styling for tick line */
 .exc-tick {
     stroke: grey;

@@ -5,8 +5,17 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   alias NervesHub.Tracker
 
   alias NervesHubWeb.Components.HealthHeader
+  alias NervesHubWeb.Components.HealthSection
 
   alias Phoenix.Socket.Broadcast
+
+  @check_health_interval 1_000
+  @time_frame_opts [
+    {"hour", 1},
+    {"day", 1},
+    {"day", 7}
+  ]
+  @default_time_frame {"hour", 1}
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: _product} = socket.assigns
@@ -21,14 +30,24 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> page_title("Device #{device.identifier} - Health")
     |> assign(:device, device)
     |> assign(:status, Tracker.status(device))
+    |> assign(:time_frame, @default_time_frame)
+    |> assign(:time_frame_opts, @time_frame_opts)
     # TODO: Make sure health reports are coming in correctly from channel
-    # |> schedule_health_check_timer()
+    |> schedule_health_check_timer()
     |> assign_metrics()
     |> ok()
   end
 
+  def handle_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do
+    socket
+    |> assign(:time_frame, {unit, String.to_integer(amount)})
+    |> assign_metrics()
+    |> noreply()
+  end
+
+
   def handle_info(:check_health_interval, socket) do
-    timer_ref = Process.send_after(self(), :check_health_interval, 2_000)
+    timer_ref = Process.send_after(self(), :check_health_interval, @check_health_interval)
 
     socket.endpoint.broadcast("device:#{socket.assigns.device.id}", "check_health", %{})
 
@@ -46,50 +65,39 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   # Ignore other events for now
   def handle_info(_event, socket), do: {:noreply, socket}
 
-  def assign_metrics(%{assigns: %{device: device}} = socket) do
-    metrics = Devices.get_device_metrics(device.id)
-
-    # TODO: Handle empty metrics
+  defp assign_metrics(%{assigns: %{device: device, time_frame: {unit, amount}}} = socket) do
+    metrics =
+      Devices.get_device_metrics(device.id, unit, amount)
 
     socket
-    |> assign(:cpu_temp_line_plot, create_line_plot_svg(device.id, "cpu_temp"))
-    |> assign(:load_1min_line_plot, create_line_plot_svg(device.id, "load_1min"))
-    |> assign(:load_5min_line_plot, create_line_plot_svg(device.id, "load_5min"))
-    |> assign(:load_15min_line_plot, create_line_plot_svg(device.id, "load_15min"))
-    |> assign(:used_mb_line_plot, create_line_plot_svg(device.id, "used_mb"))
-    |> assign(:used_percent_line_plot, create_line_plot_svg(device.id, "used_percent"))
+    |> assign(:cpu_temp_line_plot, create_line_plot_svg(metrics.cpu_temp))
+    |> assign(:load_1min_line_plot, create_line_plot_svg(metrics.load_1min))
+    |> assign(:load_5min_line_plot, create_line_plot_svg(metrics.load_5min))
+    |> assign(:load_15min_line_plot, create_line_plot_svg(metrics.load_15min))
+    |> assign(:used_mb_line_plot, create_line_plot_svg(metrics.used_mb))
+    |> assign(:used_percent_line_plot, create_line_plot_svg(metrics.used_percent))
   end
 
-  defp create_line_plot_svg(device_id, metric_type) do
-    # TODO: consider getting all metrics at once
-    data = Devices.get_single_metric(device_id, metric_type)
+  defp create_line_plot_svg(data) do
+    if(data == []) do
+      "No data for selected period"
+    else
+      x_scale =
+        Contex.TimeScale.new()
+        |> Contex.TimeScale.domain(Enum.map(data, &hd/1))
+        |> Contex.TimeScale.interval_count(35)
 
-    x_scale =
-      Contex.TimeScale.new()
-      |> Contex.TimeScale.domain(Enum.map(data, &hd/1))
-      |> Contex.TimeScale.interval_count(35)
+      options = [
+        smoothed: false,
+        colour_palette: ["ffffff"],
+        custom_x_scale: x_scale
+      ]
 
-    options = [
-      smoothed: false,
-      colour_palette: ["ffffff"],
-      custom_x_scale: x_scale
-    ]
-
-    data
-    |> Contex.Dataset.new()
-    |> Contex.Plot.new(Contex.LinePlot, 600, 400, options)
-    |> Contex.Plot.to_svg()
-  end
-
-  # TODO: Probably remove this
-  defp create_sparkline_svg(metrics) when is_list(metrics) do
-    metrics
-    |> Contex.Sparkline.new()
-    |> Map.put(:width, 500)
-    |> Map.put(:height, 200)
-    |> Map.put(:line_width, 1)
-    |> Contex.Sparkline.colours("#ad958f", "#f2ebe4")
-    |> Contex.Sparkline.draw()
+      data
+      |> Contex.Dataset.new()
+      |> Contex.Plot.new(Contex.LinePlot, 600, 400, options)
+      |> Contex.Plot.to_svg()
+    end
   end
 
   defp schedule_health_check_timer(socket) do
