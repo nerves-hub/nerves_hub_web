@@ -76,7 +76,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
 
     socket
     |> assign(:devices, devices)
-    |> assign(:map_markers, Jason.encode!(map_markers))
+    |> assign(:map_markers, map_markers)
   end
 
   defp generate_map_marker(
@@ -84,17 +84,19 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
            id: id,
            identifier: identifier,
            connection_status: connection_status,
-           connection_metadata: %{"location" => location}
+           connection_metadata: %{
+             "location" => %{"longitude" => longitude, "latitude" => latitude}
+           }
          },
          markers
        )
-       when map_size(location) > 0 do
+       when is_number(longitude) and is_number(latitude) do
     new_marker =
       %{
         id: id,
         identifier: identifier,
         status: get_connection_status(connection_status),
-        location: location
+        location: %{"longitude" => longitude, "latitude" => latitude}
       }
 
     [new_marker | markers]
