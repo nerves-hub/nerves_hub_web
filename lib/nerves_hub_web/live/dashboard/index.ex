@@ -46,6 +46,9 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     |> noreply()
   end
 
+  # Ignore unknown messages
+  def handle_info(_unknown, socket), do: {:noreply, socket}
+
   defp start_refresh_cycle(socket) do
     Process.send_after(self(), :refresh_device_list, 5000)
     socket
