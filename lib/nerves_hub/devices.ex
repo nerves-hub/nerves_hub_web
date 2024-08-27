@@ -829,7 +829,7 @@ defmodule NervesHub.Devices do
 
         description = """
         Device #{device.identifier} automatically blocked firmware upgrades for #{deployment.penalty_timeout_minutes} minutes.
-        Device failure thredhold met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
+        Device failure threshold met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
         """
 
         AuditLogs.audit!(deployment, device, description)

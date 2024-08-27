@@ -274,7 +274,7 @@ defmodule NervesHub.Accounts do
 
   @doc """
   Gets a user via a password reset token string.
-  Checks validity and equivelence, returning `{:ok, %User{}}` or `{:error, :not_found}`
+  Checks validity and equivalence, returning `{:ok, %User{}}` or `{:error, :not_found}`
   """
   @spec get_user_with_password_reset_token(String.t()) ::
           {:ok, User.t()}
