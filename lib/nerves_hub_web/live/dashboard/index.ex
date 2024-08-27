@@ -46,7 +46,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     |> noreply()
   end
 
-  # Ignore unknown messages
+  # Ignore unused messages from the subscription
   def handle_info(_unknown, socket), do: {:noreply, socket}
 
   defp start_refresh_cycle(socket) do
