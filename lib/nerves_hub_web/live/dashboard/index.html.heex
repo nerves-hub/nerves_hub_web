@@ -32,7 +32,8 @@
       </div>
       <div id="map" class="opacity-50" phx-hook="WorldMap" phx-update="ignore" data-markers={[]} style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
     <% else %>
-      <div id="map" phx-hook="WorldMap" phx-update="ignore" data-markers={@map_markers} style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
+      <p class="p-small text-right">Showing <%= length(@map_markers) %> devices with location data.</p>
+      <div id="map" phx-hook="WorldMap" phx-update="ignore" data-markers={Jason.encode!(@map_markers)} style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
       <div id="map-markers" class="flex-row justify-content-center">
         <div class="flex-auto">
           <p class="p-small flex-row align-items-center map-marker-gap">
