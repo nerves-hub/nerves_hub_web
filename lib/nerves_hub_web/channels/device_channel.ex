@@ -610,6 +610,13 @@ defmodule NervesHubWeb.DeviceChannel do
     if deployment_channel != socket.assigns.deployment_channel do
       unsubscribe(socket.assigns.deployment_channel)
       subscribe(deployment_channel)
+
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.merge(value, %{
+          deployment_id: device.deployment_id
+        })
+      end)
+
       assign(socket, :deployment_channel, deployment_channel)
     else
       socket

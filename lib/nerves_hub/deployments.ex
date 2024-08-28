@@ -5,6 +5,7 @@ defmodule NervesHub.Deployments do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -108,66 +109,105 @@ defmodule NervesHub.Deployments do
   @doc """
   Update a deployment
 
-  Updating a deployment is a big task. Devices will be notified of the change when:
-  - Firmware changes, all devices will be told of the new firmware to update
-  - Conditions change, all devices will have the deployment removed and told about the
-    change, any devices that don't have a deployment and are online will be told about
-    the conditions changing to check for a deployment again
-  - If now active, any devices without a deployment will be told to reevaluate
-  - If now inactive, devices will have the deployment removed and told about the change
+  - Records audit logs depending on changes
+  - Will force a recalculation
   """
   @spec update_deployment(Deployment.t(), map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def update_deployment(deployment, params) do
-    device_count =
-      Device
-      |> select([d], count(d))
-      |> where([d], d.deployment_id == ^deployment.id)
-      |> Repo.one()
+    result =
+      Repo.transaction(fn ->
+        device_count =
+          Device
+          |> select([d], count(d))
+          |> where([d], d.deployment_id == ^deployment.id)
+          |> Repo.one()
 
-    changeset =
-      deployment
-      |> Deployment.with_firmware()
-      |> Deployment.changeset(params)
-      |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
+        changeset =
+          deployment
+          |> Deployment.with_firmware()
+          |> Deployment.changeset(params)
+          |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
 
-    case Repo.update(changeset) do
-      {:ok, deployment} ->
-        deployment = Repo.preload(deployment, [:firmware], force: true)
+        case Repo.update(changeset) do
+          {:ok, deployment} ->
+            messages = []
 
-        # if the conditions changed, we should reset all devices and tell any connected
-        if Map.has_key?(changeset.changes, :conditions) do
-          description = "deployment #{deployment.name} conditions changed"
-          AuditLogs.audit!(deployment, deployment, description)
+            deployment = Repo.preload(deployment, [:firmware], force: true)
+
+            if Enum.any?([:conditions, :is_active], &Map.has_key?(changeset.changes, &1)) do
+              create_inflight_checks(deployment)
+            end
+
+            if Map.has_key?(changeset.changes, :conditions) do
+              description = "deployment #{deployment.name} conditions changed"
+              AuditLogs.audit!(deployment, deployment, description)
+            end
+
+            # Trigger the new archive to get downloaded by devices
+            messages =
+              if Map.has_key?(changeset.changes, :archive_id) do
+                description = "deployment #{deployment.name} has a new archive"
+                AuditLogs.audit!(deployment, deployment, description)
+
+                payload = %{archive_id: deployment.archive_id}
+                [{"archives/updated", payload} | messages]
+              else
+                messages
+              end
+
+            if Map.has_key?(changeset.changes, :is_active) do
+              if !deployment.is_active do
+                description = "deployment #{deployment.name} is inactive"
+                AuditLogs.audit!(deployment, deployment, description)
+              end
+            end
+
+            messages = [{"deployments/update", %{}} | messages]
+
+            {deployment, messages}
+
+          {:error, changeset} ->
+            Repo.rollback(changeset)
         end
+      end)
 
-        # Trigger the new archive to get downloaded by devices
-        if Map.has_key?(changeset.changes, :archive_id) do
-          payload = %{
-            archive_id: deployment.archive_id
-          }
-
-          _ = broadcast(deployment, "archives/updated", payload)
-
-          description = "deployment #{deployment.name} has a new archive"
-          AuditLogs.audit!(deployment, deployment, description)
-        end
-
-        # if is_active is false, wipe it out like above
-        # if its now true, tell the none deployment devices
-        if Map.has_key?(changeset.changes, :is_active) do
-          if !deployment.is_active do
-            description = "deployment #{deployment.name} is inactive and removed all devices"
-            AuditLogs.audit!(deployment, deployment, description)
-          end
-        end
-
-        _ = broadcast(deployment, "deployments/update")
+    case result do
+      {:ok, {deployment, messages}} ->
+        Enum.each(messages, fn {event, payload} ->
+          broadcast(deployment, event, payload)
+        end)
 
         {:ok, deployment}
 
-      {:error, changeset} ->
-        {:error, changeset}
+      {:error, error} ->
+        {:error, error}
     end
+  end
+
+  @doc """
+  Create any matching inflight deployment checks for devices
+
+  This includes devices that are already part of the deployment and devices
+  that have no current deployment. They all will be rechecked by `NervesHub.Deployments.Calculator`
+
+  Also clears any previous inflight checks for this deployment.
+  """
+  def create_inflight_checks(deployment) do
+    InflightDeploymentCheck
+    |> where([idc], idc.deployment_id == ^deployment.id)
+    |> Repo.delete_all()
+
+    query =
+      Device
+      |> select([d], %{
+        deployment_id: ^deployment.id,
+        device_id: d.id,
+        inserted_at: ^DateTime.utc_now()
+      })
+      |> where([d], d.deployment_id == ^deployment.id)
+      |> or_where([d], is_nil(d.deployment_id) and d.product_id == ^deployment.product_id)
+
+    Repo.insert_all(InflightDeploymentCheck, query)
   end
 
   @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
