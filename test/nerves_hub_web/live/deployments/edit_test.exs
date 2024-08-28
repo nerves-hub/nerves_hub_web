@@ -43,7 +43,7 @@ defmodule NervesHubWeb.Live.Deployments.EditTest do
     [audit_log_one, audit_log_two] = AuditLogs.logs_for(deployment)
 
     assert audit_log_one.resource_type == Deployment
-    assert audit_log_two.description =~ ~r/removed all devices/
+    assert audit_log_two.description =~ ~r/conditions changed/
   end
 
   test "failed update shows errors", %{
