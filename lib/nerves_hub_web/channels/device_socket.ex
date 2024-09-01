@@ -15,6 +15,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   channel("console", NervesHubWeb.ConsoleChannel)
   channel("device", NervesHubWeb.DeviceChannel)
+  channel("extensions", NervesHubWeb.ExtensionsChannel)
 
   # Default 90 seconds max age for the signature
   @default_max_hmac_age 90
@@ -94,7 +95,7 @@ defmodule NervesHubWeb.DeviceSocket do
     |> Devices.get_device_certificate_by_x509()
     |> case do
       {:ok, %{device: %Device{} = device}} ->
-        socket_and_assigns(socket, device)
+        socket_and_assigns(socket, Devices.preload_product(device))
 
       error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
@@ -118,7 +119,7 @@ defmodule NervesHubWeb.DeviceSocket do
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
          {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_opts),
          {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
-      socket_and_assigns(socket, device)
+      socket_and_assigns(socket, Devices.preload_product(device))
     else
       error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{

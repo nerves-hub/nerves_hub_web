@@ -1394,4 +1394,45 @@ defmodule NervesHub.Devices do
         "pending"
     end
   end
+
+  def enable_extension_setting(%Device{} = device, extension_string) do
+    device = get_device(device.id)
+
+    Device.changeset(device, %{"extensions" => %{extension_string => true}})
+    |> Repo.update()
+    |> tap(fn
+      {:ok, _} ->
+        topic = "device:#{device.id}:extensions"
+
+        NervesHubWeb.DeviceEndpoint.broadcast(topic, "attach", %{
+          "extensions" => [extension_string]
+        })
+
+      _ ->
+        :nope
+    end)
+  end
+
+  def disable_extension_setting(%Device{} = device, extension_string) do
+    device = get_device(device.id)
+
+    Device.changeset(device, %{"extensions" => %{extension_string => false}})
+    |> Repo.update()
+    |> tap(fn
+      {:ok, _} ->
+        topic = "device:#{device.id}:extensions"
+
+        NervesHubWeb.DeviceEndpoint.broadcast(topic, "detach", %{
+          "extensions" => [extension_string]
+        })
+
+      _ ->
+        :nope
+    end)
+  end
+
+  def preload_product(%Device{} = device) do
+    device
+    |> Repo.preload(:product)
+  end
 end
