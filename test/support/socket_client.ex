@@ -14,7 +14,7 @@ defmodule SocketClient do
   end
 
   def joined?(socket) do
-    GenServer.call(socket, :joined?)
+    GenServer.call(socket, :joined_device?)
   end
 
   def close(socket) do
@@ -27,6 +27,10 @@ defmodule SocketClient do
 
   def join_and_wait(socket, params \\ %{}) do
     GenServer.call(socket, {:join_and_wait, params})
+  end
+
+  def join_and_wait_features(socket, params \\ %{"geo" => "1.0.0", "health" => "1.0.0"}) do
+    GenServer.call(socket, {:join_and_wait_features, params})
   end
 
   def status(socket) do
@@ -107,7 +111,8 @@ defmodule SocketClient do
       new_socket()
       |> assign(:connected?, false)
       |> assign(:connecting?, true)
-      |> assign(:joined?, false)
+      |> assign(:joined_device?, false)
+      |> assign(:joined_features?, false)
       |> assign(:reply, nil)
       |> assign(:received_update?, false)
       |> assign(:update, nil)
@@ -132,16 +137,29 @@ defmodule SocketClient do
   end
 
   @impl true
-  def handle_join(_channel, reply, socket) do
+  def handle_join("device", reply, socket) do
     socket =
       socket
-      |> assign(:joined?, true)
+      |> assign(:joined_device?, true)
+      |> assign(:reply, reply)
+
+    {:ok, socket}
+  end
+
+  def handle_join("features", reply, socket) do
+    socket =
+      socket
+      |> assign(:joined_features?, true)
       |> assign(:reply, reply)
 
     {:ok, socket}
   end
 
   @impl true
+  def handle_message("device", "features:get", _message, socket) do
+    {:ok, socket}
+  end
+
   def handle_message("device", "update", message, socket) do
     socket =
       socket
@@ -160,7 +178,7 @@ defmodule SocketClient do
     {:ok, socket}
   end
 
-  def handle_message("device", "check_health", %{}, socket) do
+  def handle_message("features", "health:check", %{}, socket) do
     socket =
       socket
       |> assign(:receive_check_helth?, true)
@@ -177,8 +195,12 @@ defmodule SocketClient do
     {:reply, socket.assigns.connecting?, socket}
   end
 
-  def handle_call(:joined?, _from, socket) do
-    {:reply, socket.assigns.joined?, socket}
+  def handle_call(:joined_device?, _from, socket) do
+    {:reply, socket.assigns.joined_device?, socket}
+  end
+
+  def handle_call(:joined_features?, _from, socket) do
+    {:reply, socket.assigns.joined_features?, socket}
   end
 
   def handle_call(:received_archive?, _from, socket) do
@@ -202,11 +224,20 @@ defmodule SocketClient do
     {:reply, socket.assigns.reply, socket}
   end
 
-  def handle_call({:join, channel, params}, _from, socket) do
+  def handle_call({:join, "device", params}, _from, socket) do
     socket =
       socket
-      |> assign(:joined?, false)
-      |> Slipstream.join(channel, params)
+      |> assign(:joined_device?, false)
+      |> Slipstream.join("device", params)
+
+    {:reply, :ok, socket}
+  end
+
+  def handle_call({:join, "features", params}, _from, socket) do
+    socket =
+      socket
+      |> assign(:joined_features?, false)
+      |> Slipstream.join("features", params)
 
     {:reply, :ok, socket}
   end
@@ -218,7 +249,20 @@ defmodule SocketClient do
       |> join("device", params)
       |> await_join!("device")
       |> assign(:connected?, true)
-      |> assign(:joined?, true)
+      |> assign(:joined_device?, true)
+      |> assign(:reply, %{})
+
+    {:reply, :ok, socket}
+  end
+
+  def handle_call({:join_and_wait_features, params}, _from, socket) do
+    socket =
+      socket
+      |> await_connect!()
+      |> join("features", params)
+      |> await_join!("features")
+      |> assign(:connected?, true)
+      |> assign(:joined_features?, true)
       |> assign(:reply, %{})
 
     {:reply, :ok, socket}

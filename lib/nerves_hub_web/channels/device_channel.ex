@@ -14,7 +14,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
-  alias NervesHub.Devices.Metrics
+  alias NervesHub.Features
   alias NervesHub.Firmwares
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
@@ -45,12 +45,11 @@ defmodule NervesHubWeb.DeviceChannel do
     subscribe("device:#{device.id}")
     subscribe(deployment_channel)
 
-    if device_health_check_enabled?() do
-      send(self(), :health_check)
-      schedule_health_check()
-    end
-
     send(self(), :device_registation)
+
+    if Features.device_can_use_features?(device) do
+      push(socket, "features:get", %{})
+    end
 
     socket =
       socket
@@ -307,12 +306,6 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(:health_check, socket) do
-    push(socket, "check_health", %{})
-    schedule_health_check()
-    {:noreply, socket}
-  end
-
   def handle_info(%Broadcast{event: "connection:heartbeat"}, socket) do
     # Expected message that is not used here :)
     {:noreply, socket}
@@ -355,16 +348,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  def handle_in("location:update", location, %{assigns: %{device: device}} = socket) do
-    metadata = Map.put(device.connection_metadata, "location", location)
-
-    {:ok, device} = Devices.update_device(device, %{connection_metadata: metadata})
-
-    device_internal_broadcast!(device, "location:updated", location)
-
-    {:reply, :ok, assign(socket, :device, device)}
-  end
-
   def handle_in("connection_types", %{"values" => types}, %{assigns: %{device: device}} = socket) do
     {:ok, device} = Devices.update_device(device, %{"connection_types" => types})
     {:noreply, assign(socket, :device, device)}
@@ -398,40 +381,6 @@ defmodule NervesHubWeb.DeviceChannel do
       output = Enum.join([params["output"], params["return"]], "\n")
       output = String.trim(output)
       send(pid, {:output, output})
-    end
-
-    {:noreply, socket}
-  end
-
-  def handle_in("health_check_report", %{"value" => device_status}, socket) do
-    device_meta =
-      for {key, val} <- Map.from_struct(socket.assigns.device.firmware_metadata),
-          into: %{},
-          do: {to_string(key), to_string(val)}
-
-    # Separate metrics from health report to store in metrics table
-    metrics = device_status["metrics"]
-
-    health_report =
-      device_status
-      |> Map.delete("metrics")
-      |> Map.put("metadata", Map.merge(device_status["metadata"], device_meta))
-
-    device_health = %{"device_id" => socket.assigns.device.id, "data" => health_report}
-
-    with {:health_report, {:ok, _}} <-
-           {:health_report, Devices.save_device_health(device_health)},
-         {:metrics_report, {_, _}} <-
-           {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
-      device_internal_broadcast!(socket.assigns.device, "health_check_report", %{})
-    else
-      {:health_report, {:error, err}} ->
-        Logger.warning("Failed to save health check data: #{inspect(err)}")
-        log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save health check data.")
-
-      {:metrics_report, {:error, err}} ->
-        Logger.warning("Failed to save metrics: #{inspect(err)}")
-        log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save metrics.")
     end
 
     {:noreply, socket}
@@ -479,7 +428,7 @@ defmodule NervesHubWeb.DeviceChannel do
     |> Deployments.set_deployment()
   end
 
-  defp log_to_sentry(device, message, extra \\ %{}) do
+  defp log_to_sentry(device, message, extra) do
     Sentry.Context.set_tags_context(%{
       device_identifier: device.identifier,
       device_id: device.id,
@@ -644,24 +593,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end
 
     socket
-  end
-
-  defp schedule_health_check() do
-    if device_health_check_enabled?() do
-      Process.send_after(self(), :health_check, device_health_check_interval())
-      :ok
-    else
-      :ok
-    end
-  end
-
-  defp device_health_check_enabled?() do
-    Application.get_env(:nerves_hub, :device_health_check_enabled)
-  end
-
-  defp device_health_check_interval() do
-    Application.get_env(:nerves_hub, :device_health_check_interval_minutes)
-    |> :timer.minutes()
   end
 
   defp device_deployment_change_jitter_ms() do

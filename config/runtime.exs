@@ -9,6 +9,15 @@ unless Enum.member?(["all", "web", "device"], nerves_hub_app) do
   """
 end
 
+features_enabled? =
+  case Mix.target() do
+    :prod ->
+      System.get_env("FEATURES_ENABLED", "false") == "true"
+
+    _ ->
+      true
+  end
+
 config :nerves_hub,
   app: nerves_hub_app,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
@@ -25,9 +34,6 @@ config :nerves_hub,
     username: System.get_env("ADMIN_AUTH_USERNAME"),
     password: System.get_env("ADMIN_AUTH_PASSWORD")
   ],
-  device_health_check_enabled: System.get_env("DEVICE_HEALTH_CHECK_ENABLED", "true") == "true",
-  device_health_check_interval_minutes:
-    String.to_integer(System.get_env("DEVICE_HEALTH_CHECK_INTERVAL_MINUTES", "60")),
   device_health_days_to_retain:
     String.to_integer(System.get_env("HEALTH_CHECK_DAYS_TO_RETAIN", "7")),
   device_deployment_change_jitter_seconds:
@@ -37,7 +43,25 @@ config :nerves_hub,
   deployment_calculator_interval_seconds:
     String.to_integer(System.get_env("DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS", "3600")),
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
-  dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true"
+  dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true",
+  # Features are off by default, a safety for now
+  use_features?: features_enabled?,
+  # All nice features are on by default, IF you switch features on
+  features: [
+    geo: System.get_env("FEATURES_GEO_ENABLED", "true") == "true",
+    health: System.get_env("FEATURES_HEALTH_ENABLED", "true") == "true"
+  ],
+  feature_config: [
+    geo: [
+      # No interval, fetch geo on device connection by default
+      interval_minutes:
+        System.get_env("FEATURES_GEO_INTERVAL_MINUTES", "0") |> String.to_integer()
+    ],
+    health: [
+      interval_minutes:
+        System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer()
+    ]
+  ]
 
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),

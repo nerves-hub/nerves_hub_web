@@ -8,6 +8,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
+  alias NervesHubWeb.FeaturesChannel
 
   test "basic connection to the channel" do
     user = Fixtures.user_fixture()
@@ -18,8 +19,16 @@ defmodule NervesHubWeb.DeviceChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    assert_push("features:get", _)
+
+    {:ok, _, socket} =
+      subscribe_and_join(socket, FeaturesChannel, "features", %{
+        "geo" => "1.0.0",
+        "health" => "1.0.0"
+      })
+
     assert socket
-    assert_push("check_health", %{})
+    assert_push("health:check", %{})
   end
 
   describe "device location" do
@@ -32,11 +41,14 @@ defmodule NervesHubWeb.DeviceChannelTest do
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
       {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+      assert_push("features:get", _)
+      {:ok, _, socket} = subscribe_and_join(socket, FeaturesChannel, "features")
+      subscribe_device_internal(device)
 
       location_payload = %{"source" => "geoip", "latitude" => -41.29710, "longitude" => 174.79320}
-
-      ref = push(socket, "location:update", location_payload)
-      assert_reply(ref, :ok, %{})
+      assert_features_and_health()
+      push(socket, "geo:location:update", location_payload)
+      assert_receive %{event: "location:updated"}
 
       device = NervesHub.Repo.reload(device)
 

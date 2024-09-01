@@ -24,6 +24,17 @@ defmodule NervesHubWeb.ChannelCase do
 
       # The default endpoint for testing
       @endpoint NervesHubWeb.DeviceEndpoint
+      def assert_features_and_health do
+        # assert_receive %{event: "check_health"}
+      end
+
+      def subscribe_device_internal(device) do
+        Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.identifier}:internal")
+      end
+
+      def subscribe_features(device) do
+        Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.identifier}:features")
+      end
     end
   end
 
