@@ -61,6 +61,11 @@
   <div class="col-lg-6">
     <div>
       <h3 class="mb-2">Information</h3>
+      <!-- Show if device has overriden any product-level extensions by disabling them -->
+      <div :if={@extension_overrides != []} class="display-box">
+        <div class="help-text mb-1">Extensions</div>
+        Device has disabled extensions: <%= Enum.join(@extension_overrides, ", ") %>
+      </div>
 
       <div class="display-box">
         <div class="help-text mb-1">Tags</div>
@@ -68,7 +73,7 @@
         <span :for={tag <- @device.tags || []} class="badge"><%= tag %></span>
       </div>
 
-      <DeviceLocation.render location={@device.connection_metadata["location"]} />
+      <DeviceLocation.render :if={@product.extensions.geo and @device.extensions.geo} location={@device.connection_metadata["location"]} />
 
       <%= if !Enum.empty?(@metadata) do %>
         <h3 class="mb-2">Metadata</h3>
@@ -94,7 +99,7 @@
   </div>
 
   <div class="col-lg-6">
-    <div class="device-health-section">
+    <div :if={@product.extensions.health and @device.extensions.health} class="device-health-section">
       <div class="device-header-group justify-content-between">
         <h3 class="mb-2">Health</h3>
 

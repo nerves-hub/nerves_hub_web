@@ -138,7 +138,7 @@
 <div class="container pl-0 mb-2">
   <div class="row align-items-center">
     <div class="col col-6">
-      <h3>Device Extensions</h3>
+      <h3>Extensions</h3>
     </div>
     <div class="col col-2">
       <span class="badge bg-warning">Experimental</span>
@@ -170,7 +170,7 @@
         type="checkbox"
         id={"extension-#{key}"}
         name={key}
-        checked={Map.get(@product.extensions, key, false)}
+        checked={@product.extensions[key]}
         phx-value-extension={key}
         phx-click="update-extension"
         disabled={!authorized?(:"product:update", @org_user)}

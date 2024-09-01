@@ -7,7 +7,7 @@ defmodule NervesHub.Products.Product do
   alias NervesHub.Scripts.Script
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
-  alias NervesHub.Extensions.ExtensionsSetting
+  alias NervesHub.Extensions.ProductExtensionsSetting
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.SharedSecretAuth
 
@@ -32,7 +32,7 @@ defmodule NervesHub.Products.Product do
     field(:name, :string)
     field(:deleted_at, :utc_datetime)
     field(:delta_updatable, :boolean, default: false)
-    embeds_one(:extensions, ExtensionsSetting, on_replace: :update)
+    embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
 
     timestamps()
   end
