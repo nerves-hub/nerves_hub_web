@@ -57,6 +57,11 @@ defmodule NervesHubWeb.DeviceChannel do
 
     send(self(), :device_registation)
 
+    # device.allow_features?
+    if true do
+      push(socket, "features:get", %{})
+    end
+
     socket =
       socket
       |> assign(:device, device)

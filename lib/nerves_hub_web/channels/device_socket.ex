@@ -12,6 +12,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   channel("console", NervesHubWeb.ConsoleChannel)
   channel("device", NervesHubWeb.DeviceChannel)
+  channel("features", NervesHubWeb.FeaturesChannel)
 
   # Default 90 seconds max age for the signature
   @default_max_hmac_age 90
