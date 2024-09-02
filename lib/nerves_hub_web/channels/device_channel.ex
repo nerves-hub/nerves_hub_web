@@ -365,14 +365,9 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  def handle_in("location:update", location, %{assigns: %{device: device}} = socket) do
-    metadata = Map.put(device.connection_metadata, "location", location)
-
-    {:ok, device} = Devices.update_device(device, %{connection_metadata: metadata})
-
-    device_internal_broadcast!(device, "location:updated", location)
-
-    {:reply, :ok, assign(socket, :device, device)}
+  def handle_in("location:update", location, socket) do
+    # Backwards compatibility for Geo feature
+    NervesHubWeb.FeaturesChannel.handle_in("geo:location:update", location, socket)
   end
 
   def handle_in("connection_types", %{"values" => types}, %{assigns: %{device: device}} = socket) do
