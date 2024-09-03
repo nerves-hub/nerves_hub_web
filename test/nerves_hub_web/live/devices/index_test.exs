@@ -113,6 +113,21 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       refute render_change(view, "update-filters", %{"tag" => "doesntmatter"}) =~
                device2.identifier
     end
+
+    test "filters devices with only untagged", %{conn: conn, fixture: fixture} do
+      %{device: _device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: nil})
+      device3 = Fixtures.device_fixture(org, product, firmware, %{tags: ["foo"]})
+
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ device2.identifier
+      assert html =~ device3.identifier
+
+      change = render_change(view, "update-filters", %{"has_no_tags" => "true"})
+      assert change =~ device2.identifier
+      refute change =~ device3.identifier
+    end
   end
 
   describe "bulk actions" do

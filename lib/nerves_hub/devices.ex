@@ -170,6 +170,13 @@ defmodule NervesHub.Devices do
             {:error, _} ->
               query
           end
+
+        {:has_no_tags, value} ->
+          if value do
+            where(query, [d], fragment("array_length(?, 1) = 0 or ? IS NULL", d.tags, d.tags))
+          else
+            query
+          end
       end
     end)
   end

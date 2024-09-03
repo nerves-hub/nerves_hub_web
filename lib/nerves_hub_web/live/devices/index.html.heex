@@ -118,6 +118,16 @@
           <label for="input_tags">Tags</label>
           <input type="text" name="tag" id="input_tags" class="form-control" value={@current_filters[:tag]} phx-debounce="500" />
         </div>
+        <div class="form-group">
+          <label for="has_no_tags">Untagged</label>
+          <div class="pos-rel">
+            <select name="has_no_tags" id="has_no_tags" class="form-control">
+              <option {selected?(@current_filters, :has_no_tags, false)} value="false">All</option>
+              <option {selected?(@current_filters, :has_no_tags, true)} value="true">Only untagged</option>
+            </select>
+            <div class="select-icon"></div>
+          </div>
+        </div>
       </form>
       <button class="btn btn-secondary" type="button" phx-click="reset-filters">Reset Filters</button>
     </div>
