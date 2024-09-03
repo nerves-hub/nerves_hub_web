@@ -9,16 +9,63 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   end
 
   describe "handle_event" do
-    test "filters devices by field", %{conn: conn, fixture: fixture} do
+    test "filters devices by exact identifier", %{conn: conn, fixture: fixture} do
       %{device: device, firmware: firmware, org: org, product: product} = fixture
 
       device2 = Fixtures.device_fixture(org, product, firmware)
 
       {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ device.identifier
       assert html =~ device2.identifier
 
-      refute render_change(view, "update-filters", %{"device_id" => device.identifier}) =~
-               device2.identifier
+      change = render_change(view, "update-filters", %{"device_id" => device.identifier})
+      assert change =~ device.identifier
+      refute change =~ device2.identifier
+    end
+
+    test "filters devices by wrong identifier", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ device.identifier
+      assert html =~ device2.identifier
+
+      change = render_change(view, "update-filters", %{"device_id" => "foo"})
+      refute change =~ device.identifier
+      refute change =~ device2.identifier
+    end
+
+    test "filters devices by prefix identifier", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ device.identifier
+
+      assert render_change(view, "update-filters", %{"device_id" => "device-"}) =~
+               device.identifier
+    end
+
+    test "filters devices by suffix identifier", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ device.identifier
+      "device-" <> tail = device.identifier
+
+      assert render_change(view, "update-filters", %{"device_id" => tail}) =~
+               device.identifier
+    end
+
+    test "filters devices by middle identifier", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ device.identifier
+
+      assert render_change(view, "update-filters", %{"device_id" => "ice-"}) =~
+               device.identifier
     end
 
     test "filters devices by tag", %{conn: conn, fixture: fixture} do
