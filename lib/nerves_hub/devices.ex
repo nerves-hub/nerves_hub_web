@@ -1139,11 +1139,7 @@ defmodule NervesHub.Devices do
     end
   end
 
-
-  @doc """
-  Get all health for Device.
-  """
-  def get_device_health(device_id) do
+  def get_all_health(device_id) do
     DeviceHealth
     |> from()
     |> where(device_id: ^device_id)
@@ -1151,9 +1147,7 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  def get_device_health(device_id, "all", _amount) do
-    get_device_health(device_id)
-  end
+  def get_device_health(device_id), do: get_all_health(device_id)
 
   def get_device_health(device_id, unit, amount) do
     DeviceHealth
@@ -1162,70 +1156,6 @@ defmodule NervesHub.Devices do
     |> where([d], d.inserted_at > ago(^amount, ^unit))
     |> order_by(asc: :inserted_at)
     |> Repo.all()
-  end
-
-  @empty_metrics_map %{
-    cpu_temp: [],
-    load_15min: [],
-    load_1min: [],
-    load_5min: [],
-    size_mb: [],
-    used_mb: [],
-    used_percent: []
-  }
-
-  def get_device_metrics(device_id, unit, amount) do
-    health = get_device_health(device_id, unit, amount)
-
-    Enum.reduce(health, @empty_metrics_map, fn h, acc ->
-      # TODO:
-      # - Handle case with no metrics key.
-      # - Move structuring of data to LiveView?
-
-      metrics = h.data["metrics"]
-      timestamp = h.data["timestamp"]
-
-      acc
-      |> Map.put(
-        :cpu_temp,
-        acc.cpu_temp ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["cpu_temp"]]]
-      )
-      |> Map.put(
-        :load_15min,
-        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_15min"]]]
-      )
-      |> Map.put(
-        :load_1min,
-        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_1min"]]]
-      )
-      |> Map.put(
-        :load_5min,
-        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_5min"]]]
-      )
-      |> Map.put(
-        :size_mb,
-        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["size_mb"]]]
-      )
-      |> Map.put(
-        :used_mb,
-        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["used_mb"]]]
-      )
-      |> Map.put(
-        :used_percent,
-        acc.load_1min ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics["used_percent"]]]
-      )
-    end)
-  end
-
-  def get_single_metric(device_id, metric_type) do
-    device_id
-    |> get_all_health()
-    |> Enum.reduce([], fn h, acc ->
-      metrics = h.data["metrics"]
-      timestamp = h.data["timestamp"]
-
-      acc ++ [[NaiveDateTime.from_iso8601!(timestamp), metrics[metric_type]]]
-    end)
   end
 
   defp version_match?(_vsn, ""), do: true

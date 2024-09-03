@@ -3,17 +3,36 @@
     padding: 1.5rem;
     border-radius: 4px;
     margin-bottom: 2rem;
-
 }
 
+
+.metrics-active {
+    background-color: rgb(68, 66, 66);
+}
+
+.btn.btn-outline-light.metrics-active:hover {
+    background-color: rgb(68, 66, 66);
+}
+
+.metrics-btn-group .btn.btn-outline-light:focus {
+    box-shadow: none;
+}
 
 .metrics-text {
-    color: aqua;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
 }
+
+
+// Contex Plots
 
 /* Styling for tick line */
 .exc-tick {
-    stroke: grey;
+    stroke: rgb(236, 235, 235);
+}
+
+.exc-tick line {
+    stroke: rgb(236, 235, 235);
 }
 
 /* Styling for tick text */

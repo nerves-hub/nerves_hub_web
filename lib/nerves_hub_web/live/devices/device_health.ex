@@ -9,16 +9,27 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
 
   alias Phoenix.Socket.Broadcast
 
-  @check_health_interval 1_000
+  @check_health_interval 60_000
   @time_frame_opts [
     {"hour", 1},
     {"day", 1},
     {"day", 7}
   ]
   @default_time_frame {"hour", 1}
+  @default_chart_type :scatter
+
+  @metrics_structure %{
+    cpu_temp: [],
+    load_15min: [],
+    load_1min: [],
+    load_5min: [],
+    size_mb: [],
+    used_mb: [],
+    used_percent: []
+  }
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
-    %{org: org, product: _product} = socket.assigns
+    %{org: org} = socket.assigns
 
     device = Devices.get_device_by_identifier!(org, device_identifier)
 
@@ -32,7 +43,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> assign(:status, Tracker.status(device))
     |> assign(:time_frame, @default_time_frame)
     |> assign(:time_frame_opts, @time_frame_opts)
-    # TODO: Make sure health reports are coming in correctly from channel
+    |> assign(:chart_type, @default_chart_type)
     |> schedule_health_check_timer()
     |> assign_metrics()
     |> ok()
@@ -45,6 +56,28 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> noreply()
   end
 
+  def handle_event("scatter-chart", _, socket) do
+    socket
+    |> assign(:chart_type, :scatter)
+    |> assign_metrics()
+    |> noreply()
+  end
+
+  def handle_event("line-chart", _, socket) do
+    socket
+    |> assign(:chart_type, :line)
+    |> assign_metrics()
+    |> noreply()
+  end
+
+  def handle_event("toggle-health-check-auto-refresh", _value, socket) do
+    if timer_ref = socket.assigns.health_check_timer do
+      _ = Process.cancel_timer(timer_ref)
+      {:noreply, assign(socket, :health_check_timer, nil)}
+    else
+      {:noreply, schedule_health_check_timer(socket)}
+    end
+  end
 
   def handle_info(:check_health_interval, socket) do
     timer_ref = Process.send_after(self(), :check_health_interval, @check_health_interval)
@@ -65,40 +98,156 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   # Ignore other events for now
   def handle_info(_event, socket), do: {:noreply, socket}
 
-  defp assign_metrics(%{assigns: %{device: device, time_frame: {unit, amount}}} = socket) do
+  @doc """
+  Organizes health data into metrics structure suitable for Contex plots.
+  """
+  def organize_data(health) do
+    Enum.reduce(health, @metrics_structure, fn h, acc ->
+      metrics = h.data["metrics"]
+      timestamp = h.data["timestamp"]
+
+      if metrics do
+        acc
+        |> Map.put(
+          :cpu_temp,
+          [[NaiveDateTime.from_iso8601!(timestamp), metrics["cpu_temp"]] | acc.cpu_temp]
+        )
+        |> Map.put(
+          :load_15min,
+          [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_15min"]] | acc.load_1min]
+        )
+        |> Map.put(
+          :load_1min,
+          [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_1min"]] | acc.load_1min]
+        )
+        |> Map.put(
+          :load_5min,
+          [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_5min"]] | acc.load_1min]
+        )
+        |> Map.put(
+          :size_mb,
+          [[NaiveDateTime.from_iso8601!(timestamp), metrics["size_mb"]] | acc.load_1min]
+        )
+        |> Map.put(
+          :used_mb,
+          [[NaiveDateTime.from_iso8601!(timestamp), metrics["used_mb"]] | acc.load_1min]
+        )
+        |> Map.put(
+          :used_percent,
+          [[NaiveDateTime.from_iso8601!(timestamp), metrics["used_percent"]] | acc.load_1min]
+        )
+      else
+        acc
+      end
+    end)
+  end
+
+  defp assign_metrics(
+         %{
+           assigns: %{
+             device: device,
+             chart_type: chart_type,
+             time_frame: {unit, amount} = time_frame
+           }
+         } = socket
+       ) do
+    latest_health = Devices.get_latest_health(device.id)
+
+    {memory_size, memory_usage} =
+      case latest_health do
+        %{data: %{"metrics" => metrics}} -> {metrics["size_mb"], metrics["used_percent"]}
+        _ -> {0, 0}
+      end
+
     metrics =
-      Devices.get_device_metrics(device.id, unit, amount)
+      device.id
+      |> Devices.get_device_health(unit, amount)
+      |> organize_data()
 
     socket
-    |> assign(:cpu_temp_line_plot, create_line_plot_svg(metrics.cpu_temp))
-    |> assign(:load_1min_line_plot, create_line_plot_svg(metrics.load_1min))
-    |> assign(:load_5min_line_plot, create_line_plot_svg(metrics.load_5min))
-    |> assign(:load_15min_line_plot, create_line_plot_svg(metrics.load_15min))
-    |> assign(:used_mb_line_plot, create_line_plot_svg(metrics.used_mb))
-    |> assign(:used_percent_line_plot, create_line_plot_svg(metrics.used_percent))
+    |> assign(:latest_health, latest_health)
+    |> assign(:memory_size, memory_size)
+    |> assign(:memory_usage, memory_usage)
+    |> assign(:graphs, create_graphs(metrics, chart_type, memory_size, time_frame))
   end
 
-  defp create_line_plot_svg(data) do
-    if(data == []) do
-      "No data for selected period"
-    else
-      x_scale =
-        Contex.TimeScale.new()
-        |> Contex.TimeScale.domain(Enum.map(data, &hd/1))
-        |> Contex.TimeScale.interval_count(35)
+  defp create_graphs(metrics, chart_type, memory_size, time_frame) do
+    metrics
+    |> Enum.reduce(%{}, fn {metric_type, data}, acc ->
+      case metric_type do
+        :size_mb ->
+          acc
 
-      options = [
-        smoothed: false,
-        colour_palette: ["ffffff"],
-        custom_x_scale: x_scale
-      ]
+        _ ->
+          max_value = get_max_value(metric_type, data, memory_size)
+          chart_svg = create_chart(data, chart_type, max_value, time_frame)
 
-      data
-      |> Contex.Dataset.new()
-      |> Contex.Plot.new(Contex.LinePlot, 600, 400, options)
-      |> Contex.Plot.to_svg()
+          Map.put(acc, metric_type, chart_svg)
+      end
+    end)
+  end
+
+  defp get_max_value(_type, data, _memory_size) when data == [], do: 0
+
+  defp get_max_value(type, data, memory_size) do
+    case type do
+      :load_1min -> get_cpu_load_max_value(data)
+      :load_5min -> get_cpu_load_max_value(data)
+      :load_15min -> get_cpu_load_max_value(data)
+      :used_mb -> memory_size
+      _ -> 100
     end
   end
+
+  defp get_cpu_load_max_value(data) do
+    data
+    |> Enum.map(fn [_, value] -> value end)
+    |> Enum.max()
+    |> ceil()
+    |> then(fn value ->
+      # Don't allow 0 as max value
+      if value == 0, do: 1, else: value
+    end)
+  end
+
+  defp create_chart(data, _chart_type, _max_value, _time_unit)
+       when data == [],
+       do: raw("<p class=\"metrics-text\">No data for selected period</p>")
+
+  defp create_chart(data, chart_type, max_value, time_unit) do
+    now = NaiveDateTime.utc_now()
+
+    x_scale =
+      Contex.TimeScale.new()
+      |> Contex.TimeScale.domain(time_scale_start(now, time_unit), now)
+      |> Contex.TimeScale.interval_count(20)
+
+    y_scale =
+      Contex.ContinuousLinearScale.new()
+      |> Contex.ContinuousLinearScale.domain(0, max_value)
+
+    chart =
+      case chart_type do
+        :line -> Contex.LinePlot
+        :scatter -> Contex.PointPlot
+      end
+
+    options = [
+      smoothed: false,
+      colour_palette: ["f8d98b"],
+      custom_x_scale: x_scale,
+      custom_y_scale: y_scale
+    ]
+
+    data
+    |> Contex.Dataset.new()
+    |> Contex.Plot.new(chart, 800, 300, options)
+    |> Map.put(:margins, %{left: 60, right: 40, top: 20, bottom: 70})
+    |> Contex.Plot.to_svg()
+  end
+
+  defp time_scale_start(now, {"hour", amount}), do: NaiveDateTime.shift(now, hour: -amount)
+  defp time_scale_start(now, {"day", amount}), do: NaiveDateTime.shift(now, day: -amount)
 
   defp schedule_health_check_timer(socket) do
     if connected?(socket) and device_health_check_enabled?() do

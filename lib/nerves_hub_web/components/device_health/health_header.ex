@@ -5,13 +5,28 @@ defmodule NervesHubWeb.Components.HealthHeader do
   attr(:product, :any)
   attr(:device, :any)
   attr(:status, :any)
+  attr(:latest_health, :any)
+  attr(:health_check_timer, :any, default: nil)
 
   def render(assigns) do
     ~H"""
-    <h1 class="ff-m mt-2 mb-1">Device Health</h1>
-    <p class="help-text large">Device identifier: <%= @device.identifier %></p>
-
-
+    <div class="action-row">
+      <div>
+        <h1 class="ff-m mt-2 mb-1">Device Health</h1>
+        <p class="help-text large">Device identifier: <%= @device.identifier %></p>
+      </div>
+      <div>
+        <button
+          class="btn btn-outline-light btn-action"
+          aria-label={if @health_check_timer, do: "Disable Auto Refresh", else: "Enable Auto Refresh"}
+          type="button"
+          phx-click="toggle-health-check-auto-refresh"
+        >
+          <span :if={@health_check_timer} class="action-text">Disable Auto Refresh</span>
+          <span :if={!@health_check_timer} class="action-text">Enable Auto Refresh</span>
+        </button>
+      </div>
+    </div>
     <div class="device-meta-grid">
       <div>
         <div class="help-text">Status</div>
@@ -48,21 +63,16 @@ defmodule NervesHubWeb.Components.HealthHeader do
       </div>
       <div>
         <div class="help-text mb-1 tooltip-label help-tooltip">
-          <span>Last seen</span>
-          <span class="tooltip-info"></span>
-          <span class="tooltip-text" id="connection-last-seen-at-tooltip" phx-hook="LocalTime">
-            <%= @device.connection_last_seen_at %>
+          <span>Last reported</span>
+          <span :if={@latest_health} class="tooltip-info"></span>
+          <span :if={@latest_health} class="tooltip-text" id="last-reported-at-tooltip" phx-hook="LocalTime">
+            <%= @latest_health.inserted_at %>
           </span>
         </div>
         <p>
-          <span :if={!@device.connection_last_seen_at}>Never</span>
-          <time
-            :if={@device.connection_last_seen_at}
-            id="last-communication-at"
-            phx-hook="UpdatingTimeAgo"
-            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.connection_last_seen_at, :second)), " ", "T")}
-          >
-            <%= Timex.from_now(@device.connection_last_seen_at) %>
+          <span :if={!@latest_health}>Never</span>
+          <time :if={@latest_health} id="last-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_health.inserted_at, :second)), " ", "T")}>
+            <%= Timex.from_now(@latest_health.inserted_at) %>
           </time>
         </p>
       </div>
