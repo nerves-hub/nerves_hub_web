@@ -208,9 +208,8 @@
   <table class="table table-sm table-hover">
     <thead>
       <tr>
-        <th>Selected</th>
+        <th></th>
         <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
-        <th>Connection</th>
         <th>Firmware</th>
         <th>Platform</th>
         <%= devices_table_header("Tags", "tags", @current_sort, @sort_direction) %>
@@ -218,29 +217,27 @@
       </tr>
     </thead>
     <%= for device <- @devices do %>
-      <tr class="item">
+      <tr class={
+        if device.id in @selected_devices do
+          "selected-row"
+        end
+      }>
         <td>
           <input class="checkbox" {if device.id in @selected_devices, do: [checked: true], else: []} type="checkbox" id={"#{device.id}-select"} phx-value-id={device.id} phx-click="select" />
         </td>
         <td>
           <div class="mobile-label help-text">Identifier</div>
-          <div>
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class={"badge ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
-              <%= device.identifier %>
-            </.link>
-          </div>
-        </td>
-
-        <td>
-          <div class="mobile-label help-text">Connection</div>
-          <div>
+          <div class="device-id-with-icon">
             <%= if @device_statuses[device.identifier] == "online" do %>
               <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
             <% else %>
-              <div title={if device.connection_last_seen_at, do: "Last seen at #{DateTimeFormat.from_now(device.connection_last_seen_at)}", else: "Not seen yet"} }>
+              <span title={if device.connection_last_seen_at, do: "Last seen at #{DateTimeFormat.from_now(device.connection_last_seen_at)}", else: "Not seen yet"} }>
                 <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
-              </div>
+              </span>
             <% end %>
+            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class={"ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
+              <%= device.identifier %>
+            </.link>
           </div>
         </td>
 
