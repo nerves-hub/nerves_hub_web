@@ -212,6 +212,8 @@
         <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
         <th>Firmware</th>
         <th>Platform</th>
+        <%= devices_table_header("Added", "inserted_at", @current_sort, @sort_direction) %>
+        <%= devices_table_header("Seen", "connection_last_seen_at", @current_sort, @sort_direction) %>
         <%= devices_table_header("Tags", "tags", @current_sort, @sort_direction) %>
         <th></th>
       </tr>
@@ -264,6 +266,20 @@
                 <%= device.firmware_metadata.platform %>
               </span>
             <% end %>
+          </div>
+        </td>
+
+        <td>
+          <div class="mobile-label help-text">Added</div>
+          <div title={NaiveDateTime.to_iso8601(device.inserted_at)}>
+            <%= Timex.from_now(device.inserted_at) %>
+          </div>
+        </td>
+
+        <td>
+          <div class="mobile-label help-text">Seen</div>
+          <div :if={device.connection_last_seen_at} title={DateTime.to_iso8601(device.connection_last_seen_at)}>
+            <%= Timex.from_now(device.connection_last_seen_at) %>
           </div>
         </td>
 
