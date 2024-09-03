@@ -10,7 +10,12 @@ defmodule NervesHubWeb.Devices.HealthTest do
     Endpoint.subscribe("device:#{device.id}")
   end
 
-  test "assert page render when no health exist for device", %{conn: conn, org: org, product: product, device: device} do
+  test "assert page render when no health exist for device", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     |> assert_has("h1", text: "Device Health")
