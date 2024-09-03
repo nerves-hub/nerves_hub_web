@@ -104,38 +104,16 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   def organize_data(health) do
     Enum.reduce(health, @metrics_structure, fn h, acc ->
       metrics = h.data["metrics"]
-      timestamp = h.data["timestamp"]
 
       if metrics do
+        ts = NaiveDateTime.from_iso8601!(h.data["timestamp"])
+
         acc
-        |> Map.put(
-          :cpu_temp,
-          [[NaiveDateTime.from_iso8601!(timestamp), metrics["cpu_temp"]] | acc.cpu_temp]
-        )
-        |> Map.put(
-          :load_15min,
-          [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_15min"]] | acc.load_1min]
-        )
-        |> Map.put(
-          :load_1min,
-          [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_1min"]] | acc.load_1min]
-        )
-        |> Map.put(
-          :load_5min,
-          [[NaiveDateTime.from_iso8601!(timestamp), metrics["load_5min"]] | acc.load_1min]
-        )
-        |> Map.put(
-          :size_mb,
-          [[NaiveDateTime.from_iso8601!(timestamp), metrics["size_mb"]] | acc.load_1min]
-        )
-        |> Map.put(
-          :used_mb,
-          [[NaiveDateTime.from_iso8601!(timestamp), metrics["used_mb"]] | acc.load_1min]
-        )
-        |> Map.put(
-          :used_percent,
-          [[NaiveDateTime.from_iso8601!(timestamp), metrics["used_percent"]] | acc.load_1min]
-        )
+        |> Map.keys()
+        |> Enum.reduce(acc, fn key, acc ->
+          str_key = to_string(key)
+          Map.put(acc, key, [[ts, metrics[str_key]] | acc[key]])
+        end)
       else
         acc
       end
@@ -201,13 +179,10 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
 
   defp get_cpu_load_max_value(data) do
     data
-    |> Enum.map(fn [_, value] -> value end)
-    |> Enum.max()
+    |> Enum.max_by(fn [_, value] -> value end)
+    |> List.last()
     |> ceil()
-    |> then(fn value ->
-      # Don't allow 0 as max value
-      if value == 0, do: 1, else: value
-    end)
+    |> max(1)
   end
 
   defp create_chart(data, _chart_type, _max_value, _time_unit)
