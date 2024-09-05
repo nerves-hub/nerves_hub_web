@@ -1047,12 +1047,12 @@ defmodule NervesHub.DevicesTest do
         assert {:ok, %Devices.DeviceHealth{}} = inserted
       end
 
-      healths = Devices.get_all_health(device.id)
+      healths = Devices.get_device_health(device.id)
       assert 10 = Enum.count(healths)
 
       Devices.truncate_device_health()
 
-      healths = Devices.get_all_health(device.id)
+      healths = Devices.get_device_health(device.id)
       assert 7 = Enum.count(healths)
     end
   end

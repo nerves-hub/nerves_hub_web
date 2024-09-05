@@ -1139,19 +1139,15 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def get_all_health(device_id) do
+  def get_device_health(device_id) do
     DeviceHealth
-    |> from()
     |> where(device_id: ^device_id)
     |> order_by(asc: :inserted_at)
     |> Repo.all()
   end
 
-  def get_device_health(device_id), do: get_all_health(device_id)
-
   def get_device_health(device_id, unit, amount) do
     DeviceHealth
-    |> from()
     |> where(device_id: ^device_id)
     |> where([d], d.inserted_at > ago(^amount, ^unit))
     |> order_by(asc: :inserted_at)
