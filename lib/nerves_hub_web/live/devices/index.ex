@@ -24,7 +24,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     healthy: "",
     device_id: "",
     tag: "",
-    updates: ""
+    updates: "",
+    has_no_tags: false
   }
 
   @filter_types %{
@@ -35,7 +36,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     healthy: :string,
     device_id: :string,
     tag: :string,
-    updates: :string
+    updates: :string,
+    has_no_tags: :boolean
   }
 
   @default_page 1
