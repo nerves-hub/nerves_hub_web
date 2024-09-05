@@ -65,6 +65,7 @@ defmodule NervesHub.MixProject do
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 0.4.1"},
       {:comeonin, "~> 5.3"},
+      {:contex, "~> 0.5.0"},
       {:crontab, "~> 1.1"},
       {:decorator, "~> 1.2"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},

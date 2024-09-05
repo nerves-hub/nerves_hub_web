@@ -65,7 +65,7 @@
     margin-top: 0;
   }
 
-  & > img {
+  &>img {
     margin: auto;
     opacity: .75;
   }
@@ -76,6 +76,7 @@
     margin-top: .5rem;
   }
 }
+
 .options .dropdown-item {
   color: var(--white-50);
   transition: color 200ms ease;
@@ -114,7 +115,7 @@
     display: none;
   }
 
-  & + .dropdown-menu {
+  &+.dropdown-menu {
     padding: 0;
     border-radius: 4px;
     background-color: var(--background);
@@ -230,7 +231,7 @@
   grid-column-gap: 3rem;
   grid-row-gap: 2rem;
 
-  & > div:first-child {
+  &>div:first-child {
     grid-column: span 2;
   }
 
@@ -257,16 +258,16 @@
 }
 
 html {
-  .btn-group > form:not(:first-child) .btn {
+  .btn-group>form:not(:first-child) .btn {
     margin-left: -1px;
   }
 
-  .btn-group > form:not(:last-child) .btn {
+  .btn-group>form:not(:last-child) .btn {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
   }
 
-  .btn-group > form:not(:first-child) .btn {
+  .btn-group>form:not(:first-child) .btn {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
   }
@@ -285,7 +286,7 @@ html {
   align-items: center;
   margin-bottom: 1.5rem;
 
-  & + h1 {
+  &+h1 {
     margin-top: -1.5rem;
   }
 
@@ -296,7 +297,7 @@ html {
   @media(max-width: 860px) {
     margin-bottom: 1rem;
 
-    & + h1 {
+    &+h1 {
       margin-top: 0;
     }
   }
@@ -337,6 +338,7 @@ html {
 
 .device-header-group {
   display: flex;
+
   .btn {
     margin-left: 1%;
     height: fit-content;

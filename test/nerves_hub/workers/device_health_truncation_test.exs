@@ -27,7 +27,7 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
 
     assert :ok = perform_job(DeviceHealthTruncation, %{})
 
-    healths = Devices.get_all_health(device.id)
+    healths = Devices.get_device_health(device.id)
     assert 7 = Enum.count(healths)
   end
 end

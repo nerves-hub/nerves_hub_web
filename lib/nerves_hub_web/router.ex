@@ -263,6 +263,11 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show)
 
       live(
+        "/org/:org_name/:product_name/devices/:device_identifier/health",
+        Live.Devices.DeviceHealth
+      )
+
+      live(
         "/org/:org_name/:product_name/devices/:device_identifier/settings",
         Live.Devices.Settings
       )
