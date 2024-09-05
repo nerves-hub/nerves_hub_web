@@ -154,7 +154,7 @@ defmodule NervesHub.Devices do
           where(query, [d], d.updates_enabled == false)
 
         {:device_id, value} ->
-          where(query, [d], ilike(d.identifier, ^"#{value}%"))
+          where(query, [d], ilike(d.identifier, ^"%#{value}%"))
 
         {:tag, value} ->
           case NervesHub.Types.Tag.cast(value) do
