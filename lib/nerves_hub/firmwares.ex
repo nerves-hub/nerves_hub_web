@@ -293,6 +293,10 @@ defmodule NervesHub.Firmwares do
           | {:error, Changeset.t()}
 
   def create_firmware_delta(source_firmware, target_firmware) do
+    Logger.info(
+      "Creating firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}."
+    )
+
     %Firmware{org: org} = source_firmware |> Repo.preload(:org)
     {:ok, source_url} = firmware_upload_config().download_file(source_firmware)
     {:ok, target_url} = firmware_upload_config().download_file(target_firmware)
@@ -313,10 +317,19 @@ defmodule NervesHub.Firmwares do
              {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
              :ok <- firmware_upload_config().upload_file(firmware_delta_path, upload_metadata),
              :ok <- delta_updater().cleanup_firmware_delta_files(firmware_delta_path) do
+          Logger.info(
+            "Created firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}, successfully."
+          )
+
           firmware_delta
         else
           {:error, error} ->
             delta_updater().cleanup_firmware_delta_files(firmware_delta_path)
+
+            Logger.error(
+              "Failed to create firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}: #{inspect(error)}"
+            )
+
             Repo.rollback(error)
         end
       end,
