@@ -109,7 +109,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     assert_push("archive_public_keys", %{keys: [_]})
   end
 
-  test "update_available on connect" do
+  test "update_available on connect does not give immediate update" do
     user = Fixtures.user_fixture()
     {device, _firmware, deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
@@ -129,8 +129,41 @@ defmodule NervesHubWeb.DeviceChannelTest do
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, %{}, _socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    wait_for_registration(device.id)
 
-    assert_push("update", %{})
+    refute_push("update", %{})
+  end
+
+  test "update_available on connect does not give immediate update unless orchestrator runs" do
+    user = Fixtures.user_fixture()
+    {device, _firmware, deployment} = device_fixture(user, %{identifier: "123"})
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    assert {:ok, device} = Devices.update_device(device, %{deployment_id: deployment.id})
+    assert device.updates_enabled
+
+    params =
+      for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
+        case k do
+          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
+          _ -> {"nerves_fw_#{k}", v}
+        end
+      end
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, %{}, _socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    wait_for_registration(device.id)
+    # Manually trigger the orchestrator which usually goes one a 5-minute cycle
+    deployment = deployment |> NervesHub.Repo.preload(:firmware)
+
+    NervesHub.Deployments.Orchestrator.trigger_update(%{
+      deployment: deployment,
+      delta_status: %{}
+    })
+
+    assert_push("update", %{}, 2000)
   end
 
   test "devices can request available updates via check_update_available" do
@@ -415,5 +448,22 @@ defmodule NervesHubWeb.DeviceChannelTest do
       )
 
     {device, firmware, deployment}
+  end
+
+  @timeout 2000
+  @increment 50
+  defp wait_for_registration(device_id, elapsed \\ 0) do
+    case Registry.lookup(NervesHub.Devices, device_id) do
+      [] ->
+        if elapsed > @timeout do
+          raise "Error waiting for device registration."
+        else
+          :timer.sleep(@increment)
+          wait_for_registration(device_id, elapsed + @increment)
+        end
+
+      _ ->
+        :ok
+    end
   end
 end

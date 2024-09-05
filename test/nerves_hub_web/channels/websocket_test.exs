@@ -567,6 +567,20 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.wait_connect(socket)
       SocketClient.join(socket, "device")
       SocketClient.wait_join(socket)
+
+      # Give it a moment to do the :after_join and confirm it by checking registration
+      wait_for_registration(device.id)
+
+      # Refresh our view of the data here
+      device =
+        device |> Repo.reload() |> Repo.preload(:deployment, force: true)
+
+      # Manually trigger the orchestrator which usually goes one a 5-minute cycle
+      NervesHub.Deployments.Orchestrator.trigger_update(%{
+        deployment: device.deployment,
+        delta_status: %{}
+      })
+
       update = SocketClient.wait_update(socket)
       assert %{"update_available" => true, "firmware_url" => _, "firmware_meta" => %{}} = update
 
@@ -622,7 +636,7 @@ defmodule NervesHubWeb.WebsocketTest do
         })
 
       # This is what the orchestrator process will do
-      Orchestrator.trigger_update(deployment)
+      Orchestrator.trigger_update(%{deployment: deployment, delta_status: %{}})
 
       message = SocketClient.wait_update(socket)
 
@@ -1058,6 +1072,23 @@ defmodule NervesHubWeb.WebsocketTest do
       assert %{"url" => _, "version" => _} = archive
 
       SocketClient.close(socket)
+    end
+  end
+
+  @timeout 2000
+  @increment 50
+  defp wait_for_registration(device_id, elapsed \\ 0) do
+    case Registry.lookup(NervesHub.Devices, device_id) do
+      [] ->
+        if elapsed > @timeout do
+          raise "Error waiting for device registration."
+        else
+          :timer.sleep(@increment)
+          wait_for_registration(device_id, elapsed + @increment)
+        end
+
+      _ ->
+        :ok
     end
   end
 end

@@ -57,15 +57,6 @@ defmodule NervesHubWeb.DeviceChannel do
     # we might make a new one right below it, so clear it beforehand
     Devices.clear_inflight_update(device)
 
-    # Let the orchestrator handle this going forward ?
-    update_payload = Devices.resolve_update(device)
-
-    push_update? =
-      update_payload.update_available and not is_nil(update_payload.firmware_url) and
-        update_payload.firmware_meta[:uuid] != params["currently_downloading_uuid"]
-
-    maybe_push_update(socket, update_payload, device, push_update?)
-
     ## After join
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: socket.assigns.reference_id,
@@ -80,7 +71,7 @@ defmodule NervesHubWeb.DeviceChannel do
           deployment_id: device.deployment_id,
           firmware_uuid: device.firmware_metadata.uuid,
           updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-          updating: push_update?
+          updating: false
         }
 
         Map.merge(value, update)
@@ -89,10 +80,18 @@ defmodule NervesHubWeb.DeviceChannel do
     # Cluster tracking
     Tracker.online(device)
 
+    if device.deployment_id do
+      # Report firmware version to deployment orchestrator allowing it to start cooking delta updates
+      NervesHub.Deployments.Orchestrator.report_version(
+        device.deployment_id,
+        device.firmware_metadata.uuid
+      )
+    end
+
     socket =
       socket
       |> assign(:device, device)
-      |> assign(:update_started?, push_update?)
+      |> assign(:update_started?, false)
       |> assign(:penalty_timer, nil)
       |> maybe_start_penalty_timer()
       |> maybe_send_archive()
@@ -576,32 +575,6 @@ defmodule NervesHubWeb.DeviceChannel do
     :ok
   end
 
-  defp maybe_push_update(_socket, _update_payload, _device, false) do
-    :ok
-  end
-
-  defp maybe_push_update(socket, update_payload, device, true) do
-    # Push the update to the device
-    push(socket, "update", update_payload)
-
-    deployment = device.deployment
-
-    description =
-      "device #{device.identifier} received update for firmware #{deployment.firmware.version}(#{deployment.firmware.uuid}) via deployment #{deployment.name} on connect"
-
-    AuditLogs.audit_with_ref!(
-      deployment,
-      device,
-      description,
-      socket.assigns.reference_id
-    )
-
-    # if there's an update, track it
-    _ = Devices.told_to_update(device, deployment)
-
-    :ok
-  end
-
   defp subscribe(topic) do
     _ = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
     :ok
@@ -742,7 +715,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp deployment_preload(device) do
-    Repo.preload(device, [deployment: [:archive, :firmware]], force: true)
+    Repo.preload(device, [deployment: [:product, :archive, :firmware]], force: true)
   end
 
   defp maybe_send_archive(socket) do

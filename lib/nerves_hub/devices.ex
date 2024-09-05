@@ -680,11 +680,20 @@ defmodule NervesHub.Devices do
   end
 
   def resolve_update(device) do
-    deployment = Repo.preload(device.deployment, [:firmware])
+    deployment =
+      device.deployment
+      |> Repo.preload(:firmware)
+      |> Repo.preload(:product)
 
     case verify_update_eligibility(device, deployment) do
       {:ok, _device} ->
-        {:ok, url} = Firmwares.get_firmware_url(deployment.firmware)
+        {:ok, url} =
+          if deployment.product.delta_updatable do
+            get_delta_or_firmware_url(device.firmware_metadata.uuid, deployment.firmware)
+          else
+            Firmwares.get_firmware_url(deployment.firmware)
+          end
+
         {:ok, meta} = Firmwares.metadata_from_firmware(deployment.firmware)
 
         %UpdatePayload{
@@ -700,6 +709,20 @@ defmodule NervesHub.Devices do
 
       {:error, :updates_blocked, _device} ->
         %UpdatePayload{update_available: false}
+    end
+  end
+
+  defp get_delta_or_firmware_url(device_firmware_uuid, target_firmware) do
+    with %Firmware{} = device_firmware <- Firmwares.get_firmware_by_uuid(device_firmware_uuid),
+         {:ok, firmware_delta} <-
+           Firmwares.get_firmware_delta_by_source_and_target(device_firmware, target_firmware) do
+      Firmwares.get_firmware_url(firmware_delta)
+    else
+      _ ->
+        # When a resolve has been triggered, even with delta support on
+        # it is best to deliver a firmware even if we can't get a delta.
+        # This could be typical for some manual deployments.
+        Firmwares.get_firmware_url(target_firmware)
     end
   end
 
