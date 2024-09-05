@@ -124,7 +124,7 @@ defmodule NervesHub.Deployments.Orchestrator do
 
   def init(deployment) do
     state = %{
-      # fw_uuid => {:ready, FirmwareDelta.t()} | :processing | :needs_full
+      # fw_uuid => :ready | :processing | :needs_full
       delta_status: %{},
       deployment: deployment
     }
@@ -170,7 +170,33 @@ defmodule NervesHub.Deployments.Orchestrator do
       |> Repo.reload()
       |> Repo.preload([:firmware], force: true)
 
-    state = %{state | deployment: deployment}
+    # When firmware changes we stop caring about the current delta sets
+    delta_status =
+      if deployment.firmware_id != state.deployment.firmware_id do
+        %{state | delta_status: %{}}
+      else
+        # This event fires when deltas are completed as well
+        # Check all deltas that were in processing
+        for {firmware_uuid, status} <- state.delta_status, into: state.delta_status do
+          if status == :processing do
+            with {:ok, source_fw} <- Firmwares.get_firmware_by_uuid(firmware_uuid),
+                 {:ok, _delta} <-
+                   Firmwares.get_firmware_delta_by_source_and_target(
+                     source_fw,
+                     deployment.firmware
+                   ) do
+              {firmware_uuid, :ready}
+            else
+              _ ->
+                {firmware_uuid, :processing}
+            end
+          else
+            {firmware_uuid, status}
+          end
+        end
+      end
+
+    state = %{state | deployment: deployment, delta_status: delta_status}
     trigger_update(state)
 
     {:noreply, state}
@@ -209,8 +235,8 @@ defmodule NervesHub.Deployments.Orchestrator do
 
   defp attempt_resolve_delta(state, source_fw) do
     case Firmwares.get_firmware_delta_by_source_and_target(source_fw, state.deployment.firmware) do
-      {:ok, fw_delta} ->
-        set_delta_status(state, source_fw.uuid, {:ready, fw_delta})
+      {:ok, _fw_delta} ->
+        set_delta_status(state, source_fw.uuid, :ready)
 
       {:error, :not_found} ->
         NervesHub.Workers.FirmwareDeltaBuilder.start(source_fw.id, state.deployment.firmware.id)
