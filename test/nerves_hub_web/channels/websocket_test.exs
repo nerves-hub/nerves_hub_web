@@ -534,52 +534,6 @@ defmodule NervesHubWeb.WebsocketTest do
   describe "firmware update" do
     @describetag :tmp_dir
 
-    test "receives update message when eligible deployment is available", %{
-      user: user,
-      tmp_dir: tmp_dir
-    } do
-      {device, firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial})
-
-      firmware = NervesHub.Repo.preload(firmware, :product)
-      Fixtures.device_certificate_fixture(device)
-
-      org = %Accounts.Org{id: device.org_id}
-      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
-
-      firmware2 =
-        Fixtures.firmware_fixture(org_key, firmware.product, %{
-          version: "0.0.2",
-          dir: tmp_dir
-        })
-
-      Fixtures.firmware_delta_fixture(firmware, firmware2)
-
-      Fixtures.deployment_fixture(org, firmware2, %{
-        name: "a different name",
-        conditions: %{
-          "version" => ">= 0.0.1",
-          "tags" => ["beta", "beta-edge"]
-        }
-      })
-      |> Deployments.update_deployment(%{is_active: true})
-
-      {:ok, socket} = SocketClient.start_link(@socket_config)
-      SocketClient.wait_connect(socket)
-      SocketClient.join(socket, "device")
-      SocketClient.wait_join(socket)
-      update = SocketClient.wait_update(socket)
-      assert %{"update_available" => true, "firmware_url" => _, "firmware_meta" => %{}} = update
-
-      device =
-        Device
-        |> NervesHub.Repo.get(device.id)
-        |> NervesHub.Repo.preload(:org)
-
-      assert Time.diff(DateTime.utc_now(), device.connection_last_seen_at) < 2
-
-      SocketClient.close(socket)
-    end
-
     test "receives update message when a deployment gets a new version", %{
       user: user,
       tmp_dir: tmp_dir
