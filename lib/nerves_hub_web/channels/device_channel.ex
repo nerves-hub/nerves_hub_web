@@ -700,9 +700,13 @@ defmodule NervesHubWeb.DeviceChannel do
     |> maybe_send_archive()
   end
 
-  def update_device(socket, device) do
-    unsubscribe(socket.assigns.deployment_channel)
+  defp update_device(socket, device) do
+    socket
+    |> assign(:device, deployment_preload(device))
+    |> update_deployment_subscription(device)
+  end
 
+  defp update_deployment_subscription(socket, device) do
     deployment_channel =
       if device.deployment_id do
         "deployment:#{device.deployment_id}"
@@ -710,11 +714,13 @@ defmodule NervesHubWeb.DeviceChannel do
         "deployment:none"
       end
 
-    subscribe(deployment_channel)
-
-    socket
-    |> assign(:device, deployment_preload(device))
-    |> assign(:deployment_channel, deployment_channel)
+    if deployment_channel != socket.assigns.deployment_channel do
+      unsubscribe(socket.assigns.deployment_channel)
+      subscribe(deployment_channel)
+      assign(socket, :deployment_channel, deployment_channel)
+    else
+      socket
+    end
   end
 
   defp device_deployment_change_jitter_ms() do
