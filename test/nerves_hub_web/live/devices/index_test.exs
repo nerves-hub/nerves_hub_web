@@ -38,7 +38,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     end
 
     test "filters devices by prefix identifier", %{conn: conn, fixture: fixture} do
-      %{device: device, firmware: firmware, org: org, product: product} = fixture
+      %{device: device} = fixture
 
       {:ok, view, html} = live(conn, device_index_path(fixture))
       assert html =~ device.identifier
@@ -48,7 +48,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     end
 
     test "filters devices by suffix identifier", %{conn: conn, fixture: fixture} do
-      %{device: device, firmware: firmware, org: org, product: product} = fixture
+      %{device: device} = fixture
 
       {:ok, view, html} = live(conn, device_index_path(fixture))
       assert html =~ device.identifier
@@ -59,7 +59,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     end
 
     test "filters devices by middle identifier", %{conn: conn, fixture: fixture} do
-      %{device: device, firmware: firmware, org: org, product: product} = fixture
+      %{device: device} = fixture
 
       {:ok, view, html} = live(conn, device_index_path(fixture))
       assert html =~ device.identifier
