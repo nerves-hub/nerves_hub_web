@@ -76,6 +76,12 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
           if String.starts_with?(path, "meta.") do
             File.cp!(Path.join(target_work_dir, path), Path.join(output_work_dir, path))
           else
+            output_path = Path.join(output_work_dir, path)
+
+            output_path
+            |> Path.dirname()
+            |> File.mkdir_p!()
+
             args = [
               "-A",
               "-S",
@@ -83,10 +89,10 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
               "-s",
               Path.join(source_work_dir, path),
               Path.join(target_work_dir, path),
-              Path.join(output_work_dir, path)
+              output_path
             ]
 
-            {_, 0} = System.cmd("xdelta3", args)
+            {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true)
           end
       end
 
