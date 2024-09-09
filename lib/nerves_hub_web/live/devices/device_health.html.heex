@@ -2,7 +2,7 @@
   <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"} class="back-link">Back to
     device </.link>
 </div>
-<HealthHeader.render org={@org} product={@product} device={@device} status={@status} latest_health={@latest_health} health_check_timer={@health_check_timer} />
+<HealthHeader.render org={@org} product={@product} device={@device} status={@status} latest_health={@latest_metrics} health_check_timer={@health_check_timer} />
 
 <div class="divider"></div>
 
@@ -41,10 +41,10 @@
 
 <div class="row">
   <div class="col-lg-12">
-    <HealthSection.render title="Load Average - 1 min" svg={@graphs.load_1min} />
-    <HealthSection.render title="Load Average - 5 min" svg={@graphs.load_5min} />
-    <HealthSection.render title="Load Average - 15 min" svg={@graphs.load_15min} />
-    <HealthSection.render title="CPU Temperature in Celcius" svg={@graphs.cpu_temp} />
-    <HealthSection.render title="Memory Usage" svg={@graphs.used_mb} memory_size={@memory_size} memory_usage={@memory_usage} />
+    <HealthSection.render title="Load Average - 1 min" svg={@load_1min} />
+    <HealthSection.render title="Load Average - 5 min" svg={@load_5min} />
+    <HealthSection.render title="Load Average - 15 min" svg={@load_15min} />
+    <HealthSection.render title="CPU Temperature in Celcius" svg={@cpu_temp} />
+    <HealthSection.render title="Memory Usage" svg={@used_mb} memory_size={@latest_metrics.size_mb} memory_usage={@latest_metrics.used_percent} />
   </div>
 </div>

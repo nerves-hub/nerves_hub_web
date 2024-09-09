@@ -69,16 +69,6 @@
       </div>
 
       <DeviceLocation.render location={@device.connection_metadata["location"]} />
-
-      <%= if @health && @health.data["metadata"] do %>
-        <h3 class="mb-2">Metadata</h3>
-        <div class="display-box metrics">
-          <div :for={{key, value} <- @health.data["metadata"]} class="display-box-item">
-            <div class="help-text"><%= key |> String.replace("_", " ") |> String.capitalize() %></div>
-            <p><%= value %></p>
-          </div>
-        </div>
-      <% end %>
     </div>
 
     <div>
@@ -109,52 +99,50 @@
         </button>
       </div>
 
-      <div :if={!@health} class="display-box">
-        No health information have been received for this device.
-      </div>
-
-      <div>
-        <div :if={@health} class="device-health">
-          <div class="callouts">
-            <div :if={@health.data["metrics"] && @health.data["metrics"]["load_15min"]} class="callout">
-              <div class="help-text label">Load avg</div>
-              <%= @health.data["metrics"]["load_1min"] %> | <%= @health.data["metrics"]["load_5min"] %> | <%= @health.data["metrics"]["load_15min"] %>
-            </div>
-
-            <div :if={@health.data["metrics"] && @health.data["metrics"]["used_percent"]} class={"callout #{Utils.memory_to_status(60)}"} x>
-              <div class="help-text label">Memory used</div>
-              <%= round(@health.data["metrics"]["used_mb"]) %>MB (<%= round(@health.data["metrics"]["used_percent"]) %>%)
-            </div>
-            <div :if={!(@health.data["metrics"] && @health.data["metrics"]["used_percent"])} class="callout">
-              <div class="help-text label">Memory used</div>
-              Not reported
-            </div>
-
-            <div :if={@health.data["metrics"] && @health.data["metrics"]["cpu_temp"]} class={"callout #{Utils.cpu_temp_to_status(@health.data["metrics"]["cpu_temp"])}"}>
-              <div class="help-text label">CPU</div>
-              <%= round(@health.data["metrics"]["cpu_temp"]) %>°
-            </div>
-            <div :if={!(@health.data["metrics"] && @health.data["metrics"]["cpu_temp"])} class="callout">
-              <div class="help-text label">CPU</div>
-              Not reported
-            </div>
-          </div>
-
-          <%= if @health.data["metrics"] do %>
-            <div class="custom-metrics">
-              <div :for={{key, value} <- @health.data["metrics"]} class="metric">
-                <div class="help-text label"><%= key |> String.replace("_", " ") |> String.capitalize() %></div>
-                <%= value %>
-              </div>
-            </div>
-          <% end %>
+      <%= if (!Enum.any?(Map.values(@latest_metrics))) do %>
+        <div class="display-box">
+          No health information have been received for this device.
         </div>
+      <% end %>
+      <div>
+        <%= if (Enum.any?(Map.values(@latest_metrics))) do %>
+          <div :if={@latest_metrics.load_1min} class="device-health">
+            <div class="callout">
+              <div class="help-text label">Load avg</div>
+              <%= @latest_metrics.load_1min %> | <%= @latest_metrics.load_5min %> | <%= @latest_metrics.load_15min %>
+            </div>
 
-        <div :if={@health} class="flex-row justify-content-between">
+            <%= if @latest_metrics.used_mb do %>
+              <div class={"callout #{Utils.memory_to_status(60)}"} x>
+                <div class="help-text label">Memory used</div>
+                <%= round(@latest_metrics.used_mb) %>MB (<%= round(@latest_metrics.used_percent) %>%)
+              </div>
+            <% else %>
+              <div class="callout">
+                <div class="help-text label">Memory used</div>
+                Not reported
+              </div>
+            <% end %>
+
+            <%= if @latest_metrics.cpu_temp do %>
+              <div class={"callout #{Utils.cpu_temp_to_status(@latest_metrics.cpu_temp)}"}>
+                <div class="help-text label">CPU</div>
+                <%= round(@latest_metrics.cpu_temp) %>°
+              </div>
+            <% else %>
+              <div class="callout">
+                <div class="help-text label">CPU</div>
+                Not reported
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <div :if={Map.get(@latest_metrics, :timestamp)} class="flex-row justify-content-between">
           <div class="last-report">
             <span class="label pr-1">Last reported :</span>
-            <time id="health-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@health.inserted_at, :second)), " ", "T")}>
-              <%= Timex.from_now(@health.inserted_at) %>
+            <time id="health-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics.timestamp, :second)), " ", "T")}>
+              <%= Timex.from_now(@latest_metrics.timestamp) %>
             </time>
           </div>
           <div>

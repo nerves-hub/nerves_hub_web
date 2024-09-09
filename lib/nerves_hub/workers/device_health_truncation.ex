@@ -1,6 +1,6 @@
 defmodule NervesHub.Workers.DeviceHealthTruncation do
   @moduledoc """
-  Remove old Device health reports.
+  Remove old Device health and metric reports.
 
   The number of days to keep is configured using the environment
   variable `HEALTH_CHECK_DAYS_TO_RETAIN`
@@ -13,6 +13,7 @@ defmodule NervesHub.Workers.DeviceHealthTruncation do
   @impl Oban.Worker
   def perform(_) do
     {:ok, _} = NervesHub.Devices.truncate_device_health()
+    {:ok, _} = NervesHub.Devices.Metrics.truncate_device_metrics()
 
     :ok
   end

@@ -5,7 +5,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
   attr(:product, :any)
   attr(:device, :any)
   attr(:status, :any)
-  attr(:latest_health, :any)
+  attr(:latest_health, :any, default: nil)
   attr(:health_check_timer, :any, default: nil)
 
   def render(assigns) do
@@ -66,13 +66,18 @@ defmodule NervesHubWeb.Components.HealthHeader do
           <span>Last reported</span>
           <span :if={@latest_health} class="tooltip-info"></span>
           <span :if={@latest_health} class="tooltip-text" id="last-reported-at-tooltip" phx-hook="LocalTime">
-            <%= @latest_health.inserted_at %>
+            <%= @latest_health.timestamp %>
           </span>
         </div>
         <p>
           <span :if={!@latest_health}>Never</span>
-          <time :if={@latest_health} id="last-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_health.inserted_at, :second)), " ", "T")}>
-            <%= Timex.from_now(@latest_health.inserted_at) %>
+          <time
+            :if={@latest_health.timestamp}
+            id="last-reported-at"
+            phx-hook="UpdatingTimeAgo"
+            datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_health.timestamp, :second)), " ", "T")}
+          >
+            <%= Timex.from_now(@latest_health.timestamp) %>
           </time>
         </p>
       </div>
