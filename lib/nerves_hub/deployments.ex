@@ -213,12 +213,40 @@ defmodule NervesHub.Deployments do
           end
         end
 
+        # Firmware changed on active deployment
+        if deployment.is_active and Map.has_key?(changeset.changes, :firmware_id) do
+          deployment = Repo.preload(deployment, :product, force: true)
+
+          if deployment.product.delta_updatable do
+            trigger_delta_generation_for_deployment(deployment)
+          end
+        end
+
         _ = broadcast(deployment, "deployments/update")
 
         {:ok, deployment}
 
       {:error, changeset} ->
         {:error, changeset}
+    end
+  end
+
+  defp trigger_delta_generation_for_deployment(deployment) do
+    case NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment(deployment.id) do
+      {:ok, %{rows: rows}} ->
+        rows
+        |> Enum.map(fn [source_id, target_id] ->
+          {source_id, target_id}
+        end)
+        |> Enum.uniq()
+        |> Enum.each(fn {source_id, target_id} ->
+          NervesHub.Workers.FirmwareDeltaBuilder.start(source_id, target_id)
+        end)
+
+        :ok
+
+      error ->
+        error
     end
   end
 
