@@ -184,7 +184,7 @@ html body {
   display: none;
 }
 
-.device-health {
+.device-health .callouts {
   display: flex;
   flex-wrap: row;
   gap: 4px;
@@ -238,4 +238,31 @@ html body {
 
 .device-health .callout.danger {
   color: orangered;
+}
+
+.device-health .custom-metrics {
+  display: flex;
+  flex-wrap: row;
+  gap: 4px;
+}
+
+.device-health .custom-metrics .metric {
+  background-color: var(--backgroundLight);
+  padding: 20px 14px;
+
+  font-size: 1.125rem;
+  flex-grow: 1;
+}
+
+.display-box.metrics {
+  display: flex;
+  flex-wrap: row;
+  gap: 4px;
+}
+
+.display-box-item {
+  background-color: var(--backgroundLight);
+
+  font-size: 1.125rem;
+  flex-grow: 1;
 }
