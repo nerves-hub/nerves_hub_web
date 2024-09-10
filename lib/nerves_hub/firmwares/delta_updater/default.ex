@@ -98,6 +98,7 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
                 ]
 
                 {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true)
+
               {:error, :enoent} ->
                 File.cp!(target_filepath, output_path)
             end
