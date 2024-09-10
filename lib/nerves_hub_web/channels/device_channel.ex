@@ -151,6 +151,85 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  # We can save a fairly expensive query by checking the incoming deployment's payload
+  # If it matches, we can set the deployment directly and only do 3 queries (update, two preloads)
+  def handle_info(
+        %Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload},
+        %{assigns: %{device: device}} = socket
+      ) do
+    if device_matches_deployment_payload?(device, payload) do
+      cancel_deployment_timer(socket)
+
+      # jitter to attempt to not slam the database when any matching
+      # devices go to set their deployment. This is for very large
+      # deployments, to prevent ecto pool contention.
+      jitter = device_deployment_change_jitter_ms()
+      timer = Process.send_after(self(), {:assign_deployment, payload}, jitter)
+      {:noreply, assign(socket, :assign_deployment_timer, timer)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info({:assign_deployment, payload}, socket) do
+    socket = assign(socket, :assign_deployment_timer, nil)
+    {:noreply, assign_deployment(socket, payload)}
+  end
+
+  def handle_info(
+        %Broadcast{event: "deployments/changed", payload: payload},
+        %{assigns: %{device: device}} = socket
+      ) do
+    if device_matches_deployment_payload?(device, payload) do
+      :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
+      {:noreply, assign_deployment(socket, payload)}
+    else
+      # jitter to attempt to not slam the database when any matching
+      # devices go to set their deployment. This is for very large
+      # deployments, to prevent ecto pool contention.
+      jitter = device_deployment_change_jitter_ms()
+      Process.send_after(self(), :resolve_changed_deployment, jitter)
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info(:resolve_changed_deployment, %{assigns: %{device: device}} = socket) do
+    :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
+
+    device =
+      device
+      |> Repo.reload()
+      |> Devices.verify_deployment()
+      |> Deployments.set_deployment()
+      |> deployment_preload()
+
+    description =
+      if device.deployment_id do
+        "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+      else
+        "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
+      end
+
+    AuditLogs.audit_with_ref!(
+      device,
+      device,
+      description,
+      socket.assigns.reference_id
+    )
+
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.put(value, :deployment_id, device.deployment_id)
+      end)
+
+    socket =
+      socket
+      |> update_device(device)
+      |> maybe_send_archive()
+
+    {:noreply, socket}
+  end
+
   # manually pushed
   def handle_info(%Broadcast{event: "devices/update-manual", payload: payload}, socket) do
     :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
@@ -159,10 +238,6 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info(%Broadcast{event: "deployments/update"}, socket) do
-    {:noreply, socket}
-  end
-
-  def handle_info(%Broadcast{event: "deployments/changed"}, socket) do
     {:noreply, socket}
   end
 
@@ -559,6 +634,15 @@ defmodule NervesHubWeb.DeviceChannel do
     })
   end
 
+  defp cancel_deployment_timer(%{assigns: %{assign_deployment_timer: timer}}) do
+    _ = Process.cancel_timer(timer)
+    :ok
+  end
+
+  defp cancel_deployment_timer(_socket) do
+    :ok
+  end
+
   # The reported firmware is the same as what we already know about
   defp update_metadata(%Device{firmware_metadata: %{uuid: uuid}} = device, %{
          "nerves_fw_uuid" => uuid
@@ -593,6 +677,38 @@ defmodule NervesHubWeb.DeviceChannel do
     assign(socket, :penalty_timer, ref)
   end
 
+  defp device_matches_deployment_payload?(device, payload) do
+    payload.active &&
+      device.product_id == payload.product_id &&
+      device.firmware_metadata.platform == payload.platform &&
+      device.firmware_metadata.architecture == payload.architecture &&
+      Enum.all?(payload.conditions["tags"], &Enum.member?(device.tags, &1)) &&
+      Deployments.version_match?(device, payload)
+  end
+
+  defp assign_deployment(%{assigns: %{device: device}} = socket, payload) do
+    device =
+      device
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:deployment_id, payload.id)
+      |> Repo.update!()
+      |> deployment_preload()
+
+    description =
+      "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+
+    AuditLogs.audit_with_ref!(device, device, description, socket.assigns.reference_id)
+
+    _ =
+      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Map.put(value, :deployment_id, device.deployment_id)
+      end)
+
+    socket
+    |> update_device(device)
+    |> maybe_send_archive()
+  end
+
   defp update_device(socket, device) do
     socket
     |> assign(:device, deployment_preload(device))
@@ -621,6 +737,11 @@ defmodule NervesHubWeb.DeviceChannel do
     else
       socket
     end
+  end
+
+  defp device_deployment_change_jitter_ms() do
+    jitter = Application.get_env(:nerves_hub, :device_deployment_change_jitter_seconds)
+    :rand.uniform(jitter) * 1000
   end
 
   defp schedule_health_check() do

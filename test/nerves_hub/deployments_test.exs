@@ -124,6 +124,107 @@ defmodule NervesHub.DeploymentsTest do
 
       assert_broadcast("deployments/update", %{}, 500)
     end
+
+    test "changing tags resets device's deployments and causes a recalculation", state do
+      %{firmware: firmware, org: org, product: product} = state
+
+      deployment =
+        Fixtures.deployment_fixture(org, firmware, %{name: "name", conditions: %{tags: ["alpha"]}})
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      device_one = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+      device_two = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+
+      device_one = Deployments.set_deployment(device_one)
+      assert device_one.deployment_id == deployment.id
+      device_two = Deployments.set_deployment(device_two)
+      assert device_two.deployment_id == deployment.id
+
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+
+      {:ok, deployment} =
+        Deployments.update_deployment(deployment, %{conditions: %{"tags" => ["beta"]}})
+
+      assert deployment.conditions == %{"tags" => ["beta"]}
+
+      device_one = Repo.reload(device_one)
+      refute device_one.deployment_id
+      device_two = Repo.reload(device_two)
+      refute device_two.deployment_id
+
+      assert_broadcast("deployments/changed", %{}, 500)
+    end
+
+    test "changing tags with empty version causes recalculation", state do
+      %{firmware: firmware, org: org, product: product} = state
+
+      deployment =
+        Fixtures.deployment_fixture(org, firmware, %{name: "name", conditions: %{tags: ["alpha"]}})
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      device_one = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+      device_two = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta"]})
+
+      device_one = Deployments.set_deployment(device_one)
+      assert device_one.deployment_id == deployment.id
+      device_two = Deployments.set_deployment(device_two)
+      refute device_two.deployment_id == deployment.id
+
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+
+      {:ok, deployment} =
+        Deployments.update_deployment(deployment, %{
+          conditions: %{"tags" => ["beta"], "version" => ""}
+        })
+
+      assert deployment.conditions == %{"tags" => ["beta"], "version" => ""}
+
+      device_one = Repo.reload(device_one)
+      refute device_one.deployment_id
+      device_two = Repo.reload(device_two)
+      assert device_two.deployment_id
+
+      assert_broadcast("deployments/changed", %{}, 500)
+    end
+
+    test "changing is_active causes a recaluation", state do
+      %{firmware: firmware, org: org, product: product} = state
+
+      deployment =
+        Fixtures.deployment_fixture(org, firmware, %{name: "name", conditions: %{tags: ["alpha"]}})
+
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:none")
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      Phoenix.PubSub.unsubscribe(NervesHub.PubSub, "deployment:none")
+
+      assert_broadcast("deployments/changed", %{}, 500)
+
+      device_one = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+      device_two = Fixtures.device_fixture(org, product, firmware, %{tags: ["alpha"]})
+
+      device_one = Deployments.set_deployment(device_one)
+      assert device_one.deployment_id == deployment.id
+      device_two = Deployments.set_deployment(device_two)
+      assert device_two.deployment_id == deployment.id
+
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+
+      {:ok, deployment} =
+        Deployments.update_deployment(deployment, %{conditions: %{"tags" => ["beta"]}})
+
+      assert deployment.conditions == %{"tags" => ["beta"]}
+
+      assert_broadcast("deployments/changed", %{}, 500)
+
+      device_one = Repo.reload(device_one)
+      refute device_one.deployment_id
+      device_two = Repo.reload(device_two)
+      refute device_two.deployment_id
+    end
   end
 
   describe "device's matching deployments" do
