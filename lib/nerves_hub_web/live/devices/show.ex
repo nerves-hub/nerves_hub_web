@@ -31,7 +31,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:status, Tracker.status(device))
     |> assign(:deployment, device.deployment)
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
-    |> assign(:health, Devices.get_latest_health(device.id))
+    |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
     |> audit_log_assigns(1)

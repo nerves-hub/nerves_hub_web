@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
@@ -238,28 +239,24 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      device_health = %{
-        "device_id" => device.id,
-        "data" => %{
-          "metrics" => %{
-            "load_1min" => "0.00",
-            "load_5min" => "0.00",
-            "load_15min" => "0.00",
-            "used_percent" => 60,
-            "used_mb" => 100,
-            "cpu_temp" => 30
-          }
-        }
+      metrics = %{
+        "cpu_temp" => 30,
+        "load_15min" => 0.00,
+        "load_1min" => 0.00,
+        "load_5min" => 0.00,
+        "size_mb" => 7892,
+        "used_mb" => 100,
+        "used_percent" => 60
       }
 
-      assert {:ok, %Devices.DeviceHealth{}} = Devices.save_device_health(device_health)
+      assert {:ok, _} = Metrics.save_metrics(device.id, metrics)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
       |> assert_has("div", text: "Load avg")
-      |> assert_has("div", text: "0.00 | 0.00 | 0.00")
+      |> assert_has("div", text: "0.0 | 0.0 | 0.0")
       |> assert_has("div", text: "Memory used")
       |> assert_has("div", text: "100MB (60%)")
       |> assert_has("div", text: "CPU")
@@ -272,27 +269,23 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      device_health = %{
-        "device_id" => device.id,
-        "data" => %{
-          "metrics" => %{
-            "load_1min" => "0.00",
-            "load_5min" => "0.00",
-            "load_15min" => "0.00",
-            "used_percent" => 60,
-            "used_mb" => 100
-          }
-        }
+      metrics = %{
+        "load_15min" => 0.00,
+        "load_1min" => 0.00,
+        "load_5min" => 0.00,
+        "size_mb" => 7892,
+        "used_mb" => 100,
+        "used_percent" => 60
       }
 
-      assert {:ok, %Devices.DeviceHealth{}} = Devices.save_device_health(device_health)
+      assert {:ok, _} = Metrics.save_metrics(device.id, metrics)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
       |> assert_has("div", text: "Load avg")
-      |> assert_has("div", text: "0.00 | 0.00 | 0.00")
+      |> assert_has("div", text: "0.0 | 0.0 | 0.0")
       |> assert_has("div", text: "Memory used")
       |> assert_has("div", text: "100MB (60%)")
       |> assert_has("div", text: "CPU")

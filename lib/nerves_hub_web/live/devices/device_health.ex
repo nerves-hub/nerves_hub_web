@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Tracker
 
   alias NervesHubWeb.Components.HealthHeader
@@ -120,48 +121,44 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     end)
   end
 
-  defp assign_metrics(
-         %{
-           assigns: %{
-             device: device,
-             chart_type: chart_type,
-             time_frame: {unit, amount} = time_frame
-           }
-         } = socket
-       ) do
-    latest_health = Devices.get_latest_health(device.id)
+  def assign_metrics(
+        %{
+          assigns: %{
+            device: device,
+            chart_type: chart_type,
+            time_frame: time_frame
+          }
+        } =
+          socket
+      ) do
+    latest_metrics = Metrics.get_latest_metric_set_for_device(device.id)
 
-    {memory_size, memory_usage} =
-      case latest_health do
-        %{data: %{"metrics" => metrics}} -> {metrics["size_mb"], metrics["used_percent"]}
-        _ -> {0, 0}
-      end
+    # Create graphs for metric types and assign to socket
+    Metrics.metric_types()
+    |> Enum.reduce(socket, fn type, socket ->
+      graph =
+        create_graph_for_type(device.id, type, chart_type, time_frame, latest_metrics.size_mb)
 
-    metrics =
-      device.id
-      |> Devices.get_device_health(unit, amount)
-      |> organize_data()
-
-    socket
-    |> assign(:latest_health, latest_health)
-    |> assign(:memory_size, memory_size)
-    |> assign(:memory_usage, memory_usage)
-    |> assign(:graphs, create_graphs(metrics, chart_type, memory_size, time_frame))
+      socket |> assign(type, graph)
+    end)
+    |> assign(:latest_metrics, latest_metrics)
   end
 
-  defp create_graphs(metrics, chart_type, memory_size, time_frame) do
+  def create_graph_for_type(device_id, metric_type, chart_type, time_frame, memory_size) do
+    metrics =
+      device_id
+      |> Metrics.get_device_metrics_by_key(Atom.to_string(metric_type), time_frame)
+      |> organize_metrics_for_contex()
+
+    max_value = get_max_value(metric_type, metrics, memory_size)
+
+    create_chart(metrics, chart_type, max_value, time_frame)
+  end
+
+  defp organize_metrics_for_contex(metrics) do
     metrics
-    |> Enum.reduce(%{}, fn {metric_type, data}, acc ->
-      case metric_type do
-        :size_mb ->
-          acc
-
-        _ ->
-          max_value = get_max_value(metric_type, data, memory_size)
-          chart_svg = create_chart(data, chart_type, max_value, time_frame)
-
-          Map.put(acc, metric_type, chart_svg)
-      end
+    |> Enum.map(fn %{inserted_at: timestamp, value: value} ->
+      [DateTime.to_naive(timestamp), value]
     end)
   end
 

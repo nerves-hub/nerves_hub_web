@@ -69,7 +69,7 @@ defmodule NervesHubWeb.API.KeyControllerTest do
   end
 
   describe "delete key" do
-    setup [:create_key]
+    setup([:create_key])
 
     test "deletes chosen key", %{conn: conn, org: org, key: key} do
       conn = delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))

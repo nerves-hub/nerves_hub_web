@@ -14,6 +14,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.Repo
   alias NervesHub.Tracker
@@ -512,25 +513,34 @@ defmodule NervesHubWeb.DeviceChannel do
           into: %{},
           do: {to_string(key), to_string(val)}
 
-    full_report =
+    # Separate metrics from health report to store in metrics table
+    metrics = device_status["metrics"]
+
+    health_report =
       device_status
+      |> Map.delete("metrics")
       |> Map.put("metadata", Map.merge(device_status["metadata"], device_meta))
 
-    device_health = %{"device_id" => socket.assigns.device.id, "data" => full_report}
+    device_health = %{"device_id" => socket.assigns.device.id, "data" => health_report}
 
-    case Devices.save_device_health(device_health) do
-      {:ok, _} ->
-        NervesHubWeb.DeviceEndpoint.broadcast_from!(
-          self(),
-          "device:#{socket.assigns.device.identifier}:internal",
-          "health_check_report",
-          %{}
-        )
+    with {:health_report, {:ok, _}} <-
+           {:health_report, Devices.save_device_health(device_health)},
+         {:metrics_report, {:ok, _}} <-
+           {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
+      NervesHubWeb.DeviceEndpoint.broadcast_from!(
+        self(),
+        "device:#{socket.assigns.device.identifier}:internal",
+        "health_check_report",
+        %{}
+      )
 
-        :ok
-
-      {:error, err} ->
+      :ok
+    else
+      {:health_report, {:error, err}} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
+
+      {:metrics_report, {:error, err}} ->
+        Logger.warning("Failed to save metrics: #{inspect(err)}")
     end
 
     {:noreply, socket}
