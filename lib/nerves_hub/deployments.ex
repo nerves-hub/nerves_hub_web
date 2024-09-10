@@ -162,7 +162,7 @@ defmodule NervesHub.Deployments do
 
     case result do
       {:ok, {deployment, changeset}} ->
-        maybe_trigger_delta_generation(deployment, changeset)
+        _ = maybe_trigger_delta_generation(deployment, changeset)
         broadcast_deployment_updates(deployment, changeset)
 
         {:ok, deployment}
@@ -318,22 +318,11 @@ defmodule NervesHub.Deployments do
   end
 
   defp trigger_delta_generation_for_deployment(deployment) do
-    case NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment(deployment.id) do
-      {:ok, %{rows: rows}} ->
-        rows
-        |> Enum.map(fn [source_id, target_id] ->
-          {source_id, target_id}
-        end)
-        |> Enum.uniq()
-        |> Enum.each(fn {source_id, target_id} ->
-          NervesHub.Workers.FirmwareDeltaBuilder.start(source_id, target_id)
-        end)
-
-        :ok
-
-      error ->
-        error
-    end
+    NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment(deployment.id)
+    |> Enum.uniq()
+    |> Enum.each(fn {source_id, target_id} ->
+      NervesHub.Workers.FirmwareDeltaBuilder.start(source_id, target_id)
+    end)
   end
 
   @doc """

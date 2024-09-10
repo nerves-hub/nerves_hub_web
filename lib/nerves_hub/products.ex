@@ -123,7 +123,7 @@ defmodule NervesHub.Products do
 
     case result do
       {:ok, %{delta_updatable: true} = new_product} when product.delta_updatable == false ->
-        trigger_delta_generation_for_product(new_product)
+        :ok = trigger_delta_generation_for_product(new_product)
         result
 
       _ ->
@@ -132,22 +132,11 @@ defmodule NervesHub.Products do
   end
 
   defp trigger_delta_generation_for_product(product) do
-    case NervesHub.Devices.get_device_firmware_for_delta_generation_by_product(product.id) do
-      {:ok, %{rows: rows}} ->
-        rows
-        |> Enum.map(fn [source_id, target_id] ->
-          {source_id, target_id}
-        end)
-        |> Enum.uniq()
-        |> Enum.each(fn {source_id, target_id} ->
-          NervesHub.Workers.FirmwareDeltaBuilder.start(source_id, target_id)
-        end)
-
-        :ok
-
-      error ->
-        error
-    end
+    NervesHub.Devices.get_device_firmware_for_delta_generation_by_product(product.id)
+    |> Enum.uniq()
+    |> Enum.each(fn {source_id, target_id} ->
+      NervesHub.Workers.FirmwareDeltaBuilder.start(source_id, target_id)
+    end)
   end
 
   @doc """
