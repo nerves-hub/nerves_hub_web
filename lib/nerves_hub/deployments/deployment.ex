@@ -65,6 +65,7 @@ defmodule NervesHub.Deployments.Deployment do
     field(:total_updating_devices, :integer, default: 0)
     field(:current_updated_devices, :integer, default: 0)
     field(:inflight_update_expiration_minutes, :integer, default: 60)
+    field(:recalculation_type, :string, default: "broadcast")
 
     timestamps()
   end
