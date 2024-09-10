@@ -7,6 +7,8 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
       states: [:available, :scheduled, :executing]
     ]
 
+  require Logger
+
   alias NervesHub.{Deployments, Firmwares}
 
   @impl Oban.Worker
