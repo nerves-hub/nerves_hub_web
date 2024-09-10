@@ -407,11 +407,9 @@ defmodule NervesHubWeb.DeviceChannel do
     # preventing cascading problems.
     Logger.warning("[DeviceChannel] Unhandled handle_info message! - #{inspect(msg)}")
 
-    _ =
-      Sentry.capture_message("[DeviceChannel] Unhandled handle_info message!",
-        extra: %{message: msg},
-        result: :none
-      )
+    log_to_sentry(socket.assigns.device, "[DeviceChannel] Unhandled handle_info message!", %{
+      message: msg
+    })
 
     {:noreply, socket}
   end
@@ -530,14 +528,14 @@ defmodule NervesHubWeb.DeviceChannel do
         "health_check_report",
         %{}
       )
-
-      :ok
     else
       {:health_report, {:error, err}} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
+        log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save health check data.")
 
       {:metrics_report, {:error, err}} ->
         Logger.warning("Failed to save metrics: #{inspect(err)}")
+        log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save metrics.")
     end
 
     {:noreply, socket}
@@ -551,19 +549,7 @@ defmodule NervesHubWeb.DeviceChannel do
     )
 
     device = socket.assigns.device
-
-    Sentry.Context.set_tags_context(%{
-      device_identifier: device.identifier,
-      device_id: device.id,
-      product_id: device.product_id,
-      org_id: device.org_id
-    })
-
-    _ =
-      Sentry.capture_message("[DeviceChannel] Unhandled message!",
-        extra: %{message: msg},
-        result: :none
-      )
+    log_to_sentry(device, "[DeviceChannel] Unhandled message!", %{message: msg})
 
     {:noreply, socket}
   end
@@ -581,6 +567,21 @@ defmodule NervesHubWeb.DeviceChannel do
     Tracker.offline(device)
 
     :ok
+  end
+
+  defp log_to_sentry(device, message, extra \\ %{}) do
+    Sentry.Context.set_tags_context(%{
+      device_identifier: device.identifier,
+      device_id: device.id,
+      product_id: device.product_id,
+      org_id: device.org_id
+    })
+
+    _ =
+      Sentry.capture_message(message,
+        extra: extra,
+        result: :none
+      )
   end
 
   defp maybe_push_update(_socket, _update_payload, _device, false) do
