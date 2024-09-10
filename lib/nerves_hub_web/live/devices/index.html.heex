@@ -27,6 +27,9 @@
         </span>
         <span class="button-icon filter"></span>
       </button>
+      <p class="ml-2" style="opacity: 0.7;">
+        <%= @paginate_opts.total_pages %> devices found <span :if={Enum.count(@selected_devices) > 0}>(<%= Enum.count(@selected_devices) %> selected)</span>
+      </p>
     </div>
     <div>
       <a class="btn btn-outline-light btn-action" aria-label="Add new device" href={Routes.product_path(@socket, :devices_export, @org.name, @product.name)}>
@@ -39,6 +42,7 @@
       </.link>
     </div>
   </div>
+
   <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex; gap: 4px;">
     <%= for size <- @paginate_opts.page_sizes do %>
       <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"btn btn-secondary btn-sm #{if size == @paginate_opts.page_size, do: "active"}"}>
@@ -218,7 +222,9 @@
   <table class="table table-sm table-hover">
     <thead>
       <tr>
-        <th></th>
+        <th>
+          <input class="checkbox" title="Check/uncheck all" {[checked: Enum.count(@selected_devices) == Enum.count(@devices)]} id="toggle-all" name="toggle-all" type="checkbox" phx-click="select-all" />
+        </th>
         <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
         <th>Firmware</th>
         <th>Platform</th>

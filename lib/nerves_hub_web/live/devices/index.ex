@@ -199,6 +199,19 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, :selected_devices, selected_devices)}
   end
 
+  def handle_event("select-all", _, socket) do
+    selected_devices = socket.assigns.selected_devices
+
+    selected_devices =
+      if Enum.count(selected_devices) > 0 do
+        []
+      else
+        Enum.map(socket.assigns.devices, & &1.id)
+      end
+
+    {:noreply, assign(socket, :selected_devices, selected_devices)}
+  end
+
   def handle_event("deselect-all", _, socket) do
     {:noreply, assign(socket, selected_devices: [])}
   end
