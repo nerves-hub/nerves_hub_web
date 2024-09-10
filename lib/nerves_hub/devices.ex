@@ -75,6 +75,19 @@ defmodule NervesHub.Devices do
     |> Repo.paginate(pagination)
   end
 
+  def filter(product_id, opts) do
+    pagination = Map.get(opts, :pagination, %{})
+    sorting = Map.get(opts, :sort, {:asc, :identifier})
+    filters = Map.get(opts, :filters, %{})
+
+    Device
+    |> where([d], d.product_id == ^product_id)
+    |> Repo.exclude_deleted()
+    |> filtering(filters)
+    |> order_by(^sort_devices(sorting))
+    |> Repo.paginate(pagination)
+  end
+
   def get_health_by_org_id_and_product_id(org_id, product_id, opts) do
     query =
       from(
@@ -163,7 +176,7 @@ defmodule NervesHub.Devices do
                 where(
                   query,
                   [d],
-                  fragment("array_to_string(?, ',') ILIKE ?", d.tags, ^"%#{tag}%")
+                  fragment("array_to_string(?, ' ', ' ') ILIKE ?", d.tags, ^"%#{tag}%")
                 )
               end)
 
