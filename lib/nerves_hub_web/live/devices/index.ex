@@ -16,6 +16,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
   import NervesHubWeb.LayoutView,
     only: [pagination_links: 1]
 
+  @list_refresh_time 10_000
+
   @default_filters %{
     connection: "",
     connection_type: "",
@@ -74,6 +76,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:target_product, nil)
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
+    |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
 
@@ -89,7 +92,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:currently_filtering, filters != @default_filters)
     |> assign(:params, unsigned_params)
     |> assign_display_devices()
-    |> subscribe_and_refresh_device_list()
     |> noreply()
   end
 
@@ -107,10 +109,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices?#{query}"
   end
 
-  defp subscribe_and_refresh_device_list(socket) do
+  defp subscribe_and_refresh_device_list_timer(socket) do
     if connected?(socket) do
       socket.endpoint.subscribe("product:#{socket.assigns.product.id}:devices")
-      Process.send_after(self(), :refresh_device_list, 5000)
+      Process.send_after(self(), :refresh_device_list, @list_refresh_time)
       socket
     else
       socket
@@ -333,7 +335,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_info(:refresh_device_list, socket) do
-    Process.send_after(self(), :refresh_device_list, 5000)
+    Process.send_after(self(), :refresh_device_list, @list_refresh_time)
 
     if socket.assigns.paginate_opts.total_pages == 1 do
       {:noreply, assign_display_devices(socket)}
