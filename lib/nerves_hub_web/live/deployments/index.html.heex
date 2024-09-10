@@ -26,6 +26,7 @@
         <tr>
           <th>Name</th>
           <th>State</th>
+          <th>Devices</th>
           <th>Firmware version</th>
           <th>Distributed to</th>
           <th>Version requirement</th>
@@ -42,6 +43,12 @@
           <div class="mobile-label help-text">State</div>
           <div class={"deployment-state state-#{if deployment.is_active, do: "on", else: "off"}"}>
             <%= if deployment.is_active, do: "On", else: "Off" %>
+          </div>
+        </td>
+        <td>
+          <div class="mobile-label help-text">Devices</div>
+          <div>
+            <%= @counts[deployment.id] %>
           </div>
         </td>
         <td>
