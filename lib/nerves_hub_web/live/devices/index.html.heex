@@ -166,10 +166,10 @@
         </form>
 
         <form id="bulk-tag-input" class="col-lg-6" phx-submit="tag-devices" phx-change="validate-tags">
-          <label for="input_tags">Set tag(s) to:</label>
+          <label for="input_set_tags">Set tag(s) to:</label>
           <div class="flex-row align-items-center">
             <div class="flex-grow">
-              <input type="text" name="tags" id="input_tags" class="form-control" value={@current_filters[:tag]} phx-debounce="500" />
+              <input type="text" name="tags" id="input_set_tags" class="form-control" value={@current_filters[:tag]} phx-debounce="500" />
             </div>
             <button
               class="btn btn-outline-light btn-action btn-primary ml-1"
