@@ -82,17 +82,26 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
             |> Path.dirname()
             |> File.mkdir_p!()
 
-            args = [
-              "-A",
-              "-S",
-              "-f",
-              "-s",
-              Path.join(source_work_dir, path),
-              Path.join(target_work_dir, path),
-              output_path
-            ]
+            source_filepath = Path.join(source_work_dir, path)
+            target_filepath = Path.join(target_work_dir, path)
 
-            {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true)
+            case File.stat(source_filepath) do
+              {:ok, _} ->
+                args = [
+                  "-A",
+                  "-S",
+                  "-f",
+                  "-s",
+                  source_filepath,
+                  target_filepath,
+                  output_path
+                ]
+
+                {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true)
+
+              {:error, :enoent} ->
+                File.cp!(target_filepath, output_path)
+            end
           end
       end
 
