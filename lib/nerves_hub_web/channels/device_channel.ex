@@ -230,10 +230,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # manually pushed
-  def handle_info(
-        %Broadcast{event: "deployments/update", payload: %{deployment_id: nil} = payload},
-        socket
-      ) do
+  def handle_info(%Broadcast{event: "devices/update-manual", payload: payload}, socket) do
     :telemetry.execute([:nerves_hub, :devices, :update, :manual], %{count: 1})
     push(socket, "update", payload)
     {:noreply, socket}
