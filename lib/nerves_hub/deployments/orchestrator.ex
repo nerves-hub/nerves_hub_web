@@ -14,6 +14,7 @@ defmodule NervesHub.Deployments.Orchestrator do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares
   alias NervesHub.Repo
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
@@ -32,6 +33,10 @@ defmodule NervesHub.Deployments.Orchestrator do
     GenServer.cast(name(deployment_id), :trigger)
   end
 
+  def report_version(deployment_id, firmware_uuid) when is_integer(deployment_id) do
+    GenServer.cast(name(deployment_id), {:report, firmware_uuid})
+  end
+
   @doc """
   Trigger an update for a device on the local node
 
@@ -40,6 +45,7 @@ defmodule NervesHub.Deployments.Orchestrator do
   - the deployment
   - not updating
   - not using the deployment's current firmware
+  - with deltas active: not currently being generated
 
   If there is space for the device based on the concurrent allowed updates
   the device is told to update. This is not guaranteed to be at or under the
@@ -48,7 +54,8 @@ defmodule NervesHub.Deployments.Orchestrator do
   As devices update and reconnect, the new orchestrator is told that the update
   was successful, and the process is repeated.
   """
-  def trigger_update(deployment) do
+  def trigger_update(%{deployment: deployment} = state) do
+    deployment = Repo.preload(deployment, [:product, :firmware])
     :telemetry.execute([:nerves_hub, :deployment, :trigger_update], %{count: 1})
 
     match_conditions = [
@@ -57,6 +64,19 @@ defmodule NervesHub.Deployments.Orchestrator do
        {:==, {:map_get, :updates_enabled, :"$1"}, true},
        {:"/=", {:map_get, :firmware_uuid, :"$1"}, deployment.firmware.uuid}}
     ]
+
+    match_conditions =
+      if deployment.product.delta_updatable do
+        processing_deltas =
+          for {firmware_uuid, :processing} <- state.delta_status do
+            # Build rule to skip each firmware_uuid that is currently in delta processing
+            {:"/=", {:map_get, :firmware_uuid, :"$1"}, firmware_uuid}
+          end
+
+        match_conditions ++ processing_deltas
+      else
+        match_conditions
+      end
 
     match_return = %{
       device_id: {:element, 1, :"$_"},
@@ -103,10 +123,16 @@ defmodule NervesHub.Deployments.Orchestrator do
   end
 
   def init(deployment) do
-    {:ok, deployment, {:continue, :boot}}
+    state = %{
+      # fw_uuid => :ready | :processing | :needs_full
+      delta_status: %{},
+      deployment: deployment
+    }
+
+    {:ok, state, {:continue, :boot}}
   end
 
-  def handle_continue(:boot, deployment) do
+  def handle_continue(:boot, %{deployment: deployment} = state) do
     _ = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
     # trigger every 5 minutes as a back up
@@ -115,32 +141,110 @@ defmodule NervesHub.Deployments.Orchestrator do
     deployment =
       deployment
       |> Repo.reload()
-      |> Repo.preload([:firmware], force: true)
+      |> Repo.preload([:firmware, []], force: true)
+      |> Repo.preload([:product], force: true)
 
-    {:noreply, deployment}
+    {:noreply, %{state | deployment: deployment}}
   end
 
-  def handle_cast(:trigger, deployment) do
-    trigger_update(deployment)
-    {:noreply, deployment}
+  def handle_cast(:trigger, state) do
+    trigger_update(state)
+    {:noreply, state}
   end
 
-  def handle_info(%Broadcast{event: "deployments/update"}, deployment) do
+  def handle_cast({:report, firmware_uuid}, %{deployment: deployment} = state) do
+    # Are delta updates enabled?
+    state =
+      if firmware_uuid != deployment.firmware.uuid and deployment.product.delta_updatable do
+        ensure_delta_resolved(state, firmware_uuid)
+      else
+        state
+      end
+
+    {:noreply, state}
+  end
+
+  def handle_info(%Broadcast{event: "deployments/update"}, %{deployment: deployment} = state) do
     deployment =
       deployment
       |> Repo.reload()
       |> Repo.preload([:firmware], force: true)
 
-    trigger_update(deployment)
+    # When firmware changes we stop caring about the current delta sets
+    delta_status =
+      if deployment.firmware_id != state.deployment.firmware_id do
+        %{state | delta_status: %{}}
+      else
+        # This event fires when deltas are completed as well
+        # Check all deltas that were in processing
+        for {firmware_uuid, status} <- state.delta_status, into: state.delta_status do
+          if status == :processing do
+            with {:ok, source_fw} <- Firmwares.get_firmware_by_uuid(firmware_uuid),
+                 {:ok, _delta} <-
+                   Firmwares.get_firmware_delta_by_source_and_target(
+                     source_fw,
+                     deployment.firmware
+                   ) do
+              {firmware_uuid, :ready}
+            else
+              _ ->
+                {firmware_uuid, :processing}
+            end
+          else
+            {firmware_uuid, status}
+          end
+        end
+      end
 
-    {:noreply, deployment}
+    state = %{state | deployment: deployment, delta_status: delta_status}
+    trigger_update(state)
+
+    {:noreply, state}
   end
 
   # Catch all for unknown broadcasts on a deployment
-  def handle_info(%Broadcast{topic: "deployment:" <> _}, deployment), do: {:noreply, deployment}
+  def handle_info(%Broadcast{topic: "deployment:" <> _}, %{deployment: deployment} = state),
+    do: {:noreply, %{state | deployment: deployment}}
 
-  def handle_info(:trigger, deployment) do
-    trigger_update(deployment)
-    {:noreply, deployment}
+  def handle_info(:trigger, state) do
+    trigger_update(state)
+    {:noreply, state}
+  end
+
+  defp ensure_delta_resolved(%{deployment: deployment} = state, firmware_uuid) do
+    # Do we need to figure out what the delta status is?
+    if is_nil(state.delta_status[firmware_uuid]) do
+      # Does the source version exist as firmware for this deployment?
+      # Otherwise generating a delta is impossible.
+      case Firmwares.get_firmware_by_product_and_uuid(deployment.product, firmware_uuid) do
+        {:ok, source_fw} ->
+          attempt_resolve_delta(state, source_fw)
+
+        {:error, _} ->
+          Logger.warning(
+            "Cannot trigger firmware delta generation from #{firmware_uuid}. Firmware does not exist for Deployment ID #{deployment.id}."
+          )
+
+          set_delta_status(state, firmware_uuid, :needs_full)
+      end
+    else
+      # Do nothing if already resolved
+      state
+    end
+  end
+
+  defp attempt_resolve_delta(state, source_fw) do
+    case Firmwares.get_firmware_delta_by_source_and_target(source_fw, state.deployment.firmware) do
+      {:ok, _fw_delta} ->
+        set_delta_status(state, source_fw.uuid, :ready)
+
+      {:error, :not_found} ->
+        NervesHub.Workers.FirmwareDeltaBuilder.start(source_fw.id, state.deployment.firmware.id)
+        set_delta_status(state, source_fw.uuid, :processing)
+    end
+  end
+
+  defp set_delta_status(state, firmware_uuid, status) do
+    put_in(state, [:delta_status, firmware_uuid], status)
   end
 end
