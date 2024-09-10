@@ -176,7 +176,7 @@ defmodule NervesHub.Devices do
                 where(
                   query,
                   [d],
-                  fragment("array_to_string(?, ' ', ' ') ILIKE ?", d.tags, ^"%#{tag}%")
+                  fragment("string_array_to_string(?, ' ', ' ') ILIKE ?", d.tags, ^"%#{tag}%")
                 )
               end)
 
