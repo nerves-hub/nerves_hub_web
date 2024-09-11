@@ -46,5 +46,9 @@
     <HealthSection.render title="Load Average - 15 min" svg={@load_15min} />
     <HealthSection.render title="CPU Temperature in Celcius" svg={@cpu_temp} />
     <HealthSection.render title="Memory Usage" svg={@used_mb} memory_size={@latest_metrics.size_mb} memory_usage={@latest_metrics.used_percent} />
+
+    <%= for metric <- @custom_metrics do %>
+      <HealthSection.render title={metric.title} svg={metric.graph} />
+    <% end %>
   </div>
 </div>

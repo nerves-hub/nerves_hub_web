@@ -43,4 +43,23 @@ defmodule NervesHubWeb.Devices.HealthTest do
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     |> assert_has("svg")
   end
+
+  test "Custom metrics", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    assert {:ok, _} =
+             Metrics.save_metric(%{device_id: device.id, key: "custom_1", value: 12})
+
+    assert {:ok, _} =
+             Metrics.save_metric(%{device_id: device.id, key: "custom_2", value: 13})
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+    |> assert_has(".help-text", text: "Custom 1")
+    |> assert_has(".help-text", text: "Custom 2")
+    |> assert_has("svg")
+  end
 end

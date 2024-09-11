@@ -133,8 +133,8 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
       ) do
     latest_metrics = Metrics.get_latest_metric_set_for_device(device.id)
 
-    # Create graphs for metric types and assign to socket
-    Metrics.metric_types()
+    # Create graphs for default metric types and assign to socket
+    Metrics.default_metric_types()
     |> Enum.reduce(socket, fn type, socket ->
       graph =
         create_graph_for_type(device.id, type, chart_type, time_frame, latest_metrics.size_mb)
@@ -142,6 +142,40 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
       socket |> assign(type, graph)
     end)
     |> assign(:latest_metrics, latest_metrics)
+    |> assign_custom_metrics()
+  end
+
+  def assign_custom_metrics(
+        %{
+          assigns: %{
+            device: device,
+            chart_type: chart_type,
+            time_frame: time_frame
+          }
+        } =
+          socket
+      ) do
+    custom_metrics =
+      device.id
+      |> Metrics.get_custom_metrics_for_device(time_frame)
+      |> Enum.group_by(& &1.key)
+      |> Enum.map(fn {key, metrics} ->
+        title =
+          key
+          |> String.replace("_", " ")
+          |> String.capitalize()
+
+        max_size = get_custom_max_value(metrics)
+
+        graph =
+          metrics
+          |> organize_metrics_for_contex()
+          |> create_chart(chart_type, max_size, time_frame)
+
+        %{title: title, graph: graph}
+      end)
+
+    socket |> assign(:custom_metrics, custom_metrics)
   end
 
   def create_graph_for_type(device_id, metric_type, chart_type, time_frame, memory_size) do
@@ -180,6 +214,12 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> List.last()
     |> ceil()
     |> max(1)
+  end
+
+  defp get_custom_max_value(data) do
+    data
+    |> Enum.max_by(& &1.value)
+    |> Map.get(:value)
   end
 
   defp create_chart(data, _chart_type, _max_value, _time_unit)
