@@ -2,7 +2,8 @@
   <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"} class="back-link">Back to
     device </.link>
 </div>
-<HealthHeader.render org={@org} product={@product} device={@device} status={@status} latest_health={@latest_metrics} health_check_timer={@health_check_timer} />
+<HealthHeader.render org={@org} product={@product} device={@device} status={@status} latest_health={@latest_metrics}
+  health_check_timer={@health_check_timer} />
 
 <div class="divider"></div>
 
@@ -10,12 +11,14 @@
   <h3 class="mb-2">Device Metrics</h3>
 
   <div class="btn-group metrics-btn-group" role="group" aria-label="Metrics Time Interval">
-    <button class={"btn btn-outline-light btn-action #{if @chart_type==:scatter, do: "metrics-active" }"} aria-label="Line Chart" type="button" phx-click="scatter-chart">
+    <button class={"btn btn-outline-light btn-action #{if @chart_type==:scatter, do: "metrics-active" }"}
+      aria-label="Line Chart" type="button" phx-click="scatter-chart">
       <span class="action-text">
         Scatter
       </span>
     </button>
-    <button class={"btn btn-outline-light btn-action #{if @chart_type==:line, do: "metrics-active" }"} aria-label="Line Chart" type="button" phx-click="line-chart">
+    <button class={"btn btn-outline-light btn-action #{if @chart_type==:line, do: "metrics-active" }"}
+      aria-label="Line Chart" type="button" phx-click="line-chart">
       <span class="action-text">
         Line
       </span>
@@ -23,19 +26,13 @@
   </div>
   <div class="btn-group metrics-btn-group" role="group" aria-label="Metrics Time Interval">
     <%= for {unit, amount} <- @time_frame_opts do %>
-      <button
-        class={"btn btn-outline-light btn-action #{if {unit, amount}==@time_frame, do: "metrics-active" }"}
-        aria-label="1 Hour"
-        type="button"
-        phx-click="set-time-frame"
-        phx-value-unit={unit}
-        phx-value-amount={amount}
-      >
+      <button class={"btn btn-outline-light btn-action #{if {unit, amount}==@time_frame, do: "metrics-active" }"}
+        aria-label="1 Hour" type="button" phx-click="set-time-frame" phx-value-unit={unit} phx-value-amount={amount}>
         <span class="action-text">
           <%= Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: "" %>
         </span>
       </button>
-    <% end %>
+      <% end %>
   </div>
 </div>
 
@@ -45,6 +42,12 @@
     <HealthSection.render title="Load Average - 5 min" svg={@load_5min} />
     <HealthSection.render title="Load Average - 15 min" svg={@load_15min} />
     <HealthSection.render title="CPU Temperature in Celcius" svg={@cpu_temp} />
-    <HealthSection.render title="Memory Usage" svg={@used_mb} memory_size={@latest_metrics.size_mb} memory_usage={@latest_metrics.used_percent} />
+    <HealthSection.render title="Memory Usage" svg={@used_mb} memory_size={@latest_metrics.size_mb}
+      memory_usage={@latest_metrics.used_percent} />
+
+
+    <%= for metric <- @custom_metrics do %>
+      <HealthSection.render title={metric.title} svg={metric.graph} />
+      <% end %>
   </div>
 </div>

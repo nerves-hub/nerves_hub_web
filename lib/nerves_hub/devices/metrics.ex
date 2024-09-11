@@ -4,7 +4,7 @@ defmodule NervesHub.Devices.Metrics do
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Repo
 
-  @metric_types [
+  @default_metric_types [
     :cpu_temp,
     :load_15min,
     :load_1min,
@@ -14,7 +14,7 @@ defmodule NervesHub.Devices.Metrics do
     :used_percent
   ]
 
-  def metric_types, do: @metric_types
+  def default_metric_types, do: @default_metric_types
 
   @doc """
   Get all metrics for device
@@ -55,6 +55,27 @@ defmodule NervesHub.Devices.Metrics do
     DeviceMetric
     |> where(device_id: ^device_id)
     |> where(key: ^key)
+    |> where([d], d.inserted_at > ago(^amount, ^time_unit))
+    |> order_by(asc: :inserted_at)
+    |> Repo.all()
+  end
+
+  def get_custom_metrics_for_device(device_id) do
+    default_metrics = Enum.map(@default_metric_types, &Atom.to_string/1)
+
+    DeviceMetric
+    |> where(device_id: ^device_id)
+    |> where([dm], dm.key not in ^default_metrics)
+    |> order_by(asc: :inserted_at)
+    |> Repo.all()
+  end
+
+  def get_custom_metrics_for_device(device_id, {time_unit, amount}) do
+    default_metrics = Enum.map(@default_metric_types, &Atom.to_string/1)
+
+    DeviceMetric
+    |> where(device_id: ^device_id)
+    |> where([dm], dm.key not in ^default_metrics)
     |> where([d], d.inserted_at > ago(^amount, ^time_unit))
     |> order_by(asc: :inserted_at)
     |> Repo.all()
@@ -115,7 +136,7 @@ defmodule NervesHub.Devices.Metrics do
   Get map with latest values for all metric types. Also includes timestamp.
   """
   def get_latest_metric_set_for_device(device_id) do
-    @metric_types
+    @default_metric_types
     |> Enum.reduce(%{}, fn type, acc ->
       Map.put(acc, type, get_latest_value(device_id, Atom.to_string(type)))
     end)

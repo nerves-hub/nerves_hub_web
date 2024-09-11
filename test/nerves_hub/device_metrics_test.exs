@@ -69,6 +69,23 @@ defmodule NervesHub.DeviceMetricsTest do
       assert [] = Metrics.get_device_metrics_by_key(device.id, "cpu_temp")
     end
 
+    test "get custom metrics for device", %{device: device} do
+      assert {:ok, %DeviceMetric{}} =
+               Metrics.save_metric(%{device_id: device.id, key: "custom_1", value: 12})
+
+      assert {:ok, %DeviceMetric{}} =
+               Metrics.save_metric(%{device_id: device.id, key: "custom_2", value: 13})
+
+      assert {:ok, %DeviceMetric{}} =
+               Metrics.save_metric(%{device_id: device.id, key: "cpu_temp", value: 13})
+
+      custom_metrics =
+        Metrics.get_custom_metrics_for_device(device.id)
+
+      # Should not include metrics with default metrics key
+      assert length(custom_metrics) == 2
+    end
+
     # test "get device metrics within time frame"
   end
 
