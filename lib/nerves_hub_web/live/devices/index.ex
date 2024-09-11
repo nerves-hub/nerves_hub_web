@@ -76,6 +76,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:target_product, nil)
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
+    |> assign(:total_entries, 0)
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
@@ -391,6 +392,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(:devices, page.entries)
+    |> assign(:total_entries, page.total_entries)
     |> assign(:paginate_opts, paginate_opts)
   end
 

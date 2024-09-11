@@ -28,7 +28,7 @@
         <span class="button-icon filter"></span>
       </button>
       <p class="ml-2" style="opacity: 0.7;">
-        <%= @paginate_opts.total_pages %> devices found <span :if={Enum.count(@selected_devices) > 0}>(<%= Enum.count(@selected_devices) %> selected)</span>
+        <%= @total_entries %> devices found <span :if={Enum.count(@selected_devices) > 0}>(<%= Enum.count(@selected_devices) %> selected)</span>
       </p>
     </div>
     <div>
