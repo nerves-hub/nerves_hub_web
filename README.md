@@ -11,10 +11,8 @@ This is the 2.0 development branch of NervesHub. If you have been using
 NervesHub prior to around April, 2023 and are not following 2.0 development, see
 the [`maint-v1.0`
 branch](https://github.com/nerves-hub/nerves_hub_web/tree/maint-v1.0). The
-`maint-v1.0` branch is being used in production. 2.0 development is in progress,
-and we don't have guides or good documentation yet. If you use the 2.0
-development branch, we don't expect breaking changes, but please bear with us as
-we complete the 2.0 release.
+`maint-v1.0` branch is being used in production. 2.x development is actively in progress and while guides and documentation are still thin the 2.x code is managing a lot of devices in production right now and can be relied upon. If you use the 2.0
+development branch, we don't expect breaking changes but we are also going to be tagging numbered releases.
 
 ## Project overview and setup
 
