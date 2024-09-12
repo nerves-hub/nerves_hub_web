@@ -143,6 +143,8 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     end)
     |> assign(:latest_metrics, latest_metrics)
     |> assign_custom_metrics()
+    # Assign js charts
+    |> assign_charts()
   end
 
   def assign_custom_metrics(
@@ -175,8 +177,44 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
         %{title: title, graph: graph}
       end)
 
-    socket |> assign(:custom_metrics, custom_metrics)
+    socket
+    |> assign(:custom_metrics, custom_metrics)
   end
+
+  def assign_charts(
+        %{
+          assigns: %{
+            device: device,
+            chart_type: _chart_type,
+            time_frame: time_frame
+          }
+        } =
+          socket
+      ) do
+    charts =
+      Metrics.default_metric_types()
+      |> Enum.map(fn type, acc ->
+        data =
+          device.id
+          |> Metrics.get_device_metrics_by_key(Atom.to_string(type), time_frame)
+          |> organize_metrics_for_chart_js()
+
+        max_size = get_max(type)
+
+        %{type: type, data: data, max: max_size}
+      end)
+
+    socket |> assign(:charts, charts)
+  end
+
+  def get_max(:load_1min), do: 2
+  def get_max(:load_5min), do: 2
+  def get_max(:load_15min), do: 2
+  def get_max(:used_mb), do: 8000
+  def get_max(:size_mb), do: 8000
+  def get_max(:used_percent), do: 100
+  def get_max(:cpu_temp), do: 100
+  def get_max(_), do: 100
 
   def create_graph_for_type(device_id, metric_type, chart_type, time_frame, memory_size) do
     metrics =
@@ -193,6 +231,13 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     metrics
     |> Enum.map(fn %{inserted_at: timestamp, value: value} ->
       [DateTime.to_naive(timestamp), value]
+    end)
+  end
+
+  defp organize_metrics_for_chart_js(metrics) do
+    metrics
+    |> Enum.map(fn %{inserted_at: timestamp, value: value} ->
+      %{x: DateTime.to_string(timestamp), y: value}
     end)
   end
 

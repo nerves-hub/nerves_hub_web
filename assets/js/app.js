@@ -5,6 +5,8 @@ import 'bootstrap'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
 import L from 'leaflet/dist/leaflet.js'
+import Chart from 'chart.js/auto'
+import 'chartjs-adapter-date-fns';
 
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
@@ -56,6 +58,69 @@ Hooks.SharedSecretClipboardClick = {
     })
   }
 }
+
+Hooks.Chart = {
+  mounted() {
+    this.updated();
+  },
+  updated() {
+    let metrics = JSON.parse(this.el.dataset.metrics);
+    let type = JSON.parse(this.el.dataset.type);
+    let max = JSON.parse(this.el.dataset.max);
+
+    var data = [];
+    for (let i = 0; i < metrics.length; i++) {
+      data.push(metrics[i]);
+    }
+
+    const areaChartDataset = {
+      type: 'line',
+      data: {
+        datasets: [{
+          fill: 'origin',
+          data: data
+        }],
+      },
+      options: {
+        plugins: {
+          title: {
+            display: true,
+            text: type
+          }
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              displayFormats: {
+                millisecond: 'HH:mm:ss.SSS',
+                second: 'HH:mm:ss',
+                minute: 'HH:mm',
+                hour: 'HH'
+              },
+            },
+            ticks: {
+              display: true,
+              autoSkip: false,
+              maxTicksLimit: 6,
+            },
+          },
+          y: {
+            type: 'linear',
+            min: 0,
+            max: max
+          }
+        },
+      }
+    };
+
+    new Chart(
+      document.getElementById(type),
+      areaChartDataset
+    );
+  }
+}
+
 
 Hooks.HighlightCode = {
   mounted() {
