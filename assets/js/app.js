@@ -60,14 +60,15 @@ Hooks.SharedSecretClipboardClick = {
 }
 
 Hooks.Chart = {
+  dataset() { return JSON.parse(this.el.dataset.metrics); },
+  unit() { return JSON.parse(this.el.dataset.unit); },
   mounted() {
-    this.updated();
-  },
-  updated() {
     let metrics = JSON.parse(this.el.dataset.metrics);
     let type = JSON.parse(this.el.dataset.type);
     let max = JSON.parse(this.el.dataset.max);
 
+
+    const ctx = this.el;
     var data = [];
     for (let i = 0; i < metrics.length; i++) {
       data.push(metrics[i]);
@@ -77,26 +78,42 @@ Hooks.Chart = {
       type: 'line',
       data: {
         datasets: [{
-          fill: 'origin',
-          data: data
+          backgroundColor: '#d19999',
+          fill: {
+            target: 'origin',
+            above: 'rgba(201, 84, 84, 0.29)',   // Area will be red above the origin
+            below: 'rgb(0, 0, 255)'    // And blue below the origin
+          },
+          data: this.dataset()
         }],
       },
       options: {
         plugins: {
           title: {
             display: true,
-            text: type
+            align: 'start',
+            text: type,
+            font: {
+              size: 24
+            }
+          },
+          legend: {
+            display: false
           }
         },
         scales: {
           x: {
+            grid: {
+              color: 'rgba(181, 169, 169, 0.21)'
+            },
             type: 'time',
             time: {
+              unit: this.unit(),
               displayFormats: {
                 millisecond: 'HH:mm:ss.SSS',
                 second: 'HH:mm:ss',
                 minute: 'HH:mm',
-                hour: 'HH'
+                hour: 'HH:mm'
               },
             },
             ticks: {
@@ -106,6 +123,9 @@ Hooks.Chart = {
             },
           },
           y: {
+            grid: {
+              color: 'rgba(181, 169, 169, 0.21)'
+            },
             type: 'linear',
             min: 0,
             max: max
@@ -114,11 +134,27 @@ Hooks.Chart = {
       }
     };
 
-    new Chart(
-      document.getElementById(type),
+    const chart = new Chart(
+      ctx,
       areaChartDataset
     );
-  }
+    this.el.chart = chart;
+
+    this.handleEvent("update-charts", function (payload) {
+      if (payload.type == type) {
+        chart.data.datasets[0].data = payload.data;
+        chart.update();
+      }
+    })
+
+    this.handleEvent("update-time-unit", function (payload) {
+      chart.options.scales.x.time.unit = payload.unit;
+      chart.update();
+    })
+
+  },
+  updated() { }
+
 }
 
 

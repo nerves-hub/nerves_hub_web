@@ -37,23 +37,20 @@
 </div>
 
 <div class="row">
-  <div class="col-lg-12">
-    <%= for chart <- @charts do %>
-      <div style="margin-bottom: 100px;">
-        <canvas id={chart.type} style="display: block; box-sizing: border-box;" width="1200" height="600"
-          phx-hook="Chart" data-type={Jason.encode!(chart.type)} data-max={Jason.encode!(chart.max)}
-          data-metrics={Jason.encode!(chart.data)}></canvas>
+  <%= if @charts==[] do %>
+    <div>
+      <p>No metrics</p>
+    </div>
+    <% else %>
+      <div class="col-lg-12">
+        <%= for chart <- @charts do %>
+          <div style="margin-bottom: 100px;">
+            <canvas id={chart.type} style="display: block; box-sizing: border-box;" width="1200" height="600"
+              phx-hook="Chart" phx-update="ignore" data-type={Jason.encode!(chart.type)}
+              data-unit={Jason.encode!(chart.unit)} data-max={Jason.encode!(chart.max)}
+              data-metrics={Jason.encode!(chart.data)}></canvas>
+          </div>
+          <% end %>
       </div>
       <% end %>
-        <HealthSection.render title="Load Average - 1 min" svg={@load_1min} />
-        <HealthSection.render title="Load Average - 5 min" svg={@load_5min} />
-        <HealthSection.render title="Load Average - 15 min" svg={@load_15min} />
-        <HealthSection.render title="CPU Temperature in Celcius" svg={@cpu_temp} />
-        <HealthSection.render title="Memory Usage" svg={@used_mb} memory_size={@latest_metrics.size_mb}
-          memory_usage={@latest_metrics.used_percent} />
-
-        <%= for metric <- @custom_metrics do %>
-          <HealthSection.render title={metric.title} svg={metric.graph} />
-          <% end %>
-  </div>
 </div>
