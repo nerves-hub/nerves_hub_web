@@ -33,6 +33,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
 
   plug(NervesHubWeb.Plugs.ImAlive)
 
+  plug(PromEx.Plug, prom_ex_module: NervesHub.PromEx)
+
   plug(Sentry.PlugContext)
 
   plug(NervesHubWeb.Plugs.Logger)

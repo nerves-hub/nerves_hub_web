@@ -358,6 +358,18 @@ if System.get_env("SENTRY_DSN_URL") do
     before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500}
 end
 
+if System.get_env("GRAFANA_HOST") do
+  config :nerves_hub, NervesHub.PromEx,
+    manual_metrics_start_delay: :no_delay,
+    grafana: [
+      host: System.get_env("GRAFANA_HOST"),
+      auth_token: System.get_env("GRAFANA_TOKEN") || raise("GRAFANA_TOKEN is required"),
+      upload_dashboards_on_start: true,
+      folder_name: "NervesHub App Dashboards",
+      annotate_app_lifecycle: true
+    ]
+end
+
 config :nerves_hub, :statsd,
   host: System.get_env("STATSD_HOST", "localhost"),
   port: String.to_integer(System.get_env("STATSD_PORT", "8125"))

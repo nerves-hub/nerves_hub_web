@@ -60,6 +60,8 @@ defmodule NervesHubWeb.Endpoint do
     cookie_key: "request_logger"
   )
 
+  plug(PromEx.Plug, prom_ex_module: NervesHub.PromEx)
+
   plug(Plug.RequestId)
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])
   plug(NervesHubWeb.Plugs.Logger)
