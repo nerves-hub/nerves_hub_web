@@ -29,10 +29,10 @@ defmodule NervesHub.PromEx do
       # PromEx built in Grafana dashboards
       {:prom_ex, "application.json"},
       {:prom_ex, "beam.json"},
-      {:prom_ex, "phoenix.json"},
-      {:prom_ex, "phoenix_live_view.json"},
-      {:prom_ex, "ecto.json"},
-      {:prom_ex, "oban.json"}
+      {:nerves_hub, "grafana/phoenix.json"},
+      {:nerves_hub, "grafana/phoenix_live_view.json"},
+      {:nerves_hub, "grafana/ecto.json"},
+      {:nerves_hub, "grafana/oban.json"}
     ]
   end
 end
