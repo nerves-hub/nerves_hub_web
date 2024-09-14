@@ -9,7 +9,7 @@ defmodule NervesHub.PromEx do
       # PromEx built in plugins
       Plugins.Application,
       Plugins.Beam,
-      {Plugins.Phoenix, router: NervesHubWeb.Router},
+      {Plugins.Phoenix, endpoint: NervesHubWeb.Endpoint, router: NervesHubWeb.Router},
       Plugins.PhoenixLiveView,
       Plugins.Ecto,
       Plugins.Oban
