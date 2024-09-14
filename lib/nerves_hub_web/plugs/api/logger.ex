@@ -40,9 +40,10 @@ defmodule NervesHubWeb.API.Plugs.Logger do
         |> String.split(",")
         |> List.first()
         |> String.trim()
+
       _ ->
         conn.remote_ip
-        |> :inet_parse.ntoa
+        |> :inet_parse.ntoa()
         |> to_string()
     end
   end
