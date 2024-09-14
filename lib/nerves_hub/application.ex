@@ -55,8 +55,7 @@ defmodule NervesHub.Application do
   defp metrics("test"), do: []
 
   defp metrics(_env) do
-    # [NervesHub.Metrics]
-    []
+    [NervesHub.Metrics]
   end
 
   defp deployments_supervisor("test"), do: []
