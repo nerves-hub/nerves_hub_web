@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Endpoint do
     cookie_key: "request_logger"
   )
 
-  # We don't need to see these in the logs, thus this is defined by telemetry
+  # We don't need to see these in the logs, thus this is defined before telemetry
   plug(NervesHubWeb.Plugs.ImAlive)
 
   plug(Plug.RequestId)
