@@ -138,6 +138,23 @@
               <p><%= @deployment.penalty_timeout_minutes %> minutes</p>
             </div>
           </div>
+          <div class="col-lg-6 mb-1">
+            <div>
+              <div class="help-text mb-1 tooltip-label help-tooltip">
+                <span>Recalculation Type</span>
+                <span class="tooltip-info"></span>
+                <span class="tooltip-text">
+                  Process to use for recalculating devices for deployment to target
+                </span>
+              </div>
+              <p>
+                <%= @deployment.recalculation_type %>
+                <%= if @deployment.recalculation_type != :device do %>
+                  <span class="badge bg-warning">Experimental</span>
+                <% end %>
+              </p>
+            </div>
+          </div>
         </div>
         <div>
           <div class="help-text mb-1">Code sent on Device Connect</div>

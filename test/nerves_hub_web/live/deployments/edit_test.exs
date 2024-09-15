@@ -40,10 +40,11 @@ defmodule NervesHubWeb.Live.Deployments.EditTest do
     assert reloaded_deployment.conditions["version"] == "4.3.2"
     assert Enum.sort(reloaded_deployment.conditions["tags"]) == Enum.sort(~w(josh lars))
 
-    [audit_log_one, audit_log_two] = AuditLogs.logs_for(deployment)
+    [audit_log_one, audit_log_two, audit_log_three] = AuditLogs.logs_for(deployment)
 
     assert audit_log_one.resource_type == Deployment
-    assert audit_log_two.description =~ ~r/conditions changed/
+    assert audit_log_two.description =~ ~r/removed all devices/
+    assert audit_log_three.description =~ ~r/conditions changed/
   end
 
   test "failed update shows errors", %{
