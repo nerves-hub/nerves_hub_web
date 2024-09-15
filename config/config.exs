@@ -49,6 +49,11 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   pubsub_server: NervesHub.PubSub
 
 ##
+# NervesHub Metrics
+#
+config :nerves_hub, NervesHubWeb.MetricsEndpoint, adapter: Bandit.PhoenixAdapter
+
+##
 # Database and Oban
 #
 config :nerves_hub, NervesHub.Repo,

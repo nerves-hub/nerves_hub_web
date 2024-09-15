@@ -8,12 +8,21 @@ config :phoenix, logger: false
 ##
 # NervesHub Web
 #
-config :nerves_hub, NervesHubWeb.Endpoint, server: true
+config :nerves_hub, NervesHubWeb.Endpoint,
+  force_ssl: [rewrite_on: [:x_forwarded_proto]],
+  server: true
 
 ##
 # NervesHub Device
 #
-config :nerves_hub, NervesHubWeb.DeviceEndpoint, server: true
+config :nerves_hub, NervesHubWeb.DeviceEndpoint,
+  force_ssl: [rewrite_on: [:x_forwarded_proto]],
+  server: true
+
+##
+# NervesHub Metrics
+#
+config :nerves_hub, NervesHubWeb.MetricsEndpoint, server: true
 
 ##
 # Database and Oban

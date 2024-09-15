@@ -41,7 +41,10 @@ defmodule NervesHub.Application do
           {Oban, Application.fetch_env!(:nerves_hub, Oban)}
         ] ++
         deployments_supervisor(deploy_env()) ++
-        endpoints(deploy_env())
+        endpoints(deploy_env()) ++
+        [
+          NervesHubWeb.MetricsEndpoint
+        ]
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
     Supervisor.start_link(children, opts)

@@ -10,10 +10,6 @@ defmodule NervesHubWeb.Endpoint do
     signing_salt: "1CPjriVa"
   ]
 
-  plug(PromEx.Plug, prom_ex_module: NervesHub.PromEx)
-
-  plug(Plug.SSL, rewrite_on: [:x_forwarded_proto])
-
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
   socket("/socket", NervesHubWeb.UserSocket,
