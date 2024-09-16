@@ -29,9 +29,10 @@ defmodule NervesHub.Deployments.Calculator do
           if !is_nil(device.deployment_id) && device.deployment_id != deployment.id do
             Repo.delete!(inflight_check)
 
-            :skipped
+            :ignored
           else
             if deployment.is_active &&
+                 !is_nil(device.connection_last_seen_at) &&
                  device.product_id == deployment.product_id &&
                  device.firmware_metadata.platform == deployment.firmware.platform &&
                  device.firmware_metadata.architecture == deployment.firmware.architecture &&
@@ -51,13 +52,16 @@ defmodule NervesHub.Deployments.Calculator do
             device
           end
         else
-          :skipped
+          :none_found
         end
       end)
 
     case result do
-      {:ok, :skipped} ->
-        :skipped
+      {:ok, :none_found} ->
+        :none_found
+
+      {:ok, :ignored} ->
+        :ok
 
       {:ok, device} ->
         Phoenix.PubSub.broadcast(
@@ -102,7 +106,7 @@ defmodule NervesHub.Deployments.Calculator do
 
         {:noreply, %{state | process_timer_ref: nil}}
 
-      :skipped ->
+      :none_found ->
         timer_ref = Process.send_after(self(), :process_next_device, 15_000)
 
         {:noreply, %{state | process_timer_ref: timer_ref}}
