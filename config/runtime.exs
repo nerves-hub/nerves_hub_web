@@ -168,6 +168,18 @@ if config_env() == :prod do
       ]
   end
 
+  web_port = System.get_env("HTTP_PORT") || System.get_env("PORT") || "4000"
+
+  metrics_port =
+    case System.get_env("METRICS_PORT") do
+      nil -> String.to_integer(web_port) + 40
+      port -> String.to_integer(port)
+    end
+
+  config :nerves_hub, NervesHubWeb.MetricsEndpoint,
+    http: [port: metrics_port],
+    server: true
+
   config :nerves_hub, NervesHubWeb.DeviceSocket,
     shared_secrets: [
       enabled: System.get_env("DEVICE_SHARED_SECRETS_ENABLED", "false") == "true"
@@ -356,6 +368,18 @@ if System.get_env("SENTRY_DSN_URL") do
     enable_source_code_context: true,
     root_source_code_path: [File.cwd!()],
     before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500}
+end
+
+if System.get_env("GRAFANA_HOST") do
+  config :nerves_hub, NervesHub.PromEx,
+    manual_metrics_start_delay: :no_delay,
+    grafana: [
+      host: System.get_env("GRAFANA_HOST"),
+      auth_token: System.get_env("GRAFANA_TOKEN") || raise("GRAFANA_TOKEN is required"),
+      upload_dashboards_on_start: true,
+      folder_name: "NervesHub App Dashboards",
+      annotate_app_lifecycle: true
+    ]
 end
 
 config :nerves_hub, :statsd,

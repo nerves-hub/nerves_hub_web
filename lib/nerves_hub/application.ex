@@ -31,6 +31,8 @@ defmodule NervesHub.Application do
         [
           {Cachex, name: :geo_ip},
           NervesHub.RateLimit,
+          # PromEx needs to be started before Repo and Endpoint so it can capture some of their early events
+          NervesHub.PromEx,
           NervesHub.Repo,
           NervesHub.ObanRepo,
           {Phoenix.PubSub, name: NervesHub.PubSub},
@@ -39,7 +41,10 @@ defmodule NervesHub.Application do
           {Oban, Application.fetch_env!(:nerves_hub, Oban)}
         ] ++
         deployments_supervisor(deploy_env()) ++
-        endpoints(deploy_env())
+        endpoints(deploy_env()) ++
+        [
+          NervesHubWeb.MetricsEndpoint
+        ]
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
     Supervisor.start_link(children, opts)

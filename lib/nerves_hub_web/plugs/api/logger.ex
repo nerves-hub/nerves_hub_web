@@ -18,7 +18,7 @@ defmodule NervesHubWeb.API.Plugs.Logger do
           method: conn.method,
           path: request_path(conn),
           status: conn.status,
-          remote_ip: formatted_ip(conn.remote_ip)
+          remote_ip: formatted_ip(conn)
         )
       end)
 
@@ -33,7 +33,18 @@ defmodule NervesHubWeb.API.Plugs.Logger do
   def request_path(%{request_path: request_path}), do: request_path
   def request_path(_), do: nil
 
-  defp formatted_ip(ip) do
-    to_string(:inet_parse.ntoa(ip))
+  defp formatted_ip(conn) do
+    case Plug.Conn.get_req_header(conn, "x-forwarded-for") do
+      [ips] ->
+        ips
+        |> String.split(",")
+        |> List.first()
+        |> String.trim()
+
+      _ ->
+        conn.remote_ip
+        |> :inet_parse.ntoa()
+        |> to_string()
+    end
   end
 end

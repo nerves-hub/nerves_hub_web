@@ -67,6 +67,11 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   ]
 
 ##
+# NervesHub Metrics
+#
+config :nerves_hub, NervesHubWeb.MetricsEndpoint, http: [ip: {0, 0, 0, 0}, port: 4002]
+
+##
 # Database and Oban
 #
 config :nerves_hub, NervesHub.Repo,
