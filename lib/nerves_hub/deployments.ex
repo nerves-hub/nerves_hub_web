@@ -282,8 +282,14 @@ defmodule NervesHub.Deployments do
         device_id: d.id,
         inserted_at: ^DateTime.utc_now()
       })
-      |> where([d], d.deployment_id == ^deployment.id)
-      |> or_where([d], is_nil(d.deployment_id) and d.product_id == ^deployment.product_id)
+      |> where([d], not is_nil(d.connection_last_seen_at))
+      |> where(
+        [d],
+        d.deployment_id == ^deployment.id or
+          (is_nil(d.deployment_id) and d.product_id == ^deployment.product_id)
+      )
+      |> where([d], d.firmware_metadata["platform"] == ^deployment.firmware.platform)
+      |> where([d], d.firmware_metadata["architecture"] == ^deployment.firmware.architecture)
 
     Repo.insert_all(InflightDeploymentCheck, query)
   end
