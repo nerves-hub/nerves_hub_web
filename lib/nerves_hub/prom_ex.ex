@@ -9,7 +9,14 @@ defmodule NervesHub.PromEx do
       # PromEx built in plugins
       Plugins.Application,
       Plugins.Beam,
-      {Plugins.Phoenix, endpoint: NervesHubWeb.Endpoint, router: NervesHubWeb.Router},
+      {
+        PromEx.Plugins.Phoenix,
+        endpoints: [
+          {NervesHubWeb.Endpoint, routers: [NervesHubWeb.Router]},
+          # DeviceEndpoint doesn't use a Router, but we need to pass to PromEx
+          {NervesHubWeb.DeviceEndpoint, routers: [NervesHubWeb.Router]}
+        ]
+      },
       Plugins.PhoenixLiveView,
       Plugins.Ecto,
       Plugins.Oban
@@ -27,7 +34,6 @@ defmodule NervesHub.PromEx do
   def dashboards do
     [
       # PromEx built in Grafana dashboards
-      {:prom_ex, "application.json"},
       {:prom_ex, "beam.json"},
       {:nerves_hub, "grafana/phoenix.json"},
       {:nerves_hub, "grafana/phoenix_live_view.json"},
