@@ -67,6 +67,11 @@ Hooks.Chart = {
     let type = JSON.parse(this.el.dataset.type);
     let max = JSON.parse(this.el.dataset.max);
 
+    function formatTitle(s) {
+      s = s.replace("_", " ");
+      return s[0].toUpperCase() + s.slice(1);
+    }
+
 
     const ctx = this.el;
     var data = [];
@@ -92,7 +97,7 @@ Hooks.Chart = {
           title: {
             display: true,
             align: 'start',
-            text: type,
+            text: formatTitle(type),
             font: {
               size: 24
             }
@@ -154,7 +159,6 @@ Hooks.Chart = {
 
   },
   updated() { }
-
 }
 
 

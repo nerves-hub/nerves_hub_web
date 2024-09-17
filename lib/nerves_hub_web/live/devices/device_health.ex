@@ -6,7 +6,6 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   alias NervesHub.Tracker
 
   alias NervesHubWeb.Components.HealthHeader
-  alias NervesHubWeb.Components.HealthSection
 
   alias Phoenix.Socket.Broadcast
 
@@ -136,12 +135,15 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> Enum.filter(& &1)
   end
 
-  def create_default_chart_data(device_id, time_frame) do
+  def create_default_chart_data(device_id, {unit, _} = time_frame) do
     Metrics.default_metric_types()
+    # Don't render chart for memory size
+    |> List.delete(:size_mb)
     |> Enum.map(fn type ->
       data =
         device_id
         |> Metrics.get_device_metrics_by_key(Atom.to_string(type), time_frame)
+        |> get_max_per_hour(unit)
         |> organize_metrics_for_chart()
 
       unless data == [] do
@@ -160,12 +162,12 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> Metrics.get_custom_metrics_for_device(time_frame)
     |> Enum.group_by(& &1.key)
     |> Enum.map(fn {type, metrics} ->
-      dbg(type)
+      data = organize_metrics_for_chart(metrics)
 
       %{
         type: type,
-        data: organize_metrics_for_chart(metrics),
-        max: get_max_value(:custom, metrics),
+        data: data,
+        max: get_max_value(:custom, data),
         unit: get_time_unit(time_frame)
       }
     end)
@@ -176,6 +178,18 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> Enum.map(fn %{inserted_at: timestamp, value: value} ->
       %{x: DateTime.to_string(timestamp), y: value}
     end)
+  end
+
+  # Do nothing if time frame unit is hour
+  defp get_max_per_hour(metrics, "hour"), do: metrics
+
+  defp get_max_per_hour(metrics, _unit) do
+    metrics
+    |> Enum.group_by(& &1.inserted_at.day)
+    |> Enum.map(fn {_key, val} ->
+      Enum.max_by(val, & &1.value)
+    end)
+    |> Enum.sort_by(& &1.inserted_at)
   end
 
   defp get_time_unit({"hour", _}), do: "minute"
@@ -189,7 +203,6 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   defp get_max_value(:load_15min, data, _memory_size), do: get_cpu_load_max_value(data)
   defp get_max_value(:custom, data, _memory_size), do: get_custom_max_value(data)
   defp get_max_value(_, _, _memory_size), do: 100
-  # TODO: Max value for memory size
   # TODO: Make prettier message when metrics are missing
   # TODO: Clean up - also app.js
 
