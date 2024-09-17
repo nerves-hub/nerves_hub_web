@@ -74,7 +74,7 @@ defmodule NervesHub.MixProject do
       {:ecto_sql, "~> 3.0"},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
-      {:finch, "~> 0.18.0"},
+      {:finch, "~> 0.19.0"},
       {:floki, ">= 0.27.0", only: :test},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.24.0"},
