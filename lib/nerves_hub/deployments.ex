@@ -114,35 +114,43 @@ defmodule NervesHub.Deployments do
   """
   @spec update_deployment(Deployment.t(), map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def update_deployment(deployment, params) do
-    Repo.transaction(fn ->
-      device_count =
-        Device
-        |> select([d], count(d))
-        |> where([d], d.deployment_id == ^deployment.id)
-        |> Repo.one()
+    result =
+      Repo.transaction(fn ->
+        device_count =
+          Device
+          |> select([d], count(d))
+          |> where([d], d.deployment_id == ^deployment.id)
+          |> Repo.one()
 
-      changeset =
-        deployment
-        |> Deployment.with_firmware()
-        |> Deployment.changeset(params)
-        |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
-
-      case Repo.update(changeset) do
-        {:ok, deployment} ->
-          deployment = Repo.preload(deployment, [:firmware], force: true)
-
-          audit_changes!(deployment, changeset)
-          recalculate_devices(deployment, changeset)
-
-          # Inform those who care that the deployment updated
-          _ = broadcast(deployment, "deployments/update")
-
+        changeset =
           deployment
+          |> Deployment.with_firmware()
+          |> Deployment.changeset(params)
+          |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
 
-        {:error, changeset} ->
-          Repo.rollback(changeset)
-      end
-    end)
+        case Repo.update(changeset) do
+          {:ok, deployment} ->
+            deployment = Repo.preload(deployment, [:firmware], force: true)
+
+            audit_changes!(deployment, changeset)
+            recalculate_devices(deployment, changeset)
+
+            {deployment, changeset}
+
+          {:error, changeset} ->
+            Repo.rollback(changeset)
+        end
+      end)
+
+    case result do
+      {:ok, {deployment, changeset}} ->
+        broadcast_deployment_updates(deployment, changeset)
+
+        {:ok, deployment}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
 
   defp audit_changes!(deployment, changeset) do
@@ -187,19 +195,8 @@ defmodule NervesHub.Deployments do
     # we have changed calculation types
     if changeset.changes[:recalculation_type], do: delete_inflight_checks(deployment)
 
-    payload = %{
-      id: deployment.id,
-      active: deployment.is_active,
-      product_id: deployment.product_id,
-      platform: deployment.firmware.platform,
-      architecture: deployment.firmware.architecture,
-      version: deployment.firmware.version,
-      conditions: deployment.conditions
-    }
-
     conditions_changed? = Map.has_key?(changeset.changes, :conditions)
     is_active_changed? = Map.has_key?(changeset.changes, :is_active)
-    activated? = is_active_changed? and deployment.is_active
     deactivated? = is_active_changed? and !deployment.is_active
 
     if conditions_changed? or deactivated? do
@@ -240,28 +237,52 @@ defmodule NervesHub.Deployments do
       |> Repo.update_all(set: [deployment_id: deployment.id])
     end
 
+    _ =
+      :ok
+  end
+
+  defp broadcast_deployment_updates(%{recalculation_type: :calculator_queue} = deployment, _) do
+    # Inform those who care that the deployment updated
+    broadcast(deployment, "deployments/update")
+  end
+
+  defp broadcast_deployment_updates(deployment, changeset) do
+    payload = %{
+      id: deployment.id,
+      active: deployment.is_active,
+      product_id: deployment.product_id,
+      platform: deployment.firmware.platform,
+      architecture: deployment.firmware.architecture,
+      version: deployment.firmware.version,
+      conditions: deployment.conditions
+    }
+
+    conditions_changed? = Map.has_key?(changeset.changes, :conditions)
+    is_active_changed? = Map.has_key?(changeset.changes, :is_active)
+    activated? = is_active_changed? and deployment.is_active
+    deactivated? = is_active_changed? and !deployment.is_active
+
     # Make sure relevant changed messages are broadcast for devices to
     # pickup and recalculate
-    _ =
-      cond do
-        conditions_changed? ->
-          # Conditions change needs attached and unattached devices to recalculate
-          _ = broadcast(deployment, "deployments/changed", payload)
-          broadcast(:none, "deployments/changed", payload)
+    cond do
+      conditions_changed? ->
+        # Conditions change needs attached and unattached devices to recalculate
+        _ = broadcast(deployment, "deployments/changed", payload)
+        broadcast(:none, "deployments/changed", payload)
 
-        activated? ->
-          # Now changed to active, so tell the none deployment devices
-          broadcast(:none, "deployments/changed", payload)
+      activated? ->
+        # Now changed to active, so tell the none deployment devices
+        broadcast(:none, "deployments/changed", payload)
 
-        deactivated? ->
-          # Tell the attached devices to recalculate
-          broadcast(deployment, "deployments/changed", payload)
+      deactivated? ->
+        # Tell the attached devices to recalculate
+        broadcast(deployment, "deployments/changed", payload)
 
-        true ->
-          :no_broadcast
-      end
+      true ->
+        :no_broadcast
+    end
 
-    :ok
+    broadcast(deployment, "deployments/update")
   end
 
   @doc """
