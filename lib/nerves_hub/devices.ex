@@ -602,13 +602,6 @@ defmodule NervesHub.Devices do
       connection_last_seen_at: DateTime.utc_now()
     })
     |> Repo.update()
-    |> case do
-      {:ok, device} ->
-        device
-
-      {:error, changeset} ->
-        {:error, changeset}
-    end
   end
 
   def device_heartbeat(device) do
@@ -620,13 +613,6 @@ defmodule NervesHub.Devices do
       connection_last_seen_at: DateTime.utc_now()
     })
     |> Repo.update()
-    |> case do
-      {:ok, device} ->
-        device
-
-      {:error, changeset} ->
-        {:error, changeset}
-    end
   end
 
   def device_disconnected(device) do
@@ -638,13 +624,6 @@ defmodule NervesHub.Devices do
       connection_last_seen_at: DateTime.utc_now()
     })
     |> Repo.update()
-    |> case do
-      {:ok, device} ->
-        device
-
-      {:error, changeset} ->
-        {:error, changeset}
-    end
   end
 
   defp clear_connection_information(device) do
