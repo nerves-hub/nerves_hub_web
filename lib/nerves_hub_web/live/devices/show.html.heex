@@ -165,6 +165,19 @@
           <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
         </div>
 
+        <div class="mt-4" :if={@update_information.update_available}>
+          <div class="help-text mb-1 tooltip-label help-tooltip">
+            <span>Update avaiable</span>
+            <span class="tooltip-info"></span>
+            <span class="tooltip-text">An update is available in the assigned deployment. You can skip the queue by clicking "Send available update".</span>
+          </div>
+          <form phx-submit="push-available-update">
+            <div class="flex-row justify-content-between">
+              <button class="btn btn-secondary">Send available update</button>
+            </div>
+          </form>
+        </div>
+
         <div class="mt-4">
           <div class="help-text mb-1 tooltip-label help-tooltip">
             <span>Send update</span>

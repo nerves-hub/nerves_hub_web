@@ -30,6 +30,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> assign(:status, Tracker.status(device))
     |> assign(:deployment, device.deployment)
+    |> assign(:update_information, Devices.resolve_update(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
     |> schedule_health_check_timer()
@@ -64,6 +65,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> assign(:status, payload.status)
     |> assign(:fwup_progress, nil)
+    |> assign(:update_information, Devices.resolve_update(device))
     |> then(fn socket ->
       if(payload.status == "online", do: clear_flash(socket), else: socket)
     end)
@@ -240,6 +242,31 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> put_flash(:info, "Pushing firmware update")
+    |> noreply()
+  end
+
+  def handle_event("push-available-update", _, socket) do
+    authorized!(:"device:push-update", socket.assigns.org_user)
+
+    %{device: device, deployment: deployment, user: user} = socket.assigns
+
+    description =
+      "#{user.name} pushed available firmware update #{deployment.firmware.version} #{deployment.firmware.uuid} to device #{device.identifier}"
+
+    AuditLogs.audit!(user, device, description)
+
+    case Devices.told_to_update(device, deployment) do
+      {:ok, inflight_update} ->
+        _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "deployments/update", inflight_update)
+
+      :error ->
+        Logger.error(
+          "An inflight update could not be created or found for the device #{device.identifier} (#{device.id})"
+        )
+    end
+
+    socket
+    |> put_flash(:info, "Pushing available firmware update")
     |> noreply()
   end
 
