@@ -75,17 +75,16 @@ defmodule NervesHubWeb.DeviceChannel do
     })
 
     # local node tracking
-    _ =
-      Registry.update_value(NervesHub.Devices, device.id, fn value ->
-        update = %{
-          deployment_id: device.deployment_id,
-          firmware_uuid: device.firmware_metadata.uuid,
-          updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-          updating: push_update?
-        }
+    # lets make sure we deregister any other connected devices using the same device id
+    :ok = Registry.unregister(NervesHub.Devices, device.id)
 
-        Map.merge(value, update)
-      end)
+    {:ok, _pid} =
+      Registry.register(NervesHub.Devices, device.id, %{
+        deployment_id: device.deployment_id,
+        firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
+        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+        updating: push_update?
+      })
 
     # disconnect devices using the same identifier
     _ =
@@ -129,15 +128,6 @@ defmodule NervesHubWeb.DeviceChannel do
 
     subscribe("device:#{device.id}")
     subscribe(deployment_channel)
-
-    # local node tracking
-    _ =
-      Registry.register(NervesHub.Devices, device.id, %{
-        deployment_id: device.deployment_id,
-        firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
-        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-        updating: false
-      })
 
     Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
 
@@ -237,7 +227,7 @@ defmodule NervesHubWeb.DeviceChannel do
       socket.assigns.reference_id
     )
 
-    _ =
+    {_, _} =
       Registry.update_value(NervesHub.Devices, device.id, fn value ->
         Map.put(value, :deployment_id, device.deployment_id)
       end)
@@ -319,7 +309,7 @@ defmodule NervesHubWeb.DeviceChannel do
   def handle_info(%Broadcast{event: "devices/updated"}, %{assigns: %{device: device}} = socket) do
     device = Repo.reload(device)
 
-    _ =
+    {_, _} =
       Registry.update_value(NervesHub.Devices, device.id, fn value ->
         Map.merge(value, %{
           updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
@@ -394,7 +384,7 @@ defmodule NervesHubWeb.DeviceChannel do
       updates_enabled: updates_enabled
     })
 
-    _ =
+    {_, _} =
       Registry.update_value(NervesHub.Devices, device.id, fn value ->
         Map.merge(value, %{updates_enabled: updates_enabled})
       end)
@@ -456,7 +446,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
       {:ok, device} = Devices.update_attempted(device)
 
-      _ =
+      {_, _} =
         Registry.update_value(NervesHub.Devices, device.id, fn value ->
           Map.put(value, :updating, true)
         end)
@@ -719,7 +709,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     AuditLogs.audit_with_ref!(device, device, description, socket.assigns.reference_id)
 
-    _ =
+    {_, _} =
       Registry.update_value(NervesHub.Devices, device.id, fn value ->
         Map.put(value, :deployment_id, device.deployment_id)
       end)
@@ -747,11 +737,12 @@ defmodule NervesHubWeb.DeviceChannel do
       unsubscribe(socket.assigns.deployment_channel)
       subscribe(deployment_channel)
 
-      Registry.update_value(NervesHub.Devices, device.id, fn value ->
-        Map.merge(value, %{
-          deployment_id: device.deployment_id
-        })
-      end)
+      {_, _} =
+        Registry.update_value(NervesHub.Devices, device.id, fn value ->
+          Map.merge(value, %{
+            deployment_id: device.deployment_id
+          })
+        end)
 
       assign(socket, :deployment_channel, deployment_channel)
     else
