@@ -605,6 +605,7 @@ defmodule NervesHub.Devices do
     |> case do
       {:ok, device} ->
         device
+
       {:error, changeset} ->
         {:error, changeset}
     end
@@ -622,6 +623,7 @@ defmodule NervesHub.Devices do
     |> case do
       {:ok, device} ->
         device
+
       {:error, changeset} ->
         {:error, changeset}
     end
@@ -639,16 +641,18 @@ defmodule NervesHub.Devices do
     |> case do
       {:ok, device} ->
         device
+
       {:error, changeset} ->
         {:error, changeset}
     end
   end
 
   defp clear_connection_information(device) do
-    %{device |
-      connection_status: nil,
-      connection_disconnected_at: "dummy",
-      connection_last_seen_at: nil
+    %{
+      device
+      | connection_status: nil,
+        connection_disconnected_at: "dummy",
+        connection_last_seen_at: nil
     }
   end
 
