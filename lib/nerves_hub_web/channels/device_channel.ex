@@ -91,7 +91,7 @@ defmodule NervesHubWeb.DeviceChannel do
     _ =
       NervesHubWeb.DeviceEndpoint.broadcast_from(
         self(),
-        "device:#{device.identifier}:internal",
+        "device:#{device.id}",
         "connected",
         %{}
       )
