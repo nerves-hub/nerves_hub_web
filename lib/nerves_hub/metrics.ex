@@ -21,6 +21,9 @@ defmodule NervesHub.Metrics do
          counter("nerves_hub.devices.connect.count", tags: [:env, :service]),
          counter("nerves_hub.devices.disconnect.count", tags: [:env, :service]),
          counter("nerves_hub.devices.duplicate_connection", tags: [:env, :service]),
+         counter("nerves_hub.devices.duplicate_connection.retries_exceeded",
+           tags: [:env, :service]
+         ),
          counter("nerves_hub.devices.deployment.changed.count", tags: [:env, :service]),
          counter("nerves_hub.devices.deployment.update.manual.count", tags: [:env, :service]),
          counter("nerves_hub.devices.deployment.update.automatic.count", tags: [:env, :service]),
@@ -163,6 +166,7 @@ defmodule NervesHub.DeviceReporter do
       [:nerves_hub, :devices, :connect],
       [:nerves_hub, :devices, :disconnect],
       [:nerves_hub, :devices, :duplicate_connection],
+      [:nerves_hub, :devices, :duplicate_connection, :retries_exceeded],
       [:nerves_hub, :devices, :update, :automatic]
     ]
   end
@@ -178,6 +182,19 @@ defmodule NervesHub.DeviceReporter do
   def handle_event([:nerves_hub, :devices, :duplicate_connection], _, metadata, _) do
     Logger.info("Device duplicate connection detected",
       event: "nerves_hub.devices.duplicate_connection",
+      ref_id: metadata[:ref_id],
+      identifier: metadata[:device][:identifier]
+    )
+  end
+
+  def handle_event(
+        [:nerves_hub, :devices, :duplicate_connection, :retries_exceeded],
+        _,
+        metadata,
+        _
+      ) do
+    Logger.info("Device duplicate connection retries exceeded",
+      event: "nerves_hub.devices.duplicate_connection.retries_exceeded",
       ref_id: metadata[:ref_id],
       identifier: metadata[:device][:identifier]
     )

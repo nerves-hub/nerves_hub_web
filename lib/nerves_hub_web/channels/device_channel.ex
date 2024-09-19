@@ -25,7 +25,17 @@ defmodule NervesHubWeb.DeviceChannel do
          {:ok, device} <- Devices.device_connected(device) do
       socket = assign(socket, :device, device)
 
-      send(self(), {:after_join, params})
+      # broadcast that the device has connected so we can disconnect
+      # devices using the same identifier
+      _ =
+        NervesHubWeb.DeviceEndpoint.broadcast_from(
+          self(),
+          "device:#{device.id}",
+          "connected",
+          %{}
+        )
+
+      send(self(), {:check_for_duplicate_connections, params, 0})
 
       {:ok, socket}
     else
@@ -34,6 +44,30 @@ defmodule NervesHubWeb.DeviceChannel do
         _ = Devices.device_disconnected(device)
         {:error, %{error: "could not connect"}}
     end
+  end
+
+  def handle_info({:check_for_duplicate_connections, _params, 3}, socket) do
+    # lets make sure we deregister any other connected devices using the same device id
+    :telemetry.execute([:nerves_hub, :devices, :duplicate_connection, :retries_exceeded], %{}, %{
+      device: socket.assigns.device
+    })
+
+    {:stop, :shutdown, socket}
+  end
+
+  def handle_info(
+        {:check_for_duplicate_connections, params, retries},
+        %{assigns: %{device: device}} = socket
+      ) do
+    # lets make sure we deregister any other connected devices using the same device id
+    if Registry.count_match(NervesHub.Devices, device.id, :_) > 0 do
+      # Wait a little for duplicate device connections to terminate
+      Process.send_after(self(), {:check_for_duplicate_connections, params, retries + 1}, 5_000)
+    else
+      send(self(), {:after_join, params})
+    end
+
+    {:noreply, socket}
   end
 
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
@@ -75,9 +109,6 @@ defmodule NervesHubWeb.DeviceChannel do
     })
 
     # local node tracking
-    # lets make sure we deregister any other connected devices using the same device id
-    :ok = Registry.unregister(NervesHub.Devices, device.id)
-
     {:ok, _pid} =
       Registry.register(NervesHub.Devices, device.id, %{
         deployment_id: device.deployment_id,
@@ -85,15 +116,6 @@ defmodule NervesHubWeb.DeviceChannel do
         updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
         updating: push_update?
       })
-
-    # disconnect devices using the same identifier
-    _ =
-      NervesHubWeb.DeviceEndpoint.broadcast_from(
-        self(),
-        "device:#{device.id}",
-        "connected",
-        %{}
-      )
 
     # Cluster tracking
     Tracker.online(device)
