@@ -87,6 +87,15 @@ defmodule NervesHubWeb.DeviceChannel do
         Map.merge(value, update)
       end)
 
+    # disconnect devices using the same identifier
+    _ =
+      NervesHubWeb.DeviceEndpoint.broadcast_from(
+        self(),
+        "device:#{device.identifier}:internal",
+        "connected",
+        %{}
+      )
+
     # Cluster tracking
     Tracker.online(device)
 
@@ -139,6 +148,12 @@ defmodule NervesHubWeb.DeviceChannel do
       |> assign(:reference_id, ref_id)
 
     {:noreply, socket}
+  end
+
+  # Listen for devices which have connected using the same device identifier
+  # and trigger a clean shutdown
+  def handle_info(%Broadcast{event: "connected"}, socket) do
+    {:stop, :shutdown, socket}
   end
 
   def handle_info(:update_connection_last_seen, %{assigns: %{device: device}} = socket) do
