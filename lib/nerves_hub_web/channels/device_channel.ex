@@ -153,6 +153,11 @@ defmodule NervesHubWeb.DeviceChannel do
   # Listen for devices which have connected using the same device identifier
   # and trigger a clean shutdown
   def handle_info(%Broadcast{event: "connected"}, socket) do
+    :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{}, %{
+      device: socket.assigns.device,
+      ref_id: socket.assigns.reference_id
+    })
+
     {:stop, :shutdown, socket}
   end
 
