@@ -22,6 +22,28 @@ defmodule NervesHubWeb.DeviceChannelTest do
     assert_push("check_health", %{})
   end
 
+  test "detect multiple connections for the same device" do
+    user = Fixtures.user_fixture()
+    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    assert socket
+
+    Process.unlink(socket.channel_pid)
+
+    {:ok, second_socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _, second_socket} = subscribe_and_join(second_socket, DeviceChannel, "device")
+    assert second_socket
+
+    assert_receive {:socket_close, _, :shutdown}
+  end
+
   describe "device location" do
     test "updates the device location" do
       user = Fixtures.user_fixture()
