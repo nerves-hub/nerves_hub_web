@@ -252,6 +252,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     %{device: device, deployment: deployment, user: user} = socket.assigns
 
+    deployment = NervesHub.Repo.preload(deployment, :firmware)
+
     description =
       "#{user.name} pushed available firmware update #{deployment.firmware.version} #{deployment.firmware.uuid} to device #{device.identifier}"
 
@@ -266,15 +268,22 @@ defmodule NervesHubWeb.Live.Devices.Show do
             inflight_update
           )
 
+        socket
+        |> put_flash(:info, "Pushing available firmware update")
+        |> noreply()
+
       :error ->
         Logger.error(
           "An inflight update could not be created or found for the device #{device.identifier} (#{device.id})"
         )
-    end
 
-    socket
-    |> put_flash(:info, "Pushing available firmware update")
-    |> noreply()
+        socket
+        |> put_flash(
+          :info,
+          "There was an error sending the update to the device. Please contact support."
+        )
+        |> noreply()
+    end
   end
 
   defp schedule_health_check_timer(socket) do
