@@ -165,7 +165,7 @@
           <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
         </div>
 
-        <div class="mt-4" :if={@update_information.update_available}>
+        <div :if={@update_information.update_available} class="mt-4">
           <div class="help-text mb-1 tooltip-label help-tooltip">
             <span>Update avaiable</span>
             <span class="tooltip-info"></span>
