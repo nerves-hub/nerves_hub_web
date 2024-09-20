@@ -66,12 +66,7 @@ Hooks.Chart = {
     let metrics = JSON.parse(this.el.dataset.metrics);
     let type = JSON.parse(this.el.dataset.type);
     let max = JSON.parse(this.el.dataset.max);
-
-    function formatTitle(s) {
-      s = s.replace("_", " ");
-      return s[0].toUpperCase() + s.slice(1);
-    }
-
+    let title = JSON.parse(this.el.dataset.title);
 
     const ctx = this.el;
     var data = [];
@@ -86,8 +81,7 @@ Hooks.Chart = {
           backgroundColor: '#d19999',
           fill: {
             target: 'origin',
-            above: 'rgba(201, 84, 84, 0.29)',   // Area will be red above the origin
-            below: 'rgb(0, 0, 255)'    // And blue below the origin
+            above: 'rgba(201, 84, 84, 0.29)',
           },
           data: this.dataset()
         }],
@@ -97,7 +91,7 @@ Hooks.Chart = {
           title: {
             display: true,
             align: 'start',
-            text: formatTitle(type),
+            text: title,
             font: {
               size: 24
             }

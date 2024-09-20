@@ -16,7 +16,16 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     {"day", 7}
   ]
   @default_time_frame {"hour", 1}
-  @default_chart_type :scatter
+
+  # Metric types with belonging titles to display as default.
+  # Also sets order of charts.
+  @default_metric_types [
+    used_mb: "Memory Usage (MB)",
+    load_1min: "Load Average 1 Min",
+    load_5min: "Load Average 5 Min",
+    load_15min: "Load Average 15 Min",
+    cpu_temp: "CPU Temperature (Celsius)"
+  ]
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org} = socket.assigns
@@ -33,7 +42,6 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> assign(:status, Tracker.status(device))
     |> assign(:time_frame, @default_time_frame)
     |> assign(:time_frame_opts, @time_frame_opts)
-    |> assign(:chart_type, @default_chart_type)
     |> assign(:latest_metrics, Metrics.get_latest_metric_set_for_device(device.id))
     |> schedule_health_check_timer()
     |> assign_charts()
@@ -47,18 +55,6 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> assign(:time_frame, {unit, String.to_integer(amount)})
     |> push_event("update-time-unit", payload)
     |> update_charts()
-    |> noreply()
-  end
-
-  def handle_event("scatter-chart", _, socket) do
-    socket
-    |> assign(:chart_type, :scatter)
-    |> noreply()
-  end
-
-  def handle_event("line-chart", _, socket) do
-    socket
-    |> assign(:chart_type, :line)
     |> noreply()
   end
 
@@ -98,36 +94,53 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
         %{
           assigns: %{
             device: device,
-            time_frame: time_frame
+            time_frame: time_frame,
+            latest_metrics: latest_metrics
           }
         } =
           socket
       ) do
+    memory_size = latest_metrics[:size_mb]
+
     charts =
-      create_chart_data(device.id, time_frame)
+      create_chart_data(device.id, time_frame, memory_size)
 
     socket |> assign(:charts, charts)
   end
+
+  @doc """
+  There are three cases for chart updates:
+    - Create hooks if data previously was empty.
+    - Update existing hooks with new data via push_event.
+    - Clear hooks if there's no data for selected time frame.
+  """
+  def update_charts(%{assigns: %{charts: charts}} = socket) when charts == [],
+    do: assign_charts(socket)
 
   def update_charts(
         %{
           assigns: %{
             device: device,
-            time_frame: time_frame
+            time_frame: time_frame,
+            latest_metrics: latest_metrics
           }
         } =
           socket
       ) do
-    device.id
-    |> create_chart_data(time_frame)
-    |> Enum.reduce(socket, fn %{type: type, data: data}, socket ->
-      type = if is_binary(type), do: type, else: Atom.to_string(type)
-      push_event(socket, "update-charts", %{type: type, data: data})
-    end)
+    data = create_chart_data(device.id, time_frame, latest_metrics[:size_mb])
+
+    if data == [] do
+      socket |> assign(:charts, [])
+    else
+      Enum.each(data, fn %{type: type, data: data} ->
+        type = if is_binary(type), do: type, else: Atom.to_string(type)
+        push_event(socket, "update-charts", %{type: type, data: data})
+      end)
+    end
   end
 
-  def create_chart_data(device_id, time_frame) do
-    default = create_default_chart_data(device_id, time_frame)
+  def create_chart_data(device_id, time_frame, memory_size) do
+    default = create_default_chart_data(device_id, time_frame, memory_size)
     custom = create_custom_chart_data(device_id, time_frame)
 
     # Concat default and custom metrics and keep only non-nil results
@@ -135,11 +148,9 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> Enum.filter(& &1)
   end
 
-  def create_default_chart_data(device_id, {unit, _} = time_frame) do
-    Metrics.default_metric_types()
-    # Don't render chart for memory size
-    |> List.delete(:size_mb)
-    |> Enum.map(fn type ->
+  def create_default_chart_data(device_id, {unit, _} = time_frame, memory_size) do
+    @default_metric_types
+    |> Enum.map(fn {type, title} ->
       data =
         device_id
         |> Metrics.get_device_metrics_by_key(Atom.to_string(type), time_frame)
@@ -149,23 +160,30 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
       unless data == [] do
         %{
           type: Atom.to_string(type),
+          title: title,
           data: data,
-          max: get_max_value(type, data),
+          max: get_max_value(type, data, memory_size),
           unit: get_time_unit(time_frame)
         }
       end
     end)
   end
 
-  def create_custom_chart_data(device_id, time_frame) do
+  def create_custom_chart_data(device_id, {unit, _} = time_frame) do
     device_id
     |> Metrics.get_custom_metrics_for_device(time_frame)
     |> Enum.group_by(& &1.key)
     |> Enum.map(fn {type, metrics} ->
-      data = organize_metrics_for_chart(metrics)
+      data =
+        metrics
+        |> get_max_per_hour(unit)
+        |> organize_metrics_for_chart()
+
+      title = String.replace(type, "_", " ") |> String.capitalize()
 
       %{
         type: type,
+        title: title,
         data: data,
         max: get_max_value(:custom, data),
         unit: get_time_unit(time_frame)
@@ -185,7 +203,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
 
   defp get_max_per_hour(metrics, _unit) do
     metrics
-    |> Enum.group_by(& &1.inserted_at.day)
+    |> Enum.group_by(& &1.inserted_at.hour)
     |> Enum.map(fn {_key, val} ->
       Enum.max_by(val, & &1.value)
     end)
@@ -196,15 +214,23 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   defp get_time_unit({"day", 1}), do: "hour"
   defp get_time_unit({"day", _}), do: "day"
 
-  defp get_max_value(type, data, memory_size \\ 0)
   defp get_max_value(_type, data, _memory_size) when data == [], do: 0
-  defp get_max_value(:load_1min, data, _memory_size), do: get_cpu_load_max_value(data)
-  defp get_max_value(:load_5min, data, _memory_size), do: get_cpu_load_max_value(data)
-  defp get_max_value(:load_15min, data, _memory_size), do: get_cpu_load_max_value(data)
-  defp get_max_value(:custom, data, _memory_size), do: get_custom_max_value(data)
-  defp get_max_value(_, _, _memory_size), do: 100
-  # TODO: Make prettier message when metrics are missing
-  # TODO: Clean up - also app.js
+
+  defp get_max_value(type, data, memory_size) do
+    case type do
+      :load_1min -> get_cpu_load_max_value(data)
+      :load_5min -> get_cpu_load_max_value(data)
+      :load_15min -> get_cpu_load_max_value(data)
+      :used_mb -> memory_size
+      _ -> 100
+    end
+  end
+
+  defp get_max_value(:custom, data) do
+    data
+    |> Enum.max_by(& &1.y)
+    |> Map.get(:y)
+  end
 
   defp get_cpu_load_max_value(data) do
     data
@@ -212,12 +238,6 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> Map.get(:y)
     |> ceil()
     |> max(1)
-  end
-
-  defp get_custom_max_value(data) do
-    data
-    |> Enum.max_by(& &1.y)
-    |> Map.get(:y)
   end
 
   defp schedule_health_check_timer(socket) do
