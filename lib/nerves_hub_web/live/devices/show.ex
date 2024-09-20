@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :updated_live_view
 
+  require Logger
+
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdatePayload
