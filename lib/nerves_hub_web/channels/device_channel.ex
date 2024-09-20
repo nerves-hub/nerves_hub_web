@@ -25,6 +25,9 @@ defmodule NervesHubWeb.DeviceChannel do
          {:ok, device} <- Devices.device_connected(device) do
       socket = assign(socket, :device, device)
 
+      # disconnect devices using the same identifier
+      _ = NervesHubWeb.DeviceEndpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
+
       send(self(), {:after_join, params})
 
       {:ok, socket}
@@ -65,48 +68,9 @@ defmodule NervesHubWeb.DeviceChannel do
       firmware_uuid: device.firmware_metadata.uuid
     })
 
-    # local node tracking
-    # lets make sure we deregister any other connected devices using the same device id
-    :ok = Registry.unregister(NervesHub.Devices, device.id)
-
-    {:ok, _pid} =
-      Registry.register(NervesHub.Devices, device.id, %{
-        deployment_id: device.deployment_id,
-        firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
-        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-        updating: false
-      })
-
-    # disconnect devices using the same identifier
-    _ =
-      NervesHubWeb.DeviceEndpoint.broadcast_from(
-        self(),
-        "device:#{device.id}",
-        "connected",
-        %{}
-      )
-
     # Cluster tracking
     Tracker.online(device)
 
-    socket =
-      socket
-      |> assign(:device, device)
-      |> assign(:penalty_timer, nil)
-      |> maybe_start_penalty_timer()
-      |> maybe_send_archive()
-
-    send(self(), :boot)
-
-    if device_health_check_enabled?() do
-      send(self(), :health_check)
-      schedule_health_check()
-    end
-
-    {:noreply, socket}
-  end
-
-  def handle_info(:boot, %{assigns: %{device: device}} = socket) do
     ref_id = Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
 
     deployment_channel =
@@ -121,24 +85,59 @@ defmodule NervesHubWeb.DeviceChannel do
 
     Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
 
+    if device_health_check_enabled?() do
+      send(self(), :health_check)
+      schedule_health_check()
+    end
+
+    send(self(), :device_registation)
+
     socket =
       socket
       |> assign(:device, device)
-      |> assign(:deployment_channel, deployment_channel)
       |> assign(:reference_id, ref_id)
+      |> assign(:deployment_channel, deployment_channel)
+      |> assign(:penalty_timer, nil)
+      |> maybe_start_penalty_timer()
+      |> maybe_send_archive()
 
     {:noreply, socket}
   end
 
-  # Listen for devices which have connected using the same device identifier
-  # and trigger a clean shutdown
-  def handle_info(%Broadcast{event: "connected"}, socket) do
-    :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{}, %{
-      device: socket.assigns.device,
-      ref_id: socket.assigns.reference_id
-    })
+  def handle_info(:device_registation, socket) do
+    send(self(), {:device_registation, 0})
+    {:noreply, socket}
+  end
+
+  def handle_info({:device_registation, 3}, socket) do
+    # lets make sure we deregister any other connected devices using the same device id
+    [:nerves_hub, :devices, :registry, :retries_exceeded]
+    |> :telemetry.execute(%{}, %{device: socket.assigns.device})
 
     {:stop, :shutdown, socket}
+  end
+
+  def handle_info({:device_registation, attempt}, socket) do
+    %{assigns: %{device: device}} = socket
+
+    payload = %{
+      deployment_id: device.deployment_id,
+      firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
+      updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+      updating: false
+    }
+
+    case Registry.register(NervesHub.Devices.Registry, device.id, payload) do
+      {:error, {:already_registered, _}} ->
+        if timer = socket.assigns[:registration_timer], do: Process.cancel_timer(timer)
+
+        timer = Process.send_after(self(), {:register, attempt + 1}, 500)
+
+        {:noreply, assign(socket, registration_timer: timer)}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   def handle_info(:update_connection_last_seen, %{assigns: %{device: device}} = socket) do
@@ -218,7 +217,7 @@ defmodule NervesHubWeb.DeviceChannel do
     )
 
     {_, _} =
-      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
         Map.put(value, :deployment_id, device.deployment_id)
       end)
 
@@ -300,7 +299,7 @@ defmodule NervesHubWeb.DeviceChannel do
     device = Repo.reload(device)
 
     {_, _} =
-      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
         Map.merge(value, %{
           updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
         })
@@ -375,7 +374,7 @@ defmodule NervesHubWeb.DeviceChannel do
     })
 
     {_, _} =
-      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
         Map.merge(value, %{updates_enabled: updates_enabled})
       end)
 
@@ -437,7 +436,7 @@ defmodule NervesHubWeb.DeviceChannel do
       {:ok, device} = Devices.update_attempted(device)
 
       {_, _} =
-        Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
           Map.put(value, :updating, true)
         end)
 
@@ -555,7 +554,14 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def terminate(_reason, %{assigns: %{device: device}} = socket) do
+  def terminate(reason, %{assigns: %{device: device}} = socket) do
+    if reason == {:shutdown, :disconnected} do
+      :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{}, %{
+        device: device,
+        ref_id: socket.assigns.reference_id
+      })
+    end
+
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
       ref_id: socket.assigns.reference_id,
       identifier: device.identifier
@@ -563,7 +569,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     {:ok, device} = Devices.device_disconnected(device)
 
-    Registry.unregister(NervesHub.Devices, device.id)
+    Registry.unregister(NervesHub.Devices.Registry, device.id)
 
     Tracker.offline(device)
 
@@ -674,7 +680,7 @@ defmodule NervesHubWeb.DeviceChannel do
     AuditLogs.audit_with_ref!(device, device, description, socket.assigns.reference_id)
 
     {_, _} =
-      Registry.update_value(NervesHub.Devices, device.id, fn value ->
+      Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
         Map.put(value, :deployment_id, device.deployment_id)
       end)
 
@@ -702,7 +708,7 @@ defmodule NervesHubWeb.DeviceChannel do
       subscribe(deployment_channel)
 
       {_, _} =
-        Registry.update_value(NervesHub.Devices, device.id, fn value ->
+        Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
           Map.merge(value, %{
             deployment_id: device.deployment_id
           })
