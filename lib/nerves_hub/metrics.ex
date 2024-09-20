@@ -20,6 +20,7 @@ defmodule NervesHub.Metrics do
          # NervesHub
          counter("nerves_hub.devices.connect.count", tags: [:env, :service]),
          counter("nerves_hub.devices.disconnect.count", tags: [:env, :service]),
+         counter("nerves_hub.devices.duplicate_connection", tags: [:env, :service]),
          counter("nerves_hub.devices.deployment.changed.count", tags: [:env, :service]),
          counter("nerves_hub.devices.deployment.update.manual.count", tags: [:env, :service]),
          counter("nerves_hub.devices.deployment.update.automatic.count", tags: [:env, :service]),

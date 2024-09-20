@@ -28,6 +28,7 @@ defmodule NervesHub.Application do
         {Finch, name: Swoosh.Finch}
       ] ++
         metrics(deploy_env()) ++
+        device_monitor(deploy_env()) ++
         [
           NervesHub.RateLimit,
           NervesHub.Repo,
@@ -53,6 +54,12 @@ defmodule NervesHub.Application do
 
   defp metrics(_env) do
     [NervesHub.Metrics]
+  end
+
+  defp device_monitor("test"), do: []
+
+  defp device_monitor(_env) do
+    [NervesHubWeb.DeviceMonitor]
   end
 
   defp deployments_supervisor("test"), do: []

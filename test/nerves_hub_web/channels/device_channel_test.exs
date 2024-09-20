@@ -33,13 +33,17 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
     assert socket
 
+    Process.flag(:trap_exit, true)
+
     {:ok, second_socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
     {:ok, _, second_socket} = subscribe_and_join(second_socket, DeviceChannel, "device")
     assert second_socket
 
-    assert_receive %Phoenix.Socket.Broadcast{event: "disconnect"}
+    assert_receive {:socket_close, _, {:shutdown, :duplicate_connection}}
+
+    assert_receive {:EXIT, _, {:shutdown, :duplicate_connection}}
   end
 
   describe "device location" do

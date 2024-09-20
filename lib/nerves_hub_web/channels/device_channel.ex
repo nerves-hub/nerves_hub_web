@@ -23,14 +23,12 @@ defmodule NervesHubWeb.DeviceChannel do
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params),
          {:ok, device} <- Devices.device_connected(device) do
-      socket = assign(socket, :device, device)
-
       # disconnect devices using the same identifier
-      _ = NervesHubWeb.DeviceEndpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
+      _ = NervesHubWeb.DeviceEndpoint.broadcast("device:#{device.id}", "disconnect", %{})
 
       send(self(), {:after_join, params})
 
-      {:ok, socket}
+      {:ok, assign(socket, :device, device)}
     else
       err ->
         Logger.warning("[DeviceChannel] failure to connect - #{inspect(err)}")
@@ -40,8 +38,6 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
-    socket = assign(socket, :device_api_version, Map.get(params, "device_api_version", "1.0.0"))
-
     device =
       device
       |> Devices.verify_deployment()
@@ -71,7 +67,7 @@ defmodule NervesHubWeb.DeviceChannel do
     # Cluster tracking
     Tracker.online(device)
 
-    ref_id = Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
+    monitor(device, socket.assigns.reference_id)
 
     deployment_channel =
       if device.deployment_id do
@@ -95,13 +91,22 @@ defmodule NervesHubWeb.DeviceChannel do
     socket =
       socket
       |> assign(:device, device)
-      |> assign(:reference_id, ref_id)
       |> assign(:deployment_channel, deployment_channel)
       |> assign(:penalty_timer, nil)
+      |> assign_api_version(params)
       |> maybe_start_penalty_timer()
       |> maybe_send_archive()
 
     {:noreply, socket}
+  end
+
+  def handle_info(%Broadcast{event: "disconnect"}, socket) do
+    :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{}, %{
+      device: socket.assigns.device,
+      ref_id: socket.assigns.reference_id
+    })
+
+    {:stop, {:shutdown, :duplicate_connection}, socket}
   end
 
   def handle_info(:device_registation, socket) do
@@ -554,26 +559,26 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def terminate(reason, %{assigns: %{device: device}} = socket) do
-    if reason == {:shutdown, :disconnected} do
-      :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{}, %{
-        device: device,
-        ref_id: socket.assigns.reference_id
-      })
-    end
+  def terminate(_reason, socket) do
+    disconnected(socket.assigns.device, socket.assigns.reference_id)
+    :ok
+  end
 
+  def disconnected(device, connection_ref) do
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
-      ref_id: socket.assigns.reference_id,
+      ref_id: connection_ref,
       identifier: device.identifier
     })
 
     {:ok, device} = Devices.device_disconnected(device)
 
-    Registry.unregister(NervesHub.Devices.Registry, device.id)
-
     Tracker.offline(device)
 
     :ok
+  end
+
+  defp assign_api_version(socket, params) do
+    assign(socket, :device_api_version, Map.get(params, "device_api_version", "1.0.0"))
   end
 
   defp log_to_sentry(device, message, extra \\ %{}) do
@@ -772,5 +777,10 @@ defmodule NervesHubWeb.DeviceChannel do
     end
 
     socket
+  end
+
+  defp monitor(device, reference_id) do
+    device_monitor = Application.get_env(:nerves_hub, :device_monitor, NervesHubWeb.DeviceMonitor)
+    device_monitor.monitor(self(), device, reference_id)
   end
 end
