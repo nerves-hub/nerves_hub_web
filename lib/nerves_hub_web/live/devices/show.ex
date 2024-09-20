@@ -259,7 +259,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     case Devices.told_to_update(device, deployment) do
       {:ok, inflight_update} ->
-        _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "deployments/update", inflight_update)
+        _ =
+          NervesHubWeb.Endpoint.broadcast(
+            "device:#{device.id}",
+            "deployments/update",
+            inflight_update
+          )
 
       :error ->
         Logger.error(
