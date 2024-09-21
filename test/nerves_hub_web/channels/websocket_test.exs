@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.WebsocketTest do
   use NervesHubWeb.ChannelCase
 
+  use AssertEventually, timeout: 100, interval: 5
+
   import TrackerHelper
 
   alias NervesHub.Fixtures
@@ -959,6 +961,8 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.wait_join(socket)
 
       assert_connection_change()
+
+      eventually assert 1 == Registry.count(NervesHub.Devices.Registry)
 
       {:ok, _deployment} =
         Deployments.update_deployment(deployment, %{
