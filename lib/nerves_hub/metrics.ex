@@ -95,7 +95,7 @@ defmodule NervesHub.Metrics do
   end
 
   def dispatch_device_count() do
-    device_count = Registry.count(NervesHub.Devices)
+    device_count = Registry.count(NervesHub.Devices.Registry)
     :telemetry.execute([:nerves_hub, :devices, :online], %{count: device_count}, %{node: node()})
   end
 end
