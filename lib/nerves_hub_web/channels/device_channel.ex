@@ -112,7 +112,7 @@ defmodule NervesHubWeb.DeviceChannel do
         {:noreply, assign(socket, registration_timer: timer)}
 
       _ ->
-        {:noreply, socket}
+        {:noreply, assign(socket, :registered?, true)}
     end
   end
 
@@ -182,10 +182,7 @@ defmodule NervesHubWeb.DeviceChannel do
       socket.assigns.reference_id
     )
 
-    {_, _} =
-      Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
-        Map.put(value, :deployment_id, device.deployment_id)
-      end)
+    maybe_update_registry(socket, device, %{deployment_id: device.deployment_id})
 
     socket =
       socket
@@ -264,12 +261,9 @@ defmodule NervesHubWeb.DeviceChannel do
   def handle_info(%Broadcast{event: "devices/updated"}, %{assigns: %{device: device}} = socket) do
     device = Repo.reload(device)
 
-    {_, _} =
-      Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
-        Map.merge(value, %{
-          updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
-        })
-      end)
+    maybe_update_registry(socket, device, %{
+      updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
+    })
 
     socket =
       socket
@@ -339,10 +333,9 @@ defmodule NervesHubWeb.DeviceChannel do
       updates_enabled: updates_enabled
     })
 
-    {_, _} =
-      Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
-        Map.merge(value, %{updates_enabled: updates_enabled})
-      end)
+    maybe_update_registry(socket, device, %{
+      updates_enabled: updates_enabled
+    })
 
     # Just in case time is weird or it got placed back in between checks
     if updates_enabled do
@@ -401,10 +394,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
       {:ok, device} = Devices.update_attempted(device)
 
-      {_, _} =
-        Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
-          Map.put(value, :updating, true)
-        end)
+      maybe_update_registry(socket, device, %{updating: true})
 
       socket =
         socket
@@ -524,6 +514,15 @@ defmodule NervesHubWeb.DeviceChannel do
     assign(socket, :device_api_version, Map.get(params, "device_api_version", "1.0.0"))
   end
 
+  defp maybe_update_registry(socket, device, updates) do
+    if socket.assigns[:registered?] do
+      {_, _} =
+        Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
+          Map.merge(value, updates)
+        end)
+    end
+  end
+
   defp log_to_sentry(device, message, extra \\ %{}) do
     Sentry.Context.set_tags_context(%{
       device_identifier: device.identifier,
@@ -621,10 +620,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     AuditLogs.audit_with_ref!(device, device, description, socket.assigns.reference_id)
 
-    {_, _} =
-      Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
-        Map.put(value, :deployment_id, device.deployment_id)
-      end)
+    maybe_update_registry(socket, device, %{deployment_id: device.deployment_id})
 
     socket
     |> update_device(device)
@@ -649,12 +645,7 @@ defmodule NervesHubWeb.DeviceChannel do
       unsubscribe(socket.assigns.deployment_channel)
       subscribe(deployment_channel)
 
-      {_, _} =
-        Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
-          Map.merge(value, %{
-            deployment_id: device.deployment_id
-          })
-        end)
+      maybe_update_registry(socket, device, %{deployment_id: device.deployment_id})
 
       assign(socket, :deployment_channel, deployment_channel)
     else
