@@ -18,20 +18,20 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defoverridable init: 1, handle_info: 2, terminate: 2
 
-  @impl true
-  def init(state) do
-    {:ok, {other, socket}} = super(state)
+  @impl Phoenix.Socket.Transport
+  def init(state_tuple) do
+    {:ok, {state, socket}} = super(state_tuple)
     socket = on_connect(socket)
-    {:ok, {other, socket}}
+    {:ok, {state, socket}}
   end
 
-  @impl true
+  @impl Phoenix.Socket.Transport
   def terminate(reason, {_channels_info, socket} = state) do
     on_disconnect(socket)
     super(reason, state)
   end
 
-  @impl true
+  @impl Phoenix.Socket.Transport
   def handle_info(:update_connection_last_seen, %{assigns: %{device: device}} = socket) do
     {:ok, _device} = Devices.device_heartbeat(device)
 
@@ -53,7 +53,7 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   # Used by Devices connecting with SSL certificates
-  @impl true
+  @impl Phoenix.Socket
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}})
       when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
@@ -90,7 +90,7 @@ defmodule NervesHubWeb.DeviceSocket do
     {:error, :no_auth}
   end
 
-  @impl true
+  @impl Phoenix.Socket
   def id(%{assigns: %{device: device}}), do: "device_socket:#{device.id}"
   def id(_socket), do: nil
 
