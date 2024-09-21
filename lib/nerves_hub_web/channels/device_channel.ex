@@ -17,28 +17,21 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.Repo
-  alias NervesHub.Tracker
   alias Phoenix.Socket.Broadcast
 
   def join("device", params, %{assigns: %{device: device}} = socket) do
-    with {:ok, device} <- update_metadata(device, params),
-         {:ok, device} <- Devices.device_connected(device) do
-      socket = assign(socket, :device, device)
-
+    with {:ok, device} <- update_metadata(device, params) do
       send(self(), {:after_join, params})
 
-      {:ok, socket}
+      {:ok, assign(socket, :device, device)}
     else
       err ->
         Logger.warning("[DeviceChannel] failure to connect - #{inspect(err)}")
-        _ = Devices.device_disconnected(device)
         {:error, %{error: "could not connect"}}
     end
   end
 
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
-    socket = assign(socket, :device_api_version, Map.get(params, "device_api_version", "1.0.0"))
-
     device =
       device
       |> Devices.verify_deployment()
@@ -58,57 +51,6 @@ defmodule NervesHubWeb.DeviceChannel do
     # we might make a new one right below it, so clear it beforehand
     Devices.clear_inflight_update(device)
 
-    ## After join
-    :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
-      ref_id: socket.assigns.reference_id,
-      identifier: device.identifier,
-      firmware_uuid: device.firmware_metadata.uuid
-    })
-
-    # local node tracking
-    # lets make sure we deregister any other connected devices using the same device id
-    :ok = Registry.unregister(NervesHub.Devices.Registry, device.id)
-
-    {:ok, _pid} =
-      Registry.register(NervesHub.Devices.Registry, device.id, %{
-        deployment_id: device.deployment_id,
-        firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
-        updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-        updating: false
-      })
-
-    # disconnect devices using the same identifier
-    _ =
-      NervesHubWeb.DeviceEndpoint.broadcast_from(
-        self(),
-        "device:#{device.id}",
-        "connected",
-        %{}
-      )
-
-    # Cluster tracking
-    Tracker.online(device)
-
-    socket =
-      socket
-      |> assign(:device, device)
-      |> assign(:penalty_timer, nil)
-      |> maybe_start_penalty_timer()
-      |> maybe_send_archive()
-
-    send(self(), :boot)
-
-    if device_health_check_enabled?() do
-      send(self(), :health_check)
-      schedule_health_check()
-    end
-
-    {:noreply, socket}
-  end
-
-  def handle_info(:boot, %{assigns: %{device: device}} = socket) do
-    ref_id = Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
-
     deployment_channel =
       if device.deployment_id do
         "deployment:#{device.deployment_id}"
@@ -119,36 +61,59 @@ defmodule NervesHubWeb.DeviceChannel do
     subscribe("device:#{device.id}")
     subscribe(deployment_channel)
 
-    Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
+    if device_health_check_enabled?() do
+      send(self(), :health_check)
+      schedule_health_check()
+    end
+
+    send(self(), :device_registation)
 
     socket =
       socket
       |> assign(:device, device)
       |> assign(:deployment_channel, deployment_channel)
-      |> assign(:reference_id, ref_id)
+      |> assign_api_version(params)
+      |> assign(:penalty_timer, nil)
+      |> maybe_start_penalty_timer()
+      |> maybe_send_archive()
 
     {:noreply, socket}
   end
 
-  # Listen for devices which have connected using the same device identifier
-  # and trigger a clean shutdown
-  def handle_info(%Broadcast{event: "connected"}, socket) do
-    :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{}, %{
-      device: socket.assigns.device,
-      ref_id: socket.assigns.reference_id
-    })
+  def handle_info(:device_registation, socket) do
+    send(self(), {:device_registation, 0})
+    {:noreply, socket}
+  end
+
+  def handle_info({:device_registation, 3}, socket) do
+    # lets make sure we deregister any other connected devices using the same device id
+    [:nerves_hub, :devices, :registry, :retries_exceeded]
+    |> :telemetry.execute(%{}, %{device: socket.assigns.device})
 
     {:stop, :shutdown, socket}
   end
 
-  def handle_info(:update_connection_last_seen, %{assigns: %{device: device}} = socket) do
-    {:ok, device} = Devices.device_heartbeat(device)
+  def handle_info({:device_registation, attempt}, socket) do
+    %{assigns: %{device: device}} = socket
 
-    device_broadcast(device, "connection:heartbeat")
+    payload = %{
+      deployment_id: device.deployment_id,
+      firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
+      updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
+      updating: false
+    }
 
-    Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
+    case Registry.register(NervesHub.Devices.Registry, device.id, payload) do
+      {:error, {:already_registered, _}} ->
+        if timer = socket.assigns[:registration_timer], do: Process.cancel_timer(timer)
 
-    {:noreply, assign(socket, :device, device)}
+        timer = Process.send_after(self(), {:register, attempt + 1}, 500)
+
+        {:noreply, assign(socket, registration_timer: timer)}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   # We can save a fairly expensive query by checking the incoming deployment's payload
@@ -555,19 +520,8 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def terminate(_reason, %{assigns: %{device: device}} = socket) do
-    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
-      ref_id: socket.assigns.reference_id,
-      identifier: device.identifier
-    })
-
-    {:ok, device} = Devices.device_disconnected(device)
-
-    Registry.unregister(NervesHub.Devices.Registry, device.id)
-
-    Tracker.offline(device)
-
-    :ok
+  defp assign_api_version(socket, params) do
+    assign(socket, :device_api_version, Map.get(params, "device_api_version", "1.0.0"))
   end
 
   defp log_to_sentry(device, message, extra \\ %{}) do
@@ -592,12 +546,6 @@ defmodule NervesHubWeb.DeviceChannel do
 
   defp unsubscribe(topic) do
     Phoenix.PubSub.unsubscribe(NervesHub.PubSub, topic)
-  end
-
-  defp device_broadcast(device, event, payload \\ %{}) do
-    topic = "device:#{device.identifier}:internal"
-    _ = NervesHubWeb.DeviceEndpoint.broadcast(topic, event, payload)
-    :ok
   end
 
   defp send_public_keys(device, socket, key_type) do
@@ -729,15 +677,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  defp last_seen_update_interval() do
-    Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
-    |> :timer.minutes()
-  end
-
-  defp device_health_check_enabled?() do
-    Application.get_env(:nerves_hub, :device_health_check_enabled)
-  end
-
   defp deployment_preload(device) do
     Repo.preload(device, [deployment: [:archive, :firmware]], force: true)
   end
@@ -766,5 +705,9 @@ defmodule NervesHubWeb.DeviceChannel do
     end
 
     socket
+  end
+
+  defp device_health_check_enabled?() do
+    Application.get_env(:nerves_hub, :device_health_check_enabled)
   end
 end

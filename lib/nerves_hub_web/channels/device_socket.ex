@@ -6,6 +6,7 @@ defmodule NervesHubWeb.DeviceSocket do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products
+  alias NervesHub.Tracker
 
   alias Plug.Crypto
 
@@ -15,7 +16,43 @@ defmodule NervesHubWeb.DeviceSocket do
   # Default 90 seconds max age for the signature
   @default_max_hmac_age 90
 
+  defoverridable init: 1, handle_info: 2, terminate: 2
+
+  @impl true
+  def init(state) do
+    res = {:ok, {_, socket}} = super(state)
+    on_connect(socket.assigns)
+    res
+  end
+
+  @impl true
+  def terminate(reason, {_channels_info, socket} = state) do
+    on_disconnect(socket.assigns)
+    super(reason, state)
+  end
+
+  @impl true
+  def handle_info(:update_connection_last_seen, %{assigns: %{device: device}} = socket) do
+    {:ok, _device} = Devices.device_heartbeat(device)
+
+    _ =
+      NervesHubWeb.DeviceEndpoint.broadcast(
+        "device:#{device.identifier}:internal",
+        "connection:heartbeat",
+        %{}
+      )
+
+    Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
+
+    {:ok, socket}
+  end
+
+  def handle_info(msg, socket) do
+    super(msg, socket)
+  end
+
   # Used by Devices connecting with SSL certificates
+  @impl true
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}})
       when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
@@ -52,6 +89,7 @@ defmodule NervesHubWeb.DeviceSocket do
     {:error, :no_auth}
   end
 
+  @impl true
   def id(%{assigns: %{device: device}}), do: "device_socket:#{device.id}"
   def id(_socket), do: nil
 
@@ -121,11 +159,46 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   defp socket_and_assigns(socket, device) do
+    # disconnect devices using the same identifier
+    _ = NervesHubWeb.DeviceEndpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
+
     socket =
       socket
       |> assign(:device, device)
       |> assign(:reference_id, generate_reference_id())
 
     {:ok, socket}
+  end
+
+  def on_connect(%{device: device, reference_id: reference_id} = _assigns) do
+    :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
+      ref_id: reference_id,
+      identifier: device.identifier,
+      firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)])
+    })
+
+    {:ok, _} = Devices.device_connected(device)
+
+    Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
+
+    Tracker.online(device)
+  end
+
+  def on_disconnect(%{device: device, reference_id: reference_id} = _assigns) do
+    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{}, %{
+      ref_id: reference_id,
+      identifier: device.identifier
+    })
+
+    {:ok, device} = Devices.device_disconnected(device)
+
+    Tracker.offline(device)
+
+    :ok
+  end
+
+  defp last_seen_update_interval() do
+    Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+    |> :timer.minutes()
   end
 end
