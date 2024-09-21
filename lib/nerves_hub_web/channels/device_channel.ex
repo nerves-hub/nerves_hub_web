@@ -664,7 +664,12 @@ defmodule NervesHubWeb.DeviceChannel do
 
   defp device_deployment_change_jitter_ms() do
     jitter = Application.get_env(:nerves_hub, :device_deployment_change_jitter_seconds)
-    :rand.uniform(jitter) * 1000
+
+    if jitter > 0 do
+      :rand.uniform(jitter) * 1000
+    else
+      0
+    end
   end
 
   defp schedule_health_check() do
