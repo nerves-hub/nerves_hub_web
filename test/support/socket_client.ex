@@ -25,8 +25,8 @@ defmodule SocketClient do
     GenServer.call(socket, :reply)
   end
 
-  def join(socket, channel, params \\ %{}) do
-    GenServer.call(socket, {:join, channel, params})
+  def join_and_wait(socket, params \\ %{}) do
+    GenServer.call(socket, {:join_and_wait, params})
   end
 
   def status(socket) do
@@ -53,20 +53,8 @@ defmodule SocketClient do
     end
   end
 
-  def wait_join(_, _ \\ nil)
-
-  def wait_join(socket, nil) do
-    timeout = 2_000
-    {:ok, t_ref} = :timer.exit_after(timeout, "Timed out waiting for socket join")
-    wait_join(socket, t_ref)
-  end
-
-  def wait_join(socket, timer) do
-    if __MODULE__.joined?(socket) do
-      :timer.cancel(timer)
-    else
-      wait_join(socket, timer)
-    end
+  def clean_close(socket) do
+    GenServer.call(socket, :clean_close)
   end
 
   def received_archive?(socket) do
@@ -223,12 +211,36 @@ defmodule SocketClient do
     {:reply, :ok, socket}
   end
 
+  def handle_call({:join_and_wait, params}, _from, socket) do
+    socket =
+      socket
+      |> await_connect!()
+      |> join("device", params)
+      |> await_join!("device")
+      |> assign(:connected?, true)
+      |> assign(:joined?, true)
+      |> assign(:reply, %{})
+
+    {:reply, :ok, socket}
+  end
+
   def handle_call(:status, _from, socket) do
     {:reply, :ok, socket}
   end
 
   def handle_call(:state, _from, socket) do
     {:reply, socket, socket}
+  end
+
+  def handle_call(:clean_close, _from, socket) do
+    socket =
+      socket
+      |> disconnect()
+      |> await_disconnect!()
+      |> assign(:connecting?, false)
+      |> assign(:connected?, false)
+
+    {:reply, :ok, socket}
   end
 
   @impl Slipstream
