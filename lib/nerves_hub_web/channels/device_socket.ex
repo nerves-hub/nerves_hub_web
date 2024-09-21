@@ -20,14 +20,14 @@ defmodule NervesHubWeb.DeviceSocket do
 
   @impl true
   def init(state) do
-    res = {:ok, {_, socket}} = super(state)
-    on_connect(socket.assigns)
-    res
+    {:ok, {other, socket}} = super(state)
+    socket = on_connect(socket)
+    {:ok, {other, socket}}
   end
 
   @impl true
   def terminate(reason, {_channels_info, socket} = state) do
-    on_disconnect(socket.assigns)
+    on_disconnect(socket)
     super(reason, state)
   end
 
@@ -42,9 +42,10 @@ defmodule NervesHubWeb.DeviceSocket do
         %{}
       )
 
-    Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
+    heartbeat_ref =
+      Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
 
-    {:ok, socket}
+    {:ok, assign(socket, :heartbeat_ref, heartbeat_ref)}
   end
 
   def handle_info(msg, socket) do
@@ -170,29 +171,41 @@ defmodule NervesHubWeb.DeviceSocket do
     {:ok, socket}
   end
 
-  def on_connect(%{device: device, reference_id: reference_id} = _assigns) do
+  def on_connect(socket) do
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
-      ref_id: reference_id,
-      identifier: device.identifier,
-      firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)])
+      ref_id: socket.assigns.reference_id,
+      identifier: socket.assigns.device.identifier,
+      firmware_uuid:
+        get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)])
     })
 
-    {:ok, _} = Devices.device_connected(device)
+    {:ok, device} = Devices.device_connected(socket.assigns.device)
 
-    Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
+    heartbeat_ref =
+      Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
 
     Tracker.online(device)
+
+    socket
+    |> assign(:heartbeat_ref, heartbeat_ref)
+    |> assign(:device, device)
   end
 
-  def on_disconnect(%{device: device, reference_id: reference_id} = _assigns) do
-    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{}, %{
-      ref_id: reference_id,
-      identifier: device.identifier
-    })
+  def on_disconnect(socket) do
+    if heartbeat_ref = socket.assigns[:heartbeat_ref] do
+      Process.cancel_timer(heartbeat_ref)
+    end
 
-    {:ok, device} = Devices.device_disconnected(device)
+    if socket.assigns[:device] do
+      :telemetry.execute([:nerves_hub, :devices, :disconnect], %{}, %{
+        ref_id: socket.assigns.reference_id,
+        identifier: socket.assigns.device.identifier
+      })
 
-    Tracker.offline(device)
+      {:ok, device} = Devices.device_disconnected(socket.assigns.device)
+
+      Tracker.offline(device)
+    end
 
     :ok
   end
