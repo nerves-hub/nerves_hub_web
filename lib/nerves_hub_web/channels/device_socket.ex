@@ -153,12 +153,6 @@ defmodule NervesHubWeb.DeviceSocket do
     end
   end
 
-  def shared_secrets_enabled?() do
-    Application.get_env(:nerves_hub, __MODULE__, [])
-    |> Keyword.get(:shared_secrets, [])
-    |> Keyword.get(:enabled, false)
-  end
-
   defp socket_and_assigns(socket, device) do
     # disconnect devices using the same identifier
     _ = NervesHubWeb.DeviceEndpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
@@ -171,7 +165,7 @@ defmodule NervesHubWeb.DeviceSocket do
     {:ok, socket}
   end
 
-  def on_connect(socket) do
+  defp on_connect(socket) do
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: socket.assigns.reference_id,
       identifier: socket.assigns.device.identifier,
@@ -191,7 +185,7 @@ defmodule NervesHubWeb.DeviceSocket do
     |> assign(:device, device)
   end
 
-  def on_disconnect(socket) do
+  defp on_disconnect(socket) do
     if heartbeat_ref = socket.assigns[:heartbeat_ref] do
       Process.cancel_timer(heartbeat_ref)
     end
@@ -213,5 +207,11 @@ defmodule NervesHubWeb.DeviceSocket do
   defp last_seen_update_interval() do
     Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
     |> :timer.minutes()
+  end
+
+  def shared_secrets_enabled?() do
+    Application.get_env(:nerves_hub, __MODULE__, [])
+    |> Keyword.get(:shared_secrets, [])
+    |> Keyword.get(:enabled, false)
   end
 end
