@@ -61,7 +61,6 @@ defmodule NervesHub.MixProject do
       {:bandit, "~> 1.0"},
       {:base62, "~> 1.2"},
       {:bcrypt_elixir, "~> 3.0"},
-      {:cachex, "~> 3.6"},
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 0.4.1"},
       {:comeonin, "~> 5.3"},

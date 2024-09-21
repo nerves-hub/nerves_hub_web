@@ -29,7 +29,6 @@ defmodule NervesHub.Application do
       ] ++
         metrics(deploy_env()) ++
         [
-          {Cachex, name: :geo_ip},
           NervesHub.RateLimit,
           NervesHub.Repo,
           NervesHub.ObanRepo,
