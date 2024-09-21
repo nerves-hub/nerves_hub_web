@@ -24,7 +24,7 @@ defmodule NervesHub.Application do
         {Ecto.Migrator,
          repos: Application.fetch_env!(:nerves_hub, :ecto_repos),
          skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
-        {Registry, keys: :unique, name: NervesHub.Devices},
+        {Registry, keys: :unique, name: NervesHub.Devices.Registry},
         {Finch, name: Swoosh.Finch}
       ] ++
         metrics(deploy_env()) ++
