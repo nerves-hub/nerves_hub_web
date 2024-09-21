@@ -245,6 +245,15 @@ defmodule SocketClient do
     {:ok, socket}
   end
 
+  def handle_disconnect(:closed_by_remote, socket) do
+    socket =
+      socket
+      |> assign(:connecting?, false)
+      |> assign(:connected?, false)
+
+    {:ok, socket}
+  end
+
   defp maybe_add_error_reasons(socket, reason) do
     error_reason = Enum.find(reason.headers, fn {k, _v} -> k == "nh-connection-error-reason" end)
 
