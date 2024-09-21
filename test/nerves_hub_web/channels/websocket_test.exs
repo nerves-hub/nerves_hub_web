@@ -527,6 +527,14 @@ defmodule NervesHubWeb.WebsocketTest do
 
   describe "connection status is tracked" do
     test "set connection status upon connection and disconnection", %{user: user} do
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
+
+      on_exit(fn ->
+        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
+          shared_secrets: [enabled: false]
+        )
+      end)
+
       org = Fixtures.org_fixture(user)
       product = Fixtures.product_fixture(user, org)
       assert {:ok, auth} = Products.create_shared_secret_auth(product)
