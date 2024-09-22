@@ -142,13 +142,13 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info(:update_connection_last_seen, %{assigns: %{device: device}} = socket) do
-    {:ok, _device} = Devices.device_heartbeat(device)
+    {:ok, device} = Devices.device_heartbeat(device)
 
     device_broadcast(device, "connection:heartbeat")
 
     Process.send_after(self(), :update_connection_last_seen, last_seen_update_interval())
 
-    {:noreply, socket}
+    {:noreply, assign(socket, :device, device)}
   end
 
   # We can save a fairly expensive query by checking the incoming deployment's payload
