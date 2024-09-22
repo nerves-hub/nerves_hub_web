@@ -27,7 +27,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   @impl Phoenix.Socket.Transport
   def terminate(reason, {_channels_info, socket} = state) do
-    on_disconnect(socket)
+    on_disconnect(reason, socket)
     super(reason, state)
   end
 
@@ -202,11 +202,18 @@ defmodule NervesHubWeb.DeviceSocket do
     assign(socket, :device, device)
   end
 
-  defp on_disconnect(%{assigns: %{device: device, reference_id: reference_id}}) do
-    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{}, %{
+  defp on_disconnect({:error, reason}, %{assigns: %{device: device, reference_id: reference_id}}) do
+    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
       ref_id: reference_id,
       identifier: device.identifier
     })
+
+    if reason == {:shutdown, :disconnected} do
+      :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{}, %{
+        ref_id: reference_id,
+        device: device
+      })
+    end
 
     {:ok, device} = Devices.device_disconnected(device)
 
@@ -215,7 +222,7 @@ defmodule NervesHubWeb.DeviceSocket do
     :ok
   end
 
-  defp on_disconnect(_), do: :ok
+  defp on_disconnect(_, _), do: :ok
 
   defp last_seen_update_interval() do
     Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
