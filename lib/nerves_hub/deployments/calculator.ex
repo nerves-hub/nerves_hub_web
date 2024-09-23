@@ -107,7 +107,7 @@ defmodule NervesHub.Deployments.Calculator do
         {:noreply, %{state | process_timer_ref: nil}}
 
       :none_found ->
-        timer_ref = Process.send_after(self(), :process_next_device, 15_000)
+        timer_ref = Process.send_after(self(), :process_next_device, not_found_retry_interval())
 
         {:noreply, %{state | process_timer_ref: timer_ref}}
     end
@@ -134,4 +134,9 @@ defmodule NervesHub.Deployments.Calculator do
 
   # Catch all for unknown broadcasts on a deployment
   def handle_info(%Broadcast{topic: "deployment:" <> _}, deployment), do: {:noreply, deployment}
+
+  defp not_found_retry_interval() do
+    Application.get_env(:nerves_hub, :deployment_calculator_interval_seconds)
+    |> :timer.seconds()
+  end
 end
