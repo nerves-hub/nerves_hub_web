@@ -63,6 +63,7 @@ config :nerves_hub, Oban,
     delete_archive: 1,
     delete_firmware: 1,
     device: 1,
+    device_deployment_calculations: 5,
     firmware_delta_builder: 2,
     truncate: 1,
     # temporary, will remove in November

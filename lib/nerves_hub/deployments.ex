@@ -195,13 +195,12 @@ defmodule NervesHub.Deployments do
   end
 
   defp recalculate_devices(%{recalculation_type: :calculator_queue} = deployment, changeset) do
-    _ =
-      if Enum.any?(
-           [:conditions, :is_active, :recalculation_type],
-           &Map.has_key?(changeset.changes, &1)
-         ) do
-        create_inflight_checks(deployment)
-      end
+    if Enum.any?(
+         [:conditions, :is_active, :recalculation_type],
+         &Map.has_key?(changeset.changes, &1)
+       ) do
+      schedule_deployment_calculations(deployment)
+    end
 
     :ok
   end
@@ -313,15 +312,18 @@ defmodule NervesHub.Deployments do
 
   Also clears any previous inflight checks for this deployment.
   """
-  def create_inflight_checks(deployment) do
-    delete_inflight_checks(deployment)
-
+  def schedule_deployment_calculations(deployment) do
     query =
       Device
       |> select([d], %{
-        deployment_id: ^deployment.id,
-        device_id: d.id,
-        inserted_at: ^DateTime.utc_now()
+        worker: "NervesHub.Workers.DeviceCalculateDeployment",
+        queue: "device_deployment_calculations",
+        args:
+          fragment(
+            "json_build_object('device_id', ?, 'deployment_id', ?::integer)",
+            d.id,
+            ^deployment.id
+          )
       })
       |> where([d], not is_nil(d.connection_last_seen_at))
       |> where(
@@ -332,7 +334,7 @@ defmodule NervesHub.Deployments do
       |> where([d], d.firmware_metadata["platform"] == ^deployment.firmware.platform)
       |> where([d], d.firmware_metadata["architecture"] == ^deployment.firmware.architecture)
 
-    Repo.insert_all(InflightDeploymentCheck, query)
+    Repo.insert_all(Oban.Job, query)
   end
 
   @doc """
