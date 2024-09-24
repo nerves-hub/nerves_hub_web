@@ -58,6 +58,7 @@ defmodule NervesHub.MixProject do
     [
       {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
       {:recon, "~> 2.5"},
+      {:assert_eventually, "~> 1.0.0", only: [:dev, :test]},
       {:bandit, "~> 1.0"},
       {:base62, "~> 1.2"},
       {:bcrypt_elixir, "~> 3.0"},

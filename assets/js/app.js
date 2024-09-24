@@ -40,10 +40,12 @@ Hooks.SharedSecretClipboardClick = {
         //   But! You can wrap the promise in a ClipboardItem, and give that to
         //   the clipboard API.
         //   Found this on https://developer.apple.com/forums/thread/691873
-        const clipboardItem = new window.ClipboardItem({
-          'text/plain': secret
-        })
-        navigator.clipboard.write([clipboardItem])
+
+        const type = 'text/plain'
+        const blob = new Blob([secret], { type })
+        const data = [new window.ClipboardItem({ [type]: blob })]
+        navigator.clipboard.write(data)
+
         confirm('Secret copied to your clipboard')
       } else {
         // NOTE: Firefox has support for ClipboardItem and navigator.clipboard.write,
