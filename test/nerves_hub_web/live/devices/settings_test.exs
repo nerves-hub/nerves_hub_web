@@ -53,5 +53,25 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
       |> assert_path("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
       |> assert_has(".item", count: 2)
     end
+
+    test "can delete certificate", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+      # Device has 1 certificate as default
+      |> assert_has(".item", count: 1)
+      |> click_link("Delete")
+      |> refute_has(".item")
+    end
+
+    test "can download certificate", %{conn: conn, org: org, product: product, device: device} do
+      result =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+        # Device has 1 certificate as default
+        |> assert_has(".item", count: 1)
+        |> click_link("Download")
+
+      assert result.conn.resp_body =~ "-----BEGIN CERTIFICATE-----"
+    end
   end
 end
