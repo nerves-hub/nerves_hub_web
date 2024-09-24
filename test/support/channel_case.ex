@@ -26,12 +26,14 @@ defmodule NervesHubWeb.ChannelCase do
     end
   end
 
-  setup tags do
+  setup do
+    # Explicitly get a connection before each test
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
+  end
 
-    unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
-    end
+  setup tags do
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(NervesHub.Repo, shared: not tags[:async])
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
 
     :ok
   end
