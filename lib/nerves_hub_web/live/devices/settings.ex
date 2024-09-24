@@ -63,6 +63,9 @@ defmodule NervesHubWeb.Live.Devices.Settings do
     {:noreply, assign(socket, :toggle_upload, toggle != "true")}
   end
 
+  # A phx-change handler is required when using live uploads.
+  def handle_event("validate-cert", _, socket), do: {:noreply, socket}
+
   def handle_event(
         "delete-certificate",
         %{"serial" => serial},
