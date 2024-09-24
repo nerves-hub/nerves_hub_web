@@ -357,7 +357,15 @@ if System.get_env("SENTRY_DSN_URL") do
     environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
     enable_source_code_context: true,
     root_source_code_path: [File.cwd!()],
-    before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500}
+    before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
+    integrations: [
+      oban: [
+        # Capture errors:
+        capture_errors: true,
+        # Monitor cron jobs:
+        cron: [enabled: true]
+      ]
+    ]
 end
 
 config :nerves_hub, :statsd,
