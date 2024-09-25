@@ -56,7 +56,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
 
   defp subscribe_to_devices(socket) do
     if connected?(socket) do
-      Enum.map(socket.assigns.devices, fn device ->
+      Enum.each(socket.assigns.devices, fn device ->
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
       end)
 
