@@ -480,11 +480,7 @@ defmodule NervesHubWeb.DeviceChannel do
       org_id: device.org_id
     })
 
-    _ =
-      Sentry.capture_message(message,
-        extra: extra,
-        result: :none
-      )
+    _ = Sentry.capture_message(message, extra: extra, result: :none)
   end
 
   defp subscribe(topic) do
@@ -611,26 +607,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  defp device_deployment_change_jitter_ms() do
-    jitter = Application.get_env(:nerves_hub, :device_deployment_change_jitter_seconds)
-
-    if jitter > 0 do
-      :rand.uniform(jitter) * 1000
-    else
-      0
-    end
-  end
-
-  defp schedule_health_check() do
-    if device_health_check_enabled?() do
-      interval = Application.get_env(:nerves_hub, :device_health_check_interval_minutes)
-      Process.send_after(self(), :health_check, :timer.minutes(interval))
-      :ok
-    else
-      :ok
-    end
-  end
-
   defp deployment_preload(device) do
     Repo.preload(device, [deployment: [:archive, :firmware]], force: true)
   end
@@ -661,7 +637,31 @@ defmodule NervesHubWeb.DeviceChannel do
     socket
   end
 
+  defp schedule_health_check() do
+    if device_health_check_enabled?() do
+      Process.send_after(self(), :health_check, device_health_check_interval())
+      :ok
+    else
+      :ok
+    end
+  end
+
   defp device_health_check_enabled?() do
     Application.get_env(:nerves_hub, :device_health_check_enabled)
+  end
+
+  defp device_health_check_interval() do
+    Application.get_env(:nerves_hub, :device_health_check_interval_minutes)
+    |> :timer.minutes()
+  end
+
+  defp device_deployment_change_jitter_ms() do
+    jitter = Application.get_env(:nerves_hub, :device_deployment_change_jitter_seconds)
+
+    if jitter > 0 do
+      :rand.uniform(jitter) * 1000
+    else
+      0
+    end
   end
 end
