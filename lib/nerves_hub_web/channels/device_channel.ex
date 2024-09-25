@@ -460,18 +460,21 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp retry_device_registration(socket, attempt) do
-    if timer = socket.assigns[:registration_timer], do: Process.cancel_timer(timer)
+    _ = if timer = socket.assigns[:registration_timer], do: Process.cancel_timer(timer)
     timer = Process.send_after(self(), {:register, attempt + 1}, 500)
     assign(socket, registration_timer: timer)
   end
 
   defp maybe_update_registry(socket, device, updates) do
-    if socket.assigns[:registered?] do
-      {_, _} =
-        Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
-          Map.merge(value, updates)
-        end)
-    end
+    _ =
+      if socket.assigns[:registered?] do
+        {_, _} =
+          Registry.update_value(NervesHub.Devices.Registry, device.id, fn value ->
+            Map.merge(value, updates)
+          end)
+      end
+
+    :ok
   end
 
   defp log_to_sentry(device, message, extra \\ %{}) do
@@ -483,6 +486,8 @@ defmodule NervesHubWeb.DeviceChannel do
     })
 
     _ = Sentry.capture_message(message, extra: extra, result: :none)
+
+    :ok
   end
 
   defp subscribe(topic) do
