@@ -61,7 +61,8 @@ config :nerves_hub, NervesHub.Repo,
   url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
   ssl: false,
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10
+  pool_size: 10,
+  queue_target: 2000
 
 config :nerves_hub, NervesHub.ObanRepo,
   url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
