@@ -10,7 +10,7 @@ defmodule NervesHubWeb.DeviceChannel do
   require Logger
 
   alias NervesHub.Archives
-  alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Templates
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -168,19 +168,7 @@ defmodule NervesHubWeb.DeviceChannel do
       |> Deployments.set_deployment()
       |> deployment_preload()
 
-    description =
-      if device.deployment_id do
-        "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
-      else
-        "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
-      end
-
-    AuditLogs.audit_with_ref!(
-      device,
-      device,
-      description,
-      socket.assigns.reference_id
-    )
+    Templates.audit_resolve_changed_deployment(device, socket.assigns.reference_id)
 
     maybe_update_registry(socket, device, %{deployment_id: device.deployment_id})
 
@@ -215,21 +203,10 @@ defmodule NervesHubWeb.DeviceChannel do
           firmware_uuid: inflight_update.firmware_uuid
         })
 
-        deployment = device.deployment
-        firmware = deployment.firmware
-
-        description =
-          "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
-
         # If we get here, the device is connected and high probability it receives
         # the update message so we can Audit and later assert on this audit event
         # as a loosely valid attempt to update
-        AuditLogs.audit_with_ref!(
-          deployment,
-          device,
-          description,
-          socket.assigns.reference_id
-        )
+        Templates.audit_device_deployment_update_triggered(device, socket.assigns.reference_id)
 
         Devices.update_started!(inflight_update)
         push(socket, "update", payload)
@@ -615,10 +592,7 @@ defmodule NervesHubWeb.DeviceChannel do
       |> Repo.update!()
       |> deployment_preload()
 
-    description =
-      "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
-
-    AuditLogs.audit_with_ref!(device, device, description, socket.assigns.reference_id)
+    Templates.audit_device_assigned(device, socket.assigns.reference_id)
 
     maybe_update_registry(socket, device, %{deployment_id: device.deployment_id})
 
