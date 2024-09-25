@@ -51,12 +51,7 @@ defmodule NervesHubWeb.DeviceChannel do
     # we might make a new one right below it, so clear it beforehand
     Devices.clear_inflight_update(device)
 
-    deployment_channel =
-      if device.deployment_id do
-        "deployment:#{device.deployment_id}"
-      else
-        "deployment:none"
-      end
+    deployment_channel = deployment_channel(device)
 
     subscribe("device:#{device.id}")
     subscribe(deployment_channel)
@@ -608,12 +603,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp update_deployment_subscription(socket, device) do
-    deployment_channel =
-      if device.deployment_id do
-        "deployment:#{device.deployment_id}"
-      else
-        "deployment:none"
-      end
+    deployment_channel = deployment_channel(device)
 
     if deployment_channel != socket.assigns.deployment_channel do
       unsubscribe(socket.assigns.deployment_channel)
@@ -624,6 +614,14 @@ defmodule NervesHubWeb.DeviceChannel do
       assign(socket, :deployment_channel, deployment_channel)
     else
       socket
+    end
+  end
+
+  defp deployment_channel(device) do
+    if device.deployment_id do
+      "deployment:#{device.deployment_id}"
+    else
+      "deployment:none"
     end
   end
 
