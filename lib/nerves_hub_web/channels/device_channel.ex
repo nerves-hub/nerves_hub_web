@@ -39,13 +39,7 @@ defmodule NervesHubWeb.DeviceChannel do
       |> Repo.preload(:org)
       |> deployment_preload()
 
-    if params["fwup_public_keys"] == "on_connect" do
-      send_public_keys(device, socket, "fwup_public_keys")
-    end
-
-    if params["archive_public_keys"] == "on_connect" do
-      send_public_keys(device, socket, "archive_public_keys")
-    end
+    maybe_send_public_keys(device, socket, params)
 
     # clear out any inflight updates, there shouldn't be one at this point
     # we might make a new one right below it, so clear it beforehand
@@ -502,17 +496,21 @@ defmodule NervesHubWeb.DeviceChannel do
     Phoenix.PubSub.unsubscribe(NervesHub.PubSub, topic)
   end
 
-  defp send_public_keys(device, socket, key_type) do
-    org_keys = NervesHub.Accounts.list_org_keys(device.org)
-
-    push(socket, key_type, %{
-      keys: Enum.map(org_keys, fn ok -> ok.key end)
-    })
-  end
-
   defp device_internal_broadcast!(device, event, payload) do
     topic = "device:#{device.identifier}:internal"
     NervesHubWeb.DeviceEndpoint.broadcast_from!(self(), topic, event, payload)
+  end
+
+  defp maybe_send_public_keys(device, socket, params) do
+    Enum.each(["fwup_public_keys", "archive_public_keys"], fn key_type ->
+      if params[key_type] == "on_connect" do
+        org_keys = NervesHub.Accounts.list_org_keys(device.org)
+
+        push(socket, key_type, %{
+          keys: Enum.map(org_keys, fn ok -> ok.key end)
+        })
+      end
+    end)
   end
 
   defp cancel_deployment_timer(%{assigns: %{assign_deployment_timer: timer}}) do
