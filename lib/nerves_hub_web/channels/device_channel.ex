@@ -94,11 +94,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     case Registry.register(NervesHub.Devices.Registry, device.id, payload) do
       {:error, {:already_registered, _}} ->
-        if timer = socket.assigns[:registration_timer], do: Process.cancel_timer(timer)
-
-        timer = Process.send_after(self(), {:register, attempt + 1}, 500)
-
-        {:noreply, assign(socket, registration_timer: timer)}
+        {:noreply, retry_device_registration(socket, attempt)}
 
       _ ->
         {:noreply, assign(socket, :registered?, true)}
@@ -461,6 +457,12 @@ defmodule NervesHubWeb.DeviceChannel do
 
   defp assign_api_version(socket, params) do
     assign(socket, :device_api_version, Map.get(params, "device_api_version", "1.0.0"))
+  end
+
+  defp retry_device_registration(socket, attempt) do
+    if timer = socket.assigns[:registration_timer], do: Process.cancel_timer(timer)
+    timer = Process.send_after(self(), {:register, attempt + 1}, 500)
+    assign(socket, registration_timer: timer)
   end
 
   defp maybe_update_registry(socket, device, updates) do
