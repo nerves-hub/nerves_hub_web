@@ -144,7 +144,7 @@ defmodule NervesHub.Deployments do
 
     case result do
       {:ok, {deployment, changeset}} ->
-        broadcast_deployment_updates(deployment, changeset)
+        _ = broadcast_deployment_updates(deployment, changeset)
 
         {:ok, deployment}
 
@@ -177,14 +177,15 @@ defmodule NervesHub.Deployments do
   end
 
   defp recalculate_devices(%{recalculation_type: :calculator_queue} = deployment, changeset) do
-    if Enum.any?(
-         [:conditions, :is_active, :recalculation_type],
-         &Map.has_key?(changeset.changes, &1)
-       ) do
-      create_inflight_checks(deployment)
-    else
-      :ok
-    end
+    _ =
+      if Enum.any?(
+           [:conditions, :is_active, :recalculation_type],
+           &Map.has_key?(changeset.changes, &1)
+         ) do
+        create_inflight_checks(deployment)
+      end
+
+    :ok
   end
 
   # Default is to make connected devices perform the recalculation
@@ -264,23 +265,24 @@ defmodule NervesHub.Deployments do
 
     # Make sure relevant changed messages are broadcast for devices to
     # pickup and recalculate
-    cond do
-      conditions_changed? ->
-        # Conditions change needs attached and unattached devices to recalculate
-        _ = broadcast(deployment, "deployments/changed", payload)
-        broadcast(:none, "deployments/changed", payload)
+    _ =
+      cond do
+        conditions_changed? ->
+          # Conditions change needs attached and unattached devices to recalculate
+          _ = broadcast(deployment, "deployments/changed", payload)
+          broadcast(:none, "deployments/changed", payload)
 
-      activated? ->
-        # Now changed to active, so tell the none deployment devices
-        broadcast(:none, "deployments/changed", payload)
+        activated? ->
+          # Now changed to active, so tell the none deployment devices
+          broadcast(:none, "deployments/changed", payload)
 
-      deactivated? ->
-        # Tell the attached devices to recalculate
-        broadcast(deployment, "deployments/changed", payload)
+        deactivated? ->
+          # Tell the attached devices to recalculate
+          broadcast(deployment, "deployments/changed", payload)
 
-      true ->
-        :no_broadcast
-    end
+        true ->
+          :no_broadcast
+      end
 
     broadcast(deployment, "deployments/update")
   end
