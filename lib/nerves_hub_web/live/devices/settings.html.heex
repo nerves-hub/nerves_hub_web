@@ -72,7 +72,7 @@
       <span class="action-text">Cancel Upload</span>
     </button>
   <% else %>
-    <button class="btn btn-outline-light btn-action" type="button" phx-click="toggle-upload" phx-value-toggle={to_string(@toggle_upload)}>
+    <button id="toggle-certificate-upload" class="btn btn-outline-light btn-action" type="button" phx-click="toggle-upload" phx-value-toggle={to_string(@toggle_upload)}>
       <div class="button-icon add"></div>
     </button>
   <% end %>

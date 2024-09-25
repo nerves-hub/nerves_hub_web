@@ -33,6 +33,8 @@ config :nerves_hub,
     String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10")),
   device_last_seen_update_interval_minutes:
     String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_MINUTES", "5")),
+  deployment_calculator_interval_seconds:
+    String.to_integer(System.get_env("DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS", "3600")),
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
   dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true"
 
@@ -355,7 +357,15 @@ if System.get_env("SENTRY_DSN_URL") do
     environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
     enable_source_code_context: true,
     root_source_code_path: [File.cwd!()],
-    before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500}
+    before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
+    integrations: [
+      oban: [
+        # Capture errors:
+        capture_errors: true,
+        # Monitor cron jobs:
+        cron: [enabled: true]
+      ]
+    ]
 end
 
 config :nerves_hub, :statsd,

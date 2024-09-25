@@ -30,4 +30,48 @@ defmodule NervesHubWeb.Live.Devices.SettingsTest do
       assert device.connecting_code == "dbg(\"boo\")"
     end
   end
+
+  describe "device certificates" do
+    test "can upload certificate", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+      # Device has 1 certificate as default
+      |> assert_has(".item", count: 1)
+      |> click_button("#toggle-certificate-upload", "")
+      |> unwrap(fn view ->
+        file_input(view, ".import-pem", :certificate, [
+          %{
+            name: "device-test-cert.pem",
+            content: File.read!("test/fixtures/ssl/device-test-cert.pem")
+          }
+        ])
+        |> render_upload("device-test-cert.pem")
+
+        render(view)
+      end)
+      |> assert_has("div", text: "Certificate Upload Successful")
+      |> assert_path("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+      |> assert_has(".item", count: 2)
+    end
+
+    test "can delete certificate", %{conn: conn, org: org, product: product, device: device} do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+      # Device has 1 certificate as default
+      |> assert_has(".item", count: 1)
+      |> click_link("Delete")
+      |> refute_has(".item")
+    end
+
+    test "can download certificate", %{conn: conn, org: org, product: product, device: device} do
+      result =
+        conn
+        |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settings")
+        # Device has 1 certificate as default
+        |> assert_has(".item", count: 1)
+        |> click_link("Download")
+
+      assert result.conn.resp_body =~ "-----BEGIN CERTIFICATE-----"
+    end
+  end
 end

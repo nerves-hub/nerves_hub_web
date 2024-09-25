@@ -95,7 +95,7 @@ defmodule NervesHub.Metrics do
   end
 
   def dispatch_device_count() do
-    device_count = Registry.count(NervesHub.Devices)
+    device_count = Registry.count(NervesHub.Devices.Registry)
     :telemetry.execute([:nerves_hub, :devices, :online], %{count: device_count}, %{node: node()})
   end
 end
@@ -179,7 +179,7 @@ defmodule NervesHub.DeviceReporter do
     Logger.info("Device duplicate connection detected",
       event: "nerves_hub.devices.duplicate_connection",
       ref_id: metadata[:ref_id],
-      identifier: metadata[:device][:identifier]
+      identifier: metadata[:device].identifier
     )
   end
 

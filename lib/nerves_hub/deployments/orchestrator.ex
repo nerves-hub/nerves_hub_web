@@ -65,7 +65,7 @@ defmodule NervesHub.Deployments.Orchestrator do
     }
 
     devices =
-      Registry.select(NervesHub.Devices, [
+      Registry.select(NervesHub.Devices.Registry, [
         {{:_, :_, :"$1"}, match_conditions, [match_return]}
       ])
 
