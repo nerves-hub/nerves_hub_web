@@ -346,14 +346,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("fwup_progress", %{"value" => percent}, %{assigns: %{device: device}} = socket) do
-    NervesHubWeb.DeviceEndpoint.broadcast_from!(
-      self(),
-      "device:#{device.identifier}:internal",
-      "fwup_progress",
-      %{
-        percent: percent
-      }
-    )
+    device_internal_broadcast!(device, "fwup_progress", %{percent: percent})
 
     # if this is the first fwup we see, then mark it as an update attempt
     if socket.assigns[:update_started?] do
@@ -382,12 +375,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     {:ok, device} = Devices.update_device(device, %{connection_metadata: metadata})
 
-    _ =
-      NervesHubWeb.DeviceEndpoint.broadcast(
-        "device:#{device.identifier}:internal",
-        "location:updated",
-        location
-      )
+    device_internal_broadcast!(device, "location:updated", location)
 
     {:reply, :ok, assign(socket, :device, device)}
   end
@@ -450,12 +438,7 @@ defmodule NervesHubWeb.DeviceChannel do
            {:health_report, Devices.save_device_health(device_health)},
          {:metrics_report, {:ok, _}} <-
            {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
-      NervesHubWeb.DeviceEndpoint.broadcast_from!(
-        self(),
-        "device:#{socket.assigns.device.identifier}:internal",
-        "health_check_report",
-        %{}
-      )
+      device_internal_broadcast!(socket.assigns.device, "health_check_report", %{})
     else
       {:health_report, {:error, err}} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
@@ -525,6 +508,11 @@ defmodule NervesHubWeb.DeviceChannel do
     push(socket, key_type, %{
       keys: Enum.map(org_keys, fn ok -> ok.key end)
     })
+  end
+
+  defp device_internal_broadcast!(device, event, payload) do
+    topic = "device:#{device.identifier}:internal"
+    NervesHubWeb.DeviceEndpoint.broadcast_from!(self(), topic, event, payload)
   end
 
   defp cancel_deployment_timer(%{assigns: %{assign_deployment_timer: timer}}) do
