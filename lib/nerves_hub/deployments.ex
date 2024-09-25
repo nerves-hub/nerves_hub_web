@@ -26,6 +26,24 @@ defmodule NervesHub.Deployments do
     |> Repo.all()
   end
 
+  @spec get_deployment_device_counts_by_product(integer()) :: %{integer() => integer()}
+  def get_deployment_device_counts_by_product(product_id) do
+    Device
+    |> select([d], {d.deployment_id, count(d.id)})
+    |> where([d], d.product_id == ^product_id)
+    |> group_by([d], d.id)
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @spec get_deployment_device_count(integer()) :: %{integer() => integer()}
+  def get_deployment_device_count(deployment_id) do
+    Device
+    |> select([d], count(d.id))
+    |> where([d], d.deployment_id == ^deployment_id)
+    |> Repo.one()
+  end
+
   @spec get_deployments_by_firmware(integer()) :: [Deployment.t()]
   def get_deployments_by_firmware(firmware_id) do
     from(d in Deployment, where: d.firmware_id == ^firmware_id)
@@ -328,6 +346,11 @@ defmodule NervesHub.Deployments do
     :ok
   end
 
+  @spec change_deployment(Deployment.t(), map()) :: Changeset.t()
+  def change_deployment(deployment, params) do
+    Deployment.changeset(deployment, params)
+  end
+
   @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def create_deployment(params) do
     changeset = Deployment.creation_changeset(%Deployment{}, params)
@@ -403,6 +426,21 @@ defmodule NervesHub.Deployments do
         end
       end
     )
+  end
+
+  @doc """
+  Find all potential devices for a deployment
+
+  Based on the product, firmware platform, firmware architecture, and device tags
+  """
+  def estimate_devices_matched_by_conditions(product_id, platform, conditions) do
+    Device
+    |> where([dev], dev.product_id == ^product_id)
+    |> where([dev], fragment("d0.firmware_metadata ->> 'platform'") == ^platform)
+    |> where([dev], fragment("?::jsonb->'tags' <@ to_jsonb(?::text[])", ^conditions, dev.tags))
+    |> Repo.all()
+    |> Enum.filter(&version_match?(&1, %{conditions: conditions}))
+    |> Enum.count()
   end
 
   @doc """
