@@ -119,7 +119,6 @@ defmodule NervesHub.Metrics.Reporters do
 
   def handle_continue(:initialize, state) do
     reporters = [
-      NervesHub.EctoReporter,
       NervesHub.DeviceReporter,
       NervesHub.NodeReporter
     ]
@@ -129,29 +128,6 @@ defmodule NervesHub.Metrics.Reporters do
     end)
 
     {:noreply, state}
-  end
-end
-
-defmodule NervesHub.EctoReporter do
-  require Logger
-
-  def events() do
-    [
-      [:nerves_hub, :repo, :query]
-    ]
-  end
-
-  def handle_event([:nerves_hub, :repo, :query], %{queue_time: queue_time}, _, _) do
-    queue_time = :erlang.convert_time_unit(queue_time, :native, :millisecond)
-
-    if queue_time > 500 do
-      Logger.warning("[Ecto] Queuing is at #{queue_time}ms")
-    end
-  end
-
-  # No queue time
-  def handle_event([:nerves_hub, :repo, :query], _, _, _) do
-    :ok
   end
 end
 

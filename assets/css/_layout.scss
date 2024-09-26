@@ -375,6 +375,21 @@ html {
     }
   }
 
+  .x5-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    grid-column-gap: 2rem;
+    grid-row-gap: 2rem;
+
+    @media (max-width: 860px) {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .x2-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -412,4 +427,3 @@ html {
     grid-row: 2;
   }
 }
-

@@ -26,6 +26,24 @@ defmodule NervesHub.Deployments do
     |> Repo.all()
   end
 
+  @spec get_deployment_device_counts_by_product(integer()) :: %{integer() => integer()}
+  def get_deployment_device_counts_by_product(product_id) do
+    Device
+    |> select([d], {d.deployment_id, count(d.id)})
+    |> where([d], d.product_id == ^product_id)
+    |> group_by([d], d.id)
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @spec get_deployment_device_count(integer()) :: %{integer() => integer()}
+  def get_deployment_device_count(deployment_id) do
+    Device
+    |> select([d], count(d.id))
+    |> where([d], d.deployment_id == ^deployment_id)
+    |> Repo.one()
+  end
+
   @spec get_deployments_by_firmware(integer()) :: [Deployment.t()]
   def get_deployments_by_firmware(firmware_id) do
     from(d in Deployment, where: d.firmware_id == ^firmware_id)
@@ -177,14 +195,15 @@ defmodule NervesHub.Deployments do
   end
 
   defp recalculate_devices(%{recalculation_type: :calculator_queue} = deployment, changeset) do
-    if Enum.any?(
-         [:conditions, :is_active, :recalculation_type],
-         &Map.has_key?(changeset.changes, &1)
-       ) do
-      create_inflight_checks(deployment)
-    else
-      :ok
-    end
+    _ =
+      if Enum.any?(
+           [:conditions, :is_active, :recalculation_type],
+           &Map.has_key?(changeset.changes, &1)
+         ) do
+        create_inflight_checks(deployment)
+      end
+
+    :ok
   end
 
   # Default is to make connected devices perform the recalculation
@@ -243,7 +262,7 @@ defmodule NervesHub.Deployments do
 
   defp broadcast_deployment_updates(%{recalculation_type: :calculator_queue} = deployment, _) do
     # Inform those who care that the deployment updated
-    broadcast(deployment, "deployments/update")
+    :ok = broadcast(deployment, "deployments/update")
   end
 
   defp broadcast_deployment_updates(deployment, changeset) do
@@ -267,22 +286,23 @@ defmodule NervesHub.Deployments do
     cond do
       conditions_changed? ->
         # Conditions change needs attached and unattached devices to recalculate
-        _ = broadcast(deployment, "deployments/changed", payload)
-        broadcast(:none, "deployments/changed", payload)
+        :ok = broadcast(deployment, "deployments/changed", payload)
+        :ok = broadcast(:none, "deployments/changed", payload)
 
       activated? ->
         # Now changed to active, so tell the none deployment devices
-        broadcast(:none, "deployments/changed", payload)
+        :ok = broadcast(:none, "deployments/changed", payload)
 
       deactivated? ->
         # Tell the attached devices to recalculate
-        broadcast(deployment, "deployments/changed", payload)
+        :ok = broadcast(deployment, "deployments/changed", payload)
 
       true ->
-        :no_broadcast
+        # no broadcast required
+        :ok
     end
 
-    broadcast(deployment, "deployments/update")
+    :ok = broadcast(deployment, "deployments/update")
   end
 
   @doc """
@@ -326,6 +346,11 @@ defmodule NervesHub.Deployments do
       |> Repo.delete_all()
 
     :ok
+  end
+
+  @spec change_deployment(Deployment.t(), map()) :: Changeset.t()
+  def change_deployment(deployment, params) do
+    Deployment.changeset(deployment, params)
   end
 
   @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
@@ -403,6 +428,21 @@ defmodule NervesHub.Deployments do
         end
       end
     )
+  end
+
+  @doc """
+  Find all potential devices for a deployment
+
+  Based on the product, firmware platform, firmware architecture, and device tags
+  """
+  def estimate_devices_matched_by_conditions(product_id, platform, conditions) do
+    Device
+    |> where([dev], dev.product_id == ^product_id)
+    |> where([dev], fragment("d0.firmware_metadata ->> 'platform'") == ^platform)
+    |> where([dev], fragment("?::jsonb->'tags' <@ to_jsonb(?::text[])", ^conditions, dev.tags))
+    |> Repo.all()
+    |> Enum.filter(&version_match?(&1, %{conditions: conditions}))
+    |> Enum.count()
   end
 
   @doc """

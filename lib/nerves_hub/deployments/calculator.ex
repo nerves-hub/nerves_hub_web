@@ -64,11 +64,12 @@ defmodule NervesHub.Deployments.Calculator do
         :ok
 
       {:ok, device} ->
-        Phoenix.PubSub.broadcast(
-          NervesHub.PubSub,
-          "device:#{device.id}",
-          %Phoenix.Socket.Broadcast{event: "devices/updated"}
-        )
+        :ok =
+          Phoenix.PubSub.broadcast(
+            NervesHub.PubSub,
+            "device:#{device.id}",
+            %Phoenix.Socket.Broadcast{event: "devices/updated"}
+          )
 
         :ok
     end
@@ -85,7 +86,7 @@ defmodule NervesHub.Deployments.Calculator do
   def handle_continue(:boot, deployment) do
     send(self(), :process_next_device)
 
-    PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+    :ok = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
     deployment = Repo.preload(deployment, [:firmware])
 
@@ -122,7 +123,8 @@ defmodule NervesHub.Deployments.Calculator do
     Logger.info("[InflightDeploymentCheck] reloaded deployment")
 
     if state.process_timer_ref do
-      Process.cancel_timer(state.process_timer_ref)
+      _ = Process.cancel_timer(state.process_timer_ref)
+      :ok
     end
 
     send(self(), :process_next_device)
