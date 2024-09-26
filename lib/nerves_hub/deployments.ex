@@ -144,7 +144,7 @@ defmodule NervesHub.Deployments do
 
     case result do
       {:ok, {deployment, changeset}} ->
-        _ = broadcast_deployment_updates(deployment, changeset)
+        broadcast_deployment_updates(deployment, changeset)
 
         {:ok, deployment}
 
@@ -244,7 +244,7 @@ defmodule NervesHub.Deployments do
 
   defp broadcast_deployment_updates(%{recalculation_type: :calculator_queue} = deployment, _) do
     # Inform those who care that the deployment updated
-    broadcast(deployment, "deployments/update")
+    :ok = broadcast(deployment, "deployments/update")
   end
 
   defp broadcast_deployment_updates(deployment, changeset) do
@@ -265,26 +265,26 @@ defmodule NervesHub.Deployments do
 
     # Make sure relevant changed messages are broadcast for devices to
     # pickup and recalculate
-    _ =
-      cond do
-        conditions_changed? ->
-          # Conditions change needs attached and unattached devices to recalculate
-          _ = broadcast(deployment, "deployments/changed", payload)
-          broadcast(:none, "deployments/changed", payload)
+    cond do
+      conditions_changed? ->
+        # Conditions change needs attached and unattached devices to recalculate
+        :ok = broadcast(deployment, "deployments/changed", payload)
+        :ok = broadcast(:none, "deployments/changed", payload)
 
-        activated? ->
-          # Now changed to active, so tell the none deployment devices
-          broadcast(:none, "deployments/changed", payload)
+      activated? ->
+        # Now changed to active, so tell the none deployment devices
+        :ok = broadcast(:none, "deployments/changed", payload)
 
-        deactivated? ->
-          # Tell the attached devices to recalculate
-          broadcast(deployment, "deployments/changed", payload)
+      deactivated? ->
+        # Tell the attached devices to recalculate
+        :ok = broadcast(deployment, "deployments/changed", payload)
 
-        true ->
-          :no_broadcast
-      end
+      true ->
+        # no broadcast required
+        :ok
+    end
 
-    broadcast(deployment, "deployments/update")
+    :ok = broadcast(deployment, "deployments/update")
   end
 
   @doc """

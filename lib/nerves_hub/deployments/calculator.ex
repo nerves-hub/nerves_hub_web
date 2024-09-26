@@ -64,7 +64,7 @@ defmodule NervesHub.Deployments.Calculator do
         :ok
 
       {:ok, device} ->
-        _ =
+        :ok =
           Phoenix.PubSub.broadcast(
             NervesHub.PubSub,
             "device:#{device.id}",
