@@ -136,6 +136,8 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
         type = if is_binary(type), do: type, else: Atom.to_string(type)
         push_event(socket, "update-charts", %{type: type, data: data})
       end)
+
+      socket
     end
   end
 
