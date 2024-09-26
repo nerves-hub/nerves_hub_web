@@ -195,14 +195,15 @@ defmodule NervesHub.Deployments do
   end
 
   defp recalculate_devices(%{recalculation_type: :calculator_queue} = deployment, changeset) do
-    if Enum.any?(
-         [:conditions, :is_active, :recalculation_type],
-         &Map.has_key?(changeset.changes, &1)
-       ) do
-      create_inflight_checks(deployment)
-    else
-      :ok
-    end
+    _ =
+      if Enum.any?(
+           [:conditions, :is_active, :recalculation_type],
+           &Map.has_key?(changeset.changes, &1)
+         ) do
+        create_inflight_checks(deployment)
+      end
+
+    :ok
   end
 
   # Default is to make connected devices perform the recalculation
@@ -261,7 +262,7 @@ defmodule NervesHub.Deployments do
 
   defp broadcast_deployment_updates(%{recalculation_type: :calculator_queue} = deployment, _) do
     # Inform those who care that the deployment updated
-    broadcast(deployment, "deployments/update")
+    :ok = broadcast(deployment, "deployments/update")
   end
 
   defp broadcast_deployment_updates(deployment, changeset) do
@@ -285,22 +286,23 @@ defmodule NervesHub.Deployments do
     cond do
       conditions_changed? ->
         # Conditions change needs attached and unattached devices to recalculate
-        _ = broadcast(deployment, "deployments/changed", payload)
-        broadcast(:none, "deployments/changed", payload)
+        :ok = broadcast(deployment, "deployments/changed", payload)
+        :ok = broadcast(:none, "deployments/changed", payload)
 
       activated? ->
         # Now changed to active, so tell the none deployment devices
-        broadcast(:none, "deployments/changed", payload)
+        :ok = broadcast(:none, "deployments/changed", payload)
 
       deactivated? ->
         # Tell the attached devices to recalculate
-        broadcast(deployment, "deployments/changed", payload)
+        :ok = broadcast(deployment, "deployments/changed", payload)
 
       true ->
-        :no_broadcast
+        # no broadcast required
+        :ok
     end
 
-    broadcast(deployment, "deployments/update")
+    :ok = broadcast(deployment, "deployments/update")
   end
 
   @doc """
