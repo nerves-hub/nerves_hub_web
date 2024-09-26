@@ -122,10 +122,10 @@ defmodule NervesHub.Deployments.Calculator do
 
     Logger.info("[InflightDeploymentCheck] reloaded deployment")
 
-    _ =
-      if state.process_timer_ref do
-        Process.cancel_timer(state.process_timer_ref)
-      end
+    if state.process_timer_ref do
+      _ = Process.cancel_timer(state.process_timer_ref)
+      :ok
+    end
 
     send(self(), :process_next_device)
 
