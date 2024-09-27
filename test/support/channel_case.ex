@@ -35,6 +35,9 @@ defmodule NervesHubWeb.ChannelCase do
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(NervesHub.Repo, shared: not tags[:async])
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
 
+    # This extra sleep fixes Ecto ownership errors in the logs
+    on_exit(fn -> Process.sleep(10) end)
+
     :ok
   end
 end
