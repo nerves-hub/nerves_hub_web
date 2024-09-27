@@ -141,6 +141,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("h1", text: "Firmware")
     end
 
+    @tag capture_log: true
     test "error if corrupt firmware uploaded", %{
       conn: conn,
       user: user,
@@ -176,6 +177,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("div", text: "Firmware corrupt, signature invalid, or missing public key")
     end
 
+    @tag capture_log: true
     test "error if org keys do not match firmware", %{
       conn: conn,
       user: user,
@@ -210,6 +212,7 @@ defmodule NervesHubWeb.Live.FirmwareTest do
       |> assert_has("div", text: "Firmware corrupt, signature invalid, or missing public key")
     end
 
+    @tag capture_log: true
     test "error if meta-product does not match product name", %{
       conn: conn,
       user: user,

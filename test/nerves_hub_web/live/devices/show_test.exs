@@ -44,6 +44,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert after_audit_count == before_audit_count + 1
     end
 
+    @tag capture_log: true
     test "reboot blocked", %{conn: conn, fixture: fixture} do
       Repo.preload(fixture.user, :org_users)
       |> Map.get(:org_users)

@@ -36,6 +36,7 @@ defmodule NervesHub.FirmwaresTest do
   end
 
   describe "create_firmware/2" do
+    @tag capture_log: true
     test "remote creation failure triggers transaction rollback", %{
       org: org,
       org_key: org_key,
@@ -50,6 +51,7 @@ defmodule NervesHub.FirmwaresTest do
       assert ^firmwares = Firmwares.get_firmwares_by_product(product.id)
     end
 
+    @tag capture_log: true
     test "enforces uuid uniqueness within a product",
          %{firmware: %{upload_metadata: %{local_path: filepath}}, org: org} do
       assert {:error, %Ecto.Changeset{errors: [uuid: {"has already been taken", [_ | _]}]}} =
@@ -287,6 +289,7 @@ defmodule NervesHub.FirmwaresTest do
                Firmwares.get_firmware_delta_by_source_and_target(source, target)
     end
 
+    @tag capture_log: true
     test "new firmware delta is not created if there is an error", %{
       firmware: source,
       org_key: org_key,
