@@ -119,8 +119,7 @@ defmodule NervesHub.Metrics.Reporters do
 
   def handle_continue(:initialize, state) do
     reporters = [
-      NervesHub.DeviceReporter,
-      NervesHub.NodeReporter
+      NervesHub.DeviceReporter
     ]
 
     Enum.each(reporters, fn reporter ->
@@ -182,25 +181,5 @@ defmodule NervesHub.DeviceReporter do
       identifier: metadata[:identifier],
       firmware_uuid: metadata[:firmware_uuid]
     )
-  end
-end
-
-defmodule NervesHub.NodeReporter do
-  @moduledoc """
-  Report on node events
-  """
-
-  require Logger
-
-  def events() do
-    [
-      [:nerves_hub, :nodes]
-    ]
-  end
-
-  def handle_event([:nerves_hub, :nodes], %{count: count}, %{nodes: nodes}, _) do
-    if Application.get_env(:nerves_hub, NodeReporter)[:enabled] do
-      Logger.info("Node count: #{count}; Node list: #{inspect(nodes)}")
-    end
   end
 end
