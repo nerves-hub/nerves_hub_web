@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> assign(:shared_secrets, product.shared_secret_auths)
       |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
       |> assign(:form, to_form(Ecto.Changeset.change(product)))
+      |> assign(:show_shared_secret, nil)
 
     {:ok, socket}
   end
@@ -35,6 +36,12 @@ defmodule NervesHubWeb.Live.Product.Settings do
     socket
     |> assign(:shared_secrets, refreshed.shared_secret_auths)
     |> push_event("sharedsecret:created", %{})
+    |> noreply()
+  end
+
+  def handle_event("show-secret", %{"auth" => auth_id}, socket) do
+    socket
+    |> assign(:show_shared_secret, auth_id)
     |> noreply()
   end
 

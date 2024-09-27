@@ -96,10 +96,17 @@
         <span class="deactivated"><%= if auth.deactivated_at, do: Date.to_string(auth.deactivated_at) %></span>
       </td>
       <td>
-        <input type="hidden" id={"shared-secret-#{auth.id}"} value={auth.secret} />
-        <button class="btn btn-secondary sharedsecret-clipcopy" value={auth.id} id={"shared-secret-#{auth.id}-button"} phx-hook="SharedSecretClipboardClick">
-          Copy Secret
-        </button>
+        <%= if @show_shared_secret == to_string(auth.id) do %>
+          <%= auth.secret %>
+        <% else %>
+          <input type="hidden" id={"shared-secret-#{auth.id}"} value={auth.secret} />
+          <button class="btn btn-secondary sharedsecret-clipcopy" value={auth.id} id={"shared-secret-#{auth.id}-button"} phx-hook="SharedSecretClipboardClick">
+            Copy Secret
+          </button>
+          <button class="btn btn-secondary sharedsecret-clipcopy" phx-value-auth={auth.id} id={"shared-secret-#{auth.id}-show"} phx-click="show-secret">
+            Show Secret
+          </button>
+        <% end %>
       </td>
       <td>
         <button
