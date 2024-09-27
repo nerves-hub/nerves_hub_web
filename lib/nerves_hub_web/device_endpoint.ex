@@ -1,6 +1,6 @@
 defmodule NervesHubWeb.DeviceEndpoint do
-  use Phoenix.Endpoint, otp_app: :nerves_hub
   use Sentry.PlugCapture
+  use Phoenix.Endpoint, otp_app: :nerves_hub
 
   alias NervesHub.Helpers.WebsocketConnectionError
 

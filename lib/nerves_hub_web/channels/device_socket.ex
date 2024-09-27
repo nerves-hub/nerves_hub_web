@@ -177,7 +177,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defp socket_and_assigns(socket, device) do
     # disconnect devices using the same identifier
-    _ = NervesHubWeb.DeviceEndpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
+    _ = socket.endpoint.broadcast_from(self(), "device_socket:#{device.id}", "disconnect", %{})
 
     socket =
       socket

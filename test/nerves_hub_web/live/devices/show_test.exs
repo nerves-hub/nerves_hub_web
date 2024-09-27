@@ -334,10 +334,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> refute_has("span", text: "Update avaiable")
+      |> refute_has("span", text: "Update available")
     end
 
-    test "vailable update exists", %{
+    test "available update exists", %{
       conn: conn,
       org: org,
       product: product,
@@ -362,7 +362,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("span", text: "Update avaiable")
+      |> assert_has("span", text: "Update available")
       |> click_button("Send available update")
       |> assert_has("div", text: "Pushing available firmware update")
 
