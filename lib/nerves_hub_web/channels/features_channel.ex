@@ -3,12 +3,13 @@ defmodule NervesHubWeb.FeaturesChannel do
 
   alias Phoenix.Socket.Broadcast
   alias NervesHub.Devices
+  alias NervesHub.Features
 
   @impl Phoenix.Channel
   def join("features", payload, socket) do
     attach_list =
       for {feature, ver} <- payload, into: %{} do
-        {feature, allowed?(feature, ver)}
+        {feature, allowed?(socket.assigns.device, feature, ver)}
       end
 
     topic = "device:#{socket.assigns.device.id}:features"
@@ -17,9 +18,8 @@ defmodule NervesHubWeb.FeaturesChannel do
     {:ok, attach_list, socket}
   end
 
-  defp allowed?(_feature, _ver) do
-    # TODO: Some conditions for allow/disallow feature
-    true
+  defp allowed?(device, feature, version) do
+    Features.enable_feature?(device, feature, version)
   end
 
   @impl Phoenix.Channel

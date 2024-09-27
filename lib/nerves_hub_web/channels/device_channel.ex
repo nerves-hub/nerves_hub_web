@@ -15,6 +15,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Features
   alias NervesHub.Firmwares
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
@@ -57,8 +58,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     send(self(), :device_registation)
 
-    # device.allow_features?
-    if true do
+    if Features.device_can_use_features?(device) do
       push(socket, "features:get", %{})
     end
 
