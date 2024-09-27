@@ -358,6 +358,9 @@ if System.get_env("SENTRY_DSN_URL") do
     enable_source_code_context: true,
     root_source_code_path: [File.cwd!()],
     before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
+    tags: %{
+      app: nerves_hub_app
+    },
     integrations: [
       oban: [
         # Capture errors:
