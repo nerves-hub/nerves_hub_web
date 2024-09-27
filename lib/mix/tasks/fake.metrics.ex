@@ -1,5 +1,5 @@
 if Mix.env() == :dev do
-  defmodule Mix.Tasks.FakeMetrics do
+  defmodule Mix.Tasks.Fake.Metrics do
     use Mix.Task
 
     alias NervesHub.Repo
