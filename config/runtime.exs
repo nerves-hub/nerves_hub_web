@@ -369,6 +369,11 @@ if System.get_env("SENTRY_DSN_URL") do
         cron: [enabled: true]
       ]
     ]
+
+  if revision = System.get_env("APP_REVISION") do
+    config :sentry,
+      release: revision
+  end
 end
 
 config :nerves_hub, :statsd,

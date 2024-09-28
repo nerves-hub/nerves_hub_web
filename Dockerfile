@@ -7,12 +7,14 @@ ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-$
 ARG RUNNER_IMAGE="ubuntu:${DISTRO}"
 ARG DEBIAN_FRONTEND=noninteractive
 
+ARG APP_REVISION=dev
 
 ###
 ### First Stage - Fetch deps for building web assets
 ###
 FROM ${BUILDER_IMAGE} as deps
 
+ARG APP_REVISION
 ENV MIX_ENV=prod
 
 RUN apt-get update && apt-get install -y git
@@ -28,6 +30,8 @@ RUN mix deps.get --only $MIX_ENV
 ### Second Stage - Build web assets
 ###
 FROM node:${NODE_VERSION} as assets
+
+ARG APP_REVISION
 
 RUN mkdir -p /priv/static
 
@@ -46,6 +50,8 @@ RUN npm ci && npm cache clean --force && npm run deploy
 ### Third Stage - Building the Release
 ###
 FROM ${BUILDER_IMAGE} as build
+
+ARG APP_REVISION
 
 # install dependencies
 RUN apt-get update -y && apt-get install -y build-essential git ca-certificates curl gnupg \
@@ -97,6 +103,8 @@ RUN mix release
 
 FROM ${RUNNER_IMAGE} AS app
 
+ARG APP_REVISION
+
 RUN apt-get update -y \
     && apt-get install -y libstdc++6 openssl libncurses6 locales bash openssl curl python3 python3-pip jq xdelta3 zip unzip wget \
     && wget https://github.com/fwup-home/fwup/releases/download/v1.10.1/fwup_1.10.1_amd64.deb \
@@ -118,6 +126,7 @@ ENV HOME=/app
 ENV MIX_ENV=prod
 ENV SECRET_KEY_BASE=nokey
 ENV PORT=4000
+ENV APP_REVISION=${APP_REVISION}
 
 ENTRYPOINT ["bin/nerves_hub"]
 CMD ["start"]
