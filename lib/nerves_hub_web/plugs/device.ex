@@ -11,7 +11,7 @@ defmodule NervesHubWeb.Plugs.Device do
         %{params: %{"identifier" => device_identifier}, assigns: %{org: org}} = conn,
         _opts
       ) do
-    case Devices.get_device_by_identifier(org, device_identifier) do
+    case Devices.get_device_by_identifier(org, device_identifier, :device_certificates) do
       {:ok, device} ->
         assign(conn, :device, device)
 

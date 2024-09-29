@@ -20,6 +20,7 @@ defmodule NervesHub.Metrics do
          # NervesHub
          counter("nerves_hub.devices.connect.count", tags: [:env, :service]),
          counter("nerves_hub.devices.disconnect.count", tags: [:env, :service]),
+         counter("nerves_hub.devices.duplicate_connection", tags: [:env, :service]),
          counter("nerves_hub.devices.deployment.changed.count", tags: [:env, :service]),
          counter("nerves_hub.devices.deployment.update.manual.count", tags: [:env, :service]),
          counter("nerves_hub.devices.deployment.update.automatic.count", tags: [:env, :service]),
@@ -94,7 +95,7 @@ defmodule NervesHub.Metrics do
   end
 
   def dispatch_device_count() do
-    device_count = Registry.count(NervesHub.Devices)
+    device_count = Registry.count(NervesHub.Devices.Registry)
     :telemetry.execute([:nerves_hub, :devices, :online], %{count: device_count}, %{node: node()})
   end
 end
@@ -118,9 +119,7 @@ defmodule NervesHub.Metrics.Reporters do
 
   def handle_continue(:initialize, state) do
     reporters = [
-      NervesHub.EctoReporter,
-      NervesHub.DeviceReporter,
-      NervesHub.NodeReporter
+      NervesHub.DeviceReporter
     ]
 
     Enum.each(reporters, fn reporter ->
@@ -131,29 +130,6 @@ defmodule NervesHub.Metrics.Reporters do
   end
 end
 
-defmodule NervesHub.EctoReporter do
-  require Logger
-
-  def events() do
-    [
-      [:nerves_hub, :repo, :query]
-    ]
-  end
-
-  def handle_event([:nerves_hub, :repo, :query], %{queue_time: queue_time}, _, _) do
-    queue_time = :erlang.convert_time_unit(queue_time, :native, :millisecond)
-
-    if queue_time > 500 do
-      Logger.warning("[Ecto] Queuing is at #{queue_time}ms")
-    end
-  end
-
-  # No queue time
-  def handle_event([:nerves_hub, :repo, :query], _, _, _) do
-    :ok
-  end
-end
-
 defmodule NervesHub.DeviceReporter do
   require Logger
 
@@ -161,6 +137,7 @@ defmodule NervesHub.DeviceReporter do
     [
       [:nerves_hub, :devices, :connect],
       [:nerves_hub, :devices, :disconnect],
+      [:nerves_hub, :devices, :duplicate_connection],
       [:nerves_hub, :devices, :update, :automatic]
     ]
   end
@@ -170,6 +147,14 @@ defmodule NervesHub.DeviceReporter do
       event: "nerves_hub.devices.connect",
       identifier: metadata[:identifier],
       firmware_uuid: metadata[:firmware_uuid]
+    )
+  end
+
+  def handle_event([:nerves_hub, :devices, :duplicate_connection], _, metadata, _) do
+    Logger.info("Device duplicate connection detected",
+      event: "nerves_hub.devices.duplicate_connection",
+      ref_id: metadata[:ref_id],
+      identifier: metadata[:device].identifier
     )
   end
 
@@ -196,25 +181,5 @@ defmodule NervesHub.DeviceReporter do
       identifier: metadata[:identifier],
       firmware_uuid: metadata[:firmware_uuid]
     )
-  end
-end
-
-defmodule NervesHub.NodeReporter do
-  @moduledoc """
-  Report on node events
-  """
-
-  require Logger
-
-  def events() do
-    [
-      [:nerves_hub, :nodes]
-    ]
-  end
-
-  def handle_event([:nerves_hub, :nodes], %{count: count}, %{nodes: nodes}, _) do
-    if Application.get_env(:nerves_hub, NodeReporter)[:enabled] do
-      Logger.info("Node count: #{count}; Node list: #{inspect(nodes)}")
-    end
   end
 end

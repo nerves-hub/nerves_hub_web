@@ -109,30 +109,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
     assert_push("archive_public_keys", %{keys: [_]})
   end
 
-  test "update_available on connect" do
-    user = Fixtures.user_fixture()
-    {device, _firmware, deployment} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-
-    assert {:ok, device} = Devices.update_device(device, %{deployment_id: deployment.id})
-    assert device.updates_enabled
-
-    params =
-      for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
-        case k do
-          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
-          _ -> {"nerves_fw_#{k}", v}
-        end
-      end
-
-    {:ok, socket} =
-      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-    {:ok, %{}, _socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
-
-    assert_push("update", %{})
-  end
-
   test "devices can request available updates via check_update_available" do
     user = Fixtures.user_fixture()
     {device, _firmware, deployment} = device_fixture(user, %{identifier: "123"})
@@ -176,41 +152,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
     # _after_ the handle_in has run
     socket = :sys.get_state(socket.channel_pid)
     assert socket.assigns.update_started?
-  end
-
-  test "set connection status upon connection and disconnection" do
-    user = Fixtures.user_fixture()
-    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-
-    assert device.connection_status == :not_seen
-
-    {:ok, socket} =
-      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-    {:ok, _join_reply, socket} =
-      subscribe_and_join(socket, DeviceChannel, "device")
-
-    device = NervesHub.Repo.reload(device)
-
-    assert device.connection_status == :connected
-    assert recent_datetime(device.connection_established_at)
-    assert recent_datetime(device.connection_last_seen_at)
-    assert device.connection_disconnected_at == nil
-
-    Process.unlink(socket.channel_pid)
-    :ok = close(socket)
-
-    device = NervesHub.Repo.reload(device)
-
-    assert device.connection_status == :disconnected
-    assert recent_datetime(device.connection_established_at)
-    assert recent_datetime(device.connection_last_seen_at)
-    assert recent_datetime(device.connection_disconnected_at)
-  end
-
-  defp recent_datetime(datetime) do
-    DateTime.diff(DateTime.utc_now(), datetime, :second) <= 5
   end
 
   test "set connection types for the device" do
@@ -264,7 +205,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     device_beta =
       Fixtures.device_fixture(org, product, firmware, %{
         tags: ["beta"],
-        identifier: "123"
+        identifier: "234"
       })
 
     %{db_cert: alpha_certificate, cert: _cert} =

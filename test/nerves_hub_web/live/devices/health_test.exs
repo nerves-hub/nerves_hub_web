@@ -18,10 +18,10 @@ defmodule NervesHubWeb.Devices.HealthTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
     |> assert_has("h1", text: "Device Health")
-    |> assert_has(".metrics-text", text: "No data for selected period")
+    |> assert_has("p", text: "No data for selected period")
   end
 
-  test "Assert svg is rendered when metrics data exists", %{
+  test "Assert canvas is rendered when metrics data exists", %{
     conn: conn,
     org: org,
     product: product,
@@ -41,6 +41,24 @@ defmodule NervesHubWeb.Devices.HealthTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
-    |> assert_has("svg")
+    # Five of the default metric types are shown as charts
+    |> assert_has("canvas", count: 5)
+  end
+
+  test "Custom metrics", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    assert {:ok, _} =
+             Metrics.save_metric(%{device_id: device.id, key: "custom_1", value: 12})
+
+    assert {:ok, _} =
+             Metrics.save_metric(%{device_id: device.id, key: "custom_2", value: 13})
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+    |> assert_has("canvas", count: 2)
   end
 end

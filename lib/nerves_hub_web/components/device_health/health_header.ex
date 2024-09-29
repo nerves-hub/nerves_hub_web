@@ -70,7 +70,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
           </span>
         </div>
         <p>
-          <span :if={!@latest_health}>Never</span>
+          <span :if={!@latest_health.timestamp}>Never</span>
           <time
             :if={@latest_health.timestamp}
             id="last-reported-at"
@@ -93,7 +93,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
       </div>
       <div>
         <div class="help-text mb-1">Platform</div>
-        <%= if is_nil(@device.firmware_metadata.platform) do %>
+        <%= if is_nil(@device.firmware_metadata) do %>
           <p>Unknown</p>
         <% else %>
           <p class="badge ff-m mt-0">

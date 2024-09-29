@@ -76,6 +76,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:target_product, nil)
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
+    |> assign(:total_entries, 0)
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
@@ -194,6 +195,19 @@ defmodule NervesHubWeb.Live.Devices.Index do
         selected_devices -- [id]
       else
         [id | selected_devices]
+      end
+
+    {:noreply, assign(socket, :selected_devices, selected_devices)}
+  end
+
+  def handle_event("select-all", _, socket) do
+    selected_devices = socket.assigns.selected_devices
+
+    selected_devices =
+      if Enum.count(selected_devices) > 0 do
+        []
+      else
+        Enum.map(socket.assigns.devices, & &1.id)
       end
 
     {:noreply, assign(socket, :selected_devices, selected_devices)}
@@ -378,6 +392,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(:devices, page.entries)
+    |> assign(:total_entries, page.total_entries)
     |> assign(:paginate_opts, paginate_opts)
   end
 

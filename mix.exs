@@ -4,7 +4,7 @@ defmodule NervesHub.MixProject do
   def project do
     [
       app: :nerves_hub,
-      version: "0.1.0",
+      version: "2.0.0",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
@@ -58,10 +58,10 @@ defmodule NervesHub.MixProject do
     [
       {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
       {:recon, "~> 2.5"},
+      {:assert_eventually, "~> 1.0.0", only: [:dev, :test]},
       {:bandit, "~> 1.0"},
       {:base62, "~> 1.2"},
       {:bcrypt_elixir, "~> 3.0"},
-      {:cachex, "~> 3.6"},
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 0.4.1"},
       {:comeonin, "~> 5.3"},
@@ -75,7 +75,7 @@ defmodule NervesHub.MixProject do
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
-      {:finch, "~> 0.18.0"},
+      {:finch, "~> 0.19.0"},
       {:floki, ">= 0.27.0", only: :test},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.24.0"},
@@ -99,7 +99,7 @@ defmodule NervesHub.MixProject do
       {:phoenix_test, "~> 0.3.0", only: :test, runtime: false},
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
-      {:scrivener_ecto, "~> 2.7"},
+      {:scrivener_ecto, "~> 3.0"},
       {:scrivener_html, git: "https://github.com/nerves-hub/scrivener_html", branch: "phx-1.5"},
       {:sentry, "~> 10.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},

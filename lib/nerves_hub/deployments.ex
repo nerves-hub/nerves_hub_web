@@ -5,6 +5,7 @@ defmodule NervesHub.Deployments do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -23,6 +24,24 @@ defmodule NervesHub.Deployments do
       preload: [{:firmware, :product}]
     )
     |> Repo.all()
+  end
+
+  @spec get_deployment_device_counts_by_product(integer()) :: %{integer() => integer()}
+  def get_deployment_device_counts_by_product(product_id) do
+    Device
+    |> select([d], {d.deployment_id, count(d.id)})
+    |> where([d], d.product_id == ^product_id)
+    |> group_by([d], d.id)
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @spec get_deployment_device_count(integer()) :: %{integer() => integer()}
+  def get_deployment_device_count(deployment_id) do
+    Device
+    |> select([d], count(d.id))
+    |> where([d], d.deployment_id == ^deployment_id)
+    |> Repo.one()
   end
 
   @spec get_deployments_by_firmware(integer()) :: [Deployment.t()]
@@ -108,118 +127,230 @@ defmodule NervesHub.Deployments do
   @doc """
   Update a deployment
 
-  Updating a deployment is a big task. Devices will be notified of the change when:
-  - Firmware changes, all devices will be told of the new firmware to update
-  - Conditions change, all devices will have the deployment removed and told about the
-    change, any devices that don't have a deployment and are online will be told about
-    the conditions changing to check for a deployment again
-  - If now active, any devices without a deployment will be told to reevaluate
-  - If now inactive, devices will have the deployment removed and told about the change
+  - Records audit logs depending on changes
+  - May force a recalculation if conditions or active changed
   """
   @spec update_deployment(Deployment.t(), map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def update_deployment(deployment, params) do
-    device_count =
-      Device
-      |> select([d], count(d))
-      |> where([d], d.deployment_id == ^deployment.id)
-      |> Repo.one()
-
-    changeset =
-      deployment
-      |> Deployment.with_firmware()
-      |> Deployment.changeset(params)
-      |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
-
-    case Repo.update(changeset) do
-      {:ok, deployment} ->
-        deployment = Repo.preload(deployment, [:firmware], force: true)
-
-        payload = %{
-          id: deployment.id,
-          active: deployment.is_active,
-          product_id: deployment.product_id,
-          platform: deployment.firmware.platform,
-          architecture: deployment.firmware.architecture,
-          version: deployment.firmware.version,
-          conditions: deployment.conditions
-        }
-
-        # if the conditions changed, we should reset all devices and tell any connected
-        if Map.has_key?(changeset.changes, :conditions) do
+    result =
+      Repo.transaction(fn ->
+        device_count =
           Device
+          |> select([d], count(d))
           |> where([d], d.deployment_id == ^deployment.id)
-          |> Repo.update_all(set: [deployment_id: nil])
+          |> Repo.one()
 
-          if deployment.conditions["version"] in [nil, ""] and deployment.is_active do
-            # The version condition is the only one not done with the DB.
-            # This opens up a minor optimization to preemptively set matching
-            # devices to the new deployment all at once since the version
-            # condition can be skipped.
-            #
-            # This also helps with offline devices by potentially reducing the
-            # need to do the expensive deployment check on next connect which
-            # reduces the load when a lot of devices come online at once.
-            Device
-            |> where([d], d.product_id == ^deployment.product_id)
-            |> where(
-              [d],
-              fragment("?->>'platform' = ?", d.firmware_metadata, ^deployment.firmware.platform)
-            )
-            |> where(
-              [d],
-              fragment(
-                "?->>'architecture' = ?",
-                d.firmware_metadata,
-                ^deployment.firmware.architecture
-              )
-            )
-            |> where([d], fragment("? <@ ?", ^deployment.conditions["tags"], d.tags))
-            |> Repo.update_all(set: [deployment_id: deployment.id])
-          end
+        changeset =
+          deployment
+          |> Deployment.with_firmware()
+          |> Deployment.changeset(params)
+          |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
 
-          _ = broadcast(deployment, "deployments/changed", payload)
-          _ = broadcast(:none, "deployments/changed", payload)
+        case Repo.update(changeset) do
+          {:ok, deployment} ->
+            deployment = Repo.preload(deployment, [:firmware], force: true)
 
-          description = "deployment #{deployment.name} conditions changed and removed all devices"
-          AuditLogs.audit!(deployment, deployment, description)
+            audit_changes!(deployment, changeset)
+            recalculate_devices(deployment, changeset)
+
+            {deployment, changeset}
+
+          {:error, changeset} ->
+            Repo.rollback(changeset)
         end
+      end)
 
-        # Trigger the new archive to get downloaded by devices
-        if Map.has_key?(changeset.changes, :archive_id) do
-          payload = %{
-            archive_id: deployment.archive_id
-          }
-
-          _ = broadcast(deployment, "archives/updated", payload)
-
-          description = "deployment #{deployment.name} has a new archive"
-          AuditLogs.audit!(deployment, deployment, description)
-        end
-
-        # if is_active is false, wipe it out like above
-        # if its now true, tell the none deployment devices
-        if Map.has_key?(changeset.changes, :is_active) do
-          if deployment.is_active do
-            broadcast(:none, "deployments/changed", payload)
-          else
-            Device
-            |> where([d], d.deployment_id == ^deployment.id)
-            |> Repo.update_all(set: [deployment_id: nil])
-
-            _ = broadcast(deployment, "deployments/changed", payload)
-
-            description = "deployment #{deployment.name} is inactive and removed all devices"
-            AuditLogs.audit!(deployment, deployment, description)
-          end
-        end
-
-        _ = broadcast(deployment, "deployments/update")
+    case result do
+      {:ok, {deployment, changeset}} ->
+        broadcast_deployment_updates(deployment, changeset)
 
         {:ok, deployment}
 
       {:error, changeset} ->
         {:error, changeset}
     end
+  end
+
+  defp audit_changes!(deployment, changeset) do
+    Enum.each(changeset.changes, fn
+      {:archive_id, archive_id} ->
+        # Trigger the new archive to get downloaded by devices
+        payload = %{archive_id: archive_id}
+        _ = broadcast(deployment, "archives/updated", payload)
+
+        description = "deployment #{deployment.name} has a new archive"
+        AuditLogs.audit!(deployment, deployment, description)
+
+      {:conditions, _new_conditions} ->
+        description = "deployment #{deployment.name} conditions changed"
+        AuditLogs.audit!(deployment, deployment, description)
+
+      {:is_active, is_active} when is_active != true ->
+        description = "deployment #{deployment.name} is inactive"
+        AuditLogs.audit!(deployment, deployment, description)
+
+      _ ->
+        :ignore
+    end)
+  end
+
+  defp recalculate_devices(%{recalculation_type: :calculator_queue} = deployment, changeset) do
+    _ =
+      if Enum.any?(
+           [:conditions, :is_active, :recalculation_type],
+           &Map.has_key?(changeset.changes, &1)
+         ) do
+        create_inflight_checks(deployment)
+      end
+
+    :ok
+  end
+
+  # Default is to make connected devices perform the recalculation
+  # within the DeviceSocket process.
+  # This will eventually be deprecated
+  defp recalculate_devices(deployment, changeset) do
+    # Don't want the inflight calculator to continue through devices since
+    # we have changed calculation types
+    if changeset.changes[:recalculation_type], do: delete_inflight_checks(deployment)
+
+    conditions_changed? = Map.has_key?(changeset.changes, :conditions)
+    is_active_changed? = Map.has_key?(changeset.changes, :is_active)
+    deactivated? = is_active_changed? and !deployment.is_active
+
+    if conditions_changed? or deactivated? do
+      # Wipe all devices attached to this deployment
+      Device
+      |> where([d], d.deployment_id == ^deployment.id)
+      |> Repo.update_all(set: [deployment_id: nil])
+
+      description = "deployment #{deployment.name} change removed all devices"
+      AuditLogs.audit!(deployment, deployment, description)
+    end
+
+    if conditions_changed? and deployment.conditions["version"] in [nil, ""] and
+         deployment.is_active do
+      # The version condition is the only one not done with the DB.
+      # This opens up a minor optimization to preemptively set matching
+      # devices to the new deployment all at once since the version
+      # condition can be skipped.
+      #
+      # This also helps with offline devices by potentially reducing the
+      # need to do the expensive deployment check on next connect which
+      # reduces the load when a lot of devices come online at once.
+      Device
+      |> where([d], d.product_id == ^deployment.product_id)
+      |> where(
+        [d],
+        fragment("?->>'platform' = ?", d.firmware_metadata, ^deployment.firmware.platform)
+      )
+      |> where(
+        [d],
+        fragment(
+          "?->>'architecture' = ?",
+          d.firmware_metadata,
+          ^deployment.firmware.architecture
+        )
+      )
+      |> where([d], fragment("? <@ ?", ^deployment.conditions["tags"], d.tags))
+      |> Repo.update_all(set: [deployment_id: deployment.id])
+    end
+
+    _ =
+      :ok
+  end
+
+  defp broadcast_deployment_updates(%{recalculation_type: :calculator_queue} = deployment, _) do
+    # Inform those who care that the deployment updated
+    :ok = broadcast(deployment, "deployments/update")
+  end
+
+  defp broadcast_deployment_updates(deployment, changeset) do
+    payload = %{
+      id: deployment.id,
+      active: deployment.is_active,
+      product_id: deployment.product_id,
+      platform: deployment.firmware.platform,
+      architecture: deployment.firmware.architecture,
+      version: deployment.firmware.version,
+      conditions: deployment.conditions
+    }
+
+    conditions_changed? = Map.has_key?(changeset.changes, :conditions)
+    is_active_changed? = Map.has_key?(changeset.changes, :is_active)
+    activated? = is_active_changed? and deployment.is_active
+    deactivated? = is_active_changed? and !deployment.is_active
+
+    # Make sure relevant changed messages are broadcast for devices to
+    # pickup and recalculate
+    cond do
+      conditions_changed? ->
+        # Conditions change needs attached and unattached devices to recalculate
+        :ok = broadcast(deployment, "deployments/changed", payload)
+        :ok = broadcast(:none, "deployments/changed", payload)
+
+      activated? ->
+        # Now changed to active, so tell the none deployment devices
+        :ok = broadcast(:none, "deployments/changed", payload)
+
+      deactivated? ->
+        # Tell the attached devices to recalculate
+        :ok = broadcast(deployment, "deployments/changed", payload)
+
+      true ->
+        # no broadcast required
+        :ok
+    end
+
+    :ok = broadcast(deployment, "deployments/update")
+  end
+
+  @doc """
+  Create any matching inflight deployment checks for devices
+
+  This includes devices that are already part of the deployment and devices
+  that have no current deployment. They all will be rechecked by `NervesHub.Deployments.Calculator`
+
+  Also clears any previous inflight checks for this deployment.
+  """
+  def create_inflight_checks(deployment) do
+    delete_inflight_checks(deployment)
+
+    query =
+      Device
+      |> select([d], %{
+        deployment_id: ^deployment.id,
+        device_id: d.id,
+        inserted_at: ^DateTime.utc_now()
+      })
+      |> where([d], not is_nil(d.connection_last_seen_at))
+      |> where(
+        [d],
+        d.deployment_id == ^deployment.id or
+          (is_nil(d.deployment_id) and d.product_id == ^deployment.product_id)
+      )
+      |> where([d], d.firmware_metadata["platform"] == ^deployment.firmware.platform)
+      |> where([d], d.firmware_metadata["architecture"] == ^deployment.firmware.architecture)
+
+    Repo.insert_all(InflightDeploymentCheck, query)
+  end
+
+  @doc """
+  Delete any matching inflight deployment checks for devices
+  """
+  @spec delete_inflight_checks(Deployment.t()) :: :ok
+  def delete_inflight_checks(deployment) do
+    _ =
+      InflightDeploymentCheck
+      |> where([idc], idc.deployment_id == ^deployment.id)
+      |> Repo.delete_all()
+
+    :ok
+  end
+
+  @spec change_deployment(Deployment.t(), map()) :: Changeset.t()
+  def change_deployment(deployment, params) do
+    Deployment.changeset(deployment, params)
   end
 
   @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
@@ -297,6 +428,21 @@ defmodule NervesHub.Deployments do
         end
       end
     )
+  end
+
+  @doc """
+  Find all potential devices for a deployment
+
+  Based on the product, firmware platform, firmware architecture, and device tags
+  """
+  def estimate_devices_matched_by_conditions(product_id, platform, conditions) do
+    Device
+    |> where([dev], dev.product_id == ^product_id)
+    |> where([dev], fragment("d0.firmware_metadata ->> 'platform'") == ^platform)
+    |> where([dev], fragment("?::jsonb->'tags' <@ to_jsonb(?::text[])", ^conditions, dev.tags))
+    |> Repo.all()
+    |> Enum.filter(&version_match?(&1, %{conditions: conditions}))
+    |> Enum.count()
   end
 
   @doc """

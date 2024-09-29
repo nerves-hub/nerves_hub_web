@@ -318,6 +318,60 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "available update" do
+    test "no available update exists", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment: deployment
+    } do
+      device =
+        device
+        |> Ecto.Changeset.change(%{deployment_id: deployment.id})
+        |> Repo.update!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> refute_has("span", text: "Update available")
+    end
+
+    test "available update exists", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment: deployment,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      device =
+        device
+        |> Ecto.Changeset.change(%{deployment_id: deployment.id})
+        |> Repo.update!()
+
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      deployment
+      |> Ecto.Changeset.change(%{firmware_id: firmware.id})
+      |> Repo.update!()
+
+      NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("span", text: "Update available")
+      |> click_button("Send available update")
+      |> assert_has("div", text: "Pushing available firmware update")
+
+      assert Repo.aggregate(NervesHub.Devices.InflightUpdate, :count) == 1
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "deployments/update"}
+    end
+  end
+
   def device_show_path(%{device: device, org: org, product: product}) do
     ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}"
   end

@@ -5,6 +5,8 @@ import 'bootstrap'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
 import L from 'leaflet/dist/leaflet.js'
+import Chart from 'chart.js/auto'
+import 'chartjs-adapter-date-fns';
 
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
@@ -40,10 +42,12 @@ Hooks.SharedSecretClipboardClick = {
         //   But! You can wrap the promise in a ClipboardItem, and give that to
         //   the clipboard API.
         //   Found this on https://developer.apple.com/forums/thread/691873
-        const clipboardItem = new window.ClipboardItem({
-          'text/plain': secret
-        })
-        navigator.clipboard.write([clipboardItem])
+
+        const type = 'text/plain'
+        const blob = new Blob([secret], { type })
+        const data = [new window.ClipboardItem({ [type]: blob })]
+        navigator.clipboard.write(data)
+
         confirm('Secret copied to your clipboard')
       } else {
         // NOTE: Firefox has support for ClipboardItem and navigator.clipboard.write,
@@ -56,6 +60,103 @@ Hooks.SharedSecretClipboardClick = {
     })
   }
 }
+
+Hooks.Chart = {
+  dataset() { return JSON.parse(this.el.dataset.metrics); },
+  unit() { return JSON.parse(this.el.dataset.unit); },
+  mounted() {
+    let metrics = JSON.parse(this.el.dataset.metrics);
+    let type = JSON.parse(this.el.dataset.type);
+    let max = JSON.parse(this.el.dataset.max);
+    let title = JSON.parse(this.el.dataset.title);
+
+    const ctx = this.el;
+    var data = [];
+    for (let i = 0; i < metrics.length; i++) {
+      data.push(metrics[i]);
+    }
+
+    const areaChartDataset = {
+      type: 'line',
+      data: {
+        datasets: [{
+          backgroundColor: '#d19999',
+          fill: {
+            target: 'origin',
+            above: 'rgba(201, 84, 84, 0.29)',
+          },
+          data: this.dataset()
+        }],
+      },
+      options: {
+        plugins: {
+          title: {
+            display: true,
+            align: 'start',
+            text: title,
+            font: {
+              size: 24
+            }
+          },
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          x: {
+            grid: {
+              color: 'rgba(181, 169, 169, 0.21)'
+            },
+            type: 'time',
+            time: {
+              unit: this.unit(),
+              displayFormats: {
+                millisecond: 'HH:mm:ss.SSS',
+                second: 'HH:mm:ss',
+                minute: 'HH:mm',
+                hour: 'HH:mm'
+              },
+            },
+            ticks: {
+              display: true,
+              autoSkip: false,
+              maxTicksLimit: 6,
+            },
+          },
+          y: {
+            grid: {
+              color: 'rgba(181, 169, 169, 0.21)'
+            },
+            type: 'linear',
+            min: 0,
+            max: max
+          }
+        },
+      }
+    };
+
+    const chart = new Chart(
+      ctx,
+      areaChartDataset
+    );
+    this.el.chart = chart;
+
+    this.handleEvent("update-charts", function (payload) {
+      if (payload.type == type) {
+        chart.data.datasets[0].data = payload.data;
+        chart.update();
+      }
+    })
+
+    this.handleEvent("update-time-unit", function (payload) {
+      chart.options.scales.x.time.unit = payload.unit;
+      chart.update();
+    })
+
+  },
+  updated() { }
+}
+
 
 Hooks.HighlightCode = {
   mounted() {

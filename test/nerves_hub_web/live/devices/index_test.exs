@@ -21,6 +21,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       change = render_change(view, "update-filters", %{"device_id" => device.identifier})
       assert change =~ device.identifier
       refute change =~ device2.identifier
+      assert change =~ "1 devices found"
     end
 
     test "filters devices by wrong identifier", %{conn: conn, fixture: fixture} do
@@ -35,6 +36,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       change = render_change(view, "update-filters", %{"device_id" => "foo"})
       refute change =~ device.identifier
       refute change =~ device2.identifier
+      assert change =~ "0 devices found"
     end
 
     test "filters devices by prefix identifier", %{conn: conn, fixture: fixture} do
@@ -127,6 +129,39 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       change = render_change(view, "update-filters", %{"has_no_tags" => "true"})
       assert change =~ device2.identifier
       refute change =~ device3.identifier
+    end
+
+    test "select device", %{conn: conn, fixture: fixture} do
+      %{device: _device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: nil})
+      _device3 = Fixtures.device_fixture(org, product, firmware, %{tags: ["foo"]})
+
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ "3 devices found"
+      refute html =~ "(1 selected)"
+
+      change = render_change(view, "select", %{"id" => device2.id})
+      assert change =~ "3 devices found"
+      assert change =~ "(1 selected)"
+    end
+
+    test "select/deselect all devices", %{conn: conn, fixture: fixture} do
+      %{device: _device, firmware: firmware, org: org, product: product} = fixture
+
+      _device2 = Fixtures.device_fixture(org, product, firmware, %{tags: nil})
+      _device3 = Fixtures.device_fixture(org, product, firmware, %{tags: ["foo"]})
+
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ "3 devices found"
+
+      change = render_change(view, "select-all", %{})
+      assert change =~ "3 devices found"
+      assert change =~ "(3 selected)"
+
+      change = render_change(view, "select-all", %{})
+      assert change =~ "3 devices found"
+      refute change =~ "selected)"
     end
   end
 

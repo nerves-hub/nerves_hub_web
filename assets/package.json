@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "bootstrap": "^4.6.0",
+    "chart.js": "^4.4.4",
+    "chartjs-adapter-date-fns": "^3.0.0",
+    "date-fns": "^3.6.0",
     "highlight.js": "^11.10.0",
     "javascript-time-ago": "^2.5.10",
     "jquery": "^3.6.0",

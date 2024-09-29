@@ -90,7 +90,7 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
       assert_has(conn, "span", text: "Turn On")
 
       logs = AuditLogs.logs_for(deployment)
-      assert Enum.count(logs) == 3
+      assert Enum.count(logs) == 4
       assert List.last(logs).description =~ ~r/marked deployment/
       conn
     end)
