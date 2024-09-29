@@ -86,7 +86,7 @@ defmodule NervesHubWeb.Live.Archives do
       {:ok, _} ->
         socket
         |> put_flash(:info, "Archive successfully deleted")
-        |> push_patch(to: ~p"/org/#{org.name}/#{product.name}/archives")
+        |> push_patch(to: ~p"/org/#{org.name}/#{product.name}/artifacts")
         |> noreply()
 
       {:error, changeset} ->
@@ -121,7 +121,7 @@ defmodule NervesHubWeb.Live.Archives do
         socket
         |> put_flash(:info, "Archive uploaded")
         |> push_patch(
-          to: ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/archives"
+          to: ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/artifacts"
         )
         |> noreply()
 

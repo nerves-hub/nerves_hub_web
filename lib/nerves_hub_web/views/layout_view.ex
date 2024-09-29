@@ -150,9 +150,9 @@ defmodule NervesHubWeb.LayoutView do
         href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/firmware"
       },
       %{
-        title: "Archives",
+        title: "Artifacts",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/archives"
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/artifacts"
       },
       %{
         title: "Deployments",

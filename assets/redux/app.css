@@ -1,0 +1,20 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@layer components {
+  .sidebar-item-selected {
+    @apply font-medium text-[#FAFAFA];
+    box-shadow: inset -1px 0 0 0 #6366f1;
+    background: linear-gradient(
+        to right,
+        rgb(39 39 42 / 30%),
+        rgb(39 39 42 / 72%)
+      ),
+      linear-gradient(to right, rgb(99 102 241 / 0%), rgb(99 102 241 / 10%));
+  }
+}
+
+html {
+  @apply text-zinc-300;
+}
