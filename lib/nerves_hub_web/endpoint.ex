@@ -60,11 +60,10 @@ defmodule NervesHubWeb.Endpoint do
     cookie_key: "request_logger"
   )
 
+  plug(NervesHubWeb.Plugs.ImAlive)
+
   plug(Plug.RequestId)
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])
-  plug(NervesHubWeb.Plugs.Logger)
-
-  plug(NervesHubWeb.Plugs.ImAlive)
 
   plug(
     Plug.Parsers,
