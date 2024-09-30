@@ -3,19 +3,19 @@ if Mix.env() == :dev do
     use Mix.Task
 
     alias NervesHub.Repo
+    alias NervesHub.Devices
     alias NervesHub.Devices.DeviceMetric
 
     @shortdoc "Create randomized metrics for device"
     @requirements ["app.start"]
 
     @impl Mix.Task
-    def run([device_id | _]) do
+    def run([device_identifier | _]) do
+      {:ok, %{id: device_id}} = Devices.get_by_identifier(device_identifier)
       now = DateTime.now!("Etc/UTC") |> DateTime.truncate(:millisecond)
       a_week_ago = DateTime.add(now, -7, :day) |> DateTime.truncate(:millisecond)
 
-      device_id
-      |> String.to_integer()
-      |> add_metrics(now, a_week_ago)
+      add_metrics(device_id, now, a_week_ago)
     end
 
     @doc """
@@ -35,9 +35,9 @@ if Mix.env() == :dev do
     def save_metrics(device_id, current_timestamp) do
       metrics = %{
         "cpu_temp" => Enum.random(1..100),
-        "load_15min" => :rand.uniform(),
-        "load_1min" => :rand.uniform(),
-        "load_5min" => :rand.uniform(),
+        "load_15min" => :rand.uniform() |> Float.ceil(2),
+        "load_1min" => :rand.uniform() |> Float.ceil(2),
+        "load_5min" => :rand.uniform() |> Float.ceil(2),
         "size_mb" => 7892,
         "used_mb" => Enum.random(0..7892),
         "used_percent" => Enum.random(0..100)
