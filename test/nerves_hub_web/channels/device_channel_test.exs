@@ -299,7 +299,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
   end
 
   describe "unhandled messages are caught" do
-    @tag capture_log: true
     test "handle_info" do
       user = Fixtures.user_fixture()
       {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
@@ -318,7 +317,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
       assert_connection_change()
     end
 
-    @tag capture_log: true
     test "handle_in" do
       user = Fixtures.user_fixture()
       {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
