@@ -372,9 +372,11 @@ if System.get_env("SENTRY_DSN_URL") do
     ]
 end
 
-config :nerves_hub, :statsd,
-  host: System.get_env("STATSD_HOST", "localhost"),
-  port: String.to_integer(System.get_env("STATSD_PORT", "8125"))
+if host = System.get_env("STATSD_HOST") do
+  config :nerves_hub, :statsd,
+    host: System.get_env("STATSD_HOST"),
+    port: String.to_integer(System.get_env("STATSD_PORT", "8125"))
+end
 
 config :nerves_hub, :audit_logs,
   enabled: System.get_env("TRUNATE_AUDIT_LOGS_ENABLED", "false") == "true",

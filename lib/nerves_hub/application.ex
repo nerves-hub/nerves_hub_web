@@ -17,7 +17,7 @@ defmodule NervesHub.Application do
         config: %{metadata: [:file, :line]}
       })
 
-    NervesHub.Logger.install()
+    NervesHub.Logger.attach()
 
     topologies = Application.get_env(:libcluster, :topologies, [])
 
@@ -29,8 +29,9 @@ defmodule NervesHub.Application do
         {Registry, keys: :unique, name: NervesHub.Devices.Registry},
         {Finch, name: Swoosh.Finch}
       ] ++
-        metrics(deploy_env()) ++
+        NervesHub.StatsdMetricsReporter.config() ++
         [
+          NervesHub.MetricsPoller.child_spec(),
           NervesHub.RateLimit,
           NervesHub.Repo,
           NervesHub.ObanRepo,
@@ -49,12 +50,6 @@ defmodule NervesHub.Application do
   def config_change(changed, _new, removed) do
     NervesHubWeb.Endpoint.config_change(changed, removed)
     :ok
-  end
-
-  defp metrics("test"), do: []
-
-  defp metrics(_env) do
-    [NervesHub.Metrics]
   end
 
   defp deployments_supervisor("test"), do: []

@@ -1,41 +1,92 @@
 defmodule NervesHub.Logger do
   require Logger
 
+  @metadata_ignore_list [:line, :file, :domain, :application, :pid, :mfa]
+  @pattern Logger.Formatter.compile("$time [$level] msg=\"$message\" $metadata\n")
+
+  def format(level, message, timestamp, metadata) do
+    metadata = Keyword.drop(metadata, ignore_list())
+    Logger.Formatter.format(@pattern, level, message, timestamp, metadata)
+  end
+
   @doc false
-  def install() do
-    handlers = %{
-      [:phoenix, :endpoint, :stop] => &__MODULE__.phoenix_endpoint_stop/4
-    }
+  def attach() do
+    events = [
+      [:phoenix, :endpoint, :stop],
+      [:nerves_hub, :devices, :connect],
+      [:nerves_hub, :devices, :disconnect],
+      [:nerves_hub, :devices, :duplicate_connection],
+      [:nerves_hub, :devices, :update, :automatic]
+    ]
 
-    for {key, fun} <- handlers do
-      :ok = :telemetry.attach({__MODULE__, key}, key, fun, :ok)
-    end
-
-    :ok
+    Enum.each(events, fn event ->
+      :ok = :telemetry.attach({__MODULE__, event}, event, &__MODULE__.log_event/4, :ok)
+    end)
   end
 
   # Phoenix request logging
 
   @doc false
-  def phoenix_endpoint_stop(_, %{duration: duration}, %{conn: conn} = metadata, _) do
-    case log_level(metadata[:options][:log], conn) do
-      false ->
-        :ok
+  def log_event([:phoenix, :endpoint, :stop], %{duration: duration}, %{conn: conn}, _) do
+    Logger.info("Request completed", %{
+      duration: duration(duration),
+      method: conn.method,
+      path: request_path(conn),
+      status: conn.status,
+      remote_ip: formatted_ip(conn)
+    })
+  end
 
-      level ->
-        Logger.log(level, fn ->
-          Logfmt.encode(
-            duration: duration(duration),
-            method: conn.method,
-            path: request_path(conn),
-            status: conn.status,
-            remote_ip: formatted_ip(conn)
-          )
-        end)
-    end
+  def log_event([:nerves_hub, :devices, :connect], _, metadata, _) do
+    Logger.info("Device connected",
+      event: "nerves_hub.devices.connect",
+      identifier: metadata[:identifier],
+      firmware_uuid: metadata[:firmware_uuid]
+    )
+  end
+
+  def log_event([:nerves_hub, :devices, :duplicate_connection], _, metadata, _) do
+    Logger.info("Device duplicate connection detected",
+      event: "nerves_hub.devices.duplicate_connection",
+      ref_id: metadata[:ref_id],
+      identifier: metadata[:device].identifier
+    )
+  end
+
+  def log_event([:nerves_hub, :devices, :disconnect], _, metadata, _) do
+    Logger.info("Device disconnected",
+      event: "nerves_hub.devices.disconnect",
+      ref_id: metadata[:ref_id],
+      identifier: metadata[:identifier]
+    )
+  end
+
+  def log_event([:nerves_hub, :devices, :update, :automatic], _, metadata, _) do
+    Logger.info("Device received update",
+      event: "nerves_hub.devices.update.automatic",
+      ref_id: metadata[:ref_id],
+      identifier: metadata[:identifier],
+      firmware_uuid: metadata[:firmware_uuid]
+    )
+  end
+
+  def log_event([:nerves_hub, :devices, :update, :successful], _, metadata, _) do
+    Logger.info("Device updated firmware",
+      event: "nerves_hub.devices.update.successful",
+      identifier: metadata[:identifier],
+      firmware_uuid: metadata[:firmware_uuid]
+    )
   end
 
   # Helper functions
+
+  defp ignore_list() do
+    if Application.get_env(:nerves_hub, :log_include_mfa) do
+      @metadata_ignore_list -- [:mfa]
+    else
+      @metadata_ignore_list
+    end
+  end
 
   defp duration(duration) do
     duration = System.convert_time_unit(duration, :native, :microsecond)
@@ -69,7 +120,4 @@ defmodule NervesHub.Logger do
         |> to_string()
     end
   end
-
-  defp log_level(nil, _conn), do: :info
-  defp log_level(level, _conn) when is_atom(level), do: level
 end
