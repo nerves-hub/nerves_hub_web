@@ -75,6 +75,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> assign(:device, device)
+    |> assign(:device_connection, Connections.get_latest_for_device(device.id))
     |> assign(:status, payload.status)
     |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:fwup_progress, nil)
