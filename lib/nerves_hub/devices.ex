@@ -13,6 +13,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceHealth
@@ -72,6 +73,7 @@ defmodule NervesHub.Devices do
     |> order_by(^sort_devices(sorting))
     |> filtering(filters)
     |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
+    |> preload(device_connections: ^Connections.latest_connection_preload_query())
     |> Repo.paginate(pagination)
   end
 
@@ -82,6 +84,7 @@ defmodule NervesHub.Devices do
 
     Device
     |> where([d], d.product_id == ^product_id)
+    |> preload(device_connections: ^Connections.latest_connection_preload_query())
     |> Repo.exclude_deleted()
     |> filtering(filters)
     |> order_by(^sort_devices(sorting))
