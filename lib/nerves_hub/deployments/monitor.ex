@@ -10,7 +10,6 @@ defmodule NervesHub.Deployments.Monitor do
   alias NervesHub.DeploymentDynamicSupervisor
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Orchestrator
-  alias NervesHub.InflightDeploymentCheckDynamicSupervisor
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
@@ -37,13 +36,7 @@ defmodule NervesHub.Deployments.Monitor do
             {Deployments.Orchestrator, deployment}
           )
 
-        {:ok, calculator_pid} =
-          DynamicSupervisor.start_child(
-            InflightDeploymentCheckDynamicSupervisor,
-            {Deployments.Calculator, deployment}
-          )
-
-        {deployment.id, %{orchestrator_pid: orchestrator_pid, calculator_pid: calculator_pid}}
+        {deployment.id, %{orchestrator_pid: orchestrator_pid}}
       end)
 
     {:noreply, %{state | deployments: deployments}}
@@ -58,17 +51,8 @@ defmodule NervesHub.Deployments.Monitor do
         {Deployments.Orchestrator, deployment}
       )
 
-    {:ok, calculator_pid} =
-      DynamicSupervisor.start_child(
-        InflightDeploymentCheckDynamicSupervisor,
-        {Deployments.Calculator, deployment}
-      )
-
     deployments =
-      Map.put(state.deployments, deployment.id, %{
-        orchestrator_pid: orchestrator_pid,
-        calculator_pid: calculator_pid
-      })
+      Map.put(state.deployments, deployment.id, %{orchestrator_pid: orchestrator_pid})
 
     {:noreply, %{state | deployments: deployments}}
   end

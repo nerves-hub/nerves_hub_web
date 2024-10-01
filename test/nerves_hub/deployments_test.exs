@@ -3,6 +3,7 @@ defmodule NervesHub.DeploymentsTest do
   import Phoenix.ChannelTest
 
   alias NervesHub.Deployments
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias Ecto.Changeset
@@ -385,6 +386,34 @@ defmodule NervesHub.DeploymentsTest do
                %{id: ^v100rc2_deployment_id},
                %{id: ^v100rc1_deployment_id}
              ] = Deployments.alternate_deployments(device)
+    end
+  end
+
+  describe "calculate deployment" do
+    test "matching device without a deployment", state do
+      %{org: org, org_key: org_key, product: product, deployment: deployment} = state
+
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      {:ok, deployment} =
+        Deployments.update_deployment(deployment, %{
+          is_active: true,
+          firmware: firmware,
+          conditions: %{"tags" => ["rpi"]}
+        })
+
+      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
+      {:ok, _} = Devices.device_connected(device)
+
+      Deployments.schedule_deployment_calculations(deployment)
+
+      # Due to the way jobs are created via sql, we can't use the Oban helpers
+      count =
+        Oban.Job
+        |> where([oj], oj.worker == "NervesHub.Workers.DeviceCalculateDeployment")
+        |> Repo.aggregate(:count)
+
+      assert ^count = 1
     end
   end
 
