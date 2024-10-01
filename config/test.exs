@@ -86,8 +86,6 @@ config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test
 
 config :nerves_hub, NervesHub.RateLimit, limit: 100
 
-config :sentry, environment_name: :test
-
 config :phoenix_test, :endpoint, NervesHubWeb.Endpoint
 
 # Initialize plugs at runtime for faster test compilation

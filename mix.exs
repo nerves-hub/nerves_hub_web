@@ -4,7 +4,7 @@ defmodule NervesHub.MixProject do
   def project do
     [
       app: :nerves_hub,
-      version: "2.0.0",
+      version: "2.0.0+#{build()}",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
@@ -47,6 +47,15 @@ defmodule NervesHub.MixProject do
         :public_key
       ]
     ]
+  end
+
+  defp build() do
+    cmd = "git rev-parse --short=8 HEAD"
+
+    case System.shell(cmd, stderr_to_stdout: true) do
+      {sha, 0} -> String.trim(sha)
+      _ -> "dev"
+    end
   end
 
   # Dependencies listed here are available only for this
