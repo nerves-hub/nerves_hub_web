@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+### Added
+* Add the oban integration to Sentry (#1543)
+* Add device count and estimated device count for Deployment views (#1517)
+* Use Chart.js for metrics (#1523)
+* Add task for generating randomized device metrics (#1564)
+
+### Changed
+* Device channel cleanups (#1546)
+* Increase the Repo queue_target (#1545)
+* Updates for releasing an official 2.0.0 version (#1548) (#1549)
+* Remove EctoReporter and NodeReporter (#1554) (#1563)
+* Fix typos (#1557)
+* Sentry configuration and release id updates (#1560) (#1568)
+* Logging changes (#1556) (#1561) (#1571)
+  * Log from telemetry data
+  * Move statsd metrics to a module
+* Dependency updates
+  * castore, 1.0.8 to 1.0.9
+  * ex_aws_s3, 2.5.3 to 2.5.4
+
+### Fixed
+* Dialyzer fixes (#1553)
+* Use the Endpoint from the socket (#1558)
+* Update tzdata to fix an exception during boot (#1559)
+* Only render connection tooltip when timestamp is present (#1565)
+
+Full Changelog - https://github.com/nerves-hub/nerves_hub_web/compare/463ce1d...d8cbfc9
+
 ## v2.0.0
 
 Trying to create a Changelog from the previous tagged version `v1.3.0` from
