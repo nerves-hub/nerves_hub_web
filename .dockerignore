@@ -1,7 +1,6 @@
 .elixir-tools
 .elixir-ls
 .env.*
-.git
 .github
 .idea #IntelliJ stuff
 _build
