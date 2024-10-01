@@ -73,6 +73,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> assign(:device, device)
+    |> assign(:device_connection, Connections.get_latest_for_device(device.id))
     |> assign(:status, payload.status)
     |> assign(:fwup_progress, nil)
     |> assign(:update_information, Devices.resolve_update(device))

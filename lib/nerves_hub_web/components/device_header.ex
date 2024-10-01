@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
   attr(:org, :any)
   attr(:product, :any)
   attr(:device, :any)
+  attr(:device_connection, :any)
   attr(:status, :any)
 
   def render(assigns) do
@@ -33,40 +34,40 @@ defmodule NervesHubWeb.Components.DeviceHeader do
       <div>
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last connected</span>
-          <span :if={@device.connection_established_at} class="tooltip-info"></span>
-          <span :if={@device.connection_established_at} class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
-            <%= @device.connection_established_at %>
+          <span :if={@device_connection.established_at} class="tooltip-info"></span>
+          <span :if={@device_connection.established_at} class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
+            <%= @device_connection.established_at %>
           </span>
         </div>
         <p>
-          <span :if={!@device.connection_established_at}>Never</span>
+          <span :if={!@device_connection.established_at}>Never</span>
           <time
-            :if={@device.connection_established_at}
+            :if={@device_connection.established_at}
             id="connection-establisted-at"
             phx-hook="UpdatingTimeAgo"
-            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.connection_established_at, :second)), " ", "T")}
+            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device_connection.established_at, :second)), " ", "T")}
           >
-            <%= Timex.from_now(@device.connection_established_at) %>
+            <%= Timex.from_now(@device_connection.established_at) %>
           </time>
         </p>
       </div>
       <div>
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last seen</span>
-          <span :if={@device.connection_last_seen_at} class="tooltip-info"></span>
-          <span :if={@device.connection_last_seen_at} class="tooltip-text" id="connection-last-seen-at-tooltip" phx-hook="LocalTime">
-            <%= @device.connection_last_seen_at %>
+          <span :if={@device_connection.last_seen_at} class="tooltip-info"></span>
+          <span :if={@device_connection.last_seen_at} class="tooltip-text" id="connection-last-seen-at-tooltip" phx-hook="LocalTime">
+            <%= @device_connection.last_seen_at %>
           </span>
         </div>
         <p>
-          <span :if={!@device.connection_last_seen_at}>Never</span>
+          <span :if={!@device_connection.last_seen_at}>Never</span>
           <time
-            :if={@device.connection_last_seen_at}
+            :if={@device_connection.last_seen_at}
             id="last-communication-at"
             phx-hook="UpdatingTimeAgo"
-            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.connection_last_seen_at, :second)), " ", "T")}
+            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device_connection.last_seen_at, :second)), " ", "T")}
           >
-            <%= Timex.from_now(@device.connection_last_seen_at) %>
+            <%= Timex.from_now(@device_connection.last_seen_at) %>
           </time>
         </p>
       </div>
