@@ -352,25 +352,24 @@ if config_env() == :prod do
   end
 end
 
-if System.get_env("SENTRY_DSN_URL") do
-  config :sentry,
-    dsn: System.get_env("SENTRY_DSN_URL"),
-    environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
-    enable_source_code_context: true,
-    root_source_code_path: [File.cwd!()],
-    before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
-    tags: %{
-      app: nerves_hub_app
-    },
-    integrations: [
-      oban: [
-        # Capture errors:
-        capture_errors: true,
-        # Monitor cron jobs:
-        cron: [enabled: true]
-      ]
+config :sentry,
+  dsn: System.get_env("SENTRY_DSN_URL"),
+  environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
+  enable_source_code_context: true,
+  root_source_code_path: [File.cwd!()],
+  before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
+  release: "nerves_hub@#{Application.spec(:nerves_hub, :vsn)}",
+  tags: %{
+    app: nerves_hub_app
+  },
+  integrations: [
+    oban: [
+      # Capture errors:
+      capture_errors: true,
+      # Monitor cron jobs:
+      cron: [enabled: true]
     ]
-end
+  ]
 
 if host = System.get_env("STATSD_HOST") do
   config :nerves_hub, :statsd,

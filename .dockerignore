@@ -1,7 +1,10 @@
-**/node_modules/
-.git
+.elixir-tools
+.elixir-ls
+.env.*
+.github
 .idea #IntelliJ stuff
 _build
+**/node_modules/
 deps
+fly*
 tmp
-
