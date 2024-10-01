@@ -21,22 +21,14 @@ defmodule NervesHub.Logger do
   # Phoenix request logging
 
   @doc false
-  def log_event([:phoenix, :endpoint, :stop], %{duration: duration}, %{conn: conn} = metadata, _) do
-    case log_level(metadata[:options][:log], conn) do
-      false ->
-        :ok
-
-      level ->
-        Logger.log(level, fn ->
-          Logfmt.encode(
-            duration: duration(duration),
-            method: conn.method,
-            path: request_path(conn),
-            status: conn.status,
-            remote_ip: formatted_ip(conn)
-          )
-        end)
-    end
+  def log_event([:phoenix, :endpoint, :stop], %{duration: duration}, %{conn: conn}, _) do
+    Logger.info("Request completed", %{
+      duration: duration(duration),
+      method: conn.method,
+      path: request_path(conn),
+      status: conn.status,
+      remote_ip: formatted_ip(conn)
+    })
   end
 
   def log_event([:nerves_hub, :devices, :connect], _, metadata, _) do
@@ -114,7 +106,4 @@ defmodule NervesHub.Logger do
         |> to_string()
     end
   end
-
-  defp log_level(nil, _conn), do: :info
-  defp log_level(level, _conn) when is_atom(level), do: level
 end
