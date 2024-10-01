@@ -34,6 +34,15 @@ defmodule NervesHub.Devices.Connections do
     end
   end
 
+  def get_established_at(device_id) do
+    device_id
+    |> get_latest_for_device()
+    |> case do
+      %DeviceConnection{established_at: established_at} -> established_at
+      _ -> nil
+    end
+  end
+
   def latest_connection_preload_query() do
     DeviceConnection
     |> distinct(:device_id)

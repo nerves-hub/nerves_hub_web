@@ -34,15 +34,15 @@ defmodule NervesHubWeb.Components.DeviceHeader do
       <div>
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last connected</span>
-          <span :if={@device_connection.established_at} class="tooltip-info"></span>
-          <span :if={@device_connection.established_at} class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
+          <span :if={@device_connection} class="tooltip-info"></span>
+          <span :if={@device_connection} class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
             <%= @device_connection.established_at %>
           </span>
         </div>
         <p>
-          <span :if={!@device_connection.established_at}>Never</span>
+          <span :if={!@device_connection}>Never</span>
           <time
-            :if={@device_connection.established_at}
+            :if={@device_connection}
             id="connection-establisted-at"
             phx-hook="UpdatingTimeAgo"
             datetime={String.replace(DateTime.to_string(DateTime.truncate(@device_connection.established_at, :second)), " ", "T")}
@@ -54,15 +54,15 @@ defmodule NervesHubWeb.Components.DeviceHeader do
       <div>
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last seen</span>
-          <span :if={@device_connection.last_seen_at} class="tooltip-info"></span>
-          <span :if={@device_connection.last_seen_at} class="tooltip-text" id="connection-last-seen-at-tooltip" phx-hook="LocalTime">
+          <span :if={@device_connection} class="tooltip-info"></span>
+          <span :if={@device_connection} class="tooltip-text" id="connection-last-seen-at-tooltip" phx-hook="LocalTime">
             <%= @device_connection.last_seen_at %>
           </span>
         </div>
         <p>
-          <span :if={!@device_connection.last_seen_at}>Never</span>
+          <span :if={!@device_connection}>Never</span>
           <time
-            :if={@device_connection.last_seen_at}
+            :if={@device_connection}
             id="last-communication-at"
             phx-hook="UpdatingTimeAgo"
             datetime={String.replace(DateTime.to_string(DateTime.truncate(@device_connection.last_seen_at, :second)), " ", "T")}
