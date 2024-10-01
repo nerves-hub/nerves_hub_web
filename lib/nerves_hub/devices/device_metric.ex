@@ -24,6 +24,16 @@ defmodule NervesHub.Devices.DeviceMetric do
     |> format_field(:key)
   end
 
+  @doc """
+  To use when creating fake metrics with manipulated timestamps
+  """
+  def save_with_timestamp(params) do
+    %__MODULE__{}
+    |> cast(params, @required_params ++ [:inserted_at])
+    |> validate_required(@required_params)
+    |> format_field(:key)
+  end
+
   defp format_field(%Changeset{changes: %{key: key}} = cs, :key) do
     # Just remove spaces for now.
     formatted_key = String.replace(key, " ", "")

@@ -35,7 +35,5 @@ defmodule NervesHubWeb.DeviceEndpoint do
 
   plug(Sentry.PlugContext)
 
-  plug(NervesHubWeb.Plugs.Logger)
-
   plug(NervesHubWeb.Plugs.DeviceEndpointRedirect)
 end

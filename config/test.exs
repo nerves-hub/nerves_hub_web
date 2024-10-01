@@ -2,7 +2,8 @@ import Config
 
 config :bcrypt_elixir, log_rounds: 4
 
-config :logger, :default_handler, false
+# Print only warnings and errors during test
+config :logger, level: :warning
 
 ##
 # NervesHub Web

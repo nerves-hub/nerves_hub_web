@@ -2,7 +2,7 @@ import Config
 
 # Configures Elixir's Logger
 config :logger, :default_formatter,
-  format: {NervesHub.LoggerFormatter, :format},
+  format: {NervesHub.Logger, :format},
   metadata: :all
 
 config :phoenix,
