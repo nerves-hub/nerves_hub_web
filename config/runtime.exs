@@ -12,6 +12,7 @@ end
 config :nerves_hub,
   app: nerves_hub_app,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
+  log_include_mfa: System.get_env("LOG_INCLUDE_MFA", "false") == "true",
   web_title_suffix: System.get_env("WEB_TITLE_SUFFIX", "NervesHub"),
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   email_sender: System.get_env("EMAIL_SENDER", "NervesHub"),
@@ -370,9 +371,11 @@ config :sentry,
     ]
   ]
 
-config :nerves_hub, :statsd,
-  host: System.get_env("STATSD_HOST", "localhost"),
-  port: String.to_integer(System.get_env("STATSD_PORT", "8125"))
+if host = System.get_env("STATSD_HOST") do
+  config :nerves_hub, :statsd,
+    host: System.get_env("STATSD_HOST"),
+    port: String.to_integer(System.get_env("STATSD_PORT", "8125"))
+end
 
 config :nerves_hub, :audit_logs,
   enabled: System.get_env("TRUNATE_AUDIT_LOGS_ENABLED", "false") == "true",

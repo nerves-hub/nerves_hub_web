@@ -44,8 +44,8 @@ defmodule NervesHubWeb.Components.HealthHeader do
       <div>
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last connected</span>
-          <span class="tooltip-info"></span>
-          <span class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
+          <span :if={@device.connection_established_at} class="tooltip-info"></span>
+          <span :if={@device.connection_established_at} class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
             <%= @device.connection_established_at %>
           </span>
         </div>
