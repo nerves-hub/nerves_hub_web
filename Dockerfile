@@ -80,7 +80,7 @@ COPY lib lib
 COPY --from=assets /build/priv/static priv/static
 
 # We need the git history for creating the project version in Mix
-COPY .git ./
+COPY .git .git
 
 RUN mix compile
 RUN mix phx.digest
