@@ -1,6 +1,14 @@
 defmodule NervesHub.Logger do
   require Logger
 
+  @metadata_ignore_list [:line, :file, :domain, :application, :pid, :mfa]
+  @pattern Logger.Formatter.compile("$time [$level] msg=\"$message\" $metadata\n")
+
+  def format(level, message, timestamp, metadata) do
+    metadata = Keyword.drop(metadata, ignore_list())
+    Logger.Formatter.format(@pattern, level, message, timestamp, metadata)
+  end
+
   @doc false
   def install() do
     handlers = %{
@@ -73,6 +81,14 @@ defmodule NervesHub.Logger do
   end
 
   # Helper functions
+
+  defp ignore_list() do
+    if Application.get_env(:nerves_hub, :log_include_mfa) do
+      @metadata_ignore_list -- [:mfa]
+    else
+      @metadata_ignore_list
+    end
+  end
 
   defp duration(duration) do
     duration = System.convert_time_unit(duration, :native, :microsecond)
