@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Tracker
@@ -31,6 +32,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> page_title("Device #{device.identifier} - #{product.name}")
     |> assign(:tab_hint, :devices)
     |> assign(:device, device)
+    |> assign(:device_connection, Connections.get_latest_for_device(device.id))
     |> assign(:status, Tracker.status(device))
     |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:deployment, device.deployment)
@@ -54,6 +56,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
     %{device: device, org: org} = socket.assigns
 
     {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
+
+    socket
+    |> assign(:device_connection, Connections.get_latest_for_device(device.id))
+    |> noreply()
 
     {:noreply, assign(socket, :device, device)}
   end

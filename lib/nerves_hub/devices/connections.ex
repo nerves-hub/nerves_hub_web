@@ -14,6 +14,26 @@ defmodule NervesHub.Devices.Connections do
     |> Repo.all()
   end
 
+  def get_latest_for_device(device_id) do
+    DeviceConnection
+    |> where(device_id: ^device_id)
+    |> order_by(desc: :last_seen_at)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  def get_current_status(device_id) do
+    DeviceConnection
+    |> where(device_id: ^device_id)
+    |> order_by(desc: :last_seen_at)
+    |> limit(1)
+    |> Repo.one()
+    |> case do
+      %DeviceConnection{status: status} -> status
+      nil -> :not_seen
+    end
+  end
+
   def latest_connection_preload_query() do
     DeviceConnection
     |> distinct(:device_id)

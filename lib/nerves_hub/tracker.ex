@@ -4,6 +4,7 @@ defmodule NervesHub.Tracker do
   """
 
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Connections
 
   def online(%{} = device) do
     online(device.identifier)
@@ -71,7 +72,7 @@ defmodule NervesHub.Tracker do
   """
   def online?(device) do
     _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", :online?)
-    device.connection_status == :connected
+    Connections.get_current_status(device.id) == :connected
   end
 
   @doc """
