@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Metrics
   alias NervesHub.Tracker
 
@@ -40,6 +41,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> page_title("Device #{device.identifier} - Health")
     |> assign(:device, device)
     |> assign(:status, Tracker.status(device))
+    |> assign(:connection_established, Connections.get_established_at(device.id))
     |> assign(:time_frame, @default_time_frame)
     |> assign(:time_frame_opts, @time_frame_opts)
     |> assign(:latest_metrics, Metrics.get_latest_metric_set_for_device(device.id))

@@ -5,7 +5,8 @@ defmodule NervesHubWeb.Components.HealthHeader do
   attr(:product, :any)
   attr(:device, :any)
   attr(:status, :any)
-  attr(:latest_health, :any, default: nil)
+  attr(:connection_established_at, :any)
+  attr(:latest_health, :any)
   attr(:health_check_timer, :any, default: nil)
 
   def render(assigns) do
@@ -44,28 +45,28 @@ defmodule NervesHubWeb.Components.HealthHeader do
       <div>
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last connected</span>
-          <span :if={@device.connection_established_at} class="tooltip-info"></span>
-          <span :if={@device.connection_established_at} class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
-            <%= @device.connection_established_at %>
+          <span :if={@connection_established_at} class="tooltip-info"></span>
+          <span :if={@connection_established_at} class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
+            <%= @connection_established_at %>
           </span>
         </div>
         <p>
-          <span :if={!@device.connection_established_at}>Never</span>
+          <span :if={!@connection_established_at}>Never</span>
           <time
-            :if={@device.connection_established_at}
+            :if={@connection_established_at}
             id="connection-establisted-at"
             phx-hook="UpdatingTimeAgo"
-            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.connection_established_at, :second)), " ", "T")}
+            datetime={String.replace(DateTime.to_string(DateTime.truncate(@connection_established_at, :second)), " ", "T")}
           >
-            <%= Timex.from_now(@device.connection_established_at) %>
+            <%= Timex.from_now(@connection_established_at) %>
           </time>
         </p>
       </div>
       <div>
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last reported</span>
-          <span :if={@latest_health} class="tooltip-info"></span>
-          <span :if={@latest_health} class="tooltip-text" id="last-reported-at-tooltip" phx-hook="LocalTime">
+          <span :if={@latest_health.timestamp} class="tooltip-info"></span>
+          <span :if={@latest_health.timestamp} class="tooltip-text" id="last-reported-at-tooltip" phx-hook="LocalTime">
             <%= @latest_health.timestamp %>
           </span>
         </div>
