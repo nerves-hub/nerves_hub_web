@@ -10,20 +10,18 @@ defmodule NervesHub.Logger do
   end
 
   @doc false
-  def install() do
-    handlers = %{
-      [:phoenix, :endpoint, :stop] => &__MODULE__.log_event/4,
-      [:nerves_hub, :devices, :connect] => &__MODULE__.log_event/4,
-      [:nerves_hub, :devices, :disconnect] => &__MODULE__.log_event/4,
-      [:nerves_hub, :devices, :duplicate_connection] => &__MODULE__.log_event/4,
-      [:nerves_hub, :devices, :update, :automatic] => &__MODULE__.log_event/4
-    }
+  def attach() do
+    events = [
+      [:phoenix, :endpoint, :stop],
+      [:nerves_hub, :devices, :connect],
+      [:nerves_hub, :devices, :disconnect],
+      [:nerves_hub, :devices, :duplicate_connection],
+      [:nerves_hub, :devices, :update, :automatic]
+    ]
 
-    for {key, fun} <- handlers do
-      :ok = :telemetry.attach({__MODULE__, key}, key, fun, :ok)
-    end
-
-    :ok
+    Enum.each(events, fn event ->
+      :ok = :telemetry.attach({__MODULE__, event}, event, &__MODULE__.log_event/4, :ok)
+    end)
   end
 
   # Phoenix request logging

@@ -17,7 +17,7 @@ defmodule NervesHub.Application do
         config: %{metadata: [:file, :line]}
       })
 
-    NervesHub.Logger.install()
+    NervesHub.Logger.attach()
 
     topologies = Application.get_env(:libcluster, :topologies, [])
 
