@@ -323,7 +323,10 @@ defmodule NervesHub.Deployments do
         device_id: d.id,
         inserted_at: ^DateTime.utc_now()
       })
-      |> where([d], not is_nil(d.connection_last_seen_at))
+      |> where(
+        [d],
+        fragment("EXISTS (SELECT * FROM device_connections c WHERE c.device_id =?)", d.id)
+      )
       |> where(
         [d],
         d.deployment_id == ^deployment.id or

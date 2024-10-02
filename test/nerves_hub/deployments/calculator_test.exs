@@ -3,7 +3,7 @@ defmodule NervesHub.Deployments.CalculatorTest do
 
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Calculator
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
@@ -19,7 +19,7 @@ defmodule NervesHub.Deployments.CalculatorTest do
       deployment = %{deployment | firmware: firmware}
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
-      {:ok, device} = Devices.device_connected(device)
+      {:ok, _device_connection} = Connections.device_connected(device.id)
 
       Deployments.create_inflight_checks(deployment)
 
@@ -40,7 +40,7 @@ defmodule NervesHub.Deployments.CalculatorTest do
       deployment = %{deployment | firmware: firmware}
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
-      {:ok, device} = Devices.device_connected(device)
+      {:ok, _device_connection} = Connections.device_connected(device.id)
       device = Deployments.set_deployment(device)
       assert device.deployment_id == deployment.id
 
@@ -69,7 +69,7 @@ defmodule NervesHub.Deployments.CalculatorTest do
         Deployments.update_deployment(original_deployment, %{is_active: true})
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
-      {:ok, device} = Devices.device_connected(device)
+      {:ok, _device_connection} = Connections.device_connected(device.id)
       device = Deployments.set_deployment(device)
       assert device.deployment_id == original_deployment.id
 
@@ -106,7 +106,7 @@ defmodule NervesHub.Deployments.CalculatorTest do
       {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
-      {:ok, device} = Devices.device_connected(device)
+      {:ok, _device_connection} = Connections.device_connected(device.id)
       device = Deployments.set_deployment(device)
       assert device.deployment_id == deployment.id
 
@@ -131,7 +131,7 @@ defmodule NervesHub.Deployments.CalculatorTest do
       deployment = %{deployment | firmware: firmware}
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
-      {:ok, device} = Devices.device_connected(device)
+      {:ok, _device_connection} = Connections.device_connected(device.id)
       device = Deployments.set_deployment(device)
       assert device.deployment_id == deployment.id
 
