@@ -116,6 +116,16 @@ defmodule NervesHubWeb.DeviceSocket do
   def id(%{assigns: %{device: device}}), do: "device_socket:#{device.id}"
   def id(_socket), do: nil
 
+  def drainer_configuration() do
+    config = Application.get_env(:nerves_hub, :device_socket_drainer)
+
+    [
+      batch_size: config[:batch_size],
+      batch_interval: config[:batch_interval],
+      shutdown: config[:shutdown]
+    ]
+  end
+
   defp decode_from_headers(%{"x-nh-alg" => "NH1-HMAC-" <> alg} = headers) do
     with [digest_str, iter_str, klen_str] <- String.split(alg, "-"),
          digest <- String.to_existing_atom(String.downcase(digest_str)),

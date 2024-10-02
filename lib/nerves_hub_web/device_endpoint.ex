@@ -16,7 +16,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
       timeout: 180_000,
       fullsweep_after: 0,
       error_handler: {WebsocketConnectionError, :handle_error, []}
-    ]
+    ],
+    drainer: {NervesHubWeb.DeviceSocket, :drainer_configuration, []}
   )
 
   socket(
@@ -28,7 +29,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
       timeout: 180_000,
       fullsweep_after: 0,
       error_handler: {WebsocketConnectionError, :handle_error, []}
-    ]
+    ],
+    drainer: {NervesHubWeb.DeviceSocket, :drainer_configuration, []}
   )
 
   plug(NervesHubWeb.Plugs.ImAlive)
