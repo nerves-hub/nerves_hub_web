@@ -8,6 +8,14 @@ defmodule NervesHub.Logger do
 
   def format(level, message, timestamp, metadata) do
     metadata = Keyword.drop(metadata, ignore_list())
+
+    message =
+      if is_binary(message) do
+        String.replace(message, "\"", "'")
+      else
+        message
+      end
+
     Logger.Formatter.format(@pattern, level, message, timestamp, metadata)
   end
 
