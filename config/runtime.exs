@@ -39,6 +39,12 @@ config :nerves_hub,
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
   dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true"
 
+config :nerves_hub, :device_socket_drainer,
+  batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
+  batch_interval:
+    String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_INTERVAL", "4000")),
+  shutdown: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_SHUTDOWN", "30000"))
+
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do
   config :nerves_hub,
