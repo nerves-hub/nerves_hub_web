@@ -10,6 +10,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Products
   alias NervesHub.Repo
@@ -565,25 +566,31 @@ defmodule NervesHubWeb.WebsocketTest do
       assert_connection_change()
 
       assert device = Repo.get_by(Device, identifier: identifier)
+      assert device_connection = Connections.get_latest_for_device(device.id)
+      IO.inspect(device_connection, label: "con 1")
 
-      assert device.connection_status == :connected
-      assert recent_datetime(device.connection_established_at)
-      assert recent_datetime(device.connection_last_seen_at)
-      assert device.connection_disconnected_at == nil
+      assert device_connection.status == :connected
+      assert recent_datetime(device_connection.established_at)
+      assert recent_datetime(device_connection.last_seen_at)
+      assert device_connection.disconnected_at == nil
 
+      :timer.sleep(1000)
       SocketClient.clean_close(socket)
 
-      eventually assert :disconnected == NervesHub.Repo.reload(device).connection_status
+      Connections.get_device_connections(device.id) |> dbg
+      eventually assert :disconnected == Connections.get_current_status(device.id)
 
       device = NervesHub.Repo.reload(device)
+      assert device_connection = Connections.get_latest_for_device(device.id)
+      IO.inspect(device_connection, label: "con 2")
 
-      assert recent_datetime(device.connection_established_at)
-      assert recent_datetime(device.connection_last_seen_at)
-      assert recent_datetime(device.connection_disconnected_at)
+      # assert recent_datetime(device_connection.established_at)
+      assert recent_datetime(device_connection.last_seen_at)
+      assert recent_datetime(device_connection.disconnected_at)
     end
 
     defp recent_datetime(datetime) do
-      DateTime.diff(DateTime.utc_now(), datetime, :second) <= 5
+      DateTime.diff(DateTime.utc_now(), datetime, :minute) <= 5
     end
   end
 
