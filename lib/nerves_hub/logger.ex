@@ -23,6 +23,7 @@ defmodule NervesHub.Logger do
   def attach() do
     events = [
       [:phoenix, :endpoint, :stop],
+      [:nerves_hub, :devices, :invalid_auth],
       [:nerves_hub, :devices, :connect],
       [:nerves_hub, :devices, :disconnect],
       [:nerves_hub, :devices, :duplicate_connection],
@@ -45,6 +46,22 @@ defmodule NervesHub.Logger do
       status: conn.status,
       remote_ip: formatted_ip(conn)
     })
+  end
+
+  def log_event([:nerves_hub, :devices, :invalid_auth], _, metadata, _) do
+    extra = %{
+      event: "nerves_hub.devices.invalid_auth",
+      auth: to_string(metadata[:auth])
+    }
+
+    extra =
+      if reason = metadata[:reason] do
+        Map.put(extra, :reason, inspect(reason))
+      else
+        extra
+      end
+
+    Logger.info("Auth failed", extra)
   end
 
   def log_event([:nerves_hub, :devices, :connect], _, metadata, _) do
