@@ -86,6 +86,10 @@ defmodule NervesHubWeb.DeviceSocket do
         socket_and_assigns(socket, device)
 
       _e ->
+        :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+          auth: :cert
+        })
+
         {:error, :invalid_auth}
     end
   end
@@ -104,7 +108,11 @@ defmodule NervesHubWeb.DeviceSocket do
       socket_and_assigns(socket, device)
     else
       error ->
-        Logger.info("device authentication failed : #{inspect(error)}")
+        :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+          auth: :shared_secrets,
+          reason: error
+        })
+
         {:error, :invalid_auth}
     end
   end
