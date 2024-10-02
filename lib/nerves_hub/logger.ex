@@ -40,6 +40,7 @@ defmodule NervesHub.Logger do
   def log_event([:nerves_hub, :devices, :connect], _, metadata, _) do
     Logger.info("Device connected",
       event: "nerves_hub.devices.connect",
+      ref_id: metadata[:ref_id],
       identifier: metadata[:identifier],
       firmware_uuid: metadata[:firmware_uuid]
     )
