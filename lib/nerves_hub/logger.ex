@@ -2,7 +2,9 @@ defmodule NervesHub.Logger do
   require Logger
 
   @metadata_ignore_list [:line, :file, :domain, :application, :pid, :mfa]
-  @pattern Logger.Formatter.compile("$time [$level] msg=\"$message\" $metadata\n")
+  @pattern Logger.Formatter.compile(
+             " ts=\"$date $time\" level=$level msg=\"$message\" $metadata\n"
+           )
 
   def format(level, message, timestamp, metadata) do
     metadata = Keyword.drop(metadata, ignore_list())
