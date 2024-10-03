@@ -1,22 +1,23 @@
 defmodule NervesHub.Logger do
   require Logger
 
-  @metadata_ignore_list [:line, :file, :domain, :application, :pid, :mfa]
-  @pattern Logger.Formatter.compile(
-             " ts=\"$date $time\" level=$level msg=\"$message\" $metadata\n"
-           )
+  @metadata_ignore_list [
+    :line,
+    :file,
+    :domain,
+    :application,
+    :pid,
+    :mfa,
+    :time,
+    :gl,
+    :ansi_color,
+    :__sentry__
+  ]
 
   def format(level, message, timestamp, metadata) do
     metadata = Keyword.drop(metadata, ignore_list())
 
-    message =
-      if is_binary(message) do
-        String.replace(message, "\"", "'")
-      else
-        message
-      end
-
-    Logger.Formatter.format(@pattern, level, message, timestamp, metadata)
+    LogfmtEx.format(level, message, timestamp, metadata)
   end
 
   @doc false

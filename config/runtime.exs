@@ -49,6 +49,16 @@ config :nerves_hub, :device_socket_drainer,
 if config_env() == :prod do
   config :nerves_hub,
     open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true"
+
+  # Configures Elixir's Logger
+  config :logger, :default_formatter,
+    format: {NervesHub.Logger, :format},
+    metadata: :all
+
+  config :logfmt_ex, :opts,
+    message_key: "msg",
+    timestamp_key: "ts",
+    timestamp_format: :iso8601
 end
 
 if level = System.get_env("LOG_LEVEL") do
