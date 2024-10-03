@@ -132,12 +132,10 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     if data == [] do
       socket |> assign(:charts, [])
     else
-      Enum.each(data, fn %{type: type, data: data} ->
+      Enum.reduce(data, socket, fn %{type: type, data: data}, socket ->
         type = if is_binary(type), do: type, else: Atom.to_string(type)
         push_event(socket, "update-charts", %{type: type, data: data})
       end)
-
-      socket
     end
   end
 
