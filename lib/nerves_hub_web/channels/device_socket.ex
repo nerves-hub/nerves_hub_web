@@ -48,7 +48,8 @@ defmodule NervesHubWeb.DeviceSocket do
       {:ok, _device} = Devices.device_heartbeat(device)
 
       _ =
-        NervesHubWeb.DeviceEndpoint.broadcast(
+        socket.endpoint.broadcast_from(
+          self(),
           "device:#{device.identifier}:internal",
           "connection:heartbeat",
           %{}
