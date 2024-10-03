@@ -68,6 +68,7 @@ Hooks.Chart = {
     let metrics = JSON.parse(this.el.dataset.metrics);
     let type = JSON.parse(this.el.dataset.type);
     let max = JSON.parse(this.el.dataset.max);
+    let min = JSON.parse(this.el.dataset.min);
     let title = JSON.parse(this.el.dataset.title);
 
     const ctx = this.el;
@@ -82,8 +83,9 @@ Hooks.Chart = {
         datasets: [{
           backgroundColor: '#d19999',
           fill: {
-            target: 'origin',
+            target: 'start',
             above: 'rgba(201, 84, 84, 0.29)',
+            below: 'rgba(201, 84, 84, 0.29)',
           },
           data: this.dataset()
         }],
@@ -124,11 +126,12 @@ Hooks.Chart = {
             },
           },
           y: {
+            offset: true,
             grid: {
               color: 'rgba(181, 169, 169, 0.21)'
             },
             type: 'linear',
-            min: 0,
+            min: min,
             max: max
           }
         },

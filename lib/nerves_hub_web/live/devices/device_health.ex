@@ -165,6 +165,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
           title: title,
           data: data,
           max: get_max_value(type, data, memory_size),
+          min: 0,
           unit: get_time_unit(time_frame)
         }
       end
@@ -188,6 +189,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
         title: title,
         data: data,
         max: get_max_value(:custom, data),
+        min: get_min_value(data),
         unit: get_time_unit(time_frame)
       }
     end)
@@ -240,6 +242,12 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> Map.get(:y)
     |> ceil()
     |> max(1)
+  end
+
+  defp get_min_value(data) do
+    data
+    |> Enum.min_by(& &1.y)
+    |> Map.get(:y)
   end
 
   defp schedule_health_check_timer(socket) do
