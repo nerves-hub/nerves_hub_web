@@ -69,6 +69,16 @@
       </div>
 
       <DeviceLocation.render location={@device.connection_metadata["location"]} />
+
+      <%= if @health && !Enum.empty?(@health.data["metadata"]) do %>
+        <h3 class="mb-2">Metadata</h3>
+        <div class="display-box metrics">
+          <div :for={{key, value} <- @health.data["metadata"]} class="display-box-item">
+            <div :if={value != ""} class="help-text"><%= key |> String.replace("_", " ") |> String.capitalize() %></div>
+            <p><%= value %></p>
+          </div>
+        </div>
+      <% end %>
     </div>
 
     <div>
@@ -99,15 +109,15 @@
         </button>
       </div>
 
-      <%= if (!Enum.any?(Map.values(@latest_metrics))) do %>
+      <%= if (!Enum.any?(Map.values(@latest_metrics)) or !Enum.any?(Map.values(@latest_custom_metrics))) do %>
         <div class="display-box">
           No health information have been received for this device.
         </div>
       <% end %>
       <div>
         <%= if (Enum.any?(Map.values(@latest_metrics))) do %>
-          <div :if={@latest_metrics.load_1min} class="device-health">
-            <div class="callout">
+          <div class="device-health">
+            <div :if={@latest_metrics.load_1min} class="callout">
               <div class="help-text label">Load avg</div>
               <%= @latest_metrics.load_1min %> | <%= @latest_metrics.load_5min %> | <%= @latest_metrics.load_15min %>
             </div>
@@ -133,6 +143,13 @@
               <div class="callout">
                 <div class="help-text label">CPU</div>
                 Not reported
+              </div>
+            <% end %>
+
+            <%= for {key, val} <- @latest_custom_metrics do %>
+              <div class="callout">
+                <div class="help-text label"><%= String.capitalize(key) %></div>
+                <%= val %>
               </div>
             <% end %>
           </div>

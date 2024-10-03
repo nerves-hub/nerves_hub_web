@@ -35,6 +35,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:update_information, Devices.resolve_update(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
+    |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
+    |> assign(:health, Devices.get_latest_health(device.id))
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
     |> audit_log_assigns(1)
@@ -85,8 +87,15 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  def handle_info(%Broadcast{event: "health_check_report"}, socket) do
-    {:noreply, assign(socket, health: Devices.get_latest_health(socket.assigns.device.id))}
+  def handle_info(
+        %Broadcast{event: "health_check_report"},
+        %{assigns: %{device: device}} = socket
+      ) do
+    socket
+    |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
+    |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
+    |> assign(:health, Devices.get_latest_health(device.id))
+    |> noreply
   end
 
   def handle_info(:check_health_interval, socket) do
