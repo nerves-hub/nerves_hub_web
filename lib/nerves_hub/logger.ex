@@ -49,19 +49,16 @@ defmodule NervesHub.Logger do
   end
 
   def log_event([:nerves_hub, :devices, :invalid_auth], _, metadata, _) do
-    extra = %{
-      event: "nerves_hub.devices.invalid_auth",
-      auth: to_string(metadata[:auth])
-    }
-
     extra =
-      if reason = metadata[:reason] do
-        Map.put(extra, :reason, inspect(reason))
-      else
-        extra
-      end
+      %{
+        event: "nerves_hub.devices.invalid_auth",
+        auth: to_string(metadata[:auth]),
+        reason: inspect(metadata[:reason]),
+        product_key: metadata[:product_key]
+      }
+      |> Map.reject(fn {_key, val} -> is_nil(val) end)
 
-    Logger.info("Auth failed", extra)
+    Logger.info("Device auth failed", extra)
   end
 
   def log_event([:nerves_hub, :devices, :connect], _, metadata, _) do
