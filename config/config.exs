@@ -1,10 +1,5 @@
 import Config
 
-# Configures Elixir's Logger
-config :logger, :default_formatter,
-  format: {NervesHub.Logger, :format},
-  metadata: :all
-
 config :phoenix,
   json_library: Jason,
   template_engines: [
