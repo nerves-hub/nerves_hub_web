@@ -85,9 +85,10 @@ defmodule NervesHubWeb.DeviceSocket do
       {:ok, %{device: %Device{} = device}} ->
         socket_and_assigns(socket, device)
 
-      _e ->
+      error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
-          auth: :cert
+          auth: :cert,
+          reason: error
         })
 
         {:error, :invalid_auth}
@@ -110,7 +111,8 @@ defmodule NervesHubWeb.DeviceSocket do
       error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
           auth: :shared_secrets,
-          reason: error
+          reason: error,
+          product_key: Map.get(headers, "x-nh-key", "*empty*")
         })
 
         {:error, :invalid_auth}
@@ -162,7 +164,7 @@ defmodule NervesHubWeb.DeviceSocket do
     end
   end
 
-  defp decode_from_headers(_headers), do: :error
+  defp decode_from_headers(_headers), do: {:error, :headers_decode_failed}
 
   defp get_shared_secret_auth("nhp_" <> _ = key), do: Products.get_shared_secret_auth(key)
   defp get_shared_secret_auth(key), do: Devices.get_shared_secret_auth(key)
