@@ -70,10 +70,10 @@
 
       <DeviceLocation.render location={@device.connection_metadata["location"]} />
 
-      <%= if @health && !Enum.empty?(@health.data["metadata"]) do %>
+      <%= if !Enum.empty?(@metadata) do %>
         <h3 class="mb-2">Metadata</h3>
         <div class="display-box metrics">
-          <div :for={{key, value} <- @health.data["metadata"]} class="display-box-item">
+          <div :for={{key, value} <- @metadata} class="display-box-item">
             <div :if={value != ""} class="help-text"><%= key |> String.replace("_", " ") |> String.capitalize() %></div>
             <p><%= value %></p>
           </div>
