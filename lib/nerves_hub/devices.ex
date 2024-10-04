@@ -592,6 +592,32 @@ defmodule NervesHub.Devices do
     Repo.delete(ca_certificate)
   end
 
+  def get_device_firmware_for_delta_generation_by_product(product_id) do
+    Deployment
+    |> where([dep], dep.product_id == ^product_id)
+    |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
+    |> join(:inner, [dep, dev], f in Firmware,
+      on: f.uuid == fragment("d1.firmware_metadata->>'uuid'")
+    )
+    # Exclude the current firmware, we don't need to generate that one
+    |> where([dep, dev, f], f.id != dep.firmware_id)
+    |> select([dep, dev, f], [f.id, dep.firmware_id])
+    |> Repo.all()
+  end
+
+  def get_device_firmware_for_delta_generation_by_deployment(deployment_id) do
+      Deployment
+      |> where([dep], dep.id == ^deployment_id)
+      |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
+      |> join(:inner, [dep, dev], f in Firmware,
+        on: f.uuid == fragment("d1.firmware_metadata->>'uuid'")
+      )
+      # Exclude the current firmware, we don't need to generate that one
+      |> where([dep, dev, f], f.id != dep.firmware_id)
+      |> select([dep, dev, f], [f.id, dep.firmware_id])
+      |> Repo.all()
+    end
+
   def device_connected(device) do
     device
     |> clear_connection_information()
