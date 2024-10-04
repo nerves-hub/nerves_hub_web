@@ -44,8 +44,14 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> assign(:time_frame_opts, @time_frame_opts)
     |> assign(:latest_metrics, Metrics.get_latest_metric_set_for_device(device.id))
     |> schedule_health_check_timer()
-    |> assign_charts()
     |> ok()
+  end
+
+  def handle_params(_params, _session, socket) do
+    socket
+    |> assign_charts()
+    |> update_charts()
+    |> noreply()
   end
 
   def handle_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do
@@ -109,10 +115,11 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   end
 
   @doc """
-  There are three cases for chart updates:
+  There are four cases for chart updates:
     - Create hooks if data previously was empty.
-    - Update existing hooks with new data via push_event.
     - Clear hooks if there's no data for selected time frame.
+    - Do a push_patch to render more or less charts if custom types varies for time frames.
+    - Update existing hooks with new data via push_event (should happen most frequent).
   """
   def update_charts(%{assigns: %{charts: charts}} = socket) when charts == [],
     do: assign_charts(socket)
@@ -120,23 +127,37 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   def update_charts(
         %{
           assigns: %{
+            product: product,
+            org: org,
             device: device,
             time_frame: time_frame,
-            latest_metrics: latest_metrics
+            latest_metrics: latest_metrics,
+            charts: charts
           }
         } =
           socket
       ) do
     data = create_chart_data(device.id, time_frame, latest_metrics[:size_mb])
 
-    if data == [] do
-      socket |> assign(:charts, [])
-    else
-      Enum.reduce(data, socket, fn %{type: type, data: data}, socket ->
-        type = if is_binary(type), do: type, else: Atom.to_string(type)
-        push_event(socket, "update-charts", %{type: type, data: data})
-      end)
+    cond do
+      data == [] ->
+        assign(socket, :charts, [])
+
+      types(charts) != types(data) ->
+        push_patch(socket,
+          to: ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health"
+        )
+
+      true ->
+        Enum.reduce(data, socket, fn %{type: type, data: data}, socket ->
+          type = if is_binary(type), do: type, else: Atom.to_string(type)
+          push_event(socket, "update-charts", %{type: type, data: data})
+        end)
     end
+  end
+
+  defp types(data) do
+    Enum.map(data, &Map.get(&1, :type))
   end
 
   def create_chart_data(device_id, time_frame, memory_size) do
