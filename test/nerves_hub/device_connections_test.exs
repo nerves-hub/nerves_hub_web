@@ -1,6 +1,7 @@
 defmodule NervesHub.DeviceConnectionsTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Fixtures
@@ -26,7 +27,9 @@ defmodule NervesHub.DeviceConnectionsTest do
   end
 
   test "device disconnect", %{device: device} do
-    assert {:ok, %DeviceConnection{}} = Connections.device_disconnected(device.id)
+    assert {:ok, %DeviceConnection{}} =
+             Connections.device_disconnected(device.id, DateTime.utc_now())
+
     assert Connections.get_current_status(device.id) == :disconnected
   end
 
@@ -34,17 +37,18 @@ defmodule NervesHub.DeviceConnectionsTest do
     assert {:ok, %DeviceConnection{last_seen_at: connected_at}} =
              Connections.device_connected(device.id)
 
-    assert {:ok, %DeviceConnection{last_seen_at: disconnected_at}} =
-             Connections.device_disconnected(device.id)
 
-    status = Connections.get_current_status(device.id)
-    dbg(connected_at)
-    dbg(disconnected_at)
+    assert {:ok, %DeviceConnection{}} = Connections.device_disconnected(device.id, connected_at)
 
-    if connected_at > disconnected_at do
-      assert status == :connected
-    else
-      assert status == :disconnected
-    end
+    assert :disconnected == Connections.get_current_status(device.id)
+  end
+
+  test "get device with latest connection preloaded", %{device: device} do
+    assert {:ok, %DeviceConnection{}} = Connections.device_connected(device.id)
+
+    %{device_connections: [connection]} =
+      Devices.get_device(device.id, :preload_latest_connection)
+
+    assert connection.status == :connected
   end
 end
