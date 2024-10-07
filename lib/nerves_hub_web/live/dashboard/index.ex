@@ -83,7 +83,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
          %Device{
            id: id,
            identifier: identifier,
-           connection_status: connection_status,
+           device_connections: [connection | _],
            connection_metadata: %{
              "location" => %{"longitude" => longitude, "latitude" => latitude}
            }
@@ -95,7 +95,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
       %{
         id: id,
         identifier: identifier,
-        status: get_connection_status(connection_status),
+        status: get_connection_status(connection.status),
         location: %{"longitude" => longitude, "latitude" => latitude}
       }
 
