@@ -6,9 +6,9 @@ defmodule NervesHub.Repo.Migrations.CreateDeviceConnection do
       add(:id, :uuid, primary_key: true)
       add(:device_id, references(:devices), null: false)
       add(:status, :string)
-      add(:established_at, :utc_datetime)
-      add(:last_seen_at, :utc_datetime)
-      add(:disconnected_at, :utc_datetime)
+      add(:established_at, :utc_datetime_usec)
+      add(:last_seen_at, :utc_datetime_usec)
+      add(:disconnected_at, :utc_datetime_usec)
       add(:disconnected_reason, :text)
       add(:metadata, :map, default: %{})
     end
