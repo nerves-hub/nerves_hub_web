@@ -48,7 +48,6 @@ defmodule NervesHubWeb.DeviceSocket do
        ) do
     if heartbeat?(socket) do
       {:ok, _device_connection} = Connections.device_heartbeat(device.id, established_at)
-      {:ok, _device} = Devices.device_heartbeat(device)
 
       _ =
         socket.endpoint.broadcast_from(
@@ -218,8 +217,6 @@ defmodule NervesHubWeb.DeviceSocket do
         get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)])
     })
 
-    {:ok, device} = Devices.device_connected(socket.assigns.device)
-
     Tracker.online(device)
 
     socket
@@ -228,7 +225,13 @@ defmodule NervesHubWeb.DeviceSocket do
     |> assign(:connection_established_at, established_at)
   end
 
-  defp on_disconnect({:error, reason}, %{assigns: %{device: device, reference_id: reference_id}}) do
+  defp on_disconnect({:error, reason}, %{
+         assigns: %{
+           device: device,
+           reference_id: reference_id,
+           connection_established_at: established_at
+         }
+       }) do
     if reason == {:shutdown, :disconnected} do
       :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
         ref_id: reference_id,
@@ -236,22 +239,28 @@ defmodule NervesHubWeb.DeviceSocket do
       })
     end
 
-    shutdown(device, reference_id)
+    shutdown(device, reference_id, established_at)
 
     :ok
   end
 
-  defp on_disconnect(_, %{assigns: %{device: device, reference_id: reference_id}}) do
-    shutdown(device, reference_id)
+  defp on_disconnect(_, %{
+         assigns: %{
+           device: device,
+           reference_id: reference_id,
+           connection_established_at: established_at
+         }
+       }) do
+    shutdown(device, reference_id, established_at)
   end
 
-  defp shutdown(device, reference_id) do
+  defp shutdown(device, reference_id, established_at) do
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
       ref_id: reference_id,
       identifier: device.identifier
     })
 
-    {:ok, _device_connection} = Connections.device_disconnected(device.id)
+    {:ok, _device_connection} = Connections.device_disconnected(device.id, established_at)
 
     Tracker.offline(device)
 

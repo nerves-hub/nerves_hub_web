@@ -62,13 +62,14 @@ defmodule NervesHub.Devices.Connections do
     |> NervesHub.Repo.insert()
   end
 
-  def device_disconnected(device_id, reason \\ nil) do
+  def device_disconnected(device_id, established_at, reason \\ nil) do
     now = DateTime.utc_now()
 
     %{
       device_id: device_id,
       disconnected_at: now,
       disconnected_reason: reason,
+      established_at: established_at,
       last_seen_at: now,
       status: :disconnected
     }
@@ -83,7 +84,7 @@ defmodule NervesHub.Devices.Connections do
       established_at: established_at,
       status: :connected
     }
-    |> DeviceConnection.heartbeat_changeset()
+    |> DeviceConnection.connected_changeset()
     |> NervesHub.Repo.insert()
   end
 end

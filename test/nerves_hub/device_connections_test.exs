@@ -31,8 +31,11 @@ defmodule NervesHub.DeviceConnectionsTest do
   end
 
   test "get current status", %{device: device} do
-    assert {:ok, %DeviceConnection{last_seen_at: connected_at}} = Connections.device_connected(device.id)
-    assert {:ok, %DeviceConnection{last_seen_at: disconnected_at}} = Connections.device_disconnected(device.id)
+    assert {:ok, %DeviceConnection{last_seen_at: connected_at}} =
+             Connections.device_connected(device.id)
+
+    assert {:ok, %DeviceConnection{last_seen_at: disconnected_at}} =
+             Connections.device_disconnected(device.id)
 
     status = Connections.get_current_status(device.id)
     dbg(connected_at)
