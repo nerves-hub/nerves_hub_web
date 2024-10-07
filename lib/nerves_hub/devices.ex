@@ -35,6 +35,13 @@ defmodule NervesHub.Devices do
     Repo.get(Device, device_id)
   end
 
+  def get_device(device_id, :preload_latest_connection) when is_integer(device_id) do
+    Device
+    |> preload(device_connections: ^Connections.latest_connection_preload_query())
+    |> where(id: ^device_id)
+    |> Repo.one()
+  end
+
   def get_active_device(filters) do
     Device
     |> Repo.exclude_deleted()
