@@ -113,7 +113,7 @@ defmodule NervesHub.MixProject do
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:sweet_xml, "~> 0.6"},
       {:swoosh, "~> 1.12"},
-      {:telemetry_metrics, "~> 0.4"},
+      {:telemetry_metrics, "~> 1.0"},
       {:telemetry_metrics_statsd, "~> 0.7.0"},
       {:telemetry_poller, "~> 1.0"},
       {:timex, "~> 3.1"},
