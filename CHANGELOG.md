@@ -18,17 +18,30 @@
 * Logging changes (#1556) (#1561) (#1571)
   * Log from telemetry data
   * Move statsd metrics to a module
+* Allow the socket drainer to be configured at runtime (#1577)
+* Add y-scale start number as chart parameter (#1580)
+* Metrics charts improvements (#1581)
+* More logging tweaks (#1576)
 * Dependency updates
   * castore, 1.0.8 to 1.0.9
   * ex_aws_s3, 2.5.3 to 2.5.4
+  * dialyxir, 1.4.3 to 1.4.4
+  * bcrypt_elixir, 3.2.0 to 3.3.0
+  * comeonin, 5.4.0 to 5.5.0
+  * swoosh, 1.17.1 to 1.17.2
+  * slipstream, 1.1.1 to 1.1.2
+  * telemetry_metrics_statsd, 0.7.0 to 0.7.1
 
 ### Fixed
 * Dialyzer fixes (#1553)
 * Use the Endpoint from the socket (#1558)
 * Update tzdata to fix an exception during boot (#1559)
 * Only render connection tooltip when timestamp is present (#1565)
+* Use the endpoint from the socket in device socket (#1579)
+* Reintroduce missing custom metrics and metadata to device page. (#1578)
+* Only broadcast on terminate/2 if the channel is joined (#1586)
 
-Full Changelog - https://github.com/nerves-hub/nerves_hub_web/compare/463ce1d...d8cbfc9
+Full Changelog - https://github.com/nerves-hub/nerves_hub_web/compare/463ce1d...421afb9
 
 ## v2.0.0
 
