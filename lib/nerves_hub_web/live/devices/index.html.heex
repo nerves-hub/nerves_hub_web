@@ -155,7 +155,7 @@
                 <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
                   <optgroup label={org.name}>
                     <%= for product <- products, product.id != @product.id do %>
-                      <option value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>
+                      <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>
                     <% end %>
                   </optgroup>
                 <% end %>
