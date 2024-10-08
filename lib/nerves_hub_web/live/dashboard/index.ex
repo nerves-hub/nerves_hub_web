@@ -83,7 +83,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
          %Device{
            id: id,
            identifier: identifier,
-           device_connections: [connection | _],
+           device_connections: connection,
            connection_metadata: %{
              "location" => %{"longitude" => longitude, "latitude" => latitude}
            }
@@ -95,7 +95,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
       %{
         id: id,
         identifier: identifier,
-        status: get_connection_status(connection.status),
+        status: get_connection_status(connection),
         location: %{"longitude" => longitude, "latitude" => latitude}
       }
 
@@ -106,6 +106,6 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     markers
   end
 
-  defp get_connection_status(:connected), do: "connected"
+  defp get_connection_status([%{status: :connected}]), do: "connected"
   defp get_connection_status(_), do: "offline"
 end
