@@ -144,7 +144,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     markers
   end
 
-  defp get_connection_status(:connected), do: "connected"
+  defp get_connection_status([%{status: :connected}]), do: "connected"
   defp get_connection_status(_), do: "offline"
 
   defp refresh_after(socket, delay) do
