@@ -1,5 +1,5 @@
 <div class="relative">
-  <%= if @devices==[] do %>
+  <%= if @devices==[] and not @loading? do %>
     <div class="no-results-blowup-wrapper">
       <img src="/images/device.svg" alt="No devices" />
       <h3 style="margin-top: 2.75rem">
@@ -18,7 +18,7 @@
       </p>
     </div>
   <% else %>
-    <%= if @map_markers==[] do %>
+    <%= if @map_markers==[] and not @loading? do %>
       <!-- Show info about adding location data and the map with less opacity in background if we have no geodata-->
       <div class="no-results-blowup-wrapper no-map-results-positioned">
         <h3 style="margin-top: 2.75rem">
@@ -30,21 +30,43 @@
           location from devices.
         </p>
       </div>
-      <div id="map" class="opacity-50" phx-hook="WorldMap" phx-update="ignore" data-markers={[]} style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
+      <div id="map" class="opacity-50" phx-hook="WorldMap" phx-update="ignore" style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
     <% else %>
-      <p class="p-small text-right">Showing <%= length(@map_markers) %> devices with location data.</p>
-      <div id="map" phx-hook="WorldMap" phx-update="ignore" data-markers={Jason.encode!(@map_markers)} style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
+      <%= if @loading? do %>
+        <div class="no-results-blowup-wrapper no-map-results-positioned">
+          <h3 style="margin-top: 2.75rem">
+            Loading...
+          </h3>
+        </div>
+      <% end %>
+      <div class="map-top-bar">
+        <form phx-change="filter-change" class="radio-options">
+          <label class={[@mode == "connected" && "active"]}>
+            <input type="radio" name="mode" value="connected" checked={@mode == "connected"} /> Connected
+          </label>
+          <label class={[@mode == "updated" && "active"]}>
+            <input type="radio" name="mode" value="updated" checked={@mode == "updated"} /> Updated
+          </label>
+        </form>
+        <p class="p-small text-right">Showing <%= length(@map_markers) %> devices with location data.</p>
+      </div>
+      <div id="map" phx-hook="WorldMap" phx-update="ignore" data-mode={@mode} style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
       <div id="map-markers" class="flex-row justify-content-center">
         <div class="flex-auto">
           <p class="p-small flex-row align-items-center map-marker-gap">
             <span class="map-marker green-marker"></span>
-            <span>Connected device</span>
+            <span :if={@mode == "connected"}>Connected device</span>
+            <span :if={@mode == "updated"}>Up to date</span>
           </p>
         </div>
         <div>
-          <p class="p-small flex-row align-items-center map-marker-gap">
+          <p :if={@mode == "connected"} class="p-small flex-row align-items-center map-marker-gap">
             <span class="map-marker red-marker"></span>
             <span>Device offline or not seen</span>
+          </p>
+          <p :if={@mode == "updated"} class="p-small flex-row align-items-center map-marker-gap">
+            <span class="map-marker gray-marker"></span>
+            <span>Old version</span>
           </p>
         </div>
       </div>
