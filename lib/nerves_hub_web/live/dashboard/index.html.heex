@@ -39,15 +39,17 @@
           </h3>
         </div>
       <% end %>
-      <p class="p-small text-right">Showing <%= length(@map_markers) %> devices with location data.</p>
-      <form phx-change="filter-change">
-        <label>
-          <input type="radio" name="mode" value="connected" checked={@mode == "connected"} /> Connected
-        </label>
-        <label>
-          <input type="radio" name="mode" value="updated" checked={@mode == "updated"} /> Updated
-        </label>
-      </form>
+      <div class="map-top-bar">
+        <form phx-change="filter-change" class="radio-options">
+          <label class={[@mode == "connected" && "active"]}>
+            <input type="radio" name="mode" value="connected" checked={@mode == "connected"} /> Connected
+          </label>
+          <label class={[@mode == "updated" && "active"]}>
+            <input type="radio" name="mode" value="updated" checked={@mode == "updated"} /> Updated
+          </label>
+        </form>
+        <p class="p-small text-right">Showing <%= length(@map_markers) %> devices with location data.</p>
+      </div>
       <div id="map" phx-hook="WorldMap" phx-update="ignore" data-mode={@mode} style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
       <div id="map-markers" class="flex-row justify-content-center">
         <div class="flex-auto">
@@ -61,6 +63,10 @@
           <p :if={@mode == "connected"} class="p-small flex-row align-items-center map-marker-gap">
             <span class="map-marker red-marker"></span>
             <span>Device offline or not seen</span>
+          </p>
+          <p :if={@mode == "updated"} class="p-small flex-row align-items-center map-marker-gap">
+            <span class="map-marker gray-marker"></span>
+            <span>Old version</span>
           </p>
         </div>
       </div>
