@@ -88,6 +88,24 @@ defmodule NervesHub.Devices do
     |> Repo.paginate(pagination)
   end
 
+  def get_minimal_device_location_by_org_id_and_product_id(org_id, product_id) do
+    from(d in Device)
+    |> select([d], %{
+      id: d.id,
+      identifier: d.identifier,
+      connection_status: d.connection_status,
+      latitude: fragment("?->'location'->'latitude'", d.connection_metadata),
+      longitude: fragment("?->'location'->'longitude'", d.connection_metadata),
+      firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)
+    })
+    |> where(org_id: ^org_id)
+    |> where(product_id: ^product_id)
+    |> where([d], not is_nil(fragment("?->'location'->'latitude'", d.connection_metadata)))
+    |> where([d], not is_nil(fragment("?->'location'->'longitude'", d.connection_metadata)))
+    |> Repo.exclude_deleted()
+    |> Repo.all()
+  end
+
   def get_health_by_org_id_and_product_id(org_id, product_id, opts) do
     query =
       from(
