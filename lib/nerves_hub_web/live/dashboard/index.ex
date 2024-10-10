@@ -43,7 +43,6 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
 
     socket
     |> assign_devices_and_markers()
-    |> subscribe_to_devices()
     |> noreply()
   end
 
