@@ -261,7 +261,7 @@ Hooks.WorldMap = {
     this.map = L.map(mapId, mapOptionsNoZoom).setView([40.5, 10], 2);
     this.handleEvent(
       "markers",
-      ({markers}) => {
+      ({ markers }) => {
         self.markers = markers;
         self.updated();
       }
@@ -335,21 +335,24 @@ Hooks.WorldMap = {
 
     this.deviceLayer = L.geoJson(devices, {
       pointToLayer: function (feature, latlng) {
-        switch(mode) {
+        switch (mode) {
           case 'connected':
             if (feature.properties.status == "connected") {
               return L.circleMarker(latlng, markerConnectedOptions);
             } else {
               return L.circleMarker(latlng, markerOfflineOptions);
             }
-          break;
+            break;
           case 'updated':
-            if (feature.properties.latest_firmware) {
-              return L.circleMarker(latlng, markerUpdatedOptions);
-            } else {
-              return L.circleMarker(latlng, markerOutdatedOptions);
+            // Only show connected ones, the offline ones are just confusing
+            if (feature.properties.status == "connected") {
+              if (feature.properties.latest_firmware) {
+                return L.circleMarker(latlng, markerUpdatedOptions);
+              } else {
+                return L.circleMarker(latlng, markerOutdatedOptions);
+              }
             }
-          break;
+            break;
           default:
         }
       }
