@@ -5,6 +5,8 @@ defmodule NervesHubWeb.DeviceSocket do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Products
   alias NervesHub.Tracker
 
@@ -42,10 +44,10 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defp heartbeat(
          %Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"},
-         %{assigns: %{device: device}} = socket
+         %{assigns: %{device: device, connection_established_at: established_at}} = socket
        ) do
     if heartbeat?(socket) do
-      {:ok, _device} = Devices.device_heartbeat(device)
+      {:ok, _device_connection} = Connections.device_heartbeat(device.id, established_at)
 
       _ =
         socket.endpoint.broadcast_from(
@@ -179,10 +181,6 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defp get_or_maybe_create_device(_auth, _identifier), do: {:error, :bad_identifier}
 
-  defp generate_reference_id() do
-    Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
-  end
-
   defp max_hmac_age() do
     Application.get_env(:nerves_hub, __MODULE__, [])
     |> Keyword.get(:max_age, @default_max_hmac_age)
@@ -203,27 +201,37 @@ defmodule NervesHubWeb.DeviceSocket do
     socket =
       socket
       |> assign(:device, device)
-      |> assign(:reference_id, generate_reference_id())
 
     {:ok, socket}
   end
 
-  defp on_connect(socket) do
+  defp on_connect(%{assigns: %{device: device}} = socket) do
+    # Report connection and use connection id as reference
+    {:ok, %DeviceConnection{id: connection_id, established_at: established_at}} =
+      Connections.device_connected(device.id)
+
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
-      ref_id: socket.assigns.reference_id,
+      ref_id: connection_id,
       identifier: socket.assigns.device.identifier,
       firmware_uuid:
         get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)])
     })
 
-    {:ok, device} = Devices.device_connected(socket.assigns.device)
-
     Tracker.online(device)
 
-    assign(socket, :device, device)
+    socket
+    |> assign(:device, device)
+    |> assign(:reference_id, connection_id)
+    |> assign(:connection_established_at, established_at)
   end
 
-  defp on_disconnect({:error, reason}, %{assigns: %{device: device, reference_id: reference_id}}) do
+  defp on_disconnect({:error, reason}, %{
+         assigns: %{
+           device: device,
+           reference_id: reference_id,
+           connection_established_at: established_at
+         }
+       }) do
     if reason == {:shutdown, :disconnected} do
       :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
         ref_id: reference_id,
@@ -231,22 +239,28 @@ defmodule NervesHubWeb.DeviceSocket do
       })
     end
 
-    shutdown(device, reference_id)
+    shutdown(device, reference_id, established_at)
 
     :ok
   end
 
-  defp on_disconnect(_, %{assigns: %{device: device, reference_id: reference_id}}) do
-    shutdown(device, reference_id)
+  defp on_disconnect(_, %{
+         assigns: %{
+           device: device,
+           reference_id: reference_id,
+           connection_established_at: established_at
+         }
+       }) do
+    shutdown(device, reference_id, established_at)
   end
 
-  defp shutdown(device, reference_id) do
+  defp shutdown(device, reference_id, established_at) do
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
       ref_id: reference_id,
       identifier: device.identifier
     })
 
-    {:ok, device} = Devices.device_disconnected(device)
+    {:ok, _device_connection} = Connections.device_disconnected(device.id, established_at)
 
     Tracker.offline(device)
 

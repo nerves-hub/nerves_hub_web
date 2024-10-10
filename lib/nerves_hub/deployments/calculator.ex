@@ -23,7 +23,11 @@ defmodule NervesHub.Deployments.Calculator do
           |> Repo.one()
 
         if !is_nil(inflight_check) do
-          device = Repo.get!(Device, inflight_check.device_id)
+          device =
+            Device
+            |> where(id: ^inflight_check.device_id)
+            |> preload(:device_connections)
+            |> Repo.one!()
 
           # Something else updated the deployment and this is now invalid
           if !is_nil(device.deployment_id) && device.deployment_id != deployment.id do
@@ -32,7 +36,7 @@ defmodule NervesHub.Deployments.Calculator do
             :ignored
           else
             if deployment.is_active &&
-                 !is_nil(device.connection_last_seen_at) &&
+                 !Enum.empty?(device.device_connections) &&
                  device.product_id == deployment.product_id &&
                  device.firmware_metadata.platform == deployment.firmware.platform &&
                  device.firmware_metadata.architecture == deployment.firmware.architecture &&

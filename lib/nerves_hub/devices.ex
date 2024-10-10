@@ -13,6 +13,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceHealth
@@ -33,6 +34,13 @@ defmodule NervesHub.Devices do
     Repo.get(Device, device_id)
   end
 
+  def get_device(device_id, :preload_latest_connection) when is_integer(device_id) do
+    Device
+    |> preload(device_connections: ^Connections.latest_connection_preload_query())
+    |> where(id: ^device_id)
+    |> Repo.one()
+  end
+
   def get_active_device(filters) do
     Device
     |> Repo.exclude_deleted()
@@ -44,14 +52,10 @@ defmodule NervesHub.Devices do
   end
 
   def get_devices_by_org_id_and_product_id(org_id, product_id) do
-    query =
-      from(
-        d in Device,
-        where: d.org_id == ^org_id,
-        where: d.product_id == ^product_id
-      )
-
-    query
+    Device
+    |> where([d], d.org_id == ^org_id)
+    |> where([d], d.product_id == ^product_id)
+    |> preload(device_connections: ^Connections.latest_connection_preload_query())
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
@@ -72,6 +76,7 @@ defmodule NervesHub.Devices do
     |> order_by(^sort_devices(sorting))
     |> filtering(filters)
     |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
+    |> preload(device_connections: ^Connections.latest_connection_preload_query())
     |> Repo.paginate(pagination)
   end
 
@@ -82,6 +87,7 @@ defmodule NervesHub.Devices do
 
     Device
     |> where([d], d.product_id == ^product_id)
+    |> preload(device_connections: ^Connections.latest_connection_preload_query())
     |> Repo.exclude_deleted()
     |> filtering(filters)
     |> order_by(^sort_devices(sorting))
