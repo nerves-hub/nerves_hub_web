@@ -27,7 +27,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     device_id: "",
     tag: "",
     updates: "",
-    has_no_tags: false
+    has_no_tags: false,
+    metrics: %{}
   }
 
   @filter_types %{
@@ -39,7 +40,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     device_id: :string,
     tag: :string,
     updates: :string,
-    has_no_tags: :boolean
+    has_no_tags: :boolean,
+    metrics: :map
   }
 
   @default_page 1
@@ -82,7 +84,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_params(unsigned_params, _uri, socket) do
-    filters = Map.merge(@default_filters, filter_changes(unsigned_params))
+    filters =
+      Map.merge(@default_filters, filter_changes(unsigned_params))
+      |> filter_on_metrics_if_provided(unsigned_params)
+      |> dbg()
+
     pagination_opts = Map.merge(socket.assigns.paginate_opts, pagination_changes(unsigned_params))
 
     socket
@@ -94,6 +100,22 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:params, unsigned_params)
     |> assign_display_devices()
     |> noreply()
+  end
+
+  def filter_on_metrics_if_provided(filters, %{
+        "metric" => metric_type,
+        "metric_value" => metric_value,
+        "metric_operator" => operator
+      }) do
+    Map.put(filters, :metrics, %{
+      key: metric_type,
+      value: String.to_float(metric_value),
+      operator: String.to_existing_atom(operator)
+    })
+  end
+
+  def filter_on_metrics_if_provided(filters, _) do
+    filters
   end
 
   defp self_path(socket, extra) do
