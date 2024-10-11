@@ -6,6 +6,7 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Accounts.Org
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Extensions.DeviceExtensionsSetting
   alias NervesHub.Firmwares.FirmwareMetadata
@@ -43,6 +44,7 @@ defmodule NervesHub.Devices.Device do
     embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)
+    has_many(:device_metrics, DeviceMetric, on_delete: :delete_all)
 
     field(:identifier, :string)
     field(:description, :string)
