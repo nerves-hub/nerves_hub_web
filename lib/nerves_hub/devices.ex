@@ -154,6 +154,9 @@ defmodule NervesHub.Devices do
         {:firmware_version, value} ->
           where(query, [d], d.firmware_metadata["version"] == ^value)
 
+        {:platform, "Unknown"} ->
+          where(query, [d], is_nil(d.firmware_metadata["platform"]))
+
         {:platform, value} ->
           where(query, [d], d.firmware_metadata["platform"] == ^value)
 
@@ -1257,6 +1260,7 @@ defmodule NervesHub.Devices do
     |> select([d], fragment("?->>'platform'", d.firmware_metadata))
     |> distinct(true)
     |> where([d], d.product_id == ^product_id)
+    |> order_by([d], fragment("?->>'platform'", d.firmware_metadata))
     |> Repo.all()
   end
 
