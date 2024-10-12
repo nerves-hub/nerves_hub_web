@@ -326,8 +326,49 @@ html {
   background-color: var(--primary);
 }
 
+.gray-marker {
+  background-color: #999999;
+}
+
 .map-marker-gap {
   gap: 8px;
+}
+
+.map-top-bar {
+  display: flex;
+  justify-content: space-between;
+}
+
+.radio-options {
+  align-items: center;
+  color: rgb(255, 255, 255);
+  cursor: pointer;
+  display: flex;
+  gap: 4px;
+  label {
+    font-size: 14px;
+    border-radius: 3.2px;
+    font-weight: 500;
+    letter-spacing: normal;
+    text-align: center;
+    user-select: none;
+    vertical-align: middle;
+    border: 1px solid rgb(108, 117, 125);
+    background-color: rgb(108, 117, 125);
+    padding: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    justify-content: center;
+    flex-grow: 1;
+    input[type=radio] {
+      appearance: none;
+    }
+
+    &.active {
+      background-color: #545b62;
+      border-color: #545b62;
+    }
+  }
 }
 
 @media (max-width: 1000px) and (min-width: 480px) {
