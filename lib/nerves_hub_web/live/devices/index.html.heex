@@ -112,7 +112,7 @@
             <select name="platform" id="platform" class="form-control">
               <option {selected?(@current_filters, :platform, "")} value="">All</option>
               <%= for platform <- @platforms do %>
-                <option {selected?(@current_filters, :platform, platform)}><%= platform %></option>
+                <option {selected?(@current_filters, :platform, platform)}><%= if platform, do: platform, else: "Unknown" %></option>
               <% end %>
             </select>
             <div class="select-icon"></div>
