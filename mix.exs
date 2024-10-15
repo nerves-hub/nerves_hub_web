@@ -86,7 +86,7 @@ defmodule NervesHub.MixProject do
       {:finch, "~> 0.19.0"},
       {:floki, ">= 0.27.0", only: :test},
       {:gen_smtp, "~> 1.0"},
-      {:gettext, "~> 0.24.0"},
+      {:gettext, "~> 0.26.1"},
       {:hackney, "~> 1.16"},
       {:hlclock, "~> 1.0"},
       {:jason, "~> 1.2", override: true},
