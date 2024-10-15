@@ -7,6 +7,10 @@
 * Add device count and estimated device count for Deployment views (#1517)
 * Use Chart.js for metrics (#1523)
 * Add task for generating randomized device metrics (#1564)
+* Add option for showing updated devices on the map (#1592)
+* Add firmware delta generation back in (#1582)
+* Group by deployment id when counting devices for deployments (#1600)
+* Order platform dropdown + add unknown platform as selection (#1599)
 
 ### Changed
 * Device channel cleanups (#1546)
@@ -31,6 +35,12 @@
   * swoosh, 1.17.1 to 1.17.2
   * slipstream, 1.1.1 to 1.1.2
   * telemetry_metrics_statsd, 0.7.0 to 0.7.1
+  * ecto, 3.12.3 to 3.12.4
+  * ecto_sql, 3.12.0 to 3.12.1
+  * telemetry_metrics, 0.6.2 to 1.0.0
+  * scrivener_ecto, 3.0.0 to 3.0.1
+  * ecto_psql_extras, 0.8.2 to 0.8.2
+  * ex_aws, 2.5.5 to 2.5.6
 
 ### Fixed
 * Dialyzer fixes (#1553)
@@ -40,8 +50,9 @@
 * Use the endpoint from the socket in device socket (#1579)
 * Reintroduce missing custom metrics and metadata to device page. (#1578)
 * Only broadcast on terminate/2 if the channel is joined (#1586)
+* Display selected option when moving device(s) to other product (#1591)
 
-Full Changelog - https://github.com/nerves-hub/nerves_hub_web/compare/463ce1d...421afb9
+Full Changelog - https://github.com/nerves-hub/nerves_hub_web/compare/463ce1d...b5551d0
 
 ## v2.0.0
 
