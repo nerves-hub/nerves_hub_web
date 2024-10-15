@@ -16,6 +16,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceHealth
+  alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
@@ -157,10 +158,49 @@ defmodule NervesHub.Devices do
 
   defp sort_devices(sort), do: sort
 
+  def filter_on_metric(query, key, value, operator) do
+    query
+    |> where(
+      [d],
+      d.id in subquery(metrics_query(key, value, operator))
+    )
+    |> preload_metric(key)
+  end
+
+  def metrics_query(key, value, operator) do
+    DeviceMetric
+    |> from
+    |> select([d], d.device_id)
+    |> where([dm], dm.key == ^key)
+    |> gt_or_lt(value, operator)
+    |> order_by(desc: :inserted_at)
+    |> distinct(:device_id)
+  end
+
+  defp gt_or_lt(query, value, :gt), do: where(query, [dm], dm.value > ^value)
+  defp gt_or_lt(query, value, :lt), do: where(query, [dm], dm.value < ^value)
+
+  defp preload_metric(query, key) do
+    preload_query =
+      DeviceMetric
+      |> distinct(:device_id)
+      |> where(key: ^key)
+      |> order_by([:device_id, desc: :inserted_at])
+
+    query
+    |> preload(device_metrics: ^preload_query)
+  end
+
   defp filtering(query, filters) do
     Enum.reduce(filters, query, fn {key, value}, query ->
       case {key, value} do
         {_, ""} ->
+          query
+
+        {:metrics, %{key: key, value: value, operator: operator}} ->
+          filter_on_metric(query, key, value, operator)
+
+        {:metrics, _} ->
           query
 
         {:connection, _value} ->
