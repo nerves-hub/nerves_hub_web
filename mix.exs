@@ -104,7 +104,7 @@ defmodule NervesHub.MixProject do
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_swoosh, "~> 1.0"},
       {:phoenix_view, "~> 2.0"},
-      {:phoenix_test, "~> 0.3.0", only: :test, runtime: false},
+      {:phoenix_test, "~> 0.4.2", only: :test, runtime: false},
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
       {:scrivener_ecto, "~> 3.0"},
