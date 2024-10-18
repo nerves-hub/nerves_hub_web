@@ -31,7 +31,7 @@
         <span class="button-icon identify"></span>
         <span class="action-text">Identify</span>
       </button>
-      <%= link(class: "btn btn-outline-light btn-action", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
+      <%= link(class: "btn btn-outline-light btn-action #{unless (@console_active?), do: "disabled"}", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
         <span class="button-icon console-icon"></span>
         <span class="action-text">Console</span>
       <% end %>
