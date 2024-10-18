@@ -291,7 +291,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "CPU")
       |> assert_has("div", text: "Not reported")
       |> assert_has("span", text: "Last reported :")
-      |> assert_has("time", text: "now")
+      |> assert_has("time", text: "ago")
     end
   end
 
