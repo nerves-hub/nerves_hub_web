@@ -90,4 +90,26 @@ defmodule NervesHub.Tracker do
         false
     end
   end
+
+  @doc """
+  Check if a device's console channel is available.
+
+  Times out if console is unavailable.
+  """
+  def console_active?(device) do
+    _ =
+      Phoenix.PubSub.broadcast(
+        NervesHub.PubSub,
+        "device:console:#{device.id}",
+        {:active?, self()}
+      )
+
+    receive do
+      :active ->
+        true
+    after
+      500 ->
+        false
+    end
+  end
 end

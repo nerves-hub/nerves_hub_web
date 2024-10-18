@@ -23,6 +23,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
+      socket.endpoint.subscribe("device:console:#{device.id}:internal")
       socket.endpoint.subscribe("firmware")
     end
 
@@ -31,6 +32,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:tab_hint, :devices)
     |> assign(:device, device)
     |> assign(:status, Tracker.status(device))
+    |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:deployment, device.deployment)
     |> assign(:update_information, Devices.resolve_update(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
@@ -68,11 +70,18 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> assign(:status, payload.status)
+    |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:fwup_progress, nil)
     |> assign(:update_information, Devices.resolve_update(device))
     |> then(fn socket ->
       if(payload.status == "online", do: clear_flash(socket), else: socket)
     end)
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{event: "console_joined"}, socket) do
+    socket
+    |> assign(:console_active?, true)
     |> noreply()
   end
 

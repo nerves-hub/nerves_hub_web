@@ -64,6 +64,12 @@ defmodule NervesHubWeb.ConsoleChannel do
 
     socket.endpoint.subscribe("device:console:#{socket.assigns.device.id}")
 
+    socket.endpoint.broadcast!(
+      "device:console:#{socket.assigns.device.id}:internal",
+      "console_joined",
+      %{}
+    )
+
     # now that the console is connected, push down the device's elixir, line by line
     device = socket.assigns.device
     device = Repo.preload(device, [:deployment])
@@ -99,6 +105,11 @@ defmodule NervesHubWeb.ConsoleChannel do
     lines = Enum.join(socket.assigns.buffer) <> socket.assigns.current_line
     send(pid, {:cache, lines})
 
+    {:noreply, socket}
+  end
+
+  def handle_info({:active?, pid}, socket) do
+    send(pid, :active)
     {:noreply, socket}
   end
 
