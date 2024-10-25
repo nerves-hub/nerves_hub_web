@@ -69,6 +69,19 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
+  def get_device_count_by_org_id_and_product_id(org_id, product_id) do
+    query =
+      from(
+        d in Device,
+        select: count(d.id),
+        where: d.org_id == ^org_id,
+        where: d.product_id == ^product_id
+      )
+
+    query
+    |> Repo.one!()
+  end
+
   def get_devices_by_org_id_and_product_id(org_id, product_id, opts) do
     pagination = Map.get(opts, :pagination, %{})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
@@ -109,12 +122,10 @@ defmodule NervesHub.Devices do
     |> where(product_id: ^product_id)
     |> where([d], not is_nil(fragment("?->'location'->'latitude'", d.connection_metadata)))
     |> where([d], not is_nil(fragment("?->'location'->'longitude'", d.connection_metadata)))
-    |> join(:left, [d], dc in subquery(Connections.latest_row_query()), on: dc.device_id == d.id)
-    |> where([d, dc], dc.rn == 1)
     |> select([d, dc], %{
       id: d.id,
       identifier: d.identifier,
-      connection_status: dc.status,
+      connection_status: d.connection_status,
       latitude: fragment("?->'location'->'latitude'", d.connection_metadata),
       longitude: fragment("?->'location'->'longitude'", d.connection_metadata),
       firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)

@@ -7,7 +7,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
 
   alias Phoenix.Socket.Broadcast
 
-  @default_refresh 5000
+  @default_refresh 53000
   @delay 500
 
   @impl Phoenix.LiveView
@@ -19,7 +19,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     |> assign(:time, time())
     |> assign(:next_timer, nil)
     |> assign(:loading?, true)
-    |> assign(:mode, "updated")
+    |> assign(:mode, "connected")
     |> assign(:device_count, 0)
     |> assign(:marker_count, 0)
     |> refresh_after(1)
@@ -118,8 +118,6 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
 
   defp generate_map_marker(
          %{
-           id: id,
-           identifier: identifier,
            connection_status: connection_status,
            longitude: longitude,
            latitude: latitude,
@@ -131,11 +129,9 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
        when is_number(longitude) and is_number(latitude) do
     new_marker =
       %{
-        id: id,
-        identifier: identifier,
-        status: get_connection_status(connection_status),
-        latest_firmware: Map.has_key?(latest_firmwares, firmware_uuid),
-        location: %{"longitude" => longitude, "latitude" => latitude}
+        s: get_connection_status(connection_status),
+        lf: Map.has_key?(latest_firmwares, firmware_uuid),
+        l: %{"ng" => longitude, "at" => latitude}
       }
 
     [new_marker | markers]
