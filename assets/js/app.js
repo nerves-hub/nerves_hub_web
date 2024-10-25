@@ -5,6 +5,7 @@ import 'bootstrap'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
 import L from 'leaflet/dist/leaflet.js'
+import 'leaflet.markercluster/dist/leaflet.markercluster.js'
 
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
@@ -18,6 +19,8 @@ hljs.registerLanguage('shell', shell)
 
 import 'highlight.js/styles/stackoverflow-light.css'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 
 import TimeAgo from 'javascript-time-ago'
 import en from 'javascript-time-ago/locale/en'
@@ -132,14 +135,16 @@ Hooks.WorldMap = {
   mounted() {
     let mapId = this.el.id;
 
-    var mapOptionsNoZoom = {
+    var mapOptionsZoom = {
       attributionControl: false,
-      zoomControl: false,
-      scrollWheelZoom: false,
+      zoomControl: true,
+      scrollWheelZoom: true,
       boxZoom: false,
       doubleClickZoom: false,
-      dragging: false,
-      keyboard: false
+      dragging: true,
+      keyboard: false,
+      maxZoom: 18,
+      minZoom: 1.4,
     };
 
     var mapStyle = {
@@ -152,8 +157,8 @@ Hooks.WorldMap = {
     };
 
     // initialize the map
-    this.map = L.map(mapId, mapOptionsNoZoom).setView([40.5, 10], 2);
-
+    this.map = L.map(mapId, mapOptionsZoom).setView([0, 0], 1);
+    this.map.setMaxBounds(this.map.getBounds());
     // load GeoJSON from an external file
     fetch("/geo/world.geojson").then(res => res.json()).then(data => {
       L.geoJson(data, { style: mapStyle }).addTo(this.map);
@@ -199,6 +204,7 @@ Hooks.WorldMap = {
       fillOpacity: 1
     };
 
+    var clusterLayer = L.markerClusterGroup();
     // Clear previous defined device layer before adding markers
     if (this.deviceLayer !== undefined) { this.map.removeLayer(this.deviceLayer); }
 
@@ -211,8 +217,9 @@ Hooks.WorldMap = {
         }
       }
     });
+    clusterLayer.addLayer(this.deviceLayer);
 
-    this.deviceLayer.addTo(this.map);
+    this.map.addLayer(clusterLayer)
   }
 }
 
