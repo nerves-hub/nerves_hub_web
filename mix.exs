@@ -18,6 +18,8 @@ defmodule NervesHub.MixProject do
           steps: [:assemble],
           include_executables_for: [:unix],
           applications: [
+            opentelemetry_exporter: :permanent,
+            opentelemetry: :temporary,
             nerves_hub: :permanent
           ]
         ]
@@ -95,6 +97,16 @@ defmodule NervesHub.MixProject do
       {:mox, "~> 1.0", only: [:test, :dev]},
       {:nimble_csv, "~> 1.1"},
       {:oban, "~> 2.11"},
+      {:opentelemetry_exporter, "~> 1.8"},
+      {:opentelemetry, "~> 1.5"},
+      {:opentelemetry_api, "~> 1.4"},
+      {:opentelemetry_ecto, "~> 1.2"},
+      {:opentelemetry_phoenix, "~> 2.0.0-rc.1 "},
+      {:opentelemetry_oban, "~> 1.0",
+       git: "https://github.com/joshk/opentelemetry-erlang-contrib",
+       branch: "update-obans-semantic-conventions",
+       subdir: "instrumentation/opentelemetry_oban"},
+      {:opentelemetry_bandit, "~> 0.2.0-rc.1"},
       {:phoenix, "~> 1.7.0"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 3.3.1", override: true},

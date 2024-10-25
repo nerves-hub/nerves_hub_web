@@ -387,6 +387,28 @@ config :sentry,
     ]
   ]
 
+if otlp_endpoint = System.get_env("OTLP_ENDPOINT") do
+  config :opentelemetry, :resource, service: %{name: nerves_hub_app}
+
+  config :opentelemetry_exporter,
+    otlp_protocol: :http_protobuf,
+    otlp_endpoint: otlp_endpoint,
+    otlp_headers: [{System.get_env("OTLP_AUTH_HEADER"), System.get_env("OTLP_AUTH_HEADER_VALUE")}]
+
+  if otlp_sampler_ratio = System.get_env("OTLP_SAMPLER_RATIO") do
+    config :opentelemetry,
+      sampler:
+        {:parent_based,
+         %{
+           root: {:trace_id_ratio_based, String.to_float(otlp_sampler_ratio)},
+           remote_parent_sampled: :always_on,
+           remote_parent_not_sampled: :always_off,
+           local_parent_sampled: :always_on,
+           local_parent_not_sampled: :always_off
+         }}
+  end
+end
+
 if host = System.get_env("STATSD_HOST") do
   config :nerves_hub, :statsd,
     host: System.get_env("STATSD_HOST"),

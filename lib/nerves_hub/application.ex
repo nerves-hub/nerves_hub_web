@@ -12,6 +12,19 @@ defmodule NervesHub.Application do
         raise "fwup could not be found in the $PATH. This is a requirement of NervesHubWeb and cannot start otherwise"
     end
 
+    if System.get_env("ECTO_IPV6") do
+      :httpc.set_option(:ipfamily, :inet6fb4)
+    end
+
+    :ok = OpentelemetryBandit.setup()
+    :ok = OpentelemetryPhoenix.setup(adapter: :bandit)
+    :ok = OpentelemetryOban.setup(trace: [:jobs])
+
+    :ok =
+      NervesHub.Repo.config()
+      |> Keyword.fetch!(:telemetry_prefix)
+      |> OpentelemetryEcto.setup(db_statement: :enabled)
+
     _ =
       :logger.add_handler(:my_sentry_handler, Sentry.LoggerHandler, %{
         config: %{metadata: [:file, :line]}
