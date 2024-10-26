@@ -173,11 +173,13 @@ defmodule NervesHub.Devices.Metrics do
   Saves map of metrics.
   """
   def save_metrics(device_id, metrics) do
-    Repo.transaction(fn ->
+    entries =
       Enum.map(metrics, fn {key, val} ->
-        save_metric(%{device_id: device_id, key: key, value: val})
+        DeviceMetric.save(%{device_id: device_id, key: key, value: val}).changes
+        |> Map.merge(%{inserted_at: {:placeholder, :now}})
       end)
-    end)
+
+    Repo.insert_all(DeviceMetric, entries, placeholders: %{now: DateTime.utc_now()})
   end
 
   @doc """

@@ -46,8 +46,7 @@ defmodule NervesHub.DeviceMetricsTest do
         "used_percent" => 2
       }
 
-      assert {:ok, result} = Metrics.save_metrics(device.id, metrics)
-      assert length(result) == map_size(metrics)
+      assert {7, nil} = Metrics.save_metrics(device.id, metrics)
     end
   end
 
