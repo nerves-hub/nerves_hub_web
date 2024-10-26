@@ -102,6 +102,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   # We can save a fairly expensive query by checking the incoming deployment's payload
   # If it matches, we can set the deployment directly and only do 3 queries (update, two preloads)
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployments/changed,deployment:none")
   def handle_info(
         %Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload},
         %{assigns: %{device: device}} = socket
@@ -125,6 +126,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, assign_deployment(socket, payload)}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployments/changed")
   def handle_info(
         %Broadcast{event: "deployments/changed", payload: payload},
         %{assigns: %{device: device}} = socket
@@ -142,6 +144,7 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:resolve_changed_deployment")
   def handle_info(:resolve_changed_deployment, %{assigns: %{device: device}} = socket) do
     :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
 
@@ -175,6 +178,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployments/update")
   def handle_info({"deployments/update", inflight_update}, %{assigns: %{device: device}} = socket) do
     device = deployment_preload(device)
 
@@ -360,6 +364,7 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_in:location:update")
   def handle_in("location:update", location, %{assigns: %{device: device}} = socket) do
     metadata = Map.put(device.connection_metadata, "location", location)
 
@@ -410,6 +415,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_in:health_check_report")
   def handle_in("health_check_report", %{"value" => device_status}, socket) do
     device_meta =
       for {key, val} <- Map.from_struct(socket.assigns.device.firmware_metadata),

@@ -108,6 +108,7 @@ defmodule NervesHub.Deployments.Orchestrator do
     {:ok, deployment, {:continue, :boot}}
   end
 
+  @decorate with_span("Deployments.Orchestrator.boot")
   def handle_continue(:boot, deployment) do
     _ = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
@@ -128,6 +129,7 @@ defmodule NervesHub.Deployments.Orchestrator do
     {:noreply, deployment}
   end
 
+  @decorate with_span("Deployments.Orchestrator.handle_info:deployments/update")
   def handle_info(%Broadcast{event: "deployments/update"}, deployment) do
     deployment =
       deployment
