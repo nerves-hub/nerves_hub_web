@@ -36,7 +36,6 @@ defmodule NervesHubWeb.DeviceChannel do
       device
       |> Devices.verify_deployment()
       |> Deployments.set_deployment()
-      |> Repo.preload(:org)
       |> deployment_preload()
 
     maybe_send_public_keys(device, socket, params)
@@ -507,7 +506,7 @@ defmodule NervesHubWeb.DeviceChannel do
   defp maybe_send_public_keys(device, socket, params) do
     Enum.each(["fwup_public_keys", "archive_public_keys"], fn key_type ->
       if params[key_type] == "on_connect" do
-        org_keys = NervesHub.Accounts.list_org_keys(device.org)
+        org_keys = NervesHub.Accounts.list_org_keys(device.org_id, false)
 
         push(socket, key_type, %{
           keys: Enum.map(org_keys, fn ok -> ok.key end)
