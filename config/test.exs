@@ -91,3 +91,5 @@ config :phoenix_test, :endpoint, NervesHubWeb.Endpoint
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
+
+config :opentelemetry, traces_exporter: :none
