@@ -6,6 +6,7 @@ defmodule NervesHubWeb.DeviceChannel do
   """
 
   use Phoenix.Channel
+  use OpenTelemetryDecorator
 
   require Logger
 
@@ -19,6 +20,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
+  @decorate with_span("Channels.DeviceChannel.join")
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params) do
       send(self(), {:after_join, params})
@@ -31,6 +33,7 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:after_join")
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
     device = maybe_update_deployment(device)
 
@@ -77,6 +80,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:stop, :shutdown, socket}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:device_registration")
   def handle_info({:device_registation, attempt}, socket) do
     %{assigns: %{device: device}} = socket
 
@@ -215,6 +219,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # Update local state and tell the various servers of the new information
+  @decorate with_span("Channels.DeviceChannel.handle_info:devices-updated")
   def handle_info(%Broadcast{event: "devices/updated"}, %{assigns: %{device: device}} = socket) do
     device = Repo.reload(device)
 
