@@ -43,10 +43,9 @@ defmodule NervesHub.Devices.Connections do
     end
   end
 
-  def latest_connection_preload_query() do
-    DeviceConnection
-    |> distinct(:device_id)
-    |> order_by([:device_id, desc: :last_seen_at])
+  def preload_latest_connection(query) do
+    query
+    |> preload(device_connections: ^distinct_on_device())
   end
 
   def device_connected(device_id) do
@@ -86,5 +85,11 @@ defmodule NervesHub.Devices.Connections do
     }
     |> DeviceConnection.connected_changeset()
     |> NervesHub.Repo.insert()
+  end
+
+  defp distinct_on_device() do
+    DeviceConnection
+    |> distinct(:device_id)
+    |> order_by([:device_id, desc: :last_seen_at])
   end
 end
