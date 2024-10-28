@@ -12,9 +12,9 @@ defmodule NervesHub.Telemetry.FilteredSampler do
 
   @ignored_url_paths [
     "/status/alive",
-    "/favicon.ico",
     "/phoenix/live_reload/socket/websocket",
-    # "/live/websocket",
+    "/live/websocket",
+    "/favicon.ico",
     "/"
   ]
 
