@@ -14,7 +14,7 @@ defmodule NervesHub.Telemetry.Customizations do
   end
 
   def handle_request([:bandit, :request, :stop], _measurements, %{conn: conn}, _config) do
-    if conn.status == 101 do
+    if conn.request_path =~ ~r/\/websocket$/ do
       Tracer.update_name("WEBSOCKET #{conn.request_path}")
     end
 
