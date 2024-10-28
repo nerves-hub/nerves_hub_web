@@ -8,7 +8,7 @@ defmodule NervesHub.Telemetry.FilteredSampler do
 
   @behaviour :otel_sampler
 
-  @ignored_static_paths ~r/^\/(assets|fonts|images)\/.*/
+  @ignored_static_paths ~r/^\/(assets|fonts|images|css)\/.*/
 
   @ignored_url_paths [
     "/status/alive",
