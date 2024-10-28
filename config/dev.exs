@@ -112,5 +112,3 @@ config :nerves_hub, NervesHub.RateLimit, limit: 10
 
 config :nerves_hub,
   open_for_registrations: true
-
-config :opentelemetry, traces_exporter: :none
