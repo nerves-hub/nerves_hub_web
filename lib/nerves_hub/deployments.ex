@@ -6,6 +6,7 @@ defmodule NervesHub.Deployments do
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.InflightDeploymentCheck
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -498,10 +499,8 @@ defmodule NervesHub.Deployments do
 
       [deployment] ->
         device
-        |> Ecto.Changeset.change()
-        |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
-        |> Repo.update!()
-        |> Repo.preload([:deployment])
+        |> Devices.update_deployment(deployment)
+        |> preload_with_firmware_and_archive(true)
 
       [deployment | _] ->
         Logger.debug(
@@ -509,14 +508,16 @@ defmodule NervesHub.Deployments do
         )
 
         device
-        |> Ecto.Changeset.change()
-        |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
-        |> Repo.update!()
-        |> Repo.preload([:deployment])
+        |> Devices.update_deployment(deployment)
+        |> preload_with_firmware_and_archive(true)
     end
   end
 
   def set_deployment(device) do
-    Repo.preload(device, [:deployment])
+    preload_with_firmware_and_archive(device)
+  end
+
+  def preload_with_firmware_and_archive(device, force \\ false) do
+    Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
   end
 end

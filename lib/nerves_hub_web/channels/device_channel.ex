@@ -32,11 +32,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
-    device =
-      device
-      |> Devices.verify_deployment()
-      |> Deployments.set_deployment()
-      |> deployment_preload()
+    device = maybe_update_deployment(device)
 
     maybe_send_public_keys(device, socket, params)
 
@@ -474,6 +470,13 @@ defmodule NervesHubWeb.DeviceChannel do
       end
 
     :ok
+  end
+
+  defp maybe_update_deployment(device) do
+    device
+    |> Deployments.preload_with_firmware_and_archive()
+    |> Devices.verify_deployment()
+    |> Deployments.set_deployment()
   end
 
   defp log_to_sentry(device, message, extra \\ %{}) do
