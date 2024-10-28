@@ -54,6 +54,8 @@ defmodule NervesHub.Application do
       :httpc.set_option(:ipfamily, :inet6fb4)
     end
 
+    :ok = NervesHub.Telemetry.Customizations.setup()
+
     :ok = OpentelemetryBandit.setup()
     :ok = OpentelemetryPhoenix.setup(adapter: :bandit)
     :ok = OpentelemetryOban.setup(trace: [:jobs])
