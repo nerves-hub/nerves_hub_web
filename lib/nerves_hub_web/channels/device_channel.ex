@@ -426,7 +426,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     with {:health_report, {:ok, _}} <-
            {:health_report, Devices.save_device_health(device_health)},
-         {:metrics_report, {:ok, _}} <-
+         {:metrics_report, {_, _}} <-
            {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
       device_internal_broadcast!(socket.assigns.device, "health_check_report", %{})
     else
