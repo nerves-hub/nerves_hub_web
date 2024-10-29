@@ -865,8 +865,8 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Devices that haven't been automatically blocked are not in the penalty window
-  Devices that have a time greater than now are in the penalty window
+  Devices that haven't been automatically blocked are not in the penalty window.
+  Devices that have a time greater than now are in the penalty window.
   """
   def device_in_penalty_box?(device, now \\ DateTime.utc_now())
 
@@ -890,6 +890,8 @@ defmodule NervesHub.Devices do
         {:error, :up_to_date, device}
 
       updates_blocked?(device, now) ->
+        clear_inflight_update(device)
+
         {:error, :updates_blocked, device}
 
       failure_rate_met?(device, deployment) ->
@@ -904,6 +906,7 @@ defmodule NervesHub.Devices do
         """
 
         AuditLogs.audit!(deployment, device, description)
+        clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
 
@@ -921,6 +924,7 @@ defmodule NervesHub.Devices do
         """
 
         AuditLogs.audit!(deployment, device, description)
+        clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
 
