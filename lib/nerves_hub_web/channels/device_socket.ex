@@ -44,10 +44,15 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defp heartbeat(
          %Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"},
-         %{assigns: %{device: device, connection_established_at: established_at}} = socket
+         %{
+           assigns: %{
+             reference_id: ref_id,
+             device: device
+           }
+         } = socket
        ) do
     if heartbeat?(socket) do
-      {:ok, _device_connection} = Connections.device_heartbeat(device.id, established_at)
+      {:ok, _device_connection} = Connections.device_heartbeat(ref_id)
 
       _ =
         socket.endpoint.broadcast_from(
@@ -207,7 +212,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defp on_connect(%{assigns: %{device: device}} = socket) do
     # Report connection and use connection id as reference
-    {:ok, %DeviceConnection{id: connection_id, established_at: established_at}} =
+    {:ok, %DeviceConnection{id: connection_id}} =
       Connections.device_connected(device.id)
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
@@ -222,14 +227,12 @@ defmodule NervesHubWeb.DeviceSocket do
     socket
     |> assign(:device, device)
     |> assign(:reference_id, connection_id)
-    |> assign(:connection_established_at, established_at)
   end
 
   defp on_disconnect({:error, reason}, %{
          assigns: %{
            device: device,
-           reference_id: reference_id,
-           connection_established_at: established_at
+           reference_id: reference_id
          }
        }) do
     if reason == {:shutdown, :disconnected} do
@@ -239,7 +242,7 @@ defmodule NervesHubWeb.DeviceSocket do
       })
     end
 
-    shutdown(device, reference_id, established_at)
+    shutdown(device, reference_id)
 
     :ok
   end
@@ -247,20 +250,19 @@ defmodule NervesHubWeb.DeviceSocket do
   defp on_disconnect(_, %{
          assigns: %{
            device: device,
-           reference_id: reference_id,
-           connection_established_at: established_at
+           reference_id: reference_id
          }
        }) do
-    shutdown(device, reference_id, established_at)
+    shutdown(device, reference_id)
   end
 
-  defp shutdown(device, reference_id, established_at) do
+  defp shutdown(device, reference_id) do
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
       ref_id: reference_id,
       identifier: device.identifier
     })
 
-    {:ok, _device_connection} = Connections.device_disconnected(device.id, established_at)
+    {:ok, _device_connection} = Connections.device_disconnected(reference_id)
 
     Tracker.offline(device)
 

@@ -22,24 +22,36 @@ defmodule NervesHub.DeviceConnectionsTest do
   end
 
   test "device connect", %{device: device} do
-    assert {:ok, %DeviceConnection{}} = Connections.device_connected(device.id)
+    assert {:ok, %DeviceConnection{status: :connected}} = Connections.device_connected(device.id)
     assert Connections.get_current_status(device.id) == :connected
   end
 
-  test "device disconnect", %{device: device} do
-    assert {:ok, %DeviceConnection{}} =
-             Connections.device_disconnected(device.id, DateTime.utc_now())
-
-    assert Connections.get_current_status(device.id) == :disconnected
-  end
-
-  test "get current status", %{device: device} do
-    assert {:ok, %DeviceConnection{last_seen_at: connected_at}} =
+  test "device heartbeat", %{device: device} do
+    assert {:ok, %DeviceConnection{id: connection_id, last_seen_at: first_seen_at}} =
              Connections.device_connected(device.id)
 
-    assert {:ok, %DeviceConnection{}} = Connections.device_disconnected(device.id, connected_at)
+    assert {:ok,
+            %DeviceConnection{id: ^connection_id, last_seen_at: last_seen_at, status: :connected}} =
+             Connections.device_heartbeat(connection_id)
 
-    assert :disconnected == Connections.get_current_status(device.id)
+    assert last_seen_at > first_seen_at
+  end
+
+  test "device disconnect", %{device: device} do
+    assert {:ok, %DeviceConnection{id: connection_id, status: :connected}} =
+             Connections.device_connected(device.id)
+
+    assert {:ok,
+            %DeviceConnection{
+              id: ^connection_id,
+              status: :disconnected,
+              disconnected_at: disconnected_at
+            }} =
+             Connections.device_disconnected(connection_id)
+
+    refute is_nil(disconnected_at)
+
+    assert Connections.get_current_status(device.id) == :disconnected
   end
 
   test "get device with latest connection preloaded", %{device: device} do

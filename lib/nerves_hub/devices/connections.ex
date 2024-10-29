@@ -57,34 +57,29 @@ defmodule NervesHub.Devices.Connections do
       last_seen_at: now,
       status: :connected
     }
-    |> DeviceConnection.connected_changeset()
-    |> NervesHub.Repo.insert()
+    |> DeviceConnection.create_changeset()
+    |> Repo.insert()
   end
 
-  def device_disconnected(device_id, established_at, reason \\ nil) do
+  def device_heartbeat(ref_id) do
+    DeviceConnection
+    |> Repo.get!(ref_id)
+    |> DeviceConnection.update_changeset(%{last_seen_at: DateTime.utc_now()})
+    |> Repo.update()
+  end
+
+  def device_disconnected(ref_id, reason \\ nil) do
     now = DateTime.utc_now()
 
-    %{
-      device_id: device_id,
+    DeviceConnection
+    |> Repo.get!(ref_id)
+    |> DeviceConnection.update_changeset(%{
+      last_seen_at: now,
       disconnected_at: now,
       disconnected_reason: reason,
-      established_at: established_at,
-      last_seen_at: now,
       status: :disconnected
-    }
-    |> DeviceConnection.disconnected_changeset()
-    |> NervesHub.Repo.insert()
-  end
-
-  def device_heartbeat(device_id, established_at) do
-    %{
-      device_id: device_id,
-      last_seen_at: DateTime.utc_now(),
-      established_at: established_at,
-      status: :connected
-    }
-    |> DeviceConnection.connected_changeset()
-    |> NervesHub.Repo.insert()
+    })
+    |> Repo.update()
   end
 
   defp distinct_on_device() do

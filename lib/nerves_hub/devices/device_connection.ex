@@ -6,9 +6,10 @@ defmodule NervesHub.Devices.DeviceConnection do
   alias NervesHub.Devices.Device
 
   @type t :: %__MODULE__{}
-  @primary_key {:id, :binary_id, autogenerate: true}
+  @primary_key {:id, UUIDv7, autogenerate: true}
   @required_params [:device_id, :status, :last_seen_at, :established_at]
-  @wanted_params @required_params ++ [:metadata]
+  @wanted_on_create @required_params ++ [:metadata]
+  @wanted_on_update @required_params ++ [:disconnected_at, :disconnected_reason, :metadata]
 
   schema "device_connections" do
     belongs_to(:device, Device)
@@ -20,22 +21,15 @@ defmodule NervesHub.Devices.DeviceConnection do
     field(:status, Ecto.Enum, values: [:connected, :disconnected])
   end
 
-  def connected_changeset(params) do
+  def create_changeset(params) do
     %__MODULE__{}
-    |> cast(params, @wanted_params)
+    |> cast(params, @wanted_on_create)
     |> validate_required(@required_params)
   end
 
-  def disconnected_changeset(params) do
-    %__MODULE__{}
-    |> cast(
-      params,
-      @wanted_params ++
-        [
-          :disconnected_at,
-          :disconnected_reason
-        ]
-    )
-    |> validate_required(@required_params ++ [:disconnected_at])
+  def update_changeset(connection, params) do
+    connection
+    |> cast(params, @wanted_on_update)
+    |> validate_required(@required_params)
   end
 end
