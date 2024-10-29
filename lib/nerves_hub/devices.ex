@@ -839,6 +839,13 @@ defmodule NervesHub.Devices do
 
   def matches_deployment?(_, _), do: false
 
+  def update_deployment(device, deployment) do
+    device
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+    |> Repo.update!()
+  end
+
   @spec failure_threshold_met?(Device.t(), Deployment.t()) :: boolean()
   def failure_threshold_met?(%Device{} = device, %Deployment{} = deployment) do
     Enum.count(device.update_attempts) >= deployment.device_failure_threshold
