@@ -12,7 +12,7 @@ defmodule NervesHub.MixProject do
         docs: :docs
       ],
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixir: "~> 1.11",
+      elixir: "~> 1.17.2",
       releases: [
         nerves_hub: [
           steps: [:assemble],
