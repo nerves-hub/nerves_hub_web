@@ -25,7 +25,10 @@ defmodule NervesHubWeb.Live.Deployments.NewTest do
       |> select(firmware.platform, from: "Platform")
       |> fill_in("Deployment name", with: "Moussaka")
       |> fill_in("Tag(s) distributed to", with: "josh, lars")
-      |> fill_in("Firmware version", with: firmware.id)
+      |> select(
+        "#{firmware.version} #{firmware.platform} #{firmware.architecture} #{firmware.uuid}",
+        from: "Firmware version"
+      )
       |> click_button("Create Deployment")
       |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployments"))
       |> assert_has("h1", text: "Deployments")

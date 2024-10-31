@@ -21,6 +21,7 @@
   </.form>
 <% else %>
   <.form :let={f} for={@form} phx-submit="create-deployment">
+    <%!-- <%= hidden_input(f, :platform, value: @platform) %> --%>
     <div class="form-group">
       <label for="name_input">Deployment name</label>
       <%= text_input(f, :name, class: "form-control", id: "name_input") %>
