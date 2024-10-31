@@ -132,11 +132,27 @@ jobs:
             type=raw,enable={{is_default_branch}},value=latest
             # tag event (eg. "v1.2.3")
             type=ref,event=tag
+      
+      - name: Check if PR publish
+        if: ${{ github.event_name == 'pull_request' }}
+        id: pr_publish_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          commits=$(gh pr view ${{ github.head_ref }} --json commits --jq '.commits[] | .messageHeadline + " " + .messageBody')
+
+          if [[ $commits =~ \[publish\] ]]; then
+            echo "true"
+            echo "publish=true" >> $GITHUB_OUTPUT
+          else
+            echo "false"
+            echo "publish=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build and push Docker image
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
           context: .
-          push: ${{ github.ref == 'refs/heads/main' || github.ref_type == 'tag' }}
+          push: ${{ steps.pr_publish_check.outputs.publish == 'true' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref_type == 'tag' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
