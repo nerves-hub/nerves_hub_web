@@ -13,6 +13,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceHealth
@@ -164,10 +165,13 @@ defmodule NervesHub.Devices do
           query
 
         {:alarm_status, "with"} ->
-          where(query, [d], d.id in subquery(query_devices_with_alarms()))
+          where(query, [d], d.id in subquery(Alarms.query_devices_with_alarms()))
 
         {:alarm_status, "without"} ->
-          where(query, [d], d.id not in subquery(query_devices_with_alarms()))
+          where(query, [d], d.id not in subquery(Alarms.query_devices_with_alarms()))
+
+        {:alarm, value} ->
+          where(query, [d], d.id in subquery(Alarms.query_devices_with_alarm(value)))
 
         {:connection, _value} ->
           where(query, [d], d.connection_status == ^String.to_atom(value))
@@ -219,24 +223,6 @@ defmodule NervesHub.Devices do
           end
       end
     end)
-  end
-
-  defp query_devices_with_alarms do
-    from(
-      lr in subquery(
-        from(dh in DeviceHealth,
-          where: fragment("?->'alarms' != '{}'", dh.data),
-          select: %{
-            device_id: dh.device_id,
-            inserted_at: dh.inserted_at,
-            rn: row_number() |> over(partition_by: dh.device_id, order_by: [desc: dh.inserted_at])
-          }
-        )
-      ),
-      where: lr.rn == 1
-    )
-    |> join(:inner, [lr], d in Device, on: lr.device_id == d.id)
-    |> select([lr, o], o.id)
   end
 
   def get_device_count_by_org_id(org_id) do

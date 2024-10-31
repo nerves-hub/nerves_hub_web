@@ -143,6 +143,18 @@
             <div class="select-icon"></div>
           </div>
         </div>
+        <div class="form-group">
+          <label for="alarm">Alarm</label>
+          <div class="pos-rel">
+            <select name="alarm" id="alarm" class="form-control">
+              <option {selected?(@current_filters, :alarm, "")} value="">All</option>
+              <%= for alarm <- @current_alarms do %>
+                <option {selected?(@current_filters, :alarm, alarm)}><%= alarm %></option>
+              <% end %>
+            </select>
+            <div class="select-icon"></div>
+          </div>
+        </div>
       </form>
       <button class="btn btn-secondary" type="button" phx-click="reset-filters">Reset Filters</button>
     </div>
