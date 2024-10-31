@@ -125,7 +125,7 @@ jobs:
           images: ghcr.io/nerves-hub/nerves-hub
           tags: |
             # short sha
-            type=sha,enable={{is_default_branch}},prefix=,suffix=,format=short
+            type=sha,prefix=,suffix=,format=short
             # branch image names, except for main
             type=ref,enable=${{ github.ref != format('refs/heads/{0}', 'main') }},event=branch
             # latest tag for main branch
