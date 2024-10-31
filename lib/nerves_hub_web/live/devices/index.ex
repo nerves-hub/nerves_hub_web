@@ -27,7 +27,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     device_id: "",
     tag: "",
     updates: "",
-    has_no_tags: false
+    has_no_tags: false,
+    alarm_status: ""
   }
 
   @filter_types %{
@@ -39,7 +40,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     device_id: :string,
     tag: :string,
     updates: :string,
-    has_no_tags: :boolean
+    has_no_tags: :boolean,
+    alarm_status: :string
   }
 
   @default_page 1

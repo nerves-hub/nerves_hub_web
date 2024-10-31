@@ -132,6 +132,17 @@
             <div class="select-icon"></div>
           </div>
         </div>
+        <div class="form-group">
+          <label for="alarm_status">Alarm Status</label>
+          <div class="pos-rel">
+            <select name="alarm_status" id="alarm_status" class="form-control">
+              <option {selected?(@current_filters, :alarm_status, "")} value="">All</option>
+              <option {selected?(@current_filters, :alarm_status, "with")} value="with">Has Alarms</option>
+              <option {selected?(@current_filters, :alarm_status, "without")} value="without">No alarms</option>
+            </select>
+            <div class="select-icon"></div>
+          </div>
+        </div>
       </form>
       <button class="btn btn-secondary" type="button" phx-click="reset-filters">Reset Filters</button>
     </div>
