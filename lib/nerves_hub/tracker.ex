@@ -22,7 +22,7 @@ defmodule NervesHub.Tracker do
       }
     }
 
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{identifier}:internal", message)
+    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{identifier}:internal", message)
 
     :ok
   end
@@ -47,7 +47,7 @@ defmodule NervesHub.Tracker do
       }
     }
 
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{identifier}:internal", message)
+    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{identifier}:internal", message)
 
     :ok
   end
@@ -70,8 +70,8 @@ defmodule NervesHub.Tracker do
   online. If the device is online, it will send a connection state change of online.
   """
   def online?(device) do
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", :online?)
-    false
+    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", :online?)
+    device.connection_status == :connected
   end
 
   @doc """
@@ -80,10 +80,32 @@ defmodule NervesHub.Tracker do
   If the device is not online this function will wait for a timeout before returning false
   """
   def sync_online?(device) do
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", {:online?, self()})
+    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", {:online?, self()})
 
     receive do
       :online ->
+        true
+    after
+      500 ->
+        false
+    end
+  end
+
+  @doc """
+  Check if a device's console channel is available.
+
+  Times out if console is unavailable.
+  """
+  def console_active?(device) do
+    _ =
+      Phoenix.PubSub.broadcast(
+        NervesHub.PubSub,
+        "device:console:#{device.id}",
+        {:active?, self()}
+      )
+
+    receive do
+      :active ->
         true
     after
       500 ->

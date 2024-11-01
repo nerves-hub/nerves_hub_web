@@ -199,7 +199,12 @@ defmodule NervesHubWeb.Components.Navigation do
 
   def sidebar_product(assigns, path, tab_hint) do
     [
-      # %{title: "Dashboard", icon: "tachometer-alt", active: "", href: Routes.product_path(conn, :show, conn.assigns.org.name, conn.assigns.product.name)},
+      %{
+        title: "Dashboard",
+        active: "",
+        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/dashboard",
+        deactivated?: Application.get_env(:nerves_hub, :dashboard_enabled) != true
+      },
       %{
         title: "Devices",
         active: "",
@@ -232,6 +237,7 @@ defmodule NervesHubWeb.Components.Navigation do
         href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/settings"
       }
     ]
+    |> Enum.reject(& &1[:deactivated?])
     |> sidebar_active(path, tab_hint)
   end
 

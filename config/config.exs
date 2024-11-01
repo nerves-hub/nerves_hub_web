@@ -1,10 +1,5 @@
 import Config
 
-# Configures Elixir's Logger
-config :logger, :default_formatter,
-  format: {NervesHub.LoggerFormatter, :format},
-  metadata: :all
-
 config :phoenix,
   json_library: Jason,
   template_engines: [
@@ -42,7 +37,10 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   live_view: [
     signing_salt: "Kct3W8U7uQ6KAczYjzNbiYS6A8Pbtk3f"
   ],
-  render_errors: [view: NervesHubWeb.ErrorView, accepts: ~w(html json)],
+  render_errors: [
+    formats: [html: NervesHubWeb.ErrorView, json: NervesHubWeb.API.ErrorView],
+    accepts: ~w(html json)
+  ],
   pubsub_server: NervesHub.PubSub
 
 ##
@@ -50,19 +48,30 @@ config :nerves_hub, NervesHubWeb.Endpoint,
 #
 config :nerves_hub, NervesHub.Repo,
   queue_target: 500,
-  queue_interval: 5_000
+  queue_interval: 5_000,
+  migration_lock: :pg_advisory_lock
 
 config :nerves_hub, Oban,
   repo: NervesHub.ObanRepo,
   log: false,
-  queues: [delete_archive: 1, delete_firmware: 1, firmware_delta_builder: 2, truncate: 1],
+  queues: [
+    delete_archive: 1,
+    delete_firmware: 1,
+    device: 1,
+    firmware_delta_builder: 2,
+    truncate: 1,
+    # temporary, will remove in November
+    truncation: 1
+  ],
   plugins: [
     # 1 week
     {Oban.Plugins.Pruner, max_age: 604_800},
     {Oban.Plugins.Cron,
      crontab: [
-       {"0 * * * *", NervesHub.Workers.TruncateAuditLogs, max_attempts: 1},
-       {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates}
+       {"0 * * * *", NervesHub.Workers.ScheduleOrgAuditLogTruncation, max_attempts: 1},
+       {"*/1 * * * *", NervesHub.Workers.CleanDeviceConnectionStates},
+       {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates},
+       {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation}
      ]}
   ]
 

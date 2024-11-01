@@ -565,7 +565,7 @@ defmodule NervesHub.DevicesTest do
       assert Enum.count(device.update_attempts) == 1
 
       {:ok, device} = Devices.firmware_update_successful(device)
-      assert Enum.count(device.update_attempts) == 0
+      assert Enum.empty?(device.update_attempts)
     end
 
     test "clears an inflight update if it matches", %{device: device, deployment: deployment} do
@@ -646,13 +646,14 @@ defmodule NervesHub.DevicesTest do
       {:error, :up_to_date, _device} = Devices.verify_update_eligibility(device, deployment)
     end
 
-    test "device is unhealthy and should be put in the penalty box based on total attemps",
+    test "device should be rejected for updates based on threshold rate and have it's inflight updates cleared",
          state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
       deployment = %{deployment | device_failure_threshold: 6}
 
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment)
 
       now = DateTime.utc_now()
 
@@ -666,14 +667,16 @@ defmodule NervesHub.DevicesTest do
       {:error, :updates_blocked, device} = Devices.verify_update_eligibility(device, deployment)
 
       assert device.updates_blocked_until
+      assert Devices.count_inflight_updates_for(deployment) == 0
     end
 
-    test "device is unhealthy and should be put in the penalty box based on attempt rate",
+    test "device should be rejected for updates based on attempt rate and have it's inflight updates cleared",
          state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
 
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment)
 
       now = DateTime.utc_now()
 
@@ -686,9 +689,11 @@ defmodule NervesHub.DevicesTest do
       {:error, :updates_blocked, device} = Devices.verify_update_eligibility(device, deployment)
 
       assert device.updates_blocked_until
+      assert Devices.count_inflight_updates_for(deployment) == 0
     end
 
-    test "device is in the penalty box and should be rejected for updates", state do
+    test "device in penalty box should be rejected for updates and have it's inflight updates cleared",
+         state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
 
@@ -698,9 +703,12 @@ defmodule NervesHub.DevicesTest do
 
       # future time
       device = %{device | updates_blocked_until: DateTime.add(now, 1, :second)}
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment)
 
       {:error, :updates_blocked, _device} =
         Devices.verify_update_eligibility(device, deployment, now)
+
+      assert Devices.count_inflight_updates_for(deployment) == 0
 
       # now
       device = %{device | updates_blocked_until: now}
@@ -879,6 +887,136 @@ defmodule NervesHub.DevicesTest do
 
       assert Devices.firmware_status(device) == "pending"
     end
+
+    test "safe against missing metadata", %{device: device} do
+      # This is mostly for race conditions between finishing the DB write
+      # of related firmware metadata or deployment update and reading the
+      # record back in with a firmware_status (i.e via API request)
+      # In those rare cases we might have missing data and need to be able to
+      # handle it
+      missing_meta_device = %{device | deployment: nil, firmware_metadata: nil}
+
+      assert Devices.firmware_status(missing_meta_device) == "latest"
+    end
+  end
+
+  describe "inflight updates" do
+    test "clears expired inflight updates", %{device: device, deployment: deployment} do
+      deployment = Repo.preload(deployment, :firmware)
+      Fixtures.inflight_update(device, deployment)
+      assert {0, _} = Devices.delete_expired_inflight_updates()
+
+      Devices.clear_inflight_update(device)
+
+      expires_at =
+        DateTime.utc_now()
+        |> DateTime.shift(hour: -1)
+        |> DateTime.truncate(:second)
+
+      Fixtures.inflight_update(device, deployment, %{"expires_at" => expires_at})
+      assert {1, _} = Devices.delete_expired_inflight_updates()
+    end
+  end
+
+  describe "updates connection details" do
+    test "marks a device as connected", %{org: org, product: product, firmware: firmware} do
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, updated} = Devices.device_connected(device)
+
+      assert updated.connection_status == :connected
+      assert recent_datetime(updated.connection_established_at)
+      assert recent_datetime(updated.connection_last_seen_at)
+      assert updated.connection_disconnected_at == nil
+    end
+
+    test "marks a device as disconnected", %{org: org, product: product, firmware: firmware} do
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, updated} = Devices.device_connected(device)
+      {:ok, again} = Devices.device_disconnected(updated)
+
+      assert again.connection_status == :disconnected
+      assert recent_datetime(again.connection_established_at)
+      assert recent_datetime(again.connection_last_seen_at)
+      assert recent_datetime(again.connection_disconnected_at)
+    end
+
+    test "marks a devices last seen information", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, updated} = Devices.device_heartbeat(device)
+
+      assert updated.connection_status == :connected
+      assert recent_datetime(updated.connection_last_seen_at)
+      assert updated.connection_disconnected_at == nil
+    end
+  end
+
+  defp recent_datetime(datetime) do
+    DateTime.diff(DateTime.utc_now(), datetime, :second) <= 5
+  end
+
+  describe "clean up device connection statuses" do
+    test "don't change the connection status of devices with a recent heartbeat", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -10),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -1)
+      })
+
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -9),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -2)
+      })
+
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -11),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -1)
+      })
+
+      assert Devices.connected_count(product) == 3
+      Devices.clean_connection_states()
+      assert Devices.connected_count(product) == 3
+    end
+
+    test "clean connection status of devices not seen recently", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -10),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -1)
+      })
+
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -25),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -15)
+      })
+
+      Fixtures.device_fixture(org, product, firmware, %{
+        connection_status: :connected,
+        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -47),
+        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -9)
+      })
+
+      assert Devices.connected_count(product) == 3
+      Devices.clean_connection_states()
+      assert Devices.connected_count(product) == 1
+    end
   end
 
   defp update_firmware_uuid(device, uuid) do
@@ -891,5 +1029,39 @@ defmodule NervesHub.DevicesTest do
     }
 
     Devices.update_firmware_metadata(device, firmware_metadata)
+  end
+
+  describe "device health reports" do
+    test "create new device health", %{device: device} do
+      device_health = %{"device_id" => device.id, "data" => %{"literally_any_map" => "values"}}
+      assert {:ok, %Devices.DeviceHealth{}} = Devices.save_device_health(device_health)
+      assert %Devices.DeviceHealth{} = Devices.get_latest_health(device.id)
+    end
+
+    test "create health reports over limit and then clean down to default limit", %{
+      device: device
+    } do
+      device_health = %{"device_id" => device.id, "data" => %{"literally_any_map" => "values"}}
+
+      for x <- 0..9 do
+        days_ago = DateTime.shift(DateTime.utc_now(), day: -x)
+
+        inserted =
+          device_health
+          |> Devices.DeviceHealth.save()
+          |> Ecto.Changeset.put_change(:inserted_at, days_ago)
+          |> Repo.insert()
+
+        assert {:ok, %Devices.DeviceHealth{}} = inserted
+      end
+
+      healths = Devices.get_device_health(device.id)
+      assert 10 = Enum.count(healths)
+
+      Devices.truncate_device_health()
+
+      healths = Devices.get_device_health(device.id)
+      assert 7 = Enum.count(healths)
+    end
   end
 end

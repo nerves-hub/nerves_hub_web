@@ -20,18 +20,27 @@ defmodule NervesHubWeb.ChannelCase do
       # Import conveniences for testing with channels
       import Phoenix.ChannelTest
       use DefaultMocks
+      use Oban.Testing, repo: NervesHub.ObanRepo
 
       # The default endpoint for testing
       @endpoint NervesHubWeb.DeviceEndpoint
     end
   end
 
-  setup tags do
+  setup do
+    # Explicitly get a connection before each test
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.ObanRepo)
+  end
 
-    unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
-    end
+  setup tags do
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(NervesHub.Repo, shared: not tags[:async])
+    pid2 = Ecto.Adapters.SQL.Sandbox.start_owner!(NervesHub.ObanRepo, shared: not tags[:async])
+
+    on_exit(fn ->
+      Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
+      Ecto.Adapters.SQL.Sandbox.stop_owner(pid2)
+    end)
 
     :ok
   end

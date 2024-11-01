@@ -1,6 +1,5 @@
 defmodule NervesHub.ArchivesTest do
   use NervesHub.DataCase, async: true
-  use Oban.Testing, repo: NervesHub.Repo
 
   alias NervesHub.Archives
   alias NervesHub.Fixtures

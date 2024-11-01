@@ -12,9 +12,12 @@ defmodule NervesHub.Application do
         raise "fwup could not be found in the $PATH. This is a requirement of NervesHubWeb and cannot start otherwise"
     end
 
-    :logger.add_handler(:my_sentry_handler, Sentry.LoggerHandler, %{
-      config: %{metadata: [:file, :line]}
-    })
+    _ =
+      :logger.add_handler(:my_sentry_handler, Sentry.LoggerHandler, %{
+        config: %{metadata: [:file, :line]}
+      })
+
+    NervesHub.Logger.attach()
 
     topologies = Application.get_env(:libcluster, :topologies, [])
 
@@ -23,12 +26,12 @@ defmodule NervesHub.Application do
         {Ecto.Migrator,
          repos: Application.fetch_env!(:nerves_hub, :ecto_repos),
          skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
-        {Registry, keys: :unique, name: NervesHub.Devices},
+        {Registry, keys: :unique, name: NervesHub.Devices.Registry},
         {Finch, name: Swoosh.Finch}
       ] ++
-        metrics(deploy_env()) ++
+        NervesHub.StatsdMetricsReporter.config() ++
         [
-          {Cachex, name: :geo_ip},
+          NervesHub.MetricsPoller.child_spec(),
           NervesHub.RateLimit,
           NervesHub.Repo,
           NervesHub.ObanRepo,
@@ -47,12 +50,6 @@ defmodule NervesHub.Application do
   def config_change(changed, _new, removed) do
     NervesHubWeb.Endpoint.config_change(changed, removed)
     :ok
-  end
-
-  defp metrics("test"), do: []
-
-  defp metrics(_env) do
-    [NervesHub.Metrics]
   end
 
   defp deployments_supervisor("test"), do: []

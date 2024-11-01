@@ -1,0 +1,75 @@
+<div class="relative">
+  <%= if @device_count == 0 and not @loading? do %>
+    <div class="no-results-blowup-wrapper">
+      <img src="/images/device.svg" alt="No devices" />
+      <h3 style="margin-top: 2.75rem">
+        <%= @product.name %> doesn’t have any devices yet.
+      </h3>
+      <div class="mt-3">
+        <.link class="btn btn-outline-light btn-action" aria-label="Add new device" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"}>
+          <div class="button-icon add"></div>
+          <span class="action-text">Add your first Device</span>
+        </.link>
+      </div>
+      <p class="mt-3">
+        Or follow <a class="strong inline" target="_blank" rel="noopener noreferrer" href="https://docs.nerves-hub.org/nerves-hub/setup/devices">these steps</a> to add a device
+        using
+        the terminal.
+      </p>
+    </div>
+  <% else %>
+    <%= if @marker_count == 0 and not @loading? do %>
+      <!-- Show info about adding location data and the map with less opacity in background if we have no geodata-->
+      <div class="no-results-blowup-wrapper no-map-results-positioned">
+        <h3 style="margin-top: 2.75rem">
+          <%= @product.name %> doesn’t have any devices with location data.
+        </h3>
+        <p class="mt-3">
+          Add <span class="badge">:nerves_hub_link_geo</span> as a dependency to your Nerves project to
+          fetch
+          location from devices.
+        </p>
+      </div>
+      <div id="map" class="opacity-50" phx-hook="WorldMap" phx-update="ignore" style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
+    <% else %>
+      <%= if @loading? do %>
+        <div class="no-results-blowup-wrapper no-map-results-positioned">
+          <h3 style="margin-top: 2.75rem">
+            Loading...
+          </h3>
+        </div>
+      <% end %>
+      <div class="map-top-bar">
+        <form phx-change="filter-change" class="radio-options">
+          <label class={[@mode == "connected" && "active"]}>
+            <input type="radio" name="mode" value="connected" checked={@mode == "connected"} /> Connected
+          </label>
+          <label class={[@mode == "updated" && "active"]}>
+            <input type="radio" name="mode" value="updated" checked={@mode == "updated"} /> Updated
+          </label>
+        </form>
+        <p class="p-small text-right">Showing <%= @marker_count %> devices with location data.</p>
+      </div>
+      <div id="map" phx-hook="WorldMap" phx-update="ignore" data-mode={@mode} style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
+      <div id="map-markers" class="flex-row justify-content-center">
+        <div class="flex-auto">
+          <p class="p-small flex-row align-items-center map-marker-gap">
+            <span class="map-marker green-marker"></span>
+            <span :if={@mode == "connected"}>Connected device</span>
+            <span :if={@mode == "updated"}>Up to date</span>
+          </p>
+        </div>
+        <div>
+          <p :if={@mode == "connected"} class="p-small flex-row align-items-center map-marker-gap">
+            <span class="map-marker red-marker"></span>
+            <span>Device offline or not seen</span>
+          </p>
+          <p :if={@mode == "updated"} class="p-small flex-row align-items-center map-marker-gap">
+            <span class="map-marker gray-marker"></span>
+            <span>Old version</span>
+          </p>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+</div>

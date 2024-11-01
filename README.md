@@ -2,28 +2,31 @@
 
 ![GitHub Actions](https://github.com/nerves-hub/nerves_hub_web/actions/workflows/ci.yml/badge.svg?branch=main)
 
-This is the source code for the NervesHub firmware update and device management
-server.
+This is the source repository for the NervesHub firmware update and device management
+server. Container images are available [on ghcr over here](https://ghcr.io/nerves-hub/nerves-hub). Issue reports, Pull Requests and feature requests are very welcome.
 
-**Important**
+## Features
 
-This is the 2.0 development branch of NervesHub. If you have been using
-NervesHub prior to around April, 2023 and are not following 2.0 development, see
-the [`maint-v1.0`
-branch](https://github.com/nerves-hub/nerves_hub_web/tree/maint-v1.0). The
-`maint-v1.0` branch is being used in production. 2.0 development is in progress,
-and we don't have guides or good documentation yet. If you use the 2.0
-development branch, we don't expect breaking changes, but please bear with us as
-we complete the 2.0 release.
+- Delivery of signed firmware to authenticated Nerves devices
+- Robust and reliable, confirmed to work at a scale of hundreds of thousands of devices
+- Hardware device certificate authentication using NervesKey
+- Shared secret authentication for easy onboarding and simpler setups
+- Self-hostable with minimal infrastructure, Dockerfile provided
+- Remote IEx terminal for debugging and device recovery
+- and more...
+
+Now that NervesHub 2.x is released we will refer to it simply as NervesHub. The 1.x version is now Legacy NervesHub ([`maint-v1.0`
+branch](https://github.com/nerves-hub/nerves_hub_web/tree/maint-v1.0)) and is under very limited maintenance and migration is strongly encouraged. The people that develop NervesHub no longer have 1.x environments running. See notes on migrating below.
+
+## Migration from 1.x to 2.x
+
+Migration should be quite straight-forward, there should not be any breaking changes. It is still the same application and NervesHubLink should stay largely compatible. You may find you no longer need a lot of the AWS services that was relied on by the 1.x version. We recommend decomissioning those if they aren't used for other things. Version 2.x requires an application server to run on, an S3-compatible object storage and a Postgres database. It also requires some control over how ingress is done for custom SSL handling. This should all be less than the requirements of Legacy NervesHub.
 
 ## Project overview and setup
 
 ### Development environment setup
 
-For best compatibility with Erlang SSL versions, we use Erlang/OTP 23.0.4. If
-you're coming to NervesHub without OTP 23 or earlier devices, don't worry about
-this. OTP 23.0.4 is difficult to install on Apple M1/M2 hardware so developing
-on Linux is highly recommended if you're keeping to the OTP 23.0.4 requirement.
+For best compatibility with Erlang SSL versions, we use Erlang/OTP 27.0.1.
 
 The `.tool-versions` files contains the Erlang, Elixir and NodeJS versions.
 Install [asdf-vm](https://asdf-vm.com/) and run the following for quick setup:
@@ -82,8 +85,8 @@ echo "127.0.0.1 nerves-hub.org" | sudo tee -a /etc/hosts
 
 Once the server is running, by default in development you can access it at http://localhost:4000
 
-In development you can login into a pre-generated account with the username
-`nerveshub` and password `nerveshub`.
+In development you can login into a pre-generated account with the email
+`nerveshub@nerves-hub.org` and password `nerveshub`.
 
 ### Running Tests
 

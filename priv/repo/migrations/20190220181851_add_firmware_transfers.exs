@@ -4,7 +4,7 @@ defmodule NervesHub.Repo.Migrations.AddOrgUsage do
   def change do
     create table(:firmware_transfers, primary_key: false) do
       add(:id, :uuid, primary_key: true)
-      add(:org_id, references(:orgs, null: false))
+      add(:org_id, references(:orgs), null: false)
       add(:firmware_uuid, :string, null: false)
       add(:remote_ip, :string, null: false)
       add(:bytes_total, :integer, null: false)

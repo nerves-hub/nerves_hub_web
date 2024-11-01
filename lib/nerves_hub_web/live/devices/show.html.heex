@@ -24,14 +24,14 @@
         <span class="action-text">Reboot</span>
       </button>
       <button class="btn btn-outline-light btn-action" aria-label="Reconnect device" type="button" phx-click="reconnect">
-        <span class="button-icon power"></span>
+        <span class="button-icon reconnect"></span>
         <span class="action-text">Reconnect</span>
       </button>
       <button class="btn btn-outline-light btn-action" aria-label="Identify device" type="button" phx-click="identify">
         <span class="button-icon identify"></span>
         <span class="action-text">Identify</span>
       </button>
-      <%= link(class: "btn btn-outline-light btn-action", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
+      <%= link(class: "btn btn-outline-light btn-action #{unless (@console_active?), do: "disabled"}", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
         <span class="button-icon console-icon"></span>
         <span class="action-text">Console</span>
       <% end %>
@@ -53,6 +53,10 @@
 
 <DeviceHeader.render org={@org} product={@product} device={@device} status={@status} />
 
+<FwupProgress.render :if={assigns.fwup_progress} fwup_progress={@fwup_progress} />
+
+<div class="divider"></div>
+
 <div class="row">
   <div class="col-lg-6">
     <div>
@@ -64,13 +68,23 @@
         <span :for={tag <- @device.tags || []} class="badge"><%= tag %></span>
       </div>
 
-      <DeviceLocation.render connection_metadata={@device.connection_metadata} />
+      <DeviceLocation.render location={@device.connection_metadata["location"]} />
+
+      <%= if !Enum.empty?(@metadata) do %>
+        <h3 class="mb-2">Metadata</h3>
+        <div class="display-box metrics">
+          <div :for={{key, value} <- @metadata} class="display-box-item">
+            <div :if={value != ""} class="help-text"><%= key |> String.replace("_", " ") |> String.capitalize() %></div>
+            <p><%= value %></p>
+          </div>
+        </div>
+      <% end %>
     </div>
 
     <div>
       <h3 class="mb-2">First Connect Code</h3>
       <%= if code = connecting_code(@device) do %>
-        <pre class="hljs"><code class="hljs elixir"><%= code %></code></pre>
+        <pre class="hljs"><code class="hljs elixir" phx-hook="HighlightCode" id={"connecting-code-#{@device.id}"}><%= code %></code></pre>
       <% else %>
         <div class="display-box">
           No code sent
@@ -80,6 +94,83 @@
   </div>
 
   <div class="col-lg-6">
+    <div class="device-health-section">
+      <div class="device-header-group justify-content-between">
+        <h3 class="mb-2">Health</h3>
+
+        <button
+          class="btn btn-outline-light btn-action"
+          aria-label={if @health_check_timer, do: "Disable Auto Refresh", else: "Enable Auto Refresh"}
+          type="button"
+          phx-click="toggle-health-check-auto-refresh"
+        >
+          <span :if={@health_check_timer} class="action-text">Disable Auto Refresh</span>
+          <span :if={!@health_check_timer} class="action-text">Enable Auto Refresh</span>
+        </button>
+      </div>
+
+      <%= if (!Enum.any?(Map.values(@latest_metrics)) or !Enum.any?(Map.values(@latest_custom_metrics))) do %>
+        <div class="display-box">
+          No health information have been received for this device.
+        </div>
+      <% end %>
+      <div>
+        <%= if (Enum.any?(Map.values(@latest_metrics))) do %>
+          <div class="device-health">
+            <div :if={@latest_metrics.load_1min} class="callout">
+              <div class="help-text label">Load avg</div>
+              <%= @latest_metrics.load_1min %> | <%= @latest_metrics.load_5min %> | <%= @latest_metrics.load_15min %>
+            </div>
+
+            <%= if @latest_metrics.used_mb do %>
+              <div class={"callout #{Utils.memory_to_status(60)}"} x>
+                <div class="help-text label">Memory used</div>
+                <%= round(@latest_metrics.used_mb) %>MB (<%= round(@latest_metrics.used_percent) %>%)
+              </div>
+            <% else %>
+              <div class="callout">
+                <div class="help-text label">Memory used</div>
+                Not reported
+              </div>
+            <% end %>
+
+            <%= if @latest_metrics.cpu_temp do %>
+              <div class={"callout #{Utils.cpu_temp_to_status(@latest_metrics.cpu_temp)}"}>
+                <div class="help-text label">CPU</div>
+                <%= round(@latest_metrics.cpu_temp) %>°
+              </div>
+            <% else %>
+              <div class="callout">
+                <div class="help-text label">CPU</div>
+                Not reported
+              </div>
+            <% end %>
+
+            <%= for {key, val} <- @latest_custom_metrics do %>
+              <div class="callout">
+                <div class="help-text label"><%= String.capitalize(key) %></div>
+                <%= val %>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <div :if={Map.get(@latest_metrics, :timestamp)} class="flex-row justify-content-between">
+          <div class="last-report">
+            <span class="label pr-1">Last reported :</span>
+            <time id="health-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics.timestamp, :second)), " ", "T")}>
+              <%= Timex.from_now(@latest_metrics.timestamp) %>
+            </time>
+          </div>
+          <div>
+            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/health"}>
+              Full metrics
+            </.link>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div>
       <h3 class="mb-2">Deployments</h3>
       <div class="display-box">
@@ -89,6 +180,19 @@
             <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}><%= @deployment.name %></div>
           </.link>
           <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
+        </div>
+
+        <div :if={@update_information.update_available} class="mt-4">
+          <div class="help-text mb-1 tooltip-label help-tooltip">
+            <span>Update available</span>
+            <span class="tooltip-info"></span>
+            <span class="tooltip-text">An update is available in the assigned deployment. You can skip the queue by clicking "Send available update".</span>
+          </div>
+          <form phx-submit="push-available-update">
+            <div class="flex-row justify-content-between">
+              <button class="btn btn-secondary">Send available update</button>
+            </div>
+          </form>
         </div>
 
         <div class="mt-4">

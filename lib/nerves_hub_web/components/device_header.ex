@@ -3,8 +3,6 @@ defmodule NervesHubWeb.Components.DeviceHeader do
 
   alias NervesHub.Devices
 
-  alias NervesHubWeb.LayoutView.DateTimeFormat
-
   attr(:org, :any)
   attr(:product, :any)
   attr(:device, :any)
@@ -33,29 +31,54 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         </p>
       </div>
       <div>
+        <div class="help-text mb-1 tooltip-label help-tooltip">
+          <span>Last connected</span>
+          <span :if={@device.connection_established_at} class="tooltip-info"></span>
+          <span :if={@device.connection_established_at} class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
+            <%= @device.connection_established_at %>
+          </span>
+        </div>
+        <p>
+          <span :if={!@device.connection_established_at}>Never</span>
+          <time
+            :if={@device.connection_established_at}
+            id="connection-establisted-at"
+            phx-hook="UpdatingTimeAgo"
+            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.connection_established_at, :second)), " ", "T")}
+          >
+            <%= Timex.from_now(@device.connection_established_at) %>
+          </time>
+        </p>
+      </div>
+      <div>
+        <div class="help-text mb-1 tooltip-label help-tooltip">
+          <span>Last seen</span>
+          <span :if={@device.connection_last_seen_at} class="tooltip-info"></span>
+          <span :if={@device.connection_last_seen_at} class="tooltip-text" id="connection-last-seen-at-tooltip" phx-hook="LocalTime">
+            <%= @device.connection_last_seen_at %>
+          </span>
+        </div>
+        <p>
+          <span :if={!@device.connection_last_seen_at}>Never</span>
+          <time
+            :if={@device.connection_last_seen_at}
+            id="last-communication-at"
+            phx-hook="UpdatingTimeAgo"
+            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.connection_last_seen_at, :second)), " ", "T")}
+          >
+            <%= Timex.from_now(@device.connection_last_seen_at) %>
+          </time>
+        </p>
+      </div>
+      <div>
         <div class="help-text mb-1">Version</div>
         <%= if is_nil(@device.firmware_metadata) do %>
           <p>Unknown</p>
         <% else %>
           <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m mt-0">
-            <%= @device.firmware_metadata.version %>
-            <%= @device.firmware_metadata.uuid %>
+            <%= @device.firmware_metadata.version %> (<%= String.slice(@device.firmware_metadata.uuid, 0..7) %>)
           </.link>
         <% end %>
-      </div>
-      <div>
-        <div class="help-text mb-1 tooltip-label help-tooltip">
-          <span>Last Handshake</span>
-          <span class="tooltip-info"></span>
-          <span class="tooltip-text"><%= @device.last_communication %></span>
-        </div>
-        <p>
-          <%= if is_nil(@device.last_communication) do %>
-            Never
-          <% else %>
-            <%= DateTimeFormat.from_now(@device.last_communication) %>
-          <% end %>
-        </p>
       </div>
       <div>
         <div class="help-text">Firmware Updates</div>
@@ -83,17 +106,6 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         </p>
       </div>
     </div>
-
-    <%= if Map.has_key?(assigns, :fwup_progress) && assigns.fwup_progress do %>
-      <div class="help-text mt-3">Progress</div>
-      <div class="progress device-show">
-        <div class="progress-bar" role="progressbar" style={"width: #{@fwup_progress}%"}>
-          <%= @fwup_progress %>%
-        </div>
-      </div>
-    <% end %>
-
-    <div class="divider"></div>
     """
   end
 end

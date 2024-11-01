@@ -1,6 +1,5 @@
 defmodule NervesHub.FirmwaresTest do
   use NervesHub.DataCase, async: true
-  use Oban.Testing, repo: NervesHub.Repo
 
   alias NervesHub.{
     Firmwares,

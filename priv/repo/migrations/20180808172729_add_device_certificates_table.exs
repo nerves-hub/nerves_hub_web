@@ -6,7 +6,7 @@ defmodule NervesHub.Repo.Migrations.AddDeviceCertificatesTable do
       add(:serial, :string, null: false)
       add(:valid_after, :utc_datetime, null: false)
       add(:valid_before, :utc_datetime, null: false)
-      add(:device_id, references(:devices, null: false))
+      add(:device_id, references(:devices), null: false)
 
       timestamps()
     end

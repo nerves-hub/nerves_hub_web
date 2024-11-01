@@ -6,6 +6,16 @@
   margin-top: 10vh;
 }
 
+.no-map-results-positioned {
+  position: absolute;
+  top: 400px;
+  left: 0;
+  right: 0;
+  margin: auto;
+  z-index: 999;
+  // text-align: center;
+}
+
 .opacity-1 {
   opacity: 1;
 }
@@ -55,7 +65,7 @@
     margin-top: 0;
   }
 
-  & > img {
+  &>img {
     margin: auto;
     opacity: .75;
   }
@@ -66,6 +76,7 @@
     margin-top: .5rem;
   }
 }
+
 .options .dropdown-item {
   color: var(--white-50);
   transition: color 200ms ease;
@@ -104,7 +115,7 @@
     display: none;
   }
 
-  & + .dropdown-menu {
+  &+.dropdown-menu {
     padding: 0;
     border-radius: 4px;
     background-color: var(--background);
@@ -200,7 +211,7 @@
 .device-meta-grid,
 .deployment-meta-grid {
   display: grid;
-  grid-template-columns: max-content max-content max-content 1fr;
+  grid-template-columns: max-content max-content max-content max-content 1fr;
   grid-column-gap: 5.5rem;
 
   @media (max-width: 900px) {
@@ -220,7 +231,7 @@
   grid-column-gap: 3rem;
   grid-row-gap: 2rem;
 
-  & > div:first-child {
+  &>div:first-child {
     grid-column: span 2;
   }
 
@@ -247,16 +258,16 @@
 }
 
 html {
-  .btn-group > form:not(:first-child) .btn {
+  .btn-group>form:not(:first-child) .btn {
     margin-left: -1px;
   }
 
-  .btn-group > form:not(:last-child) .btn {
+  .btn-group>form:not(:last-child) .btn {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
   }
 
-  .btn-group > form:not(:first-child) .btn {
+  .btn-group>form:not(:first-child) .btn {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
   }
@@ -275,7 +286,7 @@ html {
   align-items: center;
   margin-bottom: 1.5rem;
 
-  & + h1 {
+  &+h1 {
     margin-top: -1.5rem;
   }
 
@@ -286,8 +297,76 @@ html {
   @media(max-width: 860px) {
     margin-bottom: 1rem;
 
-    & + h1 {
+    &+h1 {
       margin-top: 0;
+    }
+  }
+}
+
+// Dashboard world map
+
+#map-markers {
+  gap: 48px;
+}
+
+
+.map-marker {
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.green-marker {
+  background-color: #4dd54f;
+}
+
+.red-marker {
+  background-color: var(--primary);
+}
+
+.gray-marker {
+  background-color: #999999;
+}
+
+.map-marker-gap {
+  gap: 8px;
+}
+
+.map-top-bar {
+  display: flex;
+  justify-content: space-between;
+}
+
+.radio-options {
+  align-items: center;
+  color: rgb(255, 255, 255);
+  cursor: pointer;
+  display: flex;
+  gap: 4px;
+  label {
+    font-size: 14px;
+    border-radius: 3.2px;
+    font-weight: 500;
+    letter-spacing: normal;
+    text-align: center;
+    user-select: none;
+    vertical-align: middle;
+    border: 1px solid rgb(108, 117, 125);
+    background-color: rgb(108, 117, 125);
+    padding: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    justify-content: center;
+    flex-grow: 1;
+    input[type=radio] {
+      appearance: none;
+    }
+
+    &.active {
+      background-color: #545b62;
+      border-color: #545b62;
     }
   }
 }
@@ -300,6 +379,7 @@ html {
 
 .device-header-group {
   display: flex;
+
   .btn {
     margin-left: 1%;
     height: fit-content;

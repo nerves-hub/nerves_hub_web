@@ -1,6 +1,6 @@
 defmodule NervesHubWeb.Endpoint do
-  use Phoenix.Endpoint, otp_app: :nerves_hub
   use Sentry.PlugCapture
+  use Phoenix.Endpoint, otp_app: :nerves_hub
 
   alias NervesHub.Helpers.WebsocketConnectionError
 
@@ -37,7 +37,7 @@ defmodule NervesHubWeb.Endpoint do
     at: "/",
     from: :nerves_hub,
     gzip: false,
-    only: ~w(css fonts images js favicon.ico robots.txt)
+    only: ~w(css fonts images js favicon.ico robots.txt geo)
   )
 
   plug(NervesHubWeb.Plugs.ConfigureUploads)
@@ -60,11 +60,10 @@ defmodule NervesHubWeb.Endpoint do
     cookie_key: "request_logger"
   )
 
+  plug(NervesHubWeb.Plugs.ImAlive)
+
   plug(Plug.RequestId)
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])
-  plug(NervesHubWeb.Plugs.Logger)
-
-  plug(NervesHubWeb.Plugs.ImAlive)
 
   plug(
     Plug.Parsers,

@@ -10,7 +10,7 @@ defmodule NervesHub.Support.Archives do
 
   def create_signed_archive(key_name, archive_name, output_name, meta_params \\ %{}) do
     {dir, meta_params} = Map.pop(meta_params, :dir, System.tmp_dir())
-    create_archive(dir, archive_name, meta_params)
+    {:ok, _} = create_archive(dir, archive_name, meta_params)
     sign_archive(dir, key_name, archive_name, output_name)
   end
 
@@ -21,13 +21,14 @@ defmodule NervesHub.Support.Archives do
     conf_path = make_conf(struct(MetaParams, meta_params))
     out_path = Path.join([dir, archive_name <> ".fw"])
 
-    System.cmd("fwup", [
-      "-c",
-      "-f",
-      conf_path,
-      "-o",
-      out_path
-    ])
+    {_, 0} =
+      System.cmd("fwup", [
+        "-c",
+        "-f",
+        conf_path,
+        "-o",
+        out_path
+      ])
 
     {:ok, out_path}
   end
@@ -39,19 +40,20 @@ defmodule NervesHub.Support.Archives do
   def sign_archive(dir, key_name, archive_name, output_name) do
     output_path = Path.join([dir, output_name <> ".fw"])
 
-    System.cmd(
-      "fwup",
-      [
-        "-S",
-        "-s",
-        Path.join([dir, key_name <> ".priv"]),
-        "-i",
-        Path.join([dir, archive_name <> ".fw"]),
-        "-o",
-        output_path
-      ],
-      stderr_to_stdout: true
-    )
+    {_, 0} =
+      System.cmd(
+        "fwup",
+        [
+          "-S",
+          "-s",
+          Path.join([dir, key_name <> ".priv"]),
+          "-i",
+          Path.join([dir, archive_name <> ".fw"]),
+          "-o",
+          output_path
+        ],
+        stderr_to_stdout: true
+      )
 
     {:ok, output_path}
   end

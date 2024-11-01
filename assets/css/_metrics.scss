@@ -1,0 +1,24 @@
+.metrics-section {
+    background: var(--backgroundLight);
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 2rem;
+}
+
+
+.metrics-active {
+    background-color: rgb(68, 66, 66);
+}
+
+.btn.btn-outline-light.metrics-active:hover {
+    background-color: rgb(68, 66, 66);
+}
+
+.metrics-btn-group .btn.btn-outline-light:focus {
+    box-shadow: none;
+}
+
+.metrics-text {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}

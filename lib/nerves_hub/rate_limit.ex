@@ -34,15 +34,16 @@ defmodule NervesHub.RateLimit do
       ets_key: :nerves_hub_rate_limit
     }
 
-    :ets.new(state.ets_key, [
-      :named_table,
-      :set,
-      :public,
-      read_concurrency: true,
-      write_concurrency: true
-    ])
+    _ =
+      :ets.new(state.ets_key, [
+        :named_table,
+        :set,
+        :public,
+        read_concurrency: true,
+        write_concurrency: true
+      ])
 
-    :timer.send_interval(10_000, :prune)
+    {:ok, _} = :timer.send_interval(10_000, :prune)
 
     {:ok, state}
   end

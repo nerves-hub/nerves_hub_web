@@ -63,6 +63,9 @@ defmodule NervesHubWeb.Live.Devices.Settings do
     {:noreply, assign(socket, :toggle_upload, toggle != "true")}
   end
 
+  # A phx-change handler is required when using live uploads.
+  def handle_event("validate-cert", _, socket), do: {:noreply, socket}
+
   def handle_event(
         "delete-certificate",
         %{"serial" => serial},
@@ -72,7 +75,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
 
     with db_cert <- Enum.find(certs, &(&1.serial == serial)),
          {:ok, _db_cert} <- Devices.delete_device_certificate(db_cert),
-         updated_certs = Enum.reject(certs, &(&1.serial == serial)) do
+         updated_certs <- Enum.reject(certs, &(&1.serial == serial)) do
       {:noreply, assign(socket, device: %{device | device_certificates: updated_certs})}
     else
       _ ->

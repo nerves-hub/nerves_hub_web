@@ -15,3 +15,4 @@ test/fixtures/ssl/device-root-ca.srl
 .vscode
 
 .env*
+.iex.exs

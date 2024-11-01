@@ -18,8 +18,9 @@ defmodule NervesHubWeb.API.ProductControllerTest do
 
   describe "index roles" do
     test "error: missing org read", %{conn2: conn, org: org} do
-      conn = get(conn, Routes.api_product_path(conn, :index, org.name))
-      assert json_response(conn, 403)["status"] != ""
+      assert_raise(Ecto.NoResultsError, fn ->
+        get(conn, Routes.api_product_path(conn, :index, org.name))
+      end)
     end
   end
 
@@ -73,9 +74,9 @@ defmodule NervesHubWeb.API.ProductControllerTest do
       conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
       assert response(conn, 204)
 
-      conn = get(conn, Routes.api_product_path(conn, :show, org.name, product.name))
-
-      assert response(conn, 403)
+      assert_raise(Ecto.NoResultsError, fn ->
+        get(conn, Routes.api_product_path(conn, :show, org.name, product.name))
+      end)
     end
   end
 
@@ -88,9 +89,9 @@ defmodule NervesHubWeb.API.ProductControllerTest do
       conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
       assert response(conn, 204)
 
-      conn = get(conn, Routes.api_product_path(conn, :show, org.name, product.name))
-
-      assert response(conn, 403)
+      assert_raise(Ecto.NoResultsError, fn ->
+        get(conn, Routes.api_product_path(conn, :show, org.name, product.name))
+      end)
     end
 
     test "error: org delete", %{user2: user, conn2: conn, org: org, product: product} do

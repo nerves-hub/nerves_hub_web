@@ -2,48 +2,45 @@ defmodule NervesHub.AuditLogsTest do
   use NervesHub.DataCase
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Devices.Device
+  alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
-  describe "truncate logs" do
-    test "keeps a max amount of days" do
-      now = NaiveDateTime.utc_now()
-
+  describe "truncate" do
+    test "delete audit log entries older than 3 days" do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user)
 
-      Enum.map(0..5, fn days ->
-        inserted_at = NaiveDateTime.add(now, -1 * days * 24 * 60 * 60, :second)
+      Fixtures.add_audit_logs(10, org.id, 10)
 
-        AuditLogs.audit!(%Device{id: 10}, %Device{id: 10, org_id: org.id}, "Updating")
-        |> Ecto.Changeset.change(%{inserted_at: inserted_at})
-        |> Repo.update!()
-      end)
+      assert {:ok, 7} = AuditLogs.truncate(org.id, 3)
 
-      AuditLogs.truncate(%{max_records_per_run: 10, days_kept: 3})
-
-      assert Enum.count(Repo.all(AuditLogs.AuditLog)) == 3
+      assert Repo.aggregate(AuditLog, :count) == 3
     end
 
-    test "limits amount deleted" do
-      now = NaiveDateTime.utc_now()
-
+    test "delete audit log entries older than 8 days" do
       user = Fixtures.user_fixture()
       org = Fixtures.org_fixture(user)
 
-      # Create 12 records from 5 days ago
-      Enum.map(0..11, fn _ ->
-        inserted_at = NaiveDateTime.add(now, -1 * 5 * 24 * 60 * 60, :second)
+      Fixtures.add_audit_logs(10, org.id, 10)
 
-        AuditLogs.audit!(%Device{id: 10}, %Device{id: 10, org_id: org.id}, "Updating")
-        |> Ecto.Changeset.change(%{inserted_at: inserted_at})
-        |> Repo.update!()
-      end)
+      assert {:ok, 2} = AuditLogs.truncate(org.id, 8)
 
-      AuditLogs.truncate(%{max_records_per_run: 10, days_kept: 3})
+      assert Repo.aggregate(AuditLog, :count) == 8
+    end
 
-      assert Enum.count(Repo.all(AuditLogs.AuditLog)) == 2
+    test "only deletes audit log from the specified org" do
+      user = Fixtures.user_fixture()
+
+      org = Fixtures.org_fixture(user)
+      org2 = Fixtures.org_fixture(user, %{name: "Test-Org2"})
+
+      Fixtures.add_audit_logs(10, org.id, 10)
+      Fixtures.add_audit_logs(100, org2.id, 10)
+
+      assert {:ok, 7} = AuditLogs.truncate(org.id, 3)
+
+      assert Repo.aggregate(AuditLog, :count) == 13
     end
   end
 end

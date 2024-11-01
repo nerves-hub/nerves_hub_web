@@ -25,8 +25,8 @@ defmodule SocketClient do
     GenServer.call(socket, :reply)
   end
 
-  def join(socket, channel, params \\ %{}) do
-    GenServer.call(socket, {:join, channel, params})
+  def join_and_wait(socket, params \\ %{}) do
+    GenServer.call(socket, {:join_and_wait, params})
   end
 
   def status(socket) do
@@ -53,20 +53,8 @@ defmodule SocketClient do
     end
   end
 
-  def wait_join(_, _ \\ nil)
-
-  def wait_join(socket, nil) do
-    timeout = 2_000
-    {:ok, t_ref} = :timer.exit_after(timeout, "Timed out waiting for socket join")
-    wait_join(socket, t_ref)
-  end
-
-  def wait_join(socket, timer) do
-    if __MODULE__.joined?(socket) do
-      :timer.cancel(timer)
-    else
-      wait_join(socket, timer)
-    end
+  def clean_close(socket) do
+    GenServer.call(socket, :clean_close)
   end
 
   def received_archive?(socket) do
@@ -83,7 +71,7 @@ defmodule SocketClient do
 
   def wait_archive(socket, timer) do
     if __MODULE__.received_archive?(socket) do
-      :timer.cancel(timer)
+      {:ok, :cancel} = :timer.cancel(timer)
       GenServer.call(socket, :archive_message)
     else
       wait_archive(socket, timer)
@@ -104,7 +92,7 @@ defmodule SocketClient do
 
   def wait_update(socket, timer) do
     if __MODULE__.received_update?(socket) do
-      :timer.cancel(timer)
+      {:ok, :cancel} = :timer.cancel(timer)
       GenServer.call(socket, :update_message)
     else
       wait_update(socket, timer)
@@ -124,6 +112,7 @@ defmodule SocketClient do
       |> assign(:received_update?, false)
       |> assign(:update, nil)
       |> assign(:received_archive?, false)
+      |> assign(:received_check_health?, false)
       |> assign(:archive, nil)
       |> assign(:error_code, nil)
       |> assign(:error_reason, nil)
@@ -171,6 +160,14 @@ defmodule SocketClient do
     {:ok, socket}
   end
 
+  def handle_message("device", "check_health", %{}, socket) do
+    socket =
+      socket
+      |> assign(:receive_check_helth?, true)
+
+    {:ok, socket}
+  end
+
   @impl true
   def handle_call(:connected?, _from, socket) do
     {:reply, socket.assigns.connected?, socket}
@@ -189,6 +186,7 @@ defmodule SocketClient do
   end
 
   def handle_call(:archive_message, _from, socket) do
+    socket = assign(socket, :received_archive?, false)
     {:reply, socket.assigns.archive, socket}
   end
 
@@ -213,12 +211,36 @@ defmodule SocketClient do
     {:reply, :ok, socket}
   end
 
+  def handle_call({:join_and_wait, params}, _from, socket) do
+    socket =
+      socket
+      |> await_connect!()
+      |> join("device", params)
+      |> await_join!("device")
+      |> assign(:connected?, true)
+      |> assign(:joined?, true)
+      |> assign(:reply, %{})
+
+    {:reply, :ok, socket}
+  end
+
   def handle_call(:status, _from, socket) do
     {:reply, :ok, socket}
   end
 
   def handle_call(:state, _from, socket) do
     {:reply, socket, socket}
+  end
+
+  def handle_call(:clean_close, _from, socket) do
+    socket =
+      socket
+      |> disconnect()
+      |> await_disconnect!()
+      |> assign(:connecting?, false)
+      |> assign(:connected?, false)
+
+    {:reply, :ok, socket}
   end
 
   @impl Slipstream
@@ -231,6 +253,15 @@ defmodule SocketClient do
       |> assign(:connecting?, false)
       |> assign(:error_code, reason.status_code)
       |> maybe_add_error_reasons(reason)
+
+    {:ok, socket}
+  end
+
+  def handle_disconnect(:closed_by_remote, socket) do
+    socket =
+      socket
+      |> assign(:connecting?, false)
+      |> assign(:connected?, false)
 
     {:ok, socket}
   end

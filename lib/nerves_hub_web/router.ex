@@ -35,10 +35,6 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.Plugs.Product)
   end
 
-  pipeline :firmware do
-    plug(NervesHubWeb.Plugs.Firmware)
-  end
-
   pipeline :api do
     plug(:accepts, ["json"])
   end
@@ -64,7 +60,6 @@ defmodule NervesHubWeb.Router do
 
     get("/health", HealthCheckController, :health_check)
 
-    post("/users/register", UserController, :register)
     post("/users/auth", UserController, :auth)
     post("/users/login", UserController, :login)
 
@@ -261,9 +256,16 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrgUser,
         NervesHubWeb.Mounts.FetchProduct
       ] do
+      live("/org/:org_name/:product_name/dashboard", Live.Dashboard.Index)
+
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
       live("/org/:org_name/:product_name/devices/new", Live.Devices.New)
       live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show)
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/health",
+        Live.Devices.DeviceHealth
+      )
 
       live(
         "/org/:org_name/:product_name/devices/:device_identifier/settings",

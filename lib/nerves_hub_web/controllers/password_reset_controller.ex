@@ -18,9 +18,10 @@ defmodule NervesHubWeb.PasswordResetController do
       when is_binary(email) and email != "" do
     case Accounts.update_password_reset_token(email) do
       {:ok, user} ->
-        user
-        |> SwooshEmail.forgot_password()
-        |> SwooshMailer.deliver()
+        _ =
+          user
+          |> SwooshEmail.forgot_password()
+          |> SwooshMailer.deliver()
 
         :ok
 

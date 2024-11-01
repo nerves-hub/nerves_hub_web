@@ -11,8 +11,13 @@
   },
   "dependencies": {
     "bootstrap": "^4.6.0",
-    "joshjs": "^1.0.7",
+    "chart.js": "^4.4.4",
+    "chartjs-adapter-date-fns": "^3.0.0",
+    "date-fns": "^3.6.0",
+    "highlight.js": "^11.10.0",
+    "javascript-time-ago": "^2.5.10",
     "jquery": "^3.6.0",
+    "leaflet": "^1.9.4",
     "moment": "^2.29.4",
     "phoenix": "file:../deps/phoenix",
     "phoenix_html": "file:../deps/phoenix_html",
@@ -49,7 +54,7 @@
     "sass-loader": "^12.1.0",
     "style-loader": "^0.23.1",
     "terser-webpack-plugin": "^5.1.4",
-    "webpack": "^5.45.1",
+    "webpack": "^5.95.0",
     "webpack-cli": "^4.7.2"
   }
 }

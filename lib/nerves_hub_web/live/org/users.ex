@@ -51,8 +51,9 @@ defmodule NervesHubWeb.Live.Org.Users do
 
     case Accounts.add_or_invite_to_org(invite_params, socket.assigns.org, socket.assigns.user) do
       {:ok, %Invite{} = invite} ->
-        SwooshEmail.invite(invite, socket.assigns.org, socket.assigns.user)
-        |> SwooshMailer.deliver()
+        _ =
+          SwooshEmail.invite(invite, socket.assigns.org, socket.assigns.user)
+          |> SwooshMailer.deliver()
 
         {:noreply,
          socket
@@ -60,12 +61,13 @@ defmodule NervesHubWeb.Live.Org.Users do
          |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/users")}
 
       {:ok, %OrgUser{}} ->
-        SwooshEmail.org_user_created(
-          invite_params["email"],
-          socket.assigns.org,
-          socket.assigns.user
-        )
-        |> SwooshMailer.deliver()
+        _ =
+          SwooshEmail.org_user_created(
+            invite_params["email"],
+            socket.assigns.org,
+            socket.assigns.user
+          )
+          |> SwooshMailer.deliver()
 
         {:noreply,
          socket
@@ -103,12 +105,13 @@ defmodule NervesHubWeb.Live.Org.Users do
 
     {:ok, role} = Map.fetch(params, "role")
 
-    with {:ok, _org_user} <- Accounts.change_org_user_role(socket.assigns.membership, role) do
-      {:noreply,
-       socket
-       |> put_flash(:info, "Role updated")
-       |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/users")}
-    else
+    case Accounts.change_org_user_role(socket.assigns.membership, role) do
+      {:ok, _org_user} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Role updated")
+         |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/users")}
+
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Error updating role")}
     end
@@ -121,13 +124,14 @@ defmodule NervesHubWeb.Live.Org.Users do
 
     case Accounts.remove_org_user(socket.assigns.org, user) do
       :ok ->
-        SwooshEmail.tell_org_user_removed(
-          socket.assigns.org,
-          Accounts.get_org_users(socket.assigns.org),
-          socket.assigns.user,
-          user
-        )
-        |> SwooshMailer.deliver()
+        _ =
+          SwooshEmail.tell_org_user_removed(
+            socket.assigns.org,
+            Accounts.get_org_users(socket.assigns.org),
+            socket.assigns.user,
+            user
+          )
+          |> SwooshMailer.deliver()
 
         {:noreply,
          socket

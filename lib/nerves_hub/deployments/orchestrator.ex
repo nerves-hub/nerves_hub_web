@@ -2,8 +2,8 @@ defmodule NervesHub.Deployments.Orchestrator do
   @moduledoc """
   Orchestration process to handle passing out updates to devices
 
-  When a deployment is updated, the orchestraor will tell every
-  device local to its node that there is a new update. This will
+  When a deployment is updated, the orchestrator will tell every
+  device local to its node that there is a new update. This
   hook will allow the orchestrator to start slowly handing out
   updates instead of blasting every device at once.
   """
@@ -65,7 +65,7 @@ defmodule NervesHub.Deployments.Orchestrator do
     }
 
     devices =
-      Registry.select(NervesHub.Devices, [
+      Registry.select(NervesHub.Devices.Registry, [
         {{:_, :_, :"$1"}, match_conditions, [match_return]}
       ])
 
@@ -107,10 +107,11 @@ defmodule NervesHub.Deployments.Orchestrator do
   end
 
   def handle_continue(:boot, deployment) do
-    PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+    _ = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
-    # trigger every 5 minutes as a back up
-    :timer.send_interval(5 * 60 * 1000, :trigger)
+    # trigger every 10 minutes, plus a jitter between 1 and 5 seconds, as a back up
+    interval = (10 + :rand.uniform(10)) * 60 * 1000
+    _ = :timer.send_interval(interval, :trigger)
 
     deployment =
       deployment

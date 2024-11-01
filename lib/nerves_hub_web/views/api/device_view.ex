@@ -21,7 +21,12 @@ defmodule NervesHubWeb.API.DeviceView do
       tags: device.tags,
       version: version(device),
       online: Tracker.sync_online?(device),
-      last_communication: last_communication(device),
+      connection_status: device.connection_status,
+      connection_established_at: device.connection_established_at,
+      connection_disconnected_at: device.connection_disconnected_at,
+      connection_last_seen_at: device.connection_last_seen_at,
+      # deprecated
+      last_communication: connection_last_seen_at(device),
       description: device.description,
       firmware_metadata: device.firmware_metadata,
       firmware_update_status: Devices.firmware_status(device),
@@ -45,6 +50,6 @@ defmodule NervesHubWeb.API.DeviceView do
   defp version(%{firmware_metadata: nil}), do: "unknown"
   defp version(%{firmware_metadata: %{version: vsn}}), do: vsn
 
-  defp last_communication(%{last_communication: nil}), do: "never"
-  defp last_communication(%{last_communication: dt}), do: to_string(dt)
+  defp connection_last_seen_at(%{connection_last_seen_at: nil}), do: "never"
+  defp connection_last_seen_at(%{connection_last_seen_at: dt}), do: to_string(dt)
 end

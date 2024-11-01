@@ -82,6 +82,10 @@ html {
     color: white;
   }
 
+  tbody tr.selected-row {
+    background-color: rgba(255, 255, 255, 0.075);
+  }
+
   .icon-caret {
     background-image: url("/images/icons/chevron-down-white.svg");
     background-position: center;
@@ -98,8 +102,13 @@ html {
   }
 
   .table-icon {
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .device-id-with-icon {
+    display: flex;
+    gap: 6px;
   }
 
   .deployment-state {

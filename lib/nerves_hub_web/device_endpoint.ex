@@ -1,6 +1,6 @@
 defmodule NervesHubWeb.DeviceEndpoint do
-  use Phoenix.Endpoint, otp_app: :nerves_hub
   use Sentry.PlugCapture
+  use Phoenix.Endpoint, otp_app: :nerves_hub
 
   alias NervesHub.Helpers.WebsocketConnectionError
 
@@ -16,7 +16,8 @@ defmodule NervesHubWeb.DeviceEndpoint do
       timeout: 180_000,
       fullsweep_after: 0,
       error_handler: {WebsocketConnectionError, :handle_error, []}
-    ]
+    ],
+    drainer: {NervesHubWeb.DeviceSocket, :drainer_configuration, []}
   )
 
   socket(
@@ -28,14 +29,13 @@ defmodule NervesHubWeb.DeviceEndpoint do
       timeout: 180_000,
       fullsweep_after: 0,
       error_handler: {WebsocketConnectionError, :handle_error, []}
-    ]
+    ],
+    drainer: {NervesHubWeb.DeviceSocket, :drainer_configuration, []}
   )
 
   plug(NervesHubWeb.Plugs.ImAlive)
 
   plug(Sentry.PlugContext)
-
-  plug(NervesHubWeb.Plugs.Logger)
 
   plug(NervesHubWeb.Plugs.DeviceEndpointRedirect)
 end

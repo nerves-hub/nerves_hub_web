@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Live.Devices.Show do
   use NervesHubWeb, :updated_live_view
 
+  require Logger
+
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.UpdatePayload
@@ -8,7 +10,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Tracker
 
   alias NervesHubWeb.Components.DeviceHeader
+  alias NervesHubWeb.Components.FwupProgress
   alias NervesHubWeb.Components.DeviceLocation
+  alias NervesHubWeb.Components.Utils
 
   alias Phoenix.Socket.Broadcast
 
@@ -19,6 +23,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
+      socket.endpoint.subscribe("device:console:#{device.id}:internal")
+      socket.endpoint.subscribe("firmware")
     end
 
     socket
@@ -26,10 +32,30 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:tab_hint, :devices)
     |> assign(:device, device)
     |> assign(:status, Tracker.status(device))
+    |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:deployment, device.deployment)
+    |> assign(:update_information, Devices.resolve_update(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
+    |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
+    |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
+    |> assign_metadata()
+    |> schedule_health_check_timer()
+    |> assign(:fwup_progress, nil)
     |> audit_log_assigns(1)
     |> ok()
+  end
+
+  def handle_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
+    firmware = Firmwares.get_firmware_for_device(socket.assigns.device)
+    {:noreply, assign(socket, :firmwares, firmware)}
+  end
+
+  def handle_info(%Broadcast{event: "connection:heartbeat"}, socket) do
+    %{device: device, org: org} = socket.assigns
+
+    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
+
+    {:noreply, assign(socket, :device, device)}
   end
 
   def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
@@ -44,12 +70,57 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> assign(:status, payload.status)
+    |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:fwup_progress, nil)
+    |> assign(:update_information, Devices.resolve_update(device))
+    |> then(fn socket ->
+      if(payload.status == "online", do: clear_flash(socket), else: socket)
+    end)
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{event: "console_joined"}, socket) do
+    socket
+    |> assign(:console_active?, true)
     |> noreply()
   end
 
   def handle_info(%Broadcast{event: "fwup_progress", payload: payload}, socket) do
-    {:noreply, assign(socket, :fwup_progress, payload.percent)}
+    if payload.percent == 100 do
+      socket
+      |> put_flash(:info, "Update complete: The device will reboot shortly.")
+      |> assign(:fwup_progress, nil)
+      |> noreply()
+    else
+      {:noreply, assign(socket, :fwup_progress, payload.percent)}
+    end
+  end
+
+  def handle_info(
+        %Broadcast{event: "health_check_report"},
+        %{assigns: %{device: device}} = socket
+      ) do
+    socket
+    |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
+    |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
+    |> assign_metadata()
+    |> noreply
+  end
+
+  def handle_info(:check_health_interval, socket) do
+    timer_ref = Process.send_after(self(), :check_health_interval, 65_000)
+
+    socket.endpoint.broadcast("device:#{socket.assigns.device.id}", "check_health", %{})
+
+    {:noreply, assign(socket, :health_check_timer, timer_ref)}
+  end
+
+  def handle_info(%Broadcast{event: "location:updated"}, socket) do
+    %{device: device, org: org} = socket.assigns
+
+    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
+
+    {:noreply, assign(socket, :device, device)}
   end
 
   # Ignore unknown messages
@@ -97,6 +168,15 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "identify", %{})
 
     {:noreply, put_flash(socket, :info, "Device identification requested")}
+  end
+
+  def handle_event("toggle-health-check-auto-refresh", _value, socket) do
+    if timer_ref = socket.assigns.health_check_timer do
+      _ = Process.cancel_timer(timer_ref)
+      {:noreply, assign(socket, :health_check_timer, nil)}
+    else
+      {:noreply, schedule_health_check_timer(socket)}
+    end
   end
 
   def handle_event("paginate", %{"page" => page_num}, socket) do
@@ -177,7 +257,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       firmware_meta: meta
     }
 
-    NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "deployments/update", payload)
+    _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "devices/update-manual", payload)
 
     socket
     |> assign(:device, device)
@@ -185,8 +265,78 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
+  def handle_event("push-available-update", _, socket) do
+    authorized!(:"device:push-update", socket.assigns.org_user)
+
+    %{device: device, deployment: deployment, user: user} = socket.assigns
+
+    deployment = NervesHub.Repo.preload(deployment, :firmware)
+
+    description =
+      "#{user.name} pushed available firmware update #{deployment.firmware.version} #{deployment.firmware.uuid} to device #{device.identifier}"
+
+    AuditLogs.audit!(user, device, description)
+
+    case Devices.told_to_update(device, deployment) do
+      {:ok, inflight_update} ->
+        _ =
+          NervesHubWeb.Endpoint.broadcast(
+            "device:#{device.id}",
+            "deployments/update",
+            inflight_update
+          )
+
+        socket
+        |> put_flash(:info, "Pushing available firmware update")
+        |> noreply()
+
+      :error ->
+        Logger.error(
+          "An inflight update could not be created or found for the device #{device.identifier} (#{device.id})"
+        )
+
+        socket
+        |> put_flash(
+          :info,
+          "There was an error sending the update to the device. Please contact support."
+        )
+        |> noreply()
+    end
+  end
+
+  defp assign_metadata(%{assigns: %{device: device}} = socket) do
+    health = Devices.get_latest_health(device.id)
+
+    metadata =
+      if health, do: health.data["metadata"] || %{}, else: %{}
+
+    socket
+    |> assign(:metadata, Map.drop(metadata, standard_keys(device)))
+  end
+
+  defp standard_keys(%{firmware_metadata: nil}), do: []
+
+  defp standard_keys(%{firmware_metadata: firmware_metadata}),
+    do:
+      firmware_metadata
+      |> Map.keys()
+      |> Enum.map(&to_string/1)
+
+  defp schedule_health_check_timer(socket) do
+    if connected?(socket) and device_health_check_enabled?() do
+      timer_ref = Process.send_after(self(), :check_health_interval, 500)
+      assign(socket, :health_check_timer, timer_ref)
+    else
+      assign(socket, :health_check_timer, nil)
+    end
+  end
+
+  defp device_health_check_enabled?() do
+    Application.get_env(:nerves_hub, :device_health_check_enabled)
+  end
+
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
-    logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 10})
+    logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 5})
 
     assign(socket, :audit_logs, logs)
   end

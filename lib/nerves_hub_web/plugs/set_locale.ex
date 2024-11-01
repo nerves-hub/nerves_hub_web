@@ -15,7 +15,7 @@ defmodule NervesHubWeb.Plugs.SetLocale do
         )
 
       locale ->
-        Gettext.put_locale(NervesHubWeb.Gettext, locale)
+        _ = Gettext.put_locale(NervesHubWeb.Gettext, locale)
 
         conn
         |> put_resp_header("content-language", locale)

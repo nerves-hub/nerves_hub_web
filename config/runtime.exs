@@ -12,6 +12,7 @@ end
 config :nerves_hub,
   app: nerves_hub_app,
   deploy_env: System.get_env("DEPLOY_ENV", to_string(config_env())),
+  log_include_mfa: System.get_env("LOG_INCLUDE_MFA", "false") == "true",
   web_title_suffix: System.get_env("WEB_TITLE_SUFFIX", "NervesHub"),
   from_email: System.get_env("FROM_EMAIL", "no-reply@nerves-hub.org"),
   email_sender: System.get_env("EMAIL_SENDER", "NervesHub"),
@@ -24,15 +25,40 @@ config :nerves_hub,
     username: System.get_env("ADMIN_AUTH_USERNAME"),
     password: System.get_env("ADMIN_AUTH_PASSWORD")
   ],
+  device_health_check_enabled: System.get_env("DEVICE_HEALTH_CHECK_ENABLED", "true") == "true",
+  device_health_check_interval_minutes:
+    String.to_integer(System.get_env("DEVICE_HEALTH_CHECK_INTERVAL_MINUTES", "60")),
+  device_health_days_to_retain:
+    String.to_integer(System.get_env("HEALTH_CHECK_DAYS_TO_RETAIN", "7")),
   device_deployment_change_jitter_seconds:
     String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10")),
-  geoip_maxmind_auth: System.get_env("GEOIP_MAXMIND_AUTH"),
-  mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN")
+  device_last_seen_update_interval_minutes:
+    String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_MINUTES", "5")),
+  deployment_calculator_interval_seconds:
+    String.to_integer(System.get_env("DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS", "3600")),
+  mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
+  dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true"
+
+config :nerves_hub, :device_socket_drainer,
+  batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
+  batch_interval:
+    String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_INTERVAL", "4000")),
+  shutdown: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_SHUTDOWN", "30000"))
 
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do
   config :nerves_hub,
     open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true"
+
+  # Configures Elixir's Logger
+  config :logger, :default_formatter,
+    format: {NervesHub.Logger, :format},
+    metadata: :all
+
+  config :logfmt_ex, :opts,
+    message_key: "msg",
+    timestamp_key: "ts",
+    timestamp_format: :iso8601
 end
 
 if level = System.get_env("LOG_LEVEL") do
@@ -172,34 +198,37 @@ end
 #
 if config_env() == :prod do
   database_ssl_opts =
-    if System.get_env("DATABASE_PEM") do
-      db_hostname_charlist =
-        ~r/.*@(?<hostname>[^:\/]+)(?::\d+)?\/.*/
-        |> Regex.named_captures(System.fetch_env!("DATABASE_URL"))
-        |> Map.get("hostname")
-        |> to_charlist()
+    if System.get_env("DATABASE_SSL", "true") == "true" do
+      if System.get_env("DATABASE_PEM") do
+        db_hostname_charlist =
+          ~r/.*@(?<hostname>[^:\/]+)(?::\d+)?\/.*/
+          |> Regex.named_captures(System.fetch_env!("DATABASE_URL"))
+          |> Map.get("hostname")
+          |> to_charlist()
 
-      cacerts =
-        System.fetch_env!("DATABASE_PEM")
-        |> Base.decode64!()
-        |> :public_key.pem_decode()
-        |> Enum.map(fn {_, der, _} -> der end)
+        cacerts =
+          System.fetch_env!("DATABASE_PEM")
+          |> Base.decode64!()
+          |> :public_key.pem_decode()
+          |> Enum.map(fn {_, der, _} -> der end)
 
-      [
-        verify: :verify_peer,
-        cacerts: cacerts,
-        server_name_indication: db_hostname_charlist
-      ]
+        [
+          verify: :verify_peer,
+          cacerts: cacerts,
+          server_name_indication: db_hostname_charlist
+        ]
+      else
+        [cacerts: :public_key.cacerts_get()]
+      end
     else
-      [cacerts: :public_key.cacerts_get()]
+      false
     end
 
   database_socket_options = if System.get_env("DATABASE_INET6") == "true", do: [:inet6], else: []
 
   config :nerves_hub, NervesHub.Repo,
     url: System.fetch_env!("DATABASE_URL"),
-    ssl: System.get_env("DATABASE_SSL", "true") == "true",
-    ssl_opts: database_ssl_opts,
+    ssl: database_ssl_opts,
     pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
     socket_options: database_socket_options,
     queue_target: 5000
@@ -209,8 +238,7 @@ if config_env() == :prod do
 
   config :nerves_hub, NervesHub.ObanRepo,
     url: System.fetch_env!("DATABASE_URL"),
-    ssl: System.get_env("DATABASE_SSL", "true") == "true",
-    ssl_opts: database_ssl_opts,
+    ssl: database_ssl_opts,
     pool_size: String.to_integer(oban_pool_size),
     socket_options: database_socket_options,
     queue_target: 5000
@@ -227,8 +255,7 @@ if config_env() == :prod do
     [port: 5432]
     |> Keyword.merge(postgres_config)
     |> Keyword.take([:hostname, :username, :password, :database, :port])
-    |> Keyword.merge(ssl: System.get_env("DATABASE_SSL", "true") == "true")
-    |> Keyword.merge(ssl_opts: database_ssl_opts)
+    |> Keyword.merge(ssl: database_ssl_opts)
     |> Keyword.merge(parameters: [])
     |> Keyword.merge(channel_name: "nerves_hub_clustering")
 
@@ -341,30 +368,35 @@ if config_env() == :prod do
   end
 end
 
-if System.get_env("SENTRY_DSN_URL") do
-  config :sentry,
-    dsn: System.get_env("SENTRY_DSN_URL"),
-    environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
-    enable_source_code_context: true,
-    root_source_code_path: [File.cwd!()],
-    before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500}
-end
+config :sentry,
+  dsn: System.get_env("SENTRY_DSN_URL"),
+  environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
+  enable_source_code_context: true,
+  root_source_code_path: [File.cwd!()],
+  before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
+  release: "nerves_hub@#{Application.spec(:nerves_hub, :vsn)}",
+  tags: %{
+    app: nerves_hub_app
+  },
+  integrations: [
+    oban: [
+      # Capture errors:
+      capture_errors: true,
+      # Monitor cron jobs:
+      cron: [enabled: true]
+    ]
+  ]
 
-config :nerves_hub, :statsd,
-  host: System.get_env("STATSD_HOST", "localhost"),
-  port: String.to_integer(System.get_env("STATSD_PORT", "8125"))
+if host = System.get_env("STATSD_HOST") do
+  config :nerves_hub, :statsd,
+    host: System.get_env("STATSD_HOST"),
+    port: String.to_integer(System.get_env("STATSD_PORT", "8125"))
+end
 
 config :nerves_hub, :audit_logs,
   enabled: System.get_env("TRUNATE_AUDIT_LOGS_ENABLED", "false") == "true",
-  max_records_per_run:
-    String.to_integer(System.get_env("TRUNCATE_AUDIT_LOGS_MAX_RECORDS_PER_RUN", "10000")),
-  days_kept: String.to_integer(System.get_env("TRUNCATE_AUDIT_LOGS_MAX_DAYS_KEPT", "30"))
+  default_days_kept:
+    String.to_integer(System.get_env("TRUNCATE_AUDIT_LOGS_DEFAULT_DAYS_KEPT", "30"))
 
 config :nerves_hub, NervesHub.RateLimit,
   limit: System.get_env("DEVICE_CONNECT_RATE_LIMIT", "100") |> String.to_integer()
-
-config :nerves_hub, NervesHub.NodeReporter,
-  enabled: System.get_env("NODE_REPORTER", "false") == "true"
-
-config :nerves_hub, NervesHub.LoadBalancer,
-  enabled: System.get_env("LOAD_BALANCER", "false") == "true"

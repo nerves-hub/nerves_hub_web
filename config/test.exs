@@ -2,7 +2,8 @@ import Config
 
 config :bcrypt_elixir, log_rounds: 4
 
-config :logger, :default_handler, false
+# Print only warnings and errors during test
+config :logger, level: :warning
 
 ##
 # NervesHub Web
@@ -60,14 +61,17 @@ config :nerves_hub, NervesHub.Uploads.File,
 config :nerves_hub, NervesHub.Repo,
   url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
   ssl: false,
-  pool: Ecto.Adapters.SQL.Sandbox
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 10,
+  queue_target: 2000
 
 config :nerves_hub, NervesHub.ObanRepo,
   url: System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_test"),
   ssl: false,
-  pool: Ecto.Adapters.SQL.Sandbox
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: 10
 
-config :nerves_hub, Oban, queues: false, plugins: false
+config :nerves_hub, Oban, testing: :manual
 
 ##
 # Other
@@ -82,8 +86,6 @@ config :nerves_hub, delta_updater: NervesHub.DeltaUpdaterMock
 config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test
 
 config :nerves_hub, NervesHub.RateLimit, limit: 100
-
-config :sentry, environment_name: :test
 
 config :phoenix_test, :endpoint, NervesHubWeb.Endpoint
 

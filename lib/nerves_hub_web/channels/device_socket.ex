@@ -6,6 +6,7 @@ defmodule NervesHubWeb.DeviceSocket do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products
+  alias NervesHub.Tracker
 
   alias Plug.Crypto
 
@@ -15,22 +16,87 @@ defmodule NervesHubWeb.DeviceSocket do
   # Default 90 seconds max age for the signature
   @default_max_hmac_age 90
 
+  defoverridable init: 1, handle_in: 2, terminate: 2
+
+  @impl Phoenix.Socket.Transport
+  def init(state_tuple) do
+    {:ok, {state, socket}} = super(state_tuple)
+    socket = on_connect(socket)
+    {:ok, {state, socket}}
+  end
+
+  @impl Phoenix.Socket.Transport
+  def terminate(reason, {_channels_info, socket} = state) do
+    on_disconnect(reason, socket)
+    super(reason, state)
+  end
+
+  @impl Phoenix.Socket.Transport
+  def handle_in({payload, opts} = msg, {state, socket}) do
+    message = socket.serializer.decode!(payload, opts)
+
+    socket = heartbeat(message, socket)
+
+    super(msg, {state, socket})
+  end
+
+  defp heartbeat(
+         %Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"},
+         %{assigns: %{device: device}} = socket
+       ) do
+    if heartbeat?(socket) do
+      {:ok, _device} = Devices.device_heartbeat(device)
+
+      _ =
+        socket.endpoint.broadcast_from(
+          self(),
+          "device:#{device.identifier}:internal",
+          "connection:heartbeat",
+          %{}
+        )
+
+      last_heartbeat =
+        DateTime.utc_now()
+        |> DateTime.truncate(:second)
+
+      assign(socket, :last_heartbeat_at, last_heartbeat)
+    else
+      socket
+    end
+  end
+
+  defp heartbeat(_message, socket), do: socket
+
+  defp heartbeat?(%{assigns: %{last_heartbeat_at: last_heartbeat_at}}) do
+    mins_ago = DateTime.diff(DateTime.utc_now(), last_heartbeat_at, :minute)
+
+    mins_ago >= last_seen_update_interval()
+  end
+
+  defp heartbeat?(_), do: true
+
   # Used by Devices connecting with SSL certificates
-  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}} = connect_info)
+  @impl Phoenix.Socket
+  def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}})
       when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
     |> Devices.get_device_certificate_by_x509()
     |> case do
       {:ok, %{device: %Device{} = device}} ->
-        socket_and_assigns(socket, device, connect_info)
+        socket_and_assigns(socket, device)
 
-      _e ->
+      error ->
+        :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+          auth: :cert,
+          reason: error
+        })
+
         {:error, :invalid_auth}
     end
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
-  def connect(_params, socket, %{x_headers: x_headers} = connect_info)
+  def connect(_params, socket, %{x_headers: x_headers})
       when is_list(x_headers) and length(x_headers) > 0 do
     headers = Map.new(x_headers)
 
@@ -40,10 +106,15 @@ defmodule NervesHubWeb.DeviceSocket do
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
          {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_opts),
          {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
-      socket_and_assigns(socket, device, connect_info)
+      socket_and_assigns(socket, device)
     else
       error ->
-        Logger.info("device authentication failed : #{inspect(error)}")
+        :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+          auth: :shared_secrets,
+          reason: error,
+          product_key: Map.get(headers, "x-nh-key", "*empty*")
+        })
+
         {:error, :invalid_auth}
     end
   end
@@ -52,8 +123,19 @@ defmodule NervesHubWeb.DeviceSocket do
     {:error, :no_auth}
   end
 
+  @impl Phoenix.Socket
   def id(%{assigns: %{device: device}}), do: "device_socket:#{device.id}"
   def id(_socket), do: nil
+
+  def drainer_configuration() do
+    config = Application.get_env(:nerves_hub, :device_socket_drainer)
+
+    [
+      batch_size: config[:batch_size],
+      batch_interval: config[:batch_interval],
+      shutdown: config[:shutdown]
+    ]
+  end
 
   defp decode_from_headers(%{"x-nh-alg" => "NH1-HMAC-" <> alg} = headers) do
     with [digest_str, iter_str, klen_str] <- String.split(alg, "-"),
@@ -82,7 +164,7 @@ defmodule NervesHubWeb.DeviceSocket do
     end
   end
 
-  defp decode_from_headers(_headers), do: :error
+  defp decode_from_headers(_headers), do: {:error, :headers_decode_failed}
 
   defp get_shared_secret_auth("nhp_" <> _ = key), do: Products.get_shared_secret_auth(key)
   defp get_shared_secret_auth(key), do: Devices.get_shared_secret_auth(key)
@@ -114,43 +196,70 @@ defmodule NervesHubWeb.DeviceSocket do
     end
   end
 
-  def shared_secrets_enabled?() do
-    Application.get_env(:nerves_hub, __MODULE__, [])
-    |> Keyword.get(:shared_secrets, [])
-    |> Keyword.get(:enabled, false)
-  end
+  defp socket_and_assigns(socket, device) do
+    # disconnect devices using the same identifier
+    _ = socket.endpoint.broadcast_from(self(), "device_socket:#{device.id}", "disconnect", %{})
 
-  defp ip_information(connect_info) do
-    cond do
-      forwarded_for = x_forwarded_for(connect_info) ->
-        forwarded_for
-
-      address = connect_info[:peer_data][:address] ->
-        to_string(:inet.ntoa(address))
-
-      true ->
-        nil
-    end
-  end
-
-  defp x_forwarded_for(connect_info) do
-    (connect_info[:x_headers] || [])
-    |> Enum.find_value(fn
-      {"x-forwarded-for", val} ->
-        hd(String.split(val, ","))
-
-      _ ->
-        nil
-    end)
-  end
-
-  defp socket_and_assigns(socket, device, connect_info) do
     socket =
       socket
       |> assign(:device, device)
       |> assign(:reference_id, generate_reference_id())
-      |> assign(:request_ip, ip_information(connect_info))
 
     {:ok, socket}
+  end
+
+  defp on_connect(socket) do
+    :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
+      ref_id: socket.assigns.reference_id,
+      identifier: socket.assigns.device.identifier,
+      firmware_uuid:
+        get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)])
+    })
+
+    {:ok, device} = Devices.device_connected(socket.assigns.device)
+
+    Tracker.online(device)
+
+    assign(socket, :device, device)
+  end
+
+  defp on_disconnect({:error, reason}, %{assigns: %{device: device, reference_id: reference_id}}) do
+    if reason == {:shutdown, :disconnected} do
+      :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
+        ref_id: reference_id,
+        device: device
+      })
+    end
+
+    shutdown(device, reference_id)
+
+    :ok
+  end
+
+  defp on_disconnect(_, %{assigns: %{device: device, reference_id: reference_id}}) do
+    shutdown(device, reference_id)
+  end
+
+  defp shutdown(device, reference_id) do
+    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
+      ref_id: reference_id,
+      identifier: device.identifier
+    })
+
+    {:ok, device} = Devices.device_disconnected(device)
+
+    Tracker.offline(device)
+
+    :ok
+  end
+
+  defp last_seen_update_interval() do
+    Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+  end
+
+  def shared_secrets_enabled?() do
+    Application.get_env(:nerves_hub, __MODULE__, [])
+    |> Keyword.get(:shared_secrets, [])
+    |> Keyword.get(:enabled, false)
   end
 end

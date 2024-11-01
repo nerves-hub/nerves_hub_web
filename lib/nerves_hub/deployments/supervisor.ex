@@ -11,7 +11,9 @@ defmodule NervesHub.Deployments.Supervisor do
     children = [
       {Registry, keys: :unique, name: NervesHub.Deployments},
       NervesHub.Deployments.Monitor,
-      {DynamicSupervisor, strategy: :one_for_one, name: NervesHub.DeploymentDynamicSupervisor}
+      {DynamicSupervisor, strategy: :one_for_one, name: NervesHub.DeploymentDynamicSupervisor},
+      {DynamicSupervisor,
+       strategy: :one_for_one, name: NervesHub.InflightDeploymentCheckDynamicSupervisor}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
