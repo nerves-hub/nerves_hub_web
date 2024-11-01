@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Device
   alias NervesHub.Deployments
 
@@ -22,6 +23,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     |> assign(:mode, "updated")
     |> assign(:device_count, 0)
     |> assign(:marker_count, 0)
+    |> assign(:alarms_count, Alarms.current_alarms_count(product.id))
     |> refresh_after(1)
     |> ok()
   end

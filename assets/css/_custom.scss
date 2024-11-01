@@ -13,7 +13,18 @@
   right: 0;
   margin: auto;
   z-index: 999;
-  // text-align: center;
+}
+
+.alarms-banner {
+  display: flex;
+  flex-direction: row;
+  justify-content: right;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.alarms-banner a {
+  color: #f78080;
 }
 
 .opacity-1 {

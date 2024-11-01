@@ -1,4 +1,9 @@
 <div class="relative">
+  <div :if={@alarms_count > 0} class="alarms-banner">
+    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices?alarm_status=with"} class="p-small">
+      <%= @alarms_count %> device<%= if @alarms_count > 1, do: "s", else: "" %> alarming.
+    </.link>
+  </div>
   <%= if @device_count == 0 and not @loading? do %>
     <div class="no-results-blowup-wrapper">
       <img src="/images/device.svg" alt="No devices" />
