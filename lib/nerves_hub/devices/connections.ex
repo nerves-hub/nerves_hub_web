@@ -4,6 +4,7 @@ defmodule NervesHub.Devices.Connections do
   """
   import Ecto.Query
 
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Repo
 
@@ -80,6 +81,31 @@ defmodule NervesHub.Devices.Connections do
       status: :disconnected
     })
     |> Repo.update()
+  end
+
+  @doc """
+  Selects devices id's which has provided status in it's latest connection record.
+  """
+  def query_devices_with_connection_status(status) do
+    (lr in subquery(latest_row_query()))
+    |> from()
+    |> where([lr], lr.rn == 1)
+    |> where(
+      [lr],
+      lr.status == ^String.to_existing_atom(status)
+    )
+    |> join(:inner, [lr], d in Device, on: lr.device_id == d.id)
+    |> select([lr, d], d.id)
+  end
+
+  defp latest_row_query() do
+    DeviceConnection
+    |> select([dc], %{
+      device_id: dc.device_id,
+      status: dc.status,
+      last_seen_at: dc.last_seen_at,
+      rn: row_number() |> over(partition_by: dc.device_id, order_by: [desc: dc.last_seen_at])
+    })
   end
 
   defp distinct_on_device() do

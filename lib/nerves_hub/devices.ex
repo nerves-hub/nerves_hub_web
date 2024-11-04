@@ -56,6 +56,14 @@ defmodule NervesHub.Devices do
     Device
     |> where([d], d.org_id == ^org_id)
     |> where([d], d.product_id == ^product_id)
+    |> Repo.exclude_deleted()
+    |> Repo.all()
+  end
+
+  def get_devices_by_org_id_and_product_id(org_id, product_id, :preload_latest_connection) do
+    Device
+    |> where([d], d.org_id == ^org_id)
+    |> where([d], d.product_id == ^product_id)
     |> Connections.preload_latest_connection()
     |> Repo.exclude_deleted()
     |> Repo.all()
@@ -170,17 +178,24 @@ defmodule NervesHub.Devices do
         {_, ""} ->
           query
 
+        {:alarm, value} ->
+          where(query, [d], d.id in subquery(Alarms.query_devices_with_alarm(value)))
+
         {:alarm_status, "with"} ->
           where(query, [d], d.id in subquery(Alarms.query_devices_with_alarms()))
 
         {:alarm_status, "without"} ->
           where(query, [d], d.id not in subquery(Alarms.query_devices_with_alarms()))
 
-        {:alarm, value} ->
-          where(query, [d], d.id in subquery(Alarms.query_devices_with_alarm(value)))
+        {:connection, "not_seen"} ->
+          where(query, [d], d.status == :registered)
 
-        {:connection, _value} ->
-          where(query, [d], d.connection_status == ^String.to_atom(value))
+        {:connection, value} ->
+          where(
+            query,
+            [d],
+            d.id in subquery(Connections.query_devices_with_connection_status(value))
+          )
 
         {:connection_type, value} ->
           where(query, [d], ^value in d.connection_types)

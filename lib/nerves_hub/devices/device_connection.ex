@@ -18,7 +18,7 @@ defmodule NervesHub.Devices.DeviceConnection do
     field(:disconnected_at, :utc_datetime_usec)
     field(:disconnected_reason, :string)
     field(:metadata, :map, default: %{})
-    field(:status, Ecto.Enum, values: [:connected, :disconnected])
+    field(:status, Ecto.Enum, values: [:connected, :disconnected], default: :connected)
   end
 
   def create_changeset(params) do
