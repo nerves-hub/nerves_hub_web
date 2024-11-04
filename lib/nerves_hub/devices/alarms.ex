@@ -65,23 +65,21 @@ defmodule NervesHub.Devices.Alarms do
   Selects latest health per device if alarms is populated and device belongs to product.
   """
   def query_current_alarms(product_id) do
-    from(
-      lr in subquery(latest_row_query()),
-      where: lr.rn == 1,
-      where: fragment("?->'alarms' != '{}'", lr.data),
-      where: lr.device_id in subquery(device_product_query(product_id))
-    )
+    (lr in subquery(latest_row_query()))
+    |> from()
+    |> where([lr], lr.rn == 1)
+    |> where([lr], fragment("?->'alarms' != '{}'", lr.data))
+    |> where([lr], lr.device_id in subquery(device_product_query(product_id)))
   end
 
   defp latest_row_query() do
-    from(dh in DeviceHealth,
-      select: %{
-        device_id: dh.device_id,
-        data: dh.data,
-        inserted_at: dh.inserted_at,
-        rn: row_number() |> over(partition_by: dh.device_id, order_by: [desc: dh.inserted_at])
-      }
-    )
+    DeviceHealth
+    |> select([dh], %{
+      device_id: dh.device_id,
+      data: dh.data,
+      inserted_at: dh.inserted_at,
+      rn: row_number() |> over(partition_by: dh.device_id, order_by: [desc: dh.inserted_at])
+    })
   end
 
   defp device_product_query(product_id) do
