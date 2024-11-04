@@ -346,10 +346,7 @@ defmodule NervesHub.Deployments do
             ^deployment.id
           )
       })
-      |> where(
-        [d],
-        fragment("EXISTS (SELECT * FROM device_connections c WHERE c.device_id =?)", d.id)
-      )
+      |> where([d], d.status == :provisioned)
       |> where(
         [d],
         d.deployment_id == ^deployment.id or

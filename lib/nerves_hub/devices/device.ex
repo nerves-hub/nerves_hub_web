@@ -27,7 +27,9 @@ defmodule NervesHub.Devices.Device do
     :connection_disconnected_at,
     :connection_last_seen_at,
     :connection_types,
-    :connection_metadata
+    :connection_metadata,
+    :status,
+    :first_seen_at
   ]
   @required_params [:org_id, :product_id, :identifier]
 
@@ -47,6 +49,20 @@ defmodule NervesHub.Devices.Device do
     field(:update_attempts, {:array, :utc_datetime}, default: [])
     field(:updates_blocked_until, :utc_datetime)
 
+    field(:status, Ecto.Enum,
+      values: [:registered, :provisioned],
+      default: :registered
+    )
+
+    field(:first_seen_at, :utc_datetime)
+
+    field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
+    field(:connecting_code, :string)
+    field(:connection_metadata, :map, default: %{})
+
+    timestamps()
+
+    # Deprecated fields, replaced with device_connections table.
     field(:connection_status, Ecto.Enum,
       values: [:connected, :disconnected, :not_seen],
       default: :not_seen
@@ -55,11 +71,6 @@ defmodule NervesHub.Devices.Device do
     field(:connection_established_at, :utc_datetime)
     field(:connection_disconnected_at, :utc_datetime)
     field(:connection_last_seen_at, :utc_datetime)
-    field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
-    field(:connecting_code, :string)
-    field(:connection_metadata, :map, default: %{})
-
-    timestamps()
   end
 
   def changeset(%Device{} = device, params) do

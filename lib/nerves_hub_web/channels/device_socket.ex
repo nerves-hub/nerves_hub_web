@@ -210,6 +210,12 @@ defmodule NervesHubWeb.DeviceSocket do
     {:ok, socket}
   end
 
+  defp on_connect(%{assigns: %{device: %{status: :registered} = device}} = socket) do
+    socket
+    |> assign(device: Devices.set_as_provisioned!(device))
+    |> on_connect()
+  end
+
   defp on_connect(%{assigns: %{device: device}} = socket) do
     # Report connection and use connection id as reference
     {:ok, %DeviceConnection{id: connection_id}} =

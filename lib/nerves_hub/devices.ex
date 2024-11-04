@@ -397,6 +397,12 @@ defmodule NervesHub.Devices do
     |> Repo.insert()
   end
 
+  def set_as_provisioned!(device) do
+    device
+    |> Device.changeset(%{status: :provisioned, first_seen_at: DateTime.utc_now()})
+    |> Repo.update!()
+  end
+
   def delete_device(%Device{} = device) do
     device_certificates_query = from(dc in DeviceCertificate, where: dc.device_id == ^device.id)
     changeset = Repo.soft_delete_changeset(device)
