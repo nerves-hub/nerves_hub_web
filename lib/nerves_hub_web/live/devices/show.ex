@@ -58,10 +58,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
 
     socket
+    |> assign(:device, device)
     |> assign(:device_connection, Connections.get_latest_for_device(device.id))
     |> noreply()
-
-    {:noreply, assign(socket, :device, device)}
   end
 
   def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do

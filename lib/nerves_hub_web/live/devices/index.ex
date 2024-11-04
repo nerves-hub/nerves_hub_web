@@ -455,6 +455,32 @@ defmodule NervesHubWeb.Live.Devices.Index do
     """
   end
 
+  defp last_seen_at_status(connections) do
+    case connections do
+      [] ->
+        "Not seen yet"
+
+      [latest_connection | _] ->
+        "Last seen #{last_seen_formatted(latest_connection)}"
+    end
+  end
+
+  defp last_seen_at(connections) do
+    case connections do
+      [latest_connection | _] ->
+        last_seen_formatted(latest_connection)
+
+      _ ->
+        ""
+    end
+  end
+
+  defp last_seen_formatted(connection) do
+    connection
+    |> Map.get(:last_seen_at)
+    |> DateTimeFormat.from_now()
+  end
+
   defp firmware_update_status(device) do
     cond do
       Devices.device_in_penalty_box?(device) ->

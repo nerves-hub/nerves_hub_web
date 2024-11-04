@@ -4,7 +4,6 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Metrics
-  alias NervesHub.Tracker
 
   alias NervesHubWeb.Components.HealthHeader
 
@@ -40,7 +39,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     socket
     |> page_title("Device #{device.identifier} - Health")
     |> assign(:device, device)
-    |> assign(:status, Tracker.status(device))
+    |> assign(:latest_connection, Connections.get_latest_for_device(device.id))
     |> assign(:connection_established, Connections.get_established_at(device.id))
     |> assign(:time_frame, @default_time_frame)
     |> assign(:time_frame_opts, @time_frame_opts)
