@@ -9,11 +9,10 @@ defmodule NervesHub.Devices.Alarms do
   Used when filtering devices.
   """
   def query_devices_with_alarms() do
-    from(
-      lr in subquery(latest_row_query()),
-      where: lr.rn == 1,
-      where: fragment("?->'alarms' != '{}'", lr.data)
-    )
+    (lr in subquery(latest_row_query()))
+    |> from()
+    |> where([lr], lr.rn == 1)
+    |> where([lr], fragment("?->'alarms' != '{}'", lr.data))
     |> join(:inner, [lr], d in Device, on: lr.device_id == d.id)
     |> select([lr, o], o.id)
   end
@@ -23,15 +22,16 @@ defmodule NervesHub.Devices.Alarms do
   Used when filtering devices.
   """
   def query_devices_with_alarm(alarm) do
-    from(
-      lr in subquery(latest_row_query()),
-      where: lr.rn == 1,
-      where:
-        fragment(
-          "EXISTS (SELECT 1 FROM jsonb_each_text(?) WHERE value ILIKE ?)",
-          lr.data,
-          ^"%#{alarm}%"
-        )
+    (lr in subquery(latest_row_query()))
+    |> from()
+    |> where([lr], lr.rn == 1)
+    |> where(
+      [lr],
+      fragment(
+        "EXISTS (SELECT 1 FROM jsonb_each_text(?) WHERE value ILIKE ?)",
+        lr.data,
+        ^"%#{alarm}%"
+      )
     )
     |> join(:inner, [lr], d in Device, on: lr.device_id == d.id)
     |> select([lr, o], o.id)
@@ -48,6 +48,7 @@ defmodule NervesHub.Devices.Alarms do
     end)
     |> List.flatten()
     |> Enum.uniq()
+    |> Enum.map(&prettier_alarm/1)
   end
 
   @doc """
@@ -87,5 +88,11 @@ defmodule NervesHub.Devices.Alarms do
     Device
     |> select([:id])
     |> where(product_id: ^product_id)
+  end
+
+  defp prettier_alarm(alarm) do
+    alarm
+    |> String.split(".")
+    |> List.last()
   end
 end
