@@ -41,6 +41,7 @@ defmodule NervesHubWeb.Live.Firmware do
     socket
     |> page_title("Upload Firmware - #{product.name}")
     |> assign(:error_message, nil)
+    |> assign(:error_code, nil)
     |> allow_upload(:firmware,
       accept: ~w(.fw),
       max_entries: 1,
@@ -140,6 +141,16 @@ defmodule NervesHubWeb.Live.Firmware do
        }} ->
         error_feedback(socket, "No matching product could be found.")
 
+      {:error,
+       %Ecto.Changeset{
+         errors: [
+           uuid:
+             {"has already been taken",
+              [constraint: :unique, constraint_name: "firmwares_product_id_uuid_index"]}
+         ]
+       } = changeset} ->
+        error_feedback(socket, changeset)
+
       {:error, %Ecto.Changeset{}} ->
         error_feedback(socket, "Unknown error uploading firmware.")
 
@@ -149,6 +160,17 @@ defmodule NervesHubWeb.Live.Firmware do
       _ ->
         error_feedback(socket, "Unknown error uploading firmware")
     end
+  end
+
+  defp error_feedback(
+         socket,
+         %Ecto.Changeset{errors: [uuid: {"has already been taken", _}]} = changeset
+       ) do
+    socket
+    |> assign(:error_message, "Duplicate Firmware Is Not Allowed")
+    |> assign(:error_code, :duplicate_firmware)
+    |> assign(:uuid, changeset.changes.uuid)
+    |> noreply()
   end
 
   defp error_feedback(socket, %Ecto.Changeset{} = changeset) do
