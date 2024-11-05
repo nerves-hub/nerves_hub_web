@@ -98,7 +98,7 @@ defmodule NervesHub.Devices.Connections do
     |> select([lr, d], d.id)
   end
 
-  defp latest_row_query() do
+  def latest_row_query() do
     DeviceConnection
     |> select([dc], %{
       device_id: dc.device_id,
