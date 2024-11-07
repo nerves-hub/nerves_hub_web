@@ -485,6 +485,7 @@ defmodule NervesHubWeb.DeviceChannel do
     :ok
   end
 
+  @decorate with_span("Channels.DeviceChannel.maybe_update_deployment")
   defp maybe_update_deployment(device) do
     device
     |> Deployments.preload_with_firmware_and_archive()
