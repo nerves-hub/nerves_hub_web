@@ -7,7 +7,6 @@ defmodule NervesHubWeb.Components.DeviceHeader do
   attr(:product, :any)
   attr(:device, :any)
   attr(:device_connection, :any)
-  attr(:status, :any)
 
   def render(assigns) do
     ~H"""
@@ -21,9 +20,9 @@ defmodule NervesHubWeb.Components.DeviceHeader do
       <div>
         <div class="help-text">Status</div>
         <p class="flex-row align-items-center tt-c">
-          <span><%= @status %></span>
+          <span><%= get_status(@device_connection) %></span>
           <span class="ml-1">
-            <%= if @status in ["offline"] do %>
+            <%= if get_status(@device_connection) == "offline" do %>
               <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
             <% else %>
               <img src="/images/icons/check.svg" alt="online" class="table-icon" />
@@ -109,4 +108,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
     </div>
     """
   end
+
+  defp get_status(%{status: :connected}), do: "online"
+  defp get_status(_), do: "offline"
 end

@@ -20,7 +20,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product} = socket.assigns
 
-    device = Devices.get_device_by_identifier!(org, device_identifier)
+    device = Devices.get_device_by_identifier!(org, device_identifier, :latest_connection)
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
@@ -32,8 +32,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> page_title("Device #{device.identifier} - #{product.name}")
     |> assign(:tab_hint, :devices)
     |> assign(:device, device)
-    |> assign(:device_connection, Connections.get_latest_for_device(device.id))
-    |> assign(:status, Tracker.status(device))
+    |> assign(:device_connection, device_connection(device))
     |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:deployment, device.deployment)
     |> assign(:update_information, Devices.resolve_update(device))
@@ -59,23 +58,25 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> assign(:device, device)
-    |> assign(:device_connection, Connections.get_latest_for_device(device.id))
+    |> assign(:device_connection, device_connection(device))
     |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
-    {:noreply, assign(socket, :status, payload.status)}
+  def handle_info(
+        %Broadcast{event: "connection:status"},
+        %{assigns: %{device: device}} = socket
+      ) do
+    {:noreply, assign(socket, :device_connection, Connections.get_latest_for_device(device.id))}
   end
 
   def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
     %{device: device, org: org} = socket.assigns
 
-    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
+    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
 
     socket
     |> assign(:device, device)
-    |> assign(:device_connection, Connections.get_latest_for_device(device.id))
-    |> assign(:status, payload.status)
+    |> assign(:device_connection, device_connection(device))
     |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:fwup_progress, nil)
     |> assign(:update_information, Devices.resolve_update(device))
@@ -309,6 +310,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
         |> noreply()
     end
   end
+
+  defp device_connection(%{device_connections: [connection]}), do: connection
+  defp device_connection(_), do: nil
 
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
     health = Devices.get_latest_health(device.id)

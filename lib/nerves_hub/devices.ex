@@ -333,6 +333,11 @@ defmodule NervesHub.Devices do
     |> preload([d, device_certificates: dc], device_certificates: dc)
   end
 
+  defp join_and_preload(query, :latest_connection) do
+    query
+    |> Connections.preload_latest_connection()
+  end
+
   @spec get_shared_secret_auth(String.t()) ::
           {:ok, SharedSecretAuth.t()} | {:error, :not_found}
   def get_shared_secret_auth(key) do
@@ -684,49 +689,6 @@ defmodule NervesHub.Devices do
     |> where([dep, dev, f], f.id != dep.firmware_id)
     |> select([dep, dev, f], {f.id, dep.firmware_id})
     |> Repo.all()
-  end
-
-  def device_connected(device) do
-    device
-    |> clear_connection_information()
-    |> Device.changeset(%{
-      connection_status: :connected,
-      connection_established_at: DateTime.utc_now(),
-      connection_disconnected_at: nil,
-      connection_last_seen_at: DateTime.utc_now()
-    })
-    |> Repo.update()
-  end
-
-  def device_heartbeat(device) do
-    device
-    |> clear_connection_information()
-    |> Device.changeset(%{
-      connection_status: :connected,
-      connection_disconnected_at: nil,
-      connection_last_seen_at: DateTime.utc_now()
-    })
-    |> Repo.update()
-  end
-
-  def device_disconnected(device) do
-    device
-    |> clear_connection_information()
-    |> Device.changeset(%{
-      connection_status: :disconnected,
-      connection_disconnected_at: DateTime.utc_now(),
-      connection_last_seen_at: DateTime.utc_now()
-    })
-    |> Repo.update()
-  end
-
-  defp clear_connection_information(device) do
-    %{
-      device
-      | connection_status: nil,
-        connection_disconnected_at: "dummy",
-        connection_last_seen_at: nil
-    }
   end
 
   def clean_connection_states() do

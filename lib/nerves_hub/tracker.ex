@@ -4,7 +4,6 @@ defmodule NervesHub.Tracker do
   """
 
   alias NervesHub.Devices.Device
-  alias NervesHub.Devices.Connections
 
   def online(%{} = device) do
     online(device.identifier)
@@ -56,7 +55,7 @@ defmodule NervesHub.Tracker do
   @doc """
   String version of `online?/1`
   """
-  def status(device) do
+  def connection_status(device) do
     if online?(device) do
       "online"
     else
@@ -67,13 +66,11 @@ defmodule NervesHub.Tracker do
   @doc """
   Check if a device is currently online
 
-  Returns `false` immediately but sends a message to the device's channel asking if it's
-  online. If the device is online, it will send a connection state change of online.
+  Returns `true` if device's latest connections has a status of `:connected`,
+  otherwise `false`.
   """
-  def online?(device) do
-    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", :online?)
-    Connections.get_current_status(device.id) == :connected
-  end
+  def online?(%{device_connections: [%{status: :connected}]}), do: true
+  def online?(_), do: false
 
   @doc """
   Check if a device is currently online
