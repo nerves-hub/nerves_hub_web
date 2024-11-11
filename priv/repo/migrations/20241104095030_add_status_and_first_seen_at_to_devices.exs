@@ -10,7 +10,7 @@ defmodule NervesHub.Repo.Migrations.AddStatusAndFirstSeenAtToDevices do
     flush()
 
     execute("UPDATE devices SET status = 'registered' WHERE connection_status = 'not_seen'")
-    execute("UPDATE devices SET status = 'provisioned' WHERE connection_status != 'not_seen'")
+    execute("UPDATE devices SET status = 'provisioned', first_seen_at = inserted_at WHERE connection_status != 'not_seen'")
   end
 
   def down do
