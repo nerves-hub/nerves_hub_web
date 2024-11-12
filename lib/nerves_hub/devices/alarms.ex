@@ -48,7 +48,7 @@ defmodule NervesHub.Devices.Alarms do
     end)
     |> List.flatten()
     |> Enum.uniq()
-    |> Enum.map(&prettier_alarm/1)
+    |> Enum.map(&String.trim_leading(&1, "Elixir."))
   end
 
   @doc """
@@ -86,11 +86,5 @@ defmodule NervesHub.Devices.Alarms do
     Device
     |> select([:id])
     |> where(product_id: ^product_id)
-  end
-
-  defp prettier_alarm(alarm) do
-    alarm
-    |> String.split(".")
-    |> List.last()
   end
 end

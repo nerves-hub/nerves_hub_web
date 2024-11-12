@@ -255,17 +255,26 @@
   }
 }
 
-.device-limit-indicator {
-  background-image: url("/images/icons/device.svg");
-  background-position: right center;
+.navbar-indicator {
+  background-position: left center;
   background-repeat: no-repeat;
   background-size: 1.5rem;
-  padding-right: 2rem;
-  letter-spacing: 4px;
+  padding-left: 1.8rem;
+  letter-spacing: 2px;
 
   @media(max-width: 860px) {
     display: none;
   }
+}
+
+.device-limit-indicator {
+  background-image: url("/images/icons/device.svg");
+}
+
+.alarms-indicator {
+  background-image: url("/images/icons/bell.svg");
+  margin-left: 1.3rem;
+  font-weight: 400;
 }
 
 html {
@@ -356,6 +365,7 @@ html {
   cursor: pointer;
   display: flex;
   gap: 4px;
+
   label {
     font-size: 14px;
     border-radius: 3.2px;
@@ -371,6 +381,7 @@ html {
     padding-right: 8px;
     justify-content: center;
     flex-grow: 1;
+
     input[type=radio] {
       appearance: none;
     }
