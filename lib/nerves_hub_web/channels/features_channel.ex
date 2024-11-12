@@ -65,7 +65,7 @@ defmodule NervesHubWeb.FeaturesChannel do
 
     with {:health_report, {:ok, _}} <-
            {:health_report, Devices.save_device_health(device_health)},
-         {:metrics_report, {:ok, _}} <-
+         {:metrics_report, {saved, _}} when is_integer(saved) <-
            {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
       device_internal_broadcast!(socket.assigns.device, "health_check_report", %{})
     else
@@ -78,6 +78,14 @@ defmodule NervesHubWeb.FeaturesChannel do
         log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save metrics.")
     end
 
+    {:noreply, socket}
+  end
+
+  def handle_in("geo:attached", _, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_in("health:attached", _, socket) do
     {:noreply, socket}
   end
 
