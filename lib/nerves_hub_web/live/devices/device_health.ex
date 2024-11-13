@@ -40,7 +40,6 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> page_title("Device #{device.identifier} - Health")
     |> assign(:device, device)
     |> assign(:latest_connection, Connections.get_latest_for_device(device.id))
-    |> assign(:connection_established, Connections.get_established_at(device.id))
     |> assign(:time_frame, @default_time_frame)
     |> assign(:time_frame_opts, @time_frame_opts)
     |> assign(:latest_metrics, Metrics.get_latest_metric_set_for_device(device.id))

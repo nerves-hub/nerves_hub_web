@@ -576,9 +576,9 @@ defmodule NervesHubWeb.WebsocketTest do
 
       _ = SocketClient.clean_close(socket)
       :timer.sleep(10)
-      assert :disconnected == Connections.get_current_status(device.id)
 
       assert device_connection = Connections.get_latest_for_device(device.id)
+      assert device_connection.status == :disconnected
 
       assert recent_datetime(device_connection.established_at)
       assert recent_datetime(device_connection.last_seen_at)

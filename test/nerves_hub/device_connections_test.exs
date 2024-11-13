@@ -18,12 +18,12 @@ defmodule NervesHub.DeviceConnectionsTest do
   end
 
   test "device never connected", %{device: device} do
-    assert Connections.get_current_status(device.id) == :not_seen
+    refute Connections.get_latest_for_device(device.id)
   end
 
   test "device connect", %{device: device} do
     assert {:ok, %DeviceConnection{status: :connected}} = Connections.device_connected(device.id)
-    assert Connections.get_current_status(device.id) == :connected
+    assert %DeviceConnection{status: :connected} = Connections.get_latest_for_device(device.id)
   end
 
   test "device heartbeat", %{device: device} do
@@ -35,6 +35,7 @@ defmodule NervesHub.DeviceConnectionsTest do
              Connections.device_heartbeat(connection_id)
 
     assert last_seen_at > first_seen_at
+    assert %DeviceConnection{status: :connected} = Connections.get_latest_for_device(device.id)
   end
 
   test "device disconnect", %{device: device} do
@@ -51,7 +52,7 @@ defmodule NervesHub.DeviceConnectionsTest do
 
     refute is_nil(disconnected_at)
 
-    assert Connections.get_current_status(device.id) == :disconnected
+    assert %DeviceConnection{status: :disconnected} = Connections.get_latest_for_device(device.id)
   end
 
   test "get device with latest connection preloaded", %{device: device} do

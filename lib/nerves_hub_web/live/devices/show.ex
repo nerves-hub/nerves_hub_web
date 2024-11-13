@@ -72,6 +72,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
     %{device: device, org: org} = socket.assigns
 
+    # Get device with its latest connection data preloaded
     {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
 
     socket

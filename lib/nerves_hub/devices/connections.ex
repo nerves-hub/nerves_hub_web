@@ -8,6 +8,10 @@ defmodule NervesHub.Devices.Connections do
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Repo
 
+  @doc """
+  Get all connections for a device.
+  """
+  @spec get_device_connections(non_neg_integer()) :: [DeviceConnection.t()]
   def get_device_connections(device_id) do
     DeviceConnection
     |> where(device_id: ^device_id)
@@ -15,6 +19,10 @@ defmodule NervesHub.Devices.Connections do
     |> Repo.all()
   end
 
+  @doc """
+  Get latest inserted connection for a device.
+  """
+  @spec get_latest_for_device(non_neg_integer()) :: DeviceConnection.t() | nil
   def get_latest_for_device(device_id) do
     DeviceConnection
     |> where(device_id: ^device_id)
@@ -23,32 +31,20 @@ defmodule NervesHub.Devices.Connections do
     |> Repo.one()
   end
 
-  def get_current_status(device_id) do
-    DeviceConnection
-    |> where(device_id: ^device_id)
-    |> order_by(desc: :last_seen_at)
-    |> limit(1)
-    |> Repo.one()
-    |> case do
-      %DeviceConnection{status: status} -> status
-      nil -> :not_seen
-    end
-  end
-
-  def get_established_at(device_id) do
-    device_id
-    |> get_latest_for_device()
-    |> case do
-      %DeviceConnection{established_at: established_at} -> established_at
-      _ -> nil
-    end
-  end
-
+  @doc """
+  Preload latest respective connection in a device query.
+  """
+  @spec preload_latest_connection(Query.t()) :: Query.t()
   def preload_latest_connection(query) do
     query
     |> preload(device_connections: ^distinct_on_device())
   end
 
+  @doc """
+  Creates a device connection, reported from device socket
+  """
+  @spec device_connected(non_neg_integer()) ::
+          {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
   def device_connected(device_id) do
     now = DateTime.utc_now()
 
@@ -62,6 +58,10 @@ defmodule NervesHub.Devices.Connections do
     |> Repo.insert()
   end
 
+  @doc """
+  Updates the `last_seen_at`field for a device connection with current timestamp
+  """
+  @spec device_heartbeat(UUIDv7.t()) :: {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
   def device_heartbeat(ref_id) do
     DeviceConnection
     |> Repo.get!(ref_id)
@@ -69,6 +69,12 @@ defmodule NervesHub.Devices.Connections do
     |> Repo.update()
   end
 
+  @doc """
+  Updates `status` and relevant timestamps for a device connection record,
+  and stores the reason for disconnection if provided.
+  """
+  @spec device_disconnected(UUIDv7.t(), String.t() | nil) ::
+          {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
   def device_disconnected(ref_id, reason \\ nil) do
     now = DateTime.utc_now()
 
@@ -86,6 +92,7 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Selects devices id's which has provided status in it's latest connection record.
   """
+  @spec query_devices_with_connection_status(String.t()) :: Query.t()
   def query_devices_with_connection_status(status) do
     (lr in subquery(latest_row_query()))
     |> from()
@@ -98,6 +105,14 @@ defmodule NervesHub.Devices.Connections do
     |> select([lr, d], d.id)
   end
 
+  @doc """
+  Generates a query to retrieve the most recent `DeviceConnection` for devices.
+  The query includes the row number (`rn`)
+  for each record, which is used to identify the most recent connection.
+
+  Returns an Ecto query.
+  """
+  @spec latest_row_query() :: Query.t()
   def latest_row_query() do
     DeviceConnection
     |> select([dc], %{
