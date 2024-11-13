@@ -66,6 +66,50 @@
 <div class="border-bottom border-dark mt-6 mb-4"></div>
 
 <div class="device-header-group">
+  <h3 class="mb-2">Features</h3>
+</div>
+
+<table :if={Enum.any?(@features)} class="table table-sm table-hover">
+  <thead>
+    <tr>
+      <th></th>
+      <th>Name</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tr :for={feature <- @features} class="item">
+    <td>
+      <input
+        :if={not is_nil(feature.product_feature_id) and feature.product_allowed}
+        type="checkbox"
+        class="checkbox"
+        checked={feature.product_allowed && feature.allowed}
+        phx-click="update-feature"
+        phx-value-product_feature_id={feature.product_feature_id}
+        phx-value-device_product_feature_id={feature.device_product_feature_id}
+        disabled={!authorized?(:"device:update", @org_user)}
+        data-confirm="Are you sure?"
+      />
+
+      <div :if={is_nil(feature.product_feature_id) or not feature.product_allowed} class="help-text tooltip-label help-tooltip">
+        <span class="tooltip-info mb-1"></span>
+        <span class="tooltip-text">Must be enabled at product level first</span>
+      </div>
+    </td>
+    <td class="ff-m">
+      <div class="mobile-label help-text">Name</div>
+      <%= feature.name %>
+    </td>
+    <td>
+      <div class="mobile-label help-text">Description</div>
+      <%= feature.description %>
+    </td>
+  </tr>
+</table>
+
+<div class="border-bottom border-dark mt-6 mb-4"></div>
+
+<div class="device-header-group">
   <h3 class="mb-2">Certificates</h3>
   <%= if @toggle_upload do %>
     <button class="btn btn-primary" type="button" phx-click="toggle-upload" phx-value-toggle={to_string(@toggle_upload)}>

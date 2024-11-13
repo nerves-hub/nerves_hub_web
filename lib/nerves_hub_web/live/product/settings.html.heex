@@ -135,6 +135,61 @@
 
 <div class="border-bottom border-dark mt-5 mb-2"></div>
 
+<div class="container pl-0 mb-2">
+  <div class="row align-items-center">
+    <div class="col col-6">
+      <h3>Device Features</h3>
+    </div>
+    <div class="col col-2">
+      <span class="badge bg-warning">Experimental</span>
+    </div>
+  </div>
+</div>
+
+<p class="p-small">
+  Isolated channels for various device behaviours and feature messaging not crucial to firmware updates<br /> but are useful for managing, monitoring, and introspecting on wide fleets of devices.
+</p>
+<p class="p-small">
+  When enabled, NervesHub will request the features a device currently supports and then<br /> check against product and device settings to see if the feature should be attached to the connection.
+</p>
+<p class="p-small mb-3">
+  Features most be allowed at the product level. They can also be configured at the device level for more<br /> granular control when needed.
+</p>
+
+<table :if={Enum.any?(@features)} class="table table-sm table-hover">
+  <thead>
+    <tr>
+      <th></th>
+      <th>Name</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tr :for={feature <- @features} class="item">
+    <td>
+      <input
+        type="checkbox"
+        name="allowed"
+        checked={feature.allowed}
+        phx-click="update-feature"
+        phx-value-feature_id={feature.id}
+        phx-value-product_feature_id={feature.product_feature_id}
+        disabled={!authorized?(:"product:update", @org_user)}
+        data-confirm="Are you sure?"
+      />
+    </td>
+    <td class="ff-m">
+      <div class="mobile-label help-text">Name</div>
+      <%= feature.name %>
+    </td>
+    <td>
+      <div class="mobile-label help-text">Description</div>
+      <%= feature.description %>
+    </td>
+  </tr>
+</table>
+
+<div class="border-bottom border-dark mt-5 mb-2"></div>
+
 <div class="mt-4">
   <button class="btn btn-primary" phx-click="delete-product" data-confirm="Are you sure you want to delete this product?" disabled={!authorized?(:"product:delete", @org_user)}>
     Remove Product

@@ -1,8 +1,13 @@
 defmodule NervesHubWeb.Live.Product.Settings do
   use NervesHubWeb, :updated_live_view
 
+  alias NervesHub.Features.Feature
+  alias NervesHub.Features.ProductFeature
   alias NervesHub.Products
+  alias NervesHub.Products.Product
   alias NervesHubWeb.DeviceSocket
+
+  import Ecto.Query, only: [from: 2]
 
   def mount(_params, _session, socket) do
     product = Products.load_shared_secret_auth(socket.assigns.product)
@@ -14,6 +19,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> assign(:shared_secrets, product.shared_secret_auths)
       |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
       |> assign(:form, to_form(Ecto.Changeset.change(product)))
+      |> assign(:features, features(product))
 
     {:ok, socket}
   end
@@ -70,5 +76,55 @@ defmodule NervesHubWeb.Live.Product.Settings do
            "There was an error deleting the Product. Please delete all Firmware and Devices first."
          )}
     end
+  end
+
+  def handle_event("update-feature", params, socket) do
+    attrs = %{
+      feature_id: params["feature_id"],
+      allowed: params["value"] == "on",
+      product_id: socket.assigns.product.id
+    }
+
+    # TODO: There is probably a better way for upsert
+    result =
+      if pf_id = params["product_feature_id"] do
+        NervesHub.Repo.get!(ProductFeature, pf_id)
+        |> ProductFeature.changeset(attrs)
+        |> NervesHub.Repo.update()
+      else
+        ProductFeature.changeset(attrs)
+        |> NervesHub.Repo.insert()
+      end
+
+    socket =
+      case result do
+        {:ok, _pf} ->
+          # reload features
+          assign(socket, :features, features(socket.assigns.product))
+
+        {:error, _changeset} ->
+          put_flash(socket, :error, "Failed to set feature")
+      end
+
+    {:noreply, socket}
+  end
+
+  defp features(%{id: product_id}) do
+    # Load this way so if there is no ProductFeature, we still
+    # display the feature to be enabled which would create the record
+    query =
+      from(f in Feature,
+        left_join: pf in ProductFeature,
+        on: pf.feature_id == f.id and pf.product_id == ^product_id,
+        select: %{
+          id: f.id,
+          product_feature_id: pf.id,
+          name: f.name,
+          description: f.description,
+          allowed: pf.allowed
+        }
+      )
+
+    NervesHub.Repo.all(query)
   end
 end
