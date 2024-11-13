@@ -15,6 +15,16 @@ defmodule NervesHub.Features do
     critical firmware update.
   """
 
+  @callback handle_in(event :: String.t(), Phoenix.Channel.payload(), Phoenix.Socket.t()) ::
+              {:noreply, Phoenix.Socket.t()}
+              | {:noreply, Phoenix.Socket.t(), timeout() | :hibernate}
+              | {:reply, Phoenix.Channel.reply(), Phoenix.Socket.t()}
+              | {:stop, reason :: term(), Phoenix.Socket.t()}
+              | {:stop, reason :: term(), Phoenix.Channel.reply(), Phoenix.Socket.t()}
+
+  @callback handle_info(msg :: term(), Phoenix.Socket.t()) ::
+              {:noreply, Phoenix.Socket.t()} | {:stop, reason :: term(), Phoenix.Socket.t()}
+
   alias NervesHub.Devices.Device
 
   require Logger
