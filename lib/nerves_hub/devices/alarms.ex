@@ -40,7 +40,7 @@ defmodule NervesHub.Devices.Alarms do
   @doc """
   Creates a list with all current alarm types for a product.
   """
-  def get_current_alarms(product_id) do
+  def get_current_alarm_types(product_id) do
     query_current_alarms(product_id)
     |> Repo.all()
     |> Enum.map(fn %{data: data} ->
