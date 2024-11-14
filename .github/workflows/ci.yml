@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
   pull_request:
 
@@ -26,7 +26,7 @@ jobs:
     services:
       db:
         image: postgres:15
-        ports: ['5432:5432']
+        ports: ["5432:5432"]
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -121,6 +121,8 @@ jobs:
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        env:
+          DOCKER_METADATA_PR_HEAD_SHA: true
         with:
           images: ghcr.io/nerves-hub/nerves-hub
           tags: |
@@ -132,14 +134,15 @@ jobs:
             type=raw,enable={{is_default_branch}},value=latest
             # tag event (eg. "v1.2.3")
             type=ref,event=tag
-      
+
       - name: Check if PR publish
+        continue-on-error: true
         if: ${{ github.event_name == 'pull_request' }}
         id: pr_publish_check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          commits=$(gh pr view ${{ github.head_ref }} --json commits --jq '.commits[] | .messageHeadline + " " + .messageBody')
+          commits=$(gh pr view ${{ github.event.pull_request.number }} --json commits --jq '.commits[] | .messageHeadline + " " + .messageBody')
 
           if [[ $commits =~ \[publish\] ]]; then
             echo "true"

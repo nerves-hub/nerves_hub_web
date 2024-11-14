@@ -13,6 +13,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceHealth
@@ -162,6 +163,15 @@ defmodule NervesHub.Devices do
       case {key, value} do
         {_, ""} ->
           query
+
+        {:alarm_status, "with"} ->
+          where(query, [d], d.id in subquery(Alarms.query_devices_with_alarms()))
+
+        {:alarm_status, "without"} ->
+          where(query, [d], d.id not in subquery(Alarms.query_devices_with_alarms()))
+
+        {:alarm, value} ->
+          where(query, [d], d.id in subquery(Alarms.query_devices_with_alarm(value)))
 
         {:connection, _value} ->
           where(query, [d], d.connection_status == ^String.to_atom(value))

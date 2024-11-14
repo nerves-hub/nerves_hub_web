@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
+  alias NervesHub.Devices.Alarms
   alias NervesHub.Firmwares
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
@@ -27,7 +28,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     device_id: "",
     tag: "",
     updates: "",
-    has_no_tags: false
+    has_no_tags: false,
+    alarm_status: "",
+    alarm: ""
   }
 
   @filter_types %{
@@ -39,7 +42,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     device_id: :string,
     tag: :string,
     updates: :string,
-    has_no_tags: :boolean
+    has_no_tags: :boolean,
+    alarm_status: :string,
+    alarm: :string
   }
 
   @default_page 1
@@ -77,6 +82,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
     |> assign(:total_entries, 0)
+    |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
