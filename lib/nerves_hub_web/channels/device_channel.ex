@@ -331,7 +331,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("fwup_progress", %{"value" => percent}, %{assigns: %{device: device}} = socket) do
-    device_internal_broadcast!(device, "fwup_progress", %{percent: percent})
+    device_internal_broadcast!(socket, device, "fwup_progress", %{percent: percent})
 
     # if this is the first fwup we see, then mark it as an update attempt
     if socket.assigns[:update_started?] do
@@ -360,9 +360,11 @@ defmodule NervesHubWeb.DeviceChannel do
 
     {:ok, device} = Devices.update_device(device, %{connection_metadata: metadata})
 
-    device_internal_broadcast!(device, "location:updated", location)
+    socket = assign(socket, :device, device)
 
-    {:reply, :ok, assign(socket, :device, device)}
+    device_internal_broadcast!(socket, device, "location:updated", location)
+
+    {:reply, :ok, socket}
   end
 
   def handle_in("connection_types", %{"values" => types}, %{assigns: %{device: device}} = socket) do
@@ -423,7 +425,7 @@ defmodule NervesHubWeb.DeviceChannel do
            {:health_report, Devices.save_device_health(device_health)},
          {:metrics_report, {_, _}} <-
            {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
-      device_internal_broadcast!(socket.assigns.device, "health_check_report", %{})
+      device_internal_broadcast!(socket, socket.assigns.device, "health_check_report", %{})
     else
       {:health_report, {:error, err}} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
@@ -501,9 +503,9 @@ defmodule NervesHubWeb.DeviceChannel do
     Phoenix.PubSub.unsubscribe(NervesHub.PubSub, topic)
   end
 
-  defp device_internal_broadcast!(device, event, payload) do
+  defp device_internal_broadcast!(socket, device, event, payload) do
     topic = "device:#{device.identifier}:internal"
-    NervesHubWeb.DeviceEndpoint.broadcast_from!(self(), topic, event, payload)
+    socket.endpoint.broadcast_from!(self(), topic, event, payload)
   end
 
   defp maybe_send_public_keys(device, socket, params) do
