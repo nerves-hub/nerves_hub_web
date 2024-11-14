@@ -136,12 +136,13 @@ jobs:
             type=ref,event=tag
 
       - name: Check if PR publish
+        continue-on-error: true
         if: ${{ github.event_name == 'pull_request' }}
         id: pr_publish_check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          commits=$(gh pr view ${{ github.head_ref }} --json commits --jq '.commits[] | .messageHeadline + " " + .messageBody')
+          commits=$(gh pr view ${{ github.event.pull_request.number }} --json commits --jq '.commits[] | .messageHeadline + " " + .messageBody')
 
           if [[ $commits =~ \[publish\] ]]; then
             echo "true"
