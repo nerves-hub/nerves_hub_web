@@ -267,6 +267,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     socket =
       assign(socket, selected_devices: selected_devices)
       |> assign_display_devices()
+      |> assign(:target_product, nil)
 
     {:noreply, socket}
   end
@@ -413,6 +414,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   #
   # MOVE TO COMPONENTS
   #
+
   defp selected?(filters, field, value) do
     if filters[field] == value do
       [selected: true]
@@ -420,6 +422,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
       []
     end
   end
+
+  defp target_selected?(%{name: name}, value) when name == value, do: [selected: true]
+  defp target_selected?(_, _), do: []
 
   defp devices_table_header(title, value, current_sort, sort_direction)
        when value == current_sort do

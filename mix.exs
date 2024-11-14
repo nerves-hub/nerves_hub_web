@@ -4,7 +4,7 @@ defmodule NervesHub.MixProject do
   def project do
     [
       app: :nerves_hub,
-      version: "2.0.0",
+      version: "2.0.0+#{build()}",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),
@@ -12,7 +12,7 @@ defmodule NervesHub.MixProject do
         docs: :docs
       ],
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixir: "~> 1.11",
+      elixir: "~> 1.17.2",
       releases: [
         nerves_hub: [
           steps: [:assemble],
@@ -49,6 +49,15 @@ defmodule NervesHub.MixProject do
     ]
   end
 
+  defp build() do
+    cmd = "git rev-parse --short=8 HEAD"
+
+    case System.shell(cmd, stderr_to_stdout: true) do
+      {sha, 0} -> String.trim(sha)
+      _ -> "dev"
+    end
+  end
+
   # Dependencies listed here are available only for this
   # project and cannot be accessed from applications inside
   # the apps folder.
@@ -77,12 +86,12 @@ defmodule NervesHub.MixProject do
       {:finch, "~> 0.19.0"},
       {:floki, ">= 0.27.0", only: :test},
       {:gen_smtp, "~> 1.0"},
-      {:gettext, "~> 0.24.0"},
+      {:gettext, "~> 0.26.1"},
       {:hackney, "~> 1.16"},
       {:hlclock, "~> 1.0"},
       {:jason, "~> 1.2", override: true},
       {:libcluster_postgres, "~> 0.1.2"},
-      {:logfmt, "~> 3.3"},
+      {:logfmt_ex, "~> 0.4"},
       {:mox, "~> 1.0", only: [:test, :dev]},
       {:nimble_csv, "~> 1.1"},
       {:oban, "~> 2.11"},
@@ -104,7 +113,7 @@ defmodule NervesHub.MixProject do
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:sweet_xml, "~> 0.6"},
       {:swoosh, "~> 1.12"},
-      {:telemetry_metrics, "~> 0.4"},
+      {:telemetry_metrics, "~> 1.0"},
       {:telemetry_metrics_statsd, "~> 0.7.0"},
       {:telemetry_poller, "~> 1.0"},
       {:timex, "~> 3.1"},

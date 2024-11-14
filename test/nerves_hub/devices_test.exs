@@ -646,13 +646,14 @@ defmodule NervesHub.DevicesTest do
       {:error, :up_to_date, _device} = Devices.verify_update_eligibility(device, deployment)
     end
 
-    test "device is unhealthy and should be put in the penalty box based on total attemps",
+    test "device should be rejected for updates based on threshold rate and have it's inflight updates cleared",
          state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
       deployment = %{deployment | device_failure_threshold: 6}
 
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment)
 
       now = DateTime.utc_now()
 
@@ -666,14 +667,16 @@ defmodule NervesHub.DevicesTest do
       {:error, :updates_blocked, device} = Devices.verify_update_eligibility(device, deployment)
 
       assert device.updates_blocked_until
+      assert Devices.count_inflight_updates_for(deployment) == 0
     end
 
-    test "device is unhealthy and should be put in the penalty box based on attempt rate",
+    test "device should be rejected for updates based on attempt rate and have it's inflight updates cleared",
          state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
 
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment)
 
       now = DateTime.utc_now()
 
@@ -686,9 +689,11 @@ defmodule NervesHub.DevicesTest do
       {:error, :updates_blocked, device} = Devices.verify_update_eligibility(device, deployment)
 
       assert device.updates_blocked_until
+      assert Devices.count_inflight_updates_for(deployment) == 0
     end
 
-    test "device is in the penalty box and should be rejected for updates", state do
+    test "device in penalty box should be rejected for updates and have it's inflight updates cleared",
+         state do
       %{device: device, deployment: deployment} = state
       deployment = Repo.preload(deployment, [:firmware])
 
@@ -698,9 +703,12 @@ defmodule NervesHub.DevicesTest do
 
       # future time
       device = %{device | updates_blocked_until: DateTime.add(now, 1, :second)}
+      {:ok, _inflight_update} = Devices.told_to_update(device, deployment)
 
       {:error, :updates_blocked, _device} =
         Devices.verify_update_eligibility(device, deployment, now)
+
+      assert Devices.count_inflight_updates_for(deployment) == 0
 
       # now
       device = %{device | updates_blocked_until: now}

@@ -7,7 +7,6 @@ ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-ubuntu-$
 ARG RUNNER_IMAGE="ubuntu:${DISTRO}"
 ARG DEBIAN_FRONTEND=noninteractive
 
-
 ###
 ### First Stage - Fetch deps for building web assets
 ###
@@ -79,6 +78,9 @@ COPY priv priv
 COPY lib lib
 
 COPY --from=assets /build/priv/static priv/static
+
+# We need the git history for creating the project version in Mix
+COPY .git .git
 
 RUN mix compile
 RUN mix phx.digest

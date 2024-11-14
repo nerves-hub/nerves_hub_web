@@ -32,12 +32,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
-    device =
-      device
-      |> Devices.verify_deployment()
-      |> Deployments.set_deployment()
-      |> Repo.preload(:org)
-      |> deployment_preload()
+    device = maybe_update_deployment(device)
 
     maybe_send_public_keys(device, socket, params)
 
@@ -426,7 +421,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     with {:health_report, {:ok, _}} <-
            {:health_report, Devices.save_device_health(device_health)},
-         {:metrics_report, {:ok, _}} <-
+         {:metrics_report, {_, _}} <-
            {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
       device_internal_broadcast!(socket.assigns.device, "health_check_report", %{})
     else
@@ -477,6 +472,13 @@ defmodule NervesHubWeb.DeviceChannel do
     :ok
   end
 
+  defp maybe_update_deployment(device) do
+    device
+    |> Deployments.preload_with_firmware_and_archive()
+    |> Devices.verify_deployment()
+    |> Deployments.set_deployment()
+  end
+
   defp log_to_sentry(device, message, extra \\ %{}) do
     Sentry.Context.set_tags_context(%{
       device_identifier: device.identifier,
@@ -507,7 +509,7 @@ defmodule NervesHubWeb.DeviceChannel do
   defp maybe_send_public_keys(device, socket, params) do
     Enum.each(["fwup_public_keys", "archive_public_keys"], fn key_type ->
       if params[key_type] == "on_connect" do
-        org_keys = NervesHub.Accounts.list_org_keys(device.org)
+        org_keys = NervesHub.Accounts.list_org_keys(device.org_id, false)
 
         push(socket, key_type, %{
           keys: Enum.map(org_keys, fn ok -> ok.key end)

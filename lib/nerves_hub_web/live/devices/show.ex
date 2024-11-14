@@ -23,6 +23,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
+      socket.endpoint.subscribe("device:console:#{device.id}:internal")
       socket.endpoint.subscribe("firmware")
     end
 
@@ -31,10 +32,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:tab_hint, :devices)
     |> assign(:device, device)
     |> assign(:status, Tracker.status(device))
+    |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:deployment, device.deployment)
     |> assign(:update_information, Devices.resolve_update(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
+    |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
+    |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
     |> audit_log_assigns(1)
@@ -66,11 +70,18 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> assign(:status, payload.status)
+    |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:fwup_progress, nil)
     |> assign(:update_information, Devices.resolve_update(device))
     |> then(fn socket ->
       if(payload.status == "online", do: clear_flash(socket), else: socket)
     end)
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{event: "console_joined"}, socket) do
+    socket
+    |> assign(:console_active?, true)
     |> noreply()
   end
 
@@ -85,8 +96,15 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  def handle_info(%Broadcast{event: "health_check_report"}, socket) do
-    {:noreply, assign(socket, health: Devices.get_latest_health(socket.assigns.device.id))}
+  def handle_info(
+        %Broadcast{event: "health_check_report"},
+        %{assigns: %{device: device}} = socket
+      ) do
+    socket
+    |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
+    |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
+    |> assign_metadata()
+    |> noreply
   end
 
   def handle_info(:check_health_interval, socket) do
@@ -285,6 +303,24 @@ defmodule NervesHubWeb.Live.Devices.Show do
         |> noreply()
     end
   end
+
+  defp assign_metadata(%{assigns: %{device: device}} = socket) do
+    health = Devices.get_latest_health(device.id)
+
+    metadata =
+      if health, do: health.data["metadata"] || %{}, else: %{}
+
+    socket
+    |> assign(:metadata, Map.drop(metadata, standard_keys(device)))
+  end
+
+  defp standard_keys(%{firmware_metadata: nil}), do: []
+
+  defp standard_keys(%{firmware_metadata: firmware_metadata}),
+    do:
+      firmware_metadata
+      |> Map.keys()
+      |> Enum.map(&to_string/1)
 
   defp schedule_health_check_timer(socket) do
     if connected?(socket) and device_health_check_enabled?() do

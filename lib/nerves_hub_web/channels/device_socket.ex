@@ -48,7 +48,8 @@ defmodule NervesHubWeb.DeviceSocket do
       {:ok, _device} = Devices.device_heartbeat(device)
 
       _ =
-        NervesHubWeb.DeviceEndpoint.broadcast(
+        socket.endpoint.broadcast_from(
+          self(),
           "device:#{device.identifier}:internal",
           "connection:heartbeat",
           %{}
@@ -84,7 +85,12 @@ defmodule NervesHubWeb.DeviceSocket do
       {:ok, %{device: %Device{} = device}} ->
         socket_and_assigns(socket, device)
 
-      _e ->
+      error ->
+        :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+          auth: :cert,
+          reason: error
+        })
+
         {:error, :invalid_auth}
     end
   end
@@ -103,7 +109,12 @@ defmodule NervesHubWeb.DeviceSocket do
       socket_and_assigns(socket, device)
     else
       error ->
-        Logger.info("device authentication failed : #{inspect(error)}")
+        :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+          auth: :shared_secrets,
+          reason: error,
+          product_key: Map.get(headers, "x-nh-key", "*empty*")
+        })
+
         {:error, :invalid_auth}
     end
   end
@@ -115,6 +126,16 @@ defmodule NervesHubWeb.DeviceSocket do
   @impl Phoenix.Socket
   def id(%{assigns: %{device: device}}), do: "device_socket:#{device.id}"
   def id(_socket), do: nil
+
+  def drainer_configuration() do
+    config = Application.get_env(:nerves_hub, :device_socket_drainer)
+
+    [
+      batch_size: config[:batch_size],
+      batch_interval: config[:batch_interval],
+      shutdown: config[:shutdown]
+    ]
+  end
 
   defp decode_from_headers(%{"x-nh-alg" => "NH1-HMAC-" <> alg} = headers) do
     with [digest_str, iter_str, klen_str] <- String.split(alg, "-"),
@@ -143,7 +164,7 @@ defmodule NervesHubWeb.DeviceSocket do
     end
   end
 
-  defp decode_from_headers(_headers), do: :error
+  defp decode_from_headers(_headers), do: {:error, :headers_decode_failed}
 
   defp get_shared_secret_auth("nhp_" <> _ = key), do: Products.get_shared_secret_auth(key)
   defp get_shared_secret_auth(key), do: Devices.get_shared_secret_auth(key)
@@ -203,17 +224,27 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   defp on_disconnect({:error, reason}, %{assigns: %{device: device, reference_id: reference_id}}) do
-    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
-      ref_id: reference_id,
-      identifier: device.identifier
-    })
-
     if reason == {:shutdown, :disconnected} do
-      :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{}, %{
+      :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
         ref_id: reference_id,
         device: device
       })
     end
+
+    shutdown(device, reference_id)
+
+    :ok
+  end
+
+  defp on_disconnect(_, %{assigns: %{device: device, reference_id: reference_id}}) do
+    shutdown(device, reference_id)
+  end
+
+  defp shutdown(device, reference_id) do
+    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
+      ref_id: reference_id,
+      identifier: device.identifier
+    })
 
     {:ok, device} = Devices.device_disconnected(device)
 
@@ -221,8 +252,6 @@ defmodule NervesHubWeb.DeviceSocket do
 
     :ok
   end
-
-  defp on_disconnect(_, _), do: :ok
 
   defp last_seen_update_interval() do
     Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)

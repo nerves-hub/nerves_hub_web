@@ -37,7 +37,7 @@ defmodule NervesHubWeb.Devices.HealthTest do
       "used_percent" => 2
     }
 
-    assert {:ok, _} = Metrics.save_metrics(device.id, metrics)
+    assert {7, nil} = Metrics.save_metrics(device.id, metrics)
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")

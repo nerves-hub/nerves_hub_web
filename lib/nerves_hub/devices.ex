@@ -88,6 +88,24 @@ defmodule NervesHub.Devices do
     |> Repo.paginate(pagination)
   end
 
+  def get_minimal_device_location_by_org_id_and_product_id(org_id, product_id) do
+    Device
+    |> select([d], %{
+      id: d.id,
+      identifier: d.identifier,
+      connection_status: d.connection_status,
+      latitude: fragment("?->'location'->'latitude'", d.connection_metadata),
+      longitude: fragment("?->'location'->'longitude'", d.connection_metadata),
+      firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)
+    })
+    |> where(org_id: ^org_id)
+    |> where(product_id: ^product_id)
+    |> where([d], not is_nil(fragment("?->'location'->'latitude'", d.connection_metadata)))
+    |> where([d], not is_nil(fragment("?->'location'->'longitude'", d.connection_metadata)))
+    |> Repo.exclude_deleted()
+    |> Repo.all()
+  end
+
   def get_health_by_org_id_and_product_id(org_id, product_id, opts) do
     query =
       from(
@@ -153,6 +171,9 @@ defmodule NervesHub.Devices do
 
         {:firmware_version, value} ->
           where(query, [d], d.firmware_metadata["version"] == ^value)
+
+        {:platform, "Unknown"} ->
+          where(query, [d], is_nil(d.firmware_metadata["platform"]))
 
         {:platform, value} ->
           where(query, [d], d.firmware_metadata["platform"] == ^value)
@@ -592,6 +613,40 @@ defmodule NervesHub.Devices do
     Repo.delete(ca_certificate)
   end
 
+  @type firmware_id :: binary()
+  @type source_firmware_id() :: firmware_id()
+  @type target_firmware_id() :: firmware_id()
+
+  @spec get_device_firmware_for_delta_generation_by_product(binary()) ::
+          list({source_firmware_id(), target_firmware_id()})
+  def get_device_firmware_for_delta_generation_by_product(product_id) do
+    Deployment
+    |> where([dep], dep.product_id == ^product_id)
+    |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
+    |> join(:inner, [dep, dev], f in Firmware,
+      on: f.uuid == fragment("d1.firmware_metadata->>'uuid'")
+    )
+    # Exclude the current firmware, we don't need to generate that one
+    |> where([dep, dev, f], f.id != dep.firmware_id)
+    |> select([dep, dev, f], {f.id, dep.firmware_id})
+    |> Repo.all()
+  end
+
+  @spec get_device_firmware_for_delta_generation_by_deployment(binary()) ::
+          list({source_firmware_id(), target_firmware_id()})
+  def get_device_firmware_for_delta_generation_by_deployment(deployment_id) do
+    Deployment
+    |> where([dep], dep.id == ^deployment_id)
+    |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
+    |> join(:inner, [dep, dev], f in Firmware,
+      on: f.uuid == fragment("d1.firmware_metadata->>'uuid'")
+    )
+    # Exclude the current firmware, we don't need to generate that one
+    |> where([dep, dev, f], f.id != dep.firmware_id)
+    |> select([dep, dev, f], {f.id, dep.firmware_id})
+    |> Repo.all()
+  end
+
   def device_connected(device) do
     device
     |> clear_connection_information()
@@ -784,6 +839,13 @@ defmodule NervesHub.Devices do
 
   def matches_deployment?(_, _), do: false
 
+  def update_deployment(device, deployment) do
+    device
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+    |> Repo.update!()
+  end
+
   @spec failure_threshold_met?(Device.t(), Deployment.t()) :: boolean()
   def failure_threshold_met?(%Device{} = device, %Deployment{} = deployment) do
     Enum.count(device.update_attempts) >= deployment.device_failure_threshold
@@ -803,8 +865,8 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Devices that haven't been automatically blocked are not in the penalty window
-  Devices that have a time greater than now are in the penalty window
+  Devices that haven't been automatically blocked are not in the penalty window.
+  Devices that have a time greater than now are in the penalty window.
   """
   def device_in_penalty_box?(device, now \\ DateTime.utc_now())
 
@@ -828,6 +890,8 @@ defmodule NervesHub.Devices do
         {:error, :up_to_date, device}
 
       updates_blocked?(device, now) ->
+        clear_inflight_update(device)
+
         {:error, :updates_blocked, device}
 
       failure_rate_met?(device, deployment) ->
@@ -842,6 +906,7 @@ defmodule NervesHub.Devices do
         """
 
         AuditLogs.audit!(deployment, device, description)
+        clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
 
@@ -859,6 +924,7 @@ defmodule NervesHub.Devices do
         """
 
         AuditLogs.audit!(deployment, device, description)
+        clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
 
@@ -1223,6 +1289,7 @@ defmodule NervesHub.Devices do
     |> select([d], fragment("?->>'platform'", d.firmware_metadata))
     |> distinct(true)
     |> where([d], d.product_id == ^product_id)
+    |> order_by([d], fragment("?->>'platform'", d.firmware_metadata))
     |> Repo.all()
   end
 

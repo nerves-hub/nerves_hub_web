@@ -6,6 +6,7 @@ defmodule NervesHub.Deployments do
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.InflightDeploymentCheck
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -31,7 +32,7 @@ defmodule NervesHub.Deployments do
     Device
     |> select([d], {d.deployment_id, count(d.id)})
     |> where([d], d.product_id == ^product_id)
-    |> group_by([d], d.id)
+    |> group_by([d], d.deployment_id)
     |> Repo.all()
     |> Map.new()
   end
@@ -162,6 +163,7 @@ defmodule NervesHub.Deployments do
 
     case result do
       {:ok, {deployment, changeset}} ->
+        _ = maybe_trigger_delta_generation(deployment, changeset)
         broadcast_deployment_updates(deployment, changeset)
 
         {:ok, deployment}
@@ -304,6 +306,25 @@ defmodule NervesHub.Deployments do
     :ok = broadcast(deployment, "deployments/update")
   end
 
+  defp maybe_trigger_delta_generation(deployment, changeset) do
+    # Firmware changed on active deployment
+    if deployment.is_active and Map.has_key?(changeset.changes, :firmware_id) do
+      deployment = Repo.preload(deployment, :product, force: true)
+
+      if deployment.product.delta_updatable do
+        trigger_delta_generation_for_deployment(deployment)
+      end
+    end
+  end
+
+  defp trigger_delta_generation_for_deployment(deployment) do
+    NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment(deployment.id)
+    |> Enum.uniq()
+    |> Enum.each(fn {source_id, target_id} ->
+      NervesHub.Workers.FirmwareDeltaBuilder.start(source_id, target_id)
+    end)
+  end
+
   @doc """
   Create any matching inflight deployment checks for devices
 
@@ -333,6 +354,7 @@ defmodule NervesHub.Deployments do
       )
       |> where([d], d.firmware_metadata["platform"] == ^deployment.firmware.platform)
       |> where([d], d.firmware_metadata["architecture"] == ^deployment.firmware.architecture)
+      |> where([d], fragment("? <@ ?", ^deployment.conditions["tags"], d.tags))
 
     Repo.insert_all(Oban.Job, query)
   end
@@ -480,10 +502,8 @@ defmodule NervesHub.Deployments do
 
       [deployment] ->
         device
-        |> Ecto.Changeset.change()
-        |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
-        |> Repo.update!()
-        |> Repo.preload([:deployment])
+        |> Devices.update_deployment(deployment)
+        |> preload_with_firmware_and_archive(true)
 
       [deployment | _] ->
         Logger.debug(
@@ -491,14 +511,16 @@ defmodule NervesHub.Deployments do
         )
 
         device
-        |> Ecto.Changeset.change()
-        |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
-        |> Repo.update!()
-        |> Repo.preload([:deployment])
+        |> Devices.update_deployment(deployment)
+        |> preload_with_firmware_and_archive(true)
     end
   end
 
   def set_deployment(device) do
-    Repo.preload(device, [:deployment])
+    preload_with_firmware_and_archive(device)
+  end
+
+  def preload_with_firmware_and_archive(device, force \\ false) do
+    Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
   end
 end

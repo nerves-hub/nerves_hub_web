@@ -403,7 +403,11 @@ defmodule NervesHub.DeploymentsTest do
         })
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
+      # this device should not be considered due to different tags
+      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["foobar"]})
+
       {:ok, _} = Devices.device_connected(device)
+      {:ok, _} = Devices.device_connected(device2)
 
       Deployments.schedule_deployment_calculations(deployment)
 

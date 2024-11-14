@@ -39,10 +39,26 @@ config :nerves_hub,
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
   dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true"
 
+config :nerves_hub, :device_socket_drainer,
+  batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
+  batch_interval:
+    String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_INTERVAL", "4000")),
+  shutdown: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_SHUTDOWN", "30000"))
+
 # only set this in :prod as not to override the :dev config
 if config_env() == :prod do
   config :nerves_hub,
     open_for_registrations: System.get_env("OPEN_FOR_REGISTRATIONS", "false") == "true"
+
+  # Configures Elixir's Logger
+  config :logger, :default_formatter,
+    format: {NervesHub.Logger, :format},
+    metadata: :all
+
+  config :logfmt_ex, :opts,
+    message_key: "msg",
+    timestamp_key: "ts",
+    timestamp_format: :iso8601
 end
 
 if level = System.get_env("LOG_LEVEL") do
@@ -352,29 +368,30 @@ if config_env() == :prod do
   end
 end
 
-if System.get_env("SENTRY_DSN_URL") do
-  config :sentry,
-    dsn: System.get_env("SENTRY_DSN_URL"),
-    environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
-    enable_source_code_context: true,
-    root_source_code_path: [File.cwd!()],
-    before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
-    tags: %{
-      app: nerves_hub_app
-    },
-    integrations: [
-      oban: [
-        # Capture errors:
-        capture_errors: true,
-        # Monitor cron jobs:
-        cron: [enabled: true]
-      ]
+config :sentry,
+  dsn: System.get_env("SENTRY_DSN_URL"),
+  environment_name: System.get_env("DEPLOY_ENV", to_string(config_env())),
+  enable_source_code_context: true,
+  root_source_code_path: [File.cwd!()],
+  before_send: {NervesHubWeb.SentryEventFilter, :filter_non_500},
+  release: "nerves_hub@#{Application.spec(:nerves_hub, :vsn)}",
+  tags: %{
+    app: nerves_hub_app
+  },
+  integrations: [
+    oban: [
+      # Capture errors:
+      capture_errors: true,
+      # Monitor cron jobs:
+      cron: [enabled: true]
     ]
-end
+  ]
 
-config :nerves_hub, :statsd,
-  host: System.get_env("STATSD_HOST", "localhost"),
-  port: String.to_integer(System.get_env("STATSD_PORT", "8125"))
+if host = System.get_env("STATSD_HOST") do
+  config :nerves_hub, :statsd,
+    host: System.get_env("STATSD_HOST"),
+    port: String.to_integer(System.get_env("STATSD_PORT", "8125"))
+end
 
 config :nerves_hub, :audit_logs,
   enabled: System.get_env("TRUNATE_AUDIT_LOGS_ENABLED", "false") == "true",

@@ -368,10 +368,22 @@ defmodule NervesHub.Accounts do
     |> Repo.insert()
   end
 
-  def list_org_keys(%Org{id: org_id}) do
+  def list_org_keys(org_or_org_id, load_created_by \\ true)
+
+  def list_org_keys(%Org{id: org_id}, load_created_by) do
+    list_org_keys(org_id, load_created_by)
+  end
+
+  def list_org_keys(org_id, load_created_by) do
     OrgKey
     |> where(org_id: ^org_id)
-    |> preload(:created_by)
+    |> then(fn query ->
+      if load_created_by do
+        preload(query, :created_by)
+      else
+        query
+      end
+    end)
     |> order_by(:id)
     |> Repo.all()
   end

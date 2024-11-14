@@ -143,6 +143,20 @@ defmodule NervesHub.Devices.Metrics do
     |> Map.put(:timestamp, get_latest_timestamp_for_device(device_id))
   end
 
+  def get_latest_custom_metrics(device_id) do
+    default_metrics = Enum.map(@default_metric_types, &Atom.to_string/1)
+
+    DeviceMetric
+    |> select([dm], dm.key)
+    |> where(device_id: ^device_id)
+    |> where([dm], dm.key not in ^default_metrics)
+    |> distinct(true)
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn type, acc ->
+      Map.put(acc, type, get_latest_value(device_id, type))
+    end)
+  end
+
   defp get_value_or_nil(%DeviceMetric{value: value}), do: value
   defp get_value_or_nil(_), do: nil
 
@@ -159,11 +173,13 @@ defmodule NervesHub.Devices.Metrics do
   Saves map of metrics.
   """
   def save_metrics(device_id, metrics) do
-    Repo.transaction(fn ->
+    entries =
       Enum.map(metrics, fn {key, val} ->
-        save_metric(%{device_id: device_id, key: key, value: val})
+        DeviceMetric.save(%{device_id: device_id, key: key, value: val}).changes
+        |> Map.merge(%{inserted_at: {:placeholder, :now}})
       end)
-    end)
+
+    Repo.insert_all(DeviceMetric, entries, placeholders: %{now: DateTime.utc_now()})
   end
 
   @doc """

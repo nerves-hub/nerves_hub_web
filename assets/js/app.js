@@ -68,6 +68,7 @@ Hooks.Chart = {
     let metrics = JSON.parse(this.el.dataset.metrics);
     let type = JSON.parse(this.el.dataset.type);
     let max = JSON.parse(this.el.dataset.max);
+    let min = JSON.parse(this.el.dataset.min);
     let title = JSON.parse(this.el.dataset.title);
 
     const ctx = this.el;
@@ -82,8 +83,9 @@ Hooks.Chart = {
         datasets: [{
           backgroundColor: '#d19999',
           fill: {
-            target: 'origin',
+            target: 'start',
             above: 'rgba(201, 84, 84, 0.29)',
+            below: 'rgba(201, 84, 84, 0.29)',
           },
           data: this.dataset()
         }],
@@ -124,11 +126,12 @@ Hooks.Chart = {
             },
           },
           y: {
+            offset: true,
             grid: {
               color: 'rgba(181, 169, 169, 0.21)'
             },
             type: 'linear',
-            min: 0,
+            min: min,
             max: max
           }
         },
@@ -231,7 +234,9 @@ Hooks.SimpleDate = {
 
 Hooks.WorldMap = {
   mounted() {
+    let self = this;
     let mapId = this.el.id;
+    this.markers = [];
 
     var mapOptionsNoZoom = {
       attributionControl: false,
@@ -254,15 +259,23 @@ Hooks.WorldMap = {
 
     // initialize the map
     this.map = L.map(mapId, mapOptionsNoZoom).setView([40.5, 10], 2);
+    this.handleEvent(
+      "markers",
+      ({ markers }) => {
+        self.markers = markers;
+        self.updated();
+      }
+    )
 
     // load GeoJSON from an external file
     fetch("/geo/world.geojson").then(res => res.json()).then(data => {
       L.geoJson(data, { style: mapStyle }).addTo(this.map);
-      this.updated();
+      this.pushEvent("map_ready", {});
     });
   },
   updated() {
-    let markers = JSON.parse(this.el.dataset.markers);
+    let markers = this.markers;
+    let mode = this.el.dataset.mode;
     var devices = [];
 
     for (let i = 0; i < markers.length; i++) {
@@ -274,6 +287,7 @@ Hooks.WorldMap = {
           properties: {
             name: marker["identifier"],
             status: marker["status"],
+            latest_firmware: marker["latest_firmware"]
           },
           geometry: {
             type: "Point",
@@ -300,15 +314,46 @@ Hooks.WorldMap = {
       fillOpacity: 1
     };
 
+    var markerUpdatedOptions = {
+      radius: 6,
+      fillColor: "#4dd54f",
+      weight: 1,
+      opacity: 0,
+      fillOpacity: 1
+    };
+
+    var markerOutdatedOptions = {
+      radius: 6,
+      fillColor: "rgba(99,99,99,1)",
+      weight: 1,
+      opacity: 0,
+      fillOpacity: 1
+    };
+
     // Clear previous defined device layer before adding markers
     if (this.deviceLayer !== undefined) { this.map.removeLayer(this.deviceLayer); }
 
     this.deviceLayer = L.geoJson(devices, {
       pointToLayer: function (feature, latlng) {
-        if (feature.properties.status == "connected") {
-          return L.circleMarker(latlng, markerConnectedOptions);
-        } else {
-          return L.circleMarker(latlng, markerOfflineOptions);
+        switch (mode) {
+          case 'connected':
+            if (feature.properties.status == "connected") {
+              return L.circleMarker(latlng, markerConnectedOptions);
+            } else {
+              return L.circleMarker(latlng, markerOfflineOptions);
+            }
+            break;
+          case 'updated':
+            // Only show connected ones, the offline ones are just confusing
+            if (feature.properties.status == "connected") {
+              if (feature.properties.latest_firmware) {
+                return L.circleMarker(latlng, markerUpdatedOptions);
+              } else {
+                return L.circleMarker(latlng, markerOutdatedOptions);
+              }
+            }
+            break;
+          default:
         }
       }
     });

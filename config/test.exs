@@ -2,7 +2,8 @@ import Config
 
 config :bcrypt_elixir, log_rounds: 4
 
-config :logger, :default_handler, false
+# Print only warnings and errors during test
+config :logger, level: :warning
 
 ##
 # NervesHub Web
@@ -85,8 +86,6 @@ config :nerves_hub, delta_updater: NervesHub.DeltaUpdaterMock
 config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test
 
 config :nerves_hub, NervesHub.RateLimit, limit: 100
-
-config :sentry, environment_name: :test
 
 config :phoenix_test, :endpoint, NervesHubWeb.Endpoint
 
