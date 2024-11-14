@@ -3,56 +3,96 @@
 ## Unreleased
 
 ### Added
-* Add the oban integration to Sentry (#1543)
-* Add device count and estimated device count for Deployment views (#1517)
-* Use Chart.js for metrics (#1523)
-* Add task for generating randomized device metrics (#1564)
-* Add option for showing updated devices on the map (#1592)
-* Add firmware delta generation back in (#1582)
-* Group by deployment id when counting devices for deployments (#1600)
-* Order platform dropdown + add unknown platform as selection (#1599)
+
+- Add the oban integration to Sentry (#1543)
+- Add container version tagging (#1549)
+- Add device count and estimated device count for Deployment views (#1517)
+- Use Chart.js for metrics (#1523)
+- Add task for generating randomized device metrics (#1564)
+- Add support for a release id for Sentry (#1568)
+- Add option for showing updated devices on the map (#1592)
+- Clear inflight updates for unhealthy devices (#1620)
+- Show helpful message when uploading duplicate firmware (#1627)
+- Add support for filtering devices on alarms (#1628)
+- Have the calculator use Oban (#1639)
+- Device Connections (#1572)
+- Add support for OpenTelemetry tracing (#1612)
+- Show current alarms on device page (#1648)
+- World Map clustering (#1619)
+- Add a way to extend DeviceChannel functionality via Extensions (#1479)
+- Hide disabled extensions in the UI (#1654)
+- Check device api version before requesting extensions (#1668)
 
 ### Changed
-* Device channel cleanups (#1546)
-* Increase the Repo queue_target (#1545)
-* Updates for releasing an official 2.0.0 version (#1548) (#1549)
-* Remove EctoReporter and NodeReporter (#1554) (#1563)
-* Fix typos (#1557)
-* Sentry configuration and release id updates (#1560) (#1568)
-* Logging changes (#1556) (#1561) (#1571)
-  * Log from telemetry data
-  * Move statsd metrics to a module
-* Allow the socket drainer to be configured at runtime (#1577)
-* Add y-scale start number as chart parameter (#1580)
-* Metrics charts improvements (#1581)
-* More logging tweaks (#1576)
-* Dependency updates
-  * castore, 1.0.8 to 1.0.9
-  * ex_aws_s3, 2.5.3 to 2.5.4
-  * dialyxir, 1.4.3 to 1.4.4
-  * bcrypt_elixir, 3.2.0 to 3.3.0
-  * comeonin, 5.4.0 to 5.5.0
-  * swoosh, 1.17.1 to 1.17.2
-  * slipstream, 1.1.1 to 1.1.2
-  * telemetry_metrics_statsd, 0.7.0 to 0.7.1
-  * ecto, 3.12.3 to 3.12.4
-  * ecto_sql, 3.12.0 to 3.12.1
-  * telemetry_metrics, 0.6.2 to 1.0.0
-  * scrivener_ecto, 3.0.0 to 3.0.1
-  * ecto_psql_extras, 0.8.2 to 0.8.2
-  * ex_aws, 2.5.5 to 2.5.6
+
+- Device channel cleanups (#1546)
+- Increase the Repo queue_target (#1545)
+- Change use of map to each in dashboard (#1550)
+- Use the Endpoint from the socket (#1558)
+- Sentry integration tweaks (#1560)
+- Remove the NodeReporter metrics logger (#1563)
+- Only render connection tooltip when timestamp is present (#1565)
+- Logger improvements (foundations) (#1556)
+- Allow errors and warnings in test env (#1561)
+- Separate logging from metrics (#1571)
+- Allow the socket drainer to be configured at runtime (#1577)
+- Use the endpoint from the socket (#1579)
+- Reintroduce missing custom metrics and metadata to device page (#1578)
+- Add y-scale start number as chart parameter (#1580)
+- Metrics charts improvements (#1581)
+- Only broadcast on terminate/2 if the channel is joined (#1586)
+- Display selected option when moving device(s) to other product (#1591)
+- Add firmware delta generation back in (#1582)
+- Order platform dropdown + add unknown platform as selection (#1599)
+- Group by deployment id when counting devices for deployments (#1600)
+- Disable console button when device console is not available (#1605)
+- Batch insert device metrics (#1613)
+- Optimize the queries needed for Accounts.list_org_keys (#1614)
+- Increase the Orchestrator timer, and add a jitter (#1615)
+- Remove an extra Deployment preload during after_join (#1618)
+- Allow publishing docker images from PR (#1626)
+- Use PRs HEAD sha for tagging images (#1637)
+- Use PR number when looking for publish commit message (#1638)
+- Replace Scrivener with Flop (#1656)
+- Improve pager (#1664)
 
 ### Fixed
-* Dialyzer fixes (#1553)
-* Use the Endpoint from the socket (#1558)
-* Update tzdata to fix an exception during boot (#1559)
-* Only render connection tooltip when timestamp is present (#1565)
-* Use the endpoint from the socket in device socket (#1579)
-* Reintroduce missing custom metrics and metadata to device page. (#1578)
-* Only broadcast on terminate/2 if the channel is joined (#1586)
-* Display selected option when moving device(s) to other product (#1591)
 
-Full Changelog - https://github.com/nerves-hub/nerves_hub_web/compare/463ce1d...b5551d0
+- Some minor dialyzer fixes (#1553)
+- Update mix.exs Elixir version to match .tool-versions (#1621)
+- Use the correct endpoint for pubsub broadcasts (#1634)
+- Fix an unreachable with/else code path (#1642)
+- Use the full module reference for some @specs (#1645)
+- Change health section to not show boxes for non-reported default values (#1651)
+- Fix device pager not paging back to page 1 (#1663)
+
+### Dependencies
+
+- **bcrypt_elixir**: 3.1.0 -> 3.2.0
+- **castore**: 1.0.8 -> 1.0.10
+- **comeonin**: 5.4.0 -> 5.5.0
+- **crontab**: 1.1.13 -> 1.1.14
+- **dialyxir**: 1.4.3 -> 1.4.4
+- **ecto**: 3.12.3 -> 3.12.4
+- **ecto_psql_extras**: 0.8.1 -> 0.8.2
+- **ecto_sql**: 3.12.0 -> 3.12.1
+- **ex_aws**: 2.5.5 -> 2.5.7
+- **ex_aws_s3**: 2.5.3 -> 2.5.5
+- **expo**: 0.5.2 -> 1.1.0
+- **floki**: 0.36.2 -> 0.36.3
+- **gettext**: 0.24.0 -> 0.26.2
+- **phoenix_ecto**: 4.6.2 -> 4.6.3
+- **postgrex**: 0.19.2 -> 0.19.3
+- **scrivener_ecto**: 3.0.0 -> 3.0.1
+- **sentry**: 10.7.1 -> 10.8.0
+- **slipstream**: 1.1.1 -> 1.1.2
+- **swoosh**: 1.17.1 -> 1.17.2
+- **telemetry_metrics**: 0.6.2 -> 1.0.0
+- **telemetry_metrics_statsd**: 0.7.0 -> 0.7.1
+- **tzdata**: 1.0.0 -> 1.1.0
+- **x509**: 0.8.9 -> 0.8.10
+
+Full Changelog - https://github.com/nerves-hub/nerves_hub_web/compare/v2.0.0...main
 
 ## v2.0.0
 
@@ -79,7 +119,7 @@ looking at ease of use which led to a lot of various improvements but the
 biggest one is the alternative device authentication method: Shared Secret
 
 Since then we have contributions from 19 people where Eric Oestrich dominates
-the stats. Followed by Josh Kalderimis. Then Jon Carstens. 
+the stats. Followed by Josh Kalderimis. Then Jon Carstens.
 
 There are a lot of things planned. SmartRent, NervesCloud and other users of
 the project are in active collaboration on improving the featureset, the
