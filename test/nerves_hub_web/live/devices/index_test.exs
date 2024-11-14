@@ -131,6 +131,64 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       refute change =~ device3.identifier
     end
 
+    test "filters devices with alarms", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ device.identifier
+      assert html =~ device2.identifier
+      assert html =~ "2 devices found"
+
+      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{"SomeAlarm" => []}}}
+      assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
+
+      change = render_change(view, "update-filters", %{"alarm_status" => "with"})
+      assert change =~ device.identifier
+      refute change =~ device2.identifier
+      assert change =~ "1 devices found"
+    end
+
+    test "filters devices without alarms", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ device.identifier
+      assert html =~ device2.identifier
+      assert html =~ "2 devices found"
+
+      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{"SomeAlarm" => []}}}
+      assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
+
+      change = render_change(view, "update-filters", %{"alarm_status" => "without"})
+      refute change =~ device.identifier
+      assert change =~ device2.identifier
+      assert change =~ "1 devices found"
+    end
+
+    test "filters devices with specific alarm", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ device.identifier
+      assert html =~ device2.identifier
+      assert html =~ "2 devices found"
+
+      alarm = "SomeAlarm"
+      device_health = %{"device_id" => device.id, "data" => %{"alarms" => %{alarm => []}}}
+      assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
+
+      change = render_change(view, "update-filters", %{"alarm" => alarm})
+      assert change =~ device.identifier
+      refute change =~ device2.identifier
+      assert change =~ "1 devices found"
+    end
+
     test "select device", %{conn: conn, fixture: fixture} do
       %{device: _device, firmware: firmware, org: org, product: product} = fixture
 

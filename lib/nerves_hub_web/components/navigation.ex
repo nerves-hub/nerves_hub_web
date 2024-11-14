@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Components.Navigation do
   use NervesHubWeb, :component
 
   alias NervesHub.Devices
+  alias NervesHub.Devices.Alarms
   alias NervesHub.Products.Product
 
   import NervesHubWeb.Components.SimpleActiveLink
@@ -115,6 +116,7 @@ defmodule NervesHubWeb.Components.Navigation do
 
     if Enum.any?(links) do
       assigns = %{
+        org: assigns.org,
         product: assigns.product,
         links: links
       }
@@ -129,8 +131,19 @@ defmodule NervesHubWeb.Components.Navigation do
               </.link>
             </li>
           </ul>
-          <div :if={device_count = device_count(@product)} class="device-limit-indicator" title="Device total" aria-label="Device total">
-            <%= device_count %>
+          <div class="flex-row align-items-center justify-content-between">
+            <div :if={device_count = device_count(@product)} class="navbar-indicator device-limit-indicator" title="Device total" aria-label="Device total">
+              <%= device_count %>
+            </div>
+            <.link
+              :if={alarms_count = alarms_count(@product)}
+              navigate={~p"/org/#{@org.name}/#{@product.name}/devices?alarm_status=with"}
+              class="navbar-indicator alarms-indicator"
+              title="Devices alarming"
+              aria-label="Devices alarming"
+            >
+              <%= alarms_count %>
+            </.link>
           </div>
         </nav>
       </div>
@@ -308,4 +321,7 @@ defmodule NervesHubWeb.Components.Navigation do
   def device_count(_conn) do
     nil
   end
+
+  def alarms_count(%Product{} = product), do: Alarms.current_alarms_count(product.id)
+  def alarms_count(_conn), do: nil
 end
