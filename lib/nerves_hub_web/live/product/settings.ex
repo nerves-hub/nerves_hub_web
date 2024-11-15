@@ -1,8 +1,7 @@
 defmodule NervesHubWeb.Live.Product.Settings do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.Features.Feature
-  alias NervesHub.Features.ProductFeature
+  alias NervesHub.Features
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHubWeb.DeviceSocket
@@ -78,22 +77,17 @@ defmodule NervesHubWeb.Live.Product.Settings do
     end
   end
 
-  def handle_event("update-feature", params, socket) do
-    attrs = %{
-      feature_id: params["feature_id"],
-      allowed: params["value"] == "on",
-      product_id: socket.assigns.product.id
-    }
+  def handle_event("update-feature", %{"feature" => feature} = params, socket) do
+    value = params["value"]
+    dbg({feature, value})
+    available = Features.list() |> Map.keys() |> Enum.map(&to_string/1)
 
-    # TODO: There is probably a better way for upsert
     result =
-      if pf_id = params["product_feature_id"] do
-        NervesHub.Repo.get!(ProductFeature, pf_id)
-        |> ProductFeature.changeset(attrs)
-        |> NervesHub.Repo.update()
-      else
-        ProductFeature.changeset(attrs)
-        |> NervesHub.Repo.insert()
+      case {feature in available, value} do
+        {true, "on"} ->
+          Products.enable_feature_setting(socket.assigns.product, feature)
+        {true, _} ->
+          Products.disable_feature_setting(socket.assigns.product, feature)
       end
 
     socket =
@@ -109,22 +103,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     {:noreply, socket}
   end
 
-  defp features(%{id: product_id}) do
-    # Load this way so if there is no ProductFeature, we still
-    # display the feature to be enabled which would create the record
-    query =
-      from(f in Feature,
-        left_join: pf in ProductFeature,
-        on: pf.feature_id == f.id and pf.product_id == ^product_id,
-        select: %{
-          id: f.id,
-          product_feature_id: pf.id,
-          name: f.name,
-          description: f.description,
-          allowed: pf.allowed
-        }
-      )
-
-    NervesHub.Repo.all(query)
+  defp features(%{features: features}) do
+    %{available: Features.list(), enabled: features.enabled, disabled: features.disabled}
   end
 end

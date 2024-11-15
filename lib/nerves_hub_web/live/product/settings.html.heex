@@ -156,7 +156,7 @@
   Features most be allowed at the product level. They can also be configured at the device level for more<br /> granular control when needed.
 </p>
 
-<table :if={Enum.any?(@features)} class="table table-sm table-hover">
+<table class="table table-sm table-hover">
   <thead>
     <tr>
       <th></th>
@@ -164,26 +164,29 @@
       <th>Description</th>
     </tr>
   </thead>
-  <tr :for={feature <- @features} class="item">
+  <tr :for={{key, description} <- @features.available} class="item">
     <td>
       <input
         type="checkbox"
-        name="allowed"
-        checked={feature.allowed}
+        id={"feature-#{key}"}
+        name={key}
+        checked={key in @features.enabled and key not in @features.disabled}
+        phx-value-feature={key}
         phx-click="update-feature"
-        phx-value-feature_id={feature.id}
-        phx-value-product_feature_id={feature.product_feature_id}
         disabled={!authorized?(:"product:update", @org_user)}
         data-confirm="Are you sure?"
       />
     </td>
     <td class="ff-m">
       <div class="mobile-label help-text">Name</div>
-      <%= feature.name %>
+
+      <label for={"feature-#{key}"}>
+      <%= String.capitalize(to_string(key)) %>
+      </label>
     </td>
     <td>
       <div class="mobile-label help-text">Description</div>
-      <%= feature.description %>
+      <%= description %>
     </td>
   </tr>
 </table>

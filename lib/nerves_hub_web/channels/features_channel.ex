@@ -4,9 +4,6 @@ defmodule NervesHubWeb.FeaturesChannel do
   alias Phoenix.Socket.Broadcast
   alias NervesHub.Devices
   alias NervesHub.Features
-  alias NervesHub.Features.Feature
-  alias NervesHub.Features.ProductFeature
-  alias NervesHub.Features.DeviceProductFeature
   alias NervesHub.Devices.Metrics
 
   require Logger
@@ -35,30 +32,30 @@ defmodule NervesHubWeb.FeaturesChannel do
 
   import Ecto.Query
 
-  defp parse_features(%{id: device_id}, feature_versions) do
+  defp parse_features(%{features: device_features, product: %{features: product_features}}, feature_versions) do
     keys = Map.keys(feature_versions)
 
-    query =
-      from(pf in ProductFeature,
-        left_join: dpf in DeviceProductFeature,
-        # join: pf in ProductFeature,
-        on: pf.id == dpf.product_feature_id and dpf.device_id == ^device_id,
-        left_join: f in Feature,
-        on: f.id == pf.feature_id,
-        where: f.key in ^keys and pf.allowed,
-        where: is_nil(dpf.allowed) or dpf.allowed,
-        select: f
-      )
+    dbg(product_features)
+    allowed_features =
+      product_features.enabled
+      |> Enum.reject(fn feature ->
+        feature in device_features.disabled
+      end)
 
-    allowed_features = NervesHub.Repo.all(query) |> dbg()
+    dbg(allowed_features)
+    dbg(feature_versions)
 
     for {key_str, version} <- feature_versions, into: %{} do
       meta =
         case Version.parse(version) do
           {:ok, ver} ->
-            feature = Enum.find(allowed_features, &(to_string(&1.key) == key_str))
-            mod = feature_module(feature, ver) |> dbg()
-            %{attach?: Code.ensure_loaded?(mod), version: ver, module: mod, status: :detached}
+            feature = Enum.find(allowed_features, & to_string(&1) == key_str)
+            if feature do
+              mod = feature_module(feature, ver) |> dbg()
+              %{attach?: Code.ensure_loaded?(mod), version: ver, module: mod, status: :detached}
+            else
+              %{attach?: false, version: version, module: nil, status: :detached}
+            end
 
           _ ->
             %{attach?: false, version: version, module: nil, status: :detached}
@@ -68,14 +65,28 @@ defmodule NervesHubWeb.FeaturesChannel do
     end
   end
 
-  defp feature_module(%Feature{key: :health}, ver) do
+  defp parse_features(foo, _) do
+    dbg(foo)
+    raise "argh"
+  end
+
+  defp feature_module(:health, ver) do
     cond do
       Version.match?(ver, "~> 0.0.1") -> NervesHub.Features.Health
       true -> :unsupported
     end
   end
 
-  defp feature_module(_key, _ver), do: :unsupported
+  defp feature_module(:geo, ver) do
+    cond do
+      Version.match?(ver, "~> 0.0.1") -> NervesHub.Features.Geo
+      true -> :unsupported
+    end
+  end
+
+  defp feature_module(key, _ver) do
+    :unsupported
+  end
 
   # defp allowed?(device, feature, version) do
   #   Features.enable_feature?(device, feature, version)
@@ -83,6 +94,8 @@ defmodule NervesHubWeb.FeaturesChannel do
 
   @impl Phoenix.Channel
   def handle_in(scoped_event, payload, socket) do
+    dbg(scoped_event)
+    dbg(payload)
     socket =
       with [key, event] <- String.split(scoped_event, ":", parts: 2),
            # mappings = Ecto.Enum.mappings(NervesHub.Features.Feature, :key),

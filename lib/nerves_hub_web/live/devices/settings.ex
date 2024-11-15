@@ -4,9 +4,6 @@ defmodule NervesHubWeb.Live.Devices.Settings do
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
-  alias NervesHub.Features.Feature
-  alias NervesHub.Features.ProductFeature
-  alias NervesHub.Features.DeviceProductFeature
   alias NervesHub.Certificate
   alias NervesHub.Devices
   alias NervesHub.Repo

@@ -19,6 +19,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
+  alias NervesHub.Features.FeatureSetting
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareMetadata
@@ -1381,5 +1382,14 @@ defmodule NervesHub.Devices do
       true ->
         "pending"
     end
+  end
+
+  def save_features_setting(%Device{} = device, enabled) do
+    Device.changeset(device, %{features: %{enabled: enabled}})
+  end
+
+  def preload_product(%Device{} = device) do
+    device
+    |> Repo.preload(:product)
   end
 end

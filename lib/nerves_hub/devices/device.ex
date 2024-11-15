@@ -6,6 +6,7 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Accounts.Org
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Features.FeaturesSetting
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Products.Product
 
@@ -26,7 +27,7 @@ defmodule NervesHub.Devices.Device do
     :connection_disconnected_at,
     :connection_last_seen_at,
     :connection_types,
-    :connection_metadata
+    :connection_metadata,
   ]
   @required_params [:org_id, :product_id, :identifier]
 
@@ -56,6 +57,7 @@ defmodule NervesHub.Devices.Device do
     field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
     field(:connecting_code, :string)
     field(:connection_metadata, :map, default: %{})
+    embeds_one :features, FeaturesSetting
 
     timestamps()
   end
@@ -64,6 +66,7 @@ defmodule NervesHub.Devices.Device do
     device
     |> cast(params, @required_params ++ @optional_params)
     |> cast_embed(:firmware_metadata)
+    |> cast_embed(:features)
     |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
     |> unique_constraint(:identifier)

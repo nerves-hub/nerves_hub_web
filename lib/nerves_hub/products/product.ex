@@ -7,6 +7,7 @@ defmodule NervesHub.Products.Product do
   alias NervesHub.Scripts.Script
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
+  alias NervesHub.Features.FeaturesSetting
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.SharedSecretAuth
 
@@ -31,6 +32,7 @@ defmodule NervesHub.Products.Product do
     field(:name, :string)
     field(:deleted_at, :utc_datetime)
     field(:delta_updatable, :boolean, default: false)
+    embeds_one :features, FeaturesSetting, on_replace: :delete
 
     timestamps()
   end
@@ -44,6 +46,7 @@ defmodule NervesHub.Products.Product do
   def changeset(product, params) do
     product
     |> cast(params, @required_params ++ @optional_params)
+    |> cast_embed(:features)
     |> update_change(:name, &trim/1)
     |> validate_required(@required_params)
     |> unique_constraint(:name, name: :products_org_id_name_index)

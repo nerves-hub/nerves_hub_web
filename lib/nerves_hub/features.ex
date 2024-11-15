@@ -29,6 +29,26 @@ defmodule NervesHub.Features do
 
   require Logger
 
+  @supported_features %{
+    health: """
+    Reporting of fundamental device metrics, metadata, alarms and more.
+    Also supports custom metrics. Alarms require an alarm handler to be set.
+    """,
+    geo: """
+    Reporting of GeoIP information or custom geo-location information sources
+    you've set up for your device.
+    """
+  }
+  @type feature() :: :health | :geo
+
+  @doc """
+  Get list of supported features as atoms with descriptive text.
+  """
+  @spec list() :: %{feature() => String.t()}
+  def list do
+    @supported_features
+  end
+
   @doc """
   Whether a device is allowed to use features at all, currently.
 

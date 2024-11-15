@@ -1,6 +1,9 @@
 defmodule NervesHub.Features.Health do
   @behaviour NervesHub.Features
 
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Metrics
+
   # @impl NervesHub.Features
   def init(socket) do
     # Allow DB settings?
@@ -61,7 +64,7 @@ defmodule NervesHub.Features.Health do
 
     with {:health_report, {:ok, _}} <-
            {:health_report, Devices.save_device_health(device_health)},
-         {:metrics_report, {:ok, _}} <-
+         {:metrics_report, {count, _}} when count >= 0 <-
            {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
       device_internal_broadcast!(socket.assigns.device, "health_check_report", %{})
     else

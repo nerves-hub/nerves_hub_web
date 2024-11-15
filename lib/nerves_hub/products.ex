@@ -269,4 +269,26 @@ defmodule NervesHub.Products do
       end
     end
   end
+
+  def enable_feature_setting(%Product{} = product, feature) do
+    product = Repo.get(Product, product.id)
+    feature = String.to_existing_atom(feature)
+
+    enabled = [feature | product.features.enabled] |> Enum.uniq()
+    disabled = product.features.disabled |> Enum.reject(& &1 == feature)
+
+    Product.changeset(product, %{features: %{enabled: enabled, disabled: disabled}})
+    |> Repo.update()
+  end
+
+  def disable_feature_setting(%Product{} = product, feature) do
+    product = Repo.get(Product, product.id)
+    feature = String.to_existing_atom(feature)
+
+    disabled = [feature | product.features.disabled] |> Enum.uniq()
+    enabled = product.features.enabled |> Enum.reject(& &1 == feature)
+
+    Product.changeset(product, %{features: %{enabled: enabled, disabled: disabled}})
+    |> Repo.update()
+  end
 end
