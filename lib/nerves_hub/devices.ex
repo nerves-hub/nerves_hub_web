@@ -214,36 +214,20 @@ defmodule NervesHub.Devices do
 
   def filter_on_metric(query, key, value, operator) do
     query
-    |> where(
-      [d],
-      d.id in subquery(metrics_query(key, value, operator))
-    )
-    |> preload_metric(key)
-  end
-
-  def metrics_query(key, value, operator) do
-    DeviceMetric
-    |> from
-    |> select([d], d.device_id)
-    |> where([dm], dm.key == ^key)
+    |> join(:inner, [d], m in DeviceMetric, on: d.id == m.device_id)
+    |> where([_, m], m.inserted_at == subquery(latest_metric_for_key(key)))
+    |> where([d, m], m.key == ^key)
     |> gt_or_lt(value, operator)
-    |> order_by(desc: :inserted_at)
-    |> distinct(:device_id)
   end
 
-  defp gt_or_lt(query, value, :gt), do: where(query, [dm], dm.value > ^value)
-  defp gt_or_lt(query, value, :lt), do: where(query, [dm], dm.value < ^value)
-
-  defp preload_metric(query, key) do
-    preload_query =
-      DeviceMetric
-      |> distinct(:device_id)
-      |> where(key: ^key)
-      |> order_by([:device_id, desc: :inserted_at])
-
-    query
-    |> preload(device_metrics: ^preload_query)
+  defp latest_metric_for_key(key) do
+    DeviceMetric
+    |> select([dm], max(dm.inserted_at))
+    |> where([dm], dm.key == ^key)
   end
+
+  defp gt_or_lt(query, value, :gt), do: where(query, [_, dm], dm.value > ^value)
+  defp gt_or_lt(query, value, :lt), do: where(query, [_, dm], dm.value < ^value)
 
   defp filtering(query, filters) do
     Enum.reduce(filters, query, fn {key, value}, query ->

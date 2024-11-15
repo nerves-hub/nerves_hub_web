@@ -108,11 +108,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  def filter_on_metrics_if_provided(filters, %{
-        "metric" => metric_type,
-        "metric_value" => metric_value,
-        "metric_operator" => operator
-      }) do
+  defp filter_on_metrics_if_provided(filters, %{
+         "metric" => metric_type,
+         "metric_value" => metric_value,
+         "metric_operator" => operator
+       }) do
     Map.put(filters, :metrics, %{
       key: metric_type,
       value: String.to_float(metric_value),
@@ -120,9 +120,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     })
   end
 
-  def filter_on_metrics_if_provided(filters, _) do
-    filters
-  end
+  defp filter_on_metrics_if_provided(filters, _), do: filters
 
   defp self_path(socket, extra) do
     params = Enum.into(stringify_keys(extra), socket.assigns.params)
