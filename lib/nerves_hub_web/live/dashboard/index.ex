@@ -85,7 +85,8 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     duration = t - socket.assigns.time
 
     if duration >= @delay do
-      devices = Devices.get_minimal_device_location_by_org_id_and_product_id(org.id, product.id)
+      devices =
+        Devices.get_minimal_device_location_by_org_id_and_product_id(org.id, product.id)
 
       latest_firmwares =
         Deployments.get_deployments_by_product(product.id)
