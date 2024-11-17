@@ -3,7 +3,6 @@ defmodule NervesHub.DeploymentsTest do
   import Phoenix.ChannelTest
 
   alias NervesHub.Deployments
-  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias Ecto.Changeset
@@ -402,12 +401,12 @@ defmodule NervesHub.DeploymentsTest do
           conditions: %{"tags" => ["rpi"]}
         })
 
-      device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
-      # this device should not be considered due to different tags
-      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["foobar"]})
+      %Device{} =
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"], status: :provisioned})
 
-      {:ok, _} = Devices.device_connected(device)
-      {:ok, _} = Devices.device_connected(device2)
+      # this device should not be considered due to different tags
+      %Device{} =
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["foobar"], status: :provisioned})
 
       Deployments.schedule_deployment_calculations(deployment)
 

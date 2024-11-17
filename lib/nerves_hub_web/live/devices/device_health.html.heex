@@ -2,7 +2,7 @@
   <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"} class="back-link">Back to
     device </.link>
 </div>
-<HealthHeader.render org={@org} product={@product} device={@device} status={@status} latest_health={@latest_metrics} health_check_timer={@health_check_timer} />
+<HealthHeader.render org={@org} product={@product} device={@device} latest_connection={@latest_connection} latest_health={@latest_metrics} health_check_timer={@health_check_timer} />
 
 <div class="divider"></div>
 
