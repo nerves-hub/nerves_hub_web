@@ -346,7 +346,7 @@ defmodule NervesHub.Deployments do
             ^deployment.id
           )
       })
-      |> where([d], not is_nil(d.connection_last_seen_at))
+      |> where([d], d.status == :provisioned)
       |> where(
         [d],
         d.deployment_id == ^deployment.id or

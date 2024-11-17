@@ -17,7 +17,7 @@ defmodule NervesHub.Workers.DeviceCalculateDeployment do
       :ok
     else
       if deployment.is_active &&
-           !is_nil(device.connection_last_seen_at) &&
+           device.status == :provisioned &&
            device.product_id == deployment.product_id &&
            device.firmware_metadata.platform == deployment.firmware.platform &&
            device.firmware_metadata.architecture == deployment.firmware.architecture &&

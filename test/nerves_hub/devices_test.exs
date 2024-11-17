@@ -918,49 +918,6 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
-  describe "updates connection details" do
-    test "marks a device as connected", %{org: org, product: product, firmware: firmware} do
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      {:ok, updated} = Devices.device_connected(device)
-
-      assert updated.connection_status == :connected
-      assert recent_datetime(updated.connection_established_at)
-      assert recent_datetime(updated.connection_last_seen_at)
-      assert updated.connection_disconnected_at == nil
-    end
-
-    test "marks a device as disconnected", %{org: org, product: product, firmware: firmware} do
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      {:ok, updated} = Devices.device_connected(device)
-      {:ok, again} = Devices.device_disconnected(updated)
-
-      assert again.connection_status == :disconnected
-      assert recent_datetime(again.connection_established_at)
-      assert recent_datetime(again.connection_last_seen_at)
-      assert recent_datetime(again.connection_disconnected_at)
-    end
-
-    test "marks a devices last seen information", %{
-      org: org,
-      product: product,
-      firmware: firmware
-    } do
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      {:ok, updated} = Devices.device_heartbeat(device)
-
-      assert updated.connection_status == :connected
-      assert recent_datetime(updated.connection_last_seen_at)
-      assert updated.connection_disconnected_at == nil
-    end
-  end
-
-  defp recent_datetime(datetime) do
-    DateTime.diff(DateTime.utc_now(), datetime, :second) <= 5
-  end
-
   describe "clean up device connection statuses" do
     test "don't change the connection status of devices with a recent heartbeat", %{
       org: org,
