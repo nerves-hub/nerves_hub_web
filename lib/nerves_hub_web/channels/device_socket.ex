@@ -243,8 +243,8 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @decorate with_span("Channels.DeviceSocket.on_disconnect")
-  defp on_disconnect(exit_reason, socket) 
-    
+  defp on_disconnect(exit_reason, socket)
+
   defp on_disconnect({:error, reason}, %{
          assigns: %{
            device: device,
