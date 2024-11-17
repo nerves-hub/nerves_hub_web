@@ -272,7 +272,7 @@
             <%= if @device_statuses[device.identifier] == "online" do %>
               <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
             <% else %>
-              <span title={if device.connection_last_seen_at, do: "Last seen at #{DateTimeFormat.from_now(device.connection_last_seen_at)}", else: "Not seen yet"} }>
+              <span title={last_seen_at_status(device.device_connections)}>
                 <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
               </span>
             <% end %>
@@ -317,8 +317,8 @@
 
         <td>
           <div class="mobile-label help-text">Seen</div>
-          <div :if={device.connection_last_seen_at} title={DateTime.to_iso8601(device.connection_last_seen_at)}>
-            <%= Timex.from_now(device.connection_last_seen_at) %>
+          <div :if={device.device_connections != []} title={last_seen_at(device.device_connections)}>
+            <%= last_seen_at(device.device_connections) %>
           </div>
         </td>
 

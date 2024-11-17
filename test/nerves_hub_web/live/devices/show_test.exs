@@ -73,6 +73,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert html =~ "offline"
 
+      Devices.Connections.device_connected(fixture.device.id)
       send(view.pid, %Broadcast{event: "connection:change", payload: %{status: "online"}})
 
       assert render(view) =~ "online"

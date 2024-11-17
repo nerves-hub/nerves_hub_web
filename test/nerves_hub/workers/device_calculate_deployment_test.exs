@@ -2,7 +2,6 @@ defmodule NervesHub.Workers.DeviceCalculateDeploymentTest do
   use NervesHub.DataCase
 
   alias NervesHub.Deployments
-  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHub.Workers.DeviceCalculateDeployment
@@ -18,8 +17,8 @@ defmodule NervesHub.Workers.DeviceCalculateDeploymentTest do
     {:ok, deployment} =
       Deployments.update_deployment(deployment, %{is_active: true, firmware: firmware})
 
-    device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
-    {:ok, device} = Devices.device_connected(device)
+    device =
+      Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"], status: :provisioned})
 
     assert :ok =
              perform_job(DeviceCalculateDeployment, %{
@@ -42,8 +41,9 @@ defmodule NervesHub.Workers.DeviceCalculateDeploymentTest do
     {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
     deployment = %{deployment | firmware: firmware}
 
-    device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
-    {:ok, device} = Devices.device_connected(device)
+    device =
+      Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"], status: :provisioned})
+
     device = Deployments.set_deployment(device)
     assert device.deployment_id == deployment.id
 
@@ -73,8 +73,9 @@ defmodule NervesHub.Workers.DeviceCalculateDeploymentTest do
     {:ok, original_deployment} =
       Deployments.update_deployment(original_deployment, %{is_active: true})
 
-    device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
-    {:ok, device} = Devices.device_connected(device)
+    device =
+      Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"], status: :provisioned})
+
     device = Deployments.set_deployment(device)
     assert device.deployment_id == original_deployment.id
 
@@ -112,8 +113,9 @@ defmodule NervesHub.Workers.DeviceCalculateDeploymentTest do
 
     {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
 
-    device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
-    {:ok, device} = Devices.device_connected(device)
+    device =
+      Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"], status: :provisioned})
+
     device = Deployments.set_deployment(device)
     assert device.deployment_id == deployment.id
 
@@ -140,8 +142,9 @@ defmodule NervesHub.Workers.DeviceCalculateDeploymentTest do
     {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
     deployment = %{deployment | firmware: firmware}
 
-    device = Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"]})
-    {:ok, device} = Devices.device_connected(device)
+    device =
+      Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"], status: :provisioned})
+
     device = Deployments.set_deployment(device)
     assert device.deployment_id == deployment.id
 
