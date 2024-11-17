@@ -179,7 +179,12 @@ defmodule NervesHub.Devices.Metrics do
         |> Map.merge(%{inserted_at: {:placeholder, :now}})
       end)
 
-    Repo.insert_all(DeviceMetric, entries, placeholders: %{now: DateTime.utc_now()})
+    results = Repo.insert_all(DeviceMetric, entries, placeholders: %{now: DateTime.utc_now()})
+
+    case results do
+      {0, _} -> :error
+      _ -> :ok
+    end
   end
 
   @doc """
