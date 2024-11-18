@@ -35,15 +35,11 @@ defmodule NervesHubWeb.FeaturesChannel do
   defp parse_features(%{features: device_features, product: %{features: product_features}}, feature_versions) do
     keys = Map.keys(feature_versions)
 
-    dbg(product_features)
     allowed_features =
       product_features.enabled
       |> Enum.reject(fn feature ->
         feature in device_features.disabled
       end)
-
-    dbg(allowed_features)
-    dbg(feature_versions)
 
     for {key_str, version} <- feature_versions, into: %{} do
       meta =
@@ -51,7 +47,7 @@ defmodule NervesHubWeb.FeaturesChannel do
           {:ok, ver} ->
             feature = Enum.find(allowed_features, & to_string(&1) == key_str)
             if feature do
-              mod = feature_module(feature, ver) |> dbg()
+              mod = feature_module(feature, ver)
               %{attach?: Code.ensure_loaded?(mod), version: ver, module: mod, status: :detached}
             else
               %{attach?: false, version: version, module: nil, status: :detached}
@@ -63,11 +59,6 @@ defmodule NervesHubWeb.FeaturesChannel do
 
       {key_str, meta}
     end
-  end
-
-  defp parse_features(foo, _) do
-    dbg(foo)
-    raise "argh"
   end
 
   defp feature_module(:health, ver) do
@@ -94,8 +85,6 @@ defmodule NervesHubWeb.FeaturesChannel do
 
   @impl Phoenix.Channel
   def handle_in(scoped_event, payload, socket) do
-    dbg(scoped_event)
-    dbg(payload)
     socket =
       with [key, event] <- String.split(scoped_event, ":", parts: 2),
            # mappings = Ecto.Enum.mappings(NervesHub.Features.Feature, :key),
@@ -189,8 +178,10 @@ defmodule NervesHubWeb.FeaturesChannel do
 
   @impl Phoenix.Channel
   def handle_info(:init_features, socket) do
+    topic = "product:#{socket.assigns.device.product.id}:features"
+    NervesHubWeb.DeviceEndpoint.subscribe(topic)
     socket =
-      for {_, %{attach?: true, mod: mod}} <- socket.assigns.features, reduce: socket do
+      for {feature, %{attach?: true, mod: mod}} <- socket.assigns.features, reduce: socket do
         acc ->
           mod.init(acc)
       end

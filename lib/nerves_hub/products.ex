@@ -270,25 +270,34 @@ defmodule NervesHub.Products do
     end
   end
 
-  def enable_feature_setting(%Product{} = product, feature) do
+  def enable_feature_setting(%Product{} = product, feature_string) do
     product = Repo.get(Product, product.id)
-    feature = String.to_existing_atom(feature)
+    feature = String.to_existing_atom(feature_string)
 
     enabled = [feature | product.features.enabled] |> Enum.uniq()
     disabled = product.features.disabled |> Enum.reject(& &1 == feature)
 
+
     Product.changeset(product, %{features: %{enabled: enabled, disabled: disabled}})
     |> Repo.update()
+    |> tap(fn _ ->
+      topic = "product:#{product.id}:features"
+      NervesHubWeb.DeviceEndpoint.broadcast(topic, "attach", %{"features" => [feature_string]})
+    end)
   end
 
-  def disable_feature_setting(%Product{} = product, feature) do
+  def disable_feature_setting(%Product{} = product, feature_string) do
     product = Repo.get(Product, product.id)
-    feature = String.to_existing_atom(feature)
+    feature = String.to_existing_atom(feature_string)
 
     disabled = [feature | product.features.disabled] |> Enum.uniq()
     enabled = product.features.enabled |> Enum.reject(& &1 == feature)
 
     Product.changeset(product, %{features: %{enabled: enabled, disabled: disabled}})
     |> Repo.update()
+    |> tap(fn _ ->
+      topic = "product:#{product.id}:features"
+      NervesHubWeb.DeviceEndpoint.broadcast(topic, "detach", %{"features" => [feature_string]})
+    end)
   end
 end

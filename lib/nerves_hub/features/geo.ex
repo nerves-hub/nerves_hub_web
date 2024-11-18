@@ -10,24 +10,27 @@ defmodule NervesHub.Features.Geo do
 
     send(self(), {__MODULE__, :location_request})
 
-    if geo_interval > 0 do
-      timer =
-        geo_interval
-        |> :timer.minutes()
-        |> :timer.send_interval({__MODULE__, :location_request})
+    socket =
+      if geo_interval > 0 do
+        timer =
+          geo_interval
+          |> :timer.minutes()
+          |> :timer.send_interval({__MODULE__, :location_request})
 
-      socket
-      |> Phoenix.Socket.assign(:geo_timer, timer)
-      |> Phoenix.Socket.assign(:geo_interval, geo_interval)
-    else
-      socket
-    end
+        socket
+        |> Phoenix.Socket.assign(:geo_timer, timer)
+        |> Phoenix.Socket.assign(:geo_interval, geo_interval)
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   @impl NervesHub.Features
   def detach(socket) do
     _ = if socket.assigns[:geo_timer], do: :timer.cancel(socket.assigns.geo_timer)
-    Phoenix.Socket.assign(socket, :geo_timer, nil)
+    {:noreply, Phoenix.Socket.assign(socket, :geo_timer, nil)}
   end
 
   @impl NervesHub.Features
@@ -48,7 +51,7 @@ defmodule NervesHub.Features.Geo do
 
   @impl NervesHub.Features
   def handle_info(:location_request, socket) do
-    Phoenix.Socket.push(socket, "geo:location:request", %{})
+    Phoenix.Channel.push(socket, "geo:location:request", %{})
     {:noreply, socket}
   end
 end

@@ -79,7 +79,6 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
   def handle_event("update-feature", %{"feature" => feature} = params, socket) do
     value = params["value"]
-    dbg({feature, value})
     available = Features.list() |> Map.keys() |> Enum.map(&to_string/1)
 
     result =

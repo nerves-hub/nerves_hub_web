@@ -45,8 +45,6 @@ defmodule NervesHub.Features.Health do
 
   @impl NervesHub.Features
   def handle_in("report", %{"value" => device_status}, socket) do
-    dbg()
-
     device_meta =
       for {key, val} <- Map.from_struct(socket.assigns.device.firmware_metadata),
           into: %{},

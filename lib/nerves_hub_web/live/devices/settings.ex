@@ -97,7 +97,6 @@ defmodule NervesHubWeb.Live.Devices.Settings do
         NervesHub.Repo.get!(DeviceProductFeature, dpf_id)
         |> DeviceProductFeature.changeset(attrs)
         |> NervesHub.Repo.update()
-        |> dbg()
       else
         DeviceProductFeature.changeset(attrs)
         |> NervesHub.Repo.insert()
