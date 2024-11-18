@@ -250,7 +250,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "used_percent" => 60
       }
 
-      assert {7, nil} = Metrics.save_metrics(device.id, metrics)
+      assert {:ok, 7} = Metrics.save_metrics(device.id, metrics)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -279,7 +279,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "used_percent" => 60
       }
 
-      assert {6, nil} = Metrics.save_metrics(device.id, metrics)
+      assert {:ok, 6} = Metrics.save_metrics(device.id, metrics)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")

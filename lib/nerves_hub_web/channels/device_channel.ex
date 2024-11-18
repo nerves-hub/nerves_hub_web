@@ -434,7 +434,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     with {:health_report, {:ok, _}} <-
            {:health_report, Devices.save_device_health(device_health)},
-         {:metrics_report, {_, _}} <-
+         {:metrics_report, {:ok, _}} <-
            {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
       device_internal_broadcast!(socket, socket.assigns.device, "health_check_report", %{})
     else
@@ -442,8 +442,8 @@ defmodule NervesHubWeb.DeviceChannel do
         Logger.warning("Failed to save health check data: #{inspect(err)}")
         log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save health check data.")
 
-      {:metrics_report, {:error, err}} ->
-        Logger.warning("Failed to save metrics: #{inspect(err)}")
+      {:metrics_report, :error} ->
+        Logger.warning("Failed to save metrics")
         log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save metrics.")
     end
 
