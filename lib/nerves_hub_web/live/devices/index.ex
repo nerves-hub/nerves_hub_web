@@ -3,6 +3,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   require Logger
 
+  require OpenTelemetry.Tracer, as: Tracer
+
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
@@ -356,12 +358,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_info(:refresh_device_list, socket) do
-    Process.send_after(self(), :refresh_device_list, @list_refresh_time)
+    Tracer.with_span "NervesHubWeb.Live.Devices.Index.refresh_device_list" do
+      Process.send_after(self(), :refresh_device_list, @list_refresh_time)
 
-    if socket.assigns.paginate_opts.total_pages == 1 do
-      {:noreply, assign_display_devices(socket)}
-    else
-      {:noreply, socket}
+      if socket.assigns.paginate_opts.total_pages == 1 do
+        {:noreply, assign_display_devices(socket)}
+      else
+        {:noreply, socket}
+      end
     end
   end
 

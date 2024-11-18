@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.DeviceSocket do
   use Phoenix.Socket
+  use OpenTelemetryDecorator
 
   require Logger
 
@@ -28,6 +29,7 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @impl Phoenix.Socket.Transport
+  @decorate with_span("Channels.DeviceSocket.terminate")
   def terminate(reason, {_channels_info, socket} = state) do
     on_disconnect(reason, socket)
     super(reason, state)
@@ -42,6 +44,7 @@ defmodule NervesHubWeb.DeviceSocket do
     super(msg, {state, socket})
   end
 
+  @decorate with_span("Channels.DeviceSocket.heartbeat")
   defp heartbeat(
          %Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"},
          %{
@@ -84,6 +87,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
+  @decorate with_span("Channels.DeviceSocket.connect")
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}})
       when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
@@ -103,6 +107,7 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
+  @decorate with_span("Channels.DeviceSocket.connect")
   def connect(_params, socket, %{x_headers: x_headers})
       when is_list(x_headers) and length(x_headers) > 0 do
     headers = Map.new(x_headers)
@@ -210,12 +215,14 @@ defmodule NervesHubWeb.DeviceSocket do
     {:ok, socket}
   end
 
+  @decorate with_span("Channels.DeviceSocket.on_connect#registered")
   defp on_connect(%{assigns: %{device: %{status: :registered} = device}} = socket) do
     socket
     |> assign(device: Devices.set_as_provisioned!(device))
     |> on_connect()
   end
 
+  @decorate with_span("Channels.DeviceSocket.on_connect#provisioned")
   defp on_connect(%{assigns: %{device: device}} = socket) do
     # Report connection and use connection id as reference
     {:ok, %DeviceConnection{id: connection_id}} =
@@ -234,6 +241,9 @@ defmodule NervesHubWeb.DeviceSocket do
     |> assign(:device, device)
     |> assign(:reference_id, connection_id)
   end
+
+  @decorate with_span("Channels.DeviceSocket.on_disconnect")
+  defp on_disconnect(exit_reason, socket)
 
   defp on_disconnect({:error, reason}, %{
          assigns: %{
@@ -262,6 +272,7 @@ defmodule NervesHubWeb.DeviceSocket do
     shutdown(device, reference_id)
   end
 
+  @decorate with_span("Channels.DeviceSocket.shutdown")
   defp shutdown(device, reference_id) do
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
       ref_id: reference_id,
