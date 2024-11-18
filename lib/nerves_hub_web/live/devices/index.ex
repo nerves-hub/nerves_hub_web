@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
@@ -33,7 +34,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     has_no_tags: false,
     alarm_status: "",
     alarm: "",
-    metrics: %{}
+    metrics_key: "",
+    metrics_operator: "gt",
+    metrics_value: ""
   }
 
   @filter_types %{
@@ -48,7 +51,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     has_no_tags: :boolean,
     alarm_status: :string,
     alarm: :string,
-    metrics: :map
+    metrics_key: :string,
+    metrics_operator: :string,
+    metrics_value: :string
   }
 
   @default_page 1
@@ -87,6 +92,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:device_tags, "")
     |> assign(:total_entries, 0)
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
+    |> assign(:metrics_keys, Metrics.default_metric_types())
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
@@ -107,20 +113,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign_display_devices()
     |> noreply()
   end
-
-  defp filter_on_metrics_if_provided(filters, %{
-         "metric" => metric_type,
-         "metric_value" => metric_value,
-         "metric_operator" => operator
-       }) do
-    Map.put(filters, :metrics, %{
-      key: metric_type,
-      value: String.to_float(metric_value),
-      operator: String.to_existing_atom(operator)
-    })
-  end
-
-  defp filter_on_metrics_if_provided(filters, _), do: filters
 
   defp self_path(socket, extra) do
     params = Enum.into(stringify_keys(extra), socket.assigns.params)

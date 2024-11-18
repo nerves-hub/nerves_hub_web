@@ -212,23 +212,6 @@ defmodule NervesHub.Devices do
 
   defp sort_devices(sort), do: sort
 
-  def filter_on_metric(query, key, value, operator) do
-    query
-    |> join(:inner, [d], m in DeviceMetric, on: d.id == m.device_id)
-    |> where([_, m], m.inserted_at == subquery(latest_metric_for_key(key)))
-    |> where([d, m], m.key == ^key)
-    |> gt_or_lt(value, operator)
-  end
-
-  defp latest_metric_for_key(key) do
-    DeviceMetric
-    |> select([dm], max(dm.inserted_at))
-    |> where([dm], dm.key == ^key)
-  end
-
-  defp gt_or_lt(query, value, :gt), do: where(query, [_, dm], dm.value > ^value)
-  defp gt_or_lt(query, value, :lt), do: where(query, [_, dm], dm.value < ^value)
-
   defp filtering(query, filters) do
     Enum.reduce(filters, query, fn {key, value}, query ->
       case {key, value} do
@@ -253,9 +236,6 @@ defmodule NervesHub.Devices do
             [d],
             d.id in subquery(Connections.query_devices_with_connection_status(value))
           )
-
-        {:metrics, _} ->
-          query
 
         {:connection, _value} ->
           where(query, [d], d.connection_status == ^String.to_atom(value))
@@ -305,9 +285,40 @@ defmodule NervesHub.Devices do
           else
             query
           end
+
+        {:metrics_value, _value} ->
+          filter_on_metric(query, filters)
+
+        {_, _} ->
+          query
       end
     end)
   end
+
+  defp filter_on_metric(
+         query,
+         %{metrics_key: key, metrics_operator: operator, metrics_value: value}
+       )
+       when key != "" do
+    {value_as_float, _} = Float.parse(value)
+
+    query
+    |> join(:inner, [d], m in DeviceMetric, on: d.id == m.device_id)
+    |> where([_, m], m.inserted_at == subquery(latest_metric_for_key(key)))
+    |> where([d, m], m.key == ^key)
+    |> gt_or_lt(value_as_float, operator)
+  end
+
+  defp filter_on_metric(query, _), do: query
+
+  defp latest_metric_for_key(key) do
+    DeviceMetric
+    |> select([dm], max(dm.inserted_at))
+    |> where([dm], dm.key == ^key)
+  end
+
+  defp gt_or_lt(query, value, "gt"), do: where(query, [_, dm], dm.value > ^value)
+  defp gt_or_lt(query, value, "lt"), do: where(query, [_, dm], dm.value < ^value)
 
   def get_device_count_by_org_id(org_id) do
     q =

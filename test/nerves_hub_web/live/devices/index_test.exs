@@ -90,7 +90,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       %{device: device, firmware: firmware, org: org, product: product} = fixture
 
       device2 = Fixtures.device_fixture(org, product, firmware, %{})
-      {:ok, _view, html} = live(conn, device_index_path(fixture))
+      {:ok, view, html} = live(conn, device_index_path(fixture))
       assert html =~ device.identifier
       assert html =~ device2.identifier
 
@@ -101,23 +101,27 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       :timer.sleep(100)
       Devices.Metrics.save_metric(%{device_id: device2.id, key: "load_1min", value: 3})
 
-      greater_than_filter =
-        device_index_path(fixture) <> "?metric=cpu_temp&metric_operator=gt&metric_value=37.0"
-
-      {:ok, _view, html} = live(conn, greater_than_filter)
+      change =
+        render_change(view, "update-filters", %{
+          "metrics_key" => "cpu_temp",
+          "metrics_operator" => "gt",
+          "metrics_value" => "37"
+        })
 
       # Show only show device2, which has a value greater than 37 on most recent cpu_temp metric.
-      assert html =~ device2.identifier
-      refute html =~ device.identifier
+      assert change =~ device2.identifier
+      refute change =~ device.identifier
 
-      less_than_filter =
-        device_index_path(fixture) <> "?metric=cpu_temp&metric_operator=lt&metric_value=37.0"
-
-      {:ok, _view, html} = live(conn, less_than_filter)
+      change2 =
+        render_change(view, "update-filters", %{
+          "metrics_key" => "cpu_temp",
+          "metrics_operator" => "lt",
+          "metrics_value" => "37"
+        })
 
       # Should not show any device since the query is for values less than 37
-      refute html =~ device2.identifier
-      refute html =~ device.identifier
+      refute change2 =~ device2.identifier
+      refute change2 =~ device.identifier
     end
 
     test "filters devices by several tags", %{conn: conn, fixture: fixture} do
