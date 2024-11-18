@@ -237,9 +237,6 @@ defmodule NervesHub.Devices do
             d.id in subquery(Connections.query_devices_with_connection_status(value))
           )
 
-        {:connection, _value} ->
-          where(query, [d], d.connection_status == ^String.to_atom(value))
-
         {:connection_type, value} ->
           where(query, [d], ^value in d.connection_types)
 
