@@ -34,7 +34,7 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Preload latest respective connection in a device query.
   """
-  @spec preload_latest_connection(Query.t()) :: Query.t()
+  @spec preload_latest_connection(Ecto.Query.t()) :: Ecto.Query.t()
   def preload_latest_connection(query) do
     query
     |> preload(device_connections: ^distinct_on_device())
@@ -92,7 +92,7 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Selects devices id's which has provided status in it's latest connection record.
   """
-  @spec query_devices_with_connection_status(String.t()) :: Query.t()
+  @spec query_devices_with_connection_status(String.t()) :: Ecto.Query.t()
   def query_devices_with_connection_status(status) do
     (lr in subquery(latest_row_query()))
     |> from()
@@ -112,7 +112,7 @@ defmodule NervesHub.Devices.Connections do
 
   Returns an Ecto query.
   """
-  @spec latest_row_query() :: Query.t()
+  @spec latest_row_query() :: Ecto.Query.t()
   def latest_row_query() do
     DeviceConnection
     |> select([dc], %{
