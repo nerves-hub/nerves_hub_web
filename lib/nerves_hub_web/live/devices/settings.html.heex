@@ -69,7 +69,7 @@
   <h3 class="mb-2">Features</h3>
 </div>
 
-<table :if={Enum.any?(@features)} class="table table-sm table-hover">
+<table :if={Enum.any?(@available_features)} class="table table-sm table-hover">
   <thead>
     <tr>
       <th></th>
@@ -77,32 +77,30 @@
       <th>Description</th>
     </tr>
   </thead>
-  <tr :for={feature <- @features} class="item">
+  <tr :for={{key, description} <- @available_features} class="item">
     <td>
       <input
-        :if={not is_nil(feature.product_feature_id) and feature.product_allowed}
+        id={"feature-#{key}"}
+        name={key}
         type="checkbox"
         class="checkbox"
-        checked={feature.product_allowed && feature.allowed}
+        disabled={Map.get(@device.product.features, key) != true}
+        checked={Map.get(@device.features, key, false) == true}
         phx-click="update-feature"
-        phx-value-product_feature_id={feature.product_feature_id}
-        phx-value-device_product_feature_id={feature.device_product_feature_id}
+        phx-value-feature={key}
         disabled={!authorized?(:"device:update", @org_user)}
-        data-confirm="Are you sure?"
       />
-
-      <div :if={is_nil(feature.product_feature_id) or not feature.product_allowed} class="help-text tooltip-label help-tooltip">
-        <span class="tooltip-info mb-1"></span>
-        <span class="tooltip-text">Must be enabled at product level first</span>
-      </div>
     </td>
     <td class="ff-m">
       <div class="mobile-label help-text">Name</div>
-      <%= feature.name %>
+      <%= key %>
     </td>
     <td>
       <div class="mobile-label help-text">Description</div>
-      <%= feature.description %>
+      <p :if={Map.get(@device.product.features, key) != true}>
+        Feature is disabled at the product level.
+      </p>
+      <p><%= description %></p>
     </td>
   </tr>
 </table>

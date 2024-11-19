@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Features
   alias NervesHub.Repo
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
@@ -15,6 +16,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
         device_identifier,
         :device_certificates
       )
+      |> Devices.preload_product()
 
     changeset = Ecto.Changeset.change(device)
 
@@ -22,7 +24,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
     |> page_title("Device Settings #{device.identifier} - #{socket.assigns.product.name}")
     |> assign(:toggle_upload, false)
     |> assign(:device, device)
-    |> assign(:features, features(device))
+    |> assign(:available_features, Features.list())
     |> assign(:form, to_form(changeset))
     |> assign(:tab_hint, :devices)
     |> allow_upload(:certificate,
@@ -84,29 +86,24 @@ defmodule NervesHubWeb.Live.Devices.Settings do
     end
   end
 
-  def handle_event("update-feature", params, socket) do
-    attrs = %{
-      product_feature_id: params["product_feature_id"],
-      allowed: params["value"] == "on",
-      device_id: socket.assigns.device.id
-    }
+  def handle_event("update-feature", %{"feature" => feature} = params, socket) do
+    value = params["value"]
+    available = Features.list() |> Map.keys() |> Enum.map(&to_string/1)
 
-    # TODO: There is probably a better way for upsert
     result =
-      if dpf_id = params["device_product_feature_id"] do
-        NervesHub.Repo.get!(DeviceProductFeature, dpf_id)
-        |> DeviceProductFeature.changeset(attrs)
-        |> NervesHub.Repo.update()
-      else
-        DeviceProductFeature.changeset(attrs)
-        |> NervesHub.Repo.insert()
+      case {feature in available, value} do
+        {true, "on"} ->
+          Devices.enable_feature_setting(socket.assigns.device, feature)
+
+        {true, _} ->
+          Devices.disable_feature_setting(socket.assigns.device, feature)
       end
 
     socket =
       case result do
         {:ok, _pf} ->
           # reload features
-          assign(socket, :features, features(socket.assigns.device))
+          assign(socket, :features, Features.list())
 
         {:error, _changeset} ->
           put_flash(socket, :error, "Failed to set feature")
@@ -163,30 +160,4 @@ defmodule NervesHubWeb.Live.Devices.Settings do
   defp tags_to_string(%{tags: tags}), do: tags_to_string(tags)
   defp tags_to_string(tags) when is_list(tags), do: Enum.join(tags, ",")
   defp tags_to_string(tags), do: tags
-
-  import Ecto.Query
-
-  defp features(%{id: device_id}) do
-    # Load this way so if there is no ProductFeature, we still
-    # display the feature to be enabled which would create the record
-    query =
-      from(pf in ProductFeature,
-        left_join: dpf in DeviceProductFeature,
-        # join: pf in ProductFeature,
-        on: pf.id == dpf.product_feature_id and dpf.device_id == ^device_id,
-        left_join: f in Feature,
-        on: f.id == pf.feature_id,
-        select: %{
-          id: f.id,
-          product_feature_id: pf.id,
-          device_product_feature_id: dpf.id,
-          name: f.name,
-          description: f.description,
-          product_allowed: pf.allowed,
-          allowed: dpf.allowed
-        }
-      )
-
-    NervesHub.Repo.all(query)
-  end
 end

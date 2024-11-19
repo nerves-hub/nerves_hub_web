@@ -57,7 +57,7 @@ defmodule NervesHub.Devices.Device do
     field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
     field(:connecting_code, :string)
     field(:connection_metadata, :map, default: %{})
-    embeds_one(:features, FeaturesSetting)
+    embeds_one(:features, FeaturesSetting, on_replace: :update)
 
     timestamps()
   end

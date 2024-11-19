@@ -1384,8 +1384,26 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def save_features_setting(%Device{} = device, enabled) do
-    Device.changeset(device, %{features: %{enabled: enabled}})
+  def enable_feature_setting(%Device{} = device, feature_string) do
+    device = Repo.get(Device, device.id)
+
+    Device.changeset(device, %{"features" => %{feature_string => true}})
+    |> Repo.update()
+    |> tap(fn _ ->
+      topic = "device:#{device.id}:features"
+      NervesHubWeb.DeviceEndpoint.broadcast(topic, "attach", %{"features" => [feature_string]})
+    end)
+  end
+
+  def disable_feature_setting(%Device{} = device, feature_string) do
+    device = Repo.get(Device, device.id)
+
+    Device.changeset(device, %{"features" => %{feature_string => false}})
+    |> Repo.update()
+    |> tap(fn _ ->
+      topic = "device:#{device.id}:features"
+      NervesHubWeb.DeviceEndpoint.broadcast(topic, "detach", %{"features" => [feature_string]})
+    end)
   end
 
   def preload_product(%Device{} = device) do
