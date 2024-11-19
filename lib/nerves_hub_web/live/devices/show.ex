@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
+  alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
@@ -39,6 +40,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
     |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
+    |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
@@ -362,4 +364,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
       device.connecting_code
     end
   end
+
+  defp format_alarm(alarm), do: String.trim_leading(alarm, "Elixir.")
+
+  defp has_description?(""), do: false
+  defp has_description?(description) when is_binary(description), do: true
+  # To cover for cases where alarm description is provided as an invalid type.
+  defp has_description?(_), do: false
 end
