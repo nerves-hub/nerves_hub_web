@@ -212,50 +212,6 @@ defmodule NervesHubWeb.FeaturesChannel do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
-  # def handle_info(:geo_request, socket) do
-  #   push(socket, "geo:location:request", %{})
-  #   {:noreply, socket}
-  # end
-
-  # def handle_info(:health_check, socket) do
-  #   push(socket, "health:check", %{})
-  #   {:noreply, socket}
-  # end
-
-  # defp maybe_configure_geo(attach_list, feature_config) do
-  #   # if a geo interval is configured, set up an interval
-  #   geo_interval = get_in(feature_config, [:geo, :interval_minutes]) || 0
-
-  #   if attach_list[:geo] do
-  #     send(self(), :geo_request)
-
-  #     if geo_interval > 0 do
-  #       geo_interval
-  #       |> :timer.minutes()
-  #       |> :timer.send_interval(:geo_request)
-  #     end
-  #   end
-  # end
-
-  # defp maybe_configure_health(attach_list, feature_config) do
-  #   health_interval = get_in(feature_config, [:health, :interval_minutes]) || 60
-
-  #   if attach_list[:health] do
-  #     send(self(), :health_check)
-
-  #     if health_interval > 0 do
-  #       health_interval
-  #       |> :timer.minutes()
-  #       |> :timer.send_interval(:health_check)
-  #     end
-  #   end
-  # end
-
-  # defp device_internal_broadcast!(device, event, payload) do
-  #   topic = "device:#{device.identifier}:features"
-  #   NervesHubWeb.DeviceEndpoint.broadcast_from!(self(), topic, event, payload)
-  # end
-
   defp log_to_sentry(device, msg_or_ex, extra \\ %{}) do
     Sentry.Context.set_tags_context(%{
       device_identifier: device.identifier,

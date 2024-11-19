@@ -160,16 +160,18 @@
 
             <%= for {key, val} <- @latest_custom_metrics do %>
               <div class="callout">
-                <div class="help-text label"><%=
-                  key
+                <div class="help-text label">
+                  <%= key
                   |> String.replace("_", " ")
-                  |> String.capitalize()
-                %></div>
+                  |> String.capitalize() %>
+                </div>
                 <%= cond do
-                      is_float(val) ->
-                        Float.round(val, 3)
-                      true -> val
-                    end %>
+                  is_float(val) ->
+                    Float.round(val, 3)
+
+                  true ->
+                    val
+                end %>
               </div>
             <% end %>
           </div>

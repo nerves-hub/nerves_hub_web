@@ -68,12 +68,11 @@ defmodule NervesHub.Features.Health do
     else
       {:health_report, {:error, err}} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
-
-      # log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save health check data.")
+        log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save health check data.")
 
       {:metrics_report, {:error, err}} ->
         Logger.warning("Failed to save metrics: #{inspect(err)}")
-        # log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save metrics.")
+        log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save metrics.")
     end
 
     {:noreply, socket}
@@ -88,5 +87,23 @@ defmodule NervesHub.Features.Health do
   defp device_internal_broadcast!(device, event, payload) do
     topic = "device:#{device.identifier}:features"
     NervesHubWeb.DeviceEndpoint.broadcast_from!(self(), topic, event, payload)
+  end
+
+  defp log_to_sentry(device, msg_or_ex, extra \\ %{}) do
+    Sentry.Context.set_tags_context(%{
+      device_identifier: device.identifier,
+      device_id: device.id,
+      product_id: device.product_id,
+      org_id: device.org_id
+    })
+
+    _ =
+      if is_exception(msg_or_ex) do
+        Sentry.capture_exception(msg_or_ex, extra: extra, result: :none)
+      else
+        Sentry.capture_message(msg_or_ex, extra: extra, result: :none)
+      end
+
+    :ok
   end
 end

@@ -12,7 +12,7 @@ defmodule NervesHub.Devices.Metrics do
     :load_5min,
     :size_mb,
     :used_mb,
-    :used_percent,
+    :used_percent
   ]
 
   def default_metric_types, do: @default_metric_types
