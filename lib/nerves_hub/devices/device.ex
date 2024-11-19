@@ -27,7 +27,7 @@ defmodule NervesHub.Devices.Device do
     :connection_disconnected_at,
     :connection_last_seen_at,
     :connection_types,
-    :connection_metadata,
+    :connection_metadata
   ]
   @required_params [:org_id, :product_id, :identifier]
 
@@ -57,7 +57,7 @@ defmodule NervesHub.Devices.Device do
     field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
     field(:connecting_code, :string)
     field(:connection_metadata, :map, default: %{})
-    embeds_one :features, FeaturesSetting
+    embeds_one(:features, FeaturesSetting)
 
     timestamps()
   end

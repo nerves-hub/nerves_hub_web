@@ -164,13 +164,16 @@
       <th>Description</th>
     </tr>
   </thead>
-  <tr :for={{key, description} <- @features.available} class="item">
+  <pre>
+  <%= inspect(@product.features, pretty: true) %>
+  </pre>
+  <tr :for={{key, description} <- @available_features} class="item">
     <td>
       <input
         type="checkbox"
         id={"feature-#{key}"}
         name={key}
-        checked={key in @features.enabled and key not in @features.disabled}
+        checked={Map.get(@product.features, key, false)}
         phx-value-feature={key}
         phx-click="update-feature"
         disabled={!authorized?(:"product:update", @org_user)}
@@ -181,7 +184,7 @@
       <div class="mobile-label help-text">Name</div>
 
       <label for={"feature-#{key}"}>
-      <%= String.capitalize(to_string(key)) %>
+        <%= String.capitalize(to_string(key)) %>
       </label>
     </td>
     <td>

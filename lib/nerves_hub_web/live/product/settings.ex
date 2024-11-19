@@ -18,7 +18,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> assign(:shared_secrets, product.shared_secret_auths)
       |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
       |> assign(:form, to_form(Ecto.Changeset.change(product)))
-      |> assign(:features, features(product))
+      |> assign(:available_features, Features.list())
 
     {:ok, socket}
   end
@@ -85,6 +85,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       case {feature in available, value} do
         {true, "on"} ->
           Products.enable_feature_setting(socket.assigns.product, feature)
+
         {true, _} ->
           Products.disable_feature_setting(socket.assigns.product, feature)
       end
@@ -93,16 +94,12 @@ defmodule NervesHubWeb.Live.Product.Settings do
       case result do
         {:ok, _pf} ->
           # reload features
-          assign(socket, :features, features(socket.assigns.product))
+          assign(socket, :features, Features.list())
 
         {:error, _changeset} ->
           put_flash(socket, :error, "Failed to set feature")
       end
 
     {:noreply, socket}
-  end
-
-  defp features(%{features: features}) do
-    %{available: Features.list(), enabled: features.enabled, disabled: features.disabled}
   end
 end

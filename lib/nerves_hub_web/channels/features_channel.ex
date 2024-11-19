@@ -32,20 +32,26 @@ defmodule NervesHubWeb.FeaturesChannel do
 
   import Ecto.Query
 
-  defp parse_features(%{features: device_features, product: %{features: product_features}}, feature_versions) do
+  defp parse_features(
+         %{features: device_features, product: %{features: product_features}},
+         feature_versions
+       ) do
     keys = Map.keys(feature_versions)
 
     allowed_features =
-      product_features.enabled
-      |> Enum.reject(fn feature ->
-        feature in device_features.disabled
+      product_features
+      |> Map.from_struct()
+      |> Enum.filter(fn {feature, enabled?} ->
+        enabled? == true and Map.get(device_features, feature) != false
       end)
+      |> Enum.map(&elem(&1, 0))
 
     for {key_str, version} <- feature_versions, into: %{} do
       meta =
         case Version.parse(version) do
           {:ok, ver} ->
-            feature = Enum.find(allowed_features, & to_string(&1) == key_str)
+            feature = Enum.find(allowed_features, &(to_string(&1) == key_str))
+
             if feature do
               mod = feature_module(feature, ver)
               %{attach?: Code.ensure_loaded?(mod), version: ver, module: mod, status: :detached}
@@ -180,6 +186,7 @@ defmodule NervesHubWeb.FeaturesChannel do
   def handle_info(:init_features, socket) do
     topic = "product:#{socket.assigns.device.product.id}:features"
     NervesHubWeb.DeviceEndpoint.subscribe(topic)
+
     socket =
       for {feature, %{attach?: true, mod: mod}} <- socket.assigns.features, reduce: socket do
         acc ->

@@ -32,7 +32,7 @@ defmodule NervesHub.Products.Product do
     field(:name, :string)
     field(:deleted_at, :utc_datetime)
     field(:delta_updatable, :boolean, default: false)
-    embeds_one :features, FeaturesSetting, on_replace: :delete
+    embeds_one(:features, FeaturesSetting, on_replace: :delete)
 
     timestamps()
   end
