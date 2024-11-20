@@ -4,7 +4,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   import TrackerHelper
 
-  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
@@ -91,32 +90,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
     assert_push("archive_public_keys", %{keys: [_]})
   end
 
-  test "devices can request available updates via check_update_available" do
-    user = Fixtures.user_fixture()
-    {device, _firmware, deployment} = device_fixture(user, %{identifier: "123"})
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-
-    assert {:ok, device} = Devices.update_device(device, %{deployment_id: deployment.id})
-    assert device.updates_enabled
-
-    params =
-      for {k, v} <- Map.from_struct(device.firmware_metadata), into: %{} do
-        case k do
-          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
-          _ -> {"nerves_fw_#{k}", v}
-        end
-      end
-
-    {:ok, socket} =
-      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-    {:ok, %{}, socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
-
-    ref = push(socket, "check_update_available", %{"value" => 10})
-
-    assert_reply(ref, :ok, %NervesHub.Devices.UpdatePayload{update_available: true})
-  end
-
   test "the first fwup_progress marks an update as happening" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
@@ -155,81 +128,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     device = NervesHub.Repo.reload(device)
     assert device.connection_types == [:ethernet, :wifi]
-  end
-
-  test "deployment condition changing causes a deployment relookup" do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user)
-    product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-
-    firmware =
-      Fixtures.firmware_fixture(org_key, product, %{
-        version: "0.0.1"
-      })
-
-    deployment =
-      Fixtures.deployment_fixture(org, firmware, %{
-        conditions: %{"tags" => ["alpha"], "version" => ""}
-      })
-
-    {:ok, deployment} =
-      NervesHub.Deployments.update_deployment(deployment, %{
-        is_active: true
-      })
-
-    device_alpha =
-      Fixtures.device_fixture(org, product, firmware, %{
-        tags: ["alpha"],
-        identifier: "123"
-      })
-
-    device_beta =
-      Fixtures.device_fixture(org, product, firmware, %{
-        tags: ["beta"],
-        identifier: "234"
-      })
-
-    %{db_cert: alpha_certificate, cert: _cert} =
-      Fixtures.device_certificate_fixture(device_alpha, X509.PrivateKey.new_ec(:secp256r1))
-
-    {:ok, socket_alpha} =
-      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: alpha_certificate.der}})
-
-    {:ok, %{}, socket_alpha} =
-      subscribe_and_join(socket_alpha, DeviceChannel, "device")
-
-    %{db_cert: beta_certificate, cert: _cert} =
-      Fixtures.device_certificate_fixture(device_beta, X509.PrivateKey.new_ec(:secp256r1))
-
-    {:ok, socket_beta} =
-      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: beta_certificate.der}})
-
-    {:ok, %{}, socket_beta} =
-      subscribe_and_join(socket_beta, DeviceChannel, "device")
-
-    socket_alpha = :sys.get_state(socket_alpha.channel_pid)
-    refute is_nil(socket_alpha.assigns.device.deployment_id)
-
-    socket_beta = :sys.get_state(socket_beta.channel_pid)
-    assert is_nil(socket_beta.assigns.device.deployment_id)
-
-    # This will remove the deployment from alpha and
-    # add it to the beta device
-    {:ok, _deployment} =
-      NervesHub.Deployments.update_deployment(deployment, %{
-        conditions: %{"tags" => ["beta"]}
-      })
-
-    # skip the jitter
-    send(socket_alpha.channel_pid, :resolve_changed_deployment)
-    socket_alpha = :sys.get_state(socket_alpha.channel_pid)
-    assert is_nil(socket_alpha.assigns.device.deployment_id)
-
-    # skip the jitter
-    send(socket_beta.channel_pid, :resolve_changed_deployment)
-    socket_beta = :sys.get_state(socket_beta.channel_pid)
-    refute is_nil(socket_beta.assigns.device.deployment_id)
   end
 
   test "deployment condition changing causes a deployment relookup but it still matches" do

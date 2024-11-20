@@ -23,18 +23,10 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
 
     changeset = Deployment.changeset(deployment, %{}) |> tags_to_string()
 
-    estimate_count =
-      Deployments.estimate_devices_matched_by_conditions(
-        deployment.product_id,
-        deployment.firmware.platform,
-        deployment.conditions
-      )
-
     socket
     |> assign(:archives, archives)
     |> assign(:deployment, deployment)
     |> assign(:current_device_count, current_device_count)
-    |> assign(:estimate_count, estimate_count)
     |> assign(:firmware, deployment.firmware)
     |> assign(:firmwares, firmwares)
     |> assign(:form, to_form(changeset))
@@ -42,27 +34,6 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
   end
 
   @impl Phoenix.LiveView
-  def handle_event("recalculate", %{"deployment" => params}, socket) do
-    params = inject_conditions_map(params)
-
-    try do
-      count =
-        Deployments.estimate_devices_matched_by_conditions(
-          socket.assigns.deployment.product_id,
-          socket.assigns.deployment.firmware.platform,
-          params["conditions"]
-        )
-
-      changeset = Deployments.change_deployment(socket.assigns.deployment, params)
-
-      {:noreply, assign(socket, estimate_count: count, form: to_form(tags_to_string(changeset)))}
-    rescue
-      _ ->
-        # Ignore version parsing errors
-        {:noreply, socket}
-    end
-  end
-
   def handle_event("update-deployment", %{"deployment" => params}, socket) do
     %{org_user: org_user, org: org, product: product, user: user, deployment: deployment} =
       socket.assigns

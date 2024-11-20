@@ -726,7 +726,10 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.clean_close(socket)
     end
 
-    test "checks version requirements on connect", %{user: user, tmp_dir: tmp_dir} do
+    test "does not update device deployment on connect if device already has one", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
       {device, firmware} =
         device_fixture(tmp_dir, user, %{identifier: @valid_serial, product: @valid_product})
 
@@ -760,7 +763,45 @@ defmodule NervesHubWeb.WebsocketTest do
       Process.sleep(100)
 
       device = Repo.reload(device)
+      assert device.deployment_id
+
+      SocketClient.clean_close(socket)
+    end
+
+    test "updates device deployment on connect if no device.deployment_id", %{
+      user: user,
+      tmp_dir: tmp_dir
+    } do
+      {device, firmware} =
+        device_fixture(tmp_dir, user, %{identifier: @valid_serial, product: @valid_product})
+
+      org = %Accounts.Org{id: device.org_id}
+
+      Fixtures.deployment_fixture(org, firmware, %{
+        name: "a different name",
+        conditions: %{
+          "version" => "~> 0.0.1",
+          "tags" => ["beta", "beta-edge"]
+        }
+      })
+      |> Deployments.update_deployment(%{is_active: true})
+
       refute device.deployment_id
+
+      Fixtures.device_certificate_fixture(device)
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+
+      SocketClient.join_and_wait(socket, %{
+        "nerves_fw_architecture" => device.firmware_metadata.architecture,
+        "nerves_fw_platform" => device.firmware_metadata.platform,
+        "nerves_fw_version" => "0.0.1"
+      })
+
+      Process.sleep(100)
+
+      device = Repo.reload(device)
+      assert device.deployment_id
 
       SocketClient.clean_close(socket)
     end
@@ -1002,60 +1043,6 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, device} = Devices.update_device(device, %{updates_enabled: false})
       {:ok, _device} = Devices.update_device(device, %{updates_enabled: true})
-
-      archive = SocketClient.wait_archive(socket)
-      assert %{"url" => _, "version" => _} = archive
-
-      SocketClient.clean_close(socket)
-    end
-
-    @tag :tmp_dir
-    test "assigned a deployment", %{user: user, tmp_dir: tmp_dir} do
-      seconds = Application.get_env(:nerves_hub, :device_deployment_change_jitter_seconds)
-      Application.put_env(:nerves_hub, :device_deployment_change_jitter_seconds, 0)
-
-      on_exit(fn ->
-        Application.put_env(:nerves_hub, :device_deployment_change_jitter_seconds, seconds)
-      end)
-
-      org = Fixtures.org_fixture(user)
-      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
-
-      {device, firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
-
-      firmware = Repo.preload(firmware, [:product])
-      product = firmware.product
-
-      archive = Fixtures.archive_fixture(org_key, product, %{dir: tmp_dir})
-
-      deployment =
-        Fixtures.deployment_fixture(org, firmware, %{
-          name: "beta",
-          conditions: %{
-            "tags" => ["alpha"]
-          }
-        })
-
-      {:ok, deployment} = Deployments.update_deployment(deployment, %{archive_id: archive.id})
-      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
-
-      Fixtures.device_certificate_fixture(device)
-
-      subscribe_for_updates(device)
-
-      {:ok, socket} = SocketClient.start_link(@socket_config)
-      SocketClient.join_and_wait(socket, %{"device_api_version" => "2.0.0"})
-
-      assert_connection_change()
-
-      eventually assert 1 == Registry.count(NervesHub.Devices.Registry)
-
-      {:ok, _deployment} =
-        Deployments.update_deployment(deployment, %{
-          conditions: %{
-            "tags" => ["beta"]
-          }
-        })
 
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive

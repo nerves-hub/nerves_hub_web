@@ -801,26 +801,9 @@ defmodule NervesHub.Devices do
 
     case Repo.update(changeset) do
       {:ok, device} ->
-        case Map.has_key?(changeset.changes, :tags) do
-          true ->
-            description =
-              "device #{device.identifier} tags changed, the attached deployment has been reset"
+        _ = maybe_broadcast(device, "devices/updated", opts)
 
-            AuditLogs.audit!(device, device, description)
-
-            # Since the tags changed, let's find a new deployment
-            device = %{device | deployment_id: nil, deployment: nil}
-            device = Deployments.set_deployment(device)
-
-            _ = maybe_broadcast(device, "devices/updated", opts)
-
-            {:ok, device}
-
-          false ->
-            _ = maybe_broadcast(device, "devices/updated", opts)
-
-            {:ok, device}
-        end
+        {:ok, device}
 
       {:error, changeset} ->
         {:error, changeset}
@@ -871,30 +854,6 @@ defmodule NervesHub.Devices do
       target.delta_updatable and
       source.delta_updatable and
       Version.match?(fwup_version, @min_fwup_delta_updatable_version)
-  end
-
-  @doc """
-  Verify that the deployment still matches the device
-
-  This may clear the deployment from the device if the version or tags are different.
-  """
-  def verify_deployment(%{deployment_id: nil} = device) do
-    device
-  end
-
-  def verify_deployment(device) do
-    device = Repo.preload(device, [:deployment])
-
-    case matches_deployment?(device, device.deployment) do
-      true ->
-        device
-
-      false ->
-        device
-        |> Ecto.Changeset.change()
-        |> Ecto.Changeset.put_change(:deployment_id, nil)
-        |> Repo.update!()
-    end
   end
 
   @doc """
@@ -1119,7 +1078,7 @@ defmodule NervesHub.Devices do
     |> Repo.transaction()
     |> case do
       {:ok, %{move: updated}} ->
-        _ = broadcast(updated, "moved")
+        Deployments.set_deployment(updated)
         {:ok, updated}
 
       err ->
