@@ -335,4 +335,8 @@ defmodule NervesHub.Deployments do
   end
 
   def verify_deployment_membership(device), do: device
+
+  def preload_with_firmware_and_archive(device, force \\ false) do
+    Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
+  end
 end

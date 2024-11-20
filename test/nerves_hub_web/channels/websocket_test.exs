@@ -851,6 +851,21 @@ defmodule NervesHubWeb.WebsocketTest do
       device = Repo.reload(device)
       assert device.deployment_id
 
+      Fixtures.device_certificate_fixture(device)
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+
+      SocketClient.join_and_wait(socket, %{
+        "nerves_fw_architecture" => device.firmware_metadata.architecture,
+        "nerves_fw_platform" => device.firmware_metadata.platform,
+        "nerves_fw_version" => "0.0.1"
+      })
+
+      Process.sleep(100)
+
+      device = Repo.reload(device)
+      assert device.deployment_id
+
       SocketClient.clean_close(socket)
     end
   end
