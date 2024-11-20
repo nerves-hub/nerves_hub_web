@@ -12,7 +12,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.Templates
-  alias NervesHub.Deployments
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
@@ -35,7 +35,9 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_info:after_join")
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
-    device = Deployments.verify_deployment_membership(device)
+    device =
+      device
+      |> ManagedDeployments.verify_deployment_membership()
 
     maybe_send_public_keys(device, socket, params)
 
@@ -48,7 +50,15 @@ defmodule NervesHubWeb.DeviceChannel do
     subscribe("device:#{device.id}")
     subscribe(deployment_channel)
 
+    if device_health_check_enabled?() do
+      send(self(), :health_check)
+      schedule_health_check()
+    end
+
     send(self(), :device_registration)
+
+    # Get device extension capabilities
+    push(socket, "extensions:get", %{})
 
     socket =
       socket
@@ -114,12 +124,15 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(%Broadcast{event: "deployments/update"}, socket) do
+  def handle_info(%Broadcast{event: "deployment_groups/update"}, socket) do
     {:noreply, socket}
   end
 
-  @decorate with_span("Channels.DeviceChannel.handle_info:deployments/update")
-  def handle_info({"deployments/update", inflight_update}, %{assigns: %{device: device}} = socket) do
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployment_groups/update")
+  def handle_info(
+        {"deployment_groups/update", inflight_update},
+        %{assigns: %{device: device}} = socket
+      ) do
     device = deployment_preload(device)
 
     payload = Devices.resolve_update(device)
@@ -445,14 +458,14 @@ defmodule NervesHubWeb.DeviceChannel do
 
   defp deployment_channel(device) do
     if device.deployment_id do
-      "deployment:#{device.deployment_id}"
+      "deployment_group:#{device.deployment_id}"
     else
-      "deployment:none"
+      "deployment_group:none"
     end
   end
 
   defp deployment_preload(device) do
-    Repo.preload(device, [deployment: [:archive, :firmware]], force: true)
+    Repo.preload(device, [deployment_group: [:archive, :firmware]], force: true)
   end
 
   defp maybe_send_archive(socket) do
@@ -462,8 +475,8 @@ defmodule NervesHubWeb.DeviceChannel do
     version_match = Version.match?(socket.assigns.device_api_version, ">= 2.0.0")
 
     if updates_enabled && version_match do
-      if device.deployment && device.deployment.archive do
-        archive = device.deployment.archive
+      if device.deployment_group && device.deployment_group.archive do
+        archive = device.deployment_group.archive
 
         push(socket, "archive", %{
           size: archive.size,
@@ -482,4 +495,22 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp is_safe_to_request_extensions?(version), do: Version.match?(version, ">= 2.2.0")
+
+  defp schedule_health_check() do
+    if device_health_check_enabled?() do
+      Process.send_after(self(), :health_check, device_health_check_interval())
+      :ok
+    else
+      :ok
+    end
+  end
+
+  defp device_health_check_enabled?() do
+    Application.get_env(:nerves_hub, :device_health_check_enabled)
+  end
+
+  defp device_health_check_interval() do
+    Application.get_env(:nerves_hub, :device_health_check_interval_minutes)
+    |> :timer.minutes()
+  end
 end

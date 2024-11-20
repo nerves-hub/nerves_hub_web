@@ -1,8 +1,8 @@
-defmodule NervesHub.DeploymentsTest do
+defmodule NervesHub.ManagedDeploymentsTest do
   use NervesHub.DataCase, async: false
   import Phoenix.ChannelTest
 
-  alias NervesHub.Deployments
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Fixtures
   alias Ecto.Changeset
 
@@ -52,7 +52,8 @@ defmodule NervesHub.DeploymentsTest do
         is_active: false
       }
 
-      {:ok, %Deployments.Deployment{} = deployment} = Deployments.create_deployment(params)
+      {:ok, %ManagedDeployments.DeploymentGroup{} = deployment} =
+        ManagedDeployments.create_deployment(params)
 
       for key <- Map.keys(params) do
         assert Map.get(deployment, key) == Map.get(params, key)
@@ -76,7 +77,7 @@ defmodule NervesHub.DeploymentsTest do
       }
 
       assert {:error, %Ecto.Changeset{errors: [name: {"has already been taken", _}]}} =
-               Deployments.create_deployment(params)
+               ManagedDeployments.create_deployment(params)
     end
 
     test "create_deployment with invalid parameters" do
@@ -89,7 +90,7 @@ defmodule NervesHub.DeploymentsTest do
         is_active: true
       }
 
-      assert {:error, %Changeset{}} = Deployments.create_deployment(params)
+      assert {:error, %Changeset{}} = ManagedDeployments.create_deployment(params)
     end
   end
 
@@ -115,13 +116,13 @@ defmodule NervesHub.DeploymentsTest do
         is_active: false
       }
 
-      {:ok, deployment} = Deployments.create_deployment(params)
+      {:ok, deployment} = ManagedDeployments.create_deployment(params)
 
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment_group:#{deployment.id}")
 
-      {:ok, _deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+      {:ok, _deployment} = ManagedDeployments.update_deployment(deployment, %{is_active: true})
 
-      assert_broadcast("deployments/update", %{}, 500)
+      assert_broadcast("deployment_groups/update", %{}, 500)
     end
   end
 end
