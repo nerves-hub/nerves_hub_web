@@ -231,7 +231,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "No health information have been received for this device.")
+      |> assert_has("div", text: "No health information has been received for this device.")
     end
 
     test "full set of information", %{
@@ -289,8 +289,6 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "0.0 | 0.0 | 0.0")
       |> assert_has("div", text: "Memory used")
       |> assert_has("div", text: "100MB (60%)")
-      |> assert_has("div", text: "CPU")
-      |> assert_has("div", text: "Not reported")
       |> assert_has("span", text: "Last reported :")
       |> assert_has("time", text: "ago")
     end

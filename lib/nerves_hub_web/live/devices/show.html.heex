@@ -111,7 +111,7 @@
 
       <%= if (!Enum.any?(Map.values(@latest_metrics)) or !Enum.any?(Map.values(@latest_custom_metrics))) do %>
         <div class="display-box">
-          No health information have been received for this device.
+          No health information has been received for this device.
         </div>
       <% end %>
       <div>
@@ -127,22 +127,12 @@
                 <div class="help-text label">Memory used</div>
                 <%= round(@latest_metrics.used_mb) %>MB (<%= round(@latest_metrics.used_percent) %>%)
               </div>
-            <% else %>
-              <div class="callout">
-                <div class="help-text label">Memory used</div>
-                Not reported
-              </div>
             <% end %>
 
             <%= if @latest_metrics.cpu_temp do %>
               <div class={"callout #{Utils.cpu_temp_to_status(@latest_metrics.cpu_temp)}"}>
                 <div class="help-text label">CPU</div>
                 <%= round(@latest_metrics.cpu_temp) %>°
-              </div>
-            <% else %>
-              <div class="callout">
-                <div class="help-text label">CPU</div>
-                Not reported
               </div>
             <% end %>
 
