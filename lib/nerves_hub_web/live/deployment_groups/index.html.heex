@@ -1,9 +1,9 @@
-<%= if Enum.empty?(@deployments) do %>
+<%= if Enum.empty?(@deployment_groups) do %>
   <div class="no-results-blowup-wrapper">
     <img src="/images/deployment.svg" alt="No deployments" />
     <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any deployments configured</h3>
     <div class="mt-3">
-      <.link class="btn btn-outline-light btn-action" aria-label="Setup a deployment" navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/new"}>
+      <.link class="btn btn-outline-light btn-action" aria-label="Setup a deployment" navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/new"}>
         <div class="button-icon add"></div>
         <span class="action-text">Setup your first Deployment</span>
       </.link>
@@ -12,13 +12,13 @@
 <% else %>
   <div class="action-row">
     <h1>Deployments</h1>
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/new"} class="btn btn-outline-light btn-action" aria-label="Create deployment">
+    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/new"} class="btn btn-outline-light btn-action" aria-label="Create deployment">
       <span class="button-icon add"></span>
       <span class="action-text">Create Deployment</span>
     </.link>
   </div>
 
-  <%= for {platform, deployments} <- @deployments do %>
+  <%= for {platform, deployments} <- @deployment_groups do %>
     <h3 class="mt-4"><%= platform %></h3>
 
     <table class="table table-sm table-hover">
@@ -36,7 +36,7 @@
         <td>
           <div class="mobile-label help-text">Name</div>
           <div>
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{deployment.name}"}><%= deployment.name %></.link>
+            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{deployment.name}"}><%= deployment.name %></.link>
           </div>
         </td>
         <td>
@@ -87,7 +87,7 @@
               <img src="/images/icons/more.svg" alt="options" />
             </a>
             <div class="dropdown-menu dropdown-menu-right">
-              <a class="dropdown-item" aria-label="Download Audit Logs" href={~p"/org/#{@org.name}/#{@product.name}/deployments/#{deployment.name}/audit_logs/download"}>
+              <a class="dropdown-item" aria-label="Download Audit Logs" href={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{deployment.name}/audit_logs/download"}>
                 <div class="button-icon download"></div>
                 <span class="action-text">Download Audit Logs</span>
               </a>

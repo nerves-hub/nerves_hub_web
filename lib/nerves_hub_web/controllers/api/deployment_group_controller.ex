@@ -1,10 +1,10 @@
-defmodule NervesHubWeb.API.DeploymentController do
+defmodule NervesHubWeb.API.DeploymentGroupController do
   use NervesHubWeb, :api_controller
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Firmwares
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
 
   action_fallback(NervesHubWeb.API.FallbackController)
 
@@ -14,8 +14,8 @@ defmodule NervesHubWeb.API.DeploymentController do
   @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active]
 
   def index(%{assigns: %{product: product}} = conn, _params) do
-    deployments = Deployments.get_deployments_by_product(product)
-    render(conn, "index.json", deployments: deployments)
+    deployments = ManagedDeployments.get_deployments_by_product(product)
+    render(conn, "index.json", deployment_groups: deployments)
   end
 
   def create(%{assigns: %{org: org, product: product, user: user}} = conn, params) do
@@ -28,7 +28,7 @@ defmodule NervesHubWeb.API.DeploymentController do
              params <- Map.put(params, "firmware_id", firmware.id),
              params <- Map.put(params, "org_id", org.id),
              params <- whitelist(params, @whitelist_fields),
-             {:ok, deployment} <- Deployments.create_deployment(params) do
+             {:ok, deployment} <- ManagedDeployments.create_deployment(params) do
           AuditLogs.audit!(
             user,
             deployment,
@@ -39,16 +39,16 @@ defmodule NervesHubWeb.API.DeploymentController do
           |> put_status(:created)
           |> put_resp_header(
             "location",
-            Routes.api_deployment_path(conn, :show, org.name, product.name, deployment.name)
+            Routes.api_deployment_group_path(conn, :show, org.name, product.name, deployment.name)
           )
-          |> render("show.json", deployment: %{deployment | firmware: firmware})
+          |> render("show.json", deployment_group: %{deployment | firmware: firmware})
         end
     end
   end
 
   def show(%{assigns: %{org: _org, product: product}} = conn, %{"name" => name}) do
-    with {:ok, deployment} <- Deployments.get_deployment_by_name(product, name) do
-      render(conn, "show.json", deployment: deployment)
+    with {:ok, deployment} <- ManagedDeployments.get_deployment_by_name(product, name) do
+      render(conn, "show.json", deployment_group: deployment)
     end
   end
 
@@ -56,24 +56,24 @@ defmodule NervesHubWeb.API.DeploymentController do
         "name" => name,
         "deployment" => deployment_params
       }) do
-    with {:ok, deployment} <- Deployments.get_deployment_by_name(product, name),
+    with {:ok, deployment} <- ManagedDeployments.get_deployment_by_name(product, name),
          {:ok, deployment_params} <- update_params(product, deployment_params),
          deployment_params <- whitelist(deployment_params, @whitelist_fields),
-         {:ok, %Deployment{} = updated_deployment} <-
-           Deployments.update_deployment(deployment, deployment_params) do
+         {:ok, %DeploymentGroup{} = updated_deployment} <-
+           ManagedDeployments.update_deployment(deployment, deployment_params) do
       AuditLogs.audit!(
         user,
         deployment,
         "#{user.name} updated deployment #{deployment.name}"
       )
 
-      render(conn, "show.json", deployment: updated_deployment)
+      render(conn, "show.json", deployment_group: updated_deployment)
     end
   end
 
   def delete(%{assigns: %{product: product}} = conn, %{"name" => name}) do
-    with {:ok, deployment} <- Deployments.get_deployment_by_name(product, name),
-         {:ok, _deployment} <- Deployments.delete_deployment(deployment) do
+    with {:ok, deployment} <- ManagedDeployments.get_deployment_by_name(product, name),
+         {:ok, _deployment} <- ManagedDeployments.delete_deployment(deployment) do
       send_resp(conn, :no_content, "")
     end
   end

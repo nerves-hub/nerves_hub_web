@@ -4,12 +4,12 @@ defmodule NervesHub.Devices.Device do
   import Ecto.Changeset
 
   alias NervesHub.Accounts.Org
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Extensions.DeviceExtensionsSetting
   alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
 
   alias __MODULE__
@@ -40,7 +40,7 @@ defmodule NervesHub.Devices.Device do
   schema "devices" do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:product, Product, where: [deleted_at: nil])
-    belongs_to(:deployment, Deployment)
+    belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
     embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)
@@ -64,6 +64,10 @@ defmodule NervesHub.Devices.Device do
     field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
     field(:connecting_code, :string)
     field(:connection_metadata, :map, default: %{})
+
+    field(:deployment_conflict, Ecto.Enum,
+      values: [:bad_architecture, :bad_platform, :bad_architecture_and_platform]
+    )
 
     timestamps()
 

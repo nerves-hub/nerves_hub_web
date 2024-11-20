@@ -5,10 +5,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   import Phoenix.ChannelTest
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
 
@@ -106,7 +106,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       deployment: deployment
     } do
-      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+      {:ok, deployment} = ManagedDeployments.update_deployment(deployment, %{is_active: true})
 
       # mismatch device and deployment firmware so "Send Update" form doesn't display
       original_firmware_platform = device.firmware_metadata.platform
@@ -462,7 +462,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert Repo.aggregate(NervesHub.Devices.InflightUpdate, :count) == 1
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "deployments/update"}
+      assert_receive %Phoenix.Socket.Broadcast{event: "deployment_groups/update"}
     end
 
     test "available update exists but deployment is not active", %{

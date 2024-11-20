@@ -2,7 +2,7 @@ defmodule NervesHubWeb.DeploymentController do
   use NervesHubWeb, :controller
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
+  alias NervesHub.ManagedDeployments
 
   plug(:validate_role, org: :view)
 
@@ -10,13 +10,13 @@ defmodule NervesHubWeb.DeploymentController do
         %{assigns: %{org: org, product: product}} = conn,
         %{"name" => deployment_name}
       ) do
-    {:ok, deployment} = Deployments.get_deployment_by_name(product, deployment_name)
+    {:ok, deployment} = ManagedDeployments.get_deployment_by_name(product, deployment_name)
 
     case AuditLogs.logs_for(deployment) do
       [] ->
         conn
         |> put_flash(:error, "No audit logs exist for this deployment.")
-        |> redirect(to: ~p"/org/#{org.name}/#{product.name}/deployments")
+        |> redirect(to: ~p"/org/#{org.name}/#{product.name}/deployment_groups")
 
       audit_logs ->
         audit_logs = AuditLogs.format_for_csv(audit_logs)

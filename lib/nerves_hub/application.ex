@@ -76,7 +76,7 @@ defmodule NervesHub.Application do
   defp deployments_supervisor("test"), do: []
 
   defp deployments_supervisor(_) do
-    [NervesHub.Deployments.Supervisor]
+    [NervesHub.ManagedDeployments.Supervisor]
   end
 
   defp endpoints("test") do
