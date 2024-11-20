@@ -12,12 +12,12 @@ defmodule NervesHubWeb.DeviceChannel do
 
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.DeviceTemplates
-  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
   alias NervesHub.Helpers.Logging
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
@@ -47,9 +47,9 @@ defmodule NervesHubWeb.DeviceChannel do
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
     device =
       device
-      |> Deployments.verify_deployment_membership()
-      |> Deployments.set_deployment()
-      |> Map.put(:deployment, nil)
+      |> ManagedDeployments.verify_deployment_group_membership()
+      |> ManagedDeployments.set_deployment_group()
+      |> Map.put(:deployment_group, nil)
 
     maybe_send_public_keys(device, socket, params)
 
@@ -59,6 +59,9 @@ defmodule NervesHubWeb.DeviceChannel do
     subscribe(deployment_channel)
 
     send(self(), :device_registration)
+
+    # Get device extension capabilities
+    push(socket, "extensions:get", %{})
 
     socket =
       socket
@@ -133,7 +136,10 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_info:deployments/update")
-  def handle_info({"deployments/update", inflight_update}, %{assigns: %{device: device}} = socket) do
+  def handle_info(
+        {"deployments/update", inflight_update},
+        %{assigns: %{device: device}} = socket
+      ) do
     payload = Devices.resolve_update(device)
 
     case payload.update_available do
@@ -147,7 +153,7 @@ defmodule NervesHubWeb.DeviceChannel do
           Devices.update_started!(
             inflight_update,
             device,
-            payload.deployment,
+            payload.deployment_group,
             socket.assigns.reference_id
           )
 
@@ -176,7 +182,7 @@ defmodule NervesHubWeb.DeviceChannel do
       Devices.update_started!(
         inflight_update,
         device,
-        update_payload.deployment,
+        update_payload.deployment_group,
         socket.assigns.reference_id
       )
 
@@ -205,9 +211,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, update_device(socket, device)}
   end
 
-  @decorate with_span("Channels.DeviceChannel.handle_info:deployment-updated")
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployment-group-updated")
   def handle_info(
-        %Broadcast{event: "devices/deployment-updated", payload: %{deployment_id: deployment_id}},
+        %Broadcast{
+          event: "devices/deployment-updated",
+          payload: %{deployment_id: deployment_id}
+        },
         %{assigns: %{device: device}} = socket
       ) do
     device = %{device | deployment_id: deployment_id}
@@ -500,10 +509,10 @@ defmodule NervesHubWeb.DeviceChannel do
   defp update_device(socket, device) do
     socket
     |> assign(:device, device)
-    |> update_deployment_subscription(device)
+    |> update_deployment_group_subscription(device)
   end
 
-  defp update_deployment_subscription(socket, device) do
+  defp update_deployment_group_subscription(socket, device) do
     deployment_channel = deployment_channel(device)
 
     if deployment_channel != socket.assigns.deployment_channel do
@@ -530,7 +539,7 @@ defmodule NervesHubWeb.DeviceChannel do
     version_match = Version.match?(socket.assigns.device_api_version, ">= 2.0.0")
 
     if updates_enabled && version_match do
-      if archive = Archives.archive_for_deployment(device.deployment_id) do
+      if archive = Archives.archive_for_deployment_group(device.deployment_id) do
         if opts[:audit_log],
           do:
             DeviceTemplates.audit_device_archive_update_triggered(

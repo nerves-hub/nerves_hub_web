@@ -4,13 +4,13 @@ defmodule NervesHub.Devices.Device do
   import Ecto.Changeset
 
   alias NervesHub.Accounts.Org
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Extensions.DeviceExtensionsSetting
   alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
 
   alias __MODULE__
@@ -36,7 +36,7 @@ defmodule NervesHub.Devices.Device do
   schema "devices" do
     belongs_to(:org, Org)
     belongs_to(:product, Product)
-    belongs_to(:deployment, Deployment)
+    belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
     belongs_to(:latest_connection, DeviceConnection, type: :binary_id)
     belongs_to(:latest_health, DeviceHealth)
 

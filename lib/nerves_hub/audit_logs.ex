@@ -2,7 +2,7 @@ defmodule NervesHub.AuditLogs do
   import Ecto.Query
 
   alias NervesHub.AuditLogs.AuditLog
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
   alias NimbleCSV.RFC4180, as: CSV
 
@@ -60,8 +60,8 @@ defmodule NervesHub.AuditLogs do
     |> Flop.run(flop)
   end
 
-  defp query_for_feed(%Deployment{id: id}) do
-    resource_type = to_string(Deployment)
+  defp query_for_feed(%DeploymentGroup{id: id}) do
+    resource_type = to_string(DeploymentGroup)
 
     from(al in AuditLog, where: [resource_type: ^resource_type, resource_id: ^id])
     |> order_by(desc: :inserted_at)

@@ -111,7 +111,7 @@ html {
     gap: 6px;
   }
 
-  .deployment-state {
+  .deployment-group-state {
     background-size: 1.5rem;
     background-repeat: no-repeat;
     background-position: left center;
@@ -128,7 +128,7 @@ html {
   }
 
   .certificate-status-expired {
-    color: var(--danger);;
+    color: var(--danger);
   }
 
   .certificate-status-expiring-soon {

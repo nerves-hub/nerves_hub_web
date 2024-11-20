@@ -7,11 +7,11 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Archives
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Certificate
-  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -22,7 +22,7 @@ defmodule NervesHub.Fixtures do
 
   @org_params %{name: "Test-Org"}
 
-  @deployment_params %{
+  @deployment_group_params %{
     name: "Test Deployment",
     conditions: %{
       "version" => "<= 1.0.0",
@@ -215,18 +215,19 @@ defmodule NervesHub.Fixtures do
     archive
   end
 
-  def deployment_fixture(%Org{} = org, %Firmwares.Firmware{} = firmware, params \\ %{}) do
+  def deployment_group_fixture(%Org{} = org, %Firmwares.Firmware{} = firmware, params \\ %{}) do
     {is_active, params} = Map.pop(params, :is_active, false)
 
-    {:ok, deployment} =
+    {:ok, deployment_group} =
       %{org_id: org.id, firmware_id: firmware.id}
       |> Enum.into(params)
-      |> Enum.into(@deployment_params)
-      |> Deployments.create_deployment()
+      |> Enum.into(@deployment_group_params)
+      |> ManagedDeployments.create_deployment_group()
 
-    {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: is_active})
+    {:ok, deployment_group} =
+      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: is_active})
 
-    deployment
+    deployment_group
   end
 
   def device_fixture(
@@ -380,7 +381,7 @@ defmodule NervesHub.Fixtures do
     %{fixture | db_cert: db_cert}
   end
 
-  def inflight_update(device, deployment, params \\ %{}) do
+  def inflight_update(device, deployment_group, params \\ %{}) do
     expires_at =
       DateTime.utc_now()
       |> DateTime.shift(hour: 1)
@@ -388,9 +389,9 @@ defmodule NervesHub.Fixtures do
 
     defaults = %{
       "device_id" => device.id,
-      "deployment_id" => deployment.id,
-      "firmware_id" => deployment.firmware_id,
-      "firmware_uuid" => deployment.firmware.uuid,
+      "deployment_id" => deployment_group.id,
+      "firmware_id" => deployment_group.firmware_id,
+      "firmware_uuid" => deployment_group.firmware.uuid,
       "expires_at" => expires_at
     }
 
@@ -425,7 +426,7 @@ defmodule NervesHub.Fixtures do
     product = product_fixture(user, org, %{name: "Hop"})
     org_key = org_key_fixture(org, user, dir)
     firmware = firmware_fixture(org_key, product, %{dir: dir})
-    deployment = deployment_fixture(org, firmware)
+    deployment_group = deployment_group_fixture(org, firmware)
     device = device_fixture(org, product, firmware)
     %{db_cert: device_certificate} = device_certificate_fixture(device)
 
@@ -436,7 +437,7 @@ defmodule NervesHub.Fixtures do
       org_key: org_key,
       user: user,
       firmware: firmware,
-      deployment: deployment,
+      deployment_group: deployment_group,
       product: product
     }
   end
