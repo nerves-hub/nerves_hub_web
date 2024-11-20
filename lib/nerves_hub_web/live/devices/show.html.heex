@@ -109,7 +109,7 @@
         </button>
       </div>
 
-      <%= unless (Enum.any?(Map.values(@latest_metrics)) or Enum.any?(Map.values(@latest_custom_metrics))) or @alarms do %>
+      <%= if (!Enum.any?(Map.values(@latest_metrics)) and !Enum.any?(Map.values(@latest_custom_metrics))) and !@alarms do %>
         <div class="display-box">
           No health information have been received for this device.
         </div>
@@ -121,7 +121,7 @@
               <div class="help-text label">Current Alarms</div>
               <div :for={{{alarm, description}, index} <- Enum.with_index(@alarms)}>
                 <div>
-                  <span phx-click={JS.toggle_class("hidden", to: "#alarm-#{index}")} class={"badge #{if has_description?(description), do: "alarm-clickable"}"}><%= format_alarm(alarm) %></span>
+                  <span phx-click={JS.toggle_class("hidden", to: "#alarm-#{index}")} class={"badge #{if has_description?(description), do: "alarm-clickable"}"}><%= alarm %></span>
                 </div>
                 <code :if={has_description?(description)} id={"alarm-#{index}"} class="hidden alarms-description color-white wb-ba ff-m"><%= description %></code>
               </div>

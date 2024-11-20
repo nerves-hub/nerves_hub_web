@@ -234,7 +234,28 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "No health information have been received for this device.")
     end
 
-    test "full set of information", %{
+    test "has alarms", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      device_health = %{
+        "device_id" => device.id,
+        "data" => %{"alarms" => %{"SomeAlarm" => "Some description"}}
+      }
+
+      assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Health")
+      |> assert_has("div", text: "Current Alarms")
+      |> assert_has("span", text: "SomeAlarm")
+    end
+
+    test "full set of metrics", %{
       conn: conn,
       org: org,
       product: product,

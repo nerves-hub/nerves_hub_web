@@ -365,10 +365,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  defp format_alarm(alarm), do: String.trim_leading(alarm, "Elixir.")
-
-  defp has_description?(""), do: false
-  defp has_description?(description) when is_binary(description), do: true
-  # To cover for cases where alarm description is provided as an invalid type.
-  defp has_description?(_), do: false
+  defp has_description?(description) do
+    is_binary(description) and byte_size(description) > 0
+  end
 end

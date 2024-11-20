@@ -66,8 +66,12 @@ defmodule NervesHub.Devices.Alarms do
     device.id
     |> Devices.get_latest_health()
     |> case do
-      %DeviceHealth{data: data} -> data["alarms"]
-      _ -> nil
+      %DeviceHealth{data: %{"alarms" => alarms}} when is_map(alarms) ->
+        for {alarm, description} <- alarms,
+            do: {String.trim_leading(alarm, "Elixir."), description}
+
+      _ ->
+        nil
     end
   end
 
