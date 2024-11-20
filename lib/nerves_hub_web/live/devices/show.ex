@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Tracker
@@ -39,10 +40,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:deployment, device.deployment)
     |> assign(:update_information, Devices.resolve_update(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
-    |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
-    |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
     |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, product))
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
@@ -113,8 +113,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
         %{assigns: %{device: device}} = socket
       ) do
     socket
-    |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
-    |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign_metadata()
     |> noreply
   end
@@ -373,6 +372,17 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp has_description?(description) do
     is_binary(description) and byte_size(description) > 0
+  end
+
+  defp format_key(key) do
+    key
+    |> String.replace("_", " ")
+    |> String.capitalize()
+  end
+
+  defp metric_types_as_strings() do
+    Metrics.default_metric_types()
+    |> Enum.map(&Atom.to_string/1)
   end
 
   defp extension_overrides(device, product) do

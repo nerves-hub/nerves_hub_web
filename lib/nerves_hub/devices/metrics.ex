@@ -118,12 +118,6 @@ defmodule NervesHub.Devices.Metrics do
     |> Repo.one()
   end
 
-  def get_latest_value(device_id, key) do
-    device_id
-    |> get_latest_metric(key)
-    |> get_value_or_nil()
-  end
-
   def get_latest_timestamp_for_device(device_id) do
     device_id
     |> get_latest_metric()
@@ -136,30 +130,24 @@ defmodule NervesHub.Devices.Metrics do
   @doc """
   Get map with latest values for all metric types. Also includes timestamp.
   """
-  def get_latest_metric_set_for_device(device_id) do
-    @default_metric_types
-    |> Enum.reduce(%{}, fn type, acc ->
-      Map.put(acc, type, get_latest_value(device_id, Atom.to_string(type)))
-    end)
-    |> Map.put(:timestamp, get_latest_timestamp_for_device(device_id))
-  end
-
-  def get_latest_custom_metrics(device_id) do
-    default_metrics = Enum.map(@default_metric_types, &Atom.to_string/1)
-
+  def get_latest_metric_set(device_id) do
     DeviceMetric
-    |> select([dm], dm.key)
-    |> where(device_id: ^device_id)
-    |> where([dm], dm.key not in ^default_metrics)
-    |> distinct(true)
+    |> where([dm], dm.device_id == ^device_id)
+    |> where([dm], dm.inserted_at == subquery(time_of_latest_insert(device_id)))
     |> Repo.all()
-    |> Enum.reduce(%{}, fn type, acc ->
-      Map.put(acc, type, get_latest_value(device_id, type))
+    |> Enum.reduce(%{}, fn item, acc ->
+      Map.put(acc, item.key, item.value)
+      |> Map.put_new("timestamp", item.inserted_at)
     end)
   end
 
-  defp get_value_or_nil(%DeviceMetric{value: value}), do: value
-  defp get_value_or_nil(_), do: nil
+  defp time_of_latest_insert(device_id) do
+    DeviceMetric
+    |> select([:inserted_at])
+    |> where(device_id: ^device_id)
+    |> order_by(desc: :inserted_at)
+    |> limit(1)
+  end
 
   @doc """
   Saves single metric.

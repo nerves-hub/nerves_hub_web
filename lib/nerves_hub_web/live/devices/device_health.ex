@@ -42,7 +42,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> assign(:latest_connection, Connections.get_latest_for_device(device.id))
     |> assign(:time_frame, @default_time_frame)
     |> assign(:time_frame_opts, @time_frame_opts)
-    |> assign(:latest_metrics, Metrics.get_latest_metric_set_for_device(device.id))
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> schedule_health_check_timer()
     |> ok()
   end
@@ -88,7 +88,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
         %{assigns: %{device: device}} = socket
       ) do
     socket
-    |> assign(:latest_metrics, Metrics.get_latest_metric_set_for_device(device.id))
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> update_charts()
     |> noreply()
   end
@@ -106,10 +106,8 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
         } =
           socket
       ) do
-    memory_size = latest_metrics[:size_mb]
-
     charts =
-      create_chart_data(device.id, time_frame, memory_size)
+      create_chart_data(device.id, time_frame, latest_metrics["size_mb"])
 
     socket |> assign(:charts, charts)
   end
@@ -137,7 +135,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
         } =
           socket
       ) do
-    data = create_chart_data(device.id, time_frame, latest_metrics[:size_mb])
+    data = create_chart_data(device.id, time_frame, latest_metrics["size_mb"])
 
     cond do
       data == [] ->
