@@ -164,12 +164,12 @@ defmodule NervesHubWeb.Router do
                 delete("/:uuid", FirmwareController, :delete)
               end
 
-              scope "/deployments" do
-                get("/", DeploymentController, :index)
-                post("/", DeploymentController, :create)
-                get("/:name", DeploymentController, :show)
-                put("/:name", DeploymentController, :update)
-                delete("/:name", DeploymentController, :delete)
+              scope "/deployment_groups" do
+                get("/", DeploymentGroupController, :index)
+                post("/", DeploymentGroupController, :create)
+                get("/:name", DeploymentGroupController, :show)
+                put("/:name", DeploymentGroupController, :update)
+                delete("/:name", DeploymentGroupController, :delete)
               end
             end
           end
@@ -213,7 +213,12 @@ defmodule NervesHubWeb.Router do
 
     get("/archives/:uuid/download", DownloadController, :archive)
     get("/firmware/:uuid/download", DownloadController, :firmware)
-    get("/deployments/:name/audit_logs/download", DeploymentController, :export_audit_logs)
+
+    get(
+      "/deployment_groups/:name/audit_logs/download",
+      DeploymentGroupController,
+      :export_audit_logs
+    )
   end
 
   scope "/", NervesHubWeb do
@@ -323,30 +328,38 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/archives/upload", Live.Archives, :upload)
       live("/org/:org_name/:product_name/archives/:archive_uuid", Live.Archives, :show)
 
-      live("/org/:org_name/:product_name/deployments", Live.Deployments.Index)
-      live("/org/:org_name/:product_name/deployments/new", Live.Deployments.New)
-      live("/org/:org_name/:product_name/deployments/newz", Live.Deployments.Newz)
-      live("/org/:org_name/:product_name/deployments/:name", Live.Deployments.Show, :summary)
+      live("/org/:org_name/:product_name/deployment_groups", Live.DeploymentGroups.Index)
+      live("/org/:org_name/:product_name/deployments/new", Live.DeploymentGroups.New)
+      live("/org/:org_name/:product_name/deployments/newz", Live.DeploymentGroups.Newz)
 
       live(
-        "/org/:org_name/:product_name/deployments/:name/releases",
-        Live.Deployments.Show,
+        "/org/:org_name/:product_name/deployment_groups/:name",
+        Live.DeploymentGroups.Show,
+        :summary
+      )
+
+      live(
+        "/org/:org_name/:product_name/deployment_groups/:name/releases",
+        Live.DeploymentGroups.Show,
         :release_history
       )
 
       live(
-        "/org/:org_name/:product_name/deployments/:name/activity",
-        Live.Deployments.Show,
+        "/org/:org_name/:product_name/deployment_groups/:name/activity",
+        Live.DeploymentGroups.Show,
         :activity
       )
 
       live(
-        "/org/:org_name/:product_name/deployments/:name/settings",
-        Live.Deployments.Show,
+        "/org/:org_name/:product_name/deployment_groups/:name/settings",
+        Live.DeploymentGroups.Show,
         :settings
       )
 
-      live("/org/:org_name/:product_name/deployments/:name/edit", Live.Deployments.Edit)
+      live(
+        "/org/:org_name/:product_name/deployment_groups/:name/edit",
+        Live.DeploymentGroups.Edit
+      )
 
       live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)
       live("/org/:org_name/:product_name/scripts/new", Live.SupportScripts.New)

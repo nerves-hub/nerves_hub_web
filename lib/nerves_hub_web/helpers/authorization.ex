@@ -30,7 +30,10 @@ defmodule NervesHubWeb.Helpers.Authorization do
 
   def authorized?(:"device:create", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"device:update", %OrgUser{role: role}), do: role_check(:manage, role)
-  def authorized?(:"device:set-deployment", %OrgUser{role: role}), do: role_check(:manage, role)
+
+  def authorized?(:"device:set-deployment-group", %OrgUser{role: role}),
+    do: role_check(:manage, role)
+
   def authorized?(:"device:push-update", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"device:toggle-updates", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"device:clear-penalty-box", %OrgUser{role: ur}), do: role_check(:manage, ur)
@@ -47,10 +50,10 @@ defmodule NervesHubWeb.Helpers.Authorization do
   def authorized?(:"archive:upload", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"archive:delete", %OrgUser{role: role}), do: role_check(:manage, role)
 
-  def authorized?(:"deployment:create", %OrgUser{role: role}), do: role_check(:manage, role)
-  def authorized?(:"deployment:update", %OrgUser{role: role}), do: role_check(:manage, role)
-  def authorized?(:"deployment:toggle", %OrgUser{role: role}), do: role_check(:manage, role)
-  def authorized?(:"deployment:delete", %OrgUser{role: role}), do: role_check(:manage, role)
+  def authorized?(:"deployment_group:create", %OrgUser{role: role}), do: role_check(:manage, role)
+  def authorized?(:"deployment_group:update", %OrgUser{role: role}), do: role_check(:manage, role)
+  def authorized?(:"deployment_group:toggle", %OrgUser{role: role}), do: role_check(:manage, role)
+  def authorized?(:"deployment_group:delete", %OrgUser{role: role}), do: role_check(:manage, role)
 
   def authorized?(:"support_script:create", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"support_script:update", %OrgUser{role: role}), do: role_check(:manage, role)

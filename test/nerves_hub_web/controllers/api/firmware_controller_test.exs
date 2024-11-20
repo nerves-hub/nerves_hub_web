@@ -69,7 +69,7 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
       product: product,
       firmware: firmware
     } do
-      Fixtures.deployment_fixture(org, firmware)
+      Fixtures.deployment_group_fixture(org, firmware)
 
       conn =
         delete(

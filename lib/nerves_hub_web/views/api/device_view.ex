@@ -28,7 +28,10 @@ defmodule NervesHubWeb.API.DeviceView do
       last_communication: connection_last_seen_at(device),
       description: device.description,
       firmware_metadata: device.firmware_metadata,
-      deployment: render_one(device.deployment, __MODULE__, "deployment.json", as: :deployment),
+      deployment_group:
+        render_one(device.deployment_group, __MODULE__, "deployment_group.json",
+          as: :deployment_group
+        ),
       updates_enabled: device.updates_enabled,
       updates_blocked_until: device.updates_blocked_until,
       org_name: device.org.name,
@@ -36,12 +39,12 @@ defmodule NervesHubWeb.API.DeviceView do
     }
   end
 
-  def render("deployment.json", %{deployment: deployment}) do
+  def render("deployment_group.json", %{deployment_group: deployment_group}) do
     %{
-      firmware_uuid: deployment.firmware.uuid,
-      firmware_version: deployment.firmware.version,
-      is_active: deployment.is_active,
-      name: deployment.name
+      firmware_uuid: deployment_group.firmware.uuid,
+      firmware_version: deployment_group.firmware.version,
+      is_active: deployment_group.is_active,
+      name: deployment_group.name
     }
   end
 

@@ -219,7 +219,7 @@
   line-height: 44px;
 }
 
-.deployment-meta-grid {
+.deployment-group-meta-grid {
   display: grid;
   grid-template-columns: max-content max-content max-content max-content 1fr;
   grid-column-gap: 5.5rem;
@@ -397,7 +397,7 @@ html {
 }
 
 @media (max-width: 1000px) and (min-width: 480px) {
-  .collapse.deployment-form.show {
+  .collapse.deployment-group-form.show {
     display: grid !important;
   }
 }

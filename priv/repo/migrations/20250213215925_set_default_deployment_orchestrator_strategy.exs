@@ -1,10 +1,10 @@
 defmodule NervesHub.Repo.Migrations.SetDefaultDeploymentOrchestratorStrategy do
   use Ecto.Migration
 
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
 
   def change do
-    Repo.update_all(Deployment, set: [orchestrator_strategy: "distributed"])
+    Repo.update_all(DeploymentGroup, set: [orchestrator_strategy: "distributed"])
   end
 end
