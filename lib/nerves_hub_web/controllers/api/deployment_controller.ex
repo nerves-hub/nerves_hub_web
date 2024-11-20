@@ -11,7 +11,7 @@ defmodule NervesHubWeb.API.DeploymentController do
   plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
-  @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active, :recalculation_type]
+  @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active]
 
   def index(%{assigns: %{product: product}} = conn, _params) do
     deployments = Deployments.get_deployments_by_product(product.id)
