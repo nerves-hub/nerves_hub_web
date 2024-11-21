@@ -69,19 +69,6 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  def get_device_count_by_org_id_and_product_id(org_id, product_id) do
-    query =
-      from(
-        d in Device,
-        select: count(d.id),
-        where: d.org_id == ^org_id,
-        where: d.product_id == ^product_id
-      )
-
-    query
-    |> Repo.one!()
-  end
-
   def get_devices_by_org_id_and_product_id(org_id, product_id, opts) do
     pagination = Map.get(opts, :pagination, %{})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
@@ -100,6 +87,19 @@ defmodule NervesHub.Devices do
     |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
     |> Connections.preload_latest_connection()
     |> Repo.paginate(pagination)
+  end
+
+  def get_device_count_by_org_id_and_product_id(org_id, product_id) do
+    query =
+      from(
+        d in Device,
+        select: count(d.id),
+        where: d.org_id == ^org_id,
+        where: d.product_id == ^product_id
+      )
+
+    query
+    |> Repo.one!()
   end
 
   def filter(product_id, opts) do
