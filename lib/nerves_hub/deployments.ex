@@ -214,40 +214,6 @@ defmodule NervesHub.Deployments do
   end
 
   @doc """
-  Create any matching inflight deployment checks for devices
-
-  This includes devices that are already part of the deployment and devices
-  that have no current deployment. They all will be rechecked by `NervesHub.Deployments.Calculator`
-
-  Also clears any previous inflight checks for this deployment.
-  """
-  def schedule_deployment_calculations(deployment) do
-    query =
-      Device
-      |> select([d], %{
-        worker: "NervesHub.Workers.DeviceCalculateDeployment",
-        queue: "device_deployment_calculations",
-        args:
-          fragment(
-            "json_build_object('device_id', ?, 'deployment_id', ?::integer)",
-            d.id,
-            ^deployment.id
-          )
-      })
-      |> where([d], d.status == :provisioned)
-      |> where(
-        [d],
-        d.deployment_id == ^deployment.id or
-          (is_nil(d.deployment_id) and d.product_id == ^deployment.product_id)
-      )
-      |> where([d], d.firmware_metadata["platform"] == ^deployment.firmware.platform)
-      |> where([d], d.firmware_metadata["architecture"] == ^deployment.firmware.architecture)
-      |> where([d], fragment("? <@ ?", ^deployment.conditions["tags"], d.tags))
-
-    Repo.insert_all(Oban.Job, query)
-  end
-
-  @doc """
   Delete any matching inflight deployment checks for devices
   """
   @spec delete_inflight_checks(Deployment.t()) :: :ok
@@ -381,7 +347,7 @@ defmodule NervesHub.Deployments do
 
   Do nothing if a deployment is already set
   """
-  @spec set_deployment(%Device{}) :: %Device{}
+  @spec set_deployment(Device.t()) :: Device.t()
   def set_deployment(device) do
     case alternate_deployments(device, [true]) do
       [] ->
@@ -404,6 +370,25 @@ defmodule NervesHub.Deployments do
         |> preload_with_firmware_and_archive(true)
     end
   end
+
+  @spec maybe_set_deployment(Device.t()) :: Device.t()
+  def maybe_set_deployment(%Device{deployment_id: nil} = device), do: set_deployment(device)
+  def maybe_set_deployment(device), do: device
+
+  @spec verify_deployment_membership(Device.t()) :: Device.t()
+  def verify_deployment_membership(%Device{deployment_id: deployment_id} = device)
+      when not is_nil(deployment_id) do
+    %{deployment: deployment} = device = Repo.preload(device, deployment: :firmware)
+
+    if device.firmware_metadata.platform == deployment.firmware.platform and
+         device.firmware_metadata.architecture == deployment.firmware.architecture do
+      device
+    else
+      Devices.clear_deployment(device)
+    end
+  end
+
+  def verify_deployment_membership(device), do: device
 
   def preload_with_firmware_and_archive(device, force \\ false) do
     Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
