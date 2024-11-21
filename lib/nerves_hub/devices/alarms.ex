@@ -1,6 +1,7 @@
 defmodule NervesHub.Devices.Alarms do
   import Ecto.Query
   alias NervesHub.Repo
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceHealth
 
@@ -59,6 +60,19 @@ defmodule NervesHub.Devices.Alarms do
     |> query_current_alarms()
     |> select([a], count(a))
     |> Repo.one!()
+  end
+
+  def get_current_alarms_for_device(device) do
+    device.id
+    |> Devices.get_latest_health()
+    |> case do
+      %DeviceHealth{data: %{"alarms" => alarms}} when is_map(alarms) ->
+        for {alarm, description} <- alarms,
+            do: {String.trim_leading(alarm, "Elixir."), description}
+
+      _ ->
+        nil
+    end
   end
 
   @doc """
