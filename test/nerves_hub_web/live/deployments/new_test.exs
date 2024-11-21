@@ -2,7 +2,7 @@ defmodule NervesHubWeb.Live.Deployments.NewTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.DeploymentGroup
   alias NervesHub.Fixtures
 
   describe "new deployment" do
@@ -32,7 +32,7 @@ defmodule NervesHubWeb.Live.Deployments.NewTest do
       |> assert_has("div", text: "Deployment created")
       |> assert_has("a", text: "Moussaka")
 
-      [%{resource_type: Deployment}] = AuditLogs.logs_by(user)
+      [%{resource_type: DeploymentGroup}] = AuditLogs.logs_by(user)
     end
 
     test "error message displayed if invalid firmware is selected", %{

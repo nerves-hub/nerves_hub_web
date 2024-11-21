@@ -4,7 +4,7 @@ defmodule NervesHub.Devices.UpdatePayload do
   """
 
   alias NervesHub.Firmwares.FirmwareMetadata
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.DeploymentGroup
 
   @derive {Jason.Encoder,
            only: [
@@ -32,7 +32,7 @@ defmodule NervesHub.Devices.UpdatePayload do
               update_available: true,
               firmware_meta: FirmwareMetadata.t(),
               firmware_url: String.t(),
-              deployment: Deployment.t(),
+              deployment: DeploymentGroup.t(),
               deployment_id: non_neg_integer()
             }
 end

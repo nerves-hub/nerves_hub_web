@@ -3,7 +3,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.DeploymentGroup
   alias NervesHub.Devices
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Repo
@@ -122,8 +122,8 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     end
   end
 
-  defp version(%Deployment{conditions: %{"version" => ""}}), do: "-"
-  defp version(%Deployment{conditions: %{"version" => version}}), do: version
+  defp version(%DeploymentGroup{conditions: %{"version" => ""}}), do: "-"
+  defp version(%DeploymentGroup{conditions: %{"version" => version}}), do: version
 
   defp firmware_summary(%Firmware{version: nil}) do
     ["Unknown"]
@@ -133,19 +133,19 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     ["#{firmware_display_name(f)}"]
   end
 
-  defp firmware_summary(%Deployment{firmware: %Firmware{} = f}) do
+  defp firmware_summary(%DeploymentGroup{firmware: %Firmware{} = f}) do
     firmware_summary(f)
   end
 
-  defp firmware_summary(%Deployment{firmware: %Ecto.Association.NotLoaded{}} = deployment) do
+  defp firmware_summary(%DeploymentGroup{firmware: %Ecto.Association.NotLoaded{}} = deployment) do
     Repo.preload(deployment, [:firmware])
     |> firmware_summary()
   end
 
-  defp tags(%Deployment{conditions: %{"tags" => tags}}), do: tags
+  defp tags(%DeploymentGroup{conditions: %{"tags" => tags}}), do: tags
 
-  defp opposite_status(%Deployment{is_active: true}), do: "Off"
-  defp opposite_status(%Deployment{is_active: false}), do: "On"
+  defp opposite_status(%DeploymentGroup{is_active: true}), do: "Off"
+  defp opposite_status(%DeploymentGroup{is_active: false}), do: "On"
 
   defp firmware_display_name(%Firmware{} = f) do
     "#{f.version} #{f.platform} #{f.architecture} #{f.uuid}"

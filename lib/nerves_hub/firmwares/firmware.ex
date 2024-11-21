@@ -5,7 +5,7 @@ defmodule NervesHub.Firmwares.Firmware do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.DeploymentGroup
   alias NervesHub.Products.Product
 
   alias __MODULE__
@@ -46,7 +46,7 @@ defmodule NervesHub.Firmwares.Firmware do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:org_key, OrgKey)
-    has_many(:deployments, Deployment)
+    has_many(:deployments, DeploymentGroup)
 
     field(:architecture, :string)
     field(:author, :string)

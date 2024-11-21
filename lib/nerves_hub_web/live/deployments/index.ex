@@ -2,7 +2,7 @@ defmodule NervesHubWeb.Live.Deployments.Index do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Deployments
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.DeploymentGroup
   alias NervesHub.Firmwares.Firmware
 
   @impl Phoenix.LiveView
@@ -28,8 +28,8 @@ defmodule NervesHubWeb.Live.Deployments.Index do
     "#{f.version} #{f.uuid}"
   end
 
-  defp version(%Deployment{conditions: %{"version" => ""}}), do: "-"
-  defp version(%Deployment{conditions: %{"version" => version}}), do: version
+  defp version(%DeploymentGroup{conditions: %{"version" => ""}}), do: "-"
+  defp version(%DeploymentGroup{conditions: %{"version" => version}}), do: version
 
-  defp tags(%Deployment{conditions: %{"tags" => tags}}), do: tags
+  defp tags(%DeploymentGroup{conditions: %{"tags" => tags}}), do: tags
 end

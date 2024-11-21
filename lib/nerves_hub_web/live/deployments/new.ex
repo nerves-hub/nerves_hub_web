@@ -3,7 +3,7 @@ defmodule NervesHubWeb.Live.Deployments.New do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.DeploymentGroup
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
 
@@ -26,13 +26,13 @@ defmodule NervesHubWeb.Live.Deployments.New do
       |> page_title("New Deployment - #{socket.assigns.product.name}")
       |> assign(:platforms, platforms)
       |> assign(:platform, nil)
-      |> assign(:form, to_form(Ecto.Changeset.change(%Deployment{})))
+      |> assign(:form, to_form(Ecto.Changeset.change(%DeploymentGroup{})))
       |> ok()
     end
   end
 
   @impl Phoenix.LiveView
-  def handle_event("select-platform", %{"deployment" => %{"platform" => platform}}, socket) do
+  def handle_event("select-platform", %{"deployment_group" => %{"platform" => platform}}, socket) do
     authorized!(:"deployment:create", socket.assigns.org_user)
 
     %{product: product} = socket.assigns
@@ -46,13 +46,13 @@ defmodule NervesHubWeb.Live.Deployments.New do
 
     socket
     |> assign(:firmwares, firmwares)
-    |> assign(:form, to_form(Ecto.Changeset.change(%Deployment{})))
+    |> assign(:form, to_form(Ecto.Changeset.change(%DeploymentGroup{})))
     |> assign(:platform, platform)
     |> noreply()
   end
 
   # @impl Phoenix.LiveView
-  def handle_event("create-deployment", %{"deployment" => params}, socket) do
+  def handle_event("create-deployment", %{"deployment_group" => params}, socket) do
     authorized!(:"deployment:create", socket.assigns.org_user)
 
     %{user: user, org: org, product: product} = socket.assigns

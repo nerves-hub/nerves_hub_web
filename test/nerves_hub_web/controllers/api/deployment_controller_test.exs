@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.API.DeploymentControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
-  alias NervesHub.{AuditLogs, Deployments.Deployment, Fixtures}
+  alias NervesHub.{AuditLogs, Deployments.DeploymentGroup, Fixtures}
 
   describe "index" do
     test "lists all deployments", %{conn: conn, org: org, product: product} do
@@ -56,7 +56,7 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
       assert json_response(conn, 201)["data"]
 
       [audit_log] = AuditLogs.logs_by(user)
-      assert audit_log.resource_type == Deployment
+      assert audit_log.resource_type == DeploymentGroup
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do
@@ -106,7 +106,7 @@ defmodule NervesHubWeb.API.DeploymentControllerTest do
       assert json_response(conn, 200)["data"]
 
       [audit_log] = AuditLogs.logs_for(deployment)
-      assert audit_log.resource_type == Deployment
+      assert audit_log.resource_type == DeploymentGroup
     end
 
     test "renders errors when data is invalid", %{

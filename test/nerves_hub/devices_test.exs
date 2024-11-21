@@ -391,7 +391,7 @@ defmodule NervesHub.DevicesTest do
 
     {:ok, device_with_firmware} = Devices.get_device_by_org(org, device.id)
 
-    [%Deployments.Deployment{id: dep_id} | _] =
+    [%Deployments.DeploymentGroup{id: dep_id} | _] =
       Devices.get_eligible_deployments(device_with_firmware)
 
     assert dep_id == deployment.id

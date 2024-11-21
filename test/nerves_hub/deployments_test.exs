@@ -52,7 +52,7 @@ defmodule NervesHub.DeploymentsTest do
         is_active: false
       }
 
-      {:ok, %Deployments.Deployment{} = deployment} = Deployments.create_deployment(params)
+      {:ok, %Deployments.DeploymentGroup{} = deployment} = Deployments.create_deployment(params)
 
       for key <- Map.keys(params) do
         assert Map.get(deployment, key) == Map.get(params, key)

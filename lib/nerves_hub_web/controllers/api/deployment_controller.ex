@@ -3,7 +3,7 @@ defmodule NervesHubWeb.API.DeploymentController do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.DeploymentGroup
   alias NervesHub.Firmwares
 
   action_fallback(NervesHubWeb.API.FallbackController)
@@ -59,7 +59,7 @@ defmodule NervesHubWeb.API.DeploymentController do
     with {:ok, deployment} <- Deployments.get_deployment_by_name(product, name),
          {:ok, deployment_params} <- update_params(product, deployment_params),
          deployment_params <- whitelist(deployment_params, @whitelist_fields),
-         {:ok, %Deployment{} = updated_deployment} <-
+         {:ok, %DeploymentGroup{} = updated_deployment} <-
            Deployments.update_deployment(deployment, deployment_params) do
       AuditLogs.audit!(
         user,

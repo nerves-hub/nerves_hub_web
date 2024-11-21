@@ -4,7 +4,7 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
   alias NervesHub.Archives
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.DeploymentGroup
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
 
@@ -21,7 +21,7 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
     archives = Archives.all_by_product(deployment.product)
     firmwares = Firmwares.get_firmwares_for_deployment(deployment)
 
-    changeset = Deployment.changeset(deployment, %{}) |> tags_to_string()
+    changeset = DeploymentGroup.changeset(deployment, %{}) |> tags_to_string()
 
     socket
     |> assign(:archives, archives)
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
   end
 
   @impl Phoenix.LiveView
-  def handle_event("update-deployment", %{"deployment" => params}, socket) do
+  def handle_event("update-deployment", %{"deployment_group" => params}, socket) do
     %{org_user: org_user, org: org, product: product, user: user, deployment: deployment} =
       socket.assigns
 

@@ -1,4 +1,4 @@
-defmodule NervesHub.Deployments.Deployment do
+defmodule NervesHub.Deployments.DeploymentGroup do
   use Ecto.Schema
 
   import Ecto.Changeset
@@ -48,7 +48,7 @@ defmodule NervesHub.Deployments.Deployment do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:archive, Archive)
 
-    has_many(:inflight_updates, InflightUpdate)
+    has_many(:inflight_updates, InflightUpdate, foreign_key: :deployment_id)
 
     field(:conditions, :map)
     field(:device_failure_threshold, :integer, default: 3)
@@ -72,7 +72,7 @@ defmodule NervesHub.Deployments.Deployment do
     timestamps()
   end
 
-  def creation_changeset(%Deployment{} = deployment, params) do
+  def creation_changeset(%DeploymentGroup{} = deployment, params) do
     # set product_id by getting it from firmware
     with_product_id = handle_product_id(deployment, params)
 
@@ -93,27 +93,27 @@ defmodule NervesHub.Deployments.Deployment do
     end
   end
 
-  defp handle_product_id(%Deployment{}, %{firmware: %Firmware{product_id: p_id}} = params) do
+  defp handle_product_id(%DeploymentGroup{}, %{firmware: %Firmware{product_id: p_id}} = params) do
     params |> Map.put(:product_id, p_id)
   end
 
-  defp handle_product_id(%Deployment{firmware: %Firmware{product_id: p_id}}, params) do
+  defp handle_product_id(%DeploymentGroup{firmware: %Firmware{product_id: p_id}}, params) do
     params |> Map.put(:product_id, p_id)
   end
 
-  defp handle_product_id(%Deployment{} = d, %{firmware_id: f_id} = params) do
+  defp handle_product_id(%DeploymentGroup{} = d, %{firmware_id: f_id} = params) do
     handle_product_id(d, params |> Map.put(:firmware, Firmware |> Repo.get!(f_id)))
   end
 
-  defp handle_product_id(%Deployment{firmware_id: nil}, params) do
+  defp handle_product_id(%DeploymentGroup{firmware_id: nil}, params) do
     params
   end
 
-  defp handle_product_id(%Deployment{} = d, params) do
+  defp handle_product_id(%DeploymentGroup{} = d, params) do
     handle_product_id(d |> with_firmware(), params)
   end
 
-  def changeset(%Deployment{} = deployment, params) do
+  def changeset(%DeploymentGroup{} = deployment, params) do
     deployment
     |> cast(params, @required_fields ++ @optional_fields)
     |> validate_required(@required_fields)
@@ -128,9 +128,9 @@ defmodule NervesHub.Deployments.Deployment do
     |> validate_conditions()
   end
 
-  def with_firmware(%Deployment{firmware: %Firmware{}} = d), do: d
+  def with_firmware(%DeploymentGroup{firmware: %Firmware{}} = d), do: d
 
-  def with_firmware(%Deployment{} = d) do
+  def with_firmware(%DeploymentGroup{} = d) do
     d
     |> Repo.preload(:firmware)
   end
@@ -140,9 +140,9 @@ defmodule NervesHub.Deployments.Deployment do
     |> preload(:firmware)
   end
 
-  def with_product(%Deployment{product: %Product{}} = d), do: d
+  def with_product(%DeploymentGroup{product: %Product{}} = d), do: d
 
-  def with_product(%Deployment{} = d) do
+  def with_product(%DeploymentGroup{} = d) do
     d
     |> Repo.preload(:product)
   end
