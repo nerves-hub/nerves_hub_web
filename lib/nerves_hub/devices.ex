@@ -872,10 +872,19 @@ defmodule NervesHub.Devices do
 
   def matches_deployment?(_, _), do: false
 
+  @spec update_deployment(Device.t(), Deployment.t()) :: Device.t()
   def update_deployment(device, deployment) do
     device
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+    |> Repo.update!()
+  end
+
+  @spec clear_deployment(Device.t()) :: Device.t()
+  def clear_deployment(device) do
+    device
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.put_change(:deployment_id, nil)
     |> Repo.update!()
   end
 

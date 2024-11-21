@@ -726,7 +726,7 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.clean_close(socket)
     end
 
-    test "does not update device deployment on connect if device already has one", %{
+    test "removes device from deployment if firmware doesn't match", %{
       user: user,
       tmp_dir: tmp_dir
     } do
@@ -751,19 +751,24 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(@socket_config)
 
-      # Device has updated and no longer matches the attached deployment
+      different_architecture = "arm"
+      different_platform = "tester"
+
       SocketClient.join_and_wait(socket, %{
         "nerves_fw_uuid" => Ecto.UUID.generate(),
         "nerves_fw_product" => "test",
-        "nerves_fw_architecture" => "arm",
-        "nerves_fw_platform" => "tester",
+        "nerves_fw_architecture" => different_architecture,
+        "nerves_fw_platform" => different_platform,
         "nerves_fw_version" => "0.1.0"
       })
+
+      assert device.firmware_metadata.architecture != different_architecture
+      assert device.firmware_metadata.platform != different_platform
 
       Process.sleep(100)
 
       device = Repo.reload(device)
-      assert device.deployment_id
+      refute device.deployment_id
 
       SocketClient.clean_close(socket)
     end
