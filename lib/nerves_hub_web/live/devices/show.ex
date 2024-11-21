@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
+  alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
@@ -39,6 +40,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
     |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
+    |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
@@ -361,5 +363,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     else
       device.connecting_code
     end
+  end
+
+  defp has_description?(description) do
+    is_binary(description) and byte_size(description) > 0
   end
 end

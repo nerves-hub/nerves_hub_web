@@ -254,6 +254,19 @@ html body {
   flex-grow: 1;
 }
 
+.current-alarms>.callout {
+  width: 100%;
+}
+
+.alarms-description {
+  background-color: #24282a;
+  padding: 6px;
+}
+
+.alarm-clickable {
+  cursor: pointer;
+}
+
 .display-box.metrics {
   display: flex;
   flex-wrap: wrap;
