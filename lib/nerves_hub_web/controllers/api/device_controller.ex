@@ -22,11 +22,13 @@ defmodule NervesHubWeb.API.DeviceController do
       filters: Map.get(params, "filters", %{})
     }
 
-    page = Devices.get_devices_by_org_id_and_product_id(org.id, product.id, opts)
+    {devices, page} =
+      Devices.get_devices_by_org_id_and_product_id_with_pager(org.id, product.id, opts)
+
     pagination = Map.take(page, [:page_number, :page_size, :total_entries, :total_pages])
 
     conn
-    |> assign(:devices, page.entries)
+    |> assign(:devices, devices)
     |> assign(:pagination, pagination)
     |> render("index.json")
   end

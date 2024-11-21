@@ -120,8 +120,6 @@ defmodule NervesHub.MixProject do
       {:phoenix_test, "~> 0.3.0", only: :test, runtime: false},
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
-      {:scrivener_ecto, "~> 3.0"},
-      {:scrivener_html, git: "https://github.com/nerves-hub/scrivener_html", branch: "phx-1.5"},
       {:sentry, "~> 10.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:sweet_xml, "~> 0.6"},
@@ -131,7 +129,8 @@ defmodule NervesHub.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:timex, "~> 3.1"},
       {:uuidv7, "~> 1.0"},
-      {:x509, "~> 0.5.1 or ~> 0.6"}
+      {:x509, "~> 0.5.1 or ~> 0.6"},
+      {:flop, "~> 0.26.1"}
     ]
   end
 

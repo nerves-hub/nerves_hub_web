@@ -46,10 +46,16 @@ defmodule NervesHub.AuditLogs do
     |> Repo.all()
   end
 
+  def logs_for_feed(resource, %{page: page} = opts) when is_binary(page) do
+    logs_for_feed(resource, Map.put(opts, :page, String.to_integer(page)))
+  end
+
   def logs_for_feed(resource, opts) do
+    flop = %Flop{page: opts.page, page_size: opts.page_size}
+
     resource
     |> query_for_feed()
-    |> Repo.paginate(opts)
+    |> Flop.run(flop)
   end
 
   defp query_for_feed(%Deployment{id: id}) do
