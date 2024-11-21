@@ -168,7 +168,7 @@
             <% end %>
             <!--Display custom metrics, if any. Filters out "timestamp" key.-->
             <%= for {key, val} <- @latest_metrics do %>
-              <div :if={key not in metric_types_as_strings() and key != "timestamp"} class="callout">
+              <div :if={key not in default_metrics() and key != "timestamp"} class="callout">
                 <div class="help-text label"><%= format_key(key) %></div>
                 <%= val %>
               </div>

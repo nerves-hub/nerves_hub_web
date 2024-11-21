@@ -19,12 +19,18 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
 
   # Metric types with belonging titles to display as default.
   # Also sets order of charts.
-  @default_metric_types [
-    used_mb: "Memory Usage (MB)",
-    load_1min: "Load Average 1 Min",
-    load_5min: "Load Average 5 Min",
-    load_15min: "Load Average 15 Min",
-    cpu_temp: "CPU Temperature (Celsius)"
+  @default_metrics [
+    {"load_1min", "Load Average 1 Min"},
+    {"load_5min", "Load Average 5 Min"},
+    {"load_15min", "Load Average 15 Min"},
+    {"used_mb", "Memory Usage (MB)"},
+    {"used_percent", "Memory Usage (MB)"},
+    {"cpu_temp", "CPU Temperature (Celsius)"}
+  ]
+
+  # Will not be rendered as chart.
+  @no_chart_metrics [
+    "size_mb"
   ]
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
@@ -158,65 +164,55 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     Enum.map(data, &Map.get(&1, :type))
   end
 
-  def create_chart_data(device_id, time_frame, memory_size) do
-    default = create_default_chart_data(device_id, time_frame, memory_size)
-    custom = create_custom_chart_data(device_id, time_frame)
-
-    # Concat default and custom metrics and keep only non-nil results
-    Enum.concat(default, custom)
-    |> Enum.filter(& &1)
-  end
-
-  def create_default_chart_data(device_id, {unit, _} = time_frame, memory_size) do
-    @default_metric_types
-    |> Enum.map(fn {type, title} ->
-      data =
-        device_id
-        |> Metrics.get_device_metrics_by_key(Atom.to_string(type), time_frame)
-        |> get_max_per_hour(unit)
-        |> organize_metrics_for_chart()
-
-      unless data == [] do
-        %{
-          type: Atom.to_string(type),
-          title: title,
-          data: data,
-          max: get_max_value(type, data, memory_size),
-          min: 0,
-          unit: get_time_unit(time_frame)
-        }
-      end
-    end)
-  end
-
-  def create_custom_chart_data(device_id, {unit, _} = time_frame) do
+  def create_chart_data(device_id, {unit, _} = time_frame, memory_size) do
     device_id
-    |> Metrics.get_custom_metrics_for_device(time_frame)
+    |> Metrics.get_device_metrics(time_frame)
     |> Enum.group_by(& &1.key)
+    |> filter_and_sort()
     |> Enum.map(fn {type, metrics} ->
-      data =
-        metrics
-        |> get_max_per_hour(unit)
-        |> organize_metrics_for_chart()
+      data = organize_metrics_for_chart(metrics, unit)
 
-      title = String.replace(type, "_", " ") |> String.capitalize()
-
+      # Build structure for rendering charts
       %{
         type: type,
-        title: title,
+        title: title(type),
         data: data,
-        max: get_max_value(:custom, data),
+        max: get_max_value(type, data, memory_size),
         min: get_min_value(data),
         unit: get_time_unit(time_frame)
       }
     end)
   end
 
-  defp organize_metrics_for_chart(metrics) do
+  defp filter_and_sort(metrics) do
     metrics
+    |> Enum.reject(fn {type, _} -> type in @no_chart_metrics end)
+    |> Enum.sort_by(fn {type, _} ->
+      # Sorts list by @default_metrics order
+      Enum.find_index(@default_metrics, fn {type_, _} ->
+        type_ == type
+      end)
+    end)
+  end
+
+  defp organize_metrics_for_chart(metrics, unit) do
+    metrics
+    |> get_max_per_hour(unit)
     |> Enum.map(fn %{inserted_at: timestamp, value: value} ->
       %{x: DateTime.to_string(timestamp), y: value}
     end)
+  end
+
+  defp title(type) do
+    case Enum.find(@default_metrics, fn {key, _} -> type == key end) do
+      {_, title} ->
+        title
+
+      nil ->
+        type
+        |> String.replace("_", " ")
+        |> String.capitalize()
+    end
   end
 
   # Do nothing if time frame unit is hour
@@ -235,25 +231,28 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   defp get_time_unit({"day", 1}), do: "hour"
   defp get_time_unit({"day", _}), do: "day"
 
+  @max_100 ["used_percent", "cpu_temp"]
   defp get_max_value(_type, data, _memory_size) when data == [], do: 0
 
   defp get_max_value(type, data, memory_size) do
     case type do
-      :load_1min -> get_cpu_load_max_value(data)
-      :load_5min -> get_cpu_load_max_value(data)
-      :load_15min -> get_cpu_load_max_value(data)
-      :used_mb -> memory_size
-      _ -> 100
+      "load_" <> _ ->
+        cpu_load_max_value(data)
+
+      "used_mb" ->
+        memory_size
+
+      type when type in @max_100 ->
+        100
+
+      _ ->
+        data
+        |> Enum.max_by(& &1.y)
+        |> Map.get(:y)
     end
   end
 
-  defp get_max_value(:custom, data) do
-    data
-    |> Enum.max_by(& &1.y)
-    |> Map.get(:y)
-  end
-
-  defp get_cpu_load_max_value(data) do
+  defp cpu_load_max_value(data) do
     data
     |> Enum.max_by(& &1.y)
     |> Map.get(:y)

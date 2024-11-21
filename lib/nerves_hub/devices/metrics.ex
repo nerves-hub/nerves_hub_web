@@ -4,18 +4,18 @@ defmodule NervesHub.Devices.Metrics do
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Repo
 
-  @default_metric_types [
-    :cpu_temp,
-    :cpu_usage_percent,
-    :load_15min,
-    :load_1min,
-    :load_5min,
-    :size_mb,
-    :used_mb,
-    :used_percent
+  @default_metrics [
+    "cpu_temp",
+    "cpu_usage_percent",
+    "load_15min",
+    "load_1min",
+    "load_5min",
+    "size_mb",
+    "used_mb",
+    "used_percent"
   ]
 
-  def default_metric_types, do: @default_metric_types
+  def default_metrics, do: @default_metrics
 
   @doc """
   Get all metrics for device
@@ -30,8 +30,8 @@ defmodule NervesHub.Devices.Metrics do
   @doc """
   Get metrics by device within a specified time frame
   """
-  def get_device_metrics(device_id, time_unit, amount) do
-    DeviceMetrics
+  def get_device_metrics(device_id, {time_unit, amount}) do
+    DeviceMetric
     |> where(device_id: ^device_id)
     |> where([d], d.inserted_at > ago(^amount, ^time_unit))
     |> order_by(asc: :inserted_at)
@@ -56,27 +56,6 @@ defmodule NervesHub.Devices.Metrics do
     DeviceMetric
     |> where(device_id: ^device_id)
     |> where(key: ^key)
-    |> where([d], d.inserted_at > ago(^amount, ^time_unit))
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
-  end
-
-  def get_custom_metrics_for_device(device_id) do
-    default_metrics = Enum.map(@default_metric_types, &Atom.to_string/1)
-
-    DeviceMetric
-    |> where(device_id: ^device_id)
-    |> where([dm], dm.key not in ^default_metrics)
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
-  end
-
-  def get_custom_metrics_for_device(device_id, {time_unit, amount}) do
-    default_metrics = Enum.map(@default_metric_types, &Atom.to_string/1)
-
-    DeviceMetric
-    |> where(device_id: ^device_id)
-    |> where([dm], dm.key not in ^default_metrics)
     |> where([d], d.inserted_at > ago(^amount, ^time_unit))
     |> order_by(asc: :inserted_at)
     |> Repo.all()

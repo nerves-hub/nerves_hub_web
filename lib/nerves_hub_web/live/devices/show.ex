@@ -380,11 +380,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> String.capitalize()
   end
 
-  defp metric_types_as_strings() do
-    Metrics.default_metric_types()
-    |> Enum.map(&Atom.to_string/1)
-  end
-
   defp extension_overrides(device, product) do
     device.extensions
     |> Map.from_struct()
@@ -392,5 +387,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
       enabled == false and product.extensions[extension]
     end)
     |> Enum.map(&elem(&1, 0))
+  end
+
+  defp default_metrics() do
+    Metrics.default_metrics()
   end
 end
