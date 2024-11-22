@@ -26,6 +26,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
       socket.endpoint.subscribe("device:console:#{device.id}:internal")
+      socket.endpoint.subscribe("device:#{device.identifier}:extensions")
       socket.endpoint.subscribe("firmware")
     end
 

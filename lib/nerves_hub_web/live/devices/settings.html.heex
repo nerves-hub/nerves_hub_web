@@ -66,6 +66,48 @@
 <div class="border-bottom border-dark mt-6 mb-4"></div>
 
 <div class="device-header-group">
+  <h3 class="mb-2">Extensions</h3>
+</div>
+
+<table :if={Enum.any?(@available_extensions)} class="table table-sm table-hover">
+  <thead>
+    <tr>
+      <th></th>
+      <th>Name</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tr :for={{key, description} <- @available_extensions} class="item">
+    <td>
+      <input
+        id={"extension-#{key}"}
+        name={key}
+        type="checkbox"
+        class="checkbox"
+        disabled={Map.get(@device.product.extensions, key) != true}
+        checked={Map.get(@device.extensions, key, false) == true}
+        phx-click="update-extension"
+        phx-value-extension={key}
+        disabled={!authorized?(:"device:update", @org_user)}
+      />
+    </td>
+    <td class="ff-m">
+      <div class="mobile-label help-text">Name</div>
+      <%= key %>
+    </td>
+    <td>
+      <div class="mobile-label help-text">Description</div>
+      <p :if={Map.get(@device.product.extensions, key) != true}>
+        Extension is disabled at the product level.
+      </p>
+      <p><%= description %></p>
+    </td>
+  </tr>
+</table>
+
+<div class="border-bottom border-dark mt-6 mb-4"></div>
+
+<div class="device-header-group">
   <h3 class="mb-2">Certificates</h3>
   <%= if @toggle_upload do %>
     <button class="btn btn-primary" type="button" phx-click="toggle-upload" phx-value-toggle={to_string(@toggle_upload)}>
@@ -102,7 +144,7 @@
     </div>
   </div>
 <% end %>
-<table class="table table-sm table-hover">
+<table class="table table-sm table-hover certificates">
   <thead>
     <tr>
       <th>Serial</th>

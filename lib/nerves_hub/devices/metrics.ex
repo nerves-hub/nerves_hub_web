@@ -6,6 +6,7 @@ defmodule NervesHub.Devices.Metrics do
 
   @default_metric_types [
     :cpu_temp,
+    :cpu_usage_percent,
     :load_15min,
     :load_1min,
     :load_5min,

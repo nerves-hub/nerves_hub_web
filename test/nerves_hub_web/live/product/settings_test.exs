@@ -51,7 +51,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> assert_has("p", text: "This feature hasn't been enabled for this server.")
+      |> assert_has("p", text: "This extension hasn't been enabled for this server.")
     end
 
     test "add shared secret", %{conn: conn, org: org, user: user} do

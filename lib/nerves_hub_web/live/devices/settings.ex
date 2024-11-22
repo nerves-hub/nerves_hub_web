@@ -6,6 +6,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Extensions
   alias NervesHub.Repo
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
@@ -15,6 +16,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
         device_identifier,
         :device_certificates
       )
+      |> Devices.preload_product()
 
     changeset = Ecto.Changeset.change(device)
 
@@ -22,6 +24,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
     |> page_title("Device Settings #{device.identifier} - #{socket.assigns.product.name}")
     |> assign(:toggle_upload, false)
     |> assign(:device, device)
+    |> assign(:available_extensions, extensions())
     |> assign(:form, to_form(changeset))
     |> assign(:tab_hint, :devices)
     |> allow_upload(:certificate,
@@ -83,6 +86,31 @@ defmodule NervesHubWeb.Live.Devices.Settings do
     end
   end
 
+  def handle_event("update-extension", %{"extension" => extension} = params, socket) do
+    value = params["value"]
+    available = Extensions.list() |> Enum.map(&to_string/1)
+
+    result =
+      case {extension in available, value} do
+        {true, "on"} ->
+          Devices.enable_extension_setting(socket.assigns.device, extension)
+
+        {true, _} ->
+          Devices.disable_extension_setting(socket.assigns.device, extension)
+      end
+
+    socket =
+      case result do
+        {:ok, _pf} ->
+          socket
+
+        {:error, _changeset} ->
+          put_flash(socket, :error, "Failed to set extension")
+      end
+
+    {:noreply, socket}
+  end
+
   def handle_progress(:certificate, %{done?: true} = entry, socket) do
     socket =
       socket
@@ -121,6 +149,12 @@ defmodule NervesHubWeb.Live.Devices.Settings do
       end
 
     {:ok, socket}
+  end
+
+  defp extensions do
+    for extension <- Extensions.list(),
+        into: %{},
+        do: {extension, Extensions.module(extension).description()}
   end
 
   defp tags_to_string(%Phoenix.HTML.Form{} = form) do

@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Extensions.ExtensionsSetting
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Products.Product
 
@@ -73,12 +74,14 @@ defmodule NervesHub.Devices.Device do
     field(:connection_established_at, :utc_datetime)
     field(:connection_disconnected_at, :utc_datetime)
     field(:connection_last_seen_at, :utc_datetime)
+    embeds_one(:extensions, ExtensionsSetting, on_replace: :update)
   end
 
   def changeset(%Device{} = device, params) do
     device
     |> cast(params, @required_params ++ @optional_params)
     |> cast_embed(:firmware_metadata)
+    |> cast_embed(:extensions)
     |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
     |> unique_constraint(:identifier)
