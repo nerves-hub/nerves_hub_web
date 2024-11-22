@@ -388,8 +388,4 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end)
     |> Enum.map(&elem(&1, 0))
   end
-
-  defp default_metrics() do
-    Metrics.default_metrics()
-  end
 end

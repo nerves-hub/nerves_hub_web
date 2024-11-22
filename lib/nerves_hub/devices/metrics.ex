@@ -107,25 +107,30 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   @doc """
-  Get map with latest values for all metric types. Also includes timestamp.
+  Retrieves the latest metric set, together with the timestamp, for a given device.
+
+  Uses a subquery to filter the `DeviceMetric` table on the most recent `inserted_at` timestamp.
   """
   def get_latest_metric_set(device_id) do
     DeviceMetric
     |> where([dm], dm.device_id == ^device_id)
-    |> where([dm], dm.inserted_at == subquery(time_of_latest_insert(device_id)))
+    |> where(
+      [dm],
+      dm.inserted_at ==
+        subquery(
+          DeviceMetric
+          |> select([:inserted_at])
+          |> where(device_id: ^device_id)
+          |> order_by(desc: :inserted_at)
+          |> limit(1)
+        )
+    )
     |> Repo.all()
     |> Enum.reduce(%{}, fn item, acc ->
-      Map.put(acc, item.key, item.value)
+      acc
+      |> Map.put(item.key, item.value)
       |> Map.put_new("timestamp", item.inserted_at)
     end)
-  end
-
-  defp time_of_latest_insert(device_id) do
-    DeviceMetric
-    |> select([:inserted_at])
-    |> where(device_id: ^device_id)
-    |> order_by(desc: :inserted_at)
-    |> limit(1)
   end
 
   @doc """

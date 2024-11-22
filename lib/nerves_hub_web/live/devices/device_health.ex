@@ -24,7 +24,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     {"load_5min", "Load Average 5 Min"},
     {"load_15min", "Load Average 15 Min"},
     {"used_mb", "Memory Usage (MB)"},
-    {"used_percent", "Memory Usage (MB)"},
+    {"used_percent", "Memory Usage (%)"},
     {"cpu_temp", "CPU Temperature (Celsius)"}
   ]
 
@@ -189,8 +189,8 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> Enum.reject(fn {type, _} -> type in @no_chart_metrics end)
     |> Enum.sort_by(fn {type, _} ->
       # Sorts list by @default_metrics order
-      Enum.find_index(@default_metrics, fn {type_, _} ->
-        type_ == type
+      Enum.find_index(@default_metrics, fn {default_type, _} ->
+        default_type == type
       end)
     end)
   end
@@ -204,7 +204,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   end
 
   defp title(type) do
-    case Enum.find(@default_metrics, fn {key, _} -> type == key end) do
+    case Enum.find(@default_metrics, fn {default_type, _} -> default_type == type end) do
       {_, title} ->
         title
 
@@ -231,7 +231,6 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   defp get_time_unit({"day", 1}), do: "hour"
   defp get_time_unit({"day", _}), do: "day"
 
-  @max_100 ["used_percent", "cpu_temp"]
   defp get_max_value(_type, data, _memory_size) when data == [], do: 0
 
   defp get_max_value(type, data, memory_size) do
@@ -242,7 +241,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
       "used_mb" ->
         memory_size
 
-      type when type in @max_100 ->
+      type when type in ["used_percent", "cpu_temp"] ->
         100
 
       _ ->
