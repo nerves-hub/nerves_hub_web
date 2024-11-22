@@ -80,5 +80,7 @@ config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
 
 config :swoosh, :api_client, Swoosh.ApiClient.Finch
 
+config :flop, repo: NervesHub.Repo
+
 # Environment specific config
 import_config "#{Mix.env()}.exs"

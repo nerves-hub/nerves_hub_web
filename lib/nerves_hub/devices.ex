@@ -70,9 +70,16 @@ defmodule NervesHub.Devices do
   end
 
   def get_devices_by_org_id_and_product_id(org_id, product_id, opts) do
-    pagination = Map.get(opts, :pagination, %{})
+    {entries, _pager} = get_devices_by_org_id_and_product_id_with_pager(org_id, product_id, opts)
+    entries
+  end
+
+  def get_devices_by_org_id_and_product_id_with_pager(org_id, product_id, opts) do
+    pagination = Map.get(opts, :pagination, %{page: 1, page_size: 10})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
     filters = Map.get(opts, :filters, %{})
+
+    flop = %Flop{page: pagination[:page], page_size: pagination[:page_size]}
 
     Device
     |> where([d], d.org_id == ^org_id)
@@ -86,7 +93,7 @@ defmodule NervesHub.Devices do
     |> filtering(filters)
     |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
     |> Connections.preload_latest_connection()
-    |> Repo.paginate(pagination)
+    |> Flop.run(flop)
   end
 
   def get_device_count_by_org_id_and_product_id(org_id, product_id) do
@@ -102,10 +109,13 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
+  @spec filter(integer(), map()) :: {list(Device.t()), Flop.Meta.t()}
   def filter(product_id, opts) do
     pagination = Map.get(opts, :pagination, %{})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
     filters = Map.get(opts, :filters, %{})
+
+    flop = %Flop{page: pagination.page, page_size: pagination.page_size}
 
     Device
     |> where([d], d.product_id == ^product_id)
@@ -113,7 +123,7 @@ defmodule NervesHub.Devices do
     |> Repo.exclude_deleted()
     |> filtering(filters)
     |> order_by(^sort_devices(sorting))
-    |> Repo.paginate(pagination)
+    |> Flop.run(flop)
   end
 
   def get_minimal_device_location_by_org_id_and_product_id(org_id, product_id) do

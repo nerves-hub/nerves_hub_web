@@ -12,6 +12,8 @@ defmodule NervesHub.Devices.Device do
 
   alias __MODULE__
 
+  @derive {Flop.Schema, filterable: [], sortable: []}
+
   @type t :: %__MODULE__{}
   @optional_params [
     :description,

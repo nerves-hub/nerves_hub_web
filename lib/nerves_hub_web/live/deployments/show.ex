@@ -15,15 +15,16 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
     deployment = Deployments.get_by_product_and_name!(product, name)
 
-    logs =
+    {logs, audit_pager} =
       AuditLogs.logs_for_feed(deployment, %{
         page: Map.get(params, "page", 1),
         page_size: 10
       })
 
     # Use proper links since current pagination links assumes LiveView
-    logs =
-      logs
+    audit_pager =
+      audit_pager
+      |> Map.from_struct()
       |> Map.put(:links, true)
       |> Map.put(:anchor, "latest-activity")
 
@@ -34,6 +35,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     |> page_title("Deployment - #{deployment.name} - #{product.name}")
     |> assign(:deployment, deployment)
     |> assign(:audit_logs, logs)
+    |> assign(:audit_pager, audit_pager)
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:firmware, deployment.firmware)
     |> assign(:current_device_count, current_device_count)

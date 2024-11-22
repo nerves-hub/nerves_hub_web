@@ -349,9 +349,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
-    logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 5})
+    {logs, audit_pager} = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 5})
 
-    assign(socket, :audit_logs, logs)
+    audit_pager = Map.from_struct(audit_pager)
+
+    socket
+    |> assign(:audit_logs, logs)
+    |> assign(:audit_pager, audit_pager)
   end
 
   defp connecting_code(device) do
