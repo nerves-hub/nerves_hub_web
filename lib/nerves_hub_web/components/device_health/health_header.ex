@@ -1,11 +1,14 @@
 defmodule NervesHubWeb.Components.HealthHeader do
   use NervesHubWeb, :component
 
-  attr(:org, :any)
-  attr(:product, :any)
-  attr(:device, :any)
-  attr(:latest_connection, :any)
-  attr(:health_reported_at, :any)
+  alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceConnection
+
+  attr(:org_name, :string)
+  attr(:product_name, :string)
+  attr(:device, Device)
+  attr(:latest_connection, DeviceConnection)
+  attr(:health_reported_at, DateTime)
   attr(:health_check_timer, :any, default: nil)
 
   def render(assigns) do
@@ -51,12 +54,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
         </div>
         <p>
           <span :if={!@latest_connection}>Never</span>
-          <time
-            :if={@latest_connection}
-            id="connection-established-at"
-            phx-hook="UpdatingTimeAgo"
-            datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_connection.established_at, :second)), " ", "T")}
-          >
+          <time :if={@latest_connection} id="connection-established-at" phx-hook="UpdatingTimeAgo" datetime={format_time(@latest_connection.established_at)}>
             <%= Timex.from_now(@latest_connection.established_at) %>
           </time>
         </p>
@@ -71,7 +69,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
         </div>
         <p>
           <span :if={!@health_reported_at}>Never</span>
-          <time :if={@health_reported_at} id="last-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@health_reported_at, :second)), " ", "T")}>
+          <time :if={@health_reported_at} id="last-reported-at" phx-hook="UpdatingTimeAgo" datetime={format_time(@health_reported_at)}>
             <%= Timex.from_now(@health_reported_at) %>
           </time>
         </p>
@@ -81,7 +79,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
         <%= if is_nil(@device.firmware_metadata) do %>
           <p>Unknown</p>
         <% else %>
-          <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m mt-0">
+          <.link navigate={~p"/org/#{@org_name}/#{@product_name}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m mt-0">
             <%= @device.firmware_metadata.version %> (<%= String.slice(@device.firmware_metadata.uuid, 0..7) %>)
           </.link>
         <% end %>
@@ -102,4 +100,11 @@ defmodule NervesHubWeb.Components.HealthHeader do
 
   defp get_status(%{status: :connected}), do: "online"
   defp get_status(_), do: "offline"
+
+  defp format_time(timestamp) do
+    timestamp
+    |> DateTime.truncate(:second)
+    |> DateTime.to_string()
+    |> String.replace(" ", "T")
+  end
 end
