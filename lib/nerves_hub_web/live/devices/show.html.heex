@@ -140,30 +140,23 @@
               <div class="help-text label">Load avg</div>
               <%= @latest_metrics["load_1min"] %> | <%= @latest_metrics["load_5min"] %> | <%= @latest_metrics["load_15min"] %>
             </div>
-
+            <!--Show CPU and memory usage if reported. Higher values will be displayed in warningly colors. -->
             <%= if @latest_metrics["cpu_usage_percent"] do %>
               <div class={"callout #{Utils.cpu_usage_percent_to_status(@latest_metrics["cpu_usage_percent"])}"}>
                 <div class="help-text label">CPU use</div>
                 <%= round(@latest_metrics.cpu_usage_percent) %>%
               </div>
-            <% else %>
-              <div class="callout">
-                <div class="help-text label">CPU use</div>
-                Not reported
+            <% end %>
+            <%= if @latest_metrics["cpu_temp"] do %>
+              <div class={"callout #{Utils.cpu_temp_to_status(@latest_metrics["cpu_temp"])}"}>
+                <div class="help-text label">CPU temp</div>
+                <%= round(@latest_metrics["cpu_temp"]) %>°
               </div>
             <% end %>
-            <!--Show CPU temperature and memory usage if reported. Higher values will be displayed in warningly colors. -->
             <%= if @latest_metrics["used_mb"] do %>
               <div class={"callout #{Utils.memory_to_status(@latest_metrics["used_percent"])}"}>
                 <div class="help-text label">Memory used</div>
                 <%= round(@latest_metrics["used_mb"]) %>MB (<%= round(@latest_metrics["used_percent"]) %>%)
-              </div>
-            <% end %>
-
-            <%= if @latest_metrics["cpu_temp"] do %>
-              <div class={"callout #{Utils.cpu_temp_to_status(@latest_metrics["cpu_temp"])}"}>
-                <div class="help-text label">CPU</div>
-                <%= round(@latest_metrics["cpu_temp"]) %>°
               </div>
             <% end %>
             <!--Display custom metrics, if any. Filters out "timestamp" key.-->

@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
   attr(:device, Device)
   attr(:latest_connection, DeviceConnection)
   attr(:health_reported_at, DateTime)
-  attr(:health_check_timer, :any, default: nil)
+  attr(:health_check_timer, Reference, default: nil)
 
   def render(assigns) do
     ~H"""
