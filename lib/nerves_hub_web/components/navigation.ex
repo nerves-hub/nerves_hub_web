@@ -65,7 +65,7 @@ defmodule NervesHubWeb.Components.Navigation do
               </.link>
             </li>
             <li class="h-11 flex items-center py-2 px-4">
-              <.link class="group flex gap-x-3 text-sm leading-5 text-[#D4D4D8] font-light" navigate={~p"/org/#{@org.name}/#{@product.name}/artifacts"}>
+              <.link class="group flex gap-x-3 text-sm leading-5 text-[#D4D4D8] font-light" navigate={~p"/org/#{@org.name}/#{@product.name}/archives"}>
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M3.33333 6.66659V14.9999C3.33333 15.9204 4.07953 16.6666 5 16.6666H15C15.9205 16.6666 16.6667 15.9204 16.6667 14.9999V6.66659M3.33333 6.66659H16.6667M3.33333 6.66659C2.8731 6.66659 2.5 6.29349 2.5 5.83325V4.99992C2.5 4.07944 3.24619 3.33325 4.16667 3.33325H15.8333C16.7538 3.33325 17.5 4.07944 17.5 4.99992V5.83325C17.5 6.29349 17.1269 6.66659 16.6667 6.66659M8.33333 9.99992H11.6667"

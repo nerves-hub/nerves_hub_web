@@ -17,7 +17,7 @@ defmodule NervesHubWeb.CoreComponents do
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
-  import NervesHubWeb.Gettext
+  use Gettext, backend: NervesHubWeb.Gettext
 
   @doc """
   Renders a modal.
