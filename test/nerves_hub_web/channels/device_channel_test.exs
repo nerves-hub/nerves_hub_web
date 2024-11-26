@@ -130,54 +130,6 @@ defmodule NervesHubWeb.DeviceChannelTest do
     assert device.connection_types == [:ethernet, :wifi]
   end
 
-  test "deployment condition changing causes a deployment relookup but it still matches" do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user)
-    product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-
-    firmware =
-      Fixtures.firmware_fixture(org_key, product, %{
-        version: "0.0.1"
-      })
-
-    deployment =
-      Fixtures.deployment_fixture(org, firmware, %{
-        conditions: %{"tags" => ["alpha"], "version" => ""}
-      })
-
-    {:ok, deployment} =
-      NervesHub.Deployments.update_deployment(deployment, %{
-        is_active: true
-      })
-
-    device_alpha =
-      Fixtures.device_fixture(org, product, firmware, %{
-        tags: ["alpha", "device"],
-        identifier: "123"
-      })
-
-    %{db_cert: alpha_certificate, cert: _cert} =
-      Fixtures.device_certificate_fixture(device_alpha, X509.PrivateKey.new_ec(:secp256r1))
-
-    {:ok, socket_alpha} =
-      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: alpha_certificate.der}})
-
-    {:ok, %{}, socket_alpha} =
-      subscribe_and_join(socket_alpha, DeviceChannel, "device")
-
-    socket_alpha = :sys.get_state(socket_alpha.channel_pid)
-    refute is_nil(socket_alpha.assigns.device.deployment_id)
-
-    {:ok, _deployment} =
-      NervesHub.Deployments.update_deployment(deployment, %{
-        conditions: %{"tags" => ["alpha", "device"]}
-      })
-
-    socket_alpha = :sys.get_state(socket_alpha.channel_pid)
-    refute is_nil(socket_alpha.assigns.device.deployment_id)
-  end
-
   describe "unhandled messages are caught" do
     test "handle_info" do
       user = Fixtures.user_fixture()

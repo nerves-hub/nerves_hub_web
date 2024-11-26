@@ -1,7 +1,6 @@
 defmodule NervesHubWeb.API.DeviceView do
   use NervesHubWeb, :api_view
 
-  alias NervesHub.Devices
   alias NervesHub.Tracker
 
   def render("index.json", %{devices: devices, pagination: pagination}) do
@@ -29,7 +28,6 @@ defmodule NervesHubWeb.API.DeviceView do
       last_communication: connection_last_seen_at(device),
       description: device.description,
       firmware_metadata: device.firmware_metadata,
-      firmware_update_status: Devices.firmware_status(device),
       deployment: render_one(device.deployment, __MODULE__, "deployment.json", as: :deployment),
       updates_enabled: device.updates_enabled,
       updates_blocked_until: device.updates_blocked_until,

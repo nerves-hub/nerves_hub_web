@@ -38,7 +38,6 @@ defmodule NervesHubWeb.DeviceChannel do
     device =
       device
       |> Deployments.verify_deployment_membership()
-      |> Deployments.maybe_set_deployment()
 
     maybe_send_public_keys(device, socket, params)
 
@@ -452,7 +451,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp maybe_send_archive(socket) do
-    device = socket.assigns.device
+    device = deployment_preload(socket.assigns.device)
 
     updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
     version_match = Version.match?(socket.assigns.device_api_version, ">= 2.0.0")

@@ -9,7 +9,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
-  alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
@@ -1087,7 +1086,7 @@ defmodule NervesHub.Devices do
     |> Repo.transaction()
     |> case do
       {:ok, %{move: updated}} ->
-        Deployments.set_deployment(updated)
+        # Deployments.set_deployment(updated)
         {:ok, updated}
 
       err ->
@@ -1400,29 +1399,6 @@ defmodule NervesHub.Devices do
     |> select([iu], count(iu))
     |> where([iu], iu.deployment_id == ^deployment.id)
     |> Repo.one()
-  end
-
-  @doc """
-  Get the firmware status for a device
-
-  "latest", "pending", or "updating"
-  """
-  def firmware_status(device) do
-    device = Repo.preload(device, deployment: [:firmware])
-
-    cond do
-      is_nil(device.deployment_id) ->
-        "latest"
-
-      get_in(device.firmware_metadata.uuid) == get_in(device.deployment.firmware.uuid) ->
-        "latest"
-
-      !Enum.empty?(device.update_attempts) ->
-        "updating"
-
-      true ->
-        "pending"
-    end
   end
 
   def enable_extension_setting(%Device{} = device, extension_string) do
