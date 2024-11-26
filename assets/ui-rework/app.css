@@ -14,6 +14,12 @@
       linear-gradient(to right, rgb(99 102 241 / 0%), rgb(99 102 241 / 10%));
   }
 
+  .base-grid {
+    display: grid;
+    grid-template-columns: [start] 264px [body-start] auto [body-end] 264px [end];
+    grid-template-rows: [top] 56px [body-top] auto [bottom];
+  }
+
   .title {
     line-height: 30px;
     font-size: 20px;
