@@ -31,6 +31,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
       ~r{priv/gettext/.*(po)$},
       ~r{lib/nerves_hub_web/views/.*(ex)$},
       ~r{lib/nerves_hub_web/templates/.*(eex|md)$},
+      ~r{lib/nerves_hub_web/components/.*(eex|md)$},
       ~r{lib/nerves_hub_web/live/.*(ex)$}
     ]
   ]

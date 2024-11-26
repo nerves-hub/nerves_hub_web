@@ -3,6 +3,14 @@ defmodule NervesHubWeb.Router do
 
   import Phoenix.LiveDashboard.Router
 
+  if Application.compile_env(:nerves_hub, :new_ui) == true do
+    @root_layout {NervesHubWeb.Layouts, :root}
+    @layout {NervesHubWeb.Layouts, :clean}
+  else
+    @root_layout {NervesHubWeb.LayoutView, :root}
+    @layout {NervesHubWeb.LayoutView, :live}
+  end
+
   pipeline :browser do
     plug(:accepts, ["html", "json"])
     plug(:fetch_session)
@@ -213,8 +221,8 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.AccountAuth,
         NervesHubWeb.Mounts.CurrentPath
       ],
-      root_layout: {NervesHubWeb.Layouts, :root},
-      layout: {NervesHubWeb.Layouts, :clean} do
+      root_layout: @root_layout,
+      layout: @layout do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
       live("/account/tokens", Live.AccountTokens, :index)
@@ -231,8 +239,8 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser
         ],
-      root_layout: {NervesHubWeb.Layouts, :root},
-      layout: {NervesHubWeb.Layouts, :live} do
+      root_layout: @root_layout,
+      layout: @layout do
       live("/org/:org_name", Live.Org.Products, :index)
       live("/org/:org_name/new", Live.Org.Products, :new)
       live("/org/:org_name/settings", Live.Org.Settings)
@@ -259,7 +267,9 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser,
         NervesHubWeb.Mounts.FetchProduct
-      ] do
+      ],
+      root_layout: @root_layout,
+      layout: @layout do
       live("/org/:org_name/:product_name/dashboard", Live.Dashboard.Index)
 
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
