@@ -97,6 +97,7 @@ defmodule NervesHubWeb do
       on_mount(Sentry.LiveViewHook)
 
       def ok(socket), do: {:ok, socket}
+      def ok(socket, layout), do: {:ok, socket, layout: {NervesHubWeb.Layouts, layout}}
       def noreply(socket), do: {:noreply, socket}
 
       def page_title(socket, page_title), do: assign(socket, :page_title, page_title)

@@ -5,7 +5,7 @@ defmodule NervesHubWeb.Router do
 
   if Application.compile_env(:nerves_hub, :new_ui) == true do
     @root_layout {NervesHubWeb.Layouts, :root}
-    @layout {NervesHubWeb.Layouts, :clean}
+    @layout {NervesHubWeb.Layouts, :sidebar}
   else
     @root_layout {NervesHubWeb.LayoutView, :root}
     @layout {NervesHubWeb.LayoutView, :live}

@@ -19,7 +19,7 @@
       <h3 class="subtitle "><%= org.name %></h3>
     </.link>
     <div class="flex gap-[16px] mt-[16px]">
-      <div :for={product <- org.products} class="product-block flex">
+      <.link :for={product <- org.products} navigate={~p"/org/#{org.name}/#{product.name}/devices"} class="product-block flex">
         <div class="product-title grow">
         <%= product.name %>
         </div>
@@ -28,7 +28,7 @@
             <path d="M2.5 10.8333H17.5M2.5 10.8333V14.1666C2.5 15.0871 3.24619 15.8333 4.16667 15.8333H15.8333C16.7538 15.8333 17.5 15.0871 17.5 14.1666V10.8333M2.5 10.8333L3.85106 5.42907C4.03654 4.68712 4.70318 4.16663 5.46796 4.16663H14.532C15.2968 4.16663 15.9635 4.68712 16.1489 5.42907L17.5 10.8333M5 13.3333H15" stroke="#71717A" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-      </div>
+      </.link>
     </div>
   </div>
 <% end %>
