@@ -27,7 +27,7 @@ import en from 'javascript-time-ago/locale/en'
 
 TimeAgo.addDefaultLocale(en)
 
-let dates = require('./dates')
+let dates = require('../js/dates')
 
 let Hooks = {}
 
