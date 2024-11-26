@@ -1,10 +1,10 @@
-defmodule NervesHub.Deployments.DeploymentRelease do
+defmodule NervesHub.ManagedDeployments.DeploymentRelease do
   use Ecto.Schema
 
   import Ecto.Changeset
 
   alias NervesHub.Archives.Archive
-  alias NervesHub.Deployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Accounts.User
 

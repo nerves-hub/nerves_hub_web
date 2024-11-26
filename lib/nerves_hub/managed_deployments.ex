@@ -1,11 +1,11 @@
-defmodule NervesHub.Deployments do
+defmodule NervesHub.ManagedDeployments do
   import Ecto.Query
 
   require Logger
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments.DeploymentGroup
-  alias NervesHub.Deployments.InflightDeploymentCheck
+  alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -120,7 +120,7 @@ defmodule NervesHub.Deployments do
         {:error, :not_found}
 
       {:ok, deployment} ->
-        _ = broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
+        _ = broadcast(:monitor, "deployment_groups/delete", %{deployment_id: deployment.id})
 
         {:ok, deployment}
     end
@@ -164,7 +164,7 @@ defmodule NervesHub.Deployments do
     case result do
       {:ok, {deployment, changeset}} ->
         _ = maybe_trigger_delta_generation(deployment, changeset)
-        :ok = broadcast(deployment, "deployments/update")
+        :ok = broadcast(deployment, "deployment_groups/update")
 
         {:ok, deployment}
 
@@ -180,15 +180,15 @@ defmodule NervesHub.Deployments do
         payload = %{archive_id: archive_id}
         _ = broadcast(deployment, "archives/updated", payload)
 
-        description = "deployment #{deployment.name} has a new archive"
+        description = "deployment group #{deployment.name} has a new archive"
         AuditLogs.audit!(deployment, deployment, description)
 
       {:conditions, _new_conditions} ->
-        description = "deployment #{deployment.name} conditions changed"
+        description = "deployment group #{deployment.name} conditions changed"
         AuditLogs.audit!(deployment, deployment, description)
 
       {:is_active, is_active} when is_active != true ->
-        description = "deployment #{deployment.name} is inactive"
+        description = "deployment group #{deployment.name} is inactive"
         AuditLogs.audit!(deployment, deployment, description)
 
       _ ->
@@ -216,46 +216,6 @@ defmodule NervesHub.Deployments do
   end
 
   @doc """
-  <<<<<<< HEAD
-  =======
-  Create any matching inflight deployment checks for devices
-
-  This includes devices that are already part of the deployment and devices
-  that have no current deployment. They all will be rechecked by `NervesHub.Deployments.Calculator`
-
-  Also clears any previous inflight checks for this deployment.
-  """
-  def schedule_deployment_calculations(deployment_group) do
-    query =
-      Device
-      |> select([d], %{
-        worker: "NervesHub.Workers.DeviceCalculateDeployment",
-        queue: "device_deployment_calculations",
-        args:
-          fragment(
-            "json_build_object('device_id', ?, 'deployment_id', ?::integer)",
-            d.id,
-            ^deployment_group.id
-          )
-      })
-      |> where([d], d.status == :provisioned)
-      |> where(
-        [d],
-        d.deployment_id == ^deployment_group.id or
-          (is_nil(d.deployment_id) and d.product_id == ^deployment_group.product_id)
-      )
-      |> where([d], d.firmware_metadata["platform"] == ^deployment_group.firmware.platform)
-      |> where(
-        [d],
-        d.firmware_metadata["architecture"] == ^deployment_group.firmware.architecture
-      )
-      |> where([d], fragment("? <@ ?", ^deployment_group.conditions["tags"], d.tags))
-
-    Repo.insert_all(Oban.Job, query)
-  end
-
-  @doc """
-  >>>>>>> 0bad5315 (WIP)
   Delete any matching inflight deployment checks for devices
   """
   @spec delete_inflight_checks(DeploymentGroup.t()) :: :ok
@@ -279,7 +239,7 @@ defmodule NervesHub.Deployments do
 
     case Repo.insert(changeset) do
       {:ok, deployment} ->
-        _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
+        _ = broadcast(:monitor, "deployment_groups/new", %{deployment_id: deployment.id})
 
         {:ok, deployment}
 
@@ -292,30 +252,30 @@ defmodule NervesHub.Deployments do
 
   def broadcast(:none, event, payload) do
     message = %Phoenix.Socket.Broadcast{
-      topic: "deployment:none",
+      topic: "deployment_group:none",
       event: event,
       payload: payload
     }
 
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:none", message)
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment_group:none", message)
   end
 
   def broadcast(:monitor, event, payload) do
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
-      "deployment:monitor",
+      "deployment_group:monitor",
       %Phoenix.Socket.Broadcast{event: event, payload: payload}
     )
   end
 
   def broadcast(%DeploymentGroup{id: id}, event, payload) do
     message = %Phoenix.Socket.Broadcast{
-      topic: "deployment:#{id}",
+      topic: "deployment_group:#{id}",
       event: event,
       payload: payload
     }
 
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:#{id}", message)
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment_group:#{id}", message)
   end
 
   @doc """
@@ -349,7 +309,7 @@ defmodule NervesHub.Deployments do
   @spec verify_deployment_membership(Device.t()) :: Device.t()
   def verify_deployment_membership(%Device{deployment_id: deployment_id} = device)
       when not is_nil(deployment_id) do
-    %{deployment: deployment} = device = Repo.preload(device, deployment: :firmware)
+    %{deployment_group: deployment} = device = Repo.preload(device, deployment_group: :firmware)
     bad_architecture = device.firmware_metadata.architecture != deployment.firmware.architecture
     bad_platform = device.firmware_metadata.platform != deployment.firmware.platform
 
@@ -380,6 +340,6 @@ defmodule NervesHub.Deployments do
   def verify_deployment_membership(device), do: device
 
   def preload_with_firmware_and_archive(device, force \\ false) do
-    Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
+    Repo.preload(device, [deployment_group: [:archive, :firmware]], force: force)
   end
 end

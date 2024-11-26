@@ -1,9 +1,9 @@
-defmodule NervesHubWeb.Live.Deployments.EditTest do
+defmodule NervesHubWeb.Live.ManagedDeployments.EditTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
-  alias NervesHub.Deployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Fixtures
 
   test "update the chosen resource, and adds an audit log", %{
@@ -19,7 +19,7 @@ defmodule NervesHubWeb.Live.Deployments.EditTest do
 
     conn =
       conn
-      |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}/edit")
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment.name}/edit")
       |> assert_has("h1", text: "Edit Deployment")
       |> assert_has("a", text: product.name)
       |> fill_in("Deployment name", with: "Moussaka")
@@ -28,11 +28,11 @@ defmodule NervesHubWeb.Live.Deployments.EditTest do
       |> fill_in("Firmware version", with: firmware.id)
       |> click_button("Save Change")
 
-    {:ok, reloaded_deployment} = Deployments.get_deployment(product, deployment.id)
+    {:ok, reloaded_deployment} = ManagedDeployments.get_deployment(product, deployment.id)
 
     conn
     |> assert_path(
-      URI.encode("/org/#{org.name}/#{product.name}/deployments/#{reloaded_deployment.name}")
+      URI.encode("/org/#{org.name}/#{product.name}/deployment_groups/#{reloaded_deployment.name}")
     )
     |> assert_has("div", text: "Deployment updated")
 
@@ -58,13 +58,13 @@ defmodule NervesHubWeb.Live.Deployments.EditTest do
     deployment = Fixtures.deployment_fixture(org, firmware)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}/edit")
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment.name}/edit")
     |> assert_has("h1", text: "Edit Deployment")
     |> assert_has("a", text: product.name)
     |> fill_in("Tag(s) distributed to", with: "")
     |> fill_in("Version requirement", with: "")
     |> click_button("Save Change")
-    |> assert_path("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}/edit")
+    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment.name}/edit")
     |> assert_has("div", text: "should have at least 1 item(s)")
   end
 end

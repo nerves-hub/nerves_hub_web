@@ -9,8 +9,8 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
-  alias NervesHub.Deployments.DeploymentGroup
-  alias NervesHub.Deployments.Orchestrator
+  alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
@@ -85,12 +85,12 @@ defmodule NervesHub.Devices do
     |> where([d], d.product_id == ^product_id)
     |> join(:left, [d], o in assoc(d, :org))
     |> join(:left, [d, o], p in assoc(d, :product))
-    |> join(:left, [d, o, p], dp in assoc(d, :deployment))
+    |> join(:left, [d, o, p], dp in assoc(d, :deployment_group))
     |> join(:left, [d, o, p, dp], f in assoc(dp, :firmware))
     |> Repo.exclude_deleted()
     |> order_by(^sort_devices(sorting))
     |> filtering(filters)
-    |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
+    |> preload([d, o, p, dp, f], org: o, product: p, deployment_group: {dp, firmware: f})
     |> Connections.preload_latest_connection()
     |> Flop.run(flop)
   end
@@ -313,7 +313,7 @@ defmodule NervesHub.Devices do
         {:error, :not_found}
 
       device ->
-        {:ok, Repo.preload(device, [:org, :product, deployment: [:firmware]])}
+        {:ok, Repo.preload(device, [:org, :product, deployment_group: [:firmware]])}
     end
   end
 
@@ -340,9 +340,9 @@ defmodule NervesHub.Devices do
     |> where(identifier: ^identifier)
     |> where(org_id: ^org_id)
     |> join(:left, [d], o in assoc(d, :org))
-    |> join(:left, [d], dp in assoc(d, :deployment))
+    |> join(:left, [d], dp in assoc(d, :deployment_group))
     |> join_and_preload(preload_assoc)
-    |> preload([d, o, dp], org: o, deployment: dp)
+    |> preload([d, o, dp], org: o, deployment_group: dp)
   end
 
   defp join_and_preload(query, nil), do: query
@@ -765,7 +765,7 @@ defmodule NervesHub.Devices do
   end
 
   def resolve_update(device) do
-    deployment = Repo.preload(device.deployment, [:firmware])
+    deployment = Repo.preload(device.deployment_group, [:firmware])
 
     case verify_update_eligibility(device, deployment) do
       {:ok, _device} ->
@@ -776,7 +776,7 @@ defmodule NervesHub.Devices do
           update_available: true,
           firmware_url: url,
           firmware_meta: meta,
-          deployment: deployment,
+          deployment_group: deployment,
           deployment_id: deployment.id
         }
 
@@ -819,7 +819,7 @@ defmodule NervesHub.Devices do
 
   def matches_deployment?(_, _), do: false
 
-  @spec update_deployment(Device.t(), Deployment.t()) :: Device.t()
+  @spec update_deployment(Device.t(), DeploymentGroup.t()) :: Device.t()
   def update_deployment(device, deployment) do
     device
     |> Ecto.Changeset.change()

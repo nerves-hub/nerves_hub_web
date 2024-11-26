@@ -1,4 +1,4 @@
-defmodule NervesHub.Deployments.DeploymentGroup do
+defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   use Ecto.Schema
 
   import Ecto.Changeset
@@ -66,7 +66,7 @@ defmodule NervesHub.Deployments.DeploymentGroup do
     field(:total_updating_devices, :integer, default: 0)
     field(:current_updated_devices, :integer, default: 0)
     field(:inflight_update_expiration_minutes, :integer, default: 60)
-    # TODO: (nshoes) this column is unused, remove after Managed Deploys is done
+    # TODO: (nshoes) this column is unused, remove after Managed Deploys is finished
     field(:recalculation_type, Ecto.Enum, values: [:device, :calculator_queue], default: :device)
 
     timestamps()

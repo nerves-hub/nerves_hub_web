@@ -1,9 +1,9 @@
-defmodule NervesHubWeb.Live.Deployments.New do
+defmodule NervesHubWeb.Live.DeploymentGroup.New do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
-  alias NervesHub.Deployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
 
@@ -13,7 +13,10 @@ defmodule NervesHubWeb.Live.Deployments.New do
 
     if Enum.empty?(firmware) do
       socket
-      |> put_flash(:error, "You must upload a firmware version before creating a deployment")
+      |> put_flash(
+        :error,
+        "You must upload a firmware version before creating a Deployment Group"
+      )
       |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/firmware/upload")
       |> ok()
     else
@@ -33,7 +36,7 @@ defmodule NervesHubWeb.Live.Deployments.New do
 
   @impl Phoenix.LiveView
   def handle_event("select-platform", %{"deployment_group" => %{"platform" => platform}}, socket) do
-    authorized!(:"deployment:create", socket.assigns.org_user)
+    authorized!(:"deployment_group:create", socket.assigns.org_user)
 
     %{product: product} = socket.assigns
 
@@ -53,7 +56,7 @@ defmodule NervesHubWeb.Live.Deployments.New do
 
   # @impl Phoenix.LiveView
   def handle_event("create-deployment", %{"deployment_group" => params}, socket) do
-    authorized!(:"deployment:create", socket.assigns.org_user)
+    authorized!(:"deployment_group:create", socket.assigns.org_user)
 
     %{user: user, org: org, product: product} = socket.assigns
 
@@ -68,7 +71,7 @@ defmodule NervesHubWeb.Live.Deployments.New do
     |> Firmwares.get_firmware(params[:firmware_id])
     |> case do
       {:ok, firmware} ->
-        {firmware, Deployments.create_deployment(params)}
+        {firmware, ManagedDeployments.create_deployment(params)}
 
       {:error, :not_found} ->
         {:error, :not_found}
@@ -83,12 +86,12 @@ defmodule NervesHubWeb.Live.Deployments.New do
         AuditLogs.audit!(
           user,
           deployment,
-          "#{user.name} created deployment #{deployment.name}"
+          "#{user.name} created deployment group #{deployment.name}"
         )
 
         socket
-        |> put_flash(:info, "Deployment created")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployments")
+        |> put_flash(:info, "Deployment Group created")
+        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployment_groups")
         |> noreply()
 
       {_firmware, {:error, changeset}} ->

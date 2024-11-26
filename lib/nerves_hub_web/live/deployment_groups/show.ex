@@ -1,9 +1,9 @@
-defmodule NervesHubWeb.Live.Deployments.Show do
+defmodule NervesHubWeb.Live.DeploymentGroup.Show do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
-  alias NervesHub.Deployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Devices
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Repo
@@ -13,7 +13,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     %{"name" => name} = params
     %{product: product} = socket.assigns
 
-    deployment = Deployments.get_by_product_and_name!(product, name)
+    deployment = ManagedDeployments.get_by_product_and_name!(product, name)
 
     {logs, audit_pager} =
       AuditLogs.logs_for_feed(deployment, %{
@@ -29,11 +29,11 @@ defmodule NervesHubWeb.Live.Deployments.Show do
       |> Map.put(:anchor, "latest-activity")
 
     inflight_updates = Devices.inflight_updates_for(deployment)
-    current_device_count = Deployments.get_deployment_device_count(deployment.id)
+    current_device_count = ManagedDeployments.get_deployment_device_count(deployment.id)
 
     socket
     |> page_title("Deployment - #{deployment.name} - #{product.name}")
-    |> assign(:deployment, deployment)
+    |> assign(:deployment_group, deployment)
     |> assign(:audit_logs, logs)
     |> assign(:audit_pager, audit_pager)
     |> assign(:inflight_updates, inflight_updates)
@@ -54,12 +54,12 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
   @impl Phoenix.LiveView
   def handle_event("toggle", _params, socket) do
-    authorized!(:"deployment:toggle", socket.assigns.org_user)
+    authorized!(:"deployment_group:toggle", socket.assigns.org_user)
 
-    %{deployment: deployment, user: user} = socket.assigns
+    %{deployment_group: deployment, user: user} = socket.assigns
 
     value = !deployment.is_active
-    {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: value})
+    {:ok, deployment} = ManagedDeployments.update_deployment(deployment, %{is_active: value})
 
     active_str = if value, do: "active", else: "inactive"
     description = "#{user.name} marked deployment #{deployment.name} #{active_str}"
@@ -67,24 +67,24 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
     socket
     |> put_flash(:info, "Deployment set #{active_str}")
-    |> assign(:deployment, deployment)
+    |> assign(:deployment_group, deployment)
     |> noreply()
   end
 
   def handle_event("delete", _params, socket) do
-    authorized!(:"deployment:delete", socket.assigns.org_user)
+    authorized!(:"deployment_group:delete", socket.assigns.org_user)
 
-    %{deployment: deployment, org: org, product: product, user: user} = socket.assigns
+    %{deployment_group: deployment, org: org, product: product, user: user} = socket.assigns
 
     description = "#{user.name} deleted deployment #{deployment.name}"
 
     AuditLogs.audit!(user, deployment, description)
 
-    {:ok, _} = Deployments.delete_deployment(deployment)
+    {:ok, _} = ManagedDeployments.delete_deployment(deployment)
 
     socket
     |> put_flash(:info, "Deployment successfully deleted")
-    |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployments")
+    |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployment_groups")
     |> noreply()
   end
 

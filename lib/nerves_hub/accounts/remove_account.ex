@@ -5,7 +5,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.{
     Accounts,
     Firmwares,
-    Deployments.DeploymentGroup,
+    ManagedDeployments.DeploymentGroup,
     Products,
     Repo,
     OrgKey,
@@ -25,7 +25,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.delete_all(:invites, &query_by_org_id(Invite, &1))
     |> Multi.delete_all(:device_certificates, &query_by_org_id(DeviceCertificate, &1))
     |> Multi.delete_all(:ca_certificates, &query_by_org_id(CACertificate, &1))
-    |> Multi.delete_all(:deployments, &query_by_org_id(DeploymentGroup, &1))
+    |> Multi.delete_all(:deployment_groups, &query_by_org_id(DeploymentGroup, &1))
     |> Multi.delete_all(:firmware_deltas, &query_firmware_deltas/1)
     |> Multi.delete_all(:firmware_transfers, &query_by_org_id(FirmwareTransfer, &1))
     |> Multi.merge(&delete_firmwares/1)

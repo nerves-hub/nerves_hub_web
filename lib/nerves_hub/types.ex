@@ -73,7 +73,9 @@ defmodule NervesHub.Types do
       [
         "Elixir.NervesHub.Accounts.Org",
         "Elixir.NervesHub.Accounts.User",
-        "Elixir.NervesHub.Deployments.DeploymentGroup",
+        "Elixir.NervesHub.ManagedDeployments.DeploymentGroup",
+        # TODO: (nshoes) remove after migrating audit_logs actor/resource type
+        "Elixir.NervesHub.Deployments.Deployment",
         "Elixir.NervesHub.Devices.Device",
         "Elixir.NervesHub.Firmwares.Firmware",
         "Elixir.NervesHub.Products.Product"

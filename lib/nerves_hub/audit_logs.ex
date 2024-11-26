@@ -2,7 +2,7 @@ defmodule NervesHub.AuditLogs do
   import Ecto.Query
 
   alias NervesHub.AuditLogs.AuditLog
-  alias NervesHub.Deployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
   alias NimbleCSV.RFC4180, as: CSV
 

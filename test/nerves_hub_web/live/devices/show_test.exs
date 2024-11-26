@@ -388,7 +388,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert Repo.aggregate(NervesHub.Devices.InflightUpdate, :count) == 1
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "deployments/update"}
+      assert_receive %Phoenix.Socket.Broadcast{event: "deployment_groups/update"}
     end
   end
 

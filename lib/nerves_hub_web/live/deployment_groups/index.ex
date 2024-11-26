@@ -1,14 +1,14 @@
-defmodule NervesHubWeb.Live.Deployments.Index do
+defmodule NervesHubWeb.Live.DeploymentGroup.Index do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.Deployments
-  alias NervesHub.Deployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Firmwares.Firmware
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
-    deployments = Deployments.get_deployments_by_product(product.id)
-    counts = Deployments.get_deployment_device_counts_by_product(product.id)
+    deployments = ManagedDeployments.get_deployments_by_product(product.id)
+    counts = ManagedDeployments.get_deployment_device_counts_by_product(product.id)
 
     deployments =
       deployments
@@ -19,7 +19,7 @@ defmodule NervesHubWeb.Live.Deployments.Index do
 
     socket
     |> page_title("Deployments - #{product.name}")
-    |> assign(:deployments, deployments)
+    |> assign(:deployment_groups, deployments)
     |> assign(:counts, counts)
     |> ok()
   end
