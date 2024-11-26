@@ -13,6 +13,12 @@
       ),
       linear-gradient(to right, rgb(99 102 241 / 0%), rgb(99 102 241 / 10%));
   }
+
+  .title {
+    line-height: 30px;
+    font-size: 20px;
+    font-weight: 600;
+  }
 }
 
 html {

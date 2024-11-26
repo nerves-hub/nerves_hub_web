@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.Live.Orgs.Index do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb.LiveView
 
-  def mount(params, _session, socket) do
+  def mount(_params, _session, socket) do
     socket
     |> assign(:page_title, "Organizations")
     |> ok()
