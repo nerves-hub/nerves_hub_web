@@ -18,6 +18,51 @@
     line-height: 30px;
     font-size: 20px;
     font-weight: 600;
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  .subtitle {
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 600;
+  }
+
+  .org-avatar {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    flex-shrink: 0;
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 14px;
+    @apply bg-base-800 text-base-500;
+  }
+
+  .org-block {
+    @apply py-[12px] px-[16px] border-base-700;
+    border-width: 1px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+  }
+
+  .product-block {
+    @apply border-base-700;
+    border-width: 1px;
+    border-radius: 4px;
+    background: var(--background-dark-1, #18181B);
+    box-shadow: var(--sds-size-depth-0) var(--sds-size-depth-400) var(--sds-size-depth-800) var(--sds-size-depth-negative-100) var(--background-dark-2, #141417), var(--sds-size-depth-0) var(--sds-size-depth-100) var(--sds-size-depth-100) var(--sds-size-depth-negative-100) var(--background-dark-2, #141417);
+    flex-grow: 1;
+    max-width: calc(50% - 24px);
+    padding: 16px;
+    background: linear-gradient(90deg, rgba(39, 39, 42, 0.56) 0%, #27272A 100%);
+  }
+
+  .product-title {
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 20px;
   }
 }
 
