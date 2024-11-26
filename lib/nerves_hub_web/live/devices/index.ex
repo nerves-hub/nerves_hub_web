@@ -381,10 +381,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
       filters: socket.assigns.current_filters
     }
 
-    {entries, page} = Devices.filter(product.id, opts)
+    page = Devices.filter(product.id, opts)
 
     statuses =
-      Enum.into(entries, %{}, fn device ->
+      Enum.into(page.entries, %{}, fn device ->
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
 
         {device.identifier, Tracker.connection_status(device)}
@@ -392,10 +392,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(:device_statuses, statuses)
-    |> assign_display_devices(page, entries)
+    |> assign_display_devices(page)
   end
 
-  defp assign_display_devices(%{assigns: %{paginate_opts: paginate_opts}} = socket, page, entries) do
+  defp assign_display_devices(%{assigns: %{paginate_opts: paginate_opts}} = socket, page) do
     paginate_opts =
       paginate_opts
       |> Map.put(:page_number, page.current_page)
@@ -403,7 +403,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> Map.put(:total_pages, page.total_pages)
 
     socket
-    |> assign(:devices, entries)
+    |> assign(:devices, page.entries)
     |> assign(:total_entries, page.total_count)
     |> assign(:paginate_opts, paginate_opts)
   end
