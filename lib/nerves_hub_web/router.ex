@@ -212,7 +212,9 @@ defmodule NervesHubWeb.Router do
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
         NervesHubWeb.Mounts.CurrentPath
-      ] do
+      ],
+      root_layout: {NervesHubWeb.Layouts, :root},
+      layout: {NervesHubWeb.Layouts, :clean} do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
       live("/account/tokens", Live.AccountTokens, :index)
@@ -228,7 +230,9 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser
-      ] do
+        ],
+      root_layout: {NervesHubWeb.Layouts, :root},
+      layout: {NervesHubWeb.Layouts, :live} do
       live("/org/:org_name", Live.Org.Products, :index)
       live("/org/:org_name/new", Live.Org.Products, :new)
       live("/org/:org_name/settings", Live.Org.Settings)

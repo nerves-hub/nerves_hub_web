@@ -20,7 +20,11 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
-  watchers: [npm: ["run", "watch", cd: Path.expand("../assets", __DIR__)]],
+  watchers: [
+    npm: ["run", "watch", cd: Path.expand("../assets", __DIR__)],
+    tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]},
+    esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]}
+  ],
   live_reload: [
     patterns: [
       ~r{priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$},

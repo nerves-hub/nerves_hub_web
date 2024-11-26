@@ -112,7 +112,8 @@ defmodule NervesHubWeb do
   def updated_live_view do
     quote do
       use Phoenix.LiveView,
-        layout: {NervesHubWeb.LayoutView, :live}
+        layout: {NervesHubWeb.LayoutView, :live},
+        container: {:div, class: "h-screen"}
 
       use Gettext, backend: NervesHubWeb.Gettext
 
@@ -160,6 +161,35 @@ defmodule NervesHubWeb do
       use Phoenix.LiveComponent
 
       unquote(view_helpers())
+    end
+  end
+
+  def html do
+    quote do
+      use Phoenix.Component
+
+      # Import convenience functions from controllers
+      import Phoenix.Controller,
+        only: [get_csrf_token: 0, view_module: 1, view_template: 1]
+
+      # Include general helpers for rendering HTML
+      unquote(html_helpers())
+    end
+  end
+
+  defp html_helpers do
+    quote do
+      # HTML escaping functionality
+      import Phoenix.HTML
+      # Core UI components and translation
+      import NervesHubWeb.CoreComponents
+      import NervesHubWeb.Gettext
+
+      # Shortcut for generating JS commands
+      alias Phoenix.LiveView.JS
+
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
     end
   end
 
