@@ -63,6 +63,10 @@ defmodule NervesHub.Devices.Device do
     field(:connecting_code, :string)
     field(:connection_metadata, :map, default: %{})
 
+    field(:deployment_conflict, Ecto.Enum,
+      values: [:bad_architecture, :bad_platform, :bad_architecture_and_platform]
+    )
+
     timestamps()
 
     # Deprecated fields, replaced with device_connections table.

@@ -6,7 +6,6 @@ defmodule NervesHub.Deployments do
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.InflightDeploymentCheck
-  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -277,38 +276,6 @@ defmodule NervesHub.Deployments do
   end
 
   @doc """
-  Find all potential deployments for a device
-
-  Based on the product, firmware platform, firmware architecture, and device tags
-  """
-  def alternate_deployments(device, active \\ [true, false])
-  def alternate_deployments(%Device{firmware_metadata: nil}, _active), do: []
-
-  def alternate_deployments(device, active) do
-    Deployment
-    |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
-    |> preload([_, firmware: f], firmware: f)
-    |> where([d], d.product_id == ^device.product_id)
-    |> where([d], d.is_active in ^active)
-    |> ignore_same_deployment(device)
-    |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
-    |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
-    |> where([d], fragment("?->'tags' <@ to_jsonb(?::text[])", d.conditions, ^device.tags))
-    |> Repo.all()
-    |> Enum.filter(&version_match?(device, &1))
-    |> Enum.sort_by(
-      &{&1.firmware.version, &1.id},
-      fn {a_vsn, a_id}, {b_vsn, b_id} ->
-        case Version.compare(a_vsn, b_vsn) do
-          :lt -> false
-          :eq -> a_id <= b_id
-          :gt -> true
-        end
-      end
-    )
-  end
-
-  @doc """
   Find all potential devices for a deployment
 
   Based on the product, firmware platform, firmware architecture, and device tags
@@ -336,61 +303,36 @@ defmodule NervesHub.Deployments do
 
   def version_match?(_device, _deployment), do: true
 
-  defp ignore_same_deployment(query, %{deployment_id: nil}), do: query
-
-  defp ignore_same_deployment(query, %{deployment_id: deployment_id}) do
-    where(query, [d], d.id != ^deployment_id)
-  end
-
-  @doc """
-  If the device is missing a deployment, find a matching deployment
-
-  Do nothing if a deployment is already set
-  """
-  @spec set_deployment(Device.t()) :: Device.t()
-  def set_deployment(device) do
-    case alternate_deployments(device, [true]) do
-      [] ->
-        Logger.debug("No matching deployments for #{device.identifier}")
-
-        device
-
-      [deployment] ->
-        device
-        |> Devices.update_deployment(deployment)
-        |> preload_with_firmware_and_archive(true)
-
-      [deployment | _] ->
-        Logger.debug(
-          "More than one deployment matches for #{device.identifier}, setting to the first"
-        )
-
-        device
-        |> Devices.update_deployment(deployment)
-        |> preload_with_firmware_and_archive(true)
-    end
-  end
-
-  @spec maybe_set_deployment(Device.t()) :: Device.t()
-  def maybe_set_deployment(%Device{deployment_id: nil} = device), do: set_deployment(device)
-  def maybe_set_deployment(device), do: device
-
   @spec verify_deployment_membership(Device.t()) :: Device.t()
   def verify_deployment_membership(%Device{deployment_id: deployment_id} = device)
       when not is_nil(deployment_id) do
     %{deployment: deployment} = device = Repo.preload(device, deployment: :firmware)
+    bad_architecture = device.firmware_metadata.architecture != deployment.firmware.architecture
+    bad_platform = device.firmware_metadata.platform != deployment.firmware.platform
 
-    if device.firmware_metadata.platform == deployment.firmware.platform and
-         device.firmware_metadata.architecture == deployment.firmware.architecture do
+    reason =
+      cond do
+        bad_architecture and bad_platform ->
+          :bad_architecture_and_platform
+
+        bad_architecture ->
+          :bad_architecture
+
+        bad_platform ->
+          :bad_platform
+
+        true ->
+          nil
+      end
+
+    if reason do
       device
+      |> Ecto.Changeset.change(%{deployment_id: nil, deployment_conflict: reason})
+      |> Repo.update!()
     else
-      Devices.clear_deployment(device)
+      device
     end
   end
 
   def verify_deployment_membership(device), do: device
-
-  def preload_with_firmware_and_archive(device, force \\ false) do
-    Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
-  end
 end
