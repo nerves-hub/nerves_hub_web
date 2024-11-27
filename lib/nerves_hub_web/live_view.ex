@@ -10,6 +10,7 @@ defmodule NervesHubWeb.LiveView do
       if Application.compile_env(:nerves_hub, :new_ui) == true do
         @before_compile NervesHubWeb.LiveView
       end
+
       use NervesHubWeb, :updated_live_view
     end
   end
@@ -23,7 +24,9 @@ defmodule NervesHubWeb.LiveView do
       |> List.last()
       |> Macro.underscore()
       |> Kernel.<>("-new.html")
+
     templates = Phoenix.Template.find_all(root, filename)
+
     case templates do
       [template] ->
         Logger.info("Found New UI page: #{template}")
@@ -38,6 +41,7 @@ defmodule NervesHubWeb.LiveView do
             unquote(ast)
           end
         end
+
       _ ->
         nil
     end

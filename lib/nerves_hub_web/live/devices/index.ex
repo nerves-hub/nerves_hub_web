@@ -13,6 +13,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Tracker
 
   alias Phoenix.Socket.Broadcast
+  alias Phoenix.LiveView.JS
 
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
@@ -554,5 +555,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
         {key, value}
       end
     end
+  end
+
+  def show_menu(id, js \\ %JS{}) do
+    js
+    |> JS.show(transition: "fade-in", to: "##{id}")
+  end
+
+  def hide_menu(id, js \\ %JS{}) do
+    js
+    |> JS.hide(transition: "fade-out", to: "##{id}")
   end
 end

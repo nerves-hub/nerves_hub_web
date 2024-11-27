@@ -175,17 +175,17 @@ defmodule NervesHubWeb.LayoutView do
     <div class="flex gap-4">
       <button class="pager-button" disabled={@page_number < 2} phx-click="paginate" phx-value-page={@page_number - 1}>
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M11.6667 5.83337L7.5 10L11.6667 14.1667" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M11.6667 5.83337L7.5 10L11.6667 14.1667" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </button>
       <button :for={page <- @start_range..@end_range} phx-click="paginate" phx-value-page={page} class={"pager-button #{if page == @page_number do "active-page" end}"}>
         <%= page %>
       </button>
-      <button class="pager-button" :if={@total_pages > @distance} phx-click="paginate" phx-value-page="…">…</button>
+      <button :if={@total_pages > @distance} class="pager-button" phx-click="paginate" phx-value-page="…">…</button>
       <button class="pager-button" phx-click="paginate" phx-value-page={@total_pages}><%= @total_pages %></button>
-      <button class="pager-button" :if={@page_number < @total_pages} phx-click="paginate" phx-value-page={@page_number + 1}>
+      <button :if={@page_number < @total_pages} class="pager-button" phx-click="paginate" phx-value-page={@page_number + 1}>
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M8.3335 5.83337L12.5002 10L8.3335 14.1667" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8.3335 5.83337L12.5002 10L8.3335 14.1667" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </button>
     </div>

@@ -73,9 +73,25 @@
     display: none;
   }
 
+  .listing tbody tr:hover {
+    @apply bg-base-800;
+  }
+
   .listing td {
     padding: 6px 16px;
     text-align: left;
+  }
+
+  .tag {
+    @apply rounded-md bg-base-800;
+    display: flex;
+    padding: 2px 4px;
+    align-items: center;
+    gap: 8px;
+
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px; 
   }
 
   .title {
@@ -141,15 +157,17 @@
   }
 
   .product-block {
-    @apply border-base-700;
+    @apply border-base-700 bg-base-900;
     border-width: 1px;
     border-radius: 4px;
-    background: var(--background-dark-1, #18181B);
-    box-shadow: var(--sds-size-depth-0) var(--sds-size-depth-400) var(--sds-size-depth-800) var(--sds-size-depth-negative-100) var(--background-dark-2, #141417), var(--sds-size-depth-0) var(--sds-size-depth-100) var(--sds-size-depth-100) var(--sds-size-depth-negative-100) var(--background-dark-2, #141417);
     flex-grow: 1;
     max-width: calc(50% - 24px);
     padding: 16px;
     background: linear-gradient(90deg, rgba(39, 39, 42, 0.56) 0%, #27272A 100%);
+  }
+
+  .menu-box {
+    @apply bg-base-900 border border-base-700 py-[12px] px-[16px] rounded-md;
   }
 
   .product-title {

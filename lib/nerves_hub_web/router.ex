@@ -238,7 +238,7 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser
-        ],
+      ],
       root_layout: @root_layout,
       layout: @layout do
       live("/org/:org_name", Live.Org.Products, :index)
