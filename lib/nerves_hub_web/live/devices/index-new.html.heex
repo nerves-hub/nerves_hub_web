@@ -238,11 +238,16 @@
     </div>
   </div>
 
-  <table class="table table-sm table-hover pb-[64px]">
+  <table class="listing pb-[64px]">
     <thead>
       <tr>
-        <th>
-          <input class="checkbox" title="Check/uncheck all" {[checked: Enum.count(@selected_devices) == Enum.count(@devices)]} id="toggle-all" name="toggle-all" type="checkbox" phx-click="select-all" />
+        <th class="checkbox">
+          <input class="checkbox" checked={Enum.any?(@selected_devices)} id="check-uncheck" title="Check/uncheck all" {[checked: Enum.count(@selected_devices) == Enum.count(@devices)]} id="toggle-all" name="toggle-all" type="checkbox" phx-click="select-all" />
+          <label for="check-uncheck">
+            <svg :if={Enum.any?(@selected_devices)} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 6H6H10" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </label>
         </th>
         <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
         <th>Firmware</th>
@@ -253,14 +258,20 @@
         <th></th>
       </tr>
     </thead>
+    <tbody>
     <%= for device <- @devices do %>
       <tr class={
         if device.id in @selected_devices do
           "selected-row"
         end
       }>
-        <td>
-          <input class="checkbox" {if device.id in @selected_devices, do: [checked: true], else: []} type="checkbox" id={"#{device.id}-select"} phx-value-id={device.id} phx-click="select" />
+        <td class="checkbox">
+          <input id={"checkbox-device-#{device.id}"} class="checkbox" {if device.id in @selected_devices, do: [checked: true], else: []} type="checkbox" id={"#{device.id}-select"} phx-value-id={device.id} phx-click="select" />
+          <label for={"checkbox-device-#{device.id}"}>
+            <svg :if={device.id in @selected_devices} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2.5 6.5L4.5 8.5L10 3" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </label>
         </td>
         <td>
           <div class="mobile-label help-text">Identifier</div>
@@ -363,6 +374,7 @@
         </td>
       </tr>
     <% end %>
+    </tbody>
   </table>
   <div class="sticky-pager col-start-2 col-end-4">
     <%= for size <- @paginate_opts.page_sizes do %>
