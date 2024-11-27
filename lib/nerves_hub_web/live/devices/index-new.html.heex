@@ -14,9 +14,24 @@
     </p>
   </div>
 <% else %>
-  <div class="">
+  <div class="listing-header">
+    <h1 class="title">All devices</h1>
+    <div class="badge mr-auto"><%= @total_entries %></div>
+    <a class="action-button" aria-label="Export devices" href={Routes.product_path(@socket, :devices_export, @org.name, @product.name)}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10.0002 3.33325L6.66683 6.66659M10.0002 3.33325L13.3335 6.66659M10.0002 3.33325L10.0002 13.3333M3.3335 16.6666L16.6668 16.6666" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="action-text">Export</span>
+    </a>
+    <.link class="action-button" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"} aria-label="Add new device">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="action-text">Add Device</span>
+    </.link>
+  </div>
+  <div class="listing-body">
     <div class="">
-      <h1 class="title">All devices</h1>
       <button
         class={"btn btn-outline-light btn-action #{if @show_filters, do: "btn-filter-hide", else: "btn-filter-show"}"}
         type="button"
@@ -29,18 +44,10 @@
         <span class="button-icon filter"></span>
       </button>
       <p class="ml-2" style="opacity: 0.7;">
-        <%= @total_entries %> devices found <span :if={Enum.count(@selected_devices) > 0}>(<%= Enum.count(@selected_devices) %> selected)</span>
+        <%= @total_entries %> devices found<span :if={Enum.count(@selected_devices) > 0}>(<%= Enum.count(@selected_devices) %> selected)</span>
       </p>
     </div>
     <div>
-      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href={Routes.product_path(@socket, :devices_export, @org.name, @product.name)}>
-        <div class="button-icon download"></div>
-        <span class="action-text">Export</span>
-      </a>
-      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"} class="btn btn-outline-light btn-action" aria-label="Add new device">
-        <div class="button-icon add"></div>
-        <span class="action-text">Add Device</span>
-      </.link>
     </div>
   </div>
 

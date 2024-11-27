@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.Index do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb.LiveView
 
   require Logger
 

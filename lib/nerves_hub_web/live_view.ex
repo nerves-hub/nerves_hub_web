@@ -2,6 +2,9 @@ defmodule NervesHubWeb.LiveView do
   @moduledoc """
   Switches in a -new.html.heex template if the new_ui == true in compile-time config.
   """
+
+  require Logger
+
   defmacro __using__(_opts) do
     quote do
       if Application.compile_env(:nerves_hub, :new_ui) == true do
@@ -23,6 +26,7 @@ defmodule NervesHubWeb.LiveView do
     templates = Phoenix.Template.find_all(root, filename)
     case templates do
       [template] ->
+        Logger.info("Found New UI page: #{template}")
         ext = template |> Path.extname() |> String.trim_leading(".") |> String.to_atom()
         engine = Map.fetch!(Phoenix.Template.engines(), ext)
         ast = engine.compile(template, filename)

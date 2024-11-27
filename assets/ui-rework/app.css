@@ -20,6 +20,12 @@
     grid-template-rows: [top] 56px [body-top] auto [bottom];
   }
 
+  .listing-header {
+    @apply flex items-center gap-4;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
   .title {
     line-height: 30px;
     font-size: 20px;
@@ -32,6 +38,21 @@
     font-size: 16px;
     font-style: normal;
     font-weight: 600;
+  }
+
+  .badge {
+    @apply rounded-sm bg-base-800 text-base-300 px-[4px] py-[2px];
+    font-size: 12px;
+  }
+
+  .action-button {
+    @apply border border-base-600 bg-base-800 text-base-300;
+    display: flex;
+    gap: 8px;
+    padding: 6px 12px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
   }
 
   .org-avatar {
