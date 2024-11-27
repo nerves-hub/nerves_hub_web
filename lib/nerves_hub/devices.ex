@@ -109,7 +109,13 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
-  @spec filter(integer(), map()) :: {list(Device.t()), Flop.Meta.t()}
+  @spec filter(integer(), map()) :: %{
+          entries: list(Device.t()),
+          current_page: non_neg_integer(),
+          page_size: non_neg_integer(),
+          total_pages: non_neg_integer(),
+          total_count: non_neg_integer()
+        }
   def filter(product_id, opts) do
     pagination = Map.get(opts, :pagination, %{})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
@@ -124,6 +130,16 @@ defmodule NervesHub.Devices do
     |> filtering(filters)
     |> order_by(^sort_devices(sorting))
     |> Flop.run(flop)
+    |> then(fn {entries, meta} ->
+      meta
+      |> Map.take([
+        :current_page,
+        :page_size,
+        :total_pages,
+        :total_count
+      ])
+      |> Map.put(:entries, entries)
+    end)
   end
 
   def get_minimal_device_location_by_org_id_and_product_id(org_id, product_id) do

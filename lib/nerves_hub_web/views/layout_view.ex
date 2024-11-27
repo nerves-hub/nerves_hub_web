@@ -96,7 +96,7 @@ defmodule NervesHubWeb.LayoutView do
       })
 
     ~H"""
-    <div class="btn-group btn-group-toggle">
+    <div class="btn-group btn-group-toggle btn-group-gap">
       <div :if={@page_number > 1}>
         <%= link("&lt;&lt;",
           to: "?page=#{@page_number - 1}#{@anchor}",
@@ -133,9 +133,12 @@ defmodule NervesHubWeb.LayoutView do
       Map.merge(opts, %{start_range: start_range, end_range: end_range, distance: distance})
 
     ~H"""
-    <div class="btn-group btn-group-toggle">
-      <div :if={@page_number > 1}>
-        <button class="btn btn-secondary btn-sm " phx-click="paginate" phx-value-page={@page_number - 1}>&lt;&lt;</button>
+    <div class="btn-group btn-group-toggle btn-group-gap">
+      <div :if={@start_range > 1}>
+        <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page="1">1</button>
+      </div>
+      <div :if={@start_range > 2}>
+        <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page="…">…</button>
       </div>
       <div :for={page <- @start_range..@end_range}>
         <button phx-click="paginate" phx-value-page={page} class={"btn btn-secondary btn-sm #{if page == @page_number do "active" end}"}>
@@ -147,6 +150,9 @@ defmodule NervesHubWeb.LayoutView do
       </div>
       <div>
         <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page={@total_pages}><%= @total_pages %></button>
+      </div>
+      <div :if={@page_number > 1}>
+        <button class="btn btn-secondary btn-sm " phx-click="paginate" phx-value-page={@page_number - 1}>&lt;&lt;</button>
       </div>
       <div :if={@page_number < @total_pages}>
         <button class="btn btn-secondary btn-sm " phx-click="paginate" phx-value-page={@page_number + 1}>&gt;&gt;</button>
