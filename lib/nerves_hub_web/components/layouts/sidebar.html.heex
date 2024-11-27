@@ -33,21 +33,21 @@
         </li>
       </ul>
     </nav>
-  </div>
-  <div class="sticky bottom-[16px] col-start-1 col-end-2">
-    <a href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-white hover:bg-indigo-700">
+    <div class="sticky bottom-0 mt-auto col-start-1 col-end-2">
+      <a href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-white hover:bg-indigo-700">
 
 
-    <div class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
-        <span class="font-medium text-gray-600 dark:text-gray-300"><%= String.split(@user.name) |> Enum.map(fn w -> String.at(w, 0) end) %></span>
+      <div class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
+          <span class="font-medium text-gray-600 dark:text-gray-300"><%= String.split(@user.name) |> Enum.map(fn w -> String.at(w, 0) end) %></span>
+      </div>
+
+      <div class="">
+        <div class="sr-only">Your profile</div>
+        <div aria-hidden="true" class="text-sm font-light"><%= @user.name %></div>
+        <div aria-hidden="true" class="text-xs font-light text-[#A1A1AA]"><%= @user.email %></div>
+      </div>
+      </a>
     </div>
-
-    <div class="">
-      <div class="sr-only">Your profile</div>
-      <div aria-hidden="true" class="text-sm font-light"><%= @user.name %></div>
-      <div aria-hidden="true" class="text-xs font-light text-[#A1A1AA]"><%= @user.email %></div>
-    </div>
-    </a>
   </div>
   <div class="col-start-2 col-end-4 row-start-2 row-end-3">
     <%= @inner_content %>

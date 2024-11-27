@@ -29,34 +29,22 @@
       </svg>
       <span class="action-text">Add Device</span>
     </.link>
-  </div>
-  <div class="listing-body">
-    <div class="">
-      <button
-        class={"btn btn-outline-light btn-action #{if @show_filters, do: "btn-filter-hide", else: "btn-filter-show"}"}
-        type="button"
-        phx-click="toggle-filters"
-        phx-value-toggle={to_string(@show_filters)}
-      >
-        <span class="action-text">
-          <%= if @show_filters, do: "Hide Filters", else: "Show Filters" %>
-        </span>
-        <span class="button-icon filter"></span>
-      </button>
-      <p class="ml-2" style="opacity: 0.7;">
-        <%= @total_entries %> devices found<span :if={Enum.count(@selected_devices) > 0}>(<%= Enum.count(@selected_devices) %> selected)</span>
-      </p>
-    </div>
-    <div>
-    </div>
+    <button
+      class="action-button"
+      type="button"
+      phx-click="toggle-filters"
+      phx-value-toggle={to_string(@show_filters)}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M15.0002 3.33325H5.00022C4.07974 3.33325 3.31217 4.09102 3.53926 4.98304C4.03025 6.91168 5.36208 8.50445 7.12143 9.34803C7.80715 9.67683 8.33355 10.3214 8.33355 11.0819V16.1516C8.33355 16.771 8.98548 17.174 9.53956 16.8969L11.2062 16.0636C11.4886 15.9224 11.6669 15.6339 11.6669 15.3182V11.0819C11.6669 10.3214 12.1933 9.67683 12.879 9.34803C14.6384 8.50445 15.9702 6.91168 16.4612 4.98304C16.6883 4.09102 15.9207 3.33325 15.0002 3.33325Z" stroke="#A1A1AA" stroke-width="1.2"/>
+      </svg>
+      <span class="action-text">
+        <%= if @show_filters, do: "Hide Filters", else: "Show Filters" %>
+      </span>
+    </button>
   </div>
 
   <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex; gap: 4px;">
-    <%= for size <- @paginate_opts.page_sizes do %>
-      <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"btn btn-secondary btn-sm #{if size == @paginate_opts.page_size, do: "active"}"}>
-        <%= size %>
-      </button>
-    <% end %>
   </div>
   <%= if @show_filters do %>
     <div class="filter-wrapper">
@@ -250,7 +238,7 @@
     </div>
   </div>
 
-  <table class="table table-sm table-hover">
+  <table class="table table-sm table-hover pb-[64px]">
     <thead>
       <tr>
         <th>
@@ -376,5 +364,15 @@
       </tr>
     <% end %>
   </table>
-  <%= pagination_links(@paginate_opts) %>
+  <div class="sticky-pager col-start-2 col-end-4">
+    <%= for size <- @paginate_opts.page_sizes do %>
+      <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"pager-button #{if size == @paginate_opts.page_size, do: "active-page"}"}>
+        <%= size %>
+      </button>
+    <% end %>
+    <div class="ml-auto">
+      <%= reworked_pager(@paginate_opts) %>
+    </div>
+  </div>
+
 <% end %>

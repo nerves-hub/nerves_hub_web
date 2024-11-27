@@ -55,6 +55,21 @@
     border-radius: 4px;
   }
 
+  .sticky-pager {
+    @apply sticky flex flex-row bottom-0 border-0 bg-base-950 border-t border-t-base-700 px-[24px] py-[16px];
+  }
+
+  .pager-button {
+    @apply rounded-sm px-[12px] py-[6px];
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+
+  .active-page {
+    @apply bg-base-800;
+  }
+
   .org-avatar {
     width: 32px;
     height: 32px;

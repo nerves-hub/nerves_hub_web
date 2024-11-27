@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
   import NervesHubWeb.LayoutView,
-    only: [pagination_links: 1]
+    only: [pagination_links: 1, reworked_pager: 1]
 
   @list_refresh_time 10_000
 
