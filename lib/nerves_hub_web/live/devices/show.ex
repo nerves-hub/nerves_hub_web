@@ -42,6 +42,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
     |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
     |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
+    |> assign(:extension_overrides, extension_overrides(device, product))
     |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
@@ -372,5 +373,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp has_description?(description) do
     is_binary(description) and byte_size(description) > 0
+  end
+
+  defp extension_overrides(device, product) do
+    device.extensions
+    |> Map.from_struct()
+    |> Enum.filter(fn {extension, enabled} ->
+      enabled == false and product.extensions[extension]
+    end)
+    |> Enum.map(&elem(&1, 0))
   end
 end

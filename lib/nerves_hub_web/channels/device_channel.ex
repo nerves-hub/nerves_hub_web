@@ -49,7 +49,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
     send(self(), :device_registation)
 
-    # Get device extension capabilities
+    # Request device extension capabilities
     push(socket, "extensions:get", %{})
 
     socket =

@@ -84,11 +84,12 @@
         name={key}
         type="checkbox"
         class="checkbox"
-        disabled={Map.get(@device.product.extensions, key) != true}
-        checked={Map.get(@device.extensions, key, false) == true}
         phx-click="update-extension"
         phx-value-extension={key}
-        disabled={!authorized?(:"device:update", @org_user)}
+        checked={@device.extensions[key]}
+        phx-click="update-extension"
+        phx-value-extension={key}
+        disabled={not @device.product.extensions[key] or !authorized?(:"device:update", @org_user)}
       />
     </td>
     <td class="ff-m">
