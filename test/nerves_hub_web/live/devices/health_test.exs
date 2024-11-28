@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.Devices.HealthTest do
   use NervesHubWeb.ConnCase.Browser, async: false
+  use Phoenix.HTML
 
   alias NervesHub.Devices.DeviceMetric
 
@@ -142,6 +143,36 @@ defmodule NervesHubWeb.Devices.HealthTest do
       render(view)
     end)
     |> assert_has("canvas")
+  end
+
+  test "assert metrics data is correctly structured for js graphs", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    now = DateTime.now!("Etc/UTC")
+    value = 0.55
+
+    assert {:ok, _} =
+             %{
+               device_id: device.id,
+               key: "load_1min",
+               value: value,
+               inserted_at: now
+             }
+             |> DeviceMetric.save_with_timestamp()
+             |> Repo.insert()
+
+    {:ok, _view, html} =
+      live(conn, "/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health")
+
+    organized_metrics =
+      ~s([{"y":#{value},"x":"#{now}"}])
+      |> html_escape()
+      |> safe_to_string()
+
+    assert html =~ ~s(data-metrics="#{organized_metrics}")
   end
 
   defp save_metrics_with_timestamp(device_id, timestamp) do
