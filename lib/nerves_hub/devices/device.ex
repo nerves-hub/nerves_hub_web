@@ -6,8 +6,8 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Accounts.Org
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Extensions.ExtensionsSetting
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Products.Product
 
@@ -39,7 +39,7 @@ defmodule NervesHub.Devices.Device do
   schema "devices" do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:product, Product, where: [deleted_at: nil])
-    belongs_to(:deployment, Deployment)
+    belongs_to(:deployment_group, DeploymentGroup, foreign_key: :deployment_id)
     embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)

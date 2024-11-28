@@ -7,7 +7,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
       states: [:available, :scheduled, :executing]
     ]
 
-  alias NervesHub.{Deployments, Firmwares}
+  alias NervesHub.{ManagedDeployments, Firmwares}
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"source_id" => source_id, "target_id" => target_id}}) do
@@ -16,8 +16,8 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
 
     {:ok, _firmware_delta} = maybe_create_firmware_delta(source, target)
 
-    Enum.each(Deployments.get_deployments_by_firmware(target_id), fn deployment ->
-      Deployments.broadcast(deployment, "deployments/update")
+    Enum.each(ManagedDeployments.get_deployments_by_firmware(target_id), fn deployment ->
+      ManagedDeployments.broadcast(deployment, "deployment_groups/update")
     end)
 
     :ok

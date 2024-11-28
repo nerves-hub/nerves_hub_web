@@ -51,6 +51,6 @@ defmodule NervesHubWeb.API.FallbackController do
   end
 
   defp conflict_error?(error) do
-    error in [:deployments, :firmwares, :devices]
+    error in [:deployment_groups, :firmwares, :devices]
   end
 end

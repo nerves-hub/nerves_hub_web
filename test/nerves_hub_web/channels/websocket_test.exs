@@ -6,8 +6,8 @@ defmodule NervesHubWeb.WebsocketTest do
   import TrackerHelper
 
   alias NervesHub.Fixtures
-  alias NervesHub.Deployments
-  alias NervesHub.Deployments.Orchestrator
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
@@ -660,7 +660,7 @@ defmodule NervesHubWeb.WebsocketTest do
             "tags" => ["beta"]
           }
         })
-        |> Deployments.update_deployment(%{is_active: true})
+        |> ManagedDeployments.update_deployment(%{is_active: true})
 
       device =
         Fixtures.device_fixture(
@@ -682,7 +682,7 @@ defmodule NervesHubWeb.WebsocketTest do
         Fixtures.firmware_fixture(org_key, firmware.product, %{version: "0.0.2", dir: tmp_dir})
 
       {:ok, deployment} =
-        Deployments.update_deployment(deployment, %{
+        ManagedDeployments.update_deployment(deployment, %{
           firmware_id: new_firmware.id
         })
 
@@ -757,7 +757,7 @@ defmodule NervesHubWeb.WebsocketTest do
             "tags" => ["beta", "beta-edge"]
           }
         })
-        |> Deployments.update_deployment(%{is_active: true})
+        |> ManagedDeployments.update_deployment(%{is_active: true})
 
       device =
         Fixtures.device_fixture(
@@ -819,7 +819,7 @@ defmodule NervesHubWeb.WebsocketTest do
             "tags" => ["beta", "beta-edge"]
           }
         })
-        |> Deployments.update_deployment(%{is_active: true})
+        |> ManagedDeployments.update_deployment(%{is_active: true})
 
       device =
         Fixtures.device_fixture(
@@ -850,8 +850,6 @@ defmodule NervesHubWeb.WebsocketTest do
 
       device = Repo.reload(device)
       assert device.deployment_id
-
-      SocketClient.clean_close(socket)
     end
   end
 
@@ -904,7 +902,7 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.clean_close(socket)
     end
 
-    test "vaild certificate expired signer can connect", %{user: user, tmp_dir: tmp_dir} do
+    test "valid certificate expired signer can connect", %{user: user, tmp_dir: tmp_dir} do
       org = Fixtures.org_fixture(user, %{name: "custom_ca_test"})
       {device, _firmware} = device_fixture(tmp_dir, user, %{identifier: @valid_serial}, org)
 
@@ -1039,7 +1037,7 @@ defmodule NervesHubWeb.WebsocketTest do
           },
           archive_id: archive.id
         })
-        |> Deployments.update_deployment(%{is_active: true})
+        |> ManagedDeployments.update_deployment(%{is_active: true})
 
       device =
         Fixtures.device_fixture(
@@ -1087,7 +1085,7 @@ defmodule NervesHubWeb.WebsocketTest do
           },
           archive_id: archive.id
         })
-        |> Deployments.update_deployment(%{is_active: true})
+        |> ManagedDeployments.update_deployment(%{is_active: true})
 
       device =
         Fixtures.device_fixture(
@@ -1138,7 +1136,7 @@ defmodule NervesHubWeb.WebsocketTest do
             "tags" => ["beta"]
           }
         })
-        |> Deployments.update_deployment(%{is_active: true})
+        |> ManagedDeployments.update_deployment(%{is_active: true})
 
       device =
         Fixtures.device_fixture(
@@ -1159,7 +1157,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert_connection_change()
 
-      {:ok, _deployment} = Deployments.update_deployment(deployment, %{archive_id: archive.id})
+      {:ok, _deployment} =
+        ManagedDeployments.update_deployment(deployment, %{archive_id: archive.id})
 
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive

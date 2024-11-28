@@ -1,4 +1,4 @@
-defmodule NervesHub.Deployments.Orchestrator do
+defmodule NervesHub.ManagedDeployments.Orchestrator do
   @moduledoc """
   Orchestration process to handle passing out updates to devices
 
@@ -24,7 +24,7 @@ defmodule NervesHub.Deployments.Orchestrator do
   end
 
   def name(deployment_id) when is_integer(deployment_id) do
-    {:via, Registry, {NervesHub.Deployments, deployment_id}}
+    {:via, Registry, {NervesHub.ManagedDeployments, deployment_id}}
   end
 
   def name(deployment), do: name(deployment.id)
@@ -49,9 +49,9 @@ defmodule NervesHub.Deployments.Orchestrator do
   As devices update and reconnect, the new orchestrator is told that the update
   was successful, and the process is repeated.
   """
-  @decorate with_span("Deployments.Orchestrator.trigger_update")
+  @decorate with_span("ManagedDeployments.Orchestrator.trigger_update")
   def trigger_update(deployment) do
-    :telemetry.execute([:nerves_hub, :deployment, :trigger_update], %{count: 1})
+    :telemetry.execute([:nerves_hub, :deployment_group, :trigger_update], %{count: 1})
 
     match_conditions = [
       {:and, {:==, {:map_get, :deployment_id, :"$1"}, deployment.id},
@@ -82,7 +82,7 @@ defmodule NervesHub.Deployments.Orchestrator do
     devices
     |> Enum.take(count)
     |> Enum.each(fn %{device_id: device_id, pid: pid} ->
-      :telemetry.execute([:nerves_hub, :deployment, :trigger_update, :device], %{count: 1})
+      :telemetry.execute([:nerves_hub, :deployment_group, :trigger_update, :device], %{count: 1})
 
       device = %Device{id: device_id}
 
@@ -90,7 +90,7 @@ defmodule NervesHub.Deployments.Orchestrator do
       if Devices.count_inflight_updates_for(deployment) < deployment.concurrent_updates do
         case Devices.told_to_update(device, deployment) do
           {:ok, inflight_update} ->
-            send(pid, {"deployments/update", inflight_update})
+            send(pid, {"deployment_groups/update", inflight_update})
 
           :error ->
             Logger.error(
@@ -108,9 +108,9 @@ defmodule NervesHub.Deployments.Orchestrator do
     {:ok, deployment, {:continue, :boot}}
   end
 
-  @decorate with_span("Deployments.Orchestrator.boot")
+  @decorate with_span("ManagedDeployments.Orchestrator.boot")
   def handle_continue(:boot, deployment) do
-    _ = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+    _ = PubSub.subscribe(NervesHub.PubSub, "deployment_group:#{deployment.id}")
 
     # trigger every 10 minutes, plus a jitter between 1 and 5 seconds, as a back up
     interval = (10 + :rand.uniform(10)) * 60 * 1000
@@ -129,8 +129,8 @@ defmodule NervesHub.Deployments.Orchestrator do
     {:noreply, deployment}
   end
 
-  @decorate with_span("Deployments.Orchestrator.handle_info:deployments/update")
-  def handle_info(%Broadcast{event: "deployments/update"}, deployment) do
+  @decorate with_span("ManagedDeployments.Orchestrator.handle_info:deployment_groups/update")
+  def handle_info(%Broadcast{event: "deployment_groups/update"}, deployment) do
     deployment =
       deployment
       |> Repo.reload()
@@ -142,7 +142,8 @@ defmodule NervesHub.Deployments.Orchestrator do
   end
 
   # Catch all for unknown broadcasts on a deployment
-  def handle_info(%Broadcast{topic: "deployment:" <> _}, deployment), do: {:noreply, deployment}
+  def handle_info(%Broadcast{topic: "deployment_group:" <> _}, deployment),
+    do: {:noreply, deployment}
 
   def handle_info(:trigger, deployment) do
     trigger_update(deployment)
