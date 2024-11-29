@@ -138,6 +138,53 @@
     @apply bg-base-800;
   }
 
+  .sidebar-title {
+    @apply text-base-50;
+    font-size: 16px;
+    font-weight: 600;
+    height: 32px;
+    line-height: 32px;
+  }
+
+  .sidebar-label {
+    @apply text-base-300 text-sm;
+  }
+
+  .sidebar-select {
+    @apply w-full bg-base-900 text-base-400 rounded-[4px] text-sm px-2 py-[6px];
+  }
+
+  .sidebar-text-input {
+    @apply w-full bg-base-900 text-base-400 rounded-[4px] text-sm px-2 py-[6px];
+  }
+
+  .sidebar-apply {
+    @apply bg-purple-600 text-base-50 hover:scale-110;
+    display: flex;
+    padding: 6px 12px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    cursor: pointer;
+  }
+
+  .sidebar-button {
+    @apply bg-base-800 border border-base-600 text-base-50 hover:border-base-400;
+    display: flex;
+    gap: 8px;
+    padding: 6px 12px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    cursor: pointer;
+  }
+
   .org-avatar {
     width: 32px;
     height: 32px;

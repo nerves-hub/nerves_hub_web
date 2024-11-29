@@ -196,6 +196,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_event("select", %{"id" => id_str}, socket) do
+    IO.inspect(id_str)
     id = String.to_integer(id_str)
     selected_devices = socket.assigns.selected_devices
 
