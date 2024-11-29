@@ -17,7 +17,12 @@
   .base-grid {
     display: grid;
     grid-template-columns: [start] 264px [body-start] auto [body-end] 264px [end];
-    grid-template-rows: [top] 56px [body-top] auto [bottom];
+    grid-template-rows: [top] 56px [body-top] auto [body-end] 64px [bottom];
+    min-height: 100vh;
+  }
+
+  .sidebar-main-content {
+    @apply flex flex-col col-start-2 col-end-4 row-start-2 row-end-3;
   }
 
   .listing-header {
@@ -29,7 +34,11 @@
   }
 
   .listing {
-    @apply w-full border-t border-base-700;
+    @apply w-full border-t border-base-700 grow;
+  }
+
+  .listing table {
+    @apply w-full;
   }
 
   .listing th {
@@ -123,8 +132,23 @@
     border-radius: 4px;
   }
 
+  .action-search {
+    @apply flex items-center bg-base-900 text-base-400 border border-base-600 rounded-[4px] text-sm px-2 py-[6px];
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .action-search input {
+    @apply bg-transparent border-transparent text-base-400;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    height: 20px;
+    padding: 0;
+  }
+
   .sticky-pager {
-    @apply sticky flex flex-row bottom-0 border-0 bg-base-950 border-t border-t-base-700 px-[24px] py-[16px];
+    @apply sticky bottom-0 flex flex-row border-0 bg-base-950 border-t border-t-base-700 px-[24px] py-[16px];
   }
 
   .pager-button {
@@ -156,6 +180,21 @@
 
   .sidebar-text-input {
     @apply w-full bg-base-900 text-base-400 rounded-[4px] text-sm px-2 py-[6px];
+  }
+
+  .sidebar-search {
+    @apply flex items-center bg-base-900 text-base-400 border border-base-600 rounded-[4px] text-sm px-2 py-[6px];
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .sidebar-search input {
+    @apply bg-transparent border-transparent text-base-400;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    height: 20px;
+    padding: 0;
   }
 
   .sidebar-apply {

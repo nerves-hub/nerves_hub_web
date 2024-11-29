@@ -20,11 +20,11 @@
 
   <div class="col-start-3 col-end-4 row-start-1 row-end-2 border-b border-l border-base-700"></div>
 
-  <div class="col-start-1 col-end-2 row-start-2 row-end-3 flex flex-col border-r border-[#3F3F46]">
+  <div class="col-start-1 col-end-2 row-start-2 row-end-4 flex flex-col border-r border-[#3F3F46]">
     <div class="flex h-[88px] py-4 pl-6 pr-4 border-b border-r border-[#3F3F46] shrink-0 items-center">
       Org / Product selector
     </div>
-    <nav class="flex flex-col">
+    <nav class="flex grow flex-col">
       <ul role="list" class="flex flex-1 flex-col gap-y-7">
         <li>
           <Navigation.updated_sidebar org={@org} product={@product} />
@@ -45,7 +45,5 @@
       </a>
     </div>
   </div>
-  <div class="col-start-2 col-end-4 row-start-2 row-end-3">
-    <%= @inner_content %>
-  </div>
+  <%= @inner_content %>
 </div>
