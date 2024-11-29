@@ -142,9 +142,9 @@
             </div>
             <!--Show CPU and memory usage if reported. Higher values will be displayed in warningly colors. -->
             <%= if @latest_metrics["cpu_usage_percent"] do %>
-              <div class={"callout #{Utils.cpu_usage_percent_to_status(@latest_metrics["cpu_usage_percent"])}"}>
+              <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["cpu_usage_percent"])}"}>
                 <div class="help-text label">CPU use</div>
-                <%= round(@latest_metrics.cpu_usage_percent) %>%
+                <%= round(@latest_metrics["cpu_usage_percent"]) %>%
               </div>
             <% end %>
             <%= if @latest_metrics["cpu_temp"] do %>
@@ -153,10 +153,16 @@
                 <%= round(@latest_metrics["cpu_temp"]) %>°
               </div>
             <% end %>
-            <%= if @latest_metrics["used_mb"] do %>
-              <div class={"callout #{Utils.memory_to_status(@latest_metrics["used_percent"])}"}>
+            <%= if @latest_metrics["mem_used_mb"] do %>
+              <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["mem_used_percent"])}"}>
                 <div class="help-text label">Memory used</div>
-                <%= round(@latest_metrics["used_mb"]) %>MB (<%= round(@latest_metrics["used_percent"]) %>%)
+                <%= round(@latest_metrics["mem_used_mb"]) %>MB (<%= round(@latest_metrics["mem_used_percent"]) %>%)
+              </div>
+            <% end %>
+            <%= if @latest_metrics["disk_available_kb"] do %>
+              <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["disk_used_percentage"])}"}>
+                <div class="help-text label">Disk used</div>
+                <%= Utils.disk_usage(@latest_metrics) %>
               </div>
             <% end %>
             <!--Display custom metrics, if any. Filters out "timestamp" key.-->

@@ -13,9 +13,9 @@ defmodule NervesHubWeb.Devices.HealthTest do
     "load_15min" => 0.06,
     "load_1min" => 0.55,
     "load_5min" => 0.15,
-    "size_mb" => 7892,
-    "used_mb" => 172,
-    "used_percent" => 2
+    "mem_size_mb" => 7892,
+    "mem_used_mb" => 172,
+    "mem_used_percent" => 2
   }
 
   setup %{fixture: %{device: device}} do
@@ -53,7 +53,9 @@ defmodule NervesHubWeb.Devices.HealthTest do
     |> assert_has("canvas", count: 6)
     |> tap(fn session ->
       # Assert all default metrics except "size_mb" appears as element id:s
-      for metric <- Map.keys(@metrics), metric != "size_mb", do: assert_has(session, "##{metric}")
+      for metric <- Map.keys(@metrics),
+          metric != "mem_size_mb",
+          do: assert_has(session, "##{metric}")
     end)
   end
 

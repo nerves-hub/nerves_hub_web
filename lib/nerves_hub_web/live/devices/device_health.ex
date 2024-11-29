@@ -23,14 +23,17 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     {"load_1min", "Load Average 1 Min"},
     {"load_5min", "Load Average 5 Min"},
     {"load_15min", "Load Average 15 Min"},
-    {"used_mb", "Memory Usage (MB)"},
-    {"used_percent", "Memory Usage (%)"},
+    {"mem_used_mb", "Memory Usage (MB)"},
+    {"mem_used_percent", "Memory Usage (%)"},
+    {"disk_used_percentage", "Disk Usage (%)"},
+    {"cpu_usage_percent", "CPU Usage (%)"},
     {"cpu_temp", "CPU Temperature (Celsius)"}
   ]
 
   # Will not be rendered as chart.
   @no_chart_metrics [
-    "size_mb"
+    "mem_size_mb",
+    "disk_total_kb"
   ]
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
@@ -40,6 +43,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
+      socket.endpoint.subscribe("device:#{device.identifier}:extensions")
     end
 
     socket
@@ -82,7 +86,8 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   def handle_info(:check_health_interval, socket) do
     timer_ref = Process.send_after(self(), :check_health_interval, @check_health_interval)
 
-    socket.endpoint.broadcast("device:#{socket.assigns.device.id}", "check_health", %{})
+    topic = "device:#{socket.assigns.device.id}:extensions"
+    NervesHubWeb.DeviceEndpoint.broadcast(topic, "health:check", %{})
 
     socket
     |> assign(:health_check_timer, timer_ref)
@@ -113,7 +118,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
           socket
       ) do
     charts =
-      create_chart_data(device.id, time_frame, latest_metrics["size_mb"])
+      create_chart_data(device.id, time_frame, latest_metrics["mem_size_mb"])
 
     socket |> assign(:charts, charts)
   end
@@ -238,10 +243,11 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
       "load_" <> _ ->
         cpu_load_max_value(data)
 
-      "used_mb" ->
+      "mem_used_mb" ->
         memory_size
 
-      type when type in ["used_percent", "cpu_temp"] ->
+      type
+      when type in ["mem_used_percent", "cpu_temp", "cpu_usage_percent", "disk_used_percentage"] ->
         100
 
       _ ->
@@ -265,16 +271,12 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> Map.get(:y)
   end
 
-  defp schedule_health_check_timer(socket) do
-    if connected?(socket) and device_health_check_enabled?() do
+  defp schedule_health_check_timer(%{assigns: %{device: device}} = socket) do
+    if connected?(socket) and device.extensions.health do
       timer_ref = Process.send_after(self(), :check_health_interval, 500)
       assign(socket, :health_check_timer, timer_ref)
     else
       assign(socket, :health_check_timer, nil)
     end
-  end
-
-  defp device_health_check_enabled?() do
-    Application.get_env(:nerves_hub, :device_health_check_enabled)
   end
 end

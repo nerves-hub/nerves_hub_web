@@ -7,12 +7,15 @@ defmodule NervesHub.Devices.Metrics do
   @default_metrics [
     "cpu_temp",
     "cpu_usage_percent",
+    "disk_available_kb",
+    "disk_total_kb",
+    "disk_used_percentage",
     "load_15min",
     "load_1min",
     "load_5min",
-    "size_mb",
-    "used_mb",
-    "used_percent"
+    "mem_size_mb",
+    "mem_used_mb",
+    "mem_used_percent"
   ]
 
   def default_metrics, do: @default_metrics
