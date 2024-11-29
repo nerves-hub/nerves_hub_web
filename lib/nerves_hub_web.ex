@@ -77,6 +77,8 @@ defmodule NervesHubWeb do
         layout: {NervesHubWeb.LayoutView, :live},
         container: {:div, class: "h-screen"}
 
+      @new_ui Application.compile_env(:nerves_hub, :new_ui) == true
+
       use Gettext, backend: NervesHubWeb.Gettext
 
       # HTML escaping functionality
@@ -97,7 +99,15 @@ defmodule NervesHubWeb do
       on_mount(Sentry.LiveViewHook)
 
       def ok(socket), do: {:ok, socket}
-      def ok(socket, layout), do: {:ok, socket, layout: {NervesHubWeb.Layouts, layout}}
+
+      def ok(socket, layout) do
+        if @new_ui do
+          {:ok, socket, layout: {NervesHubWeb.Layouts, layout}}
+        else
+          {:ok, socket}
+        end
+      end
+
       def noreply(socket), do: {:noreply, socket}
 
       def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
