@@ -271,8 +271,8 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
     |> Map.get(:y)
   end
 
-  defp schedule_health_check_timer(%{assigns: %{device: device}} = socket) do
-    if connected?(socket) and device.extensions.health do
+  defp schedule_health_check_timer(%{assigns: %{device: device, product: product}} = socket) do
+    if connected?(socket) and product.extensions.health and device.extensions.health do
       timer_ref = Process.send_after(self(), :check_health_interval, 500)
       assign(socket, :health_check_timer, timer_ref)
     else
