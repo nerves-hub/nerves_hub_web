@@ -10,7 +10,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
 
-  test "basic connection to the channel" do
+  test "extensions are requested from device if version is above 2.5.2" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
@@ -18,7 +18,9 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, socket} =
+      subscribe_and_join(socket, DeviceChannel, "device", %{"device_api_version" => "2.5.3"})
+
     assert_push("extensions:get", _)
 
     {:ok, _, _socket} =
