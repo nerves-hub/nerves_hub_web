@@ -16,7 +16,9 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, _} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, _} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+
     assert_push("extensions:get", _extensions)
   end
 
@@ -28,14 +30,21 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+
     assert_push("extensions:get", _extensions)
 
     assert {:ok, attach_list, _} =
-             subscribe_and_join(socket, ExtensionsChannel, "extensions", %{
-               "geo" => "0.0.1",
-               "health" => "0.0.1"
-             })
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{
+                 "geo" => "0.0.1",
+                 "health" => "0.0.1"
+               }
+             )
 
     assert "health" in attach_list
     assert "geo" in attach_list
@@ -49,14 +58,21 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+
     assert_push("extensions:get", _extensions)
 
     assert {:ok, ["health"], _} =
-             subscribe_and_join(socket, ExtensionsChannel, "extensions", %{
-               "goof" => "0.0.1",
-               "health" => "0.0.1"
-             })
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{
+                 "goof" => "0.0.1",
+                 "health" => "0.0.1"
+               }
+             )
   end
 
   test "product with extensions disabled does not suggest attaching anything" do
@@ -70,14 +86,21 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+
     assert_push("extensions:get", _extensions)
 
     assert {:ok, [], _} =
-             subscribe_and_join(socket, ExtensionsChannel, "extensions", %{
-               "geo" => "0.0.1",
-               "health" => "0.0.1"
-             })
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{
+                 "geo" => "0.0.1",
+                 "health" => "0.0.1"
+               }
+             )
   end
 
   test "product with only health suggests only health" do
@@ -90,14 +113,21 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+
     assert_push("extensions:get", _extensions)
 
     assert {:ok, ["health"], _} =
-             subscribe_and_join(socket, ExtensionsChannel, "extensions", %{
-               "geo" => "0.0.1",
-               "health" => "0.0.1"
-             })
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{
+                 "geo" => "0.0.1",
+                 "health" => "0.0.1"
+               }
+             )
   end
 
   test "attached health extension will receive request for health report" do
@@ -108,11 +138,18 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+
     assert_push("extensions:get", _extensions)
 
     assert {:ok, ["health"], socket} =
-             subscribe_and_join(socket, ExtensionsChannel, "extensions", %{"health" => "0.0.1"})
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{"health" => "0.0.1"}
+             )
 
     push(socket, "health:attached")
     assert_push("health:check", _)
@@ -126,11 +163,18 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+
     assert_push("extensions:get", _extensions)
 
     assert {:ok, ["geo"], socket} =
-             subscribe_and_join(socket, ExtensionsChannel, "extensions", %{"geo" => "0.0.1"})
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{"geo" => "0.0.1"}
+             )
 
     push(socket, "geo:attached")
     assert_push("geo:location:request", _)
@@ -144,14 +188,21 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+
     assert_push("extensions:get", _extensions)
 
     assert {:ok, attach_list, socket} =
-             subscribe_and_join(socket, ExtensionsChannel, "extensions", %{
-               "geo" => "0.0.1",
-               "health" => "0.0.1"
-             })
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{
+                 "geo" => "0.0.1",
+                 "health" => "0.0.1"
+               }
+             )
 
     assert "health" in attach_list
     assert "geo" in attach_list
@@ -174,14 +225,21 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
+
     assert_push("extensions:get", _extensions)
 
     assert {:ok, attach_list, socket} =
-             subscribe_and_join(socket, ExtensionsChannel, "extensions", %{
-               "geo" => "0.0.1",
-               "health" => "0.0.1"
-             })
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{
+                 "geo" => "0.0.1",
+                 "health" => "0.0.1"
+               }
+             )
 
     assert "health" in attach_list
     assert "geo" in attach_list
@@ -224,4 +282,16 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
 
     {device, firmware, deployment}
   end
+
+  defp subscribe_and_join_with_default_device_api_version(socket, channel, topic),
+    do: subscribe_and_join(socket, channel, topic, %{"device_api_version" => "2.5.3"})
+
+  defp subscribe_and_join_with_default_device_api_version(socket, channel, topic, payload),
+    do:
+      subscribe_and_join(
+        socket,
+        channel,
+        topic,
+        Map.merge(%{"device_api_version" => "2.5.3"}, payload)
+      )
 end
