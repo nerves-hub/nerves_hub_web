@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
@@ -32,7 +33,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     updates: "",
     has_no_tags: false,
     alarm_status: "",
-    alarm: ""
+    alarm: "",
+    metrics_key: "",
+    metrics_operator: "gt",
+    metrics_value: ""
   }
 
   @filter_types %{
@@ -46,7 +50,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     updates: :string,
     has_no_tags: :boolean,
     alarm_status: :string,
-    alarm: :string
+    alarm: :string,
+    metrics_key: :string,
+    metrics_operator: :string,
+    metrics_value: :string
   }
 
   @default_page 1
@@ -85,14 +92,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:device_tags, "")
     |> assign(:total_entries, 0)
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
+    |> assign(:metrics_keys, Metrics.default_metric_types())
     |> subscribe_and_refresh_device_list_timer()
     |> ok(:sidebar)
   end
 
   def handle_params(unsigned_params, _uri, socket) do
-    filters = Map.merge(@default_filters, filter_changes(unsigned_params))
-    changes = pagination_changes(unsigned_params)
-    pagination_opts = Map.merge(@default_pagination, changes)
+    filters =
+      Map.merge(@default_filters, filter_changes(unsigned_params))
+
+    pagination_opts = Map.merge(socket.assigns.paginate_opts, pagination_changes(unsigned_params))
 
     socket
     |> assign(:current_sort, Map.get(unsigned_params, "sort", "identifier"))
