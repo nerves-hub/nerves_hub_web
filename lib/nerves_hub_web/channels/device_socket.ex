@@ -1,10 +1,13 @@
 defmodule NervesHubWeb.DeviceSocket do
   use Phoenix.Socket
+  use OpenTelemetryDecorator
 
   require Logger
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Products
   alias NervesHub.Tracker
 
@@ -12,6 +15,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   channel("console", NervesHubWeb.ConsoleChannel)
   channel("device", NervesHubWeb.DeviceChannel)
+  channel("extensions", NervesHubWeb.ExtensionsChannel)
 
   # Default 90 seconds max age for the signature
   @default_max_hmac_age 90
@@ -26,6 +30,7 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @impl Phoenix.Socket.Transport
+  @decorate with_span("Channels.DeviceSocket.terminate")
   def terminate(reason, {_channels_info, socket} = state) do
     on_disconnect(reason, socket)
     super(reason, state)
@@ -40,12 +45,18 @@ defmodule NervesHubWeb.DeviceSocket do
     super(msg, {state, socket})
   end
 
+  @decorate with_span("Channels.DeviceSocket.heartbeat")
   defp heartbeat(
          %Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"},
-         %{assigns: %{device: device}} = socket
+         %{
+           assigns: %{
+             reference_id: ref_id,
+             device: device
+           }
+         } = socket
        ) do
     if heartbeat?(socket) do
-      {:ok, _device} = Devices.device_heartbeat(device)
+      {:ok, _device_connection} = Connections.device_heartbeat(ref_id)
 
       _ =
         socket.endpoint.broadcast_from(
@@ -77,13 +88,14 @@ defmodule NervesHubWeb.DeviceSocket do
 
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
+  @decorate with_span("Channels.DeviceSocket.connect")
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}})
       when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
     |> Devices.get_device_certificate_by_x509()
     |> case do
       {:ok, %{device: %Device{} = device}} ->
-        socket_and_assigns(socket, device)
+        socket_and_assigns(socket, Devices.preload_product(device))
 
       error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
@@ -96,6 +108,7 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
+  @decorate with_span("Channels.DeviceSocket.connect")
   def connect(_params, socket, %{x_headers: x_headers})
       when is_list(x_headers) and length(x_headers) > 0 do
     headers = Map.new(x_headers)
@@ -106,7 +119,7 @@ defmodule NervesHubWeb.DeviceSocket do
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
          {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_opts),
          {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
-      socket_and_assigns(socket, device)
+      socket_and_assigns(socket, Devices.preload_product(device))
     else
       error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
@@ -179,10 +192,6 @@ defmodule NervesHubWeb.DeviceSocket do
 
   defp get_or_maybe_create_device(_auth, _identifier), do: {:error, :bad_identifier}
 
-  defp generate_reference_id() do
-    Base.encode32(:crypto.strong_rand_bytes(2), padding: false)
-  end
-
   defp max_hmac_age() do
     Application.get_env(:nerves_hub, __MODULE__, [])
     |> Keyword.get(:max_age, @default_max_hmac_age)
@@ -203,27 +212,46 @@ defmodule NervesHubWeb.DeviceSocket do
     socket =
       socket
       |> assign(:device, device)
-      |> assign(:reference_id, generate_reference_id())
 
     {:ok, socket}
   end
 
-  defp on_connect(socket) do
+  @decorate with_span("Channels.DeviceSocket.on_connect#registered")
+  defp on_connect(%{assigns: %{device: %{status: :registered} = device}} = socket) do
+    socket
+    |> assign(device: Devices.set_as_provisioned!(device))
+    |> on_connect()
+  end
+
+  @decorate with_span("Channels.DeviceSocket.on_connect#provisioned")
+  defp on_connect(%{assigns: %{device: device}} = socket) do
+    # Report connection and use connection id as reference
+    {:ok, %DeviceConnection{id: connection_id}} =
+      Connections.device_connected(device.id)
+
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
-      ref_id: socket.assigns.reference_id,
+      ref_id: connection_id,
       identifier: socket.assigns.device.identifier,
       firmware_uuid:
         get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)])
     })
 
-    {:ok, device} = Devices.device_connected(socket.assigns.device)
-
     Tracker.online(device)
 
-    assign(socket, :device, device)
+    socket
+    |> assign(:device, device)
+    |> assign(:reference_id, connection_id)
   end
 
-  defp on_disconnect({:error, reason}, %{assigns: %{device: device, reference_id: reference_id}}) do
+  @decorate with_span("Channels.DeviceSocket.on_disconnect")
+  defp on_disconnect(exit_reason, socket)
+
+  defp on_disconnect({:error, reason}, %{
+         assigns: %{
+           device: device,
+           reference_id: reference_id
+         }
+       }) do
     if reason == {:shutdown, :disconnected} do
       :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
         ref_id: reference_id,
@@ -236,17 +264,23 @@ defmodule NervesHubWeb.DeviceSocket do
     :ok
   end
 
-  defp on_disconnect(_, %{assigns: %{device: device, reference_id: reference_id}}) do
+  defp on_disconnect(_, %{
+         assigns: %{
+           device: device,
+           reference_id: reference_id
+         }
+       }) do
     shutdown(device, reference_id)
   end
 
+  @decorate with_span("Channels.DeviceSocket.shutdown")
   defp shutdown(device, reference_id) do
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
       ref_id: reference_id,
       identifier: device.identifier
     })
 
-    {:ok, device} = Devices.device_disconnected(device)
+    {:ok, _device_connection} = Connections.device_disconnected(reference_id)
 
     Tracker.offline(device)
 

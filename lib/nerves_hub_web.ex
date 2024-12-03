@@ -29,9 +29,9 @@ defmodule NervesHubWeb do
   def controller do
     quote do
       use Phoenix.Controller, namespace: NervesHubWeb
+      use Gettext, backend: NervesHubWeb.Gettext
 
       import Plug.Conn
-      import NervesHubWeb.Gettext
       import Phoenix.LiveView.Controller
       import NervesHub.RoleValidateHelpers
 
@@ -53,9 +53,9 @@ defmodule NervesHubWeb do
   def api_controller do
     quote do
       use Phoenix.Controller, namespace: NervesHubWeb
+      use Gettext, backend: NervesHubWeb.Gettext
 
       import Plug.Conn
-      import NervesHubWeb.Gettext
       import Phoenix.LiveView.Controller
       import NervesHub.RoleValidateHelpers
 
@@ -114,10 +114,10 @@ defmodule NervesHubWeb do
       use Phoenix.LiveView,
         layout: {NervesHubWeb.LayoutView, :live}
 
+      use Gettext, backend: NervesHubWeb.Gettext
+
       # HTML escaping functionality
       import Phoenix.HTML
-      # Translation
-      import NervesHubWeb.Gettext
 
       import NervesHub.Helpers.Authorization
 
@@ -195,11 +195,12 @@ defmodule NervesHubWeb do
         root: "lib/nerves_hub_web/templates",
         namespace: NervesHubWeb
 
+      use Gettext, backend: NervesHubWeb.Gettext
+
       # Import convenience functions from controllers
       import Phoenix.Controller, only: [get_flash: 2, view_module: 1]
 
       import NervesHubWeb.ErrorHelpers
-      import NervesHubWeb.Gettext
 
       alias NervesHubWeb.Router.Helpers, as: Routes
 
@@ -232,7 +233,7 @@ defmodule NervesHubWeb do
   def channel do
     quote do
       use Phoenix.Channel
-      import NervesHubWeb.Gettext
+      use Gettext, backend: NervesHubWeb.Gettext
     end
   end
 
@@ -240,6 +241,7 @@ defmodule NervesHubWeb do
     quote do
       # Use all HTML functionality (forms, tags, etc)
       use Phoenix.HTML
+      use Gettext, backend: NervesHubWeb.Gettext
 
       # Import LiveView helpers (live_render, live_component, live_patch, etc)
       import Phoenix.LiveView.Helpers
@@ -248,7 +250,6 @@ defmodule NervesHubWeb do
       import Phoenix.View
 
       import NervesHubWeb.ErrorHelpers
-      import NervesHubWeb.Gettext
       alias NervesHubWeb.Router.Helpers, as: Routes
     end
   end

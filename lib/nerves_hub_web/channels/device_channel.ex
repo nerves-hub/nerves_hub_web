@@ -6,6 +6,7 @@ defmodule NervesHubWeb.DeviceChannel do
   """
 
   use Phoenix.Channel
+  use OpenTelemetryDecorator
 
   require Logger
 
@@ -14,11 +15,11 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
-  alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
+  @decorate with_span("Channels.DeviceChannel.join")
   def join("device", params, %{assigns: %{device: device}} = socket) do
     with {:ok, device} <- update_metadata(device, params) do
       send(self(), {:after_join, params})
@@ -31,13 +32,9 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:after_join")
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
-    device =
-      device
-      |> Devices.verify_deployment()
-      |> Deployments.set_deployment()
-      |> Repo.preload(:org)
-      |> deployment_preload()
+    device = maybe_update_deployment(device)
 
     maybe_send_public_keys(device, socket, params)
 
@@ -50,11 +47,6 @@ defmodule NervesHubWeb.DeviceChannel do
     subscribe("device:#{device.id}")
     subscribe(deployment_channel)
 
-    if device_health_check_enabled?() do
-      send(self(), :health_check)
-      schedule_health_check()
-    end
-
     send(self(), :device_registation)
 
     socket =
@@ -65,6 +57,12 @@ defmodule NervesHubWeb.DeviceChannel do
       |> assign(:penalty_timer, nil)
       |> maybe_start_penalty_timer()
       |> maybe_send_archive()
+
+    # Request device extension capabilities if possible
+    # Earlier versions of nerves_hub_link don't have a fallback for unknown messages,
+    # so check version before requesting extensions
+    if is_safe_to_request_extensions?(socket.assigns.device_api_version),
+      do: push(socket, "extensions:get", %{})
 
     {:noreply, socket}
   end
@@ -82,6 +80,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:stop, :shutdown, socket}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:device_registration")
   def handle_info({:device_registation, attempt}, socket) do
     %{assigns: %{device: device}} = socket
 
@@ -103,6 +102,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   # We can save a fairly expensive query by checking the incoming deployment's payload
   # If it matches, we can set the deployment directly and only do 3 queries (update, two preloads)
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployments/changed,deployment:none")
   def handle_info(
         %Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload},
         %{assigns: %{device: device}} = socket
@@ -126,6 +126,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, assign_deployment(socket, payload)}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployments/changed")
   def handle_info(
         %Broadcast{event: "deployments/changed", payload: payload},
         %{assigns: %{device: device}} = socket
@@ -143,6 +144,7 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:resolve_changed_deployment")
   def handle_info(:resolve_changed_deployment, %{assigns: %{device: device}} = socket) do
     :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
 
@@ -176,6 +178,7 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployments/update")
   def handle_info({"deployments/update", inflight_update}, %{assigns: %{device: device}} = socket) do
     device = deployment_preload(device)
 
@@ -220,6 +223,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   # Update local state and tell the various servers of the new information
+  @decorate with_span("Channels.DeviceChannel.handle_info:devices-updated")
   def handle_info(%Broadcast{event: "devices/updated"}, %{assigns: %{device: device}} = socket) do
     device = Repo.reload(device)
 
@@ -312,12 +316,6 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(:health_check, socket) do
-    push(socket, "check_health", %{})
-    schedule_health_check()
-    {:noreply, socket}
-  end
-
   def handle_info(%Broadcast{event: "connection:heartbeat"}, socket) do
     # Expected message that is not used here :)
     {:noreply, socket}
@@ -336,7 +334,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("fwup_progress", %{"value" => percent}, %{assigns: %{device: device}} = socket) do
-    device_internal_broadcast!(device, "fwup_progress", %{percent: percent})
+    device_internal_broadcast!(socket, device, "fwup_progress", %{percent: percent})
 
     # if this is the first fwup we see, then mark it as an update attempt
     if socket.assigns[:update_started?] do
@@ -358,16 +356,6 @@ defmodule NervesHubWeb.DeviceChannel do
 
       {:noreply, socket}
     end
-  end
-
-  def handle_in("location:update", location, %{assigns: %{device: device}} = socket) do
-    metadata = Map.put(device.connection_metadata, "location", location)
-
-    {:ok, device} = Devices.update_device(device, %{connection_metadata: metadata})
-
-    device_internal_broadcast!(device, "location:updated", location)
-
-    {:reply, :ok, assign(socket, :device, device)}
   end
 
   def handle_in("connection_types", %{"values" => types}, %{assigns: %{device: device}} = socket) do
@@ -408,40 +396,6 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_in("health_check_report", %{"value" => device_status}, socket) do
-    device_meta =
-      for {key, val} <- Map.from_struct(socket.assigns.device.firmware_metadata),
-          into: %{},
-          do: {to_string(key), to_string(val)}
-
-    # Separate metrics from health report to store in metrics table
-    metrics = device_status["metrics"]
-
-    health_report =
-      device_status
-      |> Map.delete("metrics")
-      |> Map.put("metadata", Map.merge(device_status["metadata"], device_meta))
-
-    device_health = %{"device_id" => socket.assigns.device.id, "data" => health_report}
-
-    with {:health_report, {:ok, _}} <-
-           {:health_report, Devices.save_device_health(device_health)},
-         {:metrics_report, {:ok, _}} <-
-           {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
-      device_internal_broadcast!(socket.assigns.device, "health_check_report", %{})
-    else
-      {:health_report, {:error, err}} ->
-        Logger.warning("Failed to save health check data: #{inspect(err)}")
-        log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save health check data.")
-
-      {:metrics_report, {:error, err}} ->
-        Logger.warning("Failed to save metrics: #{inspect(err)}")
-        log_to_sentry(socket.assigns.device, "[DeviceChannel] Failed to save metrics.")
-    end
-
-    {:noreply, socket}
-  end
-
   def handle_in(msg, params, socket) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.
@@ -477,7 +431,15 @@ defmodule NervesHubWeb.DeviceChannel do
     :ok
   end
 
-  defp log_to_sentry(device, message, extra \\ %{}) do
+  @decorate with_span("Channels.DeviceChannel.maybe_update_deployment")
+  defp maybe_update_deployment(device) do
+    device
+    |> Deployments.preload_with_firmware_and_archive()
+    |> Devices.verify_deployment()
+    |> Deployments.set_deployment()
+  end
+
+  defp log_to_sentry(device, message, extra) do
     Sentry.Context.set_tags_context(%{
       device_identifier: device.identifier,
       device_id: device.id,
@@ -499,15 +461,15 @@ defmodule NervesHubWeb.DeviceChannel do
     Phoenix.PubSub.unsubscribe(NervesHub.PubSub, topic)
   end
 
-  defp device_internal_broadcast!(device, event, payload) do
+  defp device_internal_broadcast!(socket, device, event, payload) do
     topic = "device:#{device.identifier}:internal"
-    NervesHubWeb.DeviceEndpoint.broadcast_from!(self(), topic, event, payload)
+    socket.endpoint.broadcast_from!(self(), topic, event, payload)
   end
 
   defp maybe_send_public_keys(device, socket, params) do
     Enum.each(["fwup_public_keys", "archive_public_keys"], fn key_type ->
       if params[key_type] == "on_connect" do
-        org_keys = NervesHub.Accounts.list_org_keys(device.org)
+        org_keys = NervesHub.Accounts.list_org_keys(device.org_id, false)
 
         push(socket, key_type, %{
           keys: Enum.map(org_keys, fn ok -> ok.key end)
@@ -644,24 +606,6 @@ defmodule NervesHubWeb.DeviceChannel do
     socket
   end
 
-  defp schedule_health_check() do
-    if device_health_check_enabled?() do
-      Process.send_after(self(), :health_check, device_health_check_interval())
-      :ok
-    else
-      :ok
-    end
-  end
-
-  defp device_health_check_enabled?() do
-    Application.get_env(:nerves_hub, :device_health_check_enabled)
-  end
-
-  defp device_health_check_interval() do
-    Application.get_env(:nerves_hub, :device_health_check_interval_minutes)
-    |> :timer.minutes()
-  end
-
   defp device_deployment_change_jitter_ms() do
     jitter = Application.get_env(:nerves_hub, :device_deployment_change_jitter_seconds)
 
@@ -671,4 +615,6 @@ defmodule NervesHubWeb.DeviceChannel do
       0
     end
   end
+
+  defp is_safe_to_request_extensions?(version), do: Version.match?(version, "> 2.5.2")
 end

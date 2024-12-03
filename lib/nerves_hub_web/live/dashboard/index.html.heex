@@ -30,7 +30,8 @@
           location from devices.
         </p>
       </div>
-      <div id="map" class="opacity-50" phx-hook="WorldMap" phx-update="ignore" style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
+      <div id="progress" phx-update="ignore" class="block hidden" style="background-color: cyan;"></div>
+      <div id="map" class="opacity-50" phx-hook="WorldMap" phx-update="ignore" data-mode={@mode} style="height: 720px; background: #2A2D30; margin-top: 48px;"></div>
     <% else %>
       <%= if @loading? do %>
         <div class="no-results-blowup-wrapper no-map-results-positioned">

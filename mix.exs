@@ -12,12 +12,14 @@ defmodule NervesHub.MixProject do
         docs: :docs
       ],
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixir: "~> 1.11",
+      elixir: "~> 1.17.2",
       releases: [
         nerves_hub: [
           steps: [:assemble],
           include_executables_for: [:unix],
           applications: [
+            opentelemetry_exporter: :permanent,
+            opentelemetry: :temporary,
             nerves_hub: :permanent
           ]
         ]
@@ -86,7 +88,7 @@ defmodule NervesHub.MixProject do
       {:finch, "~> 0.19.0"},
       {:floki, ">= 0.27.0", only: :test},
       {:gen_smtp, "~> 1.0"},
-      {:gettext, "~> 0.24.0"},
+      {:gettext, "~> 0.26.1"},
       {:hackney, "~> 1.16"},
       {:hlclock, "~> 1.0"},
       {:jason, "~> 1.2", override: true},
@@ -95,6 +97,17 @@ defmodule NervesHub.MixProject do
       {:mox, "~> 1.0", only: [:test, :dev]},
       {:nimble_csv, "~> 1.1"},
       {:oban, "~> 2.11"},
+      {:opentelemetry_exporter, "~> 1.8"},
+      {:opentelemetry, "~> 1.5"},
+      {:opentelemetry_api, "~> 1.4"},
+      {:opentelemetry_ecto, "~> 1.2"},
+      {:opentelemetry_phoenix, "~> 2.0.0-rc.1 "},
+      {:opentelemetry_oban, "~> 1.0",
+       git: "https://github.com/joshk/opentelemetry-erlang-contrib",
+       branch: "update-obans-semantic-conventions",
+       subdir: "instrumentation/opentelemetry_oban"},
+      {:opentelemetry_bandit, "~> 0.2.0-rc.1"},
+      {:open_telemetry_decorator, "~> 1.5"},
       {:phoenix, "~> 1.7.0"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_html, "~> 3.3.1", override: true},
@@ -107,8 +120,6 @@ defmodule NervesHub.MixProject do
       {:phoenix_test, "~> 0.3.0", only: :test, runtime: false},
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
-      {:scrivener_ecto, "~> 3.0"},
-      {:scrivener_html, git: "https://github.com/nerves-hub/scrivener_html", branch: "phx-1.5"},
       {:sentry, "~> 10.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:sweet_xml, "~> 0.6"},
@@ -117,7 +128,9 @@ defmodule NervesHub.MixProject do
       {:telemetry_metrics_statsd, "~> 0.7.0"},
       {:telemetry_poller, "~> 1.0"},
       {:timex, "~> 3.1"},
-      {:x509, "~> 0.5.1 or ~> 0.6"}
+      {:uuidv7, "~> 1.0"},
+      {:x509, "~> 0.5.1 or ~> 0.6"},
+      {:flop, "~> 0.26.1"}
     ]
   end
 

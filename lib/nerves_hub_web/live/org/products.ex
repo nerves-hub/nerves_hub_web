@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.Org.Products do
   use NervesHubWeb, :updated_live_view
 
+  alias NervesHub.Extensions
   alias NervesHub.Products
   alias NervesHub.Products.Product
 
@@ -31,6 +32,7 @@ defmodule NervesHubWeb.Live.Org.Products do
     socket
     |> page_title("New Product - #{socket.assigns.org.name}")
     |> assign(:form, to_form(Products.change_product(%Product{})))
+    |> assign(:available_extensions, extensions())
     |> render_with(&new_product_template/1)
   end
 
@@ -52,5 +54,11 @@ defmodule NervesHubWeb.Live.Org.Products do
         |> assign(:form, to_form(changeset))
         |> noreply()
     end
+  end
+
+  defp extensions do
+    for extension <- Extensions.list(),
+        into: %{},
+        do: {extension, Extensions.module(extension).description()}
   end
 end

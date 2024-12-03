@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
   pull_request:
 
@@ -26,7 +26,7 @@ jobs:
     services:
       db:
         image: postgres:15
-        ports: ['5432:5432']
+        ports: ["5432:5432"]
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
@@ -121,11 +121,13 @@ jobs:
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        env:
+          DOCKER_METADATA_PR_HEAD_SHA: true
         with:
           images: ghcr.io/nerves-hub/nerves-hub
           tags: |
             # short sha
-            type=sha,enable={{is_default_branch}},prefix=,suffix=,format=short
+            type=sha,prefix=,suffix=,format=short
             # branch image names, except for main
             type=ref,enable=${{ github.ref != format('refs/heads/{0}', 'main') }},event=branch
             # latest tag for main branch
@@ -133,10 +135,27 @@ jobs:
             # tag event (eg. "v1.2.3")
             type=ref,event=tag
 
+      - name: Check if PR publish
+        continue-on-error: true
+        if: ${{ github.event_name == 'pull_request' }}
+        id: pr_publish_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          commits=$(gh pr view ${{ github.event.pull_request.number }} --json commits --jq '.commits[] | .messageHeadline + " " + .messageBody')
+
+          if [[ $commits =~ \[publish\] ]]; then
+            echo "true"
+            echo "publish=true" >> $GITHUB_OUTPUT
+          else
+            echo "false"
+            echo "publish=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and push Docker image
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
           context: .
-          push: ${{ github.ref == 'refs/heads/main' || github.ref_type == 'tag' }}
+          push: ${{ steps.pr_publish_check.outputs.publish == 'true' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref_type == 'tag' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

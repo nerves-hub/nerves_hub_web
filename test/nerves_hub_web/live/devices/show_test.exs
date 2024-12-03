@@ -73,6 +73,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert html =~ "offline"
 
+      Devices.Connections.device_connected(fixture.device.id)
       send(view.pid, %Broadcast{event: "connection:change", payload: %{status: "online"}})
 
       assert render(view) =~ "online"
@@ -230,10 +231,31 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "No health information have been received for this device.")
+      |> assert_has("div", text: "No health information has been received for this device.")
     end
 
-    test "full set of information", %{
+    test "has alarms", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      device_health = %{
+        "device_id" => device.id,
+        "data" => %{"alarms" => %{"SomeAlarm" => "Some description"}}
+      }
+
+      assert {:ok, _} = NervesHub.Devices.save_device_health(device_health)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Health")
+      |> assert_has("div", text: "Current Alarms")
+      |> assert_has("span", text: "SomeAlarm")
+    end
+
+    test "full set of metrics", %{
       conn: conn,
       org: org,
       product: product,
@@ -249,7 +271,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "used_percent" => 60
       }
 
-      assert {:ok, _} = Metrics.save_metrics(device.id, metrics)
+      assert {:ok, 7} = Metrics.save_metrics(device.id, metrics)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -278,7 +300,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "used_percent" => 60
       }
 
-      assert {:ok, _} = Metrics.save_metrics(device.id, metrics)
+      assert {:ok, 6} = Metrics.save_metrics(device.id, metrics)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -288,10 +310,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "0.0 | 0.0 | 0.0")
       |> assert_has("div", text: "Memory used")
       |> assert_has("div", text: "100MB (60%)")
-      |> assert_has("div", text: "CPU")
-      |> assert_has("div", text: "Not reported")
       |> assert_has("span", text: "Last reported :")
-      |> assert_has("time", text: "now")
+      |> assert_has("time", text: "ago")
     end
   end
 

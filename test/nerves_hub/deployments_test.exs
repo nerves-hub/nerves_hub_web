@@ -388,6 +388,38 @@ defmodule NervesHub.DeploymentsTest do
     end
   end
 
+  describe "calculate deployment" do
+    test "matching device without a deployment", state do
+      %{org: org, org_key: org_key, product: product, deployment: deployment} = state
+
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      {:ok, deployment} =
+        Deployments.update_deployment(deployment, %{
+          is_active: true,
+          firmware: firmware,
+          conditions: %{"tags" => ["rpi"]}
+        })
+
+      %Device{} =
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["rpi"], status: :provisioned})
+
+      # this device should not be considered due to different tags
+      %Device{} =
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["foobar"], status: :provisioned})
+
+      Deployments.schedule_deployment_calculations(deployment)
+
+      # Due to the way jobs are created via sql, we can't use the Oban helpers
+      count =
+        Oban.Job
+        |> where([oj], oj.worker == "NervesHub.Workers.DeviceCalculateDeployment")
+        |> Repo.aggregate(:count)
+
+      assert ^count = 1
+    end
+  end
+
   test "alternate_deployments/2 ignores device without firmware metadata" do
     assert [] == Deployments.alternate_deployments(%Device{firmware_metadata: nil})
     assert [] == Deployments.alternate_deployments(%Device{firmware_metadata: nil}, [true])

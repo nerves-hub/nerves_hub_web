@@ -7,6 +7,7 @@ import { LiveSocket } from 'phoenix_live_view'
 import L from 'leaflet/dist/leaflet.js'
 import Chart from 'chart.js/auto'
 import 'chartjs-adapter-date-fns';
+import 'leaflet.markercluster/dist/leaflet.markercluster.js'
 
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
@@ -20,6 +21,8 @@ hljs.registerLanguage('shell', shell)
 
 import 'highlight.js/styles/stackoverflow-light.css'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 
 import TimeAgo from 'javascript-time-ago'
 import en from 'javascript-time-ago/locale/en'
@@ -238,14 +241,17 @@ Hooks.WorldMap = {
     let mapId = this.el.id;
     this.markers = [];
 
-    var mapOptionsNoZoom = {
+    var mapOptionsZoom = {
       attributionControl: false,
-      zoomControl: false,
-      scrollWheelZoom: false,
+      zoomControl: true,
+      scrollWheelZoom: true,
       boxZoom: false,
       doubleClickZoom: false,
-      dragging: false,
-      keyboard: false
+      dragging: true,
+      keyboard: false,
+      maxZoom: 18,
+      minZoom: 1.4,
+      renderer: L.canvas()
     };
 
     var mapStyle = {
@@ -258,7 +264,8 @@ Hooks.WorldMap = {
     };
 
     // initialize the map
-    this.map = L.map(mapId, mapOptionsNoZoom).setView([40.5, 10], 2);
+    this.map = L.map(mapId, mapOptionsZoom).setView([0, 0], 1);
+    this.map.setMaxBounds(this.map.getBounds());
     this.handleEvent(
       "markers",
       ({ markers }) => {
@@ -278,87 +285,49 @@ Hooks.WorldMap = {
     let mode = this.el.dataset.mode;
     var devices = [];
 
-    for (let i = 0; i < markers.length; i++) {
-      let marker = markers[i];
-      let location = marker["location"];
-      if (location["longitude"] !== undefined && location["latitude"] !== undefined) {
-        let newMarker = {
-          type: "Feature",
-          properties: {
-            name: marker["identifier"],
-            status: marker["status"],
-            latest_firmware: marker["latest_firmware"]
-          },
-          geometry: {
-            type: "Point",
-            coordinates: [location["longitude"], location["latitude"]]
-          }
-        }
-        devices.push(newMarker);
-      }
+    var myRenderer = L.canvas({ padding: 0.5 });
+    var clusterLayer = L.markerClusterGroup({ chunkedLoading: true, chunkProgress: this.updateProgressBar });
+
+    var defaultOptions = {
+      radius: 6,
+      weight: 1,
+      opacity: 0,
+      fillOpacity: 1,
+      renderer: myRenderer,
+      fillColor: "#4dd54f"
     }
 
-    var markerConnectedOptions = {
-      radius: 6,
-      fillColor: "#4dd54f",
-      weight: 1,
-      opacity: 0,
-      fillOpacity: 1
-    };
+    var offlineOptions = Object.assign(defaultOptions, { fillColor: "rgba(196,49,49,1)" })
+    var outdatedOptions = Object.assign(defaultOptions, { fillColor: "rgba(99,99,99,1)" })
 
-    var markerOfflineOptions = {
-      radius: 6,
-      fillColor: "rgba(196,49,49,1)",
-      weight: 1,
-      opacity: 0,
-      fillOpacity: 1
-    };
+    var devices = this.markers.reduce(function(acc, marker) {
+      let location = marker["l"]
+      var latLng = [location["at"], location["ng"]]
 
-    var markerUpdatedOptions = {
-      radius: 6,
-      fillColor: "#4dd54f",
-      weight: 1,
-      opacity: 0,
-      fillOpacity: 1
-    };
+      // if no location or we don't care about mode, move on
+      if (!location["ng"] && !location["at"]) return acc
+      if (!["connected", "updated"].includes(mode)) return acc
 
-    var markerOutdatedOptions = {
-      radius: 6,
-      fillColor: "rgba(99,99,99,1)",
-      weight: 1,
-      opacity: 0,
-      fillOpacity: 1
-    };
-
-    // Clear previous defined device layer before adding markers
-    if (this.deviceLayer !== undefined) { this.map.removeLayer(this.deviceLayer); }
-
-    this.deviceLayer = L.geoJson(devices, {
-      pointToLayer: function (feature, latlng) {
-        switch (mode) {
-          case 'connected':
-            if (feature.properties.status == "connected") {
-              return L.circleMarker(latlng, markerConnectedOptions);
-            } else {
-              return L.circleMarker(latlng, markerOfflineOptions);
-            }
-            break;
-          case 'updated':
-            // Only show connected ones, the offline ones are just confusing
-            if (feature.properties.status == "connected") {
-              if (feature.properties.latest_firmware) {
-                return L.circleMarker(latlng, markerUpdatedOptions);
-              } else {
-                return L.circleMarker(latlng, markerOutdatedOptions);
-              }
-            }
-            break;
-          default:
+      if (mode == "connected") {
+        if (marker["s"] == "connected") {
+          acc.push(L.circleMarker(latLng, defaultOptions))
+        } else {
+          acc.push(L.circleMarker(latLng, offlineOptions))
         }
       }
-    });
 
-    this.deviceLayer.addTo(this.map);
+      if (mode == "updated") {
+        if (marker["lf"]) {
+          acc.push(L.circleMarker(latLng, defaultOptions))
+        } else {
+          acc.push(L.circleMarker(latLng, outdatedOptions))
+        }
+      }
+      return acc
+    }, [])
+
+    clusterLayer.addLayers(devices);
+    this.map.addLayer(clusterLayer)
   }
 }
 

@@ -10,7 +10,9 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHubWeb.DeviceEndpoint
@@ -565,21 +567,22 @@ defmodule NervesHubWeb.WebsocketTest do
       assert_connection_change()
 
       assert device = Repo.get_by(Device, identifier: identifier)
+      assert device_connection = Connections.get_latest_for_device(device.id)
 
-      assert device.connection_status == :connected
-      assert recent_datetime(device.connection_established_at)
-      assert recent_datetime(device.connection_last_seen_at)
-      assert device.connection_disconnected_at == nil
+      assert device_connection.status == :connected
+      assert recent_datetime(device_connection.established_at)
+      assert recent_datetime(device_connection.last_seen_at)
+      assert device_connection.disconnected_at == nil
 
-      SocketClient.clean_close(socket)
+      _ = SocketClient.clean_close(socket)
+      :timer.sleep(10)
 
-      eventually assert :disconnected == NervesHub.Repo.reload(device).connection_status
+      assert device_connection = Connections.get_latest_for_device(device.id)
+      assert device_connection.status == :disconnected
 
-      device = NervesHub.Repo.reload(device)
-
-      assert recent_datetime(device.connection_established_at)
-      assert recent_datetime(device.connection_last_seen_at)
-      assert recent_datetime(device.connection_disconnected_at)
+      assert recent_datetime(device_connection.established_at)
+      assert recent_datetime(device_connection.last_seen_at)
+      assert recent_datetime(device_connection.disconnected_at)
     end
 
     defp recent_datetime(datetime) do
@@ -715,7 +718,10 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert_connection_change()
 
-      assert Time.diff(DateTime.utc_now(), updated_device.connection_last_seen_at) < 2
+      %DeviceConnection{last_seen_at: last_seen_at} =
+        Connections.get_latest_for_device(updated_device.id)
+
+      assert Time.diff(DateTime.utc_now(), last_seen_at) < 2
 
       SocketClient.clean_close(socket)
     end

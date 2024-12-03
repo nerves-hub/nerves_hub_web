@@ -30,6 +30,14 @@ defmodule NervesHubWeb.Components.Utils do
     end
   end
 
+  def cpu_usage_percent_to_status(usage) do
+    case usage do
+      usage when usage < 80 -> ""
+      usage when usage < 90 -> "warn"
+      _ -> "danger"
+    end
+  end
+
   def memory_to_status(percent) do
     case percent do
       _ when percent > 80 -> "warn"

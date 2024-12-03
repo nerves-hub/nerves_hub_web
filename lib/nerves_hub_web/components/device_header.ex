@@ -6,7 +6,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
   attr(:org, :any)
   attr(:product, :any)
   attr(:device, :any)
-  attr(:status, :any)
+  attr(:device_connection, :any)
 
   def render(assigns) do
     ~H"""
@@ -20,9 +20,9 @@ defmodule NervesHubWeb.Components.DeviceHeader do
       <div>
         <div class="help-text">Status</div>
         <p class="flex-row align-items-center tt-c">
-          <span><%= @status %></span>
+          <span><%= get_status(@device_connection) %></span>
           <span class="ml-1">
-            <%= if @status in ["offline"] do %>
+            <%= if get_status(@device_connection) == "offline" do %>
               <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
             <% else %>
               <img src="/images/icons/check.svg" alt="online" class="table-icon" />
@@ -33,40 +33,40 @@ defmodule NervesHubWeb.Components.DeviceHeader do
       <div>
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last connected</span>
-          <span :if={@device.connection_established_at} class="tooltip-info"></span>
-          <span :if={@device.connection_established_at} class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
-            <%= @device.connection_established_at %>
+          <span :if={@device_connection} class="tooltip-info"></span>
+          <span :if={@device_connection} class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
+            <%= @device_connection.established_at %>
           </span>
         </div>
         <p>
-          <span :if={!@device.connection_established_at}>Never</span>
+          <span :if={!@device_connection}>Never</span>
           <time
-            :if={@device.connection_established_at}
+            :if={@device_connection}
             id="connection-establisted-at"
             phx-hook="UpdatingTimeAgo"
-            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.connection_established_at, :second)), " ", "T")}
+            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device_connection.established_at, :second)), " ", "T")}
           >
-            <%= Timex.from_now(@device.connection_established_at) %>
+            <%= Timex.from_now(@device_connection.established_at) %>
           </time>
         </p>
       </div>
       <div>
         <div class="help-text mb-1 tooltip-label help-tooltip">
           <span>Last seen</span>
-          <span :if={@device.connection_last_seen_at} class="tooltip-info"></span>
-          <span :if={@device.connection_last_seen_at} class="tooltip-text" id="connection-last-seen-at-tooltip" phx-hook="LocalTime">
-            <%= @device.connection_last_seen_at %>
+          <span :if={@device_connection} class="tooltip-info"></span>
+          <span :if={@device_connection} class="tooltip-text" id="connection-last-seen-at-tooltip" phx-hook="LocalTime">
+            <%= @device_connection.last_seen_at %>
           </span>
         </div>
         <p>
-          <span :if={!@device.connection_last_seen_at}>Never</span>
+          <span :if={!@device_connection}>Never</span>
           <time
-            :if={@device.connection_last_seen_at}
+            :if={@device_connection}
             id="last-communication-at"
             phx-hook="UpdatingTimeAgo"
-            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device.connection_last_seen_at, :second)), " ", "T")}
+            datetime={String.replace(DateTime.to_string(DateTime.truncate(@device_connection.last_seen_at, :second)), " ", "T")}
           >
-            <%= Timex.from_now(@device.connection_last_seen_at) %>
+            <%= Timex.from_now(@device_connection.last_seen_at) %>
           </time>
         </p>
       </div>
@@ -108,4 +108,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
     </div>
     """
   end
+
+  defp get_status(%{status: :connected}), do: "online"
+  defp get_status(_), do: "offline"
 end

@@ -8,8 +8,9 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
+  alias NervesHubWeb.ExtensionsChannel
 
-  test "basic connection to the channel" do
+  test "extensions are requested from device if version is above 2.5.2" do
     user = Fixtures.user_fixture()
     {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
@@ -17,35 +18,16 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
-    assert socket
-    assert_push("check_health", %{})
-  end
+    {:ok, _, socket} =
+      subscribe_and_join(socket, DeviceChannel, "device", %{"device_api_version" => "2.5.3"})
 
-  describe "device location" do
-    test "updates the device location" do
-      user = Fixtures.user_fixture()
-      {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
-      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+    assert_push("extensions:get", _)
 
-      {:ok, socket} =
-        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
-
-      {:ok, _, socket} = subscribe_and_join(socket, DeviceChannel, "device")
-
-      location_payload = %{"source" => "geoip", "latitude" => -41.29710, "longitude" => 174.79320}
-
-      ref = push(socket, "location:update", location_payload)
-      assert_reply(ref, :ok, %{})
-
-      device = NervesHub.Repo.reload(device)
-
-      assert device.connection_metadata["location"] == %{
-               "source" => "geoip",
-               "latitude" => -41.29710,
-               "longitude" => 174.79320
-             }
-    end
+    {:ok, _, _socket} =
+      subscribe_and_join(socket, ExtensionsChannel, "extensions", %{
+        "geo" => "1.0.0",
+        "health" => "1.0.0"
+      })
   end
 
   test "presence connection information" do

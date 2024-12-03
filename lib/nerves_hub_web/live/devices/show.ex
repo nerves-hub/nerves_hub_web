@@ -5,6 +5,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
+  alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Tracker
@@ -19,10 +21,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product} = socket.assigns
 
-    device = Devices.get_device_by_identifier!(org, device_identifier)
+    device = Devices.get_device_by_identifier!(org, device_identifier, :latest_connection)
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
+      socket.endpoint.subscribe("device:console:#{device.id}:internal")
+      socket.endpoint.subscribe("device:#{device.identifier}:extensions")
       socket.endpoint.subscribe("firmware")
     end
 
@@ -30,12 +34,15 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> page_title("Device #{device.identifier} - #{product.name}")
     |> assign(:tab_hint, :devices)
     |> assign(:device, device)
-    |> assign(:status, Tracker.status(device))
+    |> assign(:device_connection, device_connection(device))
+    |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:deployment, device.deployment)
     |> assign(:update_information, Devices.resolve_update(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:latest_metrics, Devices.Metrics.get_latest_metric_set_for_device(device.id))
     |> assign(:latest_custom_metrics, Devices.Metrics.get_latest_custom_metrics(device.id))
+    |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
+    |> assign(:extension_overrides, extension_overrides(device, product))
     |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
@@ -53,26 +60,40 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
 
-    {:noreply, assign(socket, :device, device)}
+    socket
+    |> assign(:device, device)
+    |> assign(:device_connection, device_connection(device))
+    |> noreply()
   end
 
-  def handle_info(%Broadcast{event: "connection:status", payload: payload}, socket) do
-    {:noreply, assign(socket, :status, payload.status)}
+  def handle_info(
+        %Broadcast{event: "connection:status"},
+        %{assigns: %{device: device}} = socket
+      ) do
+    {:noreply, assign(socket, :device_connection, Connections.get_latest_for_device(device.id))}
   end
 
   def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
     %{device: device, org: org} = socket.assigns
 
-    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
+    # Get device with its latest connection data preloaded
+    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
 
     socket
     |> assign(:device, device)
-    |> assign(:status, payload.status)
+    |> assign(:device_connection, device_connection(device))
+    |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:fwup_progress, nil)
     |> assign(:update_information, Devices.resolve_update(device))
     |> then(fn socket ->
       if(payload.status == "online", do: clear_flash(socket), else: socket)
     end)
+    |> noreply()
+  end
+
+  def handle_info(%Broadcast{event: "console_joined"}, socket) do
+    socket
+    |> assign(:console_active?, true)
     |> noreply()
   end
 
@@ -295,6 +316,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
+  defp device_connection(%{device_connections: [connection]}), do: connection
+  defp device_connection(_), do: nil
+
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
     health = Devices.get_latest_health(device.id)
 
@@ -327,9 +351,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
-    logs = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 5})
+    {logs, audit_pager} = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 5})
 
-    assign(socket, :audit_logs, logs)
+    audit_pager = Map.from_struct(audit_pager)
+
+    socket
+    |> assign(:audit_logs, logs)
+    |> assign(:audit_pager, audit_pager)
   end
 
   defp connecting_code(device) do
@@ -341,5 +369,18 @@ defmodule NervesHubWeb.Live.Devices.Show do
     else
       device.connecting_code
     end
+  end
+
+  defp has_description?(description) do
+    is_binary(description) and byte_size(description) > 0
+  end
+
+  defp extension_overrides(device, product) do
+    device.extensions
+    |> Map.from_struct()
+    |> Enum.filter(fn {extension, enabled} ->
+      enabled == false and product.extensions[extension]
+    end)
+    |> Enum.map(&elem(&1, 0))
   end
 end

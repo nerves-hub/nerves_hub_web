@@ -129,9 +129,67 @@
     </button>
   </div>
 <% else %>
-  <p class="h5 text-white font-weight-bold">This feature hasn't been enabled for this server.</p>
+  <p class="h5 text-white font-weight-bold">This extension hasn't been enabled for this server.</p>
   <p class="h5 text-white font-weight-bold">Please contact your system admin.</p>
 <% end %>
+
+<div class="border-bottom border-dark mt-5 mb-2"></div>
+
+<div class="container pl-0 mb-2">
+  <div class="row align-items-center">
+    <div class="col col-6">
+      <h3>Extensions</h3>
+    </div>
+    <div class="col col-2">
+      <span class="badge bg-warning">Experimental</span>
+    </div>
+  </div>
+</div>
+
+<p class="p-small">
+  Isolated channels for various device behaviours and extension messaging not crucial to firmware updates<br /> but are useful for managing, monitoring, and introspecting on wide fleets of devices.
+</p>
+<p class="p-small">
+  When enabled, NervesHub will request the extensions a device currently supports and then<br /> check against product and device settings to see if the extension should be attached to the connection.
+</p>
+<p class="p-small mb-3">
+  Extensions most be allowed at the product level. They can also be configured at the device level for more<br /> granular control when needed.
+</p>
+
+<table :if={Enum.any?(@available_extensions)} class="table table-sm table-hover">
+  <thead>
+    <tr>
+      <th></th>
+      <th>Name</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tr :for={{key, description} <- @available_extensions} class="item">
+    <td>
+      <input
+        type="checkbox"
+        id={"extension-#{key}"}
+        name={key}
+        checked={@product.extensions[key]}
+        phx-value-extension={key}
+        phx-click="update-extension"
+        disabled={!authorized?(:"product:update", @org_user)}
+        data-confirm={"Are you sure you want to enable #{key} for #{@product.name}?"}
+      />
+    </td>
+    <td class="ff-m">
+      <div class="mobile-label help-text">Name</div>
+
+      <label for={"extension-#{key}"}>
+        <%= String.capitalize(to_string(key)) %>
+      </label>
+    </td>
+    <td>
+      <div class="mobile-label help-text">Description</div>
+      <%= description %>
+    </td>
+  </tr>
+</table>
 
 <div class="border-bottom border-dark mt-5 mb-2"></div>
 

@@ -25,9 +25,6 @@ config :nerves_hub,
     username: System.get_env("ADMIN_AUTH_USERNAME"),
     password: System.get_env("ADMIN_AUTH_PASSWORD")
   ],
-  device_health_check_enabled: System.get_env("DEVICE_HEALTH_CHECK_ENABLED", "true") == "true",
-  device_health_check_interval_minutes:
-    String.to_integer(System.get_env("DEVICE_HEALTH_CHECK_INTERVAL_MINUTES", "60")),
   device_health_days_to_retain:
     String.to_integer(System.get_env("HEALTH_CHECK_DAYS_TO_RETAIN", "7")),
   device_deployment_change_jitter_seconds:
@@ -37,7 +34,18 @@ config :nerves_hub,
   deployment_calculator_interval_seconds:
     String.to_integer(System.get_env("DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS", "3600")),
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
-  dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true"
+  dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true",
+  extension_config: [
+    geo: [
+      # No interval, fetch geo on device connection by default
+      interval_minutes:
+        System.get_env("FEATURES_GEO_INTERVAL_MINUTES", "0") |> String.to_integer()
+    ],
+    health: [
+      interval_minutes:
+        System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer()
+    ]
+  ]
 
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
@@ -386,6 +394,27 @@ config :sentry,
       cron: [enabled: true]
     ]
   ]
+
+config :opentelemetry, :resource, service: %{name: nerves_hub_app}
+
+if otlp_endpoint = System.get_env("OTLP_ENDPOINT") do
+  config :opentelemetry_exporter,
+    otlp_protocol: :http_protobuf,
+    otlp_endpoint: otlp_endpoint,
+    otlp_headers: [{System.get_env("OTLP_AUTH_HEADER"), System.get_env("OTLP_AUTH_HEADER_VALUE")}]
+
+  otlp_sampler_ratio =
+    if ratio = System.get_env("OTLP_SAMPLER_RATIO") do
+      String.to_float(ratio)
+    else
+      nil
+    end
+
+  config :opentelemetry,
+    sampler: {:parent_based, %{root: {NervesHub.Telemetry.FilteredSampler, otlp_sampler_ratio}}}
+else
+  config :opentelemetry, traces_exporter: :none
+end
 
 if host = System.get_env("STATSD_HOST") do
   config :nerves_hub, :statsd,

@@ -58,6 +58,7 @@ config :nerves_hub, Oban,
     delete_archive: 1,
     delete_firmware: 1,
     device: 1,
+    device_deployment_calculations: 5,
     firmware_delta_builder: 2,
     truncate: 1,
     # temporary, will remove in November
@@ -78,6 +79,8 @@ config :nerves_hub, Oban,
 config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
 
 config :swoosh, :api_client, Swoosh.ApiClient.Finch
+
+config :flop, repo: NervesHub.Repo
 
 # Environment specific config
 import_config "#{Mix.env()}.exs"

@@ -31,7 +31,7 @@
         <span class="button-icon identify"></span>
         <span class="action-text">Identify</span>
       </button>
-      <%= link(class: "btn btn-outline-light btn-action", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
+      <%= link(class: "btn btn-outline-light btn-action #{unless (@console_active?), do: "disabled"}", aria_label: "Console", target: "_blank", to: Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)) do %>
         <span class="button-icon console-icon"></span>
         <span class="action-text">Console</span>
       <% end %>
@@ -51,7 +51,7 @@
   </div>
 </div>
 
-<DeviceHeader.render org={@org} product={@product} device={@device} status={@status} />
+<DeviceHeader.render org={@org} product={@product} device={@device} device_connection={@device_connection} />
 
 <FwupProgress.render :if={assigns.fwup_progress} fwup_progress={@fwup_progress} />
 
@@ -61,6 +61,11 @@
   <div class="col-lg-6">
     <div>
       <h3 class="mb-2">Information</h3>
+      <!-- Show if device has overriden any product-level extensions by disabling them -->
+      <div :if={@extension_overrides != []} class="display-box">
+        <div class="help-text mb-1">Extensions</div>
+        Device has disabled extensions: <%= Enum.join(@extension_overrides, ", ") %>
+      </div>
 
       <div class="display-box">
         <div class="help-text mb-1">Tags</div>
@@ -68,7 +73,7 @@
         <span :for={tag <- @device.tags || []} class="badge"><%= tag %></span>
       </div>
 
-      <DeviceLocation.render location={@device.connection_metadata["location"]} />
+      <DeviceLocation.render :if={@product.extensions.geo and @device.extensions.geo} location={@device.connection_metadata["location"]} />
 
       <%= if !Enum.empty?(@metadata) do %>
         <h3 class="mb-2">Metadata</h3>
@@ -94,7 +99,7 @@
   </div>
 
   <div class="col-lg-6">
-    <div class="device-health-section">
+    <div :if={@product.extensions.health and @device.extensions.health} class="device-health-section">
       <div class="device-header-group justify-content-between">
         <h3 class="mb-2">Health</h3>
 
@@ -109,12 +114,25 @@
         </button>
       </div>
 
-      <%= if (!Enum.any?(Map.values(@latest_metrics)) or !Enum.any?(Map.values(@latest_custom_metrics))) do %>
+      <%= if (!Enum.any?(Map.values(@latest_metrics)) and !Enum.any?(Map.values(@latest_custom_metrics))) and !@alarms do %>
         <div class="display-box">
-          No health information have been received for this device.
+          No health information has been received for this device.
         </div>
       <% end %>
       <div>
+        <%= if @alarms do %>
+          <div class="device-health current-alarms">
+            <div class="callout">
+              <div class="help-text label">Current Alarms</div>
+              <div :for={{{alarm, description}, index} <- Enum.with_index(@alarms)}>
+                <div>
+                  <span phx-click={JS.toggle_class("hidden", to: "#alarm-#{index}")} class={"badge #{if has_description?(description), do: "alarm-clickable"}"}><%= alarm %></span>
+                </div>
+                <code :if={has_description?(description)} id={"alarm-#{index}"} class="hidden alarms-description color-white wb-ba ff-m"><%= description %></code>
+              </div>
+            </div>
+          </div>
+        <% end %>
         <%= if (Enum.any?(Map.values(@latest_metrics))) do %>
           <div class="device-health">
             <div :if={@latest_metrics.load_1min} class="callout">
@@ -127,29 +145,41 @@
                 <div class="help-text label">Memory used</div>
                 <%= round(@latest_metrics.used_mb) %>MB (<%= round(@latest_metrics.used_percent) %>%)
               </div>
+            <% end %>
+
+            <%= if @latest_metrics.cpu_usage_percent do %>
+              <div class={"callout #{Utils.cpu_usage_percent_to_status(@latest_metrics.cpu_usage_percent)}"}>
+                <div class="help-text label">CPU use</div>
+                <%= round(@latest_metrics.cpu_usage_percent) %>%
+              </div>
             <% else %>
               <div class="callout">
-                <div class="help-text label">Memory used</div>
+                <div class="help-text label">CPU use</div>
                 Not reported
               </div>
             <% end %>
 
             <%= if @latest_metrics.cpu_temp do %>
               <div class={"callout #{Utils.cpu_temp_to_status(@latest_metrics.cpu_temp)}"}>
-                <div class="help-text label">CPU</div>
+                <div class="help-text label">CPU temp</div>
                 <%= round(@latest_metrics.cpu_temp) %>°
-              </div>
-            <% else %>
-              <div class="callout">
-                <div class="help-text label">CPU</div>
-                Not reported
               </div>
             <% end %>
 
             <%= for {key, val} <- @latest_custom_metrics do %>
               <div class="callout">
-                <div class="help-text label"><%= String.capitalize(key) %></div>
-                <%= val %>
+                <div class="help-text label">
+                  <%= key
+                  |> String.replace("_", " ")
+                  |> String.capitalize() %>
+                </div>
+                <%= cond do
+                  is_float(val) ->
+                    Float.round(val, 3)
+
+                  true ->
+                    val
+                end %>
               </div>
             <% end %>
           </div>

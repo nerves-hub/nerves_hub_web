@@ -24,6 +24,14 @@ defmodule NervesHubWeb.ChannelCase do
 
       # The default endpoint for testing
       @endpoint NervesHubWeb.DeviceEndpoint
+
+      def subscribe_device_internal(device) do
+        Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.identifier}:internal")
+      end
+
+      def subscribe_extensions(device) do
+        Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.identifier}:extensions")
+      end
     end
   end
 

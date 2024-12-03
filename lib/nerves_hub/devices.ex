@@ -13,6 +13,8 @@ defmodule NervesHub.Devices do
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceHealth
@@ -33,6 +35,13 @@ defmodule NervesHub.Devices do
     Repo.get(Device, device_id)
   end
 
+  def get_device(device_id, :preload_latest_connection) when is_integer(device_id) do
+    Device
+    |> where(id: ^device_id)
+    |> Connections.preload_latest_connection()
+    |> Repo.one()
+  end
+
   def get_active_device(filters) do
     Device
     |> Repo.exclude_deleted()
@@ -44,22 +53,33 @@ defmodule NervesHub.Devices do
   end
 
   def get_devices_by_org_id_and_product_id(org_id, product_id) do
-    query =
-      from(
-        d in Device,
-        where: d.org_id == ^org_id,
-        where: d.product_id == ^product_id
-      )
+    Device
+    |> where([d], d.org_id == ^org_id)
+    |> where([d], d.product_id == ^product_id)
+    |> Repo.exclude_deleted()
+    |> Repo.all()
+  end
 
-    query
+  def get_devices_by_org_id_and_product_id(org_id, product_id, :preload_latest_connection) do
+    Device
+    |> where([d], d.org_id == ^org_id)
+    |> where([d], d.product_id == ^product_id)
+    |> Connections.preload_latest_connection()
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
 
   def get_devices_by_org_id_and_product_id(org_id, product_id, opts) do
-    pagination = Map.get(opts, :pagination, %{})
+    {entries, _pager} = get_devices_by_org_id_and_product_id_with_pager(org_id, product_id, opts)
+    entries
+  end
+
+  def get_devices_by_org_id_and_product_id_with_pager(org_id, product_id, opts) do
+    pagination = Map.get(opts, :pagination, %{page: 1, page_size: 10})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
     filters = Map.get(opts, :filters, %{})
+
+    flop = %Flop{page: pagination[:page], page_size: pagination[:page_size]}
 
     Device
     |> where([d], d.org_id == ^org_id)
@@ -72,25 +92,63 @@ defmodule NervesHub.Devices do
     |> order_by(^sort_devices(sorting))
     |> filtering(filters)
     |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
-    |> Repo.paginate(pagination)
+    |> Connections.preload_latest_connection()
+    |> Flop.run(flop)
   end
 
+  def get_device_count_by_org_id_and_product_id(org_id, product_id) do
+    query =
+      from(
+        d in Device,
+        select: count(d.id),
+        where: d.org_id == ^org_id,
+        where: d.product_id == ^product_id
+      )
+
+    query
+    |> Repo.one!()
+  end
+
+  @spec filter(integer(), map()) :: %{
+          entries: list(Device.t()),
+          current_page: non_neg_integer(),
+          page_size: non_neg_integer(),
+          total_pages: non_neg_integer(),
+          total_count: non_neg_integer()
+        }
   def filter(product_id, opts) do
     pagination = Map.get(opts, :pagination, %{})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
     filters = Map.get(opts, :filters, %{})
 
+    flop = %Flop{page: pagination.page, page_size: pagination.page_size}
+
     Device
     |> where([d], d.product_id == ^product_id)
+    |> Connections.preload_latest_connection()
     |> Repo.exclude_deleted()
     |> filtering(filters)
     |> order_by(^sort_devices(sorting))
-    |> Repo.paginate(pagination)
+    |> Flop.run(flop)
+    |> then(fn {entries, meta} ->
+      meta
+      |> Map.take([
+        :current_page,
+        :page_size,
+        :total_pages,
+        :total_count
+      ])
+      |> Map.put(:entries, entries)
+    end)
   end
 
   def get_minimal_device_location_by_org_id_and_product_id(org_id, product_id) do
     Device
-    |> select([d], %{
+    |> where(org_id: ^org_id)
+    |> where(product_id: ^product_id)
+    |> where([d], not is_nil(fragment("?->'location'->'latitude'", d.connection_metadata)))
+    |> where([d], not is_nil(fragment("?->'location'->'longitude'", d.connection_metadata)))
+    |> select([d, dc], %{
       id: d.id,
       identifier: d.identifier,
       connection_status: d.connection_status,
@@ -98,10 +156,6 @@ defmodule NervesHub.Devices do
       longitude: fragment("?->'location'->'longitude'", d.connection_metadata),
       firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)
     })
-    |> where(org_id: ^org_id)
-    |> where(product_id: ^product_id)
-    |> where([d], not is_nil(fragment("?->'location'->'latitude'", d.connection_metadata)))
-    |> where([d], not is_nil(fragment("?->'location'->'longitude'", d.connection_metadata)))
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
@@ -163,8 +217,24 @@ defmodule NervesHub.Devices do
         {_, ""} ->
           query
 
-        {:connection, _value} ->
-          where(query, [d], d.connection_status == ^String.to_atom(value))
+        {:alarm, value} ->
+          where(query, [d], d.id in subquery(Alarms.query_devices_with_alarm(value)))
+
+        {:alarm_status, "with"} ->
+          where(query, [d], d.id in subquery(Alarms.query_devices_with_alarms()))
+
+        {:alarm_status, "without"} ->
+          where(query, [d], d.id not in subquery(Alarms.query_devices_with_alarms()))
+
+        {:connection, "not_seen"} ->
+          where(query, [d], d.status == :registered)
+
+        {:connection, value} ->
+          where(
+            query,
+            [d],
+            d.id in subquery(Connections.query_devices_with_connection_status(value))
+          )
 
         {:connection_type, value} ->
           where(query, [d], ^value in d.connection_types)
@@ -300,6 +370,11 @@ defmodule NervesHub.Devices do
     |> preload([d, device_certificates: dc], device_certificates: dc)
   end
 
+  defp join_and_preload(query, :latest_connection) do
+    query
+    |> Connections.preload_latest_connection()
+  end
+
   @spec get_shared_secret_auth(String.t()) ::
           {:ok, SharedSecretAuth.t()} | {:error, :not_found}
   def get_shared_secret_auth(key) do
@@ -379,6 +454,12 @@ defmodule NervesHub.Devices do
     %Device{}
     |> Device.changeset(params)
     |> Repo.insert()
+  end
+
+  def set_as_provisioned!(device) do
+    device
+    |> Device.changeset(%{status: :provisioned, first_seen_at: DateTime.utc_now()})
+    |> Repo.update!()
   end
 
   def delete_device(%Device{} = device) do
@@ -647,49 +728,6 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  def device_connected(device) do
-    device
-    |> clear_connection_information()
-    |> Device.changeset(%{
-      connection_status: :connected,
-      connection_established_at: DateTime.utc_now(),
-      connection_disconnected_at: nil,
-      connection_last_seen_at: DateTime.utc_now()
-    })
-    |> Repo.update()
-  end
-
-  def device_heartbeat(device) do
-    device
-    |> clear_connection_information()
-    |> Device.changeset(%{
-      connection_status: :connected,
-      connection_disconnected_at: nil,
-      connection_last_seen_at: DateTime.utc_now()
-    })
-    |> Repo.update()
-  end
-
-  def device_disconnected(device) do
-    device
-    |> clear_connection_information()
-    |> Device.changeset(%{
-      connection_status: :disconnected,
-      connection_disconnected_at: DateTime.utc_now(),
-      connection_last_seen_at: DateTime.utc_now()
-    })
-    |> Repo.update()
-  end
-
-  defp clear_connection_information(device) do
-    %{
-      device
-      | connection_status: nil,
-        connection_disconnected_at: "dummy",
-        connection_last_seen_at: nil
-    }
-  end
-
   def clean_connection_states() do
     interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
     a_minute_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + 1))
@@ -839,6 +877,13 @@ defmodule NervesHub.Devices do
 
   def matches_deployment?(_, _), do: false
 
+  def update_deployment(device, deployment) do
+    device
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+    |> Repo.update!()
+  end
+
   @spec failure_threshold_met?(Device.t(), Deployment.t()) :: boolean()
   def failure_threshold_met?(%Device{} = device, %Deployment{} = deployment) do
     Enum.count(device.update_attempts) >= deployment.device_failure_threshold
@@ -858,8 +903,8 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Devices that haven't been automatically blocked are not in the penalty window
-  Devices that have a time greater than now are in the penalty window
+  Devices that haven't been automatically blocked are not in the penalty window.
+  Devices that have a time greater than now are in the penalty window.
   """
   def device_in_penalty_box?(device, now \\ DateTime.utc_now())
 
@@ -883,6 +928,8 @@ defmodule NervesHub.Devices do
         {:error, :up_to_date, device}
 
       updates_blocked?(device, now) ->
+        clear_inflight_update(device)
+
         {:error, :updates_blocked, device}
 
       failure_rate_met?(device, deployment) ->
@@ -897,6 +944,7 @@ defmodule NervesHub.Devices do
         """
 
         AuditLogs.audit!(deployment, device, description)
+        clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
 
@@ -914,6 +962,7 @@ defmodule NervesHub.Devices do
         """
 
         AuditLogs.audit!(deployment, device, description)
+        clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
 
@@ -1370,5 +1419,46 @@ defmodule NervesHub.Devices do
       true ->
         "pending"
     end
+  end
+
+  def enable_extension_setting(%Device{} = device, extension_string) do
+    device = get_device(device.id)
+
+    Device.changeset(device, %{"extensions" => %{extension_string => true}})
+    |> Repo.update()
+    |> tap(fn
+      {:ok, _} ->
+        topic = "device:#{device.id}:extensions"
+
+        NervesHubWeb.DeviceEndpoint.broadcast(topic, "attach", %{
+          "extensions" => [extension_string]
+        })
+
+      _ ->
+        :nope
+    end)
+  end
+
+  def disable_extension_setting(%Device{} = device, extension_string) do
+    device = get_device(device.id)
+
+    Device.changeset(device, %{"extensions" => %{extension_string => false}})
+    |> Repo.update()
+    |> tap(fn
+      {:ok, _} ->
+        topic = "device:#{device.id}:extensions"
+
+        NervesHubWeb.DeviceEndpoint.broadcast(topic, "detach", %{
+          "extensions" => [extension_string]
+        })
+
+      _ ->
+        :nope
+    end)
+  end
+
+  def preload_product(%Device{} = device) do
+    device
+    |> Repo.preload(:product)
   end
 end

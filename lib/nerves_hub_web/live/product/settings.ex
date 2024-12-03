@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.Product.Settings do
   use NervesHubWeb, :updated_live_view
 
+  alias NervesHub.Extensions
   alias NervesHub.Products
   alias NervesHubWeb.DeviceSocket
 
@@ -14,6 +15,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> assign(:shared_secrets, product.shared_secret_auths)
       |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
       |> assign(:form, to_form(Ecto.Changeset.change(product)))
+      |> assign(:available_extensions, extensions())
 
     {:ok, socket}
   end
@@ -70,5 +72,36 @@ defmodule NervesHubWeb.Live.Product.Settings do
            "There was an error deleting the Product. Please delete all Firmware and Devices first."
          )}
     end
+  end
+
+  def handle_event("update-extension", %{"extension" => extension} = params, socket) do
+    value = params["value"]
+    available = Extensions.list() |> Enum.map(&to_string/1)
+
+    result =
+      case {extension in available, value} do
+        {true, "on"} ->
+          Products.enable_extension_setting(socket.assigns.product, extension)
+
+        {true, _} ->
+          Products.disable_extension_setting(socket.assigns.product, extension)
+      end
+
+    socket =
+      case result do
+        {:ok, _pf} ->
+          socket
+
+        {:error, _changeset} ->
+          put_flash(socket, :error, "Failed to set extension")
+      end
+
+    {:noreply, socket}
+  end
+
+  defp extensions do
+    for extension <- Extensions.list(),
+        into: %{},
+        do: {extension, Extensions.module(extension).description()}
   end
 end

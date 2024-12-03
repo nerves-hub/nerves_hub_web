@@ -27,8 +27,12 @@ defmodule NervesHub.Fixtures do
     },
     is_active: false
   }
-  @device_params %{tags: ["beta", "beta-edge"]}
-  @product_params %{name: "valid product", delta_updatable: true}
+  @device_params %{tags: ["beta", "beta-edge"], extensions: %{health: true, geo: true}}
+  @product_params %{
+    name: "valid product",
+    delta_updatable: true,
+    extensions: %{health: true, geo: true}
+  }
 
   defdelegate reload(record), to: Repo
 

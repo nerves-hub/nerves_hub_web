@@ -3,8 +3,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   require Logger
 
+  require OpenTelemetry.Tracer, as: Tracer
+
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
+  alias NervesHub.Devices.Alarms
   alias NervesHub.Firmwares
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
@@ -27,7 +30,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     device_id: "",
     tag: "",
     updates: "",
-    has_no_tags: false
+    has_no_tags: false,
+    alarm_status: "",
+    alarm: ""
   }
 
   @filter_types %{
@@ -39,7 +44,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     device_id: :string,
     tag: :string,
     updates: :string,
-    has_no_tags: :boolean
+    has_no_tags: :boolean,
+    alarm_status: :string,
+    alarm: :string
   }
 
   @default_page 1
@@ -77,13 +84,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
     |> assign(:total_entries, 0)
+    |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
 
   def handle_params(unsigned_params, _uri, socket) do
     filters = Map.merge(@default_filters, filter_changes(unsigned_params))
-    pagination_opts = Map.merge(socket.assigns.paginate_opts, pagination_changes(unsigned_params))
+    changes = pagination_changes(unsigned_params)
+    pagination_opts = Map.merge(@default_pagination, changes)
 
     socket
     |> assign(:current_sort, Map.get(unsigned_params, "sort", "identifier"))
@@ -350,12 +359,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_info(:refresh_device_list, socket) do
-    Process.send_after(self(), :refresh_device_list, @list_refresh_time)
+    Tracer.with_span "NervesHubWeb.Live.Devices.Index.refresh_device_list" do
+      Process.send_after(self(), :refresh_device_list, @list_refresh_time)
 
-    if socket.assigns.paginate_opts.total_pages == 1 do
-      {:noreply, assign_display_devices(socket)}
-    else
-      {:noreply, socket}
+      if socket.assigns.paginate_opts.total_pages == 1 do
+        {:noreply, assign_display_devices(socket)}
+      else
+        {:noreply, socket}
+      end
     end
   end
 
@@ -376,7 +387,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       Enum.into(page.entries, %{}, fn device ->
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
 
-        {device.identifier, Tracker.status(device)}
+        {device.identifier, Tracker.connection_status(device)}
       end)
 
     socket
@@ -387,13 +398,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
   defp assign_display_devices(%{assigns: %{paginate_opts: paginate_opts}} = socket, page) do
     paginate_opts =
       paginate_opts
-      |> Map.put(:page_number, page.page_number)
+      |> Map.put(:page_number, page.current_page)
       |> Map.put(:page_size, page.page_size)
       |> Map.put(:total_pages, page.total_pages)
 
     socket
     |> assign(:devices, page.entries)
-    |> assign(:total_entries, page.total_entries)
+    |> assign(:total_entries, page.total_count)
     |> assign(:paginate_opts, paginate_opts)
   end
 
@@ -447,6 +458,32 @@ defmodule NervesHubWeb.Live.Devices.Index do
       <%= @title %>
     </th>
     """
+  end
+
+  defp last_seen_at_status(connections) do
+    case connections do
+      [] ->
+        "Not seen yet"
+
+      [latest_connection | _] ->
+        "Last seen #{last_seen_formatted(latest_connection)}"
+    end
+  end
+
+  defp last_seen_at(connections) do
+    case connections do
+      [latest_connection | _] ->
+        last_seen_formatted(latest_connection)
+
+      _ ->
+        ""
+    end
+  end
+
+  defp last_seen_formatted(connection) do
+    connection
+    |> Map.get(:last_seen_at)
+    |> DateTimeFormat.from_now()
   end
 
   defp firmware_update_status(device) do

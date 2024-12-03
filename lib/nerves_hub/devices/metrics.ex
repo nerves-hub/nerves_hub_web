@@ -6,6 +6,7 @@ defmodule NervesHub.Devices.Metrics do
 
   @default_metric_types [
     :cpu_temp,
+    :cpu_usage_percent,
     :load_15min,
     :load_1min,
     :load_5min,
@@ -173,11 +174,18 @@ defmodule NervesHub.Devices.Metrics do
   Saves map of metrics.
   """
   def save_metrics(device_id, metrics) do
-    Repo.transaction(fn ->
+    entries =
       Enum.map(metrics, fn {key, val} ->
-        save_metric(%{device_id: device_id, key: key, value: val})
+        DeviceMetric.save(%{device_id: device_id, key: key, value: val}).changes
+        |> Map.merge(%{inserted_at: {:placeholder, :now}})
       end)
-    end)
+
+    results = Repo.insert_all(DeviceMetric, entries, placeholders: %{now: DateTime.utc_now()})
+
+    case results do
+      {0, _} -> :error
+      {count, _} -> {:ok, count}
+    end
   end
 
   @doc """

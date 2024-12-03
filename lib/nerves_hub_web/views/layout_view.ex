@@ -83,40 +83,82 @@ defmodule NervesHubWeb.LayoutView do
 
     anchor = if opts.anchor, do: "##{opts.anchor}", else: ""
 
-    content_tag(:div, class: "btn-group btn-group-toggle") do
-      opts
-      |> Scrivener.HTML.raw_pagination_links(distance: Map.get(opts, :distance, 8))
-      |> Enum.map(fn {text, page} ->
-        if text == :ellipsis do
-          content_tag(:span, page, class: "btn btn-secondary btn-sm")
-        else
-          link(text,
-            to: "?page=#{page}#{anchor}",
-            class: "btn btn-secondary btn-sm #{if page == opts.page_number, do: "active"}"
-          )
-        end
-      end)
-    end
+    distance = 8
+    start_range = round(max(1, opts.page_number - distance / 2))
+    end_range = min(round(start_range + distance), opts.total_pages)
+
+    assigns =
+      Map.merge(opts, %{
+        start_range: start_range,
+        end_range: end_range,
+        distance: distance,
+        anchor: anchor
+      })
+
+    ~H"""
+    <div class="btn-group btn-group-toggle btn-group-gap">
+      <div :if={@page_number > 1}>
+        <%= link("&lt;&lt;",
+          to: "?page=#{@page_number - 1}#{@anchor}",
+          class: "btn btn-secondary btn-sm"
+        ) %>
+      </div>
+      <div :for={page <- @start_range..@end_range}>
+        <%= link("#{page}",
+          to: "?page=#{page}#{@anchor}",
+          class: "btn btn-secondary btn-sm #{if page == @page_number, do: "active"}"
+        ) %>
+      </div>
+      <div :if={@total_pages > @distance}>
+        <span class="btn btn-secondary btn-sm">…</span>
+      </div>
+      <div :if={@page_number < @total_pages}>
+        <%= link("&gt;&gt;",
+          to: "?page=#{@page_number + 1}#{@anchor}",
+          class: "btn btn-secondary btn-sm"
+        ) %>
+      </div>
+    </div>
+    """
   end
 
   def pagination_links(%{total_pages: _} = opts) do
     opts = Map.put_new(opts, :page_number, 1)
 
-    content_tag(:div, class: "btn-group btn-group-toggle") do
-      opts
-      |> Scrivener.HTML.raw_pagination_links(distance: Map.get(opts, :distance, 8))
-      |> Enum.map(fn {text, page} ->
-        text = if text == :ellipsis, do: page, else: text
+    distance = 8
+    start_range = round(max(1, opts.page_number - distance / 2))
+    end_range = min(round(start_range + distance), opts.total_pages)
 
-        content_tag(:div) do
-          content_tag(:button, text,
-            phx_click: "paginate",
-            phx_value_page: page,
-            class: "btn btn-secondary btn-sm #{if page == opts.page_number, do: "active"}"
-          )
-        end
-      end)
-    end
+    assigns =
+      Map.merge(opts, %{start_range: start_range, end_range: end_range, distance: distance})
+
+    ~H"""
+    <div class="btn-group btn-group-toggle btn-group-gap">
+      <div :if={@start_range > 1}>
+        <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page="1">1</button>
+      </div>
+      <div :if={@start_range > 2}>
+        <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page="…">…</button>
+      </div>
+      <div :for={page <- @start_range..@end_range}>
+        <button phx-click="paginate" phx-value-page={page} class={"btn btn-secondary btn-sm #{if page == @page_number do "active" end}"}>
+          <%= page %>
+        </button>
+      </div>
+      <div :if={@total_pages > @distance}>
+        <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page="…">…</button>
+      </div>
+      <div>
+        <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page={@total_pages}><%= @total_pages %></button>
+      </div>
+      <div :if={@page_number > 1}>
+        <button class="btn btn-secondary btn-sm " phx-click="paginate" phx-value-page={@page_number - 1}>&lt;&lt;</button>
+      </div>
+      <div :if={@page_number < @total_pages}>
+        <button class="btn btn-secondary btn-sm " phx-click="paginate" phx-value-page={@page_number + 1}>&gt;&gt;</button>
+      </div>
+    </div>
+    """
   end
 
   def pagination_links(%{total_records: record_count, page_size: size} = opts) do

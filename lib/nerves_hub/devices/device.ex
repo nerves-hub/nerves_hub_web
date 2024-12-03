@@ -5,11 +5,15 @@ defmodule NervesHub.Devices.Device do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Extensions.DeviceExtensionsSetting
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Products.Product
 
   alias __MODULE__
+
+  @derive {Flop.Schema, filterable: [], sortable: []}
 
   @type t :: %__MODULE__{}
   @optional_params [
@@ -26,7 +30,9 @@ defmodule NervesHub.Devices.Device do
     :connection_disconnected_at,
     :connection_last_seen_at,
     :connection_types,
-    :connection_metadata
+    :connection_metadata,
+    :status,
+    :first_seen_at
   ]
   @required_params [:org_id, :product_id, :identifier]
 
@@ -36,6 +42,7 @@ defmodule NervesHub.Devices.Device do
     belongs_to(:deployment, Deployment)
     embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
+    has_many(:device_connections, DeviceConnection, on_delete: :delete_all)
 
     field(:identifier, :string)
     field(:description, :string)
@@ -45,6 +52,20 @@ defmodule NervesHub.Devices.Device do
     field(:update_attempts, {:array, :utc_datetime}, default: [])
     field(:updates_blocked_until, :utc_datetime)
 
+    field(:status, Ecto.Enum,
+      values: [:registered, :provisioned],
+      default: :registered
+    )
+
+    field(:first_seen_at, :utc_datetime)
+
+    field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
+    field(:connecting_code, :string)
+    field(:connection_metadata, :map, default: %{})
+
+    timestamps()
+
+    # Deprecated fields, replaced with device_connections table.
     field(:connection_status, Ecto.Enum,
       values: [:connected, :disconnected, :not_seen],
       default: :not_seen
@@ -53,17 +74,14 @@ defmodule NervesHub.Devices.Device do
     field(:connection_established_at, :utc_datetime)
     field(:connection_disconnected_at, :utc_datetime)
     field(:connection_last_seen_at, :utc_datetime)
-    field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
-    field(:connecting_code, :string)
-    field(:connection_metadata, :map, default: %{})
-
-    timestamps()
+    embeds_one(:extensions, DeviceExtensionsSetting, on_replace: :update)
   end
 
   def changeset(%Device{} = device, params) do
     device
     |> cast(params, @required_params ++ @optional_params)
     |> cast_embed(:firmware_metadata)
+    |> cast_embed(:extensions)
     |> validate_required(@required_params)
     |> validate_length(:tags, min: 1)
     |> unique_constraint(:identifier)

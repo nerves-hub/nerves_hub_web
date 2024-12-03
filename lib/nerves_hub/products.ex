@@ -269,4 +269,40 @@ defmodule NervesHub.Products do
       end
     end
   end
+
+  def enable_extension_setting(%Product{} = product, extension_string) do
+    product = get_product!(product.id)
+
+    Product.changeset(product, %{"extensions" => %{extension_string => true}})
+    |> Repo.update()
+    |> tap(fn
+      {:ok, _} ->
+        topic = "product:#{product.id}:extensions"
+
+        NervesHubWeb.DeviceEndpoint.broadcast(topic, "attach", %{
+          "extensions" => [extension_string]
+        })
+
+      _ ->
+        :nope
+    end)
+  end
+
+  def disable_extension_setting(%Product{} = product, extension_string) do
+    product = get_product!(product.id)
+
+    Product.changeset(product, %{"extensions" => %{extension_string => false}})
+    |> Repo.update()
+    |> tap(fn
+      {:ok, _} ->
+        topic = "product:#{product.id}:extensions"
+
+        NervesHubWeb.DeviceEndpoint.broadcast(topic, "detach", %{
+          "extensions" => [extension_string]
+        })
+
+      _ ->
+        :nope
+    end)
+  end
 end
