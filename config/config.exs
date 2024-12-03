@@ -82,5 +82,26 @@ config :swoosh, :api_client, Swoosh.ApiClient.Finch
 
 config :flop, repo: NervesHub.Repo
 
+# Configure esbuild (the version is required)
+config :esbuild,
+  version: "0.17.11",
+  default: [
+    args:
+      ~w(ui-rework/app.js --bundle --target=es2017 --outdir=../priv/static/assets/ui-rework --external:/fonts/* --external:/images/* --loader:.png=file),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+  ]
+
+config :tailwind,
+  version: "3.4.3",
+  default: [
+    args: ~w(
+      --config=tailwind.config.js
+      --input=ui-rework/app.css
+      --output=../priv/static/assets/ui-rework/app.css
+    ),
+    cd: Path.expand("../assets", __DIR__)
+  ]
+
 # Environment specific config
 import_config "#{Mix.env()}.exs"
