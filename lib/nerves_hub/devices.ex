@@ -215,6 +215,8 @@ defmodule NervesHub.Devices do
   defp filtering(query, filters) do
     Enum.reduce(filters, query, fn {key, value}, query ->
       case {key, value} do
+        # Filter values are empty strings as default,
+        # they should be ignored.
         {_, ""} ->
           query
 
@@ -286,7 +288,9 @@ defmodule NervesHub.Devices do
         {:metrics_value, _value} ->
           filter_on_metric(query, filters)
 
-        {_, _} ->
+        # Ignore any undefined filter.
+        # This will prevent error 500 responses on deprecated saved bookmarks etc.
+        _ ->
           query
       end
     end)
