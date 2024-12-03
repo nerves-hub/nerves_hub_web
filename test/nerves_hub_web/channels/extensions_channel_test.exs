@@ -284,7 +284,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   end
 
   defp subscribe_and_join_with_default_device_api_version(socket, channel, topic),
-    do: subscribe_and_join(socket, channel, topic, %{"device_api_version" => "2.5.3"})
+    do: subscribe_and_join(socket, channel, topic, %{"device_api_version" => "2.2.0"})
 
   defp subscribe_and_join_with_default_device_api_version(socket, channel, topic, payload),
     do:
@@ -292,6 +292,6 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
         socket,
         channel,
         topic,
-        Map.merge(%{"device_api_version" => "2.5.3"}, payload)
+        Map.merge(%{"device_api_version" => "2.2.0"}, payload)
       )
 end

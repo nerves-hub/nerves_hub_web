@@ -616,5 +616,5 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  defp is_safe_to_request_extensions?(version), do: Version.match?(version, "> 2.5.2")
+  defp is_safe_to_request_extensions?(version), do: Version.match?(version, ">= 2.2.0")
 end
