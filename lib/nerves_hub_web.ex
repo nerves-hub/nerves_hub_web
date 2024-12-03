@@ -71,48 +71,13 @@ defmodule NervesHubWeb do
     end
   end
 
-  def live_view do
-    quote do
-      use Phoenix.LiveView
-
-      alias NervesHub.{Repo, AuditLogs}
-
-      alias NervesHubWeb.{
-        DeviceLive,
-        Endpoint
-      }
-
-      alias NervesHubWeb.Router.Helpers, as: Routes
-
-      alias Phoenix.Socket.Broadcast
-
-      defp socket_error(socket, error, opts \\ []) do
-        redirect = opts[:redirect_to] || Routes.home_path(socket, :index)
-
-        socket =
-          socket
-          |> put_flash(:info, error)
-          |> redirect(to: redirect)
-
-        {:ok, socket}
-      end
-
-      defp live_view_error(:update) do
-        "The software running on NervesHub was updated to the latest version."
-      end
-
-      defp live_view_error(_) do
-        "An error occurred while loading the view."
-      end
-
-      unquote(view_helpers())
-    end
-  end
-
   def updated_live_view do
     quote do
       use Phoenix.LiveView,
-        layout: {NervesHubWeb.LayoutView, :live}
+        layout: {NervesHubWeb.LayoutView, :live},
+        container: {:div, class: "h-screen"}
+
+      @new_ui Application.compile_env(:nerves_hub, :new_ui) == true
 
       use Gettext, backend: NervesHubWeb.Gettext
 
@@ -134,6 +99,15 @@ defmodule NervesHubWeb do
       on_mount(Sentry.LiveViewHook)
 
       def ok(socket), do: {:ok, socket}
+
+      def ok(socket, layout) do
+        if @new_ui do
+          {:ok, socket, layout: {NervesHubWeb.Layouts, layout}}
+        else
+          {:ok, socket}
+        end
+      end
+
       def noreply(socket), do: {:noreply, socket}
 
       def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
@@ -160,6 +134,35 @@ defmodule NervesHubWeb do
       use Phoenix.LiveComponent
 
       unquote(view_helpers())
+    end
+  end
+
+  def html do
+    quote do
+      use Phoenix.Component
+
+      # Import convenience functions from controllers
+      import Phoenix.Controller,
+        only: [get_csrf_token: 0, view_module: 1, view_template: 1]
+
+      # Include general helpers for rendering HTML
+      unquote(html_helpers())
+    end
+  end
+
+  defp html_helpers do
+    quote do
+      # HTML escaping functionality
+      import Phoenix.HTML
+      # Core UI components and translation
+      import NervesHubWeb.CoreComponents
+      import NervesHubWeb.Gettext
+
+      # Shortcut for generating JS commands
+      alias Phoenix.LiveView.JS
+
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
     end
   end
 

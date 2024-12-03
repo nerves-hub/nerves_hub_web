@@ -1,7 +1,9 @@
 defmodule NervesHubWeb.Live.Orgs.Index do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb.LiveView
 
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, :page_title, "Organizations")}
+    socket
+    |> assign(:page_title, "Organizations")
+    |> ok(:no_sidebar)
   end
 end

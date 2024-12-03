@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.Index do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb.LiveView
 
   require Logger
 
@@ -13,11 +13,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Tracker
 
   alias Phoenix.Socket.Broadcast
+  alias Phoenix.LiveView.JS
 
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
-  import NervesHubWeb.LayoutView,
-    only: [pagination_links: 1]
+  import NervesHubWeb.LayoutView
 
   @list_refresh_time 10_000
 
@@ -86,7 +86,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:total_entries, 0)
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
     |> subscribe_and_refresh_device_list_timer()
-    |> ok()
+    |> ok(:sidebar)
   end
 
   def handle_params(unsigned_params, _uri, socket) do
@@ -554,5 +554,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
         {key, value}
       end
     end
+  end
+
+  def show_menu(id, js \\ %JS{}) do
+    js
+    |> JS.show(transition: "fade-in", to: "##{id}")
+  end
+
+  def hide_menu(id, js \\ %JS{}) do
+    js
+    |> JS.hide(transition: "fade-out", to: "##{id}")
   end
 end
