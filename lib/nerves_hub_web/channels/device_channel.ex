@@ -49,9 +49,6 @@ defmodule NervesHubWeb.DeviceChannel do
 
     send(self(), :device_registation)
 
-    # Request device extension capabilities
-    push(socket, "extensions:get", %{})
-
     socket =
       socket
       |> assign(:device, device)
@@ -60,6 +57,12 @@ defmodule NervesHubWeb.DeviceChannel do
       |> assign(:penalty_timer, nil)
       |> maybe_start_penalty_timer()
       |> maybe_send_archive()
+
+    # Request device extension capabilities if possible
+    # Earlier versions of nerves_hub_link don't have a fallback for unknown messages,
+    # so check version before requesting extensions
+    if is_safe_to_request_extensions?(socket.assigns.device_api_version),
+      do: push(socket, "extensions:get", %{})
 
     {:noreply, socket}
   end
@@ -612,4 +615,6 @@ defmodule NervesHubWeb.DeviceChannel do
       0
     end
   end
+
+  defp is_safe_to_request_extensions?(version), do: Version.match?(version, "> 2.5.2")
 end
