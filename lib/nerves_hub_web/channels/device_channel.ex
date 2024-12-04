@@ -35,9 +35,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_info:after_join")
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
-    device =
-      device
-      |> Deployments.verify_deployment_membership()
+    device = Deployments.verify_deployment_membership(device)
 
     maybe_send_public_keys(device, socket, params)
 
