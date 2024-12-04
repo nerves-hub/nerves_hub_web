@@ -2,6 +2,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   use Phoenix.Channel
 
   alias NervesHub.Extensions
+  alias NervesHub.Helpers.Logging
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -86,7 +87,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   rescue
     error ->
       Logger.warning("#{inspect(mod)} failed to handle extension message - #{inspect(error)}")
-      log_to_sentry(socket.assigns.device, error)
+      Logging.log_to_sentry(socket.assigns.device, error)
       {:noreply, socket}
   end
 
@@ -108,27 +109,9 @@ defmodule NervesHubWeb.ExtensionsChannel do
   rescue
     error ->
       Logger.warning("#{inspect(mod)} failed handle_info - #{inspect(error)}")
-      log_to_sentry(socket.assigns.device, error)
+      Logging.log_to_sentry(socket.assigns.device, error)
       {:noreply, socket}
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
-
-  defp log_to_sentry(device, msg_or_ex, extra \\ %{}) do
-    Sentry.Context.set_tags_context(%{
-      device_identifier: device.identifier,
-      device_id: device.id,
-      product_id: device.product_id,
-      org_id: device.org_id
-    })
-
-    _ =
-      if is_exception(msg_or_ex) do
-        Sentry.capture_exception(msg_or_ex, extra: extra, result: :none)
-      else
-        Sentry.capture_message(msg_or_ex, extra: extra, result: :none)
-      end
-
-    :ok
-  end
 end
