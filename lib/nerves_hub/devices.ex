@@ -1086,7 +1086,7 @@ defmodule NervesHub.Devices do
     |> Repo.transaction()
     |> case do
       {:ok, %{move: updated}} ->
-        # Deployments.set_deployment(updated)
+        _ = broadcast(updated, "moved")
         {:ok, updated}
 
       err ->

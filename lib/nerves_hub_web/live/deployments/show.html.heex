@@ -38,21 +38,39 @@
 
 <div class="divider"></div>
 
-<div class="">
+<div>
+  <h3 class="mb-2">Device Matching Conditions</h3>
+  <div class="display-box">
+    <div class="x2-grid">
+      <div class="gc-span-2">
+        <div class="row">
+          <div class="col-lg-6 mb-1">
+            <div class="help-text mb-1">Distributed to</div>
+            <%= if Enum.count(tags(@deployment)) > 0 do %>
+              <%= for tag <- tags(@deployment) do %>
+                <span class="badge">
+                  <%= tag %>
+                </span>
+              <% end %>
+            <% else %>
+              <p class="text-muted">No tags selected, not being distributed</p>
+            <% end %>
+          </div>
+          <div class="col-lg-6 mb-1">
+            <div class="help-text mb-1">Version requirement</div>
+            <p><%= version(@deployment) %></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div>
   <h3 class="mb-2">Deployment Details</h3>
   <div class="display-box">
     <div class="x2-grid">
       <div class="gc-span-2">
-        <div class="help-text mb-1">Distributed to</div>
-        <%= if Enum.count(tags(@deployment)) > 0 do %>
-          <%= for tag <- tags(@deployment) do %>
-            <span class="badge">
-              <%= tag %>
-            </span>
-          <% end %>
-        <% else %>
-          <p class="text-muted">No tags selected, not being distributed</p>
-        <% end %>
         <div>
           <div class="help-text mb-1">Firmware version</div>
           <span>
@@ -60,10 +78,6 @@
               <%= firmware_summary(@firmware) %>
             </.link>
           </span>
-        </div>
-        <div>
-          <div class="help-text mb-1">Version requirement</div>
-          <p><%= version(@deployment) %></p>
         </div>
         <div>
           <div class="help-text mb-1">Current device count</div>

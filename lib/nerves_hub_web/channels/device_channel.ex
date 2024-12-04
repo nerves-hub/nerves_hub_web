@@ -156,6 +156,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_info(%Broadcast{event: "moved"}, socket) do
+    # _ = Deployments.verify_deployment_membership(socket.assigns.device)
+
+    {:noreply, socket}
+  end
+
   # Update local state and tell the various servers of the new information
   @decorate with_span("Channels.DeviceChannel.handle_info:devices-updated")
   def handle_info(%Broadcast{event: "devices/updated"}, %{assigns: %{device: device}} = socket) do
