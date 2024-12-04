@@ -16,6 +16,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
+  alias NervesHub.Helpers.Logging
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
 
@@ -326,9 +327,13 @@ defmodule NervesHubWeb.DeviceChannel do
     # preventing cascading problems.
     Logger.warning("[DeviceChannel] Unhandled handle_info message! - #{inspect(msg)}")
 
-    log_to_sentry(socket.assigns.device, "[DeviceChannel] Unhandled handle_info message!", %{
-      message: msg
-    })
+    Logging.log_to_sentry(
+      socket.assigns.device,
+      "[DeviceChannel] Unhandled handle_info message!",
+      %{
+        message: msg
+      }
+    )
 
     {:noreply, socket}
   end
@@ -404,7 +409,7 @@ defmodule NervesHubWeb.DeviceChannel do
     )
 
     device = socket.assigns.device
-    log_to_sentry(device, "[DeviceChannel] Unhandled message!", %{message: msg})
+    Logging.log_to_sentry(device, "[DeviceChannel] Unhandled message!", %{message: msg})
 
     {:noreply, socket}
   end
@@ -437,19 +442,6 @@ defmodule NervesHubWeb.DeviceChannel do
     |> Deployments.preload_with_firmware_and_archive()
     |> Devices.verify_deployment()
     |> Deployments.set_deployment()
-  end
-
-  defp log_to_sentry(device, message, extra) do
-    Sentry.Context.set_tags_context(%{
-      device_identifier: device.identifier,
-      device_id: device.id,
-      product_id: device.product_id,
-      org_id: device.org_id
-    })
-
-    _ = Sentry.capture_message(message, extra: extra, result: :none)
-
-    :ok
   end
 
   defp subscribe(topic) do
