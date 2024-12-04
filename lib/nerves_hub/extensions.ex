@@ -47,7 +47,7 @@ defmodule NervesHub.Extensions do
   def module(:geo), do: NervesHub.Extensions.Geo
   def module(_key), do: :unsupported
 
-  @spec module(extension(), String.t()) :: module() | :unsupported
+  @spec module(extension(), Version.t()) :: module() | :unsupported
   def module(:health, ver) do
     cond do
       Version.match?(ver, "~> 0.0.1") -> NervesHub.Extensions.Health
