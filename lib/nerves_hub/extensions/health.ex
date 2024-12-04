@@ -26,19 +26,15 @@ defmodule NervesHub.Extensions.Health do
 
     send(self(), {__MODULE__, :check})
 
-    socket =
-      if health_interval > 0 do
-        timer =
-          health_interval
-          |> :timer.minutes()
-          |> :timer.send_interval({__MODULE__, :check})
+    timer =
+      health_interval
+      |> :timer.minutes()
+      |> :timer.send_interval({__MODULE__, :check})
 
-        socket
-        |> Phoenix.Socket.assign(:health_interval, health_interval)
-        |> Phoenix.Socket.assign(:health_timer, timer)
-      else
-        socket
-      end
+    socket =
+      socket
+      |> Phoenix.Socket.assign(:health_interval, health_interval)
+      |> Phoenix.Socket.assign(:health_timer, timer)
 
     {:noreply, socket}
   end
