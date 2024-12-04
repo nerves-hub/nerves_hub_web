@@ -114,7 +114,7 @@
         </button>
       </div>
 
-      <%= if (!Enum.any?(Map.values(@latest_metrics)) and !@alarms )do %>
+      <%= if (Enum.empty?(@latest_metrics) and is_nil(@alarms) )do %>
         <div class="display-box">
           No health information has been received for this device.
         </div>
@@ -135,12 +135,12 @@
         <% end %>
         <%= if (Enum.any?(Map.values(@latest_metrics))) do %>
           <div class="device-health">
-            <!--Display CPU load averages as a group.-->
+            <%!-- Display CPU load averages as a group. --%>
             <div :if={@latest_metrics["load_1min"]} class="callout">
               <div class="help-text label">Load avg</div>
               <%= @latest_metrics["load_1min"] %> | <%= @latest_metrics["load_5min"] %> | <%= @latest_metrics["load_15min"] %>
             </div>
-            <!--Show CPU and memory usage if reported. Higher values will be displayed in warningly colors. -->
+            <%!--Show CPU and memory usage if reported. Higher values will be displayed in warningly colors. --%>
             <%= if @latest_metrics["cpu_usage_percent"] do %>
               <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["cpu_usage_percent"])}"}>
                 <div class="help-text label">CPU use</div>
@@ -165,7 +165,7 @@
                 <%= Utils.disk_usage(@latest_metrics) %>
               </div>
             <% end %>
-            <!--Display custom metrics, if any. Filters out "timestamp" key.-->
+            <%!--Display custom metrics, if any. Filters out "timestamp" key.--%>
             <%= for {key, val} <- @latest_metrics do %>
               <div :if={key not in Metrics.default_metrics() and key != "timestamp"} class="callout">
                 <div class="help-text label"><%= format_key(key) %></div>
