@@ -8,6 +8,8 @@ defmodule NervesHubWeb.Live.Deployments.Show do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Repo
 
+  alias NervesHubWeb.Components.AuditLogFeed
+
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     %{"name" => name} = params
