@@ -73,7 +73,7 @@ defmodule NervesHubWeb do
 
   def updated_live_view do
     quote do
-      use Phoenix.LiveView,
+      use NervesHubWeb.LiveView,
         layout: {NervesHubWeb.LayoutView, :live},
         container: {:div, class: "h-screen"}
 

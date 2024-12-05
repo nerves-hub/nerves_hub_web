@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Orgs.Index do
-  use NervesHubWeb.LiveView
+  use NervesHubWeb, :updated_live_view
 
   def mount(_params, _session, socket) do
     socket
