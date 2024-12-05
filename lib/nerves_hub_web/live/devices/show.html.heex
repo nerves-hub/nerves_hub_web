@@ -114,7 +114,7 @@
         </button>
       </div>
 
-      <%= if (!Enum.any?(Map.values(@latest_metrics)) and !Enum.any?(Map.values(@latest_custom_metrics))) and !@alarms do %>
+      <%= if (Enum.empty?(@latest_metrics) and is_nil(@alarms) )do %>
         <div class="display-box">
           No health information has been received for this device.
         </div>
@@ -135,69 +135,59 @@
         <% end %>
         <%= if (Enum.any?(Map.values(@latest_metrics))) do %>
           <div class="device-health">
-            <div :if={@latest_metrics.load_1min} class="callout">
+            <%!-- Display CPU load averages as a group. --%>
+            <div :if={@latest_metrics["load_1min"]} class="callout">
               <div class="help-text label">Load avg</div>
-              <%= @latest_metrics.load_1min %> | <%= @latest_metrics.load_5min %> | <%= @latest_metrics.load_15min %>
+              <%= @latest_metrics["load_1min"] %> | <%= @latest_metrics["load_5min"] %> | <%= @latest_metrics["load_15min"] %>
             </div>
-
-            <%= if @latest_metrics.used_mb do %>
-              <div class={"callout #{Utils.memory_to_status(60)}"} x>
-                <div class="help-text label">Memory used</div>
-                <%= round(@latest_metrics.used_mb) %>MB (<%= round(@latest_metrics.used_percent) %>%)
+            <%!--Show CPU and memory usage if reported. Higher values will be displayed in warningly colors. --%>
+            <%= if @latest_metrics["cpu_usage_percent"] do %>
+              <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["cpu_usage_percent"])}"}>
+                <div class="help-text label">CPU use</div>
+                <%= round(@latest_metrics["cpu_usage_percent"]) %>%
               </div>
             <% end %>
-
-            <%= if @latest_metrics.cpu_usage_percent do %>
-              <div class={"callout #{Utils.cpu_usage_percent_to_status(@latest_metrics.cpu_usage_percent)}"}>
-                <div class="help-text label">CPU use</div>
-                <%= round(@latest_metrics.cpu_usage_percent) %>%
-              </div>
-            <% else %>
-              <div class="callout">
-                <div class="help-text label">CPU use</div>
-                Not reported
-              </div>
-            <% end %>
-
-            <%= if @latest_metrics.cpu_temp do %>
-              <div class={"callout #{Utils.cpu_temp_to_status(@latest_metrics.cpu_temp)}"}>
+            <%= if @latest_metrics["cpu_temp"] do %>
+              <div class={"callout #{Utils.cpu_temp_to_status(@latest_metrics["cpu_temp"])}"}>
                 <div class="help-text label">CPU temp</div>
-                <%= round(@latest_metrics.cpu_temp) %>°
+                <%= round(@latest_metrics["cpu_temp"]) %>°
               </div>
             <% end %>
-
-            <%= for {key, val} <- @latest_custom_metrics do %>
-              <div class="callout">
-                <div class="help-text label">
-                  <%= key
-                  |> String.replace("_", " ")
-                  |> String.capitalize() %>
-                </div>
-                <%= cond do
-                  is_float(val) ->
-                    Float.round(val, 3)
-
-                  true ->
-                    val
-                end %>
+            <%= if @latest_metrics["mem_used_mb"] do %>
+              <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["mem_used_percent"])}"}>
+                <div class="help-text label">Memory used</div>
+                <%= round(@latest_metrics["mem_used_mb"]) %>MB (<%= round(@latest_metrics["mem_used_percent"]) %>%)
               </div>
             <% end %>
+            <%= if @latest_metrics["disk_available_kb"] do %>
+              <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["disk_used_percentage"])}"}>
+                <div class="help-text label">Disk used</div>
+                <%= Utils.disk_usage(@latest_metrics) %>
+              </div>
+            <% end %>
+            <%!--Display custom metrics, if any. Filters out "timestamp" key.--%>
+            <%= for {key, val} <- @latest_metrics do %>
+              <div :if={key not in Metrics.default_metrics() and key != "timestamp"} class="callout">
+                <div class="help-text label"><%= format_key(key) %></div>
+                <%= val %>
+              </div>
+            <% end %>
+          </div>
+
+          <div class="flex-row justify-content-between">
+            <div class="last-report">
+              <span class="label pr-1">Last reported :</span>
+              <time id="health-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
+                <%= Timex.from_now(@latest_metrics["timestamp"]) %>
+              </time>
+            </div>
+            <div>
+              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/health"}>
+                Full metrics
+              </.link>
+            </div>
           </div>
         <% end %>
-
-        <div :if={Map.get(@latest_metrics, :timestamp)} class="flex-row justify-content-between">
-          <div class="last-report">
-            <span class="label pr-1">Last reported :</span>
-            <time id="health-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics.timestamp, :second)), " ", "T")}>
-              <%= Timex.from_now(@latest_metrics.timestamp) %>
-            </time>
-          </div>
-          <div>
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/health"}>
-              Full metrics
-            </.link>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -263,7 +253,7 @@
         </a>
       </div>
 
-      <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
+      <AuditLogFeed.render audit_logs={@audit_logs} audit_pager={@audit_pager} />
     </div>
   </div>
 </div>

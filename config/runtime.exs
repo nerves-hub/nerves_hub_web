@@ -45,7 +45,8 @@ config :nerves_hub,
       interval_minutes:
         System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer()
     ]
-  ]
+  ],
+  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"
 
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),

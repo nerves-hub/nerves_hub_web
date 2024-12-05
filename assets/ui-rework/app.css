@@ -3,6 +3,9 @@
 @import 'tailwindcss/utilities';
 
 @layer components {
+  body {
+    overflow-x: hidden;
+  }
   .sidebar-item-selected {
     @apply font-medium text-[#FAFAFA];
     box-shadow: inset -1px 0 0 0 #6366f1;
@@ -31,10 +34,18 @@
     padding-right: 24px;
     padding-top: 4px;
     padding-bottom: 4px;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 20px;
   }
 
   .listing {
     @apply w-full border-t border-base-700 grow;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 20px;
   }
 
   .listing table {
@@ -105,8 +116,9 @@
 
   .title {
     line-height: 30px;
-    font-size: 20px;
+    font-style: normal;
     font-weight: 600;
+    line-height: 24px;
     padding-top: 24px;
     padding-bottom: 24px;
   }
@@ -266,6 +278,33 @@
     font-size: 14px;
     font-style: normal;
     font-weight: 600;
+    line-height: 20px;
+  }
+
+  .org-selector-title {
+    @apply text-base-50;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 20px;
+  }
+  .product-selector-title {
+    @apply text-base-400;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 20px;
+  }
+
+  .product-selector:hover .product-selector-icon {
+    @apply bg-base-700;
+  }
+
+  .product-picker-product, .product-picker-product:link {
+    @apply block text-base-300 py-[6px] px-4 bg-base-800 rounded;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 500;
     line-height: 20px;
   }
 }

@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.Index do
-  use NervesHubWeb.LiveView
+  use NervesHubWeb, :updated_live_view
 
   require Logger
 
@@ -92,16 +92,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:device_tags, "")
     |> assign(:total_entries, 0)
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
-    |> assign(:metrics_keys, Metrics.default_metric_types())
+    |> assign(:metrics_keys, Metrics.default_metrics())
     |> subscribe_and_refresh_device_list_timer()
-    |> ok(:sidebar)
+    |> ok()
   end
 
   def handle_params(unsigned_params, _uri, socket) do
-    filters =
-      Map.merge(@default_filters, filter_changes(unsigned_params))
-
-    pagination_opts = Map.merge(socket.assigns.paginate_opts, pagination_changes(unsigned_params))
+    filters = Map.merge(@default_filters, filter_changes(unsigned_params))
+    changes = pagination_changes(unsigned_params)
+    pagination_opts = Map.merge(@default_pagination, changes)
 
     socket
     |> assign(:current_sort, Map.get(unsigned_params, "sort", "identifier"))
