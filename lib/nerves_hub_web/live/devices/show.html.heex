@@ -263,7 +263,7 @@
         </a>
       </div>
 
-      <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
+      <AuditLogFeed.render audit_logs={@audit_logs} audit_pager={@audit_pager} />
     </div>
   </div>
 </div>

@@ -205,5 +205,5 @@
 <div>
   <h3 id="latest-activity" class="mb-2">Latest Activity</h3>
 
-  <%= render(NervesHubWeb.AuditLogView, "_audit_log_feed.html", assigns) %>
+  <AuditLogFeed.render audit_logs={@audit_logs} audit_pager={@audit_pager} />
 </div>
