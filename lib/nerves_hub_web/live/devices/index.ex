@@ -94,7 +94,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
     |> assign(:metrics_keys, Metrics.default_metric_types())
     |> subscribe_and_refresh_device_list_timer()
-    |> ok(:sidebar)
+    |> ok()
   end
 
   def handle_params(unsigned_params, _uri, socket) do

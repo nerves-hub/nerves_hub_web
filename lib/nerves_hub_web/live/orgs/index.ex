@@ -4,6 +4,6 @@ defmodule NervesHubWeb.Live.Orgs.Index do
   def mount(_params, _session, socket) do
     socket
     |> assign(:page_title, "Organizations")
-    |> ok(:no_sidebar)
+    |> ok()
   end
 end
