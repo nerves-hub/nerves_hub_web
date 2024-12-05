@@ -98,10 +98,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_params(unsigned_params, _uri, socket) do
-    filters =
-      Map.merge(@default_filters, filter_changes(unsigned_params))
-
-    pagination_opts = Map.merge(socket.assigns.paginate_opts, pagination_changes(unsigned_params))
+    filters = Map.merge(@default_filters, filter_changes(unsigned_params))
+    changes = pagination_changes(unsigned_params)
+    pagination_opts = Map.merge(@default_pagination, changes)
 
     socket
     |> assign(:current_sort, Map.get(unsigned_params, "sort", "identifier"))
