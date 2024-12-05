@@ -1,0 +1,506 @@
+<div class="sidebar-main-content">
+  <%= if @devices == [] && !@currently_filtering do %>
+    <!-- TODO: Go over empty-state with new design -->
+    <div class="no-results-blowup-wrapper">
+      <img src="/images/device.svg" alt="No devices" />
+      <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any devices yet</h3>
+      <div class="mt-3">
+        <.link class="btn btn-outline-light btn-action" aria-label="Add new device" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"}>
+          <div class="button-icon add"></div>
+          <span class="action-text">Add your first Device</span>
+        </.link>
+      </div>
+      <p class="mt-3">
+        Or follow <a class="strong inline" target="_blank" rel="noopener noreferrer" href="https://docs.nerves-hub.org/nerves-hub/setup/devices">these steps</a> to add a device using the terminal.
+      </p>
+    </div>
+  <% else %>
+    <div class="listing-header">
+      <h1 class="title">All devices</h1>
+      <div class="badge mr-auto"><%= @total_entries %></div>
+      <form id="filter-form-inline" class="action-search" phx-change="update-filters">
+        <input type="text" class="" name="device_id" id="input_id" placeholder="Search..." title="Search" value={@current_filters[:device_id]} phx-debounce="500" />
+        <svg class="ml-auto" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path
+            d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
+            stroke="#A1A1AA"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </form>
+      <a class="action-button" aria-label="Export devices" href={Routes.product_path(@socket, :devices_export, @org.name, @product.name)}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path
+            d="M10.0002 3.33325L6.66683 6.66659M10.0002 3.33325L13.3335 6.66659M10.0002 3.33325L10.0002 13.3333M3.3335 16.6666L16.6668 16.6666"
+            stroke="#A1A1AA"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span class="action-text">Export</span>
+      </a>
+      <.link class="action-button" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"} aria-label="Add new device">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="action-text">Add Device</span>
+      </.link>
+      <button class="action-button" type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path
+            d="M15.0002 3.33325H5.00022C4.07974 3.33325 3.31217 4.09102 3.53926 4.98304C4.03025 6.91168 5.36208 8.50445 7.12143 9.34803C7.80715 9.67683 8.33355 10.3214 8.33355 11.0819V16.1516C8.33355 16.771 8.98548 17.174 9.53956 16.8969L11.2062 16.0636C11.4886 15.9224 11.6669 15.6339 11.6669 15.3182V11.0819C11.6669 10.3214 12.1933 9.67683 12.879 9.34803C14.6384 8.50445 15.9702 6.91168 16.4612 4.98304C16.6883 4.09102 15.9207 3.33325 15.0002 3.33325Z"
+            stroke="#A1A1AA"
+            stroke-width="1.2"
+          />
+        </svg>
+        <span class="action-text">
+          Filters
+        </span>
+      </button>
+    </div>
+
+    <div class="listing">
+      <table class="">
+        <thead>
+          <tr>
+            <th class="checkbox">
+              <input
+                class="checkbox"
+                checked={Enum.any?(@selected_devices)}
+                id="check-uncheck"
+                title="Check/uncheck all"
+                {[checked: Enum.count(@selected_devices) == Enum.count(@devices)]}
+                id="toggle-all"
+                name="toggle-all"
+                type="checkbox"
+                phx-click="select-all"
+              />
+              <label for="check-uncheck">
+                <svg :if={Enum.any?(@selected_devices)} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 6H6H10" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </label>
+            </th>
+            <th class="flex items-center" phx-click="sort" phx-value-sort="identifier">
+              Identifier
+              <svg :if={@current_sort == "identifier"} class="ml-auto" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M12.5 7.5L10 5L7.5 7.5M12.5 12.5L10 15L7.5 12.5" stroke="#71717A" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </th>
+            <th>Firmware</th>
+            <th>Platform</th>
+            <th phx-click="sort" phx-value-sort="inserted_at">
+              <div class="flex items-center">
+                Added
+                <svg :if={@current_sort == "inserted_at"} class="ml-auto" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M12.5 7.5L10 5L7.5 7.5M12.5 12.5L10 15L7.5 12.5" stroke="#71717A" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </div>
+            </th>
+            <th phx-click="sort" phx-value-sort="connection_last_seen_at">
+              <div class="flex items-center">
+                Seen
+                <svg :if={@current_sort == "connection_last_seen_at"} class="ml-auto" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M12.5 7.5L10 5L7.5 7.5M12.5 12.5L10 15L7.5 12.5" stroke="#71717A" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </div>
+            </th>
+            <th phx-click="sort" phx-value-sort="tags">
+              <div class="flex items-center">
+                Tags
+                <svg :if={@current_sort == "tags"} class="ml-auto" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M12.5 7.5L10 5L7.5 7.5M12.5 12.5L10 15L7.5 12.5" stroke="#71717A" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </div>
+            </th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <%= for device <- @devices do %>
+            <tr class={
+              if device.id in @selected_devices do
+                "selected-row"
+              end
+            }>
+              <td class="checkbox">
+                <input
+                  id={"checkbox-device-#{device.id}"}
+                  class="checkbox"
+                  {if device.id in @selected_devices, do: [checked: true], else: []}
+                  type="checkbox"
+                  id={"#{device.id}-select"}
+                  phx-value-id={device.id}
+                  phx-click="select"
+                />
+                <label for={"checkbox-device-#{device.id}"}>
+                  <svg :if={device.id in @selected_devices} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M2.5 6.5L4.5 8.5L10 3" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </label>
+              </td>
+              <td>
+                <div class="flex gap-[8px] items-center">
+                  <span title={last_seen_at_status(device.device_connections)}>
+                    <%= if @device_statuses[device.identifier] == "online" do %>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
+                        <circle cx="3" cy="3" r="3" fill="#10B981" />
+                      </svg>
+                      <!-- use this when we have connection type information -->
+                      <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path
+                          d="M10.8573 9.17153C10.1261 8.44767 9.11595 7.99996 8.00016 7.99996C6.88438 7.99996 5.87423 8.44767 5.14302 9.17153M12.7621 7.28591C11.5434 6.07948 9.8598 5.33329 8.00016 5.33329C6.14052 5.33329 4.45694 6.07948 3.23826 7.28591M14.6668 5.4003C12.9607 3.71129 10.6037 2.66663 8.00016 2.66663C5.39667 2.66663 3.03964 3.71129 1.3335 5.4003M9.34703 12C9.34703 12.7363 8.74402 13.3333 8.00016 13.3333C7.25631 13.3333 6.65329 12.7363 6.65329 12C6.65329 11.6318 6.80405 11.2984 7.04778 11.0572C7.29152 10.8159 7.62823 10.6666 8.00016 10.6666C8.37209 10.6666 8.70881 10.8159 8.95254 11.0572C9.19628 11.2984 9.34703 11.6318 9.34703 12Z"
+                          stroke="#10B981"
+                          stroke-width="1.2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg> --%>
+                    <% else %>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
+                        <circle cx="3" cy="3" r="3" fill="#71717A" />
+                      </svg>
+                      <!-- use this when we have connection type information -->
+                      <%!-- <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path
+                          d="M8.00016 5.33333C9.8598 5.33333 11.5434 6.07953 12.7621 7.28596M14.6668 5.40034C12.9607 3.71134 10.6037 2.66667 8.00016 2.66667C7.3139 2.66667 6.64477 2.73925 6.00016 2.87709M5.14302 9.17157C5.87423 8.44772 6.88438 8 8.00016 8M3.23826 7.28595C3.91937 6.61169 4.7457 6.08118 5.66683 5.74436M1.3335 5.40034C2.0158 4.72489 2.8022 4.15249 3.66683 3.70874M2.00016 2L14.0002 14M9.34703 12C9.34703 12.7364 8.74402 13.3333 8.00016 13.3333C7.25631 13.3333 6.65329 12.7364 6.65329 12C6.65329 11.6318 6.80405 11.2985 7.04778 11.0572C7.29152 10.8159 7.62823 10.6667 8.00016 10.6667C8.37209 10.6667 8.70881 10.8159 8.95254 11.0572C9.19628 11.2985 9.34703 11.6318 9.34703 12Z"
+                          stroke="#EF4444"
+                          stroke-width="1.2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg> --%>
+                    <% end %>
+                  </span>
+                  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class={"ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
+                    <%= device.identifier %>
+                  </.link>
+                </div>
+              </td>
+
+              <td>
+                <div class="flex gap-[8px] items-center">
+                  <span>
+                    <%= if is_nil(device.firmware_metadata) do %>
+                      Unknown
+                    <% else %>
+                      <%= device.firmware_metadata.version %>
+                    <% end %>
+                  </span>
+                  <svg :if={device.firmware_metadata && device.updates_enabled} title="Updates enabled" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M6.00016 8L7.3335 9.33333L10.0002 6M8.00016 14C8.00016 14 12.6668 12 12.6668 9.33333V3.33333C11.6668 3.44444 9.3335 3.33333 8.00016 2C6.66683 3.33333 4.3335 3.44444 3.3335 3.33333V9.33333C3.3335 12 8.00016 14 8.00016 14Z"
+                      stroke="#10B981"
+                      stroke-width="1.2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  <svg :if={device.firmware_metadata && not device.updates_enabled} title="Updates disabled" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M12.6667 9.33333V3.33333C11.6667 3.44444 9.33333 3.33333 8 2C7.61905 2.38095 7.15646 2.66213 6.66667 2.86686M3.33333 3.33333V9.33333C3.33333 12 8 14 8 14C8 14 10.1359 13.0846 11.5177 11.6667M2 2L14 14"
+                      stroke="#A1A1AA"
+                      stroke-width="1.2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </div>
+              </td>
+
+              <td>
+                <span>
+                  <%= if is_nil(device.firmware_metadata) do %>
+                    Unknown
+                  <% else %>
+                    <%= device.firmware_metadata.platform %>
+                  <% end %>
+                </span>
+              </td>
+
+              <td>
+                <div title={NaiveDateTime.to_iso8601(device.inserted_at)}>
+                  <%= Timex.from_now(device.inserted_at) %>
+                </div>
+              </td>
+
+              <td>
+                <div :if={device.device_connections != []} title={last_seen_at(device.device_connections)}>
+                  <%= last_seen_at(device.device_connections) %>
+                </div>
+              </td>
+
+              <td>
+                <div class="flex items-center gap-[4px]">
+                  <%= if !is_nil(device.tags) do %>
+                    <%= for tag <- device.tags do %>
+                      <span class="tag"><%= tag %></span>
+                    <% end %>
+                  <% end %>
+                </div>
+              </td>
+
+              <td class="actions">
+                <div class="">
+                  <a class="" data-target="#" id={"actions-#{device.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" phx-click={show_menu("actions-menu-#{device.id}")}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                      <path
+                        d="M9.1665 10C9.1665 10.2211 9.2543 10.433 9.41058 10.5893C9.56686 10.7456 9.77882 10.8334 9.99984 10.8334C10.2209 10.8334 10.4328 10.7456 10.5891 10.5893C10.7454 10.433 10.8332 10.2211 10.8332 10C10.8332 9.77903 10.7454 9.56707 10.5891 9.41079C10.4328 9.2545 10.2209 9.16671 9.99984 9.16671C9.77882 9.16671 9.56686 9.2545 9.41058 9.41079C9.2543 9.56707 9.1665 9.77903 9.1665 10ZM9.1665 15.8334C9.1665 16.0544 9.2543 16.2663 9.41058 16.4226C9.56686 16.5789 9.77882 16.6667 9.99984 16.6667C10.2209 16.6667 10.4328 16.5789 10.5891 16.4226C10.7454 16.2663 10.8332 16.0544 10.8332 15.8334C10.8332 15.6124 10.7454 15.4004 10.5891 15.2441C10.4328 15.0878 10.2209 15 9.99984 15C9.77882 15 9.56686 15.0878 9.41058 15.2441C9.2543 15.4004 9.1665 15.6124 9.1665 15.8334ZM9.1665 4.16671C9.1665 4.38772 9.2543 4.59968 9.41058 4.75596C9.56686 4.91224 9.77882 5.00004 9.99984 5.00004C10.2209 5.00004 10.4328 4.91224 10.5891 4.75596C10.7454 4.59968 10.8332 4.38772 10.8332 4.16671C10.8332 3.94569 10.7454 3.73373 10.5891 3.57745C10.4328 3.42117 10.2209 3.33337 9.99984 3.33337C9.77882 3.33337 9.56686 3.42117 9.41058 3.57745C9.2543 3.73373 9.1665 3.94569 9.1665 4.16671Z"
+                        stroke="#A1A1AA"
+                        stroke-width="1.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </a>
+                  <div class="hidden absolute right-[24px] menu-box" id={"actions-menu-#{device.id}"} phx-click-away={hide_menu("actions-menu-#{device.id}")} phx-key="escape" )}>
+                    <.link phx-click="reboot-device" phx-value-device_identifier={device.identifier} class="dropdown-item">
+                      Reboot
+                    </.link>
+                    <div class="dropdown-divider"></div>
+                    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}/console"} class="dropdown-item">
+                      Console
+                    </.link>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-divider"></div>
+                    <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
+                      <span>
+                        <%= if device.updates_enabled, do: "Disable Updates", else: "Enable Updates" %>
+                      </span>
+                    </.link>
+
+                    <div class="dropdown-divider"></div>
+
+                    <%= link to: Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier), class: "dropdown-item", aria: [label: "Download Audit Logs"] do %>
+                      <div class="button-icon download"></div>
+                      <span class="action-text">Download Audit Logs</span>
+                    <% end %>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</div>
+
+<div class="sticky-pager col-start-2 col-end-4 row-start-3 row-end-4 z-10">
+  <%= for size <- @paginate_opts.page_sizes do %>
+    <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"pager-button #{if size == @paginate_opts.page_size, do: "active-page"}"}>
+      <%= size %>
+    </button>
+  <% end %>
+  <div class="ml-auto">
+    <%= reworked_pager(@paginate_opts) %>
+  </div>
+</div>
+
+<div class={"sidebar-slideover col-start-3 col-end-4 row-start-2 row-end-4 z-20 flex flex-col border-base-700 border-l bg-base-900 transition-transform " <> if @show_filters do "" else "translate-x-[263px]" end}>
+  <div class="flex border-b border-base-700 px-4 py-3">
+    <h4 class="sidebar-title">Filters</h4>
+
+    <button class="ml-auto" type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
+          stroke="#A1A1AA"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
+  </div>
+  <div class="flex flex-col grow pb-4">
+    <form id="filter-form" class="px-4 grow" phx-change="update-filters">
+      <div class="sidebar-search mt-6">
+        <input type="text" name="device_id" id="input_id" placeholder="Search..." value={@current_filters[:device_id]} phx-debounce="500" />
+        <svg class="ml-auto" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path
+            d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
+            stroke="#A1A1AA"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+      <div class="mt-6">
+        <label class="sidebar-label" for="input_connection">Connection</label>
+        <select class="sidebar-select" name="connection" id="input_connection">
+          <option {selected?(@current_filters, :connection, "")} value="">All</option>
+          <option {selected?(@current_filters, :connection, "connected")} value="connected">Connected</option>
+          <option {selected?(@current_filters, :connection, "disconnected")} value="disconnected">Disconnected</option>
+          <option {selected?(@current_filters, :connection, "not_seen")} value="not_seen">Not Seen</option>
+        </select>
+      </div>
+      <div class="mt-6">
+        <label class="sidebar-label" for="connection_type">Connection Type</label>
+        <select class="sidebar-select" name="connection_type" id="connection_type">
+          <option {selected?(@current_filters, :connection_type, "")} value="">All</option>
+          <option {selected?(@current_filters, :connection_type, "cellular")} value="cellular">Cellular</option>
+          <option {selected?(@current_filters, :connection_type, "ethernet")} value="ethernet">Ethernet</option>
+          <option {selected?(@current_filters, :connection_type, "wifi")} value="wifi">WiFi</option>
+        </select>
+      </div>
+      <div class="mt-6">
+        <label class="sidebar-label" for="input_health">Firmware Updates</label>
+        <select class="sidebar-select" name="updates" id="input_health">
+          <option {selected?(@current_filters, :updates, "")} value="">All</option>
+          <option {selected?(@current_filters, :updates, "enabled")} value="enabled">Enabled</option>
+          <option {selected?(@current_filters, :updates, "penalty-box")} value="penalty-box">Penalty Box</option>
+          <option {selected?(@current_filters, :updates, "disabled")} value="disabled">Disabled</option>
+        </select>
+      </div>
+      <div class="mt-6">
+        <label class="sidebar-label" for="input_firmware">Firmware</label>
+        <select class="sidebar-select" name="firmware_version" id="input_firmware">
+          <option {selected?(@current_filters, :firmware_version, "")} value="">All</option>
+          <%= for version <- @firmware_versions do %>
+            <option {selected?(@current_filters, :firmware_version, version)}><%= version %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="mt-6">
+        <label class="sidebar-label" for="input_platform">Platform</label>
+        <select class="sidebar-select" name="platform" id="platform">
+          <option {selected?(@current_filters, :platform, "")} value="">All</option>
+          <%= for platform <- @platforms do %>
+            <option {selected?(@current_filters, :platform, platform)}><%= if platform, do: platform, else: "Unknown" %></option>
+          <% end %>
+        </select>
+      </div>
+      <div class="mt-6">
+        <label class="sidebar-label" for="input_tags">Tags</label>
+        <input class="sidebar-text-input" type="text" name="tag" id="input_tags" value={@current_filters[:tag]} phx-debounce="500" />
+      </div>
+      <div class="mt-6">
+        <label class="sidebar-label" for="has_no_tags">Untagged</label>
+        <select class="sidebar-select" name="has_no_tags" id="has_no_tags">
+          <option {selected?(@current_filters, :has_no_tags, false)} value="false">All</option>
+          <option {selected?(@current_filters, :has_no_tags, true)} value="true">Only untagged</option>
+        </select>
+      </div>
+      <div class="mt-6">
+        <label class="sidebar-label" for="alarm_status">Alarm Status</label>
+        <select class="sidebar-select" name="alarm_status" id="alarm_status">
+          <option {selected?(@current_filters, :alarm_status, "")} value="">All</option>
+          <option {selected?(@current_filters, :alarm_status, "with")} value="with">Has Alarms</option>
+          <option {selected?(@current_filters, :alarm_status, "without")} value="without">No alarms</option>
+        </select>
+      </div>
+      <div class="mt-6">
+        <label class="sidebar-label" for="alarm">Alarm</label>
+        <select class="sidebar-select" name="alarm" id="alarm">
+          <option {selected?(@current_filters, :alarm, "")} value="">All</option>
+          <%= for alarm <- @current_alarms do %>
+            <option {selected?(@current_filters, :alarm, alarm)}><%= alarm %></option>
+          <% end %>
+        </select>
+      </div>
+    </form>
+  </div>
+  <div class="sticky bottom-0 z-20 p-3 py-[15px] pb-[14px] border-t bg-base-900 border-base-700">
+    <button class="sidebar-button" type="button" phx-click="reset-filters">Reset Filters</button>
+  </div>
+</div>
+
+<div class={"sidebar-slideover border-base-700 border-l bg-base-900 col-start-3 col-end-4 row-start-2 row-end-4 z-30 transition-transform " <> if @selected_devices != [] do "" else "translate-x-[263px]" end}>
+  <div class="flex border-b border-base-700 px-4 py-3">
+    <h4 class="sidebar-title"><%= length(@selected_devices) %> devices selected</h4>
+
+    <button class="ml-auto" type="button" phx-click="deselect-all">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
+          stroke="#A1A1AA"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
+  </div>
+  <div class="px-4 pb-3">
+    <form id="move" class="mt-6" phx-change="target-product" phx-submit="move-devices">
+      <label for="move_to" class="sidebar-label">Move devices</label>
+      <div class="">
+        <div class="flex gap-2">
+          <select name="product" id="move_to" class="sidebar-select">
+            <option value="">Select product</option>
+            <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
+              <optgroup label={org.name}>
+                <%= for product <- products, product.id != @product.id do %>
+                  <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>
+                <% end %>
+              </optgroup>
+            <% end %>
+          </select>
+          <!-- TODO check other browsers, do we need this chevron?
+          <div class="">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M14.1668 8.33331L10.0002 12.5L5.8335 8.33331" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          -->
+          <button class="sidebar-apply" type="submit" data-confirm={move_alert(@target_product)} {unless @target_product, do: [disabled: true], else: []}>
+            Move
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <form id="bulk-tag-input" class="mt-6" phx-submit="tag-devices" phx-change="validate-tags">
+      <label class="sidebar-label" for="input_set_tags">Set tags</label>
+      <div class="flex gap-2">
+        <input type="text" class="sidebar-text-input" name="tags" id="input_set_tags" value={@current_filters[:tag]} phx-debounce="500" />
+        <button class="sidebar-apply" type="submit" data-confirm="This will update tags on all selected devices" {if @valid_tags && @device_tags != "", do: [], else: [disabled: true]}>
+          Set
+        </button>
+      </div>
+      <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
+    </form>
+
+    <div class="mt-6">
+      <div class="">
+        <label>Firmware updates</label>
+
+        <div class="flex gap-3 w-full">
+          <form class="grow" id="disable-updates" phx-submit="disable-updates-for-devices">
+            <button class="sidebar-button w-full" type="submit" data-confirm="This will disable updates for all selected devices" phx-click="disable-updates-for-devices">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M10.0002 10L5.8335 5.83334M10.0002 10L14.1668 14.1667M10.0002 10L14.1668 5.83334M10.0002 10L5.8335 14.1667"
+                  stroke="#A1A1AA"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>Disable</span>
+            </button>
+          </form>
+
+          <form class="grow" id="enable-updates" phx-submit="enable-updates-for-devices">
+            <button class="sidebar-button w-full" type="submit" data-confirm="This will enable updates for all selected devices" phx-click="enable-updates-for-devices">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M4.1665 10.8333L7.49984 14.1667L16.6665 5" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span class="">Enable</span>
+            </button>
+          </form>
+        </div>
+        <form class="mt-3" id="clear-penalty-box" phx-submit="clear-penalty-box-for-devices">
+          <button class="sidebar-button w-full" type="submit" data-confirm="This will clear the penalty box all selected devices" phx-click="clear-penalty-box-for-devices">
+            <span class="">Clear Penalty box</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

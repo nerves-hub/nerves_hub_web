@@ -4,18 +4,21 @@ defmodule NervesHub.Devices.Metrics do
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Repo
 
-  @default_metric_types [
-    :cpu_temp,
-    :cpu_usage_percent,
-    :load_15min,
-    :load_1min,
-    :load_5min,
-    :size_mb,
-    :used_mb,
-    :used_percent
+  @default_metrics [
+    "cpu_temp",
+    "cpu_usage_percent",
+    "disk_available_kb",
+    "disk_total_kb",
+    "disk_used_percentage",
+    "load_15min",
+    "load_1min",
+    "load_5min",
+    "mem_size_mb",
+    "mem_used_mb",
+    "mem_used_percent"
   ]
 
-  def default_metric_types, do: @default_metric_types
+  def default_metrics, do: @default_metrics
 
   @doc """
   Get all metrics for device
@@ -30,8 +33,8 @@ defmodule NervesHub.Devices.Metrics do
   @doc """
   Get metrics by device within a specified time frame
   """
-  def get_device_metrics(device_id, time_unit, amount) do
-    DeviceMetrics
+  def get_device_metrics(device_id, {time_unit, amount}) do
+    DeviceMetric
     |> where(device_id: ^device_id)
     |> where([d], d.inserted_at > ago(^amount, ^time_unit))
     |> order_by(asc: :inserted_at)
@@ -56,27 +59,6 @@ defmodule NervesHub.Devices.Metrics do
     DeviceMetric
     |> where(device_id: ^device_id)
     |> where(key: ^key)
-    |> where([d], d.inserted_at > ago(^amount, ^time_unit))
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
-  end
-
-  def get_custom_metrics_for_device(device_id) do
-    default_metrics = Enum.map(@default_metric_types, &Atom.to_string/1)
-
-    DeviceMetric
-    |> where(device_id: ^device_id)
-    |> where([dm], dm.key not in ^default_metrics)
-    |> order_by(asc: :inserted_at)
-    |> Repo.all()
-  end
-
-  def get_custom_metrics_for_device(device_id, {time_unit, amount}) do
-    default_metrics = Enum.map(@default_metric_types, &Atom.to_string/1)
-
-    DeviceMetric
-    |> where(device_id: ^device_id)
-    |> where([dm], dm.key not in ^default_metrics)
     |> where([d], d.inserted_at > ago(^amount, ^time_unit))
     |> order_by(asc: :inserted_at)
     |> Repo.all()
@@ -118,12 +100,6 @@ defmodule NervesHub.Devices.Metrics do
     |> Repo.one()
   end
 
-  def get_latest_value(device_id, key) do
-    device_id
-    |> get_latest_metric(key)
-    |> get_value_or_nil()
-  end
-
   def get_latest_timestamp_for_device(device_id) do
     device_id
     |> get_latest_metric()
@@ -134,32 +110,31 @@ defmodule NervesHub.Devices.Metrics do
   end
 
   @doc """
-  Get map with latest values for all metric types. Also includes timestamp.
+  Retrieves the latest metric set, together with the timestamp, for a given device.
+
+  Uses a subquery to filter the `DeviceMetric` table on the most recent `inserted_at` timestamp.
   """
-  def get_latest_metric_set_for_device(device_id) do
-    @default_metric_types
-    |> Enum.reduce(%{}, fn type, acc ->
-      Map.put(acc, type, get_latest_value(device_id, Atom.to_string(type)))
-    end)
-    |> Map.put(:timestamp, get_latest_timestamp_for_device(device_id))
-  end
-
-  def get_latest_custom_metrics(device_id) do
-    default_metrics = Enum.map(@default_metric_types, &Atom.to_string/1)
-
+  def get_latest_metric_set(device_id) do
     DeviceMetric
-    |> select([dm], dm.key)
-    |> where(device_id: ^device_id)
-    |> where([dm], dm.key not in ^default_metrics)
-    |> distinct(true)
+    |> where([dm], dm.device_id == ^device_id)
+    |> where(
+      [dm],
+      dm.inserted_at ==
+        subquery(
+          DeviceMetric
+          |> select([:inserted_at])
+          |> where(device_id: ^device_id)
+          |> order_by(desc: :inserted_at)
+          |> limit(1)
+        )
+    )
     |> Repo.all()
-    |> Enum.reduce(%{}, fn type, acc ->
-      Map.put(acc, type, get_latest_value(device_id, type))
+    |> Enum.reduce(%{}, fn item, acc ->
+      acc
+      |> Map.put(item.key, item.value)
+      |> Map.put_new("timestamp", item.inserted_at)
     end)
   end
-
-  defp get_value_or_nil(%DeviceMetric{value: value}), do: value
-  defp get_value_or_nil(_), do: nil
 
   @doc """
   Saves single metric.

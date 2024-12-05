@@ -1,0 +1,278 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@layer components {
+  body {
+    overflow-x: hidden;
+  }
+  .sidebar-item-selected {
+    @apply font-medium text-[#FAFAFA];
+    box-shadow: inset -1px 0 0 0 #6366f1;
+    background: linear-gradient(
+        to right,
+        rgb(39 39 42 / 30%),
+        rgb(39 39 42 / 72%)
+      ),
+      linear-gradient(to right, rgb(99 102 241 / 0%), rgb(99 102 241 / 10%));
+  }
+
+  .base-grid {
+    display: grid;
+    grid-template-columns: [start] 264px [body-start] auto [body-end] 264px [end];
+    grid-template-rows: [top] 56px [body-top] auto [body-end] 64px [bottom];
+    min-height: 100vh;
+  }
+
+  .sidebar-main-content {
+    @apply flex flex-col col-start-2 col-end-4 row-start-2 row-end-3;
+  }
+
+  .listing-header {
+    @apply flex items-center gap-4;
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .listing {
+    @apply w-full border-t border-base-700 grow;
+  }
+
+  .listing table {
+    @apply w-full;
+  }
+
+  .listing th {
+    @apply text-base-400 bg-base-900;
+    padding: 6px 16px;
+    text-align: left;
+  }
+  
+  .listing .checkbox {
+    padding: 12px 24px;
+    width: 68px;
+  }
+
+  .listing .checkbox label {
+    @apply border border-base-600 bg-base-800;
+    display: flex;
+    width: 16px;
+    height: 16px;
+    padding: 2px;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    border-radius: 4px;
+  }
+
+  .listing .checkbox label svg {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+  }
+
+  .listing .checkbox label:hover {
+    @apply bg-base-700;
+  }
+
+  .listing .checkbox input:checked ~ label {
+    @apply bg-purple-600;
+  }
+
+  .listing th.checkbox input, .listing td.checkbox input {
+    display: none;
+  }
+
+  .listing tbody tr:hover {
+    @apply bg-base-800;
+  }
+
+  .listing td {
+    padding: 6px 16px;
+    text-align: left;
+  }
+
+  .tag {
+    @apply rounded-md bg-base-800;
+    display: flex;
+    padding: 2px 4px;
+    align-items: center;
+    gap: 8px;
+
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px; 
+  }
+
+  .title {
+    line-height: 30px;
+    font-size: 20px;
+    font-weight: 600;
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  .subtitle {
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 600;
+  }
+
+  .badge {
+    @apply rounded-sm bg-base-800 text-base-300 px-[4px] py-[2px];
+    font-size: 12px;
+  }
+
+  .action-button {
+    @apply border border-base-600 bg-base-800 text-base-300;
+    display: flex;
+    gap: 8px;
+    padding: 6px 12px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+  }
+
+  .action-search {
+    @apply flex items-center bg-base-900 text-base-400 border border-base-600 rounded-[4px] text-sm px-2 py-[6px];
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .action-search input {
+    @apply bg-transparent border-transparent text-base-400;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    height: 20px;
+    padding: 0;
+  }
+
+  .sticky-pager {
+    @apply sticky bottom-0 flex flex-row border-0 bg-base-950 border-t border-t-base-700 px-[24px] py-[16px];
+  }
+
+  .pager-button {
+    @apply rounded-sm px-[12px] py-[6px];
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+
+  .active-page {
+    @apply bg-base-800;
+  }
+
+  .sidebar-slideover {
+    @apply bg-base-900;
+    /* #141417 */
+    box-shadow: -8px 0px 16px 0px rgb(20 20 23 / 0.9);
+  }
+
+  .sidebar-title {
+    @apply text-base-50;
+    font-size: 16px;
+    font-weight: 600;
+    height: 32px;
+    line-height: 32px;
+  }
+
+  .sidebar-label {
+    @apply text-base-300 text-sm;
+  }
+
+  .sidebar-select {
+    @apply w-full bg-base-900 text-base-400 rounded-[4px] text-sm px-2 py-[6px];
+  }
+
+  .sidebar-text-input {
+    @apply w-full bg-base-900 text-base-400 rounded-[4px] text-sm px-2 py-[6px];
+  }
+
+  .sidebar-search {
+    @apply flex items-center bg-base-900 text-base-400 border border-base-600 rounded-[4px] text-sm px-2 py-[6px];
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .sidebar-search input {
+    @apply bg-transparent border-transparent text-base-400;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    height: 20px;
+    padding: 0;
+  }
+
+  .sidebar-apply {
+    @apply bg-purple-600 text-base-50 hover:scale-110;
+    display: flex;
+    padding: 6px 12px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    cursor: pointer;
+  }
+
+  .sidebar-button {
+    @apply bg-base-800 border border-base-600 text-base-50 hover:border-base-400;
+    display: flex;
+    gap: 8px;
+    padding: 6px 12px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    cursor: pointer;
+  }
+
+  .org-avatar {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    flex-shrink: 0;
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 14px;
+    @apply bg-base-800 text-base-500;
+  }
+
+  .org-block {
+    @apply py-[12px] px-[16px] border-base-700;
+    border-width: 1px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+  }
+
+  .product-block {
+    @apply border-base-700 bg-base-900;
+    border-width: 1px;
+    border-radius: 4px;
+    flex-grow: 1;
+    max-width: calc(50% - 24px);
+    padding: 16px;
+    background: linear-gradient(90deg, rgba(39, 39, 42, 0.56) 0%, #27272A 100%);
+  }
+
+  .menu-box {
+    @apply bg-base-900 border border-base-700 py-[12px] px-[16px] rounded-md;
+  }
+
+  .product-title {
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 20px;
+  }
+}
+
+html {
+  @apply text-zinc-300;
+}

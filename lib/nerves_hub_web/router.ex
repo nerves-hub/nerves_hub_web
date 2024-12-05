@@ -14,6 +14,20 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.Plugs.SetLocale)
   end
 
+  pipeline :dynamic_layout do
+    plug(:put_dynamic_root_layout)
+  end
+
+  def put_dynamic_root_layout(conn, _) do
+    session = Plug.Conn.get_session(conn)
+
+    if Application.get_env(:nerves_hub, :new_ui) && session["new_ui"] do
+      put_root_layout(conn, html: {NervesHubWeb.Layouts, :root})
+    else
+      put_root_layout(conn, html: {NervesHubWeb.LayoutView, :root})
+    end
+  end
+
   pipeline :logged_in do
     plug(NervesHubWeb.Plugs.FetchUser)
     plug(NervesHubWeb.Plugs.EnsureLoggedIn)
@@ -206,12 +220,15 @@ defmodule NervesHubWeb.Router do
   end
 
   scope "/", NervesHubWeb do
-    pipe_through([:browser, :live_logged_in])
+    pipe_through([:browser, :live_logged_in, :dynamic_layout])
+
+    get("/ui/switch", UiSwitcherController, :index)
 
     live_session :account,
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
-        NervesHubWeb.Mounts.CurrentPath
+        NervesHubWeb.Mounts.CurrentPath,
+        {NervesHubWeb.Mounts.LayoutSelector, :no_sidebar}
       ] do
       live("/account", Live.Account, :edit)
       live("/account/delete", Live.Account, :delete)
@@ -227,7 +244,8 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.AccountAuth,
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
-        NervesHubWeb.Mounts.FetchOrgUser
+        NervesHubWeb.Mounts.FetchOrgUser,
+        {NervesHubWeb.Mounts.LayoutSelector, :no_sidebar}
       ] do
       live("/org/:org_name", Live.Org.Products, :index)
       live("/org/:org_name/new", Live.Org.Products, :new)
@@ -254,7 +272,8 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser,
-        NervesHubWeb.Mounts.FetchProduct
+        NervesHubWeb.Mounts.FetchProduct,
+        {NervesHubWeb.Mounts.LayoutSelector, :sidebar}
       ] do
       live("/org/:org_name/:product_name/dashboard", Live.Dashboard.Index)
 

@@ -8,16 +8,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
 
   alias Phoenix.Socket.Broadcast
+  alias Phoenix.LiveView.JS
 
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
-  import NervesHubWeb.LayoutView,
-    only: [pagination_links: 1]
+  import NervesHubWeb.LayoutView
 
   @list_refresh_time 10_000
 
@@ -32,7 +33,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     updates: "",
     has_no_tags: false,
     alarm_status: "",
-    alarm: ""
+    alarm: "",
+    metrics_key: "",
+    metrics_operator: "gt",
+    metrics_value: ""
   }
 
   @filter_types %{
@@ -46,7 +50,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
     updates: :string,
     has_no_tags: :boolean,
     alarm_status: :string,
-    alarm: :string
+    alarm: :string,
+    metrics_key: :string,
+    metrics_operator: :string,
+    metrics_value: :string
   }
 
   @default_page 1
@@ -85,6 +92,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:device_tags, "")
     |> assign(:total_entries, 0)
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
+    |> assign(:metrics_keys, Metrics.default_metrics())
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
@@ -554,5 +562,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
         {key, value}
       end
     end
+  end
+
+  def show_menu(id, js \\ %JS{}) do
+    js
+    |> JS.show(transition: "fade-in", to: "##{id}")
+  end
+
+  def hide_menu(id, js \\ %JS{}) do
+    js
+    |> JS.hide(transition: "fade-out", to: "##{id}")
   end
 end

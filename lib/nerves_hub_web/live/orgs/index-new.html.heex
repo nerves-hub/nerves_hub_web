@@ -1,0 +1,41 @@
+<%= if @user.orgs == [] do %>
+  <!-- TODO: Go over this empty-state with new design -->
+  <div class="no-results-blowup-wrapper">
+    <img src="/images/product.svg" alt="No organizations" />
+    <h3 style="margin-top: 2.75rem">You aren't a member of any organizations.</h3>
+    <div class="flex-row align-items-center mt-3">
+      <.link navigate={~p"/orgs/new"} class="btn btn-outline-light" aria-label="Create new organization" role="button">
+        <span class="button-icon add"></span>
+        <span class="action-text">Create your first organization!</span>
+      </.link>
+    </div>
+  </div>
+<% else %>
+  <h1 class="title">Foo Organizations</h1>
+  <div :for={org <- @user.orgs} class="org-block">
+    <.link navigate={~p"/org/#{org.name}"} class="flex items-center gap-[12px]">
+      <div class="org-avatar">
+        <%= org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join() %>
+      </div>
+      <h3 class="subtitle "><%= org.name %></h3>
+    </.link>
+    <div class="flex gap-[16px] mt-[16px]">
+      <.link :for={product <- org.products} navigate={~p"/org/#{org.name}/#{product.name}/devices"} class="product-block flex">
+        <div class="product-title grow">
+          <%= product.name %>
+        </div>
+        <div class="product-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path
+              d="M2.5 10.8333H17.5M2.5 10.8333V14.1666C2.5 15.0871 3.24619 15.8333 4.16667 15.8333H15.8333C16.7538 15.8333 17.5 15.0871 17.5 14.1666V10.8333M2.5 10.8333L3.85106 5.42907C4.03654 4.68712 4.70318 4.16663 5.46796 4.16663H14.532C15.2968 4.16663 15.9635 4.68712 16.1489 5.42907L17.5 10.8333M5 13.3333H15"
+              stroke="#71717A"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+      </.link>
+    </div>
+  </div>
+<% end %>

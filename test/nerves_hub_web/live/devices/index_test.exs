@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Live.Devices.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHubWeb.Endpoint
 
@@ -83,6 +84,44 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       assert render_change(view, "update-filters", %{"tag" => "filtertest"}) =~
                device2.identifier
+    end
+
+    test "filters devices by metrics", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product} = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware, %{})
+      {:ok, view, html} = live(conn, device_index_path(fixture))
+      assert html =~ device.identifier
+      assert html =~ device2.identifier
+
+      # Add metrics for device2, sleep between to secure order.
+      Devices.Metrics.save_metric(%{device_id: device2.id, key: "cpu_temp", value: 36})
+      :timer.sleep(100)
+      Devices.Metrics.save_metric(%{device_id: device2.id, key: "cpu_temp", value: 42})
+      :timer.sleep(100)
+      Devices.Metrics.save_metric(%{device_id: device2.id, key: "load_1min", value: 3})
+
+      change =
+        render_change(view, "update-filters", %{
+          "metrics_key" => "cpu_temp",
+          "metrics_operator" => "gt",
+          "metrics_value" => "37"
+        })
+
+      # Show only show device2, which has a value greater than 37 on most recent cpu_temp metric.
+      assert change =~ device2.identifier
+      refute change =~ device.identifier
+
+      change2 =
+        render_change(view, "update-filters", %{
+          "metrics_key" => "cpu_temp",
+          "metrics_operator" => "lt",
+          "metrics_value" => "37"
+        })
+
+      # Should not show any device since the query is for values less than 37
+      refute change2 =~ device2.identifier
+      refute change2 =~ device.identifier
     end
 
     test "filters devices by several tags", %{conn: conn, fixture: fixture} do

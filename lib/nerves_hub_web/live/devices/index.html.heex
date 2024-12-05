@@ -155,6 +155,30 @@
             <div class="select-icon"></div>
           </div>
         </div>
+        <div class="form-group">
+          <label for="metrics">Metrics</label>
+          <div class="pos-rel">
+            <select name="metrics_key" id="metrics_key" class="form-control">
+              <option {selected?(@current_filters, :metrics_key, "")} value="">All</option>
+              <%= for key <- @metrics_keys do %>
+                <option {selected?(@current_filters, :metrics_key, key)}><%= key %></option>
+              <% end %>
+            </select>
+            <div class="select-icon"></div>
+          </div>
+        </div>
+        <div :if={@current_filters.metrics_key != ""} class="form-group">
+          <label for="metrics_operator">Operator</label>
+          <select name="metrics_operator" id="metrics_operator" class="form-control">
+            <option {selected?(@current_filters, :metrics_operator, "gt")} value="gt">Greater Than</option>
+            <option {selected?(@current_filters, :metrics_operator, "lt")} value="lt">Less than</option>
+          </select>
+          <div class="select-icon"></div>
+        </div>
+        <div :if={@current_filters.metrics_key != ""} class="form-group">
+          <label for="metrics_value">Value</label>
+          <input type="number" name="metrics_value" id="metrics_value" class="form-control" value={@current_filters[:metrics_value]} phx-debounce="100" />
+        </div>
       </form>
       <button class="btn btn-secondary" type="button" phx-click="reset-filters">Reset Filters</button>
     </div>
