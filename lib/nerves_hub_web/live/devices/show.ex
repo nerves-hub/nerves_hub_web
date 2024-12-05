@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Live.Devices.Show do
-  use NervesHubWeb, :updated_live_view
+  use NervesHubWeb.LiveView
 
   require Logger
 
@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
     |> audit_log_assigns(1)
-    |> ok()
+    |> ok(:sidebar)
   end
 
   def handle_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
@@ -382,5 +382,15 @@ defmodule NervesHubWeb.Live.Devices.Show do
       enabled == false and product.extensions[extension]
     end)
     |> Enum.map(&elem(&1, 0))
+  end
+
+  def show_menu(id, js \\ %JS{}) do
+    js
+    |> JS.show(transition: "fade-in", to: "##{id}")
+  end
+
+  def hide_menu(id, js \\ %JS{}) do
+    js
+    |> JS.hide(transition: "fade-out", to: "##{id}")
   end
 end

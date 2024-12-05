@@ -6,14 +6,13 @@
   body {
     overflow-x: hidden;
   }
+
   .sidebar-item-selected {
     @apply font-medium text-[#FAFAFA];
     box-shadow: inset -1px 0 0 0 #6366f1;
-    background: linear-gradient(
-        to right,
+    background: linear-gradient(to right,
         rgb(39 39 42 / 30%),
-        rgb(39 39 42 / 72%)
-      ),
+        rgb(39 39 42 / 72%)),
       linear-gradient(to right, rgb(99 102 241 / 0%), rgb(99 102 241 / 10%));
   }
 
@@ -26,6 +25,17 @@
 
   .sidebar-main-content {
     @apply flex flex-col col-start-2 col-end-4 row-start-2 row-end-3;
+  }
+
+  .top-row {
+    @apply flex items-center gap-4 col-start-2 col-end-3 row-start-1 row-end-2 border-b border-base-700 bg-base-900;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 500;
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-top: 4px;
+    padding-bottom: 4px;
   }
 
   .listing-header {
@@ -49,7 +59,7 @@
     padding: 6px 16px;
     text-align: left;
   }
-  
+
   .listing .checkbox {
     padding: 12px 24px;
     width: 68px;
@@ -77,11 +87,12 @@
     @apply bg-base-700;
   }
 
-  .listing .checkbox input:checked ~ label {
+  .listing .checkbox input:checked~label {
     @apply bg-purple-600;
   }
 
-  .listing th.checkbox input, .listing td.checkbox input {
+  .listing th.checkbox input,
+  .listing td.checkbox input {
     display: none;
   }
 
@@ -103,7 +114,7 @@
 
     font-size: 12px;
     font-weight: 400;
-    line-height: 16px; 
+    line-height: 16px;
   }
 
   .title {
