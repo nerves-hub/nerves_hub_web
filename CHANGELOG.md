@@ -27,7 +27,7 @@
 
 - Device channel cleanups (#1546)
 - Increase the Repo queue_target (#1545)
-- Change use of map to each in dashboard (#1550)
+- Fix dialyzer warning about use of map where each would do (#1550)
 - Use the Endpoint from the socket (#1558)
 - Sentry integration tweaks (#1560)
 - Remove the NodeReporter metrics logger (#1563)
