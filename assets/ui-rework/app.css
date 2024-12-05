@@ -3,6 +3,9 @@
 @import 'tailwindcss/utilities';
 
 @layer components {
+  body {
+    overflow-x: hidden;
+  }
   .sidebar-item-selected {
     @apply font-medium text-[#FAFAFA];
     box-shadow: inset -1px 0 0 0 #6366f1;
