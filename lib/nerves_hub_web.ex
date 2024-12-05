@@ -73,11 +73,9 @@ defmodule NervesHubWeb do
 
   def updated_live_view do
     quote do
-      use Phoenix.LiveView,
+      use NervesHubWeb.LiveView,
         layout: {NervesHubWeb.LayoutView, :live},
         container: {:div, class: "h-screen"}
-
-      @new_ui Application.compile_env(:nerves_hub, :new_ui) == true
 
       use Gettext, backend: NervesHubWeb.Gettext
 
@@ -99,14 +97,6 @@ defmodule NervesHubWeb do
       on_mount(Sentry.LiveViewHook)
 
       def ok(socket), do: {:ok, socket}
-
-      def ok(socket, layout) do
-        if @new_ui do
-          {:ok, socket, layout: {NervesHubWeb.Layouts, layout}}
-        else
-          {:ok, socket}
-        end
-      end
 
       def noreply(socket), do: {:noreply, socket}
 

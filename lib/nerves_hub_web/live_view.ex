@@ -1,49 +1,33 @@
 defmodule NervesHubWeb.LiveView do
   @moduledoc """
-  Switches in a -new.html.heex template if the new_ui == true in compile-time config.
+  Switches in a -new.html.heex template if `new_ui` has been enabled in `runtime.exs`
+  and the template exists.
   """
 
   require Logger
 
-  defmacro __using__(_opts) do
-    quote do
-      if Application.compile_env(:nerves_hub, :new_ui) == true do
-        @before_compile NervesHubWeb.LiveView
+  defmacro __using__(opts) do
+    # Expand layout if possible to avoid compile-time dependencies
+    opts =
+      with true <- Keyword.keyword?(opts),
+           {layout, template} <- Keyword.get(opts, :layout) do
+        layout = Macro.expand(layout, %{__CALLER__ | function: {:__live__, 0}})
+        Keyword.replace!(opts, :layout, {layout, template})
+      else
+        _ -> opts
       end
 
-      use NervesHubWeb, :updated_live_view
-    end
-  end
+    quote bind_quoted: [opts: opts] do
+      import Phoenix.LiveView
+      @behaviour Phoenix.LiveView
+      @before_compile NervesHubWeb.DynamicTemplateRenderer
 
-  defmacro __before_compile__(%{file: file, module: module}) do
-    root = Path.dirname(file)
-    # This is what Phoenix does
-    filename =
-      module
-      |> Module.split()
-      |> List.last()
-      |> Macro.underscore()
-      |> Kernel.<>("-new.html")
+      @phoenix_live_opts opts
+      Module.register_attribute(__MODULE__, :phoenix_live_mount, accumulate: true)
+      @before_compile Phoenix.LiveView
 
-    templates = Phoenix.Template.find_all(root, filename)
-
-    case templates do
-      [template] ->
-        Logger.info("Found New UI page: #{template}")
-        ext = template |> Path.extname() |> String.trim_leading(".") |> String.to_atom()
-        engine = Map.fetch!(Phoenix.Template.engines(), ext)
-        ast = engine.compile(template, filename)
-
-        quote do
-          @file unquote(template)
-          @external_resource unquote(template)
-          def render(var!(assigns)) when is_map(var!(assigns)) do
-            unquote(ast)
-          end
-        end
-
-      _ ->
-        nil
+      # Phoenix.Component must come last so its @before_compile runs last
+      use Phoenix.Component, Keyword.take(opts, [:global_prefixes])
     end
   end
 end
