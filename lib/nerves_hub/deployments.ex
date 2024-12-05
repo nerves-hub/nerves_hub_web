@@ -313,13 +313,13 @@ defmodule NervesHub.Deployments do
     reason =
       cond do
         bad_architecture and bad_platform ->
-          :bad_architecture_and_platform
+          "mismatched architecture and platform"
 
         bad_architecture ->
-          :bad_architecture
+          "mismatched architecture"
 
         bad_platform ->
-          :bad_platform
+          "mismatched platform"
 
         true ->
           nil
@@ -328,13 +328,13 @@ defmodule NervesHub.Deployments do
     if reason do
       device =
         device
-        |> Ecto.Changeset.change(%{deployment_id: nil, deployment_conflict: reason})
+        |> Ecto.Changeset.change(%{deployment_id: nil})
         |> Repo.update!()
 
       AuditLogs.audit!(
         device,
         device,
-        "device no longer matches deployment's #{deployment.name} requirements because of #{reason}"
+        "device no longer matches deployment #{deployment.name}'s requirements because of #{reason}"
       )
     else
       device

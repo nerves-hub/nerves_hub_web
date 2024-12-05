@@ -5,6 +5,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
   import TrackerHelper
 
+  alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Fixtures
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Orchestrator
@@ -734,7 +736,7 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.clean_close(socket)
     end
 
-    test "removes device from deployment and sets reason if firmware doesn't match",
+    test "removes device from deployment and creates audit log if firmware doesn't match",
          %{
            user: user,
            tmp_dir: tmp_dir
@@ -751,7 +753,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, deployment} =
         Fixtures.deployment_fixture(org, firmware, %{
-          name: "a different name",
+          name: "Every Device",
           conditions: %{
             "version" => "~> 0.0.1",
             "tags" => ["beta", "beta-edge"]
@@ -773,6 +775,7 @@ defmodule NervesHubWeb.WebsocketTest do
         )
 
       assert device.deployment_id
+      assert Repo.aggregate(AuditLog, :count) == 0
 
       Fixtures.device_certificate_fixture(device)
 
@@ -791,8 +794,10 @@ defmodule NervesHubWeb.WebsocketTest do
 
       Process.sleep(100)
 
-      device = Repo.reload(device)
-      assert device.deployment_conflict == :bad_architecture_and_platform
+      [log, _, _] = AuditLogs.logs_by(device)
+
+      assert log.description ==
+               "device no longer matches deployment Every Device's requirements because of mismatched architecture and platform"
 
       SocketClient.clean_close(socket)
     end
