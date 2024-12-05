@@ -117,6 +117,22 @@
     line-height: 16px;
   }
 
+  .detail-header {
+    @apply flex items-center gap-4;
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .indicator {
+    @apply flex gap-1 bg-base-800 px-2 py-1 rounded text-base-400 items-center;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 20px;
+  }
+
   .title {
     line-height: 30px;
     font-size: 20px;
@@ -129,6 +145,52 @@
     font-size: 16px;
     font-style: normal;
     font-weight: 600;
+  }
+
+  .tab-bar {
+    @apply flex px-12 justify-start border-b border-base-700;
+  }
+
+  .tab-bar .tab {
+    @apply py-2 px-6 text-base-300;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 28px;
+  }
+
+  .tab-bar .tab:hover {
+    @apply border-b border-base-700 text-base-50;
+  }
+
+  .tab-bar .tab.active {
+    @apply text-base-50 border-purple-600 border-b;
+    font-weight: 600;
+    background: linear-gradient(180deg, rgba(99, 102, 241, 0.00) 86.32%, rgba(99, 102, 241, 0.48) 103.41%);
+  }
+
+  .details-content {
+    @apply p-6;
+  }
+
+  .details-block {
+    @apply rounded border border-base-700;
+  }
+
+  .details-subheader {
+    @apply flex pl-4 pr-3 py-4 items-center;
+  }
+
+  .details-block-body {
+    @apply px-4 pt-2 pb-6;
+  }
+
+  .details-refresher {
+    @apply flex gap-2;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 16px;
   }
 
   .badge {
