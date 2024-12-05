@@ -145,9 +145,14 @@ defmodule NervesHubWeb.LayoutView do
           <%= page %>
         </button>
       </div>
-      <div :if={@total_pages > @distance}>
-        <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page="…">…</button>
-      </div>
+      <%= if @total_pages > @distance do %>
+        <div>
+          <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page="…">…</button>
+        </div>
+        <div>
+          <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page={@total_pages}><%= @total_pages %></button>
+        </div>
+      <% end %>
       <div :if={@page_number > 1}>
         <button class="btn btn-secondary btn-sm " phx-click="paginate" phx-value-page={@page_number - 1}>&lt;&lt;</button>
       </div>
