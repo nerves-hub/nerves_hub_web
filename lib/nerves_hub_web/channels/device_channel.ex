@@ -151,8 +151,8 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(%Broadcast{event: "moved"}, socket) do
-    # _ = Deployments.verify_deployment_membership(socket.assigns.device)
+  def handle_info(%Broadcast{event: "moved"}, %{assigns: %{device: device}} = socket) do
+    _ = socket.endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
 
     {:noreply, socket}
   end
