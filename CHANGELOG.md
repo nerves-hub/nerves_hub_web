@@ -15,7 +15,7 @@
 - Show helpful message when uploading duplicate firmware (#1627)
 - Add support for filtering devices on alarms (#1628)
 - Have the calculator use Oban (#1639)
-- Device Connections (#1572)
+- Save device connection data over time (#1572)
 - Add support for OpenTelemetry tracing (#1612)
 - Show current alarms on device page (#1648)
 - World Map clustering (#1619)
