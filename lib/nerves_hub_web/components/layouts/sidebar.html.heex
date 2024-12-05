@@ -23,10 +23,45 @@
   </div>
 
   <div class="col-start-1 col-end-2 row-start-2 row-end-4 flex flex-col border-r border-[#3F3F46]">
-    <div class="flex h-[88px] py-4 pl-6 pr-4 border-b border-r border-[#3F3F46] shrink-0 items-center">
-      Org / Product selector
+    <div
+      :if={assigns[:org]}
+      class="product-selector flex cursor-pointer h-[88px] py-4 pl-6 pr-4 border-b border-r border-[#3F3F46] shrink-0 items-center"
+      phx-click={
+        JS.toggle(to: "#product-picker")
+        |> JS.toggle(to: "#navigation")
+      }
+    >
+      <div>
+        <div class="org-selector-title"><%= @org.name %></div>
+        <div :if={assigns[:product]} class="product-selector-title flex gap-2 items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M1 1V5C1 7.20914 2.79086 9 5 9H9" stroke="#71717A" stroke-width="1.2" stroke-linecap="round" />
+          </svg>
+          <span><%= @product.name %></span>
+        </div>
+      </div>
+      <div class="product-selector-icon ml-auto p-[6px] rounded">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M8.33203 5.83398L12.4987 10.0007L8.33203 14.1673" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
     </div>
-    <nav class="flex grow flex-col">
+    <div :if={assigns[:org]} id="product-picker" class="hidden">
+      <div :for={org <- @user.orgs} class="p-4">
+        <div class="flex items-center gap-[12px]">
+          <div class="org-avatar">
+            <%= org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join() %>
+          </div>
+          <h3 class="subtitle "><%= org.name %></h3>
+        </div>
+        <div :for={product <- org.products} class="my-4">
+          <.link navigate={~p"/org/#{org.name}/#{product.name}/devices"} class="product-picker-product">
+            <%= product.name %>
+          </.link>
+        </div>
+      </div>
+    </div>
+    <nav id="navigation" class="flex grow flex-col">
       <ul role="list" class="flex flex-1 flex-col gap-y-7">
         <li>
           <Navigation.updated_sidebar org={@org} product={@product} current={@current_path} />
