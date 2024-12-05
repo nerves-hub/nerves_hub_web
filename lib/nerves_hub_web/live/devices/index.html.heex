@@ -161,7 +161,7 @@
             <select name="metrics_key" id="metrics_key" class="form-control">
               <option {selected?(@current_filters, :metrics_key, "")} value="">All</option>
               <%= for key <- @metrics_keys do %>
-                <option {selected?(@current_filters, :metrics_key, Atom.to_string(key))}><%= Atom.to_string(key) %></option>
+                <option {selected?(@current_filters, :metrics_key, key)}><%= key %></option>
               <% end %>
             </select>
             <div class="select-icon"></div>

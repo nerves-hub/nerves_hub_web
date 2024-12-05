@@ -30,7 +30,7 @@ defmodule NervesHubWeb.Components.Utils do
     end
   end
 
-  def cpu_usage_percent_to_status(usage) do
+  def usage_percent_to_status(usage) do
     case usage do
       usage when usage < 80 -> ""
       usage when usage < 90 -> "warn"
@@ -38,11 +38,13 @@ defmodule NervesHubWeb.Components.Utils do
     end
   end
 
-  def memory_to_status(percent) do
-    case percent do
-      _ when percent > 80 -> "warn"
-      _ when percent > 90 -> "danger"
-      _ -> ""
-    end
+  def disk_usage(%{
+        "disk_available_kb" => available,
+        "disk_total_kb" => total,
+        "disk_used_percentage" => percentage
+      }) do
+    usage = (total - available) / 1000
+
+    "#{round(usage)} of #{round(available / 1000)} MB (#{round(percentage)}%)"
   end
 end
