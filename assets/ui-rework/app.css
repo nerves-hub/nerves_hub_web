@@ -170,7 +170,7 @@
   }
 
   .details-content {
-    @apply p-6;
+    @apply flex gap-4 p-6;
   }
 
   .details-block {
