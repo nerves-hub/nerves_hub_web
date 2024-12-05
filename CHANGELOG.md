@@ -53,7 +53,7 @@
 - Allow publishing docker images from PR (#1626)
 - Use PRs HEAD sha for tagging images (#1637)
 - Use PR number when looking for publish commit message (#1638)
-- Replace Scrivener with Flop (#1656)
+- Replace Scrivener with Flop for pagination (#1656)
 - Improve pager (#1664)
 
 ### Fixed
