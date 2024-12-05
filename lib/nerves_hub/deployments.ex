@@ -326,9 +326,16 @@ defmodule NervesHub.Deployments do
       end
 
     if reason do
-      device
-      |> Ecto.Changeset.change(%{deployment_id: nil, deployment_conflict: reason})
-      |> Repo.update!()
+      device =
+        device
+        |> Ecto.Changeset.change(%{deployment_id: nil, deployment_conflict: reason})
+        |> Repo.update!()
+
+      AuditLogs.audit!(
+        device,
+        device,
+        "device no longer matches deployment's #{deployment.name} requirements because of #{reason}"
+      )
     else
       device
     end
