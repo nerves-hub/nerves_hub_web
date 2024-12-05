@@ -67,6 +67,17 @@
         Device has disabled extensions: <%= Enum.join(@extension_overrides, ", ") %>
       </div>
 
+      <%= if reason = @device.deployment_conflict do %>
+        <div class="display-box">
+          <div class="help-text mb-1 tooltip-label help-tooltip">
+            <span>Deployment Conflict Reason</span>
+            <span class="tooltip-info"></span>
+            <span class="tooltip-text">When a device connects and it's firmware and/or architecture don't match it's deployment, it's removed from the deployment and the conflict reason is set.</span>
+          </div>
+          <span><%= Phoenix.Naming.humanize(reason) %></span>
+        </div>
+      <% end %>
+
       <div class="display-box">
         <div class="help-text mb-1">Tags</div>
         <p :if={is_nil(@device.tags)}>No Tags</p>

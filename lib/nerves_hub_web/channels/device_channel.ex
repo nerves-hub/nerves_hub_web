@@ -48,11 +48,6 @@ defmodule NervesHubWeb.DeviceChannel do
     subscribe("device:#{device.id}")
     subscribe(deployment_channel)
 
-    if device_health_check_enabled?() do
-      send(self(), :health_check)
-      schedule_health_check()
-    end
-
     send(self(), :device_registration)
 
     socket =
@@ -478,15 +473,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end
 
     socket
-  end
-
-  defp schedule_health_check() do
-    if device_health_check_enabled?() do
-      Process.send_after(self(), :health_check, device_health_check_interval())
-      :ok
-    else
-      :ok
-    end
   end
 
   defp is_safe_to_request_extensions?(version), do: Version.match?(version, ">= 2.2.0")

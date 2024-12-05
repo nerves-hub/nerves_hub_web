@@ -28,6 +28,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
+  alias NervesHubWeb.Endpoint
 
   @min_fwup_delta_updatable_version ">=1.10.0"
 
@@ -1086,7 +1087,7 @@ defmodule NervesHub.Devices do
     |> Repo.transaction()
     |> case do
       {:ok, %{move: updated}} ->
-        _ = broadcast(updated, "moved")
+        _ = Endpoint.broadcast("device_socket:#{updated.id}", "disconnect", %{})
         {:ok, updated}
 
       err ->
