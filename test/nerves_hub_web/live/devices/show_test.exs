@@ -267,8 +267,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "load_1min" => 0.00,
         "load_5min" => 0.00,
         "size_mb" => 7892,
-        "used_mb" => 100,
-        "used_percent" => 60
+        "mem_used_mb" => 100,
+        "mem_used_percent" => 60
       }
 
       assert {:ok, 7} = Metrics.save_metrics(device.id, metrics)
@@ -296,8 +296,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "load_1min" => 0.00,
         "load_5min" => 0.00,
         "size_mb" => 7892,
-        "used_mb" => 100,
-        "used_percent" => 60
+        "mem_used_mb" => 100,
+        "mem_used_percent" => 60
       }
 
       assert {:ok, 6} = Metrics.save_metrics(device.id, metrics)

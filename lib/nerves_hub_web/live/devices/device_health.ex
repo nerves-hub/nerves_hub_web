@@ -20,7 +20,8 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
   # Metric types with belonging titles to display as default.
   # Also sets order of charts.
   @default_metric_types [
-    used_mb: "Memory Usage (MB)",
+    mem_used_mb: "Memory Usage (MB)",
+    mem_used_percent: "Memory Usage %",
     load_1min: "Load Average 1 Min",
     load_5min: "Load Average 5 Min",
     load_15min: "Load Average 15 Min",
@@ -244,7 +245,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
       :load_1min -> get_cpu_load_max_value(data)
       :load_5min -> get_cpu_load_max_value(data)
       :load_15min -> get_cpu_load_max_value(data)
-      :used_mb -> memory_size
+      :mem_used_mb -> memory_size
       _ -> 100
     end
   end

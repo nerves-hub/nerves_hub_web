@@ -39,8 +39,8 @@ if Mix.env() == :dev do
         "load_1min" => :rand.uniform() |> Float.ceil(2),
         "load_5min" => :rand.uniform() |> Float.ceil(2),
         "size_mb" => 7892,
-        "used_mb" => Enum.random(0..7892),
-        "used_percent" => Enum.random(0..100)
+        "mem_used_mb" => Enum.random(0..7892),
+        "mem_used_percent" => Enum.random(0..100)
       }
 
       Repo.transaction(fn ->

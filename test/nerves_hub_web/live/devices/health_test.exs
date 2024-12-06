@@ -33,8 +33,8 @@ defmodule NervesHubWeb.Devices.HealthTest do
       "load_1min" => 0.55,
       "load_5min" => 0.15,
       "size_mb" => 7892,
-      "used_mb" => 172,
-      "used_percent" => 2
+      "mem_used_mb" => 172,
+      "mem_used_percent" => 2
     }
 
     assert {:ok, 7} = Metrics.save_metrics(device.id, metrics)

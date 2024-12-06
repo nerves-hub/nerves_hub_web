@@ -5,6 +5,7 @@
 @layer components {
   body {
     overflow-x: hidden;
+    font-family: "Inter", sans-serif;
   }
 
   .sidebar-item-selected {
@@ -88,7 +89,7 @@
   }
 
   .listing .checkbox input:checked~label {
-    @apply bg-purple-600;
+    @apply bg-primary-500;
   }
 
   .listing th.checkbox input,
@@ -164,7 +165,7 @@
   }
 
   .tab-bar .tab.active {
-    @apply text-base-50 border-purple-600 border-b;
+    @apply text-base-50 border-primary-500 border-b;
     font-weight: 600;
     background: linear-gradient(180deg, rgba(99, 102, 241, 0.00) 86.32%, rgba(99, 102, 241, 0.48) 103.41%);
   }
@@ -181,6 +182,14 @@
     @apply flex pl-4 pr-3 py-4 items-center;
   }
 
+  .details-subheader h3 {
+    @apply text-base-50;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 24px;
+  }
+
   .details-block-body {
     @apply px-4 pt-2 pb-6;
   }
@@ -191,6 +200,63 @@
     font-style: normal;
     font-weight: 400;
     line-height: 16px;
+  }
+
+  .details-metrics {
+    @apply flex gap-2;
+  }
+
+  .details-metric {
+    @apply rounded pt-2 pb-1 px-3 border-b border-b-base-500;
+    background: linear-gradient(180deg, rgba(99, 102, 241, 0.00) 18.75%, rgba(99, 102, 241, 0.04) 81.25%), linear-gradient(180deg, rgba(63, 63, 70, 0.16) 0%, rgba(63, 63, 70, 0.24) 100%);
+  }
+
+  .details-metric-label {
+    @apply text-base-400;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 16px;
+  }
+
+  .details-metric-main {
+    @apply text-base-50;
+    font-size: 20px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 30px;
+  }
+
+  .details-metric-secondary {
+    @apply text-base-500 pl-4 self-end;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 24px;
+  }
+
+  .details-metric.cpu {
+    @apply border-b-success-500;
+  }
+
+  .cpu .details-metric-secondary {
+    @apply text-success-500;
+  }
+
+  .details-metric.memory {
+    @apply border-b-warning-500;
+  }
+
+  .memory .details-metric-secondary {
+    @apply text-warning-500;
+  }
+
+  .details-metric.load {
+    @apply border-b-primary-500;
+  }
+
+  .load .details-metric-secondary {
+    @apply text-primary-500;
   }
 
   .badge {
@@ -280,7 +346,7 @@
   }
 
   .sidebar-apply {
-    @apply bg-purple-600 text-base-50 hover:scale-110;
+    @apply bg-primary-500 text-base-50 hover:scale-110;
     display: flex;
     padding: 6px 12px;
     justify-content: center;

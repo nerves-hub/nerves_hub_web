@@ -140,10 +140,10 @@
               <%= @latest_metrics.load_1min %> | <%= @latest_metrics.load_5min %> | <%= @latest_metrics.load_15min %>
             </div>
 
-            <%= if @latest_metrics.used_mb do %>
+            <%= if @latest_metrics.mem_used_mb do %>
               <div class={"callout #{Utils.memory_to_status(60)}"} x>
                 <div class="help-text label">Memory used</div>
-                <%= round(@latest_metrics.used_mb) %>MB (<%= round(@latest_metrics.used_percent) %>%)
+                <%= round(@latest_metrics.mem_used_mb) %>MB (<%= round(@latest_metrics.used_percent) %>%)
               </div>
             <% end %>
 

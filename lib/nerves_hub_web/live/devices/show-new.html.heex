@@ -234,7 +234,7 @@
           </div>
         </div>
 
-        <div class="details-block-body">
+        <div class="details-block-body details-metrics">
           <%= if (!Enum.any?(Map.values(@latest_metrics)) and !Enum.any?(Map.values(@latest_custom_metrics))) and !@alarms do %>
             <div class="display-box">
               No health information has been received for this device.
@@ -242,37 +242,34 @@
           <% end %>
 
           <%= if (Enum.any?(Map.values(@latest_metrics))) do %>
-            <div class="flex gap-2">
-              <div :if={@latest_metrics.load_1min} class="callout">
-                <div class="help-text label">Load avg</div>
-                <%= @latest_metrics.load_1min %> | <%= @latest_metrics.load_5min %> | <%= @latest_metrics.load_15min %>
+              <%= if @latest_metrics.cpu_usage_percent || @latest_metrics.cpu_temp do %>
+                <div class="details-metric cpu">
+                  <div class="details-metric-label">CPU</div>
+                  <span :if={@latest_metrics.cpu_usage_percent} class="details-metric-main"><%= round(@latest_metrics.cpu_usage_percent) %>%</span>
+                  <span :if={@latest_metrics.cpu_temp} class="details-metric-secondary"><%= round(@latest_metrics.cpu_temp) %>°</span>
+                </div>
+              <% end %>
+
+              <%= if @latest_metrics.mem_used_mb do %>
+                <div class="details-metric memory" x>
+                  <div class="details-metric-label">Memory used</div>
+                  <span class="details-metric-main"><%= round(@latest_metrics.mem_used_mb) %> mb</span>
+                  <span class="details-metric-secondary"><%= round(@latest_metrics.mem_used_percent) %>%</span>
+                </div>
+              <% end %>
+
+              <div :if={@latest_metrics.load_1min} class="details-metric load">
+                <div class="details-metric-label">Load avg</div>
+                <span class="details-metric-main">
+                  <%= @latest_metrics.load_1min %>
+                  <span class="inline-block w-[1px] h-[16px] mx-2 bg-base-700" />
+                  <%= @latest_metrics.load_5min %>
+                  <span class="inline-block w-[1px] h-[16px] mx-2 bg-base-700" />
+                  <%= @latest_metrics.load_15min %>
+                </span>
               </div>
 
-              <%= if @latest_metrics.used_mb do %>
-                <div class={"callout #{Utils.memory_to_status(60)}"} x>
-                  <div class="help-text label">Memory used</div>
-                  <%= round(@latest_metrics.used_mb) %>MB (<%= round(@latest_metrics.used_percent) %>%)
-                </div>
-              <% end %>
 
-              <%= if @latest_metrics.cpu_usage_percent do %>
-                <div class={"callout #{Utils.cpu_usage_percent_to_status(@latest_metrics.cpu_usage_percent)}"}>
-                  <div class="help-text label">CPU use</div>
-                  <%= round(@latest_metrics.cpu_usage_percent) %>%
-                </div>
-              <% else %>
-                <div class="callout">
-                  <div class="help-text label">CPU use</div>
-                  Not reported
-                </div>
-              <% end %>
-
-              <%= if @latest_metrics.cpu_temp do %>
-                <div class={"callout #{Utils.cpu_temp_to_status(@latest_metrics.cpu_temp)}"}>
-                  <div class="help-text label">CPU temp</div>
-                  <%= round(@latest_metrics.cpu_temp) %>°
-                </div>
-              <% end %>
 
               <%= for {key, val} <- @latest_custom_metrics do %>
                 <div class="callout">
@@ -290,7 +287,6 @@
                   end %>
                 </div>
               <% end %>
-            </div>
           <% end %>
           <%= if @alarms do %>
             <div class="device-health current-alarms">
