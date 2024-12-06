@@ -2,6 +2,11 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+@import 'highlight.js/styles/stackoverflow-light.css';
+@import 'leaflet/dist/leaflet.css';
+@import 'leaflet.markercluster/dist/MarkerCluster.css';
+@import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+
 @layer components {
   body {
     overflow-x: hidden;
@@ -57,7 +62,7 @@
     padding: 6px 16px;
     text-align: left;
   }
-  
+
   .listing .checkbox {
     padding: 12px 24px;
     width: 68px;
@@ -89,7 +94,8 @@
     @apply bg-purple-600;
   }
 
-  .listing th.checkbox input, .listing td.checkbox input {
+  .listing th.checkbox input,
+  .listing td.checkbox input {
     display: none;
   }
 
@@ -111,7 +117,7 @@
 
     font-size: 12px;
     font-weight: 400;
-    line-height: 16px; 
+    line-height: 16px;
   }
 
   .title {
@@ -267,7 +273,7 @@
     flex-grow: 1;
     max-width: calc(50% - 24px);
     padding: 16px;
-    background: linear-gradient(90deg, rgba(39, 39, 42, 0.56) 0%, #27272A 100%);
+    background: linear-gradient(90deg, rgba(39, 39, 42, 0.56) 0%, #27272a 100%);
   }
 
   .menu-box {
@@ -300,7 +306,8 @@
     @apply bg-base-700;
   }
 
-  .product-picker-product, .product-picker-product:link {
+  .product-picker-product,
+  .product-picker-product:link {
     @apply block text-base-300 py-[6px] px-4 bg-base-800 rounded;
     font-size: 14px;
     font-style: normal;
