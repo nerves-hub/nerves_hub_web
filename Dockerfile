@@ -52,13 +52,6 @@ RUN apt-get update -y && apt-get install -y build-essential git ca-certificates 
 
 WORKDIR /build
 
-# Copy everything we might need since this is a build step
-COPY . .
-
-# Bring all the needed JS and built node assets from previous step
-COPY --from=assets /build/assets/node_modules assets/node_modules
-COPY --from=assets /build/priv/static priv/static
-
 ENV HEX_HTTP_TIMEOUT=20
 
 RUN mix local.hex --force && \
@@ -67,13 +60,37 @@ RUN mix local.hex --force && \
 ENV MIX_ENV=prod
 ENV SECRET_KEY_BASE=nokey
 
+COPY mix.lock ./
+
+RUN mkdir config
+
+# copy compile-time config files before we compile dependencies
+# to ensure any relevant config change will trigger the dependencies
+# to be re-compiled.
+COPY config/config.exs config/${MIX_ENV}.exs config/
+
+COPY mix.exs .
 RUN mix deps.get --only $MIX_ENV
 
 RUN mix deps.compile
 
+COPY priv priv
+COPY lib lib
+
+# Bring all the needed JS and built node assets from previous step
+COPY --from=assets /build/assets assets
+COPY --from=assets /build/priv/static priv/static
+
+# We need the git history for creating the project version in Mix
+COPY .git .git
+
 RUN mix compile
 RUN mix assets.deploy
 RUN mix sentry.package_source_code
+
+COPY config/runtime.exs config/
+
+COPY rel rel
 
 RUN mix release
 
