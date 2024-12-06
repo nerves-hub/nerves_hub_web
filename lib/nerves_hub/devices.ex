@@ -9,7 +9,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
-  alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
@@ -801,26 +800,9 @@ defmodule NervesHub.Devices do
 
     case Repo.update(changeset) do
       {:ok, device} ->
-        case Map.has_key?(changeset.changes, :tags) do
-          true ->
-            description =
-              "device #{device.identifier} tags changed, the attached deployment has been reset"
+        _ = maybe_broadcast(device, "devices/updated", opts)
 
-            AuditLogs.audit!(device, device, description)
-
-            # Since the tags changed, let's find a new deployment
-            device = %{device | deployment_id: nil, deployment: nil}
-            device = Deployments.set_deployment(device)
-
-            _ = maybe_broadcast(device, "devices/updated", opts)
-
-            {:ok, device}
-
-          false ->
-            _ = maybe_broadcast(device, "devices/updated", opts)
-
-            {:ok, device}
-        end
+        {:ok, device}
 
       {:error, changeset} ->
         {:error, changeset}
@@ -874,30 +856,6 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Verify that the deployment still matches the device
-
-  This may clear the deployment from the device if the version or tags are different.
-  """
-  def verify_deployment(%{deployment_id: nil} = device) do
-    device
-  end
-
-  def verify_deployment(device) do
-    device = Repo.preload(device, [:deployment])
-
-    case matches_deployment?(device, device.deployment) do
-      true ->
-        device
-
-      false ->
-        device
-        |> Ecto.Changeset.change()
-        |> Ecto.Changeset.put_change(:deployment_id, nil)
-        |> Repo.update!()
-    end
-  end
-
-  @doc """
   Returns true if Version.match? and all deployment tags are in device tags.
   """
   def matches_deployment?(
@@ -913,10 +871,19 @@ defmodule NervesHub.Devices do
 
   def matches_deployment?(_, _), do: false
 
+  @spec update_deployment(Device.t(), Deployment.t()) :: Device.t()
   def update_deployment(device, deployment) do
     device
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+    |> Repo.update!()
+  end
+
+  @spec clear_deployment(Device.t()) :: Device.t()
+  def clear_deployment(device) do
+    device
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.put_change(:deployment_id, nil)
     |> Repo.update!()
   end
 
@@ -1432,29 +1399,6 @@ defmodule NervesHub.Devices do
     |> select([iu], count(iu))
     |> where([iu], iu.deployment_id == ^deployment.id)
     |> Repo.one()
-  end
-
-  @doc """
-  Get the firmware status for a device
-
-  "latest", "pending", or "updating"
-  """
-  def firmware_status(device) do
-    device = Repo.preload(device, deployment: [:firmware])
-
-    cond do
-      is_nil(device.deployment_id) ->
-        "latest"
-
-      get_in(device.firmware_metadata.uuid) == get_in(device.deployment.firmware.uuid) ->
-        "latest"
-
-      !Enum.empty?(device.update_attempts) ->
-        "updating"
-
-      true ->
-        "pending"
-    end
   end
 
   def enable_extension_setting(%Device{} = device, extension_string) do

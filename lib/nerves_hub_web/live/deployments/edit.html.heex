@@ -34,7 +34,7 @@
 
 <div class="divider"></div>
 
-<.form :let={f} for={@form} phx-change="recalculate" phx-submit="update-deployment">
+<.form :let={f} for={@form} phx-submit="update-deployment">
   <%= hidden_input(f, :firmware_id, value: @firmware.id) %>
 
   <div class="form-group">
@@ -65,19 +65,12 @@
     <div class="has-error"><%= error_tag(f, :archive_id) %></div>
   </div>
 
-  <h3 class="mb-2">Conditions</h3>
-
-  <p>Changing any conditions will reset any attached devices.</p>
-  <p>Estimated affected devices: <%= @estimate_count %></p>
-
+  <h3 class="mb-2">Device matching conditions</h3>
+  <p>These conditions are used for matching devices which don't have a configured deployment. The matching is undertaken when a device connects to the platform.</p>
   <div class="form-group">
-    <div class="help-text tooltip-label help-tooltip">
-      <label for="tags_input" class="tooltip-label">
-        Tag(s) distributed to
-      </label>
-      <span class="tooltip-info mb-1"></span>
-      <span class="tooltip-text">Changing tags will reset all devices on this deployment</span>
-    </div>
+    <label for="tags_input" class="tooltip-label">
+      Tag(s) distributed to
+    </label>
     <%= text_input(f, :tags,
       class: "form-control",
       id: "tags_input",
@@ -90,13 +83,10 @@
   </div>
 
   <div class="form-group">
-    <div class="help-text tooltip-label help-tooltip">
-      <label for="version_requirement" class="tooltip-label">
-        Version requirement
-      </label>
-      <span class="tooltip-info mb-1"></span>
-      <span class="tooltip-text">Changing the version requirement will reset all devices on this deployment</span>
-    </div>
+    <label for="version_requirement" class="tooltip-label">
+      Version requirement
+    </label>
+    <span class="tooltip-info mb-1"></span>
     <%= text_input(f, :version,
       class: "form-control",
       id: "version_requirement",
@@ -228,46 +218,6 @@
       Make sure this is valid Elixir and will not crash the device. This will run before device specific first connect code.
     </small>
     <div class="has-error"><%= error_tag(f, :connecting_code) %></div>
-  </div>
-
-  <div class="container pl-0 mb-2">
-    <div class="row align-items-center">
-      <div class="col col-3">
-        <h3>Recalculation Type</h3>
-      </div>
-      <div class="col col-2">
-        <span class="badge bg-warning">Experimental</span>
-      </div>
-    </div>
-  </div>
-  <p class="p-small">
-    Saving a deployment requires recalculating the devices it targets if conditions have changed.
-    The initial mechanism for recalculation has proven not to scale well with a significantly increased
-    number of devices. This setting provides the ability to choose the device recalculation path based
-    on needs or to assist in experimenting with more performant recalculation ideas.
-    <ul class="p-small">
-      <li>
-        <code>Device Initiated</code> <em>(Default)</em> <br /> Each device autonomously determines whether it still matches the deployment's conditions and
-        recalculates itself accordingly. This is simple and immediate but does not scale well as the
-        number of devices increases, causing inefficiencies.
-      </li>
-      <li>
-        <code>Calculator Queue</code> <br /> Devices are recalculated centrally through a database-managed queue. A controlled process
-        locks and recalculates one device at a time, ensuring system stability and better performance
-        for large fleets, but may introduce slight delays as it processes each device sequentially.
-      </li>
-    </ul>
-  </p>
-
-  <div class="form-group">
-    <%= select(f, :recalculation_type, [{"Device Initiated", :device}, {"Calculator Queue", :calculator_queue}],
-      select: @deployment.recalculation_type,
-      required: true,
-      id: "recalculation_type",
-      class: "form-control"
-    ) %>
-    <div class="select-icon"></div>
-    <div class="has-error"><%= error_tag(f, :recalculation_type) %></div>
   </div>
 
   <div class="button-submit-wrapper">

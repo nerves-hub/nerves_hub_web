@@ -35,7 +35,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_info:after_join")
   def handle_info({:after_join, params}, %{assigns: %{device: device}} = socket) do
-    device = maybe_update_deployment(device)
+    device = Deployments.verify_deployment_membership(device)
 
     maybe_send_public_keys(device, socket, params)
 
@@ -48,7 +48,7 @@ defmodule NervesHubWeb.DeviceChannel do
     subscribe("device:#{device.id}")
     subscribe(deployment_channel)
 
-    send(self(), :device_registation)
+    send(self(), :device_registration)
 
     socket =
       socket
@@ -68,12 +68,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(:device_registation, socket) do
-    send(self(), {:device_registation, 0})
+  def handle_info(:device_registration, socket) do
+    send(self(), {:device_registration, 0})
     {:noreply, socket}
   end
 
-  def handle_info({:device_registation, 3}, socket) do
+  def handle_info({:device_registration, 3}, socket) do
     # lets make sure we deregister any other connected devices using the same device id
     [:nerves_hub, :devices, :registry, :retries_exceeded]
     |> :telemetry.execute(%{}, %{device: socket.assigns.device})
@@ -82,7 +82,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   @decorate with_span("Channels.DeviceChannel.handle_info:device_registration")
-  def handle_info({:device_registation, attempt}, socket) do
+  def handle_info({:device_registration, attempt}, socket) do
     %{assigns: %{device: device}} = socket
 
     payload = %{
@@ -99,73 +99,6 @@ defmodule NervesHubWeb.DeviceChannel do
       _ ->
         {:noreply, assign(socket, :registered?, true)}
     end
-  end
-
-  # We can save a fairly expensive query by checking the incoming deployment's payload
-  # If it matches, we can set the deployment directly and only do 3 queries (update, two preloads)
-  @decorate with_span("Channels.DeviceChannel.handle_info:deployments/changed,deployment:none")
-  def handle_info(
-        %Broadcast{event: "deployments/changed", topic: "deployment:none", payload: payload},
-        %{assigns: %{device: device}} = socket
-      ) do
-    if device_matches_deployment_payload?(device, payload) do
-      cancel_deployment_timer(socket)
-
-      # jitter to attempt to not slam the database when any matching
-      # devices go to set their deployment. This is for very large
-      # deployments, to prevent ecto pool contention.
-      jitter = device_deployment_change_jitter_ms()
-      timer = Process.send_after(self(), {:assign_deployment, payload}, jitter)
-      {:noreply, assign(socket, :assign_deployment_timer, timer)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  def handle_info({:assign_deployment, payload}, socket) do
-    socket = assign(socket, :assign_deployment_timer, nil)
-    {:noreply, assign_deployment(socket, payload)}
-  end
-
-  @decorate with_span("Channels.DeviceChannel.handle_info:deployments/changed")
-  def handle_info(
-        %Broadcast{event: "deployments/changed", payload: payload},
-        %{assigns: %{device: device}} = socket
-      ) do
-    if device_matches_deployment_payload?(device, payload) do
-      :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
-      {:noreply, assign_deployment(socket, payload)}
-    else
-      # jitter to attempt to not slam the database when any matching
-      # devices go to set their deployment. This is for very large
-      # deployments, to prevent ecto pool contention.
-      jitter = device_deployment_change_jitter_ms()
-      Process.send_after(self(), :resolve_changed_deployment, jitter)
-      {:noreply, socket}
-    end
-  end
-
-  @decorate with_span("Channels.DeviceChannel.handle_info:resolve_changed_deployment")
-  def handle_info(:resolve_changed_deployment, %{assigns: %{device: device}} = socket) do
-    :telemetry.execute([:nerves_hub, :devices, :deployment, :changed], %{count: 1})
-
-    device =
-      device
-      |> Repo.reload()
-      |> Devices.verify_deployment()
-      |> Deployments.set_deployment()
-      |> deployment_preload()
-
-    Templates.audit_resolve_changed_deployment(device, socket.assigns.reference_id)
-
-    maybe_update_registry(socket, device, %{deployment_id: device.deployment_id})
-
-    socket =
-      socket
-      |> update_device(device)
-      |> maybe_send_archive()
-
-    {:noreply, socket}
   end
 
   # manually pushed
@@ -218,9 +151,10 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_info(%Broadcast{event: "moved"}, socket) do
-    # The old deployment is no longer valid, so let's look one up again
-    handle_info(:resolve_changed_deployment, socket)
+  def handle_info(%Broadcast{event: "moved"}, %{assigns: %{device: device}} = socket) do
+    _ = socket.endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
+
+    {:noreply, socket}
   end
 
   # Update local state and tell the various servers of the new information
@@ -373,20 +307,6 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_in("check_update_available", _params, socket) do
-    device =
-      socket.assigns.device
-      |> Devices.verify_deployment()
-      |> Deployments.set_deployment()
-      |> Repo.preload(:org)
-      |> Repo.preload(deployment: [:archive, :firmware])
-
-    # Let the orchestrator handle this going forward ?
-    update_payload = Devices.resolve_update(device)
-
-    {:reply, {:ok, update_payload}, socket}
-  end
-
   def handle_in("rebooting", _, socket) do
     {:noreply, socket}
   end
@@ -436,14 +356,6 @@ defmodule NervesHubWeb.DeviceChannel do
     :ok
   end
 
-  @decorate with_span("Channels.DeviceChannel.maybe_update_deployment")
-  defp maybe_update_deployment(device) do
-    device
-    |> Deployments.preload_with_firmware_and_archive()
-    |> Devices.verify_deployment()
-    |> Deployments.set_deployment()
-  end
-
   defp subscribe(topic) do
     _ = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
     :ok
@@ -468,15 +380,6 @@ defmodule NervesHubWeb.DeviceChannel do
         })
       end
     end)
-  end
-
-  defp cancel_deployment_timer(%{assigns: %{assign_deployment_timer: timer}}) do
-    _ = Process.cancel_timer(timer)
-    :ok
-  end
-
-  defp cancel_deployment_timer(_socket) do
-    :ok
   end
 
   # The reported firmware is the same as what we already know about
@@ -513,32 +416,6 @@ defmodule NervesHubWeb.DeviceChannel do
     assign(socket, :penalty_timer, ref)
   end
 
-  defp device_matches_deployment_payload?(device, payload) do
-    payload.active &&
-      device.product_id == payload.product_id &&
-      device.firmware_metadata.platform == payload.platform &&
-      device.firmware_metadata.architecture == payload.architecture &&
-      Enum.all?(payload.conditions["tags"], &Enum.member?(device.tags, &1)) &&
-      Deployments.version_match?(device, payload)
-  end
-
-  defp assign_deployment(%{assigns: %{device: device}} = socket, payload) do
-    device =
-      device
-      |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_change(:deployment_id, payload.id)
-      |> Repo.update!()
-      |> deployment_preload()
-
-    Templates.audit_device_assigned(device, socket.assigns.reference_id)
-
-    maybe_update_registry(socket, device, %{deployment_id: device.deployment_id})
-
-    socket
-    |> update_device(device)
-    |> maybe_send_archive()
-  end
-
   defp update_device(socket, device) do
     socket
     |> assign(:device, deployment_preload(device))
@@ -573,7 +450,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp maybe_send_archive(socket) do
-    device = socket.assigns.device
+    device = deployment_preload(socket.assigns.device)
 
     updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
     version_match = Version.match?(socket.assigns.device_api_version, ">= 2.0.0")
@@ -596,16 +473,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end
 
     socket
-  end
-
-  defp device_deployment_change_jitter_ms() do
-    jitter = Application.get_env(:nerves_hub, :device_deployment_change_jitter_seconds)
-
-    if jitter > 0 do
-      :rand.uniform(jitter) * 1000
-    else
-      0
-    end
   end
 
   defp is_safe_to_request_extensions?(version), do: Version.match?(version, ">= 2.2.0")

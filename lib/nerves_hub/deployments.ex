@@ -6,7 +6,6 @@ defmodule NervesHub.Deployments do
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.InflightDeploymentCheck
-  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -129,7 +128,6 @@ defmodule NervesHub.Deployments do
   Update a deployment
 
   - Records audit logs depending on changes
-  - May force a recalculation if conditions or active changed
   """
   @spec update_deployment(Deployment.t(), map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def update_deployment(deployment, params) do
@@ -152,7 +150,6 @@ defmodule NervesHub.Deployments do
             deployment = Repo.preload(deployment, [:firmware], force: true)
 
             audit_changes!(deployment, changeset)
-            recalculate_devices(deployment, changeset)
 
             {deployment, changeset}
 
@@ -164,7 +161,7 @@ defmodule NervesHub.Deployments do
     case result do
       {:ok, {deployment, changeset}} ->
         _ = maybe_trigger_delta_generation(deployment, changeset)
-        broadcast_deployment_updates(deployment, changeset)
+        :ok = broadcast(deployment, "deployments/update")
 
         {:ok, deployment}
 
@@ -196,116 +193,6 @@ defmodule NervesHub.Deployments do
     end)
   end
 
-  defp recalculate_devices(%{recalculation_type: :calculator_queue} = deployment, changeset) do
-    if Enum.any?(
-         [:conditions, :is_active, :recalculation_type],
-         &Map.has_key?(changeset.changes, &1)
-       ) do
-      schedule_deployment_calculations(deployment)
-    end
-
-    :ok
-  end
-
-  # Default is to make connected devices perform the recalculation
-  # within the DeviceSocket process.
-  # This will eventually be deprecated
-  defp recalculate_devices(deployment, changeset) do
-    # Don't want the inflight calculator to continue through devices since
-    # we have changed calculation types
-    if changeset.changes[:recalculation_type], do: delete_inflight_checks(deployment)
-
-    conditions_changed? = Map.has_key?(changeset.changes, :conditions)
-    is_active_changed? = Map.has_key?(changeset.changes, :is_active)
-    deactivated? = is_active_changed? and !deployment.is_active
-
-    if conditions_changed? or deactivated? do
-      # Wipe all devices attached to this deployment
-      Device
-      |> where([d], d.deployment_id == ^deployment.id)
-      |> Repo.update_all(set: [deployment_id: nil])
-
-      description = "deployment #{deployment.name} change removed all devices"
-      AuditLogs.audit!(deployment, deployment, description)
-    end
-
-    if conditions_changed? and deployment.conditions["version"] in [nil, ""] and
-         deployment.is_active do
-      # The version condition is the only one not done with the DB.
-      # This opens up a minor optimization to preemptively set matching
-      # devices to the new deployment all at once since the version
-      # condition can be skipped.
-      #
-      # This also helps with offline devices by potentially reducing the
-      # need to do the expensive deployment check on next connect which
-      # reduces the load when a lot of devices come online at once.
-      Device
-      |> where([d], d.product_id == ^deployment.product_id)
-      |> where(
-        [d],
-        fragment("?->>'platform' = ?", d.firmware_metadata, ^deployment.firmware.platform)
-      )
-      |> where(
-        [d],
-        fragment(
-          "?->>'architecture' = ?",
-          d.firmware_metadata,
-          ^deployment.firmware.architecture
-        )
-      )
-      |> where([d], fragment("? <@ ?", ^deployment.conditions["tags"], d.tags))
-      |> Repo.update_all(set: [deployment_id: deployment.id])
-    end
-
-    _ =
-      :ok
-  end
-
-  defp broadcast_deployment_updates(%{recalculation_type: :calculator_queue} = deployment, _) do
-    # Inform those who care that the deployment updated
-    :ok = broadcast(deployment, "deployments/update")
-  end
-
-  defp broadcast_deployment_updates(deployment, changeset) do
-    payload = %{
-      id: deployment.id,
-      active: deployment.is_active,
-      product_id: deployment.product_id,
-      platform: deployment.firmware.platform,
-      architecture: deployment.firmware.architecture,
-      version: deployment.firmware.version,
-      conditions: deployment.conditions
-    }
-
-    conditions_changed? = Map.has_key?(changeset.changes, :conditions)
-    is_active_changed? = Map.has_key?(changeset.changes, :is_active)
-    activated? = is_active_changed? and deployment.is_active
-    deactivated? = is_active_changed? and !deployment.is_active
-
-    # Make sure relevant changed messages are broadcast for devices to
-    # pickup and recalculate
-    cond do
-      conditions_changed? ->
-        # Conditions change needs attached and unattached devices to recalculate
-        :ok = broadcast(deployment, "deployments/changed", payload)
-        :ok = broadcast(:none, "deployments/changed", payload)
-
-      activated? ->
-        # Now changed to active, so tell the none deployment devices
-        :ok = broadcast(:none, "deployments/changed", payload)
-
-      deactivated? ->
-        # Tell the attached devices to recalculate
-        :ok = broadcast(deployment, "deployments/changed", payload)
-
-      true ->
-        # no broadcast required
-        :ok
-    end
-
-    :ok = broadcast(deployment, "deployments/update")
-  end
-
   defp maybe_trigger_delta_generation(deployment, changeset) do
     # Firmware changed on active deployment
     if deployment.is_active and Map.has_key?(changeset.changes, :firmware_id) do
@@ -323,40 +210,6 @@ defmodule NervesHub.Deployments do
     |> Enum.each(fn {source_id, target_id} ->
       NervesHub.Workers.FirmwareDeltaBuilder.start(source_id, target_id)
     end)
-  end
-
-  @doc """
-  Create any matching inflight deployment checks for devices
-
-  This includes devices that are already part of the deployment and devices
-  that have no current deployment. They all will be rechecked by `NervesHub.Deployments.Calculator`
-
-  Also clears any previous inflight checks for this deployment.
-  """
-  def schedule_deployment_calculations(deployment) do
-    query =
-      Device
-      |> select([d], %{
-        worker: "NervesHub.Workers.DeviceCalculateDeployment",
-        queue: "device_deployment_calculations",
-        args:
-          fragment(
-            "json_build_object('device_id', ?, 'deployment_id', ?::integer)",
-            d.id,
-            ^deployment.id
-          )
-      })
-      |> where([d], d.status == :provisioned)
-      |> where(
-        [d],
-        d.deployment_id == ^deployment.id or
-          (is_nil(d.deployment_id) and d.product_id == ^deployment.product_id)
-      )
-      |> where([d], d.firmware_metadata["platform"] == ^deployment.firmware.platform)
-      |> where([d], d.firmware_metadata["architecture"] == ^deployment.firmware.architecture)
-      |> where([d], fragment("? <@ ?", ^deployment.conditions["tags"], d.tags))
-
-    Repo.insert_all(Oban.Job, query)
   end
 
   @doc """
@@ -423,38 +276,6 @@ defmodule NervesHub.Deployments do
   end
 
   @doc """
-  Find all potential deployments for a device
-
-  Based on the product, firmware platform, firmware architecture, and device tags
-  """
-  def alternate_deployments(device, active \\ [true, false])
-  def alternate_deployments(%Device{firmware_metadata: nil}, _active), do: []
-
-  def alternate_deployments(device, active) do
-    Deployment
-    |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
-    |> preload([_, firmware: f], firmware: f)
-    |> where([d], d.product_id == ^device.product_id)
-    |> where([d], d.is_active in ^active)
-    |> ignore_same_deployment(device)
-    |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
-    |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
-    |> where([d], fragment("?->'tags' <@ to_jsonb(?::text[])", d.conditions, ^device.tags))
-    |> Repo.all()
-    |> Enum.filter(&version_match?(device, &1))
-    |> Enum.sort_by(
-      &{&1.firmware.version, &1.id},
-      fn {a_vsn, a_id}, {b_vsn, b_id} ->
-        case Version.compare(a_vsn, b_vsn) do
-          :lt -> false
-          :eq -> a_id <= b_id
-          :gt -> true
-        end
-      end
-    )
-  end
-
-  @doc """
   Find all potential devices for a deployment
 
   Based on the product, firmware platform, firmware architecture, and device tags
@@ -482,45 +303,43 @@ defmodule NervesHub.Deployments do
 
   def version_match?(_device, _deployment), do: true
 
-  defp ignore_same_deployment(query, %{deployment_id: nil}), do: query
+  @spec verify_deployment_membership(Device.t()) :: Device.t()
+  def verify_deployment_membership(%Device{deployment_id: deployment_id} = device)
+      when not is_nil(deployment_id) do
+    %{deployment: deployment} = device = Repo.preload(device, deployment: :firmware)
+    bad_architecture = device.firmware_metadata.architecture != deployment.firmware.architecture
+    bad_platform = device.firmware_metadata.platform != deployment.firmware.platform
 
-  defp ignore_same_deployment(query, %{deployment_id: deployment_id}) do
-    where(query, [d], d.id != ^deployment_id)
-  end
+    reason =
+      cond do
+        bad_architecture and bad_platform ->
+          "mismatched architecture and platform"
 
-  @doc """
-  If the device is missing a deployment, find a matching deployment
+        bad_architecture ->
+          "mismatched architecture"
 
-  Do nothing if a deployment is already set
-  """
-  def set_deployment(%{deployment_id: nil} = device) do
-    case alternate_deployments(device, [true]) do
-      [] ->
-        Logger.debug("No matching deployments for #{device.identifier}")
+        bad_platform ->
+          "mismatched platform"
 
-        %{device | deployment: nil}
+        true ->
+          nil
+      end
 
-      [deployment] ->
+    if reason do
+      device =
         device
-        |> Devices.update_deployment(deployment)
-        |> preload_with_firmware_and_archive(true)
+        |> Ecto.Changeset.change(%{deployment_id: nil})
+        |> Repo.update!()
 
-      [deployment | _] ->
-        Logger.debug(
-          "More than one deployment matches for #{device.identifier}, setting to the first"
-        )
-
-        device
-        |> Devices.update_deployment(deployment)
-        |> preload_with_firmware_and_archive(true)
+      AuditLogs.audit!(
+        device,
+        device,
+        "device no longer matches deployment #{deployment.name}'s requirements because of #{reason}"
+      )
+    else
+      device
     end
   end
 
-  def set_deployment(device) do
-    preload_with_firmware_and_archive(device)
-  end
-
-  def preload_with_firmware_and_archive(device, force \\ false) do
-    Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
-  end
+  def verify_deployment_membership(device), do: device
 end
