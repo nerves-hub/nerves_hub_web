@@ -97,7 +97,12 @@ defmodule NervesHubWeb.DeviceChannel do
         {:noreply, retry_device_registration(socket, attempt)}
 
       _ ->
-        {:noreply, assign(socket, :registered?, true)}
+        socket =
+          socket
+          |> assign(:registered?, true)
+          |> assign(:registration_timer, nil)
+
+        {:noreply, socket}
     end
   end
 
@@ -329,7 +334,7 @@ defmodule NervesHubWeb.DeviceChannel do
     )
 
     device = socket.assigns.device
-    Logging.log_to_sentry(device, "[DeviceChannel] Unhandled message!", %{message: msg})
+    Logging.log_to_sentry(device, "[DeviceChannel] Unhandled handle_in message!", %{message: msg})
 
     {:noreply, socket}
   end
@@ -340,7 +345,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   defp retry_device_registration(socket, attempt) do
     _ = if timer = socket.assigns[:registration_timer], do: Process.cancel_timer(timer)
-    timer = Process.send_after(self(), {:register, attempt + 1}, 500)
+    timer = Process.send_after(self(), {:device_registration, attempt + 1}, 500)
     assign(socket, registration_timer: timer)
   end
 
