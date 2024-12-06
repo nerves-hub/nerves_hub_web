@@ -77,13 +77,15 @@ RUN mix deps.compile
 COPY priv priv
 COPY lib lib
 
+# Bring all the needed JS and built node assets from previous step
+COPY --from=assets /build/assets assets
 COPY --from=assets /build/priv/static priv/static
 
 # We need the git history for creating the project version in Mix
 COPY .git .git
 
 RUN mix compile
-RUN mix phx.digest
+RUN mix assets.deploy
 RUN mix sentry.package_source_code
 
 COPY config/runtime.exs config/
