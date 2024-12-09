@@ -1,5 +1,3 @@
-/*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
-
 import 'phoenix_html'
 import { Socket } from 'phoenix'
 import { LiveSocket } from 'phoenix_live_view'
@@ -338,8 +336,13 @@ topbar.config({
   barThickness: 1.5,
   shadowColor: 'rgba(0, 0, 0, .3)'
 })
-window.addEventListener('phx:page-loading-start', _info => topbar.show(300))
-window.addEventListener('phx:page-loading-stop', _info => topbar.hide())
+
+window.addEventListener('phx:page-loading-start', () => {
+  topbar.show(300)
+})
+window.addEventListener('phx:page-loading-stop', () => {
+  topbar.hide()
+})
 
 liveSocket.connect()
 

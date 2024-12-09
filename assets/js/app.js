@@ -1,5 +1,3 @@
-/*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
-
 import '../css/app.scss'
 
 import 'phoenix_html'
