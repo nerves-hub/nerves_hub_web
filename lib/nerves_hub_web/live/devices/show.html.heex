@@ -104,11 +104,11 @@
         <div :for={script <- @scripts} class="mb-2 pb-2 border-bottom border-dark">
           <div class="flex-row align-items-center justify-content-between">
             <div><%= script.name %></div>
-            <button class="btn btn-secondary" phx-click="run-script" phx-value-script_id={script.id}>
-              Run
+            <button class="btn btn-secondary" phx-click={if script.id == @script_output.id, do: "clear-script-output", else: "run-script"} phx-value-script_id={script.id}>
+              <%= if script.id == @script_output.id, do: "Close", else: "Run" %>
             </button>
           </div>
-          <div :if={@script_output.id == script.id} class="mt-2" phx-click="clear-script-output">
+          <div :if={@script_output.id == script.id} class="mt-2">
             <code class="alarms-description color-white wb-ba ff-m"><%= @script_output.output %></code>
           </div>
         </div>
