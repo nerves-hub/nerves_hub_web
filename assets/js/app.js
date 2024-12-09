@@ -281,9 +281,7 @@ Hooks.WorldMap = {
     });
   },
   updated() {
-    let markers = this.markers;
-    let mode = this.el.dataset.mode;
-    var devices = [];
+    let mode = this.el.dataset.mode
 
     var myRenderer = L.canvas({ padding: 0.5 });
     var clusterLayer = L.markerClusterGroup({ chunkedLoading: true, chunkProgress: this.updateProgressBar });

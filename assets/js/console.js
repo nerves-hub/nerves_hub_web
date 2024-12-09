@@ -1,4 +1,5 @@
 /* eslint no-console: ["error", { allow: ["log"] }] */
+/* eslint no-empty: ["error", { "allowEmptyCatch": true }] */
 
 import { Socket } from 'phoenix'
 import { Terminal } from 'xterm'
@@ -155,7 +156,7 @@ channel.on('message', payload => {
   chatBody.scrollTop = chatBody.scrollHeight
 })
 
-chatBody.addEventListener('click', e => {
+chatBody.addEventListener('click', () => {
   chatMessage.focus()
 })
 chatMessage.addEventListener('keypress', e => {
@@ -175,7 +176,7 @@ channel.on('metadata', payload => {
 
 let downloadingFileBuffer = []
 
-channel.on('file-data/start', payload => {
+channel.on('file-data/start', () => {
   downloadingFileBuffer = []
 })
 
@@ -253,8 +254,7 @@ dropzone.addEventListener(
   e => {
     e.preventDefault()
     e.stopPropagation()
-
-    ;[...e.dataTransfer.items].forEach((item, i) => {
+    e.dataTransfer.items.forEach(item => {
       const file = item.getAsFile()
       const reader = file.stream().getReader()
 
