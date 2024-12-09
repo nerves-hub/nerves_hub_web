@@ -6,7 +6,7 @@ import { LiveSocket } from 'phoenix_live_view'
 import topbar from '../vendor/topbar'
 import L from 'leaflet/dist/leaflet.js'
 import Chart from 'chart.js/auto'
-import 'chartjs-adapter-date-fns';
+import 'chartjs-adapter-date-fns'
 import 'leaflet.markercluster/dist/leaflet.markercluster.js'
 
 import hljs from 'highlight.js/lib/core'
@@ -60,33 +60,39 @@ Hooks.SharedSecretClipboardClick = {
 }
 
 Hooks.Chart = {
-  dataset() { return JSON.parse(this.el.dataset.metrics); },
-  unit() { return JSON.parse(this.el.dataset.unit); },
+  dataset() {
+    return JSON.parse(this.el.dataset.metrics)
+  },
+  unit() {
+    return JSON.parse(this.el.dataset.unit)
+  },
   mounted() {
-    let metrics = JSON.parse(this.el.dataset.metrics);
-    let type = JSON.parse(this.el.dataset.type);
-    let max = JSON.parse(this.el.dataset.max);
-    let min = JSON.parse(this.el.dataset.min);
-    let title = JSON.parse(this.el.dataset.title);
+    let metrics = JSON.parse(this.el.dataset.metrics)
+    let type = JSON.parse(this.el.dataset.type)
+    let max = JSON.parse(this.el.dataset.max)
+    let min = JSON.parse(this.el.dataset.min)
+    let title = JSON.parse(this.el.dataset.title)
 
-    const ctx = this.el;
-    var data = [];
+    const ctx = this.el
+    var data = []
     for (let i = 0; i < metrics.length; i++) {
-      data.push(metrics[i]);
+      data.push(metrics[i])
     }
 
     const areaChartDataset = {
       type: 'line',
       data: {
-        datasets: [{
-          backgroundColor: '#d19999',
-          fill: {
-            target: 'start',
-            above: 'rgba(201, 84, 84, 0.29)',
-            below: 'rgba(201, 84, 84, 0.29)',
-          },
-          data: this.dataset()
-        }],
+        datasets: [
+          {
+            backgroundColor: '#d19999',
+            fill: {
+              target: 'start',
+              above: 'rgba(201, 84, 84, 0.29)',
+              below: 'rgba(201, 84, 84, 0.29)'
+            },
+            data: this.dataset()
+          }
+        ]
       },
       options: {
         plugins: {
@@ -115,13 +121,13 @@ Hooks.Chart = {
                 second: 'HH:mm:ss',
                 minute: 'HH:mm',
                 hour: 'HH:mm'
-              },
+              }
             },
             ticks: {
               display: true,
               autoSkip: false,
-              maxTicksLimit: 6,
-            },
+              maxTicksLimit: 6
+            }
           },
           y: {
             offset: true,
@@ -132,32 +138,27 @@ Hooks.Chart = {
             min: min,
             max: max
           }
-        },
+        }
       }
-    };
+    }
 
-    const chart = new Chart(
-      ctx,
-      areaChartDataset
-    );
-    this.el.chart = chart;
+    const chart = new Chart(ctx, areaChartDataset)
+    this.el.chart = chart
 
-    this.handleEvent("update-charts", function (payload) {
+    this.handleEvent('update-charts', function(payload) {
       if (payload.type == type) {
-        chart.data.datasets[0].data = payload.data;
-        chart.update();
+        chart.data.datasets[0].data = payload.data
+        chart.update()
       }
     })
 
-    this.handleEvent("update-time-unit", function (payload) {
-      chart.options.scales.x.time.unit = payload.unit;
-      chart.update();
+    this.handleEvent('update-time-unit', function(payload) {
+      chart.options.scales.x.time.unit = payload.unit
+      chart.update()
     })
-
   },
-  updated() { }
+  updated() {}
 }
-
 
 Hooks.HighlightCode = {
   mounted() {
@@ -232,9 +233,9 @@ Hooks.SimpleDate = {
 
 Hooks.WorldMap = {
   mounted() {
-    let self = this;
-    let mapId = this.el.id;
-    this.markers = [];
+    let self = this
+    let mapId = this.el.id
+    this.markers = []
 
     var mapOptionsZoom = {
       attributionControl: false,
@@ -247,39 +248,41 @@ Hooks.WorldMap = {
       maxZoom: 18,
       minZoom: 1.4,
       renderer: L.canvas()
-    };
+    }
 
     var mapStyle = {
       stroke: true,
-      color: "#2A2D30",
-      fillColor: "#b7bec5",
+      color: '#2A2D30',
+      fillColor: '#b7bec5',
       weight: 0.5,
       opacity: 1,
       fillOpacity: 0.5
-    };
+    }
 
     // initialize the map
-    this.map = L.map(mapId, mapOptionsZoom).setView([0, 0], 1);
-    this.map.setMaxBounds(this.map.getBounds());
-    this.handleEvent(
-      "markers",
-      ({ markers }) => {
-        self.markers = markers;
-        self.updated();
-      }
-    )
+    this.map = L.map(mapId, mapOptionsZoom).setView([0, 0], 1)
+    this.map.setMaxBounds(this.map.getBounds())
+    this.handleEvent('markers', ({ markers }) => {
+      self.markers = markers
+      self.updated()
+    })
 
     // load GeoJSON from an external file
-    fetch("/geo/world.geojson").then(res => res.json()).then(data => {
-      L.geoJson(data, { style: mapStyle }).addTo(this.map);
-      this.pushEvent("map_ready", {});
-    });
+    fetch('/geo/world.geojson')
+      .then(res => res.json())
+      .then(data => {
+        L.geoJson(data, { style: mapStyle }).addTo(this.map)
+        this.pushEvent('map_ready', {})
+      })
   },
   updated() {
     let mode = this.el.dataset.mode
 
-    var myRenderer = L.canvas({ padding: 0.5 });
-    var clusterLayer = L.markerClusterGroup({ chunkedLoading: true, chunkProgress: this.updateProgressBar });
+    var myRenderer = L.canvas({ padding: 0.5 })
+    var clusterLayer = L.markerClusterGroup({
+      chunkedLoading: true,
+      chunkProgress: this.updateProgressBar
+    })
 
     var defaultOptions = {
       radius: 6,
@@ -287,30 +290,34 @@ Hooks.WorldMap = {
       opacity: 0,
       fillOpacity: 1,
       renderer: myRenderer,
-      fillColor: "#4dd54f"
+      fillColor: '#4dd54f'
     }
 
-    var offlineOptions = Object.assign(defaultOptions, { fillColor: "rgba(196,49,49,1)" })
-    var outdatedOptions = Object.assign(defaultOptions, { fillColor: "rgba(99,99,99,1)" })
+    var offlineOptions = Object.assign(defaultOptions, {
+      fillColor: 'rgba(196,49,49,1)'
+    })
+    var outdatedOptions = Object.assign(defaultOptions, {
+      fillColor: 'rgba(99,99,99,1)'
+    })
 
     var devices = this.markers.reduce(function(acc, marker) {
-      let location = marker["l"]
-      var latLng = [location["at"], location["ng"]]
+      let location = marker['l']
+      var latLng = [location['at'], location['ng']]
 
       // if no location or we don't care about mode, move on
-      if (!location["ng"] && !location["at"]) return acc
-      if (!["connected", "updated"].includes(mode)) return acc
+      if (!location['ng'] && !location['at']) return acc
+      if (!['connected', 'updated'].includes(mode)) return acc
 
-      if (mode == "connected") {
-        if (marker["s"] == "connected") {
+      if (mode == 'connected') {
+        if (marker['s'] == 'connected') {
           acc.push(L.circleMarker(latLng, defaultOptions))
         } else {
           acc.push(L.circleMarker(latLng, offlineOptions))
         }
       }
 
-      if (mode == "updated") {
-        if (marker["lf"]) {
+      if (mode == 'updated') {
+        if (marker['lf']) {
           acc.push(L.circleMarker(latLng, defaultOptions))
         } else {
           acc.push(L.circleMarker(latLng, outdatedOptions))
@@ -319,7 +326,7 @@ Hooks.WorldMap = {
       return acc
     }, [])
 
-    clusterLayer.addLayers(devices);
+    clusterLayer.addLayers(devices)
     this.map.addLayer(clusterLayer)
   }
 }
