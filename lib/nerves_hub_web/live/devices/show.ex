@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
+  alias NervesHub.Scripts
   alias NervesHub.Tracker
 
   alias NervesHubWeb.Components.AuditLogFeed
@@ -19,6 +20,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.Utils
 
   alias Phoenix.Socket.Broadcast
+
+  @default_script_output %{output: nil, id: 0}
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product} = socket.assigns
@@ -44,6 +47,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, product))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
+    |> assign(:scripts, Scripts.all_by_product(product))
+    |> assign(:script_output, @default_script_output)
     |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
@@ -314,6 +319,27 @@ defmodule NervesHubWeb.Live.Devices.Show do
         )
         |> noreply()
     end
+  end
+
+  def handle_event(
+        "run-script",
+        %{"script_id" => script_id},
+        %{assigns: %{device: device, scripts: scripts}} = socket
+      ) do
+    script_id = String.to_integer(script_id)
+    script = Enum.find(scripts, &(&1.id == script_id))
+
+    output = Scripts.Runner.send(device, script)
+
+    socket
+    |> assign(:script_output, %{output: output, id: script_id})
+    |> noreply()
+  end
+
+  def handle_event("clear-script-output", _, socket) do
+    socket
+    |> assign(:script_output, @default_script_output)
+    |> noreply()
   end
 
   defp device_connection(%{device_connections: [connection]}), do: connection
