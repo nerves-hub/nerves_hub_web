@@ -104,7 +104,7 @@
         <div :for={script <- @scripts} class="mb-2 pb-2 border-bottom border-dark">
           <div class="flex-row align-items-center justify-content-between">
             <div><%= script.name %></div>
-            <button class="btn btn-primary" phx-click="run-script" phx-value-script_id={script.id}>
+            <button class="btn btn-secondary" phx-click="run-script" phx-value-script_id={script.id}>
               Run
             </button>
           </div>
