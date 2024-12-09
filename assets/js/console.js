@@ -1,6 +1,3 @@
-/* eslint no-console: ["error", { allow: ["log"] }] */
-/* eslint no-empty: ["error", { "allowEmptyCatch": true }] */
-
 import { Socket } from 'phoenix'
 import { Terminal } from 'xterm'
 import { WebglAddon } from 'xterm-addon-webgl'
