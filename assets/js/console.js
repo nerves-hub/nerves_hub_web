@@ -254,7 +254,7 @@ dropzone.addEventListener(
   e => {
     e.preventDefault()
     e.stopPropagation()
-    ;[...e.dataTransfer.items].forEach(item => {
+    e.dataTransfer.items.forEach(item => {
       const file = item.getAsFile()
       const reader = file.stream().getReader()
 
