@@ -274,9 +274,7 @@ Hooks.WorldMap = {
     });
   },
   updated() {
-    let markers = this.markers;
-    let mode = this.el.dataset.mode;
-    var devices = [];
+    let mode = this.el.dataset.mode
 
     var myRenderer = L.canvas({ padding: 0.5 });
     var clusterLayer = L.markerClusterGroup({ chunkedLoading: true, chunkProgress: this.updateProgressBar });
@@ -334,12 +332,17 @@ let liveSocket = new LiveSocket('/live', Socket, {
 
 // Show progress bar on live navigation and form submits
 topbar.config({
-barColors: { 0: '#6366F1' },
-barThickness: 1.5,
-shadowColor: 'rgba(0, 0, 0, .3)'
+  barColors: { 0: '#6366F1' },
+  barThickness: 1.5,
+  shadowColor: 'rgba(0, 0, 0, .3)'
 })
-window.addEventListener('phx:page-loading-start', _info => topbar.show(300))
-window.addEventListener('phx:page-loading-stop', _info => topbar.hide())
+
+window.addEventListener('phx:page-loading-start', () => {
+  topbar.show(300)
+})
+window.addEventListener('phx:page-loading-stop', () => {
+  topbar.hide()
+})
 
 liveSocket.connect()
 
