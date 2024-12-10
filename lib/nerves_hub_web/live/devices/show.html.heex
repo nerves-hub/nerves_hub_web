@@ -96,6 +96,29 @@
         </div>
       <% end %>
     </div>
+
+    <div :if={@scripts != []}>
+      <h3 class="mb-2">Support Scripts</h3>
+
+      <div class="display-box">
+        <div :for={{script, idx} <- @scripts} class="mb-2 pb-2 border-bottom border-dark">
+          <div class="flex-row align-items-center justify-content-between">
+            <div><%= script.name %></div>
+            <button class="btn btn-secondary" disabled={script.output == running_script_placeholder()} phx-click={if script.output, do: "clear-script-output", else: "run-script"} phx-value-idx={idx}>
+              <%= script_button_text(script.output) %>
+            </button>
+          </div>
+          <div :if={script.output} class="mt-2">
+            <code class="alarms-description color-white wb-ba ff-m"><%= script.output %></code>
+          </div>
+        </div>
+        <div class="text-right">
+          <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts"}>
+            Add and edit scripts
+          </.link>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="col-lg-6">

@@ -392,6 +392,35 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "support scripts" do
+    test "no scripts available", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> refute_has("h3", text: "Support Scripts")
+    end
+
+    test "list scripts", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      {:ok, _command} =
+        NervesHub.Scripts.create(product, %{name: "MOTD", text: "NervesMOTD.print()"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h3", text: "Support Scripts")
+      |> assert_has("div", text: "MOTD")
+      |> assert_has("button", text: "Run")
+    end
+  end
+
   def device_show_path(%{device: device, org: org, product: product}) do
     ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}"
   end

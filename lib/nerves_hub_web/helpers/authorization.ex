@@ -58,6 +58,7 @@ defmodule NervesHub.Helpers.Authorization do
   def authorized?(:"support_script:create", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"support_script:update", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"support_script:delete", %OrgUser{role: role}), do: role_check(:manage, role)
+  def authorized?(:"support_script:run", %OrgUser{role: role}), do: role_check(:view, role)
 
   defp role_check(required_role, user_role) do
     required_role
