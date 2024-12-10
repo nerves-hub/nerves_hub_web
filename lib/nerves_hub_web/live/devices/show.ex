@@ -21,7 +21,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias Phoenix.Socket.Broadcast
 
-  @default_script_output %{output: nil, id: 0}
+  @running_script_placeholder "Running Script.."
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product} = socket.assigns
@@ -47,8 +47,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, product))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
-    |> assign(:scripts, Scripts.all_by_product(product))
-    |> assign(:script_output, @default_script_output)
+    |> assign(:scripts, scripts_with_output(product))
     |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
@@ -323,23 +322,59 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   def handle_event(
         "run-script",
-        %{"script_id" => script_id},
-        %{assigns: %{device: device, scripts: scripts}} = socket
+        %{"idx" => index},
+        %{assigns: %{device: device, scripts: scripts, org_user: org_user}} = socket
       ) do
-    script_id = String.to_integer(script_id)
-    script = Enum.find(scripts, &(&1.id == script_id))
+    authorized!(:"support_script:run", org_user)
 
-    output = Scripts.Runner.send(device, script)
+    {script, idx} = Enum.at(scripts, String.to_integer(index))
 
     socket
-    |> assign(:script_output, %{output: output, id: script_id})
+    |> assign(:scripts, update_script_output(scripts, idx, @running_script_placeholder))
+    |> start_async({:run_script, idx}, fn -> Scripts.Runner.send(device, script) end)
     |> noreply()
   end
 
-  def handle_event("clear-script-output", _, socket) do
+  def handle_event(
+        "clear-script-output",
+        %{"idx" => index},
+        %{assigns: %{scripts: scripts}} = socket
+      ) do
     socket
-    |> assign(:script_output, @default_script_output)
+    |> assign(:scripts, update_script_output(scripts, String.to_integer(index), nil))
     |> noreply()
+  end
+
+  def handle_async(
+        {:run_script, index},
+        result,
+        %{assigns: %{scripts: scripts}} = socket
+      ) do
+    output =
+      case result do
+        {:ok, output} ->
+          output
+
+        e ->
+          inspect(e)
+      end
+
+    socket
+    |> assign(:scripts, update_script_output(scripts, index, output))
+    |> noreply()
+  end
+
+  defp scripts_with_output(product) do
+    product
+    |> Scripts.all_by_product()
+    |> Enum.map(&Map.put(&1, :output, nil))
+    |> Enum.with_index()
+  end
+
+  defp update_script_output(scripts, index, output) do
+    List.update_at(scripts, index, fn {script, idx} ->
+      {%{script | output: output}, idx}
+    end)
   end
 
   defp device_connection(%{device_connections: [connection]}), do: connection
@@ -411,4 +446,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end)
     |> Enum.map(&elem(&1, 0))
   end
+
+  defp running_script_placeholder(), do: @running_script_placeholder
+
+  defp script_button_text(output) when output == @running_script_placeholder or is_nil(output),
+    do: "Run"
+
+  defp script_button_text(_), do: "Close"
 end

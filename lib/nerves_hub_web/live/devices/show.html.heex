@@ -101,15 +101,15 @@
       <h3 class="mb-2">Support Scripts</h3>
 
       <div class="display-box">
-        <div :for={script <- @scripts} class="mb-2 pb-2 border-bottom border-dark">
+        <div :for={{script, idx} <- @scripts} class="mb-2 pb-2 border-bottom border-dark">
           <div class="flex-row align-items-center justify-content-between">
             <div><%= script.name %></div>
-            <button class="btn btn-secondary" phx-click={if script.id == @script_output.id, do: "clear-script-output", else: "run-script"} phx-value-script_id={script.id}>
-              <%= if script.id == @script_output.id, do: "Close", else: "Run" %>
+            <button class="btn btn-secondary" disabled={script.output == running_script_placeholder()} phx-click={if script.output, do: "clear-script-output", else: "run-script"} phx-value-idx={idx}>
+              <%= script_button_text(script.output) %>
             </button>
           </div>
-          <div :if={@script_output.id == script.id} class="mt-2">
-            <code class="alarms-description color-white wb-ba ff-m"><%= @script_output.output %></code>
+          <div :if={script.output} class="mt-2">
+            <code class="alarms-description color-white wb-ba ff-m"><%= script.output %></code>
           </div>
         </div>
         <div class="text-right">
