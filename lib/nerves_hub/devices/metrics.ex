@@ -148,6 +148,8 @@ defmodule NervesHub.Devices.Metrics do
   @doc """
   Saves map of metrics.
   """
+  def save_metrics(_device_id, metrics) when metrics == %{}, do: {:ok, 0}
+
   def save_metrics(device_id, metrics) do
     entries =
       Enum.map(metrics, fn {key, val} ->

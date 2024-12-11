@@ -126,9 +126,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(:check_health_interval, socket) do
     timer_ref = Process.send_after(self(), :check_health_interval, 65_000)
 
-    socket.endpoint.broadcast("device:#{socket.assigns.device.id}", "check_health", %{})
+    topic = "device:#{socket.assigns.device.id}:extensions"
+    NervesHubWeb.DeviceEndpoint.broadcast(topic, "health:check", %{})
 
-    {:noreply, assign(socket, :health_check_timer, timer_ref)}
+    socket
+    |> assign(:health_check_timer, timer_ref)
+    |> noreply()
   end
 
   def handle_info(%Broadcast{event: "location:updated"}, socket) do
