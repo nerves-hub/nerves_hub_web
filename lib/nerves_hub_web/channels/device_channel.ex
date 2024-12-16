@@ -11,6 +11,7 @@ defmodule NervesHubWeb.DeviceChannel do
   require Logger
 
   alias NervesHub.Archives
+  alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.Templates
   alias NervesHub.Deployments
   alias NervesHub.Devices
@@ -62,8 +63,15 @@ defmodule NervesHubWeb.DeviceChannel do
     # Request device extension capabilities if possible
     # Earlier versions of nerves_hub_link don't have a fallback for unknown messages,
     # so check version before requesting extensions
-    if is_safe_to_request_extensions?(socket.assigns.device_api_version),
-      do: push(socket, "extensions:get", %{})
+    if is_safe_to_request_extensions?(socket.assigns.device_api_version) do
+      push(socket, "extensions:get", %{})
+    else
+      description =
+        "device #{device.identifier} could not get extensions: Unsupported API version."
+
+      AuditLogs.audit!(device, device, description)
+      Logger.info("[DeviceChannel] #{description}")
+    end
 
     {:noreply, socket}
   end
