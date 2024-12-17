@@ -64,4 +64,23 @@ defmodule NervesHub.Extensions do
   def module(_key, _ver) do
     :unsupported
   end
+
+  def toggle_extension(device, event, extension) do
+    device_internal_broadcast!(device, event, %{
+      "extensions" => [extension]
+    })
+  end
+
+  defp device_internal_broadcast!(device, event, payload) do
+    Phoenix.Channel.Server.broadcast_from!(
+      NervesHub.PubSub,
+      self(),
+      topic(device),
+      event,
+      payload
+    )
+  end
+
+  defp topic(%NervesHub.Devices.Device{} = device), do: "device:#{device.id}:extensions"
+  defp topic(%NervesHub.Products.Product{} = product), do: "product:#{product.id}:extensions"
 end
