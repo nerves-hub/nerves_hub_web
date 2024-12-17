@@ -1,6 +1,8 @@
 defmodule NervesHub.AuditLogs.Templates do
   alias NervesHub.AuditLogs
 
+  require Logger
+
   def audit_resolve_changed_deployment(device, reference_id) do
     description =
       if device.deployment_id do
@@ -27,5 +29,13 @@ defmodule NervesHub.AuditLogs.Templates do
       "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
 
     AuditLogs.audit_with_ref!(device, device, description, reference_id)
+  end
+
+  def audit_unsupported_api_version(device) do
+    description =
+      "device #{device.identifier} could not get extensions: Unsupported API version."
+
+    AuditLogs.audit!(device, device, description)
+    Logger.info("[DeviceChannel] #{description}")
   end
 end
