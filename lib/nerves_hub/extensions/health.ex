@@ -95,8 +95,13 @@ defmodule NervesHub.Extensions.Health do
     {:noreply, socket}
   end
 
+  def request_health_check(device) do
+    device_internal_broadcast!(device, "health:check", %{})
+  end
+
   defp device_internal_broadcast!(device, event, payload) do
     topic = "device:#{device.identifier}:extensions"
-    NervesHubWeb.DeviceEndpoint.broadcast_from!(self(), topic, event, payload)
+
+    Phoenix.Channel.Server.broadcast_from(NervesHub.PubSub, self(), topic, event, payload)
   end
 end
