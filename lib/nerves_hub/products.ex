@@ -9,6 +9,7 @@ defmodule NervesHub.Products do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Extensions
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
   alias NervesHub.Accounts.User
@@ -277,11 +278,7 @@ defmodule NervesHub.Products do
     |> Repo.update()
     |> tap(fn
       {:ok, _} ->
-        topic = "product:#{product.id}:extensions"
-
-        NervesHubWeb.DeviceEndpoint.broadcast(topic, "attach", %{
-          "extensions" => [extension_string]
-        })
+        Extensions.toggle_extension(product, "attach", extension_string)
 
       _ ->
         :nope
@@ -295,11 +292,7 @@ defmodule NervesHub.Products do
     |> Repo.update()
     |> tap(fn
       {:ok, _} ->
-        topic = "product:#{product.id}:extensions"
-
-        NervesHubWeb.DeviceEndpoint.broadcast(topic, "detach", %{
-          "extensions" => [extension_string]
-        })
+        Extensions.toggle_extension(product, "detach", extension_string)
 
       _ ->
         :nope

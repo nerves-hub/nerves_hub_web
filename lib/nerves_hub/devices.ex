@@ -21,6 +21,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.UpdatePayload
+  alias NervesHub.Extensions
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareMetadata
@@ -1408,11 +1409,7 @@ defmodule NervesHub.Devices do
     |> Repo.update()
     |> tap(fn
       {:ok, _} ->
-        topic = "device:#{device.id}:extensions"
-
-        NervesHubWeb.DeviceEndpoint.broadcast(topic, "attach", %{
-          "extensions" => [extension_string]
-        })
+        Extensions.toggle_extension(device, "attach", extension_string)
 
       _ ->
         :nope
@@ -1426,11 +1423,7 @@ defmodule NervesHub.Devices do
     |> Repo.update()
     |> tap(fn
       {:ok, _} ->
-        topic = "device:#{device.id}:extensions"
-
-        NervesHubWeb.DeviceEndpoint.broadcast(topic, "detach", %{
-          "extensions" => [extension_string]
-        })
+        Extensions.toggle_extension(device, "detach", extension_string)
 
       _ ->
         :nope
