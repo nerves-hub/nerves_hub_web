@@ -20,7 +20,7 @@ hljs.registerLanguage("shell", shell)
 import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
-import dates from "..js/dates.js"
+import dates from "../js/dates"
 
 TimeAgo.addDefaultLocale(en)
 
