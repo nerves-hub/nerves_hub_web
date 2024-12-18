@@ -348,6 +348,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
+  def handle_event(
+        "remove-from-deployment",
+        _,
+        %{assigns: %{device: device}} = socket
+      ) do
+    socket
+    |> assign(:device, Devices.clear_deployment(device))
+    |> noreply()
+  end
+
   def handle_async(
         {:run_script, index},
         result,
