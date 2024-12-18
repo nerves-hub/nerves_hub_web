@@ -53,6 +53,7 @@ config :nerves_hub, NervesHub.Repo,
 
 config :nerves_hub, Oban,
   repo: NervesHub.ObanRepo,
+  notifier: Oban.Notifiers.PG,
   log: false,
   queues: [
     delete_archive: 1,
