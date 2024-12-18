@@ -11,7 +11,10 @@ defmodule NervesHub.Logger do
     :time,
     :gl,
     :ansi_color,
-    :__sentry__
+    :__sentry__,
+    :otel_trace_id,
+    :otel_span_id,
+    :otel_trace_flags
   ]
 
   def format(level, message, timestamp, metadata) do
