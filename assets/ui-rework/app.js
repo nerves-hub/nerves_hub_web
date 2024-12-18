@@ -1,7 +1,7 @@
 import "phoenix_html"
 import { Socket } from "phoenix"
 import { LiveSocket } from "phoenix_live_view"
-import topbar from "../vendor/topbar"
+import topbar from "topbar"
 import L from "leaflet/dist/leaflet.js"
 import Chart from "chart.js/auto"
 import "chartjs-adapter-date-fns"
