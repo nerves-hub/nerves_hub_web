@@ -8,6 +8,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Templates
   alias NervesHub.Certificate
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
@@ -681,8 +682,7 @@ defmodule NervesHub.Devices do
   end
 
   def update_firmware_metadata(device, metadata) do
-    description = "Device #{device.identifier} updated firmware metadata"
-    AuditLogs.audit!(device, device, description)
+    Templates.audit_firmware_metadata_updated(device)
     update_device(device, %{firmware_metadata: metadata})
   end
 
@@ -840,12 +840,7 @@ defmodule NervesHub.Devices do
           |> DateTime.truncate(:second)
           |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
 
-        description = """
-        Device #{device.identifier} automatically blocked firmware upgrades for #{deployment.penalty_timeout_minutes} minutes.
-        Device failure rate met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
-        """
-
-        AuditLogs.audit!(deployment, device, description)
+        Templates.audit_firmware_upgrade_blocked(deployment, device)
         clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
@@ -858,12 +853,7 @@ defmodule NervesHub.Devices do
           |> DateTime.truncate(:second)
           |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
 
-        description = """
-        Device #{device.identifier} automatically blocked firmware upgrades for #{deployment.penalty_timeout_minutes} minutes.
-        Device failure threshold met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
-        """
-
-        AuditLogs.audit!(deployment, device, description)
+        Templates.audit_firmware_upgrade_blocked(deployment, device)
         clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
@@ -886,8 +876,7 @@ defmodule NervesHub.Devices do
     Multi.new()
     |> Multi.update(:device, changeset)
     |> Multi.run(:audit_device, fn _, _ ->
-      description = "device #{device.identifier} is attempting to update"
-      AuditLogs.audit(device, device, description)
+      Templates.audit_update_attempt(device)
     end)
     |> Repo.transaction()
     |> case do
@@ -905,10 +894,7 @@ defmodule NervesHub.Devices do
       firmware_uuid: device.firmware_metadata.uuid
     })
 
-    description =
-      "Device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
-
-    AuditLogs.audit!(device, device, description)
+    Templates.audit_firmware_updated(device)
 
     # Clear the inflight update, no longer inflight!
     inflight_update =
