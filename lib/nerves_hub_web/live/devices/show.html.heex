@@ -218,7 +218,12 @@
       <h3 class="mb-2">Deployments</h3>
       <div class="display-box">
         <div>
-          <div class="help-text mb-1">Assigned Deployment</div>
+          <div class="help-text mb-1">
+            Assigned Deployment -
+            <.link :if={@deployment} phx-click="remove-from-deployment" data-confirm="This will remove the device from its deployment. Are you sure?">
+              Remove From Deployment
+            </.link>
+          </div>
           <.link :if={@deployment} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"} class="badge">
             <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}><%= @deployment.name %></div>
           </.link>
