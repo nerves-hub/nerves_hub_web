@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.UpdatePayload
+  alias NervesHub.Extensions.Health
   alias NervesHub.Firmwares
   alias NervesHub.Scripts
   alias NervesHub.Tracker
@@ -126,8 +127,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(:check_health_interval, socket) do
     timer_ref = Process.send_after(self(), :check_health_interval, 65_000)
 
-    topic = "device:#{socket.assigns.device.id}:extensions"
-    socket.endpoint.broadcast(topic, "health:check", %{})
+    Health.request_health_check(socket.assigns.device)
 
     socket
     |> assign(:health_check_timer, timer_ref)
