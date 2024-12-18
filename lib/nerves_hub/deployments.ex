@@ -3,7 +3,7 @@ defmodule NervesHub.Deployments do
 
   require Logger
 
-  alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Templates
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices.Device
@@ -177,16 +177,13 @@ defmodule NervesHub.Deployments do
         payload = %{archive_id: archive_id}
         _ = broadcast(deployment, "archives/updated", payload)
 
-        description = "deployment #{deployment.name} has a new archive"
-        AuditLogs.audit!(deployment, deployment, description)
+        Templates.audit_deployment_change(deployment, "has a new archive")
 
       {:conditions, _new_conditions} ->
-        description = "deployment #{deployment.name} conditions changed"
-        AuditLogs.audit!(deployment, deployment, description)
+        Templates.audit_deployment_change(deployment, "conditions changed")
 
       {:is_active, is_active} when is_active != true ->
-        description = "deployment #{deployment.name} is inactive"
-        AuditLogs.audit!(deployment, deployment, description)
+        Templates.audit_deployment_change(deployment, "is inactive")
 
       _ ->
         :ignore
@@ -331,11 +328,7 @@ defmodule NervesHub.Deployments do
         |> Ecto.Changeset.change(%{deployment_id: nil})
         |> Repo.update!()
 
-      AuditLogs.audit!(
-        device,
-        device,
-        "device no longer matches deployment #{deployment.name}'s requirements because of #{reason}"
-      )
+      Templates.audit_deployment_mismatch(device, deployment, reason)
     else
       device
     end

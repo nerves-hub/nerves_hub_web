@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Templates
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices
@@ -64,8 +65,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: value})
 
     active_str = if value, do: "active", else: "inactive"
-    description = "#{user.name} marked deployment #{deployment.name} #{active_str}"
-    AuditLogs.audit!(user, deployment, description)
+    Templates.audit_deployment_toggle_active(user, deployment, active_str)
 
     socket
     |> put_flash(:info, "Deployment set #{active_str}")
@@ -78,11 +78,9 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
     %{deployment: deployment, org: org, product: product, user: user} = socket.assigns
 
-    description = "#{user.name} deleted deployment #{deployment.name}"
-
-    AuditLogs.audit!(user, deployment, description)
-
     {:ok, _} = Deployments.delete_deployment(deployment)
+
+    Templates.audit_deployment_deleted(user, deployment)
 
     socket
     |> put_flash(:info, "Deployment successfully deleted")
