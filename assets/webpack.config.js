@@ -1,11 +1,14 @@
-const path = require('path');
-const glob = require('glob');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const TerserPlugin = require('terser-webpack-plugin');
-const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
+import path from "path"
+import glob from "glob"
+import { fileURLToPath } from "url"
+import MiniCssExtractPlugin from "mini-css-extract-plugin"
+import TerserPlugin from "terser-webpack-plugin"
+import CssMinimizerPlugin from "css-minimizer-webpack-plugin"
+import CopyWebpackPlugin from "copy-webpack-plugin"
 
-module.exports = (env, options) => ({
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+export default (_env, _options) => ({
   cache: true,
   optimization: {
     minimizer: [
@@ -14,12 +17,12 @@ module.exports = (env, options) => ({
     ]
   },
   entry: {
-    app: glob.sync('./vendor/**/*.js').concat(['./js/app.js']),
-    console: './js/console.js'
+    app: glob.sync("./vendor/**/*.js").concat(["./js/app.js"]),
+    console: "./js/console.js"
   },
   output: {
-    filename: '[name].js',
-    path: path.resolve(__dirname, '../priv/static/js')
+    filename: "[name].js",
+    path: path.resolve(__dirname, "../priv/static/js")
   },
   module: {
     rules: [
@@ -27,27 +30,27 @@ module.exports = (env, options) => ({
         test: /\.js$/,
         exclude: /node_modules/,
         use: {
-          loader: 'babel-loader'
+          loader: "babel-loader"
         }
       },
       {
         test: /\.s?css$/,
-        use: [MiniCssExtractPlugin.loader, 'css-loader', 'sass-loader']
+        use: [MiniCssExtractPlugin.loader, "css-loader", "sass-loader"]
       },
       {
         test: /\.(png|jpg|gif|svg)$/,
-        loader: 'file-loader',
+        loader: "file-loader",
         options: {
-          name: '[name].[ext]',
-          outputPath: '../images'
+          name: "[name].[ext]",
+          outputPath: "../images"
         }
       },
       {
         test: /\.(ttf|otf|eot|svg|woff2?)$/,
-        loader: 'file-loader',
+        loader: "file-loader",
         options: {
-          name: '[name].[ext]',
-          outputPath: '../fonts'
+          name: "[name].[ext]",
+          outputPath: "../fonts"
         }
       }
     ]
@@ -62,7 +65,7 @@ module.exports = (env, options) => ({
     ]
   },
   plugins: [
-    new MiniCssExtractPlugin({ filename: '../css/app.css' }),
-    new CopyWebpackPlugin({patterns: [{ from: 'static/', to: '../' }]})
+    new MiniCssExtractPlugin({ filename: "../css/app.css" }),
+    new CopyWebpackPlugin({ patterns: [{ from: "static/", to: "../" }] })
   ]
-});
+})
