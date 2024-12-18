@@ -1,6 +1,6 @@
 import moment from "moment"
 
-export const formatDateTime = datetime => {
+const formatDateTime = datetime => {
   /*
     Safari wants strict iso8601 format "YYYY-MM-DDTHH:MM:SSZ",
     but elixir to_string default supplies as "YYYY-MM-DD HH:MM:SSZ".
@@ -21,7 +21,7 @@ export const formatDateTime = datetime => {
   }
 }
 
-export const formatDate = datetime => {
+const formatDate = datetime => {
   /*
     Safari wants strict iso8601 format "YYYY-MM-DDTHH:MM:SSZ",
     but elixir to_string default supplies as "YYYY-MM-DD HH:MM:SSZ".
@@ -41,3 +41,5 @@ export const formatDate = datetime => {
       .format("MMM Do, YYYY")
   }
 }
+
+export default { formatDate, formatDateTime }

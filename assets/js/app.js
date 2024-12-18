@@ -27,7 +27,7 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css"
 import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
-import dates from "./dates"
+import dates from "./dates.js"
 
 TimeAgo.addDefaultLocale(en)
 
