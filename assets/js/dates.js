@@ -1,4 +1,4 @@
-const moment = require('moment')
+import moment from "moment"
 
 const formatDateTime = datetime => {
   /*
@@ -8,16 +8,16 @@ const formatDateTime = datetime => {
   */
   datetime = datetime
     .trim()
-    .split(' ')
-    .join('T')
+    .split(" ")
+    .join("T")
 
-  if (datetime === 'never' || datetime === '') {
+  if (datetime === "never" || datetime === "") {
     return datetime
   } else {
     return moment
       .utc(datetime)
       .local()
-      .format('MMM Do, YYYY [at] h:mma')
+      .format("MMM Do, YYYY [at] h:mma")
   }
 }
 
@@ -29,17 +29,17 @@ const formatDate = datetime => {
   */
   datetime = datetime
     .trim()
-    .split(' ')
-    .join('T')
+    .split(" ")
+    .join("T")
 
-  if (datetime === 'never' || datetime === '') {
+  if (datetime === "never" || datetime === "") {
     return datetime
   } else {
     return moment
       .utc(datetime)
       .local()
-      .format('MMM Do, YYYY')
+      .format("MMM Do, YYYY")
   }
 }
 
-module.exports = { formatDateTime, formatDate }
+export default { formatDate, formatDateTime }
