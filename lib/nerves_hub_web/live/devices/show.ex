@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   require Logger
 
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Templates
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
@@ -150,7 +151,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:reboot", org_user)
 
-    AuditLogs.audit!(user, device, "#{user.name} rebooted device #{device.identifier}")
+    Templates.audit_reboot(user, device)
 
     socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
@@ -162,11 +163,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:reconnect", org_user)
 
-    AuditLogs.audit!(
-      user,
-      device,
-      "#{user.name} requested the device (#{device.identifier}) reconnect"
-    )
+    Templates.audit_request_action(user, device, "reconnect")
 
     socket.endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
 
@@ -178,11 +175,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:identify", org_user)
 
-    AuditLogs.audit!(
-      user,
-      device,
-      "#{user.name} requested the device (#{device.identifier}) identify itself"
-    )
+    Templates.audit_request_action(user, device, "identify itself")
 
     socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "identify", %{})
 
@@ -265,10 +258,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
     {:ok, device} = Devices.disable_updates(device, user)
 
-    description =
-      "#{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
-
-    AuditLogs.audit!(user, device, description)
+    Templates.audit_firmware_pushed(user, device, firmware)
 
     payload = %UpdatePayload{
       update_available: true,
@@ -291,13 +281,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     deployment = NervesHub.Repo.preload(deployment, :firmware)
 
-    description =
-      "#{user.name} pushed available firmware update #{deployment.firmware.version} #{deployment.firmware.uuid} to device #{device.identifier}"
-
-    AuditLogs.audit!(user, device, description)
-
     case Devices.told_to_update(device, deployment) do
       {:ok, inflight_update} ->
+        Templates.audit_pushed_available_update(user, device, deployment)
+
         _ =
           NervesHubWeb.Endpoint.broadcast(
             "device:#{device.id}",
