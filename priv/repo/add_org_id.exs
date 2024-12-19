@@ -1,7 +1,7 @@
 alias NervesHub.Repo
 alias NervesHub.Firmwares.Firmware
 alias NervesHub.Devices.DeviceCertificate
-alias NervesHub.Deployments.Deployment
+alias NervesHub.ManagedDeployments.DeploymentGroup
 alias NervesHub.AuditLogs.AuditLog
 
 import Ecto.Query

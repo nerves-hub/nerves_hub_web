@@ -3,7 +3,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
-  alias NervesHub.Deployments
+  alias NervesHub.ManagedDeployments
 
   alias Phoenix.Socket.Broadcast
 
@@ -89,7 +89,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
         Devices.get_minimal_device_location_by_org_id_and_product_id(org.id, product.id)
 
       latest_firmwares =
-        Deployments.get_deployments_by_product(product.id)
+        ManagedDeployments.get_deployments_by_product(product.id)
         |> Enum.reduce(%{}, fn deployment, acc ->
           Map.put(acc, deployment.firmware.uuid, deployment.firmware.platform)
         end)

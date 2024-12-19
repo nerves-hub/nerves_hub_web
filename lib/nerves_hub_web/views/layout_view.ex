@@ -232,7 +232,7 @@ defmodule NervesHubWeb.LayoutView do
       %{
         title: "Deployments",
         active: "",
-        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/deployments"
+        href: ~p"/org/#{conn.assigns.org.name}/#{conn.assigns.product.name}/deployment_groups"
       },
       %{
         title: "Scripts",

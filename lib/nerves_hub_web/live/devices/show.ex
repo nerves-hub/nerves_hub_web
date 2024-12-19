@@ -42,7 +42,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> assign(:device_connection, device_connection(device))
     |> assign(:console_active?, Tracker.console_active?(device))
-    |> assign(:deployment, device.deployment)
+    |> assign(:deployment_group, device.deployment_group)
     |> assign(:update_information, Devices.resolve_update(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
@@ -287,7 +287,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event("push-available-update", _, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{device: device, deployment: deployment, user: user} = socket.assigns
+    %{device: device, deployment_group: deployment, user: user} = socket.assigns
 
     deployment = NervesHub.Repo.preload(deployment, :firmware)
 
@@ -301,7 +301,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
         _ =
           NervesHubWeb.Endpoint.broadcast(
             "device:#{device.id}",
-            "deployments/update",
+            "deployment_groups/update",
             inflight_update
           )
 
@@ -421,9 +421,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   defp connecting_code(device) do
-    if device.deployment && device.deployment.connecting_code do
+    if device.deployment_group && device.deployment_group.connecting_code do
       """
-      #{device.deployment.connecting_code}
+      #{device.deployment_group.connecting_code}
       #{device.connecting_code}
       """
     else

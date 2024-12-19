@@ -219,10 +219,10 @@
       <div class="display-box">
         <div>
           <div class="help-text mb-1">Assigned Deployment</div>
-          <.link :if={@deployment} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"} class="badge">
-            <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}><%= @deployment.name %></div>
+          <.link :if={@deployment_group} navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}"} class="badge">
+            <div class={"deployment-state state-#{if @deployment_group.is_active, do: "on", else: "off"}"}><%= @deployment_group.name %></div>
           </.link>
-          <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
+          <span :if={is_nil(@deployment_group)} class="color-white-50">No Assigned Deployment</span>
         </div>
 
         <div :if={@update_information.update_available} class="mt-4">
