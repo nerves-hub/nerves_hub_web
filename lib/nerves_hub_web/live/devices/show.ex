@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Extensions.Health
   alias NervesHub.Firmwares
+  alias NervesHub.Repo
   alias NervesHub.Scripts
   alias NervesHub.Tracker
 
@@ -353,8 +354,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
         _,
         %{assigns: %{device: device}} = socket
       ) do
+    device =
+      device
+      |> Devices.clear_deployment()
+      |> Repo.preload(:deployment)
+
     socket
-    |> assign(:device, Devices.clear_deployment(device))
+    |> assign(:device, device)
     |> assign(:deployment, nil)
     |> noreply()
   end

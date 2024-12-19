@@ -224,11 +224,14 @@
           <.link :if={@deployment} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"} class="badge">
             <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}><%= @deployment.name %></div>
           </.link>
-          <div>
-            <.link :if={@deployment} class="danger" phx-click="remove-from-deployment" data-confirm="This will remove the device from its deployment. Are you sure?">
-              Remove From Deployment
-            </.link>
-          </div>
+          <%= if @deployment do %>
+            <div>
+              <button class="btn btn-sm btn-primary btn-action" phx-click="remove-from-deployment" data-confirm="Are you sure you want to remove this device from its deployment?">
+                <span class="button-icon delete"></span>
+                <span class="action-text">Remove From Deployment</span>
+              </button>
+            </div>
+          <% end %>
           <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
         </div>
 
