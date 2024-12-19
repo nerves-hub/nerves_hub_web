@@ -355,6 +355,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       ) do
     socket
     |> assign(:device, Devices.clear_deployment(device))
+    |> assign(:deployment, nil)
     |> noreply()
   end
 
