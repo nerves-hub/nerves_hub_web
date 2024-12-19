@@ -421,6 +421,37 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     end
   end
 
+  describe "clearing deployment" do
+    test "clears deployment", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment: deployment
+    } do
+      device =
+        device
+        |> Ecto.Changeset.change(%{deployment_id: deployment.id})
+        |> Repo.update!()
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> click_button("Remove From Deployment")
+      |> assert_has("span", text: "No Assigned Deployment")
+    end
+
+    test "cannot clear deployment if no deployment is set", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> refute_has("a", text: "Remove From Deployment")
+    end
+  end
+
   def device_show_path(%{device: device, org: org, product: product}) do
     ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}"
   end
