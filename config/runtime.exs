@@ -321,7 +321,7 @@ if config_env() == :prod do
       end
 
       config :ex_aws,
-        json_codec: Jason
+        json_codec: JSON
 
     "local" ->
       local_path = System.get_env("FIRMWARE_UPLOAD_PATH")
@@ -394,7 +394,8 @@ config :sentry,
       # Monitor cron jobs:
       cron: [enabled: true]
     ]
-  ]
+  ],
+  json_library: NervesHub.SentryJsonWrapper
 
 config :opentelemetry, :resource, service: %{name: nerves_hub_app}
 

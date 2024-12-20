@@ -1,7 +1,7 @@
 import Config
 
 config :phoenix,
-  json_library: Jason,
+  json_library: JSON,
   template_engines: [
     leex: Phoenix.LiveView.Engine
   ]
@@ -75,6 +75,8 @@ config :nerves_hub, Oban,
        {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation}
      ]}
   ]
+
+config :postgrex, :json_library, JSON
 
 config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
 

@@ -6,7 +6,7 @@ defmodule NervesHub.Devices.UpdatePayload do
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Deployments.Deployment
 
-  @derive {Jason.Encoder,
+  @derive {JSON.Encoder,
            only: [
              :update_available,
              :firmware_url,

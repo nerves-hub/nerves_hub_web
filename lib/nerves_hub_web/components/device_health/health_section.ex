@@ -24,10 +24,10 @@ defmodule NervesHubWeb.Components.HealthSection do
             height="600"
             phx-hook="Chart"
             phx-update="ignore"
-            data-type={Jason.encode!(@chart.type)}
-            data-unit={Jason.encode!(@chart.unit)}
-            data-max={Jason.encode!(@chart.max)}
-            data-metrics={Jason.encode!(@chart.data)}
+            data-type={JSON.encode!(@chart.type)}
+            data-unit={JSON.encode!(@chart.unit)}
+            data-max={JSON.encode!(@chart.max)}
+            data-metrics={JSON.encode!(@chart.data)}
           >
           </canvas>
         </div>
