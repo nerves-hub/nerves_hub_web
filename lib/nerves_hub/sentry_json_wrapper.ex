@@ -6,7 +6,12 @@ defmodule NervesHub.SentryJsonWrapper do
   # https://github.com/getsentry/sentry-elixir/blob/master/lib/sentry/config.ex#L696-L714
 
   def encode(data) do
-    {:ok, JSON.encode!(data)}
+    try do
+      {:ok, JSON.encode!(data)}
+    rescue
+      e ->
+        {:error, e}
+    end
   end
 
   def decode(data) do
