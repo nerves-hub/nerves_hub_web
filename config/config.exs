@@ -76,6 +76,8 @@ config :nerves_hub, Oban,
      ]}
   ]
 
+config :postgrex, :json_library, JSON
+
 config :nerves_hub, NervesHubWeb.Gettext, default_locale: "en"
 
 config :swoosh, :api_client, Swoosh.ApiClient.Finch
