@@ -71,11 +71,11 @@ defmodule NervesHub.Extensions do
     })
   end
 
-  defp device_internal_broadcast!(device, event, payload) do
+  defp device_internal_broadcast!(target, event, payload) do
     Phoenix.Channel.Server.broadcast_from!(
       NervesHub.PubSub,
       self(),
-      topic(device),
+      topic(target),
       event,
       payload
     )
