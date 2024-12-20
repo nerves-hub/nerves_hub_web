@@ -71,7 +71,7 @@ defmodule NervesHubWeb.Endpoint do
     pass: ["*/*"],
     # 1GB
     length: 1_073_741_824,
-    json_decoder: Jason
+    json_decoder: JSON
   )
 
   plug(Sentry.PlugContext)

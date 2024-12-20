@@ -103,7 +103,7 @@ defmodule NervesHub.ProductsTest do
       |> Enum.each(fn
         "{" <> _ = cert_json ->
           # TODO: Remove testing JSON when DERs saved
-          parsed_cert = Jason.decode!(cert_json)
+          parsed_cert = JSON.decode!(cert_json)
 
           assert parsed_cert["serial"] == db_cert_no_der.serial
           assert parsed_cert["not_before"] == DateTime.to_iso8601(db_cert_no_der.not_before)

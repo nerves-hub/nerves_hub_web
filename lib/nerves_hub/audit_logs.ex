@@ -77,7 +77,7 @@ defmodule NervesHub.AuditLogs do
 
   def format_for_csv(audit_logs) do
     fields = AuditLog.__schema__(:fields)
-    lines = for al <- audit_logs, do: Enum.map(fields, &(Map.get(al, &1) |> Jason.encode!()))
+    lines = for al <- audit_logs, do: Enum.map(fields, &(Map.get(al, &1) |> JSON.encode!()))
 
     [fields | lines]
     |> CSV.dump_to_iodata()

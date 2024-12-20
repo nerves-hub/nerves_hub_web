@@ -22,7 +22,7 @@ defmodule NervesHub.RoleValidateHelpers do
   def halt_role(conn, role) do
     conn
     |> Plug.Conn.put_resp_header("content-type", "application/json")
-    |> Plug.Conn.send_resp(403, Jason.encode!(%{status: "missing required role: #{role}"}))
+    |> Plug.Conn.send_resp(403, JSON.encode!(%{status: "missing required role: #{role}"}))
     |> Plug.Conn.halt()
   end
 end

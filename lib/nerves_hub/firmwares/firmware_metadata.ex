@@ -51,7 +51,7 @@ defmodule NervesHub.Firmwares.FirmwareMetadata do
           :version => Version.build()
         }
 
-  @derive Jason.Encoder
+  @derive JSON.Encoder
   embedded_schema do
     field(:uuid)
     field(:product)

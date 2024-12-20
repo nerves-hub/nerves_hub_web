@@ -1,7 +1,7 @@
 import Config
 
 config :phoenix,
-  json_library: Jason,
+  json_library: JSON,
   template_engines: [
     leex: Phoenix.LiveView.Engine
   ]

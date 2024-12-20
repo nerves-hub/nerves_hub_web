@@ -264,7 +264,7 @@ defmodule NervesHub.Products do
           not_before: db_cert.not_before,
           not_after: db_cert.not_after
         }
-        |> Jason.encode!()
+        |> JSON.encode!()
         |> Kernel.<>(@csv_certs_sep)
       end
     end

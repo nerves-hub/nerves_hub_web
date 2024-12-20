@@ -40,7 +40,6 @@ defmodule NervesHub.MixProject do
       extra_applications: [
         :base62,
         :inets,
-        :jason,
         :logger,
         :os_mon,
         :runtime_tools,
@@ -92,7 +91,6 @@ defmodule NervesHub.MixProject do
       {:gettext, "~> 0.26.2"},
       {:hackney, "~> 1.16"},
       {:hlclock, "~> 1.0"},
-      {:jason, "~> 1.2", override: true},
       {:libcluster_postgres, "~> 0.1.2"},
       {:logfmt_ex, "~> 0.4"},
       {:mox, "~> 1.0", only: [:test, :dev]},

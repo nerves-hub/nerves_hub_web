@@ -50,12 +50,12 @@
             height="400"
             phx-hook="Chart"
             phx-update="ignore"
-            data-type={Jason.encode!(chart.type)}
-            data-unit={Jason.encode!(chart.unit)}
-            data-max={Jason.encode!(chart.max)}
-            data-min={Jason.encode!(chart.min)}
-            data-metrics={Jason.encode!(chart.data)}
-            data-title={Jason.encode!(chart.title)}
+            data-type={JSON.encode!(chart.type)}
+            data-unit={JSON.encode!(chart.unit)}
+            data-max={JSON.encode!(chart.max)}
+            data-min={JSON.encode!(chart.min)}
+            data-metrics={JSON.encode!(chart.data)}
+            data-title={JSON.encode!(chart.title)}
           >
           </canvas>
         </div>

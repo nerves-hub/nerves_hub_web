@@ -64,7 +64,7 @@ defmodule NervesHubWeb.API.DeviceController do
         else
           conn
           |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: read"}))
+          |> send_resp(403, JSON.encode!(%{status: "missing required role: read"}))
         end
 
       {:error, :not_found} ->
@@ -107,7 +107,7 @@ defmodule NervesHubWeb.API.DeviceController do
     else
       _e ->
         conn
-        |> send_resp(403, Jason.encode!(%{status: "Unauthorized"}))
+        |> send_resp(403, JSON.encode!(%{status: "Unauthorized"}))
     end
   end
 
@@ -126,7 +126,7 @@ defmodule NervesHubWeb.API.DeviceController do
         else
           conn
           |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
+          |> send_resp(403, JSON.encode!(%{status: "missing required role: write"}))
         end
 
       {:error, :not_found} ->
@@ -149,7 +149,7 @@ defmodule NervesHubWeb.API.DeviceController do
         else
           conn
           |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
+          |> send_resp(403, JSON.encode!(%{status: "missing required role: write"}))
         end
 
       {:error, :not_found} ->
@@ -180,7 +180,7 @@ defmodule NervesHubWeb.API.DeviceController do
         else
           conn
           |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
+          |> send_resp(403, JSON.encode!(%{status: "missing required role: write"}))
         end
 
       {:error, :not_found} ->
@@ -227,7 +227,7 @@ defmodule NervesHubWeb.API.DeviceController do
         else
           conn
           |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
+          |> send_resp(403, JSON.encode!(%{status: "missing required role: write"}))
         end
 
       {:error, :not_found} ->
@@ -254,7 +254,7 @@ defmodule NervesHubWeb.API.DeviceController do
         else
           conn
           |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
+          |> send_resp(403, JSON.encode!(%{status: "missing required role: write"}))
         end
 
       {:error, :not_found} ->
@@ -292,7 +292,7 @@ defmodule NervesHubWeb.API.DeviceController do
       else
         conn
         |> put_resp_header("content-type", "application/json")
-        |> send_resp(403, Jason.encode!(%{status: "missing required role: write"}))
+        |> send_resp(403, JSON.encode!(%{status: "missing required role: write"}))
       end
     end
   end

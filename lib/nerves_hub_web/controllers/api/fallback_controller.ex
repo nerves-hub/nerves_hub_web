@@ -25,7 +25,7 @@ defmodule NervesHubWeb.API.FallbackController do
     |> put_resp_content_type("application/json")
     |> put_status(500)
     |> put_view(NervesHubWeb.API.ErrorView)
-    |> send_resp(500, Jason.encode!(%{errors: reason}))
+    |> send_resp(500, JSON.encode!(%{errors: reason}))
   end
 
   def call(conn, {:error, reason}) do

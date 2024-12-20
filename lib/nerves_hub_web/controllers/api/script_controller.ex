@@ -17,7 +17,7 @@ defmodule NervesHubWeb.API.ScriptController do
         else
           conn
           |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: read"}))
+          |> send_resp(403, JSON.encode!(%{status: "missing required role: read"}))
         end
 
       {:error, :not_found} ->
@@ -47,7 +47,7 @@ defmodule NervesHubWeb.API.ScriptController do
         else
           conn
           |> put_resp_header("content-type", "application/json")
-          |> send_resp(403, Jason.encode!(%{status: "missing required role: read"}))
+          |> send_resp(403, JSON.encode!(%{status: "missing required role: read"}))
         end
 
       {:error, :not_found} ->
