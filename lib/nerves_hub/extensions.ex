@@ -42,10 +42,9 @@ defmodule NervesHub.Extensions do
     @supported_extensions
   end
 
-  @spec module(extension()) :: module() | :unsupported
+  @spec module(extension()) :: module()
   def module(:health), do: NervesHub.Extensions.Health
   def module(:geo), do: NervesHub.Extensions.Geo
-  def module(_key), do: :unsupported
 
   @spec module(extension(), Version.t()) :: module() | :unsupported
   def module(:health, ver) do

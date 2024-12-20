@@ -15,10 +15,10 @@ defmodule NervesHubWeb.Components.CAHelpers do
   def certificate_status(assigns) do
     status =
       cond do
-        assigns.not_after > DateTime.utc_now() ->
+        DateTime.compare(assigns.not_after, DateTime.utc_now()) == :gt ->
           "Expired"
 
-        assigns.not_after > DateTime.shift(DateTime.utc_now(), month: -3) ->
+        DateTime.compare(assigns.not_after, DateTime.shift(DateTime.utc_now(), month: -3)) == :gt ->
           "Expiring Soon"
 
         true ->

@@ -29,6 +29,17 @@ defmodule NervesHub.Fwup do
             misc: String.t(),
             vcs_identifier: String.t()
           }
+
+    def keys() do
+      blank_values =
+        Enum.reduce(@enforce_keys, %{}, fn key, acc ->
+          Map.put(acc, key, nil)
+        end)
+
+      struct!(Metadata, blank_values)
+      |> Map.from_struct()
+      |> Map.keys()
+    end
   end
 
   @doc """
@@ -70,8 +81,7 @@ defmodule NervesHub.Fwup do
   end
 
   defp transform_to_struct(metadata) do
-    keys = Map.keys(Map.from_struct(Metadata))
-    filtered = Map.take(metadata, keys)
+    filtered = Map.take(metadata, Metadata.keys())
     {:ok, struct!(Metadata, filtered)}
   rescue
     _ -> {:error, :invalid_metadata}
