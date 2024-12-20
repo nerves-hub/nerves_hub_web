@@ -395,7 +395,7 @@ config :sentry,
       cron: [enabled: true]
     ]
   ],
-  json_library: JSON
+  json_library: NervesHub.SentryJsonWrapper
 
 config :opentelemetry, :resource, service: %{name: nerves_hub_app}
 
