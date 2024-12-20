@@ -65,8 +65,8 @@ defmodule NervesHub.Extensions do
     :unsupported
   end
 
-  def toggle_extension(device, event, extension) do
-    device_internal_broadcast!(device, event, %{
+  def toggle_extension(target, event, extension) do
+    device_internal_broadcast!(target, event, %{
       "extensions" => [extension]
     })
   end
