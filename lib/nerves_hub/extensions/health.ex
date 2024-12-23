@@ -100,8 +100,8 @@ defmodule NervesHub.Extensions.Health do
   end
 
   defp device_internal_broadcast!(device, event, payload) do
-    topic = "device:#{device.identifier}:extensions"
+    topic = "device:#{device.id}:extensions"
 
-    Phoenix.Channel.Server.broadcast_from(NervesHub.PubSub, self(), topic, event, payload)
+    Phoenix.Channel.Server.broadcast_from!(NervesHub.PubSub, self(), topic, event, payload)
   end
 end
