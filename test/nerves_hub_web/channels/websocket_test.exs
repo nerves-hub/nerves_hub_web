@@ -27,7 +27,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
   @bad_socket_config [
     uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-    json_parser: Jason,
+    json_parser: JSON,
     reconnect_after_msec: [500],
     rejoin_after_msec: [500],
     mint_opts: [
@@ -45,7 +45,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
   @socket_config [
     uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-    json_parser: Jason,
+    json_parser: JSON,
     reconnect_after_msec: [500],
     rejoin_after_msec: [500],
     mint_opts: [
@@ -126,7 +126,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       config = [
         uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        json_parser: Jason,
+        json_parser: JSON,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],
         mint_opts: [
@@ -202,7 +202,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       opts = [
         uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        json_parser: Jason,
+        json_parser: JSON,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],
         mint_opts: [
@@ -276,7 +276,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       opts = [
         uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        json_parser: Jason,
+        json_parser: JSON,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],
         mint_opts: [
@@ -883,7 +883,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       opts = [
         uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        json_parser: Jason,
+        json_parser: JSON,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],
         mint_opts: [
@@ -939,7 +939,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       opts = [
         uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        json_parser: Jason,
+        json_parser: JSON,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],
         mint_opts: [
@@ -989,7 +989,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       opts = [
         uri: "wss://127.0.0.1:#{@device_port}/socket/websocket",
-        json_parser: Jason,
+        json_parser: JSON,
         reconnect_after_msec: [500],
         rejoin_after_msec: [500],
         mint_opts: [
