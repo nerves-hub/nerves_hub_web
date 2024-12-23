@@ -64,13 +64,13 @@ defmodule NervesHubWeb.UserConsoleChannel do
   end
 
   def terminate(_reason, socket) do
-    if socket.joined do
-      _ =
+    _ =
+      if socket.joined do
         broadcast(socket, "message", %{
           name: socket.assigns.user.name,
           event: "closed the console"
         })
-    end
+      end
 
     socket
   end
