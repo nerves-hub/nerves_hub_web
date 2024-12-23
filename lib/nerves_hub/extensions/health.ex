@@ -67,7 +67,7 @@ defmodule NervesHub.Extensions.Health do
            {:health_report, Devices.save_device_health(device_health)},
          {:metrics_report, {:ok, _}} <-
            {:metrics_report, Metrics.save_metrics(socket.assigns.device.id, metrics)} do
-      device_internal_broadcast!(socket.assigns.device, "health_check_report", %{})
+      :ok = device_internal_broadcast!(socket.assigns.device, "health_check_report", %{})
     else
       {:health_report, {:error, err}} ->
         Logger.warning("Failed to save health check data: #{inspect(err)}")
@@ -96,7 +96,7 @@ defmodule NervesHub.Extensions.Health do
   end
 
   def request_health_check(device) do
-    device_internal_broadcast!(device, "health:check", %{})
+    :ok = device_internal_broadcast!(device, "health:check", %{})
   end
 
   defp device_internal_broadcast!(device, event, payload) do

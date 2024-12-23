@@ -19,7 +19,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
     end
 
     topic = "device:#{socket.assigns.device.id}:extensions"
-    NervesHubWeb.DeviceEndpoint.subscribe(topic)
+    :ok = NervesHubWeb.DeviceEndpoint.subscribe(topic)
 
     {:ok, attach_list, socket}
   end
@@ -94,7 +94,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   @impl Phoenix.Channel
   def handle_info(:init_extensions, socket) do
     topic = "product:#{socket.assigns.device.product.id}:extensions"
-    NervesHubWeb.DeviceEndpoint.subscribe(topic)
+    :ok = NervesHubWeb.DeviceEndpoint.subscribe(topic)
 
     {:noreply, socket}
   end
