@@ -3,6 +3,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   alias NervesHub.Extensions
   alias NervesHub.Helpers.Logging
+  alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
   require Logger
@@ -19,7 +20,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
     end
 
     topic = "device:#{socket.assigns.device.id}:extensions"
-    :ok = NervesHubWeb.DeviceEndpoint.subscribe(topic)
+    :ok = PubSub.subscribe(NervesHub.PubSub, topic)
 
     {:ok, attach_list, socket}
   end
@@ -94,7 +95,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
   @impl Phoenix.Channel
   def handle_info(:init_extensions, socket) do
     topic = "product:#{socket.assigns.device.product.id}:extensions"
-    :ok = NervesHubWeb.DeviceEndpoint.subscribe(topic)
+    :ok = PubSub.subscribe(NervesHub.PubSub, topic)
 
     {:noreply, socket}
   end

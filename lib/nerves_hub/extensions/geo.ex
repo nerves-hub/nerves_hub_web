@@ -48,7 +48,8 @@ defmodule NervesHub.Extensions.Geo do
     {:ok, device} = Devices.update_device(device, %{connection_metadata: metadata})
 
     _ =
-      NervesHubWeb.DeviceEndpoint.broadcast(
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
         "device:#{device.identifier}:internal",
         "location:updated",
         location
