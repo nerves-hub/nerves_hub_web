@@ -14,7 +14,5 @@ defmodule NervesHub.SentryJsonWrapper do
     end
   end
 
-  def decode(data) do
-    JSON.decode(data)
-  end
+  defdelegate decode(data), to: JSON
 end
