@@ -1409,7 +1409,7 @@ defmodule NervesHub.Devices do
     |> Repo.update()
     |> tap(fn
       {:ok, _} ->
-        Extensions.toggle_extension(device, "attach", extension_string)
+        Extensions.broadcast_extension_event(device, "attach", extension_string)
 
       _ ->
         :nope
@@ -1423,7 +1423,7 @@ defmodule NervesHub.Devices do
     |> Repo.update()
     |> tap(fn
       {:ok, _} ->
-        Extensions.toggle_extension(device, "detach", extension_string)
+        Extensions.broadcast_extension_event(device, "detach", extension_string)
 
       _ ->
         :nope

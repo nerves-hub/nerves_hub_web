@@ -278,7 +278,7 @@ defmodule NervesHub.Products do
     |> Repo.update()
     |> tap(fn
       {:ok, _} ->
-        Extensions.toggle_extension(product, "attach", extension_string)
+        Extensions.broadcast_extension_event(product, "attach", extension_string)
 
       _ ->
         :nope
@@ -292,7 +292,7 @@ defmodule NervesHub.Products do
     |> Repo.update()
     |> tap(fn
       {:ok, _} ->
-        Extensions.toggle_extension(product, "detach", extension_string)
+        Extensions.broadcast_extension_event(product, "detach", extension_string)
 
       _ ->
         :nope
