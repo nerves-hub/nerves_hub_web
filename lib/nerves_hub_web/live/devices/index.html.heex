@@ -193,8 +193,8 @@
       </div>
 
       <div class="row mt-2">
-        <form id="move" class="col-lg-6" phx-change="target-product" phx-submit="move-devices">
-          <label for="move_to">Move device(s) to:</label>
+        <form id="move-product" class="col-lg-4" phx-change="target-product" phx-submit="move-devices-product">
+          <label for="move_to">Move device(s) to product:</label>
           <div class="flex-row align-items-center">
             <div class="flex-grow pos-rel">
               <select name="product" id="move_to" class="form-control">
@@ -216,7 +216,7 @@
           </div>
         </form>
 
-        <form id="bulk-tag-input" class="col-lg-6" phx-submit="tag-devices" phx-change="validate-tags">
+        <form id="bulk-tag-input" class="col-lg-4" phx-submit="tag-devices" phx-change="validate-tags">
           <label for="input_set_tags">Set tag(s) to:</label>
           <div class="flex-row align-items-center">
             <div class="flex-grow">
@@ -232,6 +232,31 @@
             </button>
           </div>
           <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
+        </form>
+
+        <form id="move-deployment" class="col-lg-4" phx-change="target-deployment" phx-submit="move-devices-deployment">
+          <label for="move_to">Move device(s) to deployment:</label>
+          <div class="flex-row align-items-center">
+            <div class="flex-grow pos-rel">
+              <select name="deployment" id="move_to" class="form-control">
+                <option value=""></option>
+                <%= for deployment <- @deployments do %>
+                  <option value={deployment.id} {if @target_deployment && @target_deployment.id == deployment.id, do: [selected: true], else: []}><%= deployment.name %></option>
+                <% end %>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+
+            <button
+              class="btn btn-outline-light btn-action btn-primary ml-1"
+              type="submit"
+              data-confirm={"This will move all selected devices to #{@target_deployment && @target_deployment.name}. Continue?"}
+              id="move-deployment-submit"
+              {unless @target_deployment, do: [disabled: true], else: []}
+            >
+              Move
+            </button>
+          </div>
         </form>
       </div>
 
