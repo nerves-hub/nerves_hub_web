@@ -2,8 +2,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Devices
+  alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Fixtures
   alias NervesHubWeb.Endpoint
+  alias NervesHub.Repo
 
   setup %{fixture: %{device: device}} do
     Endpoint.subscribe("device:#{device.id}")
@@ -277,6 +279,111 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> fill_in("Set tag(s) to:", with: "moussaka")
       |> click_button("Set")
       |> assert_has("span", text: "moussaka")
+    end
+
+    test "add multiple devices to deployment",
+         %{conn: conn, fixture: fixture} do
+      %{
+        device: device,
+        org: org,
+        product: product,
+        firmware: firmware,
+        deployment: deployment
+      } = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      refute device.deployment_id
+      refute device2.deployment_id
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> unwrap(fn view ->
+        render_change(view, "select-all", %{"id" => device.id})
+      end)
+      |> assert_has("span", text: "2 selected")
+      |> unwrap(fn view ->
+        render_change(view, "target-deployment", %{"deployment" => to_string(deployment.id)})
+      end)
+      |> click_button("#move-deployment-submit", "Move")
+      |> assert_has("div", text: "2 devices added to deployment")
+
+      assert Repo.reload(device) |> Map.get(:deployment_id)
+      assert Repo.reload(device2) |> Map.get(:deployment_id)
+    end
+
+    test "selecting multiple devices to add to deployment but some don't match firmware requirements",
+         %{conn: conn, fixture: fixture} do
+      %{
+        device: device,
+        org: org,
+        product: product,
+        firmware: firmware,
+        deployment: deployment
+      } = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      different_firmware_params =
+        %FirmwareMetadata{device2.firmware_metadata | platform: "foo"} |> Map.from_struct()
+
+      {:ok, device2} = Devices.update_firmware_metadata(device2, different_firmware_params)
+
+      refute device.deployment_id
+      refute device2.deployment_id
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> unwrap(fn view ->
+        render_change(view, "select-all", %{"id" => device.id})
+      end)
+      |> assert_has("span", text: "2 selected")
+      |> unwrap(fn view ->
+        render_change(view, "target-deployment", %{"deployment" => to_string(deployment.id)})
+      end)
+      |> click_button("#move-deployment-submit", "Move")
+      |> assert_has("div", text: "1 device added to deployment")
+      |> assert_has("div", text: "1 device could not be added")
+
+      assert Repo.reload(device) |> Map.get(:deployment_id)
+      refute Repo.reload(device2) |> Map.get(:deployment_id)
+    end
+
+    test "selecting multiple devices to add to deployment but none match firmware requirements",
+         %{conn: conn, fixture: fixture} do
+      %{
+        device: device,
+        org: org,
+        product: product,
+        firmware: firmware,
+        deployment: deployment
+      } = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      different_firmware_params =
+        %FirmwareMetadata{device2.firmware_metadata | platform: "foo"} |> Map.from_struct()
+
+      {:ok, device} = Devices.update_firmware_metadata(device, different_firmware_params)
+      {:ok, device2} = Devices.update_firmware_metadata(device2, different_firmware_params)
+
+      refute device.deployment_id
+      refute device2.deployment_id
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> unwrap(fn view ->
+        render_change(view, "select-all", %{"id" => device.id})
+      end)
+      |> assert_has("span", text: "2 selected")
+      |> unwrap(fn view ->
+        render_change(view, "target-deployment", %{"deployment" => to_string(deployment.id)})
+      end)
+      |> click_button("#move-deployment-submit", "Move")
+      |> assert_has("div", text: "No devices selected could be added to deployment")
+
+      refute Repo.reload(device) |> Map.get(:deployment_id)
+      refute Repo.reload(device2) |> Map.get(:deployment_id)
     end
   end
 
