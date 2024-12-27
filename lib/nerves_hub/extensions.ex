@@ -65,7 +65,7 @@ defmodule NervesHub.Extensions do
     :unsupported
   end
 
-  def broadcast_extenstion_event(target, event, extention) do
+  def broadcast_extension_event(target, event, extension) do
     Phoenix.Channel.Server.broadcast_from!(
       NervesHub.PubSub,
       self(),
