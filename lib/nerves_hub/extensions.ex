@@ -65,19 +65,15 @@ defmodule NervesHub.Extensions do
     :unsupported
   end
 
-  def toggle_extension(target, event, extension) do
-    device_internal_broadcast!(target, event, %{
-      "extensions" => [extension]
-    })
-  end
-
-  defp device_internal_broadcast!(target, event, payload) do
+  def broadcast_extenstion_event(target, event, extention) do
     Phoenix.Channel.Server.broadcast_from!(
       NervesHub.PubSub,
       self(),
       topic(target),
       event,
-      payload
+      %{
+        "extensions" => [extension]
+      }
     )
   end
 
