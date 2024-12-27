@@ -6,6 +6,7 @@ defmodule NervesHub.Deployments do
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.InflightDeploymentCheck
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -342,4 +343,95 @@ defmodule NervesHub.Deployments do
   end
 
   def verify_deployment_membership(device), do: device
+
+  @doc """
+  If the device is missing a deployment, find a matching deployment
+
+  Do nothing if a deployment is already set
+  """
+  def set_deployment(%{deployment_id: nil} = device) do
+    case matching_deployments(device, [true]) do
+      [] ->
+        set_deployment_telemetry(:none_found, device)
+
+        %{device | deployment: nil}
+
+      [deployment] ->
+        set_deployment_telemetry(:one_found, device, deployment)
+
+        device
+        |> Devices.update_deployment(deployment)
+        |> preload_with_firmware_and_archive(true)
+
+      [deployment | _] ->
+        set_deployment_telemetry(:multiple_found, device, deployment)
+
+        device
+        |> Devices.update_deployment(deployment)
+        |> preload_with_firmware_and_archive(true)
+    end
+  end
+
+  def set_deployment(device) do
+    preload_with_firmware_and_archive(device)
+  end
+
+  defp set_deployment_telemetry(result, device, deployment \\ nil) do
+    metadata = %{device: device}
+
+    metadata =
+      if deployment do
+        Map.put(metadata, :deployment, deployment)
+      else
+        metadata
+      end
+
+    :telemetry.execute(
+      [:nerves_hub, :deployments, :set_deployment, result],
+      %{count: 1},
+      metadata
+    )
+  end
+
+  def preload_with_firmware_and_archive(device, force \\ false) do
+    Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
+  end
+
+  @doc """
+  Find all potential deployments for a device
+
+  Based on the product, firmware platform, firmware architecture, and device tags
+  """
+  def matching_deployments(device, active \\ [true, false])
+  def matching_deployments(%Device{firmware_metadata: nil}, _active), do: []
+
+  def matching_deployments(device, active) do
+    Deployment
+    |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
+    |> preload([_, firmware: f], firmware: f)
+    |> where([d], d.product_id == ^device.product_id)
+    |> where([d], d.is_active in ^active)
+    |> ignore_same_deployment(device)
+    |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
+    |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
+    |> where([d], fragment("?->'tags' <@ to_jsonb(?::text[])", d.conditions, ^device.tags))
+    |> Repo.all()
+    |> Enum.filter(&version_match?(device, &1))
+    |> Enum.sort_by(
+      &{&1.firmware.version, &1.id},
+      fn {a_vsn, a_id}, {b_vsn, b_id} ->
+        case Version.compare(a_vsn, b_vsn) do
+          :lt -> false
+          :eq -> a_id <= b_id
+          :gt -> true
+        end
+      end
+    )
+  end
+
+  defp ignore_same_deployment(query, %{deployment_id: nil}), do: query
+
+  defp ignore_same_deployment(query, %{deployment_id: deployment_id}) do
+    where(query, [d], d.id != ^deployment_id)
+  end
 end
