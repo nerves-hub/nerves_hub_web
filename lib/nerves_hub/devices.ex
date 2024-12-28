@@ -8,6 +8,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Templates
   alias NervesHub.Certificate
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
@@ -29,6 +30,8 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
+
+  require Logger
 
   @min_fwup_delta_updatable_version ">=1.10.0"
 
@@ -791,8 +794,7 @@ defmodule NervesHub.Devices do
   end
 
   def update_firmware_metadata(device, metadata) do
-    description = "device #{device.identifier} updated firmware metadata"
-    AuditLogs.audit!(device, device, description)
+    Templates.audit_firmware_metadata_updated(device)
     update_device(device, %{firmware_metadata: metadata})
   end
 
@@ -942,12 +944,7 @@ defmodule NervesHub.Devices do
           |> DateTime.truncate(:second)
           |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
 
-        description = """
-        Device #{device.identifier} automatically blocked firmware upgrades for #{deployment.penalty_timeout_minutes} minutes.
-        Device failure rate met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
-        """
-
-        AuditLogs.audit!(deployment, device, description)
+        Templates.audit_firmware_upgrade_blocked(deployment, device)
         clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
@@ -960,12 +957,7 @@ defmodule NervesHub.Devices do
           |> DateTime.truncate(:second)
           |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
 
-        description = """
-        Device #{device.identifier} automatically blocked firmware upgrades for #{deployment.penalty_timeout_minutes} minutes.
-        Device failure threshold met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
-        """
-
-        AuditLogs.audit!(deployment, device, description)
+        Templates.audit_firmware_upgrade_blocked(deployment, device)
         clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
@@ -988,8 +980,7 @@ defmodule NervesHub.Devices do
     Multi.new()
     |> Multi.update(:device, changeset)
     |> Multi.run(:audit_device, fn _, _ ->
-      description = "device #{device.identifier} is attempting to update"
-      AuditLogs.audit(device, device, description)
+      Templates.audit_update_attempt(device)
     end)
     |> Repo.transaction()
     |> case do
@@ -1007,10 +998,7 @@ defmodule NervesHub.Devices do
       firmware_uuid: device.firmware_metadata.uuid
     })
 
-    description =
-      "device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
-
-    AuditLogs.audit!(device, device, description)
+    Templates.audit_firmware_updated(device)
 
     # Clear the inflight update, no longer inflight!
     inflight_update =
@@ -1065,9 +1053,6 @@ defmodule NervesHub.Devices do
 
     _ = maybe_copy_firmware_keys(device, product.org)
 
-    description =
-      "user #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
-
     source_product = %Product{
       id: device.product_id,
       org_id: device.org_id
@@ -1075,14 +1060,8 @@ defmodule NervesHub.Devices do
 
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
-    |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, description)
-    end)
-    |> Multi.run(:audit_target, fn _, _ ->
-      AuditLogs.audit(user, product, description)
-    end)
-    |> Multi.run(:audit_source, fn _, _ ->
-      AuditLogs.audit(user, source_product, description)
+    |> Multi.run(:audit, fn _, _ ->
+      Templates.audit_device_moved(user, device, product, source_product)
     end)
     |> Repo.transaction()
     |> case do
@@ -1091,6 +1070,7 @@ defmodule NervesHub.Devices do
         {:ok, updated}
 
       err ->
+        Logger.warning("Could not move device: #{inspect(err)}")
         err
     end
   end

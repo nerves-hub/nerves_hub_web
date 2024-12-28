@@ -5,7 +5,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   require OpenTelemetry.Tracer, as: Tracer
 
-  alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Templates
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Metrics
@@ -273,7 +273,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_event("move-devices", _, socket) do
-    %{ok: successfuls} =
+    %{ok: successfuls, error: errors} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
       |> Devices.move_many(socket.assigns.target_product, socket.assigns.user)
 
@@ -286,7 +286,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> assign_display_devices()
       |> assign(:target_product, nil)
 
-    {:noreply, socket}
+    case length(errors) do
+      0 ->
+        {:noreply, socket}
+
+      num ->
+        {:noreply, put_flash(socket, :error, "Could not move #{num} device(s)")}
+    end
   end
 
   def handle_event("disable-updates-for-devices", _, socket) do
@@ -332,7 +338,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
 
-    AuditLogs.audit!(user, device, "#{user.name} rebooted device #{device.identifier}")
+    Templates.audit_reboot(user, device)
 
     socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
