@@ -31,6 +31,8 @@ defmodule NervesHub.Devices do
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
+  require Logger
+
   @min_fwup_delta_updatable_version ">=1.10.0"
 
   def get_device(device_id) when is_integer(device_id) do
@@ -1051,9 +1053,6 @@ defmodule NervesHub.Devices do
 
     _ = maybe_copy_firmware_keys(device, product.org)
 
-    description =
-      "user #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
-
     source_product = %Product{
       id: device.product_id,
       org_id: device.org_id
@@ -1061,14 +1060,8 @@ defmodule NervesHub.Devices do
 
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
-    |> Multi.run(:audit_device, fn _, _ ->
-      AuditLogs.audit(user, device, description)
-    end)
-    |> Multi.run(:audit_target, fn _, _ ->
-      AuditLogs.audit(user, product, description)
-    end)
-    |> Multi.run(:audit_source, fn _, _ ->
-      AuditLogs.audit(user, source_product, description)
+    |> Multi.run(:audit, fn _, _ ->
+      Templates.audit_device_moved(user, device, product, source_product)
     end)
     |> Repo.transaction()
     |> case do
@@ -1077,6 +1070,7 @@ defmodule NervesHub.Devices do
         {:ok, updated}
 
       err ->
+        Logger.warning("Could not move device: #{inspect(err)}")
         err
     end
   end
