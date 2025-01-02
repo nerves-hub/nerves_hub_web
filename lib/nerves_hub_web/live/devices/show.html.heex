@@ -217,7 +217,7 @@
     <div>
       <h3 class="mb-2">Deployments</h3>
       <div class="display-box">
-        <div>
+        <div :if={@device.deployment_id}>
           <div class="help-text mb-1">
             Assigned Deployment
           </div>
@@ -235,7 +235,24 @@
           <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
         </div>
 
-        <div :if={@update_information.update_available} class="mt-4">
+        <div :if={Enum.any?(@eligible_deployments) && is_nil(@device.deployment_id)}>
+          <div class="help-text mb-1">
+            Eligible Deployments
+          </div>
+          <form phx-submit="set-deployment">
+            <div class="flex-row justify-content-between">
+              <select name="deployment_id" class="form-control">
+                <option value="">Select a deployment</option>
+                <%= for deployment <- @eligible_deployments do %>
+                  <option value={deployment.id}><%= deployment.name %></option>
+                <% end %>
+              </select>
+              <button class="btn btn-secondary ml-2">Set</button>
+            </div>
+          </form>
+        </div>
+
+        <div :if={@update_information.update_available && @device.deployment_id} class="mt-4">
           <div class="help-text mb-1 tooltip-label help-tooltip">
             <span>Update available</span>
             <span class="tooltip-info"></span>
