@@ -4,10 +4,14 @@ defmodule NervesHubWeb.Endpoint do
 
   alias NervesHub.Helpers.WebsocketConnectionError
 
+  def fetch_signing_salt() do
+    Application.get_env(:nerves_hub, __MODULE__)[:live_view][:signing_salt]
+  end
+
   @session_options [
     store: :cookie,
     key: "_nerves_hub_key",
-    signing_salt: "1CPjriVa"
+    signing_salt: {__MODULE__, :fetch_signing_salt, []}
   ]
 
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])

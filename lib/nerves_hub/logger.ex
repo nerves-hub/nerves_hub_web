@@ -31,7 +31,11 @@ defmodule NervesHub.Logger do
       [:nerves_hub, :devices, :connect],
       [:nerves_hub, :devices, :disconnect],
       [:nerves_hub, :devices, :duplicate_connection],
-      [:nerves_hub, :devices, :update, :automatic]
+      [:nerves_hub, :devices, :update, :automatic],
+      [:nerves_hub, :devices, :update, :successful],
+      [:nerves_hub, :deployments, :set_deployment, :none_found],
+      [:nerves_hub, :deployments, :set_deployment, :one_found],
+      [:nerves_hub, :deployments, :set_deployment, :multiple_found]
     ]
 
     Enum.each(events, fn event ->
@@ -104,6 +108,29 @@ defmodule NervesHub.Logger do
       event: "nerves_hub.devices.update.successful",
       identifier: metadata[:identifier],
       firmware_uuid: metadata[:firmware_uuid]
+    )
+  end
+
+  def log_event([:nerves_hub, :deployments, :set_deployment, :none_found], _, metadata, _) do
+    Logger.info("No matching deployments",
+      event: "nerves_hub.deployments.set_deployment.none_found",
+      identifier: metadata[:device].identifier
+    )
+  end
+
+  def log_event([:nerves_hub, :deployments, :set_deployment, :one_found], _, metadata, _) do
+    Logger.info("Deployment match found",
+      event: "nerves_hub.deployments.set_deployment.one_found",
+      identifier: metadata[:device].identifier,
+      deployment_id: metadata[:deployment].id
+    )
+  end
+
+  def log_event([:nerves_hub, :deployments, :set_deployment, :multiple_found], _, metadata, _) do
+    Logger.info("More than one deployment match found, setting to the first",
+      event: "nerves_hub.deployments.set_deployment.multiple_found",
+      identifier: metadata[:device].identifier,
+      deployment_id: metadata[:deployment].id
     )
   end
 

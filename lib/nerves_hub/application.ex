@@ -51,7 +51,7 @@ defmodule NervesHub.Application do
 
   defp setup_open_telemetry() do
     if System.get_env("ECTO_IPV6") do
-      :httpc.set_option(:ipfamily, :inet6fb4)
+      :ok = :httpc.set_option(:ipfamily, :inet6fb4)
     end
 
     :ok = NervesHub.Telemetry.Customizations.setup()

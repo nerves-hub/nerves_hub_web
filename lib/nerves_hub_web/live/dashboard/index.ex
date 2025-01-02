@@ -145,12 +145,14 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
   defp get_connection_status(_), do: "offline"
 
   defp refresh_after(socket, delay) do
-    if socket.assigns.next_timer do
-      Process.cancel_timer(socket.assigns.next_timer)
-    end
-
+    maybe_cancel_timer(socket.assigns.next_timer)
     timer = Process.send_after(self(), :refresh_device_list, delay)
     assign(socket, :next_timer, timer)
+  end
+
+  def maybe_cancel_timer(timer) do
+    _ = if timer, do: Process.cancel_timer(timer)
+    :ok
   end
 
   defp time do

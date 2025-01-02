@@ -37,12 +37,12 @@ defmodule NervesHub.Extensions do
   @doc """
   Get list of supported extensions as atoms with descriptive text.
   """
-  @spec list() :: list(extension())
+  @spec list() :: [:geo | :health, ...]
   def list do
     @supported_extensions
   end
 
-  @spec module(extension()) :: module()
+  @spec module(extension()) :: NervesHub.Extensions.Geo | NervesHub.Extensions.Health
   def module(:health), do: NervesHub.Extensions.Health
   def module(:geo), do: NervesHub.Extensions.Geo
 
@@ -65,19 +65,15 @@ defmodule NervesHub.Extensions do
     :unsupported
   end
 
-  def toggle_extension(target, event, extension) do
-    device_internal_broadcast!(target, event, %{
-      "extensions" => [extension]
-    })
-  end
-
-  defp device_internal_broadcast!(target, event, payload) do
+  def broadcast_extension_event(target, event, extension) do
     Phoenix.Channel.Server.broadcast_from!(
       NervesHub.PubSub,
       self(),
       topic(target),
       event,
-      payload
+      %{
+        "extensions" => [extension]
+      }
     )
   end
 
