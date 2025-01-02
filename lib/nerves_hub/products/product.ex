@@ -4,6 +4,7 @@ defmodule NervesHub.Products.Product do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Archives.Archive
+  alias NervesHub.Deployments.Deployment
   alias NervesHub.Scripts.Script
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
@@ -22,6 +23,7 @@ defmodule NervesHub.Products.Product do
     has_many(:jitp, CACertificate.JITP)
     has_many(:archives, Archive)
     has_many(:scripts, Script)
+    has_many(:deployments, Deployment)
 
     has_many(:shared_secret_auths, SharedSecretAuth,
       preload_order: [desc: :deactivated_at, asc: :id]

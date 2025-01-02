@@ -1156,6 +1156,21 @@ defmodule NervesHub.Devices do
     update_device_with_audit(device, params, user, description)
   end
 
+  @spec move_many_to_deployment([integer()], integer()) :: {integer(), nil}
+  def move_many_to_deployment(device_ids, deployment_id) do
+    firmware =
+      Firmware
+      |> join(:inner, [f], d in Deployment, on: d.id == ^deployment_id)
+      |> limit(1)
+      |> Repo.one()
+
+    Device
+    |> where([d], d.id in ^device_ids)
+    |> where([d], d.firmware_metadata["platform"] == ^firmware.platform)
+    |> where([d], d.firmware_metadata["architecture"] == ^firmware.architecture)
+    |> Repo.update_all(set: [deployment_id: deployment_id])
+  end
+
   @spec move_many([Device.t()], Product.t(), User.t()) :: %{
           ok: [Device.t()],
           error: [{Ecto.Multi.name(), any()}]
