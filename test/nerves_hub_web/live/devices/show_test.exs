@@ -437,7 +437,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> click_button("Remove From Deployment")
-      |> assert_has("span", text: "No Assigned Deployment")
+
+      refute Repo.reload(device) |> Map.get(:deployment_id)
     end
 
     test "cannot clear deployment if no deployment is set", %{
@@ -449,6 +450,29 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> refute_has("a", text: "Remove From Deployment")
+    end
+  end
+
+  describe "setting deployment" do
+    test "sets deployment and creates audit", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment: deployment
+    } do
+      assert length(AuditLogs.logs_for(device)) == 0
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Eligible Deployment")
+      |> unwrap(fn view ->
+        render_change(view, "set-deployment", %{"deployment_id" => deployment.id})
+      end)
+      |> assert_has("div", text: "Assigned Deployment")
+
+      assert Repo.reload(device) |> Map.get(:deployment_id)
+      assert length(AuditLogs.logs_for(device)) == 1
     end
   end
 
