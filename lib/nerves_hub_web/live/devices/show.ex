@@ -1,10 +1,11 @@
 defmodule NervesHubWeb.Live.Devices.Show do
-  alias NervesHub.Deployments
   use NervesHubWeb, :updated_live_view
 
   require Logger
 
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Templates
+  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
@@ -266,17 +267,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
       ) do
     deployment = Enum.find(eligible_deployments, &(&1.id == String.to_integer(deployment_id)))
     device = Devices.update_deployment(device, deployment)
-
-    AuditLogs.audit!(
-      user,
-      device,
-      "#{user.name} set #{device.identifier}'s deployment to #{deployment.name}"
-    )
+    _ = Templates.audit_device_deployment_update(user, device, deployment)
 
     socket
     |> assign(:device, device)
     |> assign(:deployment, deployment)
-    |> put_flash(:info, "Deployment successfully set")
+    |> put_flash(:info, "Deployment successfully updated")
     |> noreply()
   end
 
@@ -386,6 +382,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> assign(:deployment, nil)
+    |> put_flash(:info, "Device successfully removed from the deployment")
     |> noreply()
   end
 
