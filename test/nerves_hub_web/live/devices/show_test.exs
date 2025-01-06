@@ -422,7 +422,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   describe "clearing deployment" do
-    test "clears deployment", %{
+    test "clears deployment and eligible deployments list is refreshed", %{
       conn: conn,
       org: org,
       product: product,
@@ -436,7 +436,10 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> click_button("Remove From Deployment")
+      |> unwrap(fn view ->
+        render_change(view, "remove-from-deployment")
+      end)
+      |> assert_has("div", text: "Eligible Deployments")
 
       refute Repo.reload(device) |> Map.get(:deployment_id)
     end

@@ -382,6 +382,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> assign(:deployment, nil)
+    |> assign(:eligible_deployments, Deployments.matching_deployments(device))
     |> put_flash(:info, "Device successfully removed from the deployment")
     |> noreply()
   end
