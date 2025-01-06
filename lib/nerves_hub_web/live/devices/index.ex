@@ -313,46 +313,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
           }
         } = socket
       ) do
-    {devices_updated_count, _} =
+    {:ok, %{updated: updated, ignored: ignored}} =
       Devices.move_many_to_deployment(selected_devices, target_deployment.id)
-
-    devices_not_updated_count = length(selected_devices) - devices_updated_count
-
-    maybe_pluralize =
-      &if &1 == 1 do
-        &2
-      else
-        &2 <> "s"
-      end
 
     socket =
       socket
       |> assign(:target_deployment, nil)
       |> assign_display_devices()
-      |> then(fn socket ->
-        case [devices_updated_count, devices_not_updated_count] do
-          [updated_count, 0] ->
-            put_flash(
-              socket,
-              :info,
-              "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{target_deployment.name}"
-            )
-
-          [0, _not_updated_count] ->
-            put_flash(
-              socket,
-              :info,
-              "No devices selected could be added to deployment #{target_deployment.name} because of mismatched firmware"
-            )
-
-          [updated_count, not_updated_count] ->
-            put_flash(
-              socket,
-              :info,
-              "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{target_deployment.name}. #{not_updated_count} #{maybe_pluralize.(not_updated_count, "device")} could not be added to deployment because of mismatched firmware"
-            )
-        end
-      end)
+      |> then(
+        &update_flash_moving_devices_deployment(&1, updated, ignored, target_deployment.name)
+      )
 
     {:noreply, socket}
   end
@@ -640,5 +610,42 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def hide_menu(id, js \\ %JS{}) do
     js
     |> JS.hide(transition: "fade-out", to: "##{id}")
+  end
+
+  defp update_flash_moving_devices_deployment(
+         socket,
+         updated_count,
+         ignored_count,
+         deployment_name
+       ) do
+    maybe_pluralize =
+      &if &1 == 1 do
+        &2
+      else
+        &2 <> "s"
+      end
+
+    case [updated_count, ignored_count] do
+      [updated_count, 0] ->
+        put_flash(
+          socket,
+          :info,
+          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_name}"
+        )
+
+      [0, _not_updated_count] ->
+        put_flash(
+          socket,
+          :info,
+          "No devices selected could be added to deployment #{deployment_name} because of mismatched firmware"
+        )
+
+      [updated_count, not_updated_count] ->
+        put_flash(
+          socket,
+          :info,
+          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_name}. #{not_updated_count} #{maybe_pluralize.(not_updated_count, "device")} could not be added to deployment because of mismatched firmware"
+        )
+    end
   end
 end
