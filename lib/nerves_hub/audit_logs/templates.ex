@@ -1,5 +1,9 @@
 defmodule NervesHub.AuditLogs.Templates do
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.AuditLog
+  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Devices.Device
 
   require Logger
 
@@ -37,5 +41,14 @@ defmodule NervesHub.AuditLogs.Templates do
 
     AuditLogs.audit!(device, device, description)
     Logger.info("[DeviceChannel] #{description}")
+  end
+
+  @spec audit_device_deployment_update(User.t(), Device.t(), Deployment.t()) :: AuditLog.t()
+  def audit_device_deployment_update(user, device, deployment) do
+    AuditLogs.audit!(
+      user,
+      device,
+      "#{user.name} set #{device.identifier}'s deployment to #{deployment.name}"
+    )
   end
 end
