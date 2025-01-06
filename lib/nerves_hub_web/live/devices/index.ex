@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Firmwares
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
+  alias NervesHub.Repo
 
   alias Phoenix.Socket.Broadcast
   alias Phoenix.LiveView.JS
@@ -73,8 +74,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     total_pages: :integer
   }
 
-  def mount(_params, _session, socket) do
-    %{product: product} = socket.assigns
+  def mount(_params, _session, %{assigns: %{product: product}} = socket) do
+    product = Repo.preload(product, :deployments)
 
     socket
     |> page_title("Devices - #{product.name}")
@@ -93,6 +94,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:total_entries, 0)
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
     |> assign(:metrics_keys, Metrics.default_metrics())
+    |> assign(:deployments, product.deployments)
+    |> assign(:target_deployment, nil)
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
@@ -272,7 +275,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, target_product: target)}
   end
 
-  def handle_event("move-devices", _, socket) do
+  def handle_event("target-deployment", %{"deployment" => ""}, socket) do
+    {:noreply, assign(socket, target_deployment: nil)}
+  end
+
+  def handle_event("target-deployment", %{"deployment" => deployment_id}, socket) do
+    deployment =
+      Enum.find(socket.assigns.deployments, &(&1.id == String.to_integer(deployment_id)))
+
+    {:noreply, assign(socket, target_deployment: deployment)}
+  end
+
+  def handle_event("move-devices-product", _, socket) do
     %{ok: successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
       |> Devices.move_many(socket.assigns.target_product, socket.assigns.user)
@@ -285,6 +299,30 @@ defmodule NervesHubWeb.Live.Devices.Index do
       assign(socket, selected_devices: selected_devices)
       |> assign_display_devices()
       |> assign(:target_product, nil)
+
+    {:noreply, socket}
+  end
+
+  def handle_event(
+        "move-devices-deployment",
+        _,
+        %{
+          assigns: %{
+            selected_devices: selected_devices,
+            target_deployment: target_deployment
+          }
+        } = socket
+      ) do
+    {:ok, %{updated: updated, ignored: ignored}} =
+      Devices.move_many_to_deployment(selected_devices, target_deployment.id)
+
+    socket =
+      socket
+      |> assign(:target_deployment, nil)
+      |> assign_display_devices()
+      |> then(
+        &update_flash_moving_devices_deployment(&1, updated, ignored, target_deployment.name)
+      )
 
     {:noreply, socket}
   end
@@ -572,5 +610,42 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def hide_menu(id, js \\ %JS{}) do
     js
     |> JS.hide(transition: "fade-out", to: "##{id}")
+  end
+
+  defp update_flash_moving_devices_deployment(
+         socket,
+         updated_count,
+         ignored_count,
+         deployment_name
+       ) do
+    maybe_pluralize =
+      &if &1 == 1 do
+        &2
+      else
+        &2 <> "s"
+      end
+
+    case [updated_count, ignored_count] do
+      [updated_count, 0] ->
+        put_flash(
+          socket,
+          :info,
+          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_name}"
+        )
+
+      [0, _not_updated_count] ->
+        put_flash(
+          socket,
+          :info,
+          "No devices selected could be added to deployment #{deployment_name} because of mismatched firmware"
+        )
+
+      [updated_count, not_updated_count] ->
+        put_flash(
+          socket,
+          :info,
+          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_name}. #{not_updated_count} #{maybe_pluralize.(not_updated_count, "device")} could not be added to deployment because of mismatched firmware"
+        )
+    end
   end
 end
