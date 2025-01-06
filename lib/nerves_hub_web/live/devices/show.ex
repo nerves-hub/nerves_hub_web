@@ -4,6 +4,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
   require Logger
 
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Templates
+  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
@@ -54,6 +56,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
     |> audit_log_assigns(1)
+    |> assign(:eligible_deployments, Deployments.matching_deployments(device))
     |> ok()
   end
 
@@ -256,6 +259,23 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, clear_flash(socket, String.to_existing_atom(key_str))}
   end
 
+  def handle_event(
+        "set-deployment",
+        %{"deployment_id" => deployment_id},
+        %{assigns: %{user: user, device: device, eligible_deployments: eligible_deployments}} =
+          socket
+      ) do
+    deployment = Enum.find(eligible_deployments, &(&1.id == String.to_integer(deployment_id)))
+    device = Devices.update_deployment(device, deployment)
+    _ = Templates.audit_device_deployment_update(user, device, deployment)
+
+    socket
+    |> assign(:device, device)
+    |> assign(:deployment, deployment)
+    |> put_flash(:info, "Deployment successfully updated")
+    |> noreply()
+  end
+
   def handle_event("push-update", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
@@ -362,6 +382,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> assign(:deployment, nil)
+    |> assign(:eligible_deployments, Deployments.matching_deployments(device))
+    |> put_flash(:info, "Device successfully removed from the deployment")
     |> noreply()
   end
 
