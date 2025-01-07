@@ -13,10 +13,9 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
     %{"name" => name} = params
     %{product: product} = socket.assigns
 
-    deployment =
-      Deployments.get_by_product_and_name!(product, name) |> NervesHub.Repo.preload(:firmware)
+    deployment = Deployments.get_by_product_and_name!(product, name)
 
-    current_device_count = Deployments.get_deployment_device_count(deployment)
+    current_device_count = Deployments.get_device_count(deployment)
 
     archives = Archives.all_by_product(deployment.product)
     firmwares = Firmwares.get_firmwares_for_deployment(deployment)

@@ -14,7 +14,7 @@ defmodule NervesHubWeb.API.DeploymentController do
   @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active]
 
   def index(%{assigns: %{product: product}} = conn, _params) do
-    deployments = Deployments.get_deployments_by_product(product.id)
+    deployments = Deployments.get_deployments_by_product(product)
     render(conn, "index.json", deployments: deployments)
   end
 

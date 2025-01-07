@@ -7,8 +7,8 @@ defmodule NervesHubWeb.Live.Deployments.Index do
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
-    deployments = Deployments.get_deployments_by_product(product.id)
-    counts = Deployments.get_deployment_device_counts_by_product(product.id)
+    deployments = Deployments.get_deployments_by_product(product)
+    counts = Deployments.get_device_counts_by_product(product)
 
     deployments =
       deployments
