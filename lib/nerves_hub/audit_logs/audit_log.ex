@@ -6,6 +6,8 @@ defmodule NervesHub.AuditLogs.AuditLog do
   alias NervesHub.Accounts.Org
   alias NervesHub.Types.Resource
 
+  @type t :: %__MODULE__{}
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @required_params [
     :actor_id,
