@@ -221,17 +221,23 @@
           <div class="help-text mb-1">
             Assigned Deployment
           </div>
-          <.link :if={@deployment} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"} class="badge">
-            <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}><%= @deployment.name %></div>
-          </.link>
-          <%= if @deployment do %>
+          <div :if={@deployment} class="d-flex flex-row">
+            <div class="mr-1">
+              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"} class="badge">
+                <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}><%= @deployment.name %></div>
+              </.link>
+            </div>
             <div>
-              <button class="btn btn-sm btn-primary btn-action" phx-click="remove-from-deployment" data-confirm="Are you sure you want to remove this device from its deployment?">
+              <button
+                class="btn btn-sm btn-primary btn-action help-text tooltip-label help-tooltip mt-1 mb-1 pt-1 pb-1"
+                phx-click="remove-from-deployment"
+                data-confirm="Are you sure you want to remove this device from its deployment?"
+              >
                 <span class="button-icon delete"></span>
-                <span class="action-text">Remove From Deployment</span>
+                <span class="tooltip-text ml-1">Remove this device from the assigned Deployment.</span>
               </button>
             </div>
-          <% end %>
+          </div>
           <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
         </div>
 
