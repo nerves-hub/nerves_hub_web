@@ -464,7 +464,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       deployment: deployment
     } do
-      assert length(AuditLogs.logs_for(device)) == 0
+      assert Enum.empty?(AuditLogs.logs_for(device))
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
