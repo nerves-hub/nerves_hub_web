@@ -22,11 +22,12 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.join")
   def join("device", params, %{assigns: %{device: device}} = socket) do
-    with {:ok, device} <- update_metadata(device, params) do
-      send(self(), {:after_join, params})
+    case update_metadata(device, params) do
+      {:ok, device} ->
+        send(self(), {:after_join, params})
 
-      {:ok, assign(socket, :device, device)}
-    else
+        {:ok, assign(socket, :device, device)}
+
       err ->
         Logger.warning("[DeviceChannel] failure to connect - #{inspect(err)}")
         {:error, %{error: "could not connect"}}
