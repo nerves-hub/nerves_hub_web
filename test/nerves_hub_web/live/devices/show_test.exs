@@ -477,6 +477,20 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert Repo.reload(device) |> Map.get(:deployment_id)
       assert length(AuditLogs.logs_for(device)) == 1
     end
+
+    test "'no eligible deployments' text displays properly", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment: deployment
+    } do
+      _ = Repo.delete!(deployment)
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "No Eligible Deployments")
+    end
   end
 
   def device_show_path(%{device: device, org: org, product: product}) do
