@@ -41,9 +41,9 @@ defmodule NervesHub.Deployments do
   @spec get_device_count(Deployment.t()) :: term() | nil
   def get_device_count(%Deployment{id: id}) do
     Device
-    |> select([d], count(d.id))
     |> where([d], d.deployment_id == ^id)
-    |> Repo.one()
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
   end
 
   @spec get_deployments_by_firmware(integer()) :: [Deployment.t()]
