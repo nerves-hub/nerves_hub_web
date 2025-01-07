@@ -294,8 +294,7 @@ defmodule NervesHub.Deployments do
     |> where([dev], fragment("d0.firmware_metadata ->> 'platform'") == ^platform)
     |> where([dev], fragment("?::jsonb->'tags' <@ to_jsonb(?::text[])", ^conditions, dev.tags))
     |> Repo.all()
-    |> Enum.filter(&version_match?(&1, %{conditions: conditions}))
-    |> Enum.count()
+    |> Enum.count(&version_match?(&1, %{conditions: conditions}))
   end
 
   # Check that a device version matches for a deployment's conditions
