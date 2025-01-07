@@ -785,6 +785,7 @@ defmodule NervesHubWeb.WebsocketTest do
       different_platform = "tester"
 
       SocketClient.join_and_wait(socket, %{
+        "device_api_version" => "2.2.0",
         "nerves_fw_uuid" => Ecto.UUID.generate(),
         "nerves_fw_product" => "test",
         "nerves_fw_architecture" => different_architecture,
