@@ -37,12 +37,17 @@ defmodule NervesHub.Deployments do
     |> Map.new()
   end
 
-  @spec get_deployment_device_count(integer()) :: %{integer() => integer()}
+  @spec get_deployment_device_count(Deployment.t()) :: term() | nil
+  def get_deployment_device_count(%Deployment{id: id}) do
+    get_deployment_device_count(id)
+  end
+
+  @spec get_deployment_device_count(integer()) :: term() | nil
   def get_deployment_device_count(deployment_id) do
     Device
-    |> select([d], count(d.id))
     |> where([d], d.deployment_id == ^deployment_id)
-    |> Repo.one()
+    |> Repo.exclude_deleted()
+    |> Repo.aggregate(:count)
   end
 
   @spec get_deployments_by_firmware(integer()) :: [Deployment.t()]

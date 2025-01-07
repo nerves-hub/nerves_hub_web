@@ -31,7 +31,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
       |> Map.put(:anchor, "latest-activity")
 
     inflight_updates = Devices.inflight_updates_for(deployment)
-    current_device_count = Deployments.get_deployment_device_count(deployment.id)
+    current_device_count = Deployments.get_deployment_device_count(deployment)
 
     socket
     |> page_title("Deployment - #{deployment.name} - #{product.name}")
