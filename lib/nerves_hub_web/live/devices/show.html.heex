@@ -241,6 +241,10 @@
           <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
         </div>
 
+        <div :if={Enum.empty?(@eligible_deployments) && is_nil(@device.deployment_id)}>
+          No Eligible Deployments
+        </div>
+
         <div :if={Enum.any?(@eligible_deployments) && is_nil(@device.deployment_id)}>
           <div class="help-text mb-1">
             Eligible Deployments

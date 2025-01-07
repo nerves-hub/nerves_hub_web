@@ -444,4 +444,22 @@ defmodule NervesHub.Deployments do
   defp ignore_same_deployment(query, %{deployment_id: deployment_id}) do
     where(query, [d], d.id != ^deployment_id)
   end
+
+  @doc """
+  Find all eligible deployments for a device, based on the firmware platform,
+  firmware architecture, and product.
+
+  This is purposefully less-strict then Deployments.matching_deployments/2
+  and should only be used when a human is choosing the deployment for a device.
+  """
+  @spec eligible_deployments(Device.t()) :: [Deployment.t()]
+  def eligible_deployments(device) do
+    Deployment
+    |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
+    |> preload([_, firmware: f], firmware: f)
+    |> where([d, _], d.product_id == ^device.product_id)
+    |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
+    |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
+    |> Repo.all()
+  end
 end
