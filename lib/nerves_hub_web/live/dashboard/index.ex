@@ -67,9 +67,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
   defp subscribe_to_devices(socket, devices) do
     if connected?(socket) do
       Enum.each(devices, fn device ->
-        if not subscribed?(device) do
-          socket.endpoint.subscribe("device:#{device.identifier}:internal")
-        end
+        maybe_subscribe(socket, device)
       end)
     end
   end
@@ -78,6 +76,12 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     Registry.count_select(NervesHub.PubSub, [
       {{"device:#{device.identifier}:internal", self(), :_}, [], [true]}
     ]) > 0
+  end
+
+  defp maybe_subscribe(socket, device) do
+    if not subscribed?(device) do
+      socket.endpoint.subscribe("device:#{device.identifier}:internal")
+    end
   end
 
   defp update_devices_and_markers(%{assigns: %{org: org, product: product}} = socket) do
