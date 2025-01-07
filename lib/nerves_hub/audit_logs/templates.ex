@@ -51,4 +51,22 @@ defmodule NervesHub.AuditLogs.Templates do
       "#{user.name} set #{device.identifier}'s deployment to #{deployment.name}"
     )
   end
+
+  @spec audit_device_deployment_update(Device.t(), Deployment.t(), :one_found | :multiple_found) ::
+          AuditLog.t()
+  def audit_set_deployment(device, deployment, :one_found) do
+    AuditLogs.audit!(
+      device,
+      device,
+      "Updating #{device.identifier}'s deployment to #{deployment.name}"
+    )
+  end
+
+  def audit_set_deployment(device, deployment, :multiple_found) do
+    AuditLogs.audit!(
+      device,
+      device,
+      "Multiple matching deployments found, updating #{device.identifier}'s deployment to #{deployment.name}"
+    )
+  end
 end

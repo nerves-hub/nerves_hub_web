@@ -4,6 +4,7 @@ defmodule NervesHub.Deployments do
   require Logger
 
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Templates
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices
@@ -364,12 +365,16 @@ defmodule NervesHub.Deployments do
       [deployment] ->
         set_deployment_telemetry(:one_found, device, deployment)
 
+        Templates.audit_set_deployment(device, deployment, :one_found)
+
         device
         |> Devices.update_deployment(deployment)
         |> preload_with_firmware_and_archive(true)
 
       [deployment | _] ->
         set_deployment_telemetry(:multiple_found, device, deployment)
+
+        Templates.audit_set_deployment(device, deployment, :multiple_found)
 
         device
         |> Devices.update_deployment(deployment)
