@@ -7,7 +7,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
 
   alias Phoenix.Socket.Broadcast
 
-  @default_refresh 53000
+  @default_refresh 53_000
   @delay 500
 
   @impl Phoenix.LiveView
