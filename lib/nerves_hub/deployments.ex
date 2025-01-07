@@ -35,6 +35,7 @@ defmodule NervesHub.Deployments do
     |> select([d], {d.deployment_id, count(d.id)})
     |> where([d], d.product_id == ^product_id)
     |> group_by([d], d.deployment_id)
+    |> Repo.exclude_deleted()
     |> Repo.all()
     |> Map.new()
   end
