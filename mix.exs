@@ -77,6 +77,7 @@ defmodule NervesHub.MixProject do
       {:circular_buffer, "~> 0.4.1"},
       {:comeonin, "~> 5.3"},
       {:contex, "~> 0.5.0"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:crontab, "~> 1.1"},
       {:decorator, "~> 1.2"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
