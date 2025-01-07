@@ -12,12 +12,13 @@ defmodule NervesHub.Deployments do
   alias NervesHub.Repo
   alias Ecto.Changeset
 
+  @spec all() :: [Deployment.t()]
   def all() do
     Repo.all(Deployment)
   end
 
-  @spec get_deployments_by_product(integer()) :: [Deployment.t()]
-  def get_deployments_by_product(product_id) do
+  @spec get_deployments_by_product(Product.t()) :: [Deployment.t()]
+  def get_deployments_by_product(%Product{id: product_id}) do
     from(
       d in Deployment,
       join: f in assoc(d, :firmware),
@@ -27,8 +28,8 @@ defmodule NervesHub.Deployments do
     |> Repo.all()
   end
 
-  @spec get_deployment_device_counts_by_product(integer()) :: %{integer() => integer()}
-  def get_deployment_device_counts_by_product(product_id) do
+  @spec get_device_counts_by_product(Product.t()) :: %{integer() => integer()}
+  def get_device_counts_by_product(%Product{id: product_id}) do
     Device
     |> select([d], {d.deployment_id, count(d.id)})
     |> where([d], d.product_id == ^product_id)
@@ -37,25 +38,22 @@ defmodule NervesHub.Deployments do
     |> Map.new()
   end
 
-  @spec get_deployment_device_count(Deployment.t()) :: term() | nil
-  def get_deployment_device_count(%Deployment{id: id}) do
-    get_deployment_device_count(id)
-  end
-
-  @spec get_deployment_device_count(integer()) :: term() | nil
-  def get_deployment_device_count(deployment_id) do
+  @spec get_device_count(Deployment.t()) :: term() | nil
+  def get_device_count(%Deployment{id: id}) do
     Device
-    |> where([d], d.deployment_id == ^deployment_id)
-    |> Repo.exclude_deleted()
-    |> Repo.aggregate(:count)
+    |> select([d], count(d.id))
+    |> where([d], d.deployment_id == ^id)
+    |> Repo.one()
   end
 
   @spec get_deployments_by_firmware(integer()) :: [Deployment.t()]
   def get_deployments_by_firmware(firmware_id) do
-    from(d in Deployment, where: d.firmware_id == ^firmware_id)
+    Deployment
+    |> where([d], d.firmware_id == ^firmware_id)
     |> Repo.all()
   end
 
+  @spec get(integer()) :: {:ok, Deployment.t()} | {:error, :not_found}
   def get(id) when is_integer(id) do
     case Repo.get(Deployment, id) do
       nil ->
@@ -236,7 +234,7 @@ defmodule NervesHub.Deployments do
     Deployment.changeset(deployment, params)
   end
 
-  @spec create_deployment(map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
+  @spec create_deployment(map()) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
   def create_deployment(params) do
     changeset = Deployment.creation_changeset(%Deployment{}, params)
 
@@ -251,6 +249,7 @@ defmodule NervesHub.Deployments do
     end
   end
 
+  @spec broadcast(Deployment.t() | atom(), String.t(), map()) :: :ok | {:error, term()}
   def broadcast(deployment, event, payload \\ %{})
 
   def broadcast(:none, event, payload) do
@@ -286,6 +285,7 @@ defmodule NervesHub.Deployments do
 
   Based on the product, firmware platform, firmware architecture, and device tags
   """
+  @spec estimate_devices_matched_by_conditions(integer(), String.t(), map()) :: integer()
   def estimate_devices_matched_by_conditions(product_id, platform, conditions) do
     Device
     |> where([dev], dev.product_id == ^product_id)
@@ -296,18 +296,15 @@ defmodule NervesHub.Deployments do
     |> Enum.count()
   end
 
-  @doc """
-  Check that a device version matches for a deployment's conditions
+  # Check that a device version matches for a deployment's conditions
+  # A deployment not having a version condition returns true
+  defp version_match?(_device, %{conditions: %{"version" => ""}}), do: true
 
-  A deployment not having a version condition returns true
-  """
-  def version_match?(_device, %{conditions: %{"version" => ""}}), do: true
-
-  def version_match?(device, %{conditions: %{"version" => version}}) when not is_nil(version) do
+  defp version_match?(device, %{conditions: %{"version" => version}}) when not is_nil(version) do
     Version.match?(device.firmware_metadata.version, version)
   end
 
-  def version_match?(_device, _deployment), do: true
+  defp version_match?(_device, _deployment), do: true
 
   @spec verify_deployment_membership(Device.t()) :: Device.t()
   def verify_deployment_membership(%Device{deployment_id: deployment_id} = device)
@@ -342,6 +339,8 @@ defmodule NervesHub.Deployments do
         device,
         "device no longer matches deployment #{deployment.name}'s requirements because of #{reason}"
       )
+
+      device
     else
       device
     end
@@ -354,6 +353,7 @@ defmodule NervesHub.Deployments do
 
   Do nothing if a deployment is already set
   """
+  @spec set_deployment(Device.t()) :: Device.t()
   def set_deployment(%{deployment_id: nil} = device) do
     case matching_deployments(device, [true]) do
       [] ->
@@ -398,6 +398,7 @@ defmodule NervesHub.Deployments do
     )
   end
 
+  @spec preload_with_firmware_and_archive(Device.t(), boolean()) :: Device.t()
   def preload_with_firmware_and_archive(device, force \\ false) do
     Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
   end
@@ -407,6 +408,7 @@ defmodule NervesHub.Deployments do
 
   Based on the product, firmware platform, firmware architecture, and device tags
   """
+  @spec matching_deployments(Device.t(), [boolean()]) :: [Deployment.t()]
   def matching_deployments(device, active \\ [true, false])
   def matching_deployments(%Device{firmware_metadata: nil}, _active), do: []
 
