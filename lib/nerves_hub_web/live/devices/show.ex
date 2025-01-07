@@ -43,15 +43,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> page_title("Device #{device.identifier} - #{product.name}")
     |> assign(:tab_hint, :devices)
     |> assign(:device, device)
-    |> assign(:device_connection, device_connection(device))
-    |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:deployment, device.deployment)
-    |> assign(:update_information, Devices.resolve_update(device))
-    |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
-    |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, product))
-    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign(:scripts, scripts_with_output(product))
+    |> assign(:device_connection, device_connection(device))
+    |> general_assigns(device)
     |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
@@ -77,7 +73,19 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(
-        %Broadcast{event: "connection:status"},
+        %Broadcast{event: "connection:status", payload: %{status: "online"}},
+        %{assigns: %{device: device}} = socket
+      ) do
+    socket =
+      socket
+      |> general_assigns(device)
+      |> assign(:device_connection, Connections.get_latest_for_device(device.id))
+
+    {:noreply, socket}
+  end
+
+  def handle_info(
+        %Broadcast{event: "connection:status", payload: %{status: "offline"}},
         %{assigns: %{device: device}} = socket
       ) do
     {:noreply, assign(socket, :device_connection, Connections.get_latest_for_device(device.id))}
@@ -498,5 +506,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp disconnected?(connection) do
     is_nil(connection) || connection.status != :connected
+  end
+
+  defp general_assigns(socket, device) do
+    socket
+    |> assign(:console_active?, Tracker.console_active?(device))
+    |> assign(:update_information, Devices.resolve_update(device))
+    |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
+    |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
   end
 end
