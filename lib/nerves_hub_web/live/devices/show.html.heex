@@ -19,15 +19,15 @@
         <span class="action-text">Destroy</span>
       </button>
     <% else %>
-      <button class="btn btn-outline-light btn-action" aria-label="Reboot device" type="button" phx-click="reboot" data-confirm="Are you sure?">
+      <button class={["btn btn-outline-light btn-action", disconnected?(@device_connection) && "disabled"]} aria-label="Reboot device" type="button" phx-click="reboot" data-confirm="Are you sure?">
         <span class="button-icon power"></span>
         <span class="action-text">Reboot</span>
       </button>
-      <button class="btn btn-outline-light btn-action" aria-label="Reconnect device" type="button" phx-click="reconnect">
+      <button class={["btn btn-outline-light btn-action", disconnected?(@device_connection) && "disabled"]} aria-label="Reconnect device" type="button" phx-click="reconnect">
         <span class="button-icon reconnect"></span>
         <span class="action-text">Reconnect</span>
       </button>
-      <button class="btn btn-outline-light btn-action" aria-label="Identify device" type="button" phx-click="identify">
+      <button class={["btn btn-outline-light btn-action", disconnected?(@device_connection) && "disabled"]} aria-label="Identify device" type="button" phx-click="identify">
         <span class="button-icon identify"></span>
         <span class="action-text">Identify</span>
       </button>

@@ -495,4 +495,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     do: "Run"
 
   defp script_button_text(_), do: "Close"
+
+  defp disconnected?(connection) do
+    is_nil(connection) || connection.status != :connected
+  end
 end
