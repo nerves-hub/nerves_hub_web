@@ -1,8 +1,6 @@
 defmodule NervesHub.Telemetry.FilteredSampler do
   # Inspired by https://arathunku.com/b/2024/notes-on-adding-opentelemetry-to-an-elixir-app/
 
-  # TODO: Add ratio sampling support
-
   require OpenTelemetry.Tracer, as: Tracer
   require Logger
 
