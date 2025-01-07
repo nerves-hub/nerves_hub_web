@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Assets.Build do
+  @moduledoc false
+
   use Mix.Task
 
   @shortdoc "Build web assets"

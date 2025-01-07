@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Assets.Install do
+  @moduledoc false
+
   use Mix.Task
 
   @shortdoc "Install web assets"

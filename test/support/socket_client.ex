@@ -1,4 +1,6 @@
 defmodule SocketClient do
+  @moduledoc false
+
   use Slipstream, restart: :temporary
 
   def start_link(args) do

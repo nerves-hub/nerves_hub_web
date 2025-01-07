@@ -13,6 +13,8 @@ defmodule NervesHub.Support.Fwup do
   """
 
   defmodule MetaParams do
+    @moduledoc false
+
     defstruct product: "nerves-hub",
               description: "D",
               version: "1.0.0",
@@ -22,6 +24,8 @@ defmodule NervesHub.Support.Fwup do
   end
 
   defmodule InvalidMetaParams do
+    @moduledoc false
+
     defstruct description: "D",
               version: "1.0.0",
               platform: "platform",

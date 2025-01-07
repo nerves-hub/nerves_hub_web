@@ -1,4 +1,6 @@
 defmodule NervesHub.Fixtures do
+  @moduledoc false
+
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey

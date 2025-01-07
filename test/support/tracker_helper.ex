@@ -1,4 +1,6 @@
 defmodule TrackerHelper do
+  @moduledoc false
+
   defmacro subscribe_for_updates(device) do
     quote do
       Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{unquote(device).identifier}:internal")

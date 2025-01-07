@@ -1,5 +1,9 @@
 defmodule NervesHub.Support.Archives do
+  @moduledoc false
+
   defmodule MetaParams do
+    @moduledoc false
+
     defstruct product: "nerves-hub",
               description: "Manifest",
               version: "1.0.0",
