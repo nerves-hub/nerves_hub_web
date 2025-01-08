@@ -12,7 +12,7 @@ defmodule NervesHub.Firmwares.Upload.S3 do
   def upload_file(source_path, %{"s3_key" => s3_key}) do
     source_path
     |> S3.Upload.stream_file()
-    |> S3.upload(bucket(), s3_key)
+    |> S3.upload(bucket(), s3_key, timeout: 60_000)
     |> ExAws.request()
     |> case do
       {:ok, _} -> :ok
