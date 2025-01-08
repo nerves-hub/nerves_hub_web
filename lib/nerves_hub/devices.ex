@@ -833,6 +833,9 @@ defmodule NervesHub.Devices do
           deployment_id: deployment.id
         }
 
+      {:error, :deployment_not_active, _device} ->
+        %UpdatePayload{update_available: false}
+
       {:error, :up_to_date, _device} ->
         %UpdatePayload{update_available: false}
 
@@ -928,6 +931,9 @@ defmodule NervesHub.Devices do
 
   def verify_update_eligibility(device, deployment, now \\ DateTime.utc_now()) do
     cond do
+      not deployment.is_active ->
+        {:error, :deployment_not_active, device}
+
       device_matches_deployment?(device, deployment) ->
         {:error, :up_to_date, device}
 

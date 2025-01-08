@@ -15,6 +15,8 @@ defmodule NervesHub.Deployments.Orchestrator do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Deployments
+  alias NervesHub.Deployments.Deployment
   alias NervesHub.Repo
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
@@ -24,7 +26,7 @@ defmodule NervesHub.Deployments.Orchestrator do
   end
 
   def name(deployment_id) when is_integer(deployment_id) do
-    {:via, Registry, {NervesHub.Deployments, deployment_id}}
+    {:via, Registry, {Deployments, deployment_id}}
   end
 
   def name(deployment), do: name(deployment.id)
@@ -50,6 +52,11 @@ defmodule NervesHub.Deployments.Orchestrator do
   was successful, and the process is repeated.
   """
   @decorate with_span("Deployments.Orchestrator.trigger_update")
+  def trigger_update(%Deployment{is_active: false}) do
+    :ok
+  end
+
+  @decorate with_span("Deployments.Orchestrator.trigger_update")
   def trigger_update(deployment) do
     :telemetry.execute([:nerves_hub, :deployment, :trigger_update], %{count: 1})
 
@@ -67,7 +74,7 @@ defmodule NervesHub.Deployments.Orchestrator do
     }
 
     devices =
-      Registry.select(NervesHub.Devices.Registry, [
+      Registry.select(Devices.Registry, [
         {{:_, :_, :"$1"}, match_conditions, [match_return]}
       ])
 

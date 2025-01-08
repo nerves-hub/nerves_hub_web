@@ -213,11 +213,15 @@ defmodule NervesHub.Fixtures do
   end
 
   def deployment_fixture(%Org{} = org, %Firmwares.Firmware{} = firmware, params \\ %{}) do
+    {is_active, params} = Map.pop(params, :is_active, false)
+
     {:ok, deployment} =
       %{org_id: org.id, firmware_id: firmware.id}
       |> Enum.into(params)
       |> Enum.into(@deployment_params)
       |> Deployments.create_deployment()
+
+    {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: is_active})
 
     deployment
   end
