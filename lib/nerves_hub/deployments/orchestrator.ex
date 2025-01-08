@@ -51,7 +51,7 @@ defmodule NervesHub.Deployments.Orchestrator do
   As devices update and reconnect, the new orchestrator is told that the update
   was successful, and the process is repeated.
   """
-  @decorate with_span("Deployments.Orchestrator.trigger_update")
+  @decorate with_span("Deployments.Orchestrator.trigger_update#noop")
   def trigger_update(%Deployment{is_active: false}) do
     :ok
   end
