@@ -406,6 +406,11 @@ defmodule NervesHub.Deployments do
     )
   end
 
+  @spec preload_firmware_and_archive(Deployment.t()) :: Deployment.t()
+  def preload_firmware_and_archive(deployment) do
+    %Deployment{} = Repo.preload(deployment, [:archive, :firmware])
+  end
+
   @spec preload_with_firmware_and_archive(Device.t(), boolean()) :: Device.t()
   def preload_with_firmware_and_archive(device, force \\ false) do
     %Device{} = Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
