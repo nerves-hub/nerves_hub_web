@@ -13,6 +13,8 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Fwup
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHub.Workers.DeleteFirmware
+
   alias NervesHub.Repo
 
   require Logger
@@ -158,7 +160,7 @@ defmodule NervesHub.Firmwares do
 
     do_delete_from_s3 = fn ->
       firmware.upload_metadata
-      |> NervesHub.Workers.DeleteFirmware.new()
+      |> DeleteFirmware.new()
       |> Oban.insert()
     end
 

@@ -13,6 +13,7 @@ defmodule NervesHub.Products do
   alias NervesHub.Extensions
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
+  alias NervesHub.Workers.FirmwareDeltaBuilder
 
   alias NimbleCSV.RFC4180, as: CSV
 
@@ -136,7 +137,7 @@ defmodule NervesHub.Products do
     NervesHub.Devices.get_device_firmware_for_delta_generation_by_product(product.id)
     |> Enum.uniq()
     |> Enum.each(fn {source_id, target_id} ->
-      NervesHub.Workers.FirmwareDeltaBuilder.start(source_id, target_id)
+      FirmwareDeltaBuilder.start(source_id, target_id)
     end)
   end
 

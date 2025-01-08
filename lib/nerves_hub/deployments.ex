@@ -10,7 +10,10 @@ defmodule NervesHub.Deployments do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
+  alias NervesHub.Workers.FirmwareDeltaBuilder
+
   alias NervesHub.Repo
+
   alias Ecto.Changeset
 
   @spec all() :: [Deployment.t()]
@@ -214,7 +217,7 @@ defmodule NervesHub.Deployments do
     NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment(deployment.id)
     |> Enum.uniq()
     |> Enum.each(fn {source_id, target_id} ->
-      NervesHub.Workers.FirmwareDeltaBuilder.start(source_id, target_id)
+      FirmwareDeltaBuilder.start(source_id, target_id)
     end)
   end
 

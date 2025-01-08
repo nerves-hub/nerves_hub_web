@@ -8,6 +8,7 @@ defmodule NervesHub.Devices.Filtering do
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Types.Tag
 
   @spec build_filters(Ecto.Query.t(), %{optional(atom) => String.t()}) :: Ecto.Query.t()
   def build_filters(query, filters) do
@@ -106,7 +107,7 @@ defmodule NervesHub.Devices.Filtering do
   end
 
   defp build_tag_filter(query, value) do
-    case NervesHub.Types.Tag.cast(value) do
+    case Tag.cast(value) do
       {:ok, tags} ->
         Enum.reduce(tags, query, fn tag, query ->
           where(
