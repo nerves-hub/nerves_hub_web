@@ -1,9 +1,11 @@
 defmodule NervesHub.Devices.Alarms do
   import Ecto.Query
-  alias NervesHub.Repo
+
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceHealth
+
+  alias NervesHub.Repo
 
   @doc """
   Selects device id:s for devices that has alarm(s) in it's latest health record.

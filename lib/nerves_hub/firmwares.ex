@@ -2,12 +2,13 @@ defmodule NervesHub.Firmwares do
   import Ecto.Query
 
   alias Ecto.Changeset
-  alias NervesHub.Accounts.OrgKey
+
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgKey
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
-  alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareDelta
+  alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareTransfer
   alias NervesHub.Fwup
   alias NervesHub.Products

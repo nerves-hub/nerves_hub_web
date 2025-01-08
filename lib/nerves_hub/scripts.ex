@@ -2,6 +2,7 @@ defmodule NervesHub.Scripts do
   import Ecto.Query
 
   alias NervesHub.Scripts.Script
+
   alias NervesHub.Repo
 
   def all_by_product(product) do

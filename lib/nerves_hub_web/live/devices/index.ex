@@ -12,10 +12,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Firmwares
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
+
   alias NervesHub.Repo
 
-  alias Phoenix.Socket.Broadcast
   alias Phoenix.LiveView.JS
+  alias Phoenix.Socket.Broadcast
 
   alias NervesHubWeb.LayoutView.DateTimeFormat
 

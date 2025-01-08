@@ -9,10 +9,10 @@ defmodule NervesHub.Products do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.User
   alias NervesHub.Extensions
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
-  alias NervesHub.Accounts.User
 
   alias NimbleCSV.RFC4180, as: CSV
 

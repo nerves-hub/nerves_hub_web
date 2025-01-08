@@ -4,8 +4,10 @@ defmodule NervesHub.Accounts.Org do
   import Ecto.Changeset
   import Ecto.Query
 
-  alias NervesHub.Accounts.{OrgKey, OrgUser}
-  alias NervesHub.Devices.{Device, CACertificate}
+  alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias __MODULE__

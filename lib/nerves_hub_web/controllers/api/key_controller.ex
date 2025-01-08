@@ -2,7 +2,7 @@ defmodule NervesHubWeb.API.KeyController do
   use NervesHubWeb, :api_controller
 
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.{OrgKey}
+  alias NervesHub.Accounts.OrgKey
 
   action_fallback(NervesHubWeb.API.FallbackController)
 

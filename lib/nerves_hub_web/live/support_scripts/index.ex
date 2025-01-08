@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Scripts
+
   alias NervesHub.Repo
 
   def mount(_params, _session, socket) do

@@ -1,7 +1,8 @@
 defmodule NervesHub.Devices.CACertificate.CSRTest do
   use ExUnit.Case
-  alias NervesHub.Devices.CACertificate.CSR
+
   alias NervesHub.Certificate
+  alias NervesHub.Devices.CACertificate.CSR
 
   @tag :tmp_dir
   test "valid csr", %{tmp_dir: dir} do

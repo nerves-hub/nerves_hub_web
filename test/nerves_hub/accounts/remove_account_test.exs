@@ -1,7 +1,9 @@
 defmodule NervesHub.Accounts.RemoveAccountTest do
   use NervesHub.DataCase, async: true
 
-  alias NervesHub.{Accounts, Fixtures}
+  alias NervesHub.Accounts
+  alias NervesHub.Accounts.RemoveAccount
+  alias NervesHub.Fixtures
 
   test "remove_account for basic account" do
     user = Fixtures.user_fixture()
@@ -11,7 +13,7 @@ defmodule NervesHub.Accounts.RemoveAccountTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
     Fixtures.deployment_fixture(org, firmware)
 
-    NervesHub.Accounts.RemoveAccount.remove_account(user.id)
+    RemoveAccount.remove_account(user.id)
 
     assert {:error, :not_found} = Accounts.get_user(user.id)
   end
@@ -51,7 +53,7 @@ defmodule NervesHub.Accounts.RemoveAccountTest do
     org3_firmware = Fixtures.firmware_fixture(org3_key, org3_product)
     Fixtures.deployment_fixture(org, org3_firmware)
 
-    NervesHub.Accounts.RemoveAccount.remove_account(user.id)
+    RemoveAccount.remove_account(user.id)
 
     assert {:error, _} = Accounts.get_user(user.id)
     assert {:error, _} = Accounts.get_org(org.id)

@@ -1,9 +1,9 @@
 defmodule NervesHubWeb.Live.Dashboard.Index do
   use NervesHubWeb, :updated_live_view
 
+  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
-  alias NervesHub.Deployments
 
   alias Phoenix.Socket.Broadcast
 

@@ -7,9 +7,9 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Archives
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
+  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.InflightUpdate
-  alias NervesHub.Deployments
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHub.Products.Product

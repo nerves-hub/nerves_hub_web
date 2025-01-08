@@ -3,9 +3,9 @@ defmodule NervesHub.Devices.InflightUpdate do
 
   import Ecto.Changeset
 
+  alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.InflightUpdate
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Firmwares.Firmware
 
   @required_params [:device_id, :deployment_id, :firmware_id, :firmware_uuid, :expires_at]

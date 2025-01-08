@@ -1,10 +1,12 @@
 defmodule NervesHub.DeploymentsTest do
   use NervesHub.DataCase, async: false
+
   import Phoenix.ChannelTest
 
   alias NervesHub.Deployments
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
+
   alias Ecto.Changeset
 
   setup do

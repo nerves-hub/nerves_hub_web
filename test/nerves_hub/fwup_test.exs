@@ -1,9 +1,9 @@
 defmodule NervesHub.FwupTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Fixtures
   alias NervesHub.Fwup
   alias NervesHub.Support.Fwup, as: SupportFwup
-  alias NervesHub.Fixtures
 
   test "retrieves all fwup metadata", %{tmp_dir: tmp_dir} do
     user = Fixtures.user_fixture()

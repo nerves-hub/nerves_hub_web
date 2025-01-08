@@ -4,7 +4,11 @@ defmodule NervesHub.AccountsTest do
   alias Ecto.Changeset
 
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.{Org, OrgKey, OrgUser, User, Invite}
+  alias NervesHub.Accounts.Invite
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.User
   alias NervesHub.Fixtures
 
   @required_org_params %{name: "Org"}

@@ -1,7 +1,8 @@
 defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.{Devices, Certificate}
+  alias NervesHub.Certificate
+  alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.CACertificate.CSR
   alias NervesHub.Products

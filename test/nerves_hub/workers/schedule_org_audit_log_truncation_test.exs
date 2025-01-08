@@ -3,8 +3,8 @@ defmodule NervesHub.Workers.ScheduleOrgAuditLogTruncationTest do
 
   alias NervesHub.Accounts
   alias NervesHub.Fixtures
-  alias NervesHub.Workers.ScheduleOrgAuditLogTruncation
   alias NervesHub.Workers.OrgAuditLogTruncation
+  alias NervesHub.Workers.ScheduleOrgAuditLogTruncation
 
   setup do
     Application.put_env(:nerves_hub, :audit_logs, enabled: true)

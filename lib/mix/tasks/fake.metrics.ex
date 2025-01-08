@@ -4,9 +4,9 @@ if Mix.env() == :dev do
 
     use Mix.Task
 
-    alias NervesHub.Repo
     alias NervesHub.Devices
     alias NervesHub.Devices.DeviceMetric
+    alias NervesHub.Repo
 
     @shortdoc "Create randomized metrics for device"
     @requirements ["app.start"]

@@ -17,8 +17,8 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.Filtering
-  alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Extensions
   alias NervesHub.Firmwares
