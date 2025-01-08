@@ -18,7 +18,6 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareTransfer
-  alias NervesHub.OrgKey
   alias NervesHub.Products.Product
 
   alias NervesHub.Repo
