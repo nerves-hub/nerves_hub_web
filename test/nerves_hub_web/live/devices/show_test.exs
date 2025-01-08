@@ -53,7 +53,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       Process.flag(:trap_exit, true)
 
-      assert {{%NervesHub.Errors.Unauthorized{}, _}, _} =
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
                catch_exit(render_change(view, :reboot, %{}))
     end
   end

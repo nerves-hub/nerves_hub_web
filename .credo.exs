@@ -69,8 +69,7 @@
           #
           ## Consistency Checks
           #
-          # Disabled this due to false positives (https://github.com/rrrene/credo/issues/1174)
-          # {Credo.Check.Consistency.ExceptionNames, []},
+          {Credo.Check.Consistency.ExceptionNames, []},
           {Credo.Check.Consistency.LineEndings, []},
           {Credo.Check.Consistency.ParameterPatternMatching, []},
           {Credo.Check.Consistency.SpaceAroundOperators, []},

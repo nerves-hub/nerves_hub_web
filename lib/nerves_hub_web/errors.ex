@@ -3,5 +3,5 @@ defmodule NervesHubWeb.NotFoundError do
 end
 
 defmodule NervesHubWeb.UnauthorizedError do
-  defexception message: "forbidden", plug_status: 401
+  defexception message: "unauthorized", plug_status: 401
 end

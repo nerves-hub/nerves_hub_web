@@ -82,7 +82,7 @@ defmodule NervesHubWeb do
       # HTML escaping functionality
       import Phoenix.HTML
 
-      import NervesHub.Helpers.Authorization
+      import NervesHubWeb.Helpers.Authorization
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS

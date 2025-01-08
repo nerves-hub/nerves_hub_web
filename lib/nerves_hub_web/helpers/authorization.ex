@@ -1,13 +1,9 @@
-defmodule NervesHub.Errors.Unauthorized do
-  defexception message: "unauthorized", plug_status: 401
-end
-
-defmodule NervesHub.Helpers.Authorization do
+defmodule NervesHubWeb.Helpers.Authorization do
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
 
   def authorized!(org_user, permission) do
-    authorized?(org_user, permission) || raise NervesHub.Errors.Unauthorized
+    authorized?(org_user, permission) || raise NervesHubWeb.UnauthorizedError
   end
 
   def authorized?(:"organization:update", %OrgUser{role: ur}), do: role_check(:admin, ur)
