@@ -3,9 +3,13 @@ defmodule NervesHub.Workers.CleanDeviceConnectionStates do
     max_attempts: 5,
     queue: :device
 
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
+
   @impl true
   def perform(_) do
-    NervesHub.Devices.clean_connection_states()
+    Devices.clean_connection_states()
+    Connections.clean_stale_connections()
 
     :ok
   end
