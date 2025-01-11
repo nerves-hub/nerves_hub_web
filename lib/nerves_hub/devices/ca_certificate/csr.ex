@@ -12,7 +12,7 @@ defmodule NervesHub.Devices.CACertificate.CSR do
   after a user creates the CSR.
   """
   @spec generate_code() :: csr_code()
-  def generate_code do
+  def generate_code() do
     :crypto.strong_rand_bytes(32) |> Base.encode16()
   end
 

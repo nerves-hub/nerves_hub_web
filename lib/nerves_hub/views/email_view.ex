@@ -5,7 +5,7 @@ defmodule NervesHub.EmailView do
 
   import Phoenix.HTML
 
-  def base_url do
+  def base_url() do
     config = Application.get_env(:nerves_hub, NervesHubWeb.Endpoint)
 
     port =
@@ -21,7 +21,7 @@ defmodule NervesHub.EmailView do
   Standard closing words.
   """
 
-  def closing do
+  def closing() do
     """
         #{closing_message()}
 

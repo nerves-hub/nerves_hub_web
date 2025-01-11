@@ -159,7 +159,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     :ok
   end
 
-  defp time do
+  defp time() do
     System.monotonic_time(:millisecond)
   end
 end

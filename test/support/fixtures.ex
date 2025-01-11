@@ -438,11 +438,11 @@ defmodule NervesHub.Fixtures do
     }
   end
 
-  defp counter do
+  defp counter() do
     System.unique_integer([:positive])
   end
 
-  defp counter_in_alpha do
+  defp counter_in_alpha() do
     counter()
     |> Integer.to_string()
     |> String.split("")

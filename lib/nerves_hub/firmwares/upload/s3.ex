@@ -55,7 +55,7 @@ defmodule NervesHub.Firmwares.Upload.S3 do
     %{"s3_key" => Path.join([key_prefix(), Integer.to_string(org_id), filename])}
   end
 
-  def bucket do
+  def bucket() do
     Application.get_env(:nerves_hub, __MODULE__)[:bucket]
   end
 

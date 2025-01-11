@@ -20,7 +20,7 @@ defmodule NervesHub.Products do
   @csv_certs_sep "\n\n"
   @csv_header ["identifier", "description", "tags", "product", "org", "certificates"]
 
-  def __csv_header__, do: @csv_header
+  def __csv_header__(), do: @csv_header
 
   @spec get_products_by_user_and_org(User.t(), Org.t()) :: [Product.t()]
   def get_products_by_user_and_org(%User{id: user_id}, %Org{id: org_id}) do

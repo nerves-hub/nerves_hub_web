@@ -18,7 +18,7 @@ defmodule NervesHub.Devices.Metrics do
     "mem_used_percent"
   ]
 
-  def default_metrics, do: @default_metrics
+  def default_metrics(), do: @default_metrics
 
   @doc """
   Get all metrics for device

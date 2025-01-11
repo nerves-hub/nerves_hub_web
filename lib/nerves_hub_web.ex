@@ -17,16 +17,16 @@ defmodule NervesHubWeb do
   and import those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
+  def static_paths(), do: ~w(assets fonts images favicon.ico robots.txt)
 
-  def plug do
+  def plug() do
     quote do
       import Plug.Conn
       import Phoenix.Controller
     end
   end
 
-  def controller do
+  def controller() do
     quote do
       use Phoenix.Controller, namespace: NervesHubWeb
       use Gettext, backend: NervesHubWeb.Gettext
@@ -50,7 +50,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  def api_controller do
+  def api_controller() do
     quote do
       use Phoenix.Controller, namespace: NervesHubWeb
       use Gettext, backend: NervesHubWeb.Gettext
@@ -71,7 +71,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  def updated_live_view do
+  def updated_live_view() do
     quote do
       use NervesHubWeb.LiveView,
         layout: {NervesHubWeb.LayoutView, :live},
@@ -110,7 +110,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  def verified_routes do
+  def verified_routes() do
     quote do
       use Phoenix.VerifiedRoutes,
         endpoint: NervesHubWeb.Endpoint,
@@ -119,7 +119,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  def live_component do
+  def live_component() do
     quote do
       use Phoenix.LiveComponent
 
@@ -127,7 +127,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  def html do
+  def html() do
     quote do
       use Phoenix.Component
 
@@ -140,7 +140,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  defp html_helpers do
+  defp html_helpers() do
     quote do
       # HTML escaping functionality
       import Phoenix.HTML
@@ -156,7 +156,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  def view do
+  def view() do
     quote do
       use Phoenix.View,
         root: "lib/nerves_hub_web/templates",
@@ -183,7 +183,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  def api_view do
+  def api_view() do
     quote do
       use Phoenix.View,
         root: "lib/nerves_hub_web/templates",
@@ -206,7 +206,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  def component do
+  def component() do
     quote do
       use Phoenix.Component
 
@@ -215,7 +215,7 @@ defmodule NervesHubWeb do
     end
   end
 
-  def router do
+  def router() do
     quote do
       use Phoenix.Router
       import Plug.Conn
@@ -224,14 +224,14 @@ defmodule NervesHubWeb do
     end
   end
 
-  def channel do
+  def channel() do
     quote do
       use Phoenix.Channel
       use Gettext, backend: NervesHubWeb.Gettext
     end
   end
 
-  defp view_helpers do
+  defp view_helpers() do
     quote do
       # Use all HTML functionality (forms, tags, etc)
       use Phoenix.HTML

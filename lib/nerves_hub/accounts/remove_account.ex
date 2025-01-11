@@ -44,7 +44,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Repo.transaction()
   end
 
-  defp query_org_users do
+  defp query_org_users() do
     from(
       org_user in OrgUser,
       join: user in assoc(org_user, :user),
@@ -87,7 +87,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
     end)
   end
 
-  defp truncated_utc_now do
+  defp truncated_utc_now() do
     DateTime.truncate(DateTime.utc_now(), :second)
   end
 

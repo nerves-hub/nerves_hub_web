@@ -180,7 +180,7 @@ defmodule NervesHub.Accounts.User do
   The time length that a password reset token is valid.
   Passed to Timex.shift, so it just has to be a keyword list with :minutes, :hours, etc.
   """
-  def password_reset_window do
+  def password_reset_window() do
     [hours: 8]
   end
 

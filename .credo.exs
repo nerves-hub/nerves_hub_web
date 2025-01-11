@@ -104,8 +104,7 @@
           {Credo.Check.Readability.ModuleNames, []},
           {Credo.Check.Readability.MultiAlias, []},
           {Credo.Check.Readability.ParenthesesInCondition, []},
-          # Disabled as I'm not sure I agree with this one and it requires discussion
-          # {Credo.Check.Readability.ParenthesesOnZeroArityDefs, []},
+          {Credo.Check.Readability.ParenthesesOnZeroArityDefs, [parens: true]},
           {Credo.Check.Readability.PipeIntoAnonymousFunctions, []},
           {Credo.Check.Readability.PredicateFunctionNames, []},
           {Credo.Check.Readability.PreferImplicitTry, []},
