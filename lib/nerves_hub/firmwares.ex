@@ -183,7 +183,7 @@ defmodule NervesHub.Firmwares do
   def verify_signature(filepath, keys) when is_binary(filepath) do
     signed_key =
       Enum.find(keys, fn %{key: key} ->
-        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath]) do
+        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath], env: []) do
           {_, 0} ->
             true
 

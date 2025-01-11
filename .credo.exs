@@ -150,6 +150,7 @@
           {Credo.Check.Warning.ExpensiveEmptyEnumCheck, []},
           {Credo.Check.Warning.IExPry, []},
           {Credo.Check.Warning.IoInspect, []},
+          {Credo.Check.Warning.LeakyEnvironment, []},
           # we use `:all` in `runtime.exs`, credo wasn't picking this up
           {Credo.Check.Warning.MissedMetadataKeyInLoggerConfig,
            [
@@ -207,7 +208,6 @@
           {Credo.Check.Refactor.RejectFilter, []},
           {Credo.Check.Refactor.VariableRebinding, []},
           {Credo.Check.Warning.LazyLogging, []},
-          {Credo.Check.Warning.LeakyEnvironment, []},
           {Credo.Check.Warning.MapGetUnsafePass, []},
           {Credo.Check.Warning.MixEnv, []},
           {Credo.Check.Warning.UnsafeToAtom, []}

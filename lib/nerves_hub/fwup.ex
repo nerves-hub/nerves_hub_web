@@ -56,7 +56,7 @@ defmodule NervesHub.Fwup do
   end
 
   defp get_metadata(filepath) do
-    case System.cmd("fwup", ["-m", "-i", filepath]) do
+    case System.cmd("fwup", ["-m", "-i", filepath], env: []) do
       {metadata, 0} ->
         {:ok, metadata}
 

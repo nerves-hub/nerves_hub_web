@@ -12,7 +12,8 @@ defmodule Mix.Tasks.Assets.Install do
       ["install"],
       cd: @assets,
       stderr_to_stdout: true,
-      into: IO.stream(:stdio, :line)
+      into: IO.stream(:stdio, :line),
+      env: []
     )
   end
 end
