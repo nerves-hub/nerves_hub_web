@@ -10,7 +10,10 @@ defmodule NervesHub.Deployments do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
+  alias NervesHub.Workers.FirmwareDeltaBuilder
+
   alias NervesHub.Repo
+
   alias Ecto.Changeset
 
   @spec all() :: [Deployment.t()]
@@ -214,7 +217,7 @@ defmodule NervesHub.Deployments do
     NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment(deployment.id)
     |> Enum.uniq()
     |> Enum.each(fn {source_id, target_id} ->
-      NervesHub.Workers.FirmwareDeltaBuilder.start(source_id, target_id)
+      FirmwareDeltaBuilder.start(source_id, target_id)
     end)
   end
 
@@ -294,8 +297,7 @@ defmodule NervesHub.Deployments do
     |> where([dev], fragment("d0.firmware_metadata ->> 'platform'") == ^platform)
     |> where([dev], fragment("?::jsonb->'tags' <@ to_jsonb(?::text[])", ^conditions, dev.tags))
     |> Repo.all()
-    |> Enum.filter(&version_match?(&1, %{conditions: conditions}))
-    |> Enum.count()
+    |> Enum.count(&version_match?(&1, %{conditions: conditions}))
   end
 
   # Check that a device version matches for a deployment's conditions
@@ -404,9 +406,14 @@ defmodule NervesHub.Deployments do
     )
   end
 
+  @spec preload_firmware_and_archive(Deployment.t()) :: Deployment.t()
+  def preload_firmware_and_archive(deployment) do
+    %Deployment{} = Repo.preload(deployment, [:archive, :firmware])
+  end
+
   @spec preload_with_firmware_and_archive(Device.t(), boolean()) :: Device.t()
   def preload_with_firmware_and_archive(device, force \\ false) do
-    Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
+    %Device{} = Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
   end
 
   @doc """

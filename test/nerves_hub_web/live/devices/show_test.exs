@@ -53,7 +53,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       Process.flag(:trap_exit, true)
 
-      assert {{%NervesHub.Errors.Unauthorized{}, _}, _} =
+      assert {{%NervesHubWeb.UnauthorizedError{}, _}, _} =
                catch_exit(render_change(view, :reboot, %{}))
     end
   end
@@ -494,7 +494,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       deployment: deployment
     } do
-      assert length(AuditLogs.logs_for(device)) == 0
+      assert Enum.empty?(AuditLogs.logs_for(device))
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")

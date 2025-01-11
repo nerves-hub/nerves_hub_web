@@ -2,7 +2,8 @@ defmodule NervesHubWeb.Plugs.OrgUserTest do
   use NervesHubWeb.ConnCase.Browser, async: true
   use Plug.Test
 
-  alias NervesHub.{Accounts, Fixtures}
+  alias NervesHub.Accounts
+  alias NervesHub.Fixtures
 
   setup context do
     {:ok, org_user} = Accounts.get_org_user(context.org, context.user)

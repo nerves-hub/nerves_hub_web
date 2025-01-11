@@ -1,21 +1,26 @@
 defmodule NervesHub.Accounts.RemoveAccount do
-  import Ecto.{Query, Changeset}
+  import Ecto.Query
+  import Ecto.Changeset
+
   alias Ecto.Multi
 
-  alias NervesHub.{
-    Accounts,
-    Firmwares,
-    Deployments.Deployment,
-    Products,
-    Repo,
-    OrgKey,
-    Devices
-  }
+  alias NervesHub.Accounts.Invite
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.OrgMetric
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.User
+  alias NervesHub.Deployments.Deployment
+  alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.FirmwareDelta
+  alias NervesHub.Firmwares.FirmwareTransfer
+  alias NervesHub.Products.Product
 
-  alias Firmwares.{Firmware, FirmwareDelta, FirmwareTransfer}
-  alias Accounts.{Org, OrgUser, OrgKey, Invite, User, OrgMetric}
-  alias Devices.{DeviceCertificate, Device, CACertificate}
-  alias Products.Product
+  alias NervesHub.Repo
 
   def remove_account(user_id) do
     Multi.new()
@@ -39,7 +44,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Repo.transaction()
   end
 
-  defp query_org_users do
+  defp query_org_users() do
     from(
       org_user in OrgUser,
       join: user in assoc(org_user, :user),
@@ -82,7 +87,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
     end)
   end
 
-  defp truncated_utc_now do
+  defp truncated_utc_now() do
     DateTime.truncate(DateTime.utc_now(), :second)
   end
 

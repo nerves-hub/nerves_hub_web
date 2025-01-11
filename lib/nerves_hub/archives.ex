@@ -100,7 +100,7 @@ defmodule NervesHub.Archives do
   defp validate_signature(org, file_path) do
     signed_key =
       Enum.find(org.org_keys, fn %{key: key} ->
-        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", file_path]) do
+        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", file_path], env: []) do
           {_, 0} ->
             true
 

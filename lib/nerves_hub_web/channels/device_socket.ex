@@ -5,8 +5,8 @@ defmodule NervesHubWeb.DeviceSocket do
   require Logger
 
   alias NervesHub.Devices
-  alias NervesHub.Devices.Device
   alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Products
   alias NervesHub.Tracker

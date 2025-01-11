@@ -6,7 +6,7 @@ defmodule NervesHub.Workers.CleanDeviceConnectionStates do
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
 
-  @impl true
+  @impl Oban.Worker
   def perform(_) do
     Devices.clean_connection_states()
     Connections.clean_stale_connections()

@@ -12,14 +12,13 @@ defmodule NervesHub.Devices do
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
-  alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceHealth
-  alias NervesHub.Devices.DeviceMetric
-  alias NervesHub.Devices.SharedSecretAuth
+  alias NervesHub.Devices.Filtering
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Extensions
   alias NervesHub.Firmwares
@@ -91,7 +90,7 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p, dp], f in assoc(dp, :firmware))
     |> Repo.exclude_deleted()
     |> order_by(^sort_devices(sorting))
-    |> filtering(filters)
+    |> Filtering.build_filters(filters)
     |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
     |> Connections.preload_latest_connection()
     |> Flop.run(flop)
@@ -128,7 +127,7 @@ defmodule NervesHub.Devices do
     |> where([d], d.product_id == ^product_id)
     |> Connections.preload_latest_connection()
     |> Repo.exclude_deleted()
-    |> filtering(filters)
+    |> Filtering.build_filters(filters)
     |> order_by(^sort_devices(sorting))
     |> Flop.run(flop)
     |> then(fn {entries, meta} ->
@@ -180,7 +179,7 @@ defmodule NervesHub.Devices do
 
     query
     |> Repo.exclude_deleted()
-    |> filtering(filters)
+    |> Filtering.build_filters(filters)
     |> Repo.all()
     |> Enum.reduce(%{max_cpu: 0, max_memory_percent: 0, max_load_15: 0}, fn health, acc ->
       case Enum.at(health, 1) do
@@ -211,115 +210,6 @@ defmodule NervesHub.Devices do
     do: {:desc_nulls_last, :connection_last_seen_at}
 
   defp sort_devices(sort), do: sort
-
-  defp filtering(query, filters) do
-    Enum.reduce(filters, query, fn {key, value}, query ->
-      case {key, value} do
-        # Filter values are empty strings as default,
-        # they should be ignored.
-        {_, ""} ->
-          query
-
-        {:alarm, value} ->
-          where(query, [d], d.id in subquery(Alarms.query_devices_with_alarm(value)))
-
-        {:alarm_status, "with"} ->
-          where(query, [d], d.id in subquery(Alarms.query_devices_with_alarms()))
-
-        {:alarm_status, "without"} ->
-          where(query, [d], d.id not in subquery(Alarms.query_devices_with_alarms()))
-
-        {:connection, "not_seen"} ->
-          where(query, [d], d.status == :registered)
-
-        {:connection, value} ->
-          where(
-            query,
-            [d],
-            d.id in subquery(Connections.query_devices_with_connection_status(value))
-          )
-
-        {:connection_type, value} ->
-          where(query, [d], ^value in d.connection_types)
-
-        {:firmware_version, value} ->
-          where(query, [d], d.firmware_metadata["version"] == ^value)
-
-        {:platform, "Unknown"} ->
-          where(query, [d], is_nil(d.firmware_metadata["platform"]))
-
-        {:platform, value} ->
-          where(query, [d], d.firmware_metadata["platform"] == ^value)
-
-        {:updates, "enabled"} ->
-          where(query, [d], d.updates_enabled == true)
-
-        {:updates, "penalty-box"} ->
-          where(query, [d], d.updates_blocked_until > fragment("now() at time zone 'utc'"))
-
-        {:updates, "disabled"} ->
-          where(query, [d], d.updates_enabled == false)
-
-        {:device_id, value} ->
-          where(query, [d], ilike(d.identifier, ^"%#{value}%"))
-
-        {:tag, value} ->
-          case NervesHub.Types.Tag.cast(value) do
-            {:ok, tags} ->
-              Enum.reduce(tags, query, fn tag, query ->
-                where(
-                  query,
-                  [d],
-                  fragment("string_array_to_string(?, ' ', ' ') ILIKE ?", d.tags, ^"%#{tag}%")
-                )
-              end)
-
-            {:error, _} ->
-              query
-          end
-
-        {:has_no_tags, value} ->
-          if value do
-            where(query, [d], fragment("array_length(?, 1) = 0 or ? IS NULL", d.tags, d.tags))
-          else
-            query
-          end
-
-        {:metrics_value, _value} ->
-          filter_on_metric(query, filters)
-
-        # Ignore any undefined filter.
-        # This will prevent error 500 responses on deprecated saved bookmarks etc.
-        _ ->
-          query
-      end
-    end)
-  end
-
-  defp filter_on_metric(
-         query,
-         %{metrics_key: key, metrics_operator: operator, metrics_value: value}
-       )
-       when key != "" do
-    {value_as_float, _} = Float.parse(value)
-
-    query
-    |> join(:inner, [d], m in DeviceMetric, on: d.id == m.device_id)
-    |> where([_, m], m.inserted_at == subquery(latest_metric_for_key(key)))
-    |> where([d, m], m.key == ^key)
-    |> gt_or_lt(value_as_float, operator)
-  end
-
-  defp filter_on_metric(query, _), do: query
-
-  defp latest_metric_for_key(key) do
-    DeviceMetric
-    |> select([dm], max(dm.inserted_at))
-    |> where([dm], dm.key == ^key)
-  end
-
-  defp gt_or_lt(query, value, "gt"), do: where(query, [_, dm], dm.value > ^value)
-  defp gt_or_lt(query, value, "lt"), do: where(query, [_, dm], dm.value < ^value)
 
   def get_device_count_by_org_id(org_id) do
     q =

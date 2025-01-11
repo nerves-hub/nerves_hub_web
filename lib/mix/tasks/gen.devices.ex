@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Gen.Devices do
+  @moduledoc false
+
   use Mix.Task
 
   @shortdoc "Generate a mass of devices"

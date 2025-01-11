@@ -9,17 +9,18 @@ defmodule NervesHub.Products do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.User
   alias NervesHub.Extensions
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
-  alias NervesHub.Accounts.User
+  alias NervesHub.Workers.FirmwareDeltaBuilder
 
   alias NimbleCSV.RFC4180, as: CSV
 
   @csv_certs_sep "\n\n"
   @csv_header ["identifier", "description", "tags", "product", "org", "certificates"]
 
-  def __csv_header__, do: @csv_header
+  def __csv_header__(), do: @csv_header
 
   @spec get_products_by_user_and_org(User.t(), Org.t()) :: [Product.t()]
   def get_products_by_user_and_org(%User{id: user_id}, %Org{id: org_id}) do
@@ -136,7 +137,7 @@ defmodule NervesHub.Products do
     NervesHub.Devices.get_device_firmware_for_delta_generation_by_product(product.id)
     |> Enum.uniq()
     |> Enum.each(fn {source_id, target_id} ->
-      NervesHub.Workers.FirmwareDeltaBuilder.start(source_id, target_id)
+      FirmwareDeltaBuilder.start(source_id, target_id)
     end)
   end
 

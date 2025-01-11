@@ -6,7 +6,6 @@ defmodule NervesHubWeb.Live.Deployments.Show do
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices
   alias NervesHub.Firmwares.Firmware
-  alias NervesHub.Repo
 
   alias NervesHubWeb.Components.AuditLogFeed
 
@@ -140,7 +139,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
   end
 
   defp firmware_summary(%Deployment{firmware: %Ecto.Association.NotLoaded{}} = deployment) do
-    Repo.preload(deployment, [:firmware])
+    Deployments.preload_firmware_and_archive(deployment)
     |> firmware_summary()
   end
 

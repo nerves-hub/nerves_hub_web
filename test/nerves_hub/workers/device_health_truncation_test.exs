@@ -1,8 +1,8 @@
 defmodule NervesHub.Workers.DeviceHealthTruncationTest do
   use NervesHub.DataCase
 
-  alias NervesHub.Fixtures
   alias NervesHub.Devices
+  alias NervesHub.Fixtures
   alias NervesHub.Workers.DeviceHealthTruncation
 
   test "delete device health and metrics entries older than 7 days", %{tmp_dir: dir} do

@@ -26,44 +26,7 @@ defmodule NervesHubWeb.DynamicTemplateRenderer do
         :ok
 
       {false, [template]} ->
-        ext = template |> Path.extname() |> String.trim_leading(".") |> String.to_atom()
-        engine = Map.fetch!(Phoenix.Template.engines(), ext)
-        ast = engine.compile(template, filename)
-
-        new_filename = template_filename(module, "-new")
-        new_templates = Phoenix.Template.find_all(root, new_filename)
-
-        case new_templates do
-          [new_template] ->
-            Logger.info("Found New UI page: #{new_template}")
-
-            new_ext =
-              new_template |> Path.extname() |> String.trim_leading(".") |> String.to_atom()
-
-            new_engine = Map.fetch!(Phoenix.Template.engines(), new_ext)
-            new_ast = new_engine.compile(new_template, filename)
-
-            quote do
-              @file unquote(template)
-              @external_resource unquote(template)
-              def render(var!(assigns)) when is_map(var!(assigns)) do
-                if Application.get_env(:nerves_hub, :new_ui) && var!(assigns)[:new_ui] do
-                  unquote(new_ast)
-                else
-                  unquote(ast)
-                end
-              end
-            end
-
-          _ ->
-            quote do
-              @file unquote(template)
-              @external_resource unquote(template)
-              def render(var!(assigns)) when is_map(var!(assigns)) do
-                unquote(ast)
-              end
-            end
-        end
+        custom_multi_template_processing(template, filename, module, root)
 
       {false, [_ | _]} ->
         IO.warn(
@@ -78,6 +41,47 @@ defmodule NervesHubWeb.DynamicTemplateRenderer do
 
         quote do
           @external_resource unquote(template)
+        end
+    end
+  end
+
+  defp custom_multi_template_processing(template, filename, module, root) do
+    ext = template |> Path.extname() |> String.trim_leading(".") |> String.to_atom()
+    engine = Map.fetch!(Phoenix.Template.engines(), ext)
+    ast = engine.compile(template, filename)
+
+    new_filename = template_filename(module, "-new")
+    new_templates = Phoenix.Template.find_all(root, new_filename)
+
+    case new_templates do
+      [new_template] ->
+        Logger.info("Found New UI page: #{new_template}")
+
+        new_ext =
+          new_template |> Path.extname() |> String.trim_leading(".") |> String.to_atom()
+
+        new_engine = Map.fetch!(Phoenix.Template.engines(), new_ext)
+        new_ast = new_engine.compile(new_template, filename)
+
+        quote do
+          @file unquote(template)
+          @external_resource unquote(template)
+          def render(var!(assigns)) when is_map(var!(assigns)) do
+            if Application.get_env(:nerves_hub, :new_ui) && var!(assigns)[:new_ui] do
+              unquote(new_ast)
+            else
+              unquote(ast)
+            end
+          end
+        end
+
+      _ ->
+        quote do
+          @file unquote(template)
+          @external_resource unquote(template)
+          def render(var!(assigns)) when is_map(var!(assigns)) do
+            unquote(ast)
+          end
         end
     end
   end

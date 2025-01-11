@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Assets.Build do
+  @moduledoc false
+
   use Mix.Task
 
   @shortdoc "Build web assets"
@@ -10,7 +12,8 @@ defmodule Mix.Tasks.Assets.Build do
       ["run", "deploy"],
       cd: @assets,
       stderr_to_stdout: true,
-      into: IO.stream(:stdio, :line)
+      into: IO.stream(:stdio, :line),
+      env: []
     )
   end
 end

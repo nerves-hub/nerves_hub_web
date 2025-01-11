@@ -3,7 +3,8 @@ defmodule NervesHub.Accounts.OrgUser do
 
   import Ecto.Query
 
-  alias NervesHub.Accounts.{User, Org}
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.User
 
   @type t :: %__MODULE__{}
 

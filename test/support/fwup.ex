@@ -13,6 +13,8 @@ defmodule NervesHub.Support.Fwup do
   """
 
   defmodule MetaParams do
+    @moduledoc false
+
     defstruct product: "nerves-hub",
               description: "D",
               version: "1.0.0",
@@ -22,6 +24,8 @@ defmodule NervesHub.Support.Fwup do
   end
 
   defmodule InvalidMetaParams do
+    @moduledoc false
+
     defstruct description: "D",
               version: "1.0.0",
               platform: "platform",
@@ -38,7 +42,7 @@ defmodule NervesHub.Support.Fwup do
   def gen_key_pair(key_name, dir \\ System.tmp_dir()) do
     key_path_no_extension = Path.join([dir, key_name])
 
-    _ = System.cmd("fwup", ["-g", "-o", key_path_no_extension], stderr_to_stdout: true)
+    _ = System.cmd("fwup", ["-g", "-o", key_path_no_extension], stderr_to_stdout: true, env: [])
 
     :ok
   end
@@ -58,13 +62,17 @@ defmodule NervesHub.Support.Fwup do
     out_path = Path.join([dir, firmware_name <> ".fw"])
 
     {_, 0} =
-      System.cmd("fwup", [
-        "-c",
-        "-f",
-        conf_path,
-        "-o",
-        out_path
-      ])
+      System.cmd(
+        "fwup",
+        [
+          "-c",
+          "-f",
+          conf_path,
+          "-o",
+          out_path
+        ],
+        env: []
+      )
 
     {:ok, out_path}
   end
@@ -77,13 +85,17 @@ defmodule NervesHub.Support.Fwup do
     out_path = Path.join([dir, firmware_name <> ".fw"])
 
     {_, 0} =
-      System.cmd("fwup", [
-        "-c",
-        "-f",
-        conf_path,
-        "-o",
-        out_path
-      ])
+      System.cmd(
+        "fwup",
+        [
+          "-c",
+          "-f",
+          conf_path,
+          "-o",
+          out_path
+        ],
+        env: []
+      )
 
     {:ok, out_path}
   end
@@ -107,7 +119,8 @@ defmodule NervesHub.Support.Fwup do
           "-o",
           output_path
         ],
-        stderr_to_stdout: true
+        stderr_to_stdout: true,
+        env: []
       )
 
     {:ok, output_path}
@@ -130,7 +143,8 @@ defmodule NervesHub.Support.Fwup do
 
     {_, 0} =
       System.cmd("dd", ["if=" <> input_path, "of=" <> output_path, "bs=256", "count=1"],
-        stderr_to_stdout: true
+        stderr_to_stdout: true,
+        env: []
       )
 
     {:ok, output_path}

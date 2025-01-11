@@ -3,8 +3,8 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
 
   import Swoosh.TestAssertions
 
-  alias NervesHub.Fixtures
   alias NervesHub.Accounts
+  alias NervesHub.Fixtures
 
   setup context do
     org = Fixtures.org_fixture(context.user, %{name: "api_test"})

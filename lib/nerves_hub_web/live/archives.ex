@@ -1,7 +1,8 @@
 defmodule NervesHubWeb.Live.Archives do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.{Accounts, Archives}
+  alias NervesHub.Accounts
+  alias NervesHub.Archives
 
   embed_templates("archive_templates/*")
 

@@ -3,7 +3,8 @@ defmodule NervesHubWeb.AccountController do
 
   alias Ecto.Changeset
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.{User, SwooshEmail}
+  alias NervesHub.Accounts.SwooshEmail
+  alias NervesHub.Accounts.User
   alias NervesHub.SwooshMailer
 
   plug(:registrations_allowed when action in [:new, :create])

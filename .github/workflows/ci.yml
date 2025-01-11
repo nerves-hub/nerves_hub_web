@@ -92,6 +92,9 @@ jobs:
       - name: Check for unused dependencies
         run: mix deps.unlock --unused
 
+      - name: Run Credo (won't fail the build)
+        run: mix credo --mute-exit-status
+
       - name: DB Setup
         run: mix ecto.migrate.reset
 

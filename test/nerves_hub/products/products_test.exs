@@ -1,8 +1,9 @@
 defmodule NervesHub.ProductsTest do
   use NervesHub.DataCase, async: true
 
+  alias NervesHub.Accounts
   alias NervesHub.Fixtures
-  alias NervesHub.{Products, Accounts}
+  alias NervesHub.Products
 
   describe "products" do
     alias NervesHub.Products.Product

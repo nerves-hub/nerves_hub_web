@@ -2,8 +2,8 @@ defmodule NervesHubWeb.API.ScriptController do
   use NervesHubWeb, :controller
 
   alias NervesHub.Accounts
-  alias NervesHub.Scripts
   alias NervesHub.Devices
+  alias NervesHub.Scripts
 
   def index(conn, %{"identifier" => identifier}) do
     %{user: user} = conn.assigns

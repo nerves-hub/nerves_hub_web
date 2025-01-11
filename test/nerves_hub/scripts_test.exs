@@ -1,8 +1,8 @@
 defmodule NervesHub.ScriptsTest do
   use NervesHub.DataCase
 
-  alias NervesHub.Scripts
   alias NervesHub.Fixtures
+  alias NervesHub.Scripts
 
   setup do
     user = Fixtures.user_fixture()

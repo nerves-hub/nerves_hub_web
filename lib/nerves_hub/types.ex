@@ -2,7 +2,7 @@ defmodule NervesHub.Types do
   defmodule Tag do
     @behaviour Ecto.Type
 
-    def type, do: {:array, :string}
+    def type(), do: {:array, :string}
 
     def embed_as(_), do: :self
 
@@ -33,7 +33,7 @@ defmodule NervesHub.Types do
   defmodule Resource do
     @behaviour Ecto.Type
 
-    def type, do: :string
+    def type(), do: :string
 
     def embed_as(_), do: :self
 
@@ -69,7 +69,7 @@ defmodule NervesHub.Types do
 
     def load(resource), do: {:ok, String.to_existing_atom(resource)}
 
-    defp allowed_resources do
+    defp allowed_resources() do
       [
         "Elixir.NervesHub.Accounts.Org",
         "Elixir.NervesHub.Accounts.User",

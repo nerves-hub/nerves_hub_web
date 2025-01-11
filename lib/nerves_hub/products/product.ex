@@ -5,12 +5,12 @@ defmodule NervesHub.Products.Product do
   alias NervesHub.Accounts.Org
   alias NervesHub.Archives.Archive
   alias NervesHub.Deployments.Deployment
-  alias NervesHub.Scripts.Script
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Extensions.ProductExtensionsSetting
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.SharedSecretAuth
+  alias NervesHub.Scripts.Script
 
   @required_params [:name, :org_id]
   @optional_params [:delta_updatable]

@@ -4,7 +4,7 @@ defmodule NervesHub.Application do
   require Logger
 
   def start(_type, _args) do
-    case System.cmd("fwup", ["--version"]) do
+    case System.cmd("fwup", ["--version"], env: []) do
       {_, 0} ->
         Logger.debug("fwup was found")
 

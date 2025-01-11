@@ -1,6 +1,8 @@
 defmodule NervesHub.DevicesTest do
   use NervesHub.DataCase, async: false
 
+  alias Ecto.Changeset
+
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments
   alias NervesHub.Devices
@@ -9,8 +11,8 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.Products
+
   alias NervesHub.Repo
-  alias Ecto.Changeset
 
   @valid_fwup_version "1.10.0"
 

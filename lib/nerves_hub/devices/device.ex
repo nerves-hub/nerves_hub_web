@@ -4,10 +4,10 @@ defmodule NervesHub.Devices.Device do
   import Ecto.Changeset
 
   alias NervesHub.Accounts.Org
+  alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceMetric
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Extensions.DeviceExtensionsSetting
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Products.Product

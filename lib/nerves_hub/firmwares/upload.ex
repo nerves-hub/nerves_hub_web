@@ -6,8 +6,9 @@ defmodule NervesHub.Firmwares.Upload do
   @typedoc "Metadata about the file upload."
   @type upload_metadata :: map()
 
-  alias NervesHub.Firmwares.{Firmware, FirmwareDelta}
   alias NervesHub.Accounts.Org
+  alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.FirmwareDelta
 
   @doc """
   Called to upload a file to where it needs to live.

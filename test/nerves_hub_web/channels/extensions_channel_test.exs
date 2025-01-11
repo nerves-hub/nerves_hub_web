@@ -2,8 +2,8 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   use NervesHubWeb.ChannelCase
   use DefaultMocks
 
-  alias NervesHub.Products
   alias NervesHub.Fixtures
+  alias NervesHub.Products
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel

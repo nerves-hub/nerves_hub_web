@@ -1,8 +1,8 @@
 defmodule NervesHubWeb.Live.SupportScriptsTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
-  alias NervesHub.Scripts
   alias NervesHub.Fixtures
+  alias NervesHub.Scripts
 
   setup %{user: user, org: org} do
     [product: Fixtures.product_fixture(user, org, %{name: "Amazing"})]

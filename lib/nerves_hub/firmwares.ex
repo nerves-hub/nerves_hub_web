@@ -2,16 +2,19 @@ defmodule NervesHub.Firmwares do
   import Ecto.Query
 
   alias Ecto.Changeset
-  alias NervesHub.Accounts.OrgKey
+
   alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgKey
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
-  alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareDelta
+  alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareTransfer
   alias NervesHub.Fwup
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHub.Workers.DeleteFirmware
+
   alias NervesHub.Repo
 
   require Logger
@@ -157,7 +160,7 @@ defmodule NervesHub.Firmwares do
 
     do_delete_from_s3 = fn ->
       firmware.upload_metadata
-      |> NervesHub.Workers.DeleteFirmware.new()
+      |> DeleteFirmware.new()
       |> Oban.insert()
     end
 
@@ -180,7 +183,7 @@ defmodule NervesHub.Firmwares do
   def verify_signature(filepath, keys) when is_binary(filepath) do
     signed_key =
       Enum.find(keys, fn %{key: key} ->
-        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath]) do
+        case System.cmd("fwup", ["--verify", "--public-key", key, "-i", filepath], env: []) do
           {_, 0} ->
             true
 

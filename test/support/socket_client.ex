@@ -1,4 +1,6 @@
 defmodule SocketClient do
+  @moduledoc false
+
   use Slipstream, restart: :temporary
 
   def start_link(args) do
@@ -103,7 +105,7 @@ defmodule SocketClient do
     end
   end
 
-  @impl true
+  @impl Slipstream
   def init(config) do
     Process.flag(:trap_exit, true)
 
@@ -126,7 +128,7 @@ defmodule SocketClient do
     {:ok, socket}
   end
 
-  @impl true
+  @impl Slipstream
   def handle_connect(socket) do
     socket =
       socket
@@ -136,7 +138,7 @@ defmodule SocketClient do
     {:ok, socket}
   end
 
-  @impl true
+  @impl Slipstream
   def handle_join("device", reply, socket) do
     socket =
       socket
@@ -155,7 +157,7 @@ defmodule SocketClient do
     {:ok, socket}
   end
 
-  @impl true
+  @impl Slipstream
   def handle_message("device", "extensions:get", _message, socket) do
     {:ok, socket}
   end
@@ -186,7 +188,7 @@ defmodule SocketClient do
     {:ok, socket}
   end
 
-  @impl true
+  @impl Slipstream
   def handle_call(:connected?, _from, socket) do
     {:reply, socket.assigns.connected?, socket}
   end

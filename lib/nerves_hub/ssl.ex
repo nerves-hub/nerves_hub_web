@@ -1,6 +1,10 @@
 defmodule NervesHub.SSL do
-  alias NervesHub.Devices
+  @moduledoc """
+  Custom SSL peer cert verification for Devices.
+  """
+
   alias NervesHub.Certificate
+  alias NervesHub.Devices
 
   @type pkix_path_validation_reason ::
           :cert_expired

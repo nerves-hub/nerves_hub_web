@@ -4,7 +4,7 @@ defmodule NervesHub.Extensions.Geo do
   alias NervesHub.Devices
 
   @impl NervesHub.Extensions
-  def description do
+  def description() do
     """
     Reporting of GeoIP information or custom geo-location information sources
     you've set up for your device.

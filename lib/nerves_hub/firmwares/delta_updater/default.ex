@@ -48,7 +48,7 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
 
   @impl NervesHub.Firmwares.DeltaUpdater
   def delta_updatable?(file_path) do
-    {meta, 0} = System.cmd("unzip", ["-qqp", file_path, "meta.conf"])
+    {meta, 0} = System.cmd("unzip", ["-qqp", file_path, "meta.conf"], env: [])
 
     (meta =~ "delta-source-raw-offset" && meta =~ "delta-source-raw-count") or
       (meta =~ "delta-source-fat-offset" && meta =~ "delta-source-fat-path")
@@ -65,8 +65,8 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
     _ = File.mkdir_p(target_work_dir)
     _ = File.mkdir_p(output_work_dir)
 
-    {_, 0} = System.cmd("unzip", ["-qq", source_path, "-d", source_work_dir])
-    {_, 0} = System.cmd("unzip", ["-qq", target_path, "-d", target_work_dir])
+    {_, 0} = System.cmd("unzip", ["-qq", source_path, "-d", source_work_dir], env: [])
+    {_, 0} = System.cmd("unzip", ["-qq", target_path, "-d", target_work_dir], env: [])
 
     _ =
       for absolute <- Path.wildcard(target_work_dir <> "/**"), not File.dir?(absolute) do
@@ -97,7 +97,7 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
                   output_path
                 ]
 
-                {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true)
+                {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true, env: [])
 
               {:error, :enoent} ->
                 File.cp!(target_filepath, output_path)
@@ -129,7 +129,7 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
 
       paths ->
         args = ["-r", "-qq", output | Enum.map(paths, &Path.relative_to(&1, workdir))]
-        {_, 0} = System.cmd("zip", args, cd: workdir)
+        {_, 0} = System.cmd("zip", args, cd: workdir, env: [])
 
         :ok
     end

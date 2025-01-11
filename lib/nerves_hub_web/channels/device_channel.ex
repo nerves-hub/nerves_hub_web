@@ -22,11 +22,12 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.join")
   def join("device", params, %{assigns: %{device: device}} = socket) do
-    with {:ok, device} <- update_metadata(device, params) do
-      send(self(), {:after_join, params})
+    case update_metadata(device, params) do
+      {:ok, device} ->
+        send(self(), {:after_join, params})
 
-      {:ok, assign(socket, :device, device)}
-    else
+        {:ok, assign(socket, :device, device)}
+
       err ->
         Logger.warning("[DeviceChannel] failure to connect - #{inspect(err)}")
         {:error, %{error: "could not connect"}}
@@ -65,7 +66,7 @@ defmodule NervesHubWeb.DeviceChannel do
     # Request device extension capabilities if possible
     # Earlier versions of nerves_hub_link don't have a fallback for unknown messages,
     # so check version before requesting extensions
-    if is_safe_to_request_extensions?(socket.assigns.device_api_version),
+    if safe_to_request_extensions?(socket.assigns.device_api_version),
       do: push(socket, "extensions:get", %{}),
       else: Templates.audit_unsupported_api_version(device)
 
@@ -484,5 +485,5 @@ defmodule NervesHubWeb.DeviceChannel do
     socket
   end
 
-  defp is_safe_to_request_extensions?(version), do: Version.match?(version, ">= 2.2.0")
+  defp safe_to_request_extensions?(version), do: Version.match?(version, ">= 2.2.0")
 end

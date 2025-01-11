@@ -15,7 +15,7 @@ defmodule NervesHubWeb.API.Plugs.User do
         assign(conn, :user, user)
 
       _error ->
-        raise NervesHubWeb.Unauthorized
+        raise NervesHubWeb.UnauthorizedError
     end
   end
 

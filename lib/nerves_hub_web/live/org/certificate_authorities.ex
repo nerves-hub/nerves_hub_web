@@ -1,12 +1,15 @@
 defmodule NervesHubWeb.Live.Org.CertificateAuthorities do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.{Devices, Certificate}
+  alias NervesHub.Certificate
+  alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.CACertificate.CSR
   alias NervesHub.Products
+
+  alias NervesHubWeb.Components.CAHelpers
+  alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.LayoutView.DateTimeFormat
-  alias NervesHubWeb.Components.{CAHelpers, Utils}
 
   embed_templates("certificate_authority_templates/*")
 

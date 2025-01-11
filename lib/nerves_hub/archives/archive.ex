@@ -4,8 +4,8 @@ defmodule NervesHub.Archives.Archive do
   import Ecto.Changeset
 
   alias NervesHub.Accounts.OrgKey
-  alias NervesHub.Products.Product
   alias NervesHub.Fwup.Metadata
+  alias NervesHub.Products.Product
 
   @type t :: %__MODULE__{
           architecture: String.t(),

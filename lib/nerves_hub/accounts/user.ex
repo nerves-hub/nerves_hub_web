@@ -4,12 +4,15 @@ defmodule NervesHub.Accounts.User do
   import Ecto.Changeset
   import Ecto.Query
 
-  alias NervesHub.Accounts.{OrgUser, UserToken}
+  alias NervesHub.Accounts.OrgUser
+  alias NervesHub.Accounts.UserToken
+
   alias NervesHub.Repo
 
   alias Ecto.Changeset
-  alias __MODULE__
   alias Ecto.UUID
+
+  alias __MODULE__
 
   @type t :: %__MODULE__{}
 
@@ -177,7 +180,7 @@ defmodule NervesHub.Accounts.User do
   The time length that a password reset token is valid.
   Passed to Timex.shift, so it just has to be a keyword list with :minutes, :hours, etc.
   """
-  def password_reset_window do
+  def password_reset_window() do
     [hours: 8]
   end
 

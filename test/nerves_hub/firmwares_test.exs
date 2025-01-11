@@ -1,17 +1,15 @@
 defmodule NervesHub.FirmwaresTest do
   use NervesHub.DataCase, async: true
 
-  alias NervesHub.{
-    Firmwares,
-    Firmwares.Firmware,
-    Repo,
-    Fixtures,
-    Support.Fwup,
-    DeltaUpdaterMock,
-    UploadMock
-  }
-
   alias Ecto.Changeset
+
+  alias NervesHub.DeltaUpdaterMock
+  alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Fixtures
+  alias NervesHub.Repo
+  alias NervesHub.Support.Fwup
+  alias NervesHub.UploadMock
 
   setup context do
     Mox.verify_on_exit!(context)

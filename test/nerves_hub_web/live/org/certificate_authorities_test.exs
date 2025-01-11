@@ -1,8 +1,9 @@
 defmodule NervesHubWeb.Live.Org.CertificateAuthoritiesTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
+  alias NervesHub.Certificate
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
-  alias NervesHub.{Certificate, Devices}
   alias NervesHubWeb.Components.Utils
 
   describe "index" do

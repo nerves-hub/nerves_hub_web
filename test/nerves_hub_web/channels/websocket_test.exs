@@ -7,13 +7,13 @@ defmodule NervesHubWeb.WebsocketTest do
 
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
-  alias NervesHub.Fixtures
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHub.Repo
   alias NervesHubWeb.DeviceEndpoint

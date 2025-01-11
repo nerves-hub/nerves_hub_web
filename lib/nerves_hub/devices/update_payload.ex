@@ -3,8 +3,8 @@ defmodule NervesHub.Devices.UpdatePayload do
   This struct represents the payload that gets dispatched to devices
   """
 
-  alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Firmwares.FirmwareMetadata
 
   @derive {Jason.Encoder,
            only: [

@@ -1,13 +1,15 @@
 defmodule NervesHub.Fixtures do
+  @moduledoc false
+
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Archives
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
+  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.InflightUpdate
-  alias NervesHub.Deployments
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHub.Products.Product
@@ -288,7 +290,7 @@ defmodule NervesHub.Fixtures do
   end
 
   defp openssl(args, dir) do
-    {_, 0} = System.cmd("openssl", args, cd: dir, stderr_to_stdout: true)
+    {_, 0} = System.cmd("openssl", args, cd: dir, stderr_to_stdout: true, env: [])
     :ok
   end
 
@@ -436,11 +438,11 @@ defmodule NervesHub.Fixtures do
     }
   end
 
-  defp counter do
+  defp counter() do
     System.unique_integer([:positive])
   end
 
-  defp counter_in_alpha do
+  defp counter_in_alpha() do
     counter()
     |> Integer.to_string()
     |> String.split("")

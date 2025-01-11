@@ -3,8 +3,9 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
 
   import Swoosh.TestAssertions
 
-  alias NervesHub.Fixtures
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.SwooshEmail
+  alias NervesHub.Fixtures
 
   describe "new password_reset" do
     test "renders form", %{conn: conn} do
@@ -24,7 +25,7 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
       assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
 
       {:ok, updated_user} = Accounts.get_user(user.id)
-      assert_email_sent(NervesHub.Accounts.SwooshEmail.forgot_password(updated_user))
+      assert_email_sent(SwooshEmail.forgot_password(updated_user))
     end
 
     test "with invalid params", %{conn: conn} do

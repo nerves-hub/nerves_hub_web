@@ -1,9 +1,9 @@
 defmodule NervesHubWeb.API.KeyControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
+  alias NervesHub.Accounts
   alias NervesHub.Fixtures
   alias NervesHub.Support.Fwup
-  alias NervesHub.Accounts
 
   describe "index" do
     test "lists all keys", %{conn: conn, org: org} do

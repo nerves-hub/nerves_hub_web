@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Components.Navigation do
   use NervesHubWeb, :component
 
+  alias NervesHub.Accounts.User
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Products.Product
@@ -297,7 +298,7 @@ defmodule NervesHubWeb.Components.Navigation do
          href: ~p"/org/#{assigns.org.name}"
        }
      ] ++
-       if assigns.org_user.role in NervesHub.Accounts.User.role_or_higher(:manage) do
+       if assigns.org_user.role in User.role_or_higher(:manage) do
          [
            %{
              title: "Signing Keys",

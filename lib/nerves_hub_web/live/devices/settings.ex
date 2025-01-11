@@ -151,7 +151,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
     {:ok, socket}
   end
 
-  defp extensions do
+  defp extensions() do
     for extension <- Extensions.list(),
         into: %{},
         do: {extension, Extensions.module(extension).description()}

@@ -1,13 +1,13 @@
 defmodule NervesHubWeb.Live.Dashboard.Index do
   use NervesHubWeb, :updated_live_view
 
+  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
-  alias NervesHub.Deployments
 
   alias Phoenix.Socket.Broadcast
 
-  @default_refresh 53000
+  @default_refresh 53_000
   @delay 500
 
   @impl Phoenix.LiveView
@@ -67,9 +67,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
   defp subscribe_to_devices(socket, devices) do
     if connected?(socket) do
       Enum.each(devices, fn device ->
-        if not subscribed?(device) do
-          socket.endpoint.subscribe("device:#{device.identifier}:internal")
-        end
+        maybe_subscribe(socket, device)
       end)
     end
   end
@@ -78,6 +76,12 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     Registry.count_select(NervesHub.PubSub, [
       {{"device:#{device.identifier}:internal", self(), :_}, [], [true]}
     ]) > 0
+  end
+
+  defp maybe_subscribe(socket, device) do
+    if not subscribed?(device) do
+      socket.endpoint.subscribe("device:#{device.identifier}:internal")
+    end
   end
 
   defp update_devices_and_markers(%{assigns: %{org: org, product: product}} = socket) do
@@ -155,7 +159,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     :ok
   end
 
-  defp time do
+  defp time() do
     System.monotonic_time(:millisecond)
   end
 end

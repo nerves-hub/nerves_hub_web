@@ -1,5 +1,9 @@
 defmodule NervesHub.Support.Archives do
+  @moduledoc false
+
   defmodule MetaParams do
+    @moduledoc false
+
     defstruct product: "nerves-hub",
               description: "Manifest",
               version: "1.0.0",
@@ -22,13 +26,17 @@ defmodule NervesHub.Support.Archives do
     out_path = Path.join([dir, archive_name <> ".fw"])
 
     {_, 0} =
-      System.cmd("fwup", [
-        "-c",
-        "-f",
-        conf_path,
-        "-o",
-        out_path
-      ])
+      System.cmd(
+        "fwup",
+        [
+          "-c",
+          "-f",
+          conf_path,
+          "-o",
+          out_path
+        ],
+        env: []
+      )
 
     {:ok, out_path}
   end
@@ -52,7 +60,8 @@ defmodule NervesHub.Support.Archives do
           "-o",
           output_path
         ],
-        stderr_to_stdout: true
+        stderr_to_stdout: true,
+        env: []
       )
 
     {:ok, output_path}

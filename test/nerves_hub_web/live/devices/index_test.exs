@@ -4,8 +4,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   alias NervesHub.Devices
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Fixtures
-  alias NervesHubWeb.Endpoint
+
   alias NervesHub.Repo
+
+  alias NervesHubWeb.Endpoint
 
   setup %{fixture: %{device: device}} do
     Endpoint.subscribe("device:#{device.id}")
