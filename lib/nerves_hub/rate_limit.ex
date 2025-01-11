@@ -28,7 +28,7 @@ defmodule NervesHub.RateLimit do
     GenServer.start_link(__MODULE__, [])
   end
 
-  @impl true
+  @impl GenServer
   def init(_) do
     state = %{
       ets_key: :nerves_hub_rate_limit
@@ -48,7 +48,7 @@ defmodule NervesHub.RateLimit do
     {:ok, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_info(:prune, state) do
     minute_ago =
       DateTime.utc_now()

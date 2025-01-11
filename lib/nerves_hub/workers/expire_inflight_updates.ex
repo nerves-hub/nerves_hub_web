@@ -13,7 +13,7 @@ defmodule NervesHub.Workers.ExpireInflightUpdates do
 
   alias NervesHub.Devices
 
-  @impl true
+  @impl Oban.Worker
   def perform(_) do
     {count, _} = Devices.delete_expired_inflight_updates()
 

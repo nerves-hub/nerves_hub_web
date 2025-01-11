@@ -5,7 +5,7 @@ defmodule NervesHub.Workers.ScheduleOrgAuditLogTruncation do
   alias NervesHub.Accounts
   alias NervesHub.Workers.OrgAuditLogTruncation
 
-  @impl true
+  @impl Oban.Worker
   def perform(_) do
     if enabled?() do
       orgs = Accounts.get_orgs()

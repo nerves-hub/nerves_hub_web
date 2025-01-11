@@ -3,7 +3,7 @@ defmodule NervesHub.Workers.OrgAuditLogTruncation do
     max_attempts: 5,
     queue: :truncate
 
-  @impl true
+  @impl Oban.Worker
   def perform(%Oban.Job{args: %{"org_id" => id, "days_to_keep" => days_to_keep}}) do
     {:ok, _} = NervesHub.AuditLogs.truncate(id, days_to_keep)
 
