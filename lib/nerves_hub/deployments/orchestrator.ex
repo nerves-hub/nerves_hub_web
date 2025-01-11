@@ -13,11 +13,13 @@ defmodule NervesHub.Deployments.Orchestrator do
 
   require Logger
 
-  alias NervesHub.Devices
-  alias NervesHub.Devices.Device
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Device
+
   alias NervesHub.Repo
+
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
