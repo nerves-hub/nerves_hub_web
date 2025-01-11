@@ -1,11 +1,16 @@
 defmodule NervesHub.Devices.DeviceCertificate do
   use Ecto.Schema
+
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
 
   alias NervesHub.Accounts.Org
-  alias NervesHub.{Certificate, Devices, Repo}
-  alias NervesHub.Devices.{Device, DeviceCertificate}
+  alias NervesHub.Certificate
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceCertificate
+
+  alias NervesHub.Repo
 
   @type t :: %__MODULE__{}
 

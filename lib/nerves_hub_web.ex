@@ -162,7 +162,8 @@ defmodule NervesHubWeb do
         root: "lib/nerves_hub_web/templates",
         namespace: NervesHubWeb
 
-      alias NervesHubWeb.{DeviceLive, Endpoint}
+      alias NervesHubWeb.DeviceLive
+      alias NervesHubWeb.Endpoint
 
       alias NervesHubWeb.Components.Navigation
 

@@ -1,7 +1,9 @@
 defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
   use NervesHubWeb.APIConnCase, async: true
 
-  alias NervesHub.{Certificate, Devices, Fixtures}
+  alias NervesHub.Certificate
+  alias NervesHub.Devices
+  alias NervesHub.Fixtures
 
   setup %{org: org, product: product} do
     identifier = "device-1234"

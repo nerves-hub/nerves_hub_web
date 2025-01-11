@@ -3,7 +3,8 @@ defmodule NervesHub.Accounts.EmailTest do
 
   import Swoosh.TestAssertions
 
-  alias NervesHub.Accounts.{SwooshEmail, User}
+  alias NervesHub.Accounts.SwooshEmail
+  alias NervesHub.Accounts.User
   alias NervesHub.EmailView
   alias NervesHub.SwooshMailer
 

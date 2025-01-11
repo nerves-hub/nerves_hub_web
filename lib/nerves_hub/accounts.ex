@@ -1,7 +1,8 @@
 defmodule NervesHub.Accounts do
   import Ecto.Query
 
-  alias Ecto.{Changeset, Multi}
+  alias Ecto.Changeset
+  alias Ecto.Multi
   alias Ecto.UUID
 
   alias NervesHub.Accounts.Invite

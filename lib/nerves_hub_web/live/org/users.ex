@@ -2,7 +2,9 @@ defmodule NervesHubWeb.Live.Org.Users do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.{Invite, Org, OrgUser}
+  alias NervesHub.Accounts.Invite
+  alias NervesHub.Accounts.Org
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.SwooshEmail
   alias NervesHub.SwooshMailer
   alias NervesHubWeb.Components.Utils

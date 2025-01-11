@@ -1,7 +1,8 @@
 defmodule NervesHubWeb.Live.Firmware do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.{Accounts, Firmwares}
+  alias NervesHub.Accounts
+  alias NervesHub.Firmwares
 
   embed_templates("firmware_templates/*")
 

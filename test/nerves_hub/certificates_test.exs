@@ -1,7 +1,8 @@
 defmodule NervesHub.CertificatesTest do
   use NervesHub.DataCase, async: true
 
-  alias NervesHub.{Certificate, Fixtures}
+  alias NervesHub.Certificate
+  alias NervesHub.Fixtures
 
   setup_all do
     cert =
