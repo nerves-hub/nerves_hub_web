@@ -348,6 +348,10 @@ if config_env() == :prod do
   end
 end
 
+# Set a default max firmware upload size of 200MB for all environments
+config :nerves_hub, NervesHub.Firmwares.Upload,
+  max_size: System.get_env("FIRMWARE_UPLOAD_MAX_SIZE", "200000000") |> String.to_integer()
+
 ##
 # SMTP settings.
 #
