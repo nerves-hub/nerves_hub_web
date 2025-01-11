@@ -71,11 +71,9 @@ defmodule NervesHubWeb.Endpoint do
 
   plug(
     Plug.Parsers,
-    parsers: [:urlencoded, :multipart, :json],
+    parsers: [:urlencoded, NervesHubWeb.DymanicConfigMultipart, :json],
     pass: ["*/*"],
-    # 1GB
-    length: 1_073_741_824,
-    json_decoder: Jason
+    json_decoder: Phoenix.json_library()
   )
 
   plug(Sentry.PlugContext)

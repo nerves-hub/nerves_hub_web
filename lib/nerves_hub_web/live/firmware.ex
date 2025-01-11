@@ -47,7 +47,7 @@ defmodule NervesHubWeb.Live.Firmware do
       accept: ~w(.fw),
       max_entries: 1,
       auto_upload: true,
-      max_file_size: 200_000_000,
+      max_file_size: max_file_size(),
       progress: &handle_progress/3
     )
     |> render_with(&upload_firmware_template/1)
@@ -193,5 +193,9 @@ defmodule NervesHubWeb.Live.Firmware do
   defp format_signed(%{org_key_id: org_key_id}, org_keys) do
     key = Enum.find(org_keys, &(&1.id == org_key_id))
     "#{key.name}"
+  end
+
+  defp max_file_size() do
+    Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload, [])[:max_size]
   end
 end

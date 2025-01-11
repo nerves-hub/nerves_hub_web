@@ -128,4 +128,20 @@ defmodule NervesHub.Devices.Connections do
     |> distinct(:device_id)
     |> order_by([:device_id, desc: :last_seen_at])
   end
+
+  def clean_stale_connections() do
+    interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+    a_minute_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + 1))
+
+    DeviceConnection
+    |> where(status: :connected)
+    |> where([d], d.last_seen_at < ^a_minute_ago)
+    |> Repo.update_all(
+      set: [
+        status: :disconnected,
+        disconnected_at: DateTime.utc_now(),
+        disconnected_reason: "Stale connection"
+      ]
+    )
+  end
 end

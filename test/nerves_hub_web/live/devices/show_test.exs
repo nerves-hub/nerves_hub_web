@@ -374,7 +374,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
       deployment
-      |> Ecto.Changeset.change(%{firmware_id: firmware.id})
+      |> Ecto.Changeset.change(%{firmware_id: firmware.id, is_active: true})
       |> Repo.update!()
 
       NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
@@ -389,6 +389,36 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       assert Repo.aggregate(NervesHub.Devices.InflightUpdate, :count) == 1
 
       assert_receive %Phoenix.Socket.Broadcast{event: "deployments/update"}
+    end
+
+    test "available update exists but deployment is not active", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment: deployment,
+      org_key: org_key,
+      tmp_dir: tmp_dir
+    } do
+      device =
+        device
+        |> Ecto.Changeset.change(%{deployment_id: deployment.id})
+        |> Repo.update!()
+
+      firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+
+      deployment
+      |> Ecto.Changeset.change(%{firmware_id: firmware.id, is_active: false})
+      |> Repo.update!()
+
+      NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> refute_has("span", text: "Update available")
+
+      assert Repo.aggregate(NervesHub.Devices.InflightUpdate, :count) == 0
     end
   end
 
