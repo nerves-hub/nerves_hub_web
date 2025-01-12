@@ -194,10 +194,10 @@
 
       <div class="row mt-2">
         <form id="move-product" class="col-lg-4" phx-change="target-product" phx-submit="move-devices-product">
-          <label for="move_to">Move device(s) to product:</label>
+          <label for="move_to_product">Move device(s) to product:</label>
           <div class="flex-row align-items-center">
             <div class="flex-grow pos-rel">
-              <select name="product" id="move_to" class="form-control">
+              <select name="product" id="move_to_product" class="form-control">
                 <option value=""></option>
                 <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
                   <optgroup label={org.name}>
@@ -235,10 +235,10 @@
         </form>
 
         <form id="move-deployment" class="col-lg-4" phx-change="target-deployment" phx-submit="move-devices-deployment">
-          <label for="move_to">Move device(s) to deployment:</label>
+          <label for="move_to_deployment">Move device(s) to deployment:</label>
           <div class="flex-row align-items-center">
             <div class="flex-grow pos-rel">
-              <select name="deployment" id="move_to" class="form-control">
+              <select name="deployment" id="move_to_deployment" class="form-control">
                 <option value=""></option>
                 <%= for deployment <- @deployments do %>
                   <option value={deployment.id} {if @target_deployment && @target_deployment.id == deployment.id, do: [selected: true], else: []}><%= deployment.name %></option>
