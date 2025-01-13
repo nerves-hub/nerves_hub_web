@@ -16,6 +16,25 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     Endpoint.subscribe("device:#{device.id}")
   end
 
+  describe "render liveview" do
+    test "render when device has no firmware", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      {:ok, device} =
+        Devices.create_device(%{
+          org_id: org.id,
+          product_id: product.id,
+          identifier: "no-firmware-device"
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: "no-firmware-device")
+    end
+  end
+
   describe "handle_event" do
     test "delete device", %{conn: conn, org: org, product: product, device: device} do
       conn
