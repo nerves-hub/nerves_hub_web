@@ -18,6 +18,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
 
+  alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
   import NervesHubWeb.LayoutView
