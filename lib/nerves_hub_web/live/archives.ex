@@ -21,6 +21,7 @@ defmodule NervesHubWeb.Live.Archives do
   defp apply_action(%{assigns: %{product: product}} = socket, :index, _params) do
     socket
     |> page_title("Archives - #{product.name}")
+    |> sidebar_tab(:archives)
     |> assign(:archives, Archives.all_by_product(product))
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
     |> render_with(&list_archives_template/1)

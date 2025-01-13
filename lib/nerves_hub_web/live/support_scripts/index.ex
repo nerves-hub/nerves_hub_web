@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   def mount(_params, _session, socket) do
     socket
     |> page_title("Support Scripts - #{socket.assigns.product.name}")
+    |> sidebar_tab(:support_scripts)
     |> assign(:scripts, Scripts.all_by_product(socket.assigns.product))
     |> ok()
   end

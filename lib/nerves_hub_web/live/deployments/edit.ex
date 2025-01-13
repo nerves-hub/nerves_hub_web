@@ -24,6 +24,7 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
 
     socket
     |> assign(:archives, archives)
+    |> sidebar_tab(:deployments)
     |> assign(:deployment, deployment)
     |> assign(:current_device_count, current_device_count)
     |> assign(:firmware, deployment.firmware)

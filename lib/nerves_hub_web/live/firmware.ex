@@ -21,6 +21,7 @@ defmodule NervesHubWeb.Live.Firmware do
   defp apply_action(%{assigns: %{product: product}} = socket, :index, _params) do
     socket
     |> page_title("Firmware - #{product.name}")
+    |> sidebar_tab(:firmware)
     |> assign(:firmware, Firmwares.get_firmwares_by_product(product.id))
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
     |> render_with(&list_firmware_template/1)

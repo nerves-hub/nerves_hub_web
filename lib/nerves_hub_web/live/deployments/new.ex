@@ -24,6 +24,7 @@ defmodule NervesHubWeb.Live.Deployments.New do
 
       socket
       |> page_title("New Deployment - #{socket.assigns.product.name}")
+      |> sidebar_tab(:deployments)
       |> assign(:platforms, platforms)
       |> assign(:platform, nil)
       |> assign(:form, to_form(Ecto.Changeset.change(%Deployment{})))

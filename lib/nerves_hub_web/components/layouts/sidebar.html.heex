@@ -61,13 +61,13 @@
         </div>
       </div>
     </div>
-    <nav id="navigation" class="flex grow flex-col">
-      <ul role="list" class="flex flex-1 flex-col gap-y-7">
-        <li>
-          <Navigation.updated_sidebar org={@org} product={@product} current={@current_path} />
-        </li>
-      </ul>
-    </nav>
+
+    <div>
+      <nav id="navigation" class="flex grow flex-col">
+        <Navigation.updated_sidebar org={@org} product={@product} selected_tab={assigns[:sidebar_tab]} />
+      </nav>
+    </div>
+
     <div class="sticky bottom-0 mt-auto col-start-1 col-end-2">
       <a href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-white hover:bg-indigo-700">
         <div class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">

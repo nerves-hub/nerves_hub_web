@@ -19,6 +19,7 @@ defmodule NervesHubWeb.Live.Deployments.Index do
 
     socket
     |> page_title("Deployments - #{product.name}")
+    |> sidebar_tab(:deployments)
     |> assign(:deployments, deployments)
     |> assign(:counts, counts)
     |> ok()

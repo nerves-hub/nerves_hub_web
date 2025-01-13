@@ -80,6 +80,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> page_title("Devices - #{product.name}")
+    |> sidebar_tab(:devices)
     |> assign(:current_sort, "identifier")
     |> assign(:sort_direction, "asc")
     |> assign(:paginate_opts, @default_pagination)

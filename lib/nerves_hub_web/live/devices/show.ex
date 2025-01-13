@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> page_title("Device #{device.identifier} - #{product.name}")
-    |> assign(:tab_hint, :devices)
+    |> sidebar_tab(:devices)
     |> assign(:device, device)
     |> assign(:device_connection, device_connection(device))
     |> assign(:console_active?, Tracker.console_active?(device))
