@@ -352,6 +352,10 @@ end
 config :nerves_hub, NervesHub.Firmwares.Upload,
   max_size: System.get_env("FIRMWARE_UPLOAD_MAX_SIZE", "200000000") |> String.to_integer()
 
+# Set a default max archive upload size of 200MB for all environments
+config :nerves_hub, NervesHub.Uploads,
+  max_size: System.get_env("ARCHIVE_UPLOAD_MAX_SIZE", "200000000") |> String.to_integer()
+
 ##
 # SMTP settings.
 #
