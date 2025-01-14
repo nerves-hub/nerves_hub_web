@@ -35,25 +35,6 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   end
 
   ## Firmware and upgrades
-  # Deprecated?
-  def audit_device_assigned(device, reference_id) do
-    description =
-      "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
-
-    AuditLogs.audit_with_ref!(device, device, description, reference_id)
-  end
-
-  # Deprecated?
-  def audit_resolve_changed_deployment(device, reference_id) do
-    description =
-      if device.deployment_id do
-        "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
-      else
-        "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
-      end
-
-    AuditLogs.audit_with_ref!(device, device, description, reference_id)
-  end
 
   @spec audit_update_attempt(Device.t()) :: AuditLog.t()
   def audit_update_attempt(device) do
