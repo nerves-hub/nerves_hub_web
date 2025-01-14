@@ -34,6 +34,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
     socket
     |> page_title("Deployment - #{deployment.name} - #{product.name}")
+    |> sidebar_tab(:deployments)
     |> assign(:deployment, deployment)
     |> assign(:audit_logs, logs)
     |> assign(:audit_pager, audit_pager)

@@ -12,6 +12,12 @@ export default {
       fontFamily: {
         sans: ["'Inter', sans-serif", ...defaultTheme.fontFamily.sans]
       },
+      backgroundImage: theme => ({
+        "sidebar-item-hover":
+          "linear-gradient(90deg, rgba(63, 63, 70, 0.24) 0%, rgba(63, 63, 70, 0.48) 100%)",
+        "sidebar-item-selected":
+          "linear-gradient(90deg, rgba(99, 102, 241, 0) 50%, rgba(99, 102, 241, 0.08) 100%), linear-gradient(90deg, rgba(63, 63, 70, 0.24) 0%, rgba(63, 63, 70, 0.48) 100%)"
+      }),
       colors: {
         base: {
           50: "#fafafa",
@@ -29,6 +35,10 @@ export default {
         purple: {
           600: "#6366F1"
         }
+      },
+      boxShadow: {
+        "filter-slider":
+          "-16px 0px 32px -4px #141417, 0px 4px 4px -4px #141417;"
       }
     }
   },

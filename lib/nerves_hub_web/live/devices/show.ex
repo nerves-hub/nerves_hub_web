@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> page_title("Device #{device.identifier} - #{product.name}")
-    |> assign(:tab_hint, :devices)
+    |> sidebar_tab(:devices)
     |> assign(:extension_overrides, extension_overrides(device, product))
     |> assign(:scripts, scripts_with_output(product))
     |> general_assigns(device)

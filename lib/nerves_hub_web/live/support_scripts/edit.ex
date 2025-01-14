@@ -14,6 +14,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
 
     socket
     |> page_title("Edit Support Script - #{socket.assigns.org.name}")
+    |> sidebar_tab(:support_scripts)
     |> assign(:form, to_form(Script.changeset(script, %{})))
     |> assign(:script, script)
     |> ok()

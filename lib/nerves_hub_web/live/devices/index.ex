@@ -18,6 +18,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
 
+  alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
   import NervesHubWeb.LayoutView
@@ -80,6 +81,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> page_title("Devices - #{product.name}")
+    |> sidebar_tab(:devices)
     |> assign(:current_sort, "identifier")
     |> assign(:sort_direction, "asc")
     |> assign(:paginate_opts, @default_pagination)

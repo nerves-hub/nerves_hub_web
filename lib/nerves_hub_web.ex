@@ -102,6 +102,12 @@ defmodule NervesHubWeb do
 
       def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
 
+      def sidebar_tab(socket, tab) do
+        socket
+        |> assign(:sidebar_tab, tab)
+        |> assign(:tab_hint, tab)
+      end
+
       def whitelist(params, keys) do
         keys
         |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
