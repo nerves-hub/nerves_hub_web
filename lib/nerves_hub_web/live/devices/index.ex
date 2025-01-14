@@ -290,7 +290,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_event("move-devices-product", _, socket) do
-    %{ok: successfuls, error: errors} =
+    %{ok: successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
       |> Devices.move_many(socket.assigns.target_product, socket.assigns.user)
 
@@ -303,13 +303,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> assign_display_devices()
       |> assign(:target_product, nil)
 
-    case length(errors) do
-      0 ->
-        {:noreply, socket}
-
-      num ->
-        {:noreply, put_flash(socket, :error, "Could not move #{num} device(s)")}
-    end
+    {:noreply, socket}
   end
 
   def handle_event(

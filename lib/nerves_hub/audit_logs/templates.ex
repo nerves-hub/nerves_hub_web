@@ -4,7 +4,6 @@ defmodule NervesHub.AuditLogs.Templates do
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.Device
-  alias NervesHub.Repo
 
   require Logger
 
@@ -15,25 +14,6 @@ defmodule NervesHub.AuditLogs.Templates do
   def audit_reboot(user, device) do
     description = "#{user.name} rebooted device #{device.identifier}"
     AuditLogs.audit!(user, device, description)
-  end
-
-  @doc """
-  Creates audit log entries for device, target product and source product on device move.
-  Rollbacks on failure.
-  """
-  def audit_device_moved(user, device, target_product, source_product) do
-    description =
-      "user #{user.name} moved device #{device.identifier} to #{target_product.org.name} : #{target_product.name}"
-
-    Repo.transaction(fn ->
-      AuditLogs.audit(user, device, description)
-      AuditLogs.audit(user, target_product, description)
-      AuditLogs.audit(user, source_product, description)
-    end)
-    |> case do
-      {:ok, result} -> result
-      {:error, error} -> Repo.rollback(error)
-    end
   end
 
   def audit_request_action(user, device, action) do
@@ -120,7 +100,7 @@ defmodule NervesHub.AuditLogs.Templates do
     AuditLogs.audit_with_ref!(deployment, device, description, reference_id)
   end
 
-  ### RESOURCE: DEPLOYMENT
+  ### RESOUCE: DEPLOYMENT
 
   def audit_deployment_created(user, deployment) do
     description = "#{user.name} created deployment #{deployment.name}"
