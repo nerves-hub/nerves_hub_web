@@ -1031,7 +1031,7 @@ defmodule NervesHub.Devices do
   @spec disable_updates(Device.t() | [Device.t()], User.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def disable_updates(%Device{} = device, user) do
-    description = "user #{user.name} disabled updates for device #{device.identifier}"
+    description = "User #{user.name} disabled updates for device #{device.identifier}"
     params = %{updates_enabled: false}
     update_device_with_audit(device, params, user, description)
   end
