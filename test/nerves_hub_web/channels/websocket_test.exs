@@ -85,8 +85,7 @@ defmodule NervesHubWeb.WebsocketTest do
     {%{device | product: product, org: org}, firmware}
   end
 
-  setup context do
-    Mox.set_mox_from_context(context)
+  setup do
     user = Fixtures.user_fixture()
 
     {:ok,
