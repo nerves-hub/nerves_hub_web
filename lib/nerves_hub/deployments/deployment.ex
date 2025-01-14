@@ -6,6 +6,7 @@ defmodule NervesHub.Deployments.Deployment do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Archives.Archive
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Products.Product
@@ -49,6 +50,7 @@ defmodule NervesHub.Deployments.Deployment do
     belongs_to(:archive, Archive)
 
     has_many(:inflight_updates, InflightUpdate)
+    has_many(:devices, Device, on_delete: :nilify_all)
 
     field(:conditions, :map)
     field(:device_failure_threshold, :integer, default: 3)
