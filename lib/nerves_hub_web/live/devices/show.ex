@@ -43,10 +43,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> page_title("Device #{device.identifier} - #{product.name}")
     |> assign(:tab_hint, :devices)
     |> assign(:device, device)
-    |> assign(:deployment, device.deployment)
     |> assign(:extension_overrides, extension_overrides(device, product))
     |> assign(:scripts, scripts_with_output(product))
-    |> assign(:device_connection, device_connection(device))
     |> general_assigns(device)
     |> assign_metadata()
     |> schedule_health_check_timer()
@@ -76,12 +74,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
         %Broadcast{event: "connection:status", payload: %{status: "online"}},
         %{assigns: %{device: device}} = socket
       ) do
-    socket =
-      socket
-      |> general_assigns(device)
-      |> assign(:device_connection, Connections.get_latest_for_device(device.id))
+    device =
+      device
+      |> Repo.reload()
+      |> Repo.preload(:deployment)
 
-    {:noreply, socket}
+    {:noreply, general_assigns(socket, device)}
   end
 
   def handle_info(
@@ -515,5 +513,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
+    |> assign(:deployment, device.deployment)
+    |> assign(:device_connection, device_connection(device))
+    |> assign(:device, device)
   end
 end
