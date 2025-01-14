@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.Live.Deployments.New do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.AuditLogs.Templates
+  alias NervesHub.AuditLogs.DeploymentTemplates
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Firmwares
@@ -81,7 +81,7 @@ defmodule NervesHubWeb.Live.Deployments.New do
         |> noreply()
 
       {_, {:ok, deployment}} ->
-        Templates.audit_deployment_created(user, deployment)
+        DeploymentTemplates.audit_deployment_created(user, deployment)
 
         socket
         |> put_flash(:info, "Deployment created")

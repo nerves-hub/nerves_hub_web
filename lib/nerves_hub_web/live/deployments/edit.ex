@@ -2,7 +2,7 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Archives
-  alias NervesHub.AuditLogs.Templates
+  alias NervesHub.AuditLogs.DeploymentTemplates
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Firmwares
@@ -46,7 +46,7 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
       {:ok, updated} ->
         # Use original deployment so changes will get
         # marked in audit log
-        Templates.audit_deployment_updated(user, updated)
+        DeploymentTemplates.audit_deployment_updated(user, updated)
 
         socket
         |> put_flash(:info, "Deployment updated")

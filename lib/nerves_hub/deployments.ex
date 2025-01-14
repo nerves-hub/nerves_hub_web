@@ -3,7 +3,8 @@ defmodule NervesHub.Deployments do
 
   require Logger
 
-  alias NervesHub.AuditLogs.Templates
+  alias NervesHub.AuditLogs.DeploymentTemplates
+  alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices
@@ -185,13 +186,13 @@ defmodule NervesHub.Deployments do
         payload = %{archive_id: archive_id}
         _ = broadcast(deployment, "archives/updated", payload)
 
-        Templates.audit_deployment_change(deployment, "has a new archive")
+        DeploymentTemplates.audit_deployment_change(deployment, "has a new archive")
 
       {:conditions, _new_conditions} ->
-        Templates.audit_deployment_change(deployment, "conditions changed")
+        DeploymentTemplates.audit_deployment_change(deployment, "conditions changed")
 
       {:is_active, is_active} when is_active != true ->
-        Templates.audit_deployment_change(deployment, "is inactive")
+        DeploymentTemplates.audit_deployment_change(deployment, "is inactive")
 
       _ ->
         :ignore
@@ -334,7 +335,7 @@ defmodule NervesHub.Deployments do
         |> Ecto.Changeset.change(%{deployment_id: nil})
         |> Repo.update!()
 
-      Templates.audit_deployment_mismatch(device, deployment, reason)
+      DeploymentTemplates.audit_deployment_mismatch(device, deployment, reason)
     else
       device
     end
@@ -358,7 +359,7 @@ defmodule NervesHub.Deployments do
       [deployment] ->
         set_deployment_telemetry(:one_found, device, deployment)
 
-        Templates.audit_set_deployment(device, deployment, :one_found)
+        DeviceTemplates.audit_set_deployment(device, deployment, :one_found)
 
         device
         |> Devices.update_deployment(deployment)
@@ -367,7 +368,7 @@ defmodule NervesHub.Deployments do
       [deployment | _] ->
         set_deployment_telemetry(:multiple_found, device, deployment)
 
-        Templates.audit_set_deployment(device, deployment, :multiple_found)
+        DeviceTemplates.audit_set_deployment(device, deployment, :multiple_found)
 
         device
         |> Devices.update_deployment(deployment)

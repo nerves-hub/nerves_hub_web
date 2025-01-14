@@ -2,7 +2,7 @@ defmodule NervesHubWeb.API.DeviceController do
   use NervesHubWeb, :api_controller
 
   alias NervesHub.Accounts
-  alias NervesHub.AuditLogs.Templates
+  alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.UpdatePayload
@@ -117,7 +117,7 @@ defmodule NervesHubWeb.API.DeviceController do
     case Devices.get_by_identifier(identifier) do
       {:ok, device} ->
         if Accounts.has_org_role?(device.org, user, :manage) do
-          Templates.audit_reboot(user, device)
+          DeviceTemplates.audit_reboot(user, device)
 
           _ = Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
@@ -204,7 +204,7 @@ defmodule NervesHubWeb.API.DeviceController do
           {:ok, device} = Devices.disable_updates(device, user)
           device = Repo.preload(device, [:device_certificates])
 
-          Templates.audit_firmware_pushed(user, device, firmware)
+          DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
           payload = %UpdatePayload{
             update_available: true,

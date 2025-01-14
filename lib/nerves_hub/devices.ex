@@ -8,7 +8,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
-  alias NervesHub.AuditLogs.Templates
+  alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Certificate
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
@@ -682,7 +682,7 @@ defmodule NervesHub.Devices do
   end
 
   def update_firmware_metadata(device, metadata) do
-    Templates.audit_firmware_metadata_updated(device)
+    DeviceTemplates.audit_firmware_metadata_updated(device)
     update_device(device, %{firmware_metadata: metadata})
   end
 
@@ -840,7 +840,7 @@ defmodule NervesHub.Devices do
           |> DateTime.truncate(:second)
           |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
 
-        Templates.audit_firmware_upgrade_blocked(deployment, device)
+        DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device)
         clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
@@ -853,7 +853,7 @@ defmodule NervesHub.Devices do
           |> DateTime.truncate(:second)
           |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
 
-        Templates.audit_firmware_upgrade_blocked(deployment, device)
+        DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device)
         clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
@@ -876,7 +876,7 @@ defmodule NervesHub.Devices do
     Multi.new()
     |> Multi.update(:device, changeset)
     |> Multi.run(:audit_device, fn _, _ ->
-      Templates.audit_update_attempt(device)
+      DeviceTemplates.audit_update_attempt(device)
     end)
     |> Repo.transaction()
     |> case do
@@ -894,7 +894,7 @@ defmodule NervesHub.Devices do
       firmware_uuid: device.firmware_metadata.uuid
     })
 
-    Templates.audit_firmware_updated(device)
+    DeviceTemplates.audit_firmware_updated(device)
 
     # Clear the inflight update, no longer inflight!
     inflight_update =
