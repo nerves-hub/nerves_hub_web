@@ -12,10 +12,6 @@
     overflow-x: hidden;
   }
 
-  .sidebar-main-content {
-    @apply flex flex-col col-start-2 col-end-4 row-start-2 row-end-3;
-  }
-
   .listing {
     @apply w-full border-base-700 grow;
     font-size: 14px;

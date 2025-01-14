@@ -3,6 +3,8 @@ defmodule NervesHubWeb.API.FirmwareController do
 
   alias NervesHub.Firmwares
 
+  require Logger
+
   action_fallback(NervesHubWeb.API.FallbackController)
 
   plug(:validate_role, [org: :manage] when action in [:create, :delete])
@@ -15,6 +17,8 @@ defmodule NervesHubWeb.API.FirmwareController do
 
   def create(%{assigns: %{org: org, product: product}} = conn, params) do
     params = whitelist(params, [:firmware])
+
+    Logger.info("System Memory:" <> inspect(:memsup.get_system_memory_data()))
 
     with {%{path: filepath}, _params} <- Map.pop(params, :firmware),
          {:ok, firmware} <- Firmwares.create_firmware(org, filepath) do

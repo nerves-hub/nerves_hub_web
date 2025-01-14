@@ -279,7 +279,31 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
       live("/org/:org_name/:product_name/devices/new", Live.Devices.New)
-      live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show)
+      live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show, :details)
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/healthz",
+        Live.Devices.Show,
+        :health
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/activity",
+        Live.Devices.Show,
+        :activity
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/conzole",
+        Live.Devices.Show,
+        :console
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/settingz",
+        Live.Devices.Show,
+        :settings
+      )
 
       live(
         "/org/:org_name/:product_name/devices/:device_identifier/health",
