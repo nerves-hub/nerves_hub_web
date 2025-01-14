@@ -41,7 +41,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 ##
 # Firmware uploader
 #
-config :nerves_hub, firmware_upload: NervesHub.UploadMock
+config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.File
 
 config :nerves_hub, NervesHub.Firmwares.Upload.S3, bucket: "mybucket"
 
@@ -80,8 +80,6 @@ config :nerves_hub, NervesHubWeb.DeviceSocket,
   shared_secrets: [
     enabled: true
   ]
-
-config :nerves_hub, delta_updater: NervesHub.DeltaUpdaterMock
 
 config :nerves_hub, NervesHub.SwooshMailer, adapter: Swoosh.Adapters.Test
 

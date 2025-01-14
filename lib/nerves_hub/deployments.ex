@@ -463,6 +463,8 @@ defmodule NervesHub.Deployments do
   and should only be used when a human is choosing the deployment for a device.
   """
   @spec eligible_deployments(Device.t()) :: [Deployment.t()]
+  def eligible_deployments(%Device{firmware_metadata: nil}), do: []
+
   def eligible_deployments(device) do
     Deployment
     |> join(:inner, [d], assoc(d, :firmware), as: :firmware)

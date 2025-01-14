@@ -1,9 +1,11 @@
 defmodule NervesHubWeb.Live.Devices.ShowTest do
   use NervesHubWeb.ConnCase.Browser, async: false
+  use Mimic
 
   import Phoenix.ChannelTest
 
   alias NervesHub.AuditLogs
+  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
@@ -14,6 +16,25 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
   setup %{fixture: %{device: device}} do
     Endpoint.subscribe("device:#{device.id}")
+  end
+
+  describe "render liveview" do
+    test "render when device has no firmware", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      {:ok, device} =
+        Devices.create_device(%{
+          org_id: org.id,
+          product_id: product.id,
+          identifier: "no-firmware-device"
+        })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: "no-firmware-device")
+    end
   end
 
   describe "handle_event" do
@@ -77,6 +98,59 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       send(view.pid, %Broadcast{event: "connection:change", payload: %{status: "online"}})
 
       assert render(view) =~ "online"
+    end
+
+    test "connection:status updates assigns when coming online", %{
+      conn: conn,
+      fixture: fixture,
+      device: device,
+      deployment: deployment
+    } do
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      # mismatch device and deployment firmware so "Send Update" form doesn't display
+      original_firmware_platform = device.firmware_metadata.platform
+
+      updated_firmware_metadata =
+        device.firmware_metadata
+        |> Map.from_struct()
+        |> Map.put(:platform, "foobar")
+
+      {:ok, device} = Devices.update_firmware_metadata(device, updated_firmware_metadata)
+
+      conn
+      |> visit(device_show_path(fixture))
+      |> refute_has("div", text: "Assigned Deployment")
+      |> refute_has("span", text: "Update available")
+      |> refute_has("option", text: "Select a version")
+      |> assert_has("a.disabled", text: "Console")
+      |> assert_has("div", text: "No health information has been received for this device.")
+      |> refute_has("div", text: "CPU use")
+      |> unwrap(fn view ->
+        # stub tracker so link to console isn't disabled
+        expect(NervesHub.Tracker, :console_active?, fn _device -> true end)
+
+        restored_firmware_metadata =
+          device.firmware_metadata
+          |> Map.from_struct()
+          |> Map.put(:platform, original_firmware_platform)
+          |> Map.put(:uuid, "foobar123")
+
+        {:ok, device} = Devices.update_firmware_metadata(device, restored_firmware_metadata)
+
+        _device = Devices.update_deployment(device, deployment)
+
+        {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 22})
+
+        send(view.pid, %Broadcast{event: "connection:status", payload: %{status: "online"}})
+        render(view)
+      end)
+      |> assert_has("div", text: "Assigned Deployment")
+      |> assert_has("span", text: "Update available")
+      |> assert_has("option", text: "Select a version")
+      |> refute_has("a.disabled", text: "Console")
+      |> refute_has("div", text: "No health information has been received for this device.")
+      |> assert_has("div", text: "CPU use")
     end
   end
 

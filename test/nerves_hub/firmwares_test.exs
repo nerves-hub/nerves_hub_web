@@ -1,18 +1,18 @@
 defmodule NervesHub.FirmwaresTest do
   use NervesHub.DataCase, async: true
+  use Mimic
 
   alias Ecto.Changeset
 
-  alias NervesHub.DeltaUpdaterMock
   alias NervesHub.Firmwares
+  alias NervesHub.Firmwares.DeltaUpdater.Default, as: DeltaUpdaterDefault
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Firmwares.Upload.File, as: UploadFile
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHub.Support.Fwup
-  alias NervesHub.UploadMock
 
-  setup context do
-    Mox.verify_on_exit!(context)
+  setup do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
@@ -265,17 +265,16 @@ defmodule NervesHub.FirmwaresTest do
       target_url = "http://somefilestore.com/target.fw"
       firmware_delta_path = "/path/to/firmware_delta.fw"
 
-      UploadMock
-      |> Mox.expect(:download_file, fn ^source -> {:ok, source_url} end)
-      |> Mox.expect(:download_file, fn ^target -> {:ok, target_url} end)
+      expect(UploadFile, :download_file, fn ^source -> {:ok, source_url} end)
+      expect(UploadFile, :download_file, fn ^target -> {:ok, target_url} end)
 
-      Mox.expect(DeltaUpdaterMock, :create_firmware_delta_file, fn ^source_url, ^target_url ->
+      expect(DeltaUpdaterDefault, :create_firmware_delta_file, fn ^source_url, ^target_url ->
         firmware_delta_path
       end)
 
-      Mox.expect(UploadMock, :upload_file, fn ^firmware_delta_path, _ -> :ok end)
+      expect(UploadFile, :upload_file, fn ^firmware_delta_path, _ -> :ok end)
 
-      Mox.expect(DeltaUpdaterMock, :cleanup_firmware_delta_files, fn ^firmware_delta_path ->
+      expect(DeltaUpdaterDefault, :cleanup_firmware_delta_files, fn ^firmware_delta_path ->
         :ok
       end)
 
@@ -292,13 +291,13 @@ defmodule NervesHub.FirmwaresTest do
     } do
       target = Fixtures.firmware_fixture(org_key, product)
 
-      Mox.expect(DeltaUpdaterMock, :create_firmware_delta_file, fn _s, _t ->
+      expect(DeltaUpdaterDefault, :create_firmware_delta_file, fn _s, _t ->
         "path/to/firmware.fw"
       end)
 
-      Mox.expect(UploadMock, :upload_file, fn _p, _m -> {:error, :failed} end)
+      expect(UploadFile, :upload_file, fn _p, _m -> {:error, :failed} end)
 
-      Mox.expect(DeltaUpdaterMock, :cleanup_firmware_delta_files, fn _p -> :ok end)
+      expect(DeltaUpdaterDefault, :cleanup_firmware_delta_files, fn _p -> :ok end)
 
       Firmwares.create_firmware_delta(source, target)
 
