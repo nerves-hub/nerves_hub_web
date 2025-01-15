@@ -308,7 +308,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "No health information has been received for this device.")
     end
 
-    test "has alarms", %{
+    test "has active alarms", %{
       conn: conn,
       org: org,
       product: product,
@@ -325,8 +325,33 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "Current Alarms")
+      |> assert_has("div", text: "Active Alarms")
       |> assert_has("span", text: "SomeAlarm")
+    end
+
+    test "has no active alarms", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Health")
+      |> assert_has("div", text: "No active alarms")
+
+      assert {:ok, _} =
+               NervesHub.Devices.save_device_health(%{
+                 "device_id" => device.id,
+                 "data" => %{"alarms" => %{}}
+               })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Health")
+      |> assert_has("div", text: "No active alarms")
     end
 
     test "full set of metrics", %{

@@ -143,19 +143,21 @@
         </div>
       <% end %>
       <div>
-        <%= if @alarms do %>
-          <div class="device-health current-alarms">
-            <div class="callout">
-              <div class="help-text label">Current Alarms</div>
+        <div class="device-health current-alarms">
+          <div class="callout">
+            <%= if @alarms do %>
+              <div class="help-text label">Active Alarms</div>
               <div :for={{{alarm, description}, index} <- Enum.with_index(@alarms)}>
                 <div>
                   <span phx-click={JS.toggle_class("hidden", to: "#alarm-#{index}")} class={"badge #{if has_description?(description), do: "alarm-clickable"}"}><%= alarm %></span>
                 </div>
                 <code :if={has_description?(description)} id={"alarm-#{index}"} class="hidden alarms-description color-white wb-ba ff-m"><%= description %></code>
               </div>
-            </div>
+            <% else %>
+              <div class="help-text label">No active alarms</div>
+            <% end %>
           </div>
-        <% end %>
+        </div>
         <%= if (Enum.any?(Map.values(@latest_metrics))) do %>
           <div class="device-health">
             <%!-- Display CPU load averages as a group. --%>
