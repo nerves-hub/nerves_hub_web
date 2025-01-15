@@ -4,7 +4,7 @@ defmodule NervesHub.DevicesTest do
   alias Ecto.Changeset
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.DeviceCertificate
@@ -387,13 +387,13 @@ defmodule NervesHub.DevicesTest do
     }
 
     {:ok, deployment} =
-      Deployments.create_deployment(params)
+      ManagedDeployments.create_deployment(params)
       |> elem(1)
-      |> Deployments.update_deployment(%{is_active: true})
+      |> ManagedDeployments.update_deployment(%{is_active: true})
 
     {:ok, device_with_firmware} = Devices.get_device_by_org(org, device.id)
 
-    [%Deployments.Deployment{id: dep_id} | _] =
+    [%ManagedDeployments.DeploymentGroup{id: dep_id} | _] =
       Devices.get_eligible_deployments(device_with_firmware)
 
     assert dep_id == deployment.id
@@ -428,9 +428,9 @@ defmodule NervesHub.DevicesTest do
       }
 
       {:ok, _deployment} =
-        Deployments.create_deployment(params)
+        ManagedDeployments.create_deployment(params)
         |> elem(1)
-        |> Deployments.update_deployment(%{is_active: true})
+        |> ManagedDeployments.update_deployment(%{is_active: true})
 
       {:ok, device_with_firmware} = Devices.get_device_by_org(org, device.id)
 
@@ -453,7 +453,10 @@ defmodule NervesHub.DevicesTest do
 
     firmware1 = Fixtures.firmware_fixture(org_key, product, %{version: "2.0.0"})
 
-    Deployments.update_deployment(old_deployment, %{firmware_id: firmware1.id, is_active: true})
+    ManagedDeployments.update_deployment(old_deployment, %{
+      firmware_id: firmware1.id,
+      is_active: true
+    })
 
     device =
       Fixtures.device_fixture(org, product, firmware, %{
@@ -476,9 +479,9 @@ defmodule NervesHub.DevicesTest do
     }
 
     {:ok, _deployment2} =
-      Deployments.create_deployment(params)
+      ManagedDeployments.create_deployment(params)
       |> elem(1)
-      |> Deployments.update_deployment(%{is_active: true})
+      |> ManagedDeployments.update_deployment(%{is_active: true})
 
     {:ok, device_with_firmware} = Devices.get_device_by_org(org, device.id)
 

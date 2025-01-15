@@ -1,31 +1,31 @@
-defmodule NervesHubWeb.Live.Deployments.Edit do
+defmodule NervesHubWeb.Live.DeploymentGroup.Edit do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Archives
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
 
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     %{"name" => name} = params
     %{product: product} = socket.assigns
 
-    deployment = Deployments.get_by_product_and_name!(product, name)
+    deployment = ManagedDeployments.get_by_product_and_name!(product, name)
 
-    current_device_count = Deployments.get_device_count(deployment)
+    current_device_count = ManagedDeployments.get_device_count(deployment)
 
     archives = Archives.all_by_product(deployment.product)
     firmwares = Firmwares.get_firmwares_for_deployment(deployment)
 
-    changeset = Deployment.changeset(deployment, %{}) |> tags_to_string()
+    changeset = DeploymentGroup.changeset(deployment, %{}) |> tags_to_string()
 
     socket
     |> assign(:archives, archives)
     |> sidebar_tab(:deployments)
-    |> assign(:deployment, deployment)
+    |> assign(:deployment_group, deployment)
     |> assign(:current_device_count, current_device_count)
     |> assign(:firmware, deployment.firmware)
     |> assign(:firmwares, firmwares)
@@ -34,15 +34,15 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
   end
 
   @impl Phoenix.LiveView
-  def handle_event("update-deployment", %{"deployment" => params}, socket) do
-    %{org_user: org_user, org: org, product: product, user: user, deployment: deployment} =
+  def handle_event("update-deployment", %{"deployment_group" => params}, socket) do
+    %{org_user: org_user, org: org, product: product, user: user, deployment_group: deployment} =
       socket.assigns
 
-    authorized!(:"deployment:update", org_user)
+    authorized!(:"deployment_group:update", org_user)
 
     params = inject_conditions_map(params)
 
-    case Deployments.update_deployment(deployment, params) do
+    case ManagedDeployments.update_deployment(deployment, params) do
       {:ok, updated} ->
         # Use original deployment so changes will get
         # marked in audit log
@@ -54,7 +54,9 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
 
         socket
         |> put_flash(:info, "Deployment updated")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployments/#{updated.name}")
+        |> push_navigate(
+          to: ~p"/org/#{org.name}/#{product.name}/deployment_groups/#{updated.name}"
+        )
         |> noreply()
 
       {:error, changeset} ->
@@ -101,8 +103,8 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
     |> Enum.map(&[value: &1.id, key: firmware_display_name(&1)])
   end
 
-  def archive_dropdown_options(acrhives) do
-    acrhives
+  def archive_dropdown_options(archives) do
+    archives
     |> Enum.sort_by(
       fn archive ->
         case Version.parse(archive.version) do

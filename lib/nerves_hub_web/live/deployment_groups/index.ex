@@ -1,14 +1,14 @@
-defmodule NervesHubWeb.Live.Deployments.Index do
+defmodule NervesHubWeb.Live.DeploymentGroup.Index do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.Deployments
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
-    deployments = Deployments.get_deployments_by_product(product)
-    counts = Deployments.get_device_counts_by_product(product)
+    deployments = ManagedDeployments.get_deployments_by_product(product)
+    counts = ManagedDeployments.get_device_counts_by_product(product)
 
     deployments =
       deployments
@@ -20,7 +20,7 @@ defmodule NervesHubWeb.Live.Deployments.Index do
     socket
     |> page_title("Deployments - #{product.name}")
     |> sidebar_tab(:deployments)
-    |> assign(:deployments, deployments)
+    |> assign(:deployment_groups, deployments)
     |> assign(:counts, counts)
     |> ok()
   end
@@ -29,8 +29,8 @@ defmodule NervesHubWeb.Live.Deployments.Index do
     "#{f.version} #{f.uuid}"
   end
 
-  defp version(%Deployment{conditions: %{"version" => ""}}), do: "-"
-  defp version(%Deployment{conditions: %{"version" => version}}), do: version
+  defp version(%DeploymentGroup{conditions: %{"version" => ""}}), do: "-"
+  defp version(%DeploymentGroup{conditions: %{"version" => version}}), do: version
 
-  defp tags(%Deployment{conditions: %{"tags" => tags}}), do: tags
+  defp tags(%DeploymentGroup{conditions: %{"tags" => tags}}), do: tags
 end

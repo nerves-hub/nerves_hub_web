@@ -147,7 +147,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn = post(conn, url, %{"uuid" => firmware_two.uuid})
 
       assert response(conn, 204)
-      assert_broadcast("deployments/update", %{})
+      assert_broadcast("deployment_groups/update", %{})
     end
   end
 

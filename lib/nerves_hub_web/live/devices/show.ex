@@ -5,7 +5,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.Templates
-  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Connections
@@ -13,6 +12,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Extensions.Health
   alias NervesHub.Firmwares
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias NervesHub.Scripts
   alias NervesHub.Tracker
@@ -49,7 +49,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
     |> audit_log_assigns(1)
-    |> assign(:eligible_deployments, Deployments.eligible_deployments(device))
+    |> assign(:eligible_deployments, ManagedDeployments.eligible_deployments(device))
     |> ok()
   end
 
@@ -76,7 +76,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     device =
       device
       |> Repo.reload()
-      |> Repo.preload(:deployment)
+      |> Repo.preload(:deployment_group)
 
     {:noreply, general_assigns(socket, device)}
   end
@@ -276,7 +276,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> assign(:device, device)
-    |> assign(:deployment, deployment)
+    |> assign(:deployment_group, deployment)
     |> put_flash(:info, "Deployment successfully updated")
     |> noreply()
   end
@@ -313,7 +313,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event("push-available-update", _, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{device: device, deployment: deployment, user: user} = socket.assigns
+    %{device: device, deployment_group: deployment, user: user} = socket.assigns
 
     deployment = NervesHub.Repo.preload(deployment, :firmware)
 
@@ -327,7 +327,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
         _ =
           NervesHubWeb.Endpoint.broadcast(
             "device:#{device.id}",
-            "deployments/update",
+            "deployment_groups/update",
             inflight_update
           )
 
@@ -382,12 +382,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
     device =
       device
       |> Devices.clear_deployment()
-      |> Repo.preload(:deployment)
+      |> Repo.preload(:deployment_group)
 
     socket
     |> assign(:device, device)
-    |> assign(:deployment, nil)
-    |> assign(:eligible_deployments, Deployments.eligible_deployments(device))
+    |> assign(:deployment_group, nil)
+    |> assign(:eligible_deployments, ManagedDeployments.eligible_deployments(device))
     |> put_flash(:info, "Device successfully removed from the deployment")
     |> noreply()
   end
@@ -465,9 +465,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   defp connecting_code(device) do
-    if device.deployment && device.deployment.connecting_code do
+    if device.deployment_group && device.deployment_group.connecting_code do
       """
-      #{device.deployment.connecting_code}
+      #{device.deployment_group.connecting_code}
       #{device.connecting_code}
       """
     else
@@ -512,7 +512,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
-    |> assign(:deployment, device.deployment)
+    |> assign(:deployment_group, device.deployment_group)
     |> assign(:device_connection, device_connection(device))
     |> assign(:device, device)
   end

@@ -1,11 +1,11 @@
-defmodule NervesHubWeb.Live.Deployments.ShowTest do
+defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
   use NervesHubWeb.ConnCase.Browser, async: true
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
 
   test "shows the deployment", %{
     conn: conn,
@@ -19,7 +19,7 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
     deployment = Fixtures.deployment_fixture(org, firmware)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment.name}")
     |> assert_has("h1", text: deployment.name)
     |> assert_has("p.deployment-state", text: "Off")
     |> assert_has("div#device-count p", text: "0")
@@ -50,7 +50,7 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
     %Device{} = Devices.update_deployment(device_2, deployment)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment.name}")
     |> assert_has("h1", text: deployment.name)
     |> assert_has("p.deployment-state", text: "Off")
     |> assert_has("div#device-count p", text: "1")
@@ -75,13 +75,13 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
     deployment = Fixtures.deployment_fixture(org, firmware)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment.name}")
     |> assert_has("h1", text: deployment.name)
     |> click_link("Delete")
-    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployments"))
+    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
     |> assert_has("div", text: "Deployment successfully deleted")
 
-    assert Deployments.get_deployment(product, deployment.id) == {:error, :not_found}
+    assert ManagedDeployments.get_deployment(product, deployment.id) == {:error, :not_found}
 
     logs = AuditLogs.logs_for(deployment)
 
@@ -100,12 +100,12 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
     deployment = Fixtures.deployment_fixture(org, firmware)
 
     conn
-    |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment.name}")
     |> assert_has("h1", text: deployment.name)
     |> click_link("Turn On")
-    |> assert_path("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment.name}")
     |> then(fn conn ->
-      {:ok, reloaded_deployment} = Deployments.get_deployment(product, deployment.id)
+      {:ok, reloaded_deployment} = ManagedDeployments.get_deployment(product, deployment.id)
 
       assert reloaded_deployment.is_active
       assert_has(conn, "span", text: "Turn Off")
@@ -116,9 +116,9 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
       conn
     end)
     |> click_link("Turn Off")
-    |> assert_path("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment.name}")
     |> then(fn conn ->
-      {:ok, reloaded_deployment} = Deployments.get_deployment(product, deployment.id)
+      {:ok, reloaded_deployment} = ManagedDeployments.get_deployment(product, deployment.id)
 
       refute reloaded_deployment.is_active
       assert_has(conn, "span", text: "Turn On")

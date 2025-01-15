@@ -221,10 +221,10 @@
           <div class="help-text mb-1">
             Assigned Deployment
           </div>
-          <div :if={@deployment} class="d-flex flex-row">
+          <div :if={@deployment_group} class="d-flex flex-row">
             <div class="mr-1">
-              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"} class="badge">
-                <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}><%= @deployment.name %></div>
+              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}"} class="badge">
+                <div class={"deployment-state state-#{if @deployment_group.is_active, do: "on", else: "off"}"}><%= @deployment_group.name %></div>
               </.link>
             </div>
             <div>
@@ -238,7 +238,7 @@
               </button>
             </div>
           </div>
-          <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
+          <span :if={is_nil(@deployment_group)} class="color-white-50">No Assigned Deployment</span>
         </div>
 
         <div :if={Enum.empty?(@eligible_deployments) && is_nil(@device.deployment_id)}>

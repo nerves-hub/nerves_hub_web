@@ -1,10 +1,10 @@
-defmodule NervesHub.DeploymentsTest do
+defmodule NervesHub.ManagedDeploymentsTest do
   use NervesHub.DataCase, async: false
 
   import Phoenix.ChannelTest
 
-  alias NervesHub.Deployments
   alias NervesHub.Devices.Device
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Fixtures
 
   alias Ecto.Changeset
@@ -55,7 +55,8 @@ defmodule NervesHub.DeploymentsTest do
         is_active: false
       }
 
-      {:ok, %Deployments.Deployment{} = deployment} = Deployments.create_deployment(params)
+      {:ok, %ManagedDeployments.DeploymentGroup{} = deployment} =
+        ManagedDeployments.create_deployment(params)
 
       for key <- Map.keys(params) do
         assert Map.get(deployment, key) == Map.get(params, key)
@@ -79,7 +80,7 @@ defmodule NervesHub.DeploymentsTest do
       }
 
       assert {:error, %Ecto.Changeset{errors: [name: {"has already been taken", _}]}} =
-               Deployments.create_deployment(params)
+               ManagedDeployments.create_deployment(params)
     end
 
     test "create_deployment with invalid parameters" do
@@ -92,7 +93,7 @@ defmodule NervesHub.DeploymentsTest do
         is_active: true
       }
 
-      assert {:error, %Changeset{}} = Deployments.create_deployment(params)
+      assert {:error, %Changeset{}} = ManagedDeployments.create_deployment(params)
     end
   end
 
@@ -118,13 +119,13 @@ defmodule NervesHub.DeploymentsTest do
         is_active: false
       }
 
-      {:ok, deployment} = Deployments.create_deployment(params)
+      {:ok, deployment} = ManagedDeployments.create_deployment(params)
 
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+      Phoenix.PubSub.subscribe(NervesHub.PubSub, "deployment_group:#{deployment.id}")
 
-      {:ok, _deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+      {:ok, _deployment} = ManagedDeployments.update_deployment(deployment, %{is_active: true})
 
-      assert_broadcast("deployments/update", %{}, 500)
+      assert_broadcast("deployment_groups/update", %{}, 500)
     end
   end
 
@@ -154,7 +155,7 @@ defmodule NervesHub.DeploymentsTest do
       assert [
                %{id: ^beta_deployment_id},
                %{id: ^rpi_deployment_id}
-             ] = Deployments.matching_deployments(device)
+             ] = ManagedDeployments.matching_deployments(device)
     end
 
     test "finds matching deployments including the platform", state do
@@ -176,7 +177,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, rpi_firmware, %{tags: ["beta", "rpi"]})
 
-      assert [%{id: ^rpi_deployment_id}] = Deployments.matching_deployments(device)
+      assert [%{id: ^rpi_deployment_id}] = ManagedDeployments.matching_deployments(device)
     end
 
     test "finds matching deployments including the architecture", state do
@@ -198,7 +199,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, rpi_firmware, %{tags: ["beta", "rpi"]})
 
-      assert [%{id: ^rpi_deployment_id}] = Deployments.matching_deployments(device)
+      assert [%{id: ^rpi_deployment_id}] = ManagedDeployments.matching_deployments(device)
     end
 
     test "finds matching deployments including the version", state do
@@ -217,7 +218,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
 
-      assert [%{id: ^low_deployment_id}] = Deployments.matching_deployments(device)
+      assert [%{id: ^low_deployment_id}] = ManagedDeployments.matching_deployments(device)
     end
 
     test "finds matching deployments including pre versions", state do
@@ -238,7 +239,7 @@ defmodule NervesHub.DeploymentsTest do
 
       device = Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
 
-      assert [%{id: ^low_deployment_id}] = Deployments.matching_deployments(device)
+      assert [%{id: ^low_deployment_id}] = ManagedDeployments.matching_deployments(device)
     end
 
     test "finds the newest firmware version including pre-releases", state do
@@ -285,13 +286,17 @@ defmodule NervesHub.DeploymentsTest do
                %{id: ^v100_deployment_id},
                %{id: ^v100rc2_deployment_id},
                %{id: ^v100rc1_deployment_id}
-             ] = Deployments.matching_deployments(device)
+             ] = ManagedDeployments.matching_deployments(device)
     end
 
     test "ignores device without firmware metadata" do
-      assert [] == Deployments.matching_deployments(%Device{firmware_metadata: nil})
-      assert [] == Deployments.matching_deployments(%Device{firmware_metadata: nil}, [true])
-      assert [] == Deployments.matching_deployments(%Device{firmware_metadata: nil}, [false])
+      assert [] == ManagedDeployments.matching_deployments(%Device{firmware_metadata: nil})
+
+      assert [] ==
+               ManagedDeployments.matching_deployments(%Device{firmware_metadata: nil}, [true])
+
+      assert [] ==
+               ManagedDeployments.matching_deployments(%Device{firmware_metadata: nil}, [false])
     end
   end
 end

@@ -3,8 +3,8 @@ defmodule NervesHub.Devices.UpdatePayload do
   This struct represents the payload that gets dispatched to devices
   """
 
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.ManagedDeployments.DeploymentGroup
 
   @derive {Jason.Encoder,
            only: [
@@ -17,7 +17,7 @@ defmodule NervesHub.Devices.UpdatePayload do
   defstruct update_available: false,
             firmware_url: nil,
             firmware_meta: nil,
-            deployment: nil,
+            deployment_group: nil,
             deployment_id: nil
 
   @type t ::
@@ -25,14 +25,14 @@ defmodule NervesHub.Devices.UpdatePayload do
             update_available: false,
             firmware_meta: nil,
             firmware_url: nil,
-            deployment: nil,
+            deployment_group: nil,
             deployment_id: nil
           }
           | %__MODULE__{
               update_available: true,
               firmware_meta: FirmwareMetadata.t(),
               firmware_url: String.t(),
-              deployment: Deployment.t(),
+              deployment_group: DeploymentGroup.t(),
               deployment_id: non_neg_integer()
             }
 end

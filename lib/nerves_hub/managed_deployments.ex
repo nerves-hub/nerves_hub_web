@@ -1,14 +1,14 @@
-defmodule NervesHub.Deployments do
+defmodule NervesHub.ManagedDeployments do
   import Ecto.Query
 
   require Logger
 
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.Templates
-  alias NervesHub.Deployments.Deployment
-  alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.Products.Product
   alias NervesHub.Workers.FirmwareDeltaBuilder
 
@@ -16,15 +16,15 @@ defmodule NervesHub.Deployments do
 
   alias Ecto.Changeset
 
-  @spec all() :: [Deployment.t()]
+  @spec all() :: [DeploymentGroup.t()]
   def all() do
-    Repo.all(Deployment)
+    Repo.all(DeploymentGroup)
   end
 
-  @spec get_deployments_by_product(Product.t()) :: [Deployment.t()]
+  @spec get_deployments_by_product(Product.t()) :: [DeploymentGroup.t()]
   def get_deployments_by_product(%Product{id: product_id}) do
     from(
-      d in Deployment,
+      d in DeploymentGroup,
       join: f in assoc(d, :firmware),
       where: f.product_id == ^product_id,
       preload: [{:firmware, :product}]
@@ -43,24 +43,24 @@ defmodule NervesHub.Deployments do
     |> Map.new()
   end
 
-  @spec get_device_count(Deployment.t()) :: term() | nil
-  def get_device_count(%Deployment{id: id}) do
+  @spec get_device_count(DeploymentGroup.t()) :: term() | nil
+  def get_device_count(%DeploymentGroup{id: id}) do
     Device
     |> where([d], d.deployment_id == ^id)
     |> Repo.exclude_deleted()
     |> Repo.aggregate(:count)
   end
 
-  @spec get_deployments_by_firmware(integer()) :: [Deployment.t()]
+  @spec get_deployments_by_firmware(integer()) :: [DeploymentGroup.t()]
   def get_deployments_by_firmware(firmware_id) do
-    Deployment
+    DeploymentGroup
     |> where([d], d.firmware_id == ^firmware_id)
     |> Repo.all()
   end
 
-  @spec get(integer()) :: {:ok, Deployment.t()} | {:error, :not_found}
+  @spec get(integer()) :: {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get(id) when is_integer(id) do
-    case Repo.get(Deployment, id) do
+    case Repo.get(DeploymentGroup, id) do
       nil ->
         {:error, :not_found}
 
@@ -69,16 +69,17 @@ defmodule NervesHub.Deployments do
     end
   end
 
-  @spec get_deployment(Product.t(), String.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
+  @spec get_deployment(Product.t(), String.t()) ::
+          {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get_deployment(%Product{id: product_id}, deployment_id) do
     from(
-      d in Deployment,
+      d in DeploymentGroup,
       where: d.id == ^deployment_id,
       join: f in assoc(d, :firmware),
       where: f.product_id == ^product_id,
       preload: [{:firmware, :product}]
     )
-    |> Deployment.with_firmware()
+    |> DeploymentGroup.with_firmware()
     |> Repo.one()
     |> case do
       nil ->
@@ -89,16 +90,16 @@ defmodule NervesHub.Deployments do
     end
   end
 
-  def get_deployment!(deployment_id), do: Repo.get!(Deployment, deployment_id)
+  def get_deployment!(deployment_id), do: Repo.get!(DeploymentGroup, deployment_id)
 
-  @spec get_by_product_and_name!(Product.t(), String.t()) :: Deployment.t()
+  @spec get_by_product_and_name!(Product.t(), String.t()) :: DeploymentGroup.t()
   def get_by_product_and_name!(product, name) do
     get_by_product_and_name_query(product, name)
     |> Repo.one!()
   end
 
   @spec get_deployment_by_name(Product.t(), String.t()) ::
-          {:ok, Deployment.t()} | {:error, :not_found}
+          {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get_deployment_by_name(product, name) do
     get_by_product_and_name_query(product, name)
     |> Repo.one()
@@ -112,7 +113,7 @@ defmodule NervesHub.Deployments do
   end
 
   defp get_by_product_and_name_query(%Product{id: product_id}, name) do
-    Deployment
+    DeploymentGroup
     |> where(name: ^name)
     |> where(product_id: ^product_id)
     |> join(:left, [d], f in assoc(d, :firmware))
@@ -120,14 +121,15 @@ defmodule NervesHub.Deployments do
     |> preload([d, f, p], firmware: f, product: p)
   end
 
-  @spec delete_deployment(Deployment.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
-  def delete_deployment(%Deployment{id: deployment_id}) do
-    case Repo.delete(Repo.get!(Deployment, deployment_id)) do
+  @spec delete_deployment(DeploymentGroup.t()) ::
+          {:ok, DeploymentGroup.t()} | {:error, :not_found}
+  def delete_deployment(%DeploymentGroup{id: deployment_id}) do
+    case Repo.delete(Repo.get!(DeploymentGroup, deployment_id)) do
       {:error, _changeset} ->
         {:error, :not_found}
 
       {:ok, deployment} ->
-        _ = broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
+        _ = broadcast(:monitor, "deployment_groups/delete", %{deployment_id: deployment.id})
 
         {:ok, deployment}
     end
@@ -138,7 +140,8 @@ defmodule NervesHub.Deployments do
 
   - Records audit logs depending on changes
   """
-  @spec update_deployment(Deployment.t(), map) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
+  @spec update_deployment(DeploymentGroup.t(), map) ::
+          {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
   def update_deployment(deployment, params) do
     result =
       Repo.transaction(fn ->
@@ -150,8 +153,8 @@ defmodule NervesHub.Deployments do
 
         changeset =
           deployment
-          |> Deployment.with_firmware()
-          |> Deployment.changeset(params)
+          |> DeploymentGroup.with_firmware()
+          |> DeploymentGroup.changeset(params)
           |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
 
         case Repo.update(changeset) do
@@ -170,7 +173,7 @@ defmodule NervesHub.Deployments do
     case result do
       {:ok, {deployment, changeset}} ->
         _ = maybe_trigger_delta_generation(deployment, changeset)
-        :ok = broadcast(deployment, "deployments/update")
+        :ok = broadcast(deployment, "deployment_groups/update")
 
         {:ok, deployment}
 
@@ -186,15 +189,15 @@ defmodule NervesHub.Deployments do
         payload = %{archive_id: archive_id}
         _ = broadcast(deployment, "archives/updated", payload)
 
-        description = "deployment #{deployment.name} has a new archive"
+        description = "deployment group #{deployment.name} has a new archive"
         AuditLogs.audit!(deployment, deployment, description)
 
       {:conditions, _new_conditions} ->
-        description = "deployment #{deployment.name} conditions changed"
+        description = "deployment group #{deployment.name} conditions changed"
         AuditLogs.audit!(deployment, deployment, description)
 
       {:is_active, is_active} when is_active != true ->
-        description = "deployment #{deployment.name} is inactive"
+        description = "deployment group #{deployment.name} is inactive"
         AuditLogs.audit!(deployment, deployment, description)
 
       _ ->
@@ -224,7 +227,7 @@ defmodule NervesHub.Deployments do
   @doc """
   Delete any matching inflight deployment checks for devices
   """
-  @spec delete_inflight_checks(Deployment.t()) :: :ok
+  @spec delete_inflight_checks(DeploymentGroup.t()) :: :ok
   def delete_inflight_checks(deployment) do
     _ =
       InflightDeploymentCheck
@@ -234,18 +237,18 @@ defmodule NervesHub.Deployments do
     :ok
   end
 
-  @spec change_deployment(Deployment.t(), map()) :: Changeset.t()
+  @spec change_deployment(DeploymentGroup.t(), map()) :: Changeset.t()
   def change_deployment(deployment, params) do
-    Deployment.changeset(deployment, params)
+    DeploymentGroup.changeset(deployment, params)
   end
 
-  @spec create_deployment(map()) :: {:ok, Deployment.t()} | {:error, Changeset.t()}
+  @spec create_deployment(map()) :: {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
   def create_deployment(params) do
-    changeset = Deployment.creation_changeset(%Deployment{}, params)
+    changeset = DeploymentGroup.creation_changeset(%DeploymentGroup{}, params)
 
     case Repo.insert(changeset) do
       {:ok, deployment} ->
-        _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
+        _ = broadcast(:monitor, "deployment_groups/new", %{deployment_id: deployment.id})
 
         {:ok, deployment}
 
@@ -254,35 +257,35 @@ defmodule NervesHub.Deployments do
     end
   end
 
-  @spec broadcast(Deployment.t() | atom(), String.t(), map()) :: :ok | {:error, term()}
+  @spec broadcast(DeploymentGroup.t() | atom(), String.t(), map()) :: :ok | {:error, term()}
   def broadcast(deployment, event, payload \\ %{})
 
   def broadcast(:none, event, payload) do
     message = %Phoenix.Socket.Broadcast{
-      topic: "deployment:none",
+      topic: "deployment_group:none",
       event: event,
       payload: payload
     }
 
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:none", message)
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment_group:none", message)
   end
 
   def broadcast(:monitor, event, payload) do
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
-      "deployment:monitor",
+      "deployment_group:monitor",
       %Phoenix.Socket.Broadcast{event: event, payload: payload}
     )
   end
 
-  def broadcast(%Deployment{id: id}, event, payload) do
+  def broadcast(%DeploymentGroup{id: id}, event, payload) do
     message = %Phoenix.Socket.Broadcast{
-      topic: "deployment:#{id}",
+      topic: "deployment_group:#{id}",
       event: event,
       payload: payload
     }
 
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:#{id}", message)
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment_group:#{id}", message)
   end
 
   @doc """
@@ -313,7 +316,7 @@ defmodule NervesHub.Deployments do
   @spec verify_deployment_membership(Device.t()) :: Device.t()
   def verify_deployment_membership(%Device{deployment_id: deployment_id} = device)
       when not is_nil(deployment_id) do
-    %{deployment: deployment} = device = Repo.preload(device, deployment: :firmware)
+    %{deployment_group: deployment} = device = Repo.preload(device, deployment_group: :firmware)
     bad_architecture = device.firmware_metadata.architecture != deployment.firmware.architecture
     bad_platform = device.firmware_metadata.platform != deployment.firmware.platform
 
@@ -363,7 +366,7 @@ defmodule NervesHub.Deployments do
       [] ->
         set_deployment_telemetry(:none_found, device)
 
-        %{device | deployment: nil}
+        %{device | deployment_group: nil}
 
       [deployment] ->
         set_deployment_telemetry(:one_found, device, deployment)
@@ -406,14 +409,14 @@ defmodule NervesHub.Deployments do
     )
   end
 
-  @spec preload_firmware_and_archive(Deployment.t()) :: Deployment.t()
+  @spec preload_firmware_and_archive(DeploymentGroup.t()) :: DeploymentGroup.t()
   def preload_firmware_and_archive(deployment) do
-    %Deployment{} = Repo.preload(deployment, [:archive, :firmware])
+    %DeploymentGroup{} = Repo.preload(deployment, [:archive, :firmware])
   end
 
   @spec preload_with_firmware_and_archive(Device.t(), boolean()) :: Device.t()
   def preload_with_firmware_and_archive(device, force \\ false) do
-    %Device{} = Repo.preload(device, [deployment: [:archive, :firmware]], force: force)
+    %Device{} = Repo.preload(device, [deployment_group: [:archive, :firmware]], force: force)
   end
 
   @doc """
@@ -421,12 +424,12 @@ defmodule NervesHub.Deployments do
 
   Based on the product, firmware platform, firmware architecture, and device tags
   """
-  @spec matching_deployments(Device.t(), [boolean()]) :: [Deployment.t()]
+  @spec matching_deployments(Device.t(), [boolean()]) :: [DeploymentGroup.t()]
   def matching_deployments(device, active \\ [true, false])
   def matching_deployments(%Device{firmware_metadata: nil}, _active), do: []
 
   def matching_deployments(device, active) do
-    Deployment
+    DeploymentGroup
     |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
     |> preload([_, firmware: f], firmware: f)
     |> where([d], d.product_id == ^device.product_id)
@@ -462,11 +465,11 @@ defmodule NervesHub.Deployments do
   This is purposefully less-strict then Deployments.matching_deployments/2
   and should only be used when a human is choosing the deployment for a device.
   """
-  @spec eligible_deployments(Device.t()) :: [Deployment.t()]
+  @spec eligible_deployments(Device.t()) :: [DeploymentGroup.t()]
   def eligible_deployments(%Device{firmware_metadata: nil}), do: []
 
   def eligible_deployments(device) do
-    Deployment
+    DeploymentGroup
     |> join(:inner, [d], assoc(d, :firmware), as: :firmware)
     |> preload([_, firmware: f], firmware: f)
     |> where([d, _], d.product_id == ^device.product_id)

@@ -7,10 +7,10 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Archives
   alias NervesHub.AuditLogs
   alias NervesHub.Certificate
-  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -221,9 +221,9 @@ defmodule NervesHub.Fixtures do
       %{org_id: org.id, firmware_id: firmware.id}
       |> Enum.into(params)
       |> Enum.into(@deployment_params)
-      |> Deployments.create_deployment()
+      |> ManagedDeployments.create_deployment()
 
-    {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: is_active})
+    {:ok, deployment} = ManagedDeployments.update_deployment(deployment, %{is_active: is_active})
 
     deployment
   end

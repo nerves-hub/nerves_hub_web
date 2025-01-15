@@ -1,14 +1,14 @@
 <div class="action-row">
-  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments"} class="back-link">
+  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups"} class="back-link">
     All Deployments
   </.link>
   <div class="btn-group" role="group" aria-label="Deployment Actions">
-    <.link phx-click="toggle" class="btn btn-outline-light btn-action" aria-label={"Turn #{opposite_status(@deployment)} deployment"}>
+    <.link phx-click="toggle" class="btn btn-outline-light btn-action" aria-label={"Turn #{opposite_status(@deployment_group)} deployment"}>
       <span class="button-icon power"></span>
-      <span class="action-text">Turn <%= opposite_status(@deployment) %></span>
+      <span class="action-text">Turn <%= opposite_status(@deployment_group) %></span>
     </.link>
 
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/edit"} class="btn btn-outline-light btn-action" aria-label="Edit">
+    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}/edit"} class="btn btn-outline-light btn-action" aria-label="Edit">
       <span class="button-icon edit"></span>
       <span class="action-text">Edit</span>
     </.link>
@@ -18,20 +18,25 @@
       <span class="action-text">Delete</span>
     </.link>
 
-    <.link href={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/audit_logs/download"} class="btn btn-outline-light btn-action" aria-label="Download Audit Logs" download>
+    <.link
+      href={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}/audit_logs/download"}
+      class="btn btn-outline-light btn-action"
+      aria-label="Download Audit Logs"
+      download
+    >
       <div class="button-icon download"></div>
       <span class="action-text">Download Audit Logs</span>
     </.link>
   </div>
 </div>
 
-<h1><%= @deployment.name %></h1>
+<h1><%= @deployment_group.name %></h1>
 
 <div class="deployment-meta-grid">
   <div>
     <div class="help-text">State</div>
-    <p class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}>
-      <%= if @deployment.is_active, do: "On", else: "Off" %>
+    <p class={"deployment-state state-#{if @deployment_group.is_active, do: "on", else: "off"}"}>
+      <%= if @deployment_group.is_active, do: "On", else: "Off" %>
     </p>
   </div>
   <div>
@@ -61,6 +66,16 @@
   <div class="display-box">
     <div class="x2-grid">
       <div class="gc-span-2">
+        <div class="help-text mb-1">Distributed to</div>
+        <%= if Enum.count(tags(@deployment_group)) > 0 do %>
+          <%= for tag <- tags(@deployment_group) do %>
+            <span class="badge">
+              <%= tag %>
+            </span>
+          <% end %>
+        <% else %>
+          <p class="text-muted">No tags selected, not being distributed</p>
+        <% end %>
         <div>
           <div class="help-text mb-1">Firmware version</div>
           <span>
@@ -76,7 +91,7 @@
               <span class="tooltip-info"></span>
               <span class="tooltip-text">The number of devices that will update at any given time. This is a soft limit and concurrent updates may be slightly above this number.</span>
             </div>
-            <p><%= @deployment.concurrent_updates %></p>
+            <p><%= @deployment_group.concurrent_updates %></p>
           </div>
           <div class="col-lg-6 mb-1">
             <div class="help-text mb-1 tooltip-label">
@@ -84,7 +99,7 @@
               <span class="tooltip-info"></span>
               <span class="tooltip-text">The number of minutes before an inflight update expires to clear the queue</span>
             </div>
-            <p><%= @deployment.inflight_update_expiration_minutes %></p>
+            <p><%= @deployment_group.inflight_update_expiration_minutes %></p>
           </div>
         </div>
         <div class="row">
@@ -95,7 +110,7 @@
                 <span class="tooltip-info"></span>
                 <span class="tooltip-text"><%= help_message_for(:failure_rate) %></span>
               </div>
-              <p><%= @deployment.failure_rate_amount %> devices per <%= @deployment.failure_rate_seconds %> seconds</p>
+              <p><%= @deployment_group.failure_rate_amount %> devices per <%= @deployment_group.failure_rate_seconds %> seconds</p>
             </div>
           </div>
           <div class="col-lg-6 mb-1">
@@ -105,7 +120,7 @@
                 <span class="tooltip-info"></span>
                 <span class="tooltip-text"><%= help_message_for(:failure_threshold) %></span>
               </div>
-              <p><%= @deployment.failure_threshold %></p>
+              <p><%= @deployment_group.failure_threshold %></p>
             </div>
           </div>
         </div>
@@ -117,7 +132,7 @@
                 <span class="tooltip-info"></span>
                 <span class="tooltip-text"><%= help_message_for(:device_failure_rate) %></span>
               </div>
-              <p><%= @deployment.device_failure_rate_amount %> failures per <%= @deployment.device_failure_rate_seconds %> seconds</p>
+              <p><%= @deployment_group.device_failure_rate_amount %> failures per <%= @deployment_group.device_failure_rate_seconds %> seconds</p>
             </div>
           </div>
           <div class="col-lg-6 mb-1">
@@ -127,7 +142,7 @@
                 <span class="tooltip-info"></span>
                 <span class="tooltip-text"><%= help_message_for(:device_failure_threshold) %></span>
               </div>
-              <p><%= @deployment.device_failure_threshold %></p>
+              <p><%= @deployment_group.device_failure_threshold %></p>
             </div>
           </div>
         </div>
@@ -139,14 +154,14 @@
                 <span class="tooltip-info"></span>
                 <span class="tooltip-text"><%= help_message_for(:penalty_timeout_minutes) %></span>
               </div>
-              <p><%= @deployment.penalty_timeout_minutes %> minutes</p>
+              <p><%= @deployment_group.penalty_timeout_minutes %> minutes</p>
             </div>
           </div>
         </div>
         <div>
           <div class="help-text mb-1">Code sent on Device Connect</div>
-          <%= if @deployment.connecting_code do %>
-            <pre><code><%= @deployment.connecting_code %></code></pre>
+          <%= if @deployment_group.connecting_code do %>
+            <pre><code><%= @deployment_group.connecting_code %></code></pre>
           <% else %>
             <p>-</p>
           <% end %>
@@ -164,8 +179,8 @@
         <div class="row">
           <div class="col-lg-6 mb-1">
             <div class="help-text mb-1">Distributed to</div>
-            <%= if Enum.count(tags(@deployment)) > 0 do %>
-              <%= for tag <- tags(@deployment) do %>
+            <%= if Enum.count(tags(@deployment_group)) > 0 do %>
+              <%= for tag <- tags(@deployment_group) do %>
                 <span class="badge">
                   <%= tag %>
                 </span>
@@ -176,7 +191,7 @@
           </div>
           <div class="col-lg-6 mb-1">
             <div class="help-text mb-1">Version requirement</div>
-            <p><%= version(@deployment) %></p>
+            <p><%= version(@deployment_group) %></p>
           </div>
         </div>
       </div>
@@ -189,8 +204,8 @@
 
   <div class="help-text mt-3">Progress</div>
   <div class="progress device-show mb-3">
-    <div id="deployment-percentage" class="progress-bar" role="progressbar" style={"width: #{deployment_percentage(@deployment)}%"}>
-      <%= deployment_percentage(@deployment) %>%
+    <div id="deployment-percentage" class="progress-bar" role="progressbar" style={"width: #{deployment_percentage(@deployment_group)}%"}>
+      <%= deployment_percentage(@deployment_group) %>%
     </div>
   </div>
 

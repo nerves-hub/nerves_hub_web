@@ -2,15 +2,15 @@ defmodule NervesHub.AuditLogs.Templates do
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.Device
+  alias NervesHub.ManagedDeployments.DeploymentGroup
 
   require Logger
 
   def audit_resolve_changed_deployment(device, reference_id) do
     description =
       if device.deployment_id do
-        "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+        "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment_group.name}"
       else
         "device #{device.identifier} reloaded deployment and is no longer attached to a deployment"
       end
@@ -19,18 +19,18 @@ defmodule NervesHub.AuditLogs.Templates do
   end
 
   def audit_device_deployment_update_triggered(device, reference_id) do
-    deployment = device.deployment
-    firmware = deployment.firmware
+    deployment_group = device.deployment_group
+    firmware = deployment_group.firmware
 
     description =
-      "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
+      "deployment #{deployment_group.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
 
-    AuditLogs.audit_with_ref!(deployment, device, description, reference_id)
+    AuditLogs.audit_with_ref!(deployment_group, device, description, reference_id)
   end
 
   def audit_device_assigned(device, reference_id) do
     description =
-      "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment.name}"
+      "device #{device.identifier} reloaded deployment and is attached to deployment #{device.deployment_group.name}"
 
     AuditLogs.audit_with_ref!(device, device, description, reference_id)
   end
@@ -43,7 +43,7 @@ defmodule NervesHub.AuditLogs.Templates do
     Logger.info("[DeviceChannel] #{description}")
   end
 
-  @spec audit_device_deployment_update(User.t(), Device.t(), Deployment.t()) :: AuditLog.t()
+  @spec audit_device_deployment_update(User.t(), Device.t(), DeploymentGroup.t()) :: AuditLog.t()
   def audit_device_deployment_update(user, device, deployment) do
     AuditLogs.audit!(
       user,
@@ -52,7 +52,11 @@ defmodule NervesHub.AuditLogs.Templates do
     )
   end
 
-  @spec audit_device_deployment_update(Device.t(), Deployment.t(), :one_found | :multiple_found) ::
+  @spec audit_device_deployment_update(
+          Device.t(),
+          DeploymentGroup.t(),
+          :one_found | :multiple_found
+        ) ::
           AuditLog.t()
   def audit_set_deployment(device, deployment, :one_found) do
     AuditLogs.audit!(
