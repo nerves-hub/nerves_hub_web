@@ -16,7 +16,17 @@ export default {
         "sidebar-item-hover":
           "linear-gradient(90deg, rgba(63, 63, 70, 0.24) 0%, rgba(63, 63, 70, 0.48) 100%)",
         "sidebar-item-selected":
-          "linear-gradient(90deg, rgba(99, 102, 241, 0) 50%, rgba(99, 102, 241, 0.08) 100%), linear-gradient(90deg, rgba(63, 63, 70, 0.24) 0%, rgba(63, 63, 70, 0.48) 100%)"
+          "linear-gradient(90deg, rgba(99, 102, 241, 0) 50%, rgba(99, 102, 241, 0.08) 100%), linear-gradient(90deg, rgba(63, 63, 70, 0.24) 0%, rgba(63, 63, 70, 0.48) 100%)",
+        "tab-selected":
+          "linear-gradient(180deg, rgba(99, 102, 241, 0.00) 86.32%, rgba(99, 102, 241, 0.48) 103.41%)",
+        "health-good":
+          "linear-gradient(180deg, rgba(16, 185, 129, 0.00) 18.75%, rgba(16, 185, 129, 0.04) 81.25%)",
+        "health-warning":
+          "linear-gradient(180deg, rgba(245, 158, 11, 0.00) 18.75%, rgba(245, 158, 11, 0.04) 81.25%), linear-gradient(180deg, rgba(63, 63, 70, 0.16) 0%, rgba(63, 63, 70, 0.24) 100%)",
+        "health-netural":
+          "linear-gradient(180deg, rgba(99, 102, 241, 0.00) 18.75%, rgba(99, 102, 241, 0.04) 81.25%), linear-gradient(180deg, rgba(63, 63, 70, 0.16) 0%, rgba(63, 63, 70, 0.24) 100%)",
+        "example-map": "url('/images/mapbox-north-america-dummy.png')",
+        "example-map-dark": "url('/images/mapbox-north-america-dummy-dark.png')"
       }),
       colors: {
         base: {
@@ -32,13 +42,17 @@ export default {
           900: "#18181b",
           950: "#141417"
         },
+        "nerves-gray": {
+          500: "#757575"
+        },
         purple: {
           600: "#6366F1"
         }
       },
       boxShadow: {
         "filter-slider":
-          "-16px 0px 32px -4px #141417, 0px 4px 4px -4px #141417;"
+          "-16px 0px 32px -4px #141417, 0px 4px 4px -4px #141417;",
+        "device-details-content": "0 16 32 -4 #141417, 0 14 4 -4 #141417"
       }
     }
   },

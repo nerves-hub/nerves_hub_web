@@ -25,6 +25,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias Phoenix.Socket.Broadcast
 
+  embed_templates("templates/*")
+
   @running_script_placeholder "Running Script.."
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
@@ -42,15 +44,30 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> page_title("Device #{device.identifier} - #{product.name}")
     |> sidebar_tab(:devices)
+    |> selected_tab()
     |> assign(:extension_overrides, extension_overrides(device, product))
     |> assign(:scripts, scripts_with_output(product))
     |> general_assigns(device)
     |> assign_metadata()
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
-    |> audit_log_assigns(1)
+    |> assign(:page_number, 1)
+    |> assign(:page_size, 25)
+    |> audit_log_assigns()
     |> assign(:eligible_deployments, Deployments.eligible_deployments(device))
     |> ok()
+  end
+
+  def handle_params(params, _uri, %{assigns: %{live_action: :activity}} = socket) do
+    socket
+    |> assign(:page_number, String.to_integer(params["page_number"] || "1"))
+    |> assign(:page_size, String.to_integer(params["page_size"] || "25"))
+    |> audit_log_assigns()
+    |> noreply()
+  end
+
+  def handle_params(_params, _uri, socket) do
+    {:noreply, socket}
   end
 
   def handle_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
@@ -208,7 +225,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_event("paginate", %{"page" => page_num}, socket) do
-    {:noreply, socket |> audit_log_assigns(String.to_integer(page_num))}
+    params = %{"page_size" => socket.assigns.page_size, "page_number" => page_num}
+
+    url =
+      ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices/#{socket.assigns.device.identifier}/activity?#{params}"
+
+    socket
+    |> push_patch(to: url)
+    |> noreply()
   end
 
   def handle_event("clear-penalty-box", _params, socket) do
@@ -392,6 +416,17 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
+  def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
+    params = %{"page_size" => page_size, "page_number" => 1}
+
+    url =
+      ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices/#{socket.assigns.device.identifier}/activity?#{params}"
+
+    socket
+    |> push_patch(to: url)
+    |> noreply()
+  end
+
   def handle_async(
         {:run_script, index},
         result,
@@ -454,8 +489,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
-  defp audit_log_assigns(%{assigns: %{device: device}} = socket, page_number) do
-    {logs, audit_pager} = AuditLogs.logs_for_feed(device, %{page: page_number, page_size: 5})
+  defp audit_log_assigns(
+         %{assigns: %{device: device, page_number: page_number, page_size: page_size}} = socket
+       ) do
+    {logs, audit_pager} =
+      AuditLogs.logs_for_feed(device, %{page: page_number, page_size: page_size})
 
     audit_pager = Map.from_struct(audit_pager)
 
@@ -515,5 +553,26 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:deployment, device.deployment)
     |> assign(:device_connection, device_connection(device))
     |> assign(:device, device)
+  end
+
+  def show_menu(id, js \\ %JS{}) do
+    JS.show(js, transition: "fade-in", to: "##{id}")
+  end
+
+  def hide_menu(id, js \\ %JS{}) do
+    JS.hide(js, transition: "fade-out", to: "##{id}")
+  end
+
+  def selected_tab(socket) do
+    assign(socket, :tab, socket.assigns.live_action || :details)
+  end
+
+  # TODO: refactor to use tailwind attributes
+  def tab_classes(tab_selected, tab) do
+    if tab_selected == tab do
+      "px-6 py-2 h-11 font-normal text-sm text-neutral-50 border-b border-indigo-500 bg-tab-selected relative -bottom-px"
+    else
+      "px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
+    end
   end
 end

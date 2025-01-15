@@ -1,0 +1,268 @@
+<div class="h-full w-full flex flex-col">
+  <div class="h-[56px] skrink-0 flex justify-end bg-base-900 border-b border-base-700 pl-6 items-center">
+    <div class="flex gap-2.5">
+      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="back-link flex gap-2.5 items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="text-base-400">All Devices</span>
+      </.link>
+      <span class="text-base-400">/</span>
+      <span class="text-zinc-50 font-semibold"><%= @device.identifier %></span>
+    </div>
+    <div class="flex items-center gap-2 ml-auto mr-6">
+      <%= if @device.deleted_at do %>
+        <button class="action-button" aria-label="Restore" type="button" phx-click="restore">
+          <span class="action-text">Restore</span>
+        </button>
+        <button class="action-button" aria-label="Destroy" type="button" phx-click="destroy" data-confirm="Are you sure?">
+          <span class="action-text">Destroy</span>
+        </button>
+      <% else %>
+        <button
+          class="action-button disabled:bg-base-700 disabled:text-base-400"
+          aria-label="Reboot device"
+          type="button"
+          phx-click="reboot"
+          data-confirm="Are you sure?"
+          disabled={disconnected?(@device_connection)}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path
+              d="M14.4097 4.99992C15.7938 6.22149 16.6667 8.00876 16.6667 9.99992C16.6667 13.6818 13.6819 16.6666 10 16.6666C6.31814 16.6666 3.33337 13.6818 3.33337 9.99992C3.33337 8.00876 4.2063 6.22149 5.59033 4.99992M10 9.99992V3.33325"
+              stroke="#A1A1AA"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span class="text-sm font-medium">Reboot</span>
+        </button>
+        <button class="action-button disabled:bg-base-700 disabled:text-base-400" aria-label="Reconnect device" type="button" phx-click="reconnect" disabled={disconnected?(@device_connection)}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path
+              d="M13.5714 11.4644C12.6574 10.5596 11.3947 9.99992 9.99996 9.99992C8.60523 9.99992 7.34254 10.5596 6.42853 11.4644M15.9523 9.10736C14.429 7.59933 12.3245 6.66659 9.99996 6.66659C7.67541 6.66659 5.57093 7.59933 4.04758 9.10736M18.3333 6.75034C16.2006 4.63909 13.2543 3.33325 9.99996 3.33325C6.74559 3.33325 3.79931 4.63909 1.66663 6.75034M11.6835 14.9999C11.6835 15.9204 10.9298 16.6666 9.99996 16.6666C9.07014 16.6666 8.31637 15.9204 8.31637 14.9999C8.31637 14.5397 8.50481 14.123 8.80948 13.8214C9.11415 13.5198 9.53505 13.3333 9.99996 13.3333C10.4649 13.3333 10.8858 13.5198 11.1904 13.8214C11.4951 14.123 11.6835 14.5397 11.6835 14.9999Z"
+              stroke="#A1A1AA"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span class="text-sm font-medium">Reconnect</span>
+        </button>
+        <%!-- <.link
+          class="action-button disabled:bg-base-700 disabled:text-base-400"
+          disabled={!@console_active?}
+          aria_label="Console"
+          target="_blank"
+          navigate={Routes.device_path(@socket, :console, @org.name, @product.name, @device.identifier)}
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 16L21 16L21 4L3 4L3 16H12ZM12 16V20M12 20L16 20M12 20H8" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span class="action-text">Console</span>
+        </.link> --%>
+        <button class="action-button disabled:bg-base-700 disabled:text-base-400" aria-label="Identify device" type="button" phx-click="identify" disabled={disconnected?(@device_connection)}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M10.0001 10.0001V10.0009M10.0001 1.66675V5.00008M10.0001 15.0001V18.3334M18.3334 10.0001H15.0001M5.00008 10.0001H1.66675M16.6667 10.0001C16.6667 13.682 13.682 16.6667 10.0001 16.6667C6.31818 16.6667 3.33341 13.682 3.33341 10.0001C3.33341 6.31818 6.31818 3.33341 10.0001 3.33341C13.682 3.33341 16.6667 6.31818 16.6667 10.0001Z"
+              stroke="#A1A1AA"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span class="text-sm font-medium">Identify</span>
+        </button>
+        <%!-- <div class="relative px-4">
+          <a class="cursor-pointer" data-target="#" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" phx-click={show_menu("actions-top-row")}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M9.1665 10C9.1665 10.2211 9.2543 10.433 9.41058 10.5893C9.56686 10.7456 9.77882 10.8334 9.99984 10.8334C10.2209 10.8334 10.4328 10.7456 10.5891 10.5893C10.7454 10.433 10.8332 10.2211 10.8332 10C10.8332 9.77903 10.7454 9.56707 10.5891 9.41079C10.4328 9.2545 10.2209 9.16671 9.99984 9.16671C9.77882 9.16671 9.56686 9.2545 9.41058 9.41079C9.2543 9.56707 9.1665 9.77903 9.1665 10ZM9.1665 15.8334C9.1665 16.0544 9.2543 16.2663 9.41058 16.4226C9.56686 16.5789 9.77882 16.6667 9.99984 16.6667C10.2209 16.6667 10.4328 16.5789 10.5891 16.4226C10.7454 16.2663 10.8332 16.0544 10.8332 15.8334C10.8332 15.6124 10.7454 15.4004 10.5891 15.2441C10.4328 15.0878 10.2209 15 9.99984 15C9.77882 15 9.56686 15.0878 9.41058 15.2441C9.2543 15.4004 9.1665 15.6124 9.1665 15.8334ZM9.1665 4.16671C9.1665 4.38772 9.2543 4.59968 9.41058 4.75596C9.56686 4.91224 9.77882 5.00004 9.99984 5.00004C10.2209 5.00004 10.4328 4.91224 10.5891 4.75596C10.7454 4.59968 10.8332 4.38772 10.8332 4.16671C10.8332 3.94569 10.7454 3.73373 10.5891 3.57745C10.4328 3.42117 10.2209 3.33337 9.99984 3.33337C9.77882 3.33337 9.56686 3.42117 9.41058 3.57745C9.2543 3.73373 9.1665 3.94569 9.1665 4.16671Z"
+                stroke="#A1A1AA"
+                stroke-width="1.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </a>
+          <div class="absolute top-4 menu-box hidden min-w-48" id="actions-top-row" phx-click-away={hide_menu("actions-top-row")} phx-key="escape">
+            <button class="flex" aria-label="Delete" type="button" phx-click="delete" data-confirm="Are you sure?">
+              <span class="action-text">Delete</span>
+            </button>
+          </div>
+        </div> --%>
+      <% end %>
+    </div>
+    <div class="h-full border-l flex items-center justify-center border-base-700 bg-base-900">
+      <a :if={Application.get_env(:nerves_hub, :new_ui)} href={"/ui/switch?return_to=#{@current_path}"} class="">
+        <svg class="box-content px-5 h-5 w-5 stroke-zinc-500 hover:stroke-indigo-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M21 14V19C21 20.1046 20.1046 21 19 21H16M3 16V19C3 20.1046 3.89543 21 5 21H16M3 16V5C3 3.89543 3.89543 3 5 3H11M3 16C4.40293 15.7662 6.63687 15.7073 8.94504 16.2427M16 21C14.2965 18.2317 11.5726 16.8522 8.94504 16.2427M8.94504 16.2427C9.87157 15.1698 11.1851 14.1585 13 13.3925M8.5 7C8 7 7 7.3 7 8.5C7 9.7 8 10 8.5 10C9 10 10 9.7 10 8.5C10 7.3 9 7 8.5 7ZM17.5 9.46262L14.7188 11L15.25 7.74377L13 5.43769L16.1094 4.96262L17.5 2L18.8906 4.96262L22 5.43769L19.75 7.74377L20.2812 11L17.5 9.46262Z"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </a>
+    </div>
+  </div>
+
+  <div class="h-0 flex-1 overflow-y-auto">
+    <div :if={@device.deleted_at} class="alert alert-danger mt-0">
+      <div class="content-container">
+        <center>Device is deleted and must be restored to use</center>
+      </div>
+    </div>
+
+    <div class="flex justify-between p-6 h-[89px]">
+      <div class="flex gap-3 items-center">
+        <%= if Map.get(@device_connection || %{}, :status) == :connected do %>
+          <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6" fill="none">
+            <circle cx="3" cy="3" r="3" fill="#10B981" />
+          </svg>
+        <% else %>
+          <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6" fill="none">
+            <circle cx="3" cy="3" r="3" fill="#71717A" />
+          </svg>
+        <% end %>
+        <h1 class="text-xl font-semibold leading-[30px] text-zinc-50">
+          <%= @device.identifier %>
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+          <span class="text-sm text-zinc-400 mr-1">Version:</span>
+          <span class="text-sm text-base-300 mr-2"><%= @device.firmware_metadata.version %> (<%= String.slice(@device.firmware_metadata.uuid, 0..7) %>)</span>
+          <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M8 10V8M8 6V5.99333M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
+              stroke="#A1A1AA"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+
+        <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+          <span class="text-sm text-zinc-400">Firmware updates:</span>
+          <%= cond do %>
+            <% @device.updates_enabled == false -> %>
+              <svg class="mx-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
+                  stroke="#f59e0b"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+
+              <span class="text-sm text-base-300">Disabled</span>
+
+              <button class="border rounded-sm border-zinc-600 bg-zinc-700 ml-2 p-1" type="button" phx-click="toggle_health_state">
+                <svg class="h-3 w-3 stroke-zinc-400" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M8.93294 11.3751C7.84085 11.3341 6.72055 11.7413 5.87048 12.5914C4.2853 14.1765 4.24008 16.7014 5.76948 18.2308C7.29889 19.7602 9.82376 19.715 11.4089 18.1298C12.259 17.2797 12.6662 16.1595 12.6253 15.0674M11.3752 8.93267C11.3343 7.84058 11.7415 6.72029 12.5915 5.87023C14.1767 4.28505 16.7016 4.23984 18.231 5.76923C19.7604 7.29863 19.7152 9.82349 18.13 11.4087C17.2799 12.2587 16.1597 12.6659 15.0676 12.625M8.53872 15.4616L15.4618 8.53855"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            <% Devices.device_in_penalty_box?(@device) -> %>
+              <svg class="mx-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M19 10V5C17.5 5.16667 14 5 12 3C10 5 6.5 5.16667 5 5V14C5 16.5884 7.93118 18.7581 10 19.9671M19.8284 19.8284C20.5523 19.1046 21 18.1046 21 17C21 14.7909 19.2091 13 17 13C15.8954 13 14.8954 13.4477 14.1716 14.1716M19.8284 19.8284C19.1046 20.5523 18.1046 21 17 21C14.7909 21 13 19.2091 13 17C13 15.8954 13.4477 14.8954 14.1716 14.1716M19.8284 19.8284L14.1716 14.1716"
+                  stroke="#ef4444"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span class="text-sm text-base-300">In Penalty Box</span>
+
+              <a style="" class="" href="#" class="" title="Clear penalty box" aria-label="Clear penalty box" type="button" phx-click="clear-penalty-box">
+                Clear
+              </a>
+            <% true -> %>
+              <svg class="mx-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M5.99992 8L7.33325 9.33333L9.99992 6M7.99992 14C7.99992 14 12.6666 12 12.6666 9.33333V3.33333C11.6666 3.44444 9.33325 3.33333 7.99992 2C6.66659 3.33333 4.33325 3.44444 3.33325 3.33333V9.33333C3.33325 12 7.99992 14 7.99992 14Z"
+                  stroke="#10B981"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+
+              <span class="text-sm text-base-300">Enabled</span>
+
+              <button class="border rounded-sm border-zinc-600 bg-zinc-700 ml-2 p-1" type="button" phx-click="toggle_health_state">
+                <svg class="h-3 w-3" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g clip-path="url(#clip0_203_25341)">
+                    <path
+                      d="M3.52513 5.64645L2.81802 6.35355C2.03697 7.1346 2.03697 8.40093 2.81802 9.18198C3.59907 9.96303 4.8654 9.96303 5.64645 9.18198L6.35355 8.47487M4.58579 7.41421L6 6M7.00006 4.99994L7.41421 4.58579M5.64645 3.52513L6.35355 2.81802C7.1346 2.03697 8.40093 2.03697 9.18198 2.81802C9.96303 3.59907 9.96303 4.8654 9.18198 5.64645L8.47487 6.35355M1.5 1.5L10.5 10.5"
+                      stroke="#A1A1AA"
+                      stroke-width="1.2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </g>
+                  <defs>
+                    <clipPath id="clip0_203_25341">
+                      <rect width="12" height="12" fill="white" />
+                    </clipPath>
+                  </defs>
+                </svg>
+              </button>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex px-6 border-b border-zinc-700">
+      <.link class={tab_classes(@tab, :details)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"}>
+        Details
+      </.link>
+      <.link class={tab_classes(@tab, :health)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/healthz"}>
+        Health
+      </.link>
+      <.link class={tab_classes(@tab, :activity)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/activity"}>
+        Activity
+      </.link>
+      <.link class={tab_classes(@tab, :console)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/conzole"}>
+        Console
+      </.link>
+      <.link class={tab_classes(@tab, :settings)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/settingz"}>
+        Settings
+      </.link>
+    </div>
+
+    <.details_template
+      :if={@tab == :details}
+      device={@device}
+      deployment={@deployment}
+      firmwares={@firmwares}
+      device_connection={@device_connection}
+      auto_refresh_health={!!@health_check_timer}
+      product={@product}
+      org={@org}
+    />
+
+    <.activity_template :if={@tab == :activity} activity={@audit_logs} pager={@audit_pager} device={@device} product={@product} org={@org} />
+  </div>
+
+  <%!-- I don't love that this bit is separate from `.activity_template`, but wow, css is hard --%>
+  <div :if={@tab == :activity} class="sticky bottom-0 flex flex-row border-0 bg-base-950 border-t border-t-base-700 px-6 py-4 z-10">
+    <%= for size <- [25, 50, 100] do %>
+      <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"pager-button #{if size == @audit_pager.page_size, do: "active-page"}"}>
+        <%= size %>
+      </button>
+    <% end %>
+    <div class="ml-auto">
+      <NervesHubWeb.Components.Pager.render total_pages={@audit_pager.total_pages} page_number={@audit_pager.current_page} />
+    </div>
+  </div>
+</div>
