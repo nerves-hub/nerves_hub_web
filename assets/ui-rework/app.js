@@ -133,7 +133,6 @@ Hooks.Chart = {
             ticks: {
               display: true,
               autoSkip: false
-              // maxTicksLimit: 6
             }
           },
           y: {
