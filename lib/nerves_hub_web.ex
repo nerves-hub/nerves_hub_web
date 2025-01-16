@@ -129,6 +129,28 @@ defmodule NervesHubWeb do
     quote do
       use Phoenix.LiveComponent
 
+      import NervesHubWeb.Helpers.Authorization
+
+      def ok(socket), do: {:ok, socket}
+
+      def noreply(socket), do: {:noreply, socket}
+
+      def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
+
+      def sidebar_tab(socket, tab) do
+        socket
+        |> assign(:sidebar_tab, tab)
+        |> assign(:tab_hint, tab)
+      end
+
+      def send_toast(socket, kind, msg) do
+        LiveToast.send_toast(kind, msg)
+        socket
+      end
+
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
+
       unquote(view_helpers())
     end
   end

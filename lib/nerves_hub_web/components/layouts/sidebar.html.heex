@@ -81,5 +81,9 @@
     </div>
   </div>
 
-  <%= @inner_content %>
+  <div class="h-full w-full flex flex-col">
+    <LiveToast.toast_group flash={@flash} connected={assigns[:socket] != nil} toasts_sync={assigns[:toasts_sync]} toast_class_fn={&NervesHubWeb.LiveToast.toast_class_fn/1} />
+
+    <%= @inner_content %>
+  </div>
 </div>
