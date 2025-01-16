@@ -100,6 +100,10 @@ defmodule NervesHub.Devices.Filtering do
     filter_on_metric(query, filters)
   end
 
+  def filter(query, _filters, :deployment_id, nil) do
+    where(query, [d], is_nil(d.deployment_id))
+  end
+
   # Ignore any undefined filter.
   # This will prevent error 500 responses on deprecated saved bookmarks etc.
   def filter(query, _filters, _key, _value) do

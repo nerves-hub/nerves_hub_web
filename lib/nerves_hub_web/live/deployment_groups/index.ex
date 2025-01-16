@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.DeploymentGroup.Index do
+defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Firmwares.Firmware

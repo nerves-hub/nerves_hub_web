@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.DeploymentGroup.Show do
+defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.AuditLogs

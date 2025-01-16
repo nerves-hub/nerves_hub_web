@@ -347,7 +347,8 @@ defmodule NervesHubWeb.Components.Navigation do
       %{
         title: "Deployments",
         active: "",
-        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/deployment_groups"
+        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/deployment_groups",
+        tab: :deployments
       },
       %{
         title: "Scripts",

@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.DeploymentGroup.New do
+defmodule NervesHubWeb.Live.DeploymentGroups.New do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.AuditLogs
@@ -92,7 +92,10 @@ defmodule NervesHubWeb.Live.DeploymentGroup.New do
 
         socket
         |> put_flash(:info, "Deployment Group created")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployment_groups")
+        |> push_navigate(
+          to:
+            ~p"/org/#{org.name}/#{product.name}/deployment_groups/#{deployment.name}/add_devices"
+        )
         |> noreply()
 
       {_firmware, {:error, changeset}} ->

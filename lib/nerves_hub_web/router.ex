@@ -299,13 +299,18 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/archives/upload", Live.Archives, :upload)
       live("/org/:org_name/:product_name/archives/:archive_uuid", Live.Archives, :show)
 
-      live("/org/:org_name/:product_name/deployment_groups", Live.DeploymentGroup.Index)
-      live("/org/:org_name/:product_name/deployment_groups/new", Live.DeploymentGroup.New)
-      live("/org/:org_name/:product_name/deployment_groups/:name", Live.DeploymentGroup.Show)
+      live("/org/:org_name/:product_name/deployment_groups", Live.DeploymentGroups.Index)
+      live("/org/:org_name/:product_name/deployment_groups/new", Live.DeploymentGroups.New)
+      live("/org/:org_name/:product_name/deployment_groups/:name", Live.DeploymentGroups.Show)
+
+      live(
+        "/org/:org_name/:product_name/deployment_groups/:name/add_devices",
+        Live.DeploymentGroups.AddDevices
+      )
 
       live(
         "/org/:org_name/:product_name/deployment_groups/:name/edit",
-        Live.DeploymentGroup.Edit
+        Live.DeploymentGroups.Edit
       )
 
       live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)

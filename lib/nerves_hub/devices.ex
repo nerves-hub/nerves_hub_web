@@ -773,6 +773,14 @@ defmodule NervesHub.Devices do
     |> Repo.update!()
   end
 
+  @spec update_many_deployments([non_neg_integer()], DeploymentGroup.t()) ::
+          {integer(), nil | [term()]}
+  def update_many_deployments(device_ids, deployment) do
+    Device
+    |> where([d], d.id in ^device_ids)
+    |> Repo.update_all(set: [deployment_id: deployment.id])
+  end
+
   @spec clear_deployment(Device.t()) :: Device.t()
   def clear_deployment(device) do
     device

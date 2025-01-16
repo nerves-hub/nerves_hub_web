@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.DeploymentGroup.Edit do
+defmodule NervesHubWeb.Live.DeploymentGroups.Edit do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Archives
