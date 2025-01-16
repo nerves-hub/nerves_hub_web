@@ -23,6 +23,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.FwupProgress
   alias NervesHubWeb.Components.Utils
 
+  alias NervesHubWeb.Components.DevicePage.Activity, as: ActivityPage
+  alias NervesHubWeb.Components.DevicePage.Console, as: ConsolePage
+  alias NervesHubWeb.Components.DevicePage.Details, as: DetailsPage
+  alias NervesHubWeb.Components.DevicePage.Health, as: HealthPage
+  alias NervesHubWeb.Components.DevicePage.Settings, as: SettingsPage
+
   alias Phoenix.Socket.Broadcast
 
   embed_templates("templates/*")
@@ -52,18 +58,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> schedule_health_check_timer()
     |> assign(:fwup_progress, nil)
     |> assign(:page_number, 1)
-    |> assign(:page_size, 25)
+    |> assign(:page_size, 5)
     |> audit_log_assigns()
     |> assign(:eligible_deployments, Deployments.eligible_deployments(device))
     |> ok()
-  end
-
-  def handle_params(params, _uri, %{assigns: %{live_action: :activity}} = socket) do
-    socket
-    |> assign(:page_number, String.to_integer(params["page_number"] || "1"))
-    |> assign(:page_size, String.to_integer(params["page_size"] || "25"))
-    |> audit_log_assigns()
-    |> noreply()
   end
 
   def handle_params(_params, _uri, socket) do
@@ -251,6 +249,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
     authorized!(:"device:toggle-updates", org_user)
 
     {:ok, updated_device} = Devices.toggle_health(device, user)
+
+    message = [
+      "Firmware updates ",
+      (updated_device.updates_enabled && "enabled") || "disabled",
+      "."
+    ]
+
+    LiveToast.send_toast(:info, Enum.join(message))
 
     {:noreply, assign(socket, :device, updated_device)}
   end

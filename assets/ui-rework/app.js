@@ -3,6 +3,7 @@ import { Socket } from "phoenix"
 import { LiveSocket } from "phoenix_live_view"
 import topbar from "topbar"
 import L from "leaflet/dist/leaflet.js"
+import { createLiveToastHook } from "live_toast"
 import Chart from "chart.js/auto"
 import "chartjs-adapter-date-fns"
 import "leaflet.markercluster/dist/leaflet.markercluster.js"
@@ -24,7 +25,9 @@ import dates from "../js/dates"
 
 TimeAgo.addDefaultLocale(en)
 
-let Hooks = {}
+let Hooks = {
+  LiveToast: createLiveToastHook()
+}
 
 Hooks.SharedSecretClipboardClick = {
   mounted() {

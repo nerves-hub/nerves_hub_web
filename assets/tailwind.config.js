@@ -6,7 +6,12 @@ import defaultTheme from "tailwindcss/defaultTheme"
 import tailWindForms from "@tailwindcss/forms"
 
 export default {
-  content: ["./js/**/*.js", "../lib/*_web.ex", "../lib/*_web/**/*.*ex"],
+  content: [
+    "./js/**/*.js",
+    "../lib/*_web.ex",
+    "../lib/*_web/**/*.*ex",
+    "../deps/live_toast/lib/**/*.*ex"
+  ],
   theme: {
     extend: {
       fontFamily: {
