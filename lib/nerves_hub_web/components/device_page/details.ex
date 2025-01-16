@@ -18,8 +18,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     scripts =
       socket.assigns.product
       |> Scripts.all_by_product()
-      |> Enum.map(&Map.put(&1, :output, nil))
-      |> Enum.map(&Map.put(&1, :running?, false))
+      |> Enum.map(&Map.merge(&1, %{:output: nil, running?: false}))
 
     assign(socket, :support_scripts, scripts)
   end
