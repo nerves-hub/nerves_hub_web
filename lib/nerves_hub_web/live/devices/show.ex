@@ -31,8 +31,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   alias Phoenix.Socket.Broadcast
 
-  embed_templates("templates/*")
-
   @running_script_placeholder "Running Script.."
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
