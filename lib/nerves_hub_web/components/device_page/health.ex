@@ -23,7 +23,7 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
     {"mem_used_percent", "Memory Usage (%)"},
     {"disk_used_percentage", "Disk Usage (%)"},
     {"cpu_usage_percent", "CPU Usage (%)"},
-    {"cpu_temp", "CPU Temperature (Celsius)"}
+    {"cpu_temp", "CPU Temperature (°C)"}
   ]
 
   # Will not be rendered as chart.
