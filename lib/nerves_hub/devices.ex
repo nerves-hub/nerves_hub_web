@@ -703,9 +703,10 @@ defmodule NervesHub.Devices do
   @doc """
   Resolve an update for the device's deployment
   """
-  def resolve_update(%{deployment_id: nil}) do
-    %UpdatePayload{update_available: false}
-  end
+  @spec resolve_update(Device.t()) :: UpdatePayload.t()
+  def resolve_update(%{status: :registered}), do: %UpdatePayload{update_available: false}
+
+  def resolve_update(%{deployment_id: nil}), do: %UpdatePayload{update_available: false}
 
   def resolve_update(device) do
     deployment = Repo.preload(device.deployment, [:firmware])
