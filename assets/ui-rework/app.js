@@ -85,12 +85,13 @@ Hooks.Chart = {
       data: {
         datasets: [
           {
-            backgroundColor: "#d19999",
+            backgroundColor: "rgba(99, 102, 241)",
             fill: {
               target: "start",
-              above: "rgba(201, 84, 84, 0.29)",
-              below: "rgba(201, 84, 84, 0.29)"
+              above: "rgba(99, 102, 241, 0.29)",
+              below: "rgba(99, 102, 241, 0.29)"
             },
+            radius: 2,
             data: this.dataset()
           }
         ]
@@ -102,7 +103,12 @@ Hooks.Chart = {
             align: "start",
             text: title,
             font: {
-              size: 24
+              size: 16,
+              weight: "normal"
+            },
+            color: "rgba(212, 212, 216)",
+            padding: {
+              bottom: 14
             }
           },
           legend: {
@@ -112,7 +118,7 @@ Hooks.Chart = {
         scales: {
           x: {
             grid: {
-              color: "rgba(181, 169, 169, 0.21)"
+              color: "rgba(63, 63, 70)"
             },
             type: "time",
             time: {
@@ -126,20 +132,22 @@ Hooks.Chart = {
             },
             ticks: {
               display: true,
-              autoSkip: false,
-              maxTicksLimit: 6
+              autoSkip: false
+              // maxTicksLimit: 6
             }
           },
           y: {
             offset: true,
             grid: {
-              color: "rgba(181, 169, 169, 0.21)"
+              color: "rgba(63 63 70)"
             },
             type: "linear",
-            min: min,
-            max: max
+            min: 0
+            // max: max
           }
-        }
+        },
+        responsive: true,
+        maintainAspectRatio: false
       }
     }
 

@@ -252,7 +252,7 @@
     org_user={@org_user}
   />
 
-  <.live_component :if={@tab == :health} module={HealthPage} id="device_health" device={@device} />
+  <.live_component :if={@tab == :health} module={HealthPage} id="device_health" device={@device} org={@org} product={@product} />
 
   <.live_component :if={@tab == :activity} module={ActivityPage} id="device_activity" device={@device} org={@org} product={@product} user={@user} />
 
