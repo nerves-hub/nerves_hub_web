@@ -182,7 +182,15 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               <div class="flex gap-4">
                 <span class="text-base text-zinc-300"><%= script.name %></span>
 
-                <button class="p-1 border border-green-500 rounded-full bg-zinc-800" type="button" disabled={script.running?} phx-target={@myself} phx-click="run-script" phx-value-id={script.id}>
+                <button
+                  :if={!disconnected?(@device)}
+                  class="p-1 border border-green-500 rounded-full bg-zinc-800"
+                  type="button"
+                  disabled={script.running?}
+                  phx-target={@myself}
+                  phx-click="run-script"
+                  phx-value-id={script.id}
+                >
                   <svg class="w-3 h-3 stroke-green-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M8 19V5L18 12L8 19Z" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
@@ -231,7 +239,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
     authorized!(:"support_script:run", org_user)
 
-    script = Enum.find(scripts, fn script -> script.id == id end)
+    script = Enum.find(scripts, fn script -> script.id == String.to_integer(id) end)
 
     socket
     |> assign(:support_scripts, update_script(scripts, id, %{running?: true}))
@@ -276,5 +284,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     List.update_at(scripts, index, fn script ->
       Map.merge(script, new_info)
     end)
+  end
+
+  # TODO: this is duplicated code, find a new way to reuse it
+  defp disconnected?(connection) do
+    is_nil(connection) || connection.status != :connected
   end
 end

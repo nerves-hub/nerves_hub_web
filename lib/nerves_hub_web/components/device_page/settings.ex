@@ -402,8 +402,6 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
 
   def handle_progress(:certificate, %{done?: true} = entry, socket) do
     socket
-    |> clear_flash(:info)
-    |> clear_flash(:error)
     |> consume_uploaded_entry(entry, &import_cert(socket, &1.path))
     |> noreply()
   end
