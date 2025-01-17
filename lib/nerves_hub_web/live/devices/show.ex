@@ -160,7 +160,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(:check_health_interval, socket) do
-    timer_ref = Process.send_after(self(), :check_health_interval, 10_000)
+    timer_ref = Process.send_after(self(), :check_health_interval, health_polling_seconds())
 
     Health.request_health_check(socket.assigns.device)
 
@@ -588,5 +588,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     else
       "px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
     end
+  end
+
+  defp health_polling_seconds() do
+    Application.get_env(:nerves_hub, :extension_config, [])
+    |> get_in([:health, :ui_polling_seconds])
+    |> :timer.seconds()
   end
 end
