@@ -2,6 +2,8 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   use NervesHubWeb, :component
 
   attr(:location, :any)
+  attr(:enabled_device, :any)
+  attr(:enabled_product, :any)
 
   # catch all to add the mapbox token
   def render(assigns) when not is_map_key(assigns, :mapbox_access_token) do
