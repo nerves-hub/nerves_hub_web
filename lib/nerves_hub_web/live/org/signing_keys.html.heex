@@ -15,11 +15,11 @@
         <img src="/images/icons/key.svg" alt="key" />
         <div>
           <h3>
-            <%= signing_key.name %>
+            {signing_key.name}
           </h3>
-          <div class="key-value"><%= signing_key.key %></div>
+          <div class="key-value">{signing_key.key}</div>
           <div :if={signing_key.created_by} class="key-value">
-            Created by: <%= signing_key.created_by.name %> (<%= signing_key.created_by.email %>)
+            Created by: {signing_key.created_by.name} ({signing_key.created_by.email})
           </div>
         </div>
         <button class="btn btn-secondary" phx-click="delete" phx-value-signing_key_id={signing_key.id} disabled={!authorized?(:"signing_key:delete", @org_user)} data-confirm="Are you sure?">
@@ -46,20 +46,20 @@
     <% end %>
 
     <div class="form-group">
-      <%= label(f, :name, for: "name_input") %>
-      <%= text_input(f, :name, class: "form-control", id: "name_input") %>
-      <div class="has-error"><%= error_tag(f, :name) %></div>
+      {label(f, :name, for: "name_input")}
+      {text_input(f, :name, class: "form-control", id: "name_input")}
+      <div class="has-error">{error_tag(f, :name)}</div>
     </div>
 
     <div class="form-group">
-      <%= label(f, :key, for: "key_input") %>
-      <%= text_input(f, :key, class: "form-control", id: "key_input") %>
-      <div class="has-error"><%= error_tag(f, :key) %></div>
+      {label(f, :key, for: "key_input")}
+      {text_input(f, :key, class: "form-control", id: "key_input")}
+      <div class="has-error">{error_tag(f, :key)}</div>
     </div>
 
     <div class="button-submit-wrapper">
       <.link patch={~p"/org/#{@org.name}/settings/keys"} class="btn btn-outline-light">Back</.link>
-      <%= submit("Create Key", class: "btn btn-primary") %>
+      {submit("Create Key", class: "btn btn-primary")}
     </div>
   </.form>
 <% end %>

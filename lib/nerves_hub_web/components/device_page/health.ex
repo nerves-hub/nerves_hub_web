@@ -72,7 +72,7 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
               phx-value-unit={unit}
               phx-value-amount={amount}
             >
-              <%= Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: "" %>
+              {Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
             </button>
           </div>
         </div>

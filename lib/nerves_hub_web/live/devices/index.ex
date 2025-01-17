@@ -494,7 +494,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     ~H"""
     <th phx-click="sort" phx-value-sort={@value} class="pointer sort-selected">
-      <%= @title %><i class={"icon-caret icon-caret-#{@caret_class}"} />
+      {@title}<i class={"icon-caret icon-caret-#{@caret_class}"} />
     </th>
     """
   end
@@ -504,7 +504,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     ~H"""
     <th phx-click="sort" phx-value-sort={@value} class="pointer">
-      <%= @title %>
+      {@title}
     </th>
     """
   end

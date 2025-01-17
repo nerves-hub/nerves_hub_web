@@ -10,10 +10,10 @@ defmodule NervesHubWeb.Components.DeviceHeader do
 
   def render(assigns) do
     ~H"""
-    <h1 class="ff-m mt-2 mb-2"><%= @device.identifier %></h1>
+    <h1 class="ff-m mt-2 mb-2">{@device.identifier}</h1>
 
     <%= if @device.description do %>
-      <p class="help-text large"><%= @device.description %></p>
+      <p class="help-text large">{@device.description}</p>
     <% end %>
 
     <div class="container">
@@ -21,7 +21,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
         <div class="col pl-0">
           <div class="help-text mb-1">Status</div>
           <p class="flex-row align-items-center tt-c">
-            <span><%= get_status(@device_connection) %></span>
+            <span>{get_status(@device_connection)}</span>
             <span class="ml-1">
               <%= if get_status(@device_connection) == "offline" do %>
                 <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
           <p :if={!@device_connection}>Never</p>
           <p :if={@device_connection} class="tooltip-label">
             <time id="connection-establisted-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@device_connection.established_at, :second)), " ", "T")}>
-              <%= Timex.from_now(@device_connection.established_at) %>
+              {Timex.from_now(@device_connection.established_at)}
             </time>
             <span class="tooltip-info ml-1" id="connection-information-tooltip-icon"></span>
             <span class="container tooltip-text pl-3 pr-0 ml-1" id="connection-information-tooltip">
@@ -44,7 +44,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
                 <span class="col pl-1">Device connected:</span>
                 <span class="col pl-0">
                   <span id="connection-establisted-at-localtime" phx-hook="LocalTime">
-                    <%= @device_connection.established_at %>
+                    {@device_connection.established_at}
                   </span>
                 </span>
               </span>
@@ -52,7 +52,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
                 <span class="col pl-1">Last heartbeat:</span>
                 <span class="col pl-0">
                   <span id="connection-last-seen-at-localtime" phx-hook="LocalTime">
-                    <%= @device_connection.last_seen_at %>
+                    {@device_connection.last_seen_at}
                   </span>
                 </span>
               </span>
@@ -60,7 +60,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
                 <span class="col pl-1">Disconnected at:</span>
                 <span class="col pl-0">
                   <span id="connection-disconnected-at-localtime" style="width: 20rem;" phx-hook="LocalTime">
-                    <%= @device_connection.disconnected_at %>
+                    {@device_connection.disconnected_at}
                   </span>
                 </span>
               </span>
@@ -73,7 +73,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
             <p>Unknown</p>
           <% else %>
             <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m mt-0">
-              <%= @device.firmware_metadata.version %> (<%= String.slice(@device.firmware_metadata.uuid, 0..7) %>)
+              {@device.firmware_metadata.version} ({String.slice(@device.firmware_metadata.uuid, 0..7)})
             </.link>
           <% end %>
         </div>
