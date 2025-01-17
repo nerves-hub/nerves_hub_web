@@ -1,17 +1,52 @@
 defmodule NervesHubWeb.Components.DevicePage.Details do
   use NervesHubWeb, :live_component
 
+  require Logger
+
+  alias NervesHub.AuditLogs
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Scripts
 
   alias NervesHubWeb.Components.NewUI.DeviceLocation
+
+  def update(%{latest_metrics: latest_metrics}, socket) do
+    socket
+    |> assign(:latest_metrics, latest_metrics)
+    |> assign_metadata()
+    |> ok()
+  end
+
+  def update(%{firmwares: firmware}, socket) do
+    socket
+    |> assign(:firmwares, firmware)
+    |> send_toast(:info, "New firmware available for selection")
+    |> ok()
+  end
 
   def update(assigns, socket) do
     socket
     |> assign(assigns)
     |> assign_support_scripts()
     |> assign(:firmwares, Firmwares.get_firmware_for_device(assigns.device))
+    |> assign(:update_information, Devices.resolve_update(assigns.device))
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(assigns.device.id))
+    |> assign(:alarms, Alarms.get_current_alarms_for_device(assigns.device))
+    |> assign(:extension_overrides, extension_overrides(assigns.device, assigns.product))
+    |> assign_metadata()
     |> ok()
+  end
+
+  defp assign_metadata(%{assigns: %{device: device}} = socket) do
+    health = Devices.get_latest_health(device.id)
+
+    metadata =
+      if health, do: health.data["metadata"] || %{}, else: %{}
+
+    assign(socket, :metadata, Map.drop(metadata, standard_keys(device)))
   end
 
   defp assign_support_scripts(socket) do
@@ -27,10 +62,30 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     ~H"""
     <div class="flex items-start justify-between gap-4 p-6">
       <div class="w-1/2 flex flex-col gap-4">
-        <div class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div :if={!@product.extensions.health || !@device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div class="h-14 pl-4 pr-3 flex items-center justify-between">
+            <div class="text-neutral-50 font-medium leading-6">Health and Alerting</div>
+          </div>
+          <div class="flex pt-2 px-4 pb-4 gap-2 items-center text-nerves-gray-500">
+            Reporting is not enabled <%= if(!@product.extensions.health, do: "for your product", else: "for your device") %>.
+          </div>
+          <div class="px-4 pb-4">
+            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              Learn more about device health and alert reporting.
+            </.link>
+          </div>
+        </div>
+
+        <div :if={@latest_metrics && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="text-neutral-50 font-medium leading-6">Health</div>
             <div class="flex items-center gap-2">
+              <div class="text-xs text-nerves-gray-500 tracking-wide">
+                <span>Last updated: </span>
+                <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
+                  <%= Timex.from_now(@latest_metrics["timestamp"]) %>
+                </time>
+              </div>
               <div class="text-xs text-zinc-300 tracking-wide">Auto refresh</div>
               <div>
                 <button
@@ -57,43 +112,125 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               </div>
             </div>
           </div>
-          <div class="flex pt-2 px-4 pb-6 gap-2 items-center">
+          <div class="flex pt-2 px-4 pb-4 gap-2 items-center">
             <div class="w-20 flex flex-col h-16 py-2 px-3 rounded border-b border-emerald-500 bg-health-good">
               <span class="text-xs text-zinc-400 tracking-wide">CPU</span>
-              <span class="text-xl leading-[30px] text-neutral-50">43°</span>
+              <span :if={@latest_metrics["cpu_temp"]} class="text-xl leading-[30px] text-neutral-50"><%= round(@latest_metrics["cpu_temp"]) %>°</span>
+              <span :if={!@latest_metrics["cpu_temp"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
             </div>
             <div class="w-1/2 flex flex-col h-16 py-2 px-3 rounded border-b border-amber-500 bg-health-warning">
               <span class="text-xs text-zinc-400 tracking-wide">Memory used</span>
-              <div class="flex justify-between items-end">
-                <span class="text-xl leading-[30px] text-neutral-50">136 mb</span>
-                <span class="text-base text-amber-500">44%</span>
+              <div :if={@latest_metrics["mem_used_mb"]} class="flex justify-between items-end">
+                <span class="text-xl leading-[30px] text-neutral-50"><%= round(@latest_metrics["mem_used_mb"]) %>MB</span>
+                <span class="text-base text-amber-500"><%= round(@latest_metrics["mem_used_percent"]) %>%</span>
+              </div>
+              <div :if={!@latest_metrics["mem_used_mb"]} class="flex justify-between items-end">
+                <span class="text-xl leading-[30px] text-nerves-gray-500">Not reported</span>
               </div>
             </div>
             <div class="w-1/2 flex flex-col h-16 py-2 px-3 rounded border-b border-indigo-500 bg-health-netural">
               <span class="text-xs text-zinc-400 tracking-wide">Load avg</span>
-              <div class="flex justify-between items-center">
-                <span class="text-xl leading-[30px] text-neutral-50">0.02</span>
-                <div class="flex w-4 items-center justify-center gap-2">
-                  <span class="w-px h-4 bg-zinc-700"></span>
-                </div>
-                <span class="text-xl leading-[30px] text-neutral-50">0.01</span>
+              <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex justify-between items-center">
+                <span :if={@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-neutral-50"><%= @latest_metrics["load_1min"] %></span>
+                <span :if={!@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
                 <span class="w-px h-4 bg-zinc-700"></span>
-                <span class="text-xl leading-[30px] text-neutral-50">0.03</span>
+                <span :if={@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-neutral-50"><%= @latest_metrics["load_5min"] %></span>
+                <span :if={!@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
+                <span class="w-px h-4 bg-zinc-700"></span>
+                <span :if={@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-neutral-50"><%= @latest_metrics["load_15min"] %></span>
+                <span :if={!@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
+              </div>
+              <div :if={!@latest_metrics["load_1min"] && !@latest_metrics["load_5min"] && !@latest_metrics["load_15min"]} class="flex items-center">
+                <span class="text-xl leading-[30px] text-nerves-gray-500">Not reported</span>
               </div>
             </div>
           </div>
+          <div class="px-4 pb-4">
+            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              Learn more about device health reporting.
+            </.link>
+          </div>
         </div>
 
-        <div class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div :if={!@latest_metrics && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div class="h-14 pl-4 pr-3 flex items-center justify-between">
+            <div class="text-neutral-50 font-medium leading-6">Health</div>
+          </div>
+          <div class="flex pt-2 px-4 pb-4 gap-2 items-center">
+            No device health information has been received.
+          </div>
+          <div class="px-4 pb-4">
+            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              Learn more about device health reporting.
+            </.link>
+          </div>
+        </div>
+
+        <div :if={@alarms && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div class="h-14 pl-4 pr-3 flex items-center justify-between">
+            <div class="text-neutral-50 font-medium leading-6">Alarms</div>
+          </div>
+
+          <div class="flex pt-2 px-4 pb-4 gap-2 items-center">
+            <div :for={{alarm, description} <- @alarms}>
+              <div class="flex gap-3 items-center">
+                <code class="text-sm text-red-500 px-2 py-1 border border-red-500 bg-zinc-800 rounded"><%= alarm %></code>
+                <code :if={has_description?(description)}><%= description %></code>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-4 pb-4">
+            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              Learn more about alarm reporting.
+            </.link>
+          </div>
+        </div>
+
+        <div :if={!@alarms && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div class="h-14 pl-4 pr-3 flex items-center justify-between">
+            <div class="text-neutral-50 font-medium leading-6">No Alarms Received</div>
+          </div>
+          <div class="px-4 pb-4">
+            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-alarms">
+              Learn more about alarm reporting.
+            </.link>
+          </div>
+        </div>
+
+        <div class="flex flex-col pb-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center text-neutral-50 font-medium leading-6">
             General info
           </div>
-          <div class="flex pt-2 px-4 pb-6 gap-4 items-center">
-            <span class="text-sm text-nerves-gray-500">Tags:</span>
-            <span :if={is_nil(@device.tags)} class="text-sm text-nerves-gray-500">No Tags</span>
-            <span :if={@device.tags} class="flex gap-1">
-              <span :for={tag <- @device.tags || []} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded" class=""><%= tag %></span>
-            </span>
+          <div class="flex flex-col gap-3">
+            <div :if={@device.description != ""} class="min-h-7 px-4 flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Description:</span>
+              <span class="text-sm text-zinc-300"><%= @device.description %></span>
+            </div>
+
+            <div class="min-h-7 flex px-4 gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Tags:</span>
+              <span :if={is_nil(@device.tags)} class="text-sm text-nerves-gray-500">No Tags</span>
+              <span :if={@device.tags} class="flex gap-1">
+                <span :for={tag <- @device.tags || []} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded"><%= tag %></span>
+              </span>
+            </div>
+
+            <div :if={!Enum.empty?(@metadata)} class="min-h-7 flex px-4 gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Metadata:</span>
+              <span class="flex gap-1">
+                <span :for={{key, value} <- Map.filter(@metadata, fn {_key, val} -> val != "" end)} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">
+                  <span><%= key |> String.replace("_", " ") |> String.capitalize() %>: <%= value %></span>
+                </span>
+              </span>
+            </div>
+
+            <div :if={@extension_overrides != []} class="flex min-h-7 px-4 gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Disabled extensions:</span>
+              <span class="flex gap-1">
+                <span :for={extension <- @extension_overrides} class="text-sm text-red-500 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded" class=""><%= extension %></span>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -133,8 +270,27 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               </svg>
             </button>
           </div>
+
+          <div :if={@update_information.update_available && @device.deployment_id} class="flex p-4 gap-4 items-center justify-between border-t border-zinc-700">
+            <div class="flex flex-col">
+              <span>Update available</span>
+              <span class="text-sm text-nerves-gray-500">An update is available in the assigned deployment.</span>
+            </div>
+
+            <button
+              phx-target={@myself}
+              phx-submit="push-available-update"
+              class="box-content h-5 py-1.5 px-3 mr-9 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
+              aria-label="Send available update"
+              data-confirm="Are you sure?"
+              disabled={disconnected?(@device_connection)}
+            >
+              Skip the queue
+            </button>
+          </div>
+
           <div class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <form :if={Enum.any?(@firmwares)} phx-submit="push-update" class="flex gap-2 items-center w-full">
+            <form :if={Enum.any?(@firmwares)} phx-target={@myself} phx-submit="push-update" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <select
                   id="firmware"
@@ -146,13 +302,13 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
                 </select>
               </div>
               <button
-                class="box-content h-5 py-1.5 px-3 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-500 disabled:bg-base-700 disabled:text-base-400"
+                class="box-content h-5 py-1.5 px-3 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
+                disabled={disconnected?(@device_connection)}
                 aria-label="Send firmware update"
                 data-confirm="Are you sure?"
               >
                 Send update
               </button>
-              <%!-- disabled={disconnected?(@device_connection)} --%>
             </form>
             <div>
               <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -166,6 +322,12 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               </svg>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="w-1/2 flex flex-col gap-4">
+        <div class="flex flex-col items-start rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <DeviceLocation.render enabled_product={@product.extensions.geo} enabled_device={@device.extensions.geo} location={@device.connection_metadata["location"]} />
         </div>
 
         <div class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
@@ -220,12 +382,76 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           </div>
         </div>
       </div>
-
-      <div class="w-1/2 flex flex-col items-start rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
-        <DeviceLocation.render enabled_product={@product.extensions.geo} enabled_device={@device.extensions.geo} location={@device.connection_metadata["location"]} />
-      </div>
     </div>
     """
+  end
+
+  def handle_event("push-available-update", _, socket) do
+    authorized!(:"device:push-update", socket.assigns.org_user)
+
+    %{device: device, deployment: deployment, user: user} = socket.assigns
+
+    deployment = NervesHub.Repo.preload(deployment, :firmware)
+
+    description =
+      "#{user.name} pushed available firmware update #{deployment.firmware.version} #{deployment.firmware.uuid} to device #{device.identifier}"
+
+    AuditLogs.audit!(user, device, description)
+
+    case Devices.told_to_update(device, deployment) do
+      {:ok, inflight_update} ->
+        _ =
+          NervesHubWeb.Endpoint.broadcast(
+            "device:#{device.id}",
+            "deployments/update",
+            inflight_update
+          )
+
+        socket
+        |> send_toast(:info, "Pushing available firmware update.")
+        |> noreply()
+
+      :error ->
+        Logger.error(
+          "An inflight update could not be created or found for the device #{device.identifier} (#{device.id})"
+        )
+
+        socket
+        |> send_toast(
+          :info,
+          "There was an error sending the update to the device. Please contact support."
+        )
+        |> noreply()
+    end
+  end
+
+  def handle_event("push-update", %{"uuid" => uuid}, socket) do
+    authorized!(:"device:push-update", socket.assigns.org_user)
+
+    %{product: product, device: device, user: user} = socket.assigns
+
+    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
+    {:ok, url} = Firmwares.get_firmware_url(firmware)
+    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
+    {:ok, device} = Devices.disable_updates(device, user)
+
+    description =
+      "#{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+
+    AuditLogs.audit!(user, device, description)
+
+    payload = %UpdatePayload{
+      update_available: true,
+      firmware_url: url,
+      firmware_meta: meta
+    }
+
+    _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "devices/update-manual", payload)
+
+    socket
+    |> assign(:device, device)
+    |> send_toast(:info, "Sending firmware update request.")
+    |> noreply()
   end
 
   def handle_event("run-script", %{"id" => id}, socket) do
@@ -283,5 +509,26 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   # TODO: this is duplicated code, find a new way to reuse it
   defp disconnected?(connection) do
     is_nil(connection) || connection.status != :connected
+  end
+
+  defp extension_overrides(device, product) do
+    device.extensions
+    |> Map.from_struct()
+    |> Enum.filter(fn {extension, enabled} ->
+      enabled == false and product.extensions[extension]
+    end)
+    |> Enum.map(&elem(&1, 0))
+  end
+
+  defp standard_keys(%{firmware_metadata: nil}), do: []
+
+  defp standard_keys(%{firmware_metadata: firmware_metadata}),
+    do:
+      firmware_metadata
+      |> Map.keys()
+      |> Enum.map(&to_string/1)
+
+  defp has_description?(description) do
+    is_binary(description) and byte_size(description) > 0
   end
 end

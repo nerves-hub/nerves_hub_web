@@ -68,6 +68,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   def handle_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
     firmware = Firmwares.get_firmware_for_device(socket.assigns.device)
+
+    send_update(self(), DetailsPage, id: "device_details", firmwares: firmware)
+
     {:noreply, assign(socket, :firmwares, firmware)}
   end
 
@@ -140,14 +143,18 @@ defmodule NervesHubWeb.Live.Devices.Show do
         %Broadcast{event: "health_check_report"},
         %{assigns: %{device: device}} = socket
       ) do
+    latest_metrics = Metrics.get_latest_metric_set(device.id)
+
+    send_update(self(), DetailsPage, id: "device_details", latest_metrics: latest_metrics)
+
     socket
-    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
+    |> assign(:latest_metrics, latest_metrics)
     |> assign_metadata()
     |> noreply
   end
 
   def handle_info(:check_health_interval, socket) do
-    timer_ref = Process.send_after(self(), :check_health_interval, 65_000)
+    timer_ref = Process.send_after(self(), :check_health_interval, 10_000)
 
     Health.request_health_check(socket.assigns.device)
 
@@ -254,9 +261,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
       "."
     ]
 
-    LiveToast.send_toast(:info, Enum.join(message))
-
-    {:noreply, assign(socket, :device, updated_device)}
+    socket
+    |> assign(:device, updated_device)
+    |> send_toast(:info, Enum.join(message))
+    |> noreply()
   end
 
   def handle_event("restore", _, socket) do
@@ -286,10 +294,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:ok, device} = Devices.delete_device(socket.assigns.device)
 
     {:noreply, assign(socket, :device, device)}
-  end
-
-  def handle_event("clear-flash-" <> key_str, _, socket) do
-    {:noreply, clear_flash(socket, String.to_existing_atom(key_str))}
   end
 
   def handle_event(

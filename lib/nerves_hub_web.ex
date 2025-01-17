@@ -108,6 +108,11 @@ defmodule NervesHubWeb do
         |> assign(:tab_hint, tab)
       end
 
+      def send_toast(socket, kind, msg) do
+        NervesHubWeb.LiveToast.send_toast(kind, msg)
+        socket
+      end
+
       def whitelist(params, keys) do
         keys
         |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
@@ -144,7 +149,7 @@ defmodule NervesHubWeb do
       end
 
       def send_toast(socket, kind, msg) do
-        LiveToast.send_toast(kind, msg)
+        NervesHubWeb.LiveToast.send_toast(kind, msg)
         socket
       end
 
