@@ -21,10 +21,6 @@ config :nerves_hub,
   support_email_signoff: System.get_env("SUPPORT_EMAIL_SIGNOFF"),
   device_endpoint_redirect:
     System.get_env("DEVICE_ENDPOINT_REDIRECT", "https://docs.nerves-hub.org/"),
-  admin_auth: [
-    username: System.get_env("ADMIN_AUTH_USERNAME"),
-    password: System.get_env("ADMIN_AUTH_PASSWORD")
-  ],
   device_health_days_to_retain:
     String.to_integer(System.get_env("HEALTH_CHECK_DAYS_TO_RETAIN", "7")),
   device_deployment_change_jitter_seconds:
