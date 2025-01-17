@@ -98,25 +98,25 @@ defmodule NervesHubWeb.LayoutView do
     ~H"""
     <div class="btn-group btn-group-toggle btn-group-gap">
       <div :if={@page_number > 1}>
-        <%= link("&lt;&lt;",
+        {link("&lt;&lt;",
           to: "?page=#{@page_number - 1}#{@anchor}",
           class: "btn btn-secondary btn-sm"
-        ) %>
+        )}
       </div>
       <div :for={page <- @start_range..@end_range}>
-        <%= link("#{page}",
+        {link("#{page}",
           to: "?page=#{page}#{@anchor}",
           class: "btn btn-secondary btn-sm #{if page == @page_number, do: "active"}"
-        ) %>
+        )}
       </div>
       <div :if={@total_pages > @distance}>
         <span class="btn btn-secondary btn-sm">…</span>
       </div>
       <div :if={@page_number < @total_pages}>
-        <%= link("&gt;&gt;",
+        {link("&gt;&gt;",
           to: "?page=#{@page_number + 1}#{@anchor}",
           class: "btn btn-secondary btn-sm"
-        ) %>
+        )}
       </div>
     </div>
     """
@@ -142,7 +142,7 @@ defmodule NervesHubWeb.LayoutView do
       </div>
       <div :for={page <- @start_range..@end_range}>
         <button phx-click="paginate" phx-value-page={page} class={"btn btn-secondary btn-sm #{if page == @page_number do "active" end}"}>
-          <%= page %>
+          {page}
         </button>
       </div>
       <%= if @total_pages > @distance do %>
@@ -150,7 +150,7 @@ defmodule NervesHubWeb.LayoutView do
           <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page="…">…</button>
         </div>
         <div>
-          <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page={@total_pages}><%= @total_pages %></button>
+          <button class="btn btn-secondary btn-sm" phx-click="paginate" phx-value-page={@total_pages}>{@total_pages}</button>
         </div>
       <% end %>
       <div :if={@page_number > 1}>
@@ -187,10 +187,10 @@ defmodule NervesHubWeb.LayoutView do
         </svg>
       </button>
       <button :for={page <- @start_range..@end_range} phx-click="paginate" phx-value-page={page} class={"pager-button #{if page == @page_number do "active-page" end}"}>
-        <%= page %>
+        {page}
       </button>
       <button :if={@total_pages > @distance} class="pager-button" phx-click="paginate" phx-value-page="…">…</button>
-      <button :if={@end_range != @total_pages} class="pager-button" phx-click="paginate" phx-value-page={@total_pages}><%= @total_pages %></button>
+      <button :if={@end_range != @total_pages} class="pager-button" phx-click="paginate" phx-value-page={@total_pages}>{@total_pages}</button>
       <button class={["pager-button", @page_number == @total_pages && "invisible"]} phx-click="paginate" phx-value-page={@page_number + 1}>
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M8.3335 5.83337L12.5002 10L8.3335 14.1667" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />

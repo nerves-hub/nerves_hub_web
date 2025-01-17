@@ -18,7 +18,7 @@
     <!-- TODO: Go over empty-state with new design -->
     <div class="no-results-blowup-wrapper">
       <img src="/images/device.svg" alt="No devices" />
-      <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any devices yet</h3>
+      <h3 style="margin-top: 2.75rem">{@product.name} doesn’t have any devices yet</h3>
       <div class="mt-3">
         <.link class="btn btn-outline-light btn-action" aria-label="Add new device" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"}>
           <div class="button-icon add"></div>
@@ -32,7 +32,7 @@
   <% else %>
     <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
       <h1 class="text-base font-semibold text-neutral-50">All devices</h1>
-      <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto"><%= @total_entries %></div>
+      <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">{@total_entries}</div>
       <form class="flex items-center h-full" phx-change="update-filters">
         <div class="grid grid-cols-1 h-full">
           <input
@@ -180,7 +180,7 @@
                   <% end %>
                 </span>
                 <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class={"ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
-                  <%= device.identifier %>
+                  {device.identifier}
                 </.link>
               </div>
             </td>
@@ -191,7 +191,7 @@
                   <%= if is_nil(device.firmware_metadata) do %>
                     Unknown
                   <% else %>
-                    <%= device.firmware_metadata.version %>
+                    {device.firmware_metadata.version}
                   <% end %>
                 </span>
                 <svg :if={device.firmware_metadata && device.updates_enabled} title="Updates enabled" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -220,20 +220,20 @@
                 <%= if is_nil(device.firmware_metadata) do %>
                   Unknown
                 <% else %>
-                  <%= device.firmware_metadata.platform %>
+                  {device.firmware_metadata.platform}
                 <% end %>
               </span>
             </td>
 
             <td>
               <div title={NaiveDateTime.to_iso8601(device.inserted_at)}>
-                <%= Timex.from_now(device.inserted_at) %>
+                {Timex.from_now(device.inserted_at)}
               </div>
             </td>
 
             <td>
               <div :if={device.device_connections != []} title={last_seen_at(device.device_connections)}>
-                <%= last_seen_at(device.device_connections) %>
+                {last_seen_at(device.device_connections)}
               </div>
             </td>
 
@@ -241,7 +241,7 @@
               <div class="flex items-center gap-[4px]">
                 <%= if !is_nil(device.tags) do %>
                   <%= for tag <- device.tags do %>
-                    <span class="tag"><%= tag %></span>
+                    <span class="tag">{tag}</span>
                   <% end %>
                 <% end %>
               </div>
@@ -272,7 +272,7 @@
                   <div class="dropdown-divider"></div>
                   <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
                     <span>
-                      <%= if device.updates_enabled, do: "Disable Updates", else: "Enable Updates" %>
+                      {if device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}
                     </span>
                   </.link>
 
@@ -366,7 +366,7 @@
                   <select class="sidebar-select" name="firmware_version" id="input_firmware">
                     <option {selected?(@current_filters, :firmware_version, "")} value="">All</option>
                     <%= for version <- @firmware_versions do %>
-                      <option {selected?(@current_filters, :firmware_version, version)}><%= version %></option>
+                      <option {selected?(@current_filters, :firmware_version, version)}>{version}</option>
                     <% end %>
                   </select>
                 </div>
@@ -375,7 +375,7 @@
                   <select class="sidebar-select" name="platform" id="platform">
                     <option {selected?(@current_filters, :platform, "")} value="">All</option>
                     <%= for platform <- @platforms do %>
-                      <option {selected?(@current_filters, :platform, platform)}><%= if platform, do: platform, else: "Unknown" %></option>
+                      <option {selected?(@current_filters, :platform, platform)}>{if platform, do: platform, else: "Unknown"}</option>
                     <% end %>
                   </select>
                 </div>
@@ -403,7 +403,7 @@
                   <select class="sidebar-select" name="alarm" id="alarm">
                     <option {selected?(@current_filters, :alarm, "")} value="">All</option>
                     <%= for alarm <- @current_alarms do %>
-                      <option {selected?(@current_filters, :alarm, alarm)}><%= alarm %></option>
+                      <option {selected?(@current_filters, :alarm, alarm)}>{alarm}</option>
                     <% end %>
                   </select>
                 </div>
@@ -427,8 +427,8 @@
   ]}>
     <div class="h-0 flex-1 overflow-y-auto">
       <div class="flex items-center h-14 px-4 py-3 border-b border-zinc-700">
-        <h4 :if={length(@selected_devices) == 1} class="text-base font-semibold"><%= length(@selected_devices) %> device selected</h4>
-        <h4 :if={length(@selected_devices) > 1} class="text-base font-semibold"><%= length(@selected_devices) %> devices selected</h4>
+        <h4 :if={length(@selected_devices) == 1} class="text-base font-semibold">{length(@selected_devices)} device selected</h4>
+        <h4 :if={length(@selected_devices) > 1} class="text-base font-semibold">{length(@selected_devices)} devices selected</h4>
 
         <button class="ml-auto p-1.5" type="button" phx-click="deselect-all">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="none">
@@ -453,7 +453,7 @@
                 <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
                   <optgroup label={org.name}>
                     <%= for product <- products, product.id != @product.id do %>
-                      <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>
+                      <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}>{product.name}</option>
                     <% end %>
                   </optgroup>
                 <% end %>
@@ -526,10 +526,10 @@
 <div class="sticky bottom-0 h-16 flex flex-row border-0 bg-base-950 border-t border-t-base-700 px-6 py-4 z-10">
   <%= for size <- @paginate_opts.page_sizes do %>
     <button :if={size <= @total_entries} phx-click="set-paginate-opts" phx-value-page-size={size} class={"pager-button #{if size == @paginate_opts.page_size, do: "active-page"}"}>
-      <%= size %>
+      {size}
     </button>
   <% end %>
   <div class="ml-auto">
-    <%= reworked_pager(@paginate_opts) %>
+    {reworked_pager(@paginate_opts)}
   </div>
 </div>

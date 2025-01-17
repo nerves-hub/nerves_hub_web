@@ -16,11 +16,11 @@
       <span class="tooltip-text">Once created, a product name cannot be changed</span>
     </div>
     <%= if assigns[:product] do %>
-      <%= text_input(f, :name, class: "form-control", disabled: "true", id: "name_input") %>
+      {text_input(f, :name, class: "form-control", disabled: "true", id: "name_input")}
     <% else %>
-      <%= text_input(f, :name, class: "form-control", id: "name_input") %>
+      {text_input(f, :name, class: "form-control", id: "name_input")}
     <% end %>
-    <div class="has-error"><%= error_tag(f, :name) %></div>
+    <div class="has-error">{error_tag(f, :name)}</div>
   </div>
 
   <div class="form-group">
@@ -33,11 +33,11 @@
       </span>
     </label>
     <div class="flex-row align-items-center">
-      <%= checkbox(f, :delta_updatable, class: "form-control checkbox", id: "delta_updatable_input") %>
+      {checkbox(f, :delta_updatable, class: "form-control checkbox", id: "delta_updatable_input")}
       <label for="delta_updatable_input" class="color-white pl-1 m-0">Enable delta firmware updates</label>
     </div>
 
-    <div class="has-error"><%= error_tag(f, :delta_updatable) %></div>
+    <div class="has-error">{error_tag(f, :delta_updatable)}</div>
   </div>
 
   <div class="form-group">
@@ -80,12 +80,12 @@
           <div class="mobile-label help-text">Name</div>
 
           <label for={"extension-#{key}"}>
-            <%= String.capitalize(to_string(key)) %>
+            {String.capitalize(to_string(key))}
           </label>
         </td>
         <td>
           <div class="mobile-label help-text">Description</div>
-          <%= description %>
+          {description}
         </td>
       </tr>
     </table>
@@ -93,6 +93,6 @@
 
   <div class="button-submit-wrapper">
     <.link class="btn btn-outline-light" patch={~p"/org/#{@org.name}"}>Cancel</.link>
-    <%= submit("Create Product", class: "btn btn-primary") %>
+    {submit("Create Product", class: "btn btn-primary")}
   </div>
 </.form>

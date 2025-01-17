@@ -15,14 +15,14 @@
   <div :for={org <- @user.orgs} class="org-block">
     <.link navigate={~p"/org/#{org.name}"} class="flex items-center gap-[12px]">
       <div class="org-avatar">
-        <%= org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join() %>
+        {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
       </div>
-      <h3 class="subtitle "><%= org.name %></h3>
+      <h3 class="subtitle ">{org.name}</h3>
     </.link>
     <div class="flex gap-[16px] mt-[16px]">
       <.link :for={product <- org.products} navigate={~p"/org/#{org.name}/#{product.name}/devices"} class="product-block flex">
         <div class="product-title grow">
-          <%= product.name %>
+          {product.name}
         </div>
         <div class="product-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">

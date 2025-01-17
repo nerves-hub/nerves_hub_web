@@ -19,14 +19,14 @@ defmodule NervesHubWeb.Components.AuditLogFeed do
         <div :for={audit_log <- @audit_logs} class="audit-log-item" id={audit_log.id}>
           <div class="audit-action-icon icon-update"></div>
           <div>
-            <p class="audit-description"><%= audit_log.description %></p>
+            <p class="audit-description">{audit_log.description}</p>
             <div class="help-text">
-              <%= DateTimeFormat.from_now(audit_log.inserted_at) %><small> at <%= audit_log.inserted_at %></small>
-              <%= if audit_log.reference_id, do: "(Ref: #{audit_log.reference_id})" %>
+              {DateTimeFormat.from_now(audit_log.inserted_at)}<small> at <%= audit_log.inserted_at %></small>
+              {if audit_log.reference_id, do: "(Ref: #{audit_log.reference_id})"}
             </div>
           </div>
         </div>
-        <%= pagination_links(@audit_pager) %>
+        {pagination_links(@audit_pager)}
       <% end %>
     </div>
     """

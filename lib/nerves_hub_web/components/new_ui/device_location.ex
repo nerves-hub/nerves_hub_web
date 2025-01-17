@@ -111,8 +111,8 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
       <div class="relative size-full flex flex-col items-center justify-center">
         <div class="absolute bottom-0 left-0 size-full bg-example-map-dark bg-cover bg-center blur-sm z-10"></div>
         <div class="z-50 flex flex-col items-center gap-4">
-          <div class="text-zinc-300">An error occurred during location resolution : <%= @location["error_code"] %></div>
-          <div :if={@location["error_description"]} class="text-zinc-300"><%= @location["error_description"] %></div>
+          <div class="text-zinc-300">An error occurred during location resolution : {@location["error_code"]}</div>
+          <div :if={@location["error_description"]} class="text-zinc-300">{@location["error_description"]}</div>
         </div>
       </div>
     </div>
@@ -138,7 +138,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
       <div class="flex items-end justify-between">
         <div class="text-neutral-50 font-medium leading-6">Location</div>
         <div class="text-xs font-normal text-zinc-400">
-          The location was determined via <%= @source %> resolution.
+          The location was determined via {@source} resolution.
         </div>
       </div>
 

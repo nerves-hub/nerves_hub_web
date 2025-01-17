@@ -1,7 +1,7 @@
 <%= if Enum.empty?(@deployments) do %>
   <div class="no-results-blowup-wrapper">
     <img src="/images/deployment.svg" alt="No deployments" />
-    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any deployments configured</h3>
+    <h3 style="margin-top: 2.75rem">{@product.name} doesn’t have any deployments configured</h3>
     <div class="mt-3">
       <.link class="btn btn-outline-light btn-action" aria-label="Setup a deployment" navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/new"}>
         <div class="button-icon add"></div>
@@ -19,7 +19,7 @@
   </div>
 
   <%= for {platform, deployments} <- @deployments do %>
-    <h3 class="mt-4"><%= platform %></h3>
+    <h3 class="mt-4">{platform}</h3>
 
     <table class="table table-sm table-hover">
       <thead>
@@ -36,19 +36,19 @@
         <td>
           <div class="mobile-label help-text">Name</div>
           <div>
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{deployment.name}"}><%= deployment.name %></.link>
+            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{deployment.name}"}>{deployment.name}</.link>
           </div>
         </td>
         <td>
           <div class="mobile-label help-text">State</div>
           <div class={"deployment-state state-#{if deployment.is_active, do: "on", else: "off"}"}>
-            <%= if deployment.is_active, do: "On", else: "Off" %>
+            {if deployment.is_active, do: "On", else: "Off"}
           </div>
         </td>
         <td>
           <div class="mobile-label help-text">Devices</div>
           <div>
-            <%= @counts[deployment.id] %>
+            {@counts[deployment.id]}
           </div>
         </td>
         <td>
@@ -56,7 +56,7 @@
           <div>
             <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{deployment.firmware.uuid}"}>
               <span class="badge ff-m">
-                <%= firmware_simple_display_name(deployment.firmware) %>
+                {firmware_simple_display_name(deployment.firmware)}
               </span>
             </.link>
           </div>
@@ -67,7 +67,7 @@
             <%= if Enum.count(tags(deployment)) > 0 do %>
               <%= for tag <- tags(deployment) do %>
                 <span class="badge">
-                  <%= tag %>
+                  {tag}
                 </span>
               <% end %>
             <% else %>
@@ -77,7 +77,7 @@
         </td>
         <td>
           <div class="mobile-label help-text">Version requirement</div>
-          <%= version(deployment) %>
+          {version(deployment)}
         </td>
         <td class="actions">
           <div class="mobile-label help-text">Actions</div>

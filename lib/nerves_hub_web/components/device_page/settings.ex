@@ -113,14 +113,14 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
             <div class="flex flex-col">
               <div class="flex gap-2">
                 <div class="w-14 font-medium text-zinc-300">
-                  <%= String.capitalize(to_string(key)) %>
+                  {String.capitalize(to_string(key))}
                 </div>
                 <div :if={Map.get(@device.product.extensions, key) != true} class="text-red-500">
                   Extension is disabled at the product level.
                 </div>
               </div>
               <div class="text-zinc-300">
-                <%= description %>
+                {description}
               </div>
             </div>
           </div>
@@ -165,12 +165,12 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
               </svg>
             </div>
             <div class="grow">
-              <div class="text-zinc-300">Serial: <%= Utils.format_serial(certificate.serial) %></div>
+              <div class="text-zinc-300">Serial: {Utils.format_serial(certificate.serial)}</div>
               <div class="flex gap-2">
                 <div class="text-xs text-zinc-400 tracking-wide">
                   <span>Last used:</span>
                   <%= if !is_nil(certificate.last_used) do %>
-                    <span><%= DateTimeFormat.from_now(certificate.last_used) %></span>
+                    <span>{DateTimeFormat.from_now(certificate.last_used)}</span>
                   <% else %>
                     <span>Never</span>
                   <% end %>
@@ -178,12 +178,12 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
 
                 <div class="text-xs text-zinc-400 tracking-wide">
                   <span>Not before:</span>
-                  <span><%= Calendar.strftime(certificate.not_before, "%Y-%m-%d") %></span>
+                  <span>{Calendar.strftime(certificate.not_before, "%Y-%m-%d")}</span>
                 </div>
 
                 <div class="text-xs text-zinc-400 tracking-wide">
                   <span>Not after:</span>
-                  <span><%= Calendar.strftime(certificate.not_after, "%Y-%m-%d") %></span>
+                  <span>{Calendar.strftime(certificate.not_after, "%Y-%m-%d")}</span>
                 </div>
                 <div class="text-xs text-zinc-400 tracking-wide">
                   <%!-- <%= Timex.from_now(entry.inserted_at) %> --%>
