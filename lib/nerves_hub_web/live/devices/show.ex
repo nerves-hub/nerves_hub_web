@@ -66,6 +66,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, socket}
   end
 
+  def handle_info(:reload_device, socket) do
+    socket
+    |> assign(:device, Repo.reload(socket.assigns.device))
+    |> noreply()
+  end
+
   def handle_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
     firmware = Firmwares.get_firmware_for_device(socket.assigns.device)
 
