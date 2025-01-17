@@ -183,7 +183,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
                 <span class="text-base text-zinc-300"><%= script.name %></span>
 
                 <button
-                  :if={!disconnected?(@device)}
+                  :if={!disconnected?(@device_connection)}
                   class="p-1 border border-green-500 rounded-full bg-zinc-800"
                   type="button"
                   disabled={script.running?}
