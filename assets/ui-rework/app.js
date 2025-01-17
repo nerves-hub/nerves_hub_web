@@ -7,6 +7,7 @@ import { createLiveToastHook } from "live_toast"
 import Chart from "chart.js/auto"
 import "chartjs-adapter-date-fns"
 import "leaflet.markercluster/dist/leaflet.markercluster.js"
+import mapboxgl from "mapbox-gl"
 
 import hljs from "highlight.js/lib/core"
 import bash from "highlight.js/lib/languages/bash"
@@ -27,6 +28,27 @@ TimeAgo.addDefaultLocale(en)
 
 let Hooks = {
   LiveToast: createLiveToastHook()
+}
+
+Hooks.DeviceLocationMap = {
+  mounted() {
+    let accessToken = this.el.dataset.accessToken
+    let style = this.el.dataset.style
+    let centerLng = this.el.dataset.centerLng
+    let centerLat = this.el.dataset.centerLat
+    let zoom = this.el.dataset.zoom
+
+    const ctx = this.el
+
+    mapboxgl.accessToken = accessToken
+
+    const map = new mapboxgl.Map({
+      container: ctx, // container ID
+      style: style, // style URL
+      center: [centerLng, centerLat], // starting position [lng, lat]
+      zoom: zoom // starting zoom
+    })
+  }
 }
 
 Hooks.SharedSecretClipboardClick = {

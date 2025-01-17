@@ -4,7 +4,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   alias NervesHub.Firmwares
   alias NervesHub.Scripts
 
-  alias NervesHubWeb.Components.DeviceLocation
+  alias NervesHubWeb.Components.NewUI.DeviceLocation
 
   def update(assigns, socket) do
     socket
@@ -221,14 +221,8 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
         </div>
       </div>
 
-      <div class="w-1/2 flex flex-col items-start self-stretch rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
-        <div class="h-14 pl-4 pr-3 flex items-center text-neutral-50 font-medium leading-6">
-          Location
-        </div>
-        <div class="h-full w-full pt-2 pb-4 px-4">
-          <div class="h-full w-full bg-example-map-dark bg-cover bg-center blur-sm"></div>
-        </div>
-        <DeviceLocation.render :if={@product.extensions.geo and @device.extensions.geo} location={@device.connection_metadata["location"]} />
+      <div class="w-1/2 flex flex-col items-start rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <DeviceLocation.render enabled_product={@product.extensions.geo} enabled_device={@device.extensions.geo} location={@device.connection_metadata["location"]} />
       </div>
     </div>
     """
