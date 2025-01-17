@@ -52,7 +52,7 @@ Hooks.DeviceLocationMap = {
 
     map.addControl(new mapboxgl.NavigationControl())
 
-    if (source != "") {
+    if ((source || "").toLowerCase() == "gps") {
       new mapboxgl.Marker({ color: "rgb(99 102 241)" })
         .setLngLat([centerLng, centerLat])
         .addTo(map)

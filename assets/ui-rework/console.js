@@ -45,7 +45,7 @@ let term = new Terminal({
   cursorStyle: "bar",
   macOptionIsMeta: true,
   fontFamily: "Ubuntu Mono, courier-new, courier, monospace",
-  fontSize: 12,
+  fontSize: 14,
   theme: xtermjsTheme,
   scrollback: scrollback
 })

@@ -771,6 +771,7 @@ defmodule NervesHub.Devices do
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
     |> Repo.update!()
+    |> Repo.preload(:deployment, force: true)
   end
 
   @spec clear_deployment(Device.t()) :: Device.t()
@@ -779,6 +780,7 @@ defmodule NervesHub.Devices do
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_change(:deployment_id, nil)
     |> Repo.update!()
+    |> Repo.preload(:deployment, force: true)
   end
 
   @spec failure_threshold_met?(Device.t(), Deployment.t()) :: boolean()

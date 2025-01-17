@@ -259,8 +259,33 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
               <span class="text-sm font-medium text-zinc-300">Restore device</span>
             </button>
           </div>
-          <div class="text-red-500">
+          <div class="text-zinc-300">
             The device has been disabled. Attempts to connect to NervesHub will be blocked.
+          </div>
+        </div>
+      </div>
+
+      <div :if={@device.deleted_at} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+        <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
+          <div>
+            <button
+              class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-red-500"
+              type="button"
+              phx-target={@myself}
+              phx-click="destroy-device"
+              data-confirm="Are you sure you want to permanently delete this device?"
+            >
+              <svg class="size-5 stroke-red-500" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+
+              <span class="text-sm font-medium text-red-500">Permanently delete device</span>
+            </button>
           </div>
         </div>
       </div>
@@ -275,10 +300,9 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
               phx-click="delete-device"
               data-confirm="Are you sure you want to delete this device? This will also delete any certificates associated with the device."
             >
-              <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg class="size-5 stroke-red-500" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
-                  stroke="#EF4444"
                   stroke-width="1.2"
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -327,6 +351,8 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
 
     {:ok, device} = Devices.delete_device(socket.assigns.device)
 
+    send(self(), :reload_device)
+
     socket
     |> assign(:device, device)
     |> send_toast(:info, "The device has been deleted. This action can be undone.")
@@ -338,9 +364,26 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
 
     {:ok, device} = Devices.restore_device(socket.assigns.device)
 
+    send(self(), :reload_device)
+
     socket
     |> assign(:device, device)
     |> send_toast(:info, "The device has been restored.")
+    |> noreply()
+  end
+
+  def handle_event("destroy-device", _, socket) do
+    %{org: org, org_user: org_user, product: product, device: device} = socket.assigns
+
+    authorized!(:"device:destroy", org_user)
+
+    {:ok, _device} = Devices.destroy_device(device)
+
+    send(self(), :reload_device)
+
+    socket
+    |> send_toast(:info, "Device permanently destroyed successfully.")
+    |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
     |> noreply()
   end
 

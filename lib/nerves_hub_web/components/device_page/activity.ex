@@ -26,7 +26,7 @@ defmodule NervesHubWeb.Components.DevicePage.Activity do
 
   def render(assigns) do
     ~H"""
-    <div class="flex flex-col items-start justify-between gap-4">
+    <div class="h-full flex flex-col items-start justify-between gap-4">
       <div class="p-6 w-full">
         <div class="w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
