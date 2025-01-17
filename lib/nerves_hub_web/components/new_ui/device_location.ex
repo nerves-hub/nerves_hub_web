@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   # disabled in product settings
   def render(%{enabled_product: false} = assigns) do
     ~H"""
-    <div class="flex flex-col w-full h-[550px] p-4 gap-4">
+    <div class="flex flex-col w-full h-[400px] p-4 gap-4">
       <div class="flex items-end justify-between">
         <div class="text-neutral-50 font-medium leading-6">Location</div>
       </div>
@@ -55,7 +55,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   # disabled in device settings
   def render(%{enabled_device: false} = assigns) do
     ~H"""
-    <div class="flex flex-col w-full h-[550px] p-4 gap-4">
+    <div class="flex flex-col w-full h-[400px] p-4 gap-4">
       <div class="flex items-end justify-between">
         <div class="text-neutral-50 font-medium leading-6">Location</div>
       </div>
@@ -80,7 +80,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   def render(%{location: location} = assigns)
       when map_size(location) == 0 do
     ~H"""
-    <div class="flex flex-col w-full h-[550px] p-4 gap-4">
+    <div class="flex flex-col w-full h-[400px] p-4 gap-4">
       <div class="flex items-end justify-between">
         <div class="text-neutral-50 font-medium leading-6">Location</div>
         <div class="text-xs font-normal text-zinc-400">The devices location is announced by the device after it connects.</div>
@@ -102,7 +102,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
     assigns = %{location: location}
 
     ~H"""
-    <div class="flex flex-col w-full h-[550px] p-4 gap-4">
+    <div class="flex flex-col w-full h-[400px] p-4 gap-4">
       <div class="flex items-end justify-between">
         <div class="text-neutral-50 font-medium leading-6">Location</div>
         <div class="text-xs font-normal text-zinc-400">The devices location is announced by the device after it connects.</div>
@@ -134,7 +134,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
     }
 
     ~H"""
-    <div class="flex flex-col w-full h-[550px] p-4 gap-4">
+    <div class="flex flex-col w-full h-[400px] p-4 gap-4">
       <div class="flex items-end justify-between">
         <div class="text-neutral-50 font-medium leading-6">Location</div>
         <div class="text-xs font-normal text-zinc-400">
