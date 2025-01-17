@@ -44,12 +44,12 @@ defmodule Mix.Tasks.NervesHub.Gen.Metrics do
   def save_metrics(device_id, current_timestamp) do
     metrics = %{
       "cpu_temp" => Enum.random(1..100),
-      "load_15min" => :rand.uniform() |> Float.ceil(2),
       "load_1min" => :rand.uniform() |> Float.ceil(2),
       "load_5min" => :rand.uniform() |> Float.ceil(2),
-      "size_mb" => 7892,
-      "used_mb" => Enum.random(0..7892),
-      "used_percent" => Enum.random(0..100)
+      "load_15min" => :rand.uniform() |> Float.ceil(2),
+      "mem_size_mb" => 7892,
+      "mem_used_mb" => Enum.random(0..7892),
+      "mem_used_percent" => Enum.random(0..100)
     }
 
     Repo.transaction(fn ->
