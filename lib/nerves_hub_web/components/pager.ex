@@ -40,7 +40,7 @@ defmodule NervesHubWeb.Components.Pager do
 
   def render_with_page_sizes(assigns) do
     ~H"""
-    <div class="sticky bottom-0 w-full flex flex-row border-0 bg-base-950 border-t border-t-base-700 px-6 py-4 z-10">
+    <div class="sticky bottom-0 h-16 w-full flex flex-row border-0 bg-base-950 border-t border-t-base-700 px-6 py-4 z-10">
       <%= for size <- @page_sizes do %>
         <button :if={size <= @pager.total_count} phx-click="set-paginate-opts" phx-value-page-size={size} phx-target={@target} class={"pager-button #{if size == @pager.page_size, do: "active-page"}"}>
           <%= size %>
