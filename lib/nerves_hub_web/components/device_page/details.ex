@@ -4,12 +4,15 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   require Logger
 
   alias NervesHub.AuditLogs
+  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Scripts
+
+  alias NervesHub.Repo
 
   alias NervesHubWeb.Components.NewUI.DeviceLocation
 
