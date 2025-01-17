@@ -79,7 +79,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           </div>
         </div>
 
-        <div :if={@latest_metrics && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div :if={map_size(@latest_metrics) > 0 && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="text-neutral-50 font-medium leading-6">Health</div>
             <div class="flex items-center gap-2">
@@ -155,7 +155,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           </div>
         </div>
 
-        <div :if={!@latest_metrics && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div :if={map_size(@latest_metrics) == 0 && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="text-neutral-50 font-medium leading-6">Health</div>
           </div>
