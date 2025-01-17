@@ -23,7 +23,7 @@ defmodule NervesHubWeb.Components.DevicePage.Console do
               <div class="text-base text-neutral-50 font-medium">Console</div>
             </div>
             <div id="dropzone" class="grow flex p-6 gap-6">
-              <div id="terminal" class="w-full h-full"></div>
+              <div id="console" phx-hook="Console" class="w-full h-full"></div>
             </div>
           </div>
 
@@ -42,9 +42,6 @@ defmodule NervesHubWeb.Components.DevicePage.Console do
 
         <script>
           window.userToken = "<%= @user_token %>"
-        </script>
-
-        <script defer phx-track-static type="text/javascript" src="/assets/ui-rework/console.js">
         </script>
       </div>
 

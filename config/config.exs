@@ -87,7 +87,7 @@ config :esbuild,
   version: "0.17.11",
   default: [
     args:
-      ~w(ui-rework/app.js ui-rework/console.js --bundle --target=es2017 --outdir=../priv/static/assets/ui-rework --external:/fonts/* --external:/images/* --loader:.png=file),
+      ~w(ui-rework/app.js --bundle --target=es2017 --outdir=../priv/static/assets/ui-rework --external:/fonts/* --external:/images/* --loader:.png=file),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
