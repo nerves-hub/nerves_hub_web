@@ -16,7 +16,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
     <div class="action-row">
       <div>
         <h1 class="ff-m mt-2 mb-1">Device Health</h1>
-        <p class="help-text large">Device identifier: <%= @device.identifier %></p>
+        <p class="help-text large">Device identifier: {@device.identifier}</p>
       </div>
       <div>
         <button
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
       <div>
         <div class="help-text">Status</div>
         <p class="flex-row align-items-center tt-c">
-          <span><%= get_status(@latest_connection) %></span>
+          <span>{get_status(@latest_connection)}</span>
           <span class="ml-1">
             <%= if get_status(@latest_connection) in ["offline"] do %>
               <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
@@ -49,13 +49,13 @@ defmodule NervesHubWeb.Components.HealthHeader do
           <span>Last connected</span>
           <span :if={@latest_connection} class="tooltip-info"></span>
           <span :if={@latest_connection} class="tooltip-text" id="connection-establisted-at-tooltip" phx-hook="LocalTime">
-            <%= @latest_connection.established_at %>
+            {@latest_connection.established_at}
           </span>
         </div>
         <p>
           <span :if={!@latest_connection}>Never</span>
           <time :if={@latest_connection} id="connection-established-at" phx-hook="UpdatingTimeAgo" datetime={format_time(@latest_connection.established_at)}>
-            <%= Timex.from_now(@latest_connection.established_at) %>
+            {Timex.from_now(@latest_connection.established_at)}
           </time>
         </p>
       </div>
@@ -64,13 +64,13 @@ defmodule NervesHubWeb.Components.HealthHeader do
           <span>Last reported</span>
           <span :if={@health_reported_at} class="tooltip-info"></span>
           <span :if={@health_reported_at} class="tooltip-text" id="last-reported-at-tooltip" phx-hook="LocalTime">
-            <%= @health_reported_at %>
+            {@health_reported_at}
           </span>
         </div>
         <p>
           <span :if={!@health_reported_at}>Never</span>
           <time :if={@health_reported_at} id="last-reported-at" phx-hook="UpdatingTimeAgo" datetime={format_time(@health_reported_at)}>
-            <%= Timex.from_now(@health_reported_at) %>
+            {Timex.from_now(@health_reported_at)}
           </time>
         </p>
       </div>
@@ -80,7 +80,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
           <p>Unknown</p>
         <% else %>
           <.link navigate={~p"/org/#{@org_name}/#{@product_name}/firmware/#{@device.firmware_metadata.uuid}"} class="badge ff-m mt-0">
-            <%= @device.firmware_metadata.version %> (<%= String.slice(@device.firmware_metadata.uuid, 0..7) %>)
+            {@device.firmware_metadata.version} ({String.slice(@device.firmware_metadata.uuid, 0..7)})
           </.link>
         <% end %>
       </div>
@@ -90,7 +90,7 @@ defmodule NervesHubWeb.Components.HealthHeader do
           <p>Unknown</p>
         <% else %>
           <p class="badge ff-m mt-0">
-            <%= @device.firmware_metadata.platform %>
+            {@device.firmware_metadata.platform}
           </p>
         <% end %>
       </div>

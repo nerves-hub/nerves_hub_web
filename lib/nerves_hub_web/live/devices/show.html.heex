@@ -37,7 +37,7 @@
       <% end %>
       <button class="btn btn-outline-light btn-action" aria-label={if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"} type="button" phx-click="toggle_health_state">
         <span class="button-icon firmware-disabled"></span>
-        <span class="action-text"><%= if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates" %></span>
+        <span class="action-text">{if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}</span>
       </button>
       <button class="btn btn-outline-light btn-action" aria-label="Delete" type="button" phx-click="delete" data-confirm="Are you sure?">
         <span class="button-icon delete"></span>
@@ -64,13 +64,13 @@
       <!-- Show if device has overriden any product-level extensions by disabling them -->
       <div :if={@extension_overrides != []} class="display-box">
         <div class="help-text mb-1">Extensions</div>
-        Device has disabled extensions: <%= Enum.join(@extension_overrides, ", ") %>
+        Device has disabled extensions: {Enum.join(@extension_overrides, ", ")}
       </div>
 
       <div class="display-box">
         <div class="help-text mb-1">Tags</div>
         <p :if={is_nil(@device.tags)}>No Tags</p>
-        <span :for={tag <- @device.tags || []} class="badge"><%= tag %></span>
+        <span :for={tag <- @device.tags || []} class="badge">{tag}</span>
       </div>
 
       <DeviceLocation.render :if={@product.extensions.geo and @device.extensions.geo} location={@device.connection_metadata["location"]} />
@@ -79,8 +79,8 @@
         <h3 class="mb-2">Metadata</h3>
         <div class="display-box metrics">
           <div :for={{key, value} <- @metadata} class="display-box-item">
-            <div :if={value != ""} class="help-text"><%= key |> String.replace("_", " ") |> String.capitalize() %></div>
-            <p><%= value %></p>
+            <div :if={value != ""} class="help-text">{key |> String.replace("_", " ") |> String.capitalize()}</div>
+            <p>{value}</p>
           </div>
         </div>
       <% end %>
@@ -103,13 +103,13 @@
       <div class="display-box">
         <div :for={{script, idx} <- @scripts} class="mb-2 pb-2 border-bottom border-dark">
           <div class="flex-row align-items-center justify-content-between">
-            <div><%= script.name %></div>
+            <div>{script.name}</div>
             <button class="btn btn-secondary" disabled={script.output == running_script_placeholder()} phx-click={if script.output, do: "clear-script-output", else: "run-script"} phx-value-idx={idx}>
-              <%= script_button_text(script.output) %>
+              {script_button_text(script.output)}
             </button>
           </div>
           <div :if={script.output} class="mt-2">
-            <code class="alarms-description color-white wb-ba ff-m"><%= script.output %></code>
+            <code class="alarms-description color-white wb-ba ff-m">{script.output}</code>
           </div>
         </div>
         <div class="text-right">
@@ -149,9 +149,9 @@
               <div class="help-text label">Active Alarms</div>
               <div :for={{{alarm, description}, index} <- Enum.with_index(@alarms)}>
                 <div>
-                  <span phx-click={JS.toggle_class("hidden", to: "#alarm-#{index}")} class={"badge #{if has_description?(description), do: "alarm-clickable"}"}><%= alarm %></span>
+                  <span phx-click={JS.toggle_class("hidden", to: "#alarm-#{index}")} class={"badge #{if has_description?(description), do: "alarm-clickable"}"}>{alarm}</span>
                 </div>
-                <code :if={has_description?(description)} id={"alarm-#{index}"} class="hidden alarms-description color-white wb-ba ff-m"><%= description %></code>
+                <code :if={has_description?(description)} id={"alarm-#{index}"} class="hidden alarms-description color-white wb-ba ff-m">{description}</code>
               </div>
             <% else %>
               <div class="help-text label">No active alarms</div>
@@ -163,38 +163,38 @@
             <%!-- Display CPU load averages as a group. --%>
             <div :if={@latest_metrics["load_1min"]} class="callout">
               <div class="help-text label">Load avg</div>
-              <%= @latest_metrics["load_1min"] %> | <%= @latest_metrics["load_5min"] %> | <%= @latest_metrics["load_15min"] %>
+              {@latest_metrics["load_1min"]} | {@latest_metrics["load_5min"]} | {@latest_metrics["load_15min"]}
             </div>
             <%!--Show CPU and memory usage if reported. Higher values will be displayed in warningly colors. --%>
             <%= if @latest_metrics["cpu_usage_percent"] do %>
               <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["cpu_usage_percent"])}"}>
                 <div class="help-text label">CPU use</div>
-                <%= round(@latest_metrics["cpu_usage_percent"]) %>%
+                {round(@latest_metrics["cpu_usage_percent"])}%
               </div>
             <% end %>
             <%= if @latest_metrics["cpu_temp"] do %>
               <div class={"callout #{Utils.cpu_temp_to_status(@latest_metrics["cpu_temp"])}"}>
                 <div class="help-text label">CPU temp</div>
-                <%= round(@latest_metrics["cpu_temp"]) %>°
+                {round(@latest_metrics["cpu_temp"])}°
               </div>
             <% end %>
             <%= if @latest_metrics["mem_used_mb"] do %>
               <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["mem_used_percent"])}"}>
                 <div class="help-text label">Memory used</div>
-                <%= round(@latest_metrics["mem_used_mb"]) %>MB (<%= round(@latest_metrics["mem_used_percent"]) %>%)
+                {round(@latest_metrics["mem_used_mb"])}MB ({round(@latest_metrics["mem_used_percent"])}%)
               </div>
             <% end %>
             <%= if @latest_metrics["disk_available_kb"] do %>
               <div class={"callout #{Utils.usage_percent_to_status(@latest_metrics["disk_used_percentage"])}"}>
                 <div class="help-text label">Disk used</div>
-                <%= Utils.disk_usage(@latest_metrics) %>
+                {Utils.disk_usage(@latest_metrics)}
               </div>
             <% end %>
             <%!--Display custom metrics, if any. Filters out "timestamp" key.--%>
             <%= for {key, val} <- @latest_metrics do %>
               <div :if={key not in Metrics.default_metrics() and key != "timestamp"} class="callout">
-                <div class="help-text label"><%= format_key(key) %></div>
-                <%= val %>
+                <div class="help-text label">{format_key(key)}</div>
+                {val}
               </div>
             <% end %>
           </div>
@@ -203,7 +203,7 @@
             <div class="last-report">
               <span class="label pr-1">Last reported :</span>
               <time id="health-reported-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
-                <%= Timex.from_now(@latest_metrics["timestamp"]) %>
+                {Timex.from_now(@latest_metrics["timestamp"])}
               </time>
             </div>
             <div>
@@ -226,7 +226,7 @@
           <div :if={@deployment} class="d-flex flex-row">
             <div class="mr-1">
               <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"} class="badge">
-                <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}><%= @deployment.name %></div>
+                <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}>{@deployment.name}</div>
               </.link>
             </div>
             <div>
@@ -256,7 +256,7 @@
               <select name="deployment_id" class="form-control">
                 <option value="">Select a deployment</option>
                 <%= for deployment <- @eligible_deployments do %>
-                  <option value={deployment.id}><%= deployment.name %></option>
+                  <option value={deployment.id}>{deployment.name}</option>
                 <% end %>
               </select>
               <button class="btn btn-secondary ml-2">Set</button>
@@ -270,7 +270,7 @@
             <span class="tooltip-info"></span>
             <span class="tooltip-text">An update is available in the assigned deployment. You can skip the queue by clicking "Send available update".</span>
           </div>
-          <form phx-submit="push-available-update">
+          <form id="available_update_form" phx-submit="push-available-update">
             <div class="flex-row justify-content-between">
               <button class="btn btn-secondary">Send available update</button>
             </div>
@@ -288,7 +288,7 @@
               <select name="uuid" class="form-control">
                 <option value="">Select a version</option>
                 <%= for firmware <- @firmwares do %>
-                  <option value={firmware.uuid}><%= firmware.version %></option>
+                  <option value={firmware.uuid}>{firmware.version}</option>
                 <% end %>
               </select>
               <button class="btn btn-secondary ml-2">Send</button>

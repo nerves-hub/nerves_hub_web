@@ -10,9 +10,9 @@ defmodule NervesHubWeb.Components.HealthSection do
     ~H"""
     <div class="metrics-section">
       <div class="help-text mb-1">
-        <%= @title %>
+        {@title}
         <%= if (@chart.type == "used_mb") do %>
-          <div>Currently using <%= @memory_usage %>% of <%= @memory_size %> MB.</div>
+          <div>Currently using {@memory_usage}% of {@memory_size} MB.</div>
         <% end %>
       </div>
       <div>

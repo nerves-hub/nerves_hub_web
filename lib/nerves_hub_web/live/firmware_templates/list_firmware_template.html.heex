@@ -1,7 +1,7 @@
 <%= if @firmware == [] do %>
   <div class="no-results-blowup-wrapper">
     <img src="/images/firmware.svg" alt="No products" />
-    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any firmware yet</h3>
+    <h3 style="margin-top: 2.75rem">{@product.name} doesn’t have any firmware yet</h3>
     <div class="flex-row align-items-center mt-3">
       <.link patch={~p"/org/#{@org.name}/#{@product.name}/firmware/upload"} class="btn btn-outline-light" aria-label="Upload firmware">
         <span class="button-icon add"></span>
@@ -35,25 +35,25 @@
         <td>
           <div class="mobile-label help-text">UUID</div>
           <div>
-            <.link patch={~p"/org/#{@org.name}/#{@product.name}/firmware/#{firmware.uuid}"} class="badge ff-m"><%= firmware.uuid %></.link>
+            <.link patch={~p"/org/#{@org.name}/#{@product.name}/firmware/#{firmware.uuid}"} class="badge ff-m">{firmware.uuid}</.link>
           </div>
         </td>
         <td>
           <div class="mobile-label help-text">Version</div>
-          <%= firmware.version %>
+          {firmware.version}
         </td>
         <td>
           <div class="mobile-label help-text">Platform</div>
-          <%= firmware.platform %>
+          {firmware.platform}
         </td>
         <td>
           <div class="mobile-label help-text">Architecture</div>
-          <%= firmware.architecture %>
+          {firmware.architecture}
         </td>
         <td>
           <div class="mobile-label help-text">Signing key</div>
           <div>
-            <span class="badge"><%= format_signed(firmware, @org_keys) %></span>
+            <span class="badge">{format_signed(firmware, @org_keys)}</span>
           </div>
         </td>
         <td>
@@ -62,7 +62,7 @@
             <%= if is_nil(firmware.inserted_at) do %>
               <span class="color-white-50">Never</span>
             <% else %>
-              <span class="date-time"><%= firmware.inserted_at %></span>
+              <span class="date-time">{firmware.inserted_at}</span>
             <% end %>
           </div>
         </td>

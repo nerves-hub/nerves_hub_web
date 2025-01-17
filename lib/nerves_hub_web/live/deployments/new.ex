@@ -33,7 +33,7 @@ defmodule NervesHubWeb.Live.Deployments.New do
   end
 
   @impl Phoenix.LiveView
-  def handle_event("select-platform", %{"deployment" => %{"platform" => platform}}, socket) do
+  def handle_event("select-platform", %{"platform" => platform}, socket) do
     authorized!(:"deployment:create", socket.assigns.org_user)
 
     %{product: product} = socket.assigns

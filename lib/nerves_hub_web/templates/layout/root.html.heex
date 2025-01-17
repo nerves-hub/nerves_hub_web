@@ -8,7 +8,7 @@
     <meta name="author" content="" />
 
     <Phoenix.Component.live_title suffix={" | " <> Application.get_env(:nerves_hub, :web_title_suffix)}>
-      <%= assigns[:page_title] || "Welcome" %>
+      {assigns[:page_title] || "Welcome"}
     </Phoenix.Component.live_title>
 
     <link rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")} />
@@ -19,15 +19,15 @@
       window.userToken = "<%= assigns[:user_token] %>"
     </script>
 
-    <%= csrf_meta_tag() %>
+    {csrf_meta_tag()}
 
     <script type="text/javascript" src={Routes.static_path(@conn, "/js/app.js")}>
     </script>
   </head>
 
   <body>
-    <%= @inner_content %>
+    {@inner_content}
 
-    <%= render("_footer.html", conn: @conn) %>
+    {render("_footer.html", conn: @conn)}
   </body>
 </html>

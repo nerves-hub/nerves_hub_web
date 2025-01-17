@@ -8,11 +8,11 @@
     <.live_file_input upload={@uploads.archive} required />
 
     <div class="has-error">
-      <span :if={@error_message} class="help-block"><%= @error_message %></span>
+      <span :if={@error_message} class="help-block">{@error_message}</span>
     </div>
 
     <div :for={entry <- @uploads.archive.entries} class="mt-1">
-      Uploading: <%= entry.progress %>%
+      Uploading: {entry.progress}%
     </div>
   </div>
 </form>

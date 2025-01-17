@@ -60,10 +60,10 @@ defmodule NervesHubWeb.Components.DevicePage.Activity do
                 </svg>
               </div>
               <div class="grow">
-                <div class="text-zinc-300"><%= entry.description %></div>
+                <div class="text-zinc-300">{entry.description}</div>
                 <div class="flex gap-2">
                   <div class="text-xs text-zinc-400 tracking-wide">
-                    <%= Timex.from_now(entry.inserted_at) %>
+                    {Timex.from_now(entry.inserted_at)}
                   </div>
                   <div class="flex items-center">
                     <svg class="h-0.5 w-0.5" viewBox="0 0 2 2" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -71,7 +71,7 @@ defmodule NervesHubWeb.Components.DevicePage.Activity do
                     </svg>
                   </div>
                   <div class="text-xs text-zinc-400 tracking-wide">
-                    <%= Calendar.strftime(entry.inserted_at, "%Y-%m-%d at %I:%M:%S %p UTC") %>
+                    {Calendar.strftime(entry.inserted_at, "%Y-%m-%d at %I:%M:%S %p UTC")}
                   </div>
                 </div>
               </div>

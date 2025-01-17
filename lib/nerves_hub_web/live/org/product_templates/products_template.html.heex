@@ -1,7 +1,7 @@
 <%= if @products == [] do %>
   <div class="no-results-blowup-wrapper">
     <img src="/images/product.svg" alt="No products" />
-    <h3 style="margin-top: 2.75rem"><%= @org.name %> doesn’t have any products yet</h3>
+    <h3 style="margin-top: 2.75rem">{@org.name} doesn’t have any products yet</h3>
     <div class="flex-row align-items-center mt-3">
       <.link navigate={~p"/org/#{@org.name}/new"} class="btn btn-outline-light" aria-label="Create new product" role="button">
         <span class="button-icon add"></span>
@@ -21,7 +21,7 @@
   <div class="x3-grid">
     <%= for product <- @products do %>
       <.link navigate={~p"/org/#{@org.name}/#{product.name}/devices"} class="grid-item">
-        <h3><%= product.name %></h3>
+        <h3>{product.name}</h3>
       </.link>
     <% end %>
   </div>

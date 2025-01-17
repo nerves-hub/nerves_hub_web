@@ -24,37 +24,37 @@
       <tr class="item">
         <td>
           <div class="mobile-label help-text">Serial</div>
-          <code class="color-white wb-ba ff-m"><%= Utils.format_serial(cert.serial) %></code>
+          <code class="color-white wb-ba ff-m">{Utils.format_serial(cert.serial)}</code>
         </td>
         <td>
           <div class="mobile-label help-text">Description</div>
           <%= if is_nil(cert.description) do %>
             -
           <% else %>
-            <%= cert.description %>
+            {cert.description}
           <% end %>
         </td>
         <td>
           <div class="mobile-label help-text">Last used</div>
           <%= if !is_nil(cert.last_used) do %>
-            <%= DateTimeFormat.from_now(cert.last_used) %>
+            {DateTimeFormat.from_now(cert.last_used)}
           <% else %>
             <span class="text-muted">Never</span>
           <% end %>
         </td>
         <td>
           <div class="mobile-label help-text">Not before</div>
-          <div phx-hook="SimpleDate" id={"#{cert.id}-not-before"} class="date-time"><%= cert.not_before %></div>
+          <div phx-hook="SimpleDate" id={"#{cert.id}-not-before"} class="date-time">{cert.not_before}</div>
         </td>
         <td>
           <div class="mobile-label help-text">Not after</div>
-          <div phx-hook="SimpleDate" id={"#{cert.id}-not-after"} class="date-time"><%= cert.not_after %></div>
+          <div phx-hook="SimpleDate" id={"#{cert.id}-not-after"} class="date-time">{cert.not_after}</div>
         </td>
         <td>
-          <span class="text-muted"><%= if cert.check_expiration, do: "yes", else: "no" %></span>
+          <span class="text-muted">{if cert.check_expiration, do: "yes", else: "no"}</span>
         </td>
         <td>
-          <span class="text-muted"><%= if is_nil(cert.jitp), do: "no", else: "yes" %></span>
+          <span class="text-muted">{if is_nil(cert.jitp), do: "no", else: "yes"}</span>
         </td>
         <td>
           <div class="mobile-label help-text">Status</div>

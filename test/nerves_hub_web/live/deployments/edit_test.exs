@@ -25,7 +25,7 @@ defmodule NervesHubWeb.Live.Deployments.EditTest do
       |> fill_in("Deployment name", with: "Moussaka")
       |> fill_in("Tag(s) distributed to", with: "josh, lars")
       |> fill_in("Version requirement", with: "4.3.2")
-      |> fill_in("Firmware version", with: firmware.id)
+      |> select(firmware.uuid, from: "Firmware version", exact_option: false)
       |> click_button("Save Change")
 
     {:ok, reloaded_deployment} = Deployments.get_deployment(product, deployment.id)

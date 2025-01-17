@@ -1,6 +1,6 @@
 <%= if @scripts == [] do %>
   <div class="no-results-blowup-wrapper">
-    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any Support Scripts yet</h3>
+    <h3 style="margin-top: 2.75rem">{@product.name} doesn’t have any Support Scripts yet</h3>
     <div class="flex-row align-items-center mt-3">
       <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} class="btn btn-outline-light" aria-label="Create Support Script">
         <span class="action-text">Create Support Script</span>
@@ -20,7 +20,7 @@
   <table class="table">
     <tr :for={command <- @scripts} class="item">
       <td>
-        <%= command.name %>
+        {command.name}
       </td>
       <td class="actions">
         <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/#{command.id}/edit"} class="btn btn-outline-light btn-action mr-1">

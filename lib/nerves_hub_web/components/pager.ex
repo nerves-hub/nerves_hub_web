@@ -21,10 +21,10 @@ defmodule NervesHubWeb.Components.Pager do
         </svg>
       </button>
       <button :for={page <- @start_range..@end_range} phx-click="paginate" phx-value-page={page} phx-target={@target} class={"pager-button #{if page == @page_number do "active-page" end}"}>
-        <%= page %>
+        {page}
       </button>
       <button :if={@total_pages > @distance} class="pager-button" phx-click="paginate" phx-value-page="…" phx-target={@target}>…</button>
-      <button :if={@end_range != @total_pages} class="pager-button" phx-click="paginate" phx-value-page={@total_pages} phx-target={@target}><%= @total_pages %></button>
+      <button :if={@end_range != @total_pages} class="pager-button" phx-click="paginate" phx-value-page={@total_pages} phx-target={@target}>{@total_pages}</button>
       <button class={["pager-button", @page_number == @total_pages && "invisible"]} phx-click="paginate" phx-value-page={@page_number + 1} phx-target={@target}>
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M8.3335 5.83337L12.5002 10L8.3335 14.1667" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
@@ -43,7 +43,7 @@ defmodule NervesHubWeb.Components.Pager do
     <div class="sticky bottom-0 h-16 w-full flex flex-row border-0 bg-base-950 border-t border-t-base-700 px-6 py-4 z-10">
       <%= for size <- @page_sizes do %>
         <button :if={size <= @pager.total_count} phx-click="set-paginate-opts" phx-value-page-size={size} phx-target={@target} class={"pager-button #{if size == @pager.page_size, do: "active-page"}"}>
-          <%= size %>
+          {size}
         </button>
       <% end %>
       <div class="ml-auto">

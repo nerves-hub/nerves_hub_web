@@ -85,15 +85,15 @@
     <tr :for={auth <- @shared_secrets} class="item">
       <td class="ff-m">
         <div class="mobile-label help-text">Key</div>
-        <%= auth.key %>
+        {auth.key}
       </td>
       <td>
         <div class="mobile-label help-text">Created at</div>
-        <%= Date.to_string(auth.inserted_at) %>
+        {Date.to_string(auth.inserted_at)}
       </td>
       <td>
         <div class="mobile-label help-text">Deactivated at</div>
-        <span class="deactivated"><%= if auth.deactivated_at, do: Date.to_string(auth.deactivated_at) %></span>
+        <span class="deactivated">{if auth.deactivated_at, do: Date.to_string(auth.deactivated_at)}</span>
       </td>
       <td>
         <input type="hidden" id={"shared-secret-#{auth.id}"} value={auth.secret} />
@@ -181,12 +181,12 @@
       <div class="mobile-label help-text">Name</div>
 
       <label for={"extension-#{key}"}>
-        <%= String.capitalize(to_string(key)) %>
+        {String.capitalize(to_string(key))}
       </label>
     </td>
     <td>
       <div class="mobile-label help-text">Description</div>
-      <%= description %>
+      {description}
     </td>
   </tr>
 </table>

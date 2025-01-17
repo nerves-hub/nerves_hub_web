@@ -10,7 +10,7 @@
     <meta name="author" content="" />
 
     <.live_title suffix={" · #{Application.get_env(:nerves_hub, :web_title_suffix)}"}>
-      <%= assigns[:page_title] || "Welcome" %>
+      {assigns[:page_title] || "Welcome"}
     </.live_title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -21,6 +21,6 @@
     </script>
   </head>
   <body class="h-full">
-    <%= @inner_content %>
+    {@inner_content}
   </body>
 </html>

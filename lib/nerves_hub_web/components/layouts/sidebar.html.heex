@@ -29,12 +29,12 @@
         }
       >
         <div>
-          <div class="org-selector-title"><%= @org.name %></div>
+          <div class="org-selector-title">{@org.name}</div>
           <div :if={assigns[:product]} class="product-selector-title flex gap-2 items-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10" fill="none">
               <path d="M1 1V5C1 7.20914 2.79086 9 5 9H9" stroke="#71717A" stroke-width="1.2" stroke-linecap="round" />
             </svg>
-            <span><%= @product.name %></span>
+            <span>{@product.name}</span>
           </div>
         </div>
         <div class="product-selector-icon ml-auto p-[6px] rounded">
@@ -47,13 +47,13 @@
         <div :for={org <- @user.orgs} class="p-4">
           <div class="flex items-center gap-[12px]">
             <div class="org-avatar">
-              <%= org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join() %>
+              {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
             </div>
-            <h3 class="subtitle "><%= org.name %></h3>
+            <h3 class="subtitle ">{org.name}</h3>
           </div>
           <div :for={product <- org.products} class="my-4">
             <.link navigate={~p"/org/#{org.name}/#{product.name}/devices"} class="product-picker-product">
-              <%= product.name %>
+              {product.name}
             </.link>
           </div>
         </div>
@@ -69,13 +69,13 @@
     <div class="sticky bottom-0 mt-auto col-start-1 col-end-2">
       <a href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-white hover:bg-indigo-700">
         <div class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
-          <span class="font-medium text-gray-600 dark:text-gray-300"><%= String.split(@user.name) |> Enum.map(fn w -> String.at(w, 0) end) %></span>
+          <span class="font-medium text-gray-600 dark:text-gray-300">{String.split(@user.name) |> Enum.map(fn w -> String.at(w, 0) end)}</span>
         </div>
 
         <div class="">
           <div class="sr-only">Your profile</div>
-          <div aria-hidden="true" class="text-sm font-light"><%= @user.name %></div>
-          <div aria-hidden="true" class="text-xs font-light text-[#A1A1AA]"><%= @user.email %></div>
+          <div aria-hidden="true" class="text-sm font-light">{@user.name}</div>
+          <div aria-hidden="true" class="text-xs font-light text-[#A1A1AA]">{@user.email}</div>
         </div>
       </a>
     </div>
@@ -89,6 +89,6 @@
       toast_class_fn={&NervesHubWeb.Components.CustomLiveToast.toast_class_fn/1}
     />
 
-    <%= @inner_content %>
+    {@inner_content}
   </div>
 </div>

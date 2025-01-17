@@ -60,10 +60,10 @@ defmodule NervesHubWeb.Components.DeviceLocation do
       <.location_header tooltip="The devices location is announced by the device after it connects." />
 
       <div>
-        <span class="color-white-50">An error occurred during location resolution : <%= @location["error_code"] %></span>
+        <span class="color-white-50">An error occurred during location resolution : {@location["error_code"]}</span>
       </div>
       <div>
-        <span class="color-white-50"><%= @location["error_description"] %></span>
+        <span class="color-white-50">{@location["error_description"]}</span>
       </div>
     </div>
     """
@@ -100,7 +100,7 @@ defmodule NervesHubWeb.Components.DeviceLocation do
     <div class="help-text mb-1 tooltip-label">
       <span>Device location</span>
       <span class="tooltip-info"></span>
-      <span class="tooltip-text"><%= @tooltip %></span>
+      <span class="tooltip-text">{@tooltip}</span>
     </div>
     """
   end

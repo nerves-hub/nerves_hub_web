@@ -32,7 +32,7 @@ defmodule NervesHubWeb.Components.CAHelpers do
 
     ~H"""
     <div class={@class}>
-      <%= @status %>
+      {@status}
     </div>
     """
   end

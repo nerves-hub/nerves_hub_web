@@ -83,9 +83,9 @@ defmodule NervesHubWeb.Components.Navigation do
     <li class={["h-11 flex items-center py-2 px-4 hover:bg-sidebar-item-hover", @selected && "bg-sidebar-item-selected border-r-2 border-indigo-500"]}>
       <.link class="group flex items-center gap-x-3 text-sm tracking-wide leading-[19px] text-[#D4D4D8] font-light w-full h-full" navigate={@path}>
         <svg class={"w-5 h-5" <> active_icon(@selected)} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <%= render_slot(@inner_block) %>
+          {render_slot(@inner_block)}
         </svg>
-        <span class={[@selected && "font-semibold text-zinc-50"]}><%= @label %></span>
+        <span class={[@selected && "font-semibold text-zinc-50"]}>{@label}</span>
       </.link>
     </li>
     """
@@ -110,9 +110,9 @@ defmodule NervesHubWeb.Components.Navigation do
           <ul :if={Enum.any?(@user.orgs)} class="navbar-nav mr-auto flex-grow">
             <li class="nav-item dropdown switcher">
               <a class="nav-link dropdown-toggle org-select arrow-primary" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <%= if org = assigns[:org], do: org.name, else: "Select Org" %>
+                {if org = assigns[:org], do: org.name, else: "Select Org"}
                 <%= if product = assigns[:product] do %>
-                  <span class="workspace-divider">:</span> <%= product.name %>
+                  <span class="workspace-divider">:</span> {product.name}
                 <% end %>
               </a>
 
@@ -122,7 +122,7 @@ defmodule NervesHubWeb.Components.Navigation do
                 <%= for org <- @user.orgs do %>
                   <div class="dropdown-submenu">
                     <.link href={~p"/org/#{org.name}"} class={"dropdown-item org #{org_classes(@current_path, org.name)}"}>
-                      <%= org.name %>
+                      {org.name}
                       <div class="active-checkmark"></div>
                     </.link>
                     <ul class="dropdown-menu">
@@ -132,7 +132,7 @@ defmodule NervesHubWeb.Components.Navigation do
                         <%= for product <- org.products do %>
                           <li>
                             <.link href={~p"/org/#{org.name}/#{product.name}/devices"} class={"dropdown-item product #{product_classes(@current_path, product.name)}"}>
-                              <%= product.name %>
+                              {product.name}
                               <div class="active-checkmark"></div>
                             </.link>
                             <div class="dropdown-divider"></div>
@@ -164,7 +164,7 @@ defmodule NervesHubWeb.Components.Navigation do
           <ul class="navbar-nav">
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle user-menu pr-1" href="#" id="menu1" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                <span><%= @user.name %></span>
+                <span>{@user.name}</span>
                 <img src="/images/icons/settings.svg" alt="settings" />
               </a>
               <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">
@@ -237,13 +237,13 @@ defmodule NervesHubWeb.Components.Navigation do
           <ul class="nav">
             <li :for={link <- @links} class="nav-item ">
               <.link class={"nav-link #{link.active}"} navigate={link.href}>
-                <span class="text"><%= link.title %></span>
+                <span class="text">{link.title}</span>
               </.link>
             </li>
           </ul>
           <div class="flex-row align-items-center justify-content-between">
             <div :if={device_count = device_count(@product)} class="navbar-indicator device-limit-indicator" title="Device total" aria-label="Device total">
-              <%= device_count %>
+              {device_count}
             </div>
             <.link
               :if={alarms_count = alarms_count(@product)}
@@ -252,7 +252,7 @@ defmodule NervesHubWeb.Components.Navigation do
               title="Devices alarming"
               aria-label="Devices alarming"
             >
-              <%= alarms_count %>
+              {alarms_count}
             </.link>
           </div>
         </nav>

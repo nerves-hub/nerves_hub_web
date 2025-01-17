@@ -15,7 +15,7 @@ defmodule NervesHubWeb.Components.SimpleActiveLink do
 
     ~H"""
     <.link href={@href} class={@class}>
-      <%= render_slot(@inner_block) %>
+      {render_slot(@inner_block)}
     </.link>
     """
   end

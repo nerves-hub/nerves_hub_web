@@ -14,29 +14,29 @@
   </div>
 </div>
 
-<h1>Firmware <%= @firmware.version %></h1>
+<h1>Firmware {@firmware.version}</h1>
 
 <div class="firmware-meta-grid">
   <div>
     <div class="help-text">UUID</div>
-    <p class="ff-m"><%= @firmware.uuid %></p>
+    <p class="ff-m">{@firmware.uuid}</p>
   </div>
   <div>
     <div class="help-text">Platform</div>
-    <p><%= @firmware.platform %></p>
+    <p>{@firmware.platform}</p>
   </div>
   <div>
     <div class="help-text">Architecture</div>
-    <p><%= @firmware.architecture %></p>
+    <p>{@firmware.architecture}</p>
   </div>
   <div class="gr-2">
     <div class="help-text">Author</div>
-    <p><%= @firmware.author %></p>
+    <p>{@firmware.author}</p>
   </div>
   <div class="gr-2">
     <div class="help-text">Uploaded On</div>
     <p class="date-time" phx-hook="LocalTime" id={"firmware-#{@firmware.id}-inserted_at"}>
-      <%= @firmware.inserted_at %>
+      {@firmware.inserted_at}
     </p>
   </div>
   <div class="gr-2">
@@ -45,14 +45,14 @@
       <%= if is_nil(@firmware.vcs_identifier) do %>
         -
       <% else %>
-        <%= @firmware.vcs_identifier %>
+        {@firmware.vcs_identifier}
       <% end %>
     </p>
   </div>
   <div class="gr-2">
     <div class="help-text">Signing Key</div>
     <p class="ff-m">
-      <span class="badge"><%= format_signed(@firmware, @org_keys) %></span>
+      <span class="badge">{format_signed(@firmware, @org_keys)}</span>
     </p>
   </div>
 </div>

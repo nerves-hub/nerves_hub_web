@@ -12,15 +12,15 @@
       <span :if={@error_message} class="help-block">
         <%= case @error_code do %>
           <% :duplicate_firmware -> %>
-            <%= @error_message %> <a href={"/org/#{@org.name}/#{@product.name}/firmware/#{@uuid}"} target="_blank">View Firmware</a>
+            {@error_message} <a href={"/org/#{@org.name}/#{@product.name}/firmware/#{@uuid}"} target="_blank">View Firmware</a>
           <% _ -> %>
-            <%= @error_message %>
+            {@error_message}
         <% end %>
       </span>
     </div>
 
     <div :for={entry <- @uploads.firmware.entries} class="mt-1">
-      Uploading: <%= entry.progress %>%
+      Uploading: {entry.progress}%
     </div>
   </div>
 </form>
