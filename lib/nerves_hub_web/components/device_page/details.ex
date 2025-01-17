@@ -1,9 +1,13 @@
 defmodule NervesHubWeb.Components.DevicePage.Details do
   use NervesHubWeb, :live_component
 
+  require Logger
+
+  alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Metrics
+  alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
   alias NervesHub.Scripts
 
@@ -28,6 +32,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     |> assign(assigns)
     |> assign_support_scripts()
     |> assign(:firmwares, Firmwares.get_firmware_for_device(assigns.device))
+    |> assign(:update_information, Devices.resolve_update(assigns.device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(assigns.device.id))
     |> assign(:alarms, Alarms.get_current_alarms_for_device(assigns.device))
     |> assign(:extension_overrides, extension_overrides(assigns.device, assigns.product))
@@ -265,8 +270,27 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               </svg>
             </button>
           </div>
+
+          <div :if={@update_information.update_available && @device.deployment_id} class="flex p-4 gap-4 items-center justify-between border-t border-zinc-700">
+            <div class="flex flex-col">
+              <span>Update available</span>
+              <span class="text-sm text-nerves-gray-500">An update is available in the assigned deployment.</span>
+            </div>
+
+            <button
+              phx-target={@myself}
+              phx-submit="push-available-update"
+              class="box-content h-5 py-1.5 px-3 mr-9 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
+              aria-label="Send available update"
+              data-confirm="Are you sure?"
+              disabled={disconnected?(@device_connection)}
+            >
+              Skip the queue
+            </button>
+          </div>
+
           <div class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <form :if={Enum.any?(@firmwares)} phx-submit="push-update" class="flex gap-2 items-center w-full">
+            <form :if={Enum.any?(@firmwares)} phx-target={@myself} phx-submit="push-update" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <select
                   id="firmware"
@@ -278,13 +302,13 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
                 </select>
               </div>
               <button
-                class="box-content h-5 py-1.5 px-3 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-500 disabled:bg-base-700 disabled:text-base-400"
+                class="box-content h-5 py-1.5 px-3 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
+                disabled={disconnected?(@device_connection)}
                 aria-label="Send firmware update"
                 data-confirm="Are you sure?"
               >
                 Send update
               </button>
-              <%!-- disabled={disconnected?(@device_connection)} --%>
             </form>
             <div>
               <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -360,6 +384,74 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
       </div>
     </div>
     """
+  end
+
+  def handle_event("push-available-update", _, socket) do
+    authorized!(:"device:push-update", socket.assigns.org_user)
+
+    %{device: device, deployment: deployment, user: user} = socket.assigns
+
+    deployment = NervesHub.Repo.preload(deployment, :firmware)
+
+    description =
+      "#{user.name} pushed available firmware update #{deployment.firmware.version} #{deployment.firmware.uuid} to device #{device.identifier}"
+
+    AuditLogs.audit!(user, device, description)
+
+    case Devices.told_to_update(device, deployment) do
+      {:ok, inflight_update} ->
+        _ =
+          NervesHubWeb.Endpoint.broadcast(
+            "device:#{device.id}",
+            "deployments/update",
+            inflight_update
+          )
+
+        socket
+        |> send_toast(:info, "Pushing available firmware update.")
+        |> noreply()
+
+      :error ->
+        Logger.error(
+          "An inflight update could not be created or found for the device #{device.identifier} (#{device.id})"
+        )
+
+        socket
+        |> send_toast(
+          :info,
+          "There was an error sending the update to the device. Please contact support."
+        )
+        |> noreply()
+    end
+  end
+
+  def handle_event("push-update", %{"uuid" => uuid}, socket) do
+    authorized!(:"device:push-update", socket.assigns.org_user)
+
+    %{product: product, device: device, user: user} = socket.assigns
+
+    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
+    {:ok, url} = Firmwares.get_firmware_url(firmware)
+    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
+    {:ok, device} = Devices.disable_updates(device, user)
+
+    description =
+      "#{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+
+    AuditLogs.audit!(user, device, description)
+
+    payload = %UpdatePayload{
+      update_available: true,
+      firmware_url: url,
+      firmware_meta: meta
+    }
+
+    _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "devices/update-manual", payload)
+
+    socket
+    |> assign(:device, device)
+    |> send_toast(:info, "Sending firmware update request.")
+    |> noreply()
   end
 
   def handle_event("run-script", %{"id" => id}, socket) do
