@@ -17,7 +17,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   # mapbox token is nil, maps aren't enabled
   def render(%{mapbox_access_token: nil} = assigns) do
     ~H"""
-    <div class="flex flex-col w-full h-[500px] p-4 gap-4">
+    <div class="flex flex-col w-full h-[400px] p-4 gap-4">
       <div class="flex items-end justify-between">
         <div class="text-neutral-50 font-medium leading-6">Location</div>
       </div>
