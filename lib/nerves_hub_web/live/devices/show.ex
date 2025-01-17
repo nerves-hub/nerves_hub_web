@@ -511,14 +511,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:audit_pager, audit_pager)
   end
 
-  defp assign_deployments(%{assigns: %{device: device, product: product}} = socket) do
-    deployments =
-      if device.status == :provisioned,
-        do: Deployments.eligible_deployments(device),
-        else: Deployments.get_deployments_by_product(product)
+  defp assign_deployments(%{assigns: %{device: %{status: :provisioned} = device}} = socket),
+    do: assign(socket, deployments: Deployments.eligible_deployments(device))
 
-    assign(socket, deployments: deployments)
-  end
+  defp assign_deployments(%{assigns: %{product: product}} = socket),
+    do: assign(socket, deployments: Deployments.get_deployments_by_product(product))
 
   defp connecting_code(device) do
     if device.deployment && device.deployment.connecting_code do
