@@ -224,12 +224,12 @@
     module={DetailsPage}
     id="device_details"
     device={@device}
-    deployment={@deployment}
     device_connection={@device_connection}
     auto_refresh_health={!!@health_check_timer}
     product={@product}
     org={@org}
     org_user={@org_user}
+    user={@user}
   />
 
   <.live_component :if={@tab == :health} module={HealthPage} id="device_health" device={@device} org={@org} product={@product} />

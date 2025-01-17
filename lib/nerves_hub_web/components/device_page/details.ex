@@ -4,6 +4,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   require Logger
 
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.Templates
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
@@ -33,7 +34,9 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   def update(assigns, socket) do
     socket
     |> assign(assigns)
+    |> assign(:device, Repo.preload(assigns.device, :deployment))
     |> assign_support_scripts()
+    |> assign(:eligible_deployments, Deployments.eligible_deployments(assigns.device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(assigns.device))
     |> assign(:update_information, Devices.resolve_update(assigns.device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(assigns.device.id))
@@ -241,21 +244,23 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           <div class="h-14 pl-4 pr-3 flex items-center text-neutral-50 font-medium leading-6">
             Deployments
           </div>
+
           <div class="flex pt-2 px-4 pb-6 gap-4 items-center">
             <span class="text-sm text-nerves-gray-500">Assigned deployment:</span>
-            <span :if={is_nil(@deployment)} class="text-sm text-nerves-gray-500">No assigned deployment</span>
+            <span :if={is_nil(@device.deployment)} class="text-sm text-nerves-gray-500">No assigned deployment</span>
             <.link
-              :if={@deployment}
-              navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"}
+              :if={@device.deployment}
+              navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@device.deployment.name}"}
               class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
             >
               <svg class="w-1.5 h-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="3" cy="3" r="3" fill="#10B981" />
               </svg>
-              <span class="text-xs text-zinc-300 tracking-tight" class=""><%= @deployment.name %></span>
+              <span class="text-xs text-zinc-300 tracking-tight" class=""><%= @device.deployment.name %></span>
             </.link>
 
             <button
+              :if={@device.deployment}
               class="p-1 border border-red-500 rounded-full bg-zinc-800"
               data-confirm="Are you sure you want to remove the device from the deployment?"
               aria-label="Remove device from the assigned deployment"
@@ -273,6 +278,38 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
                 />
               </svg>
             </button>
+          </div>
+
+          <div :if={is_nil(@device.deployment) && Enum.any?(@eligible_deployments)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
+            <form phx-target={@myself} phx-submit="set-deployment" class="flex gap-2 items-center w-full">
+              <div class="grow grid grid-cols-1">
+                <select
+                  name="deployment_id"
+                  class="col-start-1 row-start-1 appearance-none border rounded border-zinc-600 bg-zinc-900 py-1.5 pl-3 pr-8 text-sm text-zinc-400 focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-indigo-500"
+                >
+                  <option value="">Select a deployment</option>
+                  <option :for={deployment <- @eligible_deployments} value={deployment.id}><%= deployment.name %></option>
+                </select>
+              </div>
+              <button
+                class="box-content h-5 py-1.5 px-3 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
+                aria-label="Add to deployment"
+                data-confirm="Are you sure you want to add the device to the deployment?"
+              >
+                Add to deployment
+              </button>
+            </form>
+            <div>
+              <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M10 12.5V10M10 7.5V7.49167M17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 5.85786 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.85786 17.5 10Z"
+                  stroke="#A1A1AA"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
           </div>
 
           <div :if={@update_information.update_available && @device.deployment_id} class="flex p-4 gap-4 items-center justify-between border-t border-zinc-700">
@@ -390,6 +427,23 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     """
   end
 
+  def handle_event("set-deployment", %{"deployment_id" => deployment_id}, socket) do
+    %{user: user, device: device, eligible_deployments: eligible_deployments} = socket.assigns
+
+    authorized!(:"device:set-deployment", socket.assigns.org_user)
+
+    deployment = Enum.find(eligible_deployments, &(&1.id == String.to_integer(deployment_id)))
+    device = Devices.update_deployment(device, deployment)
+    _ = Templates.audit_device_deployment_update(user, device, deployment)
+
+    send(self(), :reload_device)
+
+    socket
+    |> assign(:device, device)
+    |> send_toast(:info, "Device successfully added to Deployment.")
+    |> noreply()
+  end
+
   def handle_event("push-available-update", _, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
@@ -459,15 +513,12 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   end
 
   def handle_event("remove-from-deployment", _, %{assigns: %{device: device}} = socket) do
-    device =
-      device
-      |> Devices.clear_deployment()
-      |> Repo.preload(:deployment)
+    device = Devices.clear_deployment(device)
+
+    send(self(), :reload_device)
 
     socket
     |> assign(:device, device)
-    |> assign(:deployment, nil)
-    |> assign(:eligible_deployments, Deployments.eligible_deployments(device))
     |> send_toast(:info, "Device successfully removed from the deployment")
     |> noreply()
   end

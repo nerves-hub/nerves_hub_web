@@ -67,8 +67,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(:reload_device, socket) do
+    device =
+      socket.assigns.device
+      |> Repo.reload()
+      |> Repo.preload(:deployment)
+
     socket
-    |> assign(:device, Repo.reload(socket.assigns.device))
+    |> assign(:device, device)
     |> noreply()
   end
 
