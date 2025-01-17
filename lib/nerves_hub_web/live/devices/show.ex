@@ -154,7 +154,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(:check_health_interval, socket) do
-    timer_ref = Process.send_after(self(), :check_health_interval, 65_000)
+    timer_ref = Process.send_after(self(), :check_health_interval, 10_000)
 
     Health.request_health_check(socket.assigns.device)
 
