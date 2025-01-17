@@ -257,6 +257,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               data-confirm="Are you sure you want to remove the device from the deployment?"
               aria-label="Remove device from the assigned deployment"
               type="button"
+              phx-target={@myself}
               phx-click="remove-from-deployment"
             >
               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -451,6 +452,20 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     socket
     |> assign(:device, device)
     |> send_toast(:info, "Sending firmware update request.")
+    |> noreply()
+  end
+
+  def handle_event("remove-from-deployment", _, %{assigns: %{device: device}} = socket) do
+    device =
+      device
+      |> Devices.clear_deployment()
+      |> Repo.preload(:deployment)
+
+    socket
+    |> assign(:device, device)
+    |> assign(:deployment, nil)
+    |> assign(:eligible_deployments, Deployments.eligible_deployments(device))
+    |> send_toast(:info, "Device successfully removed from the deployment")
     |> noreply()
   end
 
