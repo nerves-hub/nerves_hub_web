@@ -525,7 +525,7 @@
 
 <div class="sticky bottom-0 flex flex-row border-0 bg-base-950 border-t border-t-base-700 px-6 py-4 z-10">
   <%= for size <- @paginate_opts.page_sizes do %>
-    <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"pager-button #{if size == @paginate_opts.page_size, do: "active-page"}"}>
+    <button :if={size <= @total_entries} phx-click="set-paginate-opts" phx-value-page-size={size} class={"pager-button #{if size == @paginate_opts.page_size, do: "active-page"}"}>
       <%= size %>
     </button>
   <% end %>
