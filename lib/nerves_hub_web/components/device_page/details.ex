@@ -197,29 +197,35 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           <div class="h-14 pl-4 pr-3 flex items-center text-neutral-50 font-medium leading-6">
             General info
           </div>
+          <div class="flex flex-col gap-3">
+            <div :if={@device.description != ""} class="min-h-7 px-4 flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Description:</span>
+              <span class="text-sm text-zinc-300"><%= @device.description %></span>
+            </div>
 
-          <div class="flex pt-2 px-4 pb-2 gap-4 items-center">
-            <span class="text-sm text-nerves-gray-500">Tags:</span>
-            <span :if={is_nil(@device.tags)} class="text-sm text-nerves-gray-500">No Tags</span>
-            <span :if={@device.tags} class="flex gap-1">
-              <span :for={tag <- @device.tags || []} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded"><%= tag %></span>
-            </span>
-          </div>
-
-          <div :if={@extension_overrides != []} class="flex pt-2 px-4 pb-2 gap-4 items-center">
-            <span class="text-sm text-nerves-gray-500">Disabled extensions:</span>
-            <span class="flex gap-1">
-              <span :for={extension <- @extension_overrides} class="text-sm text-red-500 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded" class=""><%= extension %></span>
-            </span>
-          </div>
-
-          <div :if={!Enum.empty?(@metadata)} class="flex pt-2 px-4 pb-2 gap-4 items-center">
-            <span class="text-sm text-nerves-gray-500">Metadata:</span>
-            <span class="flex gap-1">
-              <span :for={{key, value} <- Map.filter(@metadata, fn {_key, val} -> val != "" end)} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">
-                <span><%= key |> String.replace("_", " ") |> String.capitalize() %>: <%= value %></span>
+            <div class="min-h-7 flex px-4 gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Tags:</span>
+              <span :if={is_nil(@device.tags)} class="text-sm text-nerves-gray-500">No Tags</span>
+              <span :if={@device.tags} class="flex gap-1">
+                <span :for={tag <- @device.tags || []} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded"><%= tag %></span>
               </span>
-            </span>
+            </div>
+
+            <div :if={!Enum.empty?(@metadata)} class="min-h-7 flex px-4 gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Metadata:</span>
+              <span class="flex gap-1">
+                <span :for={{key, value} <- Map.filter(@metadata, fn {_key, val} -> val != "" end)} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">
+                  <span><%= key |> String.replace("_", " ") |> String.capitalize() %>: <%= value %></span>
+                </span>
+              </span>
+            </div>
+
+            <div :if={@extension_overrides != []} class="flex min-h-7 px-4 gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Disabled extensions:</span>
+              <span class="flex gap-1">
+                <span :for={extension <- @extension_overrides} class="text-sm text-red-500 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded" class=""><%= extension %></span>
+              </span>
+            </div>
           </div>
         </div>
 
