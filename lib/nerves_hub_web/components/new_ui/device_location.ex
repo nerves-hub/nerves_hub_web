@@ -129,7 +129,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
       lat: location["latitude"],
       lng: location["longitude"],
       source: location["source"],
-      zoom: 13,
+      zoom: if(String.downcase(location["source"]) == "gps", do: 15, else: 13),
       mapbox_access_token: assigns.mapbox_access_token
     }
 
@@ -152,6 +152,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
         data-center-lng={@lng}
         data-center-lat={@lat}
         data-zoom={@zoom}
+        data-source={@source}
       >
       </div>
     </div>
