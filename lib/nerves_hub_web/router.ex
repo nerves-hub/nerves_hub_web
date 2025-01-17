@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Router do
   use NervesHubWeb, :router
 
   import Phoenix.LiveDashboard.Router
+  import Oban.Web.Router
 
   pipeline :browser do
     plug(:accepts, ["html", "json"])
@@ -35,10 +36,6 @@ defmodule NervesHubWeb.Router do
 
   pipeline :live_logged_in do
     plug(NervesHubWeb.Plugs.EnsureAuthenticated)
-  end
-
-  pipeline :admins_only do
-    plug(NervesHubWeb.Plugs.AdminBasicAuth)
   end
 
   pipeline :org do
@@ -336,17 +333,13 @@ defmodule NervesHubWeb.Router do
     end
   end
 
-  if Mix.env() in [:dev] do
-    scope "/dev" do
-      pipe_through([:browser])
+  scope "/" do
+    pipe_through([:browser, :logged_in, NervesHubWeb.Plugs.ServerAuth])
+    live_dashboard("/status/dashboard")
+    oban_dashboard("/status/oban", resolver: NervesHubWeb.Plugs.ServerAuth)
+  end
 
-      forward("/mailbox", Plug.Swoosh.MailboxPreview)
-      live_dashboard("/dashboard")
-    end
-  else
-    scope "/" do
-      pipe_through([:browser, :admins_only])
-      live_dashboard("/status/dashboard")
-    end
+  if Mix.env() == :dev do
+    forward("/mailbox", Plug.Swoosh.MailboxPreview)
   end
 end

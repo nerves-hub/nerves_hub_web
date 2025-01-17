@@ -100,6 +100,7 @@ defmodule NervesHub.MixProject do
       {:mimic, "~> 1.10", only: [:test, :dev]},
       {:nimble_csv, "~> 1.1"},
       {:oban, "~> 2.11"},
+      {:oban_web, "~> 2.11"},
       {:opentelemetry_exporter, "~> 1.8"},
       {:opentelemetry, "~> 1.5"},
       {:opentelemetry_api, "~> 1.4"},

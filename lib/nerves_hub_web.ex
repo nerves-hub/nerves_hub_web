@@ -21,6 +21,7 @@ defmodule NervesHubWeb do
 
   def plug() do
     quote do
+      @behaviour Plug
       import Plug.Conn
       import Phoenix.Controller
     end
