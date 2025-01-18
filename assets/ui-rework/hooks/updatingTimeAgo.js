@@ -1,3 +1,5 @@
+import TimeAgo from "javascript-time-ago"
+
 export default {
   mounted() {
     this.updateTimer = null
