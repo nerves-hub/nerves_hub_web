@@ -6,13 +6,11 @@ import { FitAddon } from "xterm-addon-fit"
 import semver from "semver"
 
 const defaultTermOptions = {
-  rows: 28,
-  cols: 120,
   cursorBlink: true,
   cursorStyle: "bar",
   macOptionIsMeta: true,
   fontFamily: "Ubuntu Mono, courier-new, courier, monospace",
-  fontSize: 12,
+  fontSize: 16,
   theme: {
     foreground: "#FFFAF4",
     background: "#0E1019",
@@ -81,7 +79,9 @@ export default {
     // resize terminal on window resize
     window.addEventListener(
       "resize",
-      debounce(resizeContent.apply(null, [term, fitAddon]), 300)
+      debounce(() => {
+        resizeContent.apply(null, [term, fitAddon])
+      }, 300)
     )
 
     const chatBody = document.getElementById("chat-body")
