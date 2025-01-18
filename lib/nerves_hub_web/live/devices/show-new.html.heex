@@ -201,22 +201,26 @@
     </div>
   </div>
 
-  <div class="flex px-6 border-b border-zinc-700">
-    <.link class={tab_classes(@tab, :details)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"}>
-      Details
-    </.link>
-    <.link class={tab_classes(@tab, :health)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/healthz"}>
-      Health
-    </.link>
-    <.link class={tab_classes(@tab, :activity)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/activity"}>
-      Activity
-    </.link>
-    <.link class={tab_classes(@tab, :console)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/conzole"}>
-      Console
-    </.link>
-    <.link class={tab_classes(@tab, :settings)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/settingz"}>
-      Settings
-    </.link>
+  <div class="flex w-full justify-between px-6 border-b border-zinc-700">
+    <div class="flex">
+      <.link class={tab_classes(@tab, :details)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"}>
+        Details
+      </.link>
+      <.link class={tab_classes(@tab, :health)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/healthz"}>
+        Health
+      </.link>
+      <.link class={tab_classes(@tab, :activity)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/activity"}>
+        Activity
+      </.link>
+      <.link class={tab_classes(@tab, :console)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/conzole"}>
+        Console
+      </.link>
+      <.link class={tab_classes(@tab, :settings)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/settingz"}>
+        Settings
+      </.link>
+    </div>
+
+    <FwupProgress.updated_render :if={@fwup_progress} fwup_progress={@fwup_progress} />
   </div>
 
   <.live_component

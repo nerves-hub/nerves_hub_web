@@ -143,6 +143,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     if payload.percent == 100 do
       socket
       |> put_flash(:info, "Update complete: The device will reboot shortly.")
+      |> send_toast(:info, "Update complete: The device will reboot shortly.")
       |> assign(:fwup_progress, nil)
       |> noreply()
     else
