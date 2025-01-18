@@ -135,7 +135,7 @@ export default {
       metadata = payload
 
       document.querySelector(
-        ".terminal .title"
+        "#console-title"
       ).innerHTML = `Console - ${metadata.version}`
     })
 
