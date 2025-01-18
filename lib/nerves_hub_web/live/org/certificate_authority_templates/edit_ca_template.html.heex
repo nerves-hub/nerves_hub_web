@@ -22,7 +22,7 @@
     {hidden_input(fp, :delete, id: "jitp-delete")}
     <input id="jitp_toggle_ui" type="checkbox" value="true" name="ca_certificate[jitp][jitp_toggle]" checked={@show_jitp_form} phx-click={JS.dispatch("ca:edit:jitp")} />
 
-    <div class={unless @show_jitp_form, do: "hidden"} id="jitp_form">
+    <div class={if !@show_jitp_form, do: "hidden"} id="jitp_form">
       <div class="form-group">
         <div class="tooltip-label mb-1">
           <label for="jitp_description_input" class="h3">
