@@ -15,15 +15,13 @@ defmodule NervesHubWeb.Components.DevicePage.Console do
     ~H"""
     <div class="size-full">
       <div :if={authorized?(:"device:console", @org_user) && @console_active?} class="flex flex-col size-full items-start justify-between">
-        <input id="device_id" hidden type="text" value={@device.id} />
-
         <div id="console-and-chat" class="size-full flex gap-4 p-6" phx-update="ignore">
           <div class="flex flex-col w-9/12 bg-zinc-900 border border-zinc-700 rounded">
             <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
               <div class="text-base text-neutral-50 font-medium">Console</div>
             </div>
             <div id="dropzone" class="grow flex p-6 gap-6">
-              <div id="console" phx-hook="Console" class="w-full h-full"></div>
+              <div id="console" phx-hook="Console" data-user-token={@user_token} data-device-id={@device.id} class="w-full h-full"></div>
             </div>
           </div>
 
@@ -39,10 +37,6 @@ defmodule NervesHubWeb.Components.DevicePage.Console do
             </div>
           </div>
         </div>
-
-        <script>
-          window.userToken = "<%= @user_token %>"
-        </script>
       </div>
 
       <div :if={authorized?(:"device:console", @org_user) && !@console_active?} class="flex flex-col size-full items-start justify-between">

@@ -53,10 +53,11 @@ export default {
   mounted() {
     // socket + channel setup to receive device console data
     const socket = new Socket("/socket", {
-      params: { token: window.userToken }
+      params: { token: this.el.dataset.userToken }
     })
     socket.connect()
-    const deviceId = document.getElementById("device_id").value
+
+    const deviceId = this.el.dataset.deviceId
     const channel = socket.channel(`user:console:${deviceId}`, {})
 
     // init terminal, load addons
