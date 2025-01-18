@@ -494,7 +494,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     {:ok, device} = Devices.disable_updates(device, user)
 
     description =
-      "#{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+      "User #{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
 
     AuditLogs.audit!(user, device, description)
 
