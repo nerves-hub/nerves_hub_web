@@ -257,7 +257,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     {:ok, updated_device} = Devices.clear_penalty_box(device, user)
 
-    {:noreply, assign(socket, :device, updated_device)}
+    socket
+    |> assign(:device, updated_device)
+    |> send_toast(:info, "Device removed from the penalty box, and firmware updates enabled.")
+    |> noreply()
   end
 
   def handle_event("toggle_health_state", _params, socket) do
