@@ -71,7 +71,7 @@
     <label for="jitp_toggle_ui"> Enable Just In Time Provisioning </label>
     <input id="jitp_toggle" type="hidden" name="ca_certificate[jitp][jitp_toggle]" value="false" checked={@show_jitp_form} />
     <input id="jitp_toggle_ui" type="checkbox" name="ca_certificate[jitp][jitp_toggle]" value="true" checked={@show_jitp_form} phx-click={JS.dispatch("ca:new:jitp")} } />
-    <div class={unless @show_jitp_form, do: "hidden"} id="jitp_form">
+    <div class={if !@show_jitp_form, do: "hidden"} id="jitp_form">
       <div class="form-group">
         <div class="tooltip-label mb-1">
           <label for="jitp_description_input" class="h3">

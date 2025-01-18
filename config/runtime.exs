@@ -2,7 +2,7 @@ import Config
 
 nerves_hub_app = System.get_env("NERVES_HUB_APP", "all")
 
-unless Enum.member?(["all", "web", "device"], nerves_hub_app) do
+if !Enum.member?(["all", "web", "device"], nerves_hub_app) do
   raise """
   unknown value \"#{nerves_hub_app}\" for NERVES_HUB_APP
   supported values are \"all\", \"web\", and \"device\"

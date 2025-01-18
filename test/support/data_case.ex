@@ -34,7 +34,7 @@ defmodule NervesHub.DataCase do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.ObanRepo)
 
-    unless tags[:async] do
+    if !tags[:async] do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
       Ecto.Adapters.SQL.Sandbox.mode(NervesHub.ObanRepo, {:shared, self()})
     end

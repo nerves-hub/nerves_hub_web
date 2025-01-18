@@ -31,7 +31,7 @@ defmodule NervesHubWeb.ConnCase do
   setup tags do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
 
-    unless tags[:async] do
+    if !tags[:async] do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 
@@ -77,7 +77,7 @@ defmodule NervesHubWeb.APIConnCase do
   setup tags do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(NervesHub.Repo)
 
-    unless tags[:async] do
+    if !tags[:async] do
       Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, {:shared, self()})
     end
 
