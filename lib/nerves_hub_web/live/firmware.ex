@@ -59,7 +59,7 @@ defmodule NervesHubWeb.Live.Firmware do
       if Application.get_env(:nerves_hub, :new_ui) && socket.assigns[:new_ui] do
         render_with(socket, &show_firmware_template_new/1)
       else
-        render_with(socket, &list_firmware_template/1)
+        render_with(socket, &show_firmware_template/1)
       end
     end)
   end
