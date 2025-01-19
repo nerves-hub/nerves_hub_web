@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Components.FwupProgress do
       <div class="absolute border-0 border-t-[1px] border-success-500" role="progressbar" style={"width: #{@fwup_progress}%"}>
         <div class="animate-pulse bg-progress-glow w-full h-16" />
       </div>
-      <div class="text-center pt-2 text-sm animate-pulse">Updating firmware <%= @fwup_progress %>%</div>
+      <div class="text-center pt-2 text-sm animate-pulse">Updating firmware {@fwup_progress}%</div>
     </div>
     """
   end
