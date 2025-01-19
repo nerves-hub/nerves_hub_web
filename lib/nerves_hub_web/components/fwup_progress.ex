@@ -19,7 +19,7 @@ defmodule NervesHubWeb.Components.FwupProgress do
   def updated_render(assigns) do
     ~H"""
     <div class="relative sticky top-0 w-full h-0 overflow-visible z-20">
-      <div class="z-40 absolute border-0 border-t-[1px] border-success-500" role="progressbar" style={"width: #{@fwup_progress}%"}>
+      <div class="z-40 absolute border-t border-success-500" role="progressbar" style={"width: #{@fwup_progress}%"}>
         <div class="animate-pulse bg-progress-glow w-full h-16" />
       </div>
       <div class="z-50 absolute w-full flex justify-center">
