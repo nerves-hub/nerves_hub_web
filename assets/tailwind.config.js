@@ -30,6 +30,8 @@ export default {
           "linear-gradient(180deg, rgba(245, 158, 11, 0.00) 18.75%, rgba(245, 158, 11, 0.04) 81.25%), linear-gradient(180deg, rgba(63, 63, 70, 0.16) 0%, rgba(63, 63, 70, 0.24) 100%)",
         "health-netural":
           "linear-gradient(180deg, rgba(99, 102, 241, 0.00) 18.75%, rgba(99, 102, 241, 0.04) 81.25%), linear-gradient(180deg, rgba(63, 63, 70, 0.16) 0%, rgba(63, 63, 70, 0.24) 100%)",
+        "progress-glow":
+          "radial-gradient(ellipse 80% 80% at 50% -10%, rgba(16, 185, 129, 0.3) 0, rgba(16, 185, 129, 0.0) 80%), radial-gradient(ellipse 50% 50% at 50% -10%, rgba(16, 185, 129, 0.3) 0, rgba(16, 185, 129, 0.0) 50%)",
         "example-map": "url('/images/mapbox-north-america-dummy.png')",
         "example-map-dark": "url('/images/mapbox-north-america-dummy-dark.png')"
       }),
@@ -52,7 +54,16 @@ export default {
         },
         purple: {
           600: "#6366F1"
-        }
+        },
+        primary: {
+          500: '#6366F1'
+        },
+        success: {
+          500: '#10b981'
+        },
+        warning: {
+          500: '#f59e0b'
+        },
       },
       boxShadow: {
         "filter-slider":
