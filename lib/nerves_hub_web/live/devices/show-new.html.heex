@@ -82,8 +82,9 @@
   </div>
 </div>
 
-<div class="relative h-0 flex-1 overflow-y-auto flex flex-col">
-  <FwupProgress.render :if={@fwup_progress} fwup_progress={@fwup_progress} />
+<div class="h-0 flex-1 overflow-y-auto flex flex-col">
+  <FwupProgress.updated_render :if={true || @fwup_progress} fwup_progress={75 || @fwup_progress} />
+
   <div :if={@device.deleted_at} class="flex items-center justify-center p-4 bg-red-100 h-[89px] shrink-0">
     <div class="font-medium text-red-500">
       Device is deleted and must be restored to use.
