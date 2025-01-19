@@ -286,7 +286,10 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_in("fwup_progress", %{"value" => percent}, %{assigns: %{device: device}} = socket) do
-    device_internal_broadcast!(socket, device, "fwup_progress", %{percent: percent})
+    device_internal_broadcast!(socket, device, "fwup_progress", %{
+      device_id: device.id,
+      percent: percent
+    })
 
     # if this is the first fwup we see, then mark it as an update attempt
     if socket.assigns[:update_started?] do
