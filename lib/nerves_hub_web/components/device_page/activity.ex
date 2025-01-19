@@ -3,6 +3,8 @@ defmodule NervesHubWeb.Components.DevicePage.Activity do
 
   alias NervesHub.AuditLogs
 
+  alias NervesHubWeb.Components.Pager
+
   def update(assigns, socket) do
     socket
     |> assign(assigns)
@@ -80,7 +82,7 @@ defmodule NervesHubWeb.Components.DevicePage.Activity do
         </div>
       </div>
 
-      <NervesHubWeb.Components.Pager.render_with_page_sizes pager={@audit_pager} page_sizes={[25, 50, 100]} target={@myself} />
+      <Pager.render_with_page_sizes pager={@audit_pager} page_sizes={[25, 50, 100]} target={@myself} />
     </div>
     """
   end
