@@ -32,6 +32,46 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
+  @spec filter(Product.t(), map()) ::
+          {:ok, {[Product.t()], Flop.Meta.t()}} | {:error, Flop.Meta.t()}
+  def filter(product_id, opts \\ %{}) do
+    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
+
+    sort = Map.get(opts, :sort, "inserted_at")
+    sort_direction = Map.get(opts, :sort_direction, "asc")
+
+    sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
+
+    flop = %Flop{
+      page: String.to_integer(Map.get(opts, :page, "1")),
+      page_size: String.to_integer(Map.get(opts, :page_size, "25"))
+    }
+
+    subquery =
+      Device
+      |> select([d], %{
+        firmware_uuid: fragment("? ->> 'uuid'", d.firmware_metadata),
+        install_count: count(fragment("? ->> 'uuid'", d.firmware_metadata), :distinct)
+      })
+      |> where([d], not is_nil(d.firmware_metadata))
+      |> where([d], not is_nil(fragment("? ->> 'uuid'", d.firmware_metadata)))
+      |> Repo.exclude_deleted()
+      |> group_by([d], fragment("? ->> 'uuid'", d.firmware_metadata))
+
+    Firmware
+    |> join(:left, [f], d in subquery(subquery), on: d.firmware_uuid == f.uuid)
+    |> where([f], f.product_id == ^product_id)
+    |> sort_devices(sort_opts)
+    |> select_merge([_f, d], %{install_count: d.install_count})
+    |> Flop.run(flop)
+  end
+
+  defp sort_devices(query, {direction, :install_count}) do
+    order_by(query, [_f, d], {^direction, d.install_count})
+  end
+
+  defp sort_devices(query, sort), do: order_by(query, ^sort)
+
   def get_firmwares_for_deployment(deployment) do
     deployment = Repo.preload(deployment, [:firmware])
 
