@@ -202,6 +202,7 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
               <.link
                 class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600"
                 href={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/certificate/#{certificate.serial}/download"}
+                download
               >
                 <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path

@@ -14,81 +14,71 @@
 </div>
 
 <div class="h-0 flex-1 overflow-y-auto">
-  <%= if @devices == [] && !@currently_filtering do %>
-    <!-- TODO: Go over empty-state with new design -->
-    <div class="no-results-blowup-wrapper">
-      <img src="/images/device.svg" alt="No devices" />
-      <h3 style="margin-top: 2.75rem">{@product.name} doesn’t have any devices yet</h3>
-      <div class="mt-3">
-        <.link class="btn btn-outline-light btn-action" aria-label="Add new device" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"}>
-          <div class="button-icon add"></div>
-          <span class="action-text">Add your first Device</span>
-        </.link>
-      </div>
-      <p class="mt-3">
-        Or follow <a class="strong inline" target="_blank" rel="noopener noreferrer" href="https://docs.nerves-hub.org/nerves-hub/setup/devices">these steps</a> to add a device using the terminal.
-      </p>
-    </div>
-  <% else %>
-    <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
-      <h1 class="text-base font-semibold text-neutral-50">All devices</h1>
-      <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">{@total_entries}</div>
-      <form class="flex items-center h-full" phx-change="update-filters">
-        <div class="grid grid-cols-1 h-full">
-          <input
-            type="text"
-            class="col-start-1 row-start-1 block h-full w-full bg-base-900 text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
-            name="device_id"
-            id="device_search_top"
-            placeholder="Search..."
-            title="Search"
-            value={@current_filters[:device_id]}
-            phx-debounce="500"
-          />
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <h1 class="text-base font-semibold text-neutral-50">All Devices</h1>
+    <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">{@total_entries}</div>
+    <form :if={Enum.any?(@devices) || @currently_filtering} class="flex items-center h-full" phx-change="update-filters">
+      <div class="grid grid-cols-1 h-full">
+        <input
+          type="text"
+          class="col-start-1 row-start-1 block h-full w-full bg-base-900 text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
+          name="device_id"
+          id="device_search_top"
+          placeholder="Search..."
+          title="Search"
+          value={@current_filters[:device_id]}
+          phx-debounce="500"
+        />
 
-          <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path
-              d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
-              stroke="#A1A1AA"
-              stroke-width="1.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </div>
-      </form>
-      <a class="action-button" aria-label="Export devices" href={Routes.product_path(@socket, :devices_export, @org.name, @product.name)}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path
-            d="M10.0002 3.33325L6.66683 6.66659M10.0002 3.33325L13.3335 6.66659M10.0002 3.33325L10.0002 13.3333M3.3335 16.6666L16.6668 16.6666"
+            d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
             stroke="#A1A1AA"
             stroke-width="1.2"
             stroke-linecap="round"
             stroke-linejoin="round"
           />
         </svg>
-        <span class="action-text">Export</span>
-      </a>
-      <.link class="action-button" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"} aria-label="Add new device">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        <span class="action-text">Add Device</span>
-      </.link>
-      <button class="action-button" type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path
-            d="M15.0002 3.33325H5.00022C4.07974 3.33325 3.31217 4.09102 3.53926 4.98304C4.03025 6.91168 5.36208 8.50445 7.12143 9.34803C7.80715 9.67683 8.33355 10.3214 8.33355 11.0819V16.1516C8.33355 16.771 8.98548 17.174 9.53956 16.8969L11.2062 16.0636C11.4886 15.9224 11.6669 15.6339 11.6669 15.3182V11.0819C11.6669 10.3214 12.1933 9.67683 12.879 9.34803C14.6384 8.50445 15.9702 6.91168 16.4612 4.98304C16.6883 4.09102 15.9207 3.33325 15.0002 3.33325Z"
-            stroke="#A1A1AA"
-            stroke-width="1.2"
-          />
-        </svg>
-        <span class="action-text">
-          Filters
-        </span>
-      </button>
-    </div>
+      </div>
+    </form>
+    <.link :if={Enum.any?(@devices) || @currently_filtering} class="action-button" aria-label="Export devices" href={~p"/org/#{@org.name}/#{@product.name}/devices/export"} download>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M10.0002 3.33325L6.66683 6.66659M10.0002 3.33325L13.3335 6.66659M10.0002 3.33325L10.0002 13.3333M3.3335 16.6666L16.6668 16.6666"
+          stroke="#A1A1AA"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <span class="action-text">Export</span>
+    </.link>
+    <.link class="action-button" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"} aria-label="Add new device">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="action-text">Add Device</span>
+    </.link>
+    <button :if={Enum.any?(@devices) || @currently_filtering} class="action-button" type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M15.0002 3.33325H5.00022C4.07974 3.33325 3.31217 4.09102 3.53926 4.98304C4.03025 6.91168 5.36208 8.50445 7.12143 9.34803C7.80715 9.67683 8.33355 10.3214 8.33355 11.0819V16.1516C8.33355 16.771 8.98548 17.174 9.53956 16.8969L11.2062 16.0636C11.4886 15.9224 11.6669 15.6339 11.6669 15.3182V11.0819C11.6669 10.3214 12.1933 9.67683 12.879 9.34803C14.6384 8.50445 15.9702 6.91168 16.4612 4.98304C16.6883 4.09102 15.9207 3.33325 15.0002 3.33325Z"
+          stroke="#A1A1AA"
+          stroke-width="1.2"
+        />
+      </svg>
+      <span class="action-text">
+        Filters
+      </span>
+    </button>
+  </div>
 
+  <%= if Enum.empty?(@devices) && !@currently_filtering do %>
+    <!-- TODO: Go over empty-state with new design -->
+    <div class="h-full pb-16 flex items-center justify-center">
+      <span class="text-xl font-medium text-neutral-50">{@product.name} doesn’t have any devices yet.</span>
+    </div>
+  <% else %>
     <div class="listing">
       <table class="">
         <thead>

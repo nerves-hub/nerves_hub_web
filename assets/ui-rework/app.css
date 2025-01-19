@@ -39,6 +39,14 @@
     @apply bg-base-900 py-1.5 px-4 text-base-400 font-medium text-sm text-left;
   }
 
+  .listing tr th:first-child {
+    @apply pl-6;
+  }
+
+  .listing tr td:first-child {
+    @apply pl-6;
+  }
+
   .listing .checkbox {
     @apply h-11 w-16 py-3 px-6;
   }

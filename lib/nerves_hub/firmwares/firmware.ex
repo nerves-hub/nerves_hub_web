@@ -60,6 +60,8 @@ defmodule NervesHub.Firmwares.Firmware do
     field(:vcs_identifier, :string)
     field(:version, :string)
 
+    field(:install_count, :integer, virtual: true)
+
     timestamps()
   end
 
