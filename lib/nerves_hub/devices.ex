@@ -681,7 +681,7 @@ defmodule NervesHub.Devices do
   end
 
   def update_firmware_metadata(device, metadata) do
-    description = "device #{device.identifier} updated firmware metadata"
+    description = "Device #{device.identifier} updated firmware metadata"
     AuditLogs.audit!(device, device, description)
     update_device(device, %{firmware_metadata: metadata})
   end
@@ -906,7 +906,7 @@ defmodule NervesHub.Devices do
     })
 
     description =
-      "device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
+      "Device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
 
     AuditLogs.audit!(device, device, description)
 
@@ -996,7 +996,7 @@ defmodule NervesHub.Devices do
   @spec tag_device(Device.t() | [Device.t()], User.t(), list(String.t())) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def tag_device(%Device{} = device, user, tags) do
-    description = "user #{user.name} updated device #{device.identifier} tags"
+    description = "User #{user.name} updated device #{device.identifier} tags"
     params = %{tags: tags}
     update_device_with_audit(device, params, user, description)
   end
@@ -1025,7 +1025,7 @@ defmodule NervesHub.Devices do
   @spec enable_updates(Device.t() | [Device.t()], User.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def enable_updates(%Device{} = device, user) do
-    description = "user #{user.name} enabled updates for device #{device.identifier}"
+    description = "User #{user.name} enabled updates for device #{device.identifier}"
     params = %{updates_enabled: true, update_attempts: []}
     update_device_with_audit(device, params, user, description)
   end

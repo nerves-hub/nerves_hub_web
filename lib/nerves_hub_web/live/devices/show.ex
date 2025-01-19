@@ -206,7 +206,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     AuditLogs.audit!(
       user,
       device,
-      "#{user.name} requested the device (#{device.identifier}) reconnect"
+      "User #{user.name} requested the device (#{device.identifier}) reconnect"
     )
 
     socket.endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
@@ -222,7 +222,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     AuditLogs.audit!(
       user,
       device,
-      "#{user.name} requested the device (#{device.identifier}) identify itself"
+      "User #{user.name} requested the device (#{device.identifier}) identify itself"
     )
 
     socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "identify", %{})
@@ -257,7 +257,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     {:ok, updated_device} = Devices.clear_penalty_box(device, user)
 
-    {:noreply, assign(socket, :device, updated_device)}
+    socket
+    |> assign(:device, updated_device)
+    |> send_toast(:info, "Device removed from the penalty box, and firmware updates enabled.")
+    |> noreply()
   end
 
   def handle_event("toggle_health_state", _params, socket) do
@@ -336,7 +339,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:ok, device} = Devices.disable_updates(device, user)
 
     description =
-      "#{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+      "User #{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
 
     AuditLogs.audit!(user, device, description)
 

@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
 
     %{org: org, product: product, device: device, user: user} = socket.assigns
 
-    message = "#{user.name} updated device #{device.identifier}"
+    message = "User #{user.name} updated device #{device.identifier}"
 
     case Devices.update_device_with_audit(device, device_params, user, message) do
       {:ok, _device} ->

@@ -206,7 +206,7 @@ defmodule NervesHubWeb.API.DeviceController do
           device = Repo.preload(device, [:device_certificates])
 
           description =
-            "#{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+            "User #{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
 
           AuditLogs.audit!(user, device, description)
 
