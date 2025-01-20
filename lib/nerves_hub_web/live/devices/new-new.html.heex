@@ -34,20 +34,6 @@
       <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
         <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
           <div class="text-base text-neutral-50 font-medium">General settings</div>
-          <div>
-            <button class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600" type="submit">
-              <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M6.66671 16.6667H5.00004C4.07957 16.6667 3.33337 15.9205 3.33337 15V5.00004C3.33337 4.07957 4.07957 3.33337 5.00004 3.33337H12.643C13.085 3.33337 13.509 3.50897 13.8215 3.82153L16.1786 6.17855C16.4911 6.49111 16.6667 6.91504 16.6667 7.35706V15C16.6667 15.9205 15.9205 16.6667 15 16.6667H13.3334M6.66671 16.6667V12.5H13.3334V16.6667M6.66671 16.6667H13.3334M6.66671 6.66671V9.16671H9.16671V6.66671H6.66671Z"
-                  stroke="#A1A1AA"
-                  stroke-width="1.2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              <span class="text-sm font-medium text-zinc-300">Save changes</span>
-            </button>
-          </div>
         </div>
         <div class="flex p-6 gap-6">
           <div class="w-1/2 flex flex-col gap-6">
@@ -62,6 +48,20 @@
             <NervesHubWeb.CoreComponents.input field={@form[:first_connect_code]} label="First connect code" type="textarea" rows="10" />
             <div class="text-xs tracking-wide text-zinc-400">Make sure this is valid Elixir and will not crash the device</div>
           </div>
+        </div>
+        <div class="flex justify-between items-center h-14 px-4 border-t border-zinc-700">
+          <button class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600" type="submit">
+            <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M6.66671 16.6667H5.00004C4.07957 16.6667 3.33337 15.9205 3.33337 15V5.00004C3.33337 4.07957 4.07957 3.33337 5.00004 3.33337H12.643C13.085 3.33337 13.509 3.50897 13.8215 3.82153L16.1786 6.17855C16.4911 6.49111 16.6667 6.91504 16.6667 7.35706V15C16.6667 15.9205 15.9205 16.6667 15 16.6667H13.3334M6.66671 16.6667V12.5H13.3334V16.6667M6.66671 16.6667H13.3334M6.66671 6.66671V9.16671H9.16671V6.66671H6.66671Z"
+                stroke="#A1A1AA"
+                stroke-width="1.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span class="text-sm font-medium text-zinc-300">Save changes</span>
+          </button>
         </div>
       </div>
     </.form>
