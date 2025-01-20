@@ -282,11 +282,11 @@
   <% end %>
 </div>
 
-<div class={["relative", @show_filters && "z-50", !@show_filters && "-z-10"]} aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+<div class={["pointer-events-none relative", @show_filters && "z-50", !@show_filters && "-z-10"]} aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
   <!-- Background backdrop, show/hide based on slide-over state. -->
   <div class={["fixed inset-0", !@show_filters && "invisable"]}></div>
 
-  <div class="fixed inset-0 overflow-hidden">
+  <div class="fixed inset-0 overflow-hidden ">
     <div class="absolute inset-0 overflow-hidden">
       <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 sm:pl-16">
         <div class={[
