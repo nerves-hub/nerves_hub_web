@@ -15,15 +15,15 @@
 
 <div class="h-0 flex-1 overflow-y-auto" phx-drop-target={@uploads.firmware.ref}>
   <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
-    <h1 class="text-base font-semibold text-neutral-50">All Firmware</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Firmware</h1>
     <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">
       {@pager_meta.total_count}
     </div>
 
     <div :for={entry <- @uploads.firmware.entries} class="w-2/5 pl-4 pr-2 flex flex-col items-center">
       <div class="flex justify-between mb-1">
-        <span class="text-sm font-base text-indigo-500 dark:text-white">Uploading firmware...</span>
-        <span class="text-base font-medium text-indigo-500 dark:text-white">{entry.progress}%</span>
+        <span class="text-sm font-base text-indigo-500 dark:text-white">Uploading firmware... </span>
+        <span class="text-sm font-base text-indigo-500 dark:text-white">{entry.progress}%</span>
       </div>
       <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
         <div class="bg-indigo-500 h-2.5 rounded-full animate-pulse" style={"width: #{entry.progress}%"}></div>
