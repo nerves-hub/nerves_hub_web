@@ -29,6 +29,7 @@ defmodule NervesHubWeb.Live.Devices.New do
       {:ok, _device} ->
         socket
         |> put_flash(:info, "Device created successfully.")
+        |> send_toast(:info, "Device created successfully.")
         |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
         |> noreply()
 
@@ -36,7 +37,16 @@ defmodule NervesHubWeb.Live.Devices.New do
         socket
         |> assign(:form, to_form(changeset))
         |> put_flash(:error, "Failed to add device.")
+        |> send_toast(:error, "Failed to add new device.")
         |> noreply()
     end
   end
+
+  defp tags_to_string(%Phoenix.HTML.FormField{} = field) do
+    tags_to_string(field.value)
+  end
+
+  defp tags_to_string(%{tags: tags}), do: tags_to_string(tags)
+  defp tags_to_string(tags) when is_list(tags), do: Enum.join(tags, ", ")
+  defp tags_to_string(tags), do: tags
 end

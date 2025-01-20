@@ -313,7 +313,7 @@ defmodule NervesHubWeb.CoreComponents do
           "mt-2 block w-full rounded text-zinc-400 bg-zinc-900 focus:ring-0 sm:text-sm sm:leading-6",
           "min-h-[6rem] phx-no-feedback:border-zinc-600 phx-no-feedback:focus:border-zinc-700",
           @errors == [] && "border-zinc-600 focus:border-zinc-700",
-          @errors != [] && "border-rose-400 focus:border-rose-400"
+          @errors != [] && "border-red-500 focus:border-red-500"
         ]}
         {@rest}
       ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
@@ -336,7 +336,7 @@ defmodule NervesHubWeb.CoreComponents do
           "mt-2 py-1.5 px-2 block w-full rounded text-zinc-400 bg-zinc-900 focus:ring-0 sm:text-sm",
           "phx-no-feedback:border-zinc-600 phx-no-feedback:focus:border-zinc-700",
           @errors == [] && "border-zinc-600 focus:border-zinc-700",
-          @errors != [] && "border-rose-400 focus:border-rose-400"
+          @errors != [] && "border-red-500 focus:border-red-500"
         ]}
         {@rest}
       />
@@ -366,8 +366,11 @@ defmodule NervesHubWeb.CoreComponents do
 
   def error(assigns) do
     ~H"""
-    <p class="mt-3 flex gap-3 text-sm leading-6 text-rose-600 phx-no-feedback:hidden">
-      <.icon name="hero-exclamation-circle-mini" class="mt-0.5 h-5 w-5 flex-none" />
+    <p class="mt-1 flex gap-2 text-sm leading-6 text-red-500 phx-no-feedback:hidden">
+      <svg class="mt-0.5 size-5 stroke-red-500 flex-none" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 5V13M12 19.001V19" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+
       {render_slot(@inner_block)}
     </p>
     """
