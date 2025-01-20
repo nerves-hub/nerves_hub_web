@@ -15,7 +15,7 @@
 
 <div class="h-0 flex-1 overflow-y-auto">
   <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
-    <h1 class="text-base font-semibold text-neutral-50">All Devices</h1>
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Devices</h1>
     <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">{@total_entries}</div>
     <form :if={Enum.any?(@devices) || @currently_filtering} class="flex items-center h-full" phx-change="update-filters">
       <div class="grid grid-cols-1 h-full">
