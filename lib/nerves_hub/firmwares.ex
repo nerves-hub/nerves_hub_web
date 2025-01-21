@@ -38,7 +38,7 @@ defmodule NervesHub.Firmwares do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
 
     sort = Map.get(opts, :sort, "inserted_at")
-    sort_direction = Map.get(opts, :sort_direction, "asc")
+    sort_direction = Map.get(opts, :sort_direction, "desc")
 
     sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
 
@@ -61,16 +61,16 @@ defmodule NervesHub.Firmwares do
     Firmware
     |> join(:left, [f], d in subquery(subquery), on: d.firmware_uuid == f.uuid)
     |> where([f], f.product_id == ^product_id)
-    |> sort_devices(sort_opts)
+    |> sort_firmware(sort_opts)
     |> select_merge([_f, d], %{install_count: d.install_count})
     |> Flop.run(flop)
   end
 
-  defp sort_devices(query, {direction, :install_count}) do
+  defp sort_firmware(query, {direction, :install_count}) do
     order_by(query, [_f, d], {^direction, d.install_count})
   end
 
-  defp sort_devices(query, sort), do: order_by(query, ^sort)
+  defp sort_firmware(query, sort), do: order_by(query, ^sort)
 
   def get_firmwares_for_deployment(deployment) do
     deployment = Repo.preload(deployment, [:firmware])

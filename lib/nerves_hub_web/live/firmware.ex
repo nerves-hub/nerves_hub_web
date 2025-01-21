@@ -109,7 +109,8 @@ defmodule NervesHubWeb.Live.Firmware do
     %{sort_direction: sort_direction} = socket.assigns
 
     # switch sort direction for column because
-    sort_direction = if sort_direction == "desc", do: "asc", else: "desc"
+    sort_direction = if sort_direction == "asc", do: "desc", else: "asc"
+
     params = %{sort_direction: sort_direction, sort: value}
 
     socket
@@ -120,7 +121,7 @@ defmodule NervesHubWeb.Live.Firmware do
   # User has clicked a new column to sort
   @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, socket) do
-    new_params = %{sort_direction: "asc", sort: value}
+    new_params = %{sort: value}
 
     socket
     |> push_patch(to: self_path(socket, new_params))

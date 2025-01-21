@@ -80,7 +80,7 @@ defmodule NervesHubWeb.Components.Navigation do
 
   def nav_link(assigns) do
     ~H"""
-    <li class={["h-11 flex items-center py-2 px-4 hover:bg-sidebar-item-hover", @selected && "bg-sidebar-item-selected border-r-2 border-indigo-500"]}>
+    <li class={["h-11 flex items-center px-4 hover:bg-sidebar-item-hover", @selected && "bg-sidebar-item-selected border-r-2 border-indigo-500"]}>
       <.link class="group flex items-center gap-x-3 text-sm tracking-wide leading-[19px] text-[#D4D4D8] font-light w-full h-full" navigate={@path}>
         <svg class={"w-5 h-5" <> active_icon(@selected)} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
           {render_slot(@inner_block)}
