@@ -3,8 +3,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
   require Logger
 
-  alias NervesHub.AuditLogs
-  alias NervesHub.AuditLogs.Templates
+  alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
@@ -437,7 +436,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
     deployment = Enum.find(eligible_deployments, &(&1.id == String.to_integer(deployment_id)))
     device = Devices.update_deployment(device, deployment)
-    _ = Templates.audit_device_deployment_update(user, device, deployment)
+    _ = DeviceTemplates.audit_device_deployment_update(user, device, deployment)
 
     send(self(), :reload_device)
 
@@ -454,10 +453,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
     deployment = NervesHub.Repo.preload(deployment, :firmware)
 
-    description =
-      "#{user.name} pushed available firmware update #{deployment.firmware.version} #{deployment.firmware.uuid} to device #{device.identifier}"
-
-    AuditLogs.audit!(user, device, description)
+    DeviceTemplates.audit_pushed_available_update(user, device, deployment)
 
     case Devices.told_to_update(device, deployment) do
       {:ok, inflight_update} ->
@@ -496,10 +492,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
     {:ok, device} = Devices.disable_updates(device, user)
 
-    description =
-      "User #{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
-
-    AuditLogs.audit!(user, device, description)
+    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
     payload = %UpdatePayload{
       update_available: true,
