@@ -120,7 +120,7 @@ defmodule NervesHubWeb.Live.Archives do
   # User has clicked a new column to sort
   @impl Phoenix.LiveView
   def handle_event("sort", %{"sort" => value}, socket) do
-    new_params = %{sort_direction: "asc", sort: value}
+    new_params = %{sort: value}
 
     socket
     |> push_patch(to: self_path(socket, new_params))
@@ -206,7 +206,7 @@ defmodule NervesHubWeb.Live.Archives do
       page: pagination_opts["page_number"],
       page_size: pagination_opts["page_size"],
       sort: pagination_opts["sort"] || "inserted_at",
-      sort_direction: pagination_opts["sort_direction"] || "desc"
+      sort_direction: pagination_opts["sort_direction"]
     }
 
     {entries, pager_meta} = Archives.filter(product.id, opts)
