@@ -21,7 +21,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   end
 
   @impl Phoenix.LiveView
-  def handle_event("update_script", %{"script" => script_params}, socket) do
+  def handle_event("update-script", %{"script" => script_params}, socket) do
     authorized!(:"support_script:update", socket.assigns.org_user)
 
     %{org: org, product: product} = socket.assigns
@@ -30,11 +30,13 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
       {:ok, _command} ->
         socket
         |> put_flash(:info, "Support Script updated")
+        |> send_toast(:info, "Support Script updated successfully.")
         |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/scripts")
         |> noreply()
 
       {:error, changeset} ->
         socket
+        |> send_toast(:error, "There was an error updating the Support Script.")
         |> assign(:form, to_form(changeset))
         |> noreply()
     end
