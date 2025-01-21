@@ -4,7 +4,12 @@ defmodule NervesHubWeb.Live.Archives do
   alias NervesHub.Accounts
   alias NervesHub.Archives
 
+  alias NervesHubWeb.Components.Pager
+  alias NervesHubWeb.Components.Sorting
+
   embed_templates("archive_templates/*")
+
+  @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
 
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
@@ -18,13 +23,28 @@ defmodule NervesHubWeb.Live.Archives do
     |> noreply()
   end
 
-  defp apply_action(%{assigns: %{product: product}} = socket, :index, _params) do
+  defp apply_action(%{assigns: %{product: product}} = socket, :index, unsigned_params) do
     socket
     |> page_title("Archives - #{product.name}")
     |> sidebar_tab(:archives)
     |> assign(:archives, Archives.all_by_product(product))
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
-    |> render_with(&list_archives_template/1)
+    |> assign(:params, unsigned_params)
+    |> allow_upload(:archive,
+      accept: ~w(.fw),
+      max_entries: 1,
+      auto_upload: true,
+      max_file_size: max_file_size(),
+      progress: &handle_progress/3
+    )
+    |> assign_archives_with_pagination()
+    |> then(fn socket ->
+      if Application.get_env(:nerves_hub, :new_ui) && socket.assigns[:new_ui] do
+        render_with(socket, &list_archives_template_new/1)
+      else
+        render_with(socket, &list_archives_template/1)
+      end
+    end)
   end
 
   defp apply_action(%{assigns: %{product: product}} = socket, :show, %{
@@ -36,7 +56,13 @@ defmodule NervesHubWeb.Live.Archives do
     |> page_title("Archive #{archive_uuid} - #{product.name}")
     |> assign(:archive, archive)
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
-    |> render_with(&show_archive_template/1)
+    |> then(fn socket ->
+      if Application.get_env(:nerves_hub, :new_ui) && socket.assigns[:new_ui] do
+        render_with(socket, &show_archive_template_new/1)
+      else
+        render_with(socket, &show_archive_template/1)
+      end
+    end)
   end
 
   defp apply_action(%{assigns: %{product: product}} = socket, :upload, _params) do
@@ -51,6 +77,54 @@ defmodule NervesHubWeb.Live.Archives do
       progress: &handle_progress/3
     )
     |> render_with(&upload_archive_template/1)
+  end
+
+  # A phx-change handler is required when using live uploads.
+  @impl Phoenix.LiveView
+  def handle_event("validate-firmware", _, socket), do: {:noreply, socket}
+
+  @impl Phoenix.LiveView
+  def handle_event("paginate", %{"page" => page_num}, socket) do
+    params = %{"page_number" => page_num}
+
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
+    params = %{"page_size" => page_size, "page_number" => 1}
+
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
+  end
+
+  # Handles event of user clicking the same field that is already sorted
+  # For this case, we switch the sorting direction of same field
+  @impl Phoenix.LiveView
+  def handle_event("sort", %{"sort" => value}, %{assigns: %{current_sort: current_sort}} = socket)
+      when value == current_sort do
+    %{sort_direction: sort_direction} = socket.assigns
+
+    # switch sort direction for column because
+    sort_direction = if sort_direction == "desc", do: "asc", else: "desc"
+    params = %{sort_direction: sort_direction, sort: value}
+
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
+  end
+
+  # User has clicked a new column to sort
+  @impl Phoenix.LiveView
+  def handle_event("sort", %{"sort" => value}, socket) do
+    new_params = %{sort: value}
+
+    socket
+    |> push_patch(to: self_path(socket, new_params))
+    |> noreply()
   end
 
   @impl Phoenix.LiveView
@@ -88,11 +162,17 @@ defmodule NervesHubWeb.Live.Archives do
       {:ok, _} ->
         socket
         |> put_flash(:info, "Archive successfully deleted")
+        |> send_toast(:info, "Archive successfully deleted.")
         |> push_patch(to: ~p"/org/#{org.name}/#{product.name}/archives")
         |> noreply()
 
       {:error, changeset} ->
+        message =
+          changeset.errors
+          |> Enum.map_join(", ", fn {_field, {message, _info}} -> message end)
+
         error_feedback(socket, changeset)
+        |> send_toast(:error, "The archive couldn't be deleted: #{message}.")
     end
   end
 
@@ -117,11 +197,55 @@ defmodule NervesHubWeb.Live.Archives do
     end
   end
 
+  defp assign_archives_with_pagination(socket) do
+    %{assigns: %{product: product, params: params}} = socket
+
+    pagination_opts = Map.take(params, @pagination_opts)
+
+    opts = %{
+      page: pagination_opts["page_number"],
+      page_size: pagination_opts["page_size"],
+      sort: pagination_opts["sort"] || "inserted_at",
+      sort_direction: pagination_opts["sort_direction"]
+    }
+
+    {entries, pager_meta} = Archives.filter(product.id, opts)
+
+    socket
+    |> assign(:current_sort, opts.sort)
+    |> assign(:sort_direction, opts.sort_direction)
+    |> assign(:archives, entries)
+    |> assign(:pager_meta, pager_meta)
+  end
+
+  defp self_path(socket, new_params) do
+    current_params =
+      socket.assigns.params
+      |> Map.reject(fn {key, _val} -> key in ["org_name", "product_name"] end)
+
+    params =
+      stringify_keys(new_params)
+      |> Enum.into(current_params)
+
+    ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/archives?#{params}"
+  end
+
+  defp stringify_keys(params) do
+    for {key, value} <- params, into: %{} do
+      if is_atom(key) do
+        {to_string(key), value}
+      else
+        {key, value}
+      end
+    end
+  end
+
   defp create_archive(socket, filepath) do
     case Archives.create(socket.assigns.product, filepath) do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Archive uploaded")
+        |> send_toast(:info, "Archive uploaded successfully.")
         |> push_patch(
           to: ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/archives"
         )
@@ -132,20 +256,37 @@ defmodule NervesHubWeb.Live.Archives do
           socket,
           "Please register public keys for verifying archive signatures first"
         )
+        |> send_toast(
+          :error,
+          "Archive verification failed. Please register the public key used for signing the archive."
+        )
 
       {:error, :invalid_signature} ->
         error_feedback(socket, "Archive corrupt, signature invalid, or missing public key")
+        |> send_toast(
+          :error,
+          "Archive corrupt, signature invalid, or the key used for signing hasn't been uploaded."
+        )
 
       {:error, %{errors: [uuid: _]}} ->
         error_feedback(socket, "Archive UUID is not unique for the product")
+        |> send_toast(
+          :error,
+          "Archive UUID is not unique for the product, please check if this archive has been previously uploaded."
+        )
 
       {:error, error} when is_binary(error) ->
         error_feedback(socket, error)
+        |> send_toast(:error, error)
 
       _ ->
         error_feedback(
           socket,
           "Unknown error uploading archive. Please contact support if this happens again"
+        )
+        |> send_toast(
+          :error,
+          "An unknown error occurred while uploading the archive. Please contact support if this persists."
         )
     end
   end
@@ -159,6 +300,14 @@ defmodule NervesHubWeb.Live.Archives do
   defp format_signed(%{org_key_id: org_key_id}, org_keys) do
     key = Enum.find(org_keys, &(&1.id == org_key_id))
     "#{key.name}"
+  end
+
+  defp format_file_size(size) do
+    cond do
+      size < 1_000 -> "#{size} Bytes"
+      size < 1_000_000 -> "#{round(Float.round(size / 1_000))} Kilobytes"
+      true -> "#{round(Float.round(size / 1_000_000))} Megabytes"
+    end
   end
 
   defp max_file_size() do
