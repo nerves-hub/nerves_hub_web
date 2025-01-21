@@ -252,14 +252,14 @@
 
         <div :if={Enum.any?(@deployments) && is_nil(@device.deployment_id)}>
           <div class="help-text mb-1">
-            <%= if @device.status == :provisioned, do: "Eligible Deployments", else: "Product Deployments" %>
+            {if @device.status == :provisioned, do: "Eligible Deployments", else: "Product Deployments"}
           </div>
           <form phx-submit="set-deployment">
             <div class="flex-row justify-content-between">
               <select name="deployment_id" class="form-control">
                 <option value="">Select a deployment</option>
                 <%= for deployment <- @deployments do %>
-                  <option value={deployment.id}><%= deployment.name %> - <%= deployment.firmware.platform %>, <%= deployment.firmware.architecture %></option>
+                  <option value={deployment.id}>{deployment.name} - {deployment.firmware.platform}, {deployment.firmware.architecture}</option>
                 <% end %>
               </select>
               <button class="btn btn-secondary ml-2">Set</button>
