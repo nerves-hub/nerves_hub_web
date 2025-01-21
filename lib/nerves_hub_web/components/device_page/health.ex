@@ -26,6 +26,18 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
     {"cpu_temp", "CPU Temperature (°C)"}
   ]
 
+  @manual_metrics [
+    "cpu_temp",
+    "cpu_usage_percent",
+    "mem_used_mb",
+    "mem_size_mb",
+    "mem_used_percent",
+    "load_1min",
+    "load_5min",
+    "load_15min",
+    "timestamp"
+  ]
+
   # Will not be rendered as chart.
   @no_chart_metrics [
     "mem_size_mb",
@@ -52,10 +64,73 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
   def render(assigns) do
     ~H"""
     <div class="w-full p-6">
-      <div class="w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-        <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+      <div :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health} class="w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
+        <div class="p-4 border-b border-zinc-700">
           <div class="text-base text-neutral-50 font-medium">Health and Metrics</div>
 
+          <div class="flex flex-col shadow-device-details-content">
+            <div class="h-14 pl-4 pr-3 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="text-xs text-nerves-gray-500 tracking-wide">
+                  <span>Last updated: </span>
+                  <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
+                    {Timex.from_now(@latest_metrics["timestamp"])}
+                  </time>
+                </div>
+              </div>
+            </div>
+            <div class="flex pt-2 px-4 pb-4 gap-2 items-center justify-items-stretch flex-wrap">
+              <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-emerald-500 bg-health-good">
+                <span class="text-xs text-zinc-400 tracking-wide">CPU</span>
+                <div :if={@latest_metrics["cpu_temp"]} class="flex justify-between items-end">
+                  <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
+                  <span class="text-base text-emerald-500">{round(@latest_metrics["cpu_temp"])}°</span>
+                </div>
+                <span :if={!@latest_metrics["cpu_temp"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
+              </div>
+              <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-amber-500 bg-health-warning">
+                <span class="text-xs text-zinc-400 tracking-wide">Memory used</span>
+                <div :if={@latest_metrics["mem_used_mb"]} class="flex justify-between items-end">
+                  <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["mem_used_mb"])}MB</span>
+                  <span class="text-base text-amber-500">{round(@latest_metrics["mem_used_percent"])}%</span>
+                </div>
+                <div :if={!@latest_metrics["mem_used_mb"]} class="flex justify-between items-end">
+                  <span class="text-xl leading-[30px] text-nerves-gray-500">Not reported</span>
+                </div>
+              </div>
+              <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-indigo-500 bg-health-neutral">
+                <span class="text-xs text-zinc-400 tracking-wide">Load avg</span>
+                <div :if={@latest_metrics["load_1min"] || @latest_metrics["load_5min"] || @latest_metrics["load_15min"]} class="flex justify-between items-center">
+                  <span :if={@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_1min"]}</span>
+                  <span :if={!@latest_metrics["load_1min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
+                  <span class="w-px h-4 bg-zinc-700"></span>
+                  <span :if={@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_5min"]}</span>
+                  <span :if={!@latest_metrics["load_5min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
+                  <span class="w-px h-4 bg-zinc-700"></span>
+                  <span :if={@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-neutral-50">{@latest_metrics["load_15min"]}</span>
+                  <span :if={!@latest_metrics["load_15min"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
+                </div>
+                <div :if={!@latest_metrics["load_1min"] && !@latest_metrics["load_5min"] && !@latest_metrics["load_15min"]} class="flex items-center">
+                  <span class="text-xl leading-[30px] text-nerves-gray-500">Not reported</span>
+                </div>
+              </div>
+              <div :for={{key, value} <- custom_metrics(@latest_metrics)} class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-neutral-500 bg-health-plain">
+                <span class="text-xs text-neutral-400 tracking-wide">{key_label(key)}</span>
+                <span class="text-xl leading-[30px] text-neutral-50">{nice_round(value)}</span>
+              </div>
+            </div>
+            <div class="px-4 pb-4">
+              <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+                Learn more about device health reporting.
+              </.link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="my-6 w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
+        <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+          <div class="text-base text-neutral-50 font-medium">Health over time</div>
           <div class="inline-flex rounded-md shadow-sm" role="group">
             <button
               :for={{unit, amount} <- @time_frame_opts}
@@ -285,5 +360,21 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
     data
     |> Enum.min_by(& &1.y)
     |> Map.get(:y)
+  end
+
+  defp custom_metrics(metrics) do
+    metrics
+    |> Enum.reject(fn {key, _value} ->
+      key in @manual_metrics
+    end)
+  end
+
+  defp nice_round(val) when is_float(val), do: Float.round(val, 1)
+  defp nice_round(val), do: val
+
+  defp key_label(key) do
+    key
+    |> String.replace("_", " ")
+    |> String.capitalize()
   end
 end
