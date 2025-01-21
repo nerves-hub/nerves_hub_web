@@ -67,10 +67,6 @@ document.querySelectorAll(".date-time").forEach(d => {
   d.innerHTML = dates.formatDateTime(d.innerHTML)
 })
 
-window.addEventListener("phx:sharedsecret:created", () => {
-  confirm("A new Shared Secret has been created.")
-})
-
 window.addEventListener("ca:edit:jitp", () => {
   const checked = document.getElementById("jitp_toggle_ui").checked
 

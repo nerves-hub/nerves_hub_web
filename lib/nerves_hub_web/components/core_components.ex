@@ -255,12 +255,15 @@ defmodule NervesHubWeb.CoreComponents do
   attr(:options, :list, doc: "the options to pass to Phoenix.HTML.Form.options_for_select/2")
   attr(:multiple, :boolean, default: false, doc: "the multiple flag for select inputs")
 
+  attr(:hint, :string, default: nil, doc: "a hint to be displayed next to the label")
+
   attr(:rest, :global,
     include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
                 multiple pattern placeholder readonly required rows size step)
   )
 
   slot(:inner_block)
+  slot(:rich_hint)
 
   def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
     assigns
@@ -279,11 +282,14 @@ defmodule NervesHubWeb.CoreComponents do
 
     ~H"""
     <div phx-feedback-for={@name}>
-      <label class="flex items-center gap-4 text-sm leading-6 text-zinc-600">
+      <label class="flex items-center gap-4 text-sm font-medium leading-6 text-zinc-300">
         <input type="hidden" name={@name} value="false" />
-        <input type="checkbox" id={@id} name={@name} value="true" checked={@checked} class="rounded border-zinc-300 text-zinc-900 focus:ring-0" {@rest} />
+        <input type="checkbox" id={@id} name={@name} value="true" checked={@checked} class="rounded border-zinc-700 text-zinc-400 focus:ring-0 checked:bg-indigo-500" {@rest} />
         {@label}
       </label>
+      <span :if={assigns[:hint] || assigns[:rich_hint]} class="text-xs text-zinc-400">
+        {assigns[:hint] || render_slot(assigns[:rich_hint])}
+      </span>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
     """
@@ -326,7 +332,10 @@ defmodule NervesHubWeb.CoreComponents do
   def input(assigns) do
     ~H"""
     <div phx-feedback-for={@name}>
-      <.label for={@id}>{@label}</.label>
+      <span class="flex items-end">
+        <.label for={@id}>{@label}</.label>
+        <span :if={assigns[:hint]} class="ml-3 text-xs text-zinc-400">{@hint}</span>
+      </span>
       <input
         type={@type}
         name={@name}
