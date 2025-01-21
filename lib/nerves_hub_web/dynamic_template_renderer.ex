@@ -64,7 +64,8 @@ defmodule NervesHubWeb.DynamicTemplateRenderer do
         new_ast = new_engine.compile(new_template, filename)
 
         quote do
-          @file unquote(new_template)
+          @file unquote(template)
+          @external_resource unquote(template)
           @external_resource unquote(new_template)
           def render(var!(assigns)) when is_map(var!(assigns)) do
             if Application.get_env(:nerves_hub, :new_ui) && var!(assigns)[:new_ui] do
