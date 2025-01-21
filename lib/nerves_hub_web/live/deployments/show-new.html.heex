@@ -1,0 +1,97 @@
+<div class="h-[56px] skrink-0 flex justify-end bg-base-900 border-b border-base-700 pl-6 items-center">
+  <div class="flex gap-2.5">
+    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments"} class="back-link flex gap-2.5 items-center">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="text-base-400">All Deployments</span>
+    </.link>
+    <span class="text-base-400">/</span>
+    <span class="text-zinc-50 font-semibold">{@deployment.name}</span>
+  </div>
+  <div class="flex items-center gap-2 ml-auto mr-6">
+    <button
+      :if={authorized?(:"deployment:toggle", @org_user)}
+      class="box-content h-5 py-1.5 px-3 flex gap-2 justify-center items-center rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
+      aria-label={(@deployment.is_active && "Pause deployment") || "Resume deployment"}
+      type="button"
+      phx-click="toggle"
+      data-confirm="Are you sure?"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M14.4097 4.99992C15.7938 6.22149 16.6667 8.00876 16.6667 9.99992C16.6667 13.6818 13.6819 16.6666 10 16.6666C6.31814 16.6666 3.33337 13.6818 3.33337 9.99992C3.33337 8.00876 4.2063 6.22149 5.59033 4.99992M10 9.99992V3.33325"
+          stroke="#A1A1AA"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <span class="text-sm font-medium">{(@deployment.is_active && "Pause") || "Resume"}</span>
+    </button>
+  </div>
+  <div class="h-full border-l flex items-center justify-center border-base-700 bg-base-900">
+    <a :if={Application.get_env(:nerves_hub, :new_ui)} href={"/ui/switch?return_to=#{@current_path}"} class="">
+      <svg class="box-content px-5 h-5 w-5 stroke-zinc-500 hover:stroke-indigo-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M21 14V19C21 20.1046 20.1046 21 19 21H16M3 16V19C3 20.1046 3.89543 21 5 21H16M3 16V5C3 3.89543 3.89543 3 5 3H11M3 16C4.40293 15.7662 6.63687 15.7073 8.94504 16.2427M16 21C14.2965 18.2317 11.5726 16.8522 8.94504 16.2427M8.94504 16.2427C9.87157 15.1698 11.1851 14.1585 13 13.3925M8.5 7C8 7 7 7.3 7 8.5C7 9.7 8 10 8.5 10C9 10 10 9.7 10 8.5C10 7.3 9 7 8.5 7ZM17.5 9.46262L14.7188 11L15.25 7.74377L13 5.43769L16.1094 4.96262L17.5 2L18.8906 4.96262L22 5.43769L19.75 7.74377L20.2812 11L17.5 9.46262Z"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </a>
+  </div>
+</div>
+
+<div class="h-0 flex-1 overflow-y-auto flex flex-col">
+  <%!-- <FwupProgress.updated_render :if={@fwup_progress} fwup_progress={@fwup_progress} /> --%>
+
+  <div class="h-[90px] shrink-0 flex justify-between p-6">
+    <div class="flex gap-3 items-center">
+      <svg class={["size-3", (@deployment.is_active && "fill-emerald-500") || "fill-zinc-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
+        <circle cx="3" cy="3" r="3" />
+      </svg>
+      <h1 class="text-xl font-semibold leading-[30px] text-zinc-50">
+        {@deployment.name}
+      </h1>
+    </div>
+  </div>
+
+  <div class="flex w-full justify-between px-6 border-b border-zinc-700">
+    <div class="flex">
+      <.link class={tab_classes(@tab, :details)} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"}>
+        Details
+      </.link>
+      <.link class={tab_classes(@tab, :release_history)} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/releases"}>
+        Release History
+      </.link>
+      <.link class={tab_classes(@tab, :activity)} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/activity"}>
+        Activity
+      </.link>
+      <.link class={tab_classes(@tab, :settings)} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/settings"}>
+        Settings
+      </.link>
+    </div>
+  </div>
+
+  <%!--
+  <.live_component
+    :if={@tab == :details}
+    module={DetailsPage}
+    id="device_details"
+    device={@device}
+    product={@product}
+    org={@org}
+    org_user={@org_user}
+    user={@user}
+  />
+--%>
+  <.live_component :if={@tab == :release_history} module={ReleaseHistoryTab} id="deployment_release_history" />
+
+  <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_activity" deployment={@deployment} org={@org} product={@product} user={@user} />
+
+  <.live_component :if={@tab == :settings} module={SettingsTab} id="deployment_settings" deployment={@deployment} org={@org} product={@product} user={@user} org_user={@org_user} />
+  <%!--
+  <.live_component :if={@tab == :settings} module={SettingsPage} id="device_settings" device={@device} org={@org} product={@product} user={@user} org_user={@org_user} /> --%>
+</div>

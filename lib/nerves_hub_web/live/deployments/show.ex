@@ -9,6 +9,10 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
   alias NervesHubWeb.Components.AuditLogFeed
 
+  alias NervesHubWeb.Components.DeploymentPage.Activity, as: ActivityTab
+  alias NervesHubWeb.Components.DeploymentPage.ReleaseHistory, as: ReleaseHistoryTab
+  alias NervesHubWeb.Components.DeploymentPage.Settings, as: SettingsTab
+
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     %{"name" => name} = params
@@ -35,6 +39,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     socket
     |> page_title("Deployment - #{deployment.name} - #{product.name}")
     |> sidebar_tab(:deployments)
+    |> selected_tab()
     |> assign(:deployment, deployment)
     |> assign(:audit_logs, logs)
     |> assign(:audit_pager, audit_pager)
@@ -69,6 +74,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
     socket
     |> put_flash(:info, "Deployment set #{active_str}")
+    |> send_toast(:info, "Deployment #{(value && "resumed") || "paused"}")
     |> assign(:deployment, deployment)
     |> noreply()
   end
@@ -97,6 +103,19 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     inflight_updates = Devices.inflight_updates_for(socket.assigns.deployment)
 
     {:noreply, assign(socket, :inflight_updates, inflight_updates)}
+  end
+
+  defp selected_tab(socket) do
+    assign(socket, :tab, socket.assigns.live_action || :details)
+  end
+
+  # TODO: refactor to use tailwind attributes
+  defp tab_classes(tab_selected, tab) do
+    if tab_selected == tab do
+      "px-6 py-2 h-11 font-normal text-sm text-neutral-50 border-b border-indigo-500 bg-tab-selected relative -bottom-px"
+    else
+      "px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
+    end
   end
 
   defp deployment_percentage(%{total_updating_devices: 0}), do: 100
