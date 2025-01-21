@@ -10,6 +10,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
 
   @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
 
+  @impl Phoenix.LiveView
   def mount(unsigned_params, _session, socket) do
     socket
     |> page_title("Support Scripts - #{socket.assigns.product.name}")
@@ -63,6 +64,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
     |> noreply()
   end
 
+  @impl Phoenix.LiveView
   def handle_event("delete-support-script", %{"script_id" => script_id}, socket) do
     authorized!(:"support_script:delete", socket.assigns.org_user)
 
