@@ -921,6 +921,20 @@ defmodule NervesHub.Devices do
     |> Repo.update()
   end
 
+  def up_to_date_count(%Deployment{} = deployment) do
+    Device
+    |> where([d], d.deployment_id == ^deployment.id)
+    |> where([d], d.firmware_metadata["uuid"] == ^deployment.firmware.uuid)
+    |> Repo.aggregate(:count)
+  end
+
+  def waiting_for_update_count(%Deployment{} = deployment) do
+    Device
+    |> where([d], d.deployment_id == ^deployment.id)
+    |> where([d], d.firmware_metadata["uuid"] != ^deployment.firmware.uuid)
+    |> Repo.aggregate(:count)
+  end
+
   def restore_device(%Device{} = device) do
     update_device(device, %{deleted_at: nil})
   end

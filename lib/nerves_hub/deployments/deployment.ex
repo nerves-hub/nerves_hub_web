@@ -69,6 +69,8 @@ defmodule NervesHub.Deployments.Deployment do
     # TODO: (nshoes) this column is unused, remove after Managed Deploys is done
     field(:recalculation_type, Ecto.Enum, values: [:device, :calculator_queue], default: :device)
 
+    field(:device_count, :integer, virtual: true)
+
     timestamps()
   end
 

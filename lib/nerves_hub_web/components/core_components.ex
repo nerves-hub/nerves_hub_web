@@ -297,12 +297,21 @@ defmodule NervesHubWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div phx-feedback-for={@name}>
+    <div phx-feedback-for={@name} class="flex flex-col gap-2">
       <.label for={@id}>{@label}</.label>
-      <select id={@id} name={@name} class="mt-2 block w-full rounded-md border border-gray-300 bg-white shadow-sm focus:border-zinc-400 focus:ring-0 sm:text-sm" multiple={@multiple} {@rest}>
+      <select
+        id={@id}
+        name={@name}
+        class="mt-2 px-2 py-1 block w-full rounded border border-zinc-600 ext-zinc-400 bg-zinc-900 shadow-sm focus:border-zinc-400 focus:ring-0 sm:text-sm"
+        multiple={@multiple}
+        {@rest}
+      >
         <option :if={@prompt} value="">{@prompt}</option>
         {Phoenix.HTML.Form.options_for_select(@options, @value)}
       </select>
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="text-xs text-zinc-400">
+        {assigns[:hint] || render_slot(assigns[:rich_hint])}
+      </div>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
     """
@@ -323,6 +332,36 @@ defmodule NervesHubWeb.CoreComponents do
         ]}
         {@rest}
       ><%= Phoenix.HTML.Form.normalize_value("textarea", @value) %></textarea>
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="flex flex-col gap-1 text-xs text-zinc-400 pt-1">
+        {assigns[:hint] || render_slot(assigns[:rich_hint])}
+      </div>
+      <.error :for={msg <- @errors}>{msg}</.error>
+    </div>
+    """
+  end
+
+  def input(%{type: "number"} = assigns) do
+    ~H"""
+    <div phx-feedback-for={@name}>
+      <span class="flex items-end">
+        <.label for={@id}>{@label}</.label>
+      </span>
+      <input
+        type={@type}
+        name={@name}
+        id={@id}
+        value={Phoenix.HTML.Form.normalize_value(@type, @value)}
+        class={[
+          "mt-2 py-1.5 px-2 block w-full rounded text-zinc-400 bg-zinc-900 focus:ring-0 sm:text-sm",
+          "phx-no-feedback:border-zinc-600 phx-no-feedback:focus:border-zinc-700",
+          @errors == [] && "border-zinc-600 focus:border-zinc-700",
+          @errors != [] && "border-red-500 focus:border-red-500"
+        ]}
+        {@rest}
+      />
+      <div :if={assigns[:hint] || assigns[:rich_hint]} class="flex flex-col gap-1 text-xs text-zinc-400 pt-1">
+        {assigns[:hint] || render_slot(assigns[:rich_hint])}
+      </div>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
     """
