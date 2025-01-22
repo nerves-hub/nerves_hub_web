@@ -797,7 +797,7 @@ defmodule NervesHubWeb.WebsocketTest do
       [log, _, _] = AuditLogs.logs_by(device)
 
       assert log.description ==
-               "device no longer matches deployment Every Device's requirements because of mismatched architecture and platform"
+               "Device no longer matches deployment Every Device's requirements because of mismatched architecture and platform"
 
       SocketClient.clean_close(socket)
     end
