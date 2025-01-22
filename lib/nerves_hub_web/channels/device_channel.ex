@@ -11,7 +11,7 @@ defmodule NervesHubWeb.DeviceChannel do
   require Logger
 
   alias NervesHub.Archives
-  alias NervesHub.AuditLogs.Templates
+  alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -68,7 +68,7 @@ defmodule NervesHubWeb.DeviceChannel do
     # so check version before requesting extensions
     if safe_to_request_extensions?(socket.assigns.device_api_version),
       do: push(socket, "extensions:get", %{}),
-      else: Templates.audit_unsupported_api_version(device)
+      else: DeviceTemplates.audit_unsupported_api_version(device)
 
     {:noreply, socket}
   end
@@ -138,7 +138,10 @@ defmodule NervesHubWeb.DeviceChannel do
         # If we get here, the device is connected and high probability it receives
         # the update message so we can Audit and later assert on this audit event
         # as a loosely valid attempt to update
-        Templates.audit_device_deployment_update_triggered(device, socket.assigns.reference_id)
+        DeviceTemplates.audit_device_deployment_update_triggered(
+          device,
+          socket.assigns.reference_id
+        )
 
         Devices.update_started!(inflight_update)
         push(socket, "update", payload)
