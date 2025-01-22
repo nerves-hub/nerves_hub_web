@@ -56,12 +56,37 @@
         {@deployment.name}
       </h1>
     </div>
+
+    <div class="flex items-center gap-2">
+      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+        <span class="text-sm text-zinc-400 mr-1">Devices:</span>
+
+        <div class="flex items-center">
+          <span class="text-sm text-base-300 mr-1">{@deployment.device_count}</span>
+        </div>
+      </div>
+      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+        <span class="text-sm text-zinc-400 mr-1">Arch:</span>
+
+        <div class="flex items-center">
+          <span class="text-sm text-base-300 mr-1">{@deployment.firmware.architecture}</span>
+        </div>
+      </div>
+
+      <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
+        <span class="text-sm text-zinc-400 mr-1">Platform:</span>
+
+        <div class="flex items-center">
+          <span class="text-sm text-base-300 mr-1">{@deployment.firmware.platform}</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="flex w-full justify-between px-6 border-b border-zinc-700">
     <div class="flex">
-      <.link class={tab_classes(@tab, :details)} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"}>
-        Details
+      <.link class={tab_classes(@tab, :summary)} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"}>
+        Summary
       </.link>
       <.link class={tab_classes(@tab, :release_history)} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/releases"}>
         Release History
@@ -75,18 +100,20 @@
     </div>
   </div>
 
-  <%!--
   <.live_component
-    :if={@tab == :details}
-    module={DetailsPage}
-    id="device_details"
-    device={@device}
+    :if={@tab == :summary}
+    module={SummaryTab}
+    id="deployment_summary"
+    deployment={@deployment}
+    inflight_updates={@inflight_updates}
+    up_to_date_count={@up_to_date_count}
+    waiting_for_update_count={@waiting_for_update_count}
     product={@product}
     org={@org}
     org_user={@org_user}
     user={@user}
   />
---%>
+
   <.live_component :if={@tab == :release_history} module={ReleaseHistoryTab} id="deployment_release_history" />
 
   <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_activity" deployment={@deployment} org={@org} product={@product} user={@user} />

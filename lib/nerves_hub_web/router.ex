@@ -322,7 +322,7 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/:product_name/deployments", Live.Deployments.Index)
       live("/org/:org_name/:product_name/deployments/new", Live.Deployments.New)
-      live("/org/:org_name/:product_name/deployments/:name", Live.Deployments.Show, :details)
+      live("/org/:org_name/:product_name/deployments/:name", Live.Deployments.Show, :summary)
 
       live(
         "/org/:org_name/:product_name/deployments/:name/releases",

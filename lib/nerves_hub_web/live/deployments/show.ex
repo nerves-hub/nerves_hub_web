@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
   alias NervesHubWeb.Components.AuditLogFeed
 
+  alias NervesHubWeb.Components.DeploymentPage.Summary, as: SummaryTab
   alias NervesHubWeb.Components.DeploymentPage.Activity, as: ActivityTab
   alias NervesHubWeb.Components.DeploymentPage.ReleaseHistory, as: ReleaseHistoryTab
   alias NervesHubWeb.Components.DeploymentPage.Settings, as: SettingsTab
@@ -18,7 +19,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     %{"name" => name} = params
     %{product: product} = socket.assigns
 
-    deployment = Deployments.get_by_product_and_name!(product, name)
+    deployment = Deployments.get_by_product_and_name!(product, name, true)
 
     {logs, audit_pager} =
       AuditLogs.logs_for_feed(deployment, %{
@@ -41,6 +42,8 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     |> sidebar_tab(:deployments)
     |> selected_tab()
     |> assign(:deployment, deployment)
+    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment))
+    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment))
     |> assign(:audit_logs, logs)
     |> assign(:audit_pager, audit_pager)
     |> assign(:inflight_updates, inflight_updates)
@@ -100,9 +103,17 @@ defmodule NervesHubWeb.Live.Deployments.Show do
   def handle_info(:update_inflight_updates, socket) do
     Process.send_after(self(), :update_inflight_updates, 5000)
 
-    inflight_updates = Devices.inflight_updates_for(socket.assigns.deployment)
+    %{assigns: %{deployment: deployment}} = socket
 
-    {:noreply, assign(socket, :inflight_updates, inflight_updates)}
+    inflight_updates = Devices.inflight_updates_for(deployment)
+
+    send_update(self(), SummaryTab, id: "deployment_summary", update_inflight_info: true)
+
+    socket
+    |> assign(:inflight_updates, inflight_updates)
+    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment))
+    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment))
+    |> noreply()
   end
 
   defp selected_tab(socket) do

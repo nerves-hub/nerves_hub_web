@@ -143,8 +143,26 @@ defmodule NervesHub.Deployments do
 
   def get_deployment!(deployment_id), do: Repo.get!(Deployment, deployment_id)
 
-  @spec get_by_product_and_name!(Product.t(), String.t()) :: Deployment.t()
-  def get_by_product_and_name!(product, name) do
+  @spec get_by_product_and_name!(Product.t(), String.t(), boolean()) :: Deployment.t()
+  def get_by_product_and_name!(product, name, with_device_count \\ false)
+
+  def get_by_product_and_name!(product, name, true) do
+    subquery =
+      Device
+      |> select([d], %{
+        deployment_id: d.deployment_id,
+        device_count: count(d.deployment_id, :distinct)
+      })
+      |> Repo.exclude_deleted()
+      |> group_by([d], d.deployment_id)
+
+    get_by_product_and_name_query(product, name)
+    |> join(:left, [d], dev in subquery(subquery), on: dev.deployment_id == d.id, as: :devices)
+    |> select_merge([_f, devices: devices], %{device_count: devices.device_count})
+    |> Repo.one!()
+  end
+
+  def get_by_product_and_name!(product, name, false) do
     get_by_product_and_name_query(product, name)
     |> Repo.one!()
   end
@@ -168,8 +186,9 @@ defmodule NervesHub.Deployments do
     |> where(name: ^name)
     |> where(product_id: ^product_id)
     |> join(:left, [d], f in assoc(d, :firmware))
+    |> join(:left, [d], a in assoc(d, :archive))
     |> join(:left, [d], p in assoc(d, :product))
-    |> preload([d, f, p], firmware: f, product: p)
+    |> preload([d, f, a, p], firmware: f, archive: a, product: p)
   end
 
   @spec delete_deployment(Deployment.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
