@@ -126,11 +126,17 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           <div class="flex pt-2 px-4 pb-4 gap-2 items-center justify-items-stretch flex-wrap">
             <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-emerald-500 bg-health-good">
               <span class="text-xs text-zinc-400 tracking-wide">CPU</span>
-              <div :if={@latest_metrics["cpu_temp"]} class="flex justify-between items-end">
+              <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex justify-between items-end">
                 <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
                 <span class="text-base text-emerald-500">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
-              <span :if={!@latest_metrics["cpu_temp"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
+              <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="flex justify-between items-end">
+                <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
+              </div>
+              <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex justify-between items-end">
+                <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_temp"])}°</span>
+              </div>
+              <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
             </div>
             <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-amber-500 bg-health-warning">
               <span class="text-xs text-zinc-400 tracking-wide">Memory used</span>
