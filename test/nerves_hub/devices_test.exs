@@ -740,64 +740,6 @@ defmodule NervesHub.DevicesTest do
     end
   end
 
-  describe "clean up device connection statuses" do
-    test "don't change the connection status of devices with a recent heartbeat", %{
-      org: org,
-      product: product,
-      firmware: firmware
-    } do
-      Fixtures.device_fixture(org, product, firmware, %{
-        connection_status: :connected,
-        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -10),
-        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -1)
-      })
-
-      Fixtures.device_fixture(org, product, firmware, %{
-        connection_status: :connected,
-        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -9),
-        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -2)
-      })
-
-      Fixtures.device_fixture(org, product, firmware, %{
-        connection_status: :connected,
-        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -11),
-        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -1)
-      })
-
-      assert Devices.connected_count(product) == 3
-      Devices.clean_connection_states()
-      assert Devices.connected_count(product) == 3
-    end
-
-    test "clean connection status of devices not seen recently", %{
-      org: org,
-      product: product,
-      firmware: firmware
-    } do
-      Fixtures.device_fixture(org, product, firmware, %{
-        connection_status: :connected,
-        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -10),
-        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -1)
-      })
-
-      Fixtures.device_fixture(org, product, firmware, %{
-        connection_status: :connected,
-        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -25),
-        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -15)
-      })
-
-      Fixtures.device_fixture(org, product, firmware, %{
-        connection_status: :connected,
-        connection_established_at: DateTime.shift(DateTime.utc_now(), minute: -47),
-        connection_last_seen_at: DateTime.shift(DateTime.utc_now(), minute: -9)
-      })
-
-      assert Devices.connected_count(product) == 3
-      Devices.clean_connection_states()
-      assert Devices.connected_count(product) == 1
-    end
-  end
-
   defp update_firmware_uuid(device, uuid) do
     firmware_metadata = %{
       architecture: "x86_64",

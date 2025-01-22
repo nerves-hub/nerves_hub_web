@@ -69,8 +69,9 @@ config :nerves_hub, Oban,
     {Oban.Plugins.Pruner, max_age: 604_800},
     {Oban.Plugins.Cron,
      crontab: [
-       {"0 * * * *", NervesHub.Workers.ScheduleOrgAuditLogTruncation, max_attempts: 1},
-       {"*/1 * * * *", NervesHub.Workers.CleanDeviceConnectionStates},
+       {"0 * * * *", NervesHub.Workers.ScheduleOrgAuditLogTruncation},
+       {"*/1 * * * *", NervesHub.Workers.CleanStaleDeviceConnections},
+       {"0 */1 * * *", NervesHub.Workers.DeleteOldDeviceConnections},
        {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates},
        {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation}
      ]}

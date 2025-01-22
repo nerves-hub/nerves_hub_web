@@ -509,28 +509,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
     """
   end
 
-  defp last_seen_at_status(connections) do
-    case connections do
-      [] ->
-        "Not seen yet"
+  defp last_seen_at_status(nil), do: "Not seen yet"
 
-      [latest_connection | _] ->
-        "Last seen #{last_seen_formatted(latest_connection)}"
-    end
-  end
+  defp last_seen_at_status(latest_connection),
+    do: "Last seen #{last_seen_formatted(latest_connection)}"
 
-  defp last_seen_at(connections) do
-    case connections do
-      [latest_connection | _] ->
-        last_seen_formatted(latest_connection)
+  defp last_seen_at(nil), do: ""
+  defp last_seen_at(latest_connection), do: last_seen_formatted(latest_connection)
 
-      _ ->
-        ""
-    end
-  end
-
-  defp last_seen_formatted(connection) do
-    connection
+  defp last_seen_formatted(latest_connection) do
+    latest_connection
     |> Map.get(:last_seen_at)
     |> DateTimeFormat.from_now()
   end

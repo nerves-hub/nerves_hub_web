@@ -6,7 +6,6 @@ defmodule NervesHub.Devices.Filtering do
   import Ecto.Query
 
   alias NervesHub.Devices.Alarms
-  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Types.Tag
 
@@ -43,10 +42,8 @@ defmodule NervesHub.Devices.Filtering do
     if value == "not_seen" do
       where(query, [d], d.status == :registered)
     else
-      where(
-        query,
-        [d],
-        d.id in subquery(Connections.query_devices_with_connection_status(value))
+      join(query, :inner, [d], dc in assoc(d, :latest_connection),
+        on: d.latest_connection_id == dc.id and dc.status == ^String.to_existing_atom(value)
       )
     end
   end

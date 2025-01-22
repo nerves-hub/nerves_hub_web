@@ -40,9 +40,6 @@ defmodule Mix.Tasks.NervesHub.Gen.Devices do
         org_id: org.id,
         product_id: product.id,
         identifier: "generated-#{i}",
-        connection_status: :connected,
-        connection_established_at: DateTime.now!("Etc/UTC"),
-        connection_last_seen_at: DateTime.now!("Etc/UTC"),
         connection_metadata: %{
           "location" => %{
             "longitude" => lng,

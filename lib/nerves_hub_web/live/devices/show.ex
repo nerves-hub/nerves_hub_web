@@ -92,7 +92,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> assign(:device, device)
-    |> assign(:device_connection, device_connection(device))
+    |> assign(:device_connection, device.latest_connection)
     |> noreply()
   end
 
@@ -103,7 +103,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     device =
       device
       |> Repo.reload()
-      |> Repo.preload(:deployment)
+      |> Repo.preload([:deployment, :latest_connection])
 
     {:noreply, general_assigns(socket, device)}
   end
@@ -123,7 +123,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> assign(:device, device)
-    |> assign(:device_connection, device_connection(device))
+    |> assign(:device_connection, device.latest_connection)
     |> assign(:console_active?, Tracker.console_active?(device))
     |> assign(:fwup_progress, nil)
     |> assign(:update_information, Devices.resolve_update(device))
@@ -468,9 +468,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end)
   end
 
-  defp device_connection(%{device_connections: [connection]}), do: connection
-  defp device_connection(_), do: nil
-
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
     health = Devices.get_latest_health(device.id)
 
@@ -560,7 +557,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign(:deployment, device.deployment)
-    |> assign(:device_connection, device_connection(device))
+    |> assign(:device_connection, device.latest_connection)
     |> assign(:device, device)
   end
 
