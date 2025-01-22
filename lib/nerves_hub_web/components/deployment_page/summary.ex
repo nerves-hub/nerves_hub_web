@@ -60,11 +60,13 @@ defmodule NervesHubWeb.Components.DeploymentPage.Summary do
               <span class="text-sm text-nerves-gray-500 w-16">Archive:</span>
 
               <.link
+                :if={@deployment.archive}
                 navigate={~p"/org/#{@org.name}/#{@product.name}/archives/#{@deployment.archive.uuid}"}
                 class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
               >
                 <span class="text-xs text-zinc-300 tracking-tight">{@deployment.archive.version} ({String.slice(@deployment.archive.uuid, 0..7)})</span>
               </.link>
+              <span class="pl-1 text-xs text-nerves-gray-500">No archive configured</span>
             </div>
           </div>
 
