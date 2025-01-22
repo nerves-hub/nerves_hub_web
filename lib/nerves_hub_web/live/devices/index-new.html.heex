@@ -119,7 +119,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr :for={device <- @devices} class={["border-b border-zinc-800", device.id in @selected_devices && "selected-row"]}>
+          <tr :for={device <- @devices} class={["border-b border-zinc-800 relative", device.id in @selected_devices && "selected-row"]} style={progress_style(@progress[device.id])}>
             <td class="checkbox">
               <input
                 id={"checkbox-device-#{device.id}"}
