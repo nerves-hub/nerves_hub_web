@@ -23,7 +23,7 @@ defmodule NervesHub.DevicesTest do
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(org, firmware, %{is_active: true})
-    device = Fixtures.device_fixture(org, product, firmware)
+    device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
     device2 = Fixtures.device_fixture(org, product, firmware)
     device3 = Fixtures.device_fixture(org, product, firmware)
     ca_fix = Fixtures.ca_certificate_fixture(org)

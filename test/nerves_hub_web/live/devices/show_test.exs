@@ -108,6 +108,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
 
+      # Set device status to :provisioned for deployment eligibility
+      %{status: :provisioned} = Devices.set_as_provisioned!(device)
+
       # mismatch device and deployment firmware so "Send Update" form doesn't display
       original_firmware_platform = device.firmware_metadata.platform
 
@@ -467,7 +470,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       device =
         device
-        |> Ecto.Changeset.change(%{deployment_id: deployment.id})
+        |> Ecto.Changeset.change(%{deployment_id: deployment.id, status: :provisioned})
         |> Repo.update!()
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
@@ -560,7 +563,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
     } do
       device =
         device
-        |> Ecto.Changeset.change(%{deployment_id: deployment.id})
+        |> Ecto.Changeset.change(%{deployment_id: deployment.id, status: :provisioned})
         |> Repo.update!()
 
       conn
@@ -586,6 +589,25 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   describe "setting deployment" do
+    test "displays and sets product deployments for unprovisioned device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment: deployment
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Product Deployments")
+      |> unwrap(fn view ->
+        render_change(view, "set-deployment", %{"deployment_id" => deployment.id})
+      end)
+      |> assert_has("div",
+        text:
+          "Device will be removed from the deployment upon connection if the aarch and platform doesn't match."
+      )
+    end
+
     test "sets deployment and creates audit", %{
       conn: conn,
       org: org,
@@ -593,6 +615,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       deployment: deployment
     } do
+      # Set device status to :provisioned for deployment eligibility
+      %{status: :provisioned} = Devices.set_as_provisioned!(device)
+
       assert Enum.empty?(AuditLogs.logs_for(device))
 
       conn
@@ -614,6 +639,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       device: device,
       deployment: deployment
     } do
+      # Set device status to :provisioned for deployment eligibility
+      %{status: :provisioned} = Devices.set_as_provisioned!(device)
       _ = Repo.delete!(deployment)
 
       conn

@@ -58,7 +58,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:page_number, 1)
     |> assign(:page_size, 5)
     |> audit_log_assigns()
-    |> assign(:eligible_deployments, Deployments.eligible_deployments(device))
+    |> assign_deployments()
     |> ok()
   end
 
@@ -306,10 +306,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event(
         "set-deployment",
         %{"deployment_id" => deployment_id},
-        %{assigns: %{user: user, device: device, eligible_deployments: eligible_deployments}} =
+        %{assigns: %{user: user, device: device, deployments: deployments}} =
           socket
       ) do
-    deployment = Enum.find(eligible_deployments, &(&1.id == String.to_integer(deployment_id)))
+    deployment = Enum.find(deployments, &(&1.id == String.to_integer(deployment_id)))
     device = Devices.update_deployment(device, deployment)
     _ = DeviceTemplates.audit_device_deployment_update(user, device, deployment)
 
@@ -420,7 +420,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> assign(:deployment, nil)
-    |> assign(:eligible_deployments, Deployments.eligible_deployments(device))
+    |> assign_deployments()
     |> put_flash(:info, "Device successfully removed from the deployment")
     |> noreply()
   end
@@ -510,6 +510,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:audit_logs, logs)
     |> assign(:audit_pager, audit_pager)
   end
+
+  defp assign_deployments(%{assigns: %{device: %{status: :provisioned} = device}} = socket),
+    do: assign(socket, deployments: Deployments.eligible_deployments(device))
+
+  defp assign_deployments(%{assigns: %{product: product}} = socket),
+    do: assign(socket, deployments: Deployments.get_deployments_by_product(product))
 
   defp connecting_code(device) do
     if device.deployment && device.deployment.connecting_code do
