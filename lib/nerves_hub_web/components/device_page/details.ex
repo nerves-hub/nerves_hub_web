@@ -35,13 +35,13 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     |> assign(assigns)
     |> assign(:device, Repo.preload(assigns.device, :deployment))
     |> assign_support_scripts()
-    |> assign(:eligible_deployments, Deployments.eligible_deployments(assigns.device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(assigns.device))
     |> assign(:update_information, Devices.resolve_update(assigns.device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(assigns.device.id))
     |> assign(:alarms, Alarms.get_current_alarms_for_device(assigns.device))
     |> assign(:extension_overrides, extension_overrides(assigns.device, assigns.product))
     |> assign_metadata()
+    |> assign_deployments()
     |> ok()
   end
 
@@ -62,6 +62,12 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
     assign(socket, :support_scripts, scripts)
   end
+
+  defp assign_deployments(%{assigns: %{device: %{status: :provisioned} = device}} = socket),
+    do: assign(socket, deployments: Deployments.eligible_deployments(device))
+
+  defp assign_deployments(%{assigns: %{product: product}} = socket),
+    do: assign(socket, deployments: Deployments.get_deployments_by_product(product))
 
   def render(assigns) do
     ~H"""
@@ -281,8 +287,11 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               </svg>
             </button>
           </div>
+          <div :if={@device.status == :registered && @device.deployment_id} class="flex pt-2 px-4 pb-6 gap-4 items-center">
+            <span class="text-sm text-nerves-gray-500">Note: Device will be removed from the deployment upon connection if the aarch and platform doesn't match.</span>
+          </div>
 
-          <div :if={is_nil(@device.deployment) && Enum.any?(@eligible_deployments)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
+          <div :if={is_nil(@device.deployment) && Enum.any?(@deployments)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
             <form phx-target={@myself} phx-submit="set-deployment" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <select
@@ -290,7 +299,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
                   class="col-start-1 row-start-1 appearance-none border rounded border-zinc-600 bg-zinc-900 py-1.5 pl-3 pr-8 text-sm text-zinc-400 focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-indigo-500"
                 >
                   <option value="">Select a deployment</option>
-                  <option :for={deployment <- @eligible_deployments} value={deployment.id}>{deployment.name}</option>
+                  <option :for={deployment <- @deployments} value={deployment.id}>{deployment.name} - ({deployment.firmware.platform}, {deployment.firmware.architecture})</option>
                 </select>
               </div>
               <button
@@ -430,11 +439,11 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   end
 
   def handle_event("set-deployment", %{"deployment_id" => deployment_id}, socket) do
-    %{user: user, device: device, eligible_deployments: eligible_deployments} = socket.assigns
+    %{user: user, device: device, deployments: deployments} = socket.assigns
 
     authorized!(:"device:set-deployment", socket.assigns.org_user)
 
-    deployment = Enum.find(eligible_deployments, &(&1.id == String.to_integer(deployment_id)))
+    deployment = Enum.find(deployments, &(&1.id == String.to_integer(deployment_id)))
     device = Devices.update_deployment(device, deployment)
     _ = DeviceTemplates.audit_device_deployment_update(user, device, deployment)
 
