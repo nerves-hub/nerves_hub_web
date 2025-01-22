@@ -950,7 +950,7 @@ defmodule NervesHub.Devices do
     _ = maybe_copy_firmware_keys(device, product.org)
 
     description =
-      "user #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
+      "User #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
 
     source_product = %Product{
       id: device.product_id,
@@ -1035,7 +1035,7 @@ defmodule NervesHub.Devices do
   end
 
   def clear_penalty_box(%Device{} = device, user) do
-    description = "user #{user.name} removed device #{device.identifier} from the penalty box"
+    description = "User #{user.name} removed device #{device.identifier} from the penalty box"
     params = %{updates_blocked_until: nil, update_attempts: []}
     update_device_with_audit(device, params, user, description)
   end

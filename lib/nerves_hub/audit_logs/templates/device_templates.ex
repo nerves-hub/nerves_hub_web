@@ -15,20 +15,20 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
 
   @spec audit_reboot(User.t(), Device.t()) :: AuditLog.t()
   def audit_reboot(user, device) do
-    description = "#{user.name} rebooted device #{device.identifier}"
+    description = "User #{user.name} rebooted device #{device.identifier}"
     AuditLogs.audit!(user, device, description)
   end
 
   @spec audit_request_action(User.t(), Device.t(), String.t()) :: AuditLog.t()
   def audit_request_action(user, device, action) do
-    description = "#{user.name} requested the device (#{device.identifier}) #{action}"
+    description = "User #{user.name} requested the device (#{device.identifier}) #{action}"
     AuditLogs.audit!(user, device, description)
   end
 
   @spec audit_unsupported_api_version(Device.t()) :: AuditLog.t()
   def audit_unsupported_api_version(device) do
     description =
-      "device #{device.identifier} could not get extensions: Unsupported API version."
+      "Device #{device.identifier} could not get extensions: Unsupported API version."
 
     AuditLogs.audit!(device, device, description)
     Logger.info("[DeviceChannel] #{description}")
@@ -38,14 +38,14 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
 
   @spec audit_update_attempt(Device.t()) :: AuditLog.t()
   def audit_update_attempt(device) do
-    description = "device #{device.identifier} is attempting to update"
+    description = "Device #{device.identifier} is attempting to update"
     AuditLogs.audit(device, device, description)
   end
 
   @spec audit_pushed_available_update(User.t(), Device.t(), Deployment.t()) :: AuditLog.t()
   def audit_pushed_available_update(user, device, deployment) do
     description =
-      "#{user.name} pushed available firmware update #{deployment.firmware.version} #{deployment.firmware.uuid} to device #{device.identifier}"
+      "User #{user.name} pushed available firmware update #{deployment.firmware.version} #{deployment.firmware.uuid} to device #{device.identifier}"
 
     AuditLogs.audit!(user, device, description)
   end
@@ -53,14 +53,14 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   @spec audit_firmware_pushed(User.t(), Device.t(), Firmware.t()) :: AuditLog.t()
   def audit_firmware_pushed(user, device, firmware) do
     description =
-      "#{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
+      "User #{user.name} pushed firmware #{firmware.version} #{firmware.uuid} to device #{device.identifier}"
 
     AuditLogs.audit!(user, device, description)
   end
 
   @spec audit_firmware_metadata_updated(Device.t()) :: AuditLog.t()
   def audit_firmware_metadata_updated(device) do
-    description = "device #{device.identifier} updated firmware metadata"
+    description = "Device #{device.identifier} updated firmware metadata"
     AuditLogs.audit!(device, device, description)
   end
 
@@ -77,7 +77,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   @spec audit_firmware_updated(Device.t()) :: AuditLog.t()
   def audit_firmware_updated(device) do
     description =
-      "device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
+      "Device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
 
     AuditLogs.audit!(device, device, description)
   end
@@ -88,7 +88,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     firmware = deployment.firmware
 
     description =
-      "deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
+      "Deployment #{deployment.name} update triggered device #{device.identifier} to update firmware #{firmware.uuid}"
 
     AuditLogs.audit_with_ref!(deployment, device, description, reference_id)
   end
@@ -98,7 +98,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(
       user,
       device,
-      "#{user.name} set #{device.identifier}'s deployment to #{deployment.name}"
+      "User #{user.name} set #{device.identifier}'s deployment to #{deployment.name}"
     )
   end
 
