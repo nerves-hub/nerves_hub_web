@@ -123,16 +123,6 @@
     font-size: 12px;
   }
 
-  .action-button {
-    @apply border border-base-600 bg-base-800 text-base-300;
-    display: flex;
-    gap: 8px;
-    padding: 6px 12px;
-    justify-content: center;
-    align-items: center;
-    border-radius: 4px;
-  }
-
   .pager-button {
     @apply rounded-sm px-[12px] py-[6px];
     font-size: 14px;

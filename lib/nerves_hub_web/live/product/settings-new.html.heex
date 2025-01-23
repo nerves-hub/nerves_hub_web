@@ -25,18 +25,14 @@
       </div>
       <div class="flex p-6 gap-6">
         <div class="w-1/2 flex flex-col gap-6">
-          <NervesHubWeb.CoreComponents.input field={@form[:name]} label="Name" hint="Once created, a product name cannot be changed" disabled />
+          <.input field={@form[:name]} label="Name" hint="Once created, a product name cannot be changed" disabled />
 
-          <NervesHubWeb.CoreComponents.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates" phx-click="toggle-delta-updates">
+          <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates" phx-click="toggle-delta-updates">
             <:rich_hint>
               Check out the <.link class="underline" href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank">NervesHub documentation</.link>
               for more information on delta updates.
             </:rich_hint>
-          </NervesHubWeb.CoreComponents.input>
-          <%!--
-            <NervesHubWeb.CoreComponents.input field={@form[:description]} label="Description" placeholder="eg. sensor hub at customer X" />
-
-            <NervesHubWeb.CoreComponents.input field={@form[:tags]} value={tags_to_string(@form[:tags])} label="Tags" placeholder="eg. batch-123" /> --%>
+          </.input>
         </div>
       </div>
     </div>
@@ -134,19 +130,20 @@
               <td>
                 <div :if={is_nil(auth.deactivated_at)} class="h-full flex justify-start items-center gap-3">
                   <input type="hidden" id={"shared-secret-#{auth.id}"} value={auth.secret} />
-                  <button class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600" value={auth.id} id={"shared-secret-#{auth.id}-button"} phx-hook="SharedSecretClipboardClick">
-                    Copy Secret
-                  </button>
 
-                  <button
-                    class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600"
+                  <.button value={auth.id} id={"shared-secret-#{auth.id}-button"} phx-hook="SharedSecretClipboardClick" aria-label="Copy secret">
+                    Copy secret
+                  </.button>
+
+                  <.button
                     phx-click="deactivate-shared-secret"
                     phx-value-shared_secret_id={auth.id}
                     disabled={!authorized?(:"product:update", @org_user)}
-                    data-confirm="Are you sure?"
+                    data-confirm="Are you sure you want to deactivate this shared secret?"
+                    aria-label="Copy secret"
                   >
                     Deactivate
-                  </button>
+                  </.button>
                 </div>
               </td>
             </tr>
@@ -162,24 +159,14 @@
         </div>
 
         <div class="p-6 flex border-t border-zinc-700">
-          <button
-            class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600"
-            type="button"
+          <.button
             phx-click="add-shared-secret"
             disabled={!authorized?(:"product:update", @org_user)}
             data-confirm="Are you sure you want to generate a new Shared Secret?"
+            aria-label="Create a Shared Secret"
           >
-            <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
-              <path
-                d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334"
-                stroke="#A1A1AA"
-                stroke-width="1.2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <span class="text-sm font-medium text-zinc-300">Create a Shared Secret</span>
-          </button>
+            <.icon name="add" />Create a Shared Secret
+          </.button>
         </div>
       <% else %>
         <div class="p-6 flex flex-col gap-3 border-t border-zinc-700">

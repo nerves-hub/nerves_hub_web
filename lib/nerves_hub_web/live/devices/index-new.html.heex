@@ -41,36 +41,15 @@
         </svg>
       </div>
     </form>
-    <.link :if={Enum.any?(@devices) || @currently_filtering} class="action-button" aria-label="Export devices" href={~p"/org/#{@org.name}/#{@product.name}/devices/export"} download>
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path
-          d="M10.0002 3.33325L6.66683 6.66659M10.0002 3.33325L13.3335 6.66659M10.0002 3.33325L10.0002 13.3333M3.3335 16.6666L16.6668 16.6666"
-          stroke="#A1A1AA"
-          stroke-width="1.2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-      <span class="action-text">Export</span>
-    </.link>
-    <.link class="action-button" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"} aria-label="Add new device">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      <span class="action-text">Add Device</span>
-    </.link>
-    <button :if={Enum.any?(@devices) || @currently_filtering} class="action-button" type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path
-          d="M15.0002 3.33325H5.00022C4.07974 3.33325 3.31217 4.09102 3.53926 4.98304C4.03025 6.91168 5.36208 8.50445 7.12143 9.34803C7.80715 9.67683 8.33355 10.3214 8.33355 11.0819V16.1516C8.33355 16.771 8.98548 17.174 9.53956 16.8969L11.2062 16.0636C11.4886 15.9224 11.6669 15.6339 11.6669 15.3182V11.0819C11.6669 10.3214 12.1933 9.67683 12.879 9.34803C14.6384 8.50445 15.9702 6.91168 16.4612 4.98304C16.6883 4.09102 15.9207 3.33325 15.0002 3.33325Z"
-          stroke="#A1A1AA"
-          stroke-width="1.2"
-        />
-      </svg>
-      <span class="action-text">
-        Filters
-      </span>
-    </button>
+    <.button :if={Enum.any?(@devices) || @currently_filtering} type="link" aria-label="Export devices" href={~p"/org/#{@org.name}/#{@product.name}/devices/export"} download>
+      <.icon name="export" /> Export
+    </.button>
+    <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"} aria-label="Add new device">
+      <.icon name="add" /> Add Device
+    </.button>
+    <.button :if={Enum.any?(@devices) || @currently_filtering} type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
+      <.icon name="filter" /> Filters
+    </.button>
   </div>
 
   <%= if Enum.empty?(@devices) && !@currently_filtering do %>
@@ -285,7 +264,8 @@
 <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 sm:pl-16 z-50">
   <div class={[
     "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-t border-l border-zinc-700 bg-base-900 shadow-filter-slider transition-transform",
-    !@show_filters && "translate-x-full"
+    !@show_filters && "translate-x-full",
+    !@show_filters && "invisible"
   ]}>
     <div class="h-0 flex-1 overflow-y-auto">
       <div class="flex items-center h-14 px-4 py-3 border-b border-zinc-700">
@@ -404,7 +384,8 @@
 <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 mb-[119px] sm:pl-16 z-50">
   <div class={[
     "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-y border-l border-zinc-700 bg-base-900 shadow-filter-slider transition-transform",
-    Enum.empty?(@selected_devices) && "translate-x-full"
+    Enum.empty?(@selected_devices) && "translate-x-full",
+    Enum.empty?(@selected_devices) && "invisible"
   ]}>
     <div class="h-0 flex-1 overflow-y-auto">
       <div class="flex items-center h-14 px-4 py-3 border-b border-zinc-700">

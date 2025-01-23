@@ -187,11 +187,68 @@ defmodule NervesHubWeb.CoreComponents do
       <.button>Send!</.button>
       <.button phx-click="go" class="ml-2">Send!</.button>
   """
+  attr(:style, :string, default: "secondary")
   attr(:type, :string, default: nil)
   attr(:class, :string, default: nil)
-  attr(:rest, :global, include: ~w(disabled form name value))
+  attr(:rest, :global, include: ~w(disabled form name value href navigate download))
 
   slot(:inner_block, required: true)
+
+  def button(%{type: "link", style: "secondary"} = assigns) do
+    ~H"""
+    <.link
+      class={[
+        "phx-submit-loading:opacity-75 flex items-center justify-center px-3 py-1.5 gap-2 rounded",
+        "bg-zinc-800 hover:bg-zinc-700 active:bg-indigo-500 disabled:bg-zinc-800",
+        "border rounded border-zinc-600 active:border-indigo-500",
+        "stroke-zinc-400 active:stroke-zinc-100 disabled:stroke-zinc-600",
+        "text-sm font-medium text-zinc-300 hover:text-neutral-50 active:text-neutral-50 disabled:text-zinc-500",
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </.link>
+    """
+  end
+
+  def button(%{style: "primary"} = assigns) do
+    ~H"""
+    <button
+      type={@type}
+      class={[
+        "phx-submit-loading:opacity-75 flex px-3 py-1.5 gap-2 rounded",
+        "bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 disabled:bg-zinc-800",
+        "disabled:bg-zinc-800 disabled:border disabled:rounded disabled:border-zinc-600",
+        "stroke-zinc-50 disabled:stroke-zinc-500",
+        "text-sm font-medium text-zinc-50 disabled:text-zinc-500",
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </button>
+    """
+  end
+
+  def button(%{style: "secondary"} = assigns) do
+    ~H"""
+    <button
+      type={@type}
+      class={[
+        "phx-submit-loading:opacity-75 flex px-3 py-1.5 gap-2 rounded",
+        "bg-zinc-800 hover:bg-zinc-700 active:bg-indigo-500 disabled:bg-zinc-800",
+        "border rounded border-zinc-600 active:border-indigo-500",
+        "stroke-zinc-400 active:stroke-zinc-100 disabled:stroke-zinc-600",
+        "text-sm font-medium text-zinc-300 hover:text-neutral-50 active:text-neutral-50 disabled:text-zinc-500",
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </button>
+    """
+  end
 
   def button(assigns) do
     ~H"""
@@ -406,6 +463,9 @@ defmodule NervesHubWeb.CoreComponents do
     </label>
     """
   end
+
+  # TODO: can be removed when we remove our use of Phoenix.HTML.Form
+  def core_label(assigns), do: label(assigns)
 
   @doc """
   Generates a generic error message.
