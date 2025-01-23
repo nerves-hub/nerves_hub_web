@@ -35,13 +35,13 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     |> assign(assigns)
     |> assign(:device, Repo.preload(assigns.device, :deployment))
     |> assign_support_scripts()
-    |> assign(:eligible_deployments, Deployments.eligible_deployments(assigns.device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(assigns.device))
     |> assign(:update_information, Devices.resolve_update(assigns.device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(assigns.device.id))
     |> assign(:alarms, Alarms.get_current_alarms_for_device(assigns.device))
     |> assign(:extension_overrides, extension_overrides(assigns.device, assigns.product))
     |> assign_metadata()
+    |> assign_deployments()
     |> ok()
   end
 
@@ -62,6 +62,12 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
     assign(socket, :support_scripts, scripts)
   end
+
+  defp assign_deployments(%{assigns: %{device: %{status: :provisioned} = device}} = socket),
+    do: assign(socket, deployments: Deployments.eligible_deployments(device))
+
+  defp assign_deployments(%{assigns: %{product: product}} = socket),
+    do: assign(socket, deployments: Deployments.get_deployments_by_product(product))
 
   def render(assigns) do
     ~H"""
@@ -120,11 +126,17 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           <div class="flex pt-2 px-4 pb-4 gap-2 items-center justify-items-stretch flex-wrap">
             <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-emerald-500 bg-health-good">
               <span class="text-xs text-zinc-400 tracking-wide">CPU</span>
-              <div :if={@latest_metrics["cpu_temp"]} class="flex justify-between items-end">
+              <div :if={@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex justify-between items-end">
                 <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
                 <span class="text-base text-emerald-500">{round(@latest_metrics["cpu_temp"])}°</span>
               </div>
-              <span :if={!@latest_metrics["cpu_temp"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
+              <div :if={@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="flex justify-between items-end">
+                <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_usage_percent"])}%</span>
+              </div>
+              <div :if={!@latest_metrics["cpu_usage_percent"] && @latest_metrics["cpu_temp"]} class="flex justify-between items-end">
+                <span class="text-xl leading-[30px] text-neutral-50">{round(@latest_metrics["cpu_temp"])}°</span>
+              </div>
+              <span :if={!@latest_metrics["cpu_usage_percent"] && !@latest_metrics["cpu_temp"]} class="text-xl leading-[30px] text-nerves-gray-500">NA</span>
             </div>
             <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-amber-500 bg-health-warning">
               <span class="text-xs text-zinc-400 tracking-wide">Memory used</span>
@@ -153,9 +165,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               </div>
             </div>
           </div>
-          <div class="px-4 pb-4">
-            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
-              Learn more about device health reporting.
+          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+            Learn more about
+            <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              device health reporting.
             </.link>
           </div>
         </div>
@@ -167,9 +180,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           <div class="flex pt-2 px-4 pb-4 gap-2 items-center">
             No device health information has been received.
           </div>
-          <div class="px-4 pb-4">
-            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
-              Learn more about device health reporting.
+          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+            Learn more about
+            <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              device health reporting.
             </.link>
           </div>
         </div>
@@ -188,9 +202,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
             </div>
           </div>
 
-          <div class="px-4 pb-4">
-            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
-              Learn more about alarm reporting.
+          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+            Learn more about
+            <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              alarm reporting
             </.link>
           </div>
         </div>
@@ -199,9 +214,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="text-neutral-50 font-medium leading-6">No Alarms Received</div>
           </div>
-          <div class="px-4 pb-4">
-            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-alarms">
-              Learn more about alarm reporting.
+          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+            Learn more about
+            <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              alarm reporting
             </.link>
           </div>
         </div>
@@ -281,8 +297,11 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               </svg>
             </button>
           </div>
+          <div :if={@device.status == :registered && @device.deployment_id} class="flex pt-2 px-4 pb-6 gap-4 items-center">
+            <span class="text-sm text-nerves-gray-500">Please note: The device will be removed from the deployment upon connection if the aarch and platform don't match.</span>
+          </div>
 
-          <div :if={is_nil(@device.deployment) && Enum.any?(@eligible_deployments)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
+          <div :if={is_nil(@device.deployment) && Enum.any?(@deployments)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
             <form phx-target={@myself} phx-submit="set-deployment" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <select
@@ -290,16 +309,12 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
                   class="col-start-1 row-start-1 appearance-none border rounded border-zinc-600 bg-zinc-900 py-1.5 pl-3 pr-8 text-sm text-zinc-400 focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-indigo-500"
                 >
                   <option value="">Select a deployment</option>
-                  <option :for={deployment <- @eligible_deployments} value={deployment.id}>{deployment.name}</option>
+                  <option :for={deployment <- @deployments} value={deployment.id}>{deployment.name} - ({deployment.firmware.platform}, {deployment.firmware.architecture})</option>
                 </select>
               </div>
-              <button
-                class="box-content h-5 py-1.5 px-3 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
-                aria-label="Add to deployment"
-                data-confirm="Are you sure you want to add the device to the deployment?"
-              >
+              <.button type="submit" aria-label="Add to deployment" data-confirm="Are you sure you want to add the device to the deployment?">
                 Add to deployment
-              </button>
+              </.button>
             </form>
             <div>
               <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -320,16 +335,15 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               <span class="text-sm text-nerves-gray-500">An update is available in the assigned deployment.</span>
             </div>
 
-            <button
+            <.button
               phx-target={@myself}
               phx-submit="push-available-update"
-              class="box-content h-5 py-1.5 px-3 mr-9 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
               aria-label="Send available update"
-              data-confirm="Are you sure?"
+              data-confirm="Are you sure you want to skip the queue?"
               disabled={disconnected?(@device_connection)}
             >
               Skip the queue
-            </button>
+            </.button>
           </div>
 
           <div class="flex p-4 gap-4 items-center border-t border-zinc-700">
@@ -344,14 +358,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
                   <option :for={firmware <- @firmwares} value={firmware.uuid}>{firmware.version}</option>
                 </select>
               </div>
-              <button
-                class="box-content h-5 py-1.5 px-3 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
-                disabled={disconnected?(@device_connection)}
-                aria-label="Send firmware update"
-                data-confirm="Are you sure?"
-              >
+
+              <.button type="submit" disabled={disconnected?(@device_connection)} aria-label="Send firmware update" data-confirm="Are you sure you want to send this firmware to the device?">
                 Send update
-              </button>
+              </.button>
             </form>
             <div>
               <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -419,9 +429,9 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           </div>
 
           <div class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts"} class="box-content h-5 py-1.5 px-3 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300">
-              Add a support script
-            </.link>
+            <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} aria-label="Add a support script">
+              <.icon name="add" />Add a support script
+            </.button>
           </div>
         </div>
       </div>
@@ -430,11 +440,11 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   end
 
   def handle_event("set-deployment", %{"deployment_id" => deployment_id}, socket) do
-    %{user: user, device: device, eligible_deployments: eligible_deployments} = socket.assigns
+    %{user: user, device: device, deployments: deployments} = socket.assigns
 
     authorized!(:"device:set-deployment", socket.assigns.org_user)
 
-    deployment = Enum.find(eligible_deployments, &(&1.id == String.to_integer(deployment_id)))
+    deployment = Enum.find(deployments, &(&1.id == String.to_integer(deployment_id)))
     device = Devices.update_deployment(device, deployment)
     _ = DeviceTemplates.audit_device_deployment_update(user, device, deployment)
 

@@ -678,9 +678,10 @@ defmodule NervesHub.Devices do
   @doc """
   Resolve an update for the device's deployment
   """
-  def resolve_update(%{deployment_id: nil}) do
-    %UpdatePayload{update_available: false}
-  end
+  @spec resolve_update(Device.t()) :: UpdatePayload.t()
+  def resolve_update(%{status: :registered}), do: %UpdatePayload{update_available: false}
+
+  def resolve_update(%{deployment_id: nil}), do: %UpdatePayload{update_available: false}
 
   def resolve_update(device) do
     deployment = Repo.preload(device.deployment, [:firmware])
@@ -893,6 +894,23 @@ defmodule NervesHub.Devices do
     |> Ecto.Changeset.put_change(:update_attempts, [])
     |> Ecto.Changeset.put_change(:updates_blocked_until, nil)
     |> Repo.update()
+  end
+
+  def up_to_date_count(%Deployment{} = deployment) do
+    Device
+    |> where([d], d.deployment_id == ^deployment.id)
+    |> where([d], d.firmware_metadata["uuid"] == ^deployment.firmware.uuid)
+    |> Repo.aggregate(:count)
+  end
+
+  def waiting_for_update_count(%Deployment{} = deployment) do
+    Device
+    |> where([d], d.deployment_id == ^deployment.id)
+    |> where(
+      [d],
+      is_nil(d.firmware_metadata) or d.firmware_metadata["uuid"] != ^deployment.firmware.uuid
+    )
+    |> Repo.aggregate(:count)
   end
 
   def restore_device(%Device{} = device) do

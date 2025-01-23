@@ -240,23 +240,26 @@
               </button>
             </div>
           </div>
+          <div :if={@device.status == :registered} class="mt-1">
+            Device will be removed from the deployment upon connection if the aarch and platform doesn't match.
+          </div>
           <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
         </div>
 
-        <div :if={Enum.empty?(@eligible_deployments) && is_nil(@device.deployment_id)}>
+        <div :if={Enum.empty?(@deployments) && is_nil(@device.deployment_id) && @device.status == :provisioned}>
           No Eligible Deployments
         </div>
 
-        <div :if={Enum.any?(@eligible_deployments) && is_nil(@device.deployment_id)}>
+        <div :if={Enum.any?(@deployments) && is_nil(@device.deployment_id)}>
           <div class="help-text mb-1">
-            Eligible Deployments
+            {if @device.status == :provisioned, do: "Eligible Deployments", else: "Product Deployments"}
           </div>
           <form phx-submit="set-deployment">
             <div class="flex-row justify-content-between">
               <select name="deployment_id" class="form-control">
                 <option value="">Select a deployment</option>
-                <%= for deployment <- @eligible_deployments do %>
-                  <option value={deployment.id}>{deployment.name}</option>
+                <%= for deployment <- @deployments do %>
+                  <option value={deployment.id}>{deployment.name} - {deployment.firmware.platform}, {deployment.firmware.architecture}</option>
                 <% end %>
               </select>
               <button class="btn btn-secondary ml-2">Set</button>

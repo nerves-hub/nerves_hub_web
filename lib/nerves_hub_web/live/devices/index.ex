@@ -92,6 +92,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:currently_filtering, false)
     |> assign(:selected_devices, [])
     |> assign(:target_product, nil)
+    |> assign(:progress, %{})
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
     |> assign(:total_entries, 0)
@@ -113,6 +114,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:sort_direction, Map.get(unsigned_params, "sort_direction", "asc"))
     |> assign(:current_filters, filters)
     |> assign(:paginate_opts, pagination_opts)
+    |> assign(:progress, socket.assigns[:progress] || %{})
     |> assign(:currently_filtering, filters != @default_filters)
     |> assign(:params, unsigned_params)
     |> assign_display_devices()
@@ -402,6 +404,28 @@ defmodule NervesHubWeb.Live.Devices.Index do
     update_device_statuses(socket, payload)
   end
 
+  def handle_info(
+        %Broadcast{
+          event: "fwup_progress",
+          payload: %{device_id: device_id, percent: percent}
+        },
+        socket
+      )
+      when percent > 99 do
+    socket
+    |> assign(:progress, Map.delete(socket.assigns.progress, device_id))
+    |> noreply()
+  end
+
+  def handle_info(
+        %Broadcast{event: "fwup_progress", payload: %{device_id: device_id, percent: percent}},
+        socket
+      ) do
+    socket
+    |> assign(:progress, Map.put(socket.assigns.progress, device_id, percent))
+    |> noreply()
+  end
+
   # Unknown broadcasts get ignored, likely from the device:id:internal channel
   def handle_info(%Broadcast{}, socket) do
     {:noreply, socket}
@@ -638,5 +662,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
           "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_name}. #{not_updated_count} #{maybe_pluralize.(not_updated_count, "device")} could not be added to deployment because of mismatched firmware"
         )
     end
+  end
+
+  defp progress_style(nil) do
+    nil
+  end
+
+  defp progress_style(progress) do
+    """
+     background-repeat: no-repeat, no-repeat;
+     background-image: linear-gradient(90deg, rgba(16, 185, 129, 1.00) 0%, rgba(16, 185, 129, 1.0) 100%),
+                        radial-gradient(circle at 0%, rgba(16, 185, 129, 0.12) 0, rgba(16, 185, 129, 0.12) 60%, rgba(16, 185, 129, 0.0) 100%);
+     background-size: #{progress}% 1px, #{progress * 1.1}% 100%;
+    """
   end
 end

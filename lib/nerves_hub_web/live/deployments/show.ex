@@ -10,12 +10,17 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
   alias NervesHubWeb.Components.AuditLogFeed
 
+  alias NervesHubWeb.Components.DeploymentPage.Summary, as: SummaryTab
+  alias NervesHubWeb.Components.DeploymentPage.Activity, as: ActivityTab
+  alias NervesHubWeb.Components.DeploymentPage.ReleaseHistory, as: ReleaseHistoryTab
+  alias NervesHubWeb.Components.DeploymentPage.Settings, as: SettingsTab
+
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     %{"name" => name} = params
     %{product: product} = socket.assigns
 
-    deployment = Deployments.get_by_product_and_name!(product, name)
+    deployment = Deployments.get_by_product_and_name!(product, name, true)
 
     {logs, audit_pager} =
       AuditLogs.logs_for_feed(deployment, %{
@@ -36,7 +41,10 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     socket
     |> page_title("Deployment - #{deployment.name} - #{product.name}")
     |> sidebar_tab(:deployments)
+    |> selected_tab()
     |> assign(:deployment, deployment)
+    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment))
+    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment))
     |> assign(:audit_logs, logs)
     |> assign(:audit_pager, audit_pager)
     |> assign(:inflight_updates, inflight_updates)
@@ -69,6 +77,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
     socket
     |> put_flash(:info, "Deployment set #{active_str}")
+    |> send_toast(:info, "Deployment #{(value && "resumed") || "paused"}")
     |> assign(:deployment, deployment)
     |> noreply()
   end
@@ -92,9 +101,30 @@ defmodule NervesHubWeb.Live.Deployments.Show do
   def handle_info(:update_inflight_updates, socket) do
     Process.send_after(self(), :update_inflight_updates, 5000)
 
-    inflight_updates = Devices.inflight_updates_for(socket.assigns.deployment)
+    %{assigns: %{deployment: deployment}} = socket
 
-    {:noreply, assign(socket, :inflight_updates, inflight_updates)}
+    inflight_updates = Devices.inflight_updates_for(deployment)
+
+    send_update(self(), SummaryTab, id: "deployment_summary", update_inflight_info: true)
+
+    socket
+    |> assign(:inflight_updates, inflight_updates)
+    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment))
+    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment))
+    |> noreply()
+  end
+
+  defp selected_tab(socket) do
+    assign(socket, :tab, socket.assigns.live_action || :details)
+  end
+
+  # TODO: refactor to use tailwind attributes
+  defp tab_classes(tab_selected, tab) do
+    if tab_selected == tab do
+      "px-6 py-2 h-11 font-normal text-sm text-neutral-50 border-b border-indigo-500 bg-tab-selected relative -bottom-px"
+    else
+      "px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
+    end
   end
 
   defp deployment_percentage(%{total_updating_devices: 0}), do: 100
