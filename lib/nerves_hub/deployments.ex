@@ -40,7 +40,7 @@ defmodule NervesHub.Deployments do
       Device
       |> select([d], %{
         deployment_id: d.deployment_id,
-        device_count: count(d.deployment_id, :distinct)
+        device_count: count()
       })
       |> Repo.exclude_deleted()
       |> group_by([d], d.deployment_id)
@@ -151,7 +151,7 @@ defmodule NervesHub.Deployments do
       Device
       |> select([d], %{
         deployment_id: d.deployment_id,
-        device_count: count(d.deployment_id, :distinct)
+        device_count: count()
       })
       |> Repo.exclude_deleted()
       |> group_by([d], d.deployment_id)

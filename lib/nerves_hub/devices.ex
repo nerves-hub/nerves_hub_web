@@ -931,7 +931,10 @@ defmodule NervesHub.Devices do
   def waiting_for_update_count(%Deployment{} = deployment) do
     Device
     |> where([d], d.deployment_id == ^deployment.id)
-    |> where([d], d.firmware_metadata["uuid"] != ^deployment.firmware.uuid)
+    |> where(
+      [d],
+      is_nil(d.firmware_metadata) or d.firmware_metadata["uuid"] != ^deployment.firmware.uuid
+    )
     |> Repo.aggregate(:count)
   end
 
