@@ -15,6 +15,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.Filtering
   alias NervesHub.Devices.InflightUpdate
@@ -142,7 +143,7 @@ defmodule NervesHub.Devices do
     |> select([d, dc], %{
       id: d.id,
       identifier: d.identifier,
-      connection_status: dc.connection_status,
+      connection_status: dc.status,
       latitude: fragment("?->'location'->'latitude'", d.connection_metadata),
       longitude: fragment("?->'location'->'longitude'", d.connection_metadata),
       firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)
