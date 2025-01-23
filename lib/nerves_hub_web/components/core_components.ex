@@ -188,7 +188,7 @@ defmodule NervesHubWeb.CoreComponents do
       <.button phx-click="go" class="ml-2">Send!</.button>
   """
   attr(:style, :string, default: "secondary")
-  attr(:type, :string, default: nil)
+  attr(:type, :string, default: "button")
   attr(:class, :string, default: nil)
   attr(:rest, :global, include: ~w(disabled form name value href navigate download))
 
