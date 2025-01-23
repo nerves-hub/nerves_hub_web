@@ -165,9 +165,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               </div>
             </div>
           </div>
-          <div class="px-4 pb-4">
-            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
-              Learn more about device health reporting.
+          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+            Learn more about
+            <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              device health reporting.
             </.link>
           </div>
         </div>
@@ -179,9 +180,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           <div class="flex pt-2 px-4 pb-4 gap-2 items-center">
             No device health information has been received.
           </div>
-          <div class="px-4 pb-4">
-            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
-              Learn more about device health reporting.
+          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+            Learn more about
+            <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              device health reporting.
             </.link>
           </div>
         </div>
@@ -200,9 +202,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
             </div>
           </div>
 
-          <div class="px-4 pb-4">
-            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
-              Learn more about alarm reporting.
+          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+            Learn more about
+            <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              alarm reporting
             </.link>
           </div>
         </div>
@@ -211,9 +214,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="text-neutral-50 font-medium leading-6">No Alarms Received</div>
           </div>
-          <div class="px-4 pb-4">
-            <.link class="text-xs font-normal text-zinc-400 hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-alarms">
-              Learn more about alarm reporting.
+          <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
+            Learn more about
+            <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health">
+              alarm reporting
             </.link>
           </div>
         </div>
