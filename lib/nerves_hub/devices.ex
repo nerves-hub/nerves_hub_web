@@ -74,7 +74,7 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p, dp], f in assoc(dp, :firmware))
     |> join(:left, [d, o, p, dp, f], lc in assoc(d, :latest_connection))
     |> Repo.exclude_deleted()
-    |> sort_devices_by_latest_connection(sorting)
+    |> sort_devices(sorting)
     |> Filtering.build_filters(filters)
     |> preload([d, o, p, dp, f, lc],
       org: o,
@@ -117,7 +117,12 @@ defmodule NervesHub.Devices do
     |> preload(:latest_connection)
     |> Repo.exclude_deleted()
     |> Filtering.build_filters(filters)
-    |> sort_devices_by_latest_connection(sorting)
+    # This join needs to come _after_ the above call to Filtering.build_filters/1. The Filtering
+    # module uses positional bindings and expects callers to not past the initial `[d]` binding
+    # for Device. This is a great callout to move to named bindings as a default. Check
+    # `sort_devices/2` for additional info.
+    |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> sort_devices(sorting)
     |> Flop.run(flop)
     |> then(fn {entries, meta} ->
       meta
@@ -193,13 +198,30 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  defp sort_devices_by_latest_connection(query, {:asc, :connection_last_seen_at}),
-    do: order_by(query, [_d, _o, _p, _dp, lc], asc_nulls_first: lc.last_seen_at)
+  # Handle if the query being passed in as positional or named bindings. This is a core issue
+  # with the Filtering module, which needs to be flexible enough to handle joins that are
+  # passed to it. See the comment in __MODULE__.filter/1 for more.
+  defp sort_devices(query, {:asc, :connection_last_seen_at}) do
+    if Ecto.Query.has_named_binding?(query, :latest_connection) do
+      order_by(query, [latest_connection: latest_connection],
+        asc_nulls_first: latest_connection.last_seen_at
+      )
+    else
+      order_by(query, [_d, _o, _p, _dp, lc], asc_nulls_first: lc.last_seen_at)
+    end
+  end
 
-  defp sort_devices_by_latest_connection(query, {:desc, :connection_last_seen_at}),
-    do: order_by(query, [_d, _o, _p, _dp, lc], desc_nulls_last: lc.last_seen_at)
+  defp sort_devices(query, {:desc, :connection_last_seen_at}) do
+    if Ecto.Query.has_named_binding?(query, :latest_connection) do
+      order_by(query, [latest_connection: latest_connection],
+        desc_nulls_last: latest_connection.last_seen_at
+      )
+    else
+      order_by(query, [_d, _o, _p, _dp, lc], desc_nulls_last: lc.last_seen_at)
+    end
+  end
 
-  defp sort_devices_by_latest_connection(query, sort), do: order_by(query, [], ^sort)
+  defp sort_devices(query, sort), do: order_by(query, [], ^sort)
 
   def get_device_count_by_org_id(org_id) do
     q =
@@ -287,7 +309,9 @@ defmodule NervesHub.Devices do
   end
 
   defp join_and_preload(query, :latest_connection) do
-    preload(query, :latest_connection)
+    query
+    |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> preload([latest_connection: lc], latest_connection: lc)
   end
 
   @spec get_shared_secret_auth(String.t()) ::
@@ -641,13 +665,6 @@ defmodule NervesHub.Devices do
     |> where([dep, dev, f], f.id != dep.firmware_id)
     |> select([dep, dev, f], {f.id, dep.firmware_id})
     |> Repo.all()
-  end
-
-  def connected_count(product) do
-    Device
-    |> where(connection_status: :connected)
-    |> where(product_id: ^product.id)
-    |> Repo.aggregate(:count)
   end
 
   def update_firmware_metadata(device, nil) do

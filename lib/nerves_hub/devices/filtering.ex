@@ -43,7 +43,7 @@ defmodule NervesHub.Devices.Filtering do
       where(query, [d], d.status == :registered)
     else
       join(query, :inner, [d], dc in assoc(d, :latest_connection),
-        on: d.latest_connection_id == dc.id and dc.status == ^String.to_existing_atom(value)
+        on: d.latest_connection_id == dc.id and dc.status == ^value
       )
     end
   end

@@ -44,7 +44,7 @@ defmodule NervesHub.SeedHelpers do
     })
 
     device = Fixtures.device_fixture(org, product, firmwares |> elem(1))
-    # create device_connection.latest_connection
+    _ = Fixtures.device_connection_fixture(device)
   end
 
   def nerves_team_seed(root_user_params) do

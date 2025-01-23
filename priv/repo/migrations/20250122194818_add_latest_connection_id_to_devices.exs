@@ -3,7 +3,7 @@ defmodule NervesHub.Repo.Migrations.AddLatestConnectionIdToDevices do
 
   def change() do
     alter table(:devices) do
-      add(:latest_connection_id, references(:device_connections, type: :uuid))
+      add(:latest_connection_id, :binary_id)
     end
   end
 end

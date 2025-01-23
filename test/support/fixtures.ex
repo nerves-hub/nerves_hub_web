@@ -439,7 +439,7 @@ defmodule NervesHub.Fixtures do
     }
   end
 
-  def device_connection_fixture(%Devices.Device{} = device, params) do
+  def device_connection_fixture(%Devices.Device{} = device, params \\ %{}) do
     now = DateTime.utc_now()
 
     DeviceConnection.create_changeset(
