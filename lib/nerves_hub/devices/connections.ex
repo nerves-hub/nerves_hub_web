@@ -109,26 +109,30 @@ defmodule NervesHub.Devices.Connections do
 
   def delete_old_connections() do
     interval = Application.get_env(:nerves_hub, :device_connection_max_age_days)
+    delete_limit = Application.get_env(:nerves_hub, :device_connection_delete_limit)
     days_ago = DateTime.shift(DateTime.utc_now(), day: -interval)
 
-    query =
+    ids =
       DeviceConnection
       |> join(:inner, [dc], d in Device, on: dc.device_id == d.id)
       |> where([dc, _d], dc.last_seen_at < ^days_ago)
       |> where([dc, _d], dc.status != :connected)
       |> where([dc, d], dc.id != d.latest_connection_id)
-      |> select([dc, _d], dc.id)
+      |> select([dc], dc.id)
+      |> limit(^delete_limit)
+      |> Repo.all()
 
-    Repo.transaction(fn ->
-      query
-      |> Repo.stream(max_rows: 500)
-      |> Stream.chunk_every(500)
-      |> Stream.each(fn ids ->
-        DeviceConnection
-        |> where([dc], dc.id in ^ids)
-        |> Repo.delete_all()
-      end)
-      |> Stream.run()
-    end)
+    {delete_count, _} =
+      DeviceConnection
+      |> where([d], d.id in ^ids)
+      |> Repo.delete_all()
+
+    if delete_count == 0 do
+      :ok
+    else
+      # relax stress on Ecto pool and go again
+      Process.sleep(2000)
+      delete_old_connections()
+    end
   end
 end
