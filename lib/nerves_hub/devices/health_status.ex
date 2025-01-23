@@ -2,11 +2,13 @@ defmodule NervesHub.Devices.HealthStatus do
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.Device
 
+  @empty_report %{warning: [], unhealthy: []}
+
   @type health_status() ::
           :unknown
           | :healthy
-          | :warning
-          | :unhealthy
+          | {:warning, %{}}
+          | {:unhealthy, %{}}
 
   @default_thresholds %{
     "cpu_usage_percent" => %{unhealthy: 90, warning: 80},
@@ -20,13 +22,24 @@ defmodule NervesHub.Devices.HealthStatus do
   def latest_metrics_status(device) do
     device.id
     |> Metrics.get_latest_metric_set()
-    |> Enum.reduce_while(:unknown, fn metric, current_status ->
+    |> Enum.reduce({:unknown, @empty_report}, fn metric, {current_status, report} ->
+      {key, _value} = metric
+
       case metrics_status(metric) do
-        :unhealthy -> {:halt, :unhealthy}
-        :warning -> {:cont, :warning}
-        new_status -> {:cont, status(current_status, new_status)}
+        :unhealthy ->
+          {:unhealthy, Map.put(report, :unhealthy, [key | report.unhealthy])}
+
+        :warning ->
+          {status(current_status, :warning), Map.put(report, :warning, [key | report.warning])}
+
+        :healthy ->
+          {status(current_status, :healthy), report}
+
+        :unknown ->
+          {current_status, report}
       end
     end)
+    |> report_status()
   end
 
   defp metrics_status({key, value}) do
@@ -43,7 +56,12 @@ defmodule NervesHub.Devices.HealthStatus do
     end
   end
 
+  defp report_status({status, @empty_report}), do: status
+  defp report_status(status), do: status
+
+  defp status(:unhealthy, _), do: :unhealthy
   defp status(:warning, _new_status), do: :warning
+  defp status(_current_status, :warning), do: :warning
   defp status(_current_status, :healthy), do: :healthy
   defp status(current_status, _), do: current_status
 end

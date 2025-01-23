@@ -16,7 +16,7 @@ defmodule NervesHub.Devices.HealthStatusTest do
     {:ok, %{device: device, thresholds: HealthStatus.default_thresholds()}}
   end
 
-  describe "status based on latest metrics" do
+  describe "status with report, based on latest metrics" do
     test "device status is unknown - no metrics", %{device: device} do
       assert :unknown = HealthStatus.latest_metrics_status(device)
     end
@@ -41,6 +41,21 @@ defmodule NervesHub.Devices.HealthStatusTest do
       assert :healthy = HealthStatus.latest_metrics_status(device)
     end
 
+    test "device status is healthy - with unknown metrics", %{
+      device: device,
+      thresholds: thresholds
+    } do
+      metrics = %{
+        "cpu_usage_percent" => thresholds["cpu_usage_percent"].warning - 1,
+        "mem_used_percent" => thresholds["mem_used_percent"].warning - 2,
+        "disk_used_percentage" => thresholds["disk_used_percentage"].warning - 3,
+        "unknown" => 12
+      }
+
+      {:ok, _} = Metrics.save_metrics(device.id, metrics)
+      assert :healthy = HealthStatus.latest_metrics_status(device)
+    end
+
     test "device status is warning", %{device: device, thresholds: thresholds} do
       metrics = %{
         "cpu_usage_percent" => thresholds["cpu_usage_percent"].warning,
@@ -49,10 +64,44 @@ defmodule NervesHub.Devices.HealthStatusTest do
       }
 
       {:ok, _} = Metrics.save_metrics(device.id, metrics)
-      assert :warning = HealthStatus.latest_metrics_status(device)
+
+      assert {:warning, %{warning: ["cpu_usage_percent"], unhealthy: []}} =
+               HealthStatus.latest_metrics_status(device)
+    end
+
+    test "device status is warning - reports multiple warnings", %{
+      device: device,
+      thresholds: thresholds
+    } do
+      metrics = %{
+        "cpu_usage_percent" => thresholds["cpu_usage_percent"].warning,
+        "mem_used_percent" => thresholds["mem_used_percent"].warning,
+        "disk_used_percentage" => thresholds["disk_used_percentage"].warning - 1
+      }
+
+      {:ok, _} = Metrics.save_metrics(device.id, metrics)
+
+      assert {:warning, %{warning: ["mem_used_percent", "cpu_usage_percent"], unhealthy: []}} =
+               HealthStatus.latest_metrics_status(device)
     end
 
     test "device status is unhealthy", %{device: device, thresholds: thresholds} do
+      metrics = %{
+        "cpu_usage_percent" => thresholds["cpu_usage_percent"].warning - 1,
+        "mem_used_percent" => thresholds["mem_used_percent"].unhealthy,
+        "disk_used_percentage" => thresholds["disk_used_percentage"].warning - 1
+      }
+
+      {:ok, _} = Metrics.save_metrics(device.id, metrics)
+
+      assert {:unhealthy, %{warning: [], unhealthy: ["mem_used_percent"]}} =
+               HealthStatus.latest_metrics_status(device)
+    end
+
+    test "device status is unhealthy - also reports warnings", %{
+      device: device,
+      thresholds: thresholds
+    } do
       metrics = %{
         "cpu_usage_percent" => thresholds["cpu_usage_percent"].warning - 1,
         "mem_used_percent" => thresholds["mem_used_percent"].unhealthy,
@@ -60,7 +109,29 @@ defmodule NervesHub.Devices.HealthStatusTest do
       }
 
       {:ok, _} = Metrics.save_metrics(device.id, metrics)
-      assert :unhealthy = HealthStatus.latest_metrics_status(device)
+
+      assert {:unhealthy, %{warning: ["disk_used_percentage"], unhealthy: ["mem_used_percent"]}} =
+               HealthStatus.latest_metrics_status(device)
+    end
+
+    test "status is unhealthy - reports multiple unhealthy metrics", %{
+      device: device,
+      thresholds: thresholds
+    } do
+      metrics = %{
+        "cpu_usage_percent" => thresholds["cpu_usage_percent"].unhealthy,
+        "mem_used_percent" => thresholds["mem_used_percent"].unhealthy,
+        "disk_used_percentage" => thresholds["disk_used_percentage"].warning
+      }
+
+      {:ok, _} = Metrics.save_metrics(device.id, metrics)
+
+      assert {:unhealthy,
+              %{
+                warning: ["disk_used_percentage"],
+                unhealthy: ["mem_used_percent", "cpu_usage_percent"]
+              }} =
+               HealthStatus.latest_metrics_status(device)
     end
   end
 end
