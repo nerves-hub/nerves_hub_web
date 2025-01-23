@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
 
           <div class="flex p-6 gap-6">
             <div class="w-1/2 flex flex-col gap-6">
-              <NervesHubWeb.CoreComponents.input field={@form[:name]} label="Name" placeholder="Production" />
+              <.input field={@form[:name]} label="Name" placeholder="Production" />
             </div>
           </div>
         </div>
@@ -48,7 +48,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
 
           <div class="flex flex-col p-6 gap-6">
             <div class="w-1/2 flex flex-col gap-6">
-              <NervesHubWeb.CoreComponents.input
+              <.input
                 field={@form[:firmware_id]}
                 type="select"
                 options={firmware_dropdown_options(@firmwares)}
@@ -58,7 +58,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
             </div>
 
             <div class="w-1/2 flex flex-col gap-6">
-              <NervesHubWeb.CoreComponents.input
+              <.input
                 field={@form[:archive_id]}
                 type="select"
                 options={archive_dropdown_options(@archives)}
@@ -85,10 +85,10 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
               </p>
             </div>
             <div class="w-1/2">
-              <NervesHubWeb.CoreComponents.input field={@form[:tags]} value={tags_to_string(@form[:conditions])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+              <.input field={@form[:tags]} value={tags_to_string(@form[:conditions])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
             </div>
             <div class="w-1/2">
-              <NervesHubWeb.CoreComponents.input field={@form[:version]} value={@form[:conditions].value["version"]} label="Version requirement" placeholder="eg. 1.2.3" />
+              <.input field={@form[:version]} value={@form[:conditions].value["version"]} label="Version requirement" placeholder="eg. 1.2.3" />
             </div>
           </div>
         </div>
@@ -100,7 +100,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
 
           <div class="flex flex p-6 gap-6">
             <div class="w-1/2 flex flex-col gap-6">
-              <NervesHubWeb.CoreComponents.input
+              <.input
                 field={@form[:concurrent_updates]}
                 label="Concurrent Device Updates"
                 type="number"
@@ -109,7 +109,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
             </div>
 
             <div class="w-1/2 flex flex-col gap-6">
-              <NervesHubWeb.CoreComponents.input
+              <.input
                 field={@form[:inflight_update_expiration_minutes]}
                 label="Minutes Before Expiring Updates"
                 type="number"
@@ -123,7 +123,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
               <div class="w-1/2">
                 <div phx-feedback-for={@form[:failure_rate].name}>
                   <span class="flex items-end">
-                    <NervesHubWeb.CoreComponents.label for={@form[:failure_rate_amount].id}>Failure rate</NervesHubWeb.CoreComponents.label>
+                    <.core_label for={@form[:failure_rate_amount].id}>Failure rate</.core_label>
                   </span>
                   <div class="flex items-center gap-2">
                     <input
@@ -163,7 +163,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
               </div>
 
               <div class="w-1/2">
-                <NervesHubWeb.CoreComponents.input field={@form[:failure_threshold]} label="Failure threshold" type="number" hint={help_message_for(:failure_threshold)} />
+                <.input field={@form[:failure_threshold]} label="Failure threshold" type="number" hint={help_message_for(:failure_threshold)} />
               </div>
             </div>
 
@@ -171,7 +171,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
               <div class="w-1/2">
                 <div phx-feedback-for={@form[:device_failure_rate_amount].name}>
                   <span class="flex items-end">
-                    <NervesHubWeb.CoreComponents.label for={@form[:device_failure_rate_amount].id}>Device failure rate</NervesHubWeb.CoreComponents.label>
+                    <.core_label for={@form[:device_failure_rate_amount].id}>Device failure rate</.core_label>
                   </span>
                   <div class="flex items-center gap-2">
                     <input
@@ -204,22 +204,20 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
                   <div class="flex flex-col gap-1 text-xs text-zinc-400 pt-1">
                     Maximum number of device failures within X seconds a device can have for this deployment before being marked unhealthy
                   </div>
-                  <NervesHubWeb.CoreComponents.error :for={
-                    msg <- Enum.map(@form[:device_failure_rate_amount].errors ++ @form[:device_failure_rate_seconds].errors, &NervesHubWeb.CoreComponents.translate_error(&1))
-                  }>
+                  <.error :for={msg <- Enum.map(@form[:device_failure_rate_amount].errors ++ @form[:device_failure_rate_seconds].errors, &NervesHubWeb.CoreComponents.translate_error(&1))}>
                     {msg}
-                  </NervesHubWeb.CoreComponents.error>
+                  </.error>
                 </div>
               </div>
 
               <div class="w-1/2">
-                <NervesHubWeb.CoreComponents.input field={@form[:device_failure_threshold]} label="Device failure threshold" type="number" hint={help_message_for(:device_failure_threshold)} />
+                <.input field={@form[:device_failure_threshold]} label="Device failure threshold" type="number" hint={help_message_for(:device_failure_threshold)} />
               </div>
             </div>
 
             <div class="flex gap-6">
               <div class="w-1/2">
-                <NervesHubWeb.CoreComponents.input field={@form[:penalty_timeout_minutes]} label="Device penalty box timeout minutes" type="number" hint={help_message_for(:penalty_timeout_minutes)} />
+                <.input field={@form[:penalty_timeout_minutes]} label="Device penalty box timeout minutes" type="number" hint={help_message_for(:penalty_timeout_minutes)} />
               </div>
             </div>
           </div>
@@ -232,7 +230,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
 
           <div class="flex flex-col p-6 gap-6">
             <div class="w-2/3 flex flex-col gap-6">
-              <NervesHubWeb.CoreComponents.input field={@form[:connecting_code]} type="textarea" rows={8} label="Run this code when the device first connects to the console.">
+              <.input field={@form[:connecting_code]} type="textarea" rows={8} label="Run this code when the device first connects to the console.">
                 <:rich_hint>
                   <p>
                     Make sure this is valid Elixir and will not crash the device.
@@ -241,27 +239,16 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
                     This will run before device specific first connect code.
                   </p>
                 </:rich_hint>
-              </NervesHubWeb.CoreComponents.input>
+              </.input>
             </div>
           </div>
         </div>
 
         <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
-            <div>
-              <button class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600" type="submit">
-                <svg class="size-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M6.66671 16.6667H5.00004C4.07957 16.6667 3.33337 15.9205 3.33337 15V5.00004C3.33337 4.07957 4.07957 3.33337 5.00004 3.33337H12.643C13.085 3.33337 13.509 3.50897 13.8215 3.82153L16.1786 6.17855C16.4911 6.49111 16.6667 6.91504 16.6667 7.35706V15C16.6667 15.9205 15.9205 16.6667 15 16.6667H13.3334M6.66671 16.6667V12.5H13.3334V16.6667M6.66671 16.6667H13.3334M6.66671 6.66671V9.16671H9.16671V6.66671H6.66671Z"
-                    stroke="#A1A1AA"
-                    stroke-width="1.2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                <span class="text-sm font-medium text-zinc-300">Save changes</span>
-              </button>
-            </div>
+            <.button style="secondary" type="submit">
+              <.icon name="save" /> Save changes
+            </.button>
           </div>
         </div>
       </.form>

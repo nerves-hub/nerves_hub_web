@@ -33,17 +33,9 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <.link class="flex px-3 py-1.5 gap-2 rounded border border-base-600 bg-zinc-800" href={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@firmware.uuid}/download"} download>
-        <svg class="size-5 stroke-zinc-400" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path
-            d="M18 21L15 18M18 21L21 18M18 21V15M20 9V8.82843C20 8.29799 19.7893 7.78929 19.4142 7.41421L15.5858 3.58579C15.2107 3.21071 14.702 3 14.1716 3H14M20 9H16C14.8954 9 14 8.10457 14 7V3M20 9V11M14 3H6C4.89543 3 4 3.89543 4 5V19C4 20.1046 4.89543 21 6 21H12"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-        <span class="text-sm font-medium text-zinc-300">Download</span>
-      </.link>
+      <.button type="link" href={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@firmware.uuid}/download"} download>
+        <.icon name="download" />Download
+      </.button>
 
       <button
         class="box-content h-5 py-1.5 px-3 flex gap-2 justify-center items-center rounded border border-red-500 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"

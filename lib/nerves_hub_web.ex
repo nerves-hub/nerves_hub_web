@@ -85,6 +85,9 @@ defmodule NervesHubWeb do
 
       import NervesHubWeb.Helpers.Authorization
 
+      import NervesHubWeb.Components.Icons
+      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
+
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
 
@@ -136,6 +139,9 @@ defmodule NervesHubWeb do
       use Phoenix.LiveComponent
 
       import NervesHubWeb.Helpers.Authorization
+
+      import NervesHubWeb.Components.Icons
+      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
 
       def ok(socket), do: {:ok, socket}
 

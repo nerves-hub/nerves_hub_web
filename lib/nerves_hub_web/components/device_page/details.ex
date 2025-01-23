@@ -294,7 +294,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
             </button>
           </div>
           <div :if={@device.status == :registered && @device.deployment_id} class="flex pt-2 px-4 pb-6 gap-4 items-center">
-            <span class="text-sm text-nerves-gray-500">Note: Device will be removed from the deployment upon connection if the aarch and platform doesn't match.</span>
+            <span class="text-sm text-nerves-gray-500">Please note: The device will be removed from the deployment upon connection if the aarch and platform don't match.</span>
           </div>
 
           <div :if={is_nil(@device.deployment) && Enum.any?(@deployments)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
@@ -308,13 +308,9 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
                   <option :for={deployment <- @deployments} value={deployment.id}>{deployment.name} - ({deployment.firmware.platform}, {deployment.firmware.architecture})</option>
                 </select>
               </div>
-              <button
-                class="box-content h-5 py-1.5 px-3 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
-                aria-label="Add to deployment"
-                data-confirm="Are you sure you want to add the device to the deployment?"
-              >
+              <.button type="submit" aria-label="Add to deployment" data-confirm="Are you sure you want to add the device to the deployment?">
                 Add to deployment
-              </button>
+              </.button>
             </form>
             <div>
               <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -335,16 +331,15 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               <span class="text-sm text-nerves-gray-500">An update is available in the assigned deployment.</span>
             </div>
 
-            <button
+            <.button
               phx-target={@myself}
               phx-submit="push-available-update"
-              class="box-content h-5 py-1.5 px-3 mr-9 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
               aria-label="Send available update"
-              data-confirm="Are you sure?"
+              data-confirm="Are you sure you want to skip the queue?"
               disabled={disconnected?(@device_connection)}
             >
               Skip the queue
-            </button>
+            </.button>
           </div>
 
           <div class="flex p-4 gap-4 items-center border-t border-zinc-700">
@@ -359,14 +354,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
                   <option :for={firmware <- @firmwares} value={firmware.uuid}>{firmware.version}</option>
                 </select>
               </div>
-              <button
-                class="box-content h-5 py-1.5 px-3 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
-                disabled={disconnected?(@device_connection)}
-                aria-label="Send firmware update"
-                data-confirm="Are you sure?"
-              >
+
+              <.button type="submit" disabled={disconnected?(@device_connection)} aria-label="Send firmware update" data-confirm="Are you sure you want to send this firmware to the device?">
                 Send update
-              </button>
+              </.button>
             </form>
             <div>
               <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -434,9 +425,9 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           </div>
 
           <div class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts"} class="box-content h-5 py-1.5 px-3 rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300">
-              Add a support script
-            </.link>
+            <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} aria-label="Add a support script">
+              <.icon name="add" />Add a support script
+            </.button>
           </div>
         </div>
       </div>

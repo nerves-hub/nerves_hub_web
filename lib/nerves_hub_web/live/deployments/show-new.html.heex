@@ -10,25 +10,15 @@
     <span class="text-zinc-50 font-semibold">{@deployment.name}</span>
   </div>
   <div class="flex items-center gap-2 ml-auto mr-6">
-    <button
+    <.button
       :if={authorized?(:"deployment:toggle", @org_user)}
-      class="box-content h-5 py-1.5 px-3 flex gap-2 justify-center items-center rounded border border-base-600 bg-zinc-800 text-sm font-medium text-zinc-300 disabled:text-zinc-500"
-      aria-label={(@deployment.is_active && "Pause deployment") || "Resume deployment"}
+      aria-label={"#{(@deployment.is_active && "Pause") || "Resume"} deployment"}
       type="button"
       phx-click="toggle"
-      data-confirm="Are you sure?"
+      data-confirm={"Are you sure you want to #{(@deployment.is_active && "pause") || "resume"} the deployment?"}
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path
-          d="M14.4097 4.99992C15.7938 6.22149 16.6667 8.00876 16.6667 9.99992C16.6667 13.6818 13.6819 16.6666 10 16.6666C6.31814 16.6666 3.33337 13.6818 3.33337 9.99992C3.33337 8.00876 4.2063 6.22149 5.59033 4.99992M10 9.99992V3.33325"
-          stroke="#A1A1AA"
-          stroke-width="1.2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-      <span class="text-sm font-medium">{(@deployment.is_active && "Pause") || "Resume"}</span>
-    </button>
+      <.icon name="power" />{(@deployment.is_active && "Pause") || "Resume"}
+    </.button>
   </div>
   <div class="h-full border-l flex items-center justify-center border-base-700 bg-base-900">
     <a :if={Application.get_env(:nerves_hub, :new_ui)} href={"/ui/switch?return_to=#{@current_path}"} class="">
@@ -45,8 +35,6 @@
 </div>
 
 <div class="h-0 flex-1 overflow-y-auto flex flex-col">
-  <%!-- <FwupProgress.updated_render :if={@fwup_progress} fwup_progress={@fwup_progress} /> --%>
-
   <div class="h-[90px] shrink-0 flex justify-between p-6">
     <div class="flex gap-3 items-center">
       <svg class={["size-3", (@deployment.is_active && "fill-emerald-500") || "fill-zinc-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
@@ -119,6 +107,4 @@
   <.live_component :if={@tab == :activity} module={ActivityTab} id="deployment_activity" deployment={@deployment} org={@org} product={@product} user={@user} />
 
   <.live_component :if={@tab == :settings} module={SettingsTab} id="deployment_settings" deployment={@deployment} org={@org} product={@product} user={@user} org_user={@org_user} />
-  <%!--
-  <.live_component :if={@tab == :settings} module={SettingsPage} id="device_settings" device={@device} org={@org} product={@product} user={@user} org_user={@org_user} /> --%>
 </div>
