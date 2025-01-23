@@ -55,8 +55,6 @@ defmodule NervesHubWeb.DynamicTemplateRenderer do
 
     case new_templates do
       [new_template] ->
-        Logger.info("Found New UI page: #{new_template}")
-
         new_ext =
           new_template |> Path.extname() |> String.trim_leading(".") |> String.to_atom()
 
