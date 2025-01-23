@@ -26,10 +26,6 @@ defmodule NervesHub.Devices.Device do
     :updates_blocked_until,
     :connecting_code,
     :deployment_id,
-    :connection_status,
-    :connection_established_at,
-    :connection_disconnected_at,
-    :connection_last_seen_at,
     :connection_types,
     :connection_metadata,
     :status,
@@ -41,6 +37,7 @@ defmodule NervesHub.Devices.Device do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:deployment, Deployment)
+    belongs_to(:latest_connection, DeviceConnection, type: :binary_id)
     embeds_one(:firmware_metadata, FirmwareMetadata, on_replace: :update)
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)
@@ -67,15 +64,15 @@ defmodule NervesHub.Devices.Device do
 
     timestamps()
 
-    # Deprecated fields, replaced with device_connections table.
-    field(:connection_status, Ecto.Enum,
-      values: [:connected, :disconnected, :not_seen],
-      default: :not_seen
-    )
-
-    field(:connection_established_at, :utc_datetime)
-    field(:connection_disconnected_at, :utc_datetime)
-    field(:connection_last_seen_at, :utc_datetime)
+    # Deprecated fields, remove these any time after 29/1/2025.
+    # Also remove index from NervesHub.Repo.Migrations.AddConnectionStatusIndexToDevices.
+    # field(:connection_status, Ecto.Enum,
+    #   values: [:connected, :disconnected, :not_seen],
+    #   default: :not_seen
+    # )
+    # field(:connection_established_at, :utc_datetime)
+    # field(:connection_disconnected_at, :utc_datetime)
+    # field(:connection_last_seen_at, :utc_datetime)
     embeds_one(:extensions, DeviceExtensionsSetting, on_replace: :update)
   end
 

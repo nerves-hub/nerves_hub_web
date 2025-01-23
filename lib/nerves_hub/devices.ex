@@ -13,7 +13,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
-  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceHealth
@@ -36,13 +35,6 @@ defmodule NervesHub.Devices do
     Repo.get(Device, device_id)
   end
 
-  def get_device(device_id, :preload_latest_connection) when is_integer(device_id) do
-    Device
-    |> where(id: ^device_id)
-    |> Connections.preload_latest_connection()
-    |> Repo.one()
-  end
-
   def get_active_device(filters) do
     Device
     |> Repo.exclude_deleted()
@@ -57,15 +49,6 @@ defmodule NervesHub.Devices do
     Device
     |> where([d], d.org_id == ^org_id)
     |> where([d], d.product_id == ^product_id)
-    |> Repo.exclude_deleted()
-    |> Repo.all()
-  end
-
-  def get_devices_by_org_id_and_product_id(org_id, product_id, :preload_latest_connection) do
-    Device
-    |> where([d], d.org_id == ^org_id)
-    |> where([d], d.product_id == ^product_id)
-    |> Connections.preload_latest_connection()
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
@@ -89,11 +72,16 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o], p in assoc(d, :product))
     |> join(:left, [d, o, p], dp in assoc(d, :deployment))
     |> join(:left, [d, o, p, dp], f in assoc(dp, :firmware))
+    |> join(:left, [d, o, p, dp, f], lc in assoc(d, :latest_connection), as: :latest_connection)
     |> Repo.exclude_deleted()
-    |> order_by(^sort_devices(sorting))
+    |> sort_devices(sorting)
     |> Filtering.build_filters(filters)
-    |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
-    |> Connections.preload_latest_connection()
+    |> preload([d, o, p, dp, f, latest_connection: lc],
+      org: o,
+      product: p,
+      deployment: {dp, firmware: f},
+      latest_connection: lc
+    )
     |> Flop.run(flop)
   end
 
@@ -126,10 +114,11 @@ defmodule NervesHub.Devices do
 
     Device
     |> where([d], d.product_id == ^product_id)
-    |> Connections.preload_latest_connection()
     |> Repo.exclude_deleted()
+    |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> preload([latest_connection: lc], latest_connection: lc)
     |> Filtering.build_filters(filters)
-    |> order_by(^sort_devices(sorting))
+    |> sort_devices(sorting)
     |> Flop.run(flop)
     |> then(fn {entries, meta} ->
       meta
@@ -145,6 +134,7 @@ defmodule NervesHub.Devices do
 
   def get_minimal_device_location_by_org_id_and_product_id(org_id, product_id) do
     Device
+    |> join(:inner, [d], dc in DeviceConnection, on: d.latest_connection_id == dc.id)
     |> where(org_id: ^org_id)
     |> where(product_id: ^product_id)
     |> where([d], not is_nil(fragment("?->'location'->'latitude'", d.connection_metadata)))
@@ -152,7 +142,7 @@ defmodule NervesHub.Devices do
     |> select([d, dc], %{
       id: d.id,
       identifier: d.identifier,
-      connection_status: d.connection_status,
+      connection_status: dc.connection_status,
       latitude: fragment("?->'location'->'latitude'", d.connection_metadata),
       longitude: fragment("?->'location'->'longitude'", d.connection_metadata),
       firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)
@@ -204,13 +194,19 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  defp sort_devices({:asc, :connection_last_seen_at}),
-    do: {:asc_nulls_first, :connection_last_seen_at}
+  defp sort_devices(query, {:asc, :connection_last_seen_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      desc_nulls_last: latest_connection.last_seen_at
+    )
+  end
 
-  defp sort_devices({:desc, :connection_last_seen_at}),
-    do: {:desc_nulls_last, :connection_last_seen_at}
+  defp sort_devices(query, {:desc, :connection_last_seen_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      asc_nulls_first: latest_connection.last_seen_at
+    )
+  end
 
-  defp sort_devices(sort), do: sort
+  defp sort_devices(query, sort), do: order_by(query, [], ^sort)
 
   def get_device_count_by_org_id(org_id) do
     q =
@@ -299,7 +295,8 @@ defmodule NervesHub.Devices do
 
   defp join_and_preload(query, :latest_connection) do
     query
-    |> Connections.preload_latest_connection()
+    |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> preload([latest_connection: lc], latest_connection: lc)
   end
 
   @spec get_shared_secret_auth(String.t()) ::
@@ -653,28 +650,6 @@ defmodule NervesHub.Devices do
     |> where([dep, dev, f], f.id != dep.firmware_id)
     |> select([dep, dev, f], {f.id, dep.firmware_id})
     |> Repo.all()
-  end
-
-  def clean_connection_states() do
-    interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
-    a_minute_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + 1))
-
-    Device
-    |> where(connection_status: :connected)
-    |> where([d], d.connection_last_seen_at < ^a_minute_ago)
-    |> Repo.update_all(
-      set: [
-        connection_status: :disconnected,
-        connection_disconnected_at: DateTime.utc_now()
-      ]
-    )
-  end
-
-  def connected_count(product) do
-    Device
-    |> where(connection_status: :connected)
-    |> where(product_id: ^product.id)
-    |> Repo.aggregate(:count)
   end
 
   def update_firmware_metadata(device, nil) do

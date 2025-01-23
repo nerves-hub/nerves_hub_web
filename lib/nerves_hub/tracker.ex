@@ -4,6 +4,7 @@ defmodule NervesHub.Tracker do
   """
 
   alias NervesHub.Devices.Device
+  alias NervesHub.Repo
 
   def online(%{} = device) do
     online(device.identifier)
@@ -69,7 +70,10 @@ defmodule NervesHub.Tracker do
   Returns `true` if device's latest connections has a status of `:connected`,
   otherwise `false`.
   """
-  def online?(%{device_connections: [%{status: :connected}]}), do: true
+  def online?(%{latest_connection: %Ecto.Association.NotLoaded{}} = device),
+    do: online?(Repo.preload(device, :latest_connection))
+
+  def online?(%{latest_connection: %{status: :connected}}), do: true
   def online?(_), do: false
 
   @doc """

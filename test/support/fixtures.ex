@@ -9,6 +9,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Certificate
   alias NervesHub.Deployments
   alias NervesHub.Devices
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Firmwares
   alias NervesHub.Products
@@ -436,6 +437,23 @@ defmodule NervesHub.Fixtures do
       deployment: deployment,
       product: product
     }
+  end
+
+  def device_connection_fixture(%Devices.Device{} = device, params \\ %{}) do
+    now = DateTime.utc_now()
+
+    DeviceConnection.create_changeset(
+      Map.merge(
+        %{
+          device_id: device.id,
+          established_at: now,
+          last_seen_at: now,
+          status: :connected
+        },
+        params
+      )
+    )
+    |> Repo.insert!()
   end
 
   defp counter() do

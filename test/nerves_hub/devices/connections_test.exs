@@ -1,7 +1,6 @@
-defmodule NervesHub.DeviceConnectionsTest do
+defmodule NervesHub.Devices.ConnectionsTest do
   use NervesHub.DataCase, async: true
 
-  alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Fixtures
@@ -55,12 +54,43 @@ defmodule NervesHub.DeviceConnectionsTest do
     assert %DeviceConnection{status: :disconnected} = Connections.get_latest_for_device(device.id)
   end
 
-  test "get device with latest connection preloaded", %{device: device} do
-    assert {:ok, %DeviceConnection{}} = Connections.device_connected(device.id)
+  test "deleting old device_connections", %{device: device} do
+    {:ok, _} = Connections.device_connected(device.id)
+    two_weeks_ago = DateTime.utc_now() |> DateTime.add(-14, :day)
 
-    %{device_connections: [connection]} =
-      Devices.get_device(device.id, :preload_latest_connection)
+    deleted_device_connection =
+      Fixtures.device_connection_fixture(device, %{
+        status: :disconnected,
+        last_seen_at: two_weeks_ago
+      })
 
-    assert connection.status == :connected
+    _ = Connections.delete_old_connections()
+
+    refute Repo.reload(deleted_device_connection)
+
+    assert device
+           |> Repo.reload()
+           |> Repo.preload(:latest_connection)
+           |> Map.get(:latest_connection)
+  end
+
+  test "deleting old device_connections never deletes a devices's last device_connection", %{
+    device: device
+  } do
+    {:ok, _} = Connections.device_connected(device.id)
+
+    %{latest_connection: latest_connection} =
+      device |> Repo.reload() |> Repo.preload(:latest_connection)
+
+    two_weeks_ago = DateTime.utc_now() |> DateTime.add(-14, :day)
+
+    latest_connection
+    |> Ecto.Changeset.change(%{last_seen_at: two_weeks_ago})
+    |> Repo.update!()
+
+    _ = Connections.delete_old_connections()
+
+    assert Repo.reload(latest_connection)
+    assert Repo.reload(device) |> Map.get(:latest_connection_id)
   end
 end

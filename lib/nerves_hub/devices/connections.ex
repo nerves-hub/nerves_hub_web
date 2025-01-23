@@ -32,15 +32,6 @@ defmodule NervesHub.Devices.Connections do
   end
 
   @doc """
-  Preload latest respective connection in a device query.
-  """
-  @spec preload_latest_connection(Ecto.Query.t()) :: Ecto.Query.t()
-  def preload_latest_connection(query) do
-    query
-    |> preload(device_connections: ^distinct_on_device())
-  end
-
-  @doc """
   Creates a device connection, reported from device socket
   """
   @spec device_connected(non_neg_integer()) ::
@@ -48,14 +39,25 @@ defmodule NervesHub.Devices.Connections do
   def device_connected(device_id) do
     now = DateTime.utc_now()
 
-    %{
-      device_id: device_id,
-      established_at: now,
-      last_seen_at: now,
-      status: :connected
-    }
-    |> DeviceConnection.create_changeset()
-    |> Repo.insert()
+    changeset =
+      DeviceConnection.create_changeset(%{
+        device_id: device_id,
+        established_at: now,
+        last_seen_at: now,
+        status: :connected
+      })
+
+    case Repo.insert(changeset) do
+      {:ok, device_connection} ->
+        Device
+        |> where(id: ^device_id)
+        |> Repo.update_all(set: [latest_connection_id: device_connection.id])
+
+        {:ok, device_connection}
+
+      {:error, _} = error ->
+        error
+    end
   end
 
   @doc """
@@ -89,46 +91,6 @@ defmodule NervesHub.Devices.Connections do
     |> Repo.update()
   end
 
-  @doc """
-  Selects devices id's which has provided status in it's latest connection record.
-  """
-  @spec query_devices_with_connection_status(String.t()) :: Ecto.Query.t()
-  def query_devices_with_connection_status(status) do
-    (lr in subquery(latest_row_query()))
-    |> from()
-    |> where([lr], lr.rn == 1)
-    |> where(
-      [lr],
-      lr.status == ^String.to_existing_atom(status)
-    )
-    |> join(:inner, [lr], d in Device, on: lr.device_id == d.id)
-    |> select([lr, d], d.id)
-  end
-
-  @doc """
-  Generates a query to retrieve the most recent `DeviceConnection` for devices.
-  The query includes the row number (`rn`)
-  for each record, which is used to identify the most recent connection.
-
-  Returns an Ecto query.
-  """
-  @spec latest_row_query() :: Ecto.Query.t()
-  def latest_row_query() do
-    DeviceConnection
-    |> select([dc], %{
-      device_id: dc.device_id,
-      status: dc.status,
-      last_seen_at: dc.last_seen_at,
-      rn: row_number() |> over(partition_by: dc.device_id, order_by: [desc: dc.last_seen_at])
-    })
-  end
-
-  defp distinct_on_device() do
-    DeviceConnection
-    |> distinct(:device_id)
-    |> order_by([:device_id, desc: :last_seen_at])
-  end
-
   def clean_stale_connections() do
     interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
     a_minute_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + 1))
@@ -143,5 +105,33 @@ defmodule NervesHub.Devices.Connections do
         disconnected_reason: "Stale connection"
       ]
     )
+  end
+
+  def delete_old_connections() do
+    interval = Application.get_env(:nerves_hub, :device_connection_max_age_days)
+    delete_limit = Application.get_env(:nerves_hub, :device_connection_delete_limit)
+    days_ago = DateTime.shift(DateTime.utc_now(), day: -interval)
+
+    query =
+      DeviceConnection
+      |> join(:inner, [dc], d in Device, on: dc.device_id == d.id)
+      |> where([dc, _d], dc.last_seen_at < ^days_ago)
+      |> where([dc, _d], dc.status != :connected)
+      |> where([dc, d], dc.id != d.latest_connection_id)
+      |> select([dc], dc.id)
+      |> limit(^delete_limit)
+
+    {delete_count, _} =
+      DeviceConnection
+      |> where([d], d.id in subquery(query))
+      |> Repo.delete_all()
+
+    if delete_count == 0 do
+      :ok
+    else
+      # relax stress on Ecto pool and go again
+      Process.sleep(2000)
+      delete_old_connections()
+    end
   end
 end

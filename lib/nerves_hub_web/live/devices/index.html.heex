@@ -321,7 +321,7 @@
             <%= if @device_statuses[device.identifier] == "online" do %>
               <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
             <% else %>
-              <span title={last_seen_at_status(device.device_connections)}>
+              <span title={last_seen_at_status(device.latest_connection)}>
                 <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
               </span>
             <% end %>
@@ -366,8 +366,8 @@
 
         <td>
           <div class="mobile-label help-text">Seen</div>
-          <div :if={device.device_connections != []} title={last_seen_at(device.device_connections)}>
-            {last_seen_at(device.device_connections)}
+          <div :if={device.latest_connection} title={last_seen_at(device.latest_connection)}>
+            {last_seen_at(device.latest_connection)}
           </div>
         </td>
 
