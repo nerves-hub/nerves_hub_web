@@ -115,7 +115,7 @@
             <th phx-click="sort" phx-value-sort="tags" class="cursor-pointer">
               <Sorting.sort_icon text="Tags" field="tags" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
-            <th></th>
+            <%!-- <th></th> --%>
           </tr>
         </thead>
         <tbody>
@@ -237,7 +237,7 @@
               </div>
             </td>
 
-            <td class="actions">
+            <%!-- <td class="actions">
               <div class="">
                 <a class="" data-target="#" id={"actions-#{device.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" phx-click={show_menu("actions-menu-#{device.id}")}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -274,7 +274,7 @@
                   <% end %>
                 </div>
               </div>
-            </td>
+            </td> --%>
           </tr>
         </tbody>
       </table>
