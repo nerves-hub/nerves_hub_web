@@ -72,11 +72,11 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o], p in assoc(d, :product))
     |> join(:left, [d, o, p], dp in assoc(d, :deployment))
     |> join(:left, [d, o, p, dp], f in assoc(dp, :firmware))
-    |> join(:left, [d, o, p, dp, f], lc in assoc(d, :latest_connection))
+    |> join(:left, [d, o, p, dp, f], lc in assoc(d, :latest_connection), as: :latest_connection)
     |> Repo.exclude_deleted()
     |> sort_devices(sorting)
     |> Filtering.build_filters(filters)
-    |> preload([d, o, p, dp, f, lc],
+    |> preload([d, o, p, dp, f, latest_connection: lc],
       org: o,
       product: p,
       deployment: {dp, firmware: f},
@@ -114,14 +114,10 @@ defmodule NervesHub.Devices do
 
     Device
     |> where([d], d.product_id == ^product_id)
-    |> preload(:latest_connection)
     |> Repo.exclude_deleted()
-    |> Filtering.build_filters(filters)
-    # This join needs to come _after_ the above call to Filtering.build_filters/1. The Filtering
-    # module uses positional bindings and expects callers to not past the initial `[d]` binding
-    # for Device. This is a great callout to move to named bindings as a default. Check
-    # `sort_devices/2` for additional info.
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> preload([latest_connection: lc], latest_connection: lc)
+    |> Filtering.build_filters(filters)
     |> sort_devices(sorting)
     |> Flop.run(flop)
     |> then(fn {entries, meta} ->
@@ -198,27 +194,16 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  # Handle if the query being passed in as positional or named bindings. This is a core issue
-  # with the Filtering module, which needs to be flexible enough to handle joins that are
-  # passed to it. See the comment in __MODULE__.filter/1 for more.
   defp sort_devices(query, {:asc, :connection_last_seen_at}) do
-    if Ecto.Query.has_named_binding?(query, :latest_connection) do
-      order_by(query, [latest_connection: latest_connection],
-        asc_nulls_first: latest_connection.last_seen_at
-      )
-    else
-      order_by(query, [_d, _o, _p, _dp, lc], asc_nulls_first: lc.last_seen_at)
-    end
+    order_by(query, [latest_connection: latest_connection],
+      desc_nulls_last: latest_connection.last_seen_at
+    )
   end
 
   defp sort_devices(query, {:desc, :connection_last_seen_at}) do
-    if Ecto.Query.has_named_binding?(query, :latest_connection) do
-      order_by(query, [latest_connection: latest_connection],
-        desc_nulls_last: latest_connection.last_seen_at
-      )
-    else
-      order_by(query, [_d, _o, _p, _dp, lc], desc_nulls_last: lc.last_seen_at)
-    end
+    order_by(query, [latest_connection: latest_connection],
+      asc_nulls_first: latest_connection.last_seen_at
+    )
   end
 
   defp sort_devices(query, sort), do: order_by(query, [], ^sort)

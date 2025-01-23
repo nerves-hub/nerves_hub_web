@@ -42,9 +42,7 @@ defmodule NervesHub.Devices.Filtering do
     if value == "not_seen" do
       where(query, [d], d.status == :registered)
     else
-      join(query, :inner, [d], dc in assoc(d, :latest_connection),
-        on: d.latest_connection_id == dc.id and dc.status == ^value
-      )
+      where(query, [latest_connection: lc], lc.status == ^value)
     end
   end
 
@@ -127,9 +125,9 @@ defmodule NervesHub.Devices.Filtering do
     {value_as_float, _} = Float.parse(value)
 
     query
-    |> join(:inner, [d], m in DeviceMetric, on: d.id == m.device_id)
-    |> where([_, m], m.inserted_at == subquery(latest_metric_for_key(key)))
-    |> where([d, m], m.key == ^key)
+    |> join(:inner, [d], m in DeviceMetric, on: d.id == m.device_id, as: :device_metric)
+    |> where([device_metric: dm], dm.inserted_at == subquery(latest_metric_for_key(key)))
+    |> where([device_metric: dm], dm.key == ^key)
     |> gt_or_lt(value_as_float, operator)
   end
 
@@ -141,6 +139,6 @@ defmodule NervesHub.Devices.Filtering do
     |> where([dm], dm.key == ^key)
   end
 
-  defp gt_or_lt(query, value, "gt"), do: where(query, [_, dm], dm.value > ^value)
-  defp gt_or_lt(query, value, "lt"), do: where(query, [_, dm], dm.value < ^value)
+  defp gt_or_lt(query, value, "gt"), do: where(query, [device_metric: dm], dm.value > ^value)
+  defp gt_or_lt(query, value, "lt"), do: where(query, [device_metric: dm], dm.value < ^value)
 end
