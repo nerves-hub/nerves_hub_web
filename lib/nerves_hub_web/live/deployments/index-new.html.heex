@@ -58,14 +58,15 @@
         <tbody>
           <tr :for={deployment <- @entries} class={["border-b border-zinc-800"]}>
             <td>
-              <div class="flex gap-[8px] items-center">
-                <svg class={["size-1.5", (deployment.is_active && "fill-emerald-500") || "fill-zinc-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
-                  <circle cx="3" cy="3" r="3" />
-                </svg>
-                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{deployment.name}"}>
+              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{deployment.name}"}>
+                <div class="h-[40px] w-full flex gap-[8px] items-center">
+                  <svg class={["size-1.5", (deployment.is_active && "fill-emerald-500") || "fill-zinc-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
+                    <circle cx="3" cy="3" r="3" />
+                  </svg>
+
                   {deployment.name}
-                </.link>
-              </div>
+                </div>
+              </.link>
             </td>
 
             <td>
