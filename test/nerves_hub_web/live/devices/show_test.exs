@@ -540,10 +540,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn: conn,
       org: org,
       product: product,
-      device: device
+      device: device,
+      user: user
     } do
-      {:ok, _command} =
-        NervesHub.Scripts.create(product, %{name: "MOTD", text: "NervesMOTD.print()"})
+      {:ok, _script} =
+        NervesHub.Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")

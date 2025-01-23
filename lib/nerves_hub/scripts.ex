@@ -1,6 +1,10 @@
 defmodule NervesHub.Scripts do
   import Ecto.Query
 
+  alias Ecto.Changeset
+  alias NervesHub.Accounts.User
+  alias NervesHub.AuditLogs.ProductTemplates
+  alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Scripts.Script
 
@@ -52,16 +56,37 @@ defmodule NervesHub.Scripts do
     end
   end
 
-  def create(product, params) do
+  @spec create(Product.t(), User.t(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
+  def create(product, user, params) do
     product
     |> Ecto.build_assoc(:scripts)
     |> Script.changeset(params)
     |> Repo.insert()
+    |> case do
+      {:ok, script} ->
+        ProductTemplates.audit_script_created(user, product, script)
+        {:ok, script}
+
+      err ->
+        err
+    end
   end
 
-  def update(command, params) do
-    command
+  @spec update(Script.t(), User.t(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
+  def update(script, user, params) do
+    script
     |> Script.changeset(params)
     |> Repo.update()
+    |> case do
+      {:ok, script} ->
+        product = Products.get_product!(script.product_id)
+
+        ProductTemplates.audit_script_updated(user, product, script)
+
+        {:ok, script}
+
+      err ->
+        err
+    end
   end
 end
