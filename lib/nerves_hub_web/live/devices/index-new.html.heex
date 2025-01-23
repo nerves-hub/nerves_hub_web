@@ -151,7 +151,7 @@
                 <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class={"ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
                   {device.identifier}
                 </.link>
-                <span :if={@progress[device.id]} class="flex items-center gap-1 ml-2 pl-2.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800">
+                <span class={["flex items-center gap-1 ml-2 pl-2.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800", !@progress[device.id] && "invisible"]}>
                   <span class="text-xs text-zinc-300 tracking-tight">updating</span>
                 </span>
               </div>
