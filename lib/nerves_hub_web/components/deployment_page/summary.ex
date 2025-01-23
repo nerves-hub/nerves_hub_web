@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Summary do
             <div class="animate-pulse bg-progress-glow w-full h-16" />
           </div>
 
-          <div class="flex items-center justify-center mt-1 py-2 px-2 bg-base-900/20 text-sm font-medium">
+          <div class="flex items-center justify-center my-1 py-2 px-2 bg-base-900/20 text-sm font-medium">
             {deployment_percentage(@up_to_date_count, @deployment)}% of devices updated - {@waiting_for_update_count} device(s) waiting to be updated
           </div>
         </div>
