@@ -112,7 +112,7 @@ defmodule NervesHub.Devices.Connections do
     delete_limit = Application.get_env(:nerves_hub, :device_connection_delete_limit)
     days_ago = DateTime.shift(DateTime.utc_now(), day: -interval)
 
-    ids =
+    query =
       DeviceConnection
       |> join(:inner, [dc], d in Device, on: dc.device_id == d.id)
       |> where([dc, _d], dc.last_seen_at < ^days_ago)
@@ -120,11 +120,10 @@ defmodule NervesHub.Devices.Connections do
       |> where([dc, d], dc.id != d.latest_connection_id)
       |> select([dc], dc.id)
       |> limit(^delete_limit)
-      |> Repo.all()
 
     {delete_count, _} =
       DeviceConnection
-      |> where([d], d.id in ^ids)
+      |> where([d], d.id in subquery(query))
       |> Repo.delete_all()
 
     if delete_count == 0 do
