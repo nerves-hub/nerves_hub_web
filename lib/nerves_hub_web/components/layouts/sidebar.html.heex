@@ -45,12 +45,12 @@
       </div>
       <div :if={assigns[:org]} id="product-picker" class="hidden">
         <div :for={org <- @user.orgs} class="p-4">
-          <div class="flex items-center gap-[12px]">
+          <.link navigate={~p"/org/#{org.name}"} class="flex items-center gap-[12px]">
             <div class="org-avatar">
               {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
             </div>
             <h3 class="subtitle ">{org.name}</h3>
-          </div>
+          </.link>
           <div :for={product <- org.products} class="my-4">
             <.link navigate={~p"/org/#{org.name}/#{product.name}/devices"} class="product-picker-product">
               {product.name}
