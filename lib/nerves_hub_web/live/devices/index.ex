@@ -682,10 +682,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp progress_style(progress) do
     """
-     background-repeat: no-repeat, no-repeat;
-     background-image: linear-gradient(90deg, rgba(16, 185, 129, 1.00) 0%, rgba(16, 185, 129, 1.0) 100%),
-                       radial-gradient(ellipse 80% 80% at 50% -10%, rgba(16, 185, 129, 0.3) 0, rgba(16, 185, 129, 0.0) 80%);
-     background-size: #{progress}% 1px, #{progress}% 100%;
+     background-repeat: no-repeat;
+     background-image: radial-gradient(circle at 0%, rgba(16, 185, 129, 0.12) 0, rgba(16, 185, 129, 0.12) 60%, rgba(16, 185, 129, 0.0) 100%);
+     background-size: #{progress * 1.1}% 100%;
     """
   end
 end
