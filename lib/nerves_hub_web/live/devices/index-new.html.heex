@@ -282,130 +282,121 @@
   <% end %>
 </div>
 
-<div class={["relative", @show_filters && "z-50", !@show_filters && "-z-10"]} aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
-  <!-- Background backdrop, show/hide based on slide-over state. -->
-  <div class={["fixed inset-0", !@show_filters && "invisable"]}></div>
+<div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 mb-[119px] sm:pl-16 z-50">
+  <div class={[
+    "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-y border-l border-zinc-700 bg-base-900 shadow-filter-slider transition-transform",
+    @show_filters && "translate-x-full"
+  ]}>
+    <div class="h-0 flex-1 overflow-y-auto">
+      <div class="flex items-center h-14 px-4 py-3 border-b border-zinc-700">
+        <h4 class="text-base font-semibold">Filters</h4>
 
-  <div class="fixed inset-0 overflow-hidden">
-    <div class="absolute inset-0 overflow-hidden">
-      <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 sm:pl-16">
-        <div class={[
-          "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-t border-l border-zinc-700 bg-base-900 shadow-filter-slider transition-transform",
-          !@show_filters && "translate-x-full"
-        ]}>
-          <div class="h-0 flex-1 overflow-y-auto">
-            <div class="flex items-center h-14 px-4 py-3 border-b border-zinc-700">
-              <h4 class="text-base font-semibold">Filters</h4>
-
-              <button class="ml-auto p-1.5" type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="none">
-                  <path
-                    d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
-                    stroke="#A1A1AA"
-                    stroke-width="1.2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div class="flex flex-1 flex-col pb-4">
-              <form id="filter-form" class="px-4 grow" phx-change="update-filters">
-                <div class="sidebar-search mt-6">
-                  <input type="text" name="device_id" id="device_search" placeholder="Search..." value={@current_filters[:device_id]} phx-debounce="500" />
-                  <svg class="ml-auto" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <path
-                      d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
-                      stroke="#A1A1AA"
-                      stroke-width="1.2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </div>
-                <div class="mt-6">
-                  <label class="sidebar-label" for="input_connection">Connection</label>
-                  <select class="sidebar-select" name="connection" id="input_connection">
-                    <option {selected?(@current_filters, :connection, "")} value="">All</option>
-                    <option {selected?(@current_filters, :connection, "connected")} value="connected">Connected</option>
-                    <option {selected?(@current_filters, :connection, "disconnected")} value="disconnected">Disconnected</option>
-                    <option {selected?(@current_filters, :connection, "not_seen")} value="not_seen">Not Seen</option>
-                  </select>
-                </div>
-                <div class="mt-6">
-                  <label class="sidebar-label" for="connection_type">Connection Type</label>
-                  <select class="sidebar-select" name="connection_type" id="connection_type">
-                    <option {selected?(@current_filters, :connection_type, "")} value="">All</option>
-                    <option {selected?(@current_filters, :connection_type, "cellular")} value="cellular">Cellular</option>
-                    <option {selected?(@current_filters, :connection_type, "ethernet")} value="ethernet">Ethernet</option>
-                    <option {selected?(@current_filters, :connection_type, "wifi")} value="wifi">WiFi</option>
-                  </select>
-                </div>
-                <div class="mt-6">
-                  <label class="sidebar-label" for="input_health">Firmware Updates</label>
-                  <select class="sidebar-select" name="updates" id="input_health">
-                    <option {selected?(@current_filters, :updates, "")} value="">All</option>
-                    <option {selected?(@current_filters, :updates, "enabled")} value="enabled">Enabled</option>
-                    <option {selected?(@current_filters, :updates, "penalty-box")} value="penalty-box">Penalty Box</option>
-                    <option {selected?(@current_filters, :updates, "disabled")} value="disabled">Disabled</option>
-                  </select>
-                </div>
-                <div class="mt-6">
-                  <label class="sidebar-label" for="input_firmware">Firmware</label>
-                  <select class="sidebar-select" name="firmware_version" id="input_firmware">
-                    <option {selected?(@current_filters, :firmware_version, "")} value="">All</option>
-                    <%= for version <- @firmware_versions do %>
-                      <option {selected?(@current_filters, :firmware_version, version)}>{version}</option>
-                    <% end %>
-                  </select>
-                </div>
-                <div class="mt-6">
-                  <label class="sidebar-label" for="input_platform">Platform</label>
-                  <select class="sidebar-select" name="platform" id="platform">
-                    <option {selected?(@current_filters, :platform, "")} value="">All</option>
-                    <%= for platform <- @platforms do %>
-                      <option {selected?(@current_filters, :platform, platform)}>{if platform, do: platform, else: "Unknown"}</option>
-                    <% end %>
-                  </select>
-                </div>
-                <div class="mt-6">
-                  <label class="sidebar-label" for="input_tags">Tags</label>
-                  <input class="sidebar-text-input" type="text" name="tag" id="input_tags" value={@current_filters[:tag]} phx-debounce="500" />
-                </div>
-                <div class="mt-6">
-                  <label class="sidebar-label" for="has_no_tags">Untagged</label>
-                  <select class="sidebar-select" name="has_no_tags" id="has_no_tags">
-                    <option {selected?(@current_filters, :has_no_tags, false)} value="false">All</option>
-                    <option {selected?(@current_filters, :has_no_tags, true)} value="true">Only untagged</option>
-                  </select>
-                </div>
-                <div class="mt-6">
-                  <label class="sidebar-label" for="alarm_status">Alarm Status</label>
-                  <select class="sidebar-select" name="alarm_status" id="alarm_status">
-                    <option {selected?(@current_filters, :alarm_status, "")} value="">All</option>
-                    <option {selected?(@current_filters, :alarm_status, "with")} value="with">Has Alarms</option>
-                    <option {selected?(@current_filters, :alarm_status, "without")} value="without">No alarms</option>
-                  </select>
-                </div>
-                <div class="mt-6">
-                  <label class="sidebar-label" for="alarm">Alarm</label>
-                  <select class="sidebar-select" name="alarm" id="alarm">
-                    <option {selected?(@current_filters, :alarm, "")} value="">All</option>
-                    <%= for alarm <- @current_alarms do %>
-                      <option {selected?(@current_filters, :alarm, alarm)}>{alarm}</option>
-                    <% end %>
-                  </select>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          <div class="flex shrink-0 justify-end h-16 px-4 py-4 mb-14 border-t border-zinc-700">
-            <button class="sidebar-button" type="button" phx-click="reset-filters">Reset Filters</button>
-          </div>
-        </div>
+        <button class="ml-auto p-1.5" type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="none">
+            <path
+              d="M10.0002 9.99998L5.8335 5.83331M10.0002 9.99998L14.1668 14.1666M10.0002 9.99998L14.1668 5.83331M10.0002 9.99998L5.8335 14.1666"
+              stroke="#A1A1AA"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
       </div>
+
+      <div class="flex flex-1 flex-col pb-4">
+        <form id="filter-form" class="px-4 grow" phx-change="update-filters">
+          <div class="sidebar-search mt-6">
+            <input type="text" name="device_id" id="device_search" placeholder="Search..." value={@current_filters[:device_id]} phx-debounce="500" />
+            <svg class="ml-auto" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
+                stroke="#A1A1AA"
+                stroke-width="1.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <div class="mt-6">
+            <label class="sidebar-label" for="input_connection">Connection</label>
+            <select class="sidebar-select" name="connection" id="input_connection">
+              <option {selected?(@current_filters, :connection, "")} value="">All</option>
+              <option {selected?(@current_filters, :connection, "connected")} value="connected">Connected</option>
+              <option {selected?(@current_filters, :connection, "disconnected")} value="disconnected">Disconnected</option>
+              <option {selected?(@current_filters, :connection, "not_seen")} value="not_seen">Not Seen</option>
+            </select>
+          </div>
+          <div class="mt-6">
+            <label class="sidebar-label" for="connection_type">Connection Type</label>
+            <select class="sidebar-select" name="connection_type" id="connection_type">
+              <option {selected?(@current_filters, :connection_type, "")} value="">All</option>
+              <option {selected?(@current_filters, :connection_type, "cellular")} value="cellular">Cellular</option>
+              <option {selected?(@current_filters, :connection_type, "ethernet")} value="ethernet">Ethernet</option>
+              <option {selected?(@current_filters, :connection_type, "wifi")} value="wifi">WiFi</option>
+            </select>
+          </div>
+          <div class="mt-6">
+            <label class="sidebar-label" for="input_health">Firmware Updates</label>
+            <select class="sidebar-select" name="updates" id="input_health">
+              <option {selected?(@current_filters, :updates, "")} value="">All</option>
+              <option {selected?(@current_filters, :updates, "enabled")} value="enabled">Enabled</option>
+              <option {selected?(@current_filters, :updates, "penalty-box")} value="penalty-box">Penalty Box</option>
+              <option {selected?(@current_filters, :updates, "disabled")} value="disabled">Disabled</option>
+            </select>
+          </div>
+          <div class="mt-6">
+            <label class="sidebar-label" for="input_firmware">Firmware</label>
+            <select class="sidebar-select" name="firmware_version" id="input_firmware">
+              <option {selected?(@current_filters, :firmware_version, "")} value="">All</option>
+              <%= for version <- @firmware_versions do %>
+                <option {selected?(@current_filters, :firmware_version, version)}>{version}</option>
+              <% end %>
+            </select>
+          </div>
+          <div class="mt-6">
+            <label class="sidebar-label" for="input_platform">Platform</label>
+            <select class="sidebar-select" name="platform" id="platform">
+              <option {selected?(@current_filters, :platform, "")} value="">All</option>
+              <%= for platform <- @platforms do %>
+                <option {selected?(@current_filters, :platform, platform)}>{if platform, do: platform, else: "Unknown"}</option>
+              <% end %>
+            </select>
+          </div>
+          <div class="mt-6">
+            <label class="sidebar-label" for="input_tags">Tags</label>
+            <input class="sidebar-text-input" type="text" name="tag" id="input_tags" value={@current_filters[:tag]} phx-debounce="500" />
+          </div>
+          <div class="mt-6">
+            <label class="sidebar-label" for="has_no_tags">Untagged</label>
+            <select class="sidebar-select" name="has_no_tags" id="has_no_tags">
+              <option {selected?(@current_filters, :has_no_tags, false)} value="false">All</option>
+              <option {selected?(@current_filters, :has_no_tags, true)} value="true">Only untagged</option>
+            </select>
+          </div>
+          <div class="mt-6">
+            <label class="sidebar-label" for="alarm_status">Alarm Status</label>
+            <select class="sidebar-select" name="alarm_status" id="alarm_status">
+              <option {selected?(@current_filters, :alarm_status, "")} value="">All</option>
+              <option {selected?(@current_filters, :alarm_status, "with")} value="with">Has Alarms</option>
+              <option {selected?(@current_filters, :alarm_status, "without")} value="without">No alarms</option>
+            </select>
+          </div>
+          <div class="mt-6">
+            <label class="sidebar-label" for="alarm">Alarm</label>
+            <select class="sidebar-select" name="alarm" id="alarm">
+              <option {selected?(@current_filters, :alarm, "")} value="">All</option>
+              <%= for alarm <- @current_alarms do %>
+                <option {selected?(@current_filters, :alarm, alarm)}>{alarm}</option>
+              <% end %>
+            </select>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="flex shrink-0 justify-end h-16 px-4 py-4 mb-14 border-t border-zinc-700">
+      <button class="sidebar-button" type="button" phx-click="reset-filters">Reset Filters</button>
     </div>
   </div>
 </div>
