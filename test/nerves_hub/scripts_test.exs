@@ -12,15 +12,15 @@ defmodule NervesHub.ScriptsTest do
     %{user: user, org: org, product: product}
   end
 
-  describe "creating a command" do
-    test "successful", %{product: product} do
-      {:ok, command} =
-        Scripts.create(product, %{
+  describe "creating a script" do
+    test "successful", %{product: product, user: user} do
+      {:ok, script} =
+        Scripts.create(product, user, %{
           name: "MOTD",
           text: "NervesMOTD.print()"
         })
 
-      assert command.product_id == product.id
+      assert script.product_id == product.id
     end
   end
 end

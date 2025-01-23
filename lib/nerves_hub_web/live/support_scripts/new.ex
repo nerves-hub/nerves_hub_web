@@ -14,13 +14,15 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
   end
 
   @impl Phoenix.LiveView
-  def handle_event("create-script", %{"script" => script_params}, socket) do
-    authorized!(:"support_script:create", socket.assigns.org_user)
+  def handle_event(
+        "create-script",
+        %{"script" => script_params},
+        %{assigns: %{org_user: org_user, org: org, product: product}} = socket
+      ) do
+    authorized!(:"support_script:create", org_user)
 
-    %{org: org, product: product} = socket.assigns
-
-    case Scripts.create(product, script_params) do
-      {:ok, _command} ->
+    case Scripts.create(product, org_user.user, script_params) do
+      {:ok, _script} ->
         socket
         |> put_flash(:info, "Support Script created")
         |> send_toast(:info, "Support Script created successfully.")
