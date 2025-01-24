@@ -135,9 +135,8 @@ defmodule NervesHub.Devices do
 
   def get_minimal_device_location_by_product(product) do
     Device
-    |> join(:left, [d], dc in DeviceConnection, on: d.latest_connection_id == dc.id)
+    |> join(:inner, [d], dc in DeviceConnection, on: d.latest_connection_id == dc.id)
     |> where(product_id: ^product.id)
-    |> where(status: :provisioned)
     |> select([d, dc], %{
       id: d.id,
       identifier: d.identifier,
