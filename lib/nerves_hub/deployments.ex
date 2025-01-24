@@ -21,9 +21,8 @@ defmodule NervesHub.Deployments do
     Repo.all(Deployment)
   end
 
-  @spec filter(Product.t(), map()) ::
-          {:ok, {[Product.t()], Flop.Meta.t()}} | {:error, Flop.Meta.t()}
-  def filter(product_id, opts \\ %{}) do
+  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  def filter(product, opts \\ %{}) do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
 
     sort = Map.get(opts, :sort, "name")
@@ -48,7 +47,7 @@ defmodule NervesHub.Deployments do
     Deployment
     |> join(:left, [d], dev in subquery(subquery), on: dev.deployment_id == d.id)
     |> join(:left, [d], f in assoc(d, :firmware))
-    |> where([d], d.product_id == ^product_id)
+    |> where([d], d.product_id == ^product.id)
     |> sort_deployments(sort_opts)
     |> preload([_d, _dev, f], firmware: f)
     |> select_merge([_f, dev], %{device_count: dev.device_count})

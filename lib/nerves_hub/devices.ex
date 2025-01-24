@@ -99,14 +99,14 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
-  @spec filter(integer(), map()) :: %{
+  @spec filter(%Product{}, map()) :: %{
           entries: list(Device.t()),
           current_page: non_neg_integer(),
           page_size: non_neg_integer(),
           total_pages: non_neg_integer(),
           total_count: non_neg_integer()
         }
-  def filter(product_id, opts) do
+  def filter(product, opts) do
     pagination = Map.get(opts, :pagination, %{})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
     filters = Map.get(opts, :filters, %{})
@@ -114,7 +114,7 @@ defmodule NervesHub.Devices do
     flop = %Flop{page: pagination.page, page_size: pagination.page_size}
 
     Device
-    |> where([d], d.product_id == ^product_id)
+    |> where([d], d.product_id == ^product.id)
     |> Repo.exclude_deleted()
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> preload([latest_connection: lc], latest_connection: lc)
@@ -147,49 +147,6 @@ defmodule NervesHub.Devices do
     })
     |> Repo.exclude_deleted()
     |> Repo.all()
-  end
-
-  def get_health_by_org_id_and_product_id(org_id, product_id, opts) do
-    query =
-      from(
-        d in Device,
-        as: :device,
-        join: dh in DeviceHealth,
-        as: :device_health,
-        on: dh.device_id == d.id,
-        select: [dh.device_id, dh.data, d.deleted_at],
-        distinct: dh.device_id,
-        order_by: [desc: dh.inserted_at],
-        where: d.org_id == ^org_id,
-        where: d.product_id == ^product_id
-      )
-
-    filters = Map.get(opts, :filters, %{})
-
-    query
-    |> Repo.exclude_deleted()
-    |> Filtering.build_filters(filters)
-    |> Repo.all()
-    |> Enum.reduce(%{max_cpu: 0, max_memory_percent: 0, max_load_15: 0}, fn health, acc ->
-      case Enum.at(health, 1) do
-        %{
-          "metrics" => %{
-            "cpu_temp" => cpu_temp,
-            "used_percent" => memory_percent,
-            "load_15min" => load_15_min
-          }
-        } ->
-          %{
-            acc
-            | max_cpu: max(cpu_temp, acc.max_cpu),
-              max_memory_percent: max(memory_percent, acc.max_memory_percent),
-              max_load_15: max(load_15_min, acc.max_load_15)
-          }
-
-        _ ->
-          acc
-      end
-    end)
   end
 
   defp sort_devices(query, {:asc, :connection_last_seen_at}) do

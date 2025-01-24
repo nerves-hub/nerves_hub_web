@@ -250,6 +250,25 @@ defmodule NervesHubWeb.CoreComponents do
     """
   end
 
+  def button(%{style: "danger"} = assigns) do
+    ~H"""
+    <button
+      type={@type}
+      class={[
+        "phx-submit-loading:opacity-75 flex px-3 py-1.5 gap-2 rounded",
+        "bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600",
+        "border rounded border-red-500",
+        "stroke-red-500",
+        "text-sm font-medium text-red-500",
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </button>
+    """
+  end
+
   def button(assigns) do
     ~H"""
     <button

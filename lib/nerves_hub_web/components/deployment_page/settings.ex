@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
 
   alias NervesHub.Archives
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.DeploymentTemplates
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Firmwares
@@ -154,9 +155,9 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
                     <div class="text-sm mt-2">sec</div>
                   </div>
                   <div class="flex flex-col gap-1 text-xs text-zinc-400 pt-1">
-                    Maximum number of device install failures from this deployment within X seconds before being marked unhealthy.
+                    {help_message_for(:failure_rate)}
                   </div>
-                  <NervesHubWeb.CoreComponents.error :for={msg <- Enum.map(@form[:failure_rate].errors ++ @form[:failure_rate_seconds].errors, &NervesHubWeb.CoreComponents.translate_error(&1))}>
+                  <NervesHubWeb.CoreComponents.error :for={msg <- Enum.map(@form[:failure_rate_amount].errors ++ @form[:failure_rate_seconds].errors, &NervesHubWeb.CoreComponents.translate_error(&1))}>
                     {msg}
                   </NervesHubWeb.CoreComponents.error>
                 </div>
@@ -202,7 +203,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
                     <div class="text-sm mt-2">sec</div>
                   </div>
                   <div class="flex flex-col gap-1 text-xs text-zinc-400 pt-1">
-                    Maximum number of device failures within X seconds a device can have for this deployment before being marked unhealthy
+                    {help_message_for(:device_failure_rate)}
                   </div>
                   <.error :for={msg <- Enum.map(@form[:device_failure_rate_amount].errors ++ @form[:device_failure_rate_seconds].errors, &NervesHubWeb.CoreComponents.translate_error(&1))}>
                     {msg}
@@ -245,9 +246,24 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
         </div>
 
         <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
+          <div class="flex items-center justify-between p-6 gap-6 border-t border-zinc-700">
             <.button style="secondary" type="submit">
               <.icon name="save" /> Save changes
+            </.button>
+
+            <.button
+              type="link"
+              style="danger"
+              phx-click="delete-deployment"
+              phx-target={@myself}
+              aria-label="Delete"
+              data-confirm={[
+                "Are you sure you want to delete this deployment?",
+                @deployment.device_count > 0 && " All devices assigned to this deployment will be assigned a new deployment when they reconnect. ",
+                "This cannot be undone."
+              ]}
+            >
+              <.icon name="trash" />Delete
             </.button>
           </div>
         </div>
@@ -291,6 +307,21 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
         |> assign(:form, to_form(changeset))
         |> noreply()
     end
+  end
+
+  def handle_event("delete-deployment", _params, socket) do
+    authorized!(:"deployment:delete", socket.assigns.org_user)
+
+    %{deployment: deployment, org: org, product: product, user: user} = socket.assigns
+
+    {:ok, _} = Deployments.delete_deployment(deployment)
+
+    DeploymentTemplates.audit_deployment_deleted(user, deployment)
+
+    socket
+    |> put_flash(:info, "Deployment successfully deleted")
+    |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployments")
+    |> noreply()
   end
 
   defp inject_conditions_map(%{"version" => version, "tags" => tags} = params) do
@@ -356,19 +387,19 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
   defp help_message_for(field) do
     case field do
       :failure_threshold ->
-        "Maximum number of target devices from this deployment that can be in an unhealthy state before marking the deployment unhealthy"
+        "Maximum number of target devices from this deployment that can be in an unhealthy state before marking the deployment unhealthy."
 
       :failure_rate ->
-        "Maximum number of device install failures from this deployment within X seconds before being marked unhealthy"
+        "Maximum number of device install failures from this deployment within X seconds before being marked unhealthy."
 
       :device_failure_rate ->
-        "Maximum number of device failures within X seconds a device can have for this deployment before being marked unhealthy"
+        "Maximum number of device failures within X seconds a device can have for this deployment before being marked unhealthy."
 
       :device_failure_threshold ->
-        "Maximum number of install attempts and/or failures a device can have for this deployment before being marked unhealthy"
+        "Maximum number of install attempts and/or failures a device can have for this deployment before being marked unhealthy."
 
       :penalty_timeout_minutes ->
-        "Number of minutes a device is placed in the penalty box for reaching the failure rate and threshold"
+        "Number of minutes a device is placed in the penalty box for reaching the failure rate and threshold."
     end
   end
 

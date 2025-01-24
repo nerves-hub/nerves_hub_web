@@ -119,7 +119,7 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
         <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
           <div class="flex items-end gap-3">
             <div class="text-base text-neutral-50 font-medium">Health over time</div>
-            <div class="text-xs text-nerves-gray-500 tracking-wide mr-auto">
+            <div :if={@latest_metrics["timestamp"]} class="text-xs text-nerves-gray-500 tracking-wide mr-auto">
               <span>Last updated: </span>
               <time id="health-last-updated" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@latest_metrics["timestamp"], :second)), " ", "T")}>
                 {Timex.from_now(@latest_metrics["timestamp"])}
