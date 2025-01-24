@@ -30,8 +30,9 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     description =
       "Device #{device.identifier} could not get extensions: Unsupported API version."
 
-    AuditLogs.audit!(device, device, description)
     Logger.info("[DeviceChannel] #{description}")
+
+    AuditLogs.audit!(device, device, description)
   end
 
   ## Firmware and upgrades

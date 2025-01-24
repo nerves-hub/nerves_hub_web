@@ -6,6 +6,7 @@ defmodule NervesHub.AuditLogs.DeploymentTemplates do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Devices.Device
 
   @spec audit_deployment_created(User.t(), Deployment.t()) :: AuditLog.t()
   def audit_deployment_created(user, deployment) do

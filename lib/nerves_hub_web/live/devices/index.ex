@@ -454,7 +454,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       filters: socket.assigns.current_filters
     }
 
-    page = Devices.filter(product.id, opts)
+    page = Devices.filter(product, opts)
 
     statuses =
       Enum.into(page.entries, %{}, fn device ->

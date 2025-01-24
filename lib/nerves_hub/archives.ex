@@ -13,9 +13,8 @@ defmodule NervesHub.Archives do
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteArchive
 
-  @spec filter(Product.t(), map()) ::
-          {:ok, {[Product.t()], Flop.Meta.t()}} | {:error, Flop.Meta.t()}
-  def filter(product_id, opts \\ %{}) do
+  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  def filter(product, opts \\ %{}) do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
 
     sort = Map.get(opts, :sort, "inserted_at")
@@ -29,7 +28,7 @@ defmodule NervesHub.Archives do
     }
 
     Archive
-    |> where([f], f.product_id == ^product_id)
+    |> where([f], f.product_id == ^product.id)
     |> order_by(^sort_opts)
     |> Flop.run(flop)
   end

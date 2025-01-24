@@ -209,7 +209,7 @@ defmodule NervesHubWeb.Live.Archives do
       sort_direction: pagination_opts["sort_direction"]
     }
 
-    {entries, pager_meta} = Archives.filter(product.id, opts)
+    {entries, pager_meta} = Archives.filter(product, opts)
 
     socket
     |> assign(:current_sort, opts.sort)

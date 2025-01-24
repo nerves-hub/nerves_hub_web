@@ -10,9 +10,8 @@ defmodule NervesHub.Scripts do
 
   alias NervesHub.Repo
 
-  @spec filter(Product.t(), map()) ::
-          {:ok, {[Product.t()], Flop.Meta.t()}} | {:error, Flop.Meta.t()}
-  def filter(product_id, opts \\ %{}) do
+  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  def filter(product, opts \\ %{}) do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
 
     sort = Map.get(opts, :sort, "name")
@@ -26,7 +25,7 @@ defmodule NervesHub.Scripts do
     }
 
     Script
-    |> where([f], f.product_id == ^product_id)
+    |> where([f], f.product_id == ^product.id)
     |> order_by(^sort_opts)
     |> Flop.run(flop)
   end

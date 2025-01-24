@@ -155,9 +155,9 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
                     <div class="text-sm mt-2">sec</div>
                   </div>
                   <div class="flex flex-col gap-1 text-xs text-zinc-400 pt-1">
-                    Maximum number of device install failures from this deployment within X seconds before being marked unhealthy.
+                    {help_message_for(:failure_rate)}
                   </div>
-                  <NervesHubWeb.CoreComponents.error :for={msg <- Enum.map(@form[:failure_rate].errors ++ @form[:failure_rate_seconds].errors, &NervesHubWeb.CoreComponents.translate_error(&1))}>
+                  <NervesHubWeb.CoreComponents.error :for={msg <- Enum.map(@form[:failure_rate_amount].errors ++ @form[:failure_rate_seconds].errors, &NervesHubWeb.CoreComponents.translate_error(&1))}>
                     {msg}
                   </NervesHubWeb.CoreComponents.error>
                 </div>
@@ -203,7 +203,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
                     <div class="text-sm mt-2">sec</div>
                   </div>
                   <div class="flex flex-col gap-1 text-xs text-zinc-400 pt-1">
-                    Maximum number of device failures within X seconds a device can have for this deployment before being marked unhealthy
+                    {help_message_for(:device_failure_rate)}
                   </div>
                   <.error :for={msg <- Enum.map(@form[:device_failure_rate_amount].errors ++ @form[:device_failure_rate_seconds].errors, &NervesHubWeb.CoreComponents.translate_error(&1))}>
                     {msg}
@@ -387,19 +387,19 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
   defp help_message_for(field) do
     case field do
       :failure_threshold ->
-        "Maximum number of target devices from this deployment that can be in an unhealthy state before marking the deployment unhealthy"
+        "Maximum number of target devices from this deployment that can be in an unhealthy state before marking the deployment unhealthy."
 
       :failure_rate ->
-        "Maximum number of device install failures from this deployment within X seconds before being marked unhealthy"
+        "Maximum number of device install failures from this deployment within X seconds before being marked unhealthy."
 
       :device_failure_rate ->
-        "Maximum number of device failures within X seconds a device can have for this deployment before being marked unhealthy"
+        "Maximum number of device failures within X seconds a device can have for this deployment before being marked unhealthy."
 
       :device_failure_threshold ->
-        "Maximum number of install attempts and/or failures a device can have for this deployment before being marked unhealthy"
+        "Maximum number of install attempts and/or failures a device can have for this deployment before being marked unhealthy."
 
       :penalty_timeout_minutes ->
-        "Number of minutes a device is placed in the penalty box for reaching the failure rate and threshold"
+        "Number of minutes a device is placed in the penalty box for reaching the failure rate and threshold."
     end
   end
 

@@ -32,9 +32,8 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
-  @spec filter(Product.t(), map()) ::
-          {:ok, {[Product.t()], Flop.Meta.t()}} | {:error, Flop.Meta.t()}
-  def filter(product_id, opts \\ %{}) do
+  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  def filter(product, opts \\ %{}) do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
 
     sort = Map.get(opts, :sort, "inserted_at")
@@ -60,7 +59,7 @@ defmodule NervesHub.Firmwares do
 
     Firmware
     |> join(:left, [f], d in subquery(subquery), on: d.firmware_uuid == f.uuid)
-    |> where([f], f.product_id == ^product_id)
+    |> where([f], f.product_id == ^product.id)
     |> sort_firmware(sort_opts)
     |> select_merge([_f, d], %{install_count: d.install_count})
     |> Flop.run(flop)
