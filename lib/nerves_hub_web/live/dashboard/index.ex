@@ -3,7 +3,6 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
 
   alias NervesHub.Deployments
   alias NervesHub.Devices
-  alias NervesHub.Devices.Device
 
   alias Phoenix.Socket.Broadcast
 
@@ -84,13 +83,12 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     end
   end
 
-  defp update_devices_and_markers(%{assigns: %{org: org, product: product}} = socket) do
+  defp update_devices_and_markers(%{assigns: %{product: product}} = socket) do
     t = time()
     duration = t - socket.assigns.time
 
     if duration >= @delay do
-      devices =
-        Devices.get_minimal_device_location_by_org_id_and_product_id(org.id, product.id)
+      devices = Devices.get_minimal_device_location_by_product(product)
 
       latest_firmwares =
         Deployments.get_deployments_by_product(product)
@@ -141,7 +139,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     [new_marker | markers]
   end
 
-  defp generate_map_marker(%Device{} = _device, markers, _) do
+  defp generate_map_marker(_device, markers, _) do
     markers
   end
 

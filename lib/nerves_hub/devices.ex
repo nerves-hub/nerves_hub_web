@@ -15,6 +15,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.Filtering
   alias NervesHub.Devices.InflightUpdate
@@ -132,17 +133,14 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  def get_minimal_device_location_by_org_id_and_product_id(org_id, product_id) do
+  def get_minimal_device_location_by_product(product) do
     Device
     |> join(:inner, [d], dc in DeviceConnection, on: d.latest_connection_id == dc.id)
-    |> where(org_id: ^org_id)
-    |> where(product_id: ^product_id)
-    |> where([d], not is_nil(fragment("?->'location'->'latitude'", d.connection_metadata)))
-    |> where([d], not is_nil(fragment("?->'location'->'longitude'", d.connection_metadata)))
+    |> where(product_id: ^product.id)
     |> select([d, dc], %{
       id: d.id,
       identifier: d.identifier,
-      connection_status: dc.connection_status,
+      connection_status: dc.status,
       latitude: fragment("?->'location'->'latitude'", d.connection_metadata),
       longitude: fragment("?->'location'->'longitude'", d.connection_metadata),
       firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)
