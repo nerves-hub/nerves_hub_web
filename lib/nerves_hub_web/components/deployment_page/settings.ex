@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
 
   alias NervesHub.Archives
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.DeploymentTemplates
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Firmwares
@@ -245,9 +246,24 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
         </div>
 
         <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
+          <div class="flex items-center justify-between p-6 gap-6 border-t border-zinc-700">
             <.button style="secondary" type="submit">
               <.icon name="save" /> Save changes
+            </.button>
+
+            <.button
+              type="link"
+              style="danger"
+              phx-click="delete-deployment"
+              phx-target={@myself}
+              aria-label="Delete"
+              data-confirm={[
+                "Are you sure you want to delete this deployment?",
+                @deployment.device_count > 0 && " All devices assigned to this deployment will be assigned a new deployment when they reconnect. ",
+                "This cannot be undone."
+              ]}
+            >
+              <.icon name="trash" />Delete
             </.button>
           </div>
         </div>
@@ -291,6 +307,21 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
         |> assign(:form, to_form(changeset))
         |> noreply()
     end
+  end
+
+  def handle_event("delete-deployment", _params, socket) do
+    authorized!(:"deployment:delete", socket.assigns.org_user)
+
+    %{deployment: deployment, org: org, product: product, user: user} = socket.assigns
+
+    {:ok, _} = Deployments.delete_deployment(deployment)
+
+    DeploymentTemplates.audit_deployment_deleted(user, deployment)
+
+    socket
+    |> put_flash(:info, "Deployment successfully deleted")
+    |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployments")
+    |> noreply()
   end
 
   defp inject_conditions_map(%{"version" => version, "tags" => tags} = params) do
