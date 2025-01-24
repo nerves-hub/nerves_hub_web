@@ -3,7 +3,6 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
 
   alias NervesHub.Deployments
   alias NervesHub.Devices
-  alias NervesHub.Devices.Device
 
   alias Phoenix.Socket.Broadcast
 
@@ -84,7 +83,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     end
   end
 
-  defp update_devices_and_markers(%{assigns: %{org: org, product: product}} = socket) do
+  defp update_devices_and_markers(%{assigns: %{product: product}} = socket) do
     t = time()
     duration = t - socket.assigns.time
 
