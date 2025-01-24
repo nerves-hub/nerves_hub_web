@@ -212,7 +212,7 @@ defmodule NervesHubWeb.Live.Firmware do
       sort_direction: pagination_opts["sort_direction"]
     }
 
-    {entries, pager_meta} = Firmwares.filter(product.id, opts)
+    {entries, pager_meta} = Firmwares.filter(product, opts)
 
     socket
     |> assign(:current_sort, opts.sort)

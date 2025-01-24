@@ -92,7 +92,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
       sort_direction: pagination_opts["sort_direction"]
     }
 
-    {entries, pager_meta} = Scripts.filter(product.id, opts)
+    {entries, pager_meta} = Scripts.filter(product, opts)
 
     socket
     |> assign(:current_sort, opts.sort)

@@ -5,6 +5,8 @@ defmodule NervesHub.Scripts.Script do
 
   alias NervesHub.Products.Product
 
+  @type t :: %__MODULE__{}
+
   schema "scripts" do
     belongs_to(:product, Product)
 
