@@ -7,6 +7,8 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
 
+  alias NervesHub.Repo
+
   test "shows the deployment", %{
     conn: conn,
     user: user,
@@ -63,7 +65,7 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
     end)
   end
 
-  test "you can delete a deployment", %{
+  test "you can delete a deployment with no devices attached to it", %{
     conn: conn,
     user: user,
     org: org,
@@ -86,6 +88,38 @@ defmodule NervesHubWeb.Live.Deployments.ShowTest do
     logs = AuditLogs.logs_for(deployment)
 
     assert List.last(logs).description =~ ~r/deleted deployment/
+  end
+
+  test "you can delete a deployment with devices attached to it", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment = Fixtures.deployment_fixture(org, firmware)
+    device = Fixtures.device_fixture(org, product, firmware)
+
+    device = Devices.update_deployment(device, deployment)
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
+    |> assert_has("h1", text: deployment.name)
+    |> click_link("Delete")
+    |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployments"))
+    |> assert_has("div", text: "Deployment successfully deleted")
+
+    assert Deployments.get_deployment(product, deployment.id) == {:error, :not_found}
+
+    logs = AuditLogs.logs_for(deployment)
+
+    assert List.last(logs).description =~ ~r/deleted deployment/
+
+    device = Repo.reload(device)
+    assert device.deployment_id == nil
+    assert device.deleted_at == nil
   end
 
   test "you can toggle the deployment being on or off", %{
