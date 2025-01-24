@@ -51,7 +51,7 @@ defmodule NervesHubWeb.API.DeviceView do
   defp connection_last_seen_at(%{latest_connection: nil}), do: "never"
 
   defp connection_last_seen_at(%{latest_connection: latest_connection}),
-    do: to_string(latest_connection)
+    do: to_string(latest_connection.last_seen_at)
 
   defp connection_status(%{latest_connection: %{status: status}}), do: status
   defp connection_status(_), do: :not_seen
