@@ -133,13 +133,11 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  def get_minimal_device_location_by_org_id_and_product_id(org_id, product_id) do
+  def get_minimal_device_location_by_product(product) do
     Device
-    |> join(:inner, [d], dc in DeviceConnection, on: d.latest_connection_id == dc.id)
-    |> where(org_id: ^org_id)
-    |> where(product_id: ^product_id)
-    |> where([d], not is_nil(fragment("?->'location'->'latitude'", d.connection_metadata)))
-    |> where([d], not is_nil(fragment("?->'location'->'longitude'", d.connection_metadata)))
+    |> join(:left, [d], dc in DeviceConnection, on: d.latest_connection_id == dc.id)
+    |> where(product_id: ^product.id)
+    |> where(status: :provisioned)
     |> select([d, dc], %{
       id: d.id,
       identifier: d.identifier,
