@@ -67,8 +67,7 @@ defmodule NervesHubWeb.DeviceChannel do
     # Earlier versions of nerves_hub_link don't have a fallback for unknown messages,
     # so check version before requesting extensions
     if safe_to_request_extensions?(socket.assigns.device_api_version),
-      do: push(socket, "extensions:get", %{}),
-      else: DeviceTemplates.audit_unsupported_api_version(device)
+      do: push(socket, "extensions:get", %{})
 
     {:noreply, socket}
   end
