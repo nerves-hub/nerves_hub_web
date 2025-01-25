@@ -16,6 +16,8 @@ defmodule NervesHub.AuditLogs do
     AuditLog.build(actor, resource, description)
     |> AuditLog.changeset()
     |> Repo.insert!()
+
+    :ok
   end
 
   def audit_with_ref!(actor, resource, description, reference_id) do
