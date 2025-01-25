@@ -213,32 +213,8 @@
     @apply bg-base-800 text-base-500;
   }
 
-  .org-block {
-    @apply py-[12px] px-[16px] border-base-700;
-    border-width: 1px;
-    border-radius: 4px;
-    margin-bottom: 16px;
-  }
-
-  .product-block {
-    @apply border-base-700 bg-base-900;
-    border-width: 1px;
-    border-radius: 4px;
-    flex-grow: 1;
-    max-width: calc(50% - 24px);
-    padding: 16px;
-    background: linear-gradient(90deg, rgba(39, 39, 42, 0.56) 0%, #27272a 100%);
-  }
-
   .menu-box {
     @apply bg-base-900 border border-base-700 py-[12px] px-[16px] rounded-md;
-  }
-
-  .product-title {
-    font-size: 14px;
-    font-style: normal;
-    font-weight: 600;
-    line-height: 20px;
   }
 
   .org-selector-title {

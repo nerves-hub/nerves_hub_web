@@ -13,6 +13,8 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Devices.Device
+  alias NervesHub.Products.Product
 
   alias NervesHub.Repo
 
@@ -248,11 +250,26 @@ defmodule NervesHub.Accounts do
   end
 
   def get_user_with_all_orgs_and_products(user_id) do
+    devices =
+      Device
+      |> select([d], %{
+        product_id: d.product_id,
+        device_count: count()
+      })
+      |> Repo.exclude_deleted()
+      |> group_by([d], d.product_id)
+
+    products =
+      Product
+      |> Repo.exclude_deleted()
+      |> join(:left, [p], dev in subquery(devices), on: dev.product_id == p.id, as: :devices)
+      |> select_merge([_f, devices: devices], %{device_count: devices.device_count})
+
     User
     |> where(id: ^user_id)
     |> Repo.exclude_deleted()
     |> join(:left, [d], o in assoc(d, :orgs))
-    |> join(:left, [d, o], p in assoc(o, :products))
+    |> join(:left, [d, o], p in subquery(products), on: o.id == p.org_id)
     |> preload([d, o, p], orgs: {o, products: p})
     |> Repo.one()
     |> case do

@@ -99,6 +99,7 @@ defmodule NervesHub.MixProject do
       {:logfmt_ex, "~> 0.4"},
       {:mimic, "~> 1.10", only: [:test, :dev]},
       {:nimble_csv, "~> 1.1"},
+      {:number, "~> 1.0.5"},
       {:oban, "~> 2.11"},
       {:oban_web, "~> 2.11"},
       {:opentelemetry_exporter, "~> 1.8"},
