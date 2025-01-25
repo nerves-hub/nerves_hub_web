@@ -17,7 +17,7 @@
   <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
     <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Deployments</h1>
     <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">{@pager_meta.total_count}</div>
-    <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/new"} aria-label="Add a new deployment">
+    <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/newz"} aria-label="Add a new deployment">
       <.icon name="add" /> Create Deployment
     </.button>
   </div>

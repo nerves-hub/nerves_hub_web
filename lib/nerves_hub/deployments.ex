@@ -301,6 +301,11 @@ defmodule NervesHub.Deployments do
     :ok
   end
 
+  @spec new_deployment() :: Changeset.t()
+  def new_deployment() do
+    Ecto.Changeset.change(%Deployment{})
+  end
+
   @spec change_deployment(Deployment.t(), map()) :: Changeset.t()
   def change_deployment(deployment, params) do
     Deployment.changeset(deployment, params)
