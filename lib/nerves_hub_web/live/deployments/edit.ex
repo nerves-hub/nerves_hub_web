@@ -46,7 +46,7 @@ defmodule NervesHubWeb.Live.Deployments.Edit do
       {:ok, updated} ->
         # Use original deployment so changes will get
         # marked in audit log
-        _ = DeploymentTemplates.audit_deployment_updated(user, updated)
+        DeploymentTemplates.audit_deployment_updated(user, updated)
 
         socket
         |> put_flash(:info, "Deployment updated")

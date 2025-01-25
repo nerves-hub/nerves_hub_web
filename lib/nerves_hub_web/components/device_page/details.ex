@@ -463,7 +463,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
     deployment = NervesHub.Repo.preload(deployment, :firmware)
 
-    _ = DeviceTemplates.audit_pushed_available_update(user, device, deployment)
+    DeviceTemplates.audit_pushed_available_update(user, device, deployment)
 
     case Devices.told_to_update(device, deployment) do
       {:ok, inflight_update} ->
@@ -502,7 +502,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
     {:ok, device} = Devices.disable_updates(device, user)
 
-    _ = DeviceTemplates.audit_firmware_pushed(user, device, firmware)
+    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
     payload = %UpdatePayload{
       update_available: true,

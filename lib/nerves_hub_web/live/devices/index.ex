@@ -374,7 +374,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
 
-    _ = DeviceTemplates.audit_reboot(user, device)
+    DeviceTemplates.audit_reboot(user, device)
 
     socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 

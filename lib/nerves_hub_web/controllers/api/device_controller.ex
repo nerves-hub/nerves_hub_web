@@ -117,7 +117,7 @@ defmodule NervesHubWeb.API.DeviceController do
     case Devices.get_by_identifier(identifier) do
       {:ok, device} ->
         if Accounts.has_org_role?(device.org, user, :manage) do
-          _ = DeviceTemplates.audit_reboot(user, device)
+          DeviceTemplates.audit_reboot(user, device)
 
           _ = Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
@@ -204,7 +204,7 @@ defmodule NervesHubWeb.API.DeviceController do
           {:ok, device} = Devices.disable_updates(device, user)
           device = Repo.preload(device, [:device_certificates])
 
-          _ = DeviceTemplates.audit_firmware_pushed(user, device, firmware)
+          DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
           payload = %UpdatePayload{
             update_available: true,

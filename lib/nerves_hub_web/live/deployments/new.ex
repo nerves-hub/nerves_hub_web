@@ -81,7 +81,7 @@ defmodule NervesHubWeb.Live.Deployments.New do
         |> noreply()
 
       {_, {:ok, deployment}} ->
-        _ = DeploymentTemplates.audit_deployment_created(user, deployment)
+        DeploymentTemplates.audit_deployment_created(user, deployment)
 
         socket
         |> put_flash(:info, "Deployment created")

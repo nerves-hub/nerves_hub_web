@@ -29,7 +29,7 @@ defmodule NervesHubWeb.API.DeploymentController do
              params <- Map.put(params, "org_id", org.id),
              params <- whitelist(params, @whitelist_fields),
              {:ok, deployment} <- Deployments.create_deployment(params) do
-          _ = DeploymentTemplates.audit_deployment_created(user, deployment)
+          DeploymentTemplates.audit_deployment_created(user, deployment)
 
           conn
           |> put_status(:created)
@@ -57,7 +57,7 @@ defmodule NervesHubWeb.API.DeploymentController do
          deployment_params <- whitelist(deployment_params, @whitelist_fields),
          {:ok, %Deployment{} = updated_deployment} <-
            Deployments.update_deployment(deployment, deployment_params) do
-      _ = DeploymentTemplates.audit_deployment_updated(user, deployment)
+      DeploymentTemplates.audit_deployment_updated(user, deployment)
 
       render(conn, "show.json", deployment: updated_deployment)
     end

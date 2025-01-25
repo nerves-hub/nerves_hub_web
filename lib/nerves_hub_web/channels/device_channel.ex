@@ -137,11 +137,10 @@ defmodule NervesHubWeb.DeviceChannel do
         # If we get here, the device is connected and high probability it receives
         # the update message so we can Audit and later assert on this audit event
         # as a loosely valid attempt to update
-        _ =
-          DeviceTemplates.audit_device_deployment_update_triggered(
-            device,
-            socket.assigns.reference_id
-          )
+        DeviceTemplates.audit_device_deployment_update_triggered(
+          device,
+          socket.assigns.reference_id
+        )
 
         Devices.update_started!(inflight_update)
         push(socket, "update", payload)

@@ -633,7 +633,7 @@ defmodule NervesHub.Devices do
   end
 
   def update_firmware_metadata(device, metadata) do
-    _ = DeviceTemplates.audit_firmware_metadata_updated(device)
+    DeviceTemplates.audit_firmware_metadata_updated(device)
     update_device(device, %{firmware_metadata: metadata})
   end
 
@@ -800,8 +800,7 @@ defmodule NervesHub.Devices do
           |> DateTime.truncate(:second)
           |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
 
-        _ = DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device)
-
+        DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device)
         clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
@@ -814,8 +813,7 @@ defmodule NervesHub.Devices do
           |> DateTime.truncate(:second)
           |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
 
-        _ = DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device)
-
+        DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device)
         clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
@@ -856,7 +854,7 @@ defmodule NervesHub.Devices do
       firmware_uuid: device.firmware_metadata.uuid
     })
 
-    _ = DeviceTemplates.audit_firmware_updated(device)
+    DeviceTemplates.audit_firmware_updated(device)
 
     # Clear the inflight update, no longer inflight!
     inflight_update =

@@ -316,7 +316,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Settings do
 
     {:ok, _} = Deployments.delete_deployment(deployment)
 
-    _ = DeploymentTemplates.audit_deployment_deleted(user, deployment)
+    DeploymentTemplates.audit_deployment_deleted(user, deployment)
 
     socket
     |> put_flash(:info, "Deployment successfully deleted")
