@@ -23,14 +23,14 @@ defmodule NervesHub.Firmwares do
 
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
 
-  @spec count(%Product{}) :: non_neg_integer()
+  @spec count(Product.t()) :: non_neg_integer()
   def count(product) do
     Firmware
     |> where([f], f.product_id == ^product.id)
     |> Repo.aggregate(:count)
   end
 
-  @spec get_unique_platforms(%Product{}) :: [String.t()]
+  @spec get_unique_platforms(Product.t()) :: [String.t()]
   def get_unique_platforms(product) do
     Firmware
     |> select([f], f.platform)
@@ -39,7 +39,7 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
-  @spec get_unique_architectures(%Product{}) :: [String.t()]
+  @spec get_unique_architectures(Product.t()) :: [String.t()]
   def get_unique_architectures(product) do
     Firmware
     |> select([f], f.architecture)
@@ -57,7 +57,7 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
-  @spec get_firmwares(%Product{}, String.t(), String.t()) :: [Firmware.t()]
+  @spec get_firmwares(Product.t(), String.t(), String.t()) :: [Firmware.t()]
   def get_firmwares(product, platform, architecture) do
     Firmware
     |> where([f], f.product_id == ^product.id)
