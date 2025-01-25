@@ -101,7 +101,7 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
-  @spec filter(%Product{}, map()) :: %{
+  @spec filter(Product.t(), map()) :: %{
           entries: list(Device.t()),
           current_page: non_neg_integer(),
           page_size: non_neg_integer(),
