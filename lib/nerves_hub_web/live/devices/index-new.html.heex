@@ -264,7 +264,7 @@
   <% end %>
 </div>
 
-<div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 sm:pl-16 z-50">
+<div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 sm:pl-16 z-40">
   <div class={[
     "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-t border-l border-zinc-700 bg-base-900 shadow-filter-slider transition-transform",
     !@show_filters && "translate-x-full",
@@ -384,7 +384,7 @@
   </div>
 </div>
 
-<div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 mb-[119px] sm:pl-16 z-50">
+<div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 mb-[119px] sm:pl-16 z-40">
   <div class={[
     "pointer-events-auto w-screen max-w-80 mt-[55px] flex h-full flex-col border-y border-l border-zinc-700 bg-base-900 shadow-filter-slider transition-transform",
     Enum.empty?(@selected_devices) && "translate-x-full",
@@ -409,31 +409,48 @@
       </div>
 
       <div class="flex flex-1 flex-col px-4 py-6 gap-6">
-        <form id="move" class="flex flex-col gap-2" phx-change="target-product" phx-submit="move-devices">
-          <label for="move_to" class="sidebar-label">Move devices</label>
-          <div class="">
-            <div class="flex gap-2">
-              <select name="product" id="move_to" class="sidebar-select">
-                <option value="">Select product</option>
-                <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
-                  <optgroup label={org.name}>
-                    <%= for product <- products, product.id != @product.id do %>
-                      <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}>{product.name}</option>
-                    <% end %>
-                  </optgroup>
-                <% end %>
-              </select>
-              <!-- TODO check other browsers, do we need this chevron?
-              <div class="">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path d="M14.1668 8.33331L10.0002 12.5L5.8335 8.33331" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-              -->
-              <button class="sidebar-apply" type="submit" data-confirm={move_alert(@target_product)} {unless @target_product, do: [disabled: true], else: []}>
-                Move
-              </button>
-            </div>
+        <form id="move" class="flex flex-col gap-2" phx-change="target-product" phx-submit="move-devices-product">
+          <label for="move_to" class="sidebar-label">Move device(s) to product:</label>
+
+          <div class="flex gap-2">
+            <select name="product" id="move_to" class="sidebar-select">
+              <option value="">Select product</option>
+              <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
+                <optgroup label={org.name}>
+                  <%= for product <- products, product.id != @product.id do %>
+                    <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}>{product.name}</option>
+                  <% end %>
+                </optgroup>
+              <% end %>
+            </select>
+
+            <.button style="primary" type="submit" data-confirm={move_alert(@target_product)} {unless @target_product, do: [disabled: true], else: []}>
+              Move
+            </.button>
+          </div>
+        </form>
+
+        <form id="move" class="flex flex-col gap-2" phx-change="target-deployment" phx-submit="move-devices-deployment">
+          <label for="move_to" class="sidebar-label">Move device(s) to deployment:</label>
+
+          <div class="flex gap-2">
+            <select name="deployment" id="move_to_deployment" class="sidebar-select">
+              <option value="">Select deployment</option>
+              <%= for deployment <- @deployments do %>
+                <option value={deployment.id} {if @target_deployment && @target_deployment.id == deployment.id, do: [selected: true], else: []}>
+                  {deployment.name} - {deployment.firmware.architecture} - {deployment.firmware.platform}
+                </option>
+              <% end %>
+            </select>
+
+            <.button
+              style="primary"
+              type="submit"
+              data-confirm={"This will move all selected devices to #{@target_deployment && @target_deployment.name}. Would you like to continue?"}
+              {unless @target_deployment, do: [disabled: true], else: []}
+            >
+              Move
+            </.button>
           </div>
         </form>
 
@@ -441,9 +458,10 @@
           <label class="sidebar-label" for="input_set_tags">Set tags</label>
           <div class="flex gap-2">
             <input type="text" class="sidebar-text-input" name="tags" id="input_set_tags" value={@current_filters[:tag]} phx-debounce="500" />
-            <button class="sidebar-apply" type="submit" data-confirm="This will update tags on all selected devices" {if @valid_tags && @device_tags != "", do: [], else: [disabled: true]}>
+
+            <.button style="primary" type="submit" data-confirm="This will update tags on all selected devices" {if @valid_tags && @device_tags != "", do: [], else: [disabled: true]}>
               Set
-            </button>
+            </.button>
           </div>
           <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
         </form>
@@ -453,7 +471,7 @@
 
           <div class="flex gap-2 w-full">
             <form class="grow" id="disable-updates" phx-submit="disable-updates-for-devices">
-              <button class="sidebar-button w-full" type="submit" data-confirm="This will disable updates for all selected devices" phx-click="disable-updates-for-devices">
+              <button class="sidebar-button w-full" type="submit" data-confirm="This will disable updates for all selected devices">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <path
                     d="M10.0002 10L5.8335 5.83334M10.0002 10L14.1668 14.1667M10.0002 10L14.1668 5.83334M10.0002 10L5.8335 14.1667"
@@ -468,7 +486,7 @@
             </form>
 
             <form class="grow" id="enable-updates" phx-submit="enable-updates-for-devices">
-              <button class="sidebar-button w-full" type="submit" data-confirm="This will enable updates for all selected devices" phx-click="enable-updates-for-devices">
+              <button class="sidebar-button w-full" type="submit" data-confirm="This will enable updates for all selected devices">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <path d="M4.1665 10.8333L7.49984 14.1667L16.6665 5" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
@@ -478,8 +496,8 @@
           </div>
 
           <form id="clear-penalty-box" class="mt-2" phx-submit="clear-penalty-box-for-devices">
-            <button class="sidebar-button w-full" type="submit" data-confirm="This will clear the penalty box all selected devices" phx-click="clear-penalty-box-for-devices">
-              <span class="">Clear Penalty box</span>
+            <button class="sidebar-button w-full" type="submit" data-confirm="This will clear the penalty box all selected devices">
+              <span class="">Clear penalty box</span>
             </button>
           </form>
         </div>
