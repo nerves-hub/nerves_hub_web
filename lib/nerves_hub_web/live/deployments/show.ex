@@ -10,10 +10,10 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
   alias NervesHubWeb.Components.AuditLogFeed
 
-  alias NervesHubWeb.Components.DeploymentPage.Summary, as: SummaryTab
   alias NervesHubWeb.Components.DeploymentPage.Activity, as: ActivityTab
   alias NervesHubWeb.Components.DeploymentPage.ReleaseHistory, as: ReleaseHistoryTab
   alias NervesHubWeb.Components.DeploymentPage.Settings, as: SettingsTab
+  alias NervesHubWeb.Components.DeploymentPage.Summary, as: SummaryTab
 
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
