@@ -98,7 +98,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
   end
 
   @impl Phoenix.LiveView
-  def handle_info(:update_inflight_updates, socket) do
+  def handle_info(:update_inflight_updates, %{assigns: %{tab: :summary}} = socket) do
     Process.send_after(self(), :update_inflight_updates, 5000)
 
     %{assigns: %{deployment: deployment}} = socket
@@ -112,6 +112,12 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     |> assign(:up_to_date_count, Devices.up_to_date_count(deployment))
     |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment))
     |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_info(:update_inflight_updates, socket) do
+    Process.send_after(self(), :update_inflight_updates, 5000)
+    noreply(socket)
   end
 
   defp selected_tab(socket) do
