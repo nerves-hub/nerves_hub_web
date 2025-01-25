@@ -434,7 +434,7 @@ defmodule NervesHub.Deployments do
       [deployment] ->
         set_deployment_telemetry(:one_found, device, deployment)
 
-        DeviceTemplates.audit_set_deployment(device, deployment, :one_found)
+        _ = DeviceTemplates.audit_set_deployment(device, deployment, :one_found)
 
         device
         |> Devices.update_deployment(deployment)
@@ -443,7 +443,7 @@ defmodule NervesHub.Deployments do
       [deployment | _] ->
         set_deployment_telemetry(:multiple_found, device, deployment)
 
-        DeviceTemplates.audit_set_deployment(device, deployment, :multiple_found)
+        _ = DeviceTemplates.audit_set_deployment(device, deployment, :multiple_found)
 
         device
         |> Devices.update_deployment(deployment)

@@ -193,7 +193,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:reboot", org_user)
 
-    DeviceTemplates.audit_reboot(user, device)
+    _ = DeviceTemplates.audit_reboot(user, device)
 
     socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
@@ -205,7 +205,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:reconnect", org_user)
 
-    DeviceTemplates.audit_request_action(user, device, "reconnect")
+    _ = DeviceTemplates.audit_request_action(user, device, "reconnect")
 
     socket.endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
 
@@ -217,7 +217,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     authorized!(:"device:identify", org_user)
 
-    DeviceTemplates.audit_request_action(user, device, "identify itself")
+    _ = DeviceTemplates.audit_request_action(user, device, "identify itself")
 
     socket.endpoint.broadcast_from(self(), "device:#{socket.assigns.device.id}", "identify", %{})
 
@@ -332,7 +332,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
     {:ok, device} = Devices.disable_updates(device, user)
 
-    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
+    _ = DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
     payload = %UpdatePayload{
       update_available: true,
@@ -357,7 +357,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     case Devices.told_to_update(device, deployment) do
       {:ok, inflight_update} ->
-        DeviceTemplates.audit_pushed_available_update(user, device, deployment)
+        _ = DeviceTemplates.audit_pushed_available_update(user, device, deployment)
 
         _ =
           NervesHubWeb.Endpoint.broadcast(
