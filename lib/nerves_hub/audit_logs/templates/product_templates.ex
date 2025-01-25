@@ -1,7 +1,7 @@
 defmodule NervesHub.AuditLogs.ProductTemplates do
+  alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
-  alias NervesHub.Accounts.User
   alias NervesHub.Products.Product
   alias NervesHub.Scripts.Script
 

@@ -2,12 +2,12 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   @moduledoc """
   Templates for and handling of audit logging for device operations.
   """
-  alias NervesHub.Firmwares.Firmware
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares.Firmware
 
   require Logger
 
