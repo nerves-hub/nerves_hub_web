@@ -16,6 +16,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Fixtures
   alias NervesHub.Products
   alias NervesHub.Repo
+  alias NervesHub.Support.Utils
   alias NervesHubWeb.DeviceEndpoint
   alias NervesHubWeb.Endpoint
 
@@ -326,7 +327,7 @@ defmodule NervesHubWeb.WebsocketTest do
       opts = [
         mint_opts: [protocols: [:http1]],
         uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
-        headers: nh1_key_secret_headers(auth, identifier)
+        headers: Utils.nh1_key_secret_headers(auth, identifier)
       ]
 
       params = %{
@@ -360,7 +361,7 @@ defmodule NervesHubWeb.WebsocketTest do
       opts = [
         mint_opts: [protocols: [:http1]],
         uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
-        headers: nh1_key_secret_headers(auth, identifier) |> Enum.reverse()
+        headers: Utils.nh1_key_secret_headers(auth, identifier) |> Enum.reverse()
       ]
 
       params = %{
@@ -395,7 +396,7 @@ defmodule NervesHubWeb.WebsocketTest do
       opts = [
         mint_opts: [protocols: [:http1]],
         uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
-        headers: nh1_key_secret_headers(auth, identifier, signed_at: expired)
+        headers: Utils.nh1_key_secret_headers(auth, identifier, signed_at: expired)
       ]
 
       {:ok, socket} = SocketClient.start_link(opts)
@@ -409,7 +410,7 @@ defmodule NervesHubWeb.WebsocketTest do
       opts = [
         mint_opts: [protocols: [:http1]],
         uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
-        headers: nh1_key_secret_headers(auth, device.identifier)
+        headers: Utils.nh1_key_secret_headers(auth, device.identifier)
       ]
 
       params = %{
@@ -437,7 +438,7 @@ defmodule NervesHubWeb.WebsocketTest do
       opts = [
         mint_opts: [protocols: [:http1]],
         uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
-        headers: nh1_key_secret_headers(auth, "this-is-not-the-device-identifier")
+        headers: Utils.nh1_key_secret_headers(auth, "this-is-not-the-device-identifier")
       ]
 
       {:ok, socket} = SocketClient.start_link(opts)
@@ -459,7 +460,7 @@ defmodule NervesHubWeb.WebsocketTest do
         opts = [
           mint_opts: [protocols: [:http1]],
           uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
-          headers: nh1_key_secret_headers(auth, device.identifier)
+          headers: Utils.nh1_key_secret_headers(auth, device.identifier)
         ]
 
         {:ok, socket} = SocketClient.start_link(opts)
@@ -493,7 +494,7 @@ defmodule NervesHubWeb.WebsocketTest do
       opts = [
         mint_opts: [protocols: [:http1]],
         uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
-        headers: nh1_key_secret_headers(auth, identifier)
+        headers: Utils.nh1_key_secret_headers(auth, identifier)
       ]
 
       params = %{
@@ -547,7 +548,7 @@ defmodule NervesHubWeb.WebsocketTest do
       opts = [
         mint_opts: [protocols: [:http1]],
         uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
-        headers: nh1_key_secret_headers(auth, identifier)
+        headers: Utils.nh1_key_secret_headers(auth, identifier)
       ]
 
       params = %{
@@ -608,32 +609,6 @@ defmodule NervesHubWeb.WebsocketTest do
 
     assert assigns.error_reason ==
              "no certificate pair or shared secrets connection settings were provided"
-  end
-
-  defp nh1_key_secret_headers(auth, identifier, opts \\ []) do
-    opts =
-      opts
-      |> Keyword.put_new(:key_digest, :sha256)
-      |> Keyword.put_new(:key_iterations, 1000)
-      |> Keyword.put_new(:key_length, 32)
-      |> Keyword.put_new(:signed_at, System.system_time(:second))
-
-    alg = "NH1-HMAC-#{opts[:key_digest]}-#{opts[:key_iterations]}-#{opts[:key_length]}"
-
-    salt = """
-    NH1:device-socket:shared-secret:connect
-
-    x-nh-alg=#{alg}
-    x-nh-key=#{auth.key}
-    x-nh-time=#{opts[:signed_at]}
-    """
-
-    [
-      {"x-nh-alg", alg},
-      {"x-nh-key", auth.key},
-      {"x-nh-time", to_string(opts[:signed_at])},
-      {"x-nh-signature", Plug.Crypto.sign(auth.secret, salt, identifier, opts)}
-    ]
   end
 
   describe "firmware update" do
