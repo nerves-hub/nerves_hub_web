@@ -63,7 +63,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_params(_params, _uri, socket) do
-    {:noreply, socket}
+    socket
+    |> selected_tab()
+    |> noreply()
   end
 
   def handle_info(:reload_device, socket) do
