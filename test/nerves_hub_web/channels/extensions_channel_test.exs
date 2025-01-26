@@ -4,6 +4,7 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
 
   alias NervesHub.Fixtures
   alias NervesHub.Products
+  alias NervesHub.Support.Utils
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
@@ -73,6 +74,46 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
                  "health" => "0.0.1"
                }
              )
+  end
+
+  test "a new device connecting via Shared Secrets (JITP) and joining extensions channel is fine" do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
+    product = Fixtures.product_fixture(user, org)
+
+    assert {:ok, auth} = Products.create_shared_secret_auth(product)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{},
+        connect_info: %{x_headers: Utils.nh1_key_secret_headers(auth, Ecto.UUID.generate())}
+      )
+
+    params = %{
+      "nerves_fw_uuid" => Ecto.UUID.generate(),
+      "nerves_fw_product" => product.name,
+      "nerves_fw_architecture" => "arm64",
+      "nerves_fw_version" => "0.0.0",
+      "nerves_fw_platform" => "test_host"
+    }
+
+    {:ok, _, socket} =
+      subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device", params)
+
+    assert_push("extensions:get", _extensions)
+
+    assert {:ok, attach_list, _} =
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{
+                 "geo" => "0.0.1",
+                 "health" => "0.0.1"
+               }
+             )
+
+    assert "health" in attach_list
+    assert "geo" in attach_list
   end
 
   test "product with extensions disabled does not suggest attaching anything" do
