@@ -77,6 +77,14 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   end
 
   test "a new device connecting via Shared Secrets (JITP) and joining extensions channel is fine" do
+    Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
+
+    on_exit(fn ->
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
+        shared_secrets: [enabled: false]
+      )
+    end)
+
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org)
