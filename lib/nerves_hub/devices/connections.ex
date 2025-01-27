@@ -63,12 +63,27 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Updates the `last_seen_at`field for a device connection with current timestamp
   """
-  @spec device_heartbeat(UUIDv7.t()) :: {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
-  def device_heartbeat(ref_id) do
-    DeviceConnection
-    |> Repo.get!(ref_id)
-    |> DeviceConnection.update_changeset(%{last_seen_at: DateTime.utc_now()})
-    |> Repo.update()
+  @spec device_heartbeat(UUIDv7.t()) :: :ok
+  def device_heartbeat(id) do
+    {1, [result]} =
+      DeviceConnection
+      |> join(:inner, [dc], d in assoc(dc, :device), as: :device)
+      |> select([device: device], %{identifier: device.identifier})
+      |> where([dc], dc.id == ^id)
+      |> Repo.update_all(
+        set: [
+          status: "connected",
+          last_seen_at: DateTime.utc_now()
+        ]
+      )
+
+    Phoenix.Channel.Server.broadcast_from!(
+      NervesHub.PubSub,
+      self(),
+      "device:#{result.identifier}:internal",
+      "connection:heartbeat",
+      %{}
+    )
   end
 
   @doc """
