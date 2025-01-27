@@ -77,7 +77,7 @@ defmodule NervesHub.Devices.Connections do
         ]
       )
 
-    Phoenix.Channel.broadcast_from!(
+    Phoenix.Channel.Server.broadcast_from!(
       NervesHub.PubSub,
       self(),
       "device:#{result.identifier}:internal",
