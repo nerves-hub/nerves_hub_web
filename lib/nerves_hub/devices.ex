@@ -350,7 +350,7 @@ defmodule NervesHub.Devices do
     %Device{}
     |> Device.changeset(params)
     |> Repo.insert()
-    |> Repo.preload(:product)
+    |> Repo.maybe_preload(:product)
   end
 
   def set_as_provisioned!(device) do
