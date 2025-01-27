@@ -36,6 +36,8 @@ defmodule NervesHub.Products.Product do
     field(:delta_updatable, :boolean, default: false)
     embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
 
+    field(:device_count, :integer, virtual: true)
+
     timestamps()
   end
 
