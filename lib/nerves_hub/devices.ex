@@ -101,6 +101,19 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
+  def get_device_by_x509(cert) do
+    fingerprint = NervesHub.Certificate.fingerprint(cert)
+
+    Device
+    |> join(:inner, [d], dc in assoc(d, :device_certificates))
+    |> where([d, dc], dc.fingerprint == ^fingerprint)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      certificate -> {:ok, certificate}
+    end
+  end
+
   @spec filter(Product.t(), map()) :: %{
           entries: list(Device.t()),
           current_page: non_neg_integer(),

@@ -4,9 +4,8 @@ defmodule NervesHubWeb.DeviceSocket do
 
   require Logger
 
-  alias NervesHub.Devices
   alias NervesHub.Devices.Connections
-  alias NervesHub.Devices.DeviceConnection
+
   alias NervesHub.Tracker
 
   alias NervesHub.RPC.DeviceAuth
@@ -16,13 +15,6 @@ defmodule NervesHubWeb.DeviceSocket do
   channel("extensions", NervesHubWeb.ExtensionsChannel)
 
   defoverridable init: 1, handle_in: 2, terminate: 2
-
-  @impl Phoenix.Socket.Transport
-  def init(state_tuple) do
-    {:ok, {state, socket}} = super(state_tuple)
-    socket = on_connect(socket)
-    {:ok, {state, socket}}
-  end
 
   @impl Phoenix.Socket.Transport
   @decorate with_span("Channels.DeviceSocket.terminate")
@@ -70,19 +62,12 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.connect")
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}})
       when not is_nil(ssl_cert) do
-    X509.Certificate.from_der!(ssl_cert)
-    |> Devices.get_device_by_x509()
-    |> case do
-      {:ok, device} ->
-        socket_and_assigns(socket, device)
+    case DeviceAuth.connect_device({:ssl_certs, ssl_cert}) do
+      {:ok, ref_and_device} ->
+        socket_and_assigns(socket, ref_and_device)
 
       error ->
-        :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
-          auth: :cert,
-          reason: error
-        })
-
-        {:error, :invalid_auth}
+        error
     end
   end
 
@@ -90,20 +75,12 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.connect")
   def connect(_params, socket, %{x_headers: x_headers})
       when is_list(x_headers) and length(x_headers) > 0 do
-    headers = Map.new(x_headers)
-
     case DeviceAuth.connect_device({:shared_secrets, x_headers}) do
-      {:ok, device} ->
-        socket_and_assigns(socket, Devices.preload_product(device))
+      {:ok, ref_and_device} ->
+        socket_and_assigns(socket, ref_and_device)
 
       error ->
-        :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
-          auth: :shared_secrets,
-          reason: error,
-          product_key: Map.get(headers, "x-nh-key", "*empty*")
-        })
-
-        {:error, :invalid_auth}
+        error
     end
   end
 
@@ -125,42 +102,13 @@ defmodule NervesHubWeb.DeviceSocket do
     ]
   end
 
-  defp socket_and_assigns(socket, device) do
-    # disconnect devices using the same identifier
-    _ = socket.endpoint.broadcast_from(self(), "device_socket:#{device.id}", "disconnect", %{})
-
+  defp socket_and_assigns(socket, {ref_id, device}) do
     socket =
       socket
       |> assign(:device, device)
+      |> assign(:reference_id, ref_id)
 
     {:ok, socket}
-  end
-
-  @decorate with_span("Channels.DeviceSocket.on_connect#registered")
-  defp on_connect(%{assigns: %{device: %{status: :registered} = device}} = socket) do
-    socket
-    |> assign(device: Devices.set_as_provisioned!(device))
-    |> on_connect()
-  end
-
-  @decorate with_span("Channels.DeviceSocket.on_connect#provisioned")
-  defp on_connect(%{assigns: %{device: device}} = socket) do
-    # Report connection and use connection id as reference
-    {:ok, %DeviceConnection{id: connection_id}} =
-      Connections.device_connected(device.id)
-
-    :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
-      ref_id: connection_id,
-      identifier: socket.assigns.device.identifier,
-      firmware_uuid:
-        get_in(socket.assigns.device, [Access.key(:firmware_metadata), Access.key(:uuid)])
-    })
-
-    Tracker.online(device)
-
-    socket
-    |> assign(:device, device)
-    |> assign(:reference_id, connection_id)
   end
 
   @decorate with_span("Channels.DeviceSocket.on_disconnect")
