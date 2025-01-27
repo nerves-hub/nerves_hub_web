@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Live.Deployments.Newz do
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
-    if Firmwares.count(socket.assigns.product) == 0 do
+    if Firmwares.count(product) == 0 do
       socket
       |> assign(:firmware_required, true)
       |> ok()
