@@ -39,6 +39,8 @@ defmodule NervesHub.Devices do
   def get_active_device(filters) do
     Device
     |> Repo.exclude_deleted()
+    |> join(:inner, [d], p in assoc(d, :product))
+    |> preload([_d, p], product: p)
     |> Repo.get_by(filters)
     |> case do
       nil -> {:error, :not_found}
@@ -348,6 +350,7 @@ defmodule NervesHub.Devices do
     %Device{}
     |> Device.changeset(params)
     |> Repo.insert()
+    |> Repo.preload(:product)
   end
 
   def set_as_provisioned!(device) do
