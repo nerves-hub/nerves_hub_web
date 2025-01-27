@@ -139,7 +139,7 @@ defmodule NervesHub.Devices.Connections do
     {delete_count, _} =
       DeviceConnection
       |> where([d], d.id in subquery(query))
-      |> Repo.delete_all()
+      |> Repo.delete_all(timeout: 30_000)
 
     if delete_count == 0 do
       :ok
