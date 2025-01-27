@@ -77,15 +77,13 @@ defmodule NervesHub.Devices.Connections do
         ]
       )
 
-    Phoenix.Channel.Server.broadcast_from!(
+    Phoenix.Channel.broadcast_from!(
       NervesHub.PubSub,
       self(),
       "device:#{result.identifier}:internal",
       "connection:heartbeat",
       %{}
     )
-
-    :ok
   end
 
   @doc """
