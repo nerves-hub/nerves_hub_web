@@ -6,8 +6,6 @@ defmodule NervesHubWeb.DeviceSocket do
 
   alias NervesHub.Devices.Connections
 
-  alias NervesHub.Tracker
-
   alias NervesHub.RPC.DeviceAuth
 
   channel("console", NervesHubWeb.ConsoleChannel)
@@ -19,7 +17,8 @@ defmodule NervesHubWeb.DeviceSocket do
   @impl Phoenix.Socket.Transport
   @decorate with_span("Channels.DeviceSocket.terminate")
   def terminate(reason, {_channels_info, socket} = state) do
-    on_disconnect(reason, socket)
+    %{assigns: %{device: device, reference_id: reference_id}} = socket
+    DeviceAuth.disconnect_device(reason, device, reference_id)
     super(reason, state)
   end
 
@@ -114,6 +113,7 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.on_disconnect")
   defp on_disconnect(exit_reason, socket)
 
+  @decorate with_span("Channels.DeviceSocket.on_disconnect")
   defp on_disconnect({:error, reason}, %{
          assigns: %{
            device: device,
@@ -132,6 +132,7 @@ defmodule NervesHubWeb.DeviceSocket do
     :ok
   end
 
+  @decorate with_span("Channels.DeviceSocket.on_disconnect")
   defp on_disconnect(_, %{
          assigns: %{
            device: device,

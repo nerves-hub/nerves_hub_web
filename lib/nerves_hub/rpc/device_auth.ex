@@ -52,6 +52,28 @@ defmodule NervesHub.RPC.DeviceAuth do
     end
   end
 
+  def disconnect_device({:error, {:shutdown, :disconnected}}, device, reference_id) do
+    :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
+      ref_id: reference_id,
+      device: device
+    })
+
+    disconnect_device(:ok, device, reference_id)
+  end
+
+  def disconnect_device(_, device, reference_id) do
+    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
+      ref_id: reference_id,
+      identifier: device.identifier
+    })
+
+    {:ok, _device_connection} = Connections.device_disconnected(reference_id)
+
+    Tracker.offline(device)
+
+    :ok
+  end
+
   defp on_connect(%Device{status: :registered} = device) do
     Devices.set_as_provisioned!(device)
     |> on_connect()
