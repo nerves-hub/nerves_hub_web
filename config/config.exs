@@ -71,7 +71,7 @@ config :nerves_hub, Oban,
      crontab: [
        {"0 * * * *", NervesHub.Workers.ScheduleOrgAuditLogTruncation},
        {"*/1 * * * *", NervesHub.Workers.CleanStaleDeviceConnections},
-       {"0 */1 * * *", NervesHub.Workers.DeleteOldDeviceConnections},
+       {"1,16,31,46 * * * *", NervesHub.Workers.DeleteOldDeviceConnections},
        {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates},
        {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation}
      ]}
