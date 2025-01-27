@@ -73,7 +73,10 @@ defmodule NervesHub.Devices.Device do
     # field(:connection_established_at, :utc_datetime)
     # field(:connection_disconnected_at, :utc_datetime)
     # field(:connection_last_seen_at, :utc_datetime)
-    embeds_one(:extensions, DeviceExtensionsSetting, on_replace: :update)
+    embeds_one(:extensions, DeviceExtensionsSetting,
+      defaults_to_struct: true,
+      on_replace: :update
+    )
   end
 
   def changeset(%Device{} = device, params) do
