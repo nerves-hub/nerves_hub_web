@@ -313,4 +313,11 @@ defmodule NervesHub.Products do
         :nope
     end)
   end
+
+  def shared_secrets_enabled?() do
+    # NervesHubWeb.DeviceSocket should really be :device_auth or :product_auth
+    Application.get_env(:nerves_hub, NervesHubWeb.DeviceSocket, [])
+    |> Keyword.get(:shared_secrets, [])
+    |> Keyword.get(:enabled, false)
+  end
 end
