@@ -262,7 +262,7 @@ defmodule NervesHub.Devices do
     Device
     |> join(:inner, [d], p in assoc(d, :product))
     |> join(:inner, [d], dc in assoc(d, :device_certificates))
-    |> where([_, _, dc], dc.fingerprint: ^fingerprint)
+    |> where([_, _, dc], dc.fingerprint == ^fingerprint)
     |> preload([_d, p], product: p)
     |> Repo.one()
     |> case do
