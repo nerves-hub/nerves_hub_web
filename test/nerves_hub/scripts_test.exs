@@ -21,6 +21,23 @@ defmodule NervesHub.ScriptsTest do
         })
 
       assert script.product_id == product.id
+      assert script.created_by_id == user.id
+    end
+  end
+
+  describe "updating a script" do
+    test "successful update", %{product: product, user: user} do
+      {:ok, script} =
+        Scripts.create(product, user, %{
+          name: "MOTD",
+          text: "NervesMOTD.print()"
+        })
+
+      {:ok, script} =
+        Scripts.update(script, user, %{name: "New Name"})
+
+      assert script.name == "New Name"
+      assert script.last_updated_by_id == user.id
     end
   end
 end
