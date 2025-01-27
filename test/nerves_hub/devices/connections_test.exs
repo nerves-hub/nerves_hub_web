@@ -26,12 +26,13 @@ defmodule NervesHub.Devices.ConnectionsTest do
   end
 
   test "device heartbeat", %{device: device} do
-    assert {:ok, %DeviceConnection{id: connection_id, last_seen_at: first_seen_at}} =
+    assert {:ok, %DeviceConnection{id: connection_id, last_seen_at: first_seen_at} = connection} =
              Connections.device_connected(device.id)
 
-    assert {:ok,
-            %DeviceConnection{id: ^connection_id, last_seen_at: last_seen_at, status: :connected}} =
-             Connections.device_heartbeat(connection_id)
+    Connections.device_heartbeat(connection_id)
+
+    %DeviceConnection{id: ^connection_id, last_seen_at: last_seen_at, status: :connected} =
+      Repo.reload(connection)
 
     assert last_seen_at > first_seen_at
     assert %DeviceConnection{status: :connected} = Connections.get_latest_for_device(device.id)

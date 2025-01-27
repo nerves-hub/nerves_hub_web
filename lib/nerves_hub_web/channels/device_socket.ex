@@ -46,25 +46,9 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @decorate with_span("Channels.DeviceSocket.heartbeat")
-  defp heartbeat(
-         %Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"},
-         %{
-           assigns: %{
-             reference_id: ref_id,
-             device: device
-           }
-         } = socket
-       ) do
+  defp heartbeat(%Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"}, socket) do
     if heartbeat?(socket) do
-      {:ok, _device_connection} = Connections.device_heartbeat(ref_id)
-
-      _ =
-        socket.endpoint.broadcast_from(
-          self(),
-          "device:#{device.identifier}:internal",
-          "connection:heartbeat",
-          %{}
-        )
+      Connections.device_heartbeat(socket.assigns.reference_id)
 
       last_heartbeat =
         DateTime.utc_now()
