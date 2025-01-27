@@ -437,7 +437,10 @@ defmodule NervesHub.Devices do
   def get_device_certificate_by_x509(cert) do
     fingerprint = NervesHub.Certificate.fingerprint(cert)
 
-    from(DeviceCertificate, where: [fingerprint: ^fingerprint], preload: :device)
+    DeviceCertificate
+    |> where(fingerprint: ^fingerprint)
+    |> join(:inner, [dc], d in assoc(dc, :device))
+    |> preload([_dc, d], device: d)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -448,10 +451,10 @@ defmodule NervesHub.Devices do
   def get_device_certificates_by_public_key(otp_cert) do
     pk_fingerprint = NervesHub.Certificate.public_key_fingerprint(otp_cert)
 
-    from(c in DeviceCertificate,
-      where: [public_key_fingerprint: ^pk_fingerprint],
-      preload: [:device]
-    )
+    DeviceCertificate
+    |> where(public_key_fingerprint: ^pk_fingerprint)
+    |> join(:inner, [dc], d in assoc(dc, :device))
+    |> preload([_dc, d], device: d)
     |> Repo.all()
   end
 
