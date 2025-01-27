@@ -68,11 +68,17 @@ defmodule NervesHub.AuditLogs do
   defp query_for_feed(%resource_type{id: id}) do
     resource_type = to_string(resource_type)
 
-    from(al in AuditLog,
-      where: [actor_type: ^resource_type, actor_id: ^id],
-      or_where: [resource_type: ^resource_type, resource_id: ^id]
-    )
-    |> order_by(desc: :inserted_at)
+    union_query =
+      union(
+        from(al in AuditLog, where: [actor_type: ^resource_type, actor_id: ^id]),
+        ^from(al in AuditLog, where: [resource_type: ^resource_type, resource_id: ^id])
+      )
+
+    # prefer union to take advantage of separate actor and resource indexes
+    #
+    # you cannot order_by from a union in Ecto, but a subquery works
+    # https://github.com/elixir-ecto/ecto/issues/2825#issuecomment-439725204
+    from(al in subquery(union_query), order_by: [desc: al.inserted_at])
   end
 
   def format_for_csv(audit_logs) do
