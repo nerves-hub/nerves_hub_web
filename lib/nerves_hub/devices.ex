@@ -39,6 +39,8 @@ defmodule NervesHub.Devices do
   def get_active_device(filters) do
     Device
     |> Repo.exclude_deleted()
+    |> join(:inner, [d], p in assoc(d, :product))
+    |> preload([_d, p], product: p)
     |> Repo.get_by(filters)
     |> case do
       nil -> {:error, :not_found}
@@ -254,6 +256,21 @@ defmodule NervesHub.Devices do
     |> preload([latest_connection: lc], latest_connection: lc)
   end
 
+  def get_device_by_x509(cert) do
+    fingerprint = NervesHub.Certificate.fingerprint(cert)
+
+    Device
+    |> join(:inner, [d], p in assoc(d, :product))
+    |> join(:inner, [d], dc in assoc(d, :device_certificates))
+    |> where([_, _, dc], dc.fingerprint == ^fingerprint)
+    |> preload([_d, p], product: p)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      certificate -> {:ok, certificate}
+    end
+  end
+
   @spec get_shared_secret_auth(String.t()) ::
           {:ok, SharedSecretAuth.t()} | {:error, :not_found}
   def get_shared_secret_auth(key) do
@@ -333,6 +350,7 @@ defmodule NervesHub.Devices do
     %Device{}
     |> Device.changeset(params)
     |> Repo.insert()
+    |> Repo.maybe_preload(:product)
   end
 
   def set_as_provisioned!(device) do
@@ -422,7 +440,10 @@ defmodule NervesHub.Devices do
   def get_device_certificate_by_x509(cert) do
     fingerprint = NervesHub.Certificate.fingerprint(cert)
 
-    from(DeviceCertificate, where: [fingerprint: ^fingerprint], preload: :device)
+    DeviceCertificate
+    |> where(fingerprint: ^fingerprint)
+    |> join(:inner, [dc], d in assoc(dc, :device))
+    |> preload([_dc, d], device: d)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -433,10 +454,10 @@ defmodule NervesHub.Devices do
   def get_device_certificates_by_public_key(otp_cert) do
     pk_fingerprint = NervesHub.Certificate.public_key_fingerprint(otp_cert)
 
-    from(c in DeviceCertificate,
-      where: [public_key_fingerprint: ^pk_fingerprint],
-      preload: [:device]
-    )
+    DeviceCertificate
+    |> where(public_key_fingerprint: ^pk_fingerprint)
+    |> join(:inner, [dc], d in assoc(dc, :device))
+    |> preload([_dc, d], device: d)
     |> Repo.all()
   end
 
