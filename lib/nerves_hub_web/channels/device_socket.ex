@@ -76,7 +76,7 @@ defmodule NervesHubWeb.DeviceSocket do
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}})
       when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
-    |> Devices.get_device_certificate_by_x509()
+    |> Devices.get_device_by_x509()
     |> case do
       {:ok, %{device: %Device{} = device}} ->
         socket_and_assigns(socket, Devices.preload_product(device))

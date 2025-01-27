@@ -254,6 +254,21 @@ defmodule NervesHub.Devices do
     |> preload([latest_connection: lc], latest_connection: lc)
   end
 
+  def get_device_by_x509(cert) do
+    fingerprint = NervesHub.Certificate.fingerprint(cert)
+
+    Device
+    |> join(:inner, [d], p in assoc(d, :product))
+    |> join(:inner, [d], dc in assoc(d, :device_certificates))
+    |> where([_, _, dc], dc.fingerprint: ^fingerprint)
+    |> preload([_d, p], product: p)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      certificate -> {:ok, certificate}
+    end
+  end
+
   @spec get_shared_secret_auth(String.t()) ::
           {:ok, SharedSecretAuth.t()} | {:error, :not_found}
   def get_shared_secret_auth(key) do
