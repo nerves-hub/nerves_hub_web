@@ -6,7 +6,6 @@ defmodule NervesHubWeb.DeviceSocket do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
-  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Products
   alias NervesHub.Tracker
@@ -78,7 +77,7 @@ defmodule NervesHubWeb.DeviceSocket do
     X509.Certificate.from_der!(ssl_cert)
     |> Devices.get_device_by_x509()
     |> case do
-      {:ok, %{device: %Device{} = device}} ->
+      {:ok, device} ->
         socket_and_assigns(socket, device)
 
       error ->
