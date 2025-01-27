@@ -73,16 +73,16 @@
 
   <div class="flex w-full justify-between px-6 border-b border-zinc-700">
     <div class="flex">
-      <.link class={tab_classes(@tab, :summary)} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"}>
+      <.link class={tab_classes(@tab, :summary)} patch={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"}>
         Summary
       </.link>
-      <.link class={tab_classes(@tab, :release_history)} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/releases"}>
+      <.link class={tab_classes(@tab, :release_history)} patch={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/releases"}>
         Release History
       </.link>
-      <.link class={tab_classes(@tab, :activity)} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/activity"}>
+      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/activity"}>
         Activity
       </.link>
-      <.link class={tab_classes(@tab, :settings)} navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/settings"}>
+      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}/settings"}>
         Settings
       </.link>
     </div>

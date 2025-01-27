@@ -163,19 +163,19 @@
 
   <div class="flex w-full justify-between px-6 border-b border-zinc-700">
     <div class="flex">
-      <.link class={tab_classes(@tab, :details)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"}>
+      <.link class={tab_classes(@tab, :details)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"}>
         Details
       </.link>
-      <.link class={tab_classes(@tab, :health)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/healthz"}>
+      <.link class={tab_classes(@tab, :health)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/healthz"}>
         Health
       </.link>
-      <.link class={tab_classes(@tab, :activity)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/activity"}>
+      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/activity"}>
         Activity
       </.link>
-      <.link class={tab_classes(@tab, :console)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/conzole"}>
+      <.link class={tab_classes(@tab, :console)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/conzole"}>
         Console
       </.link>
-      <.link class={tab_classes(@tab, :settings)} navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/settingz"}>
+      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/settingz"}>
         Settings
       </.link>
     </div>

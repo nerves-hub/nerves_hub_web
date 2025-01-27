@@ -54,6 +54,13 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     |> ok()
   end
 
+  @impl Phoenix.LiveView
+  def handle_params(_params, _uri, socket) do
+    socket
+    |> selected_tab()
+    |> noreply()
+  end
+
   defp schedule_inflight_updates_updater(socket) do
     if connected?(socket) do
       Process.send_after(self(), :update_inflight_updates, 5000)
