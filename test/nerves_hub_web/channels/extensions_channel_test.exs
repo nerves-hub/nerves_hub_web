@@ -2,8 +2,10 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
   use NervesHubWeb.ChannelCase
   use DefaultMocks
 
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Products
+  alias NervesHub.Repo
   alias NervesHub.Support.Utils
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
@@ -21,6 +23,57 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
 
     assert_push("extensions:get", _extensions)
+  end
+
+  test "joining extensions channel works when the device has connected for the first time" do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user)
+    product = Fixtures.product_fixture(user, org)
+
+    {:ok, device} =
+      Devices.create_device(%{
+        product_id: product.id,
+        org_id: org.id,
+        identifier: Ecto.UUID.generate()
+      })
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    # simulate the device channel updating the params
+    params = %{
+      "nerves_fw_uuid" => Ecto.UUID.generate(),
+      "nerves_fw_product" => product.name,
+      "nerves_fw_architecture" => "arm64",
+      "nerves_fw_version" => "0.0.0",
+      "nerves_fw_platform" => "test_host"
+    }
+
+    # taken from `DeviceChannel`, I don't love just stealing this, but it will do for now
+    with {:ok, metadata} <- NervesHub.Firmwares.metadata_from_device(params),
+         {:ok, device} <- NervesHub.Devices.update_firmware_metadata(device, metadata) do
+      NervesHub.Devices.firmware_update_successful(device)
+    end
+
+    assert {:ok, ["health"], extensions_channel} =
+             subscribe_and_join_with_default_device_api_version(
+               socket,
+               ExtensionsChannel,
+               "extensions",
+               %{"health" => "0.0.1"}
+             )
+
+    push(extensions_channel, "health:attached")
+    assert_push("health:check", _)
+
+    @endpoint.subscribe("device:#{device.id}:extensions")
+
+    push(extensions_channel, "health:report", %{"value" => dummy_health_report()})
+    assert_broadcast("health_check_report", _)
+
+    assert Repo.aggregate(Devices.DeviceHealth, :count) == 1
   end
 
   test "joining extensions channel suggests attaching geo and health" do
@@ -330,6 +383,16 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       )
 
     {device, firmware, deployment}
+  end
+
+  def dummy_health_report() do
+    %{
+      alarms: %{},
+      checks: %{},
+      metadata: %{},
+      timestamp: "2025-01-20T20:00:37.106480Z",
+      connectivity: %{}
+    }
   end
 
   defp subscribe_and_join_with_default_device_api_version(socket, channel, topic),
