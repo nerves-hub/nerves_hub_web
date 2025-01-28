@@ -794,7 +794,7 @@ defmodule NervesHub.DevicesTest do
       refute device.deployment_id
 
       NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
-      _ = Devices.update_deployment(device, deployment)
+      device = Devices.update_deployment(device, deployment)
 
       assert device.deployment_id == deployment.id
       assert_receive %{event: "devices/updated"}
