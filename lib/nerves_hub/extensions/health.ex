@@ -54,7 +54,7 @@ defmodule NervesHub.Extensions.Health do
           do: {to_string(key), to_string(val)}
 
     # Separate metrics from health report to store in metrics table
-    metrics = device_status["metrics"]
+    metrics = device_status["metrics"] || %{}
 
     health_report =
       device_status
