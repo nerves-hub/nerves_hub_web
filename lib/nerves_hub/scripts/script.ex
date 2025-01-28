@@ -30,7 +30,7 @@ defmodule NervesHub.Scripts.Script do
     |> foreign_key_constraint(:created_by_id)
   end
 
-  def update_changeset(%__MODULE__{} = struct, edited_by, params) do
+  def update_changeset(%__MODULE__{} = struct, edited_by, params \\ %{}) do
     struct
     |> cast(params, @required)
     |> put_change(:last_updated_by_id, edited_by.id)

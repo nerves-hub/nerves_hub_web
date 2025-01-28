@@ -19,6 +19,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareTransfer
   alias NervesHub.Products.Product
+  alias NervesHub.Scripts.Script
 
   alias NervesHub.Repo
 
@@ -40,6 +41,8 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.update_all(:soft_delete_devices, &soft_delete_by_org_id(Device, &1), [])
     |> Multi.update_all(:soft_delete_org_users, &soft_delete_by_org_id(OrgUser, &1), [])
     |> Multi.update_all(:soft_delete_orgs, &soft_delete_orgs(&1), [])
+    |> Multi.update_all(:nilify_script_creations, &nilify_script_creations(&1), [])
+    |> Multi.update_all(:nilify_script_edits, &nilify_script_edits(&1), [])
     |> Multi.update(:soft_delete_user, &soft_delete_user/1)
     |> Repo.transaction()
   end
@@ -107,6 +110,18 @@ defmodule NervesHub.Accounts.RemoveAccount do
     Org
     |> where([o], o.id in ^ids)
     |> update(set: [deleted_at: ^truncated_utc_now()])
+  end
+
+  defp nilify_script_creations(%{user_id: user_id}) do
+    Script
+    |> where(created_by_id: ^user_id)
+    |> update(set: [created_by_id: nil])
+  end
+
+  defp nilify_script_edits(%{user_id: user_id}) do
+    Script
+    |> where(last_updated_by_id: ^user_id)
+    |> update(set: [last_updated_by_id: nil])
   end
 
   defp query_by_org_id(queryable, %{org_ids: ids}) do
