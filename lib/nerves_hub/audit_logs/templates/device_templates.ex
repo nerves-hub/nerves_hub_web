@@ -2,8 +2,10 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   @moduledoc """
   Templates for and handling of audit logging for device operations.
   """
+
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
@@ -91,7 +93,8 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     )
   end
 
-  @spec audit_set_deployment(Device.t(), Deployment.t(), :one_found | :multiple_found) :: :ok
+  @spec audit_set_deployment(Device.t(), Deployment.t(), :one_found | :multiple_found) ::
+          AuditLog.t()
   def audit_set_deployment(device, deployment, :one_found) do
     AuditLogs.audit!(
       device,
@@ -106,5 +109,19 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
       device,
       "Multiple matching deployments found, updating #{device.identifier}'s deployment to #{deployment.name}"
     )
+  end
+
+  @spec audit_device_archive_update_triggered(Device.t(), Archive.t(), UUIDv7.t()) :: :ok
+  def audit_device_archive_update_triggered(
+        device,
+        archive,
+        reference_id
+      ) do
+    description =
+      "Archive update triggered for #{device.identifier}. Sending archive #{archive.uuid}."
+
+    AuditLogs.audit_with_ref!(device, device, description, reference_id)
+
+    :ok
   end
 end

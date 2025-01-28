@@ -154,7 +154,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info(%Broadcast{event: "archives/updated"}, socket) do
-    {:noreply, maybe_send_archive(socket)}
+    {:noreply, maybe_send_archive(socket, audit_log: true)}
   end
 
   def handle_info(%Broadcast{event: "moved"}, %{assigns: %{device: device}} = socket) do
@@ -197,7 +197,7 @@ defmodule NervesHubWeb.DeviceChannel do
       socket
       |> update_device(device)
       |> maybe_start_penalty_timer()
-      |> maybe_send_archive()
+      |> maybe_send_archive(audit_log: true)
 
     {:noreply, socket}
   end
@@ -481,12 +481,21 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  defp maybe_send_archive(%{assigns: %{device: device}} = socket) do
+  defp maybe_send_archive(%{assigns: %{device: device}} = socket, opts \\ []) do
+    opts = Keyword.validate!(opts, audit_log: false)
     updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
     version_match = Version.match?(socket.assigns.device_api_version, ">= 2.0.0")
 
     if updates_enabled && version_match do
       if archive = Archives.archive_for_deployment(device.deployment_id) do
+        if opts[:audit_log],
+          do:
+            DeviceTemplates.audit_device_archive_update_triggered(
+              device,
+              archive,
+              socket.assigns.reference_id
+            )
+
         push(socket, "archive", %{
           size: archive.size,
           uuid: archive.uuid,

@@ -2,10 +2,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
   use NervesHubWeb.ChannelCase
   use DefaultMocks
 
+  import Ecto.Query
   import TrackerHelper
 
   alias NervesHub.Devices
+  alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Fixtures
+  alias NervesHub.Repo
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
   alias NervesHubWeb.ExtensionsChannel
@@ -89,6 +92,127 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, %{}, _socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
 
     assert_push("archive_public_keys", %{keys: [_]})
+  end
+
+  test "if archive is sent on connect an audit log is not created" do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user, %{name: "BigOrg2022"})
+    product = Fixtures.product_fixture(user, org, %{name: "Hop"})
+    org_key = Fixtures.org_key_fixture(org, user)
+    archive = %{uuid: archive_uuid} = Fixtures.archive_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: System.tmp_dir()})
+    deployment = Fixtures.deployment_fixture(org, firmware, %{archive_id: archive.id})
+
+    {device, _firmware, _deployment} =
+      device_fixture(user, %{identifier: "123", deployment_id: deployment.id})
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    params =
+      for {k, v} <- Map.from_struct(device.firmware_metadata),
+          into: %{"device_api_version" => "2.0.1"} do
+        case k do
+          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
+          _ -> {"nerves_fw_#{k}", v}
+        end
+      end
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, %{}, _socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+    audit_log_count_before = Repo.aggregate(AuditLog, :count)
+
+    assert_push("archive", %{uuid: ^archive_uuid})
+
+    assert audit_log_count_before == Repo.aggregate(AuditLog, :count)
+  end
+
+  test "if archive is sent when an archive updates an audit log is created" do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user, %{name: "BigOrg2022"})
+    product = Fixtures.product_fixture(user, org, %{name: "Hop"})
+    org_key = Fixtures.org_key_fixture(org, user)
+    archive = Fixtures.archive_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: System.tmp_dir()})
+    deployment = Fixtures.deployment_fixture(org, firmware, %{archive_id: archive.id})
+
+    {device, _firmware, _deployment} =
+      device_fixture(user, %{identifier: "123", deployment_id: deployment.id})
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    params =
+      for {k, v} <- Map.from_struct(device.firmware_metadata),
+          into: %{"device_api_version" => "2.0.1"} do
+        case k do
+          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
+          _ -> {"nerves_fw_#{k}", v}
+        end
+      end
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, %{}, socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+    Phoenix.PubSub.broadcast(
+      NervesHub.PubSub,
+      "device:#{device.id}",
+      %Phoenix.Socket.Broadcast{event: "archives/updated"}
+    )
+
+    _ = :sys.get_state(socket.channel_pid)
+
+    assert Repo.exists?(
+             from(al in AuditLog,
+               where: like(al.description, "Archive update triggered for%")
+             )
+           )
+  end
+
+  test "if archive is sent when a device updates an audit log is created" do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user, %{name: "BigOrg2022"})
+    product = Fixtures.product_fixture(user, org, %{name: "Hop"})
+    org_key = Fixtures.org_key_fixture(org, user)
+    archive = Fixtures.archive_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: System.tmp_dir()})
+    deployment = Fixtures.deployment_fixture(org, firmware, %{archive_id: archive.id})
+
+    {device, _firmware, _deployment} =
+      device_fixture(user, %{identifier: "123", deployment_id: deployment.id})
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    params =
+      for {k, v} <- Map.from_struct(device.firmware_metadata),
+          into: %{"device_api_version" => "2.0.1"} do
+        case k do
+          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
+          _ -> {"nerves_fw_#{k}", v}
+        end
+      end
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, %{}, socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+
+    Phoenix.PubSub.broadcast(
+      NervesHub.PubSub,
+      "device:#{device.id}",
+      %Phoenix.Socket.Broadcast{event: "devices/updated"}
+    )
+
+    _ = :sys.get_state(socket.channel_pid)
+
+    assert Repo.exists?(
+             from(al in AuditLog,
+               where: like(al.description, "Archive update triggered for%")
+             )
+           )
   end
 
   test "the first fwup_progress marks an update as happening" do
