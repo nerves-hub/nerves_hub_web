@@ -42,4 +42,27 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
         |> noreply()
     end
   end
+
+  @impl Phoenix.LiveView
+  def handle_event(
+        "delete-script",
+        %{"id" => id},
+        %{assigns: %{org: org, org_user: org_user, product: product}} = socket
+      ) do
+    authorized!(:"support_script:delete", org_user)
+
+    case Scripts.delete(id, product, org_user.user) do
+      {:ok, _} ->
+        socket
+        |> put_flash(:info, "Support Script deleted")
+        |> send_toast(:info, "Support Script deleted successfully.")
+        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/scripts")
+        |> noreply()
+
+      {:error, _} ->
+        socket
+        |> send_toast(:error, "There was an error deleting the Support Script.")
+        |> noreply()
+    end
+  end
 end

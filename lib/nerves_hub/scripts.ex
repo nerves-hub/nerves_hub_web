@@ -87,4 +87,20 @@ defmodule NervesHub.Scripts do
         {:error, changeset}
     end
   end
+
+  @spec delete(non_neg_integer(), Product.t(), User.t()) ::
+          {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
+  def delete(id, product, user) do
+    get_by_product_and_id!(product, id)
+    |> Repo.delete()
+    |> case do
+      {:ok, script} ->
+        ProductTemplates.audit_script_deleted(user, product, script)
+
+        {:ok, script}
+
+      err ->
+        err
+    end
+  end
 end
