@@ -57,24 +57,23 @@ defmodule NervesHub.Scripts do
 
   @spec create(Product.t(), User.t(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
   def create(product, user, params) do
-    product
-    |> Ecto.build_assoc(:scripts)
-    |> Script.changeset(params)
+    %Script{}
+    |> Script.create_changeset(product, user, params)
     |> Repo.insert()
     |> case do
       {:ok, script} ->
         ProductTemplates.audit_script_created(user, product, script)
         {:ok, script}
 
-      err ->
-        err
+      {:error, changeset} ->
+        {:error, changeset}
     end
   end
 
   @spec update(Script.t(), User.t(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
   def update(script, user, params) do
     script
-    |> Script.changeset(params)
+    |> Script.update_changeset(user, params)
     |> Repo.update()
     |> case do
       {:ok, script} ->
@@ -84,8 +83,8 @@ defmodule NervesHub.Scripts do
 
         {:ok, script}
 
-      err ->
-        err
+      {:error, changeset} ->
+        {:error, changeset}
     end
   end
 end

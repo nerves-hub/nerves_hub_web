@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
     socket
     |> page_title("New Support Script - #{socket.assigns.org.name}")
     |> sidebar_tab(:support_scripts)
-    |> assign(:form, to_form(Script.changeset(%Script{}, %{})))
+    |> assign(:form, to_form(Ecto.Changeset.change(%Script{})))
     |> ok()
   end
 
