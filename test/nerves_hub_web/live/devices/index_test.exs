@@ -294,6 +294,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       } = fixture
 
       device2 = Fixtures.device_fixture(org, product, firmware)
+      Endpoint.subscribe("device:#{device2.id}")
 
       refute device.deployment_id
       refute device2.deployment_id
@@ -309,6 +310,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       end)
       |> click_button("#move-deployment-submit", "Move")
       |> assert_has("div", text: "2 devices added to deployment")
+
+      assert_receive %{event: "devices/updated"}
+      assert_receive %{event: "devices/updated"}
 
       assert Repo.reload(device) |> Map.get(:deployment_id)
       assert Repo.reload(device2) |> Map.get(:deployment_id)

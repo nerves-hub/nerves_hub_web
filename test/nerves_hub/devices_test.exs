@@ -785,4 +785,34 @@ defmodule NervesHub.DevicesTest do
       assert 7 = Enum.count(healths)
     end
   end
+
+  describe "update_deployment/2" do
+    test "updates deployment and broadcasts 'devices/updated'", %{
+      device: device,
+      deployment: deployment
+    } do
+      refute device.deployment_id
+
+      NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
+      _ = Devices.update_deployment(device, deployment)
+
+      assert device.deployment_id == deployment.id
+      assert_receive %{event: "devices/updated"}
+    end
+  end
+
+  describe "clear_deployment1/2" do
+    test "clears deployment and broadcasts 'devices/updated'", %{
+      device: device,
+      deployment: deployment
+    } do
+      device = Devices.update_deployment(device, deployment)
+
+      NervesHubWeb.Endpoint.subscribe("device:#{device.id}")
+      device = Devices.clear_deployment(device)
+
+      refute device.deployment_id
+      assert_receive %{event: "devices/updated"}
+    end
+  end
 end
