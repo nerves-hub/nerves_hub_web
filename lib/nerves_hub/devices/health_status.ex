@@ -2,14 +2,13 @@ defmodule NervesHub.Devices.HealthStatus do
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.Device
 
-  @empty_report %{warning: [], unhealthy: []}
-
   @type health_status() ::
           :unknown
           | :healthy
           | {:warning, %{}}
           | {:unhealthy, %{}}
 
+  @empty_report %{warning: [], unhealthy: []}
   @default_thresholds %{
     "cpu_usage_percent" => %{unhealthy: 90, warning: 80},
     "mem_used_percent" => %{unhealthy: 80, warning: 70},
@@ -18,10 +17,14 @@ defmodule NervesHub.Devices.HealthStatus do
 
   def default_thresholds(), do: @default_thresholds
 
-  @spec latest_metrics_status(Device.t()) :: health_status()
-  def latest_metrics_status(device) do
-    device.id
-    |> Metrics.get_latest_metric_set()
+  @doc """
+  Calculates health status from map of metrics.
+
+  Returns `:status` or `{:status, reasons}`
+  """
+  @spec calculate_metrics_status(map()) :: health_status()
+  def calculate_metrics_status(metrics_map) do
+    metrics_map
     |> Enum.reduce({:unknown, @empty_report}, fn metric, {current_status, report} ->
       {key, _value} = metric
 
@@ -40,6 +43,13 @@ defmodule NervesHub.Devices.HealthStatus do
       end
     end)
     |> report_status()
+  end
+
+  @spec latest_metrics_status(Device.t()) :: health_status()
+  def latest_metrics_status(device) do
+    device.id
+    |> Metrics.get_latest_metric_set()
+    |> calculate_metrics_status()
   end
 
   defp metrics_status({key, value}) do
