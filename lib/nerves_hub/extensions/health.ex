@@ -48,18 +48,13 @@ defmodule NervesHub.Extensions.Health do
 
   @impl NervesHub.Extensions
   def handle_in("report", %{"value" => device_status}, socket) do
-    device_meta =
-      for {key, val} <- Map.from_struct(socket.assigns.device.firmware_metadata),
-          into: %{},
-          do: {to_string(key), to_string(val)}
-
     # Separate metrics from health report to store in metrics table
     metrics = device_status["metrics"] || %{}
 
     health_report =
       device_status
       |> Map.delete("metrics")
-      |> Map.put("metadata", Map.merge(device_status["metadata"], device_meta))
+      |> Map.put("metadata", device_status["metadata"])
 
     device_health = %{"device_id" => socket.assigns.device.id, "data" => health_report}
 
