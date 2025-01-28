@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Scripts
-  alias NervesHub.Scripts.Script
 
   @impl Phoenix.LiveView
   def mount(
@@ -15,7 +14,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
     socket
     |> page_title("Edit Support Script - #{org.name}")
     |> sidebar_tab(:support_scripts)
-    |> assign(:form, to_form(Script.update_changeset(script, %{})))
+    |> assign(:form, to_form(Ecto.Changeset.change(script)))
     |> assign(:script, script)
     |> ok()
   end

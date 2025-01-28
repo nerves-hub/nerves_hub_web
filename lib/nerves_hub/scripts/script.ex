@@ -20,18 +20,21 @@ defmodule NervesHub.Scripts.Script do
     timestamps()
   end
 
-  def create_changeset(struct, params) do
+  def create_changeset(%__MODULE__{} = struct, product, created_by, params) do
     struct
-    |> cast(params, @required ++ [:created_by_id])
-    |> validate_required(@required ++ [:created_by_id])
+    |> cast(params, @required)
+    |> put_assoc(:product, product)
+    |> put_assoc(:created_by, created_by)
+    |> validate_required(@required ++ [:created_by])
     |> validate_length(:name, lte: 255)
     |> foreign_key_constraint(:created_by_id)
   end
 
-  def update_changeset(struct, params) do
+  def update_changeset(%__MODULE__{} = struct, edited_by, params) do
     struct
-    |> cast(params, @required ++ [:last_updated_by_id])
-    |> validate_required(@required ++ [:last_updated_by_id])
+    |> cast(params, @required)
+    |> put_change(:last_updated_by_id, edited_by.id)
+    |> validate_required(@required)
     |> validate_length(:name, lte: 255)
     |> foreign_key_constraint(:last_updated_by_id)
   end

@@ -57,36 +57,23 @@ defmodule NervesHub.Scripts do
 
   @spec create(Product.t(), User.t(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
   def create(product, user, params) do
-    params =
-      params
-      |> Map.put(:created_by_id, user.id)
-      |> normalize_keys()
-
-    result =
-      product
-      |> Ecto.build_assoc(:scripts)
-      |> Script.create_changeset(params)
-      |> Repo.insert()
-
-    case result do
+    %Script{}
+    |> Script.create_changeset(product, user, params)
+    |> Repo.insert()
+    |> case do
       {:ok, script} ->
         ProductTemplates.audit_script_created(user, product, script)
         {:ok, script}
 
-      _ ->
-        result
+      {:error, changeset} ->
+        {:error, changeset}
     end
   end
 
   @spec update(Script.t(), User.t(), map()) :: {:ok, Script.t()} | {:error, Changeset.t()}
   def update(script, user, params) do
-    params =
-      params
-      |> Map.put(:last_updated_by_id, user.id)
-      |> normalize_keys()
-
     script
-    |> Script.update_changeset(params)
+    |> Script.update_changeset(user, params)
     |> Repo.update()
     |> case do
       {:ok, script} ->
@@ -96,15 +83,8 @@ defmodule NervesHub.Scripts do
 
         {:ok, script}
 
-      err ->
-        err
+      {:error, changeset} ->
+        {:error, changeset}
     end
-  end
-
-  defp normalize_keys(params) do
-    Enum.reduce(params, %{}, fn {key, value}, acc ->
-      key = if is_atom(key), do: key, else: String.to_existing_atom(key)
-      Map.put(acc, key, value)
-    end)
   end
 end

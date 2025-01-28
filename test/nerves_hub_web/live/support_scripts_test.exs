@@ -65,7 +65,8 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
 
   describe "edit" do
     test "requires a name and text", %{conn: conn, org: org, product: product, user: user} do
-      {:ok, script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
+      {:ok, script} =
+        Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/scripts/#{script.id}/edit")
