@@ -648,6 +648,23 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("div", text: "No Eligible Deployments")
     end
+
+    test "broadcasts to devices channel", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment: deployment
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Product Deployments")
+      |> unwrap(fn view ->
+        render_change(view, "set-deployment", %{"deployment_id" => deployment.id})
+      end)
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "devices/updated"}
+    end
   end
 
   def device_show_path(%{device: device, org: org, product: product}) do

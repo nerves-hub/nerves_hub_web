@@ -719,20 +719,28 @@ defmodule NervesHub.Devices do
 
   @spec update_deployment(Device.t(), Deployment.t()) :: Device.t()
   def update_deployment(device, deployment) do
-    device
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
-    |> Repo.update!()
-    |> Repo.preload(:deployment, force: true)
+    device =
+      device
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
+      |> Repo.update!()
+
+    _ = broadcast(device, "devices/updated")
+
+    Map.put(device, :deployment, deployment)
   end
 
   @spec clear_deployment(Device.t()) :: Device.t()
   def clear_deployment(device) do
-    device
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_change(:deployment_id, nil)
-    |> Repo.update!()
-    |> Repo.preload(:deployment, force: true)
+    device =
+      device
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:deployment_id, nil)
+      |> Repo.update!()
+
+    _ = broadcast(device, "devices/updated")
+
+    Map.put(device, :deployment, nil)
   end
 
   @spec failure_threshold_met?(Device.t(), Deployment.t()) :: boolean()
@@ -1021,6 +1029,8 @@ defmodule NervesHub.Devices do
       |> where([d], d.firmware_metadata["platform"] == ^firmware.platform)
       |> where([d], d.firmware_metadata["architecture"] == ^firmware.architecture)
       |> Repo.update_all(set: [deployment_id: deployment_id])
+
+    :ok = Enum.each(device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
 
     {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
   end
