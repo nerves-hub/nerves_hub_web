@@ -5,7 +5,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Archives
-  alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Certificate
   alias NervesHub.Deployments
   alias NervesHub.Devices
@@ -406,11 +406,13 @@ defmodule NervesHub.Fixtures do
     Enum.map(0..(days_to_add - 1), fn days ->
       inserted_at = NaiveDateTime.shift(now, day: -days)
 
-      AuditLogs.audit!(
+      AuditLog.build(
         %Devices.Device{id: device_id},
         %Devices.Device{id: device_id, org_id: org_id},
         "Updating"
       )
+      |> AuditLog.changeset()
+      |> Repo.insert!()
       |> Ecto.Changeset.change(%{inserted_at: inserted_at})
       |> Repo.update!()
     end)
