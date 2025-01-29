@@ -18,6 +18,9 @@ defmodule NervesHub.DeviceLink.Connections do
   @type auth() :: {:ssl_certs, any()} | {:shared_secrets, list()}
   @type connection_id() :: binary()
 
+  @doc """
+  Find and connect a device. Devices can also be created, if the strategy supports it.
+  """
   @spec connect_device(auth()) :: {:ok, {connection_id(), Device.t()}} | {:error, :invalid_auth}
   def connect_device(auth)
 
@@ -60,6 +63,9 @@ defmodule NervesHub.DeviceLink.Connections do
     end
   end
 
+  @doc """
+  Mark a device as disconnected.
+  """
   @spec disconnect_device(any(), Device.t(), connection_id()) :: :ok
   def disconnect_device(reason, device, reference_id)
 
@@ -85,6 +91,9 @@ defmodule NervesHub.DeviceLink.Connections do
     :ok
   end
 
+  @doc """
+  Mark a device as still connected and alive.
+  """
   @spec device_heartbeat(connection_id()) :: :ok
   def device_heartbeat(reference_id) do
     DeviceConnections.device_heartbeat(reference_id)
