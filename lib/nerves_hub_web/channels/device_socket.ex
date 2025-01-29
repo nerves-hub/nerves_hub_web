@@ -4,9 +4,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
   require Logger
 
-  alias NervesHub.Devices.Connections
-
-  alias NervesHub.RPC.DeviceAuth
+  alias NervesHub.DeviceLink.Connections
 
   channel("console", NervesHubWeb.ConsoleChannel)
   channel("device", NervesHubWeb.DeviceChannel)
@@ -18,7 +16,7 @@ defmodule NervesHubWeb.DeviceSocket do
   @decorate with_span("Channels.DeviceSocket.terminate")
   def terminate(reason, {_channels_info, socket} = state) do
     %{assigns: %{device: device, reference_id: reference_id}} = socket
-    DeviceAuth.disconnect_device(reason, device, reference_id)
+    Connections.disconnect_device(reason, device, reference_id)
     super(reason, state)
   end
 
@@ -58,10 +56,10 @@ defmodule NervesHubWeb.DeviceSocket do
 
   # Used by Devices connecting with SSL certificates
   @impl Phoenix.Socket
-  @decorate with_span("Channels.DeviceSocket.connect")
+  @decorate with_span("Channels.DeviceSocket.connect#ssl_cert")
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}})
       when not is_nil(ssl_cert) do
-    case DeviceAuth.connect_device({:ssl_certs, ssl_cert}) do
+    case Connections.connect_device({:ssl_certs, ssl_cert}) do
       {:ok, ref_and_device} ->
         socket_and_assigns(socket, ref_and_device)
 
@@ -71,10 +69,11 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   # Used by Devices connecting with HMAC Shared Secrets
-  @decorate with_span("Channels.DeviceSocket.connect")
+  @impl Phoenix.Socket
+  @decorate with_span("Channels.DeviceSocket.connect#shared_secrets")
   def connect(_params, socket, %{x_headers: x_headers})
       when is_list(x_headers) and length(x_headers) > 0 do
-    case DeviceAuth.connect_device({:shared_secrets, x_headers}) do
+    case Connections.connect_device({:shared_secrets, x_headers}) do
       {:ok, ref_and_device} ->
         socket_and_assigns(socket, ref_and_device)
 
@@ -83,6 +82,7 @@ defmodule NervesHubWeb.DeviceSocket do
     end
   end
 
+  @impl Phoenix.Socket
   def connect(_params, _socket, _connect_info) do
     {:error, :no_auth}
   end

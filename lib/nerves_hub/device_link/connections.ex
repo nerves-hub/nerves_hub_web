@@ -1,8 +1,10 @@
-defmodule NervesHub.RPC.DeviceAuth do
-  @moduledoc false
+defmodule NervesHub.DeviceLink.Connections do
+  @moduledoc """
+  Functions for connecting devices, including the reporting of connection availability.
+  """
 
   alias NervesHub.Devices
-  alias NervesHub.Devices.Connections
+  alias NervesHub.Devices.Connections, as: DeviceConnections
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.Device
   alias NervesHub.Products
@@ -12,6 +14,12 @@ defmodule NervesHub.RPC.DeviceAuth do
 
   # Default 90 seconds max age for the signature
   @default_max_hmac_age 90
+
+  @type auth() :: {:ssl_certs, any()} | {:shared_secrets, list()}
+  @type connection_id() :: binary()
+
+  @spec connect_device(auth()) :: {:ok, {connection_id(), Device.t()}} | {:error, :invalid_auth}
+  def connect_device(auth)
 
   def connect_device({:ssl_certs, ssl_cert}) do
     X509.Certificate.from_der!(ssl_cert)
@@ -52,6 +60,9 @@ defmodule NervesHub.RPC.DeviceAuth do
     end
   end
 
+  @spec disconnect_device(any(), Device.t(), connection_id()) :: :ok
+  def disconnect_device(reason, device, reference_id)
+
   def disconnect_device({:error, {:shutdown, :disconnected}}, device, reference_id) do
     :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
       ref_id: reference_id,
@@ -67,11 +78,16 @@ defmodule NervesHub.RPC.DeviceAuth do
       identifier: device.identifier
     })
 
-    {:ok, _device_connection} = Connections.device_disconnected(reference_id)
+    {:ok, _device_connection} = DeviceConnections.device_disconnected(reference_id)
 
     Tracker.offline(device)
 
     :ok
+  end
+
+  @spec device_heartbeat(connection_id()) :: :ok
+  def device_heartbeat(reference_id) do
+    DeviceConnections.device_heartbeat(reference_id)
   end
 
   defp on_connect(%Device{status: :registered} = device) do
@@ -89,7 +105,7 @@ defmodule NervesHub.RPC.DeviceAuth do
       %{}
     )
 
-    {:ok, %DeviceConnection{id: connection_id}} = Connections.device_connected(device.id)
+    {:ok, %DeviceConnection{id: connection_id}} = DeviceConnections.device_connected(device.id)
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: connection_id,
