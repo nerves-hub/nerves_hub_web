@@ -414,15 +414,18 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def get_device_certificates(%Device{} = device) do
-    query =
-      from(
-        c in DeviceCertificate,
-        join: d in assoc(c, :device),
-        where: d.id == ^device.id
-      )
+  def has_device_certificates?(%Device{} = device) do
+    DeviceCertificate
+    |> join(:inner, [dc], d in assoc(dc, :device))
+    |> where([_dc, d], d.id == ^device.id)
+    |> Repo.exists?()
+  end
 
-    Repo.all(query)
+  def get_device_certificates(%Device{} = device) do
+    DeviceCertificate
+    |> join(:inner, [dc], d in assoc(dc, :device))
+    |> where([_dc, d], d.id == ^device.id)
+    |> Repo.all()
   end
 
   @spec get_device_by_certificate(DeviceCertificate.t()) ::
@@ -451,14 +454,13 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def get_device_certificates_by_public_key(otp_cert) do
+  def get_device_by_public_key(otp_cert) do
     pk_fingerprint = NervesHub.Certificate.public_key_fingerprint(otp_cert)
 
-    DeviceCertificate
-    |> where(public_key_fingerprint: ^pk_fingerprint)
-    |> join(:inner, [dc], d in assoc(dc, :device))
-    |> preload([_dc, d], device: d)
-    |> Repo.all()
+    Device
+    |> join(:inner, [d], dc in assoc(d, :device_certificates))
+    |> where([_d, dc], dc.public_key_fingerprint == ^pk_fingerprint)
+    |> Repo.one()
   end
 
   @spec get_device_certificate_by_device_and_serial(Device.t(), binary) ::
@@ -545,11 +547,22 @@ defmodule NervesHub.Devices do
     end
   end
 
+  @spec known_ca_ski?(binary) :: boolean()
+  def known_ca_ski?(ski) do
+    CACertificate
+    |> where(ski: ^ski)
+    |> Repo.exists?()
+  end
+
   @spec get_ca_certificate_by_ski(binary) :: {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_ski(ski) do
-    q = from(CACertificate, where: [ski: ^ski], preload: [jitp: :product])
-
-    case Repo.one(q) do
+    CACertificate
+    |> join(:left, [cac], jitp in assoc(cac, :jitp))
+    |> join(:left, [_cac, jitp], p in assoc(jitp, :product))
+    |> where([cac], cac.ski == ^ski)
+    |> preload([_cac, jitp, p], jitp: {jitp, product: p})
+    |> Repo.one()
+    |> case do
       nil -> {:error, :not_found}
       ca_cert -> {:ok, ca_cert}
     end
