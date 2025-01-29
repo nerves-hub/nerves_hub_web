@@ -39,18 +39,13 @@ defmodule NervesHub.Devices.ConnectionsTest do
   end
 
   test "device disconnect", %{device: device} do
-    assert {:ok, %DeviceConnection{id: connection_id, status: :connected}} =
-             Connections.device_connected(device.id)
+    assert {:ok, connection} = Connections.device_connected(device.id)
+    assert :connected = connection.status
+    assert :ok = Connections.device_disconnected(connection.id)
 
-    assert {:ok,
-            %DeviceConnection{
-              id: ^connection_id,
-              status: :disconnected,
-              disconnected_at: disconnected_at
-            }} =
-             Connections.device_disconnected(connection_id)
+    connection = NervesHub.Repo.reload(connection)
 
-    refute is_nil(disconnected_at)
+    refute is_nil(connection.disconnected_at)
 
     assert %DeviceConnection{status: :disconnected} = Connections.get_latest_for_device(device.id)
   end

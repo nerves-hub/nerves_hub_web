@@ -175,6 +175,7 @@ defmodule NervesHubWeb.DeviceChannel do
     device = Repo.reload(device)
 
     maybe_update_registry(socket, device, %{
+      deployment_id: device.deployment_id,
       updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
     })
 

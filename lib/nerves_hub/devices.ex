@@ -143,8 +143,8 @@ defmodule NervesHub.Devices do
       id: d.id,
       identifier: d.identifier,
       connection_status: dc.status,
-      latitude: fragment("?->'location'->'latitude'", d.connection_metadata),
-      longitude: fragment("?->'location'->'longitude'", d.connection_metadata),
+      latitude: fragment("?->'location'->'latitude'", dc.metadata),
+      longitude: fragment("?->'location'->'longitude'", dc.metadata),
       firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)
     })
     |> Repo.exclude_deleted()

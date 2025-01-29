@@ -380,7 +380,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
       <div class="w-1/2 flex flex-col gap-4">
         <div class="flex flex-col items-start rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
-          <DeviceLocation.render enabled_product={@product.extensions.geo} enabled_device={@device.extensions.geo} location={@device.connection_metadata["location"]} />
+          <DeviceLocation.render enabled_product={@product.extensions.geo} enabled_device={@device.extensions.geo} location={fetch_location(@device.latest_connection)} />
         </div>
 
         <div class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
@@ -606,4 +606,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   defp has_description?(description) do
     is_binary(description) and byte_size(description) > 0
   end
+
+  defp fetch_location(nil), do: %{}
+  defp fetch_location(connection), do: connection.metadata["location"]
 end

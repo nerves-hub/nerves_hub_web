@@ -569,6 +569,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
   end
 
+  defp fetch_location(nil), do: %{}
+  defp fetch_location(connection), do: connection.metadata["location"]
+
   def show_menu(id, js \\ %JS{}) do
     JS.show(js, transition: "fade-in", to: "##{id}")
   end
