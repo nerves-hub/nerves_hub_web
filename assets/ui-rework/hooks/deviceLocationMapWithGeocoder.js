@@ -5,7 +5,6 @@ export default {
   mounted() {
     // we only ever want one marker, store reference for later use
     this.marker = undefined
-    const target = this.el.dataset.target
     mapboxgl.accessToken = this.el.dataset.accessToken
 
     this.map = new mapboxgl.Map({
@@ -36,7 +35,12 @@ export default {
     this.map.addControl(geolocate)
     this.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }))
 
-    geolocate.on("geolocate", e => {
+    geolocate.on("geolocate", this.updateMarkerAndMoveMap())
+    geocoder.on("result", this.updateMarkerAndMoveMap())
+  },
+
+  updateMarkerAndMoveMap() {
+    return e => {
       if (this.marker) {
         this.marker.remove()
       }
@@ -50,7 +54,7 @@ export default {
 
       this.marker.on("dragend", () => {
         const lngLat = this.marker.getLngLat()
-        this.pushEventTo(target, "update-device-location", {
+        this.pushEventTo(this.el.dataset.target, "update-device-location", {
           lng: lngLat.lng,
           lat: lngLat.lat
         })
@@ -61,42 +65,11 @@ export default {
         zoom: 13
       })
 
-      this.pushEventTo(target, "update-device-location", {
+      this.pushEventTo(this.el.dataset.target, "update-device-location", {
         lng: e.coords.longitude,
         lat: e.coords.latitude
       })
-    })
-
-    geocoder.on("result", e => {
-      if (this.marker) {
-        this.marker.remove()
-      }
-
-      this.marker = new mapboxgl.Marker({
-        draggable: true,
-        color: "rgb(99 102 241)"
-      })
-        .setLngLat(e.result["center"])
-        .addTo(this.map)
-
-      this.marker.on("dragend", () => {
-        const lngLat = this.marker.getLngLat()
-        this.pushEventTo(target, "update-device-location", {
-          lng: lngLat.lng,
-          lat: lngLat.lat
-        })
-      })
-
-      this.map.flyTo({
-        center: e.result["center"],
-        zoom: 13
-      })
-
-      this.pushEventTo(target, "update-device-location", {
-        lng: e.result["center"][0],
-        lat: e.result["center"][1]
-      })
-    })
+    }
   },
 
   destroyed() {
