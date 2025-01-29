@@ -68,7 +68,7 @@ defmodule NervesHub.Devices.Device do
 
     timestamps()
 
-    # Deprecated fields, remove these any time after 29/1/2025.
+    # Deprecated fields, remove these on or after the 5th of Jan 2025.
     # Also remove index from NervesHub.Repo.Migrations.AddConnectionStatusIndexToDevices.
     # field(:connection_status, Ecto.Enum,
     #   values: [:connected, :disconnected, :not_seen],
@@ -77,8 +77,6 @@ defmodule NervesHub.Devices.Device do
     # field(:connection_established_at, :utc_datetime)
     # field(:connection_disconnected_at, :utc_datetime)
     # field(:connection_last_seen_at, :utc_datetime)
-
-    # Deprecated fields, remove these any time after 28/2/2025.
     # field(:connection_metadata, :map, default: %{})
     # field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
   end
