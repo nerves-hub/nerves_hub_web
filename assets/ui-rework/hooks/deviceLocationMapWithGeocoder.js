@@ -3,17 +3,14 @@ import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder"
 
 export default {
   mounted() {
-    let accessToken = this.el.dataset.accessToken
-    let style = this.el.dataset.style
-    let target = this.el.dataset.target
-
-    const ctx = this.el
-
-    mapboxgl.accessToken = accessToken
+    // we only ever want one marker, store reference for later use
+    this.marker = undefined
+    const target = this.el.dataset.target
+    mapboxgl.accessToken = this.el.dataset.accessToken
 
     this.map = new mapboxgl.Map({
-      container: ctx,
-      style: style,
+      container: this.el,
+      style: this.el.dataset.style,
       center: [-97.35967815000978, 39.45158853193135],
       zoom: 1
     })
@@ -39,21 +36,19 @@ export default {
     this.map.addControl(geolocate)
     this.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }))
 
-    let marker
-
     geolocate.on("geolocate", e => {
-      if (marker) {
-        marker.remove()
+      if (this.marker) {
+        this.marker.remove()
       }
 
-      marker = new mapboxgl.Marker({
+      this.marker = new mapboxgl.Marker({
         draggable: true,
         color: "rgb(99 102 241)"
       })
         .setLngLat([e.coords.longitude, e.coords.latitude])
         .addTo(this.map)
 
-      marker.on("dragend", () => {
+      this.marker.on("dragend", () => {
         const lngLat = marker.getLngLat()
         this.pushEventTo(target, "update-device-location", {
           lng: lngLat.lng,
@@ -73,18 +68,18 @@ export default {
     })
 
     geocoder.on("result", e => {
-      if (marker) {
-        marker.remove()
+      if (this.marker) {
+        this.marker.remove()
       }
 
-      marker = new mapboxgl.Marker({
+      this.marker = new mapboxgl.Marker({
         draggable: true,
         color: "rgb(99 102 241)"
       })
         .setLngLat(e.result["center"])
         .addTo(this.map)
 
-      marker.on("dragend", () => {
+      this.marker.on("dragend", () => {
         const lngLat = marker.getLngLat()
         this.pushEventTo(target, "update-device-location", {
           lng: lngLat.lng,
