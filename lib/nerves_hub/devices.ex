@@ -547,8 +547,8 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec ca_certificate_by_ski_match?(binary) :: boolean()
-  def ca_certificate_by_ski_match?(ski) do
+  @spec known_ca_ski?(binary) :: boolean()
+  def known_ca_ski?(ski) do
     CACertificate
     |> where(ski: ^ski)
     |> Repo.exists?()

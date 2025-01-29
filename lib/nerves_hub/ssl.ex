@@ -56,7 +56,7 @@ defmodule NervesHub.SSL do
         # registration
         {:valid, state}
 
-      is_binary(ski) and Devices.ca_certificate_by_ski_match?(ski) ->
+      is_binary(ski) and Devices.known_ca_ski?(ski) ->
         # Signer CA sent with the device certificate, but is an intermediary
         # so the chain is incomplete labeling it as unknown_ca.
         #
