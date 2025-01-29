@@ -96,15 +96,14 @@ defmodule NervesHub.Devices.Connections do
 
     DeviceConnection
     |> where(id: ^ref_id)
-    |> update([dc],
+    |> Repo.update_all(
       set: [
-        last_seen_at: ^now,
-        disconnected_at: ^now,
-        disconnected_reason: ^reason,
+        last_seen_at: now,
+        disconnected_at: now,
+        disconnected_reason: reason,
         status: :disconnected
       ]
     )
-    |> Repo.update_all([])
     |> case do
       {1, _} -> :ok
       _ -> :error
