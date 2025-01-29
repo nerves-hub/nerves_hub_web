@@ -27,7 +27,8 @@ defmodule NervesHub.Devices.Device do
     :connecting_code,
     :deployment_id,
     :status,
-    :first_seen_at
+    :first_seen_at,
+    :custom_location_coordinates
   ]
   @required_params [:org_id, :product_id, :identifier]
 
@@ -45,6 +46,7 @@ defmodule NervesHub.Devices.Device do
     field(:description, :string)
     field(:tags, NervesHub.Types.Tag)
     field(:connecting_code, :string)
+    field(:custom_location_coordinates, {:array, :float})
 
     embeds_one(:extensions, DeviceExtensionsSetting,
       defaults_to_struct: true,

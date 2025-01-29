@@ -17,6 +17,7 @@ import LocalTime from "./hooks/localTime.js"
 import SimpleDate from "./hooks/simpleDate.js"
 import WorldMap from "./hooks/worldMap.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
+import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
 
 import dates from "../js/dates"
 
@@ -37,6 +38,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     SimpleDate,
     WorldMap,
     DeviceLocationMap,
+    DeviceLocationMapWithGeocoder,
     LiveToast: createLiveToastHook()
   }
 })
