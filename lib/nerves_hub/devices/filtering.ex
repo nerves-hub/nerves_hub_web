@@ -47,7 +47,7 @@ defmodule NervesHub.Devices.Filtering do
   end
 
   def filter(query, _filters, :connection_type, value) do
-    where(query, [d], ^value in d.connection_types)
+    where(query, [latest_connection: lc], ^value in lc.metadata["connection_types"])
   end
 
   def filter(query, _filters, :firmware_version, value) do

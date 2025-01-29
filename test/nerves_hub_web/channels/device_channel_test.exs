@@ -126,8 +126,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
     # check the state of the device's connection types
     _socket = :sys.get_state(socket.channel_pid)
 
-    device = NervesHub.Repo.reload(device)
-    assert device.connection_types == [:ethernet, :wifi]
+    device = NervesHub.Repo.reload(device) |> NervesHub.Repo.preload(:latest_connection)
+    assert device.latest_connection.metadata["connection_types"] == ["ethernet", "wifi"]
   end
 
   describe "unhandled messages are caught" do

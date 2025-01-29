@@ -26,7 +26,6 @@ defmodule NervesHub.Devices.Device do
     :updates_blocked_until,
     :connecting_code,
     :deployment_id,
-    :connection_types,
     :status,
     :first_seen_at
   ]
@@ -67,8 +66,6 @@ defmodule NervesHub.Devices.Device do
 
     field(:deleted_at, :utc_datetime)
 
-    field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
-
     timestamps()
 
     # Deprecated fields, remove these any time after 29/1/2025.
@@ -83,6 +80,7 @@ defmodule NervesHub.Devices.Device do
 
     # Deprecated fields, remove these any time after 28/2/2025.
     # field(:connection_metadata, :map, default: %{})
+    # field(:connection_types, {:array, Ecto.Enum}, values: [:cellular, :ethernet, :wifi])
   end
 
   def changeset(%Device{} = device, params) do
