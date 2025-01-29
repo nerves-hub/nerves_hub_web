@@ -115,7 +115,7 @@ defmodule NervesHub.DeviceLink.Connections do
 
     Tracker.online(device)
 
-    {connection_id, Devices.preload_product(device)}
+    {connection_id, device}
   end
 
   defp decode_from_headers(%{"x-nh-alg" => "NH1-HMAC-" <> alg} = headers) do
