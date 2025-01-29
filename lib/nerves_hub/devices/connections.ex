@@ -90,20 +90,39 @@ defmodule NervesHub.Devices.Connections do
   Updates `status` and relevant timestamps for a device connection record,
   and stores the reason for disconnection if provided.
   """
-  @spec device_disconnected(UUIDv7.t(), String.t() | nil) ::
-          {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
+  @spec device_disconnected(UUIDv7.t(), String.t() | nil) :: :ok | :error
   def device_disconnected(ref_id, reason \\ nil) do
     now = DateTime.utc_now()
 
     DeviceConnection
-    |> Repo.get!(ref_id)
-    |> DeviceConnection.update_changeset(%{
-      last_seen_at: now,
-      disconnected_at: now,
-      disconnected_reason: reason,
-      status: :disconnected
-    })
-    |> Repo.update()
+    |> where(id: ^ref_id)
+    |> Repo.update_all(
+      set: [
+        last_seen_at: now,
+        disconnected_at: now,
+        disconnected_reason: reason,
+        status: :disconnected
+      ]
+    )
+    |> case do
+      {1, _} -> :ok
+      _ -> :error
+    end
+  end
+
+  @doc """
+  Updates the connection `metadata` by merging in new metadata.
+  """
+  @spec merge_update_metadata(UUIDv7.t(), map()) :: :ok | :error
+  def merge_update_metadata(ref_id, new_metadata) do
+    DeviceConnection
+    |> where(id: ^ref_id)
+    |> update([dc], set: [metadata: fragment("? || ?::jsonb", dc.metadata, ^new_metadata)])
+    |> Repo.update_all([])
+    |> case do
+      {1, _} -> :ok
+      _ -> :error
+    end
   end
 
   def clean_stale_connections() do

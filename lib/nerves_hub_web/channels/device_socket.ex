@@ -263,7 +263,7 @@ defmodule NervesHubWeb.DeviceSocket do
       identifier: device.identifier
     })
 
-    {:ok, _device_connection} = Connections.device_disconnected(reference_id)
+    :ok = Connections.device_disconnected(reference_id)
 
     Tracker.offline(device)
 

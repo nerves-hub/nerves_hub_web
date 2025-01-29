@@ -14,6 +14,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Deployments
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
   alias NervesHub.Helpers.Logging
@@ -175,6 +176,7 @@ defmodule NervesHubWeb.DeviceChannel do
     device = Repo.reload(device)
 
     maybe_update_registry(socket, device, %{
+      deployment_id: device.deployment_id,
       updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device)
     })
 
@@ -312,9 +314,13 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  def handle_in("connection_types", %{"values" => types}, %{assigns: %{device: device}} = socket) do
-    {:ok, device} = Devices.update_device(device, %{"connection_types" => types})
-    {:noreply, assign(socket, :device, device)}
+  def handle_in(
+        "connection_types",
+        %{"values" => types},
+        %{assigns: %{reference_id: ref_id}} = socket
+      ) do
+    :ok = Connections.merge_update_metadata(ref_id, %{"connection_types" => types})
+    {:noreply, socket}
   end
 
   def handle_in("status_update", %{"status" => _status}, socket) do

@@ -73,7 +73,7 @@
         <span :for={tag <- @device.tags || []} class="badge">{tag}</span>
       </div>
 
-      <DeviceLocation.render :if={@product.extensions.geo and @device.extensions.geo} location={@device.connection_metadata["location"]} />
+      <DeviceLocation.render :if={@product.extensions.geo and @device.extensions.geo} location={fetch_location(@device.latest_connection)} />
 
       <%= if !Enum.empty?(@metadata) do %>
         <h3 class="mb-2">Metadata</h3>

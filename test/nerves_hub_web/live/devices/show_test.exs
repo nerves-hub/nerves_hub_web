@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -256,7 +257,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      Devices.update_device(device, %{connection_metadata: %{"location" => %{}}})
+      {:ok, connection} = Connections.device_connected(device.id)
+      :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{}})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -270,7 +272,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "location" => %{"error_code" => "BOOP", "error_description" => "BEEP"}
       }
 
-      Devices.update_device(device, %{connection_metadata: metadata})
+      {:ok, connection} = Connections.device_connected(device.id)
+      :ok = Connections.merge_update_metadata(connection.id, metadata)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -290,7 +293,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         }
       }
 
-      Devices.update_device(device, %{connection_metadata: metadata})
+      {:ok, connection} = Connections.device_connected(device.id)
+      :ok = Connections.merge_update_metadata(connection.id, metadata)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
