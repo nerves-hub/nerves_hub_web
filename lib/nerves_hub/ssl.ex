@@ -5,6 +5,7 @@ defmodule NervesHub.SSL do
 
   alias NervesHub.Certificate
   alias NervesHub.Devices
+  alias NervesHub.Devices.Device
 
   @type pkix_path_validation_reason ::
           :cert_expired
@@ -55,7 +56,7 @@ defmodule NervesHub.SSL do
         # registration
         {:valid, state}
 
-      is_binary(ski) and match?({:ok, _db_ca}, Devices.get_ca_certificate_by_ski(ski)) ->
+      is_binary(ski) and Devices.ca_certificate_by_ski_match?(ski) ->
         # Signer CA sent with the device certificate, but is an intermediary
         # so the chain is incomplete labeling it as unknown_ca.
         #
@@ -124,11 +125,11 @@ defmodule NervesHub.SSL do
   end
 
   defp maybe_register(otp_cert) do
-    case Devices.get_device_certificates_by_public_key(otp_cert) do
-      [] ->
+    case Devices.get_device_by_public_key(otp_cert) do
+      nil ->
         maybe_register_from_new_public_key(otp_cert)
 
-      [%{device: %{deleted_at: nil} = device} | _] ->
+      %Device{deleted_at: nil} = device ->
         maybe_register_from_existing_public_key(otp_cert, device)
 
       _ ->
@@ -256,16 +257,16 @@ defmodule NervesHub.SSL do
   end
 
   defp check_new_public_key_allowed(device) do
-    case Devices.get_device_certificates(device) do
-      [] ->
-        # First time device connection. Allow
-        :ok
-
-      _ ->
+    case Devices.has_device_certificates?(device) do
+      true ->
         # TODO: Support device allowing multiple public keys?
         #
         # For now, expect that a device will only use one public key
         :unexpected_pubkey
+
+      false ->
+        # First time device connection. Allow
+        :ok
     end
   end
 
