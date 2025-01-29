@@ -49,7 +49,7 @@ export default {
         .addTo(this.map)
 
       this.marker.on("dragend", () => {
-        const lngLat = marker.getLngLat()
+        const lngLat = this.marker.getLngLat()
         this.pushEventTo(target, "update-device-location", {
           lng: lngLat.lng,
           lat: lngLat.lat
@@ -80,7 +80,7 @@ export default {
         .addTo(this.map)
 
       this.marker.on("dragend", () => {
-        const lngLat = marker.getLngLat()
+        const lngLat = this.marker.getLngLat()
         this.pushEventTo(target, "update-device-location", {
           lng: lngLat.lng,
           lat: lngLat.lat
