@@ -35,41 +35,43 @@ export default {
     this.map.addControl(geolocate)
     this.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }))
 
-    geolocate.on("geolocate", this.updateMarkerAndMoveMap())
-    geocoder.on("result", this.updateMarkerAndMoveMap())
+    geolocate.on("geolocate", e => {
+      this.updateMarkerAndMoveMap(e.coords.longitude, e.coords.latitude)
+    })
+    geocoder.on("result", e => {
+      this.updateMarkerAndMoveMap(e.result["center"][0], e.result["center"][1])
+    })
   },
 
-  updateMarkerAndMoveMap() {
-    return e => {
-      if (this.marker) {
-        this.marker.remove()
-      }
-
-      this.marker = new mapboxgl.Marker({
-        draggable: true,
-        color: "rgb(99 102 241)"
-      })
-        .setLngLat([e.coords.longitude, e.coords.latitude])
-        .addTo(this.map)
-
-      this.marker.on("dragend", () => {
-        const lngLat = this.marker.getLngLat()
-        this.pushEventTo(this.el.dataset.target, "update-device-location", {
-          lng: lngLat.lng,
-          lat: lngLat.lat
-        })
-      })
-
-      this.map.flyTo({
-        center: [e.coords.longitude, e.coords.latitude],
-        zoom: 13
-      })
-
-      this.pushEventTo(this.el.dataset.target, "update-device-location", {
-        lng: e.coords.longitude,
-        lat: e.coords.latitude
-      })
+  updateMarkerAndMoveMap(lng, lat) {
+    if (this.marker) {
+      this.marker.remove()
     }
+
+    this.marker = new mapboxgl.Marker({
+      draggable: true,
+      color: "rgb(99 102 241)"
+    })
+      .setLngLat([lng, lat])
+      .addTo(this.map)
+
+    this.marker.on("dragend", () => {
+      const lngLat = this.marker.getLngLat()
+      this.pushEventTo(this.el.dataset.target, "update-device-location", {
+        lng: lngLat.lng,
+        lat: lngLat.lat
+      })
+    })
+
+    this.map.flyTo({
+      center: [lng, lat],
+      zoom: 13
+    })
+
+    this.pushEventTo(this.el.dataset.target, "update-device-location", {
+      lng: lng,
+      lat: lat
+    })
   },
 
   destroyed() {
