@@ -250,6 +250,9 @@ defmodule NervesHubWeb do
     quote do
       use Phoenix.Component
 
+      import NervesHubWeb.Components.Icons
+      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
+
       # Routes generation with the ~p sigil
       unquote(verified_routes())
     end

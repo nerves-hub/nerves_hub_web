@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
@@ -380,7 +381,13 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
       <div class="w-1/2 flex flex-col gap-4">
         <div class="flex flex-col items-start rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
-          <DeviceLocation.render enabled_product={@product.extensions.geo} enabled_device={@device.extensions.geo} location={fetch_location(@device.latest_connection)} />
+          <DeviceLocation.render
+            enabled_product={@product.extensions.geo}
+            enabled_device={@device.extensions.geo}
+            location={extract_location_data(@device)}
+            enable_location_editor={!!assigns[:enable_location_editor]}
+            target={@myself}
+          />
         </div>
 
         <div class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
@@ -437,6 +444,53 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
       </div>
     </div>
     """
+  end
+
+  def handle_event("clear-manual-location-information", _, socket) do
+    {:ok, device} =
+      Devices.update_device(socket.assigns.device, %{
+        custom_location_coordinates: nil
+      })
+
+    socket
+    |> assign(:device, device)
+    |> send_toast(:info, "Manual device location information has been cleared.")
+    |> noreply()
+  end
+
+  def handle_event("enable-location-editor", _, socket) do
+    socket
+    |> assign(:enable_location_editor, true)
+    |> send_toast(:info, "Please use the map to search and pin your devices location.")
+    |> noreply()
+  end
+
+  def handle_event("discard-location-changes", _, socket) do
+    socket
+    |> assign(:enable_location_editor, false)
+    |> noreply()
+  end
+
+  def handle_event("update-device-location", latlng, socket) do
+    socket
+    |> assign(:buffer_custom_location, latlng)
+    |> noreply()
+  end
+
+  def handle_event("save-location-changes", _, socket) do
+    {:ok, device} =
+      Devices.update_device(socket.assigns.device, %{
+        custom_location_coordinates: [
+          socket.assigns.buffer_custom_location["lat"],
+          socket.assigns.buffer_custom_location["lng"]
+        ]
+      })
+
+    socket
+    |> assign(:device, device)
+    |> send_toast(:info, "Custom location coordinates saved.")
+    |> assign(:enable_location_editor, false)
+    |> noreply()
   end
 
   def handle_event("set-deployment", %{"deployment_id" => deployment_id}, socket) do
@@ -595,6 +649,22 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     |> Enum.map(&elem(&1, 0))
   end
 
+  defp extract_location_data(%{custom_location_coordinates: coordinates})
+       when not is_nil(coordinates) do
+    %{
+      "latitude" => List.first(coordinates),
+      "longitude" => List.last(coordinates),
+      "source" => "manual"
+    }
+  end
+
+  defp extract_location_data(%Device{latest_connection: connection})
+       when not is_nil(connection) do
+    connection.metadata["location"]
+  end
+
+  defp extract_location_data(_), do: %{}
+
   defp standard_keys(%{firmware_metadata: nil}), do: []
 
   defp standard_keys(%{firmware_metadata: firmware_metadata}),
@@ -606,7 +676,4 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   defp has_description?(description) do
     is_binary(description) and byte_size(description) > 0
   end
-
-  defp fetch_location(nil), do: %{}
-  defp fetch_location(connection), do: connection.metadata["location"]
 end

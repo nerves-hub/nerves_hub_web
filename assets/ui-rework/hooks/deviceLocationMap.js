@@ -13,19 +13,25 @@ export default {
 
     mapboxgl.accessToken = accessToken
 
-    const map = new mapboxgl.Map({
+    this.map = new mapboxgl.Map({
       container: ctx,
       style: style,
       center: [centerLng, centerLat],
       zoom: zoom
     })
 
-    map.addControl(new mapboxgl.NavigationControl())
+    this.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }))
 
-    if ((source || "").toLowerCase() == "gps") {
+    source = (source || "").toLowerCase()
+
+    if (source == "gps" || source == "manual") {
       new mapboxgl.Marker({ color: "rgb(99 102 241)" })
         .setLngLat([centerLng, centerLat])
-        .addTo(map)
+        .addTo(this.map)
     }
+  },
+
+  destroyed() {
+    this.map.remove()
   }
 }
