@@ -165,7 +165,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
     source_information =
       case location["source"] do
         "manual" -> "The location was manually configured."
-        true -> "The location was determined via #{location["source"]} resolution."
+        _ -> "The location was determined via #{location["source"]} resolution."
       end
 
     assigns = Map.put(assigns, :source_information, source_information)
