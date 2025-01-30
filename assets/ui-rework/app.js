@@ -26,8 +26,11 @@ TimeAgo.addDefaultLocale(en)
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content")
+
+let time_zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
 let liveSocket = new LiveSocket("/live", Socket, {
-  params: { _csrf_token: csrfToken },
+  params: { _csrf_token: csrfToken, time_zone: time_zone },
   hooks: {
     Console,
     SharedSecretClipboardClick,

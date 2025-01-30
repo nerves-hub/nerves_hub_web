@@ -223,6 +223,7 @@ defmodule NervesHubWeb.Router do
 
     live_session :account,
       on_mount: [
+        NervesHubWeb.Mounts.LocalTimezone,
         NervesHubWeb.Mounts.AccountAuth,
         NervesHubWeb.Mounts.CurrentPath,
         {NervesHubWeb.Mounts.LayoutSelector, :no_sidebar}
@@ -238,6 +239,7 @@ defmodule NervesHubWeb.Router do
 
     live_session :org,
       on_mount: [
+        NervesHubWeb.Mounts.LocalTimezone,
         NervesHubWeb.Mounts.AccountAuth,
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
@@ -265,6 +267,7 @@ defmodule NervesHubWeb.Router do
 
     live_session :product,
       on_mount: [
+        NervesHubWeb.Mounts.LocalTimezone,
         NervesHubWeb.Mounts.AccountAuth,
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
