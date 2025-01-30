@@ -180,7 +180,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(%Broadcast{event: "location:updated"}, socket) do
     %{device: device, org: org} = socket.assigns
 
-    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier)
+    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
 
     {:noreply, assign(socket, :device, device)}
   end
