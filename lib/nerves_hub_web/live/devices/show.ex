@@ -36,7 +36,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product} = socket.assigns
 
-    device = Devices.get_device_by_identifier!(org, device_identifier, :latest_connection)
+    device = load_device(org, device_identifier)
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
@@ -69,10 +69,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(:reload_device, socket) do
-    device =
-      socket.assigns.device
-      |> Repo.reload()
-      |> Repo.preload(:deployment)
+    %{org: org, device: device} = socket.assigns
+
+    device = load_device(org, device.identifier)
 
     socket
     |> assign(:device, device)
@@ -455,6 +454,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:scripts, update_script_output(scripts, index, output))
     |> noreply()
+  end
+
+  defp load_device(org, identifier) do
+    Devices.get_device_by_identifier!(org, identifier, :latest_connection)
   end
 
   defp scripts_with_output(product) do
