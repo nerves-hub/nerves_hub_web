@@ -356,7 +356,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
                   class="col-start-1 row-start-1 appearance-none border rounded border-zinc-600 bg-zinc-900 py-1.5 pl-3 pr-8 text-sm text-zinc-400 focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-indigo-500"
                 >
                   <option value="">Select a version</option>
-                  <option :for={firmware <- @firmwares} value={firmware.uuid}>{firmware.version}</option>
+                  <option :for={firmware <- @firmwares} value={firmware.uuid}>{firmware.version} ({String.slice(@device.firmware_metadata.uuid, 0..7)})</option>
                 </select>
               </div>
 
