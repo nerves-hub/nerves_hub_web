@@ -170,6 +170,16 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  @decorate with_span("Channels.DeviceChannel.handle_info:clear-deployment")
+  def handle_info(
+        %Broadcast{event: "devices/clear-deployment"},
+        %{assigns: %{device: device}} = socket
+      ) do
+    device = %{device | deployment_id: nil, deployment: nil}
+
+    {:noreply, update_device(socket, device)}
+  end
+
   # Update local state and tell the various servers of the new information
   @decorate with_span("Channels.DeviceChannel.handle_info:devices-updated")
   def handle_info(%Broadcast{event: "devices/updated"}, %{assigns: %{device: device}} = socket) do
