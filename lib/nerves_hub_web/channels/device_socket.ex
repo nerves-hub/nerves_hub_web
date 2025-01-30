@@ -110,52 +110,6 @@ defmodule NervesHubWeb.DeviceSocket do
     {:ok, socket}
   end
 
-  @decorate with_span("Channels.DeviceSocket.on_disconnect")
-  defp on_disconnect(exit_reason, socket)
-
-  @decorate with_span("Channels.DeviceSocket.on_disconnect")
-  defp on_disconnect({:error, reason}, %{
-         assigns: %{
-           device: device,
-           reference_id: reference_id
-         }
-       }) do
-    if reason == {:shutdown, :disconnected} do
-      :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
-        ref_id: reference_id,
-        device: device
-      })
-    end
-
-    shutdown(device, reference_id)
-
-    :ok
-  end
-
-  @decorate with_span("Channels.DeviceSocket.on_disconnect")
-  defp on_disconnect(_, %{
-         assigns: %{
-           device: device,
-           reference_id: reference_id
-         }
-       }) do
-    shutdown(device, reference_id)
-  end
-
-  @decorate with_span("Channels.DeviceSocket.shutdown")
-  defp shutdown(device, reference_id) do
-    :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
-      ref_id: reference_id,
-      identifier: device.identifier
-    })
-
-    :ok = Connections.device_disconnected(reference_id)
-
-    Tracker.offline(device)
-
-    :ok
-  end
-
   defp last_seen_update_interval() do
     Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
   end

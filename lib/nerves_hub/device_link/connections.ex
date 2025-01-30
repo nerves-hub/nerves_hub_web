@@ -84,11 +84,9 @@ defmodule NervesHub.DeviceLink.Connections do
       identifier: device.identifier
     })
 
-    {:ok, _device_connection} = DeviceConnections.device_disconnected(reference_id)
+    _ = DeviceConnections.device_disconnected(reference_id)
 
     Tracker.offline(device)
-
-    :ok
   end
 
   @doc """
