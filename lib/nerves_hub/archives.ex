@@ -7,6 +7,7 @@ defmodule NervesHub.Archives do
 
   require Logger
 
+  alias NervesHub.Deployments.Deployment
   alias NervesHub.Archives.Archive
   alias NervesHub.Fwup
   alias NervesHub.Products.Product
@@ -64,6 +65,24 @@ defmodule NervesHub.Archives do
     |> join(:inner, [a, p], o in assoc(p, :org))
     |> preload([a, p, o], product: {p, org: o})
     |> Repo.one!()
+  end
+
+  @spec archive_for_deployment(integer()) :: Archive.t() | nil
+  def archive_for_deployment(nil), do: nil
+
+  def archive_for_deployment(deployment_id) do
+    deployment =
+      Deployment
+      |> where(id: ^deployment_id)
+      |> join(:inner, [d], a in assoc(d, :archive))
+      |> preload([_, a], archive: a)
+      |> Repo.one()
+
+    if deployment do
+      deployment.archive
+    else
+      nil
+    end
   end
 
   # TODO: check on other return signatures

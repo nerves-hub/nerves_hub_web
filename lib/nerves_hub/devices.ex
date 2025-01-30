@@ -10,6 +10,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Certificate
+  alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
@@ -673,7 +674,7 @@ defmodule NervesHub.Devices do
   def resolve_update(%{deployment_id: nil}), do: %UpdatePayload{update_available: false}
 
   def resolve_update(device) do
-    deployment = Repo.preload(device.deployment, [:firmware])
+    {:ok, deployment} = Deployments.get_deployment_for_device(device)
 
     case verify_update_eligibility(device, deployment) do
       {:ok, _device} ->
