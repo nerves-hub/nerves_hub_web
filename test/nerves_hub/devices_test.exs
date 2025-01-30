@@ -755,8 +755,14 @@ defmodule NervesHub.DevicesTest do
   describe "device health reports" do
     test "create new device health", %{device: device} do
       device_health = %{"device_id" => device.id, "data" => %{"literally_any_map" => "values"}}
-      assert {:ok, %Devices.DeviceHealth{}} = Devices.save_device_health(device_health)
+
+      assert {:ok, %Devices.DeviceHealth{id: health_id}} =
+               Devices.save_device_health(device_health)
+
       assert %Devices.DeviceHealth{} = Devices.get_latest_health(device.id)
+
+      # Assert device is updated with latest health
+      assert %{latest_health_id: ^health_id} = Devices.get_device(device.id)
     end
 
     test "create health reports over limit and then clean down to default limit", %{

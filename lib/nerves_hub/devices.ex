@@ -77,14 +77,16 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p], dp in assoc(d, :deployment))
     |> join(:left, [d, o, p, dp], f in assoc(dp, :firmware))
     |> join(:left, [d, o, p, dp, f], lc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, o, p, dp, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
     |> Repo.exclude_deleted()
     |> sort_devices(sorting)
     |> Filtering.build_filters(filters)
-    |> preload([d, o, p, dp, f, latest_connection: lc],
+    |> preload([d, o, p, dp, f, latest_connection: lc, latest_health: lh],
       org: o,
       product: p,
       deployment: {dp, firmware: f},
-      latest_connection: lc
+      latest_connection: lc,
+      latest_health: lh
     )
     |> Flop.run(flop)
   end
@@ -120,7 +122,9 @@ defmodule NervesHub.Devices do
     |> where([d], d.product_id == ^product.id)
     |> Repo.exclude_deleted()
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
     |> preload([latest_connection: lc], latest_connection: lc)
+    |> preload([latest_health: lh], latest_health: lh)
     |> Filtering.build_filters(filters)
     |> sort_devices(sorting)
     |> Flop.run(flop)
@@ -1134,10 +1138,21 @@ defmodule NervesHub.Devices do
     )
   end
 
-  def save_device_health(device_status) do
+  def save_device_health(%{"device_id" => device_id} = device_status) do
     device_status
     |> DeviceHealth.save()
     |> Repo.insert()
+    |> case do
+      {:ok, device_health} ->
+        Device
+        |> where([d], d.id == ^device_id)
+        |> Repo.update_all(set: [latest_health_id: device_health.id])
+
+        {:ok, device_health}
+
+      {:error, _} = error ->
+        error
+    end
   end
 
   def truncate_device_health() do
