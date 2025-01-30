@@ -72,9 +72,8 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     AuditLogs.audit!(device, device, description)
   end
 
-  @spec audit_device_deployment_update_triggered(Device.t(), UUIDv7.t()) :: :ok
-  def audit_device_deployment_update_triggered(device, reference_id) do
-    deployment = device.deployment
+  @spec audit_device_deployment_update_triggered(Device.t(), Deployment.t(), UUIDv7.t()) :: :ok
+  def audit_device_deployment_update_triggered(device, deployment, reference_id) do
     firmware = deployment.firmware
 
     description =

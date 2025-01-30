@@ -120,6 +120,22 @@ defmodule NervesHub.Deployments do
     end
   end
 
+  @spec get_deployment_for_device(Device.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
+  def get_deployment_for_device(%Device{deployment_id: deployment_id}) do
+    Deployment
+    |> where([d], d.id == ^deployment_id)
+    |> join(:left, [d], f in assoc(d, :firmware))
+    |> preload([d, f], firmware: f)
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:error, :not_found}
+
+      deployment ->
+        {:ok, deployment}
+    end
+  end
+
   @spec get_deployment(Product.t(), String.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
   def get_deployment(%Product{id: product_id}, deployment_id) do
     from(
@@ -385,7 +401,8 @@ defmodule NervesHub.Deployments do
   @spec verify_deployment_membership(Device.t()) :: Device.t()
   def verify_deployment_membership(%Device{deployment_id: deployment_id} = device)
       when not is_nil(deployment_id) do
-    %{deployment: deployment} = device = Repo.preload(device, deployment: :firmware)
+    {:ok, deployment} = get_deployment_for_device(device)
+
     bad_architecture = device.firmware_metadata.architecture != deployment.firmware.architecture
     bad_platform = device.firmware_metadata.platform != deployment.firmware.platform
 
@@ -436,18 +453,14 @@ defmodule NervesHub.Deployments do
 
         DeviceTemplates.audit_set_deployment(device, deployment, :one_found)
 
-        device
-        |> Devices.update_deployment(deployment)
-        |> preload_with_firmware_and_archive(true)
+        Devices.update_deployment(device, deployment)
 
       [deployment | _] ->
         set_deployment_telemetry(:multiple_found, device, deployment)
 
         DeviceTemplates.audit_set_deployment(device, deployment, :multiple_found)
 
-        device
-        |> Devices.update_deployment(deployment)
-        |> preload_with_firmware_and_archive(true)
+        Devices.update_deployment(device, deployment)
     end
   end
 

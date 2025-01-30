@@ -41,6 +41,7 @@ defmodule NervesHubWeb.DeviceChannel do
       device
       |> Deployments.verify_deployment_membership()
       |> Deployments.set_deployment()
+      |> Map.put(:deployment, nil)
 
     maybe_send_public_keys(device, socket, params)
 
@@ -124,8 +125,6 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_info:deployments/update")
   def handle_info({"deployments/update", inflight_update}, %{assigns: %{device: device}} = socket) do
-    device = deployment_preload(device)
-
     payload = Devices.resolve_update(device)
 
     case payload.update_available do
@@ -140,6 +139,7 @@ defmodule NervesHubWeb.DeviceChannel do
         # as a loosely valid attempt to update
         DeviceTemplates.audit_device_deployment_update_triggered(
           device,
+          payload.deployment,
           socket.assigns.reference_id
         )
 
@@ -154,14 +154,7 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info(%Broadcast{event: "archives/updated"}, socket) do
-    device = deployment_preload(socket.assigns.device)
-
-    socket =
-      socket
-      |> assign(:device, device)
-      |> maybe_send_archive()
-
-    {:noreply, socket}
+    {:noreply, maybe_send_archive(socket)}
   end
 
   def handle_info(%Broadcast{event: "moved"}, %{assigns: %{device: device}} = socket) do
@@ -317,7 +310,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
       socket =
         socket
-        |> assign(:device, deployment_preload(device))
+        |> assign(:device, device)
         |> assign(:update_started?, true)
 
       {:noreply, socket}
@@ -449,7 +442,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   defp update_device(socket, device) do
     socket
-    |> assign(:device, deployment_preload(device))
+    |> assign(:device, device)
     |> update_deployment_subscription(device)
   end
 
@@ -476,20 +469,12 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  defp deployment_preload(device) do
-    Repo.preload(device, [deployment: [:archive, :firmware]], force: true)
-  end
-
-  defp maybe_send_archive(socket) do
-    device = deployment_preload(socket.assigns.device)
-
+  defp maybe_send_archive(%{assigns: %{device: device}} = socket) do
     updates_enabled = device.updates_enabled && !Devices.device_in_penalty_box?(device)
     version_match = Version.match?(socket.assigns.device_api_version, ">= 2.0.0")
 
     if updates_enabled && version_match do
-      if device.deployment && device.deployment.archive do
-        archive = device.deployment.archive
-
+      if archive = Archives.archive_for_deployment(device.deployment_id) do
         push(socket, "archive", %{
           size: archive.size,
           uuid: archive.uuid,
