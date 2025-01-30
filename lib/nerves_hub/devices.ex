@@ -231,20 +231,28 @@ defmodule NervesHub.Devices do
   end
 
   @spec get_device_by_identifier!(Org.t(), String.t()) :: Device.t()
-  def get_device_by_identifier!(org, identifier, preload_assoc \\ nil)
+  def get_device_by_identifier!(org, identifier, preload_assocs \\ nil)
       when is_binary(identifier) do
-    get_device_by_identifier_query(org, identifier, preload_assoc)
+    get_device_by_identifier_query(org, identifier, preload_assocs)
     |> Repo.one!()
   end
 
-  defp get_device_by_identifier_query(%Org{id: org_id}, identifier, preload_assoc) do
+  defp get_device_by_identifier_query(%Org{id: org_id}, identifier, preload_assocs) do
     Device
     |> where(identifier: ^identifier)
     |> where(org_id: ^org_id)
     |> join(:left, [d], o in assoc(d, :org))
     |> join(:left, [d], dp in assoc(d, :deployment))
-    |> join_and_preload(preload_assoc)
+    |> join_and_preload(preload_assocs)
     |> preload([d, o, dp], org: o, deployment: dp)
+  end
+
+  defp join_and_preload(query, [assoc]), do: join_and_preload(query, assoc)
+
+  defp join_and_preload(query, [assoc | rest]) do
+    query
+    |> join_and_preload(assoc)
+    |> join_and_preload(rest)
   end
 
   defp join_and_preload(query, nil), do: query
@@ -259,6 +267,12 @@ defmodule NervesHub.Devices do
     query
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> preload([latest_connection: lc], latest_connection: lc)
+  end
+
+  defp join_and_preload(query, :latest_health) do
+    query
+    |> join(:left, [d], dh in assoc(d, :latest_health), as: :latest_health)
+    |> preload([latest_health: lh], latest_health: lh)
   end
 
   def get_device_by_x509(cert) do
