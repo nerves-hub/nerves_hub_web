@@ -7,6 +7,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Firmwares
@@ -657,7 +658,8 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     }
   end
 
-  defp extract_location_data(%Device{latest_connection: connection}) when not is_nil(connection) do
+  defp extract_location_data(%Device{latest_connection: connection})
+       when not is_nil(connection) do
     connection.metadata["location"]
   end
 
