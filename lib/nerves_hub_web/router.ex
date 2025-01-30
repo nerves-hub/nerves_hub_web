@@ -224,6 +224,7 @@ defmodule NervesHubWeb.Router do
     live_session :account,
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.EnrichSentryContext,
         NervesHubWeb.Mounts.CurrentPath,
         {NervesHubWeb.Mounts.LayoutSelector, :no_sidebar}
       ] do
@@ -239,6 +240,7 @@ defmodule NervesHubWeb.Router do
     live_session :org,
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.EnrichSentryContext,
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser,
@@ -266,6 +268,7 @@ defmodule NervesHubWeb.Router do
     live_session :product,
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.EnrichSentryContext,
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser,
