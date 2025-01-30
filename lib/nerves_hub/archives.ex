@@ -71,18 +71,10 @@ defmodule NervesHub.Archives do
   def archive_for_deployment(nil), do: nil
 
   def archive_for_deployment(deployment_id) do
-    deployment =
-      Deployment
-      |> where(id: ^deployment_id)
-      |> join(:inner, [d], a in assoc(d, :archive))
-      |> preload([_, a], archive: a)
-      |> Repo.one()
-
-    if deployment do
-      deployment.archive
-    else
-      nil
-    end
+    Archive
+    |> join(:inner, [a], d in Deployment, on: d.archive_id == a.id)
+    |> where([a, d], d.id == ^deployment_id)
+    |> Repo.one()
   end
 
   # TODO: check on other return signatures
