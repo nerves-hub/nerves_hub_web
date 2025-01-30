@@ -546,6 +546,12 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     end
   end
 
+  def handle_event("push-update", %{"uuid" => uuid}, socket) when uuid == "" do
+    socket
+    |> send_toast(:error, "Please select a firmware version to send to the device.")
+    |> noreply()
+  end
+
   def handle_event("push-update", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
