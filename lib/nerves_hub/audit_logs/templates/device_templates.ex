@@ -4,8 +4,8 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
   """
 
   alias NervesHub.Accounts.User
+  alias NervesHub.Archives.Archive
   alias NervesHub.AuditLogs
-  alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
@@ -93,8 +93,7 @@ defmodule NervesHub.AuditLogs.DeviceTemplates do
     )
   end
 
-  @spec audit_set_deployment(Device.t(), Deployment.t(), :one_found | :multiple_found) ::
-          AuditLog.t()
+  @spec audit_set_deployment(Device.t(), Deployment.t(), :one_found | :multiple_found) :: :ok
   def audit_set_deployment(device, deployment, :one_found) do
     AuditLogs.audit!(
       device,
