@@ -1,6 +1,8 @@
 defmodule NervesHub.Devices do
   import Ecto.Query
 
+  require Logger
+
   alias Ecto.Changeset
   alias Ecto.Multi
   alias NervesHub.Accounts
@@ -1371,15 +1373,23 @@ defmodule NervesHub.Devices do
     |> Repo.insert()
     |> case do
       {:ok, inflight_update} ->
+        broadcast_update_request(device_id, inflight_update)
+
         {:ok, inflight_update}
 
       {:error, _changeset} ->
         # Device already has an inflight update, fetch it
         case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment.id) do
           nil ->
+            Logger.error(
+              "An inflight update could not be created or found for the device (#{device_id})"
+            )
+
             :error
 
           inflight_update ->
+            broadcast_update_request(device_id, inflight_update)
+
             {:ok, inflight_update}
         end
     end
@@ -1449,5 +1459,17 @@ defmodule NervesHub.Devices do
   def preload_product(%Device{} = device) do
     device
     |> Repo.preload(:product)
+  end
+
+  defp broadcast_update_request(device_id, inflight_update) do
+    message = %Phoenix.Socket.Broadcast{
+      topic: "device:#{device_id}",
+      event: "update-scheduled",
+      payload: inflight_update
+    }
+
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device_id}", message)
+
+    :ok
   end
 end

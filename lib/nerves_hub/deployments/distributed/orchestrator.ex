@@ -2,10 +2,9 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   @moduledoc """
   Orchestration process to handle passing out updates to devices
 
-  When a deployment is updated, the orchestrator will tell every
-  device local to its node that there is a new update. This
-  hook will allow the orchestrator to start slowly handing out
-  updates instead of blasting every device at once.
+  When a deployment is updated, the orchestrator will fetch online
+  devices in the assigned deployment that need to be updated and send
+  pubsub messages to their device channel requesting they be updated.
   """
 
   use GenServer
@@ -16,7 +15,6 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices
-  alias NervesHub.Devices.Device
 
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
@@ -51,13 +49,14 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   end
 
   @doc """
-  Trigger an update for a device on the local node
+  Trigger an update for a deployments devices.
 
-  Finds a device matching:
+  Finds devices matching:
 
   - the deployment
   - not updating
   - not using the deployment's current firmware
+  - currently online
 
   If there is space for the device based on the concurrent allowed updates
   the device is told to update. This is not guaranteed to be at or under the
@@ -66,52 +65,48 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   As devices update and reconnect, the new orchestrator is told that the update
   was successful, and the process is repeated.
   """
-  @decorate with_span("Deployments.Orchestrator.trigger_update#noop")
+  @decorate with_span("Deployments.Distributed.Orchestrator.trigger_update#noop")
   def trigger_update(%Deployment{is_active: false}) do
     :ok
   end
 
-  @decorate with_span("Deployments.Orchestrator.trigger_update")
+  @decorate with_span("Deployments.Distributed.Orchestrator.trigger_update")
   def trigger_update(deployment) do
     :telemetry.execute([:nerves_hub, :deployment, :trigger_update], %{count: 1})
 
-    # Get a rough count of devices to update
-    count = deployment.concurrent_updates - Devices.count_inflight_updates_for(deployment)
-    # Just in case inflight goes higher than concurrent, limit it to 0
-    count = max(count, 0)
+    slots = available_slots(deployment)
 
-    if count > 0 do
-      devices = Devices.available_for_update(deployment, count)
-
-      Enum.each(devices, fn %{device_id: device_id} ->
-        :telemetry.execute([:nerves_hub, :deployment, :trigger_update, :device], %{count: 1})
-
-        device = %Device{id: device_id}
-
-        case Devices.told_to_update(device, deployment) do
-          {:ok, inflight_update} ->
-            message = %Phoenix.Socket.Broadcast{
-              topic: "device:#{device.id}",
-              event: "update-scheduled",
-              payload: inflight_update
-            }
-
-            Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device.id}", message)
-
-          :error ->
-            Logger.error(
-              "An inflight update could not be created or found for the device #{device.identifier} (#{device.id})"
-            )
-        end
+    if slots > 0 do
+      Devices.available_for_update(deployment, slots)
+      |> Enum.each(fn %{device_id: device_id} ->
+        tell_device_to_update(device_id, deployment)
       end)
     end
+  end
+
+  # Determine how many devices should update based on
+  # the deployment update limit and the number currently updating
+  @spec available_slots(Deployment.t()) :: non_neg_integer()
+  defp available_slots(deployment) do
+    # Just in case inflight goes higher than concurrent, limit it to 0
+    (deployment.concurrent_updates - Devices.count_inflight_updates_for(deployment))
+    |> max(0)
+  end
+
+  @spec tell_device_to_update(integer(), Deployment.t()) :: :ok
+  defp tell_device_to_update(device_id, deployment) do
+    :telemetry.execute([:nerves_hub, :deployment, :trigger_update, :device], %{count: 1})
+
+    Devices.told_to_update(device_id, deployment)
+
+    :ok
   end
 
   def init(deployment) do
     {:ok, deployment, {:continue, :boot}}
   end
 
-  @decorate with_span("Deployments.Orchestrator.boot")
+  @decorate with_span("Deployments.Distributed.Orchestrator.boot")
   def handle_continue(:boot, deployment) do
     _ = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
@@ -126,18 +121,19 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     {:noreply, deployment}
   end
 
+  @decorate with_span("Deployments.Distributed.Orchestrator.trigger")
   def handle_cast(:trigger, deployment) do
     trigger_update(deployment)
     {:noreply, deployment}
   end
 
-  @decorate with_span("Deployments.Orchestrator.handle_info:deployments/update")
+  @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployment/device-update")
   def handle_info(%Broadcast{event: "deployment/device-updated"}, deployment) do
     trigger_update(deployment)
     {:noreply, deployment}
   end
 
-  @decorate with_span("Deployments.Orchestrator.handle_info:deployments/update")
+  @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployments/update")
   def handle_info(%Broadcast{event: "deployments/update"}, deployment) do
     {:ok, deployment} = Deployments.get_deployment(deployment)
 
