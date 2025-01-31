@@ -930,9 +930,7 @@ defmodule NervesHub.Devices do
         firmware_uuid: device.firmware_metadata.uuid
       )
 
-    if inflight_update != nil do
-      Orchestrator.device_updated(inflight_update.deployment_id)
-
+    if inflight_update do
       Deployment
       |> where([d], d.id == ^inflight_update.deployment_id)
       |> Repo.update_all(inc: [current_updated_devices: 1])
@@ -940,11 +938,34 @@ defmodule NervesHub.Devices do
       Repo.delete(inflight_update)
     end
 
+    # trigger the orchestrator, even if the update isn't complete
+    # this is mostly a noop for the orchestrator if the number
+    # of concurrent updates is already maxed out
+    _ = deployment_device_updated(device)
+
     device
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_change(:update_attempts, [])
     |> Ecto.Changeset.put_change(:updates_blocked_until, nil)
     |> Repo.update()
+  end
+
+  def deployment_device_updated(device) do
+    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
+      "multi" ->
+        _ = Orchestrator.device_updated(device.deployment_id)
+
+      "clustered" ->
+        _ =
+          Phoenix.PubSub.broadcast(
+            NervesHub.PubSub,
+            "deployment:#{device.deployment_id}",
+            "deployment/device-updated"
+          )
+
+      other ->
+        raise "Deployments Orchestrator '#{other}' not supported"
+    end
   end
 
   def up_to_date_count(%Deployment{} = deployment) do
@@ -1323,14 +1344,20 @@ defmodule NervesHub.Devices do
   @doc """
   Deployment orchestrator told a device to update
   """
-  def told_to_update(device, deployment) do
+  @spec told_to_update(Device.t() | integer(), Deployment.t()) ::
+          {:ok, InflightUpdate.t()} | :error
+  def told_to_update(%Device{id: id}, deployment) do
+    told_to_update(id, deployment)
+  end
+
+  def told_to_update(device_id, deployment) do
     expires_at =
       DateTime.utc_now()
       |> DateTime.add(60 * deployment.inflight_update_expiration_minutes, :second)
       |> DateTime.truncate(:second)
 
     %{
-      device_id: device.id,
+      device_id: device_id,
       deployment_id: deployment.id,
       firmware_id: deployment.firmware_id,
       firmware_uuid: deployment.firmware.uuid,
@@ -1344,7 +1371,7 @@ defmodule NervesHub.Devices do
 
       {:error, _changeset} ->
         # Device already has an inflight update, fetch it
-        case Repo.get_by(InflightUpdate, device_id: device.id, deployment_id: deployment.id) do
+        case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment.id) do
           nil ->
             :error
 
