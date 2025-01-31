@@ -615,7 +615,7 @@ defmodule NervesHub.Deployments do
   def deployment_deleted_event(deployment) do
     case Application.get_env(:nerves_hub, :deployments_orchestrator) do
       "multi" -> _ = broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
-      "clustered" -> _ = broadcast(deployment, "deployments/deleted")
+      "clustered" -> _ = broadcast(deployment, "deployment/deleted")
       other -> raise "Deployments Orchestrator '#{other}' not supported"
     end
   end

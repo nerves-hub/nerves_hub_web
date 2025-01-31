@@ -42,7 +42,7 @@ defmodule NervesHub.Deployments.Distributed.Monitor do
   def stop_orchestrator(deployment) do
     message = %Phoenix.Socket.Broadcast{
       topic: "deployment:#{deployment.id}",
-      event: "deployments/deactivated"
+      event: "deployment/deactivated"
     }
 
     Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:#{deployment.id}", message)

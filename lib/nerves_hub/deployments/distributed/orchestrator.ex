@@ -142,16 +142,18 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     {:noreply, deployment}
   end
 
-  def handle_info(%Broadcast{event: "deployments/deleted"}, state) do
+  def handle_info(%Broadcast{event: "deployment/deleted"}, state) do
     {:stop, :shutdown, state}
   end
 
-  def handle_info(%Broadcast{event: "deployments/deactivated"}, state) do
+  def handle_info(%Broadcast{event: "deployment/deactivated"}, state) do
     {:stop, :shutdown, state}
   end
 
   # Catch all for unknown broadcasts on a deployment
-  def handle_info(%Broadcast{topic: "deployment:" <> _}, deployment), do: {:noreply, deployment}
+  def handle_info(%Broadcast{topic: "deployment:" <> _}, deployment) do
+    {:noreply, deployment}
+  end
 
   def handle_info(:trigger, deployment) do
     trigger_update(deployment)
