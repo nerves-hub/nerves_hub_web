@@ -44,6 +44,10 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     end
   end
 
+  def start_link_for_testing(deployment) do
+    GenServer.start_link(__MODULE__, deployment)
+  end
+
   def name(deployment_id) do
     {:via, Horde.Registry, {NervesHub.DeploymentsRegistry, deployment_id}}
   end
@@ -93,16 +97,18 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
 
     if slots > 0 do
       Devices.available_for_update(deployment, slots)
-      |> Enum.each(fn %{device_id: device_id} ->
+      |> Enum.each(fn %{id: device_id} ->
         tell_device_to_update(device_id, deployment)
       end)
     end
   end
 
-  # Determine how many devices should update based on
-  # the deployment update limit and the number currently updating
+  @doc """
+  Determine how many devices should update based on
+  the deployment update limit and the number currently updating
+  """
   @spec available_slots(Deployment.t()) :: non_neg_integer()
-  defp available_slots(deployment) do
+  def available_slots(deployment) do
     # Just in case inflight goes higher than concurrent, limit it to 0
     (deployment.concurrent_updates - Devices.count_inflight_updates_for(deployment))
     |> max(0)
