@@ -83,11 +83,9 @@
             <th phx-click="sort" phx-value-sort="identifier" class="cursor-pointer">
               <Sorting.sort_icon text="Identifier" field="identifier" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
+            <th>Health Status</th>
             <th>Firmware</th>
             <th>Platform</th>
-            <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
-              <Sorting.sort_icon text="Added" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
-            </th>
             <th phx-click="sort" phx-value-sort="connection_last_seen_at" class="cursor-pointer">
               <Sorting.sort_icon text="Seen" field="connection_last_seen_at" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
@@ -158,6 +156,15 @@
             </td>
 
             <td>
+              <%= if device.latest_health do %>
+                <%!-- # Todo: Replace with status icon --%>
+                {device.latest_health.status}
+              <% else %>
+                Unknown
+              <% end %>
+            </td>
+
+            <td>
               <div class="flex gap-[8px] items-center">
                 <span>
                   <%= if is_nil(device.firmware_metadata) do %>
@@ -195,12 +202,6 @@
                   {device.firmware_metadata.platform}
                 <% end %>
               </span>
-            </td>
-
-            <td>
-              <div title={NaiveDateTime.to_iso8601(device.inserted_at)}>
-                {Timex.from_now(device.inserted_at)}
-              </div>
             </td>
 
             <td>

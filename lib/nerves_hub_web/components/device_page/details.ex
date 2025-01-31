@@ -233,6 +233,11 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               <span class="text-sm text-zinc-300">{@device.description}</span>
             </div>
 
+            <div class="min-h-7 px-4 flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Added:</span>
+              <span class="text-sm text-zinc-300">{NaiveDateTime.to_string(@device.inserted_at)}</span>
+            </div>
+
             <div class="min-h-7 flex px-4 gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Tags:</span>
               <span :if={is_nil(@device.tags)} class="text-sm text-nerves-gray-500">No Tags</span>
