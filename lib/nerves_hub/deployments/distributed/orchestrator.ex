@@ -48,6 +48,21 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     {:via, Horde.Registry, {NervesHub.DeploymentsRegistry, deployment_id}}
   end
 
+  @decorate with_span("Deployments.Distributed.Orchestrator.init")
+  def init(deployment) do
+    :ok = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+
+    # trigger every minute, plus a jitter between 1 and 10 seconds, as a back up
+    interval = :timer.seconds(60 + :rand.uniform(10))
+    _ = :timer.send_interval(interval, :trigger)
+
+    {:ok, deployment} = Deployments.get_deployment(deployment)
+
+    send(self(), :trigger)
+
+    {:ok, deployment}
+  end
+
   @doc """
   Trigger an update for a deployments devices.
 
@@ -100,25 +115,6 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     Devices.told_to_update(device_id, deployment)
 
     :ok
-  end
-
-  def init(deployment) do
-    {:ok, deployment, {:continue, :boot}}
-  end
-
-  @decorate with_span("Deployments.Distributed.Orchestrator.boot")
-  def handle_continue(:boot, deployment) do
-    _ = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
-
-    # trigger every minute, plus a jitter between 1 and 10 seconds, as a back up
-    interval = :timer.seconds(60 + :rand.uniform(10))
-    _ = :timer.send_interval(interval, :trigger)
-
-    {:ok, deployment} = Deployments.get_deployment(deployment)
-
-    send(self(), :trigger)
-
-    {:noreply, deployment}
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.trigger")
