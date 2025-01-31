@@ -15,7 +15,7 @@ defmodule NervesHub.Workers.DeviceHealthTruncation do
 
   @impl Oban.Worker
   def perform(_) do
-    {:ok, _} = Devices.truncate_device_health()
+    :ok = Devices.truncate_device_health()
     {:ok, _} = Metrics.truncate_device_metrics()
 
     :ok

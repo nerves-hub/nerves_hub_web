@@ -1171,17 +1171,32 @@ defmodule NervesHub.Devices do
   end
 
   def truncate_device_health() do
-    days_to_retain =
+    interval =
       Application.get_env(:nerves_hub, :device_health_days_to_retain)
 
-    days_ago = DateTime.shift(DateTime.utc_now(), day: -days_to_retain)
+    delete_limit = Application.get_env(:nerves_hub, :device_health_delete_limit)
+    time_ago = DateTime.shift(DateTime.utc_now(), day: -interval)
 
-    {count, _} =
+    query =
       DeviceHealth
-      |> where([dh], dh.inserted_at < ^days_ago)
-      |> Repo.delete_all()
+      |> join(:inner, [dh], d in Device, on: dh.device_id == d.id)
+      |> where([dh, _d], dh.inserted_at < ^time_ago)
+      |> where([dh, d], dh.id != d.latest_health_id)
+      |> select([dh], dh.id)
+      |> limit(^delete_limit)
 
-    {:ok, count}
+    {delete_count, _} =
+      DeviceHealth
+      |> where([dh], dh.id in subquery(query))
+      |> Repo.delete_all(timeout: 30_000)
+
+    if delete_count == 0 do
+      :ok
+    else
+      # relax stress on Ecto pool and go again
+      Process.sleep(2000)
+      truncate_device_health()
+    end
   end
 
   def get_latest_health(device_id) do

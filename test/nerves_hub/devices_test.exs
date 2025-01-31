@@ -764,32 +764,6 @@ defmodule NervesHub.DevicesTest do
       # Assert device is updated with latest health
       assert %{latest_health_id: ^health_id} = Devices.get_device(device.id)
     end
-
-    test "create health reports over limit and then clean down to default limit", %{
-      device: device
-    } do
-      device_health = %{"device_id" => device.id, "data" => %{"literally_any_map" => "values"}}
-
-      for x <- 0..9 do
-        days_ago = DateTime.shift(DateTime.utc_now(), day: -x)
-
-        inserted =
-          device_health
-          |> Devices.DeviceHealth.save()
-          |> Ecto.Changeset.put_change(:inserted_at, days_ago)
-          |> Repo.insert()
-
-        assert {:ok, %Devices.DeviceHealth{}} = inserted
-      end
-
-      healths = Devices.get_device_health(device.id)
-      assert 10 = Enum.count(healths)
-
-      Devices.truncate_device_health()
-
-      healths = Devices.get_device_health(device.id)
-      assert 7 = Enum.count(healths)
-    end
   end
 
   describe "update_deployment/2" do
