@@ -950,6 +950,10 @@ defmodule NervesHub.Devices do
     |> Repo.update()
   end
 
+  def deployment_device_updated(%Device{deployment_id: nil}) do
+    :ok
+  end
+
   def deployment_device_updated(device) do
     case Application.get_env(:nerves_hub, :deployments_orchestrator) do
       "multi" ->
