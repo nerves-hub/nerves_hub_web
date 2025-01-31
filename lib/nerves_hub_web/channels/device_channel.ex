@@ -51,10 +51,6 @@ defmodule NervesHubWeb.DeviceChannel do
 
     maybe_send_public_keys(device, socket, params)
 
-    # clear out any inflight updates, there shouldn't be one at this point
-    # we might make a new one right below it, so clear it beforehand
-    Devices.clear_inflight_update(device)
-
     deployment_channel = deployment_channel(device)
 
     subscribe("device:#{device.id}")
