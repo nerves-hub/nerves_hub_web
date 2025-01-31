@@ -962,11 +962,16 @@ defmodule NervesHub.Devices do
         _ = Orchestrator.device_updated(device.deployment_id)
 
       "clustered" ->
+        message = %Phoenix.Socket.Broadcast{
+          topic: "deployment:#{device.deployment_id}",
+          event: "deployment/device-updated"
+        }
+
         _ =
           Phoenix.PubSub.broadcast(
             NervesHub.PubSub,
             "deployment:#{device.deployment_id}",
-            "deployment/device-updated"
+            message
           )
 
       other ->
@@ -1220,7 +1225,7 @@ defmodule NervesHub.Devices do
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
       "device:#{id}",
-      %Phoenix.Socket.Broadcast{event: event, payload: payload}
+      %Phoenix.Socket.Broadcast{topic: "device:#{id}", event: event, payload: payload}
     )
   end
 
