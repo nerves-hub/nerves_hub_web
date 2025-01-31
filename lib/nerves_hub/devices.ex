@@ -231,28 +231,26 @@ defmodule NervesHub.Devices do
   end
 
   @spec get_device_by_identifier!(Org.t(), String.t()) :: Device.t()
-  def get_device_by_identifier!(org, identifier, preload_assocs \\ nil)
+  def get_device_by_identifier!(org, identifier, preload_assoc \\ nil)
       when is_binary(identifier) do
-    get_device_by_identifier_query(org, identifier, preload_assocs)
+    get_device_by_identifier_query(org, identifier, preload_assoc)
     |> Repo.one!()
   end
 
-  defp get_device_by_identifier_query(%Org{id: org_id}, identifier, preload_assocs) do
+  defp get_device_by_identifier_query(%Org{id: org_id}, identifier, preload_assoc) do
     Device
     |> where(identifier: ^identifier)
     |> where(org_id: ^org_id)
     |> join(:left, [d], o in assoc(d, :org))
     |> join(:left, [d], dp in assoc(d, :deployment))
-    |> join_and_preload(preload_assocs)
+    |> join_and_preload(preload_assoc)
     |> preload([d, o, dp], org: o, deployment: dp)
   end
 
-  defp join_and_preload(query, [assoc]), do: join_and_preload(query, assoc)
-
-  defp join_and_preload(query, [assoc | rest]) do
-    query
-    |> join_and_preload(assoc)
-    |> join_and_preload(rest)
+  defp join_and_preload(query, assocs) when is_list(assocs) do
+    Enum.reduce(assocs, query, fn assoc, q ->
+      join_and_preload(q, assoc)
+    end)
   end
 
   defp join_and_preload(query, nil), do: query
@@ -1152,21 +1150,24 @@ defmodule NervesHub.Devices do
     )
   end
 
-  def save_device_health(%{"device_id" => device_id} = device_status) do
-    device_status
-    |> DeviceHealth.save()
-    |> Repo.insert()
+  def save_device_health(device_status) do
+    Multi.new()
+    |> Multi.insert(:insert_health, DeviceHealth.save(device_status))
+    |> Ecto.Multi.update_all(:update_device, &update_health_on_device/1, [])
+    |> Repo.transaction()
     |> case do
-      {:ok, device_health} ->
-        Device
-        |> where([d], d.id == ^device_id)
-        |> Repo.update_all(set: [latest_health_id: device_health.id])
+      {:ok, %{insert_health: health}} ->
+        {:ok, health}
 
-        {:ok, device_health}
-
-      {:error, _} = error ->
-        error
+      {:error, _, changeset, _} ->
+        {:error, changeset}
     end
+  end
+
+  defp update_health_on_device(%{insert_health: health}) do
+    Device
+    |> where(id: ^health.device_id)
+    |> update(set: [latest_health_id: ^health.id])
   end
 
   def truncate_device_health() do

@@ -457,7 +457,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   defp load_device(org, identifier) do
-    Devices.get_device_by_identifier!(org, identifier, :latest_connection)
+    Devices.get_device_by_identifier!(org, identifier, [:latest_connection, :latest_health])
   end
 
   defp scripts_with_output(product) do
