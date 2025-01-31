@@ -50,10 +50,6 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     {:via, Horde.Registry, {NervesHub.DeploymentsRegistry, deployment_id}}
   end
 
-  def device_updated(deployment_id) do
-    GenServer.cast(name(deployment_id), :trigger)
-  end
-
   @doc """
   Trigger an update for a device on the local node
 
@@ -87,8 +83,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     if count > 0 do
       devices = Devices.available_for_update(deployment, count)
 
-      devices
-      |> Enum.each(fn %{device_id: device_id} ->
+      Enum.each(devices, fn %{device_id: device_id} ->
         :telemetry.execute([:nerves_hub, :deployment, :trigger_update, :device], %{count: 1})
 
         device = %Device{id: device_id}
