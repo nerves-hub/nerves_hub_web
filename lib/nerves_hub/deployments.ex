@@ -6,6 +6,7 @@ defmodule NervesHub.Deployments do
   alias NervesHub.AuditLogs.DeploymentTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.Distributed.Monitor
   alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -19,6 +20,13 @@ defmodule NervesHub.Deployments do
   @spec all() :: [Deployment.t()]
   def all() do
     Repo.all(Deployment)
+  end
+
+  @spec all_active() :: [Deployment.t()]
+  def all_active() do
+    Deployment
+    |> where(is_active: true)
+    |> Repo.all()
   end
 
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
@@ -156,7 +164,22 @@ defmodule NervesHub.Deployments do
     end
   end
 
-  def get_deployment!(deployment_id), do: Repo.get!(Deployment, deployment_id)
+  def get_deployment(%Deployment{id: id}), do: get_deployment(id)
+
+  def get_deployment(deployment_id) do
+    Deployment
+    |> where([d], d.id == ^deployment_id)
+    |> join(:left, [d], f in assoc(d, :firmware), as: :firmware)
+    |> preload([firmware: f], firmware: f)
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:error, :not_found}
+
+      deployment ->
+        {:ok, deployment}
+    end
+  end
 
   @spec get_by_product_and_name!(Product.t(), String.t(), boolean()) :: Deployment.t()
   def get_by_product_and_name!(product, name, with_device_count \\ false)
@@ -208,12 +231,15 @@ defmodule NervesHub.Deployments do
 
   @spec delete_deployment(Deployment.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
   def delete_deployment(%Deployment{id: deployment_id}) do
-    case Repo.delete(Repo.get!(Deployment, deployment_id)) do
+    Deployment
+    |> Repo.get!(deployment_id)
+    |> Repo.delete()
+    |> case do
       {:error, _changeset} ->
         {:error, :not_found}
 
       {:ok, deployment} ->
-        _ = broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
+        _ = deployment_deleted_event(deployment)
 
         {:ok, deployment}
     end
@@ -257,6 +283,14 @@ defmodule NervesHub.Deployments do
       {:ok, {deployment, changeset}} ->
         _ = maybe_trigger_delta_generation(deployment, changeset)
         :ok = broadcast(deployment, "deployments/update")
+
+        if Map.has_key?(changeset.changes, :is_active) do
+          if deployment.is_active do
+            deployment_activated_event(deployment)
+          else
+            deployment_deactivated_event(deployment)
+          end
+        end
 
         {:ok, deployment}
 
@@ -333,7 +367,7 @@ defmodule NervesHub.Deployments do
 
     case Repo.insert(changeset) do
       {:ok, deployment} ->
-        _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
+        deployment_created_event(deployment)
 
         {:ok, deployment}
 
@@ -552,5 +586,37 @@ defmodule NervesHub.Deployments do
     |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
     |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
     |> Repo.all()
+  end
+
+  def deployment_created_event(deployment) do
+    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
+      "multi" -> _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
+      "clustered" -> Monitor.start_orchestrator(deployment)
+      other -> raise "Deployments Orchestrator '#{other}' not supported"
+    end
+  end
+
+  def deployment_activated_event(deployment) do
+    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
+      "multi" -> _ = :ok
+      "clustered" -> Monitor.start_orchestrator(deployment)
+      other -> raise "Deployments Orchestrator '#{other}' not supported"
+    end
+  end
+
+  def deployment_deactivated_event(deployment) do
+    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
+      "multi" -> _ = :ok
+      "clustered" -> Monitor.stop_orchestrator(deployment)
+      other -> raise "Deployments Orchestrator '#{other}' not supported"
+    end
+  end
+
+  def deployment_deleted_event(deployment) do
+    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
+      "multi" -> _ = broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
+      "clustered" -> _ = broadcast(deployment, "deployments/deleted")
+      other -> raise "Deployments Orchestrator '#{other}' not supported"
+    end
   end
 end

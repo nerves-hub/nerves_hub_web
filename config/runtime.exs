@@ -35,6 +35,7 @@ config :nerves_hub,
     String.to_integer(System.get_env("DEVICE_CONNECTION_DELETE_LIMIT", "100000")),
   deployment_calculator_interval_seconds:
     String.to_integer(System.get_env("DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS", "3600")),
+  deployments_orchestrator: System.get_env("DEPLOYMENTS_ORCHESTRATOR", "multi"),
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
   dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true",
   extension_config: [
@@ -269,6 +270,28 @@ if config_env() == :prod do
     |> Keyword.merge(postgres_config)
     |> Keyword.take([:hostname, :username, :password, :database, :port])
     |> Keyword.merge(ssl: database_ssl_opts)
+    |> Keyword.merge(parameters: [])
+    |> Keyword.merge(channel_name: "nerves_hub_clustering")
+
+  config :libcluster,
+    topologies: [
+      postgres: [
+        strategy: LibclusterPostgres.Strategy,
+        config: libcluster_db_config
+      ]
+    ]
+end
+
+# I don't like this duplication :/
+if config_env() == :dev do
+  postgres_config =
+    System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev")
+    |> Ecto.Repo.Supervisor.parse_url()
+
+  libcluster_db_config =
+    [port: 5432]
+    |> Keyword.merge(postgres_config)
+    |> Keyword.take([:hostname, :username, :password, :database, :port])
     |> Keyword.merge(parameters: [])
     |> Keyword.merge(channel_name: "nerves_hub_clustering")
 

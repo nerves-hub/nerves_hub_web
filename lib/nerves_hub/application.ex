@@ -76,7 +76,11 @@ defmodule NervesHub.Application do
   defp deployments_supervisor("test"), do: []
 
   defp deployments_supervisor(_) do
-    [NervesHub.Deployments.Supervisor]
+    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
+      "multi" -> [NervesHub.Deployments.Supervisor]
+      "clustered" -> [NervesHub.Deployments.Distributed.Supervisor]
+      other -> raise "Deployments Orchestrator '#{other}' not supported"
+    end
   end
 
   defp endpoints("test") do

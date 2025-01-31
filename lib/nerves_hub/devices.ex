@@ -682,6 +682,43 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
+  Fetch devices associated with a deployment for updating.
+
+  Devices must be:
+  - online
+  - have automatic updates enabled
+  - not currently updating
+  - not be running the same firmware version associated with the deployment
+  - not in the penalty box (based on `updates_blocked_until`)
+
+  The list is ordered by current connection age. Devices that have been online longer
+  are updated first.
+  """
+  @spec available_for_update(Deployment.t(), non_neg_integer()) :: [Device.t()]
+  def available_for_update(deployment, count) do
+    now = DateTime.utc_now(:second)
+
+    Device
+    |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:inner, [d], dp in assoc(d, :deployment), as: :deployment)
+    |> join(:inner, [deployment: dp], f in assoc(dp, :firmware),
+      on: [product_id: ^deployment.product_id],
+      as: :firmware
+    )
+    |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
+    |> where(deployment_id: ^deployment.id)
+    |> where(updates_enabled: true)
+    |> where([latest_connection: lc], lc.status == :connected)
+    |> where([d], not is_nil(d.firmware_metadata))
+    |> where([d, firmware: f], fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, f.uuid))
+    |> where([inflight_update: ifu], is_nil(ifu.id))
+    |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
+    |> order_by([latest_connection: lc], asc: lc.established_at)
+    |> limit(^count)
+    |> Repo.all()
+  end
+
+  @doc """
   Resolve an update for the device's deployment
   """
   @spec resolve_update(Device.t()) :: UpdatePayload.t()

@@ -159,6 +159,38 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  def handle_info(
+        %Broadcast{event: "update-scheduled", payload: inflight_update},
+        %{assigns: %{device: device}} = socket
+      ) do
+    payload = Devices.resolve_update(device)
+
+    case payload.update_available do
+      true ->
+        :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1}, %{
+          identifier: device.identifier,
+          firmware_uuid: inflight_update.firmware_uuid
+        })
+
+        # If we get here, the device is connected and high probability it receives
+        # the update message so we can Audit and later assert on this audit event
+        # as a loosely valid attempt to update
+        DeviceTemplates.audit_device_deployment_update_triggered(
+          device,
+          payload.deployment,
+          socket.assigns.reference_id
+        )
+
+        Devices.update_started!(inflight_update)
+        push(socket, "update", payload)
+
+        {:noreply, socket}
+
+      false ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_info(%Broadcast{event: "archives/updated"}, socket) do
     {:noreply, maybe_send_archive(socket, audit_log: true)}
   end
