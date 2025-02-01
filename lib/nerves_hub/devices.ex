@@ -938,12 +938,10 @@ defmodule NervesHub.Devices do
       |> Repo.update_all(inc: [current_updated_devices: 1])
 
       Repo.delete(inflight_update)
-    end
 
-    # trigger the orchestrator, even if the update isn't complete
-    # this is mostly a noop for the orchestrator if the number
-    # of concurrent updates is already maxed out
-    _ = deployment_device_updated(device)
+      # let the orchestrator know that an inflight update completed
+      _ = deployment_device_updated(device)
+    end
 
     device
     |> Ecto.Changeset.change()
