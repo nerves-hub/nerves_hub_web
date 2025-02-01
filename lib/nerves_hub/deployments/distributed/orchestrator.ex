@@ -57,7 +57,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     :ok = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
     # trigger every minute, plus a jitter between 1 and 10 seconds, as a back up
-    interval = :timer.seconds(60 + :rand.uniform(10))
+    interval = :timer.seconds(90 + :rand.uniform(10))
     _ = :timer.send_interval(interval, :trigger)
 
     {:ok, deployment} = Deployments.get_deployment(deployment)
