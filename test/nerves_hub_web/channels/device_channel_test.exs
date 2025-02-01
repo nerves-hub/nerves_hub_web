@@ -130,6 +130,39 @@ defmodule NervesHubWeb.DeviceChannelTest do
     assert device.latest_connection.metadata["connection_types"] == ["ethernet", "wifi"]
   end
 
+  describe "device registration" do
+    test "registers the right device info" do
+      user = Fixtures.user_fixture()
+      {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+      %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} =
+        connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+      {:ok, _join_reply, socket} =
+        subscribe_and_join(socket, DeviceChannel, "device")
+
+      send(socket.channel_pid, {:device_registration, 1})
+
+      _socket = :sys.get_state(socket.channel_pid)
+
+      firmware_uuid = get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)])
+
+      assert [
+               {_pid,
+                %{
+                  firmware_uuid: ^firmware_uuid,
+                  updates_enabled: true,
+                  deployment_id: nil,
+                  first_in_line: false,
+                  updating: false
+                }}
+             ] = Registry.lookup(NervesHub.Devices.Registry, device.id)
+    end
+  end
+
   describe "unhandled messages are caught" do
     test "handle_info" do
       user = Fixtures.user_fixture()

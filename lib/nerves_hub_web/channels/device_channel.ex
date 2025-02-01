@@ -95,7 +95,8 @@ defmodule NervesHubWeb.DeviceChannel do
       deployment_id: device.deployment_id,
       firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
       updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-      updating: false
+      updating: false,
+      first_in_line: device.first_in_line
     }
 
     case Registry.register(NervesHub.Devices.Registry, device.id, payload) do

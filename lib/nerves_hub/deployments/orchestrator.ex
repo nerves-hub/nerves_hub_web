@@ -72,7 +72,8 @@ defmodule NervesHub.Deployments.Orchestrator do
     match_return = %{
       device_id: {:element, 1, :"$_"},
       pid: {:element, 1, {:element, 2, :"$_"}},
-      firmware_uuid: {:map_get, :firmware_uuid, {:element, 2, {:element, 2, :"$_"}}}
+      firmware_uuid: {:map_get, :firmware_uuid, {:element, 2, {:element, 2, :"$_"}}},
+      first_in_line: {:map_get, :first_in_line, {:element, 2, {:element, 2, :"$_"}}}
     }
 
     devices =
@@ -80,10 +81,28 @@ defmodule NervesHub.Deployments.Orchestrator do
         {{:_, :_, :"$1"}, match_conditions, [match_return]}
       ])
 
+    normal_queue_devices = Enum.filter(devices, &(!&1.first_in_line))
+
     # Get a rough count of devices to update
     count = deployment.concurrent_updates - Devices.count_inflight_updates_for(deployment)
     # Just in case inflight goes higher than concurrent, limit it to 0
     count = max(count, 0)
+
+    case count do
+      0 ->
+        :ok
+
+      1 ->
+        {priority, normal} = split_devices_in_queues(devices)
+
+      # priority_count = div(n, 2)
+      # normal_count = n - priority_count
+
+      n ->
+        priority_count = div(n, 2)
+        normal_count = n - priority_count
+        {priority_queue_devices, normal_queue_devices} = split_devices_in_queues(devices)
+    end
 
     # use a reduce to bounce out early?
     # limit the number of devices to 5 minutes / 500ms?
@@ -156,5 +175,12 @@ defmodule NervesHub.Deployments.Orchestrator do
   def handle_info(:trigger, deployment) do
     trigger_update(deployment)
     {:noreply, deployment}
+  end
+
+  defp split_devices_in_queues(devices) do
+    priority = Enum.filter(devices, & &1.first_in_line)
+    normal = Enum.filter(devices, &(!&1.first_in_line))
+
+    {priority, normal}
   end
 end
