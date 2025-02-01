@@ -128,8 +128,11 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployment/device-online")
-  def handle_info(%Broadcast{event: "deployment/device-online"}, deployment) do
-    trigger_update(deployment)
+  def handle_info(%Broadcast{event: "deployment/device-online", payload: payload}, deployment) do
+    if payload.firmware_uuid != deployment.firmware.uuid do
+      trigger_update(deployment)
+    end
+
     {:noreply, deployment}
   end
 

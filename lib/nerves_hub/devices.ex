@@ -962,9 +962,17 @@ defmodule NervesHub.Devices do
         :ok
 
       "clustered" ->
+        payload =
+          if device.firmware_metadata do
+            %{firmware_uuid: device.firmware_metadata.uuid}
+          else
+            %{firmware_uuid: nil}
+          end
+
         message = %Phoenix.Socket.Broadcast{
           topic: "deployment:#{device.deployment_id}",
-          event: "deployment/device-online"
+          event: "deployment/device-online",
+          payload: payload
         }
 
         _ =

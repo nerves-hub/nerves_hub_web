@@ -1,7 +1,8 @@
-Mimic.copy(NervesHub.Tracker)
+Mimic.copy(NervesHub.Devices)
 Mimic.copy(NervesHub.Firmwares.DeltaUpdater.Default)
 Mimic.copy(NervesHub.Firmwares.Upload.File)
 Mimic.copy(NervesHub.Firmwares.Upload)
+Mimic.copy(NervesHub.Tracker)
 
 ExUnit.start(capture_log: true, exclude: [:pending])
 
