@@ -95,27 +95,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
   end
 
   test "if archive is sent on connect an audit log is not created" do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user, %{name: "BigOrg2022"})
-    product = Fixtures.product_fixture(user, org, %{name: "Hop"})
-    org_key = Fixtures.org_key_fixture(org, user)
-    archive = %{uuid: archive_uuid} = Fixtures.archive_fixture(org_key, product)
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: System.tmp_dir()})
-    deployment = Fixtures.deployment_fixture(org, firmware, %{archive_id: archive.id})
-
-    {device, _firmware, _deployment} =
-      device_fixture(user, %{identifier: "123", deployment_id: deployment.id})
-
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-
-    params =
-      for {k, v} <- Map.from_struct(device.firmware_metadata),
-          into: %{"device_api_version" => "2.0.1"} do
-        case k do
-          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
-          _ -> {"nerves_fw_#{k}", v}
-        end
-      end
+    %{certificate: certificate, params: params, archive_uuid: archive_uuid} =
+      archive_setup()
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -130,27 +111,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   end
 
   test "if archive is sent when an archive updates an audit log is created" do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user, %{name: "BigOrg2022"})
-    product = Fixtures.product_fixture(user, org, %{name: "Hop"})
-    org_key = Fixtures.org_key_fixture(org, user)
-    archive = Fixtures.archive_fixture(org_key, product)
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: System.tmp_dir()})
-    deployment = Fixtures.deployment_fixture(org, firmware, %{archive_id: archive.id})
-
-    {device, _firmware, _deployment} =
-      device_fixture(user, %{identifier: "123", deployment_id: deployment.id})
-
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-
-    params =
-      for {k, v} <- Map.from_struct(device.firmware_metadata),
-          into: %{"device_api_version" => "2.0.1"} do
-        case k do
-          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
-          _ -> {"nerves_fw_#{k}", v}
-        end
-      end
+    %{device: device, certificate: certificate, params: params} = archive_setup()
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -173,27 +134,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   end
 
   test "if archive is sent when a device updates an audit log is created" do
-    user = Fixtures.user_fixture()
-    org = Fixtures.org_fixture(user, %{name: "BigOrg2022"})
-    product = Fixtures.product_fixture(user, org, %{name: "Hop"})
-    org_key = Fixtures.org_key_fixture(org, user)
-    archive = Fixtures.archive_fixture(org_key, product)
-    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: System.tmp_dir()})
-    deployment = Fixtures.deployment_fixture(org, firmware, %{archive_id: archive.id})
-
-    {device, _firmware, _deployment} =
-      device_fixture(user, %{identifier: "123", deployment_id: deployment.id})
-
-    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
-
-    params =
-      for {k, v} <- Map.from_struct(device.firmware_metadata),
-          into: %{"device_api_version" => "2.0.1"} do
-        case k do
-          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
-          _ -> {"nerves_fw_#{k}", v}
-        end
-      end
+    %{device: device, certificate: certificate, params: params} = archive_setup()
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
@@ -370,5 +311,31 @@ defmodule NervesHubWeb.DeviceChannelTest do
       )
 
     {device, firmware, deployment}
+  end
+
+  defp archive_setup() do
+    user = Fixtures.user_fixture()
+    org = Fixtures.org_fixture(user, %{name: "BigOrg2022"})
+    product = Fixtures.product_fixture(user, org, %{name: "Hop"})
+    org_key = Fixtures.org_key_fixture(org, user)
+    archive = %{uuid: archive_uuid} = Fixtures.archive_fixture(org_key, product)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: System.tmp_dir()})
+    deployment = Fixtures.deployment_fixture(org, firmware, %{archive_id: archive.id})
+
+    {device, _firmware, _deployment} =
+      device_fixture(user, %{identifier: "123", deployment_id: deployment.id})
+
+    %{db_cert: certificate} = Fixtures.device_certificate_fixture(device)
+
+    params =
+      for {k, v} <- Map.from_struct(device.firmware_metadata),
+          into: %{"device_api_version" => "2.0.1"} do
+        case k do
+          :uuid -> {"nerves_fw_uuid", Ecto.UUID.generate()}
+          _ -> {"nerves_fw_#{k}", v}
+        end
+      end
+
+    %{device: device, certificate: certificate, params: params, archive_uuid: archive_uuid}
   end
 end
