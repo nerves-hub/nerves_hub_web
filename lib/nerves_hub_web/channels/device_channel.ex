@@ -163,12 +163,22 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  @decorate with_span("Channels.DeviceChannel.handle_info:clear-deployment")
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployment-cleared")
   def handle_info(
-        %Broadcast{event: "devices/clear-deployment"},
+        %Broadcast{event: "devices/deployment-cleared"},
         %{assigns: %{device: device}} = socket
       ) do
-    device = %{device | deployment_id: nil, deployment: nil}
+    device = %{device | deployment_id: nil}
+
+    {:noreply, update_device(socket, device)}
+  end
+
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployment-updated")
+  def handle_info(
+        %Broadcast{event: "devices/deployment-updated", payload: %{deployment_id: deployment_id}},
+        %{assigns: %{device: device}} = socket
+      ) do
+    device = %{device | deployment_id: deployment_id}
 
     {:noreply, update_device(socket, device)}
   end
@@ -380,14 +390,18 @@ defmodule NervesHubWeb.DeviceChannel do
     :ok
   end
 
-  defp subscribe(topic) do
+  defp subscribe(topic) when not is_nil(topic) do
     _ = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
     :ok
   end
 
-  defp unsubscribe(topic) do
+  defp subscribe(nil), do: :ok
+
+  defp unsubscribe(topic) when not is_nil(topic) do
     Phoenix.PubSub.unsubscribe(NervesHub.PubSub, topic)
   end
+
+  defp unsubscribe(nil), do: :ok
 
   defp device_internal_broadcast!(socket, device, event, payload) do
     topic = "device:#{device.identifier}:internal"
@@ -464,8 +478,6 @@ defmodule NervesHubWeb.DeviceChannel do
   defp deployment_channel(device) do
     if device.deployment_id do
       "deployment:#{device.deployment_id}"
-    else
-      "deployment:none"
     end
   end
 

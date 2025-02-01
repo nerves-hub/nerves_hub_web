@@ -739,7 +739,7 @@ defmodule NervesHub.Devices do
       |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
       |> Repo.update!()
 
-    _ = broadcast(device, "devices/updated")
+    _ = broadcast(device, "devices/deployment-updated", %{deployment_id: deployment.id})
 
     Map.put(device, :deployment, deployment)
   end
@@ -752,7 +752,7 @@ defmodule NervesHub.Devices do
       |> Ecto.Changeset.put_change(:deployment_id, nil)
       |> Repo.update!()
 
-    _ = broadcast(device, "devices/updated")
+    _ = broadcast(device, "devices/deployment-cleared")
 
     Map.put(device, :deployment, nil)
   end
@@ -1126,11 +1126,13 @@ defmodule NervesHub.Devices do
     end
   end
 
-  defp broadcast(%Device{id: id}, event) do
+  defp broadcast(device, event), do: broadcast(device, event, %{})
+
+  defp broadcast(%Device{id: id}, event, payload) do
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
       "device:#{id}",
-      %Phoenix.Socket.Broadcast{event: event}
+      %Phoenix.Socket.Broadcast{event: event, payload: payload}
     )
   end
 

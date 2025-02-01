@@ -787,7 +787,7 @@ defmodule NervesHub.DevicesTest do
   end
 
   describe "update_deployment/2" do
-    test "updates deployment and broadcasts 'devices/updated'", %{
+    test "updates deployment and broadcasts 'devices/deployment-updated'", %{
       device: device,
       deployment: deployment
     } do
@@ -797,12 +797,12 @@ defmodule NervesHub.DevicesTest do
       device = Devices.update_deployment(device, deployment)
 
       assert device.deployment_id == deployment.id
-      assert_receive %{event: "devices/updated"}
+      assert_receive %{event: "devices/deployment-updated"}
     end
   end
 
   describe "clear_deployment1/2" do
-    test "clears deployment and broadcasts 'devices/updated'", %{
+    test "clears deployment and broadcasts 'devices/deployment-cleared'", %{
       device: device,
       deployment: deployment
     } do
@@ -812,7 +812,7 @@ defmodule NervesHub.DevicesTest do
       device = Devices.clear_deployment(device)
 
       refute device.deployment_id
-      assert_receive %{event: "devices/updated"}
+      assert_receive %{event: "devices/deployment-cleared"}
     end
   end
 end
