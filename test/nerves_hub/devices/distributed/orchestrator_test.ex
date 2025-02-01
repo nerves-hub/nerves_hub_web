@@ -100,8 +100,6 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     refute_receive %Broadcast{topic: ^topic3, event: "update-scheduled"}, 500
   end
 
-  # test "no devices are told to update if the concurrent_updates limit has been met"
-
   test "finds another device to update when a device finishes updating", %{
     product: product,
     deployment: deployment,
