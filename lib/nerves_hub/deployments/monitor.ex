@@ -7,44 +7,60 @@ defmodule NervesHub.Deployments.Monitor do
 
   use GenServer
 
+  alias NervesHub.DeploymentDynamicSupervisor
   alias NervesHub.Deployments
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Deployments.Orchestrator
+  alias Phoenix.PubSub
+  alias Phoenix.Socket.Broadcast
+
+  defmodule State do
+    defstruct [:deployments]
+  end
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, [])
   end
 
   def init(_) do
-    {:ok, %{}, {:continue, :boot}}
+    _ = PubSub.subscribe(NervesHub.PubSub, "deployment:monitor")
+
+    {:ok, %State{}, {:continue, :boot}}
   end
 
   def handle_continue(:boot, state) do
-    Deployments.all_active()
-    |> Enum.each(fn deployment ->
-      start_orchestrator(deployment)
-    end)
+    deployments =
+      Enum.into(Deployments.all(), %{}, fn deployment ->
+        {:ok, orchestrator_pid} =
+          DynamicSupervisor.start_child(
+            DeploymentDynamicSupervisor,
+            {Deployments.Orchestrator, deployment}
+          )
 
-    {:noreply, state}
+        {deployment.id, %{orchestrator_pid: orchestrator_pid}}
+      end)
+
+    {:noreply, %{state | deployments: deployments}}
   end
 
-  def start_orchestrator(%Deployment{is_active: true} = deployment) do
-    Horde.DynamicSupervisor.start_child(
-      NervesHub.DistributedSupervisor,
-      Orchestrator.child_spec(deployment)
-    )
+  def handle_info(%Broadcast{event: "deployments/new", payload: payload}, state) do
+    {:ok, deployment} = Deployments.get(payload.deployment_id)
+
+    {:ok, orchestrator_pid} =
+      DynamicSupervisor.start_child(
+        DeploymentDynamicSupervisor,
+        {Deployments.Orchestrator, deployment}
+      )
+
+    deployments =
+      Map.put(state.deployments, deployment.id, %{orchestrator_pid: orchestrator_pid})
+
+    {:noreply, %{state | deployments: deployments}}
   end
 
-  def start_orchestrator(_) do
-    :ok
-  end
-
-  def stop_orchestrator(deployment) do
-    message = %Phoenix.Socket.Broadcast{
-      topic: "deployment:#{deployment.id}",
-      event: "deployment/deactivated"
-    }
-
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:#{deployment.id}", message)
+  def handle_info(%Broadcast{event: "deployments/delete", payload: payload}, state) do
+    pid = GenServer.whereis(Orchestrator.name(payload.deployment_id))
+    _ = DynamicSupervisor.terminate_child(DeploymentDynamicSupervisor, pid)
+    deployments = Map.delete(state.deployments, payload.deployment_id)
+    {:noreply, %{state | deployments: deployments}}
   end
 end
