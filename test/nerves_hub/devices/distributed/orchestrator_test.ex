@@ -56,9 +56,6 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     {:ok, deployment} =
       Deployments.update_deployment(deployment, %{concurrent_updates: 2, firmware_id: firmware.id})
 
-    deployment_topic = "deployment:#{deployment.id}"
-    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
-
     {:ok, _pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment.id}",
