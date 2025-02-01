@@ -952,6 +952,33 @@ defmodule NervesHub.Devices do
     |> Repo.update()
   end
 
+  def deployment_device_online(%Device{deployment_id: nil}) do
+    :ok
+  end
+
+  def deployment_device_online(device) do
+    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
+      "multi" ->
+        :ok
+
+      "clustered" ->
+        message = %Phoenix.Socket.Broadcast{
+          topic: "deployment:#{device.deployment_id}",
+          event: "deployment/device-online"
+        }
+
+        _ =
+          Phoenix.PubSub.broadcast(
+            NervesHub.PubSub,
+            "deployment:#{device.deployment_id}",
+            message
+          )
+
+      other ->
+        raise "Deployments Orchestrator '#{other}' not supported"
+    end
+  end
+
   def deployment_device_updated(%Device{deployment_id: nil}) do
     :ok
   end

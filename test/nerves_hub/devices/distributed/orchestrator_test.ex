@@ -19,7 +19,8 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
     deployment = Fixtures.deployment_fixture(org, firmware, %{is_active: true})
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
-    device2 = Fixtures.device_fixture(org, product, firmware)
+    device2 = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
+    device3 = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
 
     {:ok,
      %{
@@ -29,16 +30,79 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
        firmware: firmware,
        device: device,
        device2: device2,
+       device3: device3,
        deployment: deployment,
        product: product
      }}
   end
 
-  # test "device is told to update if the concurrent_updates limit hasn't been met"
+  test "the concurrent_limit is respected", %{
+    product: product,
+    deployment: deployment,
+    org_key: org_key,
+    device: device1,
+    device2: device2,
+    device3: device3
+  } do
+    Application.put_env(:nerves_hub, :deployments_orchestrator, "clustered")
+
+    on_exit(fn ->
+      Application.put_env(:nerves_hub, :deployments_orchestrator, "multi")
+    end)
+
+    # setup deployment, listen for broadcasts, and start the orchestrator
+    firmware = Fixtures.firmware_fixture(org_key, product)
+
+    {:ok, deployment} =
+      Deployments.update_deployment(deployment, %{concurrent_updates: 2, firmware_id: firmware.id})
+
+    deployment_topic = "deployment:#{deployment.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+
+    {:ok, _pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment.id}",
+        start: {Orchestrator, :start_link_for_testing, [deployment]},
+        restart: :temporary
+      })
+
+    # assign a device to the deployment and mark it as 'connected'
+    topic1 = "device:#{device1.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, topic1)
+
+    device1 = Devices.update_deployment(device1, deployment)
+    Connections.device_connected(device1.id)
+    Devices.deployment_device_online(device1)
+
+    # check that the first device was told to update
+    assert_receive %Broadcast{topic: ^topic1, event: "update-scheduled"}, 500
+
+    # assign a second device to the deployment and mark it as connected
+    topic2 = "device:#{device2.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, topic2)
+
+    device2 = Devices.update_deployment(device2, deployment)
+    Connections.device_connected(device2.id)
+    Devices.deployment_device_online(device2)
+
+    # and check that device2 was told to update
+    assert_receive %Broadcast{topic: ^topic2, event: "update-scheduled"}, 500
+
+    # and now assign a third device to the deployment and mark it as connected
+    topic3 = "device:#{device3.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, topic3)
+
+    device3 = Devices.update_deployment(device3, deployment)
+    Connections.device_connected(device3.id)
+    Devices.deployment_device_online(device3)
+
+    # and check that device3 isn't told to update as the concurrent limit has been reached
+    refute_receive %Broadcast{topic: ^topic3, event: "update-scheduled"}, 500
+  end
 
   # test "no devices are told to update if the concurrent_updates limit has been met"
 
-  test "finds another device to update when a device finishes updating2", %{
+  test "finds another device to update when a device finishes updating", %{
     product: product,
     deployment: deployment,
     org_key: org_key,

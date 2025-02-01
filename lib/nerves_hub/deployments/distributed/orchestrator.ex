@@ -129,6 +129,12 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     {:noreply, deployment}
   end
 
+  @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployment/device-online")
+  def handle_info(%Broadcast{event: "deployment/device-online"}, deployment) do
+    trigger_update(deployment)
+    {:noreply, deployment}
+  end
+
   @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployment/device-update")
   def handle_info(%Broadcast{event: "deployment/device-updated"}, deployment) do
     trigger_update(deployment)

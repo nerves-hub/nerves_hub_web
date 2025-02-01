@@ -110,6 +110,9 @@ defmodule NervesHubWeb.DeviceChannel do
           |> assign(:registered?, true)
           |> assign(:registration_timer, nil)
 
+        # tell the orchestrator that we are online
+        Devices.deployment_device_online(device)
+
         {:noreply, socket}
     end
   end
