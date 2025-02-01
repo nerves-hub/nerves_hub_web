@@ -28,8 +28,10 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     }
   end
 
-  def start_link(deployment) do
-    case GenServer.start_link(__MODULE__, deployment, name: name(deployment.id)) do
+  def start_link(deployment, name \\ nil) do
+    name = name || via_tuple(deployment.id)
+
+    case GenServer.start_link(__MODULE__, deployment, name: name) do
       {:ok, pid} ->
         Logger.info("Deployment orchestrator started", deployment_id: deployment.id)
 
@@ -44,11 +46,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     end
   end
 
-  def start_link_for_testing(deployment) do
-    GenServer.start_link(__MODULE__, deployment)
-  end
-
-  def name(deployment_id) do
+  def via_tuple(deployment_id) do
     {:via, Horde.Registry, {NervesHub.DeploymentsRegistry, deployment_id}}
   end
 
