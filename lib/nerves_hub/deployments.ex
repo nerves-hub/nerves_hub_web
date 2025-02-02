@@ -6,7 +6,7 @@ defmodule NervesHub.Deployments do
   alias NervesHub.AuditLogs.DeploymentTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Deployments.Deployment
-  alias NervesHub.Deployments.Distributed.Monitor
+  alias NervesHub.Deployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -591,7 +591,7 @@ defmodule NervesHub.Deployments do
   def deployment_created_event(deployment) do
     case Application.get_env(:nerves_hub, :deployments_orchestrator) do
       "multi" -> _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
-      "clustered" -> Monitor.start_orchestrator(deployment)
+      "clustered" -> DistributedOrchestrator.start_orchestrator(deployment)
       other -> raise "Deployments Orchestrator '#{other}' not supported"
     end
   end
@@ -599,7 +599,7 @@ defmodule NervesHub.Deployments do
   def deployment_activated_event(deployment) do
     case Application.get_env(:nerves_hub, :deployments_orchestrator) do
       "multi" -> _ = :ok
-      "clustered" -> Monitor.start_orchestrator(deployment)
+      "clustered" -> DistributedOrchestrator.start_orchestrator(deployment)
       other -> raise "Deployments Orchestrator '#{other}' not supported"
     end
   end
@@ -607,7 +607,7 @@ defmodule NervesHub.Deployments do
   def deployment_deactivated_event(deployment) do
     case Application.get_env(:nerves_hub, :deployments_orchestrator) do
       "multi" -> _ = :ok
-      "clustered" -> Monitor.stop_orchestrator(deployment)
+      "clustered" -> DistributedOrchestrator.stop_orchestrator(deployment)
       other -> raise "Deployments Orchestrator '#{other}' not supported"
     end
   end

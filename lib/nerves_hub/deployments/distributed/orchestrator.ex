@@ -160,4 +160,21 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     trigger_update(deployment)
     {:noreply, deployment}
   end
+
+  def start_orchestrator(%Deployment{is_active: true} = deployment) do
+    ProcessHub.start_child(:deployment_orchestrators, child_spec(deployment))
+  end
+
+  def start_orchestrator(_) do
+    :ok
+  end
+
+  def stop_orchestrator(deployment) do
+    message = %Phoenix.Socket.Broadcast{
+      topic: "deployment:#{deployment.id}",
+      event: "deployment/deactivated"
+    }
+
+    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:#{deployment.id}", message)
+  end
 end

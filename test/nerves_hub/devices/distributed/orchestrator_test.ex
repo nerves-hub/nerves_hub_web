@@ -3,7 +3,6 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
 
   use Mimic
 
-  alias NervesHub.Deployments.Distributed.Monitor
   alias NervesHub.Deployments.Distributed.Orchestrator
 
   alias NervesHub.Deployments
@@ -258,7 +257,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
 
     Process.monitor(pid)
 
-    Monitor.stop_orchestrator(deployment)
+    Orchestrator.stop_orchestrator(deployment)
 
     assert_receive {:DOWN, _reference, :process, ^pid, :shutdown}, 500
   end
