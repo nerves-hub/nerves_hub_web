@@ -27,19 +27,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   end
 
   def start_link(deployment) do
-    case GenServer.start_link(__MODULE__, deployment) do
-      {:ok, pid} ->
-        Logger.info("Deployment orchestrator started", deployment_id: deployment.id)
-
-        {:ok, pid}
-
-      {:error, {:already_started, _pid}} ->
-        Logger.info("Deployment orchestrator already started, ignoring",
-          deployment_id: deployment.id
-        )
-
-        :ignore
-    end
+    GenServer.start_link(__MODULE__, deployment)
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.init")
