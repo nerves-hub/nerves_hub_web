@@ -80,10 +80,20 @@ defmodule NervesHub.Application do
     app = Application.get_env(:nerves_hub, :app)
 
     case [orchestrator, app] do
-      ["multi", _] -> [NervesHub.Deployments.Supervisor]
-      ["clustered", "device"] -> []
-      ["clustered", _] -> [NervesHub.Deployments.Distributed.Supervisor]
-      [other, _] -> raise "Deployments Orchestrator '#{other}' not supported"
+      ["multi", _] ->
+        [NervesHub.Deployments.Supervisor]
+
+      ["clustered", "device"] ->
+        []
+
+      ["clustered", _] ->
+        [
+          ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
+          NervesHub.Deployments.Distributed.OrchestratorRegistration
+        ]
+
+      [other, _] ->
+        raise "Deployments Orchestrator '#{other}' not supported"
     end
   end
 
