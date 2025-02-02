@@ -10,15 +10,25 @@ defmodule NervesHub.Deployments.Distributed.OrchestratorRegistration do
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Distributed.Orchestrator
 
-  def start_link(_) do
+  def child_spec(_) do
+    %{
+      id: OrchestratorRegistration,
+      start: {__MODULE__, :start_link, []},
+      restart: :transient
+    }
+  end
+
+  def start_link() do
     GenServer.start_link(__MODULE__, [])
   end
 
+  @impl GenServer
   def init(_) do
     Process.send_after(self(), :start_orchestrators, :timer.seconds(3))
     {:ok, nil}
   end
 
+  @impl GenServer
   def handle_info(:start_orchestrators, _) do
     Deployments.all_active()
     |> Enum.map(fn deployment ->
