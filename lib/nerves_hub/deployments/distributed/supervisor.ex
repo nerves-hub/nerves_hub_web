@@ -9,16 +9,8 @@ defmodule NervesHub.Deployments.Distributed.Supervisor do
 
   def init(_) do
     children = [
-      NervesHub.Deployments.Distributed.Monitor,
-      {Horde.Registry, [name: NervesHub.DeploymentsRegistry, keys: :unique]},
-      {Horde.DynamicSupervisor,
-       [
-         name: NervesHub.DistributedSupervisor,
-         strategy: :one_for_one,
-         members: :auto,
-         process_redistribution: :active,
-         distribution_strategy: Horde.UniformQuorumDistribution
-       ]}
+      ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
+      NervesHub.Deployments.Distributed.Monitor
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

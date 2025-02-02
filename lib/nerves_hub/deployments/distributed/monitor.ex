@@ -29,10 +29,7 @@ defmodule NervesHub.Deployments.Distributed.Monitor do
   end
 
   def start_orchestrator(%Deployment{is_active: true} = deployment) do
-    Horde.DynamicSupervisor.start_child(
-      NervesHub.DistributedSupervisor,
-      Orchestrator.child_spec(deployment)
-    )
+    ProcessHub.start_child(:deployment_orchestrators, Orchestrator.child_spec(deployment))
   end
 
   def start_orchestrator(_) do

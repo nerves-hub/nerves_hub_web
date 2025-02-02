@@ -21,17 +21,13 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
 
   def child_spec(deployment) do
     %{
-      id: "#{__MODULE__}_#{deployment.id}",
-      start: {__MODULE__, :start_link, [deployment]},
-      shutdown: 10_000,
-      restart: :transient
+      id: :"distributed_orchestrator_#{deployment.id}",
+      start: {__MODULE__, :start_link, [deployment]}
     }
   end
 
-  def start_link(deployment, name \\ nil) do
-    name = name || via_tuple(deployment.id)
-
-    case GenServer.start_link(__MODULE__, deployment, name: name) do
+  def start_link(deployment) do
+    case GenServer.start_link(__MODULE__, deployment) do
       {:ok, pid} ->
         Logger.info("Deployment orchestrator started", deployment_id: deployment.id)
 
@@ -46,16 +42,12 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     end
   end
 
-  def via_tuple(deployment_id) do
-    {:via, Horde.Registry, {NervesHub.DeploymentsRegistry, deployment_id}}
-  end
-
   @decorate with_span("Deployments.Distributed.Orchestrator.init")
   def init(deployment) do
     :ok = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
 
     # trigger every minute, plus a jitter between 1 and 10 seconds, as a back up
-    interval = :timer.seconds(90 + :rand.uniform(10))
+    interval = :timer.seconds(90 + :rand.uniform(20))
     _ = :timer.send_interval(interval, :trigger)
 
     {:ok, deployment} = Deployments.get_deployment(deployment)
@@ -151,12 +143,12 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     {:noreply, deployment}
   end
 
-  def handle_info(%Broadcast{event: "deployment/deleted"}, state) do
-    {:stop, :shutdown, state}
+  def handle_info(%Broadcast{event: "deployment/deleted"}, deployment) do
+    ProcessHub.stop_child(:deployment_orchestrators, :"distributed_orchestrator_#{deployment.id}")
   end
 
-  def handle_info(%Broadcast{event: "deployment/deactivated"}, state) do
-    {:stop, :shutdown, state}
+  def handle_info(%Broadcast{event: "deployment/deactivated"}, deployment) do
+    ProcessHub.stop_child(:deployment_orchestrators, :"distributed_orchestrator_#{deployment.id}")
   end
 
   # Catch all for unknown broadcasts on a deployment
