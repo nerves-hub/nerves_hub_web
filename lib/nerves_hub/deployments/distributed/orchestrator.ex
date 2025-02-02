@@ -145,10 +145,12 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
 
   def handle_info(%Broadcast{event: "deployment/deleted"}, deployment) do
     ProcessHub.stop_child(:deployment_orchestrators, :"distributed_orchestrator_#{deployment.id}")
+    {:stop, :shutdown, deployment}
   end
 
   def handle_info(%Broadcast{event: "deployment/deactivated"}, deployment) do
     ProcessHub.stop_child(:deployment_orchestrators, :"distributed_orchestrator_#{deployment.id}")
+    {:stop, :shutdown, deployment}
   end
 
   # Catch all for unknown broadcasts on a deployment

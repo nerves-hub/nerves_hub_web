@@ -1,3 +1,4 @@
+Mimic.copy(ProcessHub)
 Mimic.copy(NervesHub.Devices)
 Mimic.copy(NervesHub.Firmwares.DeltaUpdater.Default)
 Mimic.copy(NervesHub.Firmwares.Upload.File)

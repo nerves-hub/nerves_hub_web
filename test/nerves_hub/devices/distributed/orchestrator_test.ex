@@ -12,6 +12,8 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
 
   alias Phoenix.Socket.Broadcast
 
+  setup :set_mimic_global
+
   setup do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
@@ -60,7 +62,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     {:ok, _pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment.id}",
-        start: {Orchestrator, :start_link, [deployment, :"deployment##{deployment.id}"]},
+        start: {Orchestrator, :start_link, [deployment]},
         restart: :temporary
       })
 
@@ -132,7 +134,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     {:ok, _pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment.id}",
-        start: {Orchestrator, :start_link, [deployment, :"deployment##{deployment.id}"]},
+        start: {Orchestrator, :start_link, [deployment]},
         restart: :temporary
       })
 
@@ -161,101 +163,99 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     assert_receive %Broadcast{topic: ^topic2, event: "update-scheduled"}, 500
   end
 
-  describe "[requires stubbing]" do
-    setup :set_mimic_global
+  test "the orchestrator doesn't 'trigger' if the device that came online is up-to-date", %{
+    deployment: deployment,
+    org_key: org_key,
+    product: product,
+    device: device1,
+    device2: device2
+  } do
+    Application.put_env(:nerves_hub, :deployments_orchestrator, "clustered")
 
-    test "the orchestrator doesn't 'trigger' if the device that came online is up-to-date", %{
-      deployment: deployment,
-      org_key: org_key,
-      product: product,
-      device: device1,
-      device2: device2
-    } do
-      Application.put_env(:nerves_hub, :deployments_orchestrator, "clustered")
+    on_exit(fn ->
+      Application.put_env(:nerves_hub, :deployments_orchestrator, "multi")
+    end)
 
-      on_exit(fn ->
-        Application.put_env(:nerves_hub, :deployments_orchestrator, "multi")
-      end)
+    # An ugly set of expectations
+    # `Devices.available_for_update` should be called:
+    # - once upon Orchestrator startup
+    # - once for when an out of date device comes online
+    # - and nooooo more times after that
+    Devices
+    |> expect(:available_for_update, 1, fn _deployment, _slots ->
+      []
+    end)
+    |> expect(:available_for_update, 1, fn _deployment, _slots ->
+      [device1]
+    end)
+    |> reject(:available_for_update, 2)
 
-      # An ugly set of expectations
-      # `Devices.available_for_update` should be called:
-      # - once upon Orchestrator startup
-      # - once for when an out of date device comes online
-      # - and nooooo more times after that
-      Devices
-      |> expect(:available_for_update, 1, fn _deployment, _slots ->
-        []
-      end)
-      |> expect(:available_for_update, 1, fn _deployment, _slots ->
-        [device1]
-      end)
-      |> reject(:available_for_update, 2)
+    firmware = Fixtures.firmware_fixture(org_key, product)
 
-      firmware = Fixtures.firmware_fixture(org_key, product)
+    {:ok, deployment} =
+      Deployments.update_deployment(deployment, %{
+        concurrent_updates: 2,
+        firmware_id: firmware.id
+      })
 
-      {:ok, deployment} =
-        Deployments.update_deployment(deployment, %{
-          concurrent_updates: 2,
-          firmware_id: firmware.id
-        })
+    deployment_topic = "deployment:#{deployment.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
 
-      deployment_topic = "deployment:#{deployment.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+    {:ok, pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment.id}",
+        start: {Orchestrator, :start_link, [deployment]},
+        restart: :temporary
+      })
 
-      {:ok, pid} =
-        start_supervised(%{
-          id: "Orchestrator##{deployment.id}",
-          start: {Orchestrator, :start_link, [deployment, :"deployment##{deployment.id}"]},
-          restart: :temporary
-        })
+    # only one device in this test isn't using the same firmware as the deployment
+    # the `Devices.available_for_update/2` function should only be called once by device1
 
-      # only one device in this test isn't using the same firmware as the deployment
-      # the `Devices.available_for_update/2` function should only be called once by device1
+    # assign device1 to the deployment and mark it as 'connected'
+    # this device will be told to update
+    device1_topic = "device:#{device1.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, device1_topic)
 
-      # assign device1 to the deployment and mark it as 'connected'
-      # this device will be told to update
-      device1_topic = "device:#{device1.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, device1_topic)
+    device1 = Devices.update_deployment(device1, deployment)
+    Connections.device_connected(device1.id)
+    Devices.deployment_device_online(device1)
 
-      device1 = Devices.update_deployment(device1, deployment)
-      Connections.device_connected(device1.id)
-      Devices.deployment_device_online(device1)
+    assert_receive %Broadcast{topic: ^deployment_topic, event: "deployment/device-online"}, 500
+    assert_receive %Broadcast{topic: ^device1_topic, event: "update-scheduled"}, 1_000
 
-      assert_receive %Broadcast{topic: ^deployment_topic, event: "deployment/device-online"}, 500
-      assert_receive %Broadcast{topic: ^device1_topic, event: "update-scheduled"}, 1_000
+    Mimic.reject(&Devices.available_for_update/2)
 
-      Mimic.reject(&Devices.available_for_update/2)
+    # device2 is already on the latest firmware, so when it comes online
+    # `Devices.available_for_update/2` won't be called and the device won't
+    # be told to update
+    device2_topic = "device:#{device2.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, device2_topic)
 
-      # device2 is already on the latest firmware, so when it comes online
-      # `Devices.available_for_update/2` won't be called and the device won't
-      # be told to update
-      device2_topic = "device:#{device2.id}"
-      Phoenix.PubSub.subscribe(NervesHub.PubSub, device2_topic)
+    {:ok, device2} =
+      Devices.update_device(device2, %{firmware_metadata: %{"uuid" => firmware.uuid}})
 
-      {:ok, device2} =
-        Devices.update_device(device2, %{firmware_metadata: %{"uuid" => firmware.uuid}})
+    device2 = Devices.update_deployment(device2, deployment)
+    Connections.device_connected(device2.id)
+    Devices.deployment_device_online(device2)
 
-      device2 = Devices.update_deployment(device2, deployment)
-      Connections.device_connected(device2.id)
-      Devices.deployment_device_online(device2)
+    assert_receive %Broadcast{topic: ^deployment_topic, event: "deployment/device-online"}, 500
+    refute_receive %Broadcast{topic: ^device2_topic, event: "update-scheduled"}, 500
 
-      assert_receive %Broadcast{topic: ^deployment_topic, event: "deployment/device-online"}, 500
-      refute_receive %Broadcast{topic: ^device2_topic, event: "update-scheduled"}, 500
-
-      # allows for db connections to finish and close
-      _state = :sys.get_state(pid)
-    end
+    # allows for db connections to finish and close
+    _state = :sys.get_state(pid)
   end
 
   test "shuts down if the deployment is no longer active", %{deployment: deployment} do
     {:ok, pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment.id}",
-        start: {Orchestrator, :start_link, [deployment, :"deployment##{deployment.id}"]},
+        start: {Orchestrator, :start_link, [deployment]},
         restart: :temporary
       })
 
     Process.monitor(pid)
+
+    expect(ProcessHub, :stop_child, 1, fn _hub_id, _id -> nil end)
 
     Orchestrator.stop_orchestrator(deployment)
 
@@ -272,11 +272,13 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     {:ok, pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment.id}",
-        start: {Orchestrator, :start_link, [deployment, :"deployment##{deployment.id}"]},
+        start: {Orchestrator, :start_link, [deployment]},
         restart: :temporary
       })
 
     Process.monitor(pid)
+
+    expect(ProcessHub, :stop_child, 1, fn _hub_id, _id -> nil end)
 
     Deployments.delete_deployment(deployment)
 
