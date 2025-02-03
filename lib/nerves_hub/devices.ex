@@ -713,7 +713,7 @@ defmodule NervesHub.Devices do
     |> where([latest_connection: lc], lc.status == :connected)
     |> where([d], not is_nil(d.firmware_metadata))
     |> where([d, firmware: f], fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, f.uuid))
-    |> where([inflight_update: ifu], is_nil(ifu.id))
+    |> where([inflight_update: ifu], is_nil(ifu))
     |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
     |> order_by([latest_connection: lc], asc: lc.established_at)
     |> limit(^count)
