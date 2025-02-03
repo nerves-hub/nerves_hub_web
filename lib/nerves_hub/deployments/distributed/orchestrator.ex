@@ -15,6 +15,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices
+  alias NervesHub.Devices.Device
 
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
@@ -74,10 +75,14 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     slots = available_slots(deployment)
 
     if slots > 0 do
-      Devices.available_for_update(deployment, slots)
-      |> Enum.each(fn %{id: device_id} ->
-        tell_device_to_update(device_id, deployment)
-      end)
+      available = Devices.available_for_update(deployment, slots)
+
+      updated_count = schedule_devices!(available, deployment)
+
+      if length(available) != updated_count do
+        # rerun the deployment check since some devices were skipped
+        send(self(), :trigger)
+      end
     end
   end
 
@@ -92,13 +97,41 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     |> max(0)
   end
 
-  @spec tell_device_to_update(integer(), Deployment.t()) :: :ok
+  @doc """
+  Given a list of devices, confirm they haven't had too many update failures, then
+  message the devices to schedule their updates, or update their `blocked_until`.
+
+  Returns the number of devices that were allowed to update.
+  """
+  @spec schedule_devices!([Device.t()], Deployment.t()) :: non_neg_integer()
+  def schedule_devices!(available, deployment) do
+    available
+    |> Enum.filter(fn device ->
+      case can_device_update?(device, deployment) do
+        true ->
+          tell_device_to_update(device.id, deployment)
+
+        false ->
+          Devices.update_blocked_until(device, deployment)
+          false
+      end
+    end)
+    |> Enum.count()
+  end
+
+  @spec can_device_update?(Device.t(), Deployment.t()) :: boolean()
+  defp can_device_update?(device, deployment) do
+    not (Devices.failure_rate_met?(device, deployment) or
+           Devices.failure_threshold_met?(device, deployment))
+  end
+
+  @spec tell_device_to_update(integer(), Deployment.t()) :: true
   defp tell_device_to_update(device_id, deployment) do
     :telemetry.execute([:nerves_hub, :deployment, :trigger_update, :device], %{count: 1})
 
     Devices.told_to_update(device_id, deployment)
 
-    :ok
+    true
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.trigger")

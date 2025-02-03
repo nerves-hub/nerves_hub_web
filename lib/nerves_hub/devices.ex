@@ -1157,6 +1157,17 @@ defmodule NervesHub.Devices do
     update_device_with_audit(device, params, user, description)
   end
 
+  def update_blocked_until(device, deployment) do
+    blocked_until =
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+      |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
+
+    DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device)
+
+    update_device(device, %{updates_blocked_until: blocked_until})
+  end
+
   @spec move_many_to_deployment([integer()], integer()) ::
           {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
   def move_many_to_deployment(device_ids, deployment_id) do
@@ -1411,7 +1422,7 @@ defmodule NervesHub.Devices do
     |> Repo.insert()
     |> case do
       {:ok, inflight_update} ->
-        broadcast_update_request(device_id, inflight_update)
+        broadcast_update_request(device_id, inflight_update, deployment)
 
         {:ok, inflight_update}
 
@@ -1426,7 +1437,7 @@ defmodule NervesHub.Devices do
             :error
 
           inflight_update ->
-            broadcast_update_request(device_id, inflight_update)
+            broadcast_update_request(device_id, inflight_update, deployment)
 
             {:ok, inflight_update}
         end
@@ -1445,11 +1456,19 @@ defmodule NervesHub.Devices do
     |> Repo.delete_all()
   end
 
-  def update_started!(inflight_update) do
-    inflight_update
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_change(:status, "updating")
-    |> Repo.update!()
+  def update_started!(inflight_update, device, deployment, reference_id) do
+    Repo.transaction(fn ->
+      DeviceTemplates.audit_device_deployment_update_triggered(
+        device,
+        deployment,
+        reference_id
+      )
+
+      inflight_update
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:status, "updating")
+      |> Repo.update!()
+    end)
   end
 
   def inflight_updates_for(%Deployment{} = deployment) do
@@ -1499,11 +1518,22 @@ defmodule NervesHub.Devices do
     |> Repo.preload(:product)
   end
 
-  defp broadcast_update_request(device_id, inflight_update) do
+  defp broadcast_update_request(device_id, inflight_update, deployment) do
+    {:ok, url} = Firmwares.get_firmware_url(deployment.firmware)
+    {:ok, meta} = Firmwares.metadata_from_firmware(deployment.firmware)
+
+    update_payload = %UpdatePayload{
+      update_available: true,
+      firmware_url: url,
+      firmware_meta: meta,
+      deployment: deployment,
+      deployment_id: deployment.id
+    }
+
     message = %Phoenix.Socket.Broadcast{
       topic: "device:#{device_id}",
       event: "update-scheduled",
-      payload: inflight_update
+      payload: %{inflight_update: inflight_update, update_payload: update_payload}
     }
 
     Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device_id}", message)

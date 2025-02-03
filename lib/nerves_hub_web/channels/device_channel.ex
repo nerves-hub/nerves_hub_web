@@ -11,7 +11,6 @@ defmodule NervesHubWeb.DeviceChannel do
   require Logger
 
   alias NervesHub.Archives
-  alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
@@ -139,16 +138,14 @@ defmodule NervesHubWeb.DeviceChannel do
           firmware_uuid: inflight_update.firmware_uuid
         })
 
-        # If we get here, the device is connected and high probability it receives
-        # the update message so we can Audit and later assert on this audit event
-        # as a loosely valid attempt to update
-        DeviceTemplates.audit_device_deployment_update_triggered(
-          device,
-          payload.deployment,
-          socket.assigns.reference_id
-        )
+        {:ok, _} =
+          Devices.update_started!(
+            inflight_update,
+            device,
+            payload.deployment,
+            socket.assigns.reference_id
+          )
 
-        Devices.update_started!(inflight_update)
         push(socket, "update", payload)
 
         {:noreply, socket}
@@ -159,35 +156,28 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info(
-        %Broadcast{event: "update-scheduled", payload: inflight_update},
+        %Broadcast{
+          event: "update-scheduled",
+          payload: %{inflight_update: inflight_update, update_payload: update_payload}
+        },
         %{assigns: %{device: device}} = socket
       ) do
-    payload = Devices.resolve_update(device)
+    :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1}, %{
+      identifier: device.identifier,
+      firmware_uuid: inflight_update.firmware_uuid
+    })
 
-    case payload.update_available do
-      true ->
-        :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1}, %{
-          identifier: device.identifier,
-          firmware_uuid: inflight_update.firmware_uuid
-        })
+    {:ok, _} =
+      Devices.update_started!(
+        inflight_update,
+        device,
+        update_payload.deployment,
+        socket.assigns.reference_id
+      )
 
-        # If we get here, the device is connected and high probability it receives
-        # the update message so we can Audit and later assert on this audit event
-        # as a loosely valid attempt to update
-        DeviceTemplates.audit_device_deployment_update_triggered(
-          device,
-          payload.deployment,
-          socket.assigns.reference_id
-        )
+    push(socket, "update", update_payload)
 
-        Devices.update_started!(inflight_update)
-        push(socket, "update", payload)
-
-        {:noreply, socket}
-
-      false ->
-        {:noreply, socket}
-    end
+    {:noreply, socket}
   end
 
   def handle_info(%Broadcast{event: "archives/updated"}, socket) do
