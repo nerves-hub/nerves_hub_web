@@ -27,7 +27,13 @@ defmodule NervesHubWeb.DeviceChannel do
       {:ok, device} ->
         send(self(), {:after_join, params})
 
-        {:ok, assign(socket, :device, device)}
+        socket =
+          socket
+          |> assign(:currently_downloading_uuid, params["currently_downloading_uuid"])
+          |> assign(:update_started?, !!params["currently_downloading_uuid"])
+          |> assign(:device, device)
+
+        {:ok, socket}
 
       err ->
         Logger.warning("[DeviceChannel] failure to connect - #{inspect(err)}")
@@ -95,7 +101,7 @@ defmodule NervesHubWeb.DeviceChannel do
       deployment_id: device.deployment_id,
       firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
       updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-      updating: false
+      updating: socket.assigns.update_started?
     }
 
     case Registry.register(NervesHub.Devices.Registry, device.id, payload) do
@@ -305,10 +311,13 @@ defmodule NervesHubWeb.DeviceChannel do
       percent: percent
     })
 
-    # if this is the first fwup we see, then mark it as an update attempt
-    if socket.assigns[:update_started?] do
+    # if we know the update has already started, we can move on
+    if socket.assigns.update_started? do
       {:noreply, socket}
     else
+      # if this is the first fwup we see, and we didn't know the update had already started,
+      # then mark it as an update attempt
+      #
       # reload update attempts because they might have been cleared
       # and we have a cached stale version
       updated_device = Repo.reload(device)
