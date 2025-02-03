@@ -37,6 +37,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
 
     inflight_updates = Devices.inflight_updates_for(deployment)
     current_device_count = Deployments.get_device_count(deployment)
+    updating_count = Devices.updating_count(deployment)
 
     socket
     |> page_title("Deployment - #{deployment.name} - #{product.name}")
@@ -45,6 +46,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     |> assign(:deployment, deployment)
     |> assign(:up_to_date_count, Devices.up_to_date_count(deployment))
     |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment))
+    |> assign(:updating_count, updating_count)
     |> assign(:audit_logs, logs)
     |> assign(:audit_pager, audit_pager)
     |> assign(:inflight_updates, inflight_updates)
@@ -118,6 +120,7 @@ defmodule NervesHubWeb.Live.Deployments.Show do
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:up_to_date_count, Devices.up_to_date_count(deployment))
     |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment))
+    |> assign(:updating_count, Devices.updating_count(deployment))
     |> noreply()
   end
 

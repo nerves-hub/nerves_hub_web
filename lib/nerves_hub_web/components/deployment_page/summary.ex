@@ -12,6 +12,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Summary do
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:up_to_date_count, Devices.up_to_date_count(deployment))
     |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment))
+    |> assign(:updating_count, Devices.updating_count(deployment))
     |> ok()
   end
 
@@ -24,18 +25,19 @@ defmodule NervesHubWeb.Components.DeploymentPage.Summary do
   def render(assigns) do
     ~H"""
     <div class="h-full flex flex-col items-start gap-4 p-6">
-      <div :if={@waiting_for_update_count == 0} class="w-full flex p-4 items-center justify-center rounded border border-zinc-700 bg-zinc-900">
-        <div class="text-neutral-50 font-medium leading-6">All devices are up to date!</div>
+      <div :if={@waiting_for_update_count == 0} class="w-full p-4 items-center justify-center rounded border border-zinc-700 bg-zinc-900">
+        <div class="flex text-xl text-neutral-50 font-medium leading-6 h-10 justify-center items-center">All devices are up to date!</div>
       </div>
 
-      <div :if={@waiting_for_update_count > 0} class="w-full box-content flex items-center justify-center rounded border border-zinc-700 bg-zinc-900">
+      <div :if={@waiting_for_update_count > 0} class="w-full h-24 box-content flex items-center justify-center rounded border border-zinc-700 bg-zinc-900">
         <div class="relative sticky top-0 w-full items-center justify-center rounded overflow-visible z-20">
           <div class="z-40 absolute -top-px border-t rounded-tl border-success-500" role="progressbar" style={"width: #{deployment_percentage(@up_to_date_count, @deployment)}%"}>
             <div class="animate-pulse bg-progress-glow w-full h-16" />
           </div>
 
-          <div class="flex items-center justify-center my-1 py-2 px-2 bg-base-900/20 text-sm font-medium">
-            {deployment_percentage(@up_to_date_count, @deployment)}% of devices updated - {@waiting_for_update_count} device(s) waiting to be updated
+          <div class="flex flex-col gap-1 items-center justify-center my-1 py-2 px-2 bg-base-900/20 text-sm font-medium">
+            <div class="text-base">{deployment_percentage(@up_to_date_count, @deployment)}% of devices updated</div>
+            <div>{@updating_count} device(s) updating - {@waiting_for_update_count} device(s) waiting</div>
           </div>
         </div>
       </div>

@@ -901,6 +901,14 @@ defmodule NervesHub.Devices do
     |> Repo.aggregate(:count)
   end
 
+  @spec updating_count(Deployment.t()) :: term() | nil
+  def updating_count(%Deployment{id: id}) do
+    InflightUpdate
+    |> where([ifu], ifu.deployment_id == ^id)
+    |> Repo.aggregate(:count)
+  end
+
+  @spec waiting_for_update_count(Deployment.t()) :: term() | nil
   def waiting_for_update_count(%Deployment{} = deployment) do
     Device
     |> where([d], d.deployment_id == ^deployment.id)
