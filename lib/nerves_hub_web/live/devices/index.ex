@@ -17,6 +17,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
 
+  alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
@@ -30,6 +31,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     firmware_version: "",
     platform: "",
     healthy: "",
+    health_status: "",
     device_id: "",
     tag: "",
     updates: "",
@@ -47,6 +49,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     firmware_version: :string,
     platform: :string,
     healthy: :string,
+    health_status: :string,
     device_id: :string,
     tag: :string,
     updates: :string,

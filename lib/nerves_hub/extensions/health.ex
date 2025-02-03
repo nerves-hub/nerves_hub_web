@@ -1,6 +1,7 @@
 defmodule NervesHub.Extensions.Health do
   @behaviour NervesHub.Extensions
 
+  alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices
   alias NervesHub.Devices.Metrics
   alias NervesHub.Helpers.Logging
@@ -47,16 +48,23 @@ defmodule NervesHub.Extensions.Health do
   end
 
   @impl NervesHub.Extensions
-  def handle_in("report", %{"value" => device_status}, socket) do
-    # Separate metrics from health report to store in metrics table
-    metrics = device_status["metrics"] || %{}
+  def handle_in("report", %{"value" => device_report}, socket) do
+    # Get metrics from health report to store in metrics table and calculate status
+    metrics = device_report["metrics"] || %{}
 
-    health_report =
-      device_status
-      |> Map.delete("metrics")
-      |> Map.put("metadata", device_status["metadata"])
+    # Get device status together with reasons, if any.
+    {status, reasons} =
+      case HealthStatus.calculate_metrics_status(metrics) do
+        {status, reasons} -> {status, reasons}
+        status -> {status, nil}
+      end
 
-    device_health = %{"device_id" => socket.assigns.device.id, "data" => health_report}
+    device_health = %{
+      "device_id" => socket.assigns.device.id,
+      "data" => device_report,
+      "status" => status,
+      "status_reasons" => reasons
+    }
 
     with {:health_report, {:ok, _}} <-
            {:health_report, Devices.save_device_health(device_health)},

@@ -83,11 +83,13 @@
             <th phx-click="sort" phx-value-sort="identifier" class="cursor-pointer">
               <Sorting.sort_icon text="Identifier" field="identifier" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
+            <th class="w-24">
+              <div class="flex justify-center">
+                <span>Health</span>
+              </div>
+            </th>
             <th>Firmware</th>
             <th>Platform</th>
-            <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
-              <Sorting.sort_icon text="Added" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
-            </th>
             <th phx-click="sort" phx-value-sort="connection_last_seen_at" class="cursor-pointer">
               <Sorting.sort_icon text="Seen" field="connection_last_seen_at" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
@@ -158,6 +160,12 @@
             </td>
 
             <td>
+              <div class="flex gap-[8px] items-center justify-center">
+                <HealthStatus.render device_id={device.id} health={device.latest_health} />
+              </div>
+            </td>
+
+            <td>
               <div class="flex gap-[8px] items-center">
                 <span>
                   <%= if is_nil(device.firmware_metadata) do %>
@@ -195,12 +203,6 @@
                   {device.firmware_metadata.platform}
                 <% end %>
               </span>
-            </td>
-
-            <td>
-              <div title={NaiveDateTime.to_iso8601(device.inserted_at)}>
-                {Timex.from_now(device.inserted_at)}
-              </div>
             </td>
 
             <td>
@@ -300,6 +302,16 @@
                 stroke-linejoin="round"
               />
             </svg>
+          </div>
+          <div class="mt-6">
+            <label class="sidebar-label" for="input_health_status">Health status</label>
+            <select class="sidebar-select" name="health_status" id="input_health_status">
+              <option {selected?(@current_filters, :health_status, "")} value="">All</option>
+              <option {selected?(@current_filters, :health_status, "unknown")} value="unknown">Unknown</option>
+              <option {selected?(@current_filters, :health_status, "healthy")} value="healthy">Healthy</option>
+              <option {selected?(@current_filters, :health_status, "warning")} value="warning">Warning</option>
+              <option {selected?(@current_filters, :health_status, "unhealthy")} value="unhealthy">Unhealthy</option>
+            </select>
           </div>
           <div class="mt-6">
             <label class="sidebar-label" for="input_connection">Connection</label>
@@ -409,7 +421,7 @@
       </div>
 
       <div class="flex flex-1 flex-col px-4 py-6 gap-6">
-        <form id="move" class="flex flex-col gap-2" phx-change="target-product" phx-submit="move-devices-product">
+        <form id="product-move" class="flex flex-col gap-2" phx-change="target-product" phx-submit="move-devices-product">
           <label for="move_to" class="sidebar-label">Move device(s) to product:</label>
 
           <div class="flex gap-2">
@@ -430,7 +442,7 @@
           </div>
         </form>
 
-        <form id="move" class="flex flex-col gap-2" phx-change="target-deployment" phx-submit="move-devices-deployment">
+        <form id="deployment-move" class="flex flex-col gap-2" phx-change="target-deployment" phx-submit="move-devices-deployment">
           <label for="move_to" class="sidebar-label">Move device(s) to deployment:</label>
 
           <div class="flex gap-2">

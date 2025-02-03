@@ -7,6 +7,7 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Extensions.DeviceExtensionsSetting
   alias NervesHub.Firmwares.FirmwareMetadata
@@ -37,6 +38,7 @@ defmodule NervesHub.Devices.Device do
     belongs_to(:product, Product)
     belongs_to(:deployment, Deployment)
     belongs_to(:latest_connection, DeviceConnection, type: :binary_id)
+    belongs_to(:latest_health, DeviceHealth)
 
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)

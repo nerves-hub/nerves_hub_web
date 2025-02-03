@@ -23,6 +23,8 @@ config :nerves_hub,
     System.get_env("DEVICE_ENDPOINT_REDIRECT", "https://docs.nerves-hub.org/"),
   device_health_days_to_retain:
     String.to_integer(System.get_env("HEALTH_CHECK_DAYS_TO_RETAIN", "7")),
+  device_health_delete_limit:
+    String.to_integer(System.get_env("DEVICE_HEALTH_DELETE_LIMIT", "100000")),
   device_deployment_change_jitter_seconds:
     String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10")),
   device_last_seen_update_interval_minutes:

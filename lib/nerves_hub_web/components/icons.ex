@@ -129,4 +129,40 @@ defmodule NervesHubWeb.Components.Icons do
     </svg>
     """
   end
+
+  def icon(%{name: "unknown"} = assigns) do
+    ~H"""
+    <svg class={["size-4 stroke-2 stroke-zinc-500", @class]} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M7 12H17M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    """
+  end
+
+  def icon(%{name: "healthy"} = assigns) do
+    ~H"""
+    <svg class={["size-4 stroke-2 stroke-emerald-500", @class]} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    """
+  end
+
+  def icon(%{name: "warning"} = assigns) do
+    ~H"""
+    <svg class={["size-4 stroke-2 stroke-amber-500", @class]} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M7.00013 4.51568C7.8989 3.91406 8.91208 3.47004 10.0001 3.22314M3.22314 10.0001C3.47004 8.91208 3.91406 7.8989 4.51568 7.00013M4.51568 17.0001C3.91406 16.1014 3.47004 15.0882 3.22314 14.0001M10.0001 20.7771C8.91208 20.5302 7.8989 20.0862 7.00013 19.4846M14.0001 20.7771C18.0081 19.8677 21.0001 16.2833 21.0001 12.0001C21.0001 7.71695 18.0081 4.1326 14.0001 3.22314M12.0001 8V12M12.0001 16V16.001"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+    """
+  end
+
+  def icon(%{name: "unhealthy"} = assigns) do
+    ~H"""
+    <svg class={["size-4 stroke-2 stroke-red-500", @class]} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 8V13M12 16V16.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    """
+  end
 end

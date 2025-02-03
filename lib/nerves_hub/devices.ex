@@ -77,14 +77,16 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p], dp in assoc(d, :deployment))
     |> join(:left, [d, o, p, dp], f in assoc(dp, :firmware))
     |> join(:left, [d, o, p, dp, f], lc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, o, p, dp, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
     |> Repo.exclude_deleted()
     |> sort_devices(sorting)
     |> Filtering.build_filters(filters)
-    |> preload([d, o, p, dp, f, latest_connection: lc],
+    |> preload([d, o, p, dp, f, latest_connection: lc, latest_health: lh],
       org: o,
       product: p,
       deployment: {dp, firmware: f},
-      latest_connection: lc
+      latest_connection: lc,
+      latest_health: lh
     )
     |> Flop.run(flop)
   end
@@ -120,7 +122,9 @@ defmodule NervesHub.Devices do
     |> where([d], d.product_id == ^product.id)
     |> Repo.exclude_deleted()
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
     |> preload([latest_connection: lc], latest_connection: lc)
+    |> preload([latest_health: lh], latest_health: lh)
     |> Filtering.build_filters(filters)
     |> sort_devices(sorting)
     |> Flop.run(flop)
@@ -243,6 +247,12 @@ defmodule NervesHub.Devices do
     |> preload([d, o, dp], org: o, deployment: dp)
   end
 
+  defp join_and_preload(query, assocs) when is_list(assocs) do
+    Enum.reduce(assocs, query, fn assoc, q ->
+      join_and_preload(q, assoc)
+    end)
+  end
+
   defp join_and_preload(query, nil), do: query
 
   defp join_and_preload(query, :device_certificates) do
@@ -255,6 +265,12 @@ defmodule NervesHub.Devices do
     query
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> preload([latest_connection: lc], latest_connection: lc)
+  end
+
+  defp join_and_preload(query, :latest_health) do
+    query
+    |> join(:left, [d], dh in assoc(d, :latest_health), as: :latest_health)
+    |> preload([latest_health: lh], latest_health: lh)
   end
 
   def get_device_by_x509(cert) do
@@ -1145,23 +1161,52 @@ defmodule NervesHub.Devices do
   end
 
   def save_device_health(device_status) do
-    device_status
-    |> DeviceHealth.save()
-    |> Repo.insert()
+    Multi.new()
+    |> Multi.insert(:insert_health, DeviceHealth.save(device_status))
+    |> Ecto.Multi.update_all(:update_device, &update_health_on_device/1, [])
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{insert_health: health}} ->
+        {:ok, health}
+
+      {:error, _, changeset, _} ->
+        {:error, changeset}
+    end
+  end
+
+  defp update_health_on_device(%{insert_health: health}) do
+    Device
+    |> where(id: ^health.device_id)
+    |> update(set: [latest_health_id: ^health.id])
   end
 
   def truncate_device_health() do
-    days_to_retain =
+    interval =
       Application.get_env(:nerves_hub, :device_health_days_to_retain)
 
-    days_ago = DateTime.shift(DateTime.utc_now(), day: -days_to_retain)
+    delete_limit = Application.get_env(:nerves_hub, :device_health_delete_limit)
+    time_ago = DateTime.shift(DateTime.utc_now(), day: -interval)
 
-    {count, _} =
+    query =
       DeviceHealth
-      |> where([dh], dh.inserted_at < ^days_ago)
-      |> Repo.delete_all()
+      |> join(:inner, [dh], d in Device, on: dh.device_id == d.id)
+      |> where([dh, _d], dh.inserted_at < ^time_ago)
+      |> where([dh, d], dh.id != d.latest_health_id)
+      |> select([dh], dh.id)
+      |> limit(^delete_limit)
 
-    {:ok, count}
+    {delete_count, _} =
+      DeviceHealth
+      |> where([dh], dh.id in subquery(query))
+      |> Repo.delete_all(timeout: 30_000)
+
+    if delete_count == 0 do
+      :ok
+    else
+      # relax stress on Ecto pool and go again
+      Process.sleep(2000)
+      truncate_device_health()
+    end
   end
 
   def get_latest_health(device_id) do
