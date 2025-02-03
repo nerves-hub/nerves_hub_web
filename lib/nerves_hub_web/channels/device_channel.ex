@@ -279,11 +279,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  def handle_info({:push, event, payload}, socket) do
-    push(socket, event, payload)
-    {:noreply, socket}
-  end
-
   def handle_info(%Broadcast{event: "connection:heartbeat"}, socket) do
     # Expected message that is not used here :)
     {:noreply, socket}
