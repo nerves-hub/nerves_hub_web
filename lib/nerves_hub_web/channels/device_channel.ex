@@ -27,7 +27,13 @@ defmodule NervesHubWeb.DeviceChannel do
       {:ok, device} ->
         send(self(), {:after_join, params})
 
-        {:ok, assign(socket, :device, device)}
+        socket =
+          socket
+          |> assign(:currently_downloading_uuid, params["currently_downloading_uuid"])
+          |> assign(:update_started?, !!params["currently_downloading_uuid"])
+          |> assign(:device, device)
+
+        {:ok, socket}
 
       err ->
         Logger.warning("[DeviceChannel] failure to connect - #{inspect(err)}")
@@ -95,7 +101,7 @@ defmodule NervesHubWeb.DeviceChannel do
       deployment_id: device.deployment_id,
       firmware_uuid: get_in(device, [Access.key(:firmware_metadata), Access.key(:uuid)]),
       updates_enabled: device.updates_enabled && !Devices.device_in_penalty_box?(device),
-      updating: false
+      updating: socket.assigns.update_started?
     }
 
     case Registry.register(NervesHub.Devices.Registry, device.id, payload) do
@@ -163,12 +169,22 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  @decorate with_span("Channels.DeviceChannel.handle_info:clear-deployment")
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployment-cleared")
   def handle_info(
-        %Broadcast{event: "devices/clear-deployment"},
+        %Broadcast{event: "devices/deployment-cleared"},
         %{assigns: %{device: device}} = socket
       ) do
-    device = %{device | deployment_id: nil, deployment: nil}
+    device = %{device | deployment_id: nil}
+
+    {:noreply, update_device(socket, device)}
+  end
+
+  @decorate with_span("Channels.DeviceChannel.handle_info:deployment-updated")
+  def handle_info(
+        %Broadcast{event: "devices/deployment-updated", payload: %{deployment_id: deployment_id}},
+        %{assigns: %{device: device}} = socket
+      ) do
+    device = %{device | deployment_id: deployment_id}
 
     {:noreply, update_device(socket, device)}
   end
@@ -295,10 +311,13 @@ defmodule NervesHubWeb.DeviceChannel do
       percent: percent
     })
 
-    # if this is the first fwup we see, then mark it as an update attempt
-    if socket.assigns[:update_started?] do
+    # if we know the update has already started, we can move on
+    if socket.assigns.update_started? do
       {:noreply, socket}
     else
+      # if this is the first fwup we see, and we didn't know the update had already started,
+      # then mark it as an update attempt
+      #
       # reload update attempts because they might have been cleared
       # and we have a cached stale version
       updated_device = Repo.reload(device)
@@ -380,14 +399,18 @@ defmodule NervesHubWeb.DeviceChannel do
     :ok
   end
 
-  defp subscribe(topic) do
+  defp subscribe(topic) when not is_nil(topic) do
     _ = Phoenix.PubSub.subscribe(NervesHub.PubSub, topic)
     :ok
   end
 
-  defp unsubscribe(topic) do
+  defp subscribe(nil), do: :ok
+
+  defp unsubscribe(topic) when not is_nil(topic) do
     Phoenix.PubSub.unsubscribe(NervesHub.PubSub, topic)
   end
+
+  defp unsubscribe(nil), do: :ok
 
   defp device_internal_broadcast!(socket, device, event, payload) do
     topic = "device:#{device.identifier}:internal"
@@ -464,8 +487,6 @@ defmodule NervesHubWeb.DeviceChannel do
   defp deployment_channel(device) do
     if device.deployment_id do
       "deployment:#{device.deployment_id}"
-    else
-      "deployment:none"
     end
   end
 

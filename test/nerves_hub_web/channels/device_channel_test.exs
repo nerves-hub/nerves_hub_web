@@ -4,6 +4,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   import TrackerHelper
 
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
@@ -128,6 +129,63 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     device = NervesHub.Repo.reload(device) |> NervesHub.Repo.preload(:latest_connection)
     assert device.latest_connection.metadata["connection_types"] == ["ethernet", "wifi"]
+  end
+
+  test "deployment information is updated when the deployment is cleared" do
+    user = Fixtures.user_fixture()
+    {device, _firmware, deployment} = device_fixture(user, %{identifier: "123"})
+    Devices.update_deployment(device, deployment)
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _join_reply, socket} =
+      subscribe_and_join(socket, DeviceChannel, "device")
+
+    refute is_nil(socket.assigns.device.deployment_id)
+    refute is_nil(socket.assigns.deployment_channel)
+
+    Devices.clear_deployment(device)
+
+    # we need to let the channel process all messages before we can
+    # check the state of the device's connection types
+    socket = :sys.get_state(socket.channel_pid)
+
+    assert is_nil(socket.assigns.device.deployment_id)
+    assert is_nil(socket.assigns.deployment_channel)
+  end
+
+  test "deployment information is updated when the device joins a new deployment" do
+    user = Fixtures.user_fixture()
+    {device, firmware, deployment} = device_fixture(user, %{identifier: "123"})
+    Devices.update_deployment(device, deployment)
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _join_reply, socket} =
+      subscribe_and_join(socket, DeviceChannel, "device")
+
+    assert socket.assigns.device.deployment_id == deployment.id
+    refute is_nil(socket.assigns.deployment_channel)
+
+    device = NervesHub.Repo.preload(device, :org)
+
+    new_deployment =
+      Fixtures.deployment_fixture(device.org, firmware, %{name: "Super Deployment"})
+
+    Devices.update_deployment(device, new_deployment)
+
+    # we need to let the channel process all messages before we can
+    # check the state of the device's connection types
+    socket = :sys.get_state(socket.channel_pid)
+
+    assert socket.assigns.device.deployment_id == new_deployment.id
+    refute is_nil(socket.assigns.deployment_channel)
   end
 
   describe "unhandled messages are caught" do

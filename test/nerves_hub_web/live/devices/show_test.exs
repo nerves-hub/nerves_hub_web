@@ -578,6 +578,8 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       end)
       |> assert_has("div", text: "Eligible Deployments")
 
+      assert_receive %Phoenix.Socket.Broadcast{event: "devices/deployment-cleared"}
+
       refute Repo.reload(device) |> Map.get(:deployment_id)
     end
 
@@ -667,7 +669,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         render_change(view, "set-deployment", %{"deployment_id" => deployment.id})
       end)
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "devices/updated"}
+      assert_receive %Phoenix.Socket.Broadcast{event: "devices/deployment-updated"}
     end
   end
 
