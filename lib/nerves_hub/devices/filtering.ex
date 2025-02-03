@@ -38,6 +38,10 @@ defmodule NervesHub.Devices.Filtering do
     end
   end
 
+  def filter(query, _filters, :health_status, value) do
+    where(query, [latest_health: lh], lh.status == ^value)
+  end
+
   def filter(query, _filters, :connection, value) do
     if value == "not_seen" do
       where(query, [d], d.status == :registered)
