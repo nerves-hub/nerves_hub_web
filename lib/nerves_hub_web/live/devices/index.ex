@@ -685,4 +685,21 @@ defmodule NervesHubWeb.Live.Devices.Index do
      background-size: #{progress}% 1px, #{progress * 1.1}% 100%;
     """
   end
+
+  def format_health_status_reason(key, reason) do
+    key_parts =
+      key
+      |> String.split("_")
+      |> Enum.reject(fn p -> p == "usage" end)
+      |> Enum.map(fn p -> String.capitalize(p) end)
+
+    {key_parts, delimiter} =
+      if List.last(key_parts) == "Percent" do
+        {List.delete_at(key_parts, -1), "%"}
+      else
+        {key_parts, ""}
+      end
+
+    "#{Enum.join(key_parts, " ")}: #{reason["value"]}#{delimiter} (threshold is #{reason["threshold"]}#{delimiter})"
+  end
 end

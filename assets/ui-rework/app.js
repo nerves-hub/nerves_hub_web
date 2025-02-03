@@ -14,6 +14,7 @@ import Chart from "./hooks/chart.js"
 import HighlightCode from "./hooks/highlightCode.js"
 import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
 import LocalTime from "./hooks/localTime.js"
+import ToolTip from "./hooks/toolTip.js"
 import SimpleDate from "./hooks/simpleDate.js"
 import WorldMap from "./hooks/worldMap.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
@@ -35,6 +36,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     HighlightCode,
     UpdatingTimeAgo,
     LocalTime,
+    ToolTip,
     SimpleDate,
     WorldMap,
     DeviceLocationMap,
