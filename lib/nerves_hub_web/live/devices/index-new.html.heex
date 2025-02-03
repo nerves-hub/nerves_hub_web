@@ -161,18 +161,7 @@
 
             <td>
               <div class="flex gap-[8px] items-center justify-center">
-                <div :if={device.latest_health} id={"health-tooltip-#{device.id}"} phx-hook="ToolTip">
-                  <.icon name={to_string(device.latest_health.status)} />
-
-                  <div class="tooltip-content hidden w-max absolute top-0 left-0 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
-                    <span :if={device.latest_health.status == :unknown}>No health metrics have been received.</span>
-                    <div :for={{key, reason} <- device.latest_health.status_reasons} :if={device.latest_health.status != :unknown}>
-                      {format_health_status_reason(key, reason)}
-                    </div>
-                    <div class="tooltip-arrow absolute w-2 h-2 border-l border-t border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
-                  </div>
-                </div>
-                <.icon :if={!device.latest_health} name="unknown" />
+                <HealthStatus.render device_id={device.id} health={device.latest_health} />
               </div>
             </td>
 
