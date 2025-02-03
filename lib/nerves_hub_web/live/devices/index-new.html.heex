@@ -83,7 +83,11 @@
             <th phx-click="sort" phx-value-sort="identifier" class="cursor-pointer">
               <Sorting.sort_icon text="Identifier" field="identifier" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
-            <th>Health Status</th>
+            <th class="w-24">
+              <div class="flex justify-center">
+                <span>Health</span>
+              </div>
+            </th>
             <th>Firmware</th>
             <th>Platform</th>
             <th phx-click="sort" phx-value-sort="connection_last_seen_at" class="cursor-pointer">
@@ -156,12 +160,10 @@
             </td>
 
             <td>
-              <%= if device.latest_health do %>
-                <%!-- # Todo: Replace with status icon --%>
-                {device.latest_health.status}
-              <% else %>
-                Unknown
-              <% end %>
+              <div class="flex gap-[8px] items-center justify-center">
+                <.icon :if={device.latest_health} name={to_string(device.latest_health.status)} />
+                <.icon :if={!device.latest_health} name="unknown" />
+              </div>
             </td>
 
             <td>
@@ -410,7 +412,7 @@
       </div>
 
       <div class="flex flex-1 flex-col px-4 py-6 gap-6">
-        <form id="move" class="flex flex-col gap-2" phx-change="target-product" phx-submit="move-devices-product">
+        <form id="product-move" class="flex flex-col gap-2" phx-change="target-product" phx-submit="move-devices-product">
           <label for="move_to" class="sidebar-label">Move device(s) to product:</label>
 
           <div class="flex gap-2">
@@ -431,7 +433,7 @@
           </div>
         </form>
 
-        <form id="move" class="flex flex-col gap-2" phx-change="target-deployment" phx-submit="move-devices-deployment">
+        <form id="deployment-move" class="flex flex-col gap-2" phx-change="target-deployment" phx-submit="move-devices-deployment">
           <label for="move_to" class="sidebar-label">Move device(s) to deployment:</label>
 
           <div class="flex gap-2">

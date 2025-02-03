@@ -44,8 +44,16 @@
     @apply pl-6;
   }
 
+  .listing tr th:nth-child(2) {
+    @apply px-0;
+  }
+
   .listing tr td:first-child {
     @apply pl-6;
+  }
+
+  .listing tr td:nth-child(2) {
+    @apply px-0;
   }
 
   .listing .checkbox {
