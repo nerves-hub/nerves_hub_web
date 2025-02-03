@@ -15,6 +15,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
   alias NervesHub.Repo
 
+  alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.NewUI.DeviceLocation
 
   def update(%{latest_metrics: latest_metrics}, socket) do
@@ -35,6 +36,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     socket
     |> assign(assigns)
     |> assign(:device, Repo.preload(assigns.device, :deployment))
+    |> assign(:device, Repo.preload(assigns.device, :latest_health))
     |> assign_support_scripts()
     |> assign(:firmwares, Firmwares.get_firmware_for_device(assigns.device))
     |> assign(:update_information, Devices.resolve_update(assigns.device))
@@ -90,7 +92,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
         <div :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health} class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
-            <div class="text-neutral-50 font-medium leading-6">Health</div>
+            <div class="flex items-center gap-2">
+              <div class="text-neutral-50 font-medium leading-6">Health</div>
+              <HealthStatus.render device_id={@device.id} health={@device.latest_health} />
+            </div>
             <div class="flex items-center gap-2">
               <div class="text-xs text-nerves-gray-500 tracking-wide">
                 <span>Last updated: </span>
