@@ -5,8 +5,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
   import Ecto.Query
   import TrackerHelper
 
-  alias NervesHub.Devices
   alias NervesHub.AuditLogs.AuditLog
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Repo
   alias NervesHubWeb.DeviceChannel

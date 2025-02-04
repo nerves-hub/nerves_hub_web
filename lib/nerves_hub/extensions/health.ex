@@ -1,8 +1,8 @@
 defmodule NervesHub.Extensions.Health do
   @behaviour NervesHub.Extensions
 
-  alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices
+  alias NervesHub.Devices.HealthStatus
   alias NervesHub.Devices.Metrics
   alias NervesHub.Helpers.Logging
 

@@ -7,8 +7,8 @@ defmodule NervesHub.Archives do
 
   require Logger
 
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Archives.Archive
+  alias NervesHub.Deployments.Deployment
   alias NervesHub.Fwup
   alias NervesHub.Products.Product
   alias NervesHub.Repo
