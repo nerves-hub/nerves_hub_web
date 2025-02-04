@@ -1,4 +1,4 @@
-import { computePosition, offset, arrow } from "@floating-ui/dom"
+import { autoUpdate, computePosition, offset, arrow } from "@floating-ui/dom"
 
 export default {
   mounted() {
@@ -6,23 +6,59 @@ export default {
   },
 
   updateTooltip() {
-    computePosition(this.el, this.content, {
-      placement: this.placement,
-      middleware: [offset(15), arrow({ element: this.arrow })]
-    }).then(({ x, y, middlewareData }) => {
-      Object.assign(this.content.style, {
-        top: `${y}px`,
-        left: `${x}px`
-      })
+    const arrowLen = this.arrow.offsetWidth
 
-      if (middlewareData.arrow) {
-        const { x } = middlewareData.arrow
+    let placement = this.placement
 
-        Object.assign(this.arrow.style, {
+    autoUpdate(this.el, this.content, () => {
+      const sideOffset = {
+        top: 15,
+        right: 10,
+        bottom: 15,
+        left: 10
+      }[this.placement]
+
+      computePosition(this.el, this.content, {
+        placement,
+        middleware: [offset(sideOffset), arrow({ element: this.arrow })]
+      }).then(({ x, y, middlewareData, placement }) => {
+        Object.assign(this.content.style, {
           left: `${x}px`,
-          top: `${-this.arrow.offsetHeight / 2}px`
+          top: `${y}px`
         })
-      }
+
+        const side = placement.split("-")[0]
+
+        const staticSide = {
+          top: "bottom",
+          right: "left",
+          bottom: "top",
+          left: "right"
+        }[side]
+
+        if (middlewareData.arrow) {
+          const { x, y } = middlewareData.arrow
+
+          const border = {
+            top: "0 1px 1px 0",
+            right: "0 0 1px 1px",
+            bottom: "1px 0 0 1px",
+            left: "1px 1px 0 0"
+          }[this.placement]
+
+          Object.assign(this.arrow.style, {
+            left: x != null ? `${x}px` : "",
+            top: y != null ? `${y}px` : "",
+            // Ensure the static side gets unset when
+            // flipping to other placements' axes.
+            right: "",
+            bottom: "",
+            [staticSide]: `${(-arrowLen - 1) / 2}px`,
+            transform: "rotate(45deg)",
+            "border-width": border
+          })
+        }
+      })
     })
   },
 
