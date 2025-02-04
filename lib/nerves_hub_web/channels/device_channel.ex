@@ -362,8 +362,13 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_in("status_update", %{"status" => _status}, socket) do
-    # TODO store in tracker or the database?
+  def handle_in("status_update", %{"status" => status}, socket) do
+    # a temporary hook into failed updates
+    if String.contains?(status, "fwup error") do
+      # if there was an error during updating, clear the inflight update
+      reset_updating_status(socket)
+    end
+
     {:noreply, socket}
   end
 
@@ -478,6 +483,11 @@ defmodule NervesHubWeb.DeviceChannel do
       end
 
     assign(socket, :penalty_timer, ref)
+  end
+
+  defp reset_updating_status(socket) do
+    Devices.clear_inflight_update(socket.assigns.device)
+    maybe_update_registry(socket, socket.assigns.device, %{updating: false})
   end
 
   defp update_device(socket, device) do
