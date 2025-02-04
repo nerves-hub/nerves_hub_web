@@ -1,15 +1,16 @@
 defmodule NervesHubWeb.Components.HealthStatus do
-  use NervesHubWeb, :live_component
+  use NervesHubWeb, :component
 
   attr(:device_id, :integer)
   attr(:health, :map, default: %{status: :unknown, status_reasons: nil})
+  attr(:tooltip_position, :string, default: "bottom")
 
   def render(assigns) do
     ~H"""
-    <div id={"health-tooltip-#{@device_id}"} phx-hook="ToolTip">
+    <div id={"health-tooltip-#{@device_id}"} phx-hook="ToolTip" data-placement={@tooltip_position}>
       <.icon name={icon_name(@health)} />
 
-      <div class="tooltip-content hidden w-max absolute top-0 left-0 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+      <div class="tooltip-content hidden w-max absolute top-0 left-0 z-40 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
         <%= if @health && @health.status_reasons do %>
           <div :for={{status, reasons} <- @health.status_reasons}>
             {format_health_status_reason(status, reasons)}
@@ -17,7 +18,7 @@ defmodule NervesHubWeb.Components.HealthStatus do
         <% else %>
           <div>{no_reasons(@health)}</div>
         <% end %>
-        <div class="tooltip-arrow absolute w-2 h-2 border-l border-t border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+        <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
       </div>
     </div>
     """
