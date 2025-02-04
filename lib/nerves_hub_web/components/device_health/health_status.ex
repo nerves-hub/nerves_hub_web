@@ -1,5 +1,5 @@
 defmodule NervesHubWeb.Components.HealthStatus do
-  use NervesHubWeb, :live_component
+  use NervesHubWeb, :component
 
   attr(:device_id, :integer)
   attr(:health, :map, default: %{status: :unknown, status_reasons: nil})
