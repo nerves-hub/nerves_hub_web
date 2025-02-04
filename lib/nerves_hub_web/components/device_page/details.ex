@@ -348,7 +348,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
             <.button
               phx-target={@myself}
-              phx-submit="push-available-update"
+              phx-click="push-available-update"
               aria-label="Send available update"
               data-confirm="Are you sure you want to skip the queue?"
               disabled={disconnected?(@device_connection)}
@@ -523,9 +523,9 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   def handle_event("push-available-update", _, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{device: device, deployment: deployment, user: user} = socket.assigns
+    %{device: device, user: user} = socket.assigns
 
-    deployment = NervesHub.Repo.preload(deployment, :firmware)
+    deployment = NervesHub.Repo.preload(device.deployment, :firmware)
 
     case Devices.told_to_update(device, deployment) do
       {:ok, _inflight_update} ->
