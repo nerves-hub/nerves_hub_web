@@ -1160,6 +1160,8 @@ defmodule NervesHub.Devices do
     )
   end
 
+  @spec save_device_health(health_report :: map()) ::
+          {:ok, DeviceHealth.t()} | {:error, Ecto.Changeset.t()}
   def save_device_health(device_status) do
     Multi.new()
     |> Multi.insert(:insert_health, DeviceHealth.save(device_status))

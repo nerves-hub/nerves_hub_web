@@ -43,6 +43,7 @@ defmodule NervesHub.Devices.Device do
     has_many(:device_certificates, DeviceCertificate, on_delete: :delete_all)
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)
     has_many(:device_metrics, DeviceMetric, on_delete: :delete_all)
+    has_many(:device_health, DeviceHealth, on_delete: :delete_all)
 
     field(:identifier, :string)
     field(:description, :string)
