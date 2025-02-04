@@ -7,7 +7,9 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.CACertificate
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
   alias NervesHub.Products
@@ -75,6 +77,21 @@ defmodule NervesHub.DevicesTest do
     {:ok, _device} = Devices.delete_device(device)
 
     assert {:error, _} = Devices.get_device_by_org(org, device.id)
+  end
+
+  test "destroy_device", %{device: device} do
+    {:ok, _} =
+      Devices.save_device_health(%{
+        "device_id" => device.id,
+        "data" => %{},
+        "status" => :healthy,
+        "status_reasons" => %{}
+      })
+
+    {:ok, _device} = Devices.destroy_device(device)
+
+    assert is_nil(Repo.get(Device, device.id))
+    refute Repo.exists?(where(DeviceHealth, device_id: ^device.id))
   end
 
   test "can tag multiple devices", %{
