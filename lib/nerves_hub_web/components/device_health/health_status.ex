@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Components.HealthStatus do
   defp format_health_status_reason(status, reasons) do
     key_strings =
       reasons
-      |> Enum.map(fn {key, reasons} ->
+      |> Enum.map_join(", ", fn {key, reasons} ->
         key_parts =
           key
           |> String.split("_")
@@ -50,7 +50,6 @@ defmodule NervesHubWeb.Components.HealthStatus do
 
         "#{Enum.join(key_parts, " ")}: #{reasons["value"]}#{delimiter} (threshold is #{reasons["threshold"]}#{delimiter})"
       end)
-      |> Enum.join(", ")
 
     if(!Enum.empty?(reasons)) do
       "#{String.capitalize(status)}:  #{key_strings}"
