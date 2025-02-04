@@ -11,6 +11,7 @@ defmodule NervesHubWeb.DeviceChannel do
   require Logger
 
   alias NervesHub.Archives
+  alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
