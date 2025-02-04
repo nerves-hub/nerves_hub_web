@@ -1,9 +1,11 @@
 defmodule NervesHub.DeploymentsTest do
   use NervesHub.DataCase, async: false
+  use Mimic
 
   import Phoenix.ChannelTest
 
   alias NervesHub.Deployments
+  alias NervesHub.Deployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
 
@@ -125,6 +127,32 @@ defmodule NervesHub.DeploymentsTest do
       {:ok, _deployment} = Deployments.update_deployment(deployment, %{is_active: true})
 
       assert_broadcast("deployments/update", %{}, 500)
+    end
+
+    test "starts orchestrator if deployment updates to active from inactive", %{
+      deployment: deployment
+    } do
+      Application.put_env(:nerves_hub, :deployments_orchestrator, "clustered")
+
+      on_exit(fn ->
+        Application.put_env(:nerves_hub, :deployments_orchestrator, "multi")
+      end)
+
+      refute deployment.is_active
+
+      expect(
+        DistributedOrchestrator,
+        :start_orchestrator,
+        fn _deployment -> :ok end
+      )
+
+      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+
+      expect(DistributedOrchestrator, :stop_orchestrator, fn _deployment ->
+        :ok
+      end)
+
+      {:ok, _deployment} = Deployments.update_deployment(deployment, %{is_active: false})
     end
   end
 
