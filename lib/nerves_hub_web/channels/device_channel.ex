@@ -33,6 +33,8 @@ defmodule NervesHubWeb.DeviceChannel do
           |> assign(:update_started?, !!params["currently_downloading_uuid"])
           |> assign(:device, device)
 
+        maybe_clear_inflight_update(device, !!params["currently_downloading_uuid"])
+
         {:ok, socket}
 
       err ->
@@ -464,6 +466,16 @@ defmodule NervesHubWeb.DeviceChannel do
          {:ok, device} <- Devices.update_firmware_metadata(device, metadata) do
       Devices.firmware_update_successful(device)
     end
+  end
+
+  @spec maybe_clear_inflight_update(device :: Device.t(), currently_updating? :: boolean()) :: :ok
+  defp maybe_clear_inflight_update(device, false) do
+    Devices.clear_inflight_update(device)
+    :ok
+  end
+
+  defp maybe_clear_inflight_update(_device, true) do
+    :ok
   end
 
   defp maybe_start_penalty_timer(%{assigns: %{device: %{updates_blocked_until: nil}}} = socket),
