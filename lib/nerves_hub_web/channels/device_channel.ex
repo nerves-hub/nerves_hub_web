@@ -401,8 +401,12 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  defp assign_api_version(socket, params) do
-    assign(socket, :device_api_version, Map.get(params, "device_api_version", "1.0.0"))
+  defp assign_api_version(%{assigns: %{reference_id: ref_id}} = socket, params) do
+    version = Map.get(params, "device_api_version", "1.0.0")
+
+    :ok = Connections.merge_update_metadata(ref_id, %{"device_api_version" => version})
+
+    assign(socket, :device_api_version, version)
   end
 
   defp retry_device_registration(socket, attempt) do

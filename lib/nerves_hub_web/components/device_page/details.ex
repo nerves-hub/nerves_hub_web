@@ -94,7 +94,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <div class="text-neutral-50 font-medium leading-6">Health</div>
-              <HealthStatus.render device_id={@device.id} health={@device.latest_health} />
+              <HealthStatus.render device_id={@device.id} health={@device.latest_health} tooltip_position="right" />
             </div>
             <div class="flex items-center gap-2">
               <div class="text-xs text-nerves-gray-500 tracking-wide">
