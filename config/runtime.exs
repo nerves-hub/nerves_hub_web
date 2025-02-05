@@ -203,7 +203,9 @@ if config_env() == :prod do
   config :nerves_hub, NervesHubWeb.DeviceSocket,
     shared_secrets: [
       enabled: System.get_env("DEVICE_SHARED_SECRETS_ENABLED", "false") == "true"
-    ]
+    ],
+    web_endpoint_supported:
+      System.get_env("DEVICE_SOCKET_WEB_ENDPOINT_SUPPORTED", "true") == "true"
 end
 
 ##
