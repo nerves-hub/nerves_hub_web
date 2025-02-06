@@ -19,7 +19,7 @@ defmodule NervesHub.Tracker do
       NervesHub.PubSub,
       "device:#{identifier}:internal",
       "connection:status",
-      payload: %{
+      %{
         device_id: identifier,
         status: "online"
       }
@@ -44,7 +44,7 @@ defmodule NervesHub.Tracker do
       NervesHub.PubSub,
       "device:#{identifier}:internal",
       "connection:change",
-      payload: %{
+      %{
         device_id: identifier,
         status: status
       }
