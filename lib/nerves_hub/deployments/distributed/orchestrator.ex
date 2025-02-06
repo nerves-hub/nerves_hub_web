@@ -20,31 +20,35 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
-  def child_spec(deployment) do
+  def child_spec(deployment, rate_limit \\ true) do
     %{
       id: :"distributed_orchestrator_#{deployment.id}",
-      start: {__MODULE__, :start_link, [deployment]}
+      start: {__MODULE__, :start_link, [deployment, rate_limit]}
     }
   end
 
+  def start_link(deployment, rate_limit) do
+    GenServer.start_link(__MODULE__, {deployment, rate_limit})
+  end
+
   def start_link(deployment) do
-    GenServer.start_link(__MODULE__, deployment)
+    start_link(deployment, true)
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.init")
-  def init(deployment) do
+  def init({deployment, rate_limit}) do
     :ok = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
     :ok = PubSub.subscribe(NervesHub.PubSub, "orchestrator:deployment:#{deployment.id}")
 
-    # trigger every minute, plus a jitter between 1 and 10 seconds, as a back up
-    interval = :timer.seconds(90 + :rand.uniform(20))
-    _ = :timer.send_interval(interval, :trigger)
+    # trigger every two minutes, plus a jitter between 1 and 10 seconds, as a back up
+    interval = :timer.seconds(120 + :rand.uniform(20))
+    _ = :timer.send_interval(interval, :trigger_interval)
 
     {:ok, deployment} = Deployments.get_deployment(deployment)
 
-    send(self(), :trigger)
+    send(self(), :maybe_trigger)
 
-    {:ok, deployment}
+    {:ok, {deployment, rate_limit, nil, true}}
   end
 
   @doc """
@@ -135,10 +139,55 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     true
   end
 
-  @decorate with_span("Deployments.Distributed.Orchestrator.trigger")
-  def handle_cast(:trigger, deployment) do
+  # if there is not "delay" timer set, run `trigger_update`
+  defp maybe_trigger_update({deployment, false, _, _run_again}) do
     trigger_update(deployment)
-    {:noreply, deployment}
+
+    {:noreply, {deployment, false, nil, false}}
+  end
+
+  # if there is not "delay" timer set, run `trigger_update`
+  defp maybe_trigger_update({deployment, true, nil, _run_again}) do
+    trigger_update(deployment)
+
+    timer_ref = Process.send_after(self(), :maybe_trigger, 10_000)
+
+    {:noreply, {deployment, true, timer_ref, false}}
+  end
+
+  # if a "delay" timer is set, queue a `trigger_update`
+  # this is done by updating the last element of the state to `true`
+  defp maybe_trigger_update({deployment, rate_limit, timer_ref, _run_again}) do
+    {:noreply, {deployment, rate_limit, timer_ref, true}}
+  end
+
+  # this is the callback used by the timer
+  def handle_info(:trigger_interval, {deployment, _rate_limit, timer_ref, _run_again} = state) do
+    if is_nil(timer_ref) do
+      trigger_update(deployment)
+    end
+
+    {:noreply, state}
+  end
+
+  # if the 'run again' boolean in the state is `true`, which indicates that indicates
+  # that previous call has been skipped, then run `trigger_update` now
+  def handle_info(:maybe_trigger, {deployment, rate_limit, _timer_ref, true}) do
+    trigger_update(deployment)
+
+    if rate_limit do
+      timer_ref = Process.send_after(self(), :maybe_trigger, 10_000)
+
+      {:noreply, {deployment, rate_limit, timer_ref, false}}
+    else
+      {:noreply, {deployment, rate_limit, nil, false}}
+    end
+  end
+
+  # if the 'run again' boolean in the state is `false`, no requests to run the orchestrator
+  # again have been received, so we can nil off the timer and move on
+  def handle_info(:maybe_trigger, {deployment, rate_limit, _timer_ref, false}) do
+    {:noreply, {deployment, rate_limit, nil, false}}
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployment/device-online")
@@ -148,54 +197,56 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
           event: "device-online",
           payload: payload
         },
-        deployment
+        {deployment, _rate_limit, _timer_ref, _run_again} = state
       ) do
     if payload.firmware_uuid != deployment.firmware.uuid do
-      trigger_update(deployment)
+      maybe_trigger_update(state)
+    else
+      {:noreply, state}
     end
-
-    {:noreply, deployment}
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployment/device-update")
   def handle_info(
         %Broadcast{topic: "orchestrator:deployment:" <> _, event: "device-updated"},
-        deployment
+        state
       ) do
-    trigger_update(deployment)
-    {:noreply, deployment}
+    maybe_trigger_update(state)
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployments/update")
-  def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deployments/update"}, deployment) do
+  def handle_info(
+        %Broadcast{topic: "deployment:" <> _, event: "deployments/update"},
+        {deployment, rate_limit, timer_ref, run_again}
+      ) do
     {:ok, deployment} = Deployments.get_deployment(deployment)
 
-    trigger_update(deployment)
-
-    {:noreply, deployment}
+    maybe_trigger_update({deployment, rate_limit, timer_ref, run_again})
   end
 
-  def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deleted"}, deployment) do
+  def handle_info(
+        %Broadcast{topic: "deployment:" <> _, event: "deleted"},
+        {deployment, _, _, _} = state
+      ) do
     ProcessHub.stop_child(:deployment_orchestrators, :"distributed_orchestrator_#{deployment.id}")
-    {:stop, :shutdown, deployment}
+    {:stop, :shutdown, state}
   end
 
   def handle_info(
         %Broadcast{topic: "orchestrator:deployment:" <> _, event: "deactivated"},
-        deployment
+        {deployment, _, _, _} = state
       ) do
     ProcessHub.stop_child(:deployment_orchestrators, :"distributed_orchestrator_#{deployment.id}")
-    {:stop, :shutdown, deployment}
+    {:stop, :shutdown, state}
   end
 
   # Catch all for unknown broadcasts on a deployment
-  def handle_info(%Broadcast{topic: "deployment:" <> _}, deployment) do
-    {:noreply, deployment}
+  def handle_info(%Broadcast{topic: "deployment:" <> _}, state) do
+    {:noreply, state}
   end
 
-  def handle_info(:trigger, deployment) do
-    trigger_update(deployment)
-    {:noreply, deployment}
+  def handle_info(:trigger, state) do
+    maybe_trigger_update(state)
   end
 
   def start_orchestrator(%Deployment{is_active: true} = deployment) do

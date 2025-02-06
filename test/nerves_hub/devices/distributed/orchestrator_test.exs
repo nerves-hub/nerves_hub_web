@@ -62,7 +62,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     {:ok, _pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment.id}",
-        start: {Orchestrator, :start_link, [deployment]},
+        start: {Orchestrator, :start_link, [deployment, false]},
         restart: :temporary
       })
 
@@ -137,7 +137,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     {:ok, _pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment.id}",
-        start: {Orchestrator, :start_link, [deployment]},
+        start: {Orchestrator, :start_link, [deployment, false]},
         restart: :temporary
       })
 
@@ -213,7 +213,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     {:ok, pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment.id}",
-        start: {Orchestrator, :start_link, [deployment]},
+        start: {Orchestrator, :start_link, [deployment, false]},
         restart: :temporary
       })
 
@@ -264,7 +264,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     {:ok, pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment.id}",
-        start: {Orchestrator, :start_link, [deployment]},
+        start: {Orchestrator, :start_link, [deployment, false]},
         restart: :temporary
       })
 
@@ -287,7 +287,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     {:ok, pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment.id}",
-        start: {Orchestrator, :start_link, [deployment]},
+        start: {Orchestrator, :start_link, [deployment, false]},
         restart: :temporary
       })
 
