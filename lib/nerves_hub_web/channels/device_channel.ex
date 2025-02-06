@@ -232,6 +232,16 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
+  def handle_info(%Broadcast{event: "identify"}, socket) do
+    push(socket, "identify", %{})
+    {:noreply, socket}
+  end
+
+  def handle_info(%Broadcast{event: "reboot"}, socket) do
+    push(socket, "reboot", %{})
+    {:noreply, socket}
+  end
+
   def handle_info(:online?, socket) do
     NervesHub.Tracker.confirm_online(socket.assigns.device)
     {:noreply, socket}
@@ -275,12 +285,6 @@ defmodule NervesHubWeb.DeviceChannel do
 
     socket = assign(socket, :script_refs, script_refs)
 
-    {:noreply, socket}
-  end
-
-  def handle_info(%Broadcast{event: event, payload: payload}, socket) do
-    # Forward broadcasts to the device for now
-    push(socket, event, payload || %{})
     {:noreply, socket}
   end
 
