@@ -39,7 +39,7 @@
         <span class="button-icon firmware-disabled"></span>
         <span class="action-text">{if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}</span>
       </button>
-      <button class="btn btn-outline-light btn-action" aria-label="Delete" type="button" phx-click="delete" data-confirm="Are you sure?">
+      <button class={["btn btn-outline-light btn-action", @org_user.role == :view && "disabled"]} aria-label="Delete" type="button" phx-click="delete" data-confirm="Are you sure?">
         <span class="button-icon delete"></span>
         <span class="action-text">Delete</span>
       </button>
