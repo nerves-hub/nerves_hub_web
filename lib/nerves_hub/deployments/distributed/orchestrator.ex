@@ -34,6 +34,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   @decorate with_span("Deployments.Distributed.Orchestrator.init")
   def init(deployment) do
     :ok = PubSub.subscribe(NervesHub.PubSub, "deployment:#{deployment.id}")
+    :ok = PubSub.subscribe(NervesHub.PubSub, "orchestrator:deployment:#{deployment.id}")
 
     # trigger every minute, plus a jitter between 1 and 10 seconds, as a back up
     interval = :timer.seconds(90 + :rand.uniform(20))
@@ -141,7 +142,14 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployment/device-online")
-  def handle_info(%Broadcast{event: "deployment/device-online", payload: payload}, deployment) do
+  def handle_info(
+        %Broadcast{
+          topic: "orchestrator:deployment:" <> _rest,
+          event: "device-online",
+          payload: payload
+        },
+        deployment
+      ) do
     if payload.firmware_uuid != deployment.firmware.uuid do
       trigger_update(deployment)
     end
@@ -150,13 +158,16 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployment/device-update")
-  def handle_info(%Broadcast{event: "deployment/device-updated"}, deployment) do
+  def handle_info(
+        %Broadcast{topic: "orchestrator:deployment:" <> _, event: "device-updated"},
+        deployment
+      ) do
     trigger_update(deployment)
     {:noreply, deployment}
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployments/update")
-  def handle_info(%Broadcast{event: "deployments/update"}, deployment) do
+  def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deployments/update"}, deployment) do
     {:ok, deployment} = Deployments.get_deployment(deployment)
 
     trigger_update(deployment)
@@ -164,12 +175,15 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     {:noreply, deployment}
   end
 
-  def handle_info(%Broadcast{event: "deployment/deleted"}, deployment) do
+  def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deleted"}, deployment) do
     ProcessHub.stop_child(:deployment_orchestrators, :"distributed_orchestrator_#{deployment.id}")
     {:stop, :shutdown, deployment}
   end
 
-  def handle_info(%Broadcast{event: "deployment/deactivated"}, deployment) do
+  def handle_info(
+        %Broadcast{topic: "orchestrator:deployment:" <> _, event: "deactivated"},
+        deployment
+      ) do
     ProcessHub.stop_child(:deployment_orchestrators, :"distributed_orchestrator_#{deployment.id}")
     {:stop, :shutdown, deployment}
   end
@@ -193,11 +207,11 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   end
 
   def stop_orchestrator(deployment) do
-    message = %Phoenix.Socket.Broadcast{
-      topic: "deployment:#{deployment.id}",
-      event: "deployment/deactivated"
-    }
-
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:#{deployment.id}", message)
+    Phoenix.Channel.Server.broadcast(
+      NervesHub.PubSub,
+      "orchestrator:deployment:#{deployment.id}",
+      "deactivated",
+      %{}
+    )
   end
 end

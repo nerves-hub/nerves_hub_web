@@ -74,6 +74,9 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     Connections.device_connected(device1.id)
     Devices.deployment_device_online(device1)
 
+    # sent when a device is a assigned a deployment
+    assert_receive %Broadcast{topic: ^topic1, event: "devices/deployment-updated"}, 500
+
     # check that the first device was told to update
     assert_receive %Broadcast{topic: ^topic1, event: "update-scheduled"}, 500
 
@@ -128,7 +131,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     topic2 = "device:#{device2.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, topic2)
 
-    deployment_topic = "deployment:#{deployment.id}"
+    deployment_topic = "orchestrator:deployment:#{deployment.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
 
     {:ok, _pid} =
@@ -150,14 +153,20 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     Devices.update_deployment(device2, deployment)
     Connections.device_connected(device2.id)
 
+    # sent by the device after its updated
+    assert_receive %Broadcast{topic: ^topic2, event: "devices/deployment-updated"}, 500
+
     # pretend that the first device successfully updated
     {:ok, device} =
       Devices.update_device(device, %{firmware_metadata: %{"uuid" => firmware.uuid}})
 
     Devices.firmware_update_successful(device)
 
+    # sent by the device after its updated
+    assert_receive %Broadcast{topic: ^topic1, event: "devices/updated"}, 500
+
     # check that the orchestractor was told about the successful update
-    assert_receive %Broadcast{topic: ^deployment_topic, event: "deployment/device-updated"}, 500
+    assert_receive %Broadcast{topic: ^deployment_topic, event: "device-updated"}, 500
 
     # and that device2 was told to update
     assert_receive %Broadcast{topic: ^topic2, event: "update-scheduled"}, 500
@@ -198,7 +207,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
         firmware_id: firmware.id
       })
 
-    deployment_topic = "deployment:#{deployment.id}"
+    deployment_topic = "orchestrator:deployment:#{deployment.id}"
     Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
 
     {:ok, pid} =
@@ -220,7 +229,13 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     Connections.device_connected(device1.id)
     Devices.deployment_device_online(device1)
 
-    assert_receive %Broadcast{topic: ^deployment_topic, event: "deployment/device-online"}, 500
+    # sent when a device is assigned a deployment
+    assert_receive %Broadcast{topic: ^device1_topic, event: "devices/deployment-updated"}, 500
+
+    # the orchestrator is told that a device assigned to it is online
+    assert_receive %Broadcast{topic: ^deployment_topic, event: "device-online"}, 500
+
+    # and then a device is told to schedule an update
     assert_receive %Broadcast{topic: ^device1_topic, event: "update-scheduled"}, 1_000
 
     Mimic.reject(&Devices.available_for_update/2)
@@ -238,7 +253,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     Connections.device_connected(device2.id)
     Devices.deployment_device_online(device2)
 
-    assert_receive %Broadcast{topic: ^deployment_topic, event: "deployment/device-online"}, 500
+    assert_receive %Broadcast{topic: ^deployment_topic, event: "device-online"}, 500
     refute_receive %Broadcast{topic: ^device2_topic, event: "update-scheduled"}, 500
 
     # allows for db connections to finish and close

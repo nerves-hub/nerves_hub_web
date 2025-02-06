@@ -967,18 +967,12 @@ defmodule NervesHub.Devices do
             %{firmware_uuid: nil}
           end
 
-        message = %Phoenix.Socket.Broadcast{
-          topic: "deployment:#{device.deployment_id}",
-          event: "deployment/device-online",
-          payload: payload
-        }
-
-        _ =
-          Phoenix.PubSub.broadcast(
-            NervesHub.PubSub,
-            "deployment:#{device.deployment_id}",
-            message
-          )
+        Phoenix.Channel.Server.broadcast(
+          NervesHub.PubSub,
+          "orchestrator:deployment:#{device.deployment_id}",
+          "device-online",
+          payload
+        )
 
       other ->
         raise "Deployments Orchestrator '#{other}' not supported"
@@ -995,17 +989,12 @@ defmodule NervesHub.Devices do
         _ = Orchestrator.device_updated(device.deployment_id)
 
       "clustered" ->
-        message = %Phoenix.Socket.Broadcast{
-          topic: "deployment:#{device.deployment_id}",
-          event: "deployment/device-updated"
-        }
-
-        _ =
-          Phoenix.PubSub.broadcast(
-            NervesHub.PubSub,
-            "deployment:#{device.deployment_id}",
-            message
-          )
+        Phoenix.Channel.Server.broadcast(
+          NervesHub.PubSub,
+          "orchestrator:deployment:#{device.deployment_id}",
+          "device-updated",
+          %{}
+        )
 
       other ->
         raise "Deployments Orchestrator '#{other}' not supported"
@@ -1532,13 +1521,14 @@ defmodule NervesHub.Devices do
       deployment_id: deployment.id
     }
 
-    message = %Phoenix.Socket.Broadcast{
-      topic: "device:#{device_id}",
-      event: "update-scheduled",
-      payload: %{inflight_update: inflight_update, update_payload: update_payload}
-    }
+    payload = %{inflight_update: inflight_update, update_payload: update_payload}
 
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{device_id}", message)
+    Phoenix.Channel.Server.broadcast(
+      NervesHub.PubSub,
+      "device:#{device_id}",
+      "update-scheduled",
+      payload
+    )
 
     :ok
   end

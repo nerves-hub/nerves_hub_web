@@ -380,31 +380,30 @@ defmodule NervesHub.Deployments do
   def broadcast(deployment, event, payload \\ %{})
 
   def broadcast(:none, event, payload) do
-    message = %Phoenix.Socket.Broadcast{
-      topic: "deployment:none",
-      event: event,
-      payload: payload
-    }
-
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:none", message)
+    Phoenix.Channel.Server.broadcast(
+      NervesHub.PubSub,
+      "deployment:none",
+      event,
+      payload
+    )
   end
 
   def broadcast(:monitor, event, payload) do
-    Phoenix.PubSub.broadcast(
+    Phoenix.Channel.Server.broadcast(
       NervesHub.PubSub,
       "deployment:monitor",
-      %Phoenix.Socket.Broadcast{event: event, payload: payload}
+      event,
+      payload
     )
   end
 
   def broadcast(%Deployment{id: id}, event, payload) do
-    message = %Phoenix.Socket.Broadcast{
-      topic: "deployment:#{id}",
-      event: event,
-      payload: payload
-    }
-
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:#{id}", message)
+    Phoenix.Channel.Server.broadcast(
+      NervesHub.PubSub,
+      "deployment:#{id}",
+      event,
+      payload
+    )
   end
 
   @doc """
@@ -615,7 +614,7 @@ defmodule NervesHub.Deployments do
   def deployment_deleted_event(deployment) do
     case Application.get_env(:nerves_hub, :deployments_orchestrator) do
       "multi" -> _ = broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
-      "clustered" -> _ = broadcast(deployment, "deployment/deleted")
+      "clustered" -> _ = broadcast(deployment, "deleted")
       other -> raise "Deployments Orchestrator '#{other}' not supported"
     end
   end
