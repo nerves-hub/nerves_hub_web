@@ -243,6 +243,7 @@ if config_env() == :prod do
     url: System.fetch_env!("DATABASE_URL"),
     ssl: database_ssl_opts,
     pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
+    pool_count: String.to_integer(System.get_env("DATABASE_POOL_COUNT", "1")),
     socket_options: database_socket_options,
     queue_target: 5000
 
