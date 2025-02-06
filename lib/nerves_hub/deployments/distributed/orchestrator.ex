@@ -150,7 +150,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   defp maybe_trigger_update({deployment, true, nil, _run_again}) do
     trigger_update(deployment)
 
-    timer_ref = Process.send_after(self(), :maybe_trigger, 10_000)
+    timer_ref = Process.send_after(self(), :maybe_trigger, 5_000)
 
     {:noreply, {deployment, true, timer_ref, false}}
   end
@@ -176,7 +176,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     trigger_update(deployment)
 
     if rate_limit do
-      timer_ref = Process.send_after(self(), :maybe_trigger, 10_000)
+      timer_ref = Process.send_after(self(), :maybe_trigger, 5_000)
 
       {:noreply, {deployment, rate_limit, timer_ref, false}}
     else
