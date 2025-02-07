@@ -93,7 +93,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_info:device_registration")
   def handle_info({:device_registration, attempt}, socket) do
-    %{assigns: %{device: device}} = socket
+    %{assigns: %{device: device, reference_id: reference_id}} = socket
 
     payload = %{
       deployment_id: device.deployment_id,
@@ -112,6 +112,8 @@ defmodule NervesHubWeb.DeviceChannel do
           |> assign(:registered?, true)
           |> assign(:registration_timer, nil)
 
+        # Update the connection to say that we are fully up and running
+        Connections.device_connected(reference_id)
         # tell the orchestrator that we are online
         Devices.deployment_device_online(device)
 

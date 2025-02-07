@@ -34,9 +34,9 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Creates a device connection, reported from device socket
   """
-  @spec device_connected(non_neg_integer()) ::
+  @spec device_connecting(non_neg_integer()) ::
           {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
-  def device_connected(device_id) do
+  def device_connecting(device_id) do
     now = DateTime.utc_now()
 
     changeset =
@@ -44,7 +44,7 @@ defmodule NervesHub.Devices.Connections do
         device_id: device_id,
         established_at: now,
         last_seen_at: now,
-        status: :connected
+        status: :connecting
       })
 
     case Repo.insert(changeset) do
@@ -57,6 +57,25 @@ defmodule NervesHub.Devices.Connections do
 
       {:error, _} = error ->
         error
+    end
+  end
+
+  @doc """
+  Creates a device connection, reported from device socket
+  """
+  @spec device_connected(non_neg_integer()) :: :ok | :error
+  def device_connected(id) do
+    now = DateTime.utc_now()
+
+    DeviceConnection
+    |> where(id: ^id)
+    |> Repo.update_all(set: [
+      last_seen_at: now,
+      status: :connected]
+    )
+    |> case do
+      {1, _} -> :ok
+      _ -> :error
     end
   end
 
