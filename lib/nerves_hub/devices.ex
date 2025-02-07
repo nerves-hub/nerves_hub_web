@@ -1130,7 +1130,7 @@ defmodule NervesHub.Devices do
         if device.deployment_id do
           Phoenix.Channel.Server.broadcast(
             NervesHub.PubSub,
-            "orchestrator:deployment:#{device.deployment.id}",
+            "orchestrator:deployment:#{device.deployment_id}",
             "device-updated",
             %{}
           )
