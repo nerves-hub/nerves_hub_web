@@ -270,6 +270,69 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     _state = :sys.get_state(pid)
   end
 
+  test "the orchestrator is 'triggered' when a device is reenabled to accept updates", %{
+    user: user,
+    deployment: deployment,
+    org_key: org_key,
+    product: product,
+    device: device1
+  } do
+    Application.put_env(:nerves_hub, :deployments_orchestrator, "clustered")
+
+    on_exit(fn ->
+      Application.put_env(:nerves_hub, :deployments_orchestrator, "multi")
+    end)
+
+    firmware = Fixtures.firmware_fixture(org_key, product)
+
+    {:ok, deployment} =
+      Deployments.update_deployment(deployment, %{
+        concurrent_updates: 2,
+        firmware_id: firmware.id
+      })
+
+    deployment_topic = "orchestrator:deployment:#{deployment.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, deployment_topic)
+
+    {:ok, pid} =
+      start_supervised(%{
+        id: "Orchestrator##{deployment.id}",
+        start: {Orchestrator, :start_link, [deployment, false]},
+        restart: :temporary
+      })
+
+    # assign device1 to the deployment and mark it as 'connected'
+    # this device will be told to update
+    device1_topic = "device:#{device1.id}"
+    Phoenix.PubSub.subscribe(NervesHub.PubSub, device1_topic)
+
+    device1 = Devices.update_deployment(device1, deployment)
+    {:ok, device1} = Devices.update_device(device1, %{updates_enabled: false})
+
+    {:ok, connection} = Connections.device_connecting(device1.id)
+    :ok = Connections.device_connected(connection.id)
+
+    Devices.deployment_device_online(device1)
+
+    # sent when a device is assigned a deployment
+    assert_receive %Broadcast{topic: ^device1_topic, event: "devices/deployment-updated"}, 500
+
+    # the orchestrator is told that a device assigned to it is online
+    assert_receive %Broadcast{topic: ^deployment_topic, event: "device-online"}, 500
+
+    # the device isn't told to update, yet
+    refute_receive %Broadcast{topic: ^device1_topic, event: "update-scheduled"}, 1_000
+
+    # we enable updates for the device
+    Devices.enable_updates(device1, user)
+
+    # and then a device is told to schedule an update
+    assert_receive %Broadcast{topic: ^device1_topic, event: "update-scheduled"}, 1_000
+
+    # allows for db connections to finish and close
+    _state = :sys.get_state(pid)
+  end
+
   test "shuts down if the deployment is no longer active", %{deployment: deployment} do
     {:ok, pid} =
       start_supervised(%{

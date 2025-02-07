@@ -1123,7 +1123,23 @@ defmodule NervesHub.Devices do
   def enable_updates(%Device{} = device, user) do
     description = "User #{user.name} enabled updates for device #{device.identifier}"
     params = %{updates_enabled: true, update_attempts: []}
-    update_device_with_audit(device, params, user, description)
+
+    case update_device_with_audit(device, params, user, description) do
+      {:ok, device} = result ->
+        if device.deployment_id do
+          Phoenix.Channel.Server.broadcast(
+            NervesHub.PubSub,
+            "orchestrator:deployment:#{device.deployment.id}",
+            "device-updated",
+            %{}
+          )
+        end
+
+        result
+
+      {:error, _, _, _} = result ->
+        result
+    end
   end
 
   @spec disable_updates(Device.t() | [Device.t()], User.t()) ::
