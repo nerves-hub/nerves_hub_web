@@ -199,7 +199,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
         },
         {deployment, _rate_limit, _timer_ref, _run_again} = state
       ) do
-    if payload.firmware_uuid != deployment.firmware.uuid do
+    if should_trigger?(payload, deployment) do
       maybe_trigger_update(state)
     else
       {:noreply, state}
@@ -274,5 +274,19 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
       "deactivated",
       %{}
     )
+  end
+
+  defp should_trigger?(payload, deployment) do
+    not (firmware_match?(payload, deployment) or updates_blocked?(payload))
+  end
+
+  defp firmware_match?(payload, deployment) do
+    payload.firmware_uuid == deployment.firmware.uuid
+  end
+
+  defp updates_blocked?(payload) do
+    !payload.updates_enabled and
+      !is_nil(payload.updates_blocked_until) and
+      DateTime.compare(payload.updates_blocked_until, DateTime.utc_now()) == :gt
   end
 end

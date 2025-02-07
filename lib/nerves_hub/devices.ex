@@ -961,12 +961,13 @@ defmodule NervesHub.Devices do
         :ok
 
       "clustered" ->
-        payload =
-          if device.firmware_metadata do
-            %{firmware_uuid: device.firmware_metadata.uuid}
-          else
-            %{firmware_uuid: nil}
-          end
+        firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid, else: nil)
+
+        payload = %{
+          updates_enabled: device.updates_enabled,
+          updates_blocked_until: device.updates_blocked_until,
+          firmware_uuid: firmware_uuid
+        }
 
         _ =
           Phoenix.Channel.Server.broadcast(
