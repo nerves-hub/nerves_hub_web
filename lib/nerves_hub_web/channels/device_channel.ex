@@ -309,11 +309,6 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
-  def handle_info(%Broadcast{event: "connection:heartbeat"}, socket) do
-    # Expected message that is not used here :)
-    {:noreply, socket}
-  end
-
   def handle_info(msg, socket) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.
