@@ -69,9 +69,11 @@ defmodule NervesHub.Devices.Connections do
 
     DeviceConnection
     |> where(id: ^id)
-    |> Repo.update_all(set: [
-      last_seen_at: now,
-      status: :connected]
+    |> Repo.update_all(
+      set: [
+        last_seen_at: now,
+        status: :connected
+      ]
     )
     |> case do
       {1, _} -> :ok

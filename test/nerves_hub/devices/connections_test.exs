@@ -21,20 +21,26 @@ defmodule NervesHub.Devices.ConnectionsTest do
   end
 
   test "device connecting -> connected -> disconnected", %{device: device} do
-    assert {:ok, %DeviceConnection{id: ref, status: :connecting}} = Connections.device_connecting(device.id)
+    assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
+             Connections.device_connecting(device.id)
+
     assert %DeviceConnection{status: :connecting} = Connections.get_latest_for_device(device.id)
 
     assert :ok = Connections.device_connected(ref)
     assert %DeviceConnection{status: :connected} = Connections.get_latest_for_device(device.id)
 
     assert :ok = Connections.device_disconnected(ref)
-    assert %DeviceConnection{status: :disconnected, disconnected_at: disconnected_at} = Connections.get_latest_for_device(device.id)
+
+    assert %DeviceConnection{status: :disconnected, disconnected_at: disconnected_at} =
+             Connections.get_latest_for_device(device.id)
+
     refute is_nil(disconnected_at)
   end
 
   test "device heartbeat", %{device: device} do
     assert {:ok, %DeviceConnection{id: connection_id, last_seen_at: first_seen_at} = connection} =
              Connections.device_connecting(device.id)
+
     assert :ok = Connections.device_connected(connection_id)
 
     Connections.device_heartbeat(connection_id)
