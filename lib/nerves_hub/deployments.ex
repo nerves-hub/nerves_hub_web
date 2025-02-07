@@ -588,34 +588,46 @@ defmodule NervesHub.Deployments do
   end
 
   def deployment_created_event(deployment) do
-    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
-      "multi" -> _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
-      "clustered" -> DistributedOrchestrator.start_orchestrator(deployment)
-      other -> raise "Deployments Orchestrator '#{other}' not supported"
-    end
+    _ =
+      case Application.get_env(:nerves_hub, :deployments_orchestrator) do
+        "multi" -> _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
+        "clustered" -> DistributedOrchestrator.start_orchestrator(deployment)
+        other -> raise "Deployments Orchestrator '#{other}' not supported"
+      end
+
+    :ok
   end
 
   def deployment_activated_event(deployment) do
-    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
-      "multi" -> _ = :ok
-      "clustered" -> DistributedOrchestrator.start_orchestrator(deployment)
-      other -> raise "Deployments Orchestrator '#{other}' not supported"
-    end
+    _ =
+      case Application.get_env(:nerves_hub, :deployments_orchestrator) do
+        "multi" -> :ok
+        "clustered" -> DistributedOrchestrator.start_orchestrator(deployment)
+        other -> raise "Deployments Orchestrator '#{other}' not supported"
+      end
+
+    :ok
   end
 
   def deployment_deactivated_event(deployment) do
-    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
-      "multi" -> _ = :ok
-      "clustered" -> DistributedOrchestrator.stop_orchestrator(deployment)
-      other -> raise "Deployments Orchestrator '#{other}' not supported"
-    end
+    _ =
+      case Application.get_env(:nerves_hub, :deployments_orchestrator) do
+        "multi" -> :ok
+        "clustered" -> DistributedOrchestrator.stop_orchestrator(deployment)
+        other -> raise "Deployments Orchestrator '#{other}' not supported"
+      end
+
+    :ok
   end
 
   def deployment_deleted_event(deployment) do
-    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
-      "multi" -> _ = broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
-      "clustered" -> _ = broadcast(deployment, "deleted")
-      other -> raise "Deployments Orchestrator '#{other}' not supported"
-    end
+    _ =
+      case Application.get_env(:nerves_hub, :deployments_orchestrator) do
+        "multi" -> broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
+        "clustered" -> broadcast(deployment, "deleted")
+        other -> raise "Deployments Orchestrator '#{other}' not supported"
+      end
+
+    :ok
   end
 end

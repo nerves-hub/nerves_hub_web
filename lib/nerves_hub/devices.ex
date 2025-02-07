@@ -932,16 +932,17 @@ defmodule NervesHub.Devices do
         firmware_uuid: device.firmware_metadata.uuid
       )
 
-    if inflight_update do
-      Deployment
-      |> where([d], d.id == ^inflight_update.deployment_id)
-      |> Repo.update_all(inc: [current_updated_devices: 1])
+    _ =
+      if inflight_update do
+        Deployment
+        |> where([d], d.id == ^inflight_update.deployment_id)
+        |> Repo.update_all(inc: [current_updated_devices: 1])
 
-      Repo.delete(inflight_update)
+        Repo.delete(inflight_update)
 
-      # let the orchestrator know that an inflight update completed
-      _ = deployment_device_updated(device)
-    end
+        # let the orchestrator know that an inflight update completed
+        deployment_device_updated(device)
+      end
 
     device
     |> Ecto.Changeset.change()
@@ -967,12 +968,15 @@ defmodule NervesHub.Devices do
             %{firmware_uuid: nil}
           end
 
-        Phoenix.Channel.Server.broadcast(
-          NervesHub.PubSub,
-          "orchestrator:deployment:#{device.deployment_id}",
-          "device-online",
-          payload
-        )
+        _ =
+          Phoenix.Channel.Server.broadcast(
+            NervesHub.PubSub,
+            "orchestrator:deployment:#{device.deployment_id}",
+            "device-online",
+            payload
+          )
+
+        :ok
 
       other ->
         raise "Deployments Orchestrator '#{other}' not supported"
@@ -1471,9 +1475,8 @@ defmodule NervesHub.Devices do
 
   def count_inflight_updates_for(%Deployment{} = deployment) do
     InflightUpdate
-    |> select([iu], count(iu))
     |> where([iu], iu.deployment_id == ^deployment.id)
-    |> Repo.one()
+    |> Repo.aggregate(:count)
   end
 
   def enable_extension_setting(%Device{} = device, extension_string) do
@@ -1523,12 +1526,13 @@ defmodule NervesHub.Devices do
 
     payload = %{inflight_update: inflight_update, update_payload: update_payload}
 
-    Phoenix.Channel.Server.broadcast(
-      NervesHub.PubSub,
-      "device:#{device_id}",
-      "update-scheduled",
-      payload
-    )
+    _ =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "device:#{device_id}",
+        "update-scheduled",
+        payload
+      )
 
     :ok
   end

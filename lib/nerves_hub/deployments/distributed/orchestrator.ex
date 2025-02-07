@@ -100,6 +100,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     # Just in case inflight goes higher than concurrent, limit it to 0
     (deployment.concurrent_updates - Devices.count_inflight_updates_for(deployment))
     |> max(0)
+    |> round()
   end
 
   @doc """
@@ -110,18 +111,16 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   """
   @spec schedule_devices!([Device.t()], Deployment.t()) :: non_neg_integer()
   def schedule_devices!(available, deployment) do
-    available
-    |> Enum.filter(fn device ->
+    Enum.count(available, fn device ->
       case can_device_update?(device, deployment) do
         true ->
           tell_device_to_update(device.id, deployment)
 
         false ->
-          Devices.update_blocked_until(device, deployment)
+          _ = Devices.update_blocked_until(device, deployment)
           false
       end
     end)
-    |> Enum.count()
   end
 
   @spec can_device_update?(Device.t(), Deployment.t()) :: boolean()
@@ -130,13 +129,14 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
            Devices.failure_threshold_met?(device, deployment))
   end
 
-  @spec tell_device_to_update(integer(), Deployment.t()) :: true
+  @spec tell_device_to_update(integer(), Deployment.t()) :: boolean()
   defp tell_device_to_update(device_id, deployment) do
     :telemetry.execute([:nerves_hub, :deployment, :trigger_update, :device], %{count: 1})
 
-    Devices.told_to_update(device_id, deployment)
-
-    true
+    case Devices.told_to_update(device_id, deployment) do
+      {:ok, _} -> true
+      _ -> false
+    end
   end
 
   # if there is not "delay" timer set, run `trigger_update`
@@ -228,7 +228,12 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
         %Broadcast{topic: "deployment:" <> _, event: "deleted"},
         {deployment, _, _, _} = state
       ) do
-    ProcessHub.stop_child(:deployment_orchestrators, :"distributed_orchestrator_#{deployment.id}")
+    _ =
+      ProcessHub.stop_child(
+        :deployment_orchestrators,
+        :"distributed_orchestrator_#{deployment.id}"
+      )
+
     {:stop, :shutdown, state}
   end
 
@@ -236,7 +241,12 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
         %Broadcast{topic: "orchestrator:deployment:" <> _, event: "deactivated"},
         {deployment, _, _, _} = state
       ) do
-    ProcessHub.stop_child(:deployment_orchestrators, :"distributed_orchestrator_#{deployment.id}")
+    _ =
+      ProcessHub.stop_child(
+        :deployment_orchestrators,
+        :"distributed_orchestrator_#{deployment.id}"
+      )
+
     {:stop, :shutdown, state}
   end
 
