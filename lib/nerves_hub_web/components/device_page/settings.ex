@@ -40,9 +40,11 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
         <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
             <div class="text-base text-neutral-50 font-medium">General settings</div>
-            <.button style="secondary" type="submit">
-              <.icon name="save" /> Save changes
-            </.button>
+            <%= if authorized?(:"device:update", @org_user) do %>
+              <.button style="secondary" type="submit">
+                <.icon name="save" /> Save changes
+              </.button>
+            <% end %>
           </div>
           <div class="flex p-6 gap-6">
             <div class="w-1/2 flex flex-col gap-6">
@@ -226,7 +228,7 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
         </div>
       </div>
 
-      <div :if={@device.deleted_at} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+      <div :if={@device.deleted_at && authorized?(:"device:update", @org_user)} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
         <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
           <div>
             <button
@@ -255,7 +257,7 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
         </div>
       </div>
 
-      <div :if={@device.deleted_at} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+      <div :if={@device.deleted_at && authorized?(:"device:update", @org_user)} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
         <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
           <div>
             <button
@@ -280,7 +282,7 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
         </div>
       </div>
 
-      <div :if={!@device.deleted_at} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+      <div :if={!@device.deleted_at && authorized?(:"device:update", @org_user)} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
         <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
           <div>
             <button

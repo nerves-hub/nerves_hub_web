@@ -461,6 +461,8 @@ defmodule NervesHub.Deployments do
         |> Repo.update!()
 
       DeploymentTemplates.audit_deployment_mismatch(device, deployment, reason)
+
+      device
     else
       device
     end

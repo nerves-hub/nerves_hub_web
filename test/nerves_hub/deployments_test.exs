@@ -4,8 +4,10 @@ defmodule NervesHub.DeploymentsTest do
 
   import Phoenix.ChannelTest
 
+  alias NervesHub.AuditLogs
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Distributed.Orchestrator, as: DistributedOrchestrator
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
 
@@ -320,6 +322,47 @@ defmodule NervesHub.DeploymentsTest do
       assert [] == Deployments.matching_deployments(%Device{firmware_metadata: nil})
       assert [] == Deployments.matching_deployments(%Device{firmware_metadata: nil}, [true])
       assert [] == Deployments.matching_deployments(%Device{firmware_metadata: nil}, [false])
+    end
+  end
+
+  describe "verify_deployment_membership/1" do
+    setup %{org: org, product: product, firmware: firmware} = context do
+      Map.merge(context, %{
+        device: Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
+      })
+    end
+
+    test "does nothing when device has no deployment", %{device: device} do
+      refute device.deployment_id
+      device = Deployments.verify_deployment_membership(device)
+      refute device.deployment_id
+    end
+
+    test "does nothing when device has deployment and meets matching conditions", %{
+      device: device,
+      deployment: deployment
+    } do
+      device = Devices.update_deployment(device, deployment)
+      assert device.deployment_id
+
+      device = Deployments.verify_deployment_membership(device)
+      assert device.deployment_id
+    end
+
+    test "removes device from deployment and creates audit log when conditions aren't met", %{
+      device: device,
+      deployment: deployment
+    } do
+      {:ok, device} =
+        device
+        |> Devices.update_deployment(deployment)
+        |> Devices.update_firmware_metadata(%{"platform" => "foobar"})
+
+      device = Deployments.verify_deployment_membership(device)
+      refute device.deployment_id
+
+      [audit_log] = AuditLogs.logs_for(deployment)
+      assert audit_log.description =~ "no longer matches deployment"
     end
   end
 end

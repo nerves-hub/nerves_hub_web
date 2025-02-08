@@ -58,7 +58,7 @@
     <div class="has-error">{error_tag(f, :connecting_code)}</div>
   </div>
 
-  <div class="button-submit-wrapper">
+  <div :if={authorized?(:"device:update", @org_user)} class="button-submit-wrapper">
     {submit("Save Changes", class: "btn btn-primary")}
   </div>
 </.form>

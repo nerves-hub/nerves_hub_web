@@ -310,18 +310,8 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   def handle_info(msg, socket) do
-    # Ignore unhandled messages so that it doesn't crash the link process
-    # preventing cascading problems.
+    # Ignore unhandled messages, but log it for debugging
     Logger.warning("[DeviceChannel] Unhandled handle_info message! - #{inspect(msg)}")
-
-    Logging.log_to_sentry(
-      socket.assigns.device,
-      "[DeviceChannel] Unhandled handle_info message!",
-      %{
-        message: msg
-      }
-    )
-
     {:noreply, socket}
   end
 
