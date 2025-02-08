@@ -1127,14 +1127,15 @@ defmodule NervesHub.Devices do
 
     case update_device_with_audit(device, params, user, description) do
       {:ok, device} = result ->
-        if device.deployment_id do
-          Phoenix.Channel.Server.broadcast(
-            NervesHub.PubSub,
-            "orchestrator:deployment:#{device.deployment_id}",
-            "device-updated",
-            %{}
-          )
-        end
+        _ =
+          if device.deployment_id do
+            Phoenix.Channel.Server.broadcast(
+              NervesHub.PubSub,
+              "orchestrator:deployment:#{device.deployment_id}",
+              "device-updated",
+              %{}
+            )
+          end
 
         result
 
@@ -1530,28 +1531,29 @@ defmodule NervesHub.Devices do
   end
 
   defp broadcast_update_request(device_id, inflight_update, deployment) do
-    if Application.get_env(:nerves_hub, :deployments_orchestrator) == "clustered" do
-      {:ok, url} = Firmwares.get_firmware_url(deployment.firmware)
-      {:ok, meta} = Firmwares.metadata_from_firmware(deployment.firmware)
+    _ =
+      if Application.get_env(:nerves_hub, :deployments_orchestrator) == "clustered" do
+        {:ok, url} = Firmwares.get_firmware_url(deployment.firmware)
+        {:ok, meta} = Firmwares.metadata_from_firmware(deployment.firmware)
 
-      update_payload = %UpdatePayload{
-        update_available: true,
-        firmware_url: url,
-        firmware_meta: meta,
-        deployment: deployment,
-        deployment_id: deployment.id
-      }
+        update_payload = %UpdatePayload{
+          update_available: true,
+          firmware_url: url,
+          firmware_meta: meta,
+          deployment: deployment,
+          deployment_id: deployment.id
+        }
 
-      payload = %{inflight_update: inflight_update, update_payload: update_payload}
+        payload = %{inflight_update: inflight_update, update_payload: update_payload}
 
-      _ =
-        Phoenix.Channel.Server.broadcast(
-          NervesHub.PubSub,
-          "device:#{device_id}",
-          "update-scheduled",
-          payload
-        )
-    end
+        _ =
+          Phoenix.Channel.Server.broadcast(
+            NervesHub.PubSub,
+            "device:#{device_id}",
+            "update-scheduled",
+            payload
+          )
+      end
 
     :ok
   end
