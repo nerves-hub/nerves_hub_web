@@ -92,11 +92,12 @@ defmodule NervesHubWeb.DeviceSocket do
 
   # Used by Devices connecting with HMAC Shared Secrets
   @decorate with_span("Channels.DeviceSocket.connect")
-  def connect(_params, socket, %{x_headers: x_headers})
+  def connect(_params, socket, %{x_headers: x_headers} = connect_info)
       when is_list(x_headers) and length(x_headers) > 0 do
     headers = Map.new(x_headers)
 
-    with :ok <- check_shared_secret_enabled(),
+    with :ok <- check_source_enabled(connect_info[:source]),
+         :ok <- check_shared_secret_enabled(),
          {:ok, key, salt, verification_opts} <- decode_from_headers(headers),
          {:ok, auth} <- get_shared_secret_auth(key),
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
@@ -104,6 +105,15 @@ defmodule NervesHubWeb.DeviceSocket do
          {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
       socket_and_assigns(socket, device)
     else
+      {:error, :check_uri} = error ->
+        :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
+          auth: :shared_secrets,
+          reason: error,
+          product_key: Map.get(headers, "x-nh-key", "*empty*")
+        })
+
+        error
+
       error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
           auth: :shared_secrets,
@@ -185,6 +195,14 @@ defmodule NervesHubWeb.DeviceSocket do
       :ok
     else
       {:error, :shared_secrets_not_enabled}
+    end
+  end
+
+  defp check_source_enabled(source) do
+    if source_enabled?(source) do
+      :ok
+    else
+      {:error, :check_uri}
     end
   end
 
@@ -278,5 +296,14 @@ defmodule NervesHubWeb.DeviceSocket do
     Application.get_env(:nerves_hub, __MODULE__, [])
     |> Keyword.get(:shared_secrets, [])
     |> Keyword.get(:enabled, false)
+  end
+
+  def source_enabled?(nil) do
+    true
+  end
+
+  def source_enabled?(NervesHubWeb.Endpoint) do
+    Application.get_env(:nerves_hub, __MODULE__, [])
+    |> Keyword.get(:web_endpoint_supported, true)
   end
 end

@@ -291,7 +291,7 @@ defmodule SocketClient do
 
   @impl Slipstream
   def handle_disconnect(
-        {:error, {:upgrade_failure, %{reason: %{status_code: 401} = reason}}},
+        {:error, {:upgrade_failure, %{reason: reason}}},
         socket
       ) do
     socket =

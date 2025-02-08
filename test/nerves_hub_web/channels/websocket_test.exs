@@ -470,6 +470,49 @@ defmodule NervesHubWeb.WebsocketTest do
     end
   end
 
+  describe "web endpoint device connections" do
+    @describetag :tmp_dir
+
+    setup do
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
+      Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, web_endpoint_supported: false)
+
+      on_exit(fn ->
+        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket,
+          shared_secrets: [enabled: false]
+        )
+
+        Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, web_endpoint_supported: true)
+      end)
+    end
+
+    test "can disable devices connecting via the web endpoint", %{user: user} do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      assert {:ok, auth} = Products.create_shared_secret_auth(product)
+
+      identifier = Ecto.UUID.generate()
+      refute Repo.get_by(Device, identifier: identifier)
+
+      opts = [
+        mint_opts: [protocols: [:http1]],
+        uri: "ws://127.0.0.1:#{@web_port}/device-socket/websocket",
+        headers: Utils.nh1_key_secret_headers(auth, identifier)
+      ]
+
+      {:ok, socket} = SocketClient.start_link(opts)
+
+      SocketClient.wait_connect(socket)
+
+      refute SocketClient.connected?(socket)
+
+      assigns = SocketClient.state(socket).assigns
+
+      assert assigns.error_code == 404
+      assert assigns.error_reason == "incorrect uri used, please contact support"
+    end
+  end
+
   describe "duplicate connections using the same device id" do
     @describetag :tmp_dir
 
