@@ -343,11 +343,9 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
 
     Process.monitor(pid)
 
-    expect(ProcessHub, :stop_child, 1, fn _hub_id, _id -> nil end)
-
     Orchestrator.stop_orchestrator(deployment)
 
-    assert_receive {:DOWN, _reference, :process, ^pid, :shutdown}, 500
+    assert_receive {:DOWN, _reference, :process, ^pid, :normal}, 500
   end
 
   test "shuts down if the deployment deleted", %{deployment: deployment} do
@@ -366,10 +364,8 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
 
     Process.monitor(pid)
 
-    expect(ProcessHub, :stop_child, 1, fn _hub_id, _id -> nil end)
-
     Deployments.delete_deployment(deployment)
 
-    assert_receive {:DOWN, _reference, :process, ^pid, :shutdown}, 3_000
+    assert_receive {:DOWN, _reference, :process, ^pid, :normal}, 3_000
   end
 end

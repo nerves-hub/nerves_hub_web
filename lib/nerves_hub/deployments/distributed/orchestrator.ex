@@ -23,7 +23,8 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   def child_spec(deployment, rate_limit \\ true) do
     %{
       id: :"distributed_orchestrator_#{deployment.id}",
-      start: {__MODULE__, :start_link, [deployment, rate_limit]}
+      start: {__MODULE__, :start_link, [deployment, rate_limit]},
+      restart: :transient
     }
   end
 
@@ -224,30 +225,12 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     maybe_trigger_update({deployment, rate_limit, timer_ref, run_again})
   end
 
-  def handle_info(
-        %Broadcast{topic: "deployment:" <> _, event: "deleted"},
-        {deployment, _, _, _} = state
-      ) do
-    _ =
-      ProcessHub.stop_child(
-        :deployment_orchestrators,
-        :"distributed_orchestrator_#{deployment.id}"
-      )
-
-    {:stop, :shutdown, state}
+  def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deleted"}, state) do
+    {:stop, :normal, state}
   end
 
-  def handle_info(
-        %Broadcast{topic: "orchestrator:deployment:" <> _, event: "deactivated"},
-        {deployment, _, _, _} = state
-      ) do
-    _ =
-      ProcessHub.stop_child(
-        :deployment_orchestrators,
-        :"distributed_orchestrator_#{deployment.id}"
-      )
-
-    {:stop, :shutdown, state}
+  def handle_info(%Broadcast{topic: "orchestrator:deployment:" <> _, event: "deactivated"}, state) do
+    {:stop, :normal, state}
   end
 
   # Catch all for unknown broadcasts on a deployment

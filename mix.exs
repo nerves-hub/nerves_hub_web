@@ -93,7 +93,7 @@ defmodule NervesHub.MixProject do
       {:gettext, "~> 0.26.2"},
       {:hackney, "~> 1.16"},
       {:hlclock, "~> 1.0"},
-      {:process_hub, "~> 0.3.0-alpha"},
+      {:process_hub, "~> 0.3.1-alpha"},
       {:jason, "~> 1.2", override: true},
       {:libcluster_postgres, "~> 0.1.2"},
       {:live_toast, "~> 0.7", git: "https://github.com/srcrip/live_toast"},
