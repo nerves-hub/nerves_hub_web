@@ -154,9 +154,9 @@ defmodule NervesHubWeb.WebsocketTest do
 
     test "authentication rejected to channel using incorrect client ssl certificate" do
       {:ok, socket} = SocketClient.start_link(@bad_socket_config)
-      refute SocketClient.connected?(socket)
+      SocketClient.wait_connect(socket)
 
-      SocketClient.close(socket)
+      refute SocketClient.connected?(socket)
     end
 
     test "already registered expired certificate without signer CA can connect", %{
