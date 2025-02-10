@@ -336,12 +336,12 @@ defmodule NervesHub.SSLTest do
     NervesHub.SSL.verify_fun(otp_cert, event, nil)
   end
 
-  defp build_db_records(_context) do
+  defp build_db_records(%{tmp_dir: tmp_dir}) do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user, %{name: "verify_device"})
     product = Fixtures.product_fixture(user, org)
-    org_key = Fixtures.org_key_fixture(org, user)
-    firmware = Fixtures.firmware_fixture(org_key, product)
+    org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
     ca_fix = Fixtures.ca_certificate_fixture(org)
     device = Fixtures.device_fixture(org, product, firmware)
 
