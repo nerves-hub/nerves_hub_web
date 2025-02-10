@@ -2,6 +2,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
   import Ecto.Query
   import Ecto.Changeset
 
+  alias NervesHub.Devices.PinnedDevice
   alias Ecto.Multi
 
   alias NervesHub.Accounts.Invite
@@ -34,6 +35,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.delete_all(:deployments, &query_by_org_id(Deployment, &1))
     |> Multi.delete_all(:firmware_deltas, &query_firmware_deltas/1)
     |> Multi.delete_all(:firmware_transfers, &query_by_org_id(FirmwareTransfer, &1))
+    |> Multi.delete_all(:pinned_devices, &query_by_user_id(PinnedDevice, &1))
     |> Multi.merge(&delete_firmwares/1)
     |> Multi.delete_all(:org_keys, &query_by_org_id(OrgKey, &1))
     |> Multi.delete_all(:org_metrics, &query_by_org_id(OrgMetric, &1))
@@ -130,6 +132,10 @@ defmodule NervesHub.Accounts.RemoveAccount do
 
   defp query_by_org_id(queryable, ids) when is_list(ids) do
     where(queryable, [d], d.org_id in ^ids)
+  end
+
+  defp query_by_user_id(queryable, %{user_id: user_id}) do
+    where(queryable, [d], d.user_id == ^user_id)
   end
 
   defp query_firmware_deltas(%{org_ids: ids}) do
