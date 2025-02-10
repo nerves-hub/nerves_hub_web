@@ -8,6 +8,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeviceTemplates
@@ -22,6 +23,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.Filtering
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Extensions
@@ -392,10 +394,12 @@ defmodule NervesHub.Devices do
 
   def delete_device(%Device{} = device) do
     device_certificates_query = from(dc in DeviceCertificate, where: dc.device_id == ^device.id)
+    pinned_devices_query = from(p in PinnedDevice, where: p.device_id == ^device.id)
     changeset = Repo.soft_delete_changeset(device)
 
     Multi.new()
     |> Multi.delete_all(:device_certificates, device_certificates_query)
+    |> Multi.delete_all(:pinned_devices, pinned_devices_query)
     |> Multi.update(:device, changeset)
     |> Repo.transaction()
     |> case do
@@ -1069,6 +1073,7 @@ defmodule NervesHub.Devices do
 
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
+    |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query(&1))
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, description)
     end)
@@ -1087,6 +1092,18 @@ defmodule NervesHub.Devices do
       err ->
         err
     end
+  end
+
+  # Queries pinned devices where user is unauthorized to device's org.
+  defp unpin_unauthorized_users_query(%{move: device}) do
+    users_in_org =
+      OrgUser
+      |> where(org_id: ^device.org_id)
+      |> select([:user_id])
+
+    PinnedDevice
+    |> where([p], p.device_id == ^device.id)
+    |> where([p], p.user_id not in subquery(users_in_org))
   end
 
   @spec tag_device(Device.t() | [Device.t()], User.t(), list(String.t())) ::
@@ -1556,5 +1573,53 @@ defmodule NervesHub.Devices do
       end
 
     :ok
+  end
+
+  @spec get_pinned_devices(non_neg_integer()) :: [Device.t()]
+  def get_pinned_devices(user_id) do
+    query =
+      PinnedDevice
+      |> where(user_id: ^user_id)
+      |> select([:device_id])
+
+    Device
+    |> where([d], d.id in subquery(query))
+    |> join(:left, [d], o in assoc(d, :org))
+    |> join(:left, [d, o], p in assoc(d, :product))
+    |> preload([d, o, p], org: o, product: p)
+    |> Repo.all()
+  end
+
+  @spec pin_device(neg_integer(), non_neg_integer()) ::
+          {:ok, PinnedDevice.t()} | {:error, Ecto.Changeset.t()}
+  def pin_device(user_id, device_id) do
+    %{user_id: user_id, device_id: device_id}
+    |> PinnedDevice.create()
+    |> Repo.insert()
+  end
+
+  @spec unpin_device(neg_integer(), non_neg_integer()) ::
+          {:ok, PinnedDevice.t()} | {:error, Ecto.Changeset.t()}
+  def unpin_device(user_id, device_id) do
+    PinnedDevice
+    |> Repo.get_by!(user_id: user_id, device_id: device_id)
+    |> Repo.delete()
+  end
+
+  @doc """
+  Unpins all devices belonging to user and org.
+  """
+  @spec unpin_org_devices(non_neg_integer(), non_neg_integer()) ::
+          {non_neg_integer(), nil | [term()]}
+  def unpin_org_devices(user_id, org_id) do
+    sub =
+      Device
+      |> where(org_id: ^org_id)
+      |> select([:id])
+
+    PinnedDevice
+    |> where([p], p.user_id == ^user_id)
+    |> where([p], p.device_id in subquery(sub))
+    |> Repo.delete_all()
   end
 end
