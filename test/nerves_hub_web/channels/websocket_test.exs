@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.WebsocketTest do
   use NervesHubWeb.ChannelCase
 
-  use AssertEventually, timeout: 100, interval: 5
+  use AssertEventually, timeout: 500, interval: 50
 
   import TrackerHelper
 
@@ -19,6 +19,8 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Support.Utils
   alias NervesHubWeb.DeviceEndpoint
   alias NervesHubWeb.Endpoint
+
+  import Ecto.Query
 
   @valid_serial "device-1234"
   @valid_product "test-product"
@@ -111,9 +113,9 @@ defmodule NervesHubWeb.WebsocketTest do
       {:ok, socket} = SocketClient.start_link(@socket_config)
       SocketClient.join_and_wait(socket)
 
-      assert_connection_change()
+      assert_online_and_available(device)
 
-      SocketClient.close(socket)
+      close_socket_cleanly(socket)
     end
 
     test "Can connect and authenticate to channel using client ssl certificate with TLS 1.3", %{
@@ -148,15 +150,16 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.join_and_wait(socket)
 
       assert_connection_change()
+      assert_online_and_available(device)
 
-      SocketClient.close(socket)
+      close_socket_cleanly(socket)
     end
 
     test "authentication rejected to channel using incorrect client ssl certificate" do
       {:ok, socket} = SocketClient.start_link(@bad_socket_config)
-      refute SocketClient.connected?(socket)
+      SocketClient.wait_connect(socket)
 
-      SocketClient.close(socket)
+      refute SocketClient.connected?(socket)
     end
 
     test "already registered expired certificate without signer CA can connect", %{
@@ -224,8 +227,9 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.join_and_wait(socket)
 
       assert_connection_change()
+      assert_online_and_available(device)
 
-      SocketClient.close(socket)
+      close_socket_cleanly(socket)
     end
 
     test "already registered expired certificate with expired signer CA can connect", %{
@@ -298,8 +302,9 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.join_and_wait(socket)
 
       assert_connection_change()
+      assert_online_and_available(device)
 
-      SocketClient.close(socket)
+      close_socket_cleanly(socket)
     end
   end
 
@@ -343,11 +348,12 @@ defmodule NervesHubWeb.WebsocketTest do
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.join_and_wait(socket, params)
 
-      assert %Device{} = Repo.get_by(Device, identifier: identifier)
+      assert device = Repo.get_by(Device, identifier: identifier)
 
       assert_connection_change()
+      assert_online_and_available(device)
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
 
     test "can register device with product key/secret, don't rely on header order", %{user: user} do
@@ -377,10 +383,12 @@ defmodule NervesHubWeb.WebsocketTest do
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.join_and_wait(socket, params)
 
-      assert %Device{} = Repo.get_by(Device, identifier: identifier)
-      assert_connection_change()
+      assert device = Repo.get_by(Device, identifier: identifier)
 
-      SocketClient.clean_close(socket)
+      assert_connection_change()
+      assert_online_and_available(device)
+
+      close_socket_cleanly(socket)
     end
 
     test "rejects expired signature", %{user: user} do
@@ -400,6 +408,8 @@ defmodule NervesHubWeb.WebsocketTest do
       ]
 
       {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+
       refute SocketClient.connected?(socket)
     end
 
@@ -427,8 +437,9 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.join_and_wait(socket, params)
 
       assert_connection_change()
+      assert_online_and_available(device)
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
 
     test "rejects device key/secret with mismatched identifier", %{user: user, tmp_dir: tmp_dir} do
@@ -442,6 +453,8 @@ defmodule NervesHubWeb.WebsocketTest do
       ]
 
       {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.wait_connect(socket)
+
       refute SocketClient.connected?(socket)
       refute_online(device)
     end
@@ -464,6 +477,8 @@ defmodule NervesHubWeb.WebsocketTest do
         ]
 
         {:ok, socket} = SocketClient.start_link(opts)
+        SocketClient.wait_connect(socket)
+
         refute SocketClient.connected?(socket)
         refute_online(device)
       end
@@ -512,7 +527,9 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert_connection_change()
 
-      assert %Device{} = Repo.get_by(Device, identifier: identifier)
+      assert device = Repo.get_by(Device, identifier: identifier)
+
+      assert_online_and_available(device)
 
       {:ok, new_connection} = SocketClient.start_link(opts)
       SocketClient.join_and_wait(new_connection, params)
@@ -523,8 +540,9 @@ defmodule NervesHubWeb.WebsocketTest do
       eventually refute SocketClient.connected?(socket)
 
       assert SocketClient.connected?(new_connection)
+      assert_online_and_available(device)
 
-      SocketClient.clean_close(new_connection)
+      close_socket_cleanly(new_connection)
     end
   end
 
@@ -648,11 +666,12 @@ defmodule NervesHubWeb.WebsocketTest do
 
       Fixtures.device_certificate_fixture(device)
 
+      subscribe_for_updates(device)
+
       {:ok, socket} = SocketClient.start_link(@socket_config)
       SocketClient.join_and_wait(socket)
-      reply = SocketClient.reply(socket)
 
-      assert %{} = reply
+      assert_online_and_available(device)
 
       new_firmware =
         Fixtures.firmware_fixture(org_key, firmware.product, %{version: "0.0.2", dir: tmp_dir})
@@ -669,7 +688,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert message["update_available"]
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
 
     test "does not receive update message when current_version matches target_version", %{
@@ -688,8 +707,7 @@ defmodule NervesHubWeb.WebsocketTest do
       {:ok, socket} = SocketClient.start_link(@socket_config)
       SocketClient.join_and_wait(socket)
 
-      reply = SocketClient.reply(socket)
-      assert %{} = reply
+      assert_online_and_available(device)
 
       device = Repo.preload(device, :org)
 
@@ -707,7 +725,7 @@ defmodule NervesHubWeb.WebsocketTest do
 
       assert Time.diff(DateTime.utc_now(), last_seen_at) < 2
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
 
     test "removes device from deployment and creates audit log if firmware doesn't match",
@@ -753,6 +771,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       Fixtures.device_certificate_fixture(device)
 
+      subscribe_for_updates(device)
+
       {:ok, socket} = SocketClient.start_link(@socket_config)
 
       different_architecture = "arm"
@@ -767,14 +787,14 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_version" => "0.1.0"
       })
 
-      Process.sleep(100)
+      assert_online_and_available(device)
 
       [log, _, _] = AuditLogs.logs_by(device)
 
       assert log.description ==
                "Device no longer matches deployment Every Device's requirements because of mismatched architecture and platform"
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
 
     test "does nothing when device matches deployment conditions", %{
@@ -818,6 +838,8 @@ defmodule NervesHubWeb.WebsocketTest do
 
       Fixtures.device_certificate_fixture(device)
 
+      subscribe_for_updates(device)
+
       {:ok, socket} = SocketClient.start_link(@socket_config)
 
       SocketClient.join_and_wait(socket, %{
@@ -826,12 +848,12 @@ defmodule NervesHubWeb.WebsocketTest do
         "nerves_fw_version" => "0.0.1"
       })
 
-      Process.sleep(100)
+      assert_online_and_available(device)
 
       device = Repo.reload(device)
       assert device.deployment_id
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
   end
 
@@ -880,8 +902,9 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.join_and_wait(socket)
 
       assert_connection_change()
+      assert_online_and_available(device)
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
 
     test "vaild certificate expired signer can connect", %{user: user, tmp_dir: tmp_dir} do
@@ -938,8 +961,9 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.join_and_wait(socket)
 
       assert_connection_change()
+      assert_online_and_available(device)
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
 
     test "ca signer last used is updated", %{user: user, tmp_dir: tmp_dir} do
@@ -980,18 +1004,23 @@ defmodule NervesHubWeb.WebsocketTest do
         ]
       ]
 
-      {:ok, socket} = SocketClient.start_link(opts)
-      SocketClient.join_and_wait(socket)
-      SocketClient.clean_close(socket)
+      subscribe_for_updates(device)
 
       {:ok, socket} = SocketClient.start_link(opts)
       SocketClient.join_and_wait(socket)
+      assert_online_and_available(device)
+      close_socket_cleanly(socket)
+
+      {:ok, socket} = SocketClient.start_link(opts)
+      SocketClient.join_and_wait(socket)
+
+      assert_online_and_available(device)
 
       [%{last_used: updated_last_used}] = Devices.get_ca_certificates(org)
 
       assert last_used != updated_last_used
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
   end
 
@@ -1037,11 +1066,12 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.join_and_wait(socket, %{"device_api_version" => "2.0.0"})
 
       assert_connection_change()
+      assert_online_and_available(device)
 
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
 
     @tag :tmp_dir
@@ -1085,6 +1115,7 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.join_and_wait(socket, %{"device_api_version" => "2.0.0"})
 
       assert_connection_change()
+      assert_online_and_available(device)
 
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive
@@ -1095,7 +1126,7 @@ defmodule NervesHubWeb.WebsocketTest do
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
 
     @tag :tmp_dir
@@ -1138,13 +1169,25 @@ defmodule NervesHubWeb.WebsocketTest do
       SocketClient.join_and_wait(socket, %{"device_api_version" => "2.0.0"})
 
       assert_connection_change()
+      assert_online_and_available(device)
 
       {:ok, _deployment} = Deployments.update_deployment(deployment, %{archive_id: archive.id})
 
       archive = SocketClient.wait_archive(socket)
       assert %{"url" => _, "version" => _} = archive
 
-      SocketClient.clean_close(socket)
+      close_socket_cleanly(socket)
     end
+  end
+
+  def close_socket_cleanly(socket) do
+    SocketClient.clean_close(socket)
+    eventually assert_connection_change()
+    eventually(assert(Repo.all(where(DeviceConnection, status: :connected)) == []))
+  end
+
+  def assert_online_and_available(device) do
+    eventually assert [{_, %{}}] =
+                        Registry.match(NervesHub.Devices.Registry, device.id, :_)
   end
 end

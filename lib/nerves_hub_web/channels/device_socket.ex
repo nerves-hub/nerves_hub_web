@@ -30,9 +30,9 @@ defmodule NervesHubWeb.DeviceSocket do
 
   @impl Phoenix.Socket.Transport
   @decorate with_span("Channels.DeviceSocket.terminate")
-  def terminate(reason, {_channels_info, socket} = state) do
-    on_disconnect(reason, socket)
-    super(reason, state)
+  def terminate(reason, {channels_info, socket}) do
+    socket = on_disconnect(reason, socket)
+    super(reason, {channels_info, socket})
   end
 
   @impl Phoenix.Socket.Transport
@@ -226,38 +226,21 @@ defmodule NervesHubWeb.DeviceSocket do
     |> assign(:reference_id, connection_id)
   end
 
-  @decorate with_span("Channels.DeviceSocket.on_disconnect")
-  defp on_disconnect(exit_reason, socket)
+  defp on_disconnect(_reason, %{assigns: %{disconnection_handled?: true} = socket}) do
+    socket
+  end
 
-  defp on_disconnect({:error, reason}, %{
-         assigns: %{
-           device: device,
-           reference_id: reference_id
-         }
-       }) do
-    if reason == {:shutdown, :disconnected} do
+  @decorate with_span("Channels.DeviceSocket.on_disconnect")
+  defp on_disconnect(reason, socket) do
+    %{assigns: %{device: device, reference_id: reference_id}} = socket
+
+    if reason == {:error, {:shutdown, :disconnected}} do
       :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
         ref_id: reference_id,
         device: device
       })
     end
 
-    shutdown(device, reference_id)
-
-    :ok
-  end
-
-  defp on_disconnect(_, %{
-         assigns: %{
-           device: device,
-           reference_id: reference_id
-         }
-       }) do
-    shutdown(device, reference_id)
-  end
-
-  @decorate with_span("Channels.DeviceSocket.shutdown")
-  defp shutdown(device, reference_id) do
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
       ref_id: reference_id,
       identifier: device.identifier
@@ -267,7 +250,7 @@ defmodule NervesHubWeb.DeviceSocket do
 
     Tracker.offline(device)
 
-    :ok
+    assign(socket, :disconnection_handled?, true)
   end
 
   defp last_seen_update_interval() do
