@@ -1586,8 +1586,9 @@ defmodule NervesHub.Devices do
     |> where([d], d.id in subquery(query))
     |> join(:left, [d], o in assoc(d, :org))
     |> join(:left, [d, o], p in assoc(d, :product))
-    |> join(:left, [d, o, l], l in assoc(d, :latest_connection))
-    |> preload([d, o, p, l], org: o, product: p, latest_connection: l)
+    |> join(:left, [d, o, lc], lc in assoc(d, :latest_connection))
+    |> join(:left, [d, o, lc, lh], lh in assoc(d, :latest_health))
+    |> preload([d, o, p, lc, lh], org: o, product: p, latest_connection: lc, latest_health: lh)
     |> Repo.all()
   end
 

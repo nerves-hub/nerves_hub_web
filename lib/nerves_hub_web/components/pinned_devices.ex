@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Components.PinnedDevices do
   use NervesHubWeb, :component
 
+  alias NervesHubWeb.Components.HealthStatus
+
   attr(:devices, :any)
 
   def render(assigns) do
@@ -30,6 +32,12 @@ defmodule NervesHubWeb.Components.PinnedDevices do
                     <.link navigate={~p"/org/#{device.org.name}/#{device.product.name}/devices/#{device.identifier}"} class="ff-m ">
                       {device.identifier}
                     </.link>
+                  </div>
+                </td>
+
+                <td>
+                  <div class="flex gap-[8px] items-center justify-center">
+                    <HealthStatus.render device_id={device.id} health={device.latest_health} />
                   </div>
                 </td>
 
