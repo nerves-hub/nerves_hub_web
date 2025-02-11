@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   @running_script_placeholder "Running Script.."
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
-    %{org: org, product: product} = socket.assigns
+    %{org: org, product: product, user: user} = socket.assigns
 
     device = load_device(org, device_identifier)
 
@@ -57,6 +57,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:fwup_progress, nil)
     |> assign(:page_number, 1)
     |> assign(:page_size, 5)
+    |> assign(:pinned?, Devices.device_pinned?(user.id, device.id))
     |> audit_log_assigns()
     |> assign_deployments()
     |> ok()
@@ -186,6 +187,44 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   # Ignore unknown messages
   def handle_info(_unknown, socket), do: {:noreply, socket}
+
+  def handle_event("pin", _value, %{assigns: %{user: user, device: device}} = socket) do
+    case Devices.pin_device(user.id, device.id) do
+      {:ok, _} ->
+        socket
+        |> assign(:pinned?, true)
+        |> noreply()
+
+      {:error, changeset} ->
+        Logger.error("Could not pin device: #{inspect(changeset)}")
+
+        socket
+        |> put_flash(
+          :info,
+          "Could not pin device. Please contact support."
+        )
+        |> noreply()
+    end
+  end
+
+  def handle_event("unpin", _value, %{assigns: %{user: user, device: device}} = socket) do
+    case Devices.unpin_device(user.id, device.id) do
+      {:ok, _} ->
+        socket
+        |> assign(:pinned?, false)
+        |> noreply()
+
+      {:error, changeset} ->
+        Logger.error("Could not unpin device: #{inspect(changeset)}")
+
+        socket
+        |> put_flash(
+          :info,
+          "Could not unpin device. Please contact support."
+        )
+        |> noreply()
+    end
+  end
 
   def handle_event("reboot", _value, socket) do
     %{org_user: org_user, user: user, device: device} = socket.assigns

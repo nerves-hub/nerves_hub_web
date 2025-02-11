@@ -1586,11 +1586,12 @@ defmodule NervesHub.Devices do
     |> where([d], d.id in subquery(query))
     |> join(:left, [d], o in assoc(d, :org))
     |> join(:left, [d, o], p in assoc(d, :product))
-    |> preload([d, o, p], org: o, product: p)
+    |> join(:left, [d, o, l], l in assoc(d, :latest_connection))
+    |> preload([d, o, p, l], org: o, product: p, latest_connection: l)
     |> Repo.all()
   end
 
-  @spec pin_device(neg_integer(), non_neg_integer()) ::
+  @spec pin_device(non_neg_integer(), non_neg_integer()) ::
           {:ok, PinnedDevice.t()} | {:error, Ecto.Changeset.t()}
   def pin_device(user_id, device_id) do
     %{user_id: user_id, device_id: device_id}
@@ -1604,6 +1605,13 @@ defmodule NervesHub.Devices do
     PinnedDevice
     |> Repo.get_by!(user_id: user_id, device_id: device_id)
     |> Repo.delete()
+  end
+
+  def device_pinned?(user_id, device_id) do
+    PinnedDevice
+    |> where([p], p.user_id == ^user_id)
+    |> where([p], p.device_id == ^device_id)
+    |> Repo.exists?()
   end
 
   @doc """
