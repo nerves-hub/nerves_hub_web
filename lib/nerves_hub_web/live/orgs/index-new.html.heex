@@ -64,6 +64,7 @@
         </div>
       </div>
     </div>
+    <PinnedDevices.render :if={!Enum.empty?(@pinned_devices)} devices={@pinned_devices} />
   </div>
 <% end %>
 <%!-- box-shadow: var(--sds-size-depth-0) var(--sds-size-depth-100) var(--sds-size-depth-100) var(--sds-size-depth-negative-100) var(--BackgroundDark2);
