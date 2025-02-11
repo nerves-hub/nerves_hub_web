@@ -20,6 +20,8 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
+  @maybe_trigger_interval 3_000
+
   def child_spec(deployment, rate_limit \\ true) do
     %{
       id: :"distributed_orchestrator_#{deployment.id}",
@@ -151,7 +153,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   defp maybe_trigger_update({deployment, true, nil, _run_again}) do
     trigger_update(deployment)
 
-    timer_ref = Process.send_after(self(), :maybe_trigger, 5_000)
+    timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
 
     {:noreply, {deployment, true, timer_ref, false}}
   end
@@ -177,7 +179,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     trigger_update(deployment)
 
     if rate_limit do
-      timer_ref = Process.send_after(self(), :maybe_trigger, 5_000)
+      timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
 
       {:noreply, {deployment, rate_limit, timer_ref, false}}
     else
