@@ -22,6 +22,21 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
 
   @maybe_trigger_interval 3_000
 
+  defmodule State do
+    defstruct deployment: nil,
+              rate_limit?: true,
+              timer_ref: nil,
+              should_run?: false
+
+    @type t ::
+            %__MODULE__{
+              deployment: Deployment.t(),
+              rate_limit?: boolean(),
+              timer_ref: reference() | nil,
+              should_run?: boolean()
+            }
+  end
+
   def child_spec(deployment, rate_limit \\ true) do
     %{
       id: :"distributed_orchestrator_#{deployment.id}",
@@ -51,7 +66,14 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
 
     send(self(), :maybe_trigger)
 
-    {:ok, {deployment, rate_limit, nil, true}}
+    state = %State{
+      deployment: deployment,
+      rate_limit?: rate_limit,
+      timer_ref: nil,
+      should_run?: true
+    }
+
+    {:ok, state}
   end
 
   @doc """
@@ -142,55 +164,60 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     end
   end
 
-  # if there is not "delay" timer set, run `trigger_update`
-  defp maybe_trigger_update({deployment, false, _, _run_again}) do
-    trigger_update(deployment)
+  # if rate limiting isn't enabled, run `trigger_update`
+  defp maybe_trigger_update(%State{rate_limit?: false} = state) do
+    trigger_update(state.deployment)
 
-    {:noreply, {deployment, false, nil, false}}
+    {:noreply, state}
   end
 
-  # if there is not "delay" timer set, run `trigger_update`
-  defp maybe_trigger_update({deployment, true, nil, _run_again}) do
-    trigger_update(deployment)
+  # if there is no "delay" timer set, run `trigger_update`
+  defp maybe_trigger_update(%State{timer_ref: nil} = state) do
+    trigger_update(state.deployment)
 
     timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
 
-    {:noreply, {deployment, true, timer_ref, false}}
+    {:noreply, %{state | timer_ref: timer_ref, should_run?: false}}
   end
 
   # if a "delay" timer is set, queue a `trigger_update`
-  # this is done by updating the last element of the state to `true`
-  defp maybe_trigger_update({deployment, rate_limit, timer_ref, _run_again}) do
-    {:noreply, {deployment, rate_limit, timer_ref, true}}
+  # since the function above checks for a nil `timer_ref`, we can assume we have one here
+  defp maybe_trigger_update(state) do
+    {:noreply, %{state | should_run?: true}}
   end
 
-  # this is the callback used by the timer
-  def handle_info(:trigger_interval, {deployment, _rate_limit, timer_ref, _run_again} = state) do
-    if is_nil(timer_ref) do
-      trigger_update(deployment)
-    end
+  # if we don't have a `timer_ref` we can run `trigger_update`
+  def handle_info(:trigger_interval, %State{timer_ref: nil} = state) do
+    trigger_update(state.deployment)
 
+    {:noreply, state}
+  end
+
+  # we can ignore `trigger_interval` since we have a `timer_ref`
+  def handle_info(:trigger_interval, state) do
     {:noreply, state}
   end
 
   # if the 'run again' boolean in the state is `true`, which indicates that indicates
   # that previous call has been skipped, then run `trigger_update` now
-  def handle_info(:maybe_trigger, {deployment, rate_limit, _timer_ref, true}) do
-    trigger_update(deployment)
+  def handle_info(:maybe_trigger, %State{rate_limit?: false} = state) do
+    trigger_update(state.deployment)
 
-    if rate_limit do
-      timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
+    {:noreply, state}
+  end
 
-      {:noreply, {deployment, rate_limit, timer_ref, false}}
-    else
-      {:noreply, {deployment, rate_limit, nil, false}}
-    end
+  def handle_info(:maybe_trigger, %State{should_run?: true} = state) do
+    trigger_update(state.deployment)
+
+    timer_ref = Process.send_after(self(), :maybe_trigger, @maybe_trigger_interval)
+
+    {:noreply, %{state | timer_ref: timer_ref, should_run?: false}}
   end
 
   # if the 'run again' boolean in the state is `false`, no requests to run the orchestrator
   # again have been received, so we can nil off the timer and move on
-  def handle_info(:maybe_trigger, {deployment, rate_limit, _timer_ref, false}) do
-    {:noreply, {deployment, rate_limit, nil, false}}
+  def handle_info(:maybe_trigger, state) do
+    {:noreply, %{state | timer_ref: nil}}
   end
 
   @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployment/device-online")
@@ -200,9 +227,9 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
           event: "device-online",
           payload: payload
         },
-        {deployment, _rate_limit, _timer_ref, _run_again} = state
+        state
       ) do
-    if should_trigger?(payload, deployment) do
+    if should_trigger?(payload, state.deployment) do
       maybe_trigger_update(state)
     else
       {:noreply, state}
@@ -220,11 +247,11 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   @decorate with_span("Deployments.Distributed.Orchestrator.handle_info:deployments/update")
   def handle_info(
         %Broadcast{topic: "deployment:" <> _, event: "deployments/update"},
-        {deployment, rate_limit, timer_ref, run_again}
+        state
       ) do
-    {:ok, deployment} = Deployments.get_deployment(deployment)
+    {:ok, deployment} = Deployments.get_deployment(state.deployment)
 
-    maybe_trigger_update({deployment, rate_limit, timer_ref, run_again})
+    maybe_trigger_update(%{state | deployment: deployment})
   end
 
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deleted"}, state) do
