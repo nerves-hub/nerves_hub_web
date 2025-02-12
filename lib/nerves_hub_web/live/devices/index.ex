@@ -461,7 +461,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp assign_display_devices(
-         %{assigns: %{product: product, paginate_opts: paginate_opts}} = socket
+         %{assigns: %{product: product, user: user, paginate_opts: paginate_opts}} = socket
        ) do
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
@@ -471,7 +471,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       filters: socket.assigns.current_filters
     }
 
-    page = Devices.filter(product, opts)
+    page = Devices.filter(product, user, opts)
 
     statuses =
       Enum.into(page.entries, %{}, fn device ->
