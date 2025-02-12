@@ -84,17 +84,12 @@ export default {
       }, 300)
     )
 
-    const chatBody = document.getElementById("chat-body")
-    const chatMessage = document.getElementById("chat-message")
-
     channel
       .join()
       .receive("ok", () => {
-        console.log("JOINED")
         // This will be the same for everyone, the first time it should be used
         // and there after it will be ignored as a noop by erlang
         channel.push("window_size", { height: term.rows, width: term.cols })
-        channel.push("message", { event: "loaded the console" })
       })
       .receive("error", () => {
         console.log("ERROR")
@@ -107,25 +102,6 @@ export default {
     // Write data from device to console
     channel.on("up", payload => {
       term.write(payload.data)
-    })
-
-    channel.on("message", payload => {
-      if (payload.text) {
-        chatBody.append(`${payload.name}: ${payload.text}\n`)
-      } else if (payload.event) {
-        chatBody.append(`${payload.name} ${payload.event}\n`)
-      }
-      chatBody.scrollTop = chatBody.scrollHeight
-    })
-
-    chatBody.addEventListener("click", () => {
-      chatMessage.focus()
-    })
-    chatMessage.addEventListener("keypress", e => {
-      if (e.key == "Enter") {
-        channel.push("message", { text: chatMessage.value })
-        chatMessage.value = ""
-      }
     })
 
     // store version outside of callback closure to set
@@ -195,7 +171,6 @@ export default {
     })
 
     channel.onClose(() => {
-      console.log("CLOSED")
       term.blur()
       term.setOption("cursorBlink", false)
       term.write("DISCONNECTED")
@@ -224,12 +199,10 @@ export default {
           const reader = file.stream().getReader()
 
           channel.push("file-data/start", { filename: file.name })
-          channel.push("message", { event: `starting to upload ${file.name}` })
 
           reader.read().then(function process({ done, value }) {
             if (done) {
               channel.push("file-data/stop", { filename: file.name })
-              channel.push("message", { event: `uploaded ${file.name}` })
               return
             }
 
