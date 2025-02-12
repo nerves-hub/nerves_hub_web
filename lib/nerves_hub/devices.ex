@@ -156,6 +156,18 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
+  defp sort_devices(query, {:asc, :connection_established_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      desc_nulls_last: latest_connection.established_at
+    )
+  end
+
+  defp sort_devices(query, {:desc, :connection_established_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      asc_nulls_first: latest_connection.established_at
+    )
+  end
+
   defp sort_devices(query, {:asc, :connection_last_seen_at}) do
     order_by(query, [latest_connection: latest_connection],
       desc_nulls_last: latest_connection.last_seen_at

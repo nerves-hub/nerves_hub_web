@@ -550,6 +550,22 @@ defmodule NervesHubWeb.Live.Devices.Index do
     """
   end
 
+  defp connection_established_at_status(nil), do: "Not seen yet"
+
+  defp connection_established_at_status(latest_connection),
+    do: "Last connected at #{connection_established_at_formatted(latest_connection)}"
+
+  defp connection_established_at(nil), do: ""
+
+  defp connection_established_at(latest_connection),
+    do: connection_established_at_formatted(latest_connection)
+
+  defp connection_established_at_formatted(latest_connection) do
+    latest_connection
+    |> Map.get(:established_at)
+    |> DateTimeFormat.from_now()
+  end
+
   defp last_seen_at_status(nil), do: "Not seen yet"
 
   defp last_seen_at_status(latest_connection),

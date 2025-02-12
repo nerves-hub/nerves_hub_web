@@ -90,8 +90,8 @@
             </th>
             <th>Firmware</th>
             <th>Platform</th>
-            <th phx-click="sort" phx-value-sort="connection_last_seen_at" class="cursor-pointer">
-              <Sorting.sort_icon text="Seen" field="connection_last_seen_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+            <th phx-click="sort" phx-value-sort="connection_established_at" class="cursor-pointer">
+              <Sorting.sort_icon text="Uptime" field="connection_established_at" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
             <th phx-click="sort" phx-value-sort="tags" class="cursor-pointer">
               <Sorting.sort_icon text="Tags" field="tags" selected_field={@current_sort} selected_direction={@sort_direction} />
@@ -119,7 +119,7 @@
             </td>
             <td>
               <div class="flex gap-[8px] items-center">
-                <span title={last_seen_at_status(device.latest_connection)}>
+                <span title={connection_established_at_status(device.latest_connection)}>
                   <%= if @device_statuses[device.identifier] == "online" do %>
                     <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
                       <circle cx="3" cy="3" r="3" fill="#10B981" />
@@ -206,8 +206,8 @@
             </td>
 
             <td>
-              <div :if={device.latest_connection} title={last_seen_at(device.latest_connection)}>
-                {last_seen_at(device.latest_connection)}
+              <div :if={device.latest_connection} title={connection_established_at(device.latest_connection)}>
+                {connection_established_at(device.latest_connection)}
               </div>
             </td>
 
