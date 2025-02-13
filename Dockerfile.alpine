@@ -1,0 +1,120 @@
+ARG ELIXIR_VERSION=1.17.2
+ARG OTP_VERSION=27.0.1
+ARG ALPINE=3.20.3
+ARG NODE_VERSION=16.20.2
+
+ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-alpine-${ALPINE}"
+ARG RUNNER_IMAGE="alpine:${ALPINE}"
+
+###
+### First Stage - Fetch deps for building web assets
+###
+FROM ${BUILDER_IMAGE} as deps
+
+ENV MIX_ENV=prod
+
+RUN apk update && apk add --no-cache git
+RUN mix local.hex --force && mix local.rebar --force
+
+WORKDIR /build
+
+COPY mix.* ./
+RUN mix deps.get --only $MIX_ENV
+
+
+###
+### Second Stage - Build web assets
+###
+FROM node:${NODE_VERSION} as assets
+
+RUN mkdir -p /priv/static
+
+WORKDIR /build
+
+COPY --from=deps /build/deps deps
+COPY assets assets
+
+WORKDIR /build/assets
+
+# RUN npm install -g npm@10.2.4
+RUN npm ci && npm cache clean --force && npm run deploy
+
+
+###
+### Third Stage - Building the Release
+###
+FROM ${BUILDER_IMAGE} as build
+
+# install dependencies
+RUN apk update && apk add --no-cache build-base git ca-certificates curl gnupg
+    # Is this cleanup still needed?
+    # && apt-get clean && rm -f /var/lib/apt/lists/*_*
+
+WORKDIR /build
+
+ENV HEX_HTTP_TIMEOUT=20
+
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+ENV MIX_ENV=prod
+ENV SECRET_KEY_BASE=nokey
+
+COPY mix.lock ./
+
+RUN mkdir config
+
+# copy compile-time config files before we compile dependencies
+# to ensure any relevant config change will trigger the dependencies
+# to be re-compiled.
+COPY config/config.exs config/${MIX_ENV}.exs config/
+
+COPY mix.exs .
+RUN mix deps.get --only $MIX_ENV
+
+RUN mix deps.compile
+
+COPY priv priv
+COPY lib lib
+
+COPY --from=assets /build/priv/static priv/static
+
+RUN mix compile
+RUN mix phx.digest
+RUN mix sentry.package_source_code
+
+COPY config/runtime.exs config/
+
+COPY rel rel
+
+RUN mix release
+
+
+###
+### Last Stage - Setup the Runtime Environment
+###
+
+FROM ${RUNNER_IMAGE} AS app
+
+RUN apk update \
+    && apk add --no-cache fwup openssl bash openssl curl jq xdelta3 \
+    zip unzip wget musl-locales musl-locales-lang libstdc++
+    # Is this needed? libncurses6 
+    # Do we need to clean things?
+    # && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+ENV LANG="en_US.UTF-8"
+ENV LANGUAGE="en_US:en"
+ENV LC_ALL="en_US.UTF-8"
+
+WORKDIR /app
+
+COPY --from=build /build/_build/prod/rel/nerves_hub ./
+
+ENV HOME=/app
+ENV MIX_ENV=prod
+ENV SECRET_KEY_BASE=nokey
+ENV PORT=4000
+
+ENTRYPOINT ["bin/nerves_hub"]
+CMD ["start"]
