@@ -426,7 +426,9 @@ if otlp_endpoint = System.get_env("OTLP_ENDPOINT") do
     end
 
   config :opentelemetry,
-    sampler: {:parent_based, %{root: {NervesHub.Telemetry.FilteredSampler, otlp_sampler_ratio}}}
+    sampler: {:parent_based, %{root: {NervesHub.Telemetry.FilteredSampler, otlp_sampler_ratio}}},
+    span_processor: :batch,
+    traces_exporter: :otlp
 else
   config :opentelemetry, traces_exporter: :none
 end
