@@ -39,8 +39,7 @@ defmodule NervesHub.Deployments.Deployment do
     :penalty_timeout_minutes,
     :connecting_code,
     :total_updating_devices,
-    :current_updated_devices,
-    :recalculation_type
+    :current_updated_devices
   ]
 
   schema "deployments" do
@@ -68,8 +67,9 @@ defmodule NervesHub.Deployments.Deployment do
     field(:total_updating_devices, :integer, default: 0)
     field(:current_updated_devices, :integer, default: 0)
     field(:inflight_update_expiration_minutes, :integer, default: 60)
-    # TODO: (nshoes) this column is unused, remove after Managed Deploys is done
-    field(:recalculation_type, Ecto.Enum, values: [:device, :calculator_queue], default: :device)
+
+    # TODO: (nshoes) this column is unused, remove after 1st March
+    # field(:recalculation_type, Ecto.Enum, values: [:device, :calculator_queue], default: :device)
 
     field(:device_count, :integer, virtual: true)
 
