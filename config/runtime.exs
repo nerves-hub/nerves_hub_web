@@ -35,7 +35,6 @@ config :nerves_hub,
     String.to_integer(System.get_env("DEVICE_CONNECTION_DELETE_LIMIT", "100000")),
   deployment_calculator_interval_seconds:
     String.to_integer(System.get_env("DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS", "3600")),
-  deployments_orchestrator: System.get_env("DEPLOYMENTS_ORCHESTRATOR", "multi"),
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
   dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true",
   extension_config: [
