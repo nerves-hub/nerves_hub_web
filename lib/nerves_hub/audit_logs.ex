@@ -104,4 +104,9 @@ defmodule NervesHub.AuditLogs do
 
     {:ok, count}
   end
+
+  # used in some tests
+  def with_description(desc) do
+    where(AuditLog, [a], like(a.description, ^desc))
+  end
 end

@@ -2,10 +2,9 @@ defmodule NervesHubWeb.DeviceChannelTest do
   use NervesHubWeb.ChannelCase
   use DefaultMocks
 
-  import Ecto.Query
   import TrackerHelper
 
-  alias NervesHub.AuditLogs.AuditLog
+  alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Repo
@@ -21,16 +20,19 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} =
+    {:ok, _, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device", %{"device_api_version" => "2.2.0"})
 
     assert_push("extensions:get", _)
 
-    {:ok, _, _socket} =
+    {:ok, _, _extensions_channel} =
       subscribe_and_join(socket, ExtensionsChannel, "extensions", %{
         "geo" => "1.0.0",
         "health" => "1.0.0"
       })
+
+    assert_online_and_available(device)
+    close_cleanly(device_channel)
   end
 
   test "presence connection information" do
@@ -43,9 +45,10 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, _socket} = subscribe_and_join(socket, DeviceChannel, "device")
+    {:ok, _, device_channel} = subscribe_and_join(socket, DeviceChannel, "device")
 
-    assert_connection_change()
+    assert_online_and_available(device)
+    close_cleanly(device_channel)
   end
 
   test "fwup_public_keys requested on connect" do
@@ -66,9 +69,12 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, %{}, _socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
 
     assert_push("fwup_public_keys", %{keys: [_]})
+
+    assert_online_and_available(device)
+    close_cleanly(device_channel)
   end
 
   test "archive_public_keys requested on connect" do
@@ -89,25 +95,33 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, %{}, _socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
 
     assert_push("archive_public_keys", %{keys: [_]})
+
+    assert_online_and_available(device)
+    close_cleanly(device_channel)
   end
 
   test "if archive is sent on connect an audit log is not created" do
-    %{certificate: certificate, params: params, archive_uuid: archive_uuid} =
+    %{device: device, certificate: certificate, params: params, archive_uuid: archive_uuid} =
       archive_setup()
 
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, %{}, _socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    audit_log_count_before =
+      Repo.aggregate(AuditLogs.with_description("Archive update triggered%"), :count)
 
-    audit_log_count_before = Repo.aggregate(AuditLog, :count)
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
 
     assert_push("archive", %{uuid: ^archive_uuid})
 
-    assert audit_log_count_before == Repo.aggregate(AuditLog, :count)
+    assert audit_log_count_before ==
+             Repo.aggregate(AuditLogs.with_description("Archive update triggered%"), :count)
+
+    assert_online_and_available(device)
+    close_cleanly(device_channel)
   end
 
   test "if archive is sent when an archive updates an audit log is created" do
@@ -116,7 +130,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, %{}, socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
 
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
@@ -124,13 +138,12 @@ defmodule NervesHubWeb.DeviceChannelTest do
       %Phoenix.Socket.Broadcast{event: "archives/updated"}
     )
 
-    _ = :sys.get_state(socket.channel_pid)
+    _ = :sys.get_state(device_channel.channel_pid)
 
-    assert Repo.exists?(
-             from(al in AuditLog,
-               where: like(al.description, "Archive update triggered for%")
-             )
-           )
+    assert Repo.exists?(AuditLogs.with_description("Archive update triggered for%"))
+
+    assert_online_and_available(device)
+    close_cleanly(device_channel)
   end
 
   test "if archive is sent when a device updates an audit log is created" do
@@ -139,7 +152,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, %{}, socket} = subscribe_and_join(socket, DeviceChannel, "device", params)
+    {:ok, %{}, device_channel} = subscribe_and_join(socket, DeviceChannel, "device", params)
 
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
@@ -147,13 +160,12 @@ defmodule NervesHubWeb.DeviceChannelTest do
       %Phoenix.Socket.Broadcast{event: "devices/updated"}
     )
 
-    _ = :sys.get_state(socket.channel_pid)
+    _ = :sys.get_state(device_channel.channel_pid)
 
-    assert Repo.exists?(
-             from(al in AuditLog,
-               where: like(al.description, "Archive update triggered for%")
-             )
-           )
+    assert Repo.exists?(AuditLogs.with_description("Archive update triggered for%"))
+
+    assert_online_and_available(device)
+    close_cleanly(device_channel)
   end
 
   test "the first fwup_progress marks an update as happening" do
@@ -164,15 +176,19 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _join_reply, socket} =
+    {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device")
 
-    push(socket, "fwup_progress", %{"value" => 10})
+    assert_online_and_available(device)
+
+    push(device_channel, "fwup_progress", %{"value" => 10})
 
     # Since fwup_progress doesn't reply, we need to use sys to grab the socket
     # _after_ the handle_in has run
-    socket = :sys.get_state(socket.channel_pid)
-    assert socket.assigns.update_started?
+    state = :sys.get_state(device_channel.channel_pid)
+    assert state.assigns.update_started?
+
+    close_cleanly(device_channel)
   end
 
   test "set connection types for the device" do
@@ -183,17 +199,19 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _join_reply, socket} =
+    {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device")
 
-    push(socket, "connection_types", %{"values" => ["ethernet", "wifi"]})
+    push(device_channel, "connection_types", %{"values" => ["ethernet", "wifi"]})
 
     # we need to let the channel process all messages before we can
     # check the state of the device's connection types
-    _socket = :sys.get_state(socket.channel_pid)
+    _socket = :sys.get_state(device_channel.channel_pid)
 
     device = NervesHub.Repo.reload(device) |> NervesHub.Repo.preload(:latest_connection)
     assert device.latest_connection.metadata["connection_types"] == ["ethernet", "wifi"]
+
+    close_cleanly(device_channel)
   end
 
   test "deployment information is updated when the deployment is cleared" do
@@ -206,20 +224,24 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _join_reply, socket} =
+    {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device")
 
-    refute is_nil(socket.assigns.device.deployment_id)
-    refute is_nil(socket.assigns.deployment_channel)
+    assert_online_and_available(device)
+
+    refute is_nil(device_channel.assigns.device.deployment_id)
+    refute is_nil(device_channel.assigns.deployment_channel)
 
     Devices.clear_deployment(device)
 
     # we need to let the channel process all messages before we can
     # check the state of the device's connection types
-    socket = :sys.get_state(socket.channel_pid)
+    state = :sys.get_state(device_channel.channel_pid)
 
-    assert is_nil(socket.assigns.device.deployment_id)
-    assert is_nil(socket.assigns.deployment_channel)
+    assert is_nil(state.assigns.device.deployment_id)
+    assert is_nil(state.assigns.deployment_channel)
+
+    close_cleanly(device_channel)
   end
 
   test "deployment information is updated when the device joins a new deployment" do
@@ -232,11 +254,11 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _join_reply, socket} =
+    {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device")
 
-    assert socket.assigns.device.deployment_id == deployment.id
-    refute is_nil(socket.assigns.deployment_channel)
+    assert device_channel.assigns.device.deployment_id == deployment.id
+    refute is_nil(device_channel.assigns.deployment_channel)
 
     device = NervesHub.Repo.preload(device, :org)
 
@@ -247,10 +269,12 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     # we need to let the channel process all messages before we can
     # check the state of the device's connection types
-    socket = :sys.get_state(socket.channel_pid)
+    state = :sys.get_state(device_channel.channel_pid)
 
-    assert socket.assigns.device.deployment_id == new_deployment.id
-    refute is_nil(socket.assigns.deployment_channel)
+    assert state.assigns.device.deployment_id == new_deployment.id
+    refute is_nil(state.assigns.deployment_channel)
+
+    close_cleanly(device_channel)
   end
 
   describe "unhandled messages are caught" do
@@ -264,12 +288,14 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-      {:ok, _join_reply, socket} =
+      {:ok, _join_reply, device_channel} =
         subscribe_and_join(socket, DeviceChannel, "device")
 
-      send(socket.channel_pid, {"do_you_like_dem_apples", %{"apples" => 5}})
+      assert_online_and_available(device)
 
-      assert_connection_change()
+      send(device_channel.channel_pid, {"do_you_like_dem_apples", %{"apples" => 5}})
+
+      close_cleanly(device_channel)
     end
 
     test "handle_in" do
@@ -280,11 +306,13 @@ defmodule NervesHubWeb.DeviceChannelTest do
       {:ok, socket} =
         connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-      {:ok, _join_reply, socket} =
+      {:ok, _join_reply, device_channel} =
         subscribe_and_join(socket, DeviceChannel, "device")
 
-      ref = push(socket, "do_you_like_dem_apples", %{"apples" => 5})
+      ref = push(device_channel, "do_you_like_dem_apples", %{"apples" => 5})
       refute_reply(ref, %{})
+
+      close_cleanly(device_channel)
     end
   end
 
