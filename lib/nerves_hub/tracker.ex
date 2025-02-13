@@ -15,15 +15,16 @@ defmodule NervesHub.Tracker do
   end
 
   def confirm_online(%Device{identifier: identifier}) do
-    message = %Phoenix.Socket.Broadcast{
-      event: "connection:status",
-      payload: %{
-        device_id: identifier,
-        status: "online"
-      }
-    }
-
-    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{identifier}:internal", message)
+    _ =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "device:#{identifier}:internal",
+        "connection:status",
+        %{
+          device_id: identifier,
+          status: "online"
+        }
+      )
 
     :ok
   end
@@ -40,15 +41,16 @@ defmodule NervesHub.Tracker do
   end
 
   defp publish(identifier, status) do
-    message = %Phoenix.Socket.Broadcast{
-      event: "connection:change",
-      payload: %{
-        device_id: identifier,
-        status: status
-      }
-    }
-
-    _ = Phoenix.PubSub.broadcast(NervesHub.PubSub, "device:#{identifier}:internal", message)
+    _ =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "device:#{identifier}:internal",
+        "connection:change",
+        %{
+          device_id: identifier,
+          status: status
+        }
+      )
 
     :ok
   end

@@ -40,7 +40,8 @@ defmodule NervesHub.Deployments.Deployment do
     :connecting_code,
     :total_updating_devices,
     :current_updated_devices,
-    :recalculation_type
+    :recalculation_type,
+    :orchestrator_strategy
   ]
 
   schema "deployments" do
@@ -72,6 +73,9 @@ defmodule NervesHub.Deployments.Deployment do
     field(:recalculation_type, Ecto.Enum, values: [:device, :calculator_queue], default: :device)
 
     field(:device_count, :integer, virtual: true)
+
+    # temporary addition while we feature test a new deployment management strategy
+    field(:orchestrator_strategy, Ecto.Enum, values: [:multi, :distributed], default: :multi)
 
     timestamps()
   end

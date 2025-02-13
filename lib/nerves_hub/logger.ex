@@ -104,7 +104,7 @@ defmodule NervesHub.Logger do
   end
 
   def log_event([:nerves_hub, :devices, :update, :successful], _, metadata, _) do
-    Logger.info("Device updated firmware",
+    Logger.info("Device firmware updated successfully",
       event: "nerves_hub.devices.update.successful",
       identifier: metadata[:identifier],
       firmware_uuid: metadata[:firmware_uuid]

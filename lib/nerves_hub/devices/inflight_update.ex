@@ -10,6 +10,8 @@ defmodule NervesHub.Devices.InflightUpdate do
 
   @required_params [:device_id, :deployment_id, :firmware_id, :firmware_uuid, :expires_at]
 
+  @type t :: %__MODULE__{}
+
   schema "inflight_updates" do
     belongs_to(:device, Device)
     belongs_to(:deployment, Deployment)
