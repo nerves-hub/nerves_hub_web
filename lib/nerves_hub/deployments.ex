@@ -22,10 +22,11 @@ defmodule NervesHub.Deployments do
     Repo.all(Deployment)
   end
 
-  @spec all_active() :: [Deployment.t()]
-  def all_active() do
+  @spec should_run_in_distributed_orchestrator() :: [Deployment.t()]
+  def should_run_in_distributed_orchestrator() do
     Deployment
     |> where(is_active: true)
+    |> where(orchestrator_strategy: :distributed)
     |> Repo.all()
   end
 
@@ -289,6 +290,14 @@ defmodule NervesHub.Deployments do
             deployment_activated_event(deployment)
           else
             deployment_deactivated_event(deployment)
+          end
+        end
+
+        if Map.has_key?(changeset.changes, :orchestrator_strategy) do
+          if deployment.orchestrator_strategy == :distributed do
+            start_deployments_distributed_orchestrator_event(deployment)
+          else
+            shutdown_deployments_distributed_orchestrator_event(deployment)
           end
         end
 
@@ -590,45 +599,56 @@ defmodule NervesHub.Deployments do
   end
 
   def deployment_created_event(deployment) do
-    _ =
-      case Application.get_env(:nerves_hub, :deployments_orchestrator) do
-        "multi" -> _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
-        "clustered" -> DistributedOrchestrator.start_orchestrator(deployment)
-        other -> raise "Deployments Orchestrator '#{other}' not supported"
-      end
+    # the old orchestrator
+    _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
+
+    # the new orchestrator
+    _ = DistributedOrchestrator.start_orchestrator(deployment)
+
+    :ok
+  end
+
+  def start_deployments_distributed_orchestrator_event(deployment) do
+    DistributedOrchestrator.start_orchestrator(deployment)
+
+    :ok
+  end
+
+  def shutdown_deployments_distributed_orchestrator_event(deployment) do
+    Phoenix.Channel.Server.broadcast(
+      NervesHub.PubSub,
+      "orchestrator:deployment:#{deployment.id}",
+      "deactivated",
+      %{}
+    )
 
     :ok
   end
 
   def deployment_activated_event(deployment) do
-    _ =
-      case Application.get_env(:nerves_hub, :deployments_orchestrator) do
-        "multi" -> :ok
-        "clustered" -> DistributedOrchestrator.start_orchestrator(deployment)
-        other -> raise "Deployments Orchestrator '#{other}' not supported"
-      end
+    DistributedOrchestrator.start_orchestrator(deployment)
 
     :ok
   end
 
   def deployment_deactivated_event(deployment) do
-    _ =
-      case Application.get_env(:nerves_hub, :deployments_orchestrator) do
-        "multi" -> :ok
-        "clustered" -> DistributedOrchestrator.stop_orchestrator(deployment)
-        other -> raise "Deployments Orchestrator '#{other}' not supported"
-      end
+    Phoenix.Channel.Server.broadcast(
+      NervesHub.PubSub,
+      "orchestrator:deployment:#{deployment.id}",
+      "deactivated",
+      %{}
+    )
 
     :ok
   end
 
   def deployment_deleted_event(deployment) do
     _ =
-      case Application.get_env(:nerves_hub, :deployments_orchestrator) do
-        "multi" -> broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
-        "clustered" -> broadcast(deployment, "deleted")
-        other -> raise "Deployments Orchestrator '#{other}' not supported"
+      if deployment.orchestrator_strategy == :distributed do
+        broadcast(deployment, "deleted")
       end
+
+    broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
 
     :ok
   end

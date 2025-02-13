@@ -79,24 +79,16 @@ defmodule NervesHub.Application do
   # on every node. But when running in `clustered` mode, run the `ProcessHub` supervisor
   # on the `web` or `all` nodes only.
   defp deployments_orchestrator(_) do
-    orchestrator = Application.get_env(:nerves_hub, :deployments_orchestrator)
-    app = Application.get_env(:nerves_hub, :app)
-
-    case [orchestrator, app] do
-      ["multi", _] ->
+    case Application.get_env(:nerves_hub, :app) do
+      ["device"] ->
         [NervesHub.Deployments.Supervisor]
 
-      ["clustered", "device"] ->
-        []
-
-      ["clustered", _] ->
+      _ ->
         [
+          NervesHub.Deployments.Supervisor,
           ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
           NervesHub.Deployments.Distributed.OrchestratorRegistration
         ]
-
-      [other, _] ->
-        raise "Deployments Orchestrator '#{other}' not supported"
     end
   end
 

@@ -956,32 +956,23 @@ defmodule NervesHub.Devices do
   end
 
   def deployment_device_online(device) do
-    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
-      "multi" ->
-        :ok
+    firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid, else: nil)
 
-      "clustered" ->
-        firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid, else: nil)
+    payload = %{
+      updates_enabled: device.updates_enabled,
+      updates_blocked_until: device.updates_blocked_until,
+      firmware_uuid: firmware_uuid
+    }
 
-        payload = %{
-          updates_enabled: device.updates_enabled,
-          updates_blocked_until: device.updates_blocked_until,
-          firmware_uuid: firmware_uuid
-        }
+    _ =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "orchestrator:deployment:#{device.deployment_id}",
+        "device-online",
+        payload
+      )
 
-        _ =
-          Phoenix.Channel.Server.broadcast(
-            NervesHub.PubSub,
-            "orchestrator:deployment:#{device.deployment_id}",
-            "device-online",
-            payload
-          )
-
-        :ok
-
-      other ->
-        raise "Deployments Orchestrator '#{other}' not supported"
-    end
+    :ok
   end
 
   def deployment_device_updated(%Device{deployment_id: nil}) do
@@ -989,21 +980,17 @@ defmodule NervesHub.Devices do
   end
 
   def deployment_device_updated(device) do
-    case Application.get_env(:nerves_hub, :deployments_orchestrator) do
-      "multi" ->
-        _ = Orchestrator.device_updated(device.deployment_id)
+    _ = Orchestrator.device_updated(device.deployment_id)
 
-      "clustered" ->
-        Phoenix.Channel.Server.broadcast(
-          NervesHub.PubSub,
-          "orchestrator:deployment:#{device.deployment_id}",
-          "device-updated",
-          %{}
-        )
+    _ =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "orchestrator:deployment:#{device.deployment_id}",
+        "device-updated",
+        %{}
+      )
 
-      other ->
-        raise "Deployments Orchestrator '#{other}' not supported"
-    end
+    :ok
   end
 
   def up_to_date_count(%Deployment{} = deployment) do
@@ -1440,6 +1427,7 @@ defmodule NervesHub.Devices do
         {:ok, inflight_update}
 
       {:error, _changeset} ->
+        # TODO this logic doesn't feel right. We should revise this approach.
         # Device already has an inflight update, fetch it
         case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment.id) do
           nil ->
@@ -1532,7 +1520,7 @@ defmodule NervesHub.Devices do
 
   defp broadcast_update_request(device_id, inflight_update, deployment) do
     _ =
-      if Application.get_env(:nerves_hub, :deployments_orchestrator) == "clustered" do
+      if deployment.orchestrator_strategy == :distributed do
         {:ok, url} = Firmwares.get_firmware_url(deployment.firmware)
         {:ok, meta} = Firmwares.metadata_from_firmware(deployment.firmware)
 

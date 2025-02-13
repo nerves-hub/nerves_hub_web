@@ -251,7 +251,12 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
       ) do
     {:ok, deployment} = Deployments.get_deployment(state.deployment)
 
-    maybe_trigger_update(%{state | deployment: deployment})
+    # shutdown the orchestrator if the deployment is updated to use the old `:multi` strategy
+    if deployment.orchestrator_strategy == :distributed do
+      maybe_trigger_update(%{state | deployment: deployment})
+    else
+      {:stop, :normal, state}
+    end
   end
 
   def handle_info(%Broadcast{topic: "deployment:" <> _, event: "deleted"}, state) do
@@ -271,21 +276,14 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
     maybe_trigger_update(state)
   end
 
-  def start_orchestrator(%Deployment{is_active: true} = deployment) do
+  def start_orchestrator(
+        %Deployment{is_active: true, orchestrator_strategy: :distributed} = deployment
+      ) do
     ProcessHub.start_child(:deployment_orchestrators, child_spec(deployment))
   end
 
   def start_orchestrator(_) do
     :ok
-  end
-
-  def stop_orchestrator(deployment) do
-    Phoenix.Channel.Server.broadcast(
-      NervesHub.PubSub,
-      "orchestrator:deployment:#{deployment.id}",
-      "deactivated",
-      %{}
-    )
   end
 
   defp should_trigger?(payload, deployment) do

@@ -20,7 +20,17 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    deployment = Fixtures.deployment_fixture(org, firmware, %{is_active: true})
+
+    stub(Orchestrator, :start_orchestrator, fn _deployment ->
+      :ok
+    end)
+
+    deployment =
+      Fixtures.deployment_fixture(org, firmware, %{
+        is_active: true,
+        orchestrator_strategy: :distributed
+      })
+
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
     device2 = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
     device3 = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
@@ -47,12 +57,6 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     device2: device2,
     device3: device3
   } do
-    Application.put_env(:nerves_hub, :deployments_orchestrator, "clustered")
-
-    on_exit(fn ->
-      Application.put_env(:nerves_hub, :deployments_orchestrator, "multi")
-    end)
-
     # setup deployment, listen for broadcasts, and start the orchestrator
     firmware = Fixtures.firmware_fixture(org_key, product)
 
@@ -113,12 +117,6 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     device: device,
     device2: device2
   } do
-    Application.put_env(:nerves_hub, :deployments_orchestrator, "clustered")
-
-    on_exit(fn ->
-      Application.put_env(:nerves_hub, :deployments_orchestrator, "multi")
-    end)
-
     # only allow for 1 update at a time
     {:ok, deployment} = Deployments.update_deployment(deployment, %{concurrent_updates: 1})
 
@@ -185,12 +183,6 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     device: device1,
     device2: device2
   } do
-    Application.put_env(:nerves_hub, :deployments_orchestrator, "clustered")
-
-    on_exit(fn ->
-      Application.put_env(:nerves_hub, :deployments_orchestrator, "multi")
-    end)
-
     # An ugly set of expectations
     # `Devices.available_for_update` should be called:
     # - once upon Orchestrator startup
@@ -277,12 +269,6 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     product: product,
     device: device1
   } do
-    Application.put_env(:nerves_hub, :deployments_orchestrator, "clustered")
-
-    on_exit(fn ->
-      Application.put_env(:nerves_hub, :deployments_orchestrator, "multi")
-    end)
-
     firmware = Fixtures.firmware_fixture(org_key, product)
 
     {:ok, deployment} =
@@ -343,18 +329,12 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
 
     Process.monitor(pid)
 
-    Orchestrator.stop_orchestrator(deployment)
+    Deployments.deployment_deactivated_event(deployment)
 
     assert_receive {:DOWN, _reference, :process, ^pid, :normal}, 500
   end
 
   test "shuts down if the deployment deleted", %{deployment: deployment} do
-    Application.put_env(:nerves_hub, :deployments_orchestrator, "clustered")
-
-    on_exit(fn ->
-      Application.put_env(:nerves_hub, :deployments_orchestrator, "multi")
-    end)
-
     {:ok, pid} =
       start_supervised(%{
         id: "Orchestrator##{deployment.id}",

@@ -12,6 +12,7 @@ defmodule NervesHub.DeploymentsTest do
   alias NervesHub.Fixtures
 
   alias Ecto.Changeset
+  alias Phoenix.Socket.Broadcast
 
   setup do
     user = Fixtures.user_fixture()
@@ -131,30 +132,30 @@ defmodule NervesHub.DeploymentsTest do
       assert_broadcast("deployments/update", %{}, 500)
     end
 
-    test "starts orchestrator if deployment updates to active from inactive", %{
-      deployment: deployment
-    } do
-      Application.put_env(:nerves_hub, :deployments_orchestrator, "clustered")
-
-      on_exit(fn ->
-        Application.put_env(:nerves_hub, :deployments_orchestrator, "multi")
-      end)
-
+    test "starts distributed orchestrator if deployment updates to active from inactive and the strategy is to :distributed",
+         %{
+           deployment: deployment
+         } do
       refute deployment.is_active
 
-      expect(
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "orchestrator:deployment:#{deployment.id}")
+
+      stub(
         DistributedOrchestrator,
         :start_orchestrator,
         fn _deployment -> :ok end
       )
 
-      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
-
-      expect(DistributedOrchestrator, :stop_orchestrator, fn _deployment ->
-        :ok
-      end)
+      {:ok, deployment} =
+        Deployments.update_deployment(deployment, %{
+          is_active: true,
+          orchestrator_strategy: :distributed
+        })
 
       {:ok, _deployment} = Deployments.update_deployment(deployment, %{is_active: false})
+
+      topic = "orchestrator:deployment:#{deployment.id}"
+      assert_receive %Broadcast{topic: ^topic, event: "deactivated"}, 500
     end
   end
 
