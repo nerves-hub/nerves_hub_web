@@ -10,6 +10,12 @@
     <span class="text-zinc-50 font-semibold">{@device.identifier}</span>
   </div>
   <div class="flex items-center gap-2 ml-auto mr-6">
+    <.button :if={@pinned?} aria-label="Unpin device" style="primary" phx-click="unpin">
+      <.icon name="pinned" />
+    </.button>
+    <.button :if={!@pinned?} aria-label="Pin device" style="secondary" phx-click="pin">
+      <.icon name="unpinned" />
+    </.button>
     <.button aria-label="Reboot device" style="secondary" phx-click="reboot" data-confirm="Are you sure you want to reboot the device?" disabled={disconnected?(@device_connection)}>
       <.icon name="power" />Reboot
     </.button>
