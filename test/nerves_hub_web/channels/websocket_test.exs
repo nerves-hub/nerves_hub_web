@@ -1,8 +1,6 @@
 defmodule NervesHubWeb.WebsocketTest do
   use NervesHubWeb.ChannelCase
 
-  use AssertEventually, timeout: 500, interval: 50
-
   import TrackerHelper
 
   alias NervesHub.AuditLogs
@@ -1184,10 +1182,5 @@ defmodule NervesHubWeb.WebsocketTest do
     SocketClient.clean_close(socket)
     eventually assert_connection_change()
     eventually(assert(Repo.all(where(DeviceConnection, status: :connected)) == []))
-  end
-
-  def assert_online_and_available(device) do
-    eventually assert [{_, %{}}] =
-                        Registry.match(NervesHub.Devices.Registry, device.id, :_)
   end
 end

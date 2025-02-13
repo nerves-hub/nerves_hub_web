@@ -19,10 +19,13 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, _} =
+    {:ok, _, device_channel} =
       subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
 
     assert_push("extensions:get", _extensions)
+
+    assert_online_and_available(device)
+    close_cleanly(device_channel)
   end
 
   test "joining extensions channel works when the device has connected for the first time" do
@@ -84,12 +87,12 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} =
+    {:ok, _, _device_channel} =
       subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
 
     assert_push("extensions:get", _extensions)
 
-    assert {:ok, attach_list, _} =
+    assert {:ok, attach_list, _extensions_channel} =
              subscribe_and_join_with_default_device_api_version(
                socket,
                ExtensionsChannel,
@@ -112,12 +115,12 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
     {:ok, socket} =
       connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
 
-    {:ok, _, socket} =
+    {:ok, _, _device_channel} =
       subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device")
 
     assert_push("extensions:get", _extensions)
 
-    assert {:ok, ["health"], _} =
+    assert {:ok, ["health"], _extensions_channel} =
              subscribe_and_join_with_default_device_api_version(
                socket,
                ExtensionsChannel,
@@ -157,12 +160,12 @@ defmodule NervesHubWeb.ExtensionsChannelTest do
       "nerves_fw_platform" => "test_host"
     }
 
-    {:ok, _, socket} =
+    {:ok, _, _device_channel} =
       subscribe_and_join_with_default_device_api_version(socket, DeviceChannel, "device", params)
 
     assert_push("extensions:get", _extensions)
 
-    assert {:ok, attach_list, _} =
+    assert {:ok, attach_list, _extensions_channel} =
              subscribe_and_join_with_default_device_api_version(
                socket,
                ExtensionsChannel,
