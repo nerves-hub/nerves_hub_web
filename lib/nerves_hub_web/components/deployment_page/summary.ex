@@ -68,7 +68,7 @@ defmodule NervesHubWeb.Components.DeploymentPage.Summary do
               >
                 <span class="text-xs text-zinc-300 tracking-tight">{@deployment.archive.version} ({String.slice(@deployment.archive.uuid, 0..7)})</span>
               </.link>
-              <span class="pl-1 text-xs text-nerves-gray-500">No archive configured</span>
+              <span :if={is_nil(@deployment.archive)} class="pl-1 text-xs text-nerves-gray-500">No archive configured</span>
             </div>
           </div>
 
