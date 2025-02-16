@@ -4,7 +4,7 @@ defmodule NervesHub.Repo.Migrations.RemoveUnusedIndexesAndColumns do
   def up do
     drop(index(:devices, [:connection_status]))
 
-    alter table("devics") do
+    alter table("devices") do
       remove(:connection_status)
       remove(:connection_established_at)
       remove(:connection_disconnected_at)
