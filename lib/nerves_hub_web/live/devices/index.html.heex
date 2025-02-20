@@ -238,9 +238,9 @@
           <label for="move_to_deployment">Move device(s) to deployment:</label>
           <div class="flex-row align-items-center">
             <div class="flex-grow pos-rel">
-              <select name="deployment" id="move_to_deployment" class="form-control">
+              <select name="deployment" id="move_to_deployment" class="form-control" disabled={Enum.empty?(@available_deployments_for_selected_devices)}>
                 <option value=""></option>
-                <%= for deployment <- @deployments do %>
+                <%= for deployment <- @available_deployments_for_selected_devices do %>
                   <option value={deployment.id} {if @target_deployment && @target_deployment.id == deployment.id, do: [selected: true], else: []}>{deployment.name}</option>
                 <% end %>
               </select>

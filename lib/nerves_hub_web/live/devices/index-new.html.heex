@@ -446,9 +446,9 @@
           <label for="move_to" class="sidebar-label">Move device(s) to deployment:</label>
 
           <div class="flex gap-2">
-            <select name="deployment" id="move_to_deployment" class="sidebar-select">
+            <select name="deployment" id="move_to_deployment" class="sidebar-select" disabled={Enum.empty?(@available_deployments_for_selected_devices)}>
               <option value="">Select deployment</option>
-              <%= for deployment <- @deployments do %>
+              <%= for deployment <- @available_deployments_for_selected_devices do %>
                 <option value={deployment.id} {if @target_deployment && @target_deployment.id == deployment.id, do: [selected: true], else: []}>
                   {deployment.name} - {deployment.firmware.architecture} - {deployment.firmware.platform}
                 </option>

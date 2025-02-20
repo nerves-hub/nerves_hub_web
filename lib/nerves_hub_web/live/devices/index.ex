@@ -2,16 +2,19 @@ defmodule NervesHubWeb.Live.Devices.Index do
   use NervesHubWeb, :updated_live_view
 
   require Logger
-
   require OpenTelemetry.Tracer, as: Tracer
 
+  import Ecto.Query
+
   alias NervesHub.AuditLogs.DeviceTemplates
-  alias NervesHub.Deployments
+  alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
   alias NervesHub.Products.Product
+  alias NervesHub.Repo
   alias NervesHub.Tracker
 
   alias Phoenix.LiveView.JS
@@ -98,7 +101,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:total_entries, 0)
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
     |> assign(:metrics_keys, Metrics.default_metrics())
-    |> assign(:deployments, Deployments.get_deployments_by_product(product))
+    |> assign(:available_deployments_for_selected_devices, [])
     |> assign(:target_deployment, nil)
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
@@ -222,7 +225,12 @@ defmodule NervesHubWeb.Live.Devices.Index do
         [id | selected_devices]
       end
 
-    {:noreply, assign(socket, :selected_devices, selected_devices)}
+    socket =
+      socket
+      |> assign(:selected_devices, selected_devices)
+      |> maybe_update_available_deployments_for_selected_devices()
+
+    {:noreply, socket}
   end
 
   def handle_event("select-all", _, socket) do
@@ -235,11 +243,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
         Enum.map(socket.assigns.devices, & &1.id)
       end
 
-    {:noreply, assign(socket, :selected_devices, selected_devices)}
+    socket =
+      socket
+      |> assign(:selected_devices, selected_devices)
+      |> maybe_update_available_deployments_for_selected_devices()
+
+    {:noreply, socket}
   end
 
   def handle_event("deselect-all", _, socket) do
-    {:noreply, assign(socket, selected_devices: [])}
+    {:noreply,
+     assign(socket, %{selected_devices: [], available_deployments_for_selected_devices: []})}
   end
 
   def handle_event("validate-tags", %{"tags" => tags}, socket) do
@@ -289,7 +303,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   def handle_event("target-deployment", %{"deployment" => deployment_id}, socket) do
     deployment =
-      Enum.find(socket.assigns.deployments, &(&1.id == String.to_integer(deployment_id)))
+      Enum.find(
+        socket.assigns.available_deployments_for_selected_devices,
+        &(&1.id == String.to_integer(deployment_id))
+      )
 
     {:noreply, assign(socket, target_deployment: deployment)}
   end
@@ -701,5 +718,70 @@ defmodule NervesHubWeb.Live.Devices.Index do
                         radial-gradient(circle at 0%, rgba(16, 185, 129, 0.12) 0, rgba(16, 185, 129, 0.12) 60%, rgba(16, 185, 129, 0.0) 100%);
      background-size: #{progress}% 1px, #{progress * 1.1}% 100%;
     """
+  end
+
+  # if selected devices have matching architecture and platform, find available deployments
+  defp maybe_update_available_deployments_for_selected_devices(
+         %{
+           assigns: %{
+             product: %{id: product_id},
+             selected_devices: selected_devices
+           }
+         } = socket
+       ) do
+    selected_devices_arch_and_platform_match? =
+      selected_devices_arch_and_platform_match?(selected_devices)
+
+    if selected_devices_arch_and_platform_match? do
+      deployments =
+        get_deployments_by_product_architecture_platform(product_id, selected_devices)
+
+      socket
+      |> assign(:available_deployments_for_selected_devices, deployments)
+      |> assign(:debounce_active, true)
+    else
+      assign(socket, :available_deployments_for_selected_devices, [])
+    end
+  end
+
+  defp selected_devices_arch_and_platform_match?(device_ids) do
+    from(d in Device,
+      where: d.id in ^device_ids,
+      select: [
+        fragment("firmware_metadata ->> 'architecture'"),
+        fragment("firmware_metadata ->> 'platform'")
+      ],
+      distinct: true
+    )
+    |> Repo.all()
+    |> then(&(length(&1) == 1))
+  end
+
+  # defp get_deployments_by_product_architecture_platform(_product_id, []), do: []
+
+  defp get_deployments_by_product_architecture_platform(product_id, device_ids) do
+    unique_architectures_from_selected_devices_query =
+      from(d in Device,
+        where: d.id in ^device_ids,
+        distinct: fragment("firmware_metadata ->> 'architecture'"),
+        select: fragment("firmware_metadata ->> 'architecture'")
+      )
+
+    unique_platforms_from_selected_devices_query =
+      from(d in Device,
+        where: d.id in ^device_ids,
+        distinct: fragment("firmware_metadata ->> 'platform'"),
+        select: fragment("firmware_metadata ->> 'platform'")
+      )
+
+    from(d in Deployment,
+      join: f in assoc(d, :firmware),
+      where: d.product_id == ^product_id,
+      where: f.architecture in subquery(unique_architectures_from_selected_devices_query),
+      where: f.platform in subquery(unique_platforms_from_selected_devices_query),
+      distinct: true,
+      preload: [firmware: f]
+    )
+    |> Repo.all()
   end
 end
