@@ -414,8 +414,9 @@ config :opentelemetry, :resource, service: %{name: nerves_hub_app}
 if otlp_endpoint = System.get_env("OTLP_ENDPOINT") do
   config :opentelemetry_exporter,
     otlp_protocol: :http_protobuf,
-    otlp_endpoint: otlp_endpoint,
-    otlp_headers: [{System.get_env("OTLP_AUTH_HEADER"), System.get_env("OTLP_AUTH_HEADER_VALUE")}]
+    otlp_endpoint: otlp_endpoint
+
+  # otlp_headers: [{System.get_env("OTLP_AUTH_HEADER"), System.get_env("OTLP_AUTH_HEADER_VALUE")}]
 
   otlp_sampler_ratio =
     if ratio = System.get_env("OTLP_SAMPLER_RATIO") do
@@ -425,7 +426,9 @@ if otlp_endpoint = System.get_env("OTLP_ENDPOINT") do
     end
 
   config :opentelemetry,
-    sampler: {:parent_based, %{root: {NervesHub.Telemetry.FilteredSampler, otlp_sampler_ratio}}}
+    sampler: {:parent_based, %{root: {NervesHub.Telemetry.FilteredSampler, otlp_sampler_ratio}}},
+    span_processor: :batch,
+    traces_exporter: :otlp
 else
   config :opentelemetry, traces_exporter: :none
 end
