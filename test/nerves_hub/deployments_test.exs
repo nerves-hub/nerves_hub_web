@@ -321,7 +321,7 @@ defmodule NervesHub.DeploymentsTest do
       assert device.deployment_id
     end
 
-    test "removes device from deployment and creates audit log when conditions aren't met", %{
+    test "removes device from deployment and creates audit log when platforms don't match", %{
       device: device,
       deployment: deployment
     } do
@@ -329,6 +329,40 @@ defmodule NervesHub.DeploymentsTest do
         device
         |> Devices.update_deployment(deployment)
         |> Devices.update_firmware_metadata(%{"platform" => "foobar"})
+
+      device = Deployments.verify_deployment_membership(device)
+      refute device.deployment_id
+
+      [audit_log] = AuditLogs.logs_for(deployment)
+      assert audit_log.description =~ "no longer matches deployment"
+    end
+
+    test "removes device from deployment and creates audit log when architecture doesn't match",
+         %{
+           device: device,
+           deployment: deployment
+         } do
+      {:ok, device} =
+        device
+        |> Devices.update_deployment(deployment)
+        |> Devices.update_firmware_metadata(%{"architecture" => "foobar"})
+
+      device = Deployments.verify_deployment_membership(device)
+      refute device.deployment_id
+
+      [audit_log] = AuditLogs.logs_for(deployment)
+      assert audit_log.description =~ "no longer matches deployment"
+    end
+
+    test "removes device from deployment and creates audit log when versions don't match",
+         %{
+           device: device,
+           deployment: deployment
+         } do
+      {:ok, device} =
+        device
+        |> Devices.update_deployment(deployment)
+        |> Devices.update_firmware_metadata(%{"version" => "1.0.1"})
 
       device = Deployments.verify_deployment_membership(device)
       refute device.deployment_id
