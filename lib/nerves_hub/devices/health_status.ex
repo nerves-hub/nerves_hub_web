@@ -71,5 +71,4 @@ defmodule NervesHub.Devices.HealthStatus do
   defp status(:warning, _new_status), do: :warning
   defp status(_current_status, :warning), do: :warning
   defp status(_current_status, :healthy), do: :healthy
-  defp status(current_status, _), do: current_status
 end

@@ -10,13 +10,15 @@ config :phoenix, :stacktrace_depth, 20
 ##
 # NervesHub Web
 #
+web_port = String.to_integer(System.get_env("WEB_PORT", "4000"))
+
 config :nerves_hub, NervesHubWeb.Endpoint,
   url: [
     host: System.get_env("WEB_HOST", "localhost"),
     scheme: System.get_env("WEB_SCHEME", "http"),
-    port: String.to_integer(System.get_env("WEB_PORT", "4000"))
+    port: web_port
   ],
-  http: [ip: {0, 0, 0, 0}, port: 4000],
+  http: [ip: {0, 0, 0, 0}, port: web_port],
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
@@ -46,7 +48,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
   watchers: [],
   https: [
     ip: {0, 0, 0, 0},
-    port: 4001,
+    port: web_port + 1,
     otp_app: :nerves_hub,
     thousand_island_options: [
       transport_module: NervesHub.DeviceSSLTransport,

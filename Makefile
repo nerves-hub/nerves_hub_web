@@ -16,6 +16,10 @@ iex:
 iex-server:
 	iex -S mix phx.server
 
+num = 0
+iex-server-clustered:
+	WEB_PORT="40${num}0" iex --sname dev-$(num) --cookie nomnomnom -S mix phx.server
+
 reset-db:
 	mix ecto.reset
 

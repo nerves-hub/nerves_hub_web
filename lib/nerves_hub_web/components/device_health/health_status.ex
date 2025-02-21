@@ -51,7 +51,7 @@ defmodule NervesHubWeb.Components.HealthStatus do
         "#{Enum.join(key_parts, " ")}: #{reasons["value"]}#{delimiter} (threshold is #{reasons["threshold"]}#{delimiter})"
       end)
 
-    if(!Enum.empty?(reasons)) do
+    if Enum.any?(reasons) do
       "#{String.capitalize(status)}:  #{key_strings}"
     end
   end

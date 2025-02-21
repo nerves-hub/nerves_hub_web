@@ -33,6 +33,8 @@ defmodule NervesHubWeb.DeviceChannel do
           |> assign(:update_started?, !!params["currently_downloading_uuid"])
           |> assign(:device, device)
 
+        maybe_clear_inflight_update(device, !!params["currently_downloading_uuid"])
+
         {:ok, socket}
 
       err ->
@@ -50,10 +52,6 @@ defmodule NervesHubWeb.DeviceChannel do
       |> Map.put(:deployment, nil)
 
     maybe_send_public_keys(device, socket, params)
-
-    # clear out any inflight updates, there shouldn't be one at this point
-    # we might make a new one right below it, so clear it beforehand
-    Devices.clear_inflight_update(device)
 
     deployment_channel = deployment_channel(device)
 
@@ -95,7 +93,7 @@ defmodule NervesHubWeb.DeviceChannel do
 
   @decorate with_span("Channels.DeviceChannel.handle_info:device_registration")
   def handle_info({:device_registration, attempt}, socket) do
-    %{assigns: %{device: device}} = socket
+    %{assigns: %{device: device, reference_id: reference_id}} = socket
 
     payload = %{
       deployment_id: device.deployment_id,
@@ -113,6 +111,11 @@ defmodule NervesHubWeb.DeviceChannel do
           socket
           |> assign(:registered?, true)
           |> assign(:registration_timer, nil)
+
+        # Update the connection to say that we are fully up and running
+        Connections.device_connected(reference_id)
+        # tell the orchestrator that we are online
+        Devices.deployment_device_online(device)
 
         {:noreply, socket}
     end
@@ -140,16 +143,14 @@ defmodule NervesHubWeb.DeviceChannel do
           firmware_uuid: inflight_update.firmware_uuid
         })
 
-        # If we get here, the device is connected and high probability it receives
-        # the update message so we can Audit and later assert on this audit event
-        # as a loosely valid attempt to update
-        DeviceTemplates.audit_device_deployment_update_triggered(
-          device,
-          payload.deployment,
-          socket.assigns.reference_id
-        )
+        {:ok, _} =
+          Devices.update_started!(
+            inflight_update,
+            device,
+            payload.deployment,
+            socket.assigns.reference_id
+          )
 
-        Devices.update_started!(inflight_update)
         push(socket, "update", payload)
 
         {:noreply, socket}
@@ -157,6 +158,31 @@ defmodule NervesHubWeb.DeviceChannel do
       false ->
         {:noreply, socket}
     end
+  end
+
+  def handle_info(
+        %Broadcast{
+          event: "update-scheduled",
+          payload: %{inflight_update: inflight_update, update_payload: update_payload}
+        },
+        %{assigns: %{device: device}} = socket
+      ) do
+    :telemetry.execute([:nerves_hub, :devices, :update, :automatic], %{count: 1}, %{
+      identifier: device.identifier,
+      firmware_uuid: inflight_update.firmware_uuid
+    })
+
+    {:ok, _} =
+      Devices.update_started!(
+        inflight_update,
+        device,
+        update_payload.deployment,
+        socket.assigns.reference_id
+      )
+
+    push(socket, "update", update_payload)
+
+    {:noreply, socket}
   end
 
   def handle_info(%Broadcast{event: "archives/updated"}, socket) do
@@ -329,8 +355,13 @@ defmodule NervesHubWeb.DeviceChannel do
     {:noreply, socket}
   end
 
-  def handle_in("status_update", %{"status" => _status}, socket) do
-    # TODO store in tracker or the database?
+  def handle_in("status_update", %{"status" => status}, socket) do
+    # a temporary hook into failed updates
+    if String.contains?(status, "fwup error") do
+      # if there was an error during updating, clear the inflight update
+      reset_updating_status(socket)
+    end
+
     {:noreply, socket}
   end
 
@@ -432,6 +463,16 @@ defmodule NervesHubWeb.DeviceChannel do
     end
   end
 
+  @spec maybe_clear_inflight_update(device :: Device.t(), currently_updating? :: boolean()) :: :ok
+  defp maybe_clear_inflight_update(device, false) do
+    Devices.clear_inflight_update(device)
+    :ok
+  end
+
+  defp maybe_clear_inflight_update(_device, true) do
+    :ok
+  end
+
   defp maybe_start_penalty_timer(%{assigns: %{device: %{updates_blocked_until: nil}}} = socket),
     do: socket
 
@@ -449,6 +490,11 @@ defmodule NervesHubWeb.DeviceChannel do
       end
 
     assign(socket, :penalty_timer, ref)
+  end
+
+  defp reset_updating_status(socket) do
+    Devices.clear_inflight_update(socket.assigns.device)
+    maybe_update_registry(socket, socket.assigns.device, %{updating: false})
   end
 
   defp update_device(socket, device) do
