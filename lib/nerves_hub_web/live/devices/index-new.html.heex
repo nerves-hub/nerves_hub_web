@@ -332,6 +332,15 @@
             </select>
           </div>
           <div class="mt-6">
+            <label class="sidebar-label" for="deployment_id">Deployment</label>
+            <select class="sidebar-select" name="deployment_id" id="deployment_id">
+              <option {selected?(@current_filters, :deployment_id, "")} value="">All</option>
+              <%= for deployment <- @deployments do %>
+                <option {selected?(@current_filters, :deployment_id, deployment.id)} value={deployment.id}>{deployment.name}</option>
+              <% end %>
+            </select>
+          </div>
+          <div class="mt-6">
             <label class="sidebar-label" for="input_health">Firmware Updates</label>
             <select class="sidebar-select" name="updates" id="input_health">
               <option {selected?(@current_filters, :updates, "")} value="">All</option>

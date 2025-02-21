@@ -232,6 +232,22 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       assert change =~ "1 devices found"
     end
 
+    test "filters devices by deployment_id", %{conn: conn, fixture: fixture} do
+      %{device: device, firmware: firmware, org: org, product: product, deployment: deployment} =
+        fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      Repo.update!(Ecto.Changeset.change(device, deployment_id: deployment.id))
+
+      {:ok, view, _html} = live(conn, device_index_path(fixture))
+
+      change = render_change(view, "update-filters", %{"deployment_id" => deployment.id})
+      assert change =~ device.identifier
+      refute change =~ device2.identifier
+      assert change =~ "1 devices found"
+    end
+
     test "select device", %{conn: conn, fixture: fixture} do
       %{device: _device, firmware: firmware, org: org, product: product} = fixture
 
