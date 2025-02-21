@@ -40,7 +40,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     alarm: "",
     metrics_key: "",
     metrics_operator: "gt",
-    metrics_value: ""
+    metrics_value: "",
+    deployment_id: nil
   }
 
   @filter_types %{
@@ -58,7 +59,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     alarm: :string,
     metrics_key: :string,
     metrics_operator: :string,
-    metrics_value: :string
+    metrics_value: :string,
+    deployment_id: :integer
   }
 
   @default_page 1
