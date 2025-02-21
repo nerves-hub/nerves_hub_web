@@ -649,6 +649,7 @@ defmodule NervesHubWeb.WebsocketTest do
         Fixtures.deployment_fixture(org, firmware, %{
           name: "a different name",
           conditions: %{
+            "version" => "<= 1.0.0",
             "tags" => ["beta"]
           }
         })
@@ -745,7 +746,7 @@ defmodule NervesHubWeb.WebsocketTest do
         Fixtures.deployment_fixture(org, firmware, %{
           name: "Every Device",
           conditions: %{
-            "version" => "~> 0.0.1",
+            "version" => "<= 1.0.0",
             "tags" => ["beta", "beta-edge"]
           }
         })
@@ -773,14 +774,13 @@ defmodule NervesHubWeb.WebsocketTest do
 
       {:ok, socket} = SocketClient.start_link(@socket_config)
 
-      different_architecture = "arm"
       different_platform = "tester"
 
       SocketClient.join_and_wait(socket, %{
         "device_api_version" => "2.2.0",
         "nerves_fw_uuid" => Ecto.UUID.generate(),
         "nerves_fw_product" => "test",
-        "nerves_fw_architecture" => different_architecture,
+        "nerves_fw_architecture" => device.firmware_metadata.architecture,
         "nerves_fw_platform" => different_platform,
         "nerves_fw_version" => "0.1.0"
       })
@@ -790,7 +790,7 @@ defmodule NervesHubWeb.WebsocketTest do
       [log, _, _] = AuditLogs.logs_by(device)
 
       assert log.description ==
-               "Device no longer matches deployment Every Device's requirements because of mismatched architecture and platform"
+               "Device no longer matches deployment Every Device's requirements because of mismatched platform"
 
       close_socket_cleanly(socket)
     end
@@ -813,7 +813,7 @@ defmodule NervesHubWeb.WebsocketTest do
         Fixtures.deployment_fixture(org, firmware, %{
           name: "a different name",
           conditions: %{
-            "version" => "~> 0.0.1",
+            "version" => "<= 1.0.0",
             "tags" => ["beta", "beta-edge"]
           }
         })
@@ -1042,6 +1042,7 @@ defmodule NervesHubWeb.WebsocketTest do
         Fixtures.deployment_fixture(org, firmware, %{
           name: "beta",
           conditions: %{
+            "version" => "<= 1.0.0",
             "tags" => ["beta"]
           },
           archive_id: archive.id
@@ -1091,6 +1092,7 @@ defmodule NervesHubWeb.WebsocketTest do
         Fixtures.deployment_fixture(org, firmware, %{
           name: "beta",
           conditions: %{
+            "version" => "<= 1.0.0",
             "tags" => ["beta"]
           },
           archive_id: archive.id
@@ -1144,6 +1146,7 @@ defmodule NervesHubWeb.WebsocketTest do
         Fixtures.deployment_fixture(org, firmware, %{
           name: "beta",
           conditions: %{
+            "version" => "<= 1.0.0",
             "tags" => ["beta"]
           }
         })
