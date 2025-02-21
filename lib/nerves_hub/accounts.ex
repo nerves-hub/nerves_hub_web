@@ -13,6 +13,7 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Products.Product
 
@@ -124,8 +125,13 @@ defmodule NervesHub.Accounts do
   defp maybe_soft_delete_org_user(org_user), do: soft_delete_org_user(org_user)
 
   def soft_delete_org_user(org_user) do
-    {:ok, _result} = Repo.soft_delete(org_user)
-    :ok
+    with {:ok, %{org_id: org_id, user_id: user_id}} <-
+           Repo.soft_delete(org_user),
+         {_, nil} <- Devices.unpin_org_devices(user_id, org_id) do
+      :ok
+    else
+      err -> err
+    end
   end
 
   def change_org_user_role(%OrgUser{} = ou, role) do

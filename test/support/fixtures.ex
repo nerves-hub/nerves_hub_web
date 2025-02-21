@@ -131,9 +131,9 @@ defmodule NervesHub.Fixtures do
 
   def product_fixture(%Accounts.User{}, %Accounts.Org{} = org, params) do
     params =
-      %{org_id: org.id}
-      |> Enum.into(params)
+      params
       |> Enum.into(@product_params)
+      |> Map.merge(%{org_id: org.id})
 
     {:ok, product} = Products.create_product(params)
     product
