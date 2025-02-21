@@ -83,6 +83,12 @@ defmodule NervesHub.Devices.Filtering do
     where(query, [d], ilike(d.identifier, ^"%#{value}%"))
   end
 
+  def filter(query, _filters, :deployment_id, nil), do: query
+
+  def filter(query, _filters, :deployment_id, value) do
+    where(query, [d], d.deployment_id == ^value)
+  end
+
   def filter(query, _filters, :tag, value) do
     build_tag_filter(query, value)
   end
