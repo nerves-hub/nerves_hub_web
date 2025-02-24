@@ -399,23 +399,27 @@ defmodule NervesHub.Deployments do
   defp version_match?(_device, _deployment), do: true
 
   @spec verify_deployment_membership(Device.t()) :: Device.t()
-  def verify_deployment_membership(%Device{deployment_id: deployment_id} = device)
+  def verify_deployment_membership(
+        %Device{deployment_id: deployment_id, firmware_metadata: %{version: device_version}} =
+          device
+      )
       when not is_nil(deployment_id) do
     {:ok, deployment} = get_deployment_for_device(device)
 
-    bad_architecture = device.firmware_metadata.architecture != deployment.firmware.architecture
+    bad_version = !Version.match?(device_version, deployment.conditions["version"])
     bad_platform = device.firmware_metadata.platform != deployment.firmware.platform
+    bad_architecture = device.firmware_metadata.architecture != deployment.firmware.architecture
 
     reason =
       cond do
-        bad_architecture and bad_platform ->
-          "mismatched architecture and platform"
-
-        bad_architecture ->
-          "mismatched architecture"
+        bad_version ->
+          "mismatched version"
 
         bad_platform ->
           "mismatched platform"
+
+        bad_architecture ->
+          "mismatched architecture"
 
         true ->
           nil
