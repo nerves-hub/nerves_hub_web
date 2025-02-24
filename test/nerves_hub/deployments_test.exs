@@ -1,15 +1,18 @@
 defmodule NervesHub.DeploymentsTest do
   use NervesHub.DataCase, async: false
+  use Mimic
 
   import Phoenix.ChannelTest
 
   alias NervesHub.AuditLogs
   alias NervesHub.Deployments
+  alias NervesHub.Deployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
 
   alias Ecto.Changeset
+  alias Phoenix.Socket.Broadcast
 
   setup do
     user = Fixtures.user_fixture()
@@ -127,6 +130,32 @@ defmodule NervesHub.DeploymentsTest do
       {:ok, _deployment} = Deployments.update_deployment(deployment, %{is_active: true})
 
       assert_broadcast("deployments/update", %{}, 500)
+    end
+
+    test "starts distributed orchestrator if deployment updates to active from inactive and the strategy is to :distributed",
+         %{
+           deployment: deployment
+         } do
+      refute deployment.is_active
+
+      :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "orchestrator:deployment:#{deployment.id}")
+
+      stub(
+        DistributedOrchestrator,
+        :start_orchestrator,
+        fn _deployment -> :ok end
+      )
+
+      {:ok, deployment} =
+        Deployments.update_deployment(deployment, %{
+          is_active: true,
+          orchestrator_strategy: :distributed
+        })
+
+      {:ok, _deployment} = Deployments.update_deployment(deployment, %{is_active: false})
+
+      topic = "orchestrator:deployment:#{deployment.id}"
+      assert_receive %Broadcast{topic: ^topic, event: "deactivated"}, 500
     end
   end
 

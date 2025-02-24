@@ -586,7 +586,12 @@ defmodule NervesHubWeb.WebsocketTest do
       assert device = Repo.get_by(Device, identifier: identifier)
       assert device_connection = Connections.get_latest_for_device(device.id)
 
-      assert device_connection.status == :connected
+      # the connected status goes from `:connecting` to `:connected`, signifying
+      # that it is ready to receive updates, which can take a second or two.
+      # using this different status allows us to tell the orchestrator to only
+      # schedule update for devices that have "finished" connecting
+      eventually assert(Connections.get_latest_for_device(device.id).status == :connected), 3_000
+
       assert recent_datetime(device_connection.established_at)
       assert recent_datetime(device_connection.last_seen_at)
       assert device_connection.disconnected_at == nil

@@ -50,7 +50,9 @@ config :nerves_hub,
         System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer()
     ]
   ],
-  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"
+  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true",
+  display_deployment_orchestrator_strategy:
+    System.get_env("DISPLAY_DEPLOYMENT_ORCHESTRATOR_STRATEGY", "false") == "true"
 
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
@@ -209,34 +211,35 @@ end
 ##
 # Database and Libcluster connection settings
 #
-if config_env() == :prod do
-  database_ssl_opts =
-    if System.get_env("DATABASE_SSL", "true") == "true" do
-      if System.get_env("DATABASE_PEM") do
-        db_hostname_charlist =
-          ~r/.*@(?<hostname>[^:\/]+)(?::\d+)?\/.*/
-          |> Regex.named_captures(System.fetch_env!("DATABASE_URL"))
-          |> Map.get("hostname")
-          |> to_charlist()
 
-        cacerts =
-          System.fetch_env!("DATABASE_PEM")
-          |> Base.decode64!()
-          |> :public_key.pem_decode()
-          |> Enum.map(fn {_, der, _} -> der end)
+database_ssl_opts =
+  if System.get_env("DATABASE_SSL", "true") == "true" do
+    if System.get_env("DATABASE_PEM") do
+      db_hostname_charlist =
+        ~r/.*@(?<hostname>[^:\/]+)(?::\d+)?\/.*/
+        |> Regex.named_captures(System.fetch_env!("DATABASE_URL"))
+        |> Map.get("hostname")
+        |> to_charlist()
 
-        [
-          verify: :verify_peer,
-          cacerts: cacerts,
-          server_name_indication: db_hostname_charlist
-        ]
-      else
-        [cacerts: :public_key.cacerts_get()]
-      end
+      cacerts =
+        System.fetch_env!("DATABASE_PEM")
+        |> Base.decode64!()
+        |> :public_key.pem_decode()
+        |> Enum.map(fn {_, der, _} -> der end)
+
+      [
+        verify: :verify_peer,
+        cacerts: cacerts,
+        server_name_indication: db_hostname_charlist
+      ]
     else
-      false
+      [cacerts: :public_key.cacerts_get()]
     end
+  else
+    false
+  end
 
+if config_env() == :prod do
   database_socket_options = if System.get_env("DATABASE_INET6") == "true", do: [:inet6], else: []
 
   config :nerves_hub, NervesHub.Repo,
@@ -259,28 +262,40 @@ if config_env() == :prod do
 
   config :nerves_hub,
     database_auto_migrator: System.get_env("DATABASE_AUTO_MIGRATOR", "true") == "true"
-
-  # Libcluster is using Postgres for Node discovery
-  # The library only accepts keyword configs, so the DATABASE_URL has to be
-  # parsed and put together with the ssl pieces from above.
-  postgres_config = Ecto.Repo.Supervisor.parse_url(System.fetch_env!("DATABASE_URL"))
-
-  libcluster_db_config =
-    [port: 5432]
-    |> Keyword.merge(postgres_config)
-    |> Keyword.take([:hostname, :username, :password, :database, :port])
-    |> Keyword.merge(ssl: database_ssl_opts)
-    |> Keyword.merge(parameters: [])
-    |> Keyword.merge(channel_name: "nerves_hub_clustering")
-
-  config :libcluster,
-    topologies: [
-      postgres: [
-        strategy: LibclusterPostgres.Strategy,
-        config: libcluster_db_config
-      ]
-    ]
 end
+
+# Libcluster is using Postgres for Node discovery
+# The library only accepts keyword configs, so the DATABASE_URL has to be
+# parsed and put together with the ssl pieces from above.
+#
+# By using the dev database url as the default it allows us to reduce the
+# libcluster config and keep it all here.
+postgres_config =
+  Ecto.Repo.Supervisor.parse_url(
+    System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev")
+  )
+
+libcluster_db_config =
+  [port: 5432]
+  |> Keyword.merge(postgres_config)
+  |> Keyword.take([:hostname, :username, :password, :database, :port])
+  |> then(fn keywords ->
+    if config_env() == :prod do
+      Keyword.merge(keywords, ssl: database_ssl_opts)
+    else
+      keywords
+    end
+  end)
+  |> Keyword.merge(parameters: [])
+  |> Keyword.merge(channel_name: "nerves_hub_clustering")
+
+config :libcluster,
+  topologies: [
+    postgres: [
+      strategy: LibclusterPostgres.Strategy,
+      config: libcluster_db_config
+    ]
+  ]
 
 ##
 # Firmware upload backend.

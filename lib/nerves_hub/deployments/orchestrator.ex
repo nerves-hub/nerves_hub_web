@@ -58,6 +58,11 @@ defmodule NervesHub.Deployments.Orchestrator do
     :ok
   end
 
+  @decorate with_span("Deployments.Orchestrator.trigger_update#noop")
+  def trigger_update(%Deployment{orchestrator_strategy: strategy}) when strategy != :multi do
+    :ok
+  end
+
   @decorate with_span("Deployments.Orchestrator.trigger_update")
   def trigger_update(deployment) do
     :telemetry.execute([:nerves_hub, :deployment, :trigger_update], %{count: 1})

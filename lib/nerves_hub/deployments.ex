@@ -6,6 +6,7 @@ defmodule NervesHub.Deployments do
   alias NervesHub.AuditLogs.DeploymentTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Deployments.Deployment
+  alias NervesHub.Deployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
@@ -19,6 +20,14 @@ defmodule NervesHub.Deployments do
   @spec all() :: [Deployment.t()]
   def all() do
     Repo.all(Deployment)
+  end
+
+  @spec should_run_in_distributed_orchestrator() :: [Deployment.t()]
+  def should_run_in_distributed_orchestrator() do
+    Deployment
+    |> where(is_active: true)
+    |> where(orchestrator_strategy: :distributed)
+    |> Repo.all()
   end
 
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
@@ -156,7 +165,22 @@ defmodule NervesHub.Deployments do
     end
   end
 
-  def get_deployment!(deployment_id), do: Repo.get!(Deployment, deployment_id)
+  def get_deployment(%Deployment{id: id}), do: get_deployment(id)
+
+  def get_deployment(deployment_id) do
+    Deployment
+    |> where([d], d.id == ^deployment_id)
+    |> join(:left, [d], f in assoc(d, :firmware), as: :firmware)
+    |> preload([firmware: f], firmware: f)
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:error, :not_found}
+
+      deployment ->
+        {:ok, deployment}
+    end
+  end
 
   @spec get_by_product_and_name!(Product.t(), String.t(), boolean()) :: Deployment.t()
   def get_by_product_and_name!(product, name, with_device_count \\ false)
@@ -208,12 +232,15 @@ defmodule NervesHub.Deployments do
 
   @spec delete_deployment(Deployment.t()) :: {:ok, Deployment.t()} | {:error, :not_found}
   def delete_deployment(%Deployment{id: deployment_id}) do
-    case Repo.delete(Repo.get!(Deployment, deployment_id)) do
+    Deployment
+    |> Repo.get!(deployment_id)
+    |> Repo.delete()
+    |> case do
       {:error, _changeset} ->
         {:error, :not_found}
 
       {:ok, deployment} ->
-        _ = broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
+        _ = deployment_deleted_event(deployment)
 
         {:ok, deployment}
     end
@@ -257,6 +284,22 @@ defmodule NervesHub.Deployments do
       {:ok, {deployment, changeset}} ->
         _ = maybe_trigger_delta_generation(deployment, changeset)
         :ok = broadcast(deployment, "deployments/update")
+
+        if Map.has_key?(changeset.changes, :is_active) do
+          if deployment.is_active do
+            deployment_activated_event(deployment)
+          else
+            deployment_deactivated_event(deployment)
+          end
+        end
+
+        if Map.has_key?(changeset.changes, :orchestrator_strategy) do
+          if deployment.orchestrator_strategy == :distributed do
+            start_deployments_distributed_orchestrator_event(deployment)
+          else
+            shutdown_deployments_distributed_orchestrator_event(deployment)
+          end
+        end
 
         {:ok, deployment}
 
@@ -333,7 +376,7 @@ defmodule NervesHub.Deployments do
 
     case Repo.insert(changeset) do
       {:ok, deployment} ->
-        _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
+        deployment_created_event(deployment)
 
         {:ok, deployment}
 
@@ -346,31 +389,30 @@ defmodule NervesHub.Deployments do
   def broadcast(deployment, event, payload \\ %{})
 
   def broadcast(:none, event, payload) do
-    message = %Phoenix.Socket.Broadcast{
-      topic: "deployment:none",
-      event: event,
-      payload: payload
-    }
-
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:none", message)
+    Phoenix.Channel.Server.broadcast(
+      NervesHub.PubSub,
+      "deployment:none",
+      event,
+      payload
+    )
   end
 
   def broadcast(:monitor, event, payload) do
-    Phoenix.PubSub.broadcast(
+    Phoenix.Channel.Server.broadcast(
       NervesHub.PubSub,
       "deployment:monitor",
-      %Phoenix.Socket.Broadcast{event: event, payload: payload}
+      event,
+      payload
     )
   end
 
   def broadcast(%Deployment{id: id}, event, payload) do
-    message = %Phoenix.Socket.Broadcast{
-      topic: "deployment:#{id}",
-      event: event,
-      payload: payload
-    }
-
-    Phoenix.PubSub.broadcast(NervesHub.PubSub, "deployment:#{id}", message)
+    Phoenix.Channel.Server.broadcast(
+      NervesHub.PubSub,
+      "deployment:#{id}",
+      event,
+      payload
+    )
   end
 
   @doc """
@@ -558,5 +600,60 @@ defmodule NervesHub.Deployments do
     |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
     |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
     |> Repo.all()
+  end
+
+  def deployment_created_event(deployment) do
+    # the old orchestrator
+    _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
+
+    # the new orchestrator
+    _ = DistributedOrchestrator.start_orchestrator(deployment)
+
+    :ok
+  end
+
+  def start_deployments_distributed_orchestrator_event(deployment) do
+    DistributedOrchestrator.start_orchestrator(deployment)
+
+    :ok
+  end
+
+  def shutdown_deployments_distributed_orchestrator_event(deployment) do
+    Phoenix.Channel.Server.broadcast(
+      NervesHub.PubSub,
+      "orchestrator:deployment:#{deployment.id}",
+      "deactivated",
+      %{}
+    )
+
+    :ok
+  end
+
+  def deployment_activated_event(deployment) do
+    DistributedOrchestrator.start_orchestrator(deployment)
+
+    :ok
+  end
+
+  def deployment_deactivated_event(deployment) do
+    Phoenix.Channel.Server.broadcast(
+      NervesHub.PubSub,
+      "orchestrator:deployment:#{deployment.id}",
+      "deactivated",
+      %{}
+    )
+
+    :ok
+  end
+
+  def deployment_deleted_event(deployment) do
+    _ =
+      if deployment.orchestrator_strategy == :distributed do
+        broadcast(deployment, "deleted")
+      end
+
+    broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
+
+    :ok
   end
 end
