@@ -234,13 +234,13 @@
           <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
         </form>
 
-        <form id="move-deployment" class="col-lg-4" phx-change="target-deployment" phx-submit="move-devices-deployment">
+        <form :if={Enum.any?(@available_deployments_for_filtered_platform)} id="move-deployment" class="col-lg-4" phx-change="target-deployment" phx-submit="move-devices-deployment">
           <label for="move_to_deployment">Move device(s) to deployment:</label>
           <div class="flex-row align-items-center">
             <div class="flex-grow pos-rel">
-              <select name="deployment" id="move_to_deployment" class="form-control" disabled={Enum.empty?(@available_deployments_for_selected_devices)}>
+              <select name="deployment" id="move_to_deployment" class="form-control">
                 <option value=""></option>
-                <%= for deployment <- @available_deployments_for_selected_devices do %>
+                <%= for deployment <- @available_deployments_for_filtered_platform do %>
                   <option value={deployment.id} {if @target_deployment && @target_deployment.id == deployment.id, do: [selected: true], else: []}>{deployment.name}</option>
                 <% end %>
               </select>

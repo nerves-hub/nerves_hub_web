@@ -299,7 +299,9 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       refute device2.deployment_id
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> visit(
+        "/org/#{org.name}/#{product.name}/devices?platform=#{deployment.firmware.platform}"
+      )
       |> unwrap(fn view ->
         render_change(view, "select-all", %{"id" => device.id})
       end)

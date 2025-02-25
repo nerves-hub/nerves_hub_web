@@ -442,13 +442,13 @@
           </div>
         </form>
 
-        <form id="deployment-move" class="flex flex-col gap-2" phx-change="target-deployment" phx-submit="move-devices-deployment">
-          <label for="move_to" class="sidebar-label">Move device(s) to deployment:</label>
+        <form :if={Enum.any?(@available_deployments_for_filtered_platform)} id="deployment-move" class="flex flex-col gap-2" phx-change="target-deployment" phx-submit="move-devices-deployment">
+          <label for="move_to" class="sidebar-label">Move device(s) to deployment filtered by platform:</label>
 
           <div class="flex gap-2">
-            <select name="deployment" id="move_to_deployment" class="sidebar-select" disabled={Enum.empty?(@available_deployments_for_selected_devices)}>
+            <select name="deployment" id="move_to_deployment" class="sidebar-select">
               <option value="">Select deployment</option>
-              <%= for deployment <- @available_deployments_for_selected_devices do %>
+              <%= for deployment <- @available_deployments_for_filtered_platform do %>
                 <option value={deployment.id} {if @target_deployment && @target_deployment.id == deployment.id, do: [selected: true], else: []}>
                   {deployment.name} - {deployment.firmware.architecture} - {deployment.firmware.platform}
                 </option>
