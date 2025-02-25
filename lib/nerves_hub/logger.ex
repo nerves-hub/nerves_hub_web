@@ -47,13 +47,22 @@ defmodule NervesHub.Logger do
 
   @doc false
   def log_event([:phoenix, :endpoint, :stop], %{duration: duration}, %{conn: conn}, _) do
-    Logger.info("Request completed", %{
-      duration: duration(duration),
-      method: conn.method,
-      path: request_path(conn),
-      status: conn.status,
-      remote_ip: formatted_ip(conn)
-    })
+    conn.req_headers
+    |> List.keyfind("user-agent", 0)
+    |> case do
+      {"user-agent", "SentryUptimeBot"} ->
+        # ignore User-Agent: SentryUptimeBot, its just noise
+        :ok
+
+      _ ->
+        Logger.info("Request completed", %{
+          duration: duration(duration),
+          method: conn.method,
+          path: request_path(conn),
+          status: conn.status,
+          remote_ip: formatted_ip(conn)
+        })
+    end
   end
 
   def log_event([:nerves_hub, :devices, :invalid_auth], _, metadata, _) do
