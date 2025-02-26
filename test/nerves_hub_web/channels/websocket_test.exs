@@ -6,7 +6,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.AuditLog
   alias NervesHub.Deployments
-  alias NervesHub.Deployments.Orchestrator
+  alias NervesHub.Deployments.Distributed.Orchestrator
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device

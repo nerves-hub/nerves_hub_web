@@ -75,7 +75,10 @@ defmodule NervesHub.Deployments.Deployment do
     field(:device_count, :integer, virtual: true)
 
     # temporary addition while we feature test a new deployment management strategy
-    field(:orchestrator_strategy, Ecto.Enum, values: [:multi, :distributed], default: :multi)
+    field(:orchestrator_strategy, Ecto.Enum,
+      values: [:multi, :distributed],
+      default: :distributed
+    )
 
     timestamps()
   end
