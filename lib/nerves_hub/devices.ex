@@ -14,7 +14,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Certificate
   alias NervesHub.Deployments
   alias NervesHub.Deployments.Deployment
-  alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -992,8 +991,6 @@ defmodule NervesHub.Devices do
   end
 
   def deployment_device_updated(device) do
-    _ = Orchestrator.device_updated(device.deployment_id)
-
     _ =
       Phoenix.Channel.Server.broadcast(
         NervesHub.PubSub,
@@ -1531,29 +1528,26 @@ defmodule NervesHub.Devices do
   end
 
   defp broadcast_update_request(device_id, inflight_update, deployment) do
+    {:ok, url} = Firmwares.get_firmware_url(deployment.firmware)
+    {:ok, meta} = Firmwares.metadata_from_firmware(deployment.firmware)
+
+    update_payload = %UpdatePayload{
+      update_available: true,
+      firmware_url: url,
+      firmware_meta: meta,
+      deployment: deployment,
+      deployment_id: deployment.id
+    }
+
+    payload = %{inflight_update: inflight_update, update_payload: update_payload}
+
     _ =
-      if deployment.orchestrator_strategy == :distributed do
-        {:ok, url} = Firmwares.get_firmware_url(deployment.firmware)
-        {:ok, meta} = Firmwares.metadata_from_firmware(deployment.firmware)
-
-        update_payload = %UpdatePayload{
-          update_available: true,
-          firmware_url: url,
-          firmware_meta: meta,
-          deployment: deployment,
-          deployment_id: deployment.id
-        }
-
-        payload = %{inflight_update: inflight_update, update_payload: update_payload}
-
-        _ =
-          Phoenix.Channel.Server.broadcast(
-            NervesHub.PubSub,
-            "device:#{device_id}",
-            "update-scheduled",
-            payload
-          )
-      end
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "device:#{device_id}",
+        "update-scheduled",
+        payload
+      )
 
     :ok
   end

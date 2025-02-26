@@ -9,7 +9,13 @@ defmodule NervesHub.MetricsPoller do
   end
 
   def report_device_count() do
-    device_count = Registry.count(NervesHub.Devices.Registry)
+    # an ugly way to get the connected device count for a node
+    # (we can't use the device registry because it's been removed)
+    device_count =
+      Enum.count(Process.list(), fn p ->
+        Process.info(p)[:dictionary][:"$initial_call"] == {NervesHubWeb.DeviceChannel, :join, 3}
+      end)
+
     :telemetry.execute([:nerves_hub, :devices, :online], %{count: device_count}, %{node: node()})
   end
 end

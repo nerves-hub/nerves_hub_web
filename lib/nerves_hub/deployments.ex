@@ -22,11 +22,10 @@ defmodule NervesHub.Deployments do
     Repo.all(Deployment)
   end
 
-  @spec should_run_in_distributed_orchestrator() :: [Deployment.t()]
-  def should_run_in_distributed_orchestrator() do
+  @spec should_run_orchestrator() :: [Deployment.t()]
+  def should_run_orchestrator() do
     Deployment
     |> where(is_active: true)
-    |> where(orchestrator_strategy: :distributed)
     |> Repo.all()
   end
 
@@ -293,14 +292,6 @@ defmodule NervesHub.Deployments do
           end
         end
 
-        if Map.has_key?(changeset.changes, :orchestrator_strategy) do
-          if deployment.orchestrator_strategy == :distributed do
-            start_deployments_distributed_orchestrator_event(deployment)
-          else
-            shutdown_deployments_distributed_orchestrator_event(deployment)
-          end
-        end
-
         {:ok, deployment}
 
       {:error, changeset} ->
@@ -392,15 +383,6 @@ defmodule NervesHub.Deployments do
     Phoenix.Channel.Server.broadcast(
       NervesHub.PubSub,
       "deployment:none",
-      event,
-      payload
-    )
-  end
-
-  def broadcast(:monitor, event, payload) do
-    Phoenix.Channel.Server.broadcast(
-      NervesHub.PubSub,
-      "deployment:monitor",
       event,
       payload
     )
@@ -603,28 +585,7 @@ defmodule NervesHub.Deployments do
   end
 
   def deployment_created_event(deployment) do
-    # the old orchestrator
-    _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment.id})
-
-    # the new orchestrator
-    _ = DistributedOrchestrator.start_orchestrator(deployment)
-
-    :ok
-  end
-
-  def start_deployments_distributed_orchestrator_event(deployment) do
     DistributedOrchestrator.start_orchestrator(deployment)
-
-    :ok
-  end
-
-  def shutdown_deployments_distributed_orchestrator_event(deployment) do
-    Phoenix.Channel.Server.broadcast(
-      NervesHub.PubSub,
-      "orchestrator:deployment:#{deployment.id}",
-      "deactivated",
-      %{}
-    )
 
     :ok
   end
@@ -636,23 +597,27 @@ defmodule NervesHub.Deployments do
   end
 
   def deployment_deactivated_event(deployment) do
-    Phoenix.Channel.Server.broadcast(
-      NervesHub.PubSub,
-      "orchestrator:deployment:#{deployment.id}",
-      "deactivated",
-      %{}
-    )
+    :ok =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "orchestrator:deployment:#{deployment.id}",
+        "deactivated",
+        %{}
+      )
 
     :ok
   end
 
   def deployment_deleted_event(deployment) do
-    _ =
-      if deployment.orchestrator_strategy == :distributed do
-        broadcast(deployment, "deleted")
-      end
+    :ok =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "orchestrator:deployment:#{deployment.id}",
+        "deactivated",
+        %{}
+      )
 
-    broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
+    :ok = broadcast(deployment, "deleted")
 
     :ok
   end
