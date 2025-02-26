@@ -458,7 +458,13 @@ defmodule NervesHub.Deployments do
       when not is_nil(deployment_id) do
     {:ok, deployment} = get_deployment_for_device(device)
 
-    bad_version = !Version.match?(device_version, deployment.conditions["version"])
+    bad_version =
+      if deployment.conditions["version"] != "" do
+        !Version.match?(device_version, deployment.conditions["version"])
+      else
+        false
+      end
+
     bad_platform = device.firmware_metadata.platform != deployment.firmware.platform
     bad_architecture = device.firmware_metadata.architecture != deployment.firmware.architecture
 
