@@ -631,6 +631,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp filter_changes(params) do
+    # when the metrics key is switched from being selected to being an empty value,
+    # the metrics value is not cleared, this addresses that.
+    params =
+      if params["metrics_key"] == "" do
+        params
+        |> Map.put("metrics_operator", "gt")
+        |> Map.put("metrics_value", "")
+      else
+        params
+      end
+
     Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
       empty_values: []
     ).changes
