@@ -99,6 +99,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:total_entries, 0)
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
     |> assign(:metrics_keys, Metrics.default_metrics())
+    |> assign(:deployments, Deployments.get_deployments_by_product(product))
     |> assign(:available_deployments_for_filtered_platform, [])
     |> assign(:target_deployment, nil)
     |> subscribe_and_refresh_device_list_timer()
