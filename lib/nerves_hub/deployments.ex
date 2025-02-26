@@ -206,6 +206,16 @@ defmodule NervesHub.Deployments do
     |> Repo.one!()
   end
 
+  @spec get_by_product_and_platform(Product.t(), binary()) :: [Deployment.t()]
+  def get_by_product_and_platform(product, platform) do
+    Deployment
+    |> where(product_id: ^product.id)
+    |> join(:left, [d], f in assoc(d, :firmware))
+    |> where([_d, f], f.platform == ^platform)
+    |> preload([_d, f], firmware: f)
+    |> Repo.all()
+  end
+
   @spec get_deployment_by_name(Product.t(), String.t()) ::
           {:ok, Deployment.t()} | {:error, :not_found}
   def get_deployment_by_name(product, name) do
