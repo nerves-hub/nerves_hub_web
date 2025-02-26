@@ -409,20 +409,12 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
             <span class="text-sm text-nerves-gray-500">No support scripts have been configured.</span>
           </div>
 
-          <div :if={Enum.any?(@support_scripts)} class="flex-col pt-2 px-4 pb-6 gap-4 items-center">
+          <div :if={Enum.any?(@support_scripts)} class="flex flex-col pt-2 px-4 pb-6 gap-2">
             <div :for={script <- @support_scripts} class="flex flex-col gap-2">
               <div class="flex gap-4">
                 <span class="text-base text-zinc-300">{script.name}</span>
 
-                <button
-                  :if={!disconnected?(@device_connection)}
-                  class="p-1 border border-green-500 rounded-full bg-zinc-800"
-                  type="button"
-                  disabled={script.running?}
-                  phx-target={@myself}
-                  phx-click="run-script"
-                  phx-value-id={script.id}
-                >
+                <button class="p-1 border border-green-500 rounded-full bg-zinc-800" type="button" disabled={script.running?} phx-target={@myself} phx-click="run-script" phx-value-id={script.id}>
                   <svg class="w-3 h-3 stroke-green-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M8 19V5L18 12L8 19Z" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
@@ -618,8 +610,11 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
     output =
       case result do
-        {:ok, output} ->
+        {:ok, {:ok, output}} ->
           output
+
+        {:ok, {:error, reason}} ->
+          "Error: #{reason}"
 
         e ->
           inspect(e)

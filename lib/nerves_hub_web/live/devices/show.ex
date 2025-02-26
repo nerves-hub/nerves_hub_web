@@ -437,15 +437,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_async(
-        {:run_script, index},
-        result,
-        %{assigns: %{scripts: scripts}} = socket
-      ) do
+  def handle_async({:run_script, index}, result, %{assigns: %{scripts: scripts}} = socket) do
     output =
       case result do
-        {:ok, output} ->
+        {:ok, {:ok, output}} ->
           output
+
+        {:ok, {:error, reason}} ->
+          "Error: #{reason}"
 
         e ->
           inspect(e)
