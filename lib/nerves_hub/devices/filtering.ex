@@ -131,7 +131,7 @@ defmodule NervesHub.Devices.Filtering do
          query,
          %{metrics_key: key, metrics_operator: operator, metrics_value: value}
        )
-       when key != "" do
+       when key != "" and value != "" do
     {value_as_float, _} = Float.parse(value)
 
     query

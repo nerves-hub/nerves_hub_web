@@ -395,6 +395,26 @@
               <% end %>
             </select>
           </div>
+          <div class="mt-6">
+            <div class="form-group">
+              <label class="sidebar-label" for="metrics">Metrics</label>
+              <select name="metrics_key" id="metrics_key" class="sidebar-select">
+                <option {selected?(@current_filters, :metrics_key, "")} value="">All</option>
+                <%= for key <- @metrics_keys do %>
+                  <option {selected?(@current_filters, :metrics_key, key)}>{key}</option>
+                <% end %>
+              </select>
+            </div>
+            <div :if={@current_filters.metrics_key != ""} class="mt-2">
+              <select name="metrics_operator" id="metrics_operator" class="sidebar-select">
+                <option {selected?(@current_filters, :metrics_operator, "gt")} value="gt">Greater Than</option>
+                <option {selected?(@current_filters, :metrics_operator, "lt")} value="lt">Less than</option>
+              </select>
+            </div>
+            <div :if={@current_filters.metrics_key != ""} class="mt-2">
+              <input type="number" name="metrics_value" id="metrics_value" class="sidebar-text-input" value={@current_filters[:metrics_value]} phx-debounce="100" />
+            </div>
+          </div>
         </form>
       </div>
     </div>
