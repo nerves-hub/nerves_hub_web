@@ -105,6 +105,14 @@ defmodule NervesHub.Devices.Filtering do
     filter_on_metric(query, filters)
   end
 
+  def filter(query, _filters, :is_pinned, value) do
+    if value do
+      where(query, [pinned: pd], not is_nil(pd))
+    else
+      query
+    end
+  end
+
   # Ignore any undefined filter.
   # This will prevent error 500 responses on deprecated saved bookmarks etc.
   def filter(query, _filters, _key, _value) do

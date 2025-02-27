@@ -108,14 +108,14 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
-  @spec filter(Product.t(), map()) :: %{
+  @spec filter(Product.t(), User.t(), map()) :: %{
           entries: list(Device.t()),
           current_page: non_neg_integer(),
           page_size: non_neg_integer(),
           total_pages: non_neg_integer(),
           total_count: non_neg_integer()
         }
-  def filter(product, opts) do
+  def filter(product, user, opts) do
     pagination = Map.get(opts, :pagination, %{})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
     filters = Map.get(opts, :filters, %{})
@@ -127,6 +127,10 @@ defmodule NervesHub.Devices do
     |> Repo.exclude_deleted()
     |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
+    |> join(:left, [d, dc, dh], pd in PinnedDevice,
+      on: pd.device_id == d.id and pd.user_id == ^user.id,
+      as: :pinned
+    )
     |> preload([latest_connection: lc], latest_connection: lc)
     |> preload([latest_health: lh], latest_health: lh)
     |> Filtering.build_filters(filters)
