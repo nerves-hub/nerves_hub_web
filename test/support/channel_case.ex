@@ -19,6 +19,8 @@ defmodule NervesHubWeb.ChannelCase do
     quote do
       # Import conveniences for testing with channels
       import Phoenix.ChannelTest
+      import Ecto.Query
+
       use DefaultMocks
       use Oban.Testing, repo: NervesHub.ObanRepo
       use AssertEventually, timeout: 500, interval: 50
@@ -35,8 +37,12 @@ defmodule NervesHubWeb.ChannelCase do
       end
 
       def assert_online_and_available(device) do
-        eventually assert [{_, %{}}] =
-                            Registry.match(NervesHub.Devices.Registry, device.id, :_)
+        device_connection_query =
+          NervesHub.Devices.DeviceConnection
+          |> where(status: :connected)
+          |> where(device_id: ^device.id)
+
+        eventually(assert(NervesHub.Repo.exists?(device_connection_query)))
       end
 
       def close_cleanly(channel) do
