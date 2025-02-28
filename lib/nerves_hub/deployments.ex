@@ -205,6 +205,16 @@ defmodule NervesHub.Deployments do
     |> Repo.one!()
   end
 
+  @spec get_by_product_and_platform(Product.t(), binary()) :: [Deployment.t()]
+  def get_by_product_and_platform(product, platform) do
+    Deployment
+    |> where(product_id: ^product.id)
+    |> join(:left, [d], f in assoc(d, :firmware))
+    |> where([_d, f], f.platform == ^platform)
+    |> preload([_d, f], firmware: f)
+    |> Repo.all()
+  end
+
   @spec get_deployment_by_name(Product.t(), String.t()) ::
           {:ok, Deployment.t()} | {:error, :not_found}
   def get_deployment_by_name(product, name) do
@@ -430,7 +440,13 @@ defmodule NervesHub.Deployments do
       when not is_nil(deployment_id) do
     {:ok, deployment} = get_deployment_for_device(device)
 
-    bad_version = !Version.match?(device_version, deployment.conditions["version"])
+    bad_version =
+      if deployment.conditions["version"] != "" do
+        !Version.match?(device_version, deployment.conditions["version"])
+      else
+        false
+      end
+
     bad_platform = device.firmware_metadata.platform != deployment.firmware.platform
     bad_architecture = device.firmware_metadata.architecture != deployment.firmware.architecture
 

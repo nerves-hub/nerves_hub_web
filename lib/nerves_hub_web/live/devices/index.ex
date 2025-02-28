@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
   use NervesHubWeb, :updated_live_view
 
   require Logger
-
   require OpenTelemetry.Tracer, as: Tracer
 
   alias NervesHub.AuditLogs.DeviceTemplates
@@ -101,6 +100,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
     |> assign(:metrics_keys, Metrics.default_metrics())
     |> assign(:deployments, Deployments.get_deployments_by_product(product))
+    |> assign(:available_deployments_for_filtered_platform, [])
     |> assign(:target_deployment, nil)
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
@@ -120,6 +120,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:currently_filtering, filters != @default_filters)
     |> assign(:params, unsigned_params)
     |> assign_display_devices()
+    |> maybe_assign_available_deployments_for_filtered_platform()
     |> noreply()
   end
 
@@ -224,7 +225,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
         [id | selected_devices]
       end
 
-    {:noreply, assign(socket, :selected_devices, selected_devices)}
+    socket =
+      socket
+      |> assign(:selected_devices, selected_devices)
+
+    {:noreply, socket}
   end
 
   def handle_event("select-all", _, socket) do
@@ -237,11 +242,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
         Enum.map(socket.assigns.devices, & &1.id)
       end
 
-    {:noreply, assign(socket, :selected_devices, selected_devices)}
+    socket =
+      socket
+      |> assign(:selected_devices, selected_devices)
+
+    {:noreply, socket}
   end
 
   def handle_event("deselect-all", _, socket) do
-    {:noreply, assign(socket, selected_devices: [])}
+    {:noreply,
+     assign(socket, %{selected_devices: [], available_deployments_for_filtered_platform: []})}
   end
 
   def handle_event("validate-tags", %{"tags" => tags}, socket) do
@@ -291,7 +301,10 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   def handle_event("target-deployment", %{"deployment" => deployment_id}, socket) do
     deployment =
-      Enum.find(socket.assigns.deployments, &(&1.id == String.to_integer(deployment_id)))
+      Enum.find(
+        socket.assigns.available_deployments_for_filtered_platform,
+        &(&1.id == String.to_integer(deployment_id))
+      )
 
     {:noreply, assign(socket, target_deployment: deployment)}
   end
@@ -715,4 +728,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
      background-size: #{progress}% 1px, #{progress * 1.1}% 100%;
     """
   end
+
+  defp maybe_assign_available_deployments_for_filtered_platform(
+         %{assigns: %{product: product, current_filters: %{platform: platform}}} = socket
+       )
+       when platform != "" do
+    assign(
+      socket,
+      :available_deployments_for_filtered_platform,
+      Deployments.get_by_product_and_platform(product, platform)
+    )
+  end
+
+  defp maybe_assign_available_deployments_for_filtered_platform(socket),
+    do: assign(socket, :available_deployments_for_filtered_platform, [])
 end
