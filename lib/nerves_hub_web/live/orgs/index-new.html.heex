@@ -15,6 +15,7 @@
     <PinnedDevices.render
       :if={!Enum.empty?(@pinned_devices)}
       devices={if @show_all_pinned?, do: @pinned_devices, else: limit_devices(@pinned_devices)}
+      statuses={@device_statuses}
       show_all?={@show_all_pinned?}
       device_limit={@device_limit}
       total_count={length(@pinned_devices)}

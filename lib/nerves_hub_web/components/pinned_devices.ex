@@ -1,10 +1,10 @@
 defmodule NervesHubWeb.Components.PinnedDevices do
   use NervesHubWeb, :component
 
-  alias NervesHub.Tracker
   alias NervesHubWeb.Components.HealthStatus
 
   attr(:devices, :list, required: true)
+  attr(:statuses, :map, required: true)
   attr(:device_limit, :integer, required: true)
   attr(:total_count, :integer, required: true)
   attr(:show_all?, :boolean, default: false)
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Components.PinnedDevices do
                   <td>
                     <div class="flex gap-[8px] items-center">
                       <span title="status">
-                        <%= if Tracker.connection_status(device) == "online" do %>
+                        <%= if @statuses[device.identifier] == "online" do %>
                           <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
                             <circle cx="3" cy="3" r="3" fill="#10B981" />
                           </svg>
