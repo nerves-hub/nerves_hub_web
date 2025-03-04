@@ -490,13 +490,19 @@ defmodule NervesHubWeb.Live.Devices.Show do
       |> Map.keys()
       |> Enum.map(&to_string/1)
 
-  defp schedule_health_check_timer(%{assigns: %{device: device}} = socket) do
-    if connected?(socket) and device.extensions.health do
+  defp schedule_health_check_timer(socket) do
+    %{device: device, product: product} = socket.assigns
+
+    if connected?(socket) and health_extension_enabled?(product, device) do
       timer_ref = Process.send_after(self(), :check_health_interval, 500)
       assign(socket, :health_check_timer, timer_ref)
     else
       assign(socket, :health_check_timer, nil)
     end
+  end
+
+  defp health_extension_enabled?(product, device) do
+    product.extensions.health and device.extensions.health
   end
 
   defp audit_log_assigns(
