@@ -40,7 +40,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_key: "",
     metrics_operator: "gt",
     metrics_value: "",
-    deployment_id: nil
+    deployment_id: nil,
+    is_pinned: false
   }
 
   @filter_types %{
@@ -59,7 +60,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_key: :string,
     metrics_operator: :string,
     metrics_value: :string,
-    deployment_id: :integer
+    deployment_id: :integer,
+    is_pinned: :boolean
   }
 
   @default_page 1
@@ -461,7 +463,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp assign_display_devices(
-         %{assigns: %{product: product, paginate_opts: paginate_opts}} = socket
+         %{assigns: %{product: product, paginate_opts: paginate_opts, user: user}} = socket
        ) do
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
@@ -471,7 +473,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       filters: socket.assigns.current_filters
     }
 
-    page = Devices.filter(product, opts)
+    page = Devices.filter(product, user, opts)
 
     statuses =
       Enum.into(page.entries, %{}, fn device ->

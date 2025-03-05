@@ -12,6 +12,14 @@
   </div>
 <% else %>
   <div class="w-[800px]">
+    <PinnedDevices.render
+      :if={!Enum.empty?(@pinned_devices)}
+      devices={if @show_all_pinned?, do: @pinned_devices, else: limit_devices(@pinned_devices)}
+      statuses={@device_statuses}
+      show_all?={@show_all_pinned?}
+      device_limit={@device_limit}
+      total_count={length(@pinned_devices)}
+    />
     <div class="h-[88px] py-6 flex items-center justify-between">
       <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Organizations</h1>
       <%!-- <.button type="link">

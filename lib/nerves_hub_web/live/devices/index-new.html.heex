@@ -378,6 +378,7 @@
               <option {selected?(@current_filters, :has_no_tags, true)} value="true">Only untagged</option>
             </select>
           </div>
+
           <div class="mt-6">
             <label class="sidebar-label" for="alarm_status">Alarm Status</label>
             <select class="sidebar-select" name="alarm_status" id="alarm_status">
@@ -413,6 +414,15 @@
             </div>
             <div :if={@current_filters.metrics_key != ""} class="mt-2">
               <input type="number" name="metrics_value" id="metrics_value" class="sidebar-text-input" value={@current_filters[:metrics_value]} phx-debounce="100" />
+            </div>
+          </div>
+          <div class="mt-6">
+            <div class="form-group">
+              <label class="sidebar-label" for="is_pinned">Pinned</label>
+              <select class="sidebar-select" name="is_pinned" id="is_pinned">
+                <option {selected?(@current_filters, :is_pinned, false)} value="false">All</option>
+                <option {selected?(@current_filters, :is_pinned, true)} value="true">Only pinned devices</option>
+              </select>
             </div>
           </div>
         </form>
