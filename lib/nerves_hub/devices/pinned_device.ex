@@ -7,6 +7,8 @@ defmodule NervesHub.Devices.PinnedDevice do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.PinnedDevice
 
+  @type t :: %__MODULE__{}
+
   @required [:user_id, :device_id]
   schema "pinned_devices" do
     belongs_to(:user, User)
