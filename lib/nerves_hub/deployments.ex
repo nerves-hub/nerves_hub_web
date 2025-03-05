@@ -629,35 +629,37 @@ defmodule NervesHub.Deployments do
   end
 
   def start_deployments_distributed_orchestrator_event(deployment) do
-    DistributedOrchestrator.start_orchestrator(deployment)
+    _ = DistributedOrchestrator.start_orchestrator(deployment)
 
     :ok
   end
 
   def shutdown_deployments_distributed_orchestrator_event(deployment) do
-    Phoenix.Channel.Server.broadcast(
-      NervesHub.PubSub,
-      "orchestrator:deployment:#{deployment.id}",
-      "deactivated",
-      %{}
-    )
+    _ =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "orchestrator:deployment:#{deployment.id}",
+        "deactivated",
+        %{}
+      )
 
     :ok
   end
 
   def deployment_activated_event(deployment) do
-    DistributedOrchestrator.start_orchestrator(deployment)
+    _ = DistributedOrchestrator.start_orchestrator(deployment)
 
     :ok
   end
 
   def deployment_deactivated_event(deployment) do
-    Phoenix.Channel.Server.broadcast(
-      NervesHub.PubSub,
-      "orchestrator:deployment:#{deployment.id}",
-      "deactivated",
-      %{}
-    )
+    _ =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "orchestrator:deployment:#{deployment.id}",
+        "deactivated",
+        %{}
+      )
 
     :ok
   end
@@ -668,7 +670,7 @@ defmodule NervesHub.Deployments do
         broadcast(deployment, "deleted")
       end
 
-    broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
+    _ = broadcast(:monitor, "deployments/delete", %{deployment_id: deployment.id})
 
     :ok
   end
