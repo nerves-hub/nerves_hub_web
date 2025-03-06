@@ -9,7 +9,13 @@
     <span class="text-base-400">/</span>
     <span class="text-zinc-50 font-semibold">{@device.identifier}</span>
   </div>
+
   <div class="flex items-center gap-2 ml-auto mr-6">
+    <div class="my-4 pr-2 border-r border-base-700 flex space-x-[-10px]">
+      <div :for={%{name: name} <- @active_users} class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600 border-base-700">
+        <span class="font-medium text-gray-600 dark:text-gray-300">{String.split(name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}</span>
+      </div>
+    </div>
     <.button :if={@pinned?} aria-label="Unpin device" style="primary" phx-click="unpin">
       <.icon name="pinned" />
     </.button>
