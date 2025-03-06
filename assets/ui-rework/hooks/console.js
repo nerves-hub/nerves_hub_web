@@ -194,38 +194,40 @@ export default {
       e => {
         e.preventDefault()
         e.stopPropagation()
-        e.dataTransfer.items.forEach(item => {
-          const file = item.getAsFile()
-          const reader = file.stream().getReader()
+        if (e.dataTransfer.items) {
+          for (const item of e.dataTransfer.items) {
+            const file = item.getAsFile()
+            const reader = file.stream().getReader()
 
-          channel.push("file-data/start", { filename: file.name })
+            channel.push("file-data/start", { filename: file.name })
 
-          reader.read().then(function process({ done, value }) {
-            if (done) {
-              channel.push("file-data/stop", { filename: file.name })
-              return
-            }
+            reader.read().then(function process({ done, value }) {
+              if (done) {
+                channel.push("file-data/stop", { filename: file.name })
+                return
+              }
 
-            const chunkSize = 1024
-            let chunkNum = 0
+              const chunkSize = 1024
+              let chunkNum = 0
 
-            for (let i = 0; i < value.length; i += chunkSize) {
-              const chunk = value.slice(i, i + chunkSize)
+              for (let i = 0; i < value.length; i += chunkSize) {
+                const chunk = value.slice(i, i + chunkSize)
 
-              const encoded = btoa(String.fromCharCode.apply(null, chunk))
+                const encoded = btoa(String.fromCharCode.apply(null, chunk))
 
-              channel.push("file-data", {
-                filename: file.name,
-                chunk: chunkNum,
-                data: encoded
-              })
+                channel.push("file-data", {
+                  filename: file.name,
+                  chunk: chunkNum,
+                  data: encoded
+                })
 
-              chunkNum += 1
-            }
+                chunkNum += 1
+              }
 
-            return reader.read().then(process)
-          })
-        })
+              return reader.read().then(process)
+            })
+          }
+        }
       },
       false
     )
