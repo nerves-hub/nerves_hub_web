@@ -13,7 +13,7 @@
   <div class="flex items-center gap-2 ml-auto mr-6">
     <div class="my-4 pr-2 border-r border-base-700 flex space-x-[-10px]">
       <div
-        :for={{%{name: name, id: id}, idx} <- Enum.with_index(@active_users)}
+        :for={{%{name: name}, idx} <- Enum.with_index(@active_users)}
         class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600 border-base-700 "
         style={"z-index:#{length(@active_users) - idx}"}
       >
