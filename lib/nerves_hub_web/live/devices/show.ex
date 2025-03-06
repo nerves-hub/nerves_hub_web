@@ -30,9 +30,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DevicePage.Health, as: HealthPage
   alias NervesHubWeb.Components.DevicePage.Settings, as: SettingsPage
 
-  alias Phoenix.Socket.Broadcast
-
   alias NervesHubWeb.Presence
+  alias Phoenix.Socket.Broadcast
 
   @running_script_placeholder "Running Script.."
   @presence_topic "device_presence:"
