@@ -29,9 +29,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DevicePage.Health, as: HealthPage
   alias NervesHubWeb.Components.DevicePage.Settings, as: SettingsPage
 
+  alias NervesHubWeb.Presence
   alias Phoenix.Socket.Broadcast
 
   @running_script_placeholder "Running Script.."
+  @presence_topic "device_presence:"
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product, user: user} = socket.assigns
@@ -60,6 +62,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:pinned?, Devices.device_pinned?(user.id, device.id))
     |> audit_log_assigns()
     |> assign_deployments()
+    |> setup_presence_tracking()
     |> ok()
   end
 
@@ -76,6 +79,24 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> assign(:device, device)
+    |> noreply()
+  end
+
+  def handle_info(
+        %{event: "presence_diff", payload: _payload},
+        %{assigns: %{device: device}} = socket
+      ) do
+    presence_topic = build_topic(device.identifier)
+
+    users =
+      Presence.list(presence_topic)
+      |> Enum.map(fn {_user_id, data} ->
+        data[:metas]
+        |> List.first()
+      end)
+
+    socket
+    |> assign(:active_users, users)
     |> noreply()
   end
 
@@ -497,6 +518,24 @@ defmodule NervesHubWeb.Live.Devices.Show do
   defp load_device(org, identifier) do
     Devices.get_device_by_identifier!(org, identifier, [:latest_connection, :latest_health])
   end
+
+  defp setup_presence_tracking(%{assigns: %{device: device, user: user}} = socket) do
+    presence_topic = build_topic(device.identifier)
+
+    if connected?(socket), do: socket.endpoint.subscribe(presence_topic)
+
+    # Ignore result since error will be returned if page is already tracked.
+    _ =
+      Presence.track(self(), presence_topic, user.id, %{
+        id: user.id,
+        name: user.name
+      })
+
+    # Initiate empty list, it will be populated on tracking event message
+    assign(socket, :active_users, [])
+  end
+
+  defp build_topic(device_id), do: @presence_topic <> device_id
 
   defp scripts_with_output(product) do
     product
