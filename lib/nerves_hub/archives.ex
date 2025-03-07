@@ -8,8 +8,8 @@ defmodule NervesHub.Archives do
   require Logger
 
   alias NervesHub.Archives.Archive
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Fwup
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteArchive
@@ -67,12 +67,12 @@ defmodule NervesHub.Archives do
     |> Repo.one!()
   end
 
-  @spec archive_for_deployment(integer()) :: Archive.t() | nil
-  def archive_for_deployment(nil), do: nil
+  @spec archive_for_deployment_group(integer()) :: Archive.t() | nil
+  def archive_for_deployment_group(nil), do: nil
 
-  def archive_for_deployment(deployment_id) do
+  def archive_for_deployment_group(deployment_id) do
     Archive
-    |> join(:inner, [a], d in Deployment, on: d.archive_id == a.id)
+    |> join(:inner, [a], d in DeploymentGroup, on: d.archive_id == a.id)
     |> where([a, d], d.id == ^deployment_id)
     |> Repo.one()
   end
