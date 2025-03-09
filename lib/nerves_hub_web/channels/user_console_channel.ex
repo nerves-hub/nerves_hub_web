@@ -25,6 +25,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
 
   def handle_in("file-data/start", payload, socket) do
     topic = "device:console:#{socket.assigns.device_id}"
+    payload = Map.put(payload, :uploaded_by, socket.assigns.user.id)
     socket.endpoint.broadcast!(topic, "file-data/start", payload)
     {:noreply, socket}
   end
@@ -37,6 +38,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
 
   def handle_in("file-data/stop", payload, socket) do
     topic = "device:console:#{socket.assigns.device_id}"
+    payload = Map.put(payload, :uploaded_by, socket.assigns.user.id)
     socket.endpoint.broadcast!(topic, "file-data/stop", payload)
     {:noreply, socket}
   end
