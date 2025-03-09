@@ -41,6 +41,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
       socket.endpoint.subscribe("device:console:#{device.id}:internal")
+      socket.endpoint.subscribe("device:console:#{device.id}")
       socket.endpoint.subscribe("device:#{device.identifier}:extensions")
       socket.endpoint.subscribe("firmware")
     end
@@ -183,6 +184,24 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
 
     {:noreply, assign(socket, :device, device)}
+  end
+
+  def handle_info(%Broadcast{event: "file-data/start", payload: payload}, socket) do
+    send_update(self(), ConsolePage,
+      id: "device_console",
+      file_upload: Map.put(payload, :status, "started")
+    )
+
+    {:noreply, socket}
+  end
+
+  def handle_info(%Broadcast{event: "file-data/stop", payload: payload}, socket) do
+    send_update(self(), ConsolePage,
+      id: "device_console",
+      file_upload: Map.put(payload, :status, "finished")
+    )
+
+    {:noreply, socket}
   end
 
   # Ignore unknown messages
