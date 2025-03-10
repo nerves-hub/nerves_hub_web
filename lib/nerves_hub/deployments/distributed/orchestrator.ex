@@ -279,9 +279,7 @@ defmodule NervesHub.Deployments.Distributed.Orchestrator do
   def start_orchestrator(
         %Deployment{is_active: true, orchestrator_strategy: :distributed} = deployment
       ) do
-    if Application.get_env(:nerves_hub, :deploy_env) != "test" do
-      ProcessHub.start_child(:deployment_orchestrators, child_spec(deployment))
-    end
+    ProcessHub.start_child(:deployment_orchestrators, child_spec(deployment))
   end
 
   def start_orchestrator(_) do
