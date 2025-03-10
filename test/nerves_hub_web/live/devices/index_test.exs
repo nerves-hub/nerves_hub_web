@@ -231,7 +231,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       assert change =~ "1 devices found"
     end
 
-    test "filters devices by deployment_id", %{conn: conn, fixture: fixture} do
+    test "filters devices by deployment", %{conn: conn, fixture: fixture} do
       %{device: device, firmware: firmware, org: org, product: product, deployment: deployment} =
         fixture
 
@@ -244,6 +244,17 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       change = render_change(view, "update-filters", %{"deployment_id" => deployment.id})
       assert change =~ device.identifier
       refute change =~ device2.identifier
+      assert change =~ "1 devices found"
+    end
+
+    test "filters devices by no deployment", %{conn: conn, fixture: %{device: device} = fixture} do
+      refute device.deployment_id
+
+      {:ok, view, _html} = live(conn, device_index_path(fixture))
+
+      # -1 is a UI concern that indicates we're filtering for devices that have no deployment
+      change = render_change(view, "update-filters", %{"deployment_id" => "-1"})
+      assert change =~ device.identifier
       assert change =~ "1 devices found"
     end
 
