@@ -232,16 +232,22 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     end
 
     test "filters devices by deployment_id", %{conn: conn, fixture: fixture} do
-      %{device: device, firmware: firmware, org: org, product: product, deployment: deployment} =
+      %{
+        device: device,
+        firmware: firmware,
+        org: org,
+        product: product,
+        deployment_group: deployment_group
+      } =
         fixture
 
       device2 = Fixtures.device_fixture(org, product, firmware)
 
-      Repo.update!(Ecto.Changeset.change(device, deployment_id: deployment.id))
+      Repo.update!(Ecto.Changeset.change(device, deployment_id: deployment_group.id))
 
       {:ok, view, _html} = live(conn, device_index_path(fixture))
 
-      change = render_change(view, "update-filters", %{"deployment_id" => deployment.id})
+      change = render_change(view, "update-filters", %{"deployment_id" => deployment_group.id})
       assert change =~ device.identifier
       refute change =~ device2.identifier
       assert change =~ "1 devices found"
@@ -305,7 +311,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         org: org,
         product: product,
         firmware: firmware,
-        deployment: deployment
+        deployment_group: deployment_group
       } = fixture
 
       device2 = Fixtures.device_fixture(org, product, firmware)
@@ -316,16 +322,18 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
 
       conn
       |> visit(
-        "/org/#{org.name}/#{product.name}/devices?platform=#{deployment.firmware.platform}"
+        "/org/#{org.name}/#{product.name}/devices?platform=#{deployment_group.firmware.platform}"
       )
       |> unwrap(fn view ->
         render_change(view, "select-all", %{"id" => device.id})
       end)
       |> assert_has("span", text: "2 selected")
       |> unwrap(fn view ->
-        render_change(view, "target-deployment", %{"deployment" => to_string(deployment.id)})
+        render_change(view, "target-deployment-group", %{
+          "deployment_group" => to_string(deployment_group.id)
+        })
       end)
-      |> click_button("#move-deployment-submit", "Move")
+      |> click_button("#move-deployment-group-submit", "Move")
       |> assert_has("div", text: "2 devices added to deployment")
 
       assert_receive %{event: "devices/updated"}

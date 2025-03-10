@@ -18,7 +18,6 @@ defmodule NervesHub.FirmwaresTest do
     product = Fixtures.product_fixture(user, org)
     org_key = Fixtures.org_key_fixture(org, user)
     firmware = Fixtures.firmware_fixture(org_key, product)
-    deployment = Fixtures.deployment_fixture(org, firmware)
     device = Fixtures.device_fixture(org, product, firmware)
 
     {:ok,
@@ -27,7 +26,6 @@ defmodule NervesHub.FirmwaresTest do
        org: org,
        org_key: org_key,
        firmware: firmware,
-       deployment: deployment,
        matching_device: device,
        product: product
      }}
@@ -80,7 +78,7 @@ defmodule NervesHub.FirmwaresTest do
     firmware = Fixtures.firmware_fixture(org_key, product)
     assert File.exists?(firmware.upload_metadata[:local_path])
 
-    Fixtures.deployment_fixture(org, firmware, %{name: "a deployment"})
+    Fixtures.deployment_group_fixture(org, firmware, %{name: "a deployment"})
 
     assert {:error, %Changeset{}} = Firmwares.delete_firmware(firmware)
   end

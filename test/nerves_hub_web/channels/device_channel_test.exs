@@ -14,7 +14,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "extensions are requested from device if version is above 2.2.0" do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
@@ -37,7 +37,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "presence connection information" do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     subscribe_for_updates(device)
@@ -53,7 +53,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "fwup_public_keys requested on connect" do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     params =
@@ -79,7 +79,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "archive_public_keys requested on connect" do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     params =
@@ -170,7 +170,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "the first fwup_progress marks an update as happening" do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
@@ -193,7 +193,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "set connection types for the device" do
     user = Fixtures.user_fixture()
-    {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+    {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
     {:ok, socket} =
@@ -216,8 +216,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "deployment information is updated when the deployment is cleared" do
     user = Fixtures.user_fixture()
-    {device, _firmware, deployment} = device_fixture(user, %{identifier: "123"})
-    Devices.update_deployment(device, deployment)
+    {device, _firmware, deployment_group} = device_fixture(user, %{identifier: "123"})
+    Devices.update_deployment_group(device, deployment_group)
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
@@ -232,7 +232,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
     refute is_nil(device_channel.assigns.device.deployment_id)
     refute is_nil(device_channel.assigns.deployment_channel)
 
-    Devices.clear_deployment(device)
+    Devices.clear_deployment_group(device)
 
     # we need to let the channel process all messages before we can
     # check the state of the device's connection types
@@ -246,8 +246,8 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
   test "deployment information is updated when the device joins a new deployment" do
     user = Fixtures.user_fixture()
-    {device, firmware, deployment} = device_fixture(user, %{identifier: "123"})
-    Devices.update_deployment(device, deployment)
+    {device, firmware, deployment_group} = device_fixture(user, %{identifier: "123"})
+    Devices.update_deployment_group(device, deployment_group)
 
     %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
@@ -257,21 +257,21 @@ defmodule NervesHubWeb.DeviceChannelTest do
     {:ok, _join_reply, device_channel} =
       subscribe_and_join(socket, DeviceChannel, "device")
 
-    assert device_channel.assigns.device.deployment_id == deployment.id
+    assert device_channel.assigns.device.deployment_id == deployment_group.id
     refute is_nil(device_channel.assigns.deployment_channel)
 
     device = NervesHub.Repo.preload(device, :org)
 
-    new_deployment =
-      Fixtures.deployment_fixture(device.org, firmware, %{name: "Super Deployment"})
+    new_deployment_group =
+      Fixtures.deployment_group_fixture(device.org, firmware, %{name: "Super Deployment"})
 
-    Devices.update_deployment(device, new_deployment)
+    Devices.update_deployment_group(device, new_deployment_group)
 
     # we need to let the channel process all messages before we can
     # check the state of the device's connection types
     state = :sys.get_state(device_channel.channel_pid)
 
-    assert state.assigns.device.deployment_id == new_deployment.id
+    assert state.assigns.device.deployment_id == new_deployment_group.id
     refute is_nil(state.assigns.deployment_channel)
 
     close_cleanly(device_channel)
@@ -280,7 +280,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   describe "unhandled messages are caught" do
     test "handle_info" do
       user = Fixtures.user_fixture()
-      {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
       %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
       subscribe_for_updates(device)
@@ -300,7 +300,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     test "handle_in" do
       user = Fixtures.user_fixture()
-      {device, _firmware, _deployment} = device_fixture(user, %{identifier: "123"})
+      {device, _firmware, _deployment_group} = device_fixture(user, %{identifier: "123"})
       %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
 
       {:ok, socket} =
@@ -326,7 +326,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
         version: "0.0.1"
       })
 
-    deployment = Fixtures.deployment_fixture(org, firmware)
+    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
 
     params = Enum.into(device_params, %{tags: ["beta", "beta-edge"]})
 
@@ -338,7 +338,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
         params
       )
 
-    {device, firmware, deployment}
+    {device, firmware, deployment_group}
   end
 
   defp archive_setup() do
@@ -348,10 +348,10 @@ defmodule NervesHubWeb.DeviceChannelTest do
     org_key = Fixtures.org_key_fixture(org, user)
     archive = %{uuid: archive_uuid} = Fixtures.archive_fixture(org_key, product)
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: System.tmp_dir()})
-    deployment = Fixtures.deployment_fixture(org, firmware, %{archive_id: archive.id})
+    deployment_group = Fixtures.deployment_group_fixture(org, firmware, %{archive_id: archive.id})
 
-    {device, _firmware, _deployment} =
-      device_fixture(user, %{identifier: "123", deployment_id: deployment.id})
+    {device, _firmware, _deployment_group} =
+      device_fixture(user, %{identifier: "123", deployment_id: deployment_group.id})
 
     %{db_cert: certificate} = Fixtures.device_certificate_fixture(device)
 

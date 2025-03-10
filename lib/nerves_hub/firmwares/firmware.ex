@@ -5,7 +5,7 @@ defmodule NervesHub.Firmwares.Firmware do
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
 
   alias __MODULE__
@@ -46,7 +46,7 @@ defmodule NervesHub.Firmwares.Firmware do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:org_key, OrgKey)
-    has_many(:deployments, Deployment)
+    has_many(:deployment_groups, DeploymentGroup)
 
     field(:architecture, :string)
     field(:author, :string)
@@ -70,7 +70,7 @@ defmodule NervesHub.Firmwares.Firmware do
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
     |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
-    |> foreign_key_constraint(:deployments, name: :deployments_firmware_id_fkey)
+    |> foreign_key_constraint(:deployment_groups, name: :deployment_groups_firmware_id_fkey)
   end
 
   def update_changeset(%Firmware{} = firmware, params) do
@@ -78,12 +78,12 @@ defmodule NervesHub.Firmwares.Firmware do
     |> cast(params, @required_params ++ @optional_params)
     |> validate_required(@required_params)
     |> unique_constraint(:uuid, name: :firmwares_product_id_uuid_index)
-    |> foreign_key_constraint(:deployments, name: :deployments_firmware_id_fkey)
+    |> foreign_key_constraint(:deployment_groups, name: :deployment_groups_firmware_id_fkey)
   end
 
   def delete_changeset(%Firmware{} = firmware, params) do
     firmware
     |> cast(params, @required_params ++ @optional_params)
-    |> no_assoc_constraint(:deployments, message: "Firmware has associated deployments")
+    |> no_assoc_constraint(:deployment_groups, message: "Firmware has associated deployments")
   end
 end

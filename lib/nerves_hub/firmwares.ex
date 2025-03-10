@@ -107,13 +107,13 @@ defmodule NervesHub.Firmwares do
 
   defp sort_firmware(query, sort), do: order_by(query, ^sort)
 
-  def get_firmwares_for_deployment(deployment) do
-    deployment = Repo.preload(deployment, [:firmware])
+  def get_firmwares_for_deployment_group(deployment_group) do
+    deployment_group = Repo.preload(deployment_group, [:firmware])
 
     Firmware
-    |> where([f], f.product_id == ^deployment.product_id)
-    |> where([f], f.platform == ^deployment.firmware.platform)
-    |> where([f], f.architecture == ^deployment.firmware.architecture)
+    |> where([f], f.product_id == ^deployment_group.product_id)
+    |> where([f], f.platform == ^deployment_group.firmware.platform)
+    |> where([f], f.architecture == ^deployment_group.firmware.architecture)
     |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
     |> with_product()
     |> Repo.all()
