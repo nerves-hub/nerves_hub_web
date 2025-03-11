@@ -150,7 +150,7 @@
                       </svg> --%>
                   <% end %>
                 </span>
-                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class="ff-m">
+                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class="ff-m font-mono">
                   {device.identifier}
                   <span class="absolute inset-0 z-10"></span>
                 </.link>
@@ -168,7 +168,7 @@
 
             <td>
               <div class="flex gap-[8px] items-center">
-                <span>
+                <span class="font-mono">
                   <%= if is_nil(device.firmware_metadata) do %>
                     Unknown
                   <% else %>
