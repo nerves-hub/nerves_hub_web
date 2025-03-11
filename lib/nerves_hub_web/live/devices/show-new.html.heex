@@ -62,7 +62,7 @@
           <circle cx="3" cy="3" r="3" fill="#71717A" />
         </svg>
       <% end %>
-      <h1 class="text-xl font-semibold leading-[30px] text-zinc-50">
+      <h1 class="text-xl font-semibold leading-[30px] text-zinc-50 font-mono">
         {@device.identifier}
       </h1>
     </div>
@@ -71,10 +71,10 @@
       <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
         <span class="text-sm text-zinc-400 mr-1">Version:</span>
 
-        <span :if={is_nil(@device.firmware_metadata)} class="text-sm text-base-300">Unknown</span>
+        <span :if={is_nil(@device.firmware_metadata)} class="text-sm text-base-300 font-mono">Unknown</span>
 
         <.link :if={@device.firmware_metadata} navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="flex items-center">
-          <span class="text-sm text-base-300 mr-1">{@device.firmware_metadata.version} ({String.slice(@device.firmware_metadata.uuid, 0..7)})</span>
+          <span class="text-sm text-base-300 mr-1 font-mono">{@device.firmware_metadata.version} ({String.slice(@device.firmware_metadata.uuid, 0..7)})</span>
           <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M8 10V8M8 6V5.99333M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
@@ -112,14 +112,20 @@
               </svg>
             </button>
           <% Devices.device_in_penalty_box?(@device) -> %>
-            <svg class="mx-1 size-4 stroke-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <div class="relative z-20" id={"update-status-#{@device.id}"} phx-hook="ToolTip" data-placement="bottom">
+              <svg class="mx-1 size-4 stroke-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+                Updates blocked {DeviceUpdateStatus.friendly_blocked_until(@device.updates_blocked_until)}
+                <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+              </div>
+            </div>
 
             <span class="text-sm text-base-300">Penalty Box</span>
 
