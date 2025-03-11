@@ -19,7 +19,7 @@ jobs:
       packages: read
 
     env:
-      FWUP_VERSION: "1.10.1"
+      FWUP_VERSION: "1.12.0"
       MIX_ENV: "test"
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/nerves_hub_test
 
@@ -39,7 +39,7 @@ jobs:
       - name: Install system deps
         run: |
           wget https://github.com/fwup-home/fwup/releases/download/v${FWUP_VERSION}/fwup_${FWUP_VERSION}_amd64.deb
-          sudo dpkg -i fwup_1.10.1_amd64.deb && rm fwup_1.10.1_amd64.deb
+          sudo dpkg -i fwup_${FWUP_VERSION}_amd64.deb && rm fwup_${FWUP_VERSION}_amd64.deb
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
 
       - name: Cache deps
         id: cache-deps
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-elixir-deps
         with:
@@ -63,7 +63,7 @@ jobs:
 
       - name: Cache compiled build
         id: cache-build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-compiled-build
         with:
