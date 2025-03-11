@@ -150,7 +150,7 @@
                       </svg> --%>
                   <% end %>
                 </span>
-                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class={"ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
+                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class="ff-m">
                   {device.identifier}
                   <span class="absolute inset-0 z-10"></span>
                 </.link>
