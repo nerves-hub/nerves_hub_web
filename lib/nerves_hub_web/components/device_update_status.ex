@@ -55,7 +55,7 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
     end
   end
 
-  defp friendly_blocked_until(blocked_until) do
+  def friendly_blocked_until(blocked_until) do
     cond do
       DateTime.diff(blocked_until, DateTime.utc_now(), :second) < 60 ->
         "for less than a minute"
@@ -71,6 +71,15 @@ defmodule NervesHubWeb.Components.DeviceUpdateStatus do
 
       DateTime.diff(blocked_until, DateTime.utc_now(), :minute) < 63 ->
         "for an hour"
+
+      DateTime.diff(blocked_until, DateTime.utc_now(), :minute) < 80 ->
+        "for just over an hour"
+
+      DateTime.diff(blocked_until, DateTime.utc_now(), :minute) < 100 ->
+        "for an hour and a half"
+
+      DateTime.diff(blocked_until, DateTime.utc_now(), :minute) < 110 ->
+        "for around 2 hours"
 
       DateTime.diff(blocked_until, DateTime.utc_now(), :hour) < 24 ->
         "for #{DateTime.diff(blocked_until, DateTime.utc_now(), :hour)} hours"
