@@ -32,7 +32,7 @@
       <table class="">
         <thead>
           <tr>
-            <th phx-click="sort" phx-value-sort="name" class="cursor-pointer">
+            <th phx-click="sort" phx-value-sort="name" class="cursor-pointer w-1/5">
               <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
             <th phx-click="sort" phx-value-sort="platform" class="cursor-pointer">
@@ -44,11 +44,14 @@
             <th phx-click="sort" phx-value-sort="device_count" class="cursor-pointer">
               <Sorting.sort_icon text="Devices" field="device_count" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
-            <th phx-click="sort" phx-value-sort="firmware_version" class="cursor-pointer">
+            <th phx-click="sort" phx-value-sort="firmware_version" class="cursor-pointer min-w-fit">
               <Sorting.sort_icon text="Firmware version" field="firmware_version" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
             <th>
               Device Tags
+            </th>
+            <th>
+              Version Constraint
             </th>
           </tr>
         </thead>
@@ -78,7 +81,7 @@
               {deployment.device_count}
             </td>
 
-            <td>
+            <td class="min-w-fit">
               <span class="inline-block h-7 py-1 px-2 items-center rounded bg-zinc-800">
                 <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{deployment.firmware.uuid}"} class="flex items-center">
                   <span class="text-sm text-base-300 mr-1">{deployment.firmware.version} ({String.slice(deployment.firmware.uuid, 0..7)})</span>
@@ -107,6 +110,10 @@
                   -
                 <% end %>
               </div>
+            </td>
+
+            <td>
+              {version(deployment)}
             </td>
           </tr>
         </tbody>
