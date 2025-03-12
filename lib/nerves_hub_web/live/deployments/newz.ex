@@ -97,7 +97,7 @@ defmodule NervesHubWeb.Live.Deployments.Newz do
 
         socket
         |> LiveToast.put_toast(:info, "Deployment created")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployments")
+        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployments/#{deployment.name}")
         |> noreply()
 
       {_firmware, {:error, changeset}} ->
