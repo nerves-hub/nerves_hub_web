@@ -319,6 +319,7 @@
             <label class="sidebar-label" for="deployment_id">Deployment</label>
             <select class="sidebar-select" name="deployment_id" id="deployment_id">
               <option {selected?(@current_filters, :deployment_id, "")} value="">All</option>
+              <option {selected?(@current_filters, :deployment_id, nil)} value="-1">No Deployment</option>
               <%= for deployment <- @deployments do %>
                 <option {selected?(@current_filters, :deployment_id, deployment.id)} value={deployment.id}>{deployment.name}</option>
               <% end %>

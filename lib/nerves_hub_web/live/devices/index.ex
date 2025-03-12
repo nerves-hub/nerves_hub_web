@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_key: "",
     metrics_operator: "gt",
     metrics_value: "",
-    deployment_id: nil,
+    deployment_id: "",
     is_pinned: false
   }
 
@@ -61,7 +61,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_key: :string,
     metrics_operator: :string,
     metrics_value: :string,
-    deployment_id: :integer,
+    deployment_id: :string,
     is_pinned: :boolean
   }
 
@@ -471,7 +471,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       sort:
         {String.to_existing_atom(socket.assigns.sort_direction),
          String.to_atom(socket.assigns.current_sort)},
-      filters: socket.assigns.current_filters
+      filters: transform_deployment_filter(socket.assigns.current_filters)
     }
 
     page = Devices.filter(product, user, opts)
@@ -500,6 +500,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:total_entries, page.total_count)
     |> assign(:paginate_opts, paginate_opts)
   end
+
+  defp transform_deployment_filter(%{deployment_id: ""} = filters),
+    do: Map.delete(filters, :deployment_id)
+
+  defp transform_deployment_filter(%{deployment_id: "-1"} = filters),
+    do: %{filters | deployment_id: nil}
+
+  defp transform_deployment_filter(filters),
+    do: %{filters | deployment_id: String.to_integer(filters.deployment_id)}
 
   defp update_device_statuses(socket, payload) do
     # Only sync devices currently on display
