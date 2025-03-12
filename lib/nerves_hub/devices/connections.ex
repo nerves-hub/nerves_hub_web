@@ -175,6 +175,7 @@ defmodule NervesHub.Devices.Connections do
       |> where([dc, d], dc.id != d.latest_connection_id)
       |> select([dc], dc.id)
       |> limit(^delete_limit)
+      |> order_by(:last_seen_at)
 
     {delete_count, _} =
       DeviceConnection
