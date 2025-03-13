@@ -90,30 +90,11 @@
       <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
         <span class="text-sm text-zinc-400">Firmware updates:</span>
         <%= cond do %>
-          <% @device.updates_enabled == false -> %>
-            <svg class="mx-1 size-4 stroke-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-
-            <span class="text-sm text-base-300">Disabled</span>
-
-            <button class="border rounded-sm border-zinc-600 bg-zinc-700 ml-2 p-1" type="button" phx-click="toggle_health_state">
-              <svg class="h-3 w-3 stroke-zinc-400" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M8.93294 11.3751C7.84085 11.3341 6.72055 11.7413 5.87048 12.5914C4.2853 14.1765 4.24008 16.7014 5.76948 18.2308C7.29889 19.7602 9.82376 19.715 11.4089 18.1298C12.259 17.2797 12.6662 16.1595 12.6253 15.0674M11.3752 8.93267C11.3343 7.84058 11.7415 6.72029 12.5915 5.87023C14.1767 4.28505 16.7016 4.23984 18.231 5.76923C19.7604 7.29863 19.7152 9.82349 18.13 11.4087C17.2799 12.2587 16.1597 12.6659 15.0676 12.625M8.53872 15.4616L15.4618 8.53855"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
+          <% is_nil(@device.deployment_id) -> %>
+            <span class="ml-2 mr-1 text-sm text-base-300">N/A</span>
           <% Devices.device_in_penalty_box?(@device) -> %>
-            <div class="relative z-20" id={"update-status-#{@device.id}"} phx-hook="ToolTip" data-placement="bottom">
-              <svg class="mx-1 size-4 stroke-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+            <div class="relative z-20" id={"update-status-#{@device.id}"} phx-hook="ToolTip" data-placement="left">
+              <svg class="mx-2 size-4 stroke-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
                   stroke-width="2"
@@ -127,19 +108,58 @@
               </div>
             </div>
 
-            <span class="text-sm text-base-300">Penalty Box</span>
+            <button
+              type="button"
+              phx-click="clear-penalty-box"
+              class={[
+                "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
+                "bg-amber-500"
+              ]}
+              role="switch"
+              aria-checked="false"
+            >
+              <span
+                aria-hidden="true"
+                class={[
+                  "pointer-events-none inline-block size-3",
+                  "translate-x-0",
+                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                ]}
+              >
+              </span>
+            </button>
+          <% @device.updates_enabled == false -> %>
+            <svg class="mx-2 size-4 stroke-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M19 14V5C17.5 5.16667 14 5 12 3C11.4286 3.57143 10.7347 3.9932 10 4.30029M5 5V14C5 18 12 21 12 21C12 21 15.2039 19.6269 17.2766 17.5M3 3L21 21"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
 
-            <button class="border rounded-sm border-zinc-600 bg-zinc-700 ml-2 p-1" type="button" phx-click="clear-penalty-box">
-              <svg class="h-3 w-3 stroke-zinc-400" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M8.93294 11.3751C7.84085 11.3341 6.72055 11.7413 5.87048 12.5914C4.2853 14.1765 4.24008 16.7014 5.76948 18.2308C7.29889 19.7602 9.82376 19.715 11.4089 18.1298C12.259 17.2797 12.6662 16.1595 12.6253 15.0674M11.3752 8.93267C11.3343 7.84058 11.7415 6.72029 12.5915 5.87023C14.1767 4.28505 16.7016 4.23984 18.231 5.76923C19.7604 7.29863 19.7152 9.82349 18.13 11.4087C17.2799 12.2587 16.1597 12.6659 15.0676 12.625M8.53872 15.4616L15.4618 8.53855"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+            <button
+              type="button"
+              phx-click="toggle_deployment_firmware_updates"
+              class={[
+                "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
+                "bg-red-500"
+              ]}
+              role="switch"
+              aria-checked="false"
+            >
+              <span
+                aria-hidden="true"
+                class={[
+                  "pointer-events-none inline-block size-3",
+                  "translate-x-0",
+                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                ]}
+              >
+              </span>
             </button>
           <% true -> %>
-            <svg class="mx-1 size-4 stroke-emerald-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none">
+            <svg class="mx-2 size-4 stroke-emerald-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none">
               <path
                 d="M5.99992 8L7.33325 9.33333L9.99992 6M7.99992 14C7.99992 14 12.6666 12 12.6666 9.33333V3.33333C11.6666 3.44444 9.33325 3.33333 7.99992 2C6.66659 3.33333 4.33325 3.44444 3.33325 3.33333V9.33333C3.33325 12 7.99992 14 7.99992 14Z"
                 stroke-width="1.2"
@@ -148,25 +168,25 @@
               />
             </svg>
 
-            <span class="text-sm text-base-300">Enabled</span>
-
-            <button class="border rounded-sm border-zinc-600 bg-zinc-700 ml-2 p-1" type="button" phx-click="toggle_health_state">
-              <svg class="h-3 w-3" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g clip-path="url(#clip0_203_25341)">
-                  <path
-                    d="M3.52513 5.64645L2.81802 6.35355C2.03697 7.1346 2.03697 8.40093 2.81802 9.18198C3.59907 9.96303 4.8654 9.96303 5.64645 9.18198L6.35355 8.47487M4.58579 7.41421L6 6M7.00006 4.99994L7.41421 4.58579M5.64645 3.52513L6.35355 2.81802C7.1346 2.03697 8.40093 2.03697 9.18198 2.81802C9.96303 3.59907 9.96303 4.8654 9.18198 5.64645L8.47487 6.35355M1.5 1.5L10.5 10.5"
-                    stroke="#A1A1AA"
-                    stroke-width="1.2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </g>
-                <defs>
-                  <clipPath id="clip0_203_25341">
-                    <rect width="12" height="12" fill="white" />
-                  </clipPath>
-                </defs>
-              </svg>
+            <button
+              type="button"
+              phx-click="toggle_deployment_firmware_updates"
+              class={[
+                "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
+                "bg-emerald-500"
+              ]}
+              role="switch"
+              aria-checked="false"
+            >
+              <span
+                aria-hidden="true"
+                class={[
+                  "pointer-events-none inline-block size-3",
+                  "translate-x-3",
+                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                ]}
+              >
+              </span>
             </button>
         <% end %>
       </div>
