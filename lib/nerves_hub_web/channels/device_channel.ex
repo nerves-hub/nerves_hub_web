@@ -60,9 +60,6 @@ defmodule NervesHubWeb.DeviceChannel do
 
     send(self(), :device_registration)
 
-    # Get device extension capabilities
-    push(socket, "extensions:get", %{})
-
     socket =
       socket
       |> assign(:device, device)
