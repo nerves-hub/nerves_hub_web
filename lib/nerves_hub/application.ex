@@ -81,13 +81,13 @@ defmodule NervesHub.Application do
   defp deployments_orchestrator(_) do
     case Application.get_env(:nerves_hub, :app) do
       ["device"] ->
-        [NervesHub.Deployments.Supervisor]
+        [NervesHub.ManagedDeployments.Supervisor]
 
       _ ->
         [
-          NervesHub.Deployments.Supervisor,
+          NervesHub.ManagedDeployments.Supervisor,
           ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
-          NervesHub.Deployments.Distributed.OrchestratorRegistration
+          NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
         ]
     end
   end

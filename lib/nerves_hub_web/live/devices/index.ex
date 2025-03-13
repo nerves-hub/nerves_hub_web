@@ -5,11 +5,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
   require OpenTelemetry.Tracer, as: Tracer
 
   alias NervesHub.AuditLogs.DeviceTemplates
-  alias NervesHub.Deployments
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
 
@@ -102,9 +102,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:total_entries, 0)
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
     |> assign(:metrics_keys, Metrics.default_metrics())
-    |> assign(:deployments, Deployments.get_deployments_by_product(product))
-    |> assign(:available_deployments_for_filtered_platform, [])
-    |> assign(:target_deployment, nil)
+    |> assign(:deployment_groups, ManagedDeployments.get_deployment_groups_by_product(product))
+    |> assign(:available_deployment_groups_for_filtered_platform, [])
+    |> assign(:target_deployment_group, nil)
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
@@ -123,7 +123,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:currently_filtering, filters != @default_filters)
     |> assign(:params, unsigned_params)
     |> assign_display_devices()
-    |> maybe_assign_available_deployments_for_filtered_platform()
+    |> maybe_assign_available_deployment_groups_for_filtered_platform()
     |> noreply()
   end
 
@@ -254,7 +254,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   def handle_event("deselect-all", _, socket) do
     {:noreply,
-     assign(socket, %{selected_devices: [], available_deployments_for_filtered_platform: []})}
+     assign(socket, %{selected_devices: [], available_deployment_groups_for_filtered_platform: []})}
   end
 
   def handle_event("validate-tags", %{"tags" => tags}, socket) do
@@ -298,18 +298,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, target_product: target)}
   end
 
-  def handle_event("target-deployment", %{"deployment" => ""}, socket) do
-    {:noreply, assign(socket, target_deployment: nil)}
+  def handle_event("target-deployment-group", %{"deployment_group" => ""}, socket) do
+    {:noreply, assign(socket, target_deployment_group: nil)}
   end
 
-  def handle_event("target-deployment", %{"deployment" => deployment_id}, socket) do
-    deployment =
+  def handle_event("target-deployment-group", %{"deployment_group" => deployment_id}, socket) do
+    deployment_group =
       Enum.find(
-        socket.assigns.available_deployments_for_filtered_platform,
+        socket.assigns.available_deployment_groups_for_filtered_platform,
         &(&1.id == String.to_integer(deployment_id))
       )
 
-    {:noreply, assign(socket, target_deployment: deployment)}
+    {:noreply, assign(socket, target_deployment_group: deployment_group)}
   end
 
   def handle_event("move-devices-product", _, socket) do
@@ -330,22 +330,22 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   def handle_event(
-        "move-devices-deployment",
+        "move-devices-deployment-group",
         _,
         %{
           assigns: %{
             selected_devices: selected_devices,
-            target_deployment: target_deployment
+            target_deployment_group: target_deployment_group
           }
         } = socket
       ) do
     {:ok, %{updated: updated, ignored: ignored}} =
-      Devices.move_many_to_deployment(selected_devices, target_deployment.id)
+      Devices.move_many_to_deployment_group(selected_devices, target_deployment_group.id)
 
     socket
-    |> assign(:target_deployment, nil)
+    |> assign(:target_deployment_group, nil)
     |> assign_display_devices()
-    |> update_flash_moving_devices_deployment(updated, ignored, target_deployment.name)
+    |> update_flash_for_moving_deployment_group(updated, ignored, target_deployment_group.name)
     |> noreply()
   end
 
@@ -698,11 +698,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> JS.hide(transition: "fade-out", to: "##{id}")
   end
 
-  defp update_flash_moving_devices_deployment(
+  defp update_flash_for_moving_deployment_group(
          socket,
          updated_count,
          ignored_count,
-         deployment_name
+         deployment_group_name
        ) do
     maybe_pluralize =
       &if &1 == 1 do
@@ -714,13 +714,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
     message =
       case [updated_count, ignored_count] do
         [updated_count, 0] ->
-          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_name}"
+          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_group_name}"
 
         [0, _not_updated_count] ->
-          "No devices selected could be added to deployment #{deployment_name} because of mismatched firmware"
+          "No devices selected could be added to deployment #{deployment_group_name} because of mismatched firmware"
 
         [updated_count, not_updated_count] ->
-          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_name}. #{not_updated_count} #{maybe_pluralize.(not_updated_count, "device")} could not be added to deployment because of mismatched firmware"
+          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_group_name}. #{not_updated_count} #{maybe_pluralize.(not_updated_count, "device")} could not be added to deployment because of mismatched firmware"
       end
 
     socket
@@ -741,17 +741,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
     """
   end
 
-  defp maybe_assign_available_deployments_for_filtered_platform(
+  defp maybe_assign_available_deployment_groups_for_filtered_platform(
          %{assigns: %{product: product, current_filters: %{platform: platform}}} = socket
        )
        when platform != "" do
     assign(
       socket,
-      :available_deployments_for_filtered_platform,
-      Deployments.get_by_product_and_platform(product, platform)
+      :available_deployment_groups_for_filtered_platform,
+      ManagedDeployments.get_by_product_and_platform(product, platform)
     )
   end
 
-  defp maybe_assign_available_deployments_for_filtered_platform(socket),
-    do: assign(socket, :available_deployments_for_filtered_platform, [])
+  defp maybe_assign_available_deployment_groups_for_filtered_platform(socket),
+    do: assign(socket, :available_deployment_groups_for_filtered_platform, [])
 end

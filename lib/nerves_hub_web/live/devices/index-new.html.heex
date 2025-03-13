@@ -316,12 +316,12 @@
             </select>
           </div>
           <div class="mt-6">
-            <label class="sidebar-label" for="deployment_id">Deployment</label>
+            <label class="sidebar-label" for="deployment_id">Deployment Group</label>
             <select class="sidebar-select" name="deployment_id" id="deployment_id">
               <option {selected?(@current_filters, :deployment_id, "")} value="">All</option>
-              <option {selected?(@current_filters, :deployment_id, nil)} value="-1">No Deployment</option>
-              <%= for deployment <- @deployments do %>
-                <option {selected?(@current_filters, :deployment_id, deployment.id)} value={deployment.id}>{deployment.name}</option>
+              <option {selected?(@current_filters, :deployment_id, nil)} value="-1">No Deployment Group</option>
+              <%= for deployment_group <- @deployment_groups do %>
+                <option {selected?(@current_filters, :deployment_id, deployment_group.id)} value={deployment_group.id}>{deployment_group.name}</option>
               <% end %>
             </select>
           </div>
@@ -466,15 +466,21 @@
           </div>
         </form>
 
-        <form :if={Enum.any?(@available_deployments_for_filtered_platform)} id="deployment-move" class="flex flex-col gap-2" phx-change="target-deployment" phx-submit="move-devices-deployment">
-          <label for="move_to" class="sidebar-label">Move device(s) to deployment filtered by platform:</label>
+        <form
+          :if={Enum.any?(@available_deployment_groups_for_filtered_platform)}
+          id="deployment-move"
+          class="flex flex-col gap-2"
+          phx-change="target-deployment"
+          phx-submit="move-devices-deployment-group"
+        >
+          <label for="move_to" class="sidebar-label">Move device(s) to deployment group filtered by platform:</label>
 
           <div class="flex gap-2">
             <select name="deployment" id="move_to_deployment" class="sidebar-select">
-              <option value="">Select deployment</option>
-              <%= for deployment <- @available_deployments_for_filtered_platform do %>
-                <option value={deployment.id} {if @target_deployment && @target_deployment.id == deployment.id, do: [selected: true], else: []}>
-                  {deployment.name} - {deployment.firmware.architecture} - {deployment.firmware.platform}
+              <option value="">Select deployment group</option>
+              <%= for deployment_group <- @available_deployment_groups_for_filtered_platform do %>
+                <option value={deployment_group.id} {if @target_deployment_group && @target_deployment_group.id == deployment_group.id, do: [selected: true], else: []}>
+                  {deployment_group.name} - {deployment_group.firmware.architecture} - {deployment_group.firmware.platform}
                 </option>
               <% end %>
             </select>
@@ -482,8 +488,8 @@
             <.button
               style="primary"
               type="submit"
-              data-confirm={"This will move all selected devices to #{@target_deployment && @target_deployment.name}. Would you like to continue?"}
-              {unless @target_deployment, do: [disabled: true], else: []}
+              data-confirm={"This will move all selected devices to #{@target_deployment_group && @target_deployment_group.name}. Would you like to continue?"}
+              {unless @target_deployment_group, do: [disabled: true], else: []}
             >
               Move
             </.button>

@@ -217,49 +217,49 @@
     </div>
 
     <div>
-      <h3 class="mb-2">Deployments</h3>
+      <h3 class="mb-2">Deployment Group</h3>
       <div class="display-box">
         <div :if={@device.deployment_id}>
           <div class="help-text mb-1">
-            Assigned Deployment
+            Assigned Deployment Group
           </div>
-          <div :if={@deployment} class="d-flex flex-row">
+          <div :if={@deployment_group} class="d-flex flex-row">
             <div class="mr-1">
-              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/#{@deployment.name}"} class="badge">
-                <div class={"deployment-state state-#{if @deployment.is_active, do: "on", else: "off"}"}>{@deployment.name}</div>
+              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}"} class="badge">
+                <div class={"deployment-group-state state-#{if @deployment_group.is_active, do: "on", else: "off"}"}>{@deployment_group.name}</div>
               </.link>
             </div>
             <div>
               <button
                 class="btn btn-sm btn-primary btn-action help-text tooltip-label help-tooltip mt-1 mb-1 pt-1 pb-1"
-                phx-click="remove-from-deployment"
+                phx-click="remove-from-deployment-group"
                 data-confirm="Are you sure you want to remove this device from its deployment?"
               >
                 <span class="button-icon delete"></span>
-                <span class="tooltip-text ml-1">Remove this device from the assigned Deployment.</span>
+                <span class="tooltip-text ml-1">Remove this device from the assigned Deployment Group.</span>
               </button>
             </div>
           </div>
           <div :if={@device.status == :registered} class="mt-1">
-            Device will be removed from the deployment upon connection if the aarch and platform doesn't match.
+            Device will be removed from the deployment group upon connection if the arch and platform doesn't match.
           </div>
-          <span :if={is_nil(@deployment)} class="color-white-50">No Assigned Deployment</span>
+          <span :if={is_nil(@deployment_group)} class="color-white-50">No Assigned Deployment Group</span>
         </div>
 
-        <div :if={Enum.empty?(@deployments) && is_nil(@device.deployment_id) && @device.status == :provisioned}>
-          No Eligible Deployments
+        <div :if={Enum.empty?(@deployment_groups) && is_nil(@device.deployment_id) && @device.status == :provisioned}>
+          No Eligible Deployment Groups
         </div>
 
-        <div :if={Enum.any?(@deployments) && is_nil(@device.deployment_id)}>
+        <div :if={Enum.any?(@deployment_groups) && is_nil(@device.deployment_id)}>
           <div class="help-text mb-1">
-            {if @device.status == :provisioned, do: "Eligible Deployments", else: "Product Deployments"}
+            {if @device.status == :provisioned, do: "Eligible Deployment Groups", else: "Product Deployment Groups"}
           </div>
-          <form phx-submit="set-deployment">
+          <form phx-submit="set-deployment-group">
             <div class="flex-row justify-content-between">
               <select name="deployment_id" class="form-control">
                 <option value="">Select a deployment</option>
-                <%= for deployment <- @deployments do %>
-                  <option value={deployment.id}>{deployment.name} - {deployment.firmware.platform}, {deployment.firmware.architecture}</option>
+                <%= for deployment_group <- @deployment_groups do %>
+                  <option value={deployment_group.id}>{deployment_group.name} - {deployment_group.firmware.platform}, {deployment_group.firmware.architecture}</option>
                 <% end %>
               </select>
               <button class="btn btn-secondary ml-2">Set</button>
@@ -271,7 +271,7 @@
           <div class="help-text mb-1 tooltip-label help-tooltip">
             <span>Update available</span>
             <span class="tooltip-info"></span>
-            <span class="tooltip-text">An update is available in the assigned deployment. You can skip the queue by clicking "Send available update".</span>
+            <span class="tooltip-text">An update is available in the assigned deployment group. You can skip the queue by clicking "Send available update".</span>
           </div>
           <form id="available_update_form" phx-submit="push-available-update">
             <div class="flex-row justify-content-between">

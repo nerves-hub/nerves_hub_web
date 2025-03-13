@@ -1,7 +1,7 @@
 alias NervesHub.Repo
 alias NervesHub.Firmwares.Firmware
 alias NervesHub.Devices.DeviceCertificate
-alias NervesHub.Deployments.Deployment
+alias NervesHub.ManagedDeployments.DeploymentGroup
 alias NervesHub.AuditLogs.AuditLog
 
 import Ecto.Query
@@ -54,16 +54,16 @@ IO.puts "\n"
 {success, errors} =
   from(d in Deployment, where: is_nil(d.org_id), preload: [:product])
   |> Repo.all()
-  |> Enum.reduce({[], []}, fn deployment, {success, errors} ->
-    Deployment.creation_changeset(deployment, %{org_id: deployment.product.org_id})
+  |> Enum.reduce({[], []}, fn deployment_group, {success, errors} ->
+    DeploymentGroup.creation_changeset(deployment_group, %{org_id: deployment_group.product.org_id})
     |> Repo.update()
     |> case do
-      {:ok, deployment} ->
+      {:ok, deployment_group} ->
         IO.write("#{green()}.#{default_color()}")
-        {[deployment | success], errors}
-      {:error, deployment} ->
+        {[deployment_group | success], errors}
+      {:error, deployment_group} ->
         IO.write("#{red()}.#{default_color()}")
-        {success, [deployment | errors]}
+        {success, [deployment_group | errors]}
     end
   end)
 

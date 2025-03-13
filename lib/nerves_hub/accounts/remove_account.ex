@@ -11,7 +11,6 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Accounts.OrgMetric
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
-  alias NervesHub.Deployments.Deployment
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
@@ -19,6 +18,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareTransfer
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
   alias NervesHub.Scripts.Script
 
@@ -32,7 +32,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
     |> Multi.delete_all(:invites, &query_by_org_id(Invite, &1))
     |> Multi.delete_all(:device_certificates, &query_by_org_id(DeviceCertificate, &1))
     |> Multi.delete_all(:ca_certificates, &query_by_org_id(CACertificate, &1))
-    |> Multi.delete_all(:deployments, &query_by_org_id(Deployment, &1))
+    |> Multi.delete_all(:deployment_groups, &query_by_org_id(DeploymentGroup, &1))
     |> Multi.delete_all(:firmware_deltas, &query_firmware_deltas/1)
     |> Multi.delete_all(:firmware_transfers, &query_by_org_id(FirmwareTransfer, &1))
     |> Multi.delete_all(:pinned_devices, &query_by_user_id(PinnedDevice, &1))

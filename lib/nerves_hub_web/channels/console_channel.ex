@@ -72,11 +72,10 @@ defmodule NervesHubWeb.ConsoleChannel do
 
     # now that the console is connected, push down the device's elixir, line by line
     device = socket.assigns.device
-    device = Repo.preload(device, [:deployment])
-    deployment = device.deployment
+    device = Repo.preload(device, [:deployment_group])
 
-    if deployment && deployment.connecting_code do
-      device.deployment.connecting_code
+    if device.deployment_group && device.deployment_group.connecting_code do
+      device.deployment_group.connecting_code
       |> String.graphemes()
       |> Enum.each(fn character ->
         push(socket, "dn", %{"data" => character})

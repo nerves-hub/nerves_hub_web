@@ -1,8 +1,8 @@
 defmodule NervesHubWeb.Live.Dashboard.Index do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.Deployments
   alias NervesHub.Devices
+  alias NervesHub.ManagedDeployments
 
   alias Phoenix.Socket.Broadcast
 
@@ -91,9 +91,9 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
       devices = Devices.get_minimal_device_location_by_product(product)
 
       latest_firmwares =
-        Deployments.get_deployments_by_product(product)
-        |> Enum.reduce(%{}, fn deployment, acc ->
-          Map.put(acc, deployment.firmware.uuid, deployment.firmware.platform)
+        ManagedDeployments.get_deployment_groups_by_product(product)
+        |> Enum.reduce(%{}, fn deployment_group, acc ->
+          Map.put(acc, deployment_group.firmware.uuid, deployment_group.firmware.platform)
         end)
 
       map_markers =

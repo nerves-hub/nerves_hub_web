@@ -27,7 +27,7 @@ defmodule NervesHubWeb.ConnCase.Browser do
           user: user,
           product: product,
           device: device,
-          deployment: deployment
+          deployment_group: deployment_group
         } = fixture
 
         conn =
@@ -44,7 +44,7 @@ defmodule NervesHubWeb.ConnCase.Browser do
           org_key: org_key,
           product: product,
           device: device,
-          deployment: deployment
+          deployment_group: deployment_group
         }
       end
     end

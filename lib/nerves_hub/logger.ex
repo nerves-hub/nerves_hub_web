@@ -33,9 +33,9 @@ defmodule NervesHub.Logger do
       [:nerves_hub, :devices, :duplicate_connection],
       [:nerves_hub, :devices, :update, :automatic],
       [:nerves_hub, :devices, :update, :successful],
-      [:nerves_hub, :deployments, :set_deployment, :none_found],
-      [:nerves_hub, :deployments, :set_deployment, :one_found],
-      [:nerves_hub, :deployments, :set_deployment, :multiple_found]
+      [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
+      [:nerves_hub, :managed_deployments, :set_deployment_group, :one_found],
+      [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found]
     ]
 
     Enum.each(events, fn event ->
@@ -120,26 +120,41 @@ defmodule NervesHub.Logger do
     )
   end
 
-  def log_event([:nerves_hub, :deployments, :set_deployment, :none_found], _, metadata, _) do
-    Logger.info("No matching deployments",
-      event: "nerves_hub.deployments.set_deployment.none_found",
+  def log_event(
+        [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
+        _,
+        metadata,
+        _
+      ) do
+    Logger.info("No matching deployment groups",
+      event: "nerves_hub.managed_deployments.set_deployment_group.none_found",
       identifier: metadata[:device].identifier
     )
   end
 
-  def log_event([:nerves_hub, :deployments, :set_deployment, :one_found], _, metadata, _) do
+  def log_event(
+        [:nerves_hub, :managed_deployments, :set_deployment_group, :one_found],
+        _,
+        metadata,
+        _
+      ) do
     Logger.info("Deployment match found",
-      event: "nerves_hub.deployments.set_deployment.one_found",
+      event: "nerves_hub.managed_deployments.set_deployment_group.one_found",
       identifier: metadata[:device].identifier,
-      deployment_id: metadata[:deployment].id
+      deployment_id: metadata[:deployment_group].id
     )
   end
 
-  def log_event([:nerves_hub, :deployments, :set_deployment, :multiple_found], _, metadata, _) do
+  def log_event(
+        [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found],
+        _,
+        metadata,
+        _
+      ) do
     Logger.info("More than one deployment match found, setting to the first",
-      event: "nerves_hub.deployments.set_deployment.multiple_found",
+      event: "nerves_hub.managed_deployments.set_deployment_group.multiple_found",
       identifier: metadata[:device].identifier,
-      deployment_id: metadata[:deployment].id
+      deployment_id: metadata[:deployment_group].id
     )
   end
 

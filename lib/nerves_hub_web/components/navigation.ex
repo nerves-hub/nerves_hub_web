@@ -23,7 +23,7 @@ defmodule NervesHubWeb.Components.Navigation do
           stroke-linejoin="round"
         />
       </.nav_link>
-      <.nav_link label="Deployments" path={~p"/org/#{@org.name}/#{@product.name}/deployments"} selected={:deployments == @selected_tab}>
+      <.nav_link label="Deployment Groups" path={~p"/org/#{@org.name}/#{@product.name}/deployment_groups"} selected={:deployments == @selected_tab}>
         <path
           d="M9.99992 2.5L14.1666 6.66667M9.99992 2.5L5.83325 6.66667M9.99992 2.5V10.8333M11.6667 15.8333C11.6667 16.7538 10.9205 17.5 10 17.5C9.07955 17.5 8.33335 16.7538 8.33335 15.8333C8.33335 14.9129 9.07955 14.1667 10 14.1667C10.9205 14.1667 11.6667 14.9129 11.6667 15.8333Z"
           stroke-width="1.2"
@@ -347,7 +347,7 @@ defmodule NervesHubWeb.Components.Navigation do
       %{
         title: "Deployments",
         active: "",
-        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/deployments"
+        href: ~p"/org/#{assigns.org.name}/#{assigns.product.name}/deployment_groups"
       },
       %{
         title: "Scripts",
