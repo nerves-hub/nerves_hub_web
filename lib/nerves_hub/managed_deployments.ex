@@ -84,12 +84,10 @@ defmodule NervesHub.ManagedDeployments do
 
   @spec get_deployment_groups_by_product(Product.t()) :: [DeploymentGroup.t()]
   def get_deployment_groups_by_product(%Product{id: product_id}) do
-    from(
-      d in DeploymentGroup,
-      join: f in assoc(d, :firmware),
-      where: f.product_id == ^product_id,
-      preload: [{:firmware, :product}]
-    )
+    DeploymentGroup
+    |> join(:inner, [d], f in assoc(d, :firmware), on: f.product_id == ^product_id)
+    |> preload([_d, f], firmware: f, firmware: :product)
+    |> order_by(:name)
     |> Repo.all()
   end
 
@@ -216,6 +214,7 @@ defmodule NervesHub.ManagedDeployments do
     |> join(:left, [d], f in assoc(d, :firmware))
     |> where([_d, f], f.platform == ^platform)
     |> preload([_d, f], firmware: f)
+    |> order_by([d], asc: d.name)
     |> Repo.all()
   end
 
@@ -625,6 +624,7 @@ defmodule NervesHub.ManagedDeployments do
     |> where([d, _], d.product_id == ^device.product_id)
     |> where([d, firmware: f], f.platform == ^device.firmware_metadata.platform)
     |> where([d, firmware: f], f.architecture == ^device.firmware_metadata.architecture)
+    |> order_by([d], asc: d.name)
     |> Repo.all()
   end
 
