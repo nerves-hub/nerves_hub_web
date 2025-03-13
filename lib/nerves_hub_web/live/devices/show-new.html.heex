@@ -92,7 +92,6 @@
         <%= cond do %>
           <% is_nil(@device.deployment_id) -> %>
             <span class="ml-2 mr-1 text-sm text-base-300">N/A</span>
-
           <% Devices.device_in_penalty_box?(@device) -> %>
             <div class="relative z-20" id={"update-status-#{@device.id}"} phx-hook="ToolTip" data-placement="left">
               <svg class="mx-2 size-4 stroke-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
@@ -129,7 +128,6 @@
               >
               </span>
             </button>
-
           <% @device.updates_enabled == false -> %>
             <svg class="mx-2 size-4 stroke-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
               <path
@@ -160,7 +158,6 @@
               >
               </span>
             </button>
-
           <% true -> %>
             <svg class="mx-2 size-4 stroke-emerald-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none">
               <path
