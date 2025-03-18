@@ -167,4 +167,108 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
       conn
     end)
   end
+
+  test "displays text when every device in deployment group matches conditions", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+
+    _device1 =
+      Fixtures.device_fixture(org, product, firmware, %{
+        deployment_id: deployment_group.id,
+        tags: ["beta"]
+      })
+
+    _device2 =
+      Fixtures.device_fixture(org, product, firmware, %{
+        deployment_id: deployment_group.id,
+        tags: ["beta-edge"]
+      })
+
+    conn
+    |> put_session("new_ui", true)
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("span", text: "100% of devices in this deployment group match conditions")
+  end
+
+  test "removing device from deployment that doesn't match conditions", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+
+    device1 =
+      Fixtures.device_fixture(org, product, firmware, %{
+        deployment_id: deployment_group.id,
+        tags: ["foo"]
+      })
+
+    _device2 =
+      Fixtures.device_fixture(org, product, firmware, %{
+        deployment_id: deployment_group.id,
+        tags: ["beta-edge"]
+      })
+
+    conn
+    |> put_session("new_ui", true)
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("span", text: "50% of devices in this deployment group match conditions")
+    |> assert_has("div", text: "1 device doesn't match inside deployment group")
+    |> click_button("Remove device")
+    |> assert_has("span",
+      text: "100% of devices in this deployment group match conditions",
+      timeout: 1
+    )
+    |> then(fn _ ->
+      refute Repo.reload(device1) |> Map.get(:deployment_id)
+    end)
+  end
+
+  test "adding devices from outside deployment that matches conditions", %{
+    conn: conn,
+    user: user,
+    org: org,
+    org_key: org_key,
+    tmp_dir: tmp_dir
+  } do
+    product = Fixtures.product_fixture(user, org)
+    firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
+    deployment_group = Fixtures.deployment_group_fixture(org, firmware)
+
+    device1 =
+      Fixtures.device_fixture(org, product, firmware, %{
+        tags: ["beta"]
+      })
+
+    _device2 =
+      Fixtures.device_fixture(org, product, firmware, %{
+        deployment_id: deployment_group.id,
+        tags: ["beta-edge"]
+      })
+
+    conn
+    |> put_session("new_ui", true)
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
+    |> assert_has("span", text: "100% of devices in this deployment group match conditions")
+    |> assert_has("div", text: "1 device matches outside of deployment group")
+    |> click_button("Move device")
+    |> assert_has("span",
+      text: "100% of devices in this deployment group match conditions",
+      timeout: 1
+    )
+    |> then(fn _ ->
+      assert Repo.reload(device1) |> Map.get(:deployment_id)
+    end)
+  end
 end
