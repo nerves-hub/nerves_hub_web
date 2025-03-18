@@ -160,6 +160,47 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span class="text-sm text-nerves-gray-500 w-36">Version requirement:</span>
               <code class="text-sm text-zinc-300">{@deployment_group.conditions["version"]}</code>
             </div>
+            <div class="flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Matching:</span>
+              <span class="text-sm text-zinc-300">{@matched_device_count}</span>
+            </div>
+            <div class="flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Not matching:</span>
+              <span class="text-sm text-zinc-300">{@unmatched_device_count}</span>
+              <span class="badge ff-m mt-0">
+                Remove Devices
+              </span>
+            </div>
+            <div class="flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Matching outside deployment group:</span>
+              <span class="text-sm text-zinc-300">{@matched_devices_outside_deployment_group_count}</span>
+              <span class="badge ff-m mt-0">
+                Move Devices
+              </span>
+            </div>
+            <div class="flex justify-between pt-3 gap-3 border-t border-zinc-700">
+              <div>
+                <.button
+                  style="secondary"
+                  type="link"
+                  phx-click="move-matched-devices-to-deployment-group"
+                  data-confirm={"This will move #{@matched_devices_outside_deployment_group_count} devices into #{@deployment_group.name}. Continue?"}
+                >
+                  <.icon name="save" /> Move Devices
+                </.button>
+              </div>
+
+              <div>
+                <.button
+                  style="secondary"
+                  type="link"
+                  phx-click="remove-unmatched-devices-from-deployment-group"
+                  data-confirm={"This will remove #{@unmatched_device_count} devices from #{@deployment_group.name}. Continue?"}
+                >
+                  <.icon name="save" /> Remove Devices
+                </.button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
