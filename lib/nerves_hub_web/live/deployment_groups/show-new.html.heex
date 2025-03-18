@@ -101,6 +101,9 @@
     org={@org}
     org_user={@org_user}
     user={@user}
+    matched_device_count={@matched_device_count}
+    unmatched_device_count={@unmatched_device_count}
+    matched_devices_outside_deployment_group_count={@matched_devices_outside_deployment_group_count}
   />
 
   <.live_component :if={@tab == :release_history} module={ReleaseHistoryTab} id="deployment_group_release_history" />
