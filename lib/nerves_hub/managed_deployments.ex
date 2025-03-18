@@ -668,4 +668,114 @@ defmodule NervesHub.ManagedDeployments do
 
     :ok
   end
+
+  @doc """
+  Count the number of devices that match the deployment group's conditions. Takes into account deployment
+  groups with no tags and/or no version.
+
+  When passing `in_deployment: true`, only devices from the deployment group will be considered.
+  Passing `false` for the option will only consider devices outside of the deployment group.
+  """
+  @spec matched_devices_count(DeploymentGroup.t(), in_deployment: boolean()) :: non_neg_integer()
+  def matched_devices_count(deployment_group, in_deployment: in_deployment) do
+    deployment_group = Repo.preload(deployment_group, [:firmware])
+    query = matched_devices_base_query(deployment_group, in_deployment)
+
+    do_matched_devices(deployment_group, query, :count)
+  end
+
+  @doc """
+  Identical to matched_devices_count/2, but a list of device ids are returned instead.
+  """
+  @spec matched_device_ids(DeploymentGroup.t(), in_deployment: boolean()) :: [non_neg_integer()]
+  def matched_device_ids(deployment_group, in_deployment: in_deployment) do
+    deployment_group = Repo.preload(deployment_group, [:firmware])
+    query = matched_devices_base_query(deployment_group, in_deployment)
+
+    do_matched_devices(deployment_group, query, :collect_ids)
+  end
+
+  defp matched_devices_base_query(deployment_group, in_deployment) do
+    base_query =
+      Device
+      |> Repo.exclude_deleted()
+      |> where([d], d.product_id == ^deployment_group.product_id)
+      |> where([d], d.firmware_metadata["platform"] == ^deployment_group.firmware.platform)
+      |> where(
+        [d],
+        d.firmware_metadata["architecture"] == ^deployment_group.firmware.architecture
+      )
+
+    if in_deployment do
+      where(base_query, [d], d.deployment_id == ^deployment_group.id)
+    else
+      where(base_query, [d], is_nil(d.deployment_id))
+    end
+  end
+
+  # no tags, but version
+  defp do_matched_devices(
+         %DeploymentGroup{conditions: %{"tags" => [], "version" => version}},
+         query,
+         work_type
+       )
+       when version != "" do
+    case work_type do
+      :count ->
+        query
+        |> select([d], d.firmware_metadata["version"])
+        |> Repo.all()
+        |> Enum.count(&Version.match?(&1, version))
+
+      :collect_ids ->
+        query
+        |> select([d], %{id: d.id, version: d.firmware_metadata["version"]})
+        |> Repo.all()
+        |> Enum.filter(&Version.match?(&1.version, version))
+        |> Enum.map(& &1.id)
+    end
+  end
+
+  # tags but no version
+  defp do_matched_devices(
+         %DeploymentGroup{conditions: %{"tags" => tags, "version" => ""}},
+         query,
+         work_type
+       ) do
+    query = where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
+
+    case work_type do
+      :count ->
+        Repo.aggregate(query, :count)
+
+      :collect_ids ->
+        query
+        |> select([d], d.id)
+        |> Repo.all()
+    end
+  end
+
+  # version and tags
+  defp do_matched_devices(
+         %DeploymentGroup{conditions: %{"tags" => tags, "version" => version}},
+         query,
+         work_type
+       ) do
+    query = where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
+
+    case work_type do
+      :count ->
+        query
+        |> select([d], d.firmware_metadata["version"])
+        |> Repo.all()
+        |> Enum.count(&Version.match?(&1, version))
+
+      :collect_ids ->
+        query
+        |> select([d], %{id: d.id, version: d.firmware_metadata["version"]})
+        |> Repo.all()
+        |> Enum.filter(&Version.match?(&1.version, version))
+        |> Enum.map(& &1.id)
+    end
+  end
 end
