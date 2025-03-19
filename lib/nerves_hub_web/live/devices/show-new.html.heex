@@ -11,13 +11,12 @@
   </div>
 
   <div class="flex items-center gap-2 ml-auto mr-6">
-    <div class="my-4 pr-2 border-r border-base-700 flex space-x-[-10px]">
+    <div id="online-users" phx-update="stream" class="my-4 pr-2 border-r border-base-700 flex space-x-[2px]">
       <div
-        :for={{%{name: name}, idx} <- Enum.with_index(@active_users)}
-        class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600 border-base-700 "
-        style={"z-index:#{length(@active_users) - idx}"}
+        :for={{id, %{user: user}} <- @streams.presences}
+        class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600 border-base-700 " id={id}
       >
-        <span class="font-medium text-gray-600 dark:text-gray-300">{String.split(name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}</span>
+        <span class="font-medium text-gray-600 dark:text-gray-300">{String.split(user.name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}</span>
       </div>
     </div>
     <.button :if={@pinned?} aria-label="Unpin device" style="primary" phx-click="unpin">

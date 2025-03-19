@@ -34,7 +34,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias Phoenix.Socket.Broadcast
 
   @running_script_placeholder "Running Script.."
-  @presence_topic "device_presence:"
 
   def mount(%{"device_identifier" => device_identifier}, _session, socket) do
     %{org: org, product: product, user: user} = socket.assigns
@@ -84,22 +83,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_info(
-        %{event: "presence_diff", payload: _payload},
-        %{assigns: %{device: device}} = socket
-      ) do
-    presence_topic = build_topic(device.identifier)
+  def handle_info({Presence, {:join, presence}}, socket) do
+    {:noreply, stream_insert(socket, :presences, presence)}
+  end
 
-    users =
-      Presence.list(presence_topic)
-      |> Enum.map(fn {_user_id, data} ->
-        data[:metas]
-        |> List.first()
-      end)
-
-    socket
-    |> assign(:active_users, users)
-    |> noreply()
+  def handle_info({Presence, {:leave, presence}}, socket) do
+    if presence.metas == [] do
+      {:noreply, stream_delete(socket, :presences, presence)}
+    else
+      {:noreply, stream_insert(socket, :presences, presence)}
+    end
   end
 
   def handle_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
@@ -536,23 +529,17 @@ defmodule NervesHubWeb.Live.Devices.Show do
     Devices.get_device_by_identifier!(org, identifier, [:latest_connection, :latest_health])
   end
 
-  defp setup_presence_tracking(%{assigns: %{device: device, user: user}} = socket) do
-    presence_topic = build_topic(device.identifier)
+  defp setup_presence_tracking(%{assigns: %{user: user}} = socket) do
+    socket = stream(socket, :presences, [])
 
-    if connected?(socket), do: socket.endpoint.subscribe(presence_topic)
-
-    # Ignore result since error will be returned if page is already tracked.
-    _ =
-      Presence.track(self(), presence_topic, user.id, %{
-        id: user.id,
-        name: user.name
-      })
-
-    # Initiate empty list, it will be populated on tracking event message
-    assign(socket, :active_users, [])
+    if connected?(socket) do
+      Presence.track_user(user.id, %{name: user.name})
+      Presence.subscribe()
+      stream(socket, :presences, Presence.list_online_users())
+    else
+      socket
+    end
   end
-
-  defp build_topic(device_id), do: @presence_topic <> device_id
 
   defp scripts_with_output(product) do
     product
