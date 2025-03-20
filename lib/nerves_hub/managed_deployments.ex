@@ -39,6 +39,7 @@ defmodule NervesHub.ManagedDeployments do
     sort_direction = Map.get(opts, :sort_direction, "desc")
 
     sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
+    filters = Map.get(opts, :filters, %{})
 
     flop = %Flop{
       page: String.to_integer(Map.get(opts, :page, "1")),
@@ -58,10 +59,29 @@ defmodule NervesHub.ManagedDeployments do
     |> join(:left, [d], dev in subquery(subquery), on: dev.deployment_id == d.id)
     |> join(:left, [d], f in assoc(d, :firmware))
     |> where([d], d.product_id == ^product.id)
+    |> build_filters(filters)
     |> sort_deployment_groups(sort_opts)
     |> preload([_d, _dev, f], firmware: f)
     |> select_merge([_f, dev], %{device_count: dev.device_count})
     |> Flop.run(flop)
+  end
+
+  # If filter amount increases the filtering functions can be moved to their own module,
+  # like device filtering.
+  defp build_filters(query, filters) do
+    Enum.reduce(filters, query, fn {key, value}, query ->
+      filter(query, filters, key, value)
+    end)
+  end
+
+  # Filter values are empty strings as default,
+  # they should be ignored.
+  defp filter(query, _filters, _key, "") do
+    query
+  end
+
+  defp filter(query, _filters, :name, value) do
+    where(query, [d], ilike(d.name, ^"%#{value}%"))
   end
 
   defp sort_deployment_groups(query, {direction, :platform}) do

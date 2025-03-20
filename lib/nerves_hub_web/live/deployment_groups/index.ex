@@ -9,6 +9,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   alias NervesHubWeb.Components.Sorting
 
   @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
+  @default_filters %{
+    name: ""
+  }
+
+  @filter_types %{
+    name: :string
+  }
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
@@ -27,15 +34,27 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     |> sidebar_tab(:deployments)
     |> assign(:deployment_groups, deployment_groups)
     |> assign(:counts, counts)
+    |> assign(:current_filters, @default_filters)
+    |> assign(:currently_filtering, false)
     |> ok()
   end
 
   @impl Phoenix.LiveView
   def handle_params(params, _url, socket) do
+    filters = Map.merge(@default_filters, filter_changes(params))
+
     socket
     |> assign(:params, params)
+    |> assign(:current_filters, filters)
+    |> assign(:currently_filtering, filters != @default_filters)
     |> assign_deployment_groups_with_pagination()
     |> noreply()
+  end
+
+  defp filter_changes(params) do
+    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
+      empty_values: []
+    ).changes
   end
 
   @impl Phoenix.LiveView
@@ -51,6 +70,17 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
+    socket
+    |> push_patch(to: self_path(socket, params))
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event(
+        "update-filters",
+        params,
+        socket
+      ) do
     socket
     |> push_patch(to: self_path(socket, params))
     |> noreply()
@@ -83,7 +113,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   defp assign_deployment_groups_with_pagination(socket) do
-    %{assigns: %{product: product, params: params}} = socket
+    %{assigns: %{product: product, params: params, current_filters: filters}} = socket
 
     pagination_opts = Map.take(params, @pagination_opts)
 
@@ -91,7 +121,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
       page: pagination_opts["page_number"],
       page_size: pagination_opts["page_size"],
       sort: pagination_opts["sort"] || "name",
-      sort_direction: pagination_opts["sort_direction"]
+      sort_direction: pagination_opts["sort_direction"],
+      filters: filters
     }
 
     {entries, pager_meta} = ManagedDeployments.filter(product, opts)

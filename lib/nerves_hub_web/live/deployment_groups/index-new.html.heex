@@ -17,6 +17,30 @@
   <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
     <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Deployment Groups</h1>
     <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">{@pager_meta.total_count}</div>
+    <form :if={Enum.any?(@entries) || @currently_filtering} class="flex items-center h-full" phx-change="update-filters">
+      <div class="grid grid-cols-1 h-full">
+        <input
+          type="text"
+          class="col-start-1 row-start-1 block h-full w-full bg-base-900 text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
+          name="name"
+          id="deployment_group_search_top"
+          placeholder="Search..."
+          title="Search"
+          value={@current_filters[:name]}
+          phx-debounce="500"
+        />
+
+        <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path
+            d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
+            stroke="#A1A1AA"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+    </form>
     <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/newz"} aria-label="Add a new deployment group">
       <.icon name="add" /> Create Deployment Group
     </.button>
