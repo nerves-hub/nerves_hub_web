@@ -729,9 +729,9 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  # no tags but version
+  # no tags, but version
   defp do_matched_devices(
-         %DeploymentGroup{conditions: %{"tags" => [], "version" => version}} = deployment_group,
+         %DeploymentGroup{conditions: %{"tags" => [], "version" => version}},
          query,
          work_type
        )
@@ -739,20 +739,20 @@ defmodule NervesHub.ManagedDeployments do
     case work_type do
       :count ->
         query
-        |> select([:firmware_metadata])
+        |> select([d], d.firmware_metadata["version"])
         |> Repo.all()
-        |> Enum.count(&version_match?(&1, deployment_group))
+        |> Enum.count(&Version.match?(&1, version))
 
       :collect_ids ->
         query
-        |> select([:id, :firmware_metadata])
+        |> select([d], %{id: d.id, version: d.firmware_metadata["version"]})
         |> Repo.all()
-        |> Enum.filter(&version_match?(&1, deployment_group))
+        |> Enum.filter(&Version.match?(&1.version, version))
         |> Enum.map(& &1.id)
     end
   end
 
-  # version but no tags
+  # tags but no version
   defp do_matched_devices(
          %DeploymentGroup{conditions: %{"version" => "", "tags" => tags}},
          query,
@@ -773,7 +773,7 @@ defmodule NervesHub.ManagedDeployments do
 
   # version and tags
   defp do_matched_devices(
-         %DeploymentGroup{conditions: %{"tags" => tags}} = deployment_group,
+         %DeploymentGroup{conditions: %{"tags" => tags, "version" => version}},
          query,
          work_type
        ) do
@@ -782,15 +782,15 @@ defmodule NervesHub.ManagedDeployments do
     case work_type do
       :count ->
         query
-        |> select([:firmware_metadata])
+        |> select([d], d.firmware_metadata["version"])
         |> Repo.all()
-        |> Enum.count(&version_match?(&1, deployment_group))
+        |> Enum.count(&Version.match?(&1, version))
 
       :collect_ids ->
         query
-        |> select([:id, :firmware_metadata])
+        |> select([d], %{id: d.id, version: d.firmware_metadata["version"]})
         |> Repo.all()
-        |> Enum.filter(&version_match?(&1, deployment_group))
+        |> Enum.filter(&Version.match?(&1.version, version))
         |> Enum.map(& &1.id)
     end
   end
