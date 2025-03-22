@@ -7,8 +7,8 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
 
   use GenServer
 
-  alias NervesHub.ManagedDeployments.Distributed.Orchestrator
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.Distributed.Orchestrator
 
   def child_spec(_) do
     %{

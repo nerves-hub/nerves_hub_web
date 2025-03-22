@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Plugs.DeviceEndpointRedirectTest do
   use NervesHubWeb.ConnCase.Browser, async: true
-  use Plug.Test
+
+  import Plug.Test
 
   @endpoint NervesHubWeb.DeviceEndpoint
 

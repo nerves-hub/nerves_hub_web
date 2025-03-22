@@ -7,8 +7,8 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
       states: [:available, :scheduled, :executing]
     ]
 
-  alias NervesHub.ManagedDeployments
   alias NervesHub.Firmwares
+  alias NervesHub.ManagedDeployments
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"source_id" => source_id, "target_id" => target_id}}) do

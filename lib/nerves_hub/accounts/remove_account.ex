@@ -2,7 +2,6 @@ defmodule NervesHub.Accounts.RemoveAccount do
   import Ecto.Query
   import Ecto.Changeset
 
-  alias NervesHub.Devices.PinnedDevice
   alias Ecto.Multi
 
   alias NervesHub.Accounts.Invite
@@ -14,6 +13,7 @@ defmodule NervesHub.Accounts.RemoveAccount do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareDelta
