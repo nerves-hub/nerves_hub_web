@@ -34,13 +34,14 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Creates a device connection, reported from device socket
   """
-  @spec device_connecting(non_neg_integer()) ::
+  @spec device_connecting(non_neg_integer(), non_neg_integer()) ::
           {:ok, DeviceConnection.t()} | {:error, Ecto.Changeset.t()}
-  def device_connecting(device_id) do
+  def device_connecting(device_id, product_id) do
     now = DateTime.utc_now()
 
     changeset =
       DeviceConnection.create_changeset(%{
+        product_id: product_id,
         device_id: device_id,
         established_at: now,
         last_seen_at: now,

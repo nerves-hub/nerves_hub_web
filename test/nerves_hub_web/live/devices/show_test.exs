@@ -95,7 +95,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert html =~ "offline"
 
-      {:ok, connection} = Connections.device_connecting(fixture.device.id)
+      {:ok, connection} =
+        Connections.device_connecting(fixture.device.id, fixture.device.product_id)
+
       :ok = Connections.device_connected(connection.id)
 
       send(view.pid, %Broadcast{event: "connection:change", payload: %{status: "online"}})
@@ -260,7 +262,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.product_id)
       :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{}})
 
@@ -276,7 +278,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "location" => %{"error_code" => "BOOP", "error_description" => "BEEP"}
       }
 
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.product_id)
       :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, metadata)
 
@@ -298,7 +300,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         }
       }
 
-      {:ok, connection} = Connections.device_connecting(device.id)
+      {:ok, connection} = Connections.device_connecting(device.id, device.product_id)
       :ok = Connections.device_connected(connection.id)
       :ok = Connections.merge_update_metadata(connection.id, metadata)
 
