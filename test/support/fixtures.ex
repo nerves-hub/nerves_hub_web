@@ -448,6 +448,7 @@ defmodule NervesHub.Fixtures do
     DeviceConnection.create_changeset(
       Map.merge(
         %{
+          product_id: device.product_id,
           device_id: device.id,
           established_at: now,
           last_seen_at: now,
