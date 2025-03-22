@@ -7,8 +7,8 @@ defmodule NervesHub.ManagedDeployments.Monitor do
 
   use GenServer
 
-  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeploymentDynamicSupervisor
+  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Orchestrator
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
