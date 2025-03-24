@@ -56,7 +56,6 @@ config :nerves_hub, Oban,
   notifier: Oban.Notifiers.PG,
   log: false,
   queues: [
-    analytics: 3,
     delete_archive: 1,
     delete_firmware: 1,
     device: 1,
@@ -74,8 +73,7 @@ config :nerves_hub, Oban,
        {"*/1 * * * *", NervesHub.Workers.CleanStaleDeviceConnections},
        {"1,16,31,46 * * * *", NervesHub.Workers.DeleteOldDeviceConnections},
        {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates},
-       {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation},
-       {"*/1 * * * *", NervesHub.Workers.ConnectedDeviceCount}
+       {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation}
      ]}
   ]
 
