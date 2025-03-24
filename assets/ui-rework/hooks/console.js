@@ -36,7 +36,7 @@ const defaultTermOptions = {
 
 const debounce = (func, time = 100) => {
   let timer
-  return function(event) {
+  return function (event) {
     if (timer) clearTimeout(timer)
     timer = setTimeout(func, time, event)
   }
@@ -170,6 +170,16 @@ export default {
       term.scrollToBottom()
     })
 
+
+    document.getElementById("fullscreen").addEventListener("click", () => {
+      // put this on the next tick instead of immediate just to reduce risk of racing
+      window.setTimeout(() => {
+        fitAddon.fit()
+        term.scrollToBottom()
+        term.focus()
+      }, 1000)
+    })
+
     channel.onClose(() => {
       term.blur()
       term.setOption("cursorBlink", false)
@@ -178,7 +188,7 @@ export default {
 
     let dropzone = document.getElementById("dropzone")
 
-    dropzone.addEventListener("dragover", function(e) {
+    dropzone.addEventListener("dragover", function (e) {
       e.stopPropagation()
       e.preventDefault()
 
