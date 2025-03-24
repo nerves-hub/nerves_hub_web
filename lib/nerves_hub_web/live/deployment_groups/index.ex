@@ -51,12 +51,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     |> noreply()
   end
 
-  defp filter_changes(params) do
-    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
-      empty_values: []
-    ).changes
-  end
-
   @impl Phoenix.LiveView
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_number" => page_num}
@@ -154,6 +148,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
         {key, value}
       end
     end
+  end
+
+  defp filter_changes(params) do
+    Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
+      empty_values: []
+    ).changes
   end
 
   defp firmware_simple_display_name(%Firmware{} = f) do

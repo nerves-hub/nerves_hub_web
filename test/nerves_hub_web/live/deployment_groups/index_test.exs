@@ -55,4 +55,26 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
     |> assert_has("a", text: deployment_group.name)
     |> assert_has("td div", text: "0")
   end
+
+  # Disabled until new UI is the default template.
+  @tag :pending
+  test "filter deployment groups on name", %{
+    conn: conn,
+    org: org,
+    product: product,
+    deployment_group: deployment_group
+  } do
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
+    |> assert_has("h1", text: "Deployment Groups")
+    |> assert_has("a", text: deployment_group.name)
+    |> unwrap(fn view ->
+      render_change(view, "update-filters", %{"name" => deployment_group.name})
+    end)
+    |> assert_has("a", text: deployment_group.name)
+    |> unwrap(fn view ->
+      render_change(view, "update-filters", %{"name" => "blah"})
+    end)
+    |> refute_has("a", text: deployment_group.name)
+  end
 end
