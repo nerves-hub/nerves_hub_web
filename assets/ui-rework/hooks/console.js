@@ -10,7 +10,7 @@ const defaultTermOptions = {
   cursorStyle: "bar",
   macOptionIsMeta: true,
   fontFamily: "Ubuntu Mono, courier-new, courier, monospace",
-  fontSize: 16,
+  fontSize: 14,
   theme: {
     foreground: "#FFFAF4",
     background: "#0E1019",
