@@ -22,7 +22,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
   test "device connecting -> connected -> disconnected", %{device: device} do
     assert {:ok, %DeviceConnection{id: ref, status: :connecting}} =
-             Connections.device_connecting(device.id)
+             Connections.device_connecting(device.id, device.product_id)
 
     assert %DeviceConnection{status: :connecting} = Connections.get_latest_for_device(device.id)
 
@@ -39,7 +39,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
   test "device heartbeat", %{device: device} do
     assert {:ok, %DeviceConnection{id: connection_id, last_seen_at: first_seen_at} = connection} =
-             Connections.device_connecting(device.id)
+             Connections.device_connecting(device.id, device.product_id)
 
     assert :ok = Connections.device_connected(connection_id)
 
@@ -53,7 +53,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
   end
 
   test "deleting old device_connections", %{device: device} do
-    {:ok, _} = Connections.device_connecting(device.id)
+    {:ok, _} = Connections.device_connecting(device.id, device.product_id)
     two_weeks_ago = DateTime.utc_now() |> DateTime.add(-14, :day)
 
     deleted_device_connection =
@@ -75,7 +75,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
   test "deleting old device_connections never deletes a devices's last device_connection", %{
     device: device
   } do
-    {:ok, _} = Connections.device_connecting(device.id)
+    {:ok, _} = Connections.device_connecting(device.id, device.product_id)
 
     %{latest_connection: latest_connection} =
       device |> Repo.reload() |> Repo.preload(:latest_connection)
