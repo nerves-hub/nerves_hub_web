@@ -3,9 +3,7 @@ defmodule NervesHub.Repo.Migrations.AddProductIdToDeviceConnectionsTable do
 
   def change do
     alter table(:device_connections) do
-      add(:product_id, :integer)
+      add(:product_id, :bigint)
     end
-
-    create(index(:device_connections, [:product_id]))
   end
 end
