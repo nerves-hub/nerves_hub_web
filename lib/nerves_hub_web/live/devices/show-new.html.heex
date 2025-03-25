@@ -230,7 +230,7 @@
 
   <.live_component :if={@tab == :activity} module={ActivityPage} id="device_activity" device={@device} org={@org} product={@product} user={@user} />
 
-  <.live_component :if={@tab == :console} module={ConsolePage} id="device_console" device={@device} user={@user} org_user={@org_user} />
+  <.live_component :if={@tab == :console} module={ConsolePage} id="device_console" device={@device} device_connection={@device_connection} user={@user} org_user={@org_user} />
 
   <.live_component :if={@tab == :settings} module={SettingsPage} id="device_settings" device={@device} org={@org} product={@product} user={@user} org_user={@org_user} />
 </div>
