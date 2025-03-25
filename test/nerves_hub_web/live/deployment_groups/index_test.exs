@@ -56,8 +56,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
     |> assert_has("td div", text: "0")
   end
 
-  # Disabled until new UI is the default template.
-  @tag :pending
   test "filter deployment groups on name", %{
     conn: conn,
     org: org,
@@ -65,6 +63,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
     deployment_group: deployment_group
   } do
     conn
+    |> put_session("new_ui", true)
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
     |> assert_has("h1", text: "Deployment Groups")
     |> assert_has("a", text: deployment_group.name)
