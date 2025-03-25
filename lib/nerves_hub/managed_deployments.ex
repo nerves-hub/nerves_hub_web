@@ -10,6 +10,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Devices.Device
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
+  alias NervesHub.ManagedDeployments.Filtering
   alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.Products.Product
   alias NervesHub.Workers.FirmwareDeltaBuilder
@@ -39,6 +40,7 @@ defmodule NervesHub.ManagedDeployments do
     sort_direction = Map.get(opts, :sort_direction, "desc")
 
     sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
+    filters = Map.get(opts, :filters, %{})
 
     flop = %Flop{
       page: String.to_integer(Map.get(opts, :page, "1")),
@@ -58,6 +60,7 @@ defmodule NervesHub.ManagedDeployments do
     |> join(:left, [d], dev in subquery(subquery), on: dev.deployment_id == d.id)
     |> join(:left, [d], f in assoc(d, :firmware))
     |> where([d], d.product_id == ^product.id)
+    |> Filtering.build_filters(filters)
     |> sort_deployment_groups(sort_opts)
     |> preload([_d, _dev, f], firmware: f)
     |> select_merge([_f, dev], %{device_count: dev.device_count})
