@@ -104,9 +104,9 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
       # Check again because other nodes are processing at the same time
       if Devices.count_inflight_updates_for(deployment_group) <
            deployment_group.concurrent_updates do
-        case Devices.told_to_update(device, deployment_group) do
-          {:ok, inflight_update} ->
-            send(pid, {"deployments/update", inflight_update})
+        case Devices.told_to_update(device, deployment_group, pid) do
+          {:ok, _inflight_update} ->
+            :ok
 
           :error ->
             Logger.error(

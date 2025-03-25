@@ -1420,13 +1420,19 @@ defmodule NervesHub.Devices do
   @doc """
   Deployment orchestrator told a device to update
   """
-  @spec told_to_update(Device.t() | integer(), DeploymentGroup.t()) ::
+  @spec told_to_update(
+          device_or_id :: Device.t() | integer(),
+          deployment_group :: DeploymentGroup.t(),
+          device_channel_pid :: pid() | nil
+        ) ::
           {:ok, InflightUpdate.t()} | :error
-  def told_to_update(%Device{id: id}, deployment_group) do
-    told_to_update(id, deployment_group)
+  def told_to_update(device_or_id, deployment_group, device_channel_pid \\ nil)
+
+  def told_to_update(%Device{id: id}, deployment_group, device_channel_pid) do
+    told_to_update(id, deployment_group, device_channel_pid)
   end
 
-  def told_to_update(device_id, deployment_group) do
+  def told_to_update(device_id, deployment_group, device_channel_pid) do
     expires_at =
       DateTime.utc_now()
       |> DateTime.add(60 * deployment_group.inflight_update_expiration_minutes, :second)
@@ -1443,7 +1449,11 @@ defmodule NervesHub.Devices do
     |> Repo.insert()
     |> case do
       {:ok, inflight_update} ->
-        broadcast_update_request(device_id, inflight_update, deployment_group)
+        if device_channel_pid do
+          send(device_channel_pid, {:update, inflight_update})
+        else
+          broadcast_update_request(device_id, inflight_update, deployment_group)
+        end
 
         {:ok, inflight_update}
 
@@ -1459,7 +1469,11 @@ defmodule NervesHub.Devices do
             :error
 
           inflight_update ->
-            broadcast_update_request(device_id, inflight_update, deployment_group)
+            if device_channel_pid do
+              send(device_channel_pid, {:update, inflight_update})
+            else
+              broadcast_update_request(device_id, inflight_update, deployment_group)
+            end
 
             {:ok, inflight_update}
         end
@@ -1540,29 +1554,26 @@ defmodule NervesHub.Devices do
   end
 
   defp broadcast_update_request(device_id, inflight_update, deployment_group) do
+    {:ok, url} = Firmwares.get_firmware_url(deployment_group.firmware)
+    {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
+
+    update_payload = %UpdatePayload{
+      update_available: true,
+      firmware_url: url,
+      firmware_meta: meta,
+      deployment_group: deployment_group,
+      deployment_id: deployment_group.id
+    }
+
+    payload = %{inflight_update: inflight_update, update_payload: update_payload}
+
     _ =
-      if deployment_group.orchestrator_strategy == :distributed do
-        {:ok, url} = Firmwares.get_firmware_url(deployment_group.firmware)
-        {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
-
-        update_payload = %UpdatePayload{
-          update_available: true,
-          firmware_url: url,
-          firmware_meta: meta,
-          deployment_group: deployment_group,
-          deployment_id: deployment_group.id
-        }
-
-        payload = %{inflight_update: inflight_update, update_payload: update_payload}
-
-        _ =
-          Phoenix.Channel.Server.broadcast(
-            NervesHub.PubSub,
-            "device:#{device_id}",
-            "update-scheduled",
-            payload
-          )
-      end
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "device:#{device_id}",
+        "update-scheduled",
+        payload
+      )
 
     :ok
   end

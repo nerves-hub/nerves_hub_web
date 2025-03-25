@@ -414,15 +414,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     deployment_group = NervesHub.Repo.preload(deployment_group, :firmware)
 
     case Devices.told_to_update(device, deployment_group) do
-      {:ok, inflight_update} ->
+      {:ok, _inflight_update} ->
         DeviceTemplates.audit_pushed_available_update(user, device, deployment_group)
-
-        _ =
-          NervesHubWeb.Endpoint.broadcast(
-            "device:#{device.id}",
-            "deployments/update",
-            inflight_update
-          )
 
         socket
         |> put_flash(:info, "Pushing available firmware update")
