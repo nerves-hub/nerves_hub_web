@@ -502,7 +502,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert Repo.aggregate(NervesHub.Devices.InflightUpdate, :count) == 1
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "deployments/update"}
+      topic = "device:#{device.id}"
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "update-scheduled"
+      }
     end
 
     test "available update exists but deployment is not active", %{
