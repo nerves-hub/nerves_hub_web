@@ -13,25 +13,24 @@ export default {
 
     var data = []
     for (let i = 0; i < dataset.length; i++) {
-      data.push({ x: dataset[i].timestamp, y: dataset[i].count })
+      data.push({
+        x: dataset[i].timestamp,
+        y: dataset[i].count
+      })
     }
 
-    const areaChartDataset = {
+    var gradient = ctx.getContext("2d").createLinearGradient(0, 0, 0, 400)
+    gradient.addColorStop(0, "rgba(99, 102, 241, 1)")
+    gradient.addColorStop(1, "rgba(99, 102, 241, 0)")
+
+    const barChartDataset = {
       type: "bar",
       data: {
         datasets: [
           {
-            backgroundColor: "#6366f1",
+            backgroundColor: gradient,
             hoverBackgroundColor: "#7f9cf5",
-            // fill: {
-            //   target: "start",
-            //   above: "rgba(99, 102, 241, 0.29)",
-            //   below: "rgba(99, 102, 241, 0.29)"
-            // },
-            // radius: 2
-            barPercentage: 0.5,
-            barThickness: 6,
-            maxBarThickness: 8,
+            barPercentage: 0.75,
             minBarLength: 2,
             data: data
           }
@@ -114,7 +113,7 @@ export default {
       }
     }
 
-    const chart = new Chart(ctx, areaChartDataset)
+    const chart = new Chart(ctx, barChartDataset)
     this.el.chart = chart
 
     this.handleEvent("update-charts", function(payload) {
