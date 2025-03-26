@@ -82,7 +82,7 @@
       <div class="px-4 py-3 text-xs border-t border-zinc-700">
         <.link
           class="text-xs font-normal text-zinc-400 underline underline-offset-4 decoration-dotted hover:text-neutral-50"
-          href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health"
+          navigate={~p"/org/#{@org.name}/#{@product.name}/devices?filter=not_recently_seen"}
         >
           View Devices
         </.link>
@@ -117,7 +117,7 @@
       <div class="px-4 py-3 text-xs border-t border-zinc-700">
         <.link
           class="text-xs font-normal text-zinc-400 underline underline-offset-4 decoration-dotted hover:text-neutral-50"
-          href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health"
+          navigate={~p"/org/#{@org.name}/#{@product.name}/devices?filter=unstable_connections"}
         >
           View Devices
         </.link>
@@ -161,7 +161,7 @@
       <div class="px-4 py-3 text-xs border-t border-zinc-700">
         <.link
           class="text-xs font-normal text-zinc-400 underline underline-offset-4 decoration-dotted hover:text-neutral-50"
-          href="https://github.com/nerves-hub/nerves_hub_link?tab=readme-ov-file#configure-health"
+          navigate={~p"/org/#{@org.name}/#{@product.name}/firmware?filter=active_firmware"}
         >
           View Firmware
         </.link>

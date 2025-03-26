@@ -29,6 +29,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   @default_filters %{
     connection: "",
     connection_type: "",
+    filter: "",
     firmware_version: "",
     platform: "",
     healthy: "",
@@ -49,6 +50,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   @filter_types %{
     connection: :string,
     connection_type: :string,
+    filter: :string,
     firmware_version: :string,
     platform: :string,
     healthy: :string,
