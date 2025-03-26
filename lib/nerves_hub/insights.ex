@@ -34,7 +34,7 @@ defmodule NervesHub.Insights do
     device_counts_query =
       DeviceConnection
       |> select([dc], %{
-        device_count: count(dc.id, :distinct)
+        device_count: count(dc.device_id, :distinct)
       })
       |> where([dc], dc.product_id == ^product.id)
       |> where(
