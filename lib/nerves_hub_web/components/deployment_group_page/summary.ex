@@ -156,25 +156,26 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 <span :for={tag <- @deployment_group.conditions["tags"]} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">{tag}</span>
               </span>
             </div>
-            <div class="flex gap-4 items-center">
+            <div class="flex gap-4 items-center pb-2">
               <span class="text-sm text-nerves-gray-500 w-36">Version requirement:</span>
               <code class="text-sm text-zinc-300">{@deployment_group.conditions["version"]}</code>
             </div>
             <div class="flex flex-col justify-between pt-3 gap-2 border-t border-zinc-700">
-              <div :if={@matched_device_count == @current_device_count} class="flex gap-4 items-center">
+              <div :if={@current_device_count > 0 && @matched_device_count == @current_device_count} class="flex gap-4 pt-2 items-center">
                 <span class="text-sm text-zinc-300">100% of devices in this deployment group match conditions</span>
               </div>
               <div :if={@matched_device_count != @current_device_count} class="flex gap-4 items-center">
                 <span class="text-sm text-zinc-300">{round(@matched_device_count / @current_device_count * 100)}% of devices in this deployment group match conditions</span>
               </div>
-              <div :if={@unmatched_device_count > 0} class="flex gap-2 items-center">
+              <div :if={@unmatched_device_count > 0} class="flex py-2 gap-2 items-center">
                 <div class="text-sm text-zinc-300">
                   {@unmatched_device_count} {if @unmatched_device_count == 1, do: "device", else: "devices"}
-                  <span class="text-sm text-nerves-gray-500">{if @unmatched_device_count == 1, do: "doesn't", else: "don't"} match</span>
+                  <span class="text-sm text-nerves-gray-500">{if @unmatched_device_count == 1, do: "doesn't", else: "don't"} match inside deployment group</span>
                 </div>
-                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@deployment_group.firmware.uuid}"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
+                <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
+                <%!-- <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
                   <.icon name="open" />
-                </.link>
+                </.link> --%>
                 <div
                   class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-zinc-800 border border-zinc-700 rounded-full"
                   phx-click="remove-unmatched-devices-from-deployment-group"
@@ -202,7 +203,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                     />
                   </svg>
                   <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
-                    This action will remove {@unmatched_device_count} devices from {@deployment_group.name}
+                    This action will remove {@unmatched_device_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
                     <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
                   </div>
                 </div>
@@ -210,11 +211,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <div :if={@matched_devices_outside_deployment_group_count > 0} class="flex gap-2 items-center">
                 <span class="text-sm text-zinc-300">
                   {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
-                  <span class="text-sm text-nerves-gray-500">matching outside deployment group</span>
+                  <span class="text-sm text-nerves-gray-500">{if @matched_devices_outside_deployment_group_count == 1, do: "doesn't", else: "don't"} match outside of deployment group</span>
                 </span>
-                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@deployment_group.firmware.uuid}"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
+                <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
+                <%!-- <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
                   <.icon name="open" />
-                </.link>
+                </.link> --%>
                 <div
                   class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-zinc-800 border border-zinc-700 rounded-full"
                   phx-click="move-matched-devices-to-deployment-group"
@@ -233,7 +235,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                     />
                   </svg>
                   <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
-                    This action will move {@unmatched_device_count} devices<br /> that do not belong to a deployment <br />group into {@deployment_group.name}
+                    This action will move {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}<br />
+                    that do not belong to a deployment <br />group into {@deployment_group.name}
                     <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
                   </div>
                 </div>

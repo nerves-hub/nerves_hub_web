@@ -8,6 +8,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
+  alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
@@ -111,27 +112,25 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
-  def handle_event(
-        "move-matched-devices-to-deployment-group",
-        _params,
-        %{assigns: %{deployment_group: deployment_group}} = socket
-      ) do
-    {:ok, %{updated: devices_updated_count}} =
+  def handle_event("move-matched-devices-to-deployment-group", _params, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    move_devices = fn ->
       deployment_group
       |> ManagedDeployments.matched_device_ids(in_deployment: false)
       |> Devices.move_many_to_deployment_group(deployment_group)
+      |> then(fn {:ok, %{updated: devices_updated_count}} -> devices_updated_count end)
+    end
 
     socket
-    |> assign_matched_devices_count()
-    |> send_toast(:info, "#{devices_updated_count} devices moved to #{deployment_group.name}")
+    |> start_async(:move_devices_to_deployment, move_devices)
+    |> send_toast(:info, "Moving devices to deployment, this may take a moment")
     |> noreply()
   end
 
-  def handle_event(
-        "remove-unmatched-devices-from-deployment-group",
-        _params,
-        %{assigns: %{deployment_group: deployment_group}} = socket
-      ) do
+  def handle_event("remove-unmatched-devices-from-deployment-group", _params, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
     matched_device_ids =
       ManagedDeployments.matched_device_ids(deployment_group, in_deployment: true)
 
@@ -146,6 +145,31 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     socket
     |> assign_matched_devices_count()
     |> send_toast(:info, "#{devices_updated_count} devices removed from #{deployment_group.name}")
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_async(:move_devices_to_deployment, {:ok, devices_updated_count}, socket) do
+    socket
+    |> send_toast(
+      :info,
+      "#{devices_updated_count} devices moved to #{socket.assigns.deployment_group.name}"
+    )
+    |> assign_matched_devices_count()
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_async(:move_devices_to_deployment, {:exit, reason}, socket) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+    :ok = Logging.log_to_sentry(deployment_group, reason)
+
+    socket
+    |> send_toast(
+      :error,
+      "There was an issue moving devices to #{deployment_group.name}. We've been notified and are looking into it."
+    )
+    |> assign_matched_devices_count()
     |> noreply()
   end
 
