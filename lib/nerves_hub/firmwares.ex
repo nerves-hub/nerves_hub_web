@@ -68,6 +68,28 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
+  @spec get_installed_firmwares(Product.t(), [String.t()]) :: [Firmware.t()]
+  def get_installed_firmwares(product, uuids) do
+    subquery =
+      Device
+      |> select([d], %{
+        firmware_uuid: fragment("? ->> 'uuid'", d.firmware_metadata),
+        install_count: count(fragment("? ->> 'uuid'", d.firmware_metadata), :distinct)
+      })
+      |> where([d], not is_nil(d.firmware_metadata))
+      |> where([d], not is_nil(fragment("? ->> 'uuid'", d.firmware_metadata)))
+      |> Repo.exclude_deleted()
+      |> group_by([d], fragment("? ->> 'uuid'", d.firmware_metadata))
+
+    Firmware
+    |> join(:left, [f], d in subquery(subquery), on: d.firmware_uuid == f.uuid)
+    |> where([f], f.product_id == ^product.id)
+    |> where([f], f.uuid in ^uuids)
+    |> select_merge([_f, d], %{install_count: d.install_count})
+    |> order_by([_f, d], d.install_count)
+    |> Repo.all()
+  end
+
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
