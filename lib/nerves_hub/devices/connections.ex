@@ -151,16 +151,23 @@ defmodule NervesHub.Devices.Connections do
     interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
     a_minute_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + 1))
 
-    DeviceConnection
-    |> where(status: :connected)
-    |> where([d], d.last_seen_at < ^a_minute_ago)
-    |> Repo.update_all(
-      set: [
-        status: :disconnected,
-        disconnected_at: DateTime.utc_now(),
-        disconnected_reason: "Stale connection"
-      ]
-    )
+    {count, _} =
+      DeviceConnection
+      |> where(status: :connected)
+      |> where([d], d.last_seen_at < ^a_minute_ago)
+      |> Repo.update_all(
+        set: [
+          status: :disconnected,
+          disconnected_at: DateTime.utc_now(),
+          disconnected_reason: "Stale connection"
+        ]
+      )
+
+    if count > 0 do
+      :telemetry.execute([:nerves_hub, :devices, :stale_connections], %{count: count})
+    end
+
+    :ok
   end
 
   def delete_old_connections() do
