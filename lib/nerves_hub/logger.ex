@@ -95,6 +95,13 @@ defmodule NervesHub.Logger do
     )
   end
 
+  def log_event([:nerves_hub, :devices, :stale_connections], %{count: count}, _metadata, _) do
+    Logger.info("Device stale connection cleaned up",
+      event: "nerves_hub.devices.stale_connections",
+      count: count
+    )
+  end
+
   def log_event([:nerves_hub, :devices, :disconnect], _, metadata, _) do
     Logger.info("Device disconnected",
       event: "nerves_hub.devices.disconnect",
