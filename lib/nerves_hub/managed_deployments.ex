@@ -757,20 +757,11 @@ defmodule NervesHub.ManagedDeployments do
 
   # tags but no version
   defp do_matched_devices(
-         %DeploymentGroup{id: id, conditions: %{"version" => ""}},
+         %DeploymentGroup{conditions: %{"tags" => tags, "version" => ""}},
          query,
          work_type
        ) do
-    query =
-      where(
-        query,
-        [d],
-        fragment(
-          "(SELECT (conditions -> 'tags') FROM deployments WHERE id=?) \\?& ?::text[]",
-          ^id,
-          d.tags
-        )
-      )
+    query = where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
 
     case work_type do
       :count ->
@@ -785,20 +776,11 @@ defmodule NervesHub.ManagedDeployments do
 
   # version and tags
   defp do_matched_devices(
-         %DeploymentGroup{id: id, conditions: %{"version" => version}},
+         %DeploymentGroup{conditions: %{"tags" => tags, "version" => version}},
          query,
          work_type
        ) do
-    query =
-      where(
-        query,
-        [d],
-        fragment(
-          "(SELECT (conditions -> 'tags') FROM deployments WHERE id=?) \\?& ?::text[]",
-          ^id,
-          d.tags
-        )
-      )
+    query = where(query, [d], fragment("?::text[] && tags::text[]", ^tags))
 
     case work_type do
       :count ->

@@ -435,7 +435,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
         })
 
       Fixtures.device_fixture(org, product, firmware, %{
-        tags: ["beta", "rpi", "foo"],
+        tags: ["foo"],
         deployment_id: deployment_group.id
       })
 
@@ -584,7 +584,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           product,
           firmware,
           %{
-            tags: ["beta", "rpi", "foo"]
+            tags: ["foo"]
           }
         )
 
@@ -620,7 +620,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
           }
         })
 
-      _device1 =
+      device1 =
         Fixtures.device_fixture(
           org,
           product,
@@ -636,6 +636,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
         })
 
       assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
+               device1.id,
                device2.id
              ]
     end
@@ -674,6 +675,62 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
                device2.id
+             ]
+    end
+
+    test "when matching on tags, returns any devices that have at least one tag in common with deployment",
+         %{
+           org: org,
+           product: product,
+           firmware: firmware
+         } do
+      {:ok, deployment_group} =
+        ManagedDeployments.create_deployment_group(%{
+          org_id: org.id,
+          firmware_id: firmware.id,
+          name: "Deployment 123",
+          is_active: false,
+          conditions: %{
+            "version" => "",
+            "tags" => ["beta", "rpi"]
+          }
+        })
+
+      device1 =
+        Fixtures.device_fixture(
+          org,
+          product,
+          firmware,
+          %{
+            tags: ["beta"]
+          }
+        )
+
+      device2 =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["rpi"]
+        })
+
+      device3 =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["beta", "rpi"]
+        })
+
+      device4 =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["beta", "foo"]
+        })
+
+      _device5 =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["foo"]
+        })
+
+      assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
+               device1.id,
+               device2.id,
+               device3.id,
+               device4.id
              ]
     end
   end

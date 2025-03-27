@@ -20,6 +20,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHubWeb.Components.DeploymentGroupPage.Settings, as: SettingsTab
   alias NervesHubWeb.Components.DeploymentGroupPage.Summary, as: SummaryTab
 
+  require Logger
+
   @impl Phoenix.LiveView
   def mount(params, _session, socket) do
     %{"name" => name} = params
@@ -116,10 +118,20 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     %{assigns: %{deployment_group: deployment_group}} = socket
 
     move_devices = fn ->
+      Logger.info("RECOLLECT - Fetching matching device ids")
+
       deployment_group
       |> ManagedDeployments.matched_device_ids(in_deployment: false)
+      |> then(fn ids ->
+        Logger.info("RECOLLECT - Moving devices to deployment group")
+
+        ids
+      end)
       |> Devices.move_many_to_deployment_group(deployment_group)
-      |> then(fn {:ok, %{updated: devices_updated_count}} -> devices_updated_count end)
+      |> then(fn {:ok, %{updated: devices_updated_count}} ->
+        Logger.info("RECOLLECT - Moved #{devices_updated_count} devices")
+        devices_updated_count
+      end)
     end
 
     socket
