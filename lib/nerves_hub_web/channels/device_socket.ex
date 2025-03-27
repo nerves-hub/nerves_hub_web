@@ -255,7 +255,10 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   defp last_seen_update_interval() do
-    Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+    jitter = Application.get_env(:nerves_hub, :device_last_seen_update_interval_jitter)
+
+    Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes) +
+      Enum.random(-jitter..jitter)
   end
 
   def shared_secrets_enabled?() do

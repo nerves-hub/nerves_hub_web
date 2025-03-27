@@ -28,7 +28,9 @@ config :nerves_hub,
   device_deployment_change_jitter_seconds:
     String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10")),
   device_last_seen_update_interval_minutes:
-    String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_MINUTES", "5")),
+    String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_MINUTES", "15")),
+  device_last_seen_update_interval_jitter:
+    String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_JITTER", "5")),
   device_connection_max_age_days:
     String.to_integer(System.get_env("DEVICE_CONNECTION_MAX_AGE_DAYS", "14")),
   device_connection_delete_limit:
