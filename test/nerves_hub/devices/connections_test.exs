@@ -43,7 +43,7 @@ defmodule NervesHub.Devices.ConnectionsTest do
 
     assert :ok = Connections.device_connected(connection_id)
 
-    Connections.device_heartbeat(connection_id)
+    Connections.device_heartbeat(device, connection_id)
 
     %DeviceConnection{id: ^connection_id, last_seen_at: last_seen_at, status: :connected} =
       Repo.reload(connection)
