@@ -85,12 +85,10 @@ defmodule NervesHub.Devices.Connections do
   @doc """
   Updates the `last_seen_at`field for a device connection with current timestamp
   """
-  @spec device_heartbeat(UUIDv7.t()) :: :ok
-  def device_heartbeat(id) do
-    {1, [result]} =
+  @spec device_heartbeat(Device.t(), UUIDv7.t()) :: :ok
+  def device_heartbeat(device, id) do
+    {1, nil} =
       DeviceConnection
-      |> join(:inner, [dc], d in assoc(dc, :device), as: :device)
-      |> select([device: device], %{identifier: device.identifier})
       |> where([dc], dc.id == ^id)
       |> Repo.update_all(
         set: [
@@ -102,7 +100,7 @@ defmodule NervesHub.Devices.Connections do
     Phoenix.Channel.Server.broadcast_from!(
       NervesHub.PubSub,
       self(),
-      "device:#{result.identifier}:internal",
+      "device:#{device.identifier}:internal",
       "connection:heartbeat",
       %{}
     )
