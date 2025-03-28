@@ -289,12 +289,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false)
 
     socket
-    |> assign(:current_device_count, current_device_count)
     |> assign(:matched_device_count, matched_devices_count)
     |> assign(:unmatched_device_count, current_device_count - matched_devices_count)
     |> assign(
       :matched_devices_outside_deployment_group_count,
       matched_devices_outside_deployment_group_count
     )
+    |> assign(:deployment_group, %{deployment_group | device_count: current_device_count})
   end
 end

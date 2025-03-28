@@ -19,7 +19,7 @@
       aria-label="Delete"
       data-confirm={[
         "Are you sure you want to delete this deployment?",
-        @deployment_group.device_count > 0 && " All devices assigned to this deployment will be assigned a new deployment when they reconnect. ",
+        (@deployment_group.device_count > 0 && " All devices assigned to this deployment will be assigned a new deployment when they reconnect. ") || [],
         "This cannot be undone."
       ]}
     >
@@ -63,7 +63,7 @@
   <div id="device-count">
     <div class="help-text">Device count</div>
     <p>
-      {@current_device_count}
+      {@deployment_group.device_count}
     </p>
   </div>
 </div>

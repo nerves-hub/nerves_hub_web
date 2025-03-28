@@ -161,11 +161,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <code class="text-sm text-zinc-300">{@deployment_group.conditions["version"]}</code>
             </div>
             <div class="flex flex-col justify-between pt-3 gap-2 border-t border-zinc-700">
-              <div :if={@current_device_count > 0 && @matched_device_count == @current_device_count} class="flex gap-4 pt-2 items-center">
+              <div :if={@deployment_group.device_count > 0 && @matched_device_count == @deployment_group.device_count} class="flex gap-4 pt-2 items-center">
                 <span class="text-sm text-zinc-300">100% of devices in this deployment group match conditions</span>
               </div>
-              <div :if={@matched_device_count != @current_device_count} class="flex gap-4 items-center">
-                <span class="text-sm text-zinc-300">{round(@matched_device_count / @current_device_count * 100)}% of devices in this deployment group match conditions</span>
+              <div :if={@matched_device_count != @deployment_group.device_count} class="flex gap-4 items-center">
+                <span class="text-sm text-zinc-300">{round(@matched_device_count / @deployment_group.device_count * 100)}% of devices in this deployment group match conditions</span>
               </div>
               <div :if={@unmatched_device_count > 0} class="flex py-2 gap-2 items-center">
                 <div class="text-sm text-zinc-300">
@@ -176,7 +176,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 <%!-- <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
                   <.icon name="open" />
                 </.link> --%>
-                <div
+                <button
                   class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-zinc-800 border border-zinc-700 rounded-full"
                   phx-click="remove-unmatched-devices-from-deployment-group"
                   data-confirm={"This will remove #{@unmatched_device_count} #{if @unmatched_device_count == 1, do: "device", else: "devices"} from #{@deployment_group.name}. Continue?"}
@@ -191,7 +191,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                     />
                   </svg>
                   Remove {if @unmatched_device_count == 1, do: "device", else: "devices"}
-                </div>
+                </button>
                 <div id="remove-devices-from-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
                   <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
@@ -209,21 +209,21 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
               </div>
               <div :if={@matched_devices_outside_deployment_group_count > 0} class="flex gap-2 items-center">
-                <span class="text-sm text-zinc-300">
+                <div class="text-sm text-zinc-300">
                   {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
-                  <span class="text-sm text-nerves-gray-500">{if @matched_devices_outside_deployment_group_count == 1, do: "doesn't", else: "don't"} match outside of deployment group</span>
-                </span>
+                  <span class="text-sm text-nerves-gray-500">{if @matched_devices_outside_deployment_group_count == 1, do: "matches", else: "match"} outside of deployment group</span>
+                </div>
                 <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
                 <%!-- <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
                   <.icon name="open" />
                 </.link> --%>
-                <div
+                <button
                   class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-zinc-800 border border-zinc-700 rounded-full"
                   phx-click="move-matched-devices-to-deployment-group"
                   data-confirm={"This will move #{@matched_devices_outside_deployment_group_count} #{if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} into #{@deployment_group.name}. Continue?"}
                 >
                   <.icon name="folder-move" class="mr-1" /> Move {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
-                </div>
+                </button>
                 <div id="move-devices-to-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
                   <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
