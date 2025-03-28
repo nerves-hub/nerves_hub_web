@@ -436,8 +436,9 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
                   </svg>
                 </button>
               </div>
-              <div :if={script.output} class="mt-2">
-                <code class="p-3 bg-zinc-800">{script.output}</code>
+              <div :if={script.output} class="mt-2 bg-[#0e1019] rounded border border-zinc-700 p-2">
+                <div id="support-script" phx-hook="SupportScriptOutput" class="overflow-x-scroll"></div>
+                <div id="support-script-output" class="hidden" phx-no-format>{script.output}</div>
               </div>
             </div>
           </div>
