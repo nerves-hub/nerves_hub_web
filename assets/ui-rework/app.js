@@ -11,6 +11,7 @@ import en from "javascript-time-ago/locale/en"
 import Console from "./hooks/console.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
 import Chart from "./hooks/chart.js"
+import ConnectedDevicesAnalytics from "./hooks/connected_devices_analytics.js"
 import HighlightCode from "./hooks/highlightCode.js"
 import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
 import LocalTime from "./hooks/localTime.js"
@@ -34,6 +35,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     Console,
     SharedSecretClipboardClick,
     Chart,
+    ConnectedDevicesAnalytics,
     HighlightCode,
     UpdatingTimeAgo,
     LocalTime,
