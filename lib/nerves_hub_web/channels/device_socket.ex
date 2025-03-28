@@ -63,9 +63,9 @@ defmodule NervesHubWeb.DeviceSocket do
   defp heartbeat(_message, socket), do: socket
 
   defp heartbeat?(%{assigns: %{last_heartbeat_at: last_heartbeat_at}}) do
-    mins_ago = DateTime.diff(DateTime.utc_now(), last_heartbeat_at, :minute)
+    seconds_ago = DateTime.diff(DateTime.utc_now(), last_heartbeat_at, :second)
 
-    mins_ago >= last_seen_update_interval()
+    seconds_ago >= last_seen_update_interval()
   end
 
   defp heartbeat?(_), do: true
@@ -255,10 +255,11 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   defp last_seen_update_interval() do
-    jitter = Application.get_env(:nerves_hub, :device_last_seen_update_interval_jitter)
+    interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes) * 60
 
-    Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes) +
-      Enum.random(-jitter..jitter)
+    jitter = Application.get_env(:nerves_hub, :device_last_seen_update_interval_jitter_seconds)
+
+    interval + Enum.random(-jitter..jitter)
   end
 
   def shared_secrets_enabled?() do
