@@ -44,7 +44,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
 
     if connected?(socket) do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
-      socket.endpoint.subscribe("device:#{device.identifier}:extensions")
+      socket.endpoint.subscribe("device:#{device.id}:extensions")
     end
 
     socket
