@@ -13,8 +13,6 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   alias NervesHub.ManagedDeployments
   alias NervesHub.Scripts
 
-  alias NervesHub.Repo
-
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.NewUI.DeviceLocation
 
@@ -22,6 +20,12 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     socket
     |> assign(:latest_metrics, latest_metrics)
     |> assign_metadata()
+    |> ok()
+  end
+
+  def update(%{update_auto_refresh_health: auto_refresh_health}, socket) do
+    socket
+    |> assign(:auto_refresh_health, auto_refresh_health)
     |> ok()
   end
 
@@ -33,16 +37,20 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   end
 
   def update(assigns, socket) do
+    device = Devices.get_complete_device(assigns.device_id)
+
     socket
-    |> assign(assigns)
-    |> assign(:device, Repo.preload(assigns.device, :deployment_group))
-    |> assign(:device, Repo.preload(assigns.device, :latest_health))
+    |> assign(:device, device)
+    |> assign(:product, device.product)
+    |> assign(:org, device.org)
+    |> assign(:device_connection, device.latest_connection)
     |> assign_support_scripts()
-    |> assign(:firmwares, Firmwares.get_firmware_for_device(assigns.device))
-    |> assign(:update_information, Devices.resolve_update(assigns.device))
-    |> assign(:latest_metrics, Metrics.get_latest_metric_set(assigns.device.id))
-    |> assign(:alarms, Alarms.get_current_alarms_for_device(assigns.device))
-    |> assign(:extension_overrides, extension_overrides(assigns.device, assigns.product))
+    |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
+    |> assign(:update_information, Devices.resolve_update(device))
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
+    |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
+    |> assign(:extension_overrides, extension_overrides(device, device.product))
+    |> assign(:auto_refresh_health, true)
     |> assign_metadata()
     |> assign_deployment_groups()
     |> ok()

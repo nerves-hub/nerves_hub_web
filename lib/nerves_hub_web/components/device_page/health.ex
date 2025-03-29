@@ -1,10 +1,7 @@
 defmodule NervesHubWeb.Components.DevicePage.Health do
   use NervesHubWeb, :live_component
 
-  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Metrics
-
-  alias Phoenix.Socket.Broadcast
 
   @time_frame_opts [
     {"hour", 1},
@@ -44,18 +41,19 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
     "disk_total_kb"
   ]
 
-  def update(%{device: device} = assigns, socket) do
-    if connected?(socket) do
-      socket.endpoint.subscribe("device:#{device.identifier}:internal")
-      socket.endpoint.subscribe("device:#{device.identifier}:extensions")
-    end
+  def update(%{refresh_metrics: true}, socket) do
+    socket
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(socket.assigns.device_id))
+    |> update_charts()
+    |> ok()
+  end
 
+  def update(%{device_id: device_id} = assigns, socket) do
     socket
     |> assign(assigns)
-    |> assign(:latest_connection, Connections.get_latest_for_device(device.id))
     |> assign(:time_frame, @default_time_frame)
     |> assign(:time_frame_opts, @time_frame_opts)
-    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device_id))
     |> assign_charts()
     |> update_charts()
     |> ok()
@@ -64,7 +62,7 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
   def render(assigns) do
     ~H"""
     <div class="w-full p-6">
-      <div :if={Enum.any?(@latest_metrics) && @product.extensions.health && @device.extensions.health} class="w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
+      <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
         <div class="flex flex-col shadow-device-details-content">
           <div class="flex pt-2 px-4 pb-4 gap-2 items-center justify-items-stretch flex-wrap">
             <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-emerald-500 bg-health-good">
@@ -184,23 +182,10 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
     |> noreply()
   end
 
-  def handle_info(
-        %Broadcast{event: "health_check_report"},
-        %{assigns: %{device: device}} = socket
-      ) do
-    socket
-    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
-    |> update_charts()
-    |> noreply()
-  end
-
-  # Ignore other events for now
-  def handle_info(_event, socket), do: {:noreply, socket}
-
   def assign_charts(%{assigns: assigns} = socket) do
-    %{device: device, time_frame: time_frame, latest_metrics: latest_metrics} = assigns
+    %{device_id: device_id, time_frame: time_frame, latest_metrics: latest_metrics} = assigns
 
-    charts = create_chart_data(device.id, time_frame, latest_metrics["mem_size_mb"])
+    charts = create_chart_data(device_id, time_frame, latest_metrics["mem_size_mb"])
 
     assign(socket, :charts, charts)
   end
@@ -218,9 +203,10 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
   def update_charts(
         %{
           assigns: %{
-            product: product,
-            org: org,
-            device: device,
+            device_id: device_id,
+            device_identifier: device_identifier,
+            product_name: product_name,
+            org_name: org_name,
             time_frame: time_frame,
             latest_metrics: latest_metrics,
             charts: charts
@@ -228,7 +214,7 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
         } =
           socket
       ) do
-    data = create_chart_data(device.id, time_frame, latest_metrics["size_mb"])
+    data = create_chart_data(device_id, time_frame, latest_metrics["size_mb"])
 
     cond do
       data == [] ->
@@ -236,7 +222,7 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
 
       types(charts) != types(data) ->
         push_patch(socket,
-          to: ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}/healthz"
+          to: ~p"/org/#{org_name}/#{product_name}/devices/#{device_identifier}/healthz"
         )
 
       true ->

@@ -31,7 +31,7 @@ defmodule NervesHubWeb.ChannelCase do
       end
 
       def subscribe_extensions(device) do
-        Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.identifier}:extensions")
+        Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}:extensions")
       end
 
       def assert_online_and_available(device) do

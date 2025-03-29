@@ -41,6 +41,26 @@ defmodule NervesHub.Devices do
     Repo.get(Device, device_id)
   end
 
+  def get_complete_device(device_id) do
+    Device
+    |> where([d], d.id == ^device_id)
+    |> join(:left, [d], o in assoc(d, :org))
+    |> join(:left, [d, o], p in assoc(d, :product))
+    |> join(:left, [d, o, p], dg in assoc(d, :deployment_group))
+    |> join(:left, [d, o, p, dg], f in assoc(dg, :firmware))
+    |> join(:left, [d, o, p, dg, f], lc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, o, p, dg, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
+    |> preload([d, o, p, dg, f, latest_connection: lc, latest_health: lh],
+      org: o,
+      product: p,
+      deployment_group: {dg, firmware: f},
+      latest_connection: lc,
+      latest_health: lh
+    )
+    |> Repo.exclude_deleted()
+    |> Repo.one()
+  end
+
   def get_active_device(filters) do
     Device
     |> Repo.exclude_deleted()
