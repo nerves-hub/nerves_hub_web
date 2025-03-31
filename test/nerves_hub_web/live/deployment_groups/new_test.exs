@@ -22,10 +22,10 @@ defmodule NervesHubWeb.Live.DeploymentGroups.NewTest do
       |> visit("/org/#{org.name}/#{product.name}/deployments/new")
       |> assert_has("h1", text: "Create Deployment Group")
       |> assert_has("option", text: "Choose a platform")
-      |> select(firmware.platform, from: "Platform")
+      |> select("Platform", option: firmware.platform)
       |> fill_in("Deployment Group name", with: "Moussaka")
       |> fill_in("Tag(s) distributed to", with: "josh, lars")
-      |> select(firmware.uuid, from: "Firmware version", exact_option: false)
+      |> select("Firmware version", option: firmware.uuid, exact_option: false)
       |> click_button("Create Deployment")
       |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
       |> assert_has("h1", text: "Deployment Groups")
@@ -49,7 +49,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.NewTest do
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/deployments/new")
-      |> select(firmware.platform, from: "Platform")
+      |> select("Platform", option: firmware.platform)
       |> unwrap(fn view ->
         view
         |> element("form")
