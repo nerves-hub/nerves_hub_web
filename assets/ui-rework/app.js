@@ -16,6 +16,7 @@ import UpdatingTimeAgo from "./hooks/updatingTimeAgo.js"
 import LocalTime from "./hooks/localTime.js"
 import ToolTip from "./hooks/toolTip.js"
 import SimpleDate from "./hooks/simpleDate.js"
+import SupportScriptOutput from "./hooks/supportScriptOutput.js"
 import WorldMap from "./hooks/worldMap.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
@@ -38,6 +39,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     LocalTime,
     ToolTip,
     SimpleDate,
+    SupportScriptOutput,
     WorldMap,
     DeviceLocationMap,
     DeviceLocationMapWithGeocoder,

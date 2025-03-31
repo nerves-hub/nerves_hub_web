@@ -5,7 +5,7 @@ defmodule NervesHubWeb.Components.DevicePage.Console do
   alias Phoenix.LiveView.JS
 
   def update(%{file_upload: payload}, socket) do
-    if socket.user.id == payload.uploaded_by do
+    if socket.assigns.user.id == payload.uploaded_by do
       case payload.status do
         "started" ->
           send_toast(socket, :info, "Upload started.")
