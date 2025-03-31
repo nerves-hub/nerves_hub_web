@@ -25,7 +25,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
       |> fill_in("Deployment Group name", with: "Moussaka")
       |> fill_in("Tag(s) distributed to", with: "josh, lars")
       |> fill_in("Version requirement", with: "4.3.2")
-      |> select(firmware.uuid, from: "Firmware version", exact_option: false)
+      |> select("Firmware version", option: firmware.uuid, exact_option: false)
       |> click_button("Save Change")
 
     {:ok, reloaded_deployment_group} =
