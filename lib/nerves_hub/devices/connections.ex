@@ -147,12 +147,16 @@ defmodule NervesHub.Devices.Connections do
 
   def clean_stale_connections() do
     interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
-    a_minute_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + 1))
+    jitter = Application.get_env(:nerves_hub, :device_last_seen_update_interval_jitter_seconds)
+
+    max_jitter = ceil(jitter / 60)
+
+    some_time_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + max_jitter + 1))
 
     {count, _} =
       DeviceConnection
       |> where(status: :connected)
-      |> where([d], d.last_seen_at < ^a_minute_ago)
+      |> where([d], d.last_seen_at < ^some_time_ago)
       |> Repo.update_all(
         set: [
           status: :disconnected,
