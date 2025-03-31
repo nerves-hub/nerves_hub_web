@@ -43,7 +43,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
       socket.endpoint.subscribe("device:#{device.identifier}:internal")
       socket.endpoint.subscribe("device:console:#{device.id}:internal")
       socket.endpoint.subscribe("device:console:#{device.id}")
-      socket.endpoint.subscribe("device:#{device.identifier}:extensions")
+      socket.endpoint.subscribe("device:#{device.id}:extensions")
       socket.endpoint.subscribe("firmware")
     end
 
@@ -161,7 +161,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
       ) do
     latest_metrics = Metrics.get_latest_metric_set(device.id)
 
-    send_update(self(), DetailsPage, id: "device_details", latest_metrics: latest_metrics)
+    send_update(DetailsPage, id: "device_details", latest_metrics: latest_metrics)
+    send_update(HealthPage, id: "device_health", refresh_metrics: true)
 
     socket
     |> assign(:latest_metrics, latest_metrics)
@@ -285,8 +286,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event("toggle-health-check-auto-refresh", _value, socket) do
     if timer_ref = socket.assigns.health_check_timer do
       _ = Process.cancel_timer(timer_ref)
+      send_update(DetailsPage, id: "device_details", update_auto_refresh_health: false)
       {:noreply, assign(socket, :health_check_timer, nil)}
     else
+      send_update(DetailsPage, id: "device_details", update_auto_refresh_health: true)
       {:noreply, schedule_health_check_timer(socket)}
     end
   end
