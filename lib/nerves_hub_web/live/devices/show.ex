@@ -318,7 +318,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_event("toggle_deployment_firmware_updates", _params, socket) do
+  def handle_event(message, _params, socket)
+      when message in ["toggle_health_state", "toggle_deployment_firmware_updates"] do
     %{org_user: org_user, user: user, device: device} = socket.assigns
 
     authorized!(:"device:toggle-updates", org_user)
