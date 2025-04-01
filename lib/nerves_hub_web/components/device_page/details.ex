@@ -43,6 +43,8 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     |> assign(:device, device)
     |> assign(:product, device.product)
     |> assign(:org, device.org)
+    |> assign(:org_user, assigns.org_user)
+    |> assign(:user, assigns.user)
     |> assign(:device_connection, device.latest_connection)
     |> assign_support_scripts()
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))

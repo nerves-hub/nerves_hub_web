@@ -1453,6 +1453,8 @@ defmodule NervesHub.Devices do
   end
 
   def told_to_update(device_id, deployment_group, device_channel_pid) do
+    deployment_group = Repo.preload(deployment_group, :firmware)
+
     expires_at =
       DateTime.utc_now()
       |> DateTime.add(60 * deployment_group.inflight_update_expiration_minutes, :second)
