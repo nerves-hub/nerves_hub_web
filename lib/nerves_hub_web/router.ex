@@ -200,6 +200,10 @@ defmodule NervesHubWeb.Router do
     post("/invite/:token", AccountController, :accept_invite)
   end
 
+  scope "/", NervesHubWeb, host: "livebook." do
+    get("/:encoded_params/nerves.livemd", LivebookTemplateController, :generate)
+  end
+
   scope "/org/:org_name/:product_name", NervesHubWeb do
     pipe_through([:browser, :logged_in, :org, :product])
 
