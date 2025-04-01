@@ -457,7 +457,6 @@ defmodule NervesHub.DevicesTest do
       device: device,
       deployment_group: deployment_group
     } do
-      deployment_group = Repo.preload(deployment_group, [:firmware])
       {:ok, inflight_update} = Devices.told_to_update(device, deployment_group)
 
       {:ok, _device} = Devices.firmware_update_successful(device)
@@ -470,7 +469,6 @@ defmodule NervesHub.DevicesTest do
       device: device,
       deployment_group: deployment_group
     } do
-      deployment_group = Repo.preload(deployment_group, [:firmware])
       assert deployment_group.current_updated_devices == 0
 
       {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
@@ -482,8 +480,6 @@ defmodule NervesHub.DevicesTest do
     end
 
     test "device updates successfully", %{device: device, deployment_group: deployment_group} do
-      deployment_group = Repo.preload(deployment_group, [:firmware])
-
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
       {:ok, device} = Devices.update_attempted(device)
@@ -498,8 +494,6 @@ defmodule NervesHub.DevicesTest do
       device: device,
       deployment_group: deployment_group
     } do
-      deployment_group = Repo.preload(deployment_group, [:firmware])
-
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
       {:ok, device} = Devices.update_attempted(device)
@@ -520,8 +514,6 @@ defmodule NervesHub.DevicesTest do
           device_failure_rate_amount: 3
       }
 
-      deployment_group = Repo.preload(deployment_group, [:firmware])
-
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
       now = DateTime.utc_now()
@@ -538,7 +530,6 @@ defmodule NervesHub.DevicesTest do
 
     test "device already matches the firmware of the deployment", state do
       %{device: device, deployment_group: deployment_group} = state
-      deployment_group = Repo.preload(deployment_group, [:firmware])
 
       {:error, :up_to_date, _device} = Devices.verify_update_eligibility(device, deployment_group)
     end
@@ -546,7 +537,6 @@ defmodule NervesHub.DevicesTest do
     test "device should be rejected for updates based on threshold rate and have it's inflight updates cleared",
          state do
       %{device: device, deployment_group: deployment_group} = state
-      deployment_group = Repo.preload(deployment_group, [:firmware])
       deployment_group = %{deployment_group | device_failure_threshold: 6}
 
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
@@ -571,7 +561,6 @@ defmodule NervesHub.DevicesTest do
     test "device should be rejected for updates based on attempt rate and have it's inflight updates cleared",
          state do
       %{device: device, deployment_group: deployment_group} = state
-      deployment_group = Repo.preload(deployment_group, [:firmware])
 
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
       {:ok, _inflight_update} = Devices.told_to_update(device, deployment_group)
@@ -594,7 +583,6 @@ defmodule NervesHub.DevicesTest do
     test "device in penalty box should be rejected for updates and have it's inflight updates cleared",
          state do
       %{device: device, deployment_group: deployment_group} = state
-      deployment_group = Repo.preload(deployment_group, [:firmware])
 
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
