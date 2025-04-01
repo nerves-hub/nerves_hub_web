@@ -102,7 +102,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   @decorate with_span("ManagedDeployments.Distributed.Orchestrator.trigger_update")
   def trigger_update(deployment_group) do
-    :telemetry.execute([:nerves_hub, :deployment_group, :trigger_update], %{count: 1})
+    :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
 
     slots = available_slots(deployment_group)
 
@@ -158,7 +158,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
 
   @spec tell_device_to_update(integer(), DeploymentGroup.t()) :: boolean()
   defp tell_device_to_update(device_id, deployment_group) do
-    :telemetry.execute([:nerves_hub, :deployment_group, :trigger_update, :device], %{count: 1})
+    :telemetry.execute([:nerves_hub, :deployments, :trigger_update, :device], %{count: 1})
 
     case Devices.told_to_update(device_id, deployment_group) do
       {:ok, _} -> true
