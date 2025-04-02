@@ -408,7 +408,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     authorized!(:"device:toggle-updates", org_user)
 
     {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
-    {:ok, device} = Devices.toggle_health(device, user)
+    {:ok, device} = Devices.toggle_automatic_updates(device, user)
 
     socket
     |> put_flash(:info, "Toggled device firmware updates")
