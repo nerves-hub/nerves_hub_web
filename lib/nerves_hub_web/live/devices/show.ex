@@ -529,13 +529,14 @@ defmodule NervesHubWeb.Live.Devices.Show do
     Devices.get_device_by_identifier!(org, identifier, [:latest_connection, :latest_health])
   end
 
-  defp setup_presence_tracking(%{assigns: %{user: user}} = socket) do
+  defp setup_presence_tracking(%{assigns: %{device: device, user: user}} = socket) do
+    topic = "device-#{device.identifier}"
     socket = stream(socket, :presences, [])
 
     if connected?(socket) do
-      Presence.track_user(user.id, %{name: user.name})
-      Presence.subscribe()
-      stream(socket, :presences, Presence.list_online_users())
+      Presence.track_user(topic, user.id, %{name: user.name})
+      Presence.subscribe(topic)
+      stream(socket, :presences, Presence.list_online_users(topic))
     else
       socket
     end

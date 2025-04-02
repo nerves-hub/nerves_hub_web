@@ -41,10 +41,10 @@ defmodule NervesHubWeb.Presence do
     {:ok, state}
   end
 
-  def list_online_users(),
-    do: list("online_users") |> Enum.map(fn {_id, presence} -> presence end)
+  def list_online_users(topic),
+    do: list(topic) |> Enum.map(fn {_id, presence} -> presence end)
 
-  def track_user(id, params), do: track(self(), "online_users", id, params)
+  def track_user(topic, id, params), do: track(self(), topic, id, params)
 
-  def subscribe(), do: Phoenix.PubSub.subscribe(NervesHub.PubSub, "proxy:online_users")
+  def subscribe(topic), do: Phoenix.PubSub.subscribe(NervesHub.PubSub, "proxy:#{topic}")
 end
