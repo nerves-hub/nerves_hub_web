@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Live.Devices.NewUI.ShowTest do
   use Mimic
 
   alias NervesHub.Accounts
+  alias NervesHub.Firmwares
   alias NervesHub.Fixtures
 
   alias NervesHubWeb.Endpoint
@@ -16,7 +17,7 @@ defmodule NervesHubWeb.Live.Devices.NewUI.ShowTest do
   end
 
   describe "who is currently viewing the device page" do
-    setup do
+    setup %{fixture: %{org: org}} do
       # https://hexdocs.pm/phoenix/Phoenix.Presence.html#module-testing-with-presence
       on_exit(fn ->
         for pid <- NervesHubWeb.Presence.fetchers_pids() do
@@ -24,6 +25,11 @@ defmodule NervesHubWeb.Live.Devices.NewUI.ShowTest do
           assert_receive {:DOWN, ^ref, _, _, _}, 1000
         end
       end)
+
+      user_two = Fixtures.user_fixture()
+      {:ok, _} = Accounts.add_org_user(org, user_two, %{role: :view})
+
+      {:ok, %{user_two: user_two}}
     end
 
     test "only the current user", %{
@@ -36,18 +42,46 @@ defmodule NervesHubWeb.Live.Devices.NewUI.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("#online-users > #presences-#{user.id} > span", text: user_initials(user))
+      |> assert_has("#present-users > #presences-#{user.id} > span", text: user_initials(user))
     end
 
-    test "two users", %{
+    test "two users, same device", %{
       conn: conn,
       org: org,
       product: product,
       device: device,
-      user: user
+      user: user,
+      user_two: user_two
     } do
-      user_two = Fixtures.user_fixture()
-      {:ok, _} = Accounts.add_org_user(org, user_two, %{role: :view})
+      conn_two =
+        build_conn()
+        |> init_test_session(%{"auth_user_id" => user_two.id})
+        |> init_test_session(%{"new_ui" => true})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("#present-users > #presences-#{user.id} > span", text: user_initials(user))
+
+      conn_two
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("#present-users > #presences-#{user.id} > span", text: user_initials(user))
+      |> assert_has("#present-users > #presences-#{user_two.id} > span",
+        text: user_initials(user_two)
+      )
+    end
+
+    test "two users, different devices", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user,
+      user_two: user_two
+    } do
+      firmware = Firmwares.get_firmware_by_uuid(device.firmware_metadata.uuid)
+      device_two = Fixtures.device_fixture(org, product, firmware)
 
       conn_two =
         build_conn()
@@ -57,15 +91,15 @@ defmodule NervesHubWeb.Live.Devices.NewUI.ShowTest do
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
-      |> assert_has("#online-users > #presences-#{user.id} > span", text: user_initials(user))
+      |> assert_has("#present-users > #presences-#{user.id} > span", text: user_initials(user))
 
       conn_two
-      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("h1", text: device.identifier)
-      |> assert_has("#online-users > #presences-#{user.id} > span", text: user_initials(user))
-      |> assert_has("#online-users > #presences-#{user_two.id} > span",
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device_two.identifier}")
+      |> assert_has("h1", text: device_two.identifier)
+      |> assert_has("#present-users > #presences-#{user_two.id} > span",
         text: user_initials(user_two)
       )
+      |> refute_has("#present-users > #presences-#{user.id} > span", text: user_initials(user))
     end
 
     defp user_initials(user) do
