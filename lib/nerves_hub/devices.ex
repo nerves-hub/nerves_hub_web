@@ -1180,7 +1180,7 @@ defmodule NervesHub.Devices do
     update_device_with_audit(device, params, user, description)
   end
 
-  def toggle_health(device, user) do
+  def toggle_automatic_updates(device, user) do
     case device.updates_enabled do
       true ->
         disable_updates(device, user)
