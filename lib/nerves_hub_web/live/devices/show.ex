@@ -30,6 +30,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.DevicePage.Health, as: HealthPage
   alias NervesHubWeb.Components.DevicePage.Settings, as: SettingsPage
 
+  alias NervesHubWeb.Presence
   alias Phoenix.Socket.Broadcast
 
   @running_script_placeholder "Running Script.."
@@ -62,6 +63,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:pinned?, Devices.device_pinned?(user.id, device.id))
     |> audit_log_assigns()
     |> assign_deployment_groups()
+    |> setup_presence_tracking()
     |> ok()
   end
 
@@ -79,6 +81,18 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket
     |> assign(:device, device)
     |> noreply()
+  end
+
+  def handle_info({Presence, {:join, presence}}, socket) do
+    {:noreply, stream_insert(socket, :presences, presence)}
+  end
+
+  def handle_info({Presence, {:leave, presence}}, socket) do
+    if presence.metas == [] do
+      {:noreply, stream_delete(socket, :presences, presence)}
+    else
+      {:noreply, stream_insert(socket, :presences, presence)}
+    end
   end
 
   def handle_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
@@ -513,6 +527,18 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp load_device(org, identifier) do
     Devices.get_device_by_identifier!(org, identifier, [:latest_connection, :latest_health])
+  end
+
+  defp setup_presence_tracking(%{assigns: %{user: user}} = socket) do
+    socket = stream(socket, :presences, [])
+
+    if connected?(socket) do
+      Presence.track_user(user.id, %{name: user.name})
+      Presence.subscribe()
+      stream(socket, :presences, Presence.list_online_users())
+    else
+      socket
+    end
   end
 
   defp scripts_with_output(product) do
