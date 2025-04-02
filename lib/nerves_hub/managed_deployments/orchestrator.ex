@@ -65,7 +65,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
 
   @decorate with_span("ManagedDeployments.Orchestrator.trigger_update")
   def trigger_update(deployment_group) do
-    :telemetry.execute([:nerves_hub, :deployment_group, :trigger_update], %{count: 1})
+    :telemetry.execute([:nerves_hub, :deployments, :trigger_update], %{count: 1})
 
     match_conditions = [
       {:and, {:==, {:map_get, :deployment_id, :"$1"}, deployment_group.id},
@@ -97,7 +97,7 @@ defmodule NervesHub.ManagedDeployments.Orchestrator do
     devices
     |> Enum.take(count)
     |> Enum.each(fn %{device_id: device_id, pid: pid} ->
-      :telemetry.execute([:nerves_hub, :deployment_group, :trigger_update, :device], %{count: 1})
+      :telemetry.execute([:nerves_hub, :deployments, :trigger_update, :device], %{count: 1})
 
       device = %Device{id: device_id}
 
