@@ -29,7 +29,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -1007,8 +1006,6 @@ defmodule NervesHub.Devices do
   end
 
   def deployment_device_updated(device) do
-    _ = Orchestrator.device_updated(device.deployment_id)
-
     _ =
       Phoenix.Channel.Server.broadcast(
         NervesHub.PubSub,

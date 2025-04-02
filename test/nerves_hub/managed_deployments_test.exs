@@ -132,7 +132,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert_broadcast("deployments/update", %{}, 500)
     end
 
-    test "starts distributed orchestrator if deployment updates to active from inactive and the strategy is to :distributed",
+    test "starts distributed orchestrator if deployment updates to active from inactive",
          %{
            deployment_group: deployment_group
          } do
@@ -151,10 +151,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
       )
 
       {:ok, deployment_group} =
-        ManagedDeployments.update_deployment_group(deployment_group, %{
-          is_active: true,
-          orchestrator_strategy: :distributed
-        })
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
 
       {:ok, _deployment_group} =
         ManagedDeployments.update_deployment_group(deployment_group, %{is_active: false})

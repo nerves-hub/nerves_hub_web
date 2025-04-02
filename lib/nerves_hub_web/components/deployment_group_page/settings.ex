@@ -22,10 +22,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     |> assign(:firmware, assigns.deployment_group.firmware)
     |> assign(:firmwares, firmwares)
     |> assign(:form, to_form(changeset))
-    |> assign(
-      :display_orchestrator_strategy,
-      Application.get_env(:nerves_hub, :display_deployment_orchestrator_strategy)
-    )
     |> ok()
   end
 
@@ -242,27 +238,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
                   </p>
                   <p>
                     This will run before device specific first connect code.
-                  </p>
-                </:rich_hint>
-              </.input>
-            </div>
-          </div>
-        </div>
-
-        <div :if={@display_orchestrator_strategy} class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
-          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
-            <div class="text-base text-neutral-50 font-medium">Orchestrator Strategy</div>
-          </div>
-
-          <div class="flex flex-col p-6 gap-6">
-            <div class="w-2/3 flex flex-col gap-6">
-              <.input field={@form[:orchestrator_strategy]} type="select" options={[[key: "Multi", value: "multi"], [key: "Distributed", value: "distributed"]]}>
-                <:rich_hint>
-                  <p>
-                    Multi: older strategy, multiple orchestrators per deployment across the cluster.
-                  </p>
-                  <p>
-                    Distributed: new strategy, one orchestrator per deployment across the cluster.
                   </p>
                 </:rich_hint>
               </.input>

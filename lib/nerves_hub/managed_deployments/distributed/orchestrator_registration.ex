@@ -31,7 +31,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
   @impl GenServer
   def handle_info(:start_orchestrators, _) do
     _ =
-      ManagedDeployments.should_run_in_distributed_orchestrator()
+      ManagedDeployments.should_run_orchestrator()
       |> Enum.map(fn deployment ->
         Orchestrator.child_spec(deployment)
       end)
