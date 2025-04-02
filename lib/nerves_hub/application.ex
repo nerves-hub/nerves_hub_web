@@ -40,9 +40,10 @@ defmodule NervesHub.Application do
           {Phoenix.PubSub, name: NervesHub.PubSub},
           {Cluster.Supervisor, [topologies]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
-          {Oban, Application.fetch_env!(:nerves_hub, Oban)}
+          {Oban, Application.fetch_env!(:nerves_hub, Oban)},
+          NervesHubWeb.Presence
         ] ++
-        deployments_supervisor(deploy_env()) ++
+        deployments_orchestrator(deploy_env()) ++
         endpoints(deploy_env())
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
@@ -73,10 +74,23 @@ defmodule NervesHub.Application do
     :ok
   end
 
-  defp deployments_supervisor("test"), do: []
+  defp deployments_orchestrator("test"), do: []
 
-  defp deployments_supervisor(_) do
-    [NervesHub.Deployments.Supervisor]
+  # When running in the default `multi` mode, start a deployments orchestrator supervisor
+  # on every node. But when running in `clustered` mode, run the `ProcessHub` supervisor
+  # on the `web` or `all` nodes only.
+  defp deployments_orchestrator(_) do
+    case Application.get_env(:nerves_hub, :app) do
+      ["device"] ->
+        [NervesHub.ManagedDeployments.Supervisor]
+
+      _ ->
+        [
+          NervesHub.ManagedDeployments.Supervisor,
+          ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
+          NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
+        ]
+    end
   end
 
   defp endpoints("test") do

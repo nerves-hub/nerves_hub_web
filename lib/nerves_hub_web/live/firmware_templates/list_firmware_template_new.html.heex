@@ -1,0 +1,154 @@
+<div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700">
+  <div class="h-full border-l flex items-center justify-center border-base-700 bg-base-900">
+    <a :if={Application.get_env(:nerves_hub, :new_ui)} href={"/ui/switch?return_to=#{@current_path}"} class="">
+      <svg class="box-content px-5 h-5 w-5 stroke-zinc-500 hover:stroke-indigo-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M21 14V19C21 20.1046 20.1046 21 19 21H16M3 16V19C3 20.1046 3.89543 21 5 21H16M3 16V5C3 3.89543 3.89543 3 5 3H11M3 16C4.40293 15.7662 6.63687 15.7073 8.94504 16.2427M16 21C14.2965 18.2317 11.5726 16.8522 8.94504 16.2427M8.94504 16.2427C9.87157 15.1698 11.1851 14.1585 13 13.3925M8.5 7C8 7 7 7.3 7 8.5C7 9.7 8 10 8.5 10C9 10 10 9.7 10 8.5C10 7.3 9 7 8.5 7ZM17.5 9.46262L14.7188 11L15.25 7.74377L13 5.43769L16.1094 4.96262L17.5 2L18.8906 4.96262L22 5.43769L19.75 7.74377L20.2812 11L17.5 9.46262Z"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </a>
+  </div>
+</div>
+
+<div class="h-0 flex-1 overflow-y-auto" phx-drop-target={@uploads.firmware.ref}>
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Firmware</h1>
+    <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">
+      {@pager_meta.total_count}
+    </div>
+
+    <div :for={entry <- @uploads.firmware.entries} class="w-2/5 pl-4 pr-2 flex flex-col items-center">
+      <div class="flex justify-between mb-1">
+        <span class="text-sm font-base text-indigo-500 dark:text-white">Uploading firmware... </span>
+        <span class="text-sm font-base text-indigo-500 dark:text-white">{entry.progress}%</span>
+      </div>
+      <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+        <div class="bg-indigo-500 h-2.5 rounded-full animate-pulse" style={"width: #{entry.progress}%"}></div>
+      </div>
+    </div>
+
+    <form phx-change="validate-firmware" class={[Enum.any?(@uploads.firmware.entries) && "hidden"]}>
+      <div class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600 hover:cursor-pointer">
+        <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+          <path d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <label for={@uploads.firmware.ref} class="text-sm font-medium text-zinc-300 hover:cursor-pointer">Upload Firmware</label>
+        <.live_file_input upload={@uploads.firmware} class="hidden" />
+      </div>
+    </form>
+  </div>
+  <%= if Enum.any?(@firmware) do %>
+    <div class="listing">
+      <table>
+        <thead>
+          <tr>
+            <th>UUID</th>
+            <th phx-click="sort" phx-value-sort="version" class="cursor-pointer">
+              <Sorting.sort_icon text="Version" field="version" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th>Platform</th>
+            <th>Architecture</th>
+            <th phx-click="sort" phx-value-sort="install_count" class="cursor-pointer">
+              <Sorting.sort_icon text="Install count" field="install_count" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th>Signing Key</th>
+            <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
+              <Sorting.sort_icon text="Uploaded on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={firmware <- @firmware} class="border-b border-zinc-800">
+            <td>
+              <div class="flex gap-[8px] items-center">
+                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{firmware.uuid}"}>
+                  {firmware.uuid}
+                </.link>
+              </div>
+            </td>
+
+            <td>
+              <div class="flex gap-[8px] items-center">
+                {firmware.version}
+              </div>
+            </td>
+
+            <td>
+              {firmware.platform}
+            </td>
+
+            <td>
+              {firmware.architecture}
+            </td>
+
+            <td>
+              {firmware.install_count || 0}
+            </td>
+
+            <td>
+              <span class="inline-flex gap-1 pl-2.5 pr-3 py-0.5 border border-zinc-700 rounded-full bg-zinc-800">
+                <code class="text-xs text-zinc-300">{format_signed(firmware, @org_keys)}</code>
+              </span>
+            </td>
+
+            <td>
+              <%= if is_nil(firmware.inserted_at) do %>
+                Never
+              <% else %>
+                {Calendar.strftime(firmware.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}
+              <% end %>
+            </td>
+
+            <%!-- <td class="actions">
+              <div class="">
+                <a class="" data-target="#" id={"actions-#{device.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" phx-click={show_menu("actions-menu-#{device.id}")}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path
+                      d="M9.1665 10C9.1665 10.2211 9.2543 10.433 9.41058 10.5893C9.56686 10.7456 9.77882 10.8334 9.99984 10.8334C10.2209 10.8334 10.4328 10.7456 10.5891 10.5893C10.7454 10.433 10.8332 10.2211 10.8332 10C10.8332 9.77903 10.7454 9.56707 10.5891 9.41079C10.4328 9.2545 10.2209 9.16671 9.99984 9.16671C9.77882 9.16671 9.56686 9.2545 9.41058 9.41079C9.2543 9.56707 9.1665 9.77903 9.1665 10ZM9.1665 15.8334C9.1665 16.0544 9.2543 16.2663 9.41058 16.4226C9.56686 16.5789 9.77882 16.6667 9.99984 16.6667C10.2209 16.6667 10.4328 16.5789 10.5891 16.4226C10.7454 16.2663 10.8332 16.0544 10.8332 15.8334C10.8332 15.6124 10.7454 15.4004 10.5891 15.2441C10.4328 15.0878 10.2209 15 9.99984 15C9.77882 15 9.56686 15.0878 9.41058 15.2441C9.2543 15.4004 9.1665 15.6124 9.1665 15.8334ZM9.1665 4.16671C9.1665 4.38772 9.2543 4.59968 9.41058 4.75596C9.56686 4.91224 9.77882 5.00004 9.99984 5.00004C10.2209 5.00004 10.4328 4.91224 10.5891 4.75596C10.7454 4.59968 10.8332 4.38772 10.8332 4.16671C10.8332 3.94569 10.7454 3.73373 10.5891 3.57745C10.4328 3.42117 10.2209 3.33337 9.99984 3.33337C9.77882 3.33337 9.56686 3.42117 9.41058 3.57745C9.2543 3.73373 9.1665 3.94569 9.1665 4.16671Z"
+                      stroke="#A1A1AA"
+                      stroke-width="1.2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </a>
+                <div class="hidden absolute right-[24px] menu-box" id={"actions-menu-#{device.id}"} phx-click-away={hide_menu("actions-menu-#{device.id}")} phx-key="escape" )}>
+                  <.link phx-click="reboot-device" phx-value-device_identifier={device.identifier} class="dropdown-item">
+                    Reboot
+                  </.link>
+                  <div class="dropdown-divider"></div>
+                  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}/console"} class="dropdown-item">
+                    Console
+                  </.link>
+                  <div class="dropdown-divider"></div>
+                  <div class="dropdown-divider"></div>
+                  <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
+                    <span>
+                      <%= if device.updates_enabled, do: "Disable Updates", else: "Enable Updates" %>
+                    </span>
+                  </.link>
+
+                  <div class="dropdown-divider"></div>
+
+                  <%= link to: Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier), class: "dropdown-item", aria: [label: "Download Audit Logs"] do %>
+                    <div class="button-icon download"></div>
+                    <span class="action-text">Download Audit Logs</span>
+                  <% end %>
+                </div>
+              </div>
+            </td> --%>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="h-full pb-16 flex items-center justify-center">
+      <span class="text-xl font-medium text-neutral-50">{@product.name} doesn’t have any firmware yet.</span>
+    </div>
+  <% end %>
+</div>
+
+<Pager.render_with_page_sizes pager={@pager_meta} page_sizes={[25, 50, 100]} />

@@ -2,7 +2,6 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: false
 
   alias NervesHub.Devices
-  alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Fixtures
 
   alias NervesHub.Repo
@@ -232,6 +231,39 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       assert change =~ "1 devices found"
     end
 
+    test "filters devices by deployment group", %{conn: conn, fixture: fixture} do
+      %{
+        device: device,
+        firmware: firmware,
+        org: org,
+        product: product,
+        deployment_group: deployment_group
+      } =
+        fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      Repo.update!(Ecto.Changeset.change(device, deployment_id: deployment_group.id))
+
+      {:ok, view, _html} = live(conn, device_index_path(fixture))
+
+      change = render_change(view, "update-filters", %{"deployment_id" => deployment_group.id})
+      assert change =~ device.identifier
+      refute change =~ device2.identifier
+      assert change =~ "1 devices found"
+    end
+
+    test "filters devices by no deployment", %{conn: conn, fixture: %{device: device} = fixture} do
+      refute device.deployment_id
+
+      {:ok, view, _html} = live(conn, device_index_path(fixture))
+
+      # -1 is a UI concern that indicates we're filtering for devices that have no deployment
+      change = render_change(view, "update-filters", %{"deployment_id" => "-1"})
+      assert change =~ device.identifier
+      assert change =~ "1 devices found"
+    end
+
     test "select device", %{conn: conn, fixture: fixture} do
       %{device: _device, firmware: firmware, org: org, product: product} = fixture
 
@@ -290,102 +322,36 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         org: org,
         product: product,
         firmware: firmware,
-        deployment: deployment
+        deployment_group: deployment_group
       } = fixture
 
       device2 = Fixtures.device_fixture(org, product, firmware)
+      Endpoint.subscribe("device:#{device2.id}")
 
       refute device.deployment_id
       refute device2.deployment_id
 
       conn
-      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> visit(
+        "/org/#{org.name}/#{product.name}/devices?platform=#{deployment_group.firmware.platform}"
+      )
       |> unwrap(fn view ->
         render_change(view, "select-all", %{"id" => device.id})
       end)
       |> assert_has("span", text: "2 selected")
       |> unwrap(fn view ->
-        render_change(view, "target-deployment", %{"deployment" => to_string(deployment.id)})
+        render_change(view, "target-deployment-group", %{
+          "deployment_group" => to_string(deployment_group.id)
+        })
       end)
-      |> click_button("#move-deployment-submit", "Move")
+      |> click_button("#move-deployment-group-submit", "Move")
       |> assert_has("div", text: "2 devices added to deployment")
+
+      assert_receive %{event: "devices/updated"}
+      assert_receive %{event: "devices/updated"}
 
       assert Repo.reload(device) |> Map.get(:deployment_id)
       assert Repo.reload(device2) |> Map.get(:deployment_id)
-    end
-
-    test "selecting multiple devices to add to deployment but some don't match firmware requirements",
-         %{conn: conn, fixture: fixture} do
-      %{
-        device: device,
-        org: org,
-        product: product,
-        firmware: firmware,
-        deployment: deployment
-      } = fixture
-
-      device2 = Fixtures.device_fixture(org, product, firmware)
-
-      different_firmware_params =
-        %FirmwareMetadata{device2.firmware_metadata | platform: "foo"} |> Map.from_struct()
-
-      {:ok, device2} = Devices.update_firmware_metadata(device2, different_firmware_params)
-
-      refute device.deployment_id
-      refute device2.deployment_id
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/devices")
-      |> unwrap(fn view ->
-        render_change(view, "select-all", %{"id" => device.id})
-      end)
-      |> assert_has("span", text: "2 selected")
-      |> unwrap(fn view ->
-        render_change(view, "target-deployment", %{"deployment" => to_string(deployment.id)})
-      end)
-      |> click_button("#move-deployment-submit", "Move")
-      |> assert_has("div", text: "1 device added to deployment")
-      |> assert_has("div", text: "1 device could not be added")
-
-      assert Repo.reload(device) |> Map.get(:deployment_id)
-      refute Repo.reload(device2) |> Map.get(:deployment_id)
-    end
-
-    test "selecting multiple devices to add to deployment but none match firmware requirements",
-         %{conn: conn, fixture: fixture} do
-      %{
-        device: device,
-        org: org,
-        product: product,
-        firmware: firmware,
-        deployment: deployment
-      } = fixture
-
-      device2 = Fixtures.device_fixture(org, product, firmware)
-
-      different_firmware_params =
-        %FirmwareMetadata{device2.firmware_metadata | platform: "foo"} |> Map.from_struct()
-
-      {:ok, device} = Devices.update_firmware_metadata(device, different_firmware_params)
-      {:ok, device2} = Devices.update_firmware_metadata(device2, different_firmware_params)
-
-      refute device.deployment_id
-      refute device2.deployment_id
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/devices")
-      |> unwrap(fn view ->
-        render_change(view, "select-all", %{"id" => device.id})
-      end)
-      |> assert_has("span", text: "2 selected")
-      |> unwrap(fn view ->
-        render_change(view, "target-deployment", %{"deployment" => to_string(deployment.id)})
-      end)
-      |> click_button("#move-deployment-submit", "Move")
-      |> assert_has("div", text: "No devices selected could be added to deployment")
-
-      refute Repo.reload(device) |> Map.get(:deployment_id)
-      refute Repo.reload(device2) |> Map.get(:deployment_id)
     end
   end
 

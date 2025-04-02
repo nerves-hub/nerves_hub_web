@@ -55,8 +55,6 @@ defmodule NervesHubWeb.DynamicTemplateRenderer do
 
     case new_templates do
       [new_template] ->
-        Logger.info("Found New UI page: #{new_template}")
-
         new_ext =
           new_template |> Path.extname() |> String.trim_leading(".") |> String.to_atom()
 
@@ -66,6 +64,7 @@ defmodule NervesHubWeb.DynamicTemplateRenderer do
         quote do
           @file unquote(template)
           @external_resource unquote(template)
+          @external_resource unquote(new_template)
           def render(var!(assigns)) when is_map(var!(assigns)) do
             if Application.get_env(:nerves_hub, :new_ui) && var!(assigns)[:new_ui] do
               unquote(new_ast)

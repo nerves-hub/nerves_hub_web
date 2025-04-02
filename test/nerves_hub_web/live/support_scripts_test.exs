@@ -19,8 +19,13 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
       |> assert_has("h3", text: "#{product.name} doesn’t have any Support Scripts yet")
     end
 
-    test "shows all support scripts for a product", %{conn: conn, org: org, product: product} do
-      {:ok, _command} = Scripts.create(product, %{name: "MOTD", text: "NervesMOTD.print()"})
+    test "shows all support scripts for a product", %{
+      conn: conn,
+      org: org,
+      product: product,
+      user: user
+    } do
+      {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/scripts")
@@ -29,8 +34,8 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
   end
 
   describe "delete" do
-    test "removes support script", %{conn: conn, org: org, product: product} do
-      {:ok, _command} = Scripts.create(product, %{name: "MOTD", text: "NervesMOTD.print()"})
+    test "removes support script", %{conn: conn, org: org, product: product, user: user} do
+      {:ok, _script} = Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/scripts")
@@ -59,8 +64,9 @@ defmodule NervesHubWeb.Live.SupportScriptsTest do
   end
 
   describe "edit" do
-    test "requires a name and text", %{conn: conn, org: org, product: product} do
-      {:ok, script} = Scripts.create(product, %{name: "MOTD", text: "NervesMOTD.print()"})
+    test "requires a name and text", %{conn: conn, org: org, product: product, user: user} do
+      {:ok, script} =
+        Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/scripts/#{script.id}/edit")

@@ -12,8 +12,8 @@
       <span class="tooltip-info mb-1"></span>
       <span class="tooltip-text">Device ID cannot be changed once created</span>
     </div>
-    <%= text_input(f, :identifier, class: "form-control", id: "identifier_input", disabled: "true") %>
-    <div class="has-error"><%= error_tag(f, :identifier) %></div>
+    {text_input(f, :identifier, class: "form-control", id: "identifier_input", disabled: "true")}
+    <div class="has-error">{error_tag(f, :identifier)}</div>
   </div>
 
   <div class="form-group">
@@ -24,8 +24,8 @@
       <span class="tooltip-info mb-1"></span>
       <span class="tooltip-text">Description for this device</span>
     </div>
-    <%= text_input(f, :description, class: "form-control", id: "description_input") %>
-    <div class="has-error"><%= error_tag(f, :description) %></div>
+    {text_input(f, :description, class: "form-control", id: "description_input")}
+    <div class="has-error">{error_tag(f, :description)}</div>
   </div>
 
   <div class="form-group">
@@ -36,11 +36,11 @@
       <span class="tooltip-info mb-1"></span>
       <span class="tooltip-text">Tags are used by deployments to target a device. A device must have matching tag(s) for the deployment to update it</span>
     </div>
-    <%= text_input(f, :tags, class: "form-control", id: "tags_input", value: tags_to_string(@form)) %>
+    {text_input(f, :tags, class: "form-control", id: "tags_input", value: tags_to_string(@form))}
     <small class="form-text text-muted mt-1">
       Every device is added to the 'all' tag by default. You can have multiple tags separated by commas.
     </small>
-    <div class="has-error"><%= error_tag(f, :tags) %></div>
+    <div class="has-error">{error_tag(f, :tags)}</div>
   </div>
 
   <div class="form-group">
@@ -51,15 +51,15 @@
       <span class="tooltip-info mb-1"></span>
       <span class="tooltip-text">Run this code when the device first connects to the console.</span>
     </div>
-    <%= textarea(f, :connecting_code, rows: 6, class: "form-control", id: "connecting_code") %>
+    {textarea(f, :connecting_code, rows: 6, class: "form-control", id: "connecting_code")}
     <small class="form-text text-muted mt-1">
       Make sure this is valid Elixir and will not crash the device.
     </small>
-    <div class="has-error"><%= error_tag(f, :connecting_code) %></div>
+    <div class="has-error">{error_tag(f, :connecting_code)}</div>
   </div>
 
-  <div class="button-submit-wrapper">
-    <%= submit("Save Changes", class: "btn btn-primary") %>
+  <div :if={authorized?(:"device:update", @org_user)} class="button-submit-wrapper">
+    {submit("Save Changes", class: "btn btn-primary")}
   </div>
 </.form>
 
@@ -94,14 +94,14 @@
     </td>
     <td class="ff-m">
       <div class="mobile-label help-text">Name</div>
-      <%= key %>
+      {key}
     </td>
     <td>
       <div class="mobile-label help-text">Description</div>
       <p :if={Map.get(@device.product.extensions, key) != true}>
         Extension is disabled at the product level.
       </p>
-      <p><%= description %></p>
+      <p>{description}</p>
     </td>
   </tr>
 </table>
@@ -121,7 +121,7 @@
   <% end %>
 </div>
 
-<div class={unless @toggle_upload, do: "hidden"}>
+<div class={if !@toggle_upload, do: "hidden"}>
   <form phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
     <div class="form-group import-pem">
       <label for={@uploads.certificate.ref}>Drag or Click to upload</label>
@@ -160,23 +160,23 @@
       <tr class="item" style={if mismatch?, do: "border: 2px dashed var(--warning)"}>
         <td>
           <div class="mobile-label help-text">Serial</div>
-          <code class="color-white wb-ba ff-m"><%= Utils.format_serial(cert.serial) %></code>
+          <code class="color-white wb-ba ff-m">{Utils.format_serial(cert.serial)}</code>
         </td>
         <td title={cert.last_used}>
           <div class="mobile-label help-text">Last used</div>
           <%= if !is_nil(cert.last_used) do %>
-            <%= DateTimeFormat.from_now(cert.last_used) %>
+            {DateTimeFormat.from_now(cert.last_used)}
           <% else %>
             <span class="text-muted">Never</span>
           <% end %>
         </td>
         <td>
           <div class="mobile-label help-text">Not before</div>
-          <div class="date-time"><%= cert.not_before %></div>
+          <div class="date-time">{cert.not_before}</div>
         </td>
         <td>
           <div class="mobile-label help-text">Not after</div>
-          <div class="date-time"><%= cert.not_after %></div>
+          <div class="date-time">{cert.not_after}</div>
         </td>
 
         <td class="actions">
@@ -188,14 +188,14 @@
             </a>
             <div class="dropdown-menu dropdown-menu-right">
               <%= if mismatch? do %>
-                <%= link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: ~p"/org/#{Repo.preload(cert, :org).org.name}") %>
+                {link("Organization", class: "dropdown-item", aria_label: "Originating Organization", to: ~p"/org/#{Repo.preload(cert, :org).org.name}")}
               <% end %>
               <%= if cert.der do %>
-                <%= link("Download",
+                {link("Download",
                   class: "dropdown-item",
                   aria_label: "Download Device Certificate",
                   to: Routes.device_path(@socket, :download_certificate, @org.name, @product.name, @device.identifier, cert.serial)
-                ) %>
+                )}
               <% end %>
               <a class="dropdown-item" phx-click="delete-certificate" phx-value-serial={cert.serial} data-confirm={"Delete #{Utils.format_serial(cert.serial)}?"}>Delete</a>
             </div>

@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Mounts.FetchProduct do
         Enum.find(org.products, &(&1.name == product_name))
       end)
 
-    unless socket.assigns.product do
+    if !socket.assigns.product do
       raise NervesHubWeb.NotFoundError
     end
 

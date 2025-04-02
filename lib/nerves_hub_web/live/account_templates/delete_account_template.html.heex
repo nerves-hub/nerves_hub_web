@@ -6,11 +6,11 @@
 
 <.form :let={f} for={@form} phx-submit="delete">
   <div class="form-group">
-    <label for="email_input">Please type <%= @user.email %> to confirm.</label>
-    <%= text_input(f, :confirm_email, class: "form-control", id: "email_input") %>
+    <label for="email_input">Please type {@user.email} to confirm.</label>
+    {text_input(f, :confirm_email, class: "form-control", id: "email_input")}
   </div>
 
   <div class="button-submit-wrapper">
-    <%= submit("I understand the consequences, delete this account", class: "btn btn-primary") %>
+    {submit("I understand the consequences, delete this account", class: "btn btn-primary")}
   </div>
 </.form>

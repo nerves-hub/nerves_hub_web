@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     socket =
       socket
       |> assign(:page_title, "#{product.name} Settings")
+      |> sidebar_tab(:settings)
       |> assign(:product, product)
       |> assign(:shared_secrets, product.shared_secret_auths)
       |> assign(:shared_auth_enabled, DeviceSocket.shared_secrets_enabled?())
@@ -18,6 +19,20 @@ defmodule NervesHubWeb.Live.Product.Settings do
       |> assign(:available_extensions, extensions())
 
     {:ok, socket}
+  end
+
+  def handle_event("toggle-delta-updates", _params, socket) do
+    authorized!(:"product:update", socket.assigns.org_user)
+
+    {:ok, product} = Products.toggle_delta_updates(socket.assigns.product)
+
+    socket
+    |> assign(:product, product)
+    |> send_toast(
+      :info,
+      "Delta updates #{(product.delta_updatable && "enabled") || "disabled"} successfully."
+    )
+    |> noreply()
   end
 
   def handle_event("update", %{"product" => params}, socket) do
@@ -37,6 +52,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     socket
     |> assign(:shared_secrets, refreshed.shared_secret_auths)
     |> push_event("sharedsecret:created", %{})
+    |> send_toast(:info, "A new Shared Secret has been created.")
     |> noreply()
   end
 
@@ -49,7 +65,10 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
     refreshed = Products.load_shared_secret_auth(product)
 
-    {:noreply, assign(socket, :shared_secrets, refreshed.shared_secret_auths)}
+    socket
+    |> assign(:shared_secrets, refreshed.shared_secret_auths)
+    |> send_toast(:info, "The Shared Secret has been deactivated.")
+    |> noreply()
   end
 
   def handle_event("delete-product", _parmas, socket) do
@@ -57,20 +76,20 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
     case Products.delete_product(socket.assigns.product) do
       {:ok, _product} ->
-        socket =
-          socket
-          |> put_flash(:info, "Product deleted successfully.")
-          |> push_navigate(to: ~p"/org/#{socket.assigns.org.name}")
-
-        {:noreply, socket}
+        socket
+        |> put_flash(:info, "Product deleted successfully.")
+        |> send_toast(:info, "Product deleted successfully.")
+        |> push_navigate(to: ~p"/org/#{socket.assigns.org.name}")
+        |> noreply()
 
       {:error, _changeset} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "There was an error deleting the Product. Please delete all Firmware and Devices first."
-         )}
+        message =
+          "There was an error deleting the Product. Please delete all Firmware and Devices first."
+
+        socket
+        |> put_flash(:error, message)
+        |> send_toast(:error, message)
+        |> noreply()
     end
   end
 
@@ -90,10 +109,19 @@ defmodule NervesHubWeb.Live.Product.Settings do
     socket =
       case result do
         {:ok, _pf} ->
-          socket
+          send_toast(
+            socket,
+            :info,
+            "The #{extension} extension was #{(value == "on" && "enabled") || "disabled"} successfully."
+          )
 
         {:error, _changeset} ->
-          put_flash(socket, :error, "Failed to set extension")
+          socket
+          |> put_flash(:error, "Failed to set extension")
+          |> send_toast(
+            :error,
+            "Failed to update the #{extension} extension. Please contact support if this problem persists."
+          )
       end
 
     {:noreply, socket}

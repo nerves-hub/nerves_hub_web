@@ -37,6 +37,8 @@ defmodule NervesHub.Accounts.User do
     field(:password_reset_token_expires, :utc_datetime)
     field(:deleted_at, :utc_datetime)
 
+    field(:server_role, Ecto.Enum, values: [:admin, :view])
+
     timestamps()
   end
 

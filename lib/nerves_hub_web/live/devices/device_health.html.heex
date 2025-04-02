@@ -27,7 +27,7 @@
         phx-value-amount={amount}
       >
         <span class="action-text">
-          <%= Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: "" %>
+          {Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
         </span>
       </button>
     <% end %>

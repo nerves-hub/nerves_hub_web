@@ -5,10 +5,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   import Phoenix.ChannelTest
 
   alias NervesHub.AuditLogs
-  alias NervesHub.Deployments
   alias NervesHub.Devices
+  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Metrics
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias NervesHubWeb.Endpoint
 
@@ -94,7 +95,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert html =~ "offline"
 
-      Devices.Connections.device_connected(fixture.device.id)
+      {:ok, connection} =
+        Connections.device_connecting(fixture.device.id, fixture.device.product_id)
+
+      :ok = Connections.device_connected(connection.id)
+
       send(view.pid, %Broadcast{event: "connection:change", payload: %{status: "online"}})
 
       assert render(view) =~ "online"
@@ -104,11 +109,15 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn: conn,
       fixture: fixture,
       device: device,
-      deployment: deployment
+      deployment_group: deployment_group
     } do
-      {:ok, deployment} = Deployments.update_deployment(deployment, %{is_active: true})
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
 
-      # mismatch device and deployment firmware so "Send Update" form doesn't display
+      # Set device status to :provisioned for deployment group eligibility
+      %{status: :provisioned} = Devices.set_as_provisioned!(device)
+
+      # mismatch device and deployment group firmware so "Send Update" form doesn't display
       original_firmware_platform = device.firmware_metadata.platform
 
       updated_firmware_metadata =
@@ -120,7 +129,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       conn
       |> visit(device_show_path(fixture))
-      |> refute_has("div", text: "Assigned Deployment")
+      |> refute_has("div", text: "Assigned Deployment Group")
       |> refute_has("span", text: "Update available")
       |> refute_has("option", text: "Select a version")
       |> assert_has("a.disabled", text: "Console")
@@ -138,14 +147,14 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
         {:ok, device} = Devices.update_firmware_metadata(device, restored_firmware_metadata)
 
-        _device = Devices.update_deployment(device, deployment)
+        _device = Devices.update_deployment_group(device, deployment_group)
 
         {:ok, _} = Metrics.save_metrics(device.id, %{"cpu_usage_percent" => 22})
 
         send(view.pid, %Broadcast{event: "connection:status", payload: %{status: "online"}})
         render(view)
       end)
-      |> assert_has("div", text: "Assigned Deployment")
+      |> assert_has("div", text: "Assigned Deployment Group")
       |> assert_has("span", text: "Update available")
       |> assert_has("option", text: "Select a version")
       |> refute_has("a.disabled", text: "Console")
@@ -253,7 +262,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       product: product,
       device: device
     } do
-      Devices.update_device(device, %{connection_metadata: %{"location" => %{}}})
+      {:ok, connection} = Connections.device_connecting(device.id, device.product_id)
+      :ok = Connections.device_connected(connection.id)
+      :ok = Connections.merge_update_metadata(connection.id, %{"location" => %{}})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -267,7 +278,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         "location" => %{"error_code" => "BOOP", "error_description" => "BEEP"}
       }
 
-      Devices.update_device(device, %{connection_metadata: metadata})
+      {:ok, connection} = Connections.device_connecting(device.id, device.product_id)
+      :ok = Connections.device_connected(connection.id)
+      :ok = Connections.merge_update_metadata(connection.id, metadata)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -287,7 +300,9 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
         }
       }
 
-      Devices.update_device(device, %{connection_metadata: metadata})
+      {:ok, connection} = Connections.device_connecting(device.id, device.product_id)
+      :ok = Connections.device_connected(connection.id)
+      :ok = Connections.merge_update_metadata(connection.id, metadata)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -308,7 +323,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "No health information has been received for this device.")
     end
 
-    test "has alarms", %{
+    test "has active alarms", %{
       conn: conn,
       org: org,
       product: product,
@@ -325,8 +340,33 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> assert_has("h1", text: device.identifier)
       |> assert_has("div", text: "Health")
-      |> assert_has("div", text: "Current Alarms")
+      |> assert_has("div", text: "Active Alarms")
       |> assert_has("span", text: "SomeAlarm")
+    end
+
+    test "has no active alarms", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Health")
+      |> assert_has("div", text: "No active alarms")
+
+      assert {:ok, _} =
+               NervesHub.Devices.save_device_health(%{
+                 "device_id" => device.id,
+                 "data" => %{"alarms" => %{}}
+               })
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("h1", text: device.identifier)
+      |> assert_has("div", text: "Health")
+      |> assert_has("div", text: "No active alarms")
     end
 
     test "full set of metrics", %{
@@ -418,11 +458,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       org: org,
       product: product,
       device: device,
-      deployment: deployment
+      deployment_group: deployment_group
     } do
       device =
         device
-        |> Ecto.Changeset.change(%{deployment_id: deployment.id})
+        |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
         |> Repo.update!()
 
       conn
@@ -436,18 +476,18 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       org: org,
       product: product,
       device: device,
-      deployment: deployment,
+      deployment_group: deployment_group,
       org_key: org_key,
       tmp_dir: tmp_dir
     } do
       device =
         device
-        |> Ecto.Changeset.change(%{deployment_id: deployment.id})
+        |> Ecto.Changeset.change(%{deployment_id: deployment_group.id, status: :provisioned})
         |> Repo.update!()
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      deployment
+      deployment_group
       |> Ecto.Changeset.change(%{firmware_id: firmware.id, is_active: true})
       |> Repo.update!()
 
@@ -462,7 +502,12 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
 
       assert Repo.aggregate(NervesHub.Devices.InflightUpdate, :count) == 1
 
-      assert_receive %Phoenix.Socket.Broadcast{event: "deployments/update"}
+      topic = "device:#{device.id}"
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "update-scheduled"
+      }
     end
 
     test "available update exists but deployment is not active", %{
@@ -470,18 +515,18 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       org: org,
       product: product,
       device: device,
-      deployment: deployment,
+      deployment_group: deployment_group,
       org_key: org_key,
       tmp_dir: tmp_dir
     } do
       device =
         device
-        |> Ecto.Changeset.change(%{deployment_id: deployment.id})
+        |> Ecto.Changeset.change(%{deployment_id: deployment_group.id})
         |> Repo.update!()
 
       firmware = Fixtures.firmware_fixture(org_key, product, %{dir: tmp_dir})
 
-      deployment
+      deployment_group
       |> Ecto.Changeset.change(%{firmware_id: firmware.id, is_active: false})
       |> Repo.update!()
 
@@ -512,10 +557,11 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       conn: conn,
       org: org,
       product: product,
-      device: device
+      device: device,
+      user: user
     } do
-      {:ok, _command} =
-        NervesHub.Scripts.create(product, %{name: "MOTD", text: "NervesMOTD.print()"})
+      {:ok, _script} =
+        NervesHub.Scripts.create(product, user, %{name: "MOTD", text: "NervesMOTD.print()"})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
@@ -531,19 +577,21 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       org: org,
       product: product,
       device: device,
-      deployment: deployment
+      deployment_group: deployment_group
     } do
       device =
         device
-        |> Ecto.Changeset.change(%{deployment_id: deployment.id})
+        |> Ecto.Changeset.change(%{deployment_id: deployment_group.id, status: :provisioned})
         |> Repo.update!()
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
       |> unwrap(fn view ->
-        render_change(view, "remove-from-deployment")
+        render_change(view, "remove-from-deployment-group")
       end)
-      |> assert_has("div", text: "Eligible Deployments")
+      |> assert_has("div", text: "Eligible Deployment Groups")
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "devices/deployment-cleared"}
 
       refute Repo.reload(device) |> Map.get(:deployment_id)
     end
@@ -561,22 +609,44 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   describe "setting deployment" do
+    test "displays and sets product deployments for unprovisioned device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Product Deployment Groups")
+      |> unwrap(fn view ->
+        render_change(view, "set-deployment-group", %{"deployment_id" => deployment_group.id})
+      end)
+      |> assert_has("div",
+        text:
+          "Device will be removed from the deployment group upon connection if the arch and platform doesn't match."
+      )
+    end
+
     test "sets deployment and creates audit", %{
       conn: conn,
       org: org,
       product: product,
       device: device,
-      deployment: deployment
+      deployment_group: deployment_group
     } do
+      # Set device status to :provisioned for deployment eligibility
+      %{status: :provisioned} = Devices.set_as_provisioned!(device)
+
       assert Enum.empty?(AuditLogs.logs_for(device))
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "Eligible Deployment")
+      |> assert_has("div", text: "Eligible Deployment Group")
       |> unwrap(fn view ->
-        render_change(view, "set-deployment", %{"deployment_id" => deployment.id})
+        render_change(view, "set-deployment-group", %{"deployment_id" => deployment_group.id})
       end)
-      |> assert_has("div", text: "Assigned Deployment")
+      |> assert_has("div", text: "Assigned Deployment Group")
 
       assert Repo.reload(device) |> Map.get(:deployment_id)
       assert length(AuditLogs.logs_for(device)) == 1
@@ -587,13 +657,32 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       org: org,
       product: product,
       device: device,
-      deployment: deployment
+      deployment_group: deployment_group
     } do
-      _ = Repo.delete!(deployment)
+      # Set device status to :provisioned for deployment eligibility
+      %{status: :provisioned} = Devices.set_as_provisioned!(device)
+      _ = Repo.delete!(deployment_group)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
-      |> assert_has("div", text: "No Eligible Deployments")
+      |> assert_has("div", text: "No Eligible Deployment Groups")
+    end
+
+    test "broadcasts to devices channel", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("div", text: "Product Deployment Groups")
+      |> unwrap(fn view ->
+        render_change(view, "set-deployment-group", %{"deployment_id" => deployment_group.id})
+      end)
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "devices/deployment-updated"}
     end
   end
 

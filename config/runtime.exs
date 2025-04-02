@@ -2,7 +2,7 @@ import Config
 
 nerves_hub_app = System.get_env("NERVES_HUB_APP", "all")
 
-unless Enum.member?(["all", "web", "device"], nerves_hub_app) do
+if !Enum.member?(["all", "web", "device"], nerves_hub_app) do
   raise """
   unknown value \"#{nerves_hub_app}\" for NERVES_HUB_APP
   supported values are \"all\", \"web\", and \"device\"
@@ -21,16 +21,20 @@ config :nerves_hub,
   support_email_signoff: System.get_env("SUPPORT_EMAIL_SIGNOFF"),
   device_endpoint_redirect:
     System.get_env("DEVICE_ENDPOINT_REDIRECT", "https://docs.nerves-hub.org/"),
-  admin_auth: [
-    username: System.get_env("ADMIN_AUTH_USERNAME"),
-    password: System.get_env("ADMIN_AUTH_PASSWORD")
-  ],
   device_health_days_to_retain:
     String.to_integer(System.get_env("HEALTH_CHECK_DAYS_TO_RETAIN", "7")),
+  device_health_delete_limit:
+    String.to_integer(System.get_env("DEVICE_HEALTH_DELETE_LIMIT", "100000")),
   device_deployment_change_jitter_seconds:
     String.to_integer(System.get_env("DEVICE_DEPLOYMENT_CHANGE_JITTER_SECONDS", "10")),
   device_last_seen_update_interval_minutes:
-    String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_MINUTES", "5")),
+    String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_MINUTES", "15")),
+  device_last_seen_update_interval_jitter_seconds:
+    String.to_integer(System.get_env("DEVICE_LAST_SEEN_UPDATE_INTERVAL_JITTER_SECONDS", "300")),
+  device_connection_max_age_days:
+    String.to_integer(System.get_env("DEVICE_CONNECTION_MAX_AGE_DAYS", "14")),
+  device_connection_delete_limit:
+    String.to_integer(System.get_env("DEVICE_CONNECTION_DELETE_LIMIT", "100000")),
   deployment_calculator_interval_seconds:
     String.to_integer(System.get_env("DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS", "3600")),
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
@@ -43,10 +47,14 @@ config :nerves_hub,
     ],
     health: [
       interval_minutes:
-        System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer()
+        System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer(),
+      ui_polling_seconds:
+        System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer()
     ]
   ],
-  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"
+  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true",
+  display_deployment_orchestrator_strategy:
+    System.get_env("DISPLAY_DEPLOYMENT_ORCHESTRATOR_STRATEGY", "false") == "true"
 
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
@@ -205,40 +213,42 @@ end
 ##
 # Database and Libcluster connection settings
 #
-if config_env() == :prod do
-  database_ssl_opts =
-    if System.get_env("DATABASE_SSL", "true") == "true" do
-      if System.get_env("DATABASE_PEM") do
-        db_hostname_charlist =
-          ~r/.*@(?<hostname>[^:\/]+)(?::\d+)?\/.*/
-          |> Regex.named_captures(System.fetch_env!("DATABASE_URL"))
-          |> Map.get("hostname")
-          |> to_charlist()
 
-        cacerts =
-          System.fetch_env!("DATABASE_PEM")
-          |> Base.decode64!()
-          |> :public_key.pem_decode()
-          |> Enum.map(fn {_, der, _} -> der end)
+database_ssl_opts =
+  if System.get_env("DATABASE_SSL", "true") == "true" do
+    if System.get_env("DATABASE_PEM") do
+      db_hostname_charlist =
+        ~r/.*@(?<hostname>[^:\/]+)(?::\d+)?\/.*/
+        |> Regex.named_captures(System.fetch_env!("DATABASE_URL"))
+        |> Map.get("hostname")
+        |> to_charlist()
 
-        [
-          verify: :verify_peer,
-          cacerts: cacerts,
-          server_name_indication: db_hostname_charlist
-        ]
-      else
-        [cacerts: :public_key.cacerts_get()]
-      end
+      cacerts =
+        System.fetch_env!("DATABASE_PEM")
+        |> Base.decode64!()
+        |> :public_key.pem_decode()
+        |> Enum.map(fn {_, der, _} -> der end)
+
+      [
+        verify: :verify_peer,
+        cacerts: cacerts,
+        server_name_indication: db_hostname_charlist
+      ]
     else
-      false
+      [cacerts: :public_key.cacerts_get()]
     end
+  else
+    false
+  end
 
+if config_env() == :prod do
   database_socket_options = if System.get_env("DATABASE_INET6") == "true", do: [:inet6], else: []
 
   config :nerves_hub, NervesHub.Repo,
     url: System.fetch_env!("DATABASE_URL"),
     ssl: database_ssl_opts,
     pool_size: String.to_integer(System.get_env("DATABASE_POOL_SIZE", "20")),
+    pool_count: String.to_integer(System.get_env("DATABASE_POOL_COUNT", "1")),
     socket_options: database_socket_options,
     queue_target: 5000
 
@@ -254,28 +264,40 @@ if config_env() == :prod do
 
   config :nerves_hub,
     database_auto_migrator: System.get_env("DATABASE_AUTO_MIGRATOR", "true") == "true"
-
-  # Libcluster is using Postgres for Node discovery
-  # The library only accepts keyword configs, so the DATABASE_URL has to be
-  # parsed and put together with the ssl pieces from above.
-  postgres_config = Ecto.Repo.Supervisor.parse_url(System.fetch_env!("DATABASE_URL"))
-
-  libcluster_db_config =
-    [port: 5432]
-    |> Keyword.merge(postgres_config)
-    |> Keyword.take([:hostname, :username, :password, :database, :port])
-    |> Keyword.merge(ssl: database_ssl_opts)
-    |> Keyword.merge(parameters: [])
-    |> Keyword.merge(channel_name: "nerves_hub_clustering")
-
-  config :libcluster,
-    topologies: [
-      postgres: [
-        strategy: LibclusterPostgres.Strategy,
-        config: libcluster_db_config
-      ]
-    ]
 end
+
+# Libcluster is using Postgres for Node discovery
+# The library only accepts keyword configs, so the DATABASE_URL has to be
+# parsed and put together with the ssl pieces from above.
+#
+# By using the dev database url as the default it allows us to reduce the
+# libcluster config and keep it all here.
+postgres_config =
+  Ecto.Repo.Supervisor.parse_url(
+    System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev")
+  )
+
+libcluster_db_config =
+  [port: 5432]
+  |> Keyword.merge(postgres_config)
+  |> Keyword.take([:hostname, :username, :password, :database, :port])
+  |> then(fn keywords ->
+    if config_env() == :prod do
+      Keyword.merge(keywords, ssl: database_ssl_opts)
+    else
+      keywords
+    end
+  end)
+  |> Keyword.merge(parameters: [])
+  |> Keyword.merge(channel_name: "nerves_hub_clustering")
+
+config :libcluster,
+  topologies: [
+    postgres: [
+      strategy: LibclusterPostgres.Strategy,
+      config: libcluster_db_config
+    ]
+  ]
 
 ##
 # Firmware upload backend.

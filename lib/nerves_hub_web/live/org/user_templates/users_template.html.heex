@@ -12,7 +12,7 @@
     <tbody>
       <%= for invite <- @invites do %>
         <tr>
-          <td><%= invite.email %></td>
+          <td>{invite.email}</td>
           <td><pre style="background: white; margin: auto;"><%= Routes.account_url(@socket, :invite, invite.token) %></pre></td>
           <td :if={authorized?(:"org_user:invite:rescind", @org_user)}>
             <.link class="btn btn-outline-light" phx-click="rescind_invite" phx-value-invite_token={invite.token} data-confirm="Are you sure you want to rescind the invite?">
@@ -47,19 +47,19 @@
       <tr class="item">
         <td>
           <div class="mobile-label help-text">User name</div>
-          <%= org_user.user.name %>
+          {org_user.user.name}
         </td>
         <td>
           <div class="mobile-label help-text">Email</div>
-          <%= org_user.user.email %>
+          {org_user.user.email}
         </td>
         <td class="tt-c">
           <div class="mobile-label help-text">Role</div>
-          <%= org_user.role %>
+          {org_user.role}
         </td>
         <td>
           <div class="mobile-label help-text">Added on</div>
-          <div class="date-time"><%= org_user.user.inserted_at %></div>
+          <div class="date-time">{org_user.user.inserted_at}</div>
         </td>
         <td :if={authorized?(:"org_user:delete", @org_user) && org_user.user.id != assigns.user.id} class="actions">
           <div class="dropdown options">

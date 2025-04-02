@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Router do
   use NervesHubWeb, :router
 
   import Phoenix.LiveDashboard.Router
+  import Oban.Web.Router
 
   pipeline :browser do
     plug(:accepts, ["html", "json"])
@@ -35,10 +36,6 @@ defmodule NervesHubWeb.Router do
 
   pipeline :live_logged_in do
     plug(NervesHubWeb.Plugs.EnsureAuthenticated)
-  end
-
-  pipeline :admins_only do
-    plug(NervesHubWeb.Plugs.AdminBasicAuth)
   end
 
   pipeline :org do
@@ -167,12 +164,12 @@ defmodule NervesHubWeb.Router do
                 delete("/:uuid", FirmwareController, :delete)
               end
 
-              scope "/deployments" do
-                get("/", DeploymentController, :index)
-                post("/", DeploymentController, :create)
-                get("/:name", DeploymentController, :show)
-                put("/:name", DeploymentController, :update)
-                delete("/:name", DeploymentController, :delete)
+              scope "/deployment_groups" do
+                get("/", DeploymentGroupController, :index)
+                post("/", DeploymentGroupController, :create)
+                get("/:name", DeploymentGroupController, :show)
+                put("/:name", DeploymentGroupController, :update)
+                delete("/:name", DeploymentGroupController, :delete)
               end
             end
           end
@@ -216,7 +213,12 @@ defmodule NervesHubWeb.Router do
 
     get("/archives/:uuid/download", DownloadController, :archive)
     get("/firmware/:uuid/download", DownloadController, :firmware)
-    get("/deployments/:name/audit_logs/download", DeploymentController, :export_audit_logs)
+
+    get(
+      "/deployment_groups/:name/audit_logs/download",
+      DeploymentGroupController,
+      :export_audit_logs
+    )
   end
 
   scope "/", NervesHubWeb do
@@ -227,6 +229,7 @@ defmodule NervesHubWeb.Router do
     live_session :account,
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.EnrichSentryContext,
         NervesHubWeb.Mounts.CurrentPath,
         {NervesHubWeb.Mounts.LayoutSelector, :no_sidebar}
       ] do
@@ -242,6 +245,7 @@ defmodule NervesHubWeb.Router do
     live_session :org,
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.EnrichSentryContext,
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser,
@@ -269,6 +273,7 @@ defmodule NervesHubWeb.Router do
     live_session :product,
       on_mount: [
         NervesHubWeb.Mounts.AccountAuth,
+        NervesHubWeb.Mounts.EnrichSentryContext,
         NervesHubWeb.Mounts.CurrentPath,
         NervesHubWeb.Mounts.FetchOrg,
         NervesHubWeb.Mounts.FetchOrgUser,
@@ -279,7 +284,31 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/:product_name/devices", Live.Devices.Index)
       live("/org/:org_name/:product_name/devices/new", Live.Devices.New)
-      live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show)
+      live("/org/:org_name/:product_name/devices/:device_identifier", Live.Devices.Show, :details)
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/healthz",
+        Live.Devices.Show,
+        :health
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/activity",
+        Live.Devices.Show,
+        :activity
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/conzole",
+        Live.Devices.Show,
+        :console
+      )
+
+      live(
+        "/org/:org_name/:product_name/devices/:device_identifier/settingz",
+        Live.Devices.Show,
+        :settings
+      )
 
       live(
         "/org/:org_name/:product_name/devices/:device_identifier/health",
@@ -299,10 +328,38 @@ defmodule NervesHubWeb.Router do
       live("/org/:org_name/:product_name/archives/upload", Live.Archives, :upload)
       live("/org/:org_name/:product_name/archives/:archive_uuid", Live.Archives, :show)
 
-      live("/org/:org_name/:product_name/deployments", Live.Deployments.Index)
-      live("/org/:org_name/:product_name/deployments/new", Live.Deployments.New)
-      live("/org/:org_name/:product_name/deployments/:name", Live.Deployments.Show)
-      live("/org/:org_name/:product_name/deployments/:name/edit", Live.Deployments.Edit)
+      live("/org/:org_name/:product_name/deployment_groups", Live.DeploymentGroups.Index)
+      live("/org/:org_name/:product_name/deployments/new", Live.DeploymentGroups.New)
+      live("/org/:org_name/:product_name/deployments/newz", Live.DeploymentGroups.Newz)
+
+      live(
+        "/org/:org_name/:product_name/deployment_groups/:name",
+        Live.DeploymentGroups.Show,
+        :summary
+      )
+
+      live(
+        "/org/:org_name/:product_name/deployment_groups/:name/releases",
+        Live.DeploymentGroups.Show,
+        :release_history
+      )
+
+      live(
+        "/org/:org_name/:product_name/deployment_groups/:name/activity",
+        Live.DeploymentGroups.Show,
+        :activity
+      )
+
+      live(
+        "/org/:org_name/:product_name/deployment_groups/:name/settings",
+        Live.DeploymentGroups.Show,
+        :settings
+      )
+
+      live(
+        "/org/:org_name/:product_name/deployment_groups/:name/edit",
+        Live.DeploymentGroups.Edit
+      )
 
       live("/org/:org_name/:product_name/scripts", Live.SupportScripts.Index)
       live("/org/:org_name/:product_name/scripts/new", Live.SupportScripts.New)
@@ -312,17 +369,13 @@ defmodule NervesHubWeb.Router do
     end
   end
 
-  if Mix.env() in [:dev] do
-    scope "/dev" do
-      pipe_through([:browser])
+  scope "/" do
+    pipe_through([:browser, :logged_in, NervesHubWeb.Plugs.ServerAuth])
+    live_dashboard("/status/dashboard")
+    oban_dashboard("/status/oban", resolver: NervesHubWeb.Plugs.ServerAuth)
+  end
 
-      forward("/mailbox", Plug.Swoosh.MailboxPreview)
-      live_dashboard("/dashboard")
-    end
-  else
-    scope "/" do
-      pipe_through([:browser, :admins_only])
-      live_dashboard("/status/dashboard")
-    end
+  if Mix.env() == :dev do
+    forward("/mailbox", Plug.Swoosh.MailboxPreview)
   end
 end

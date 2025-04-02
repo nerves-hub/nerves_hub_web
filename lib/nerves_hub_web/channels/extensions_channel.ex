@@ -3,6 +3,7 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   alias NervesHub.Extensions
   alias NervesHub.Helpers.Logging
+  alias NervesHub.Repo
   alias Phoenix.PubSub
   alias Phoenix.Socket.Broadcast
 
@@ -10,6 +11,11 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
   @impl Phoenix.Channel
   def join("extensions", extension_versions, socket) do
+    # the assigns are not shared between channels, so if we don't
+    # reload the device we are likely to have incorrect data, especially
+    # after the first connect event
+    socket = reload_device(socket)
+
     extensions = parse_extensions(socket.assigns.device, extension_versions)
     socket = assign(socket, :extensions, extensions)
 
@@ -115,4 +121,13 @@ defmodule NervesHubWeb.ExtensionsChannel do
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
+
+  defp reload_device(%{assigns: %{device: device}} = socket) do
+    device =
+      device
+      |> Repo.reload()
+      |> Repo.preload(:product)
+
+    assign(socket, :device, device)
+  end
 end

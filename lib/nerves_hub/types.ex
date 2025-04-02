@@ -73,7 +73,7 @@ defmodule NervesHub.Types do
       [
         "Elixir.NervesHub.Accounts.Org",
         "Elixir.NervesHub.Accounts.User",
-        "Elixir.NervesHub.Deployments.Deployment",
+        "Elixir.NervesHub.ManagedDeployments.DeploymentGroup",
         "Elixir.NervesHub.Devices.Device",
         "Elixir.NervesHub.Firmwares.Firmware",
         "Elixir.NervesHub.Products.Product"

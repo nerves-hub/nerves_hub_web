@@ -21,6 +21,7 @@ defmodule NervesHubWeb.ChannelCase do
       import Phoenix.ChannelTest
       use DefaultMocks
       use Oban.Testing, repo: NervesHub.ObanRepo
+      use AssertEventually, timeout: 500, interval: 50
 
       # The default endpoint for testing
       @endpoint NervesHubWeb.DeviceEndpoint
@@ -30,7 +31,17 @@ defmodule NervesHubWeb.ChannelCase do
       end
 
       def subscribe_extensions(device) do
-        Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.identifier}:extensions")
+        Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device.id}:extensions")
+      end
+
+      def assert_online_and_available(device) do
+        eventually assert [{_, %{}}] =
+                            Registry.match(NervesHub.Devices.Registry, device.id, :_)
+      end
+
+      def close_cleanly(channel) do
+        Process.unlink(channel.channel_pid)
+        :ok = close(channel)
       end
     end
   end

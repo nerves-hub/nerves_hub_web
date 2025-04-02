@@ -6,7 +6,6 @@ defmodule NervesHubWeb.DeviceSocket do
 
   alias NervesHub.Devices
   alias NervesHub.Devices.Connections
-  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Products
   alias NervesHub.Tracker
@@ -31,9 +30,9 @@ defmodule NervesHubWeb.DeviceSocket do
 
   @impl Phoenix.Socket.Transport
   @decorate with_span("Channels.DeviceSocket.terminate")
-  def terminate(reason, {_channels_info, socket} = state) do
-    on_disconnect(reason, socket)
-    super(reason, state)
+  def terminate(reason, {channels_info, socket}) do
+    socket = on_disconnect(reason, socket)
+    super(reason, {channels_info, socket})
   end
 
   @impl Phoenix.Socket.Transport
@@ -46,25 +45,10 @@ defmodule NervesHubWeb.DeviceSocket do
   end
 
   @decorate with_span("Channels.DeviceSocket.heartbeat")
-  defp heartbeat(
-         %Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"},
-         %{
-           assigns: %{
-             reference_id: ref_id,
-             device: device
-           }
-         } = socket
-       ) do
+  defp heartbeat(%Phoenix.Socket.Message{topic: "phoenix", event: "heartbeat"}, socket) do
     if heartbeat?(socket) do
-      {:ok, _device_connection} = Connections.device_heartbeat(ref_id)
-
-      _ =
-        socket.endpoint.broadcast_from(
-          self(),
-          "device:#{device.identifier}:internal",
-          "connection:heartbeat",
-          %{}
-        )
+      %{device: device, reference_id: ref_id} = socket.assigns
+      Connections.device_heartbeat(device, ref_id)
 
       last_heartbeat =
         DateTime.utc_now()
@@ -79,9 +63,9 @@ defmodule NervesHubWeb.DeviceSocket do
   defp heartbeat(_message, socket), do: socket
 
   defp heartbeat?(%{assigns: %{last_heartbeat_at: last_heartbeat_at}}) do
-    mins_ago = DateTime.diff(DateTime.utc_now(), last_heartbeat_at, :minute)
+    seconds_ago = DateTime.diff(DateTime.utc_now(), last_heartbeat_at, :second)
 
-    mins_ago >= last_seen_update_interval()
+    seconds_ago >= last_seen_update_interval()
   end
 
   defp heartbeat?(_), do: true
@@ -92,10 +76,10 @@ defmodule NervesHubWeb.DeviceSocket do
   def connect(_params, socket, %{peer_data: %{ssl_cert: ssl_cert}})
       when not is_nil(ssl_cert) do
     X509.Certificate.from_der!(ssl_cert)
-    |> Devices.get_device_certificate_by_x509()
+    |> Devices.get_device_by_x509()
     |> case do
-      {:ok, %{device: %Device{} = device}} ->
-        socket_and_assigns(socket, Devices.preload_product(device))
+      {:ok, device} ->
+        socket_and_assigns(socket, device)
 
       error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
@@ -119,7 +103,7 @@ defmodule NervesHubWeb.DeviceSocket do
          {:ok, signature} <- Map.fetch(headers, "x-nh-signature"),
          {:ok, identifier} <- Crypto.verify(auth.secret, salt, signature, verification_opts),
          {:ok, device} <- get_or_maybe_create_device(auth, identifier) do
-      socket_and_assigns(socket, Devices.preload_product(device))
+      socket_and_assigns(socket, device)
     else
       error ->
         :telemetry.execute([:nerves_hub, :devices, :invalid_auth], %{count: 1}, %{
@@ -227,7 +211,7 @@ defmodule NervesHubWeb.DeviceSocket do
   defp on_connect(%{assigns: %{device: device}} = socket) do
     # Report connection and use connection id as reference
     {:ok, %DeviceConnection{id: connection_id}} =
-      Connections.device_connected(device.id)
+      Connections.device_connecting(device.id, device.product_id)
 
     :telemetry.execute([:nerves_hub, :devices, :connect], %{count: 1}, %{
       ref_id: connection_id,
@@ -243,52 +227,39 @@ defmodule NervesHubWeb.DeviceSocket do
     |> assign(:reference_id, connection_id)
   end
 
-  @decorate with_span("Channels.DeviceSocket.on_disconnect")
-  defp on_disconnect(exit_reason, socket)
+  defp on_disconnect(_reason, %{assigns: %{disconnection_handled?: true} = socket}) do
+    socket
+  end
 
-  defp on_disconnect({:error, reason}, %{
-         assigns: %{
-           device: device,
-           reference_id: reference_id
-         }
-       }) do
-    if reason == {:shutdown, :disconnected} do
+  @decorate with_span("Channels.DeviceSocket.on_disconnect")
+  defp on_disconnect(reason, socket) do
+    %{assigns: %{device: device, reference_id: reference_id}} = socket
+
+    if reason == {:error, {:shutdown, :disconnected}} do
       :telemetry.execute([:nerves_hub, :devices, :duplicate_connection], %{count: 1}, %{
         ref_id: reference_id,
         device: device
       })
     end
 
-    shutdown(device, reference_id)
-
-    :ok
-  end
-
-  defp on_disconnect(_, %{
-         assigns: %{
-           device: device,
-           reference_id: reference_id
-         }
-       }) do
-    shutdown(device, reference_id)
-  end
-
-  @decorate with_span("Channels.DeviceSocket.shutdown")
-  defp shutdown(device, reference_id) do
     :telemetry.execute([:nerves_hub, :devices, :disconnect], %{count: 1}, %{
       ref_id: reference_id,
       identifier: device.identifier
     })
 
-    {:ok, _device_connection} = Connections.device_disconnected(reference_id)
+    :ok = Connections.device_disconnected(reference_id)
 
     Tracker.offline(device)
 
-    :ok
+    assign(socket, :disconnection_handled?, true)
   end
 
   defp last_seen_update_interval() do
-    Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
+    interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes) * 60
+
+    jitter = Application.get_env(:nerves_hub, :device_last_seen_update_interval_jitter_seconds)
+
+    interval + Enum.random(-jitter..jitter)
   end
 
   def shared_secrets_enabled?() do

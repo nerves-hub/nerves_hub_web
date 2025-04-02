@@ -21,6 +21,7 @@ defmodule NervesHubWeb do
 
   def plug() do
     quote do
+      @behaviour Plug
       import Plug.Conn
       import Phoenix.Controller
     end
@@ -84,6 +85,9 @@ defmodule NervesHubWeb do
 
       import NervesHubWeb.Helpers.Authorization
 
+      import NervesHubWeb.Components.Icons
+      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
+
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
 
@@ -101,6 +105,21 @@ defmodule NervesHubWeb do
       def noreply(socket), do: {:noreply, socket}
 
       def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
+
+      @spec sidebar_tab(
+              Phoenix.Socket.t(),
+              :archives | :firmware | :deployments | :devices | :settings | :support_scripts
+            ) :: Phoenix.Socket.t()
+      def sidebar_tab(socket, tab) do
+        socket
+        |> assign(:sidebar_tab, tab)
+        |> assign(:tab_hint, tab)
+      end
+
+      def send_toast(socket, kind, msg) do
+        NervesHubWeb.LiveToast.send_toast(kind, msg)
+        socket
+      end
 
       def whitelist(params, keys) do
         keys
@@ -122,6 +141,31 @@ defmodule NervesHubWeb do
   def live_component() do
     quote do
       use Phoenix.LiveComponent
+
+      import NervesHubWeb.Helpers.Authorization
+
+      import NervesHubWeb.Components.Icons
+      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
+
+      def ok(socket), do: {:ok, socket}
+
+      def noreply(socket), do: {:noreply, socket}
+
+      def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
+
+      def sidebar_tab(socket, tab) do
+        socket
+        |> assign(:sidebar_tab, tab)
+        |> assign(:tab_hint, tab)
+      end
+
+      def send_toast(socket, kind, msg) do
+        NervesHubWeb.LiveToast.send_toast(kind, msg)
+        socket
+      end
+
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
 
       unquote(view_helpers())
     end
@@ -209,6 +253,9 @@ defmodule NervesHubWeb do
   def component() do
     quote do
       use Phoenix.Component
+
+      import NervesHubWeb.Components.Icons
+      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

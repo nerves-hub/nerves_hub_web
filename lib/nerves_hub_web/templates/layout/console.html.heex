@@ -7,17 +7,17 @@
     <meta name="description" content="" />
     <meta name="author" content="" />
 
-    <title><%= String.slice(@device.identifier, -6..-1) %> - Console Session</title>
+    <title>{String.slice(@device.identifier, -6..-1)} - Console Session</title>
     <link rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")} />
   </head>
 
   <body id="console-body">
-    <%= @inner_content %>
+    {@inner_content}
 
     <script>
       window.userToken = "<%= assigns[:user_token] %>"
     </script>
-    <%= csrf_meta_tag() %>
+    {csrf_meta_tag()}
     <script type="text/javascript" src={Routes.static_path(@conn, "/js/console.js")}>
     </script>
   </body>

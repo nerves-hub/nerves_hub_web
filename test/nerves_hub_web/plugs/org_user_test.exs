@@ -1,6 +1,7 @@
 defmodule NervesHubWeb.Plugs.OrgUserTest do
   use NervesHubWeb.ConnCase.Browser, async: true
-  use Plug.Test
+
+  import Plug.Test
 
   alias NervesHub.Accounts
   alias NervesHub.Fixtures

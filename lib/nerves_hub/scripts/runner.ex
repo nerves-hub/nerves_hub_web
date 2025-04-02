@@ -22,7 +22,9 @@ defmodule NervesHub.Scripts.Runner do
 
   def send(device, command) do
     {:ok, pid} = start_link(device)
-    GenServer.call(pid, {:send, command.text}, 10_000)
+    {:ok, GenServer.call(pid, {:send, command.text}, 10_000)}
+  catch
+    :exit, _ -> {:error, "device not responding"}
   end
 
   def start_link(device) do

@@ -1,7 +1,7 @@
 <%= if @devices == [] && !@currently_filtering do %>
   <div class="no-results-blowup-wrapper">
     <img src="/images/device.svg" alt="No devices" />
-    <h3 style="margin-top: 2.75rem"><%= @product.name %> doesn’t have any devices yet</h3>
+    <h3 style="margin-top: 2.75rem">{@product.name} doesn’t have any devices yet</h3>
     <div class="mt-3">
       <.link class="btn btn-outline-light btn-action" aria-label="Add new device" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"}>
         <div class="button-icon add"></div>
@@ -23,12 +23,12 @@
         phx-value-toggle={to_string(@show_filters)}
       >
         <span class="action-text">
-          <%= if @show_filters, do: "Hide Filters", else: "Show Filters" %>
+          {if @show_filters, do: "Hide Filters", else: "Show Filters"}
         </span>
         <span class="button-icon filter"></span>
       </button>
       <p class="ml-2" style="opacity: 0.7;">
-        <%= @total_entries %> devices found <span :if={Enum.count(@selected_devices) > 0}>(<%= Enum.count(@selected_devices) %> selected)</span>
+        {@total_entries} devices found <span :if={Enum.count(@selected_devices) > 0}>({Enum.count(@selected_devices)} selected)</span>
       </p>
     </div>
     <div>
@@ -46,7 +46,7 @@
   <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex; gap: 4px;">
     <%= for size <- @paginate_opts.page_sizes do %>
       <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"btn btn-secondary btn-sm #{if size == @paginate_opts.page_size, do: "active"}"}>
-        <%= size %>
+        {size}
       </button>
     <% end %>
   </div>
@@ -83,6 +83,15 @@
           </div>
         </div>
         <div class="form-group">
+          <label for="deployment_id">Deployment Group</label>
+          <select name="deployment_id" id="deployment_id" class="form-control">
+            <option {selected?(@current_filters, :deployment_id, "")} value="">All</option>
+            <%= for deployment_group <- @deployment_groups do %>
+              <option {selected?(@current_filters, :deployment_id, deployment_group.id)} value={deployment_group.id}>{deployment_group.name}</option>
+            <% end %>
+          </select>
+        </div>
+        <div class="form-group">
           <label for="input_health">Firmware Updates</label>
           <div class="pos-rel">
             <select name="updates" id="input_health" class="form-control">
@@ -100,7 +109,7 @@
             <select name="firmware_version" id="input_firmware" class="form-control">
               <option {selected?(@current_filters, :firmware_version, "")} value="">All</option>
               <%= for version <- @firmware_versions do %>
-                <option {selected?(@current_filters, :firmware_version, version)}><%= version %></option>
+                <option {selected?(@current_filters, :firmware_version, version)}>{version}</option>
               <% end %>
             </select>
             <div class="select-icon"></div>
@@ -112,7 +121,7 @@
             <select name="platform" id="platform" class="form-control">
               <option {selected?(@current_filters, :platform, "")} value="">All</option>
               <%= for platform <- @platforms do %>
-                <option {selected?(@current_filters, :platform, platform)}><%= if platform, do: platform, else: "Unknown" %></option>
+                <option {selected?(@current_filters, :platform, platform)}>{if platform, do: platform, else: "Unknown"}</option>
               <% end %>
             </select>
             <div class="select-icon"></div>
@@ -149,7 +158,7 @@
             <select name="alarm" id="alarm" class="form-control">
               <option {selected?(@current_filters, :alarm, "")} value="">All</option>
               <%= for alarm <- @current_alarms do %>
-                <option {selected?(@current_filters, :alarm, alarm)}><%= alarm %></option>
+                <option {selected?(@current_filters, :alarm, alarm)}>{alarm}</option>
               <% end %>
             </select>
             <div class="select-icon"></div>
@@ -161,7 +170,7 @@
             <select name="metrics_key" id="metrics_key" class="form-control">
               <option {selected?(@current_filters, :metrics_key, "")} value="">All</option>
               <%= for key <- @metrics_keys do %>
-                <option {selected?(@current_filters, :metrics_key, key)}><%= key %></option>
+                <option {selected?(@current_filters, :metrics_key, key)}>{key}</option>
               <% end %>
             </select>
             <div class="select-icon"></div>
@@ -187,7 +196,7 @@
   <div class={if length(@selected_devices) == 0, do: "hidden"}>
     <div class="filter-wrapper">
       <div class="flex-row">
-        <h4 class="color-white mb-2 flex-row align-items-center flex-grow">Bulk Actions <span class="help-text ml-2"><%= length(@selected_devices) %> selected</span></h4>
+        <h4 class="color-white mb-2 flex-row align-items-center flex-grow">Bulk Actions <span class="help-text ml-2">{length(@selected_devices)} selected</span></h4>
 
         <button class="btn btn-outline-light btn-action btn-secondary" type="button" phx-click="deselect-all">Deselect All</button>
       </div>
@@ -202,7 +211,7 @@
                 <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
                   <optgroup label={org.name}>
                     <%= for product <- products, product.id != @product.id do %>
-                      <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}><%= product.name %></option>
+                      <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}>{product.name}</option>
                     <% end %>
                   </optgroup>
                 <% end %>
@@ -234,14 +243,16 @@
           <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
         </form>
 
-        <form id="move-deployment" class="col-lg-4" phx-change="target-deployment" phx-submit="move-devices-deployment">
-          <label for="move_to_deployment">Move device(s) to deployment:</label>
+        <form :if={Enum.any?(@available_deployment_groups_for_filtered_platform)} id="move-deployment" class="col-lg-4" phx-change="target-deployment-group" phx-submit="move-devices-deployment-group">
+          <label for="move_to_deployment_group">Move device(s) to deployment group:</label>
           <div class="flex-row align-items-center">
             <div class="flex-grow pos-rel">
-              <select name="deployment" id="move_to_deployment" class="form-control">
+              <select name="deployment_group" id="move_to_deployment_group" class="form-control">
                 <option value=""></option>
-                <%= for deployment <- @deployments do %>
-                  <option value={deployment.id} {if @target_deployment && @target_deployment.id == deployment.id, do: [selected: true], else: []}><%= deployment.name %></option>
+                <%= for deployment_group <- @available_deployment_groups_for_filtered_platform do %>
+                  <option value={deployment_group.id} {if @target_deployment_group && @target_deployment_group.id == deployment_group.id, do: [selected: true], else: []}>
+                    {deployment_group.name}
+                  </option>
                 <% end %>
               </select>
               <div class="select-icon"></div>
@@ -250,9 +261,9 @@
             <button
               class="btn btn-outline-light btn-action btn-primary ml-1"
               type="submit"
-              data-confirm={"This will move all selected devices to #{@target_deployment && @target_deployment.name}. Continue?"}
-              id="move-deployment-submit"
-              {unless @target_deployment, do: [disabled: true], else: []}
+              data-confirm={"This will move all selected devices to #{@target_deployment_group && @target_deployment_group.name}. Continue?"}
+              id="move-deployment-group-submit"
+              {unless @target_deployment_group, do: [disabled: true], else: []}
             >
               Move
             </button>
@@ -297,12 +308,12 @@
         <th>
           <input class="checkbox" title="Check/uncheck all" {[checked: Enum.count(@selected_devices) == Enum.count(@devices)]} id="toggle-all" name="toggle-all" type="checkbox" phx-click="select-all" />
         </th>
-        <%= devices_table_header("Identifier", "identifier", @current_sort, @sort_direction) %>
+        {devices_table_header("Identifier", "identifier", @current_sort, @sort_direction)}
         <th>Firmware</th>
         <th>Platform</th>
-        <%= devices_table_header("Added", "inserted_at", @current_sort, @sort_direction) %>
-        <%= devices_table_header("Seen", "connection_last_seen_at", @current_sort, @sort_direction) %>
-        <%= devices_table_header("Tags", "tags", @current_sort, @sort_direction) %>
+        {devices_table_header("Added", "inserted_at", @current_sort, @sort_direction)}
+        {devices_table_header("Seen", "connection_last_seen_at", @current_sort, @sort_direction)}
+        {devices_table_header("Tags", "tags", @current_sort, @sort_direction)}
         <th></th>
       </tr>
     </thead>
@@ -321,12 +332,12 @@
             <%= if @device_statuses[device.identifier] == "online" do %>
               <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
             <% else %>
-              <span title={last_seen_at_status(device.device_connections)}>
+              <span title={last_seen_at_status(device.latest_connection)}>
                 <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
               </span>
             <% end %>
             <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class={"ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
-              <%= device.identifier %>
+              {device.identifier}
             </.link>
           </div>
         </td>
@@ -338,7 +349,7 @@
               <span class="color-white-50">Unknown</span>
             <% else %>
               <span class="badge">
-                <%= device.firmware_metadata.version %>
+                {device.firmware_metadata.version}
               </span>
             <% end %>
           </div>
@@ -351,7 +362,7 @@
               <span class="color-white-50">Unknown</span>
             <% else %>
               <span class="badge">
-                <%= device.firmware_metadata.platform %>
+                {device.firmware_metadata.platform}
               </span>
             <% end %>
           </div>
@@ -360,14 +371,14 @@
         <td>
           <div class="mobile-label help-text">Added</div>
           <div title={NaiveDateTime.to_iso8601(device.inserted_at)}>
-            <%= Timex.from_now(device.inserted_at) %>
+            {Timex.from_now(device.inserted_at)}
           </div>
         </td>
 
         <td>
           <div class="mobile-label help-text">Seen</div>
-          <div :if={device.device_connections != []} title={last_seen_at(device.device_connections)}>
-            <%= last_seen_at(device.device_connections) %>
+          <div :if={device.latest_connection} title={last_seen_at(device.latest_connection)}>
+            {last_seen_at(device.latest_connection)}
           </div>
         </td>
 
@@ -376,7 +387,7 @@
           <div>
             <%= if !is_nil(device.tags) do %>
               <%= for tag <- device.tags do %>
-                <span class="badge"><%= tag %></span>
+                <span class="badge">{tag}</span>
               <% end %>
             <% end %>
           </div>
@@ -401,7 +412,7 @@
               <div class="dropdown-divider"></div>
               <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
                 <span>
-                  <%= if device.updates_enabled, do: "Disable Updates", else: "Enable Updates" %>
+                  {if device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}
                 </span>
               </.link>
 
@@ -417,5 +428,5 @@
       </tr>
     <% end %>
   </table>
-  <%= pagination_links(@paginate_opts) %>
+  {pagination_links(@paginate_opts)}
 <% end %>

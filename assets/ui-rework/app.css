@@ -1,52 +1,23 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
-@import 'highlight.js/styles/stackoverflow-light.css';
-@import 'leaflet/dist/leaflet.css';
-@import 'leaflet.markercluster/dist/MarkerCluster.css';
-@import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+@import "highlight.js/styles/stackoverflow-light.css";
+@import "leaflet/dist/leaflet.css";
+@import "leaflet.markercluster/dist/MarkerCluster.css";
+@import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+
+@import "xterm/css/xterm.css";
+@import "mapbox-gl/dist/mapbox-gl.css";
+@import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 
 @layer components {
   body {
     overflow-x: hidden;
   }
-  .sidebar-item-selected {
-    @apply font-medium text-[#FAFAFA];
-    box-shadow: inset -1px 0 0 0 #6366f1;
-    background: linear-gradient(
-        to right,
-        rgb(39 39 42 / 30%),
-        rgb(39 39 42 / 72%)
-      ),
-      linear-gradient(to right, rgb(99 102 241 / 0%), rgb(99 102 241 / 10%));
-  }
-
-  .base-grid {
-    display: grid;
-    grid-template-columns: [start] 264px [body-start] auto [body-end] 264px [end];
-    grid-template-rows: [top] 56px [body-top] auto [body-end] 64px [bottom];
-    min-height: 100vh;
-  }
-
-  .sidebar-main-content {
-    @apply flex flex-col col-start-2 col-end-4 row-start-2 row-end-3;
-  }
-
-  .listing-header {
-    @apply flex items-center gap-4;
-    padding-left: 24px;
-    padding-right: 24px;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    font-size: 14px;
-    font-style: normal;
-    font-weight: 500;
-    line-height: 20px;
-  }
 
   .listing {
-    @apply w-full border-t border-base-700 grow;
+    @apply w-full border-base-700 grow;
     font-size: 14px;
     font-style: normal;
     font-weight: 400;
@@ -57,15 +28,36 @@
     @apply w-full;
   }
 
+  .listing thead tr {
+    @apply h-11;
+  }
+
+  .listing tbody tr {
+    @apply h-[52px];
+  }
+
   .listing th {
-    @apply text-base-400 bg-base-900;
-    padding: 6px 16px;
-    text-align: left;
+    @apply bg-base-900 py-1.5 px-4 text-base-400 font-medium text-sm text-left;
+  }
+
+  .listing tr th:first-child {
+    @apply pl-6;
+  }
+
+  .listing tr th:nth-child(2) {
+    @apply px-0;
+  }
+
+  .listing tr td:first-child {
+    @apply pl-6;
+  }
+
+  .listing tr td:nth-child(2) {
+    @apply px-0;
   }
 
   .listing .checkbox {
-    padding: 12px 24px;
-    width: 68px;
+    @apply h-11 w-16 py-3 px-6;
   }
 
   .listing .checkbox label {
@@ -100,7 +92,7 @@
   }
 
   .listing tbody tr:hover {
-    @apply bg-base-800;
+    @apply bg-indigo-500/[.06];
   }
 
   .listing td {
@@ -138,35 +130,6 @@
   .badge {
     @apply rounded-sm bg-base-800 text-base-300 px-[4px] py-[2px];
     font-size: 12px;
-  }
-
-  .action-button {
-    @apply border border-base-600 bg-base-800 text-base-300;
-    display: flex;
-    gap: 8px;
-    padding: 6px 12px;
-    justify-content: center;
-    align-items: center;
-    border-radius: 4px;
-  }
-
-  .action-search {
-    @apply flex items-center bg-base-900 text-base-400 border border-base-600 rounded-[4px] text-sm px-2 py-[6px];
-    gap: 8px;
-    padding: 8px 12px;
-  }
-
-  .action-search input {
-    @apply bg-transparent border-transparent text-base-400;
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 20px;
-    height: 20px;
-    padding: 0;
-  }
-
-  .sticky-pager {
-    @apply sticky bottom-0 flex flex-row border-0 bg-base-950 border-t border-t-base-700 px-[24px] py-[16px];
   }
 
   .pager-button {
@@ -259,32 +222,8 @@
     @apply bg-base-800 text-base-500;
   }
 
-  .org-block {
-    @apply py-[12px] px-[16px] border-base-700;
-    border-width: 1px;
-    border-radius: 4px;
-    margin-bottom: 16px;
-  }
-
-  .product-block {
-    @apply border-base-700 bg-base-900;
-    border-width: 1px;
-    border-radius: 4px;
-    flex-grow: 1;
-    max-width: calc(50% - 24px);
-    padding: 16px;
-    background: linear-gradient(90deg, rgba(39, 39, 42, 0.56) 0%, #27272a 100%);
-  }
-
   .menu-box {
     @apply bg-base-900 border border-base-700 py-[12px] px-[16px] rounded-md;
-  }
-
-  .product-title {
-    font-size: 14px;
-    font-style: normal;
-    font-weight: 600;
-    line-height: 20px;
   }
 
   .org-selector-title {

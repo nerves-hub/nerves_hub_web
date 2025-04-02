@@ -2,22 +2,23 @@ defmodule NervesHubWeb.Live.Devices.Index do
   use NervesHubWeb, :updated_live_view
 
   require Logger
-
   require OpenTelemetry.Tracer, as: Tracer
 
-  alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Devices
   alias NervesHub.Devices.Alarms
   alias NervesHub.Devices.Metrics
   alias NervesHub.Firmwares
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
-
-  alias NervesHub.Repo
 
   alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
 
+  alias NervesHubWeb.Components.DeviceUpdateStatus
+  alias NervesHubWeb.Components.HealthStatus
+  alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
   import NervesHubWeb.LayoutView
@@ -30,6 +31,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     firmware_version: "",
     platform: "",
     healthy: "",
+    health_status: "",
     device_id: "",
     tag: "",
     updates: "",
@@ -38,7 +40,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     alarm: "",
     metrics_key: "",
     metrics_operator: "gt",
-    metrics_value: ""
+    metrics_value: "",
+    deployment_id: "",
+    is_pinned: false
   }
 
   @filter_types %{
@@ -47,6 +51,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     firmware_version: :string,
     platform: :string,
     healthy: :string,
+    health_status: :string,
     device_id: :string,
     tag: :string,
     updates: :string,
@@ -55,7 +60,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
     alarm: :string,
     metrics_key: :string,
     metrics_operator: :string,
-    metrics_value: :string
+    metrics_value: :string,
+    deployment_id: :string,
+    is_pinned: :boolean
   }
 
   @default_page 1
@@ -76,10 +83,9 @@ defmodule NervesHubWeb.Live.Devices.Index do
   }
 
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
-    product = Repo.preload(product, :deployments)
-
     socket
     |> page_title("Devices - #{product.name}")
+    |> sidebar_tab(:devices)
     |> assign(:current_sort, "identifier")
     |> assign(:sort_direction, "asc")
     |> assign(:paginate_opts, @default_pagination)
@@ -90,13 +96,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:currently_filtering, false)
     |> assign(:selected_devices, [])
     |> assign(:target_product, nil)
+    |> assign(:progress, %{})
     |> assign(:valid_tags, true)
     |> assign(:device_tags, "")
     |> assign(:total_entries, 0)
     |> assign(:current_alarms, Alarms.get_current_alarm_types(product.id))
     |> assign(:metrics_keys, Metrics.default_metrics())
-    |> assign(:deployments, product.deployments)
-    |> assign(:target_deployment, nil)
+    |> assign(:deployment_groups, ManagedDeployments.get_deployment_groups_by_product(product))
+    |> assign(:available_deployment_groups_for_filtered_platform, [])
+    |> assign(:target_deployment_group, nil)
     |> subscribe_and_refresh_device_list_timer()
     |> ok()
   end
@@ -111,9 +119,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:sort_direction, Map.get(unsigned_params, "sort_direction", "asc"))
     |> assign(:current_filters, filters)
     |> assign(:paginate_opts, pagination_opts)
+    |> assign(:progress, socket.assigns[:progress] || %{})
     |> assign(:currently_filtering, filters != @default_filters)
     |> assign(:params, unsigned_params)
     |> assign_display_devices()
+    |> maybe_assign_available_deployment_groups_for_filtered_platform()
     |> noreply()
   end
 
@@ -218,7 +228,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
         [id | selected_devices]
       end
 
-    {:noreply, assign(socket, :selected_devices, selected_devices)}
+    socket =
+      socket
+      |> assign(:selected_devices, selected_devices)
+
+    {:noreply, socket}
   end
 
   def handle_event("select-all", _, socket) do
@@ -231,11 +245,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
         Enum.map(socket.assigns.devices, & &1.id)
       end
 
-    {:noreply, assign(socket, :selected_devices, selected_devices)}
+    socket =
+      socket
+      |> assign(:selected_devices, selected_devices)
+
+    {:noreply, socket}
   end
 
   def handle_event("deselect-all", _, socket) do
-    {:noreply, assign(socket, selected_devices: [])}
+    {:noreply,
+     assign(socket, %{selected_devices: [], available_deployment_groups_for_filtered_platform: []})}
   end
 
   def handle_event("validate-tags", %{"tags" => tags}, socket) do
@@ -251,11 +270,14 @@ defmodule NervesHubWeb.Live.Devices.Index do
       Devices.get_devices_by_id(socket.assigns.selected_devices)
       |> Devices.tag_devices(socket.assigns.user, tags)
 
-    socket =
-      assign(socket, selected_devices: socket.assigns.selected_devices)
-      |> assign_display_devices()
-
-    {:noreply, socket}
+    socket
+    |> assign(selected_devices: socket.assigns.selected_devices)
+    |> send_toast(
+      :info,
+      "Tagged #{Enum.count(socket.assigns.selected_devices)} selected device(s)."
+    )
+    |> assign_display_devices()
+    |> noreply()
   end
 
   def handle_event("target-product", %{"product" => attrs}, socket) do
@@ -276,15 +298,18 @@ defmodule NervesHubWeb.Live.Devices.Index do
     {:noreply, assign(socket, target_product: target)}
   end
 
-  def handle_event("target-deployment", %{"deployment" => ""}, socket) do
-    {:noreply, assign(socket, target_deployment: nil)}
+  def handle_event("target-deployment-group", %{"deployment_group" => ""}, socket) do
+    {:noreply, assign(socket, target_deployment_group: nil)}
   end
 
-  def handle_event("target-deployment", %{"deployment" => deployment_id}, socket) do
-    deployment =
-      Enum.find(socket.assigns.deployments, &(&1.id == String.to_integer(deployment_id)))
+  def handle_event("target-deployment-group", %{"deployment_group" => deployment_id}, socket) do
+    deployment_group =
+      Enum.find(
+        socket.assigns.available_deployment_groups_for_filtered_platform,
+        &(&1.id == String.to_integer(deployment_id))
+      )
 
-    {:noreply, assign(socket, target_deployment: deployment)}
+    {:noreply, assign(socket, target_deployment_group: deployment_group)}
   end
 
   def handle_event("move-devices-product", _, socket) do
@@ -296,72 +321,71 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     selected_devices = for id <- socket.assigns.selected_devices, id not in success_ids, do: id
 
-    socket =
-      assign(socket, selected_devices: selected_devices)
-      |> assign_display_devices()
-      |> assign(:target_product, nil)
-
-    {:noreply, socket}
+    socket
+    |> assign(selected_devices: selected_devices)
+    |> move_products_toast(successfuls)
+    |> assign(:target_product, nil)
+    |> assign_display_devices()
+    |> noreply()
   end
 
   def handle_event(
-        "move-devices-deployment",
+        "move-devices-deployment-group",
         _,
         %{
           assigns: %{
             selected_devices: selected_devices,
-            target_deployment: target_deployment
+            target_deployment_group: target_deployment_group
           }
         } = socket
       ) do
     {:ok, %{updated: updated, ignored: ignored}} =
-      Devices.move_many_to_deployment(selected_devices, target_deployment.id)
+      Devices.move_many_to_deployment_group(selected_devices, target_deployment_group.id)
 
-    socket =
-      socket
-      |> assign(:target_deployment, nil)
-      |> assign_display_devices()
-      |> then(
-        &update_flash_moving_devices_deployment(&1, updated, ignored, target_deployment.name)
-      )
-
-    {:noreply, socket}
+    socket
+    |> assign(:target_deployment_group, nil)
+    |> assign_display_devices()
+    |> update_flash_for_moving_deployment_group(updated, ignored, target_deployment_group.name)
+    |> noreply()
   end
 
   def handle_event("disable-updates-for-devices", _, socket) do
-    %{ok: _successfuls} =
+    %{ok: successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
       |> Devices.disable_updates_for_devices(socket.assigns.user)
 
-    socket =
-      assign(socket, selected_devices: socket.assigns.selected_devices)
-      |> assign_display_devices()
-
-    {:noreply, socket}
+    socket
+    |> assign(selected_devices: socket.assigns.selected_devices)
+    |> send_toast(:info, "Disabled updates for #{Enum.count(successfuls)} selected device(s).")
+    |> assign_display_devices()
+    |> noreply()
   end
 
   def handle_event("enable-updates-for-devices", _, socket) do
-    %{ok: _successfuls} =
+    %{ok: successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
       |> Devices.enable_updates_for_devices(socket.assigns.user)
 
-    socket =
-      assign(socket, selected_devices: socket.assigns.selected_devices)
-      |> assign_display_devices()
-
-    {:noreply, socket}
+    socket
+    |> assign(selected_devices: socket.assigns.selected_devices)
+    |> send_toast(:info, "Enabled updates for #{Enum.count(successfuls)} selected device(s).")
+    |> assign_display_devices()
+    |> noreply()
   end
 
   def handle_event("clear-penalty-box-for-devices", _, socket) do
-    %{ok: _successfuls} =
+    %{ok: successfuls} =
       Devices.get_devices_by_id(socket.assigns.selected_devices)
       |> Devices.clear_penalty_box_for_devices(socket.assigns.user)
 
-    socket =
-      assign(socket, selected_devices: socket.assigns.selected_devices)
-      |> assign_display_devices()
-
-    {:noreply, socket}
+    socket
+    |> assign(selected_devices: socket.assigns.selected_devices)
+    |> send_toast(
+      :info,
+      "#{Enum.count(successfuls)} selected device(s) cleared from the penalty box."
+    )
+    |> assign_display_devices()
+    |> noreply()
   end
 
   def handle_event("reboot-device", %{"device_identifier" => device_identifier}, socket) do
@@ -371,7 +395,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     {:ok, device} = Devices.get_device_by_identifier(org, device_identifier)
 
-    AuditLogs.audit!(user, device, "#{user.name} rebooted device #{device.identifier}")
+    DeviceTemplates.audit_reboot(user, device)
 
     socket.endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
@@ -400,6 +424,28 @@ defmodule NervesHubWeb.Live.Devices.Index do
     update_device_statuses(socket, payload)
   end
 
+  def handle_info(
+        %Broadcast{
+          event: "fwup_progress",
+          payload: %{device_id: device_id, percent: percent}
+        },
+        socket
+      )
+      when percent > 99 do
+    socket
+    |> assign(:progress, Map.delete(socket.assigns.progress, device_id))
+    |> noreply()
+  end
+
+  def handle_info(
+        %Broadcast{event: "fwup_progress", payload: %{device_id: device_id, percent: percent}},
+        socket
+      ) do
+    socket
+    |> assign(:progress, Map.put(socket.assigns.progress, device_id, percent))
+    |> noreply()
+  end
+
   # Unknown broadcasts get ignored, likely from the device:id:internal channel
   def handle_info(%Broadcast{}, socket) do
     {:noreply, socket}
@@ -418,17 +464,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp assign_display_devices(
-         %{assigns: %{product: product, paginate_opts: paginate_opts}} = socket
+         %{assigns: %{product: product, paginate_opts: paginate_opts, user: user}} = socket
        ) do
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
       sort:
         {String.to_existing_atom(socket.assigns.sort_direction),
          String.to_atom(socket.assigns.current_sort)},
-      filters: socket.assigns.current_filters
+      filters: transform_deployment_filter(socket.assigns.current_filters)
     }
 
-    page = Devices.filter(product.id, opts)
+    page = Devices.filter(product, user, opts)
 
     statuses =
       Enum.into(page.entries, %{}, fn device ->
@@ -455,6 +501,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> assign(:paginate_opts, paginate_opts)
   end
 
+  defp transform_deployment_filter(%{deployment_id: ""} = filters),
+    do: Map.delete(filters, :deployment_id)
+
+  defp transform_deployment_filter(%{deployment_id: "-1"} = filters),
+    do: %{filters | deployment_id: nil}
+
+  defp transform_deployment_filter(filters),
+    do: %{filters | deployment_id: String.to_integer(filters.deployment_id)}
+
   defp update_device_statuses(socket, payload) do
     # Only sync devices currently on display
     if Map.has_key?(socket.assigns.device_statuses, payload.device_id) do
@@ -463,6 +518,21 @@ defmodule NervesHubWeb.Live.Devices.Index do
     else
       {:noreply, socket}
     end
+  end
+
+  defp move_products_toast(socket, successfuls) do
+    %{selected_devices: remaining_selected, target_product: target_product} = socket.assigns
+
+    message =
+      [
+        "#{Enum.count(successfuls)} device(s) moved to #{target_product.name}.",
+        Enum.any?(remaining_selected) &&
+          "#{Enum.count(remaining_selected)} devices could not be moved."
+      ]
+      |> Enum.filter(fn m -> is_binary(m) end)
+      |> Enum.join(" ")
+
+    send_toast(socket, :info, message)
   end
 
   defp firmware_versions(product_id) do
@@ -492,7 +562,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     ~H"""
     <th phx-click="sort" phx-value-sort={@value} class="pointer sort-selected">
-      <%= @title %><i class={"icon-caret icon-caret-#{@caret_class}"} />
+      {@title}<i class={"icon-caret icon-caret-#{@caret_class}"} />
     </th>
     """
   end
@@ -502,33 +572,37 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     ~H"""
     <th phx-click="sort" phx-value-sort={@value} class="pointer">
-      <%= @title %>
+      {@title}
     </th>
     """
   end
 
-  defp last_seen_at_status(connections) do
-    case connections do
-      [] ->
-        "Not seen yet"
+  defp connection_established_at_status(nil), do: "Not seen yet"
 
-      [latest_connection | _] ->
-        "Last seen #{last_seen_formatted(latest_connection)}"
-    end
+  defp connection_established_at_status(latest_connection),
+    do: "Last connected at #{connection_established_at_formatted(latest_connection)}"
+
+  defp connection_established_at(nil), do: ""
+
+  defp connection_established_at(latest_connection),
+    do: connection_established_at_formatted(latest_connection)
+
+  defp connection_established_at_formatted(latest_connection) do
+    latest_connection
+    |> Map.get(:established_at)
+    |> DateTimeFormat.from_now()
   end
 
-  defp last_seen_at(connections) do
-    case connections do
-      [latest_connection | _] ->
-        last_seen_formatted(latest_connection)
+  defp last_seen_at_status(nil), do: "Not seen yet"
 
-      _ ->
-        ""
-    end
-  end
+  defp last_seen_at_status(latest_connection),
+    do: "Last seen #{last_seen_formatted(latest_connection)}"
 
-  defp last_seen_formatted(connection) do
-    connection
+  defp last_seen_at(nil), do: ""
+  defp last_seen_at(latest_connection), do: last_seen_formatted(latest_connection)
+
+  defp last_seen_formatted(latest_connection) do
+    latest_connection
     |> Map.get(:last_seen_at)
     |> DateTimeFormat.from_now()
   end
@@ -582,6 +656,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
   end
 
   defp filter_changes(params) do
+    # when the metrics key is switched from being selected to being an empty value,
+    # the metrics value is not cleared, this addresses that.
+    params =
+      if params["metrics_key"] == "" do
+        params
+        |> Map.put("metrics_operator", "gt")
+        |> Map.put("metrics_value", "")
+      else
+        params
+      end
+
     Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
       empty_values: []
     ).changes
@@ -613,11 +698,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> JS.hide(transition: "fade-out", to: "##{id}")
   end
 
-  defp update_flash_moving_devices_deployment(
+  defp update_flash_for_moving_deployment_group(
          socket,
          updated_count,
          ignored_count,
-         deployment_name
+         deployment_group_name
        ) do
     maybe_pluralize =
       &if &1 == 1 do
@@ -626,27 +711,47 @@ defmodule NervesHubWeb.Live.Devices.Index do
         &2 <> "s"
       end
 
-    case [updated_count, ignored_count] do
-      [updated_count, 0] ->
-        put_flash(
-          socket,
-          :info,
-          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_name}"
-        )
+    message =
+      case [updated_count, ignored_count] do
+        [updated_count, 0] ->
+          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_group_name}"
 
-      [0, _not_updated_count] ->
-        put_flash(
-          socket,
-          :info,
-          "No devices selected could be added to deployment #{deployment_name} because of mismatched firmware"
-        )
+        [0, _not_updated_count] ->
+          "No devices selected could be added to deployment #{deployment_group_name} because of mismatched firmware"
 
-      [updated_count, not_updated_count] ->
-        put_flash(
-          socket,
-          :info,
-          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_name}. #{not_updated_count} #{maybe_pluralize.(not_updated_count, "device")} could not be added to deployment because of mismatched firmware"
-        )
-    end
+        [updated_count, not_updated_count] ->
+          "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_group_name}. #{not_updated_count} #{maybe_pluralize.(not_updated_count, "device")} could not be added to deployment because of mismatched firmware"
+      end
+
+    socket
+    |> put_flash(:info, message)
+    |> send_toast(:info, message)
   end
+
+  defp progress_style(nil) do
+    nil
+  end
+
+  defp progress_style(progress) do
+    """
+     background-repeat: no-repeat, no-repeat;
+     background-image: linear-gradient(90deg, rgba(16, 185, 129, 1.00) 0%, rgba(16, 185, 129, 1.0) 100%),
+                        radial-gradient(circle at 0%, rgba(16, 185, 129, 0.12) 0, rgba(16, 185, 129, 0.12) 60%, rgba(16, 185, 129, 0.0) 100%);
+     background-size: #{progress}% 1px, #{progress * 1.1}% 100%;
+    """
+  end
+
+  defp maybe_assign_available_deployment_groups_for_filtered_platform(
+         %{assigns: %{product: product, current_filters: %{platform: platform}}} = socket
+       )
+       when platform != "" do
+    assign(
+      socket,
+      :available_deployment_groups_for_filtered_platform,
+      ManagedDeployments.get_by_product_and_platform(product, platform)
+    )
+  end
+
+  defp maybe_assign_available_deployment_groups_for_filtered_platform(socket),
+    do: assign(socket, :available_deployment_groups_for_filtered_platform, [])
 end

@@ -6,7 +6,6 @@ defmodule NervesHub.Devices.Filtering do
   import Ecto.Query
 
   alias NervesHub.Devices.Alarms
-  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Types.Tag
 
@@ -39,20 +38,24 @@ defmodule NervesHub.Devices.Filtering do
     end
   end
 
+  def filter(query, _filters, :health_status, value) do
+    where(query, [latest_health: lh], lh.status == ^value)
+  end
+
   def filter(query, _filters, :connection, value) do
     if value == "not_seen" do
       where(query, [d], d.status == :registered)
     else
-      where(
-        query,
-        [d],
-        d.id in subquery(Connections.query_devices_with_connection_status(value))
-      )
+      where(query, [latest_connection: lc], lc.status == ^value)
     end
   end
 
   def filter(query, _filters, :connection_type, value) do
-    where(query, [d], ^value in d.connection_types)
+    where(
+      query,
+      [latest_connection: lc],
+      fragment("?::jsonb <@ ?", ^[value], lc.metadata["connection_types"])
+    )
   end
 
   def filter(query, _filters, :firmware_version, value) do
@@ -84,6 +87,14 @@ defmodule NervesHub.Devices.Filtering do
     where(query, [d], ilike(d.identifier, ^"%#{value}%"))
   end
 
+  def filter(query, _filters, :deployment_id, nil) do
+    where(query, [d], is_nil(d.deployment_id))
+  end
+
+  def filter(query, _filters, :deployment_id, value) do
+    where(query, [d], d.deployment_id == ^value)
+  end
+
   def filter(query, _filters, :tag, value) do
     build_tag_filter(query, value)
   end
@@ -98,6 +109,14 @@ defmodule NervesHub.Devices.Filtering do
 
   def filter(query, filters, :metrics_key, _value) do
     filter_on_metric(query, filters)
+  end
+
+  def filter(query, _filters, :is_pinned, value) do
+    if value do
+      where(query, [pinned: pd], not is_nil(pd))
+    else
+      query
+    end
   end
 
   # Ignore any undefined filter.
@@ -126,13 +145,13 @@ defmodule NervesHub.Devices.Filtering do
          query,
          %{metrics_key: key, metrics_operator: operator, metrics_value: value}
        )
-       when key != "" do
+       when key != "" and value != "" do
     {value_as_float, _} = Float.parse(value)
 
     query
-    |> join(:inner, [d], m in DeviceMetric, on: d.id == m.device_id)
-    |> where([_, m], m.inserted_at == subquery(latest_metric_for_key(key)))
-    |> where([d, m], m.key == ^key)
+    |> join(:inner, [d], m in DeviceMetric, on: d.id == m.device_id, as: :device_metric)
+    |> where([device_metric: dm], dm.inserted_at == subquery(latest_metric_for_key(key)))
+    |> where([device_metric: dm], dm.key == ^key)
     |> gt_or_lt(value_as_float, operator)
   end
 
@@ -144,6 +163,6 @@ defmodule NervesHub.Devices.Filtering do
     |> where([dm], dm.key == ^key)
   end
 
-  defp gt_or_lt(query, value, "gt"), do: where(query, [_, dm], dm.value > ^value)
-  defp gt_or_lt(query, value, "lt"), do: where(query, [_, dm], dm.value < ^value)
+  defp gt_or_lt(query, value, "gt"), do: where(query, [device_metric: dm], dm.value > ^value)
+  defp gt_or_lt(query, value, "lt"), do: where(query, [device_metric: dm], dm.value < ^value)
 end

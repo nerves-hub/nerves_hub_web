@@ -13,7 +13,9 @@ defmodule Mix.Tasks.NervesHub.Gen.Devices do
 
   alias NervesHub.Accounts
   alias NervesHub.Devices
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Products
+  alias NervesHub.Repo
 
   @requirements ["app.start"]
   @preferred_cli_env :dev
@@ -36,21 +38,26 @@ defmodule Mix.Tasks.NervesHub.Gen.Devices do
       lng = -180..180 |> Enum.random()
       lat = -90..90 |> Enum.random()
 
-      Devices.create_device(%{
-        org_id: org.id,
-        product_id: product.id,
-        identifier: "generated-#{i}",
-        connection_status: :connected,
-        connection_established_at: DateTime.now!("Etc/UTC"),
-        connection_last_seen_at: DateTime.now!("Etc/UTC"),
-        connection_metadata: %{
+      {:ok, device} =
+        Devices.create_device(%{
+          org_id: org.id,
+          product_id: product.id,
+          identifier: "generated-#{i}"
+        })
+
+      %DeviceConnection{
+        device_id: device.id,
+        established_at: DateTime.utc_now(:millisecond),
+        last_seen_at: DateTime.utc_now(:millisecond),
+        metadata: %{
           "location" => %{
             "longitude" => lng,
             "latitude" => lat,
             "source" => "generated"
           }
         }
-      })
+      }
+      |> Repo.insert!()
     end)
   end
 end

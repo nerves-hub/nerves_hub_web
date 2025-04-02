@@ -33,9 +33,9 @@ defmodule NervesHub.Logger do
       [:nerves_hub, :devices, :duplicate_connection],
       [:nerves_hub, :devices, :update, :automatic],
       [:nerves_hub, :devices, :update, :successful],
-      [:nerves_hub, :deployments, :set_deployment, :none_found],
-      [:nerves_hub, :deployments, :set_deployment, :one_found],
-      [:nerves_hub, :deployments, :set_deployment, :multiple_found]
+      [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
+      [:nerves_hub, :managed_deployments, :set_deployment_group, :one_found],
+      [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found]
     ]
 
     Enum.each(events, fn event ->
@@ -47,13 +47,22 @@ defmodule NervesHub.Logger do
 
   @doc false
   def log_event([:phoenix, :endpoint, :stop], %{duration: duration}, %{conn: conn}, _) do
-    Logger.info("Request completed", %{
-      duration: duration(duration),
-      method: conn.method,
-      path: request_path(conn),
-      status: conn.status,
-      remote_ip: formatted_ip(conn)
-    })
+    conn.req_headers
+    |> List.keyfind("user-agent", 0)
+    |> case do
+      {"user-agent", "SentryUptimeBot"} ->
+        # ignore User-Agent: SentryUptimeBot, its just noise
+        :ok
+
+      _ ->
+        Logger.info("Request completed", %{
+          duration: duration(duration),
+          method: conn.method,
+          path: request_path(conn),
+          status: conn.status,
+          remote_ip: formatted_ip(conn)
+        })
+    end
   end
 
   def log_event([:nerves_hub, :devices, :invalid_auth], _, metadata, _) do
@@ -86,6 +95,13 @@ defmodule NervesHub.Logger do
     )
   end
 
+  def log_event([:nerves_hub, :devices, :stale_connections], %{count: count}, _metadata, _) do
+    Logger.info("Device stale connection cleaned up",
+      event: "nerves_hub.devices.stale_connections",
+      count: count
+    )
+  end
+
   def log_event([:nerves_hub, :devices, :disconnect], _, metadata, _) do
     Logger.info("Device disconnected",
       event: "nerves_hub.devices.disconnect",
@@ -104,33 +120,48 @@ defmodule NervesHub.Logger do
   end
 
   def log_event([:nerves_hub, :devices, :update, :successful], _, metadata, _) do
-    Logger.info("Device updated firmware",
+    Logger.info("Device firmware updated successfully",
       event: "nerves_hub.devices.update.successful",
       identifier: metadata[:identifier],
       firmware_uuid: metadata[:firmware_uuid]
     )
   end
 
-  def log_event([:nerves_hub, :deployments, :set_deployment, :none_found], _, metadata, _) do
-    Logger.info("No matching deployments",
-      event: "nerves_hub.deployments.set_deployment.none_found",
+  def log_event(
+        [:nerves_hub, :managed_deployments, :set_deployment_group, :none_found],
+        _,
+        metadata,
+        _
+      ) do
+    Logger.info("No matching deployment groups",
+      event: "nerves_hub.managed_deployments.set_deployment_group.none_found",
       identifier: metadata[:device].identifier
     )
   end
 
-  def log_event([:nerves_hub, :deployments, :set_deployment, :one_found], _, metadata, _) do
+  def log_event(
+        [:nerves_hub, :managed_deployments, :set_deployment_group, :one_found],
+        _,
+        metadata,
+        _
+      ) do
     Logger.info("Deployment match found",
-      event: "nerves_hub.deployments.set_deployment.one_found",
+      event: "nerves_hub.managed_deployments.set_deployment_group.one_found",
       identifier: metadata[:device].identifier,
-      deployment_id: metadata[:deployment].id
+      deployment_id: metadata[:deployment_group].id
     )
   end
 
-  def log_event([:nerves_hub, :deployments, :set_deployment, :multiple_found], _, metadata, _) do
+  def log_event(
+        [:nerves_hub, :managed_deployments, :set_deployment_group, :multiple_found],
+        _,
+        metadata,
+        _
+      ) do
     Logger.info("More than one deployment match found, setting to the first",
-      event: "nerves_hub.deployments.set_deployment.multiple_found",
+      event: "nerves_hub.managed_deployments.set_deployment_group.multiple_found",
       identifier: metadata[:device].identifier,
-      deployment_id: metadata[:deployment].id
+      deployment_id: metadata[:deployment_group].id
     )
   end
 

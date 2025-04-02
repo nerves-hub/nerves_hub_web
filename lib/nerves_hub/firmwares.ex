@@ -23,6 +23,31 @@ defmodule NervesHub.Firmwares do
 
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
 
+  @spec count(Product.t()) :: non_neg_integer()
+  def count(product) do
+    Firmware
+    |> where([f], f.product_id == ^product.id)
+    |> Repo.aggregate(:count)
+  end
+
+  @spec get_unique_platforms(Product.t()) :: [String.t()]
+  def get_unique_platforms(product) do
+    Firmware
+    |> select([f], f.platform)
+    |> distinct(true)
+    |> where([f], f.product_id == ^product.id)
+    |> Repo.all()
+  end
+
+  @spec get_unique_architectures(Product.t()) :: [String.t()]
+  def get_unique_architectures(product) do
+    Firmware
+    |> select([f], f.architecture)
+    |> distinct(true)
+    |> where([f], f.product_id == ^product.id)
+    |> Repo.all()
+  end
+
   @spec get_firmwares_by_product(integer()) :: [Firmware.t()]
   def get_firmwares_by_product(product_id) do
     Firmware
@@ -32,13 +57,63 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
-  def get_firmwares_for_deployment(deployment) do
-    deployment = Repo.preload(deployment, [:firmware])
+  @spec get_firmwares(Product.t(), String.t(), String.t()) :: [Firmware.t()]
+  def get_firmwares(product, platform, architecture) do
+    Firmware
+    |> where([f], f.product_id == ^product.id)
+    |> where([f], f.platform == ^platform)
+    |> where([f], f.architecture == ^architecture)
+    |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
+    |> limit(25)
+    |> Repo.all()
+  end
+
+  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  def filter(product, opts \\ %{}) do
+    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
+
+    sort = Map.get(opts, :sort, "inserted_at")
+    sort_direction = Map.get(opts, :sort_direction, "desc")
+
+    sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
+
+    flop = %Flop{
+      page: String.to_integer(Map.get(opts, :page, "1")),
+      page_size: String.to_integer(Map.get(opts, :page_size, "25"))
+    }
+
+    subquery =
+      Device
+      |> select([d], %{
+        firmware_uuid: fragment("? ->> 'uuid'", d.firmware_metadata),
+        install_count: count(fragment("? ->> 'uuid'", d.firmware_metadata), :distinct)
+      })
+      |> where([d], not is_nil(d.firmware_metadata))
+      |> where([d], not is_nil(fragment("? ->> 'uuid'", d.firmware_metadata)))
+      |> Repo.exclude_deleted()
+      |> group_by([d], fragment("? ->> 'uuid'", d.firmware_metadata))
 
     Firmware
-    |> where([f], f.product_id == ^deployment.product_id)
-    |> where([f], f.platform == ^deployment.firmware.platform)
-    |> where([f], f.architecture == ^deployment.firmware.architecture)
+    |> join(:left, [f], d in subquery(subquery), on: d.firmware_uuid == f.uuid)
+    |> where([f], f.product_id == ^product.id)
+    |> sort_firmware(sort_opts)
+    |> select_merge([_f, d], %{install_count: d.install_count})
+    |> Flop.run(flop)
+  end
+
+  defp sort_firmware(query, {direction, :install_count}) do
+    order_by(query, [_f, d], {^direction, d.install_count})
+  end
+
+  defp sort_firmware(query, sort), do: order_by(query, ^sort)
+
+  def get_firmwares_for_deployment_group(deployment_group) do
+    deployment_group = Repo.preload(deployment_group, [:firmware])
+
+    Firmware
+    |> where([f], f.product_id == ^deployment_group.product_id)
+    |> where([f], f.platform == ^deployment_group.firmware.platform)
+    |> where([f], f.architecture == ^deployment_group.firmware.architecture)
     |> order_by([f], [fragment("? collate numeric desc", f.version), desc: :inserted_at])
     |> with_product()
     |> Repo.all()

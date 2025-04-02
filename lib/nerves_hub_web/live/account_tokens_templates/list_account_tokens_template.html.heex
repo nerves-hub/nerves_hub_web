@@ -23,16 +23,16 @@
     <tr class="item">
       <td>
         <div class="mobile-label help-text">Note</div>
-        <code class="color-white wb-ba"><%= token.note %></code>
+        <code class="color-white wb-ba">{token.note}</code>
       </td>
       <td>
         <div class="mobile-label help-text">Token</div>
-        ****<%= elem(String.split_at(token.token, -4), 1) %>
+        ****{elem(String.split_at(token.token, -4), 1)}
       </td>
       <td title={token.last_used}>
         <div class="mobile-label help-text">Last used</div>
         <%= if !is_nil(token.last_used) do %>
-          <%= DateTimeFormat.from_now(token.last_used) %>
+          {DateTimeFormat.from_now(token.last_used)}
         <% else %>
           <span class="text-muted">Never</span>
         <% end %>

@@ -9,9 +9,30 @@ defmodule NervesHub.Archives do
 
   alias NervesHub.Archives.Archive
   alias NervesHub.Fwup
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.Workers.DeleteArchive
+
+  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  def filter(product, opts \\ %{}) do
+    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
+
+    sort = Map.get(opts, :sort, "inserted_at")
+    sort_direction = Map.get(opts, :sort_direction, "desc")
+
+    sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
+
+    flop = %Flop{
+      page: String.to_integer(Map.get(opts, :page, "1")),
+      page_size: String.to_integer(Map.get(opts, :page_size, "25"))
+    }
+
+    Archive
+    |> where([f], f.product_id == ^product.id)
+    |> order_by(^sort_opts)
+    |> Flop.run(flop)
+  end
 
   @spec all_by_product(Product.t()) :: [Archive.t()]
   def all_by_product(product) do
@@ -44,6 +65,16 @@ defmodule NervesHub.Archives do
     |> join(:inner, [a, p], o in assoc(p, :org))
     |> preload([a, p, o], product: {p, org: o})
     |> Repo.one!()
+  end
+
+  @spec archive_for_deployment_group(integer()) :: Archive.t() | nil
+  def archive_for_deployment_group(nil), do: nil
+
+  def archive_for_deployment_group(deployment_id) do
+    Archive
+    |> join(:inner, [a], d in DeploymentGroup, on: d.archive_id == a.id)
+    |> where([a, d], d.id == ^deployment_id)
+    |> Repo.one()
   end
 
   # TODO: check on other return signatures

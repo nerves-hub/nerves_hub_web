@@ -6,14 +6,14 @@
         <%= for link <- links do %>
           <li class="nav-item">
             <a class={"nav-link #{link.active}"} href={link.href}>
-              <span class="text"><%= link.title %></span>
+              <span class="text">{link.title}</span>
             </a>
           </li>
         <% end %>
       </ul>
       <%= if device_count = device_count(@conn) do %>
         <div class="device-limit-indicator" title="Device total" aria-label="Device total">
-          <%= device_count %>
+          {device_count}
         </div>
       <% end %>
     </nav>

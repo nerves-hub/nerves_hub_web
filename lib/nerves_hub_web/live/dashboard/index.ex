@@ -1,9 +1,8 @@
 defmodule NervesHubWeb.Live.Dashboard.Index do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.Deployments
   alias NervesHub.Devices
-  alias NervesHub.Devices.Device
+  alias NervesHub.ManagedDeployments
 
   alias Phoenix.Socket.Broadcast
 
@@ -84,18 +83,17 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     end
   end
 
-  defp update_devices_and_markers(%{assigns: %{org: org, product: product}} = socket) do
+  defp update_devices_and_markers(%{assigns: %{product: product}} = socket) do
     t = time()
     duration = t - socket.assigns.time
 
     if duration >= @delay do
-      devices =
-        Devices.get_minimal_device_location_by_org_id_and_product_id(org.id, product.id)
+      devices = Devices.get_minimal_device_location_by_product(product)
 
       latest_firmwares =
-        Deployments.get_deployments_by_product(product)
-        |> Enum.reduce(%{}, fn deployment, acc ->
-          Map.put(acc, deployment.firmware.uuid, deployment.firmware.platform)
+        ManagedDeployments.get_deployment_groups_by_product(product)
+        |> Enum.reduce(%{}, fn deployment_group, acc ->
+          Map.put(acc, deployment_group.firmware.uuid, deployment_group.firmware.platform)
         end)
 
       map_markers =
@@ -141,7 +139,7 @@ defmodule NervesHubWeb.Live.Dashboard.Index do
     [new_marker | markers]
   end
 
-  defp generate_map_marker(%Device{} = _device, markers, _) do
+  defp generate_map_marker(_device, markers, _) do
     markers
   end
 

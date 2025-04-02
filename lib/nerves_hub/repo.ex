@@ -25,6 +25,14 @@ defmodule NervesHub.Repo do
 
   def reload_assoc({:error, changeset}, _), do: {:error, changeset}
 
+  def maybe_preload({:ok, entity}, assocs) do
+    {:ok, preload(entity, assocs)}
+  end
+
+  def maybe_preload({:error, _} = result, _assocs) do
+    result
+  end
+
   def soft_delete(struct_or_changeset) do
     struct_or_changeset
     |> soft_delete_changeset()

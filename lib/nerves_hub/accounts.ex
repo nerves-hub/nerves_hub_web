@@ -13,6 +13,9 @@ defmodule NervesHub.Accounts do
   alias NervesHub.Accounts.RemoveAccount
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Device
+  alias NervesHub.Products.Product
 
   alias NervesHub.Repo
 
@@ -122,8 +125,13 @@ defmodule NervesHub.Accounts do
   defp maybe_soft_delete_org_user(org_user), do: soft_delete_org_user(org_user)
 
   def soft_delete_org_user(org_user) do
-    {:ok, _result} = Repo.soft_delete(org_user)
-    :ok
+    with {:ok, %{org_id: org_id, user_id: user_id}} <-
+           Repo.soft_delete(org_user),
+         {_, nil} <- Devices.unpin_org_devices(user_id, org_id) do
+      :ok
+    else
+      err -> err
+    end
   end
 
   def change_org_user_role(%OrgUser{} = ou, role) do
@@ -248,11 +256,26 @@ defmodule NervesHub.Accounts do
   end
 
   def get_user_with_all_orgs_and_products(user_id) do
+    devices =
+      Device
+      |> select([d], %{
+        product_id: d.product_id,
+        device_count: count()
+      })
+      |> Repo.exclude_deleted()
+      |> group_by([d], d.product_id)
+
+    products =
+      Product
+      |> Repo.exclude_deleted()
+      |> join(:left, [p], dev in subquery(devices), on: dev.product_id == p.id, as: :devices)
+      |> select_merge([_f, devices: devices], %{device_count: devices.device_count})
+
     User
     |> where(id: ^user_id)
     |> Repo.exclude_deleted()
     |> join(:left, [d], o in assoc(d, :orgs))
-    |> join(:left, [d, o], p in assoc(o, :products))
+    |> join(:left, [d, o], p in subquery(products), on: o.id == p.org_id)
     |> preload([d, o, p], orgs: {o, products: p})
     |> Repo.one()
     |> case do

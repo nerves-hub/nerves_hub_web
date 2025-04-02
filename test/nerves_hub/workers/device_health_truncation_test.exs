@@ -13,7 +13,8 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
     firmware = Fixtures.firmware_fixture(org_key, product, %{dir: dir})
     device = Fixtures.device_fixture(org, product, firmware)
 
-    for x <- 0..9 do
+    # Insert health and metrics, from 9 days ago until today
+    for x <- 9..0//-1 do
       days_ago = DateTime.shift(DateTime.utc_now(), day: -x)
 
       inserted_health =
@@ -21,6 +22,14 @@ defmodule NervesHub.Workers.DeviceHealthTruncationTest do
         |> Devices.DeviceHealth.save()
         |> Ecto.Changeset.put_change(:inserted_at, days_ago)
         |> Repo.insert()
+        |> case do
+          {:ok, health} ->
+            Devices.Device
+            |> where(id: ^device.id)
+            |> Repo.update_all(set: [latest_health_id: health.id])
+
+            {:ok, health}
+        end
 
       assert {:ok, %Devices.DeviceHealth{}} = inserted_health
 

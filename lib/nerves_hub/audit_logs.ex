@@ -2,7 +2,7 @@ defmodule NervesHub.AuditLogs do
   import Ecto.Query
 
   alias NervesHub.AuditLogs.AuditLog
-  alias NervesHub.Deployments.Deployment
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Repo
   alias NimbleCSV.RFC4180, as: CSV
 
@@ -16,6 +16,8 @@ defmodule NervesHub.AuditLogs do
     AuditLog.build(actor, resource, description)
     |> AuditLog.changeset()
     |> Repo.insert!()
+
+    :ok
   end
 
   def audit_with_ref!(actor, resource, description, reference_id) do
@@ -58,8 +60,8 @@ defmodule NervesHub.AuditLogs do
     |> Flop.run(flop)
   end
 
-  defp query_for_feed(%Deployment{id: id}) do
-    resource_type = to_string(Deployment)
+  defp query_for_feed(%DeploymentGroup{id: id}) do
+    resource_type = to_string(DeploymentGroup)
 
     from(al in AuditLog, where: [resource_type: ^resource_type, resource_id: ^id])
     |> order_by(desc: :inserted_at)
@@ -68,11 +70,17 @@ defmodule NervesHub.AuditLogs do
   defp query_for_feed(%resource_type{id: id}) do
     resource_type = to_string(resource_type)
 
-    from(al in AuditLog,
-      where: [actor_type: ^resource_type, actor_id: ^id],
-      or_where: [resource_type: ^resource_type, resource_id: ^id]
-    )
-    |> order_by(desc: :inserted_at)
+    union_query =
+      union(
+        from(al in AuditLog, where: [actor_type: ^resource_type, actor_id: ^id]),
+        ^from(al in AuditLog, where: [resource_type: ^resource_type, resource_id: ^id])
+      )
+
+    # prefer union to take advantage of separate actor and resource indexes
+    #
+    # you cannot order_by from a union in Ecto, but a subquery works
+    # https://github.com/elixir-ecto/ecto/issues/2825#issuecomment-439725204
+    from(al in subquery(union_query), order_by: [desc: al.inserted_at])
   end
 
   def format_for_csv(audit_logs) do
@@ -95,5 +103,10 @@ defmodule NervesHub.AuditLogs do
       |> Repo.delete_all()
 
     {:ok, count}
+  end
+
+  # used in some tests
+  def with_description(desc) do
+    where(AuditLog, [a], like(a.description, ^desc))
   end
 end

@@ -1,29 +1,35 @@
 defmodule NervesHub.Devices do
   import Ecto.Query
 
+  require Logger
+
   alias Ecto.Changeset
   alias Ecto.Multi
   alias NervesHub.Accounts
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgKey
+  alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs
+  alias NervesHub.AuditLogs.DeviceTemplates
   alias NervesHub.Certificate
-  alias NervesHub.Deployments.Deployment
-  alias NervesHub.Deployments.Orchestrator
   alias NervesHub.Devices.CACertificate
-  alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.Filtering
   alias NervesHub.Devices.InflightUpdate
+  alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Extensions
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareMetadata
+  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.Orchestrator
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
@@ -35,16 +41,31 @@ defmodule NervesHub.Devices do
     Repo.get(Device, device_id)
   end
 
-  def get_device(device_id, :preload_latest_connection) when is_integer(device_id) do
+  def get_complete_device(device_id) do
     Device
-    |> where(id: ^device_id)
-    |> Connections.preload_latest_connection()
+    |> where([d], d.id == ^device_id)
+    |> join(:left, [d], o in assoc(d, :org))
+    |> join(:left, [d, o], p in assoc(d, :product))
+    |> join(:left, [d, o, p], dg in assoc(d, :deployment_group))
+    |> join(:left, [d, o, p, dg], f in assoc(dg, :firmware))
+    |> join(:left, [d, o, p, dg, f], lc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, o, p, dg, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
+    |> preload([d, o, p, dg, f, latest_connection: lc, latest_health: lh],
+      org: o,
+      product: p,
+      deployment_group: {dg, firmware: f},
+      latest_connection: lc,
+      latest_health: lh
+    )
+    |> Repo.exclude_deleted()
     |> Repo.one()
   end
 
   def get_active_device(filters) do
     Device
     |> Repo.exclude_deleted()
+    |> join(:inner, [d], p in assoc(d, :product))
+    |> preload([_d, p], product: p)
     |> Repo.get_by(filters)
     |> case do
       nil -> {:error, :not_found}
@@ -56,15 +77,6 @@ defmodule NervesHub.Devices do
     Device
     |> where([d], d.org_id == ^org_id)
     |> where([d], d.product_id == ^product_id)
-    |> Repo.exclude_deleted()
-    |> Repo.all()
-  end
-
-  def get_devices_by_org_id_and_product_id(org_id, product_id, :preload_latest_connection) do
-    Device
-    |> where([d], d.org_id == ^org_id)
-    |> where([d], d.product_id == ^product_id)
-    |> Connections.preload_latest_connection()
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
@@ -86,13 +98,20 @@ defmodule NervesHub.Devices do
     |> where([d], d.product_id == ^product_id)
     |> join(:left, [d], o in assoc(d, :org))
     |> join(:left, [d, o], p in assoc(d, :product))
-    |> join(:left, [d, o, p], dp in assoc(d, :deployment))
-    |> join(:left, [d, o, p, dp], f in assoc(dp, :firmware))
+    |> join(:left, [d, o, p], dg in assoc(d, :deployment_group))
+    |> join(:left, [d, o, p, dg], f in assoc(dg, :firmware))
+    |> join(:left, [d, o, p, dg, f], lc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, o, p, dg, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
     |> Repo.exclude_deleted()
-    |> order_by(^sort_devices(sorting))
+    |> sort_devices(sorting)
     |> Filtering.build_filters(filters)
-    |> preload([d, o, p, dp, f], org: o, product: p, deployment: {dp, firmware: f})
-    |> Connections.preload_latest_connection()
+    |> preload([d, o, p, dg, f, latest_connection: lc, latest_health: lh],
+      org: o,
+      product: p,
+      deployment_group: {dg, firmware: f},
+      latest_connection: lc,
+      latest_health: lh
+    )
     |> Flop.run(flop)
   end
 
@@ -109,14 +128,14 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
-  @spec filter(integer(), map()) :: %{
+  @spec filter(Product.t(), User.t(), map()) :: %{
           entries: list(Device.t()),
           current_page: non_neg_integer(),
           page_size: non_neg_integer(),
           total_pages: non_neg_integer(),
           total_count: non_neg_integer()
         }
-  def filter(product_id, opts) do
+  def filter(product, user, opts) do
     pagination = Map.get(opts, :pagination, %{})
     sorting = Map.get(opts, :sort, {:asc, :identifier})
     filters = Map.get(opts, :filters, %{})
@@ -124,11 +143,18 @@ defmodule NervesHub.Devices do
     flop = %Flop{page: pagination.page, page_size: pagination.page_size}
 
     Device
-    |> where([d], d.product_id == ^product_id)
-    |> Connections.preload_latest_connection()
+    |> where([d], d.product_id == ^product.id)
     |> Repo.exclude_deleted()
+    |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
+    |> join(:left, [d, dc, dh], pd in PinnedDevice,
+      on: pd.device_id == d.id and pd.user_id == ^user.id,
+      as: :pinned
+    )
+    |> preload([latest_connection: lc], latest_connection: lc)
+    |> preload([latest_health: lh], latest_health: lh)
     |> Filtering.build_filters(filters)
-    |> order_by(^sort_devices(sorting))
+    |> sort_devices(sorting)
     |> Flop.run(flop)
     |> then(fn {entries, meta} ->
       meta
@@ -142,74 +168,47 @@ defmodule NervesHub.Devices do
     end)
   end
 
-  def get_minimal_device_location_by_org_id_and_product_id(org_id, product_id) do
+  def get_minimal_device_location_by_product(product) do
     Device
-    |> where(org_id: ^org_id)
-    |> where(product_id: ^product_id)
-    |> where([d], not is_nil(fragment("?->'location'->'latitude'", d.connection_metadata)))
-    |> where([d], not is_nil(fragment("?->'location'->'longitude'", d.connection_metadata)))
+    |> join(:inner, [d], dc in DeviceConnection, on: d.latest_connection_id == dc.id)
+    |> where(product_id: ^product.id)
     |> select([d, dc], %{
       id: d.id,
       identifier: d.identifier,
-      connection_status: d.connection_status,
-      latitude: fragment("?->'location'->'latitude'", d.connection_metadata),
-      longitude: fragment("?->'location'->'longitude'", d.connection_metadata),
+      connection_status: dc.status,
+      latitude: fragment("?->'location'->'latitude'", dc.metadata),
+      longitude: fragment("?->'location'->'longitude'", dc.metadata),
       firmware_uuid: fragment("?->'uuid'", d.firmware_metadata)
     })
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
 
-  def get_health_by_org_id_and_product_id(org_id, product_id, opts) do
-    query =
-      from(
-        d in Device,
-        as: :device,
-        join: dh in DeviceHealth,
-        as: :device_health,
-        on: dh.device_id == d.id,
-        select: [dh.device_id, dh.data, d.deleted_at],
-        distinct: dh.device_id,
-        order_by: [desc: dh.inserted_at],
-        where: d.org_id == ^org_id,
-        where: d.product_id == ^product_id
-      )
-
-    filters = Map.get(opts, :filters, %{})
-
-    query
-    |> Repo.exclude_deleted()
-    |> Filtering.build_filters(filters)
-    |> Repo.all()
-    |> Enum.reduce(%{max_cpu: 0, max_memory_percent: 0, max_load_15: 0}, fn health, acc ->
-      case Enum.at(health, 1) do
-        %{
-          "metrics" => %{
-            "cpu_temp" => cpu_temp,
-            "used_percent" => memory_percent,
-            "load_15min" => load_15_min
-          }
-        } ->
-          %{
-            acc
-            | max_cpu: max(cpu_temp, acc.max_cpu),
-              max_memory_percent: max(memory_percent, acc.max_memory_percent),
-              max_load_15: max(load_15_min, acc.max_load_15)
-          }
-
-        _ ->
-          acc
-      end
-    end)
+  defp sort_devices(query, {:asc, :connection_established_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      desc_nulls_last: latest_connection.established_at
+    )
   end
 
-  defp sort_devices({:asc, :connection_last_seen_at}),
-    do: {:asc_nulls_first, :connection_last_seen_at}
+  defp sort_devices(query, {:desc, :connection_established_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      asc_nulls_first: latest_connection.established_at
+    )
+  end
 
-  defp sort_devices({:desc, :connection_last_seen_at}),
-    do: {:desc_nulls_last, :connection_last_seen_at}
+  defp sort_devices(query, {:asc, :connection_last_seen_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      desc_nulls_last: latest_connection.last_seen_at
+    )
+  end
 
-  defp sort_devices(sort), do: sort
+  defp sort_devices(query, {:desc, :connection_last_seen_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      asc_nulls_first: latest_connection.last_seen_at
+    )
+  end
+
+  defp sort_devices(query, sort), do: order_by(query, [], ^sort)
 
   def get_device_count_by_org_id(org_id) do
     q =
@@ -256,7 +255,7 @@ defmodule NervesHub.Devices do
         {:error, :not_found}
 
       device ->
-        {:ok, Repo.preload(device, [:org, :product, deployment: [:firmware]])}
+        {:ok, Repo.preload(device, [:org, :product, deployment_group: [:firmware]])}
     end
   end
 
@@ -283,9 +282,15 @@ defmodule NervesHub.Devices do
     |> where(identifier: ^identifier)
     |> where(org_id: ^org_id)
     |> join(:left, [d], o in assoc(d, :org))
-    |> join(:left, [d], dp in assoc(d, :deployment))
+    |> join(:left, [d], dp in assoc(d, :deployment_group))
     |> join_and_preload(preload_assoc)
-    |> preload([d, o, dp], org: o, deployment: dp)
+    |> preload([d, o, dp], org: o, deployment_group: dp)
+  end
+
+  defp join_and_preload(query, assocs) when is_list(assocs) do
+    Enum.reduce(assocs, query, fn assoc, q ->
+      join_and_preload(q, assoc)
+    end)
   end
 
   defp join_and_preload(query, nil), do: query
@@ -298,7 +303,29 @@ defmodule NervesHub.Devices do
 
   defp join_and_preload(query, :latest_connection) do
     query
-    |> Connections.preload_latest_connection()
+    |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> preload([latest_connection: lc], latest_connection: lc)
+  end
+
+  defp join_and_preload(query, :latest_health) do
+    query
+    |> join(:left, [d], dh in assoc(d, :latest_health), as: :latest_health)
+    |> preload([latest_health: lh], latest_health: lh)
+  end
+
+  def get_device_by_x509(cert) do
+    fingerprint = NervesHub.Certificate.fingerprint(cert)
+
+    Device
+    |> join(:inner, [d], p in assoc(d, :product))
+    |> join(:inner, [d], dc in assoc(d, :device_certificates))
+    |> where([_, _, dc], dc.fingerprint == ^fingerprint)
+    |> preload([_d, p], product: p)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      certificate -> {:ok, certificate}
+    end
   end
 
   @spec get_shared_secret_auth(String.t()) ::
@@ -353,33 +380,12 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def get_eligible_deployments(%Device{firmware_metadata: nil}), do: []
-
-  def get_eligible_deployments(%Device{firmware_metadata: meta} = device) do
-    from(
-      d in Deployment,
-      join: p in assoc(d, :product),
-      on: [org_id: ^device.org_id, name: ^meta.product],
-      join: f in assoc(d, :firmware),
-      on: f.product_id == p.id,
-      where: d.is_active,
-      where: d.healthy,
-      where: f.architecture == ^meta.architecture,
-      where: f.platform == ^meta.platform,
-      where: f.uuid != ^meta.uuid,
-      preload: [firmware: f]
-    )
-    |> Repo.all()
-    |> Enum.filter(fn dep -> matches_deployment?(device, dep) end)
-  end
-
-  def get_eligible_deployments(_), do: []
-
   @spec create_device(map) :: {:ok, Device.t()} | {:error, Changeset.t()}
   def create_device(params) do
     %Device{}
     |> Device.changeset(params)
     |> Repo.insert()
+    |> Repo.maybe_preload(:product)
   end
 
   def set_as_provisioned!(device) do
@@ -390,10 +396,12 @@ defmodule NervesHub.Devices do
 
   def delete_device(%Device{} = device) do
     device_certificates_query = from(dc in DeviceCertificate, where: dc.device_id == ^device.id)
+    pinned_devices_query = from(p in PinnedDevice, where: p.device_id == ^device.id)
     changeset = Repo.soft_delete_changeset(device)
 
     Multi.new()
     |> Multi.delete_all(:device_certificates, device_certificates_query)
+    |> Multi.delete_all(:pinned_devices, pinned_devices_query)
     |> Multi.update(:device, changeset)
     |> Repo.transaction()
     |> case do
@@ -443,15 +451,18 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def get_device_certificates(%Device{} = device) do
-    query =
-      from(
-        c in DeviceCertificate,
-        join: d in assoc(c, :device),
-        where: d.id == ^device.id
-      )
+  def has_device_certificates?(%Device{} = device) do
+    DeviceCertificate
+    |> join(:inner, [dc], d in assoc(dc, :device))
+    |> where([_dc, d], d.id == ^device.id)
+    |> Repo.exists?()
+  end
 
-    Repo.all(query)
+  def get_device_certificates(%Device{} = device) do
+    DeviceCertificate
+    |> join(:inner, [dc], d in assoc(dc, :device))
+    |> where([_dc, d], d.id == ^device.id)
+    |> Repo.all()
   end
 
   @spec get_device_by_certificate(DeviceCertificate.t()) ::
@@ -469,7 +480,10 @@ defmodule NervesHub.Devices do
   def get_device_certificate_by_x509(cert) do
     fingerprint = NervesHub.Certificate.fingerprint(cert)
 
-    from(DeviceCertificate, where: [fingerprint: ^fingerprint], preload: :device)
+    DeviceCertificate
+    |> where(fingerprint: ^fingerprint)
+    |> join(:inner, [dc], d in assoc(dc, :device))
+    |> preload([_dc, d], device: d)
     |> Repo.one()
     |> case do
       nil -> {:error, :not_found}
@@ -477,14 +491,13 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def get_device_certificates_by_public_key(otp_cert) do
+  def get_device_by_public_key(otp_cert) do
     pk_fingerprint = NervesHub.Certificate.public_key_fingerprint(otp_cert)
 
-    from(c in DeviceCertificate,
-      where: [public_key_fingerprint: ^pk_fingerprint],
-      preload: [:device]
-    )
-    |> Repo.all()
+    Device
+    |> join(:inner, [d], dc in assoc(d, :device_certificates))
+    |> where([_d, dc], dc.public_key_fingerprint == ^pk_fingerprint)
+    |> Repo.one()
   end
 
   @spec get_device_certificate_by_device_and_serial(Device.t(), binary) ::
@@ -571,11 +584,22 @@ defmodule NervesHub.Devices do
     end
   end
 
+  @spec known_ca_ski?(binary) :: boolean()
+  def known_ca_ski?(ski) do
+    CACertificate
+    |> where(ski: ^ski)
+    |> Repo.exists?()
+  end
+
   @spec get_ca_certificate_by_ski(binary) :: {:ok, CACertificate.t()} | {:error, any()}
   def get_ca_certificate_by_ski(ski) do
-    q = from(CACertificate, where: [ski: ^ski], preload: [jitp: :product])
-
-    case Repo.one(q) do
+    CACertificate
+    |> join(:left, [cac], jitp in assoc(cac, :jitp))
+    |> join(:left, [_cac, jitp], p in assoc(jitp, :product))
+    |> where([cac], cac.ski == ^ski)
+    |> preload([_cac, jitp, p], jitp: {jitp, product: p})
+    |> Repo.one()
+    |> case do
       nil -> {:error, :not_found}
       ca_cert -> {:ok, ca_cert}
     end
@@ -627,7 +651,7 @@ defmodule NervesHub.Devices do
   @spec get_device_firmware_for_delta_generation_by_product(binary()) ::
           list({source_firmware_id(), target_firmware_id()})
   def get_device_firmware_for_delta_generation_by_product(product_id) do
-    Deployment
+    DeploymentGroup
     |> where([dep], dep.product_id == ^product_id)
     |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
     |> join(:inner, [dep, dev], f in Firmware,
@@ -639,10 +663,10 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  @spec get_device_firmware_for_delta_generation_by_deployment(binary()) ::
+  @spec get_device_firmware_for_delta_generation_by_deployment_group(binary()) ::
           list({source_firmware_id(), target_firmware_id()})
-  def get_device_firmware_for_delta_generation_by_deployment(deployment_id) do
-    Deployment
+  def get_device_firmware_for_delta_generation_by_deployment_group(deployment_id) do
+    DeploymentGroup
     |> where([dep], dep.id == ^deployment_id)
     |> join(:inner, [dep], dev in Device, on: dev.deployment_id == dep.id)
     |> join(:inner, [dep, dev], f in Firmware,
@@ -654,35 +678,12 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  def clean_connection_states() do
-    interval = Application.get_env(:nerves_hub, :device_last_seen_update_interval_minutes)
-    a_minute_ago = DateTime.shift(DateTime.utc_now(), minute: -(interval + 1))
-
-    Device
-    |> where(connection_status: :connected)
-    |> where([d], d.connection_last_seen_at < ^a_minute_ago)
-    |> Repo.update_all(
-      set: [
-        connection_status: :disconnected,
-        connection_disconnected_at: DateTime.utc_now()
-      ]
-    )
-  end
-
-  def connected_count(product) do
-    Device
-    |> where(connection_status: :connected)
-    |> where(product_id: ^product.id)
-    |> Repo.aggregate(:count)
-  end
-
   def update_firmware_metadata(device, nil) do
     {:ok, device}
   end
 
   def update_firmware_metadata(device, metadata) do
-    description = "device #{device.identifier} updated firmware metadata"
-    AuditLogs.audit!(device, device, description)
+    DeviceTemplates.audit_firmware_metadata_updated(device)
     update_device(device, %{firmware_metadata: metadata})
   end
 
@@ -701,29 +702,67 @@ defmodule NervesHub.Devices do
   end
 
   @doc """
-  Resolve an update for the device's deployment
+  Fetch devices associated with a deployment for updating.
+
+  Devices must be:
+  - online
+  - have automatic updates enabled
+  - not currently updating
+  - not be running the same firmware version associated with the deployment
+  - not in the penalty box (based on `updates_blocked_until`)
+
+  The list is ordered by current connection age. Devices that have been online longer
+  are updated first.
   """
-  def resolve_update(%{deployment_id: nil}) do
-    %UpdatePayload{update_available: false}
+  @spec available_for_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
+  def available_for_update(deployment_group, count) do
+    now = DateTime.utc_now(:second)
+
+    Device
+    |> join(:inner, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+    |> join(:inner, [d], dg in assoc(d, :deployment_group), as: :deployment_group)
+    |> join(:inner, [deployment_group: dg], f in assoc(dg, :firmware),
+      on: [product_id: ^deployment_group.product_id],
+      as: :firmware
+    )
+    |> join(:left, [d], ifu in InflightUpdate, on: d.id == ifu.device_id, as: :inflight_update)
+    |> where(deployment_id: ^deployment_group.id)
+    |> where(updates_enabled: true)
+    |> where([latest_connection: lc], lc.status == :connected)
+    |> where([d], not is_nil(d.firmware_metadata))
+    |> where([d, firmware: f], fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, f.uuid))
+    |> where([inflight_update: ifu], is_nil(ifu))
+    |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
+    |> order_by([latest_connection: lc], asc: lc.established_at)
+    |> limit(^count)
+    |> Repo.all()
   end
 
-  def resolve_update(device) do
-    deployment = Repo.preload(device.deployment, [:firmware])
+  @doc """
+  Resolve an update for the device's deployment
+  """
+  @spec resolve_update(Device.t()) :: UpdatePayload.t()
+  def resolve_update(%{status: :registered}), do: %UpdatePayload{update_available: false}
 
-    case verify_update_eligibility(device, deployment) do
+  def resolve_update(%{deployment_id: nil}), do: %UpdatePayload{update_available: false}
+
+  def resolve_update(device) do
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group_for_device(device)
+
+    case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
-        {:ok, url} = Firmwares.get_firmware_url(deployment.firmware)
-        {:ok, meta} = Firmwares.metadata_from_firmware(deployment.firmware)
+        {:ok, url} = Firmwares.get_firmware_url(deployment_group.firmware)
+        {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
 
         %UpdatePayload{
           update_available: true,
           firmware_url: url,
           firmware_meta: meta,
-          deployment: deployment,
-          deployment_id: deployment.id
+          deployment_group: deployment_group,
+          deployment_id: deployment_group.id
         }
 
-      {:error, :deployment_not_active, _device} ->
+      {:error, :deployment_group_not_active, _device} ->
         %UpdatePayload{update_available: false}
 
       {:error, :up_to_date, _device} ->
@@ -752,9 +791,9 @@ defmodule NervesHub.Devices do
   @doc """
   Returns true if Version.match? and all deployment tags are in device tags.
   """
-  def matches_deployment?(
+  def matches_deployment_group?(
         %Device{tags: tags, firmware_metadata: %FirmwareMetadata{version: version}},
-        %Deployment{conditions: %{"version" => requirement, "tags" => dep_tags}}
+        %DeploymentGroup{conditions: %{"version" => requirement, "tags" => dep_tags}}
       ) do
     if version_match?(version, requirement) and tags_match?(tags, dep_tags) do
       true
@@ -763,40 +802,59 @@ defmodule NervesHub.Devices do
     end
   end
 
-  def matches_deployment?(_, _), do: false
+  def matches_deployment_group?(_, _), do: false
 
-  @spec update_deployment(Device.t(), Deployment.t()) :: Device.t()
-  def update_deployment(device, deployment) do
-    device
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_change(:deployment_id, deployment.id)
-    |> Repo.update!()
+  @spec update_deployment_group(Device.t(), DeploymentGroup.t()) :: Device.t()
+  def update_deployment_group(device, deployment_group) do
+    device =
+      device
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:deployment_id, deployment_group.id)
+      |> Repo.update!()
+
+    _ =
+      broadcast(device, "devices/deployment-updated", %{deployment_id: deployment_group.id})
+
+    Map.put(device, :deployment_group, deployment_group)
   end
 
-  @spec clear_deployment(Device.t()) :: Device.t()
-  def clear_deployment(device) do
-    device
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_change(:deployment_id, nil)
-    |> Repo.update!()
+  @spec update_many_deployment_groups([non_neg_integer()], DeploymentGroup.t()) ::
+          {integer(), nil | [term()]}
+  def update_many_deployment_groups(device_ids, deployment_group) do
+    Device
+    |> where([d], d.id in ^device_ids)
+    |> Repo.update_all(set: [deployment_id: deployment_group.id])
   end
 
-  @spec failure_threshold_met?(Device.t(), Deployment.t()) :: boolean()
-  def failure_threshold_met?(%Device{} = device, %Deployment{} = deployment) do
-    Enum.count(device.update_attempts) >= deployment.device_failure_threshold
+  @spec clear_deployment_group(Device.t()) :: Device.t()
+  def clear_deployment_group(device) do
+    device =
+      device
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:deployment_id, nil)
+      |> Repo.update!()
+
+    _ = broadcast(device, "devices/deployment-cleared")
+
+    Map.put(device, :deployment_group, nil)
   end
 
-  @spec failure_rate_met?(Device.t(), Deployment.t()) :: boolean()
-  def failure_rate_met?(%Device{} = device, %Deployment{} = deployment) do
+  @spec failure_threshold_met?(Device.t(), DeploymentGroup.t()) :: boolean()
+  def failure_threshold_met?(%Device{} = device, %DeploymentGroup{} = deployment_group) do
+    Enum.count(device.update_attempts) >= deployment_group.device_failure_threshold
+  end
+
+  @spec failure_rate_met?(Device.t(), DeploymentGroup.t()) :: boolean()
+  def failure_rate_met?(%Device{} = device, %DeploymentGroup{} = deployment_group) do
     seconds_ago =
-      Timex.shift(DateTime.utc_now(), seconds: -deployment.device_failure_rate_seconds)
+      Timex.shift(DateTime.utc_now(), seconds: -deployment_group.device_failure_rate_seconds)
 
     attempts =
       Enum.filter(device.update_attempts, fn attempt ->
         DateTime.compare(seconds_ago, attempt) == :lt
       end)
 
-    Enum.count(attempts) >= deployment.device_failure_rate_amount
+    Enum.count(attempts) >= deployment_group.device_failure_rate_amount
   end
 
   @doc """
@@ -815,16 +873,16 @@ defmodule NervesHub.Devices do
     device.updates_enabled == false || device_in_penalty_box?(device, now)
   end
 
-  def device_matches_deployment?(device, deployment) do
-    device.firmware_metadata.uuid == deployment.firmware.uuid
+  def device_matches_deployment_group?(device, deployment_group) do
+    device.firmware_metadata.uuid == deployment_group.firmware.uuid
   end
 
-  def verify_update_eligibility(device, deployment, now \\ DateTime.utc_now()) do
+  def verify_update_eligibility(device, deployment_group, now \\ DateTime.utc_now()) do
     cond do
-      not deployment.is_active ->
-        {:error, :deployment_not_active, device}
+      not deployment_group.is_active ->
+        {:error, :deployment_group_not_active, device}
 
-      device_matches_deployment?(device, deployment) ->
+      device_matches_deployment_group?(device, deployment_group) ->
         {:error, :up_to_date, device}
 
       updates_blocked?(device, now) ->
@@ -832,36 +890,26 @@ defmodule NervesHub.Devices do
 
         {:error, :updates_blocked, device}
 
-      failure_rate_met?(device, deployment) ->
+      failure_rate_met?(device, deployment_group) ->
         blocked_until =
           DateTime.utc_now()
           |> DateTime.truncate(:second)
-          |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
+          |> DateTime.add(deployment_group.penalty_timeout_minutes * 60, :second)
 
-        description = """
-        Device #{device.identifier} automatically blocked firmware upgrades for #{deployment.penalty_timeout_minutes} minutes.
-        Device failure rate met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
-        """
-
-        AuditLogs.audit!(deployment, device, description)
+        DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device)
         clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
 
         {:error, :updates_blocked, device}
 
-      failure_threshold_met?(device, deployment) ->
+      failure_threshold_met?(device, deployment_group) ->
         blocked_until =
           DateTime.utc_now()
           |> DateTime.truncate(:second)
-          |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
+          |> DateTime.add(deployment_group.penalty_timeout_minutes * 60, :second)
 
-        description = """
-        Device #{device.identifier} automatically blocked firmware upgrades for #{deployment.penalty_timeout_minutes} minutes.
-        Device failure threshold met for firmware #{deployment.firmware.uuid} in deployment #{deployment.name}.
-        """
-
-        AuditLogs.audit!(deployment, device, description)
+        DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device)
         clear_inflight_update(device)
 
         {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
@@ -884,8 +932,7 @@ defmodule NervesHub.Devices do
     Multi.new()
     |> Multi.update(:device, changeset)
     |> Multi.run(:audit_device, fn _, _ ->
-      description = "device #{device.identifier} is attempting to update"
-      AuditLogs.audit(device, device, description)
+      DeviceTemplates.audit_update_attempt(device)
     end)
     |> Repo.transaction()
     |> case do
@@ -903,10 +950,7 @@ defmodule NervesHub.Devices do
       firmware_uuid: device.firmware_metadata.uuid
     })
 
-    description =
-      "device #{device.identifier} firmware set to version #{device.firmware_metadata.version} (#{device.firmware_metadata.uuid})"
-
-    AuditLogs.audit!(device, device, description)
+    DeviceTemplates.audit_firmware_updated(device)
 
     # Clear the inflight update, no longer inflight!
     inflight_update =
@@ -915,21 +959,91 @@ defmodule NervesHub.Devices do
         firmware_uuid: device.firmware_metadata.uuid
       )
 
-    if inflight_update != nil do
-      Orchestrator.device_updated(inflight_update.deployment_id)
+    _ =
+      if inflight_update do
+        DeploymentGroup
+        |> where([d], d.id == ^inflight_update.deployment_id)
+        |> Repo.update_all(inc: [current_updated_devices: 1])
 
-      Deployment
-      |> where([d], d.id == ^inflight_update.deployment_id)
-      |> Repo.update_all(inc: [current_updated_devices: 1])
+        Repo.delete(inflight_update)
 
-      Repo.delete(inflight_update)
-    end
+        # let the orchestrator know that an inflight update completed
+        deployment_device_updated(device)
+      end
 
     device
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_change(:update_attempts, [])
     |> Ecto.Changeset.put_change(:updates_blocked_until, nil)
     |> Repo.update()
+  end
+
+  def deployment_device_online(%Device{deployment_id: nil}) do
+    :ok
+  end
+
+  def deployment_device_online(device) do
+    firmware_uuid = if(device.firmware_metadata, do: device.firmware_metadata.uuid, else: nil)
+
+    payload = %{
+      updates_enabled: device.updates_enabled,
+      updates_blocked_until: device.updates_blocked_until,
+      firmware_uuid: firmware_uuid
+    }
+
+    _ =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "orchestrator:deployment:#{device.deployment_id}",
+        "device-online",
+        payload
+      )
+
+    :ok
+  end
+
+  def deployment_device_updated(%Device{deployment_id: nil}) do
+    :ok
+  end
+
+  def deployment_device_updated(device) do
+    _ = Orchestrator.device_updated(device.deployment_id)
+
+    _ =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "orchestrator:deployment:#{device.deployment_id}",
+        "device-updated",
+        %{}
+      )
+
+    :ok
+  end
+
+  def up_to_date_count(%DeploymentGroup{} = deployment_group) do
+    Device
+    |> where([d], d.deployment_id == ^deployment_group.id)
+    |> where([d], d.firmware_metadata["uuid"] == ^deployment_group.firmware.uuid)
+    |> Repo.aggregate(:count)
+  end
+
+  @spec updating_count(DeploymentGroup.t()) :: term() | nil
+  def updating_count(%DeploymentGroup{id: id}) do
+    InflightUpdate
+    |> where([ifu], ifu.deployment_id == ^id)
+    |> Repo.aggregate(:count)
+  end
+
+  @spec waiting_for_update_count(DeploymentGroup.t()) :: term() | nil
+  def waiting_for_update_count(%DeploymentGroup{} = deployment_group) do
+    Device
+    |> where([d], d.deployment_id == ^deployment_group.id)
+    |> where(
+      [d],
+      is_nil(d.firmware_metadata) or
+        d.firmware_metadata["uuid"] != ^deployment_group.firmware.uuid
+    )
+    |> Repo.aggregate(:count)
   end
 
   def restore_device(%Device{} = device) do
@@ -962,7 +1076,7 @@ defmodule NervesHub.Devices do
     _ = maybe_copy_firmware_keys(device, product.org)
 
     description =
-      "user #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
+      "User #{user.name} moved device #{device.identifier} to #{product.org.name} : #{product.name}"
 
     source_product = %Product{
       id: device.product_id,
@@ -971,6 +1085,7 @@ defmodule NervesHub.Devices do
 
     Multi.new()
     |> Multi.run(:move, fn _, _ -> update_device(device, attrs) end)
+    |> Multi.delete_all(:pinned_devices, &unpin_unauthorized_users_query(&1))
     |> Multi.run(:audit_device, fn _, _ ->
       AuditLogs.audit(user, device, description)
     end)
@@ -991,10 +1106,22 @@ defmodule NervesHub.Devices do
     end
   end
 
+  # Queries pinned devices where user is unauthorized to device's org.
+  defp unpin_unauthorized_users_query(%{move: device}) do
+    users_in_org =
+      OrgUser
+      |> where(org_id: ^device.org_id)
+      |> select([:user_id])
+
+    PinnedDevice
+    |> where([p], p.device_id == ^device.id)
+    |> where([p], p.user_id not in subquery(users_in_org))
+  end
+
   @spec tag_device(Device.t() | [Device.t()], User.t(), list(String.t())) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def tag_device(%Device{} = device, user, tags) do
-    description = "user #{user.name} updated device #{device.identifier} tags"
+    description = "User #{user.name} updated device #{device.identifier} tags"
     params = %{tags: tags}
     update_device_with_audit(device, params, user, description)
   end
@@ -1023,15 +1150,32 @@ defmodule NervesHub.Devices do
   @spec enable_updates(Device.t() | [Device.t()], User.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def enable_updates(%Device{} = device, user) do
-    description = "user #{user.name} enabled updates for device #{device.identifier}"
+    description = "User #{user.name} enabled updates for device #{device.identifier}"
     params = %{updates_enabled: true, update_attempts: []}
-    update_device_with_audit(device, params, user, description)
+
+    case update_device_with_audit(device, params, user, description) do
+      {:ok, device} = result ->
+        _ =
+          if device.deployment_id do
+            Phoenix.Channel.Server.broadcast(
+              NervesHub.PubSub,
+              "orchestrator:deployment:#{device.deployment_id}",
+              "device-updated",
+              %{}
+            )
+          end
+
+        result
+
+      {:error, _, _, _} = result ->
+        result
+    end
   end
 
   @spec disable_updates(Device.t() | [Device.t()], User.t()) ::
           {:ok, Device.t()} | {:error, any(), any(), any()}
   def disable_updates(%Device{} = device, user) do
-    description = "user #{user.name} disabled updates for device #{device.identifier}"
+    description = "User #{user.name} disabled updates for device #{device.identifier}"
     params = %{updates_enabled: false}
     update_device_with_audit(device, params, user, description)
   end
@@ -1047,16 +1191,27 @@ defmodule NervesHub.Devices do
   end
 
   def clear_penalty_box(%Device{} = device, user) do
-    description = "user #{user.name} removed device #{device.identifier} from the penalty box"
-    params = %{updates_blocked_until: nil, update_attempts: []}
+    description = "User #{user.name} removed device #{device.identifier} from the penalty box"
+    params = %{updates_blocked_until: nil, update_attempts: [], updates_enabled: true}
     update_device_with_audit(device, params, user, description)
   end
 
-  @spec move_many_to_deployment([integer()], integer()) ::
+  def update_blocked_until(device, deployment) do
+    blocked_until =
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+      |> DateTime.add(deployment.penalty_timeout_minutes * 60, :second)
+
+    DeviceTemplates.audit_firmware_upgrade_blocked(deployment, device)
+
+    update_device(device, %{updates_blocked_until: blocked_until})
+  end
+
+  @spec move_many_to_deployment_group([integer()], integer()) ::
           {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
-  def move_many_to_deployment(device_ids, deployment_id) do
+  def move_many_to_deployment_group(device_ids, deployment_id) do
     %{firmware: firmware} =
-      Deployment |> where(id: ^deployment_id) |> preload(:firmware) |> Repo.one()
+      DeploymentGroup |> where(id: ^deployment_id) |> preload(:firmware) |> Repo.one()
 
     {devices_updated_count, _} =
       Device
@@ -1064,6 +1219,8 @@ defmodule NervesHub.Devices do
       |> where([d], d.firmware_metadata["platform"] == ^firmware.platform)
       |> where([d], d.firmware_metadata["architecture"] == ^firmware.architecture)
       |> Repo.update_all(set: [deployment_id: deployment_id])
+
+    :ok = Enum.each(device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
 
     {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
   end
@@ -1145,32 +1302,65 @@ defmodule NervesHub.Devices do
     end
   end
 
-  defp broadcast(%Device{id: id}, event) do
+  defp broadcast(device, event), do: broadcast(device, event, %{})
+
+  defp broadcast(%Device{id: id}, event, payload) do
     Phoenix.PubSub.broadcast(
       NervesHub.PubSub,
       "device:#{id}",
-      %Phoenix.Socket.Broadcast{event: event}
+      %Phoenix.Socket.Broadcast{topic: "device:#{id}", event: event, payload: payload}
     )
   end
 
+  @spec save_device_health(health_report :: map()) ::
+          {:ok, DeviceHealth.t()} | {:error, Ecto.Changeset.t()}
   def save_device_health(device_status) do
-    device_status
-    |> DeviceHealth.save()
-    |> Repo.insert()
+    Multi.new()
+    |> Multi.insert(:insert_health, DeviceHealth.save(device_status))
+    |> Ecto.Multi.update_all(:update_device, &update_health_on_device/1, [])
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{insert_health: health}} ->
+        {:ok, health}
+
+      {:error, _, changeset, _} ->
+        {:error, changeset}
+    end
+  end
+
+  defp update_health_on_device(%{insert_health: health}) do
+    Device
+    |> where(id: ^health.device_id)
+    |> update(set: [latest_health_id: ^health.id])
   end
 
   def truncate_device_health() do
-    days_to_retain =
+    interval =
       Application.get_env(:nerves_hub, :device_health_days_to_retain)
 
-    days_ago = DateTime.shift(DateTime.utc_now(), day: -days_to_retain)
+    delete_limit = Application.get_env(:nerves_hub, :device_health_delete_limit)
+    time_ago = DateTime.shift(DateTime.utc_now(), day: -interval)
 
-    {count, _} =
+    query =
       DeviceHealth
-      |> where([dh], dh.inserted_at < ^days_ago)
-      |> Repo.delete_all()
+      |> join(:inner, [dh], d in Device, on: dh.device_id == d.id)
+      |> where([dh, _d], dh.inserted_at < ^time_ago)
+      |> where([dh, d], dh.id != d.latest_health_id)
+      |> select([dh], dh.id)
+      |> limit(^delete_limit)
 
-    {:ok, count}
+    {delete_count, _} =
+      DeviceHealth
+      |> where([dh], dh.id in subquery(query))
+      |> Repo.delete_all(timeout: 30_000)
+
+    if delete_count == 0 do
+      :ok
+    else
+      # relax stress on Ecto pool and go again
+      Process.sleep(2000)
+      truncate_device_health()
+    end
   end
 
   def get_latest_health(device_id) do
@@ -1206,11 +1396,11 @@ defmodule NervesHub.Devices do
     Version.match?(version, requirement)
   end
 
-  defp tags_match?(nil, deployment_tags), do: tags_match?([], deployment_tags)
+  defp tags_match?(nil, deployment_group_tags), do: tags_match?([], deployment_group_tags)
   defp tags_match?(device_tags, nil), do: tags_match?(device_tags, [])
 
-  defp tags_match?(device_tags, deployment_tags) do
-    Enum.all?(deployment_tags, fn tag -> tag in device_tags end)
+  defp tags_match?(device_tags, deployment_group_tags) do
+    Enum.all?(deployment_group_tags, fn tag -> tag in device_tags end)
   end
 
   def maybe_copy_firmware_keys(%{firmware_metadata: %{uuid: uuid}, org_id: source}, %Org{
@@ -1250,32 +1440,63 @@ defmodule NervesHub.Devices do
   @doc """
   Deployment orchestrator told a device to update
   """
-  def told_to_update(device, deployment) do
+  @spec told_to_update(
+          device_or_id :: Device.t() | integer(),
+          deployment_group :: DeploymentGroup.t(),
+          device_channel_pid :: pid() | nil
+        ) ::
+          {:ok, InflightUpdate.t()} | :error
+  def told_to_update(device_or_id, deployment_group, device_channel_pid \\ nil)
+
+  def told_to_update(%Device{id: id}, deployment_group, device_channel_pid) do
+    told_to_update(id, deployment_group, device_channel_pid)
+  end
+
+  def told_to_update(device_id, deployment_group, device_channel_pid) do
+    deployment_group = Repo.preload(deployment_group, :firmware)
+
     expires_at =
       DateTime.utc_now()
-      |> DateTime.add(60 * deployment.inflight_update_expiration_minutes, :second)
+      |> DateTime.add(60 * deployment_group.inflight_update_expiration_minutes, :second)
       |> DateTime.truncate(:second)
 
     %{
-      device_id: device.id,
-      deployment_id: deployment.id,
-      firmware_id: deployment.firmware_id,
-      firmware_uuid: deployment.firmware.uuid,
+      device_id: device_id,
+      deployment_id: deployment_group.id,
+      firmware_id: deployment_group.firmware_id,
+      firmware_uuid: deployment_group.firmware.uuid,
       expires_at: expires_at
     }
     |> InflightUpdate.create_changeset()
     |> Repo.insert()
     |> case do
       {:ok, inflight_update} ->
+        if device_channel_pid do
+          send(device_channel_pid, {:update, inflight_update})
+        else
+          broadcast_update_request(device_id, inflight_update, deployment_group)
+        end
+
         {:ok, inflight_update}
 
       {:error, _changeset} ->
+        # TODO this logic doesn't feel right. We should revise this approach.
         # Device already has an inflight update, fetch it
-        case Repo.get_by(InflightUpdate, device_id: device.id, deployment_id: deployment.id) do
+        case Repo.get_by(InflightUpdate, device_id: device_id, deployment_id: deployment_group.id) do
           nil ->
+            Logger.error(
+              "An inflight update could not be created or found for the device (#{device_id})"
+            )
+
             :error
 
           inflight_update ->
+            if device_channel_pid do
+              send(device_channel_pid, {:update, inflight_update})
+            else
+              broadcast_update_request(device_id, inflight_update, deployment_group)
+            end
+
             {:ok, inflight_update}
         end
     end
@@ -1293,25 +1514,32 @@ defmodule NervesHub.Devices do
     |> Repo.delete_all()
   end
 
-  def update_started!(inflight_update) do
-    inflight_update
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_change(:status, "updating")
-    |> Repo.update!()
+  def update_started!(inflight_update, device, deployment, reference_id) do
+    Repo.transaction(fn ->
+      DeviceTemplates.audit_device_deployment_group_update_triggered(
+        device,
+        deployment,
+        reference_id
+      )
+
+      inflight_update
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_change(:status, "updating")
+      |> Repo.update!()
+    end)
   end
 
-  def inflight_updates_for(%Deployment{} = deployment) do
+  def inflight_updates_for(%DeploymentGroup{} = deployment_group) do
     InflightUpdate
-    |> where([iu], iu.deployment_id == ^deployment.id)
+    |> where([iu], iu.deployment_id == ^deployment_group.id)
     |> preload([:device])
     |> Repo.all()
   end
 
-  def count_inflight_updates_for(%Deployment{} = deployment) do
+  def count_inflight_updates_for(%DeploymentGroup{} = deployment_group) do
     InflightUpdate
-    |> select([iu], count(iu))
-    |> where([iu], iu.deployment_id == ^deployment.id)
-    |> Repo.one()
+    |> where([iu], iu.deployment_id == ^deployment_group.id)
+    |> Repo.aggregate(:count)
   end
 
   def enable_extension_setting(%Device{} = device, extension_string) do
@@ -1345,5 +1573,87 @@ defmodule NervesHub.Devices do
   def preload_product(%Device{} = device) do
     device
     |> Repo.preload(:product)
+  end
+
+  defp broadcast_update_request(device_id, inflight_update, deployment_group) do
+    {:ok, url} = Firmwares.get_firmware_url(deployment_group.firmware)
+    {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
+
+    update_payload = %UpdatePayload{
+      update_available: true,
+      firmware_url: url,
+      firmware_meta: meta,
+      deployment_group: deployment_group,
+      deployment_id: deployment_group.id
+    }
+
+    payload = %{inflight_update: inflight_update, update_payload: update_payload}
+
+    _ =
+      Phoenix.Channel.Server.broadcast(
+        NervesHub.PubSub,
+        "device:#{device_id}",
+        "update-scheduled",
+        payload
+      )
+
+    :ok
+  end
+
+  @spec get_pinned_devices(non_neg_integer()) :: [Device.t()]
+  def get_pinned_devices(user_id) do
+    query =
+      PinnedDevice
+      |> where(user_id: ^user_id)
+      |> select([:device_id])
+
+    Device
+    |> where([d], d.id in subquery(query))
+    |> join(:left, [d], o in assoc(d, :org))
+    |> join(:left, [d, o], p in assoc(d, :product))
+    |> join(:left, [d, o, lc], lc in assoc(d, :latest_connection))
+    |> join(:left, [d, o, lc, lh], lh in assoc(d, :latest_health))
+    |> preload([d, o, p, lc, lh], org: o, product: p, latest_connection: lc, latest_health: lh)
+    |> Repo.all()
+  end
+
+  @spec pin_device(non_neg_integer(), non_neg_integer()) ::
+          {:ok, PinnedDevice.t()} | {:error, Ecto.Changeset.t()}
+  def pin_device(user_id, device_id) do
+    %{user_id: user_id, device_id: device_id}
+    |> PinnedDevice.create()
+    |> Repo.insert()
+  end
+
+  @spec unpin_device(neg_integer(), non_neg_integer()) ::
+          {:ok, PinnedDevice.t()} | {:error, Ecto.Changeset.t()}
+  def unpin_device(user_id, device_id) do
+    PinnedDevice
+    |> Repo.get_by!(user_id: user_id, device_id: device_id)
+    |> Repo.delete()
+  end
+
+  def device_pinned?(user_id, device_id) do
+    PinnedDevice
+    |> where([p], p.user_id == ^user_id)
+    |> where([p], p.device_id == ^device_id)
+    |> Repo.exists?()
+  end
+
+  @doc """
+  Unpins all devices belonging to user and org.
+  """
+  @spec unpin_org_devices(non_neg_integer(), non_neg_integer()) ::
+          {non_neg_integer(), nil | [term()]}
+  def unpin_org_devices(user_id, org_id) do
+    sub =
+      Device
+      |> where(org_id: ^org_id)
+      |> select([:id])
+
+    PinnedDevice
+    |> where([p], p.user_id == ^user_id)
+    |> where([p], p.device_id in subquery(sub))
+    |> Repo.delete_all()
   end
 end

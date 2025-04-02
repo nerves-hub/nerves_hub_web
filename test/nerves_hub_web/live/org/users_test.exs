@@ -35,7 +35,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       conn
       |> visit("/org/#{org.name}/settings/users/#{org_user.user_id}/edit")
       |> assert_has("h1", text: org_user.user.name)
-      |> select("Admin", from: "Role")
+      |> select("Role", option: "Admin")
       |> click_button("Update")
       |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "Role updated")

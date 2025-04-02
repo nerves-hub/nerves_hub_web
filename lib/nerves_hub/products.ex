@@ -105,6 +105,20 @@ defmodule NervesHub.Products do
   end
 
   @doc """
+  Toggle the delta updates attribute for a product.
+
+  ## Examples
+
+      iex> toggle_delta_updates(product)
+      {:ok, %Product{}}
+
+  """
+  @spec toggle_delta_updates(Product.t()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
+  def toggle_delta_updates(%Product{} = product) do
+    update_product(product, %{delta_updatable: !product.delta_updatable})
+  end
+
+  @doc """
   Updates a product.
 
   ## Examples
