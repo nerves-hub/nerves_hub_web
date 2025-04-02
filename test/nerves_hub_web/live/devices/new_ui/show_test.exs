@@ -2,15 +2,20 @@ defmodule NervesHubWeb.Live.Devices.NewUI.ShowTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
+  import Ecto.Query, only: [where: 2]
+
   alias NervesHub.Accounts
+  alias NervesHub.Devices
+  alias NervesHub.Devices.Device
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
+  alias NervesHub.Repo
 
   alias NervesHubWeb.Endpoint
 
   setup %{conn: conn, fixture: %{device: device}} = context do
     Endpoint.subscribe("device:#{device.id}")
-
     conn = init_test_session(conn, %{"new_ui" => true})
 
     Map.put(context, :conn, conn)
@@ -112,7 +117,191 @@ defmodule NervesHubWeb.Live.Devices.NewUI.ShowTest do
     end
   end
 
-  def device_show_path(%{device: device, org: org, product: product}) do
-    ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}"
+  describe "device's deployment group" do
+    test "eligible deployment groups are listed when device is provisioned", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user,
+      deployment_group: deployment_group,
+      fixture: %{firmware: firmware}
+    } do
+      _ = Devices.set_as_provisioned!(device)
+      org_key2 = Fixtures.org_key_fixture(org, user)
+
+      mismatched_firmware =
+        Fixtures.firmware_fixture(org_key2, product, %{platform: "Vulture", architecture: "arm"})
+
+      mismatched_firmware_deployment_group =
+        Fixtures.deployment_group_fixture(org, mismatched_firmware, %{
+          name: "Vulture Deployment 2025"
+        })
+
+      deployment_group2 =
+        Fixtures.deployment_group_fixture(org, firmware, %{name: "Beta Deployment"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("option", text: deployment_group.name)
+      |> assert_has("option", text: deployment_group2.name)
+      |> refute_has("option", text: mismatched_firmware_deployment_group.name)
+    end
+
+    test "product's deployment groups are listed when device is registered", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user,
+      deployment_group: deployment_group,
+      fixture: %{firmware: firmware}
+    } do
+      assert device.status == :registered
+      org_key2 = Fixtures.org_key_fixture(org, user)
+      product2 = Fixtures.product_fixture(user, org, %{name: "Product 123"})
+      firmware2 = Fixtures.firmware_fixture(org_key2, product2)
+
+      deployment_group_from_product2 =
+        Fixtures.deployment_group_fixture(org, firmware2, %{
+          name: "Vulture Deployment 2025"
+        })
+
+      deployment_group2 =
+        Fixtures.deployment_group_fixture(org, firmware, %{name: "Beta Deployment"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("option", text: deployment_group.name)
+      |> assert_has("option", text: deployment_group2.name)
+      |> refute_has("option", text: deployment_group_from_product2.name)
+    end
+
+    test "set deployment group", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> select("Deployment Group", option: deployment_group.name, exact_option: false)
+      |> within("#set-deployment-group-form", fn session ->
+        submit(session)
+      end)
+      |> then(fn _ ->
+        assert Repo.reload(device) |> Map.get(:deployment_id)
+      end)
+    end
+
+    test "remove from deployment group", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      deployment_group: deployment_group
+    } do
+      device = Devices.update_deployment_group(device, deployment_group)
+      assert device.deployment_id
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("span", text: "Assigned deployment group")
+      |> click_button("button[phx-click='remove-from-deployment-group']", "")
+      |> then(fn _ ->
+        refute Repo.reload(device) |> Map.get(:deployment_id)
+      end)
+    end
+  end
+
+  describe "sending a manual update" do
+    test "lists only eligible firmwares for device", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      user: user,
+      fixture: %{firmware: firmware}
+    } do
+      mismatched_architecture_firmware =
+        Fixtures.org_key_fixture(org, user)
+        |> Fixtures.firmware_fixture(product, %{architecture: "arm", version: "1.5.0"})
+
+      mismatched_platform_firmware =
+        Fixtures.org_key_fixture(org, user)
+        |> Fixtures.firmware_fixture(product, %{platform: "Vulture", version: "1.6.0"})
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("option", text: firmware.version, exact_option: false)
+      |> refute_has("option", text: mismatched_architecture_firmware.version, exact_option: false)
+      |> refute_has("option", text: mismatched_platform_firmware.version, exact_option: false)
+    end
+
+    test "cannot send when device is disconnected", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device
+    } do
+      device = %{id: device_id} = Repo.preload(device, :latest_connection)
+      refute device.latest_connection
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("button[disabled]", text: "Send update")
+
+      %{id: latest_connection_id} =
+        DeviceConnection.create_changeset(%{
+          product_id: product.id,
+          device_id: device_id,
+          established_at: DateTime.utc_now(),
+          last_seen_at: DateTime.utc_now(),
+          status: :disconnected
+        })
+        |> Repo.insert!()
+
+      Device
+      |> where(id: ^device_id)
+      |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> assert_has("button[disabled]", text: "Send update")
+    end
+
+    test "updates devices's firmware", %{
+      conn: conn,
+      org: org,
+      product: product,
+      device: device,
+      fixture: %{firmware: firmware}
+    } do
+      assert device.updates_enabled
+
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+      |> within("#push-update-form", fn session ->
+        session
+        |> select("Firmware", option: firmware.version, exact_option: false)
+        |> submit()
+      end)
+
+      %{version: version, architecture: architecture, platform: platform} = firmware
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        payload: %{
+          firmware_meta: %{
+            version: ^version,
+            architecture: ^architecture,
+            platform: ^platform
+          }
+        },
+        event: "devices/update-manual"
+      }
+
+      refute Repo.reload(device) |> Map.get(:updates_enabled)
+    end
   end
 end
