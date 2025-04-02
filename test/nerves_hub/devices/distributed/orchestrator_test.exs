@@ -24,11 +24,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
       :ok
     end)
 
-    deployment_group =
-      Fixtures.deployment_group_fixture(org, firmware, %{
-        is_active: true,
-        orchestrator_strategy: :distributed
-      })
+    deployment_group = Fixtures.deployment_group_fixture(org, firmware, %{is_active: true})
 
     device = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})
     device2 = Fixtures.device_fixture(org, product, firmware, %{status: :provisioned})

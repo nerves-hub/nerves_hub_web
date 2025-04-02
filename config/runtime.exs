@@ -52,9 +52,7 @@ config :nerves_hub,
         System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer()
     ]
   ],
-  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true",
-  display_deployment_orchestrator_strategy:
-    System.get_env("DISPLAY_DEPLOYMENT_ORCHESTRATOR_STRATEGY", "false") == "true"
+  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"
 
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),

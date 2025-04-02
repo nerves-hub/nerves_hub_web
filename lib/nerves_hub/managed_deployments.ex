@@ -24,11 +24,10 @@ defmodule NervesHub.ManagedDeployments do
     Repo.all(DeploymentGroup)
   end
 
-  @spec should_run_in_distributed_orchestrator() :: [DeploymentGroup.t()]
-  def should_run_in_distributed_orchestrator() do
+  @spec should_run_orchestrator() :: [DeploymentGroup.t()]
+  def should_run_orchestrator() do
     DeploymentGroup
     |> where(is_active: true)
-    |> where(orchestrator_strategy: :distributed)
     |> Repo.all()
   end
 
@@ -417,15 +416,6 @@ defmodule NervesHub.ManagedDeployments do
     )
   end
 
-  def broadcast(:monitor, event, payload) do
-    Phoenix.Channel.Server.broadcast(
-      NervesHub.PubSub,
-      "deployment:monitor",
-      event,
-      payload
-    )
-  end
-
   def broadcast(%DeploymentGroup{id: id}, event, payload) do
     Phoenix.Channel.Server.broadcast(
       NervesHub.PubSub,
@@ -632,10 +622,6 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   def deployment_created_event(deployment_group) do
-    # the old orchestrator
-    _ = broadcast(:monitor, "deployments/new", %{deployment_id: deployment_group.id})
-
-    # the new orchestrator
     _ = DistributedOrchestrator.start_orchestrator(deployment_group)
 
     :ok
@@ -678,12 +664,7 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   def deployment_deleted_event(deployment_group) do
-    _ =
-      if deployment_group.orchestrator_strategy == :distributed do
-        broadcast(deployment_group, "deleted")
-      end
-
-    _ = broadcast(:monitor, "deployments/delete", %{deployment_id: deployment_group.id})
+    _ = broadcast(deployment_group, "deleted")
 
     :ok
   end
