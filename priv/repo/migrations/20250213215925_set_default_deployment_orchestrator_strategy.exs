@@ -5,6 +5,6 @@ defmodule NervesHub.Repo.Migrations.SetDefaultDeploymentOrchestratorStrategy do
   alias NervesHub.Repo
 
   def change do
-    Repo.update_all(DeploymentGroup, set: [orchestrator_strategy: "distributed"])
+    repo().query!("UPDATE deployments SET orchestrator_strategy = 'distributed'")
   end
 end

@@ -40,8 +40,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :penalty_timeout_minutes,
     :connecting_code,
     :total_updating_devices,
-    :current_updated_devices,
-    :orchestrator_strategy
+    :current_updated_devices
   ]
 
   schema "deployments" do
@@ -76,11 +75,11 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
     field(:device_count, :integer, virtual: true)
 
-    # temporary addition while we feature test a new deployment management strategy
-    field(:orchestrator_strategy, Ecto.Enum,
-      values: [:multi, :distributed],
-      default: :distributed
-    )
+    # TODO: (joshk) this column is unused, remove after 1st May
+    # field(:orchestrator_strategy, Ecto.Enum,
+    #   values: [:multi, :distributed],
+    #   default: :distributed
+    # )
 
     timestamps()
   end

@@ -28,7 +28,6 @@ defmodule NervesHub.Application do
         {Ecto.Migrator,
          repos: Application.fetch_env!(:nerves_hub, :ecto_repos),
          skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
-        {Registry, keys: :unique, name: NervesHub.Devices.Registry},
         {Finch, name: Swoosh.Finch}
       ] ++
         NervesHub.StatsdMetricsReporter.config() ++
@@ -76,17 +75,14 @@ defmodule NervesHub.Application do
 
   defp deployments_orchestrator("test"), do: []
 
-  # When running in the default `multi` mode, start a deployments orchestrator supervisor
-  # on every node. But when running in `clustered` mode, run the `ProcessHub` supervisor
-  # on the `web` or `all` nodes only.
+  # Only run the `ProcessHub` supervisor on the `web` or `all` nodes only.
   defp deployments_orchestrator(_) do
     case Application.get_env(:nerves_hub, :app) do
       ["device"] ->
-        [NervesHub.ManagedDeployments.Supervisor]
+        []
 
       _ ->
         [
-          NervesHub.ManagedDeployments.Supervisor,
           ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
           NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
         ]
