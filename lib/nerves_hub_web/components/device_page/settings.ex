@@ -76,7 +76,7 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
             </div>
 
             <div class="w-1/2 flex flex-col gap-2">
-              <.input field={@settings_form[:first_connect_code]} label="First connect code" type="textarea" rows="10" />
+              <.input field={@settings_form[:connecting_code]} label="First connect code" type="textarea" rows="10" />
               <div class="text-xs tracking-wide text-zinc-400">Make sure this is valid Elixir and will not crash the device</div>
             </div>
           </div>
