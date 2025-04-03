@@ -83,7 +83,6 @@ defmodule NervesHub.Application do
 
       _ ->
         [
-          NervesHub.ManagedDeployments.Supervisor,
           ProcessHub.child_spec(%ProcessHub{hub_id: :deployment_orchestrators}),
           NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
         ]
