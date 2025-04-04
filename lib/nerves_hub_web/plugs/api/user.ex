@@ -9,8 +9,8 @@ defmodule NervesHubWeb.API.Plugs.User do
 
   def call(conn, _opts) do
     case authenticate_user(conn) do
-      {:ok, %{user: user} = auth} ->
-        _ = mark_last_used(auth)
+      {:ok, user} ->
+        _ = mark_last_used(conn)
 
         assign(conn, :user, user)
 
@@ -39,17 +39,20 @@ defmodule NervesHubWeb.API.Plugs.User do
     end
   end
 
-  defp token_auth(<<"nh", _u, "_", hmac::30-bytes, crc_bin::6-bytes>> = token) do
-    with {:ok, crc} <- Base62.decode(crc_bin),
-         true <- :erlang.crc32(hmac) == crc do
-      Accounts.get_user_token(token)
-    end
+  defp token_auth(<<"nh", _u, "_", token::43-bytes>>) do
+    Accounts.fetch_user_by_api_token(token)
   end
 
-  defp token_auth(_token), do: :forbidden
+  defp token_auth(_token) do
+    :forbidden
+  end
 
-  defp mark_last_used(record) do
-    Ecto.Changeset.change(record, %{last_used: DateTime.truncate(DateTime.utc_now(), :second)})
-    |> NervesHub.Repo.update()
+  defp mark_last_used(conn) do
+    with [header] <- get_req_header(conn, "authorization"),
+         [scheme, full_token | _] = String.split(header, " "),
+         true <- String.downcase(scheme) in ["token", "bearer"],
+         <<"nh", _u, "_", token::43-bytes>> <- full_token do
+      Accounts.mark_last_used(token)
+    end
   end
 end

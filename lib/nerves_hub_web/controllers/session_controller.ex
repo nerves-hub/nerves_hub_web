@@ -2,56 +2,29 @@ defmodule NervesHubWeb.SessionController do
   use NervesHubWeb, :controller
 
   alias NervesHub.Accounts
-
-  @session_key "auth_user_id"
+  alias NervesHubWeb.Auth
 
   def new(conn, params) do
-    conn
-    |> get_session(@session_key)
-    |> case do
-      nil ->
-        render(conn, "new.html", message: params["message"])
-
-      user_id ->
-        case Accounts.get_user(user_id) do
-          {:ok, _user} ->
-            redirect(conn, to: Routes.home_path(conn, :index))
-
-          _ ->
-            render(conn, "new.html", message: params["message"])
-        end
-    end
+    render(conn, "new.html", message: params["message"])
   end
 
-  def create(conn, %{
-        "login" => %{"email" => email, "password" => password}
-      }) do
-    email
-    |> Accounts.authenticate(password)
-    |> render_create_session(conn)
+  def create(conn, %{"login" => user_params}) do
+    %{"email" => email, "password" => password} = user_params
+
+    if user = Accounts.get_user_by_email_and_password(email, password) do
+      Auth.log_in_user(conn, user, user_params)
+    else
+      # In order to prevent user enumeration attacks, don't disclose whether the email is registered.
+      conn
+      |> put_flash(:error, "Invalid email or password")
+      |> put_flash(:email, String.slice(email, 0, 160))
+      |> redirect(to: ~p"/login")
+    end
   end
 
   def delete(conn, _params) do
     conn
-    |> delete_session(@session_key)
-    |> redirect(to: "/")
-  end
-
-  defp render_create_session(account, conn) do
-    case account do
-      {:ok, user} ->
-        conn
-        |> put_session(@session_key, user.id)
-        |> redirect(to: redirect_path_after_login(conn))
-
-      {:error, :authentication_failed} ->
-        conn
-        |> put_flash(:error, "Login Failed")
-        |> redirect(to: Routes.session_path(conn, :new))
-    end
-  end
-
-  defp redirect_path_after_login(conn) do
-    get_session(conn, :login_redirect_path) || Routes.home_path(conn, :index)
+    |> put_flash(:info, "Logged out successfully.")
+    |> NervesHubWeb.Auth.log_out_user()
   end
 end
