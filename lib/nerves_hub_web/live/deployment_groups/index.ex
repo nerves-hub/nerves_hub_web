@@ -115,7 +115,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
       page: pagination_opts["page_number"],
       page_size: pagination_opts["page_size"],
       sort: pagination_opts["sort"] || "name",
-      sort_direction: pagination_opts["sort_direction"],
+      sort_direction: pagination_opts["sort_direction"] || "asc",
       filters: filters
     }
 
