@@ -1,6 +1,8 @@
 defmodule NervesHubWeb.Router do
   use NervesHubWeb, :router
 
+  import NervesHubWeb.Auth
+
   import Phoenix.LiveDashboard.Router
   import Oban.Web.Router
 
@@ -12,6 +14,7 @@ defmodule NervesHubWeb.Router do
     plug(:put_root_layout, html: {NervesHubWeb.LayoutView, :root})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
+    plug(:fetch_current_user)
     plug(NervesHubWeb.Plugs.SetLocale)
   end
 
@@ -30,7 +33,6 @@ defmodule NervesHubWeb.Router do
   end
 
   pipeline :logged_in do
-    plug(NervesHubWeb.Plugs.FetchUser)
     plug(NervesHubWeb.Plugs.EnsureLoggedIn)
   end
 
@@ -183,10 +185,21 @@ defmodule NervesHubWeb.Router do
     pipe_through(:browser)
 
     get("/", HomeController, :index)
+  end
+
+  scope "/", NervesHubWeb do
+    # Only authenticated users can use these routes
+    pipe_through([:browser, :require_authenticated_user])
+
+    get("/logout", SessionController, :delete)
+  end
+
+  scope "/", NervesHubWeb do
+    # Only unauthenticated users can use these routes
+    pipe_through([:browser, :redirect_if_user_is_authenticated])
 
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
-    get("/logout", SessionController, :delete)
 
     get("/register", AccountController, :new)
     post("/register", AccountController, :create)

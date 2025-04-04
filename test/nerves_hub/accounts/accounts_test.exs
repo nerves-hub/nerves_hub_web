@@ -279,10 +279,10 @@ defmodule NervesHub.AccountsTest do
   end
 
   test "can create a user token", %{user: user} do
-    assert {:ok, %{token: <<"nhu_", token::binary>>}} =
-             Accounts.create_user_token(user, "Test token")
+    assert <<"nhu_", token::binary>> =
+             Accounts.create_user_api_token(user, "Test token")
 
-    assert byte_size(token) == 36
+    assert byte_size(token) == 43
   end
 
   def setup_org_metric(%{user: user}) do
