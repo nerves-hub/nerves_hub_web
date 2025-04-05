@@ -74,6 +74,21 @@ defmodule NervesHub.Accounts.User do
     |> email_password_update_valid?(user, params)
   end
 
+  @doc """
+  Verifies the password.
+
+  If there is no user or the user doesn't have a password, we call
+  `Bcrypt.no_user_verify/0` to avoid timing attacks.
+  """
+  def valid_password?(%__MODULE__{password_hash: hashed_password}, password)
+      when is_binary(hashed_password) and byte_size(password) > 0 do
+    Bcrypt.verify_pass(password, hashed_password)
+  end
+
+  def valid_password?(_, _) do
+    Bcrypt.no_user_verify()
+  end
+
   def with_all_orgs(%User{} = u) do
     u
     |> Repo.preload(:orgs)

@@ -234,6 +234,24 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @doc """
+  Gets a user by email and password.
+
+  ## Examples
+
+      iex> get_user_by_email_and_password("foo@example.com", "correct_password")
+      %User{}
+
+      iex> get_user_by_email_and_password("foo@example.com", "invalid_password")
+      nil
+
+  """
+  def get_user_by_email_and_password(email, password)
+      when is_binary(email) and is_binary(password) do
+    user = Repo.get_by(User, email: email)
+    if User.valid_password?(user, password), do: user
+  end
+
   @spec get_user(integer()) ::
           {:ok, User.t()}
           | {:error, :not_found}
@@ -681,20 +699,37 @@ defmodule NervesHub.Accounts do
   defdelegate remove_account(user_id), to: RemoveAccount
 
   @doc """
-  Create a 36 digit Base62 encoded user token
+  Create a 47 character Base64 URL encoded user token.
 
-  Token format is "nh{prefix}_{30 digit HMAC}{6 digit 32 bit CRC32 checksum}"
+  Token format is "nh{prefix}_{Base64 encoded :crypto.strong_rand_bytes(32)}"
 
   Currently supported prefixes:
     * `u` - User token
 
-  Heavily inspired by [GitHub authentication token formats](https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/)
+  Inspired by [GitHub authentication token formats](https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/)
   """
-  @spec create_user_token(User.t(), String.t()) ::
-          {:ok, UserToken.t()} | {:error, Ecto.Changeset.t()}
-  def create_user_token(%NervesHub.Accounts.User{} = user, note) do
-    UserToken.create_changeset(user, %{note: note})
-    |> Repo.insert()
+  @spec create_user_session_token(User.t(), String.t() | nil) :: binary()
+  def create_user_session_token(%NervesHub.Accounts.User{} = user, note \\ nil) do
+    {encoded_token, user_token} = UserToken.build_session_token(user, note)
+    Repo.insert!(user_token)
+    encoded_token
+  end
+
+  @doc """
+  Create a 47 character Base64 URL encoded user token.
+
+  Token format is "nh{prefix}_{Base64 encoded :crypto.strong_rand_bytes(32)}"
+
+  Currently supported prefixes:
+    * `u` - User token
+
+  Inspired by [GitHub authentication token formats](https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/)
+  """
+  @spec create_user_api_token(User.t(), String.t()) :: String.t()
+  def create_user_api_token(%NervesHub.Accounts.User{} = user, note) do
+    {encoded_token, user_token} = UserToken.build_hashed_token(user, "api", note)
+    Repo.insert!(user_token)
+    encoded_token
   end
 
   @doc """
@@ -720,14 +755,58 @@ defmodule NervesHub.Accounts do
     end
   end
 
-  def get_user_tokens(user) do
+  def get_user_api_tokens(user) do
     UserToken
     |> where(user_id: ^user.id)
+    |> where(context: "api")
     |> Repo.all()
   end
 
   def delete_user_token(user, token_id) do
     {:ok, token} = get_user_token(user, token_id)
     Repo.delete(token)
+  end
+
+  @doc """
+  Gets the User with the given signed token.
+  """
+  def get_user_by_session_token(token) do
+    {:ok, query} = UserToken.verify_session_token_query(token)
+    Repo.one(query)
+  end
+
+  @doc """
+  Fetches the user by API token.
+  """
+  def fetch_user_by_api_token(token) do
+    with {:ok, query} <- UserToken.verify_api_token_query(token),
+         %User{} = user <- Repo.one(query) do
+      {:ok, user}
+    else
+      _ -> :error
+    end
+  end
+
+  @doc """
+  Update the API token as just used.
+  """
+  def mark_last_used(token) do
+    with {:ok, query} <- UserToken.mark_last_used_query(token),
+         {1, nil} <-
+           Repo.update_all(query,
+             set: [last_used: DateTime.truncate(DateTime.utc_now(), :second)]
+           ) do
+      :ok
+    else
+      _ -> :error
+    end
+  end
+
+  @doc """
+  Deletes the signed token with the given context.
+  """
+  def delete_user_session_token(token) do
+    Repo.delete_all(UserToken.by_token_and_context_query(token, "session"))
+    :ok
   end
 end
