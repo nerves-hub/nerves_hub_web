@@ -415,4 +415,320 @@ defmodule NervesHub.ManagedDeploymentsTest do
       assert audit_log.description =~ "no longer matches deployment group"
     end
   end
+
+  describe "matched_devices_count/2" do
+    setup %{org: org, product: product, firmware: firmware} =
+            context do
+      {:ok, deployment_group} =
+        ManagedDeployments.create_deployment_group(%{
+          org_id: org.id,
+          firmware_id: firmware.id,
+          name: "Deployment 123",
+          is_active: false,
+          conditions: %{
+            "version" => "> 1.0.0",
+            "tags" => []
+          }
+        })
+
+      Fixtures.device_fixture(org, product, firmware, %{
+        tags: ["foo"],
+        deployment_id: deployment_group.id
+      })
+
+      Fixtures.device_fixture(org, product, firmware, %{
+        tags: ["beta", "rpi"],
+        deployment_id: deployment_group.id
+      })
+
+      Fixtures.device_fixture(org, product, %{firmware | version: "1.2.0"}, %{
+        tags: ["beta", "rpi"],
+        deployment_id: deployment_group.id
+      })
+
+      Map.merge(context, %{deployment_group: deployment_group})
+    end
+
+    test "count for deployment group with version but no tags", %{
+      deployment_group: deployment_group
+    } do
+      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 1
+    end
+
+    test "counts devices for deployment group with tags but no version", %{
+      deployment_group: deployment_group
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{
+          conditions: %{"tags" => ["beta", "rpi"], "version" => ""}
+        })
+
+      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 2
+    end
+
+    test "counts devices for deployment group with tags and version", %{
+      deployment_group: deployment_group
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{
+          conditions: %{"tags" => ["beta", "rpi"], "version" => "> 1.1.0"}
+        })
+
+      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: true) == 1
+    end
+
+    test "accounts for devices outside of deployment group", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["beta", "rpi"]
+        })
+
+      refute device.deployment_id
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{
+          conditions: %{"tags" => ["beta", "rpi"], "version" => ""}
+        })
+
+      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false) == 1
+    end
+
+    test "devices outside deployment group account for platform and architecture", %{
+      deployment_group: deployment_group,
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["beta", "rpi"]
+        })
+
+      refute device.deployment_id
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{
+          conditions: %{"tags" => ["beta", "rpi"], "version" => ""}
+        })
+
+      assert ManagedDeployments.matched_devices_count(deployment_group, in_deployment: false) == 1
+    end
+  end
+
+  describe "matched_device_ids/2" do
+    test "takes platform and architecture into account", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.create_deployment_group(%{
+          org_id: org.id,
+          firmware_id: firmware.id,
+          name: "Deployment 123",
+          is_active: false,
+          conditions: %{
+            "version" => "1.0.0",
+            "tags" => ["beta", "rpi"]
+          }
+        })
+
+      _device1 =
+        Fixtures.device_fixture(
+          org,
+          product,
+          %{firmware | platform: "foo", architecture: "bar"},
+          %{
+            tags: ["beta", "rpi"]
+          }
+        )
+
+      device2 =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["beta", "rpi"]
+        })
+
+      assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
+               device2.id
+             ]
+    end
+
+    test "matches against tags and version", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.create_deployment_group(%{
+          org_id: org.id,
+          firmware_id: firmware.id,
+          name: "Deployment 123",
+          is_active: false,
+          conditions: %{
+            "version" => "1.0.0",
+            "tags" => ["beta", "rpi"]
+          }
+        })
+
+      _device1 =
+        Fixtures.device_fixture(
+          org,
+          product,
+          firmware,
+          %{
+            tags: ["foo"]
+          }
+        )
+
+      _device2 =
+        Fixtures.device_fixture(org, product, %{firmware | version: "3.0.0"}, %{
+          tags: ["beta", "rpi"]
+        })
+
+      device3 =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["beta", "rpi"]
+        })
+
+      assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
+               device3.id
+             ]
+    end
+
+    test "matches against only tags if deployment group has no version", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.create_deployment_group(%{
+          org_id: org.id,
+          firmware_id: firmware.id,
+          name: "Deployment 123",
+          is_active: false,
+          conditions: %{
+            "version" => "",
+            "tags" => ["beta", "rpi"]
+          }
+        })
+
+      device1 =
+        Fixtures.device_fixture(
+          org,
+          product,
+          firmware,
+          %{
+            tags: ["beta", "rpi", "foo"]
+          }
+        )
+
+      device2 =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["beta", "rpi"]
+        })
+
+      assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
+               device1.id,
+               device2.id
+             ]
+    end
+
+    test "matches against only version if deployment group has no tags", %{
+      org: org,
+      product: product,
+      firmware: firmware
+    } do
+      {:ok, deployment_group} =
+        ManagedDeployments.create_deployment_group(%{
+          org_id: org.id,
+          firmware_id: firmware.id,
+          name: "Deployment 123",
+          is_active: false,
+          conditions: %{
+            "version" => "< 1.0.0",
+            "tags" => []
+          }
+        })
+
+      _device1 =
+        Fixtures.device_fixture(
+          org,
+          product,
+          firmware,
+          %{
+            tags: ["beta", "rpi"]
+          }
+        )
+
+      device2 =
+        Fixtures.device_fixture(org, product, %{firmware | version: "0.5.0"}, %{
+          tags: ["beta", "rpi"]
+        })
+
+      assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
+               device2.id
+             ]
+    end
+
+    test "when matching on tags, returns any devices that have at least one tag in common with deployment",
+         %{
+           org: org,
+           product: product,
+           firmware: firmware
+         } do
+      {:ok, deployment_group} =
+        ManagedDeployments.create_deployment_group(%{
+          org_id: org.id,
+          firmware_id: firmware.id,
+          name: "Deployment 123",
+          is_active: false,
+          conditions: %{
+            "version" => "",
+            "tags" => ["beta", "rpi"]
+          }
+        })
+
+      device1 =
+        Fixtures.device_fixture(
+          org,
+          product,
+          firmware,
+          %{
+            tags: ["beta"]
+          }
+        )
+
+      device2 =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["rpi"]
+        })
+
+      device3 =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["beta", "rpi"]
+        })
+
+      device4 =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["beta", "foo"]
+        })
+
+      _device5 =
+        Fixtures.device_fixture(org, product, firmware, %{
+          tags: ["foo"]
+        })
+
+      assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
+               device1.id,
+               device2.id,
+               device3.id,
+               device4.id
+             ]
+    end
+  end
 end

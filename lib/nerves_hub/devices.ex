@@ -817,14 +817,6 @@ defmodule NervesHub.Devices do
     Map.put(device, :deployment_group, deployment_group)
   end
 
-  @spec update_many_deployment_groups([non_neg_integer()], DeploymentGroup.t()) ::
-          {integer(), nil | [term()]}
-  def update_many_deployment_groups(device_ids, deployment_group) do
-    Device
-    |> where([d], d.id in ^device_ids)
-    |> Repo.update_all(set: [deployment_id: deployment_group.id])
-  end
-
   @spec clear_deployment_group(Device.t()) :: Device.t()
   def clear_deployment_group(device) do
     device =
@@ -1204,18 +1196,28 @@ defmodule NervesHub.Devices do
     update_device(device, %{updates_blocked_until: blocked_until})
   end
 
-  @spec move_many_to_deployment_group([integer()], integer()) ::
+  @spec move_many_to_deployment_group(
+          [non_neg_integer()],
+          DeploymentGroup.t() | non_neg_integer()
+        ) ::
           {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
-  def move_many_to_deployment_group(device_ids, deployment_id) do
-    %{firmware: firmware} =
+  def move_many_to_deployment_group(device_ids, deployment_id)
+      when is_number(deployment_id) do
+    deployment_group =
       DeploymentGroup |> where(id: ^deployment_id) |> preload(:firmware) |> Repo.one()
+
+    move_many_to_deployment_group(device_ids, deployment_group)
+  end
+
+  def move_many_to_deployment_group(device_ids, %DeploymentGroup{id: id} = deployment_group) do
+    %{firmware: firmware} = Repo.preload(deployment_group, :firmware)
 
     {devices_updated_count, _} =
       Device
       |> where([d], d.id in ^device_ids)
       |> where([d], d.firmware_metadata["platform"] == ^firmware.platform)
       |> where([d], d.firmware_metadata["architecture"] == ^firmware.architecture)
-      |> Repo.update_all(set: [deployment_id: deployment_id])
+      |> Repo.update_all(set: [deployment_id: id])
 
     :ok = Enum.each(device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
 

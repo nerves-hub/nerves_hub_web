@@ -259,7 +259,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
               aria-label="Delete"
               data-confirm={[
                 "Are you sure you want to delete this deployment group?",
-                @deployment_group.device_count > 0 && " All devices assigned to this deployment group will be assigned a new deployment when they reconnect. ",
+                (@deployment_group.device_count > 0 && " All devices assigned to this deployment group will be assigned a new deployment when they reconnect. ") || [],
                 "This cannot be undone."
               ]}
             >
