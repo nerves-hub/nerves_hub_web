@@ -253,6 +253,19 @@
     font-weight: 500;
     line-height: 20px;
   }
+
+  .clickable-table-row {
+    position: relative;
+    transform: translate(0);
+    clip-path: inset(0);
+  }
+
+  .clickable-table-row-mask {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    max-height: 52px;
+  }
 }
 
 html {
