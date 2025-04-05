@@ -100,7 +100,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr :for={device <- @devices} class={["border-b border-zinc-800 relative isolate", device.id in @selected_devices && "selected-row"]} style={progress_style(@progress[device.id])}>
+          <tr :for={device <- @devices} class={["border-b border-zinc-800 isolate clickable-table-row", device.id in @selected_devices && "selected-row"]} style={progress_style(@progress[device.id])}>
             <td class="checkbox">
               <input
                 id={"checkbox-device-#{device.id}"}
@@ -152,7 +152,7 @@
                 </span>
                 <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class="ff-m font-mono">
                   {device.identifier}
-                  <span class="absolute inset-0 z-10"></span>
+                  <span class="clickable-table-row-mask" />
                 </.link>
                 <span class={["flex items-center gap-1 ml-2 pl-2.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800", !@progress[device.id] && "invisible"]}>
                   <span class="text-xs text-zinc-300 tracking-tight">updating</span>
