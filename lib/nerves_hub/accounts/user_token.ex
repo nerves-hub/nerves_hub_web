@@ -4,6 +4,7 @@ defmodule NervesHub.Accounts.UserToken do
   import Ecto.Query
 
   alias NervesHub.Accounts.User
+  alias NervesHub.Utils.Base62
 
   @rand_size 32
   @hash_algorithm :sha512
@@ -55,9 +56,11 @@ defmodule NervesHub.Accounts.UserToken do
   """
   def build_hashed_token(user, context, note) do
     token = :crypto.strong_rand_bytes(@rand_size)
+    crc = :erlang.crc32(token)
+
     hashed_token = :crypto.hash(@hash_algorithm, token)
 
-    friendly_token = "nhu_" <> Base.url_encode64(token, padding: false)
+    friendly_token = "nhu_" <> Base62.encode(<<token::binary, crc::32>>)
 
     {friendly_token,
      %__MODULE__{
@@ -94,10 +97,8 @@ defmodule NervesHub.Accounts.UserToken do
   The query returns the User found by the token, if any.
   """
   def verify_api_token_query(token) do
-    case Base.url_decode64(token, padding: false) do
-      {:ok, decoded_token} ->
-        hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
-
+    case verify_token_format(token) do
+      {:ok, hashed_token} ->
         query =
           from(token in by_token_and_context_query(hashed_token, "api"),
             join: user in assoc(token, :user),
@@ -107,8 +108,16 @@ defmodule NervesHub.Accounts.UserToken do
 
         {:ok, query}
 
-      :error ->
+      _ ->
         :error
+    end
+  end
+
+  defp assert_crc(token, crc) do
+    if :erlang.crc32(token) == crc do
+      :ok
+    else
+      :crc_mismatch
     end
   end
 
@@ -116,14 +125,29 @@ defmodule NervesHub.Accounts.UserToken do
   Checks if the token is valid and returns a query for updating the `last_used` field.
   """
   def mark_last_used_query(token) do
-    case Base.url_decode64(token, padding: false) do
-      {:ok, decoded_token} ->
-        hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
+    case verify_token_format(token) do
+      {:ok, hashed_token} ->
         query = by_token_and_context_query(hashed_token, "api")
+
         {:ok, query}
 
-      :error ->
+      _ ->
         :error
+    end
+  end
+
+  @spec verify_token_format(String.t()) :: {:ok, String.t()} | :crc_mismatch | :invalid
+  def verify_token_format(token) do
+    with <<"nh", _u, "_", token_with_crc::binary>> <- token,
+         {:ok, <<token::32-bytes, crc::32>>} <- Base62.decode(token_with_crc),
+         :ok <- assert_crc(token, crc) do
+      {:ok, :crypto.hash(@hash_algorithm, token)}
+    else
+      :crc_mismatch ->
+        :crc_mismatch
+
+      _ ->
+        :invalid
     end
   end
 

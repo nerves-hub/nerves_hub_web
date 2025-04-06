@@ -9,7 +9,9 @@ defmodule NervesHub.AccountsTest do
   alias NervesHub.Accounts.OrgKey
   alias NervesHub.Accounts.OrgUser
   alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.UserToken
   alias NervesHub.Fixtures
+  alias NervesHub.Utils.Base62
 
   @required_org_params %{name: "Org"}
 
@@ -278,11 +280,33 @@ defmodule NervesHub.AccountsTest do
     assert "is already member" in errors_on(changeset).org_users
   end
 
-  test "can create a user token", %{user: user} do
+  test "can create a valid base 62 encoded user token", %{user: user} do
     assert <<"nhu_", token::binary>> =
              Accounts.create_user_api_token(user, "Test token")
 
-    assert byte_size(token) == 43
+    assert {:ok, <<_token::32-bytes, _crc::32>>} = Base62.decode(token)
+  end
+
+  describe "UserToken CRCs" do
+    test "if the crc doesn't match, return :crc_mismatch", %{user: user} do
+      token = Accounts.create_user_api_token(user, "Test token")
+
+      <<"nh", _u, "_", token_with_crc::binary>> = token
+
+      {:ok, <<token::32-bytes, crc::32>>} = Base62.decode(token_with_crc)
+
+      encoded_token = Base62.encode(<<token::32-bytes, crc + 1::32>>)
+
+      assert :crc_mismatch = UserToken.verify_token_format("nhu_#{encoded_token}")
+    end
+
+    test "if the token is invalid, return :crc_mismatch", %{user: user} do
+      token = Accounts.create_user_api_token(user, "Test token")
+
+      <<"nhu_", only_token::binary>> = token
+
+      assert :invalid = UserToken.verify_token_format(only_token)
+    end
   end
 
   def setup_org_metric(%{user: user}) do
