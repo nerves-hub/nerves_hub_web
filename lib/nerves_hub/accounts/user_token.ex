@@ -55,7 +55,7 @@ defmodule NervesHub.Accounts.UserToken do
   the token in the application to gain access.
   """
   def build_hashed_token(user, context, note) do
-    token = :crypto.strong_rand_bytes(@rand_size)
+    token = base62_safe_token()
     crc = :erlang.crc32(token)
 
     hashed_token = :crypto.hash(@hash_algorithm, token)
@@ -69,6 +69,16 @@ defmodule NervesHub.Accounts.UserToken do
        note: trim(note),
        user_id: user.id
      }}
+  end
+
+  defp base62_safe_token() do
+    case :crypto.strong_rand_bytes(@rand_size) do
+      # Base62 is an integer based calculation and cannot
+      # deal with leading null bytes since they are ignored
+      # so we generate another one to avoid that problem
+      <<0, _::binary>> -> base62_safe_token()
+      token -> token
+    end
   end
 
   @doc """
