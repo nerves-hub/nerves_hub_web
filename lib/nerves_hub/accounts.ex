@@ -699,9 +699,11 @@ defmodule NervesHub.Accounts do
   defdelegate remove_account(user_id), to: RemoveAccount
 
   @doc """
-  Create a 47 character Base64 URL encoded user token.
+  Create Base62 encoded user token.
 
-  Token format is "nh{prefix}_{Base64 encoded :crypto.strong_rand_bytes(32)}"
+  The core token uses `:crypto.strong_rand_bytes(32)`
+
+  And the final token format is "nh{prefix}_{Base62.encode(token <> crc32(token))}"
 
   Currently supported prefixes:
     * `u` - User token
