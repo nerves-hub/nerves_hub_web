@@ -24,54 +24,53 @@ defmodule NervesHub.Utils.Base62 do
 
   @chars String.graphemes("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 
-  @decode_chars @chars |> Enum.with_index() |> Map.new()
-  @encode_chars List.to_tuple(@chars)
-
-  @spec bin_to_integer(binary()) :: integer()
-  def bin_to_integer(bin) do
-    list_of_bytes = for <<byte::8 <- bin>>, do: byte
-
-    Integer.undigits(list_of_bytes, 256)
-  end
-
   @spec encode(binary() | integer()) :: binary()
   def encode(""), do: ""
 
-  def encode(byte_data) when is_bitstring(byte_data) do
-    byte_data
-    # convert it into an integer
-    |> bin_to_integer()
-    # uses the integer version of encode now
+  def encode(bin) when is_binary(bin) do
+    bin
+    |> :crypto.bytes_to_integer()
     |> encode()
   end
 
-  def encode(integer_data) when is_integer(integer_data) do
-    cache = @encode_chars
-
-    # get mod 62 numbers into a list
-    integer_data |> Integer.digits(62) |> Enum.into("", fn data -> elem(cache, data) end)
+  def encode(int) when is_integer(int) do
+    for n <- Integer.digits(int, 62), into: "", do: mod_val_to_char(n)
   end
 
-  @spec decode(binary()) :: {:ok, binary()} | :error
-  def decode(string_data) do
-    {:ok, decode!(string_data)}
-  rescue
-    _ -> :error
+  for {char, i} <- Enum.with_index(@chars) do
+    defp mod_val_to_char(unquote(i)), do: unquote(char)
   end
 
   @spec decode!(binary()) :: binary()
-  def decode!(""), do: <<>>
+  def decode!(""), do: ""
 
-  def decode!(string_data) when is_binary(string_data) do
-    cache = @decode_chars
-
-    string_data
-    |> String.graphemes()
-    |> Enum.map(fn char -> cache[char] end)
+  def decode!(bin) when is_binary(bin) do
+    bin
+    |> chars_to_mod_vals!()
     |> Integer.undigits(62)
     |> Integer.digits(256)
-    |> Enum.reduce(<<>>, fn number, acc ->
-      acc <> <<number>>
-    end)
+    |> :binary.list_to_bin()
+  end
+
+  @spec decode(binary()) :: {:ok, binary()} | {:error, ArgumentError.t()}
+  def decode(bin) do
+    {:ok, decode!(bin)}
+  rescue
+    exception -> {:error, exception}
+  end
+
+  defp chars_to_mod_vals!(bin, mod_vals \\ [])
+  defp chars_to_mod_vals!(<<>>, mod_vals), do: Enum.reverse(mod_vals)
+
+  for {char, i} <- Enum.with_index(@chars) do
+    defp chars_to_mod_vals!(<<unquote(char), rem::binary>>, mod_vals),
+      do: chars_to_mod_vals!(rem, [unquote(i) | mod_vals])
+  end
+
+  defp chars_to_mod_vals!(<<byte, _::binary>>, mod_vals) do
+    msg =
+      "non-alphabet character found at pos #{length(mod_vals) + 1}: #{inspect(<<byte>>, binaries: :as_strings)} (byte #{byte})"
+
+    raise ArgumentError, msg
   end
 end
