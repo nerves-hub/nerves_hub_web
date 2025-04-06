@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.API.Plugs.User do
+defmodule NervesHubWeb.API.Plugs.AuthenticateUser do
   import Plug.Conn
 
   alias NervesHub.Accounts
