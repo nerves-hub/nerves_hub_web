@@ -52,8 +52,8 @@ defmodule NervesHubWeb.Router do
     plug(:accepts, ["json"])
   end
 
-  pipeline :api_user do
-    plug(NervesHubWeb.API.Plugs.User)
+  pipeline :api_require_authenticated_user do
+    plug(NervesHubWeb.API.Plugs.AuthenticateUser)
   end
 
   pipeline :api_org do
@@ -77,7 +77,7 @@ defmodule NervesHubWeb.Router do
     post("/users/login", UserController, :login)
 
     scope "/devices" do
-      pipe_through([:api_user])
+      pipe_through([:api_require_authenticated_user])
 
       get("/:identifier", DeviceController, :show)
       post("/:identifier/reboot", DeviceController, :reboot)
@@ -92,7 +92,7 @@ defmodule NervesHubWeb.Router do
     end
 
     scope "/" do
-      pipe_through([:api_user])
+      pipe_through([:api_require_authenticated_user])
 
       get("/users/me", UserController, :me)
 
