@@ -1,5 +1,5 @@
-defmodule NervesHubWeb.Components.DevicePage.Details do
-  use NervesHubWeb, :live_component
+defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
+  use NervesHubWeb, tab_component: :details
 
   require Logger
 
@@ -16,35 +16,8 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.NewUI.DeviceLocation
 
-  def update(%{latest_metrics: latest_metrics}, socket) do
+  def tab_params(_params, _uri, %{assigns: %{device: device}} = socket) do
     socket
-    |> assign(:latest_metrics, latest_metrics)
-    |> assign_metadata()
-    |> ok()
-  end
-
-  def update(%{update_auto_refresh_health: auto_refresh_health}, socket) do
-    socket
-    |> assign(:auto_refresh_health, auto_refresh_health)
-    |> ok()
-  end
-
-  def update(%{firmwares: firmware}, socket) do
-    socket
-    |> assign(:firmwares, firmware)
-    |> send_toast(:info, "New firmware available for selection")
-    |> ok()
-  end
-
-  def update(assigns, socket) do
-    device = Devices.get_complete_device(assigns.device_id)
-
-    socket
-    |> assign(:device, device)
-    |> assign(:product, device.product)
-    |> assign(:org, device.org)
-    |> assign(:org_user, assigns.org_user)
-    |> assign(:user, assigns.user)
     |> assign(:device_connection, device.latest_connection)
     |> assign_support_scripts()
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
@@ -52,10 +25,9 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, device.product))
-    |> assign(:auto_refresh_health, true)
     |> assign_metadata()
     |> assign_deployment_groups()
-    |> ok()
+    |> cont()
   end
 
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
@@ -76,16 +48,19 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     assign(socket, :support_scripts, scripts)
   end
 
-  defp assign_deployment_groups(%{assigns: %{device: %{status: :provisioned} = device}} = socket),
-    do: assign(socket, deployment_groups: ManagedDeployments.eligible_deployment_groups(device))
+  defp assign_deployment_groups(%{assigns: %{device: %{status: :provisioned} = device}} = socket) do
+    assign(socket, deployment_groups: ManagedDeployments.eligible_deployment_groups(device))
+  end
 
-  defp assign_deployment_groups(%{assigns: %{product: product}} = socket),
-    do:
-      assign(socket,
-        deployment_groups: ManagedDeployments.get_deployment_groups_by_product(product)
-      )
+  defp assign_deployment_groups(%{assigns: %{product: product}} = socket) do
+    assign(socket,
+      deployment_groups: ManagedDeployments.get_deployment_groups_by_product(product)
+    )
+  end
 
   def render(assigns) do
+    assigns = Map.put(assigns, :auto_refresh_health, !!assigns.health_check_timer)
+
     ~H"""
     <div class="flex items-start justify-between gap-4 p-6">
       <div class="w-1/2 flex flex-col gap-4">
@@ -196,7 +171,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           <div class="h-14 pl-4 pr-3 flex items-center justify-between">
             <div class="text-neutral-50 font-medium leading-6">Health</div>
           </div>
-          <div class="flex pt-2 px-4 pb-4 gap-2 items-center">
+          <div class="flex pt-2 px-4 pb-4 gap-2 items-center text-nerves-gray-500">
             No device health information has been received.
           </div>
           <div class="px-4 pb-4 text-xs font-normal text-zinc-400 ">
@@ -307,7 +282,6 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               data-confirm="Are you sure you want to remove the device from the deployment?"
               aria-label="Remove device from the assigned deployment group"
               type="button"
-              phx-target={@myself}
               phx-click="remove-from-deployment-group"
             >
               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -326,7 +300,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           </div>
 
           <div :if={is_nil(@device.deployment_group) && Enum.any?(@deployment_groups)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <form id="set-deployment-group-form" phx-target={@myself} phx-submit="set-deployment-group" class="flex gap-2 items-center w-full">
+            <form id="set-deployment-group-form" phx-submit="set-deployment-group" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <label for="deployment_group" class="hidden">Deployment Group</label>
                 <select
@@ -363,19 +337,13 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               <span class="text-sm text-nerves-gray-500">An update is available in the assigned deployment group.</span>
             </div>
 
-            <.button
-              phx-target={@myself}
-              phx-click="push-available-update"
-              aria-label="Send available update"
-              data-confirm="Are you sure you want to skip the queue?"
-              disabled={disconnected?(@device_connection)}
-            >
+            <.button phx-click="push-available-update" aria-label="Send available update" data-confirm="Are you sure you want to skip the queue?" disabled={disconnected?(@device_connection)}>
               Skip the queue
             </.button>
           </div>
 
           <div class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <form :if={Enum.any?(@firmwares)} id="push-update-form" phx-target={@myself} phx-submit="push-update" class="flex gap-2 items-center w-full">
+            <form :if={Enum.any?(@firmwares)} id="push-update-form" phx-submit="push-update" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <label for="firmware" class="hidden">Firmware</label>
                 <select
@@ -414,7 +382,6 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
             enabled_device={@device.extensions.geo}
             location={extract_location_data(@device)}
             enable_location_editor={!!assigns[:enable_location_editor]}
-            target={@myself}
           />
         </div>
 
@@ -432,13 +399,13 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
               <div class="flex gap-4">
                 <span class="text-base text-zinc-300">{script.name}</span>
 
-                <button class="p-1 border border-green-500 rounded-full bg-zinc-800" type="button" disabled={script.running?} phx-target={@myself} phx-click="run-script" phx-value-id={script.id}>
+                <button class="p-1 border border-green-500 rounded-full bg-zinc-800" type="button" disabled={script.running?} phx-click="run-script" phx-value-id={script.id}>
                   <svg class="w-3 h-3 stroke-green-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M8 19V5L18 12L8 19Z" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </button>
 
-                <button :if={script.output} class="p-1 border border-red-500 rounded-full bg-zinc-800" type="button" phx-target={@myself} phx-click="clear-script-output" phx-value-id={script.id}>
+                <button :if={script.output} class="p-1 border border-red-500 rounded-full bg-zinc-800" type="button" phx-click="clear-script-output" phx-value-id={script.id}>
                   <svg class="size-3 stroke-red-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                       d="M8 8H16M16 12H8M8 16H12M20 13V6C20 4.89543 19.1046 4 18 4H6C4.89543 4 4 4.89543 4 6V18C4 19.1046 4.89543 20 6 20H13M19 19L21 17M19 19L17 17M19 19L21 21M19 19L17 21"
@@ -467,7 +434,40 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     """
   end
 
-  def handle_event("clear-manual-location-information", _, socket) do
+  def hooked_event("toggle-deployment-firmware-updates", _params, socket) do
+    %{org_user: org_user, user: user, device: device} = socket.assigns
+
+    authorized!(:"device:toggle-updates", org_user)
+
+    {:ok, updated_device} = Devices.toggle_automatic_updates(device, user)
+
+    message = [
+      "Firmware updates ",
+      (updated_device.updates_enabled && "enabled") || "disabled",
+      "."
+    ]
+
+    socket
+    |> assign(:device, updated_device)
+    |> send_toast(:info, Enum.join(message))
+    |> halt()
+  end
+
+  def hooked_event("toggle-health-check-auto-refresh", _value, socket) do
+    if timer_ref = socket.assigns.health_check_timer do
+      _ = Process.cancel_timer(timer_ref)
+
+      socket
+      |> assign(:health_check_timer, nil)
+      |> halt()
+    else
+      socket
+      |> schedule_health_check_timer()
+      |> halt()
+    end
+  end
+
+  def hooked_event("clear-manual-location-information", _, socket) do
     {:ok, device} =
       Devices.update_device(socket.assigns.device, %{
         custom_location_coordinates: nil
@@ -476,29 +476,29 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     socket
     |> assign(:device, device)
     |> send_toast(:info, "Manual device location information has been cleared.")
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("enable-location-editor", _, socket) do
+  def hooked_event("enable-location-editor", _, socket) do
     socket
     |> assign(:enable_location_editor, true)
     |> send_toast(:info, "Please use the map to search and pin your devices location.")
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("discard-location-changes", _, socket) do
+  def hooked_event("discard-location-changes", _, socket) do
     socket
     |> assign(:enable_location_editor, false)
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("update-device-location", latlng, socket) do
+  def hooked_event("update-device-location", latlng, socket) do
     socket
     |> assign(:buffer_custom_location, latlng)
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("save-location-changes", _, socket) do
+  def hooked_event("save-location-changes", _, socket) do
     {:ok, device} =
       Devices.update_device(socket.assigns.device, %{
         custom_location_coordinates: [
@@ -511,10 +511,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     |> assign(:device, device)
     |> send_toast(:info, "Custom location coordinates saved.")
     |> assign(:enable_location_editor, false)
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("set-deployment-group", %{"deployment_id" => deployment_id}, socket) do
+  def hooked_event("set-deployment-group", %{"deployment_id" => deployment_id}, socket) do
     %{user: user, device: device, deployment_groups: deployment_groups} = socket.assigns
 
     authorized!(:"device:set-deployment-group", socket.assigns.org_user)
@@ -528,10 +528,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     socket
     |> assign(:device, device)
     |> send_toast(:info, "Device successfully added to Deployment Group.")
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("push-available-update", _, socket) do
+  def hooked_event("push-available-update", _, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
     %{device: device, user: user} = socket.assigns
@@ -544,7 +544,7 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
         socket
         |> send_toast(:info, "Pushing available firmware update.")
-        |> noreply()
+        |> halt()
 
       :error ->
         Logger.error(
@@ -556,17 +556,17 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
           :info,
           "There was an error sending the update to the device. Please contact support."
         )
-        |> noreply()
+        |> halt()
     end
   end
 
-  def handle_event("push-update", %{"uuid" => uuid}, socket) when uuid == "" do
+  def hooked_event("push-update", %{"uuid" => uuid}, socket) when uuid == "" do
     socket
     |> send_toast(:error, "Please select a firmware version to send to the device.")
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("push-update", %{"uuid" => uuid}, socket) do
+  def hooked_event("push-update", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
     %{product: product, device: device, user: user} = socket.assigns
@@ -589,10 +589,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     socket
     |> assign(:device, device)
     |> send_toast(:info, "Sending firmware update request.")
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("remove-from-deployment-group", _, %{assigns: %{device: device}} = socket) do
+  def hooked_event("remove-from-deployment-group", _, %{assigns: %{device: device}} = socket) do
     device = Devices.clear_deployment_group(device)
 
     send(self(), :reload_device)
@@ -600,10 +600,10 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     socket
     |> assign(:device, device)
     |> send_toast(:info, "Device successfully removed from the deployment group")
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("run-script", %{"id" => id}, socket) do
+  def hooked_event("run-script", %{"id" => id}, socket) do
     %{assigns: %{device: device, support_scripts: scripts, org_user: org_user}} = socket
 
     authorized!(:"support_script:run", org_user)
@@ -613,18 +613,43 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
     socket
     |> assign(:support_scripts, update_script(scripts, id, %{running?: true}))
     |> start_async({:run_script, id}, fn -> Scripts.Runner.send(device, script) end)
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("clear-script-output", %{"id" => id}, socket) do
+  def hooked_event("clear-script-output", %{"id" => id}, socket) do
     %{assigns: %{support_scripts: scripts}} = socket
 
     socket
     |> assign(:support_scripts, update_script(scripts, id, %{output: nil, running?: false}))
-    |> noreply()
+    |> halt()
   end
 
-  def handle_async({:run_script, id}, result, socket) do
+  def hooked_event(_event, _params, socket), do: {:cont, socket}
+
+  def hooked_info(
+        %Broadcast{event: "health_check_report"},
+        %{assigns: %{device: device}} = socket
+      ) do
+    latest_metrics = Metrics.get_latest_metric_set(device.id)
+
+    socket
+    |> assign(:latest_metrics, latest_metrics)
+    |> assign_metadata()
+    |> halt()
+  end
+
+  def hooked_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
+    firmware = Firmwares.get_firmware_for_device(socket.assigns.device)
+
+    socket
+    |> assign(:firmwares, firmware)
+    |> send_toast(:info, "New firmware available for selection")
+    |> halt()
+  end
+
+  def hooked_info(_event, socket), do: {:cont, socket}
+
+  def hooked_async({:run_script, id}, result, socket) do
     %{assigns: %{support_scripts: scripts}} = socket
 
     output =
@@ -643,7 +668,24 @@ defmodule NervesHubWeb.Components.DevicePage.Details do
 
     socket
     |> assign(:support_scripts, scripts)
-    |> noreply()
+    |> halt()
+  end
+
+  def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
+
+  defp schedule_health_check_timer(socket) do
+    %{device: device, product: product} = socket.assigns
+
+    if connected?(socket) and health_extension_enabled?(product, device) do
+      timer_ref = Process.send_after(self(), :check_health_interval, 500)
+      assign(socket, :health_check_timer, timer_ref)
+    else
+      assign(socket, :health_check_timer, nil)
+    end
+  end
+
+  defp health_extension_enabled?(product, device) do
+    product.extensions.health and device.extensions.health
   end
 
   defp update_script(scripts, id, new_info) when is_binary(id) do

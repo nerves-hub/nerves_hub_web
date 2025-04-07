@@ -1,6 +1,7 @@
-defmodule NervesHubWeb.Components.DevicePage.Health do
-  use NervesHubWeb, :live_component
+defmodule NervesHubWeb.Components.DevicePage.HealthTab do
+  use NervesHubWeb, tab_component: :health
 
+  alias NervesHub.Devices
   alias NervesHub.Devices.Metrics
 
   @time_frame_opts [
@@ -41,23 +42,47 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
     "disk_total_kb"
   ]
 
-  def update(%{refresh_metrics: true}, socket) do
+  def tab_params(_params, _uri, socket) do
     socket
-    |> assign(:latest_metrics, Metrics.get_latest_metric_set(socket.assigns.device_id))
-    |> update_charts()
-    |> ok()
-  end
-
-  def update(%{device_id: device_id} = assigns, socket) do
-    socket
-    |> assign(assigns)
     |> assign(:time_frame, @default_time_frame)
     |> assign(:time_frame_opts, @time_frame_opts)
-    |> assign(:latest_metrics, Metrics.get_latest_metric_set(device_id))
+    |> assign(:latest_metrics, Metrics.get_latest_metric_set(socket.assigns.device.id))
     |> assign_charts()
     |> update_charts()
-    |> ok()
+    |> cont()
   end
+
+  def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
+
+  def hooked_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do
+    payload = %{unit: get_time_unit({unit, String.to_integer(amount)})}
+
+    socket =
+      socket
+      |> assign(:time_frame, {unit, String.to_integer(amount)})
+      |> push_event("update-time-unit", payload)
+      |> update_charts()
+
+    {:halt, socket}
+  end
+
+  def hooked_event(_event, _params, socket), do: {:cont, socket}
+
+  def hooked_info(
+        %Broadcast{event: "health_check_report"},
+        %{assigns: %{device: device}} = socket
+      ) do
+    latest_metrics = Metrics.get_latest_metric_set(device.id)
+
+    socket =
+      socket
+      |> assign(:latest_metrics, latest_metrics)
+      |> assign_metadata()
+
+    {:halt, socket}
+  end
+
+  def hooked_info(_event, socket), do: {:cont, socket}
 
   def render(assigns) do
     ~H"""
@@ -135,7 +160,6 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
               ]}
               aria-label={Integer.to_string(amount) <> " " <> unit <> if amount > 1, do: "s", else: ""}
               type="button"
-              phx-target={@myself}
               phx-click="set-time-frame"
               phx-value-unit={unit}
               phx-value-amount={amount}
@@ -172,49 +196,55 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
     """
   end
 
-  def handle_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do
-    payload = %{unit: get_time_unit({unit, String.to_integer(amount)})}
+  defp assign_charts(socket) do
+    %{device: device, time_frame: time_frame, latest_metrics: latest_metrics} = socket.assigns
 
-    socket
-    |> assign(:time_frame, {unit, String.to_integer(amount)})
-    |> push_event("update-time-unit", payload)
-    |> update_charts()
-    |> noreply()
-  end
-
-  def assign_charts(%{assigns: assigns} = socket) do
-    %{device_id: device_id, time_frame: time_frame, latest_metrics: latest_metrics} = assigns
-
-    charts = create_chart_data(device_id, time_frame, latest_metrics["mem_size_mb"])
+    charts = create_chart_data(device.id, time_frame, latest_metrics["mem_size_mb"])
 
     assign(socket, :charts, charts)
   end
 
-  @doc """
-  There are four cases for chart updates:
-    - Create hooks if data previously was empty.
-    - Clear hooks if there's no data for selected time frame.
-    - Do a push_patch to render more or less charts if custom types varies for time frames.
-    - Update existing hooks with new data via push_event (should happen most frequent).
-  """
-  def update_charts(%{assigns: %{charts: charts}} = socket) when charts == [],
-    do: assign_charts(socket)
+  defp assign_metadata(%{assigns: %{device: device}} = socket) do
+    health = Devices.get_latest_health(device.id)
 
-  def update_charts(
-        %{
-          assigns: %{
-            device_id: device_id,
-            device_identifier: device_identifier,
-            product_name: product_name,
-            org_name: org_name,
-            time_frame: time_frame,
-            latest_metrics: latest_metrics,
-            charts: charts
-          }
-        } =
-          socket
-      ) do
-    data = create_chart_data(device_id, time_frame, latest_metrics["size_mb"])
+    metadata =
+      if health, do: health.data["metadata"] || %{}, else: %{}
+
+    assign(socket, :metadata, Map.drop(metadata, standard_keys(device)))
+  end
+
+  defp standard_keys(%{firmware_metadata: nil}), do: []
+
+  defp standard_keys(%{firmware_metadata: firmware_metadata}),
+    do:
+      firmware_metadata
+      |> Map.keys()
+      |> Enum.map(&to_string/1)
+
+  # @doc """
+  # There are four cases for chart updates:
+  #   - Create hooks if data previously was empty.
+  #   - Clear hooks if there's no data for selected time frame.
+  #   - Do a push_patch to render more or less charts if custom types varies for time frames.
+  #   - Update existing hooks with new data via push_event (should happen most frequent).
+  # """
+  defp update_charts(%{charts: charts} = assigns) when charts == [],
+    do: assign_charts(assigns)
+
+  defp update_charts(
+         %{
+           assigns: %{
+             device: device,
+             product: product,
+             org: org,
+             time_frame: time_frame,
+             latest_metrics: latest_metrics,
+             charts: charts
+           }
+         } =
+           socket
+       ) do
+    data = create_chart_data(device.id, time_frame, latest_metrics["size_mb"])
 
     cond do
       data == [] ->
@@ -222,7 +252,7 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
 
       types(charts) != types(data) ->
         push_patch(socket,
-          to: ~p"/org/#{org_name}/#{product_name}/devices/#{device_identifier}/healthz"
+          to: ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}/healthz"
         )
 
       true ->
@@ -237,7 +267,7 @@ defmodule NervesHubWeb.Components.DevicePage.Health do
     Enum.map(data, &Map.get(&1, :type))
   end
 
-  def create_chart_data(device_id, {unit, _} = time_frame, memory_size) do
+  defp create_chart_data(device_id, {unit, _} = time_frame, memory_size) do
     device_id
     |> Metrics.get_device_metrics(time_frame)
     |> Enum.group_by(& &1.key)

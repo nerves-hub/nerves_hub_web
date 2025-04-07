@@ -281,9 +281,9 @@ defmodule NervesHub.Devices do
     |> where(identifier: ^identifier)
     |> where(org_id: ^org_id)
     |> join(:left, [d], o in assoc(d, :org))
-    |> join(:left, [d], dp in assoc(d, :deployment_group))
+    |> join(:left, [d], dp in assoc(d, :deployment_group), as: :deployment_group)
+    |> preload([d, o, deployment_group: dg], org: o, deployment_group: dg)
     |> join_and_preload(preload_assoc)
-    |> preload([d, o, dp], org: o, deployment_group: dp)
   end
 
   defp join_and_preload(query, assocs) when is_list(assocs) do
@@ -310,6 +310,18 @@ defmodule NervesHub.Devices do
     query
     |> join(:left, [d], dh in assoc(d, :latest_health), as: :latest_health)
     |> preload([latest_health: lh], latest_health: lh)
+  end
+
+  defp join_and_preload(query, :product) do
+    query
+    |> join(:left, [d], p in assoc(d, :product), as: :product)
+    |> preload([product: p], product: p)
+  end
+
+  defp join_and_preload(query, :firmware) do
+    query
+    |> join(:left, [d, deployment_group: dg], f in assoc(dg, :firmware), as: :firmware)
+    |> preload([deployment_group: dg, firmware: f], deployment_group: {dg, firmware: f})
   end
 
   def get_device_by_x509(cert) do

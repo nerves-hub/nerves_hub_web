@@ -35,7 +35,12 @@
         <span class="button-icon console-icon"></span>
         <span class="action-text">Console</span>
       <% end %>
-      <button class="btn btn-outline-light btn-action" aria-label={if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"} type="button" phx-click="toggle-automatic-updates">
+      <button
+        class="btn btn-outline-light btn-action"
+        aria-label={if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}
+        type="button"
+        phx-click="toggle-deployment-firmware-updates"
+      >
         <span class="button-icon firmware-disabled"></span>
         <span class="action-text">{if @device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}</span>
       </button>

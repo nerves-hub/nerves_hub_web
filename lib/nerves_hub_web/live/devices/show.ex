@@ -24,11 +24,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
   alias NervesHubWeb.Components.FwupProgress
   alias NervesHubWeb.Components.Utils
 
-  alias NervesHubWeb.Components.DevicePage.Activity, as: ActivityPage
-  alias NervesHubWeb.Components.DevicePage.Console, as: ConsolePage
-  alias NervesHubWeb.Components.DevicePage.Details, as: DetailsPage
-  alias NervesHubWeb.Components.DevicePage.Health, as: HealthPage
-  alias NervesHubWeb.Components.DevicePage.Settings, as: SettingsPage
+  alias NervesHubWeb.Components.DevicePage.ActivityTab
+  alias NervesHubWeb.Components.DevicePage.ConsoleTab
+  alias NervesHubWeb.Components.DevicePage.DetailsTab
+  alias NervesHubWeb.Components.DevicePage.HealthTab
+  alias NervesHubWeb.Components.DevicePage.SettingsTab
+
+  @tab_components [ActivityTab, ConsoleTab, DetailsTab, HealthTab, SettingsTab]
 
   alias NervesHubWeb.Presence
   alias Phoenix.Socket.Broadcast
@@ -64,12 +66,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> audit_log_assigns()
     |> assign_deployment_groups()
     |> setup_presence_tracking()
+    |> setup_tab_components(@tab_components)
     |> ok()
   end
 
   def handle_params(_params, _uri, socket) do
     socket
-    |> selected_tab()
+    |> update_tab_component_hooks()
     |> noreply()
   end
 
@@ -95,10 +98,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
     end
   end
 
+  # can be removed when the old UI is removed
   def handle_info(%Broadcast{topic: "firmware", event: "created"}, socket) do
     firmware = Firmwares.get_firmware_for_device(socket.assigns.device)
-
-    send_update(self(), DetailsPage, id: "device_details", firmwares: firmware)
 
     {:noreply, assign(socket, :firmwares, firmware)}
   end
@@ -175,9 +177,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
       ) do
     latest_metrics = Metrics.get_latest_metric_set(device.id)
 
-    send_update(DetailsPage, id: "device_details", latest_metrics: latest_metrics)
-    send_update(HealthPage, id: "device_health", refresh_metrics: true)
-
     socket
     |> assign(:latest_metrics, latest_metrics)
     |> assign_metadata()
@@ -200,24 +199,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
 
     {:noreply, assign(socket, :device, device)}
-  end
-
-  def handle_info(%Broadcast{event: "file-data/start", payload: payload}, socket) do
-    send_update(self(), ConsolePage,
-      id: "device_console",
-      file_upload: Map.put(payload, :status, "started")
-    )
-
-    {:noreply, socket}
-  end
-
-  def handle_info(%Broadcast{event: "file-data/stop", payload: payload}, socket) do
-    send_update(self(), ConsolePage,
-      id: "device_console",
-      file_upload: Map.put(payload, :status, "finished")
-    )
-
-    {:noreply, socket}
   end
 
   # Ignore unknown messages
@@ -297,13 +278,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, put_flash(socket, :info, "Device identification requested")}
   end
 
+  # TODO: [OLD UI] Can we removed when we remove the old UI
   def handle_event("toggle-health-check-auto-refresh", _value, socket) do
     if timer_ref = socket.assigns.health_check_timer do
       _ = Process.cancel_timer(timer_ref)
-      send_update(DetailsPage, id: "device_details", update_auto_refresh_health: false)
       {:noreply, assign(socket, :health_check_timer, nil)}
     else
-      send_update(DetailsPage, id: "device_details", update_auto_refresh_health: true)
       {:noreply, schedule_health_check_timer(socket)}
     end
   end
@@ -332,7 +312,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_event("toggle-automatic-updates", _params, socket) do
+  def handle_event("toggle-deployment-firmware-updates", _params, socket) do
     %{org_user: org_user, user: user, device: device} = socket.assigns
 
     authorized!(:"device:toggle-updates", org_user)
@@ -380,6 +360,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
     {:noreply, assign(socket, :device, device)}
   end
 
+  def handle_event("set-deployment-group", %{"deployment_id" => ""}, socket) do
+    socket
+    |> put_flash(:error, "Please select a deployment group.")
+    |> noreply()
+  end
+
   def handle_event(
         "set-deployment-group",
         %{"deployment_id" => deployment_id},
@@ -394,6 +380,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> assign(:device, device)
     |> assign(:deployment_group, deployment_group)
     |> put_flash(:info, "Deployment Group successfully updated")
+    |> noreply()
+  end
+
+  def handle_event("push-update", %{"uuid" => ""}, socket) do
+    socket
+    |> put_flash(:error, "Please select a firmware you would like to send to the device.")
     |> noreply()
   end
 
@@ -525,7 +517,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   defp load_device(org, identifier) do
-    Devices.get_device_by_identifier!(org, identifier, [:latest_connection, :latest_health])
+    Devices.get_device_by_identifier!(org, identifier, [
+      :product,
+      :firmware,
+      :latest_connection,
+      :latest_health
+    ])
   end
 
   defp setup_presence_tracking(%{assigns: %{device: device, user: user}} = socket) do
@@ -690,5 +687,15 @@ defmodule NervesHubWeb.Live.Devices.Show do
     Application.get_env(:nerves_hub, :extension_config, [])
     |> get_in([:health, :ui_polling_seconds])
     |> :timer.seconds()
+  end
+
+  def render_tab(assigns) do
+    ~H"""
+    <ActivityTab.render :if={@tab == :activity} {assigns} />
+    <ConsoleTab.render :if={@tab == :console} {assigns} />
+    <DetailsTab.render :if={@tab == :details} {assigns} />
+    <HealthTab.render :if={@tab == :health} {assigns} />
+    <SettingsTab.render :if={@tab == :settings} {assigns} />
+    """
   end
 end
