@@ -315,7 +315,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("span", text: "moussaka")
     end
 
-    test "add multiple devices to deployment",
+    test "add multiple devices to deployment in old UI",
          %{conn: conn, fixture: fixture} do
       %{
         device: device,
@@ -339,11 +339,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
         render_change(view, "select-all", %{"id" => device.id})
       end)
       |> assert_has("span", text: "2 selected")
-      |> unwrap(fn view ->
-        render_change(view, "target-deployment-group", %{
-          "deployment_group" => to_string(deployment_group.id)
-        })
-      end)
+      |> select("Move device(s) to deployment group:",
+        option: deployment_group.name,
+        exact_option: false
+      )
       |> click_button("#move-deployment-group-submit", "Move")
       |> assert_has("div", text: "2 devices added to deployment")
 

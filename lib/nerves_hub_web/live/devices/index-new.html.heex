@@ -75,6 +75,7 @@
                 phx-click="select-all"
               />
               <label for="check-uncheck">
+                <span class="hidden">Select all devices</span>
                 <svg :if={Enum.any?(@selected_devices)} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path d="M2 6H6H10" stroke="#F4F4F5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
@@ -96,7 +97,6 @@
             <th phx-click="sort" phx-value-sort="tags" class="cursor-pointer">
               <Sorting.sort_icon text="Tags" field="tags" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
-            <%!-- <th></th> --%>
           </tr>
         </thead>
         <tbody>
@@ -345,10 +345,10 @@
           </div>
           <div class="mt-6">
             <label class="sidebar-label" for="input_platform">Platform</label>
-            <select class="sidebar-select" name="platform" id="platform">
+            <select class="sidebar-select" name="input_platform" id="input_platform">
               <option {selected?(@current_filters, :platform, "")} value="">All</option>
               <%= for platform <- @platforms do %>
-                <option {selected?(@current_filters, :platform, platform)}>{if platform, do: platform, else: "Unknown"}</option>
+                <option {selected?(@current_filters, :platform, platform)} value={platform}>{if platform, do: platform, else: "Unknown"}</option>
               <% end %>
             </select>
           </div>
@@ -470,13 +470,14 @@
           :if={Enum.any?(@available_deployment_groups_for_filtered_platform)}
           id="deployment-move"
           class="flex flex-col gap-2"
-          phx-change="target-deployment"
+          phx-change="target-deployment-group"
           phx-submit="move-devices-deployment-group"
         >
-          <label for="move_to" class="sidebar-label">Move device(s) to deployment group filtered by platform:</label>
+          <label class="sidebar-label">Move device(s) to deployment group filtered by platform:</label>
 
           <div class="flex gap-2">
-            <select name="deployment" id="move_to_deployment" class="sidebar-select">
+            <label for="deployment_group" class="hidden">Deployment Group</label>
+            <select name="deployment_group" id="deployment_group" class="sidebar-select">
               <option value="">Select deployment group</option>
               <%= for deployment_group <- @available_deployment_groups_for_filtered_platform do %>
                 <option value={deployment_group.id} {if @target_deployment_group && @target_deployment_group.id == deployment_group.id, do: [selected: true], else: []}>
