@@ -82,7 +82,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
         </div>
       </div>
 
-      <Pager.render_with_page_sizes pager={@audit_pager} page_sizes={[25, 50, 100]} target={@myself} />
+      <Pager.render_with_page_sizes pager={@audit_pager} page_sizes={[25, 50, 100]} />
     </div>
     """
   end

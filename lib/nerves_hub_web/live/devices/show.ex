@@ -163,7 +163,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     if payload.percent == 100 do
       socket
       |> put_flash(:info, "Update complete: The device will reboot shortly.")
-      |> send_toast(:info, "Update complete: The device will reboot shortly.")
       |> assign(:fwup_progress, nil)
       |> noreply()
     else
@@ -308,7 +307,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> assign(:device, updated_device)
-    |> send_toast(:info, "Device removed from the penalty box, and firmware updates enabled.")
+    |> put_flash(:info, "Device removed from the penalty box, and firmware updates enabled.")
     |> noreply()
   end
 
@@ -327,7 +326,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> assign(:device, updated_device)
-    |> send_toast(:info, Enum.join(message))
+    |> put_flash(:info, Enum.join(message))
     |> noreply()
   end
 

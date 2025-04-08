@@ -88,12 +88,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
 
         socket
         |> put_flash(:info, "Deployment Group created")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployment_groups")
+        |> push_navigate(
+          to: ~p"/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}"
+        )
         |> noreply()
 
       {_firmware, {:error, changeset}} ->
         socket
-        |> assign(:form, to_form(changeset |> tags_to_string()))
+        |> put_flash(:error, "There was an error creating the deployment")
+        |> assign(:form, to_form(changeset))
         |> noreply()
     end
   end
