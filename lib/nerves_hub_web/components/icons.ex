@@ -11,6 +11,7 @@ defmodule NervesHubWeb.Components.Icons do
   """
   attr(:name, :string, required: true)
   attr(:class, :string, default: nil)
+  attr(:stroke, :string, default: "#A1A1AA")
 
   def icon(%{name: "save"} = assigns) do
     ~H"""
@@ -117,6 +118,7 @@ defmodule NervesHubWeb.Components.Icons do
         stroke-width="1.2"
         stroke-linecap="round"
         stroke-linejoin="round"
+        stroke={assigns.stroke}
       />
     </svg>
     """
@@ -184,6 +186,72 @@ defmodule NervesHubWeb.Components.Icons do
     <svg class={["size-5", @class]} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M4 20L9 15M9 15L14 20M9 15L4 10M8.5 8L10.6021 7.15917C10.8562 7.05753 11.0575 6.85618 11.1592 6.60208L12.4368 3.40807C12.7034 2.7415 13.5647 2.56471 14.0724 3.07235L20.9276 9.92764C21.4353 10.4353 21.2585 11.2966 20.5919 11.5632L17.3846 12.8462C17.1383 12.9447 16.9413 13.137 16.8368 13.3807L15.9286 15.5M2 2L22 22"
+        stroke-width="1.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+    """
+  end
+
+  def icon(%{name: "open"} = assigns) do
+    ~H"""
+    <svg class={["size-5", @class]} viewBox="-2 -2 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M 10.00,4.00
+           C 10.00,4.00 6.00,4.00 6.00,4.00
+             4.90,4.00 4.00,4.90 4.00,6.00
+             4.00,6.00 4.00,18.00 4.00,18.00
+             4.00,19.10 4.90,20.00 6.00,20.00
+             6.00,20.00 18.00,20.00 18.00,20.00
+             19.10,20.00 20.00,19.10 20.00,18.00
+             20.00,18.00 20.00,14.00 20.00,14.00M 12.00,12.00
+           C 12.00,12.00 20.00,4.00 20.00,4.00M 20.00,4.00
+           C 20.00,4.00 20.00,9.00 20.00,9.00M 20.00,4.00
+           C 20.00,4.00 15.00,4.00 15.00,4.00"
+        stroke-width="1.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke="#A1A1AA"
+      />
+    </svg>
+    """
+  end
+
+  def icon(%{name: "folder-move"} = assigns) do
+    ~H"""
+    <svg class={["size-5", @class]} viewBox="-2 -2 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M 21.00,12.00
+           C 21.00,12.00 21.00,9.00 21.00,9.00
+             21.00,7.90 20.10,7.00 19.00,7.00
+             19.00,7.00 13.07,7.00 13.07,7.00
+             12.40,7.00 11.78,6.67 11.41,6.11
+             11.41,6.11 10.59,4.89 10.59,4.89
+             10.22,4.33 9.60,4.00 8.93,4.00
+             8.93,4.00 5.00,4.00 5.00,4.00
+             3.90,4.00 3.00,4.90 3.00,6.00
+             3.00,6.00 3.00,18.00 3.00,18.00
+             3.00,19.10 3.90,20.00 5.00,20.00
+             5.00,20.00 10.00,20.00 10.00,20.00M 21.00,18.00
+           C 21.00,18.00 18.00,15.00 18.00,15.00M 21.00,18.00
+           C 21.00,18.00 18.00,21.00 18.00,21.00M 21.00,18.00
+           C 21.00,18.00 15.00,18.00 15.00,18.00"
+        stroke-width="1.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke="#A1A1AA"
+      />
+    </svg>
+    """
+  end
+
+  def icon(%{name: "info"} = assigns) do
+    ~H"""
+    <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M10 12.5V10M10 7.5V7.49167M17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 5.85786 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.85786 17.5 10Z"
+        stroke="#A1A1AA"
         stroke-width="1.2"
         stroke-linecap="round"
         stroke-linejoin="round"

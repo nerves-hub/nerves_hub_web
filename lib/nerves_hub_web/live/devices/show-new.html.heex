@@ -148,7 +148,7 @@
 
             <button
               type="button"
-              phx-click="toggle-automatic-updates"
+              phx-click="toggle-deployment-firmware-updates"
               class={[
                 "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
                 "bg-red-500"
@@ -178,7 +178,7 @@
 
             <button
               type="button"
-              phx-click="toggle-automatic-updates"
+              phx-click="toggle-deployment-firmware-updates"
               class={[
                 "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
                 "bg-emerald-500"
@@ -221,22 +221,5 @@
     </div>
   </div>
 
-  <.live_component :if={@tab == :details} module={DetailsPage} id="device_details" device_id={@device.id} org_user={@org_user} user={@user} />
-
-  <.live_component
-    :if={@tab == :health}
-    module={HealthPage}
-    id="device_health"
-    device_id={@device.id}
-    device_identifier={@device.identifier}
-    org_name={@org.name}
-    product_name={@product.name}
-    health_enabled?={@product.extensions.health && @device.extensions.health}
-  />
-
-  <.live_component :if={@tab == :activity} module={ActivityPage} id="device_activity" device={@device} org={@org} product={@product} user={@user} />
-
-  <.live_component :if={@tab == :console} module={ConsolePage} id="device_console" device={@device} device_connection={@device_connection} user={@user} org_user={@org_user} />
-
-  <.live_component :if={@tab == :settings} module={SettingsPage} id="device_settings" device={@device} org={@org} product={@product} user={@user} org_user={@org_user} />
+  <.render_tab {assigns} />
 </div>

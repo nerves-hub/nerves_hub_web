@@ -1,5 +1,5 @@
-defmodule NervesHubWeb.Components.DevicePage.Settings do
-  use NervesHubWeb, :live_component
+defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
+  use NervesHubWeb, tab_component: :settings
 
   alias NervesHubWeb.Components.Utils
   alias NervesHubWeb.LayoutView.DateTimeFormat
@@ -8,35 +8,33 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
   alias NervesHub.Devices
   alias NervesHub.Extensions
 
-  def update(assigns, socket) do
-    device =
-      Devices.get_device_by_identifier!(
-        assigns.org,
-        assigns.device.identifier,
-        :device_certificates
-      )
-      |> Devices.preload_product()
+  alias NervesHub.Repo
 
-    changeset = Ecto.Changeset.change(assigns.device)
-
+  def tab_params(_params, _uri, socket) do
     socket
-    |> assign(assigns)
-    |> assign(:device, device)
-    |> assign(:settings_form, to_form(changeset))
-    |> assign(:available_extensions, extensions())
     |> allow_upload(:certificate,
       accept: :any,
       auto_upload: true,
       max_entries: 1,
       progress: &handle_progress/3
     )
-    |> ok()
+    |> cont()
   end
 
   def render(assigns) do
+    device = Repo.preload(assigns.device, :device_certificates)
+
+    changeset = Ecto.Changeset.change(assigns.device)
+
+    assigns =
+      assigns
+      |> Map.put(:device, device)
+      |> Map.put(:settings_form, to_form(changeset))
+      |> Map.put(:available_extensions, extensions())
+
     ~H"""
     <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <.form for={@settings_form} class="w-full" phx-submit="update-device-settings" phx-target={@myself}>
+      <.form for={@settings_form} class="w-full" phx-submit="update-device-settings">
         <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
             <div class="text-base text-neutral-50 font-medium">General settings</div>
@@ -96,7 +94,6 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
                 type="checkbox"
                 phx-click="update-extension"
                 phx-value-extension={key}
-                phx-target={@myself}
                 checked={@device.extensions[key]}
                 disabled={not @device.product.extensions[key] or !authorized?(:"device:update", @org_user)}
               />
@@ -122,7 +119,7 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
         <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
           <div class="text-base text-neutral-50 font-medium">Certificates</div>
           <div>
-            <form phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref} phx-target={@myself}>
+            <form phx-change="validate-cert" phx-drop-target={@uploads.certificate.ref}>
               <div class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600 hover:cursor-pointer">
                 <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
@@ -208,7 +205,6 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
               <button
                 class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-red-500"
                 type="button"
-                phx-target={@myself}
                 phx-click="delete-certificate"
                 phx-value-serial={certificate.serial}
                 data-confirm="Are you sure you want to delete this certificate?"
@@ -231,13 +227,7 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
       <div :if={@device.deleted_at && authorized?(:"device:update", @org_user)} class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
         <div class="flex items-center p-6 gap-6 border-t border-zinc-700">
           <div>
-            <button
-              class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600"
-              type="button"
-              phx-target={@myself}
-              phx-click="restore-device"
-              data-confirm="Are you sure you want to restore this device?"
-            >
+            <button class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600" type="button" phx-click="restore-device" data-confirm="Are you sure you want to restore this device?">
               <svg class="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M8.5 18.9999H5.39903C3.87406 18.9999 2.91012 17.3617 3.65071 16.0287L7 9.99994M7 9.99994L3 11.9999M7 9.99994L8 13.9999M18.9999 13.9999L20.1987 16.0122C20.9929 17.3454 20.0323 19.0358 18.4805 19.0358L12.768 19.0358M12.768 19.0358L16 21.9999M12.768 19.0358L16 15.9999M8.5 6.99994L10.5883 3.86749C11.4401 2.58975 13.3545 2.70894 14.0413 4.08246L17 9.99994M17 9.99994L18 5.99994M17 9.99994L13 8.99994"
@@ -263,7 +253,6 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
             <button
               class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-red-500"
               type="button"
-              phx-target={@myself}
               phx-click="destroy-device"
               data-confirm="Are you sure you want to permanently delete this device?"
             >
@@ -288,7 +277,6 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
             <button
               class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-red-500 hover:bg-red-100"
               type="button"
-              phx-target={@myself}
               phx-click="delete-device"
               data-confirm="Are you sure you want to delete this device? This will also delete any certificates associated with the device."
             >
@@ -312,7 +300,7 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
     """
   end
 
-  def handle_event("update-device-settings", %{"device" => device_params}, socket) do
+  def hooked_event("update-device-settings", %{"device" => device_params}, socket) do
     authorized!(:"device:update", socket.assigns.org_user)
 
     %{device: device, user: user} = socket.assigns
@@ -320,25 +308,26 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
     message = "User #{user.name} updated device #{device.identifier}"
 
     case Devices.update_device_with_audit(device, device_params, user, message) do
-      {:ok, _device} ->
+      {:ok, device} ->
         socket
+        |> assign(:device, device)
         |> send_toast(:info, "Device updated.")
-        |> noreply()
+        |> halt()
 
       {:error, :update_with_audit, changeset, _} ->
         socket
         |> send_toast(:error, "We couldn't save your changes.")
         |> assign(:settings_form, to_form(changeset))
-        |> noreply()
+        |> halt()
 
       {:error, _, _, _} ->
         socket
         |> send_toast(:error, "An unknown error occured, please contact support.")
-        |> noreply()
+        |> halt()
     end
   end
 
-  def handle_event("delete-device", _, socket) do
+  def hooked_event("delete-device", _, socket) do
     authorized!(:"device:delete", socket.assigns.org_user)
 
     {:ok, device} = Devices.delete_device(socket.assigns.device)
@@ -348,10 +337,10 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
     socket
     |> assign(:device, device)
     |> send_toast(:info, "The device has been deleted. This action can be undone.")
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("restore-device", _, socket) do
+  def hooked_event("restore-device", _, socket) do
     authorized!(:"device:restore", socket.assigns.org_user)
 
     {:ok, device} = Devices.restore_device(socket.assigns.device)
@@ -361,10 +350,10 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
     socket
     |> assign(:device, device)
     |> send_toast(:info, "The device has been restored.")
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("destroy-device", _, socket) do
+  def hooked_event("destroy-device", _, socket) do
     %{org: org, org_user: org_user, product: product, device: device} = socket.assigns
 
     authorized!(:"device:destroy", org_user)
@@ -376,13 +365,13 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
     socket
     |> send_toast(:info, "Device permanently destroyed successfully.")
     |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
-    |> noreply()
+    |> halt()
   end
 
   # A phx-change handler is required when using live uploads.
-  def handle_event("validate-cert", _, socket), do: {:noreply, socket}
+  def hooked_event("validate-cert", _, socket), do: {:halt, socket}
 
-  def handle_event(
+  def hooked_event(
         "delete-certificate",
         %{"serial" => serial},
         %{assigns: %{device: device}} = socket
@@ -395,16 +384,16 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
       socket
       |> send_toast(:info, "Certificate deleted.")
       |> assign(device: %{device | device_certificates: updated_certs})
-      |> noreply()
+      |> halt()
     else
       _ ->
         socket
         |> send_toast(:error, "Failed to delete certificate, please contact support.")
-        |> noreply()
+        |> halt()
     end
   end
 
-  def handle_event("update-extension", %{"extension" => extension} = params, socket) do
+  def hooked_event("update-extension", %{"extension" => extension} = params, socket) do
     value = params["value"]
     available = Extensions.list() |> Enum.map(&to_string/1)
 
@@ -432,13 +421,19 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
           "There was an unexpected error when updating the #{extension} extension. Please contact support."
         )
     end
-    |> noreply()
+    |> halt()
   end
+
+  def hooked_event(_event, _params, socket), do: {:cont, socket}
+
+  def hooked_info(_event, socket), do: {:cont, socket}
+
+  def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
   def handle_progress(:certificate, %{done?: true} = entry, socket) do
     socket
     |> consume_uploaded_entry(entry, &import_cert(socket, &1.path))
-    |> noreply()
+    |> halt()
   end
 
   def handle_progress(:certificate, _entry, socket), do: {:noreply, socket}
@@ -466,7 +461,7 @@ defmodule NervesHubWeb.Components.DevicePage.Settings do
       err ->
         send_toast(socket, :error, "Unknown file error - #{inspect(err)}")
     end
-    |> ok()
+    |> halt()
   end
 
   defp extensions() do

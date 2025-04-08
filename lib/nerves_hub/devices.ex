@@ -281,9 +281,9 @@ defmodule NervesHub.Devices do
     |> where(identifier: ^identifier)
     |> where(org_id: ^org_id)
     |> join(:left, [d], o in assoc(d, :org))
-    |> join(:left, [d], dp in assoc(d, :deployment_group))
+    |> join(:left, [d], dp in assoc(d, :deployment_group), as: :deployment_group)
+    |> preload([d, o, deployment_group: dg], org: o, deployment_group: dg)
     |> join_and_preload(preload_assoc)
-    |> preload([d, o, dp], org: o, deployment_group: dp)
   end
 
   defp join_and_preload(query, assocs) when is_list(assocs) do
@@ -310,6 +310,18 @@ defmodule NervesHub.Devices do
     query
     |> join(:left, [d], dh in assoc(d, :latest_health), as: :latest_health)
     |> preload([latest_health: lh], latest_health: lh)
+  end
+
+  defp join_and_preload(query, :product) do
+    query
+    |> join(:left, [d], p in assoc(d, :product), as: :product)
+    |> preload([product: p], product: p)
+  end
+
+  defp join_and_preload(query, :firmware) do
+    query
+    |> join(:left, [d, deployment_group: dg], f in assoc(dg, :firmware), as: :firmware)
+    |> preload([deployment_group: dg, firmware: f], deployment_group: {dg, firmware: f})
   end
 
   def get_device_by_x509(cert) do
@@ -817,14 +829,6 @@ defmodule NervesHub.Devices do
     Map.put(device, :deployment_group, deployment_group)
   end
 
-  @spec update_many_deployment_groups([non_neg_integer()], DeploymentGroup.t()) ::
-          {integer(), nil | [term()]}
-  def update_many_deployment_groups(device_ids, deployment_group) do
-    Device
-    |> where([d], d.id in ^device_ids)
-    |> Repo.update_all(set: [deployment_id: deployment_group.id])
-  end
-
   @spec clear_deployment_group(Device.t()) :: Device.t()
   def clear_deployment_group(device) do
     device =
@@ -1204,22 +1208,77 @@ defmodule NervesHub.Devices do
     update_device(device, %{updates_blocked_until: blocked_until})
   end
 
-  @spec move_many_to_deployment_group([integer()], integer()) ::
+  @doc """
+  Move devices to a deployment group. A deployment group struct or id can
+  be given. Devices are fetched by their id and also filtered by the given
+  deployment group firmware's architecture and platform.
+
+  `Repo.update_all()` is used to update the rows. The return informs how
+  many rows were updated and how many were ignored because of a problem.
+
+  move_many_to_deployment_group([1, 2, 3], deployment_group)
+  > {:ok, %{updated: 3, ignored: 0}}
+  """
+  @spec move_many_to_deployment_group(
+          [non_neg_integer()],
+          DeploymentGroup.t() | non_neg_integer()
+        ) ::
           {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
-  def move_many_to_deployment_group(device_ids, deployment_id) do
-    %{firmware: firmware} =
+  def move_many_to_deployment_group(device_ids, deployment_id)
+      when is_number(deployment_id) do
+    deployment_group =
       DeploymentGroup |> where(id: ^deployment_id) |> preload(:firmware) |> Repo.one()
+
+    move_many_to_deployment_group(device_ids, deployment_group)
+  end
+
+  def move_many_to_deployment_group(device_ids, %DeploymentGroup{id: id} = deployment_group) do
+    %{firmware: firmware} = Repo.preload(deployment_group, :firmware)
 
     {devices_updated_count, _} =
       Device
+      |> Repo.exclude_deleted()
       |> where([d], d.id in ^device_ids)
       |> where([d], d.firmware_metadata["platform"] == ^firmware.platform)
       |> where([d], d.firmware_metadata["architecture"] == ^firmware.architecture)
-      |> Repo.update_all(set: [deployment_id: deployment_id])
+      |> Repo.update_all(set: [deployment_id: id])
 
     :ok = Enum.each(device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
 
     {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
+  end
+
+  @doc """
+  Removes unmatched devices from deployment group. The given device ids are
+  assumed to be ids of devices that "match" a deployment group's conditions,
+  e.g. devices from ManagedDeployments.matched_device_ids/2. Devices are
+  fetched by their id and also filtered by the deployment group's id and
+  product id.
+
+  `Repo.update_all()` is used to update the rows. The return informs how
+  many rows were updated and how many were ignored because of a problem.
+
+  remove_unmatched_devices_from_deployment_group([1, 2, 3], deployment_group)
+  > {:ok, %{updated: 3, ignored: 0}}
+  """
+  @spec remove_unmatched_devices_from_deployment_group([non_neg_integer()], DeploymentGroup.t()) ::
+          {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
+  def remove_unmatched_devices_from_deployment_group(matched_device_ids, deployment_group) do
+    {devices_updated_count, _} =
+      Device
+      |> Repo.exclude_deleted()
+      |> where([d], d.deployment_id == ^deployment_group.id)
+      |> where([d], d.product_id == ^deployment_group.product_id)
+      |> where([d], d.id not in ^matched_device_ids)
+      |> Repo.update_all(set: [deployment_id: nil])
+
+    :ok = Enum.each(matched_device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
+
+    {:ok,
+     %{
+       updated: devices_updated_count,
+       ignored: length(matched_device_ids) - devices_updated_count
+     }}
   end
 
   @spec move_many([Device.t()], Product.t(), User.t()) :: %{

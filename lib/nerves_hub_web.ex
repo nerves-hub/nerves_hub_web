@@ -126,6 +126,41 @@ defmodule NervesHubWeb do
         |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
         |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
       end
+
+      defp setup_tab_components(socket, tabs \\ []) do
+        if socket.assigns[:new_ui] do
+          Enum.reduce(tabs, socket, fn component, socket ->
+            component.connect(socket)
+          end)
+          |> put_private(:tabs, tabs)
+        else
+          socket
+        end
+      end
+
+      defp update_tab_component_hooks(socket) do
+        if socket.assigns[:new_ui] do
+          socket
+          |> detach_hooks()
+          |> attach_hooks()
+        else
+          socket
+        end
+      end
+
+      defp detach_hooks(socket) do
+        socket.private[:tabs]
+        |> Enum.reduce(socket, fn component, socket ->
+          component.detach_hooks(socket)
+        end)
+      end
+
+      defp attach_hooks(socket) do
+        socket.private[:tabs]
+        |> Enum.reduce(socket, fn component, socket ->
+          component.attach_hooks(socket)
+        end)
+      end
     end
   end
 
@@ -262,6 +297,103 @@ defmodule NervesHubWeb do
     end
   end
 
+  def hooked_component({:tab_id, tab_id}) do
+    quote do
+      use Phoenix.Component
+
+      import NervesHubWeb.Components.Icons
+      import NervesHubWeb.CoreComponents, only: [button: 1, input: 1, core_label: 1, error: 1]
+
+      import NervesHubWeb.Helpers.Authorization
+
+      import Phoenix.LiveView,
+        only: [
+          assign_async: 3,
+          assign_async: 4,
+          allow_upload: 3,
+          attach_hook: 4,
+          detach_hook: 3,
+          push_patch: 2,
+          push_event: 3,
+          push_navigate: 2,
+          start_async: 3,
+          connected?: 1,
+          consume_uploaded_entry: 3
+        ]
+
+      alias Phoenix.Socket.Broadcast
+
+      @tab_id unquote(tab_id)
+
+      defp tab_hook_id(), do: "#{@tab_id}_tab"
+
+      def connect(socket) do
+        attach_hook(socket, tab_hook_id(), :handle_params, &__MODULE__.hooked_params/3)
+      end
+
+      def attach_hooks(%{assigns: %{tab: tab}} = socket) when tab == @tab_id do
+        socket
+        |> attach_hook(tab_hook_id(), :handle_async, &__MODULE__.hooked_async/3)
+        |> attach_hook(tab_hook_id(), :handle_event, &__MODULE__.hooked_event/3)
+        |> attach_hook(tab_hook_id(), :handle_info, &__MODULE__.hooked_info/2)
+      end
+
+      def attach_hooks(socket), do: socket
+
+      def detach_hooks(%{assigns: %{tab: tab}} = socket) do
+        socket
+        |> detach_hook(tab_hook_id(), :handle_async)
+        |> detach_hook(tab_hook_id(), :handle_event)
+        |> detach_hook(tab_hook_id(), :handle_info)
+      end
+
+      def hooked_params(params, uri, socket) do
+        socket = assign(socket, :tab, socket.assigns.live_action)
+
+        if socket.assigns.tab == @tab_id do
+          tab_params(params, uri, socket)
+        else
+          cleanup()
+          |> Enum.reduce(socket, fn key, acc ->
+            new_assigns = Map.delete(acc.assigns, key)
+            Map.put(acc, :assigns, new_assigns)
+          end)
+          |> cont()
+        end
+      end
+
+      def tab_params(_params, _uri, socket) do
+        cont(socket)
+      end
+
+      def cleanup() do
+        []
+      end
+
+      defoverridable tab_params: 3, cleanup: 0
+
+      def halt(socket), do: {:halt, socket}
+
+      def cont(socket), do: {:cont, socket}
+
+      def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
+
+      def sidebar_tab(socket, tab) do
+        socket
+        |> assign(:sidebar_tab, tab)
+        |> assign(:tab_hint, tab)
+      end
+
+      def send_toast(socket, kind, msg) do
+        NervesHubWeb.LiveToast.send_toast(kind, msg)
+        socket
+      end
+
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
+    end
+  end
+
   def router() do
     quote do
       use Phoenix.Router
@@ -300,5 +432,9 @@ defmodule NervesHubWeb do
   """
   defmacro __using__(which) when is_atom(which) do
     apply(__MODULE__, which, [])
+  end
+
+  defmacro __using__(tab_component: tab_id) do
+    apply(__MODULE__, :hooked_component, tab_id: tab_id)
   end
 end
