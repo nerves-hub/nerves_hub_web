@@ -38,13 +38,7 @@ defmodule NervesHubWeb.Live.Archives do
       progress: &handle_progress/3
     )
     |> assign_archives_with_pagination()
-    |> then(fn socket ->
-      if Application.get_env(:nerves_hub, :new_ui) && socket.assigns[:new_ui] do
-        render_with(socket, &list_archives_template_new/1)
-      else
-        render_with(socket, &list_archives_template/1)
-      end
-    end)
+    |> render_with(&list_archives_template/1)
   end
 
   defp apply_action(%{assigns: %{product: product}} = socket, :show, %{
@@ -56,27 +50,7 @@ defmodule NervesHubWeb.Live.Archives do
     |> page_title("Archive #{archive_uuid} - #{product.name}")
     |> assign(:archive, archive)
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
-    |> then(fn socket ->
-      if Application.get_env(:nerves_hub, :new_ui) && socket.assigns[:new_ui] do
-        render_with(socket, &show_archive_template_new/1)
-      else
-        render_with(socket, &show_archive_template/1)
-      end
-    end)
-  end
-
-  defp apply_action(%{assigns: %{product: product}} = socket, :upload, _params) do
-    socket
-    |> page_title("Upload Archive - #{product.name}")
-    |> assign(:error_message, nil)
-    |> allow_upload(:archive,
-      accept: ~w(.fw),
-      max_entries: 1,
-      auto_upload: true,
-      max_file_size: max_file_size(),
-      progress: &handle_progress/3
-    )
-    |> render_with(&upload_archive_template/1)
+    |> render_with(&show_archive_template/1)
   end
 
   # A phx-change handler is required when using live uploads.

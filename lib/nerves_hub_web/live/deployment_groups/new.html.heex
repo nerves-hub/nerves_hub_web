@@ -1,76 +1,106 @@
-<h1>Create Deployment Group</h1>
+<div class="h-[56px] skrink-0 flex justify-between bg-base-900 border-b border-base-700 pl-6 items-center">
+  <div class="flex gap-2.5">
+    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups"} class="back-link flex gap-2.5 items-center">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="text-base-400">All Deployment Groups</span>
+    </.link>
+    <span class="text-base-400">/</span>
+    <span class="text-zinc-50 font-semibold">Add Deployment Group</span>
+  </div>
+</div>
 
-<%= unless @platform do %>
-  <.form :let={f} for={%{}} phx-change="select-platform">
-    <div class="form-group">
-      <div class="help-text tooltip-label help-tooltip">
-        <label for="platform" class="tooltip-label">
-          Platform
-        </label>
-        <span class="tooltip-info mb-1"></span>
-        <span class="tooltip-text">Only allow this platform to be chosen when selecting firmware.</span>
+<div class="h-0 flex-1 overflow-y-auto">
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <h1 class="text-base font-semibold text-neutral-50">Add Deployment Group</h1>
+  </div>
+
+  <div :if={@firmware_required} class="h-full pb-16 flex flex-col items-center justify-center gap-4 p-6">
+    <span class="text-xl font-medium text-neutral-50">Please upload your first firmware before creating a deployment group.</span>
+    <.link class="underline underline-offset-4 decoration-dotted hover:text-neutral-50" navigate={~p"/org/#{@org.name}/#{@product.name}/firmware"} aria-label="Add a new deployment group">
+      Go to the firmware page
+    </.link>
+  </div>
+
+  <div :if={!@firmware_required} class="flex flex-col items-start justify-between gap-4 p-6">
+    <.form for={@form} class="w-full" phx-submit="create-deployment-group">
+      <div class="flex flex-col w-2/3 bg-zinc-900 border border-zinc-700 rounded">
+        <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+          <div class="text-base text-neutral-50 font-medium">General settings</div>
+        </div>
+
+        <div class="flex p-6 gap-6 border-b border-zinc-700">
+          <div class="w-2/3 flex flex-col gap-6">
+            <.input field={@form[:name]} label="Name" placeholder="eg. Production" />
+          </div>
+        </div>
+
+        <div class="flex p-6 gap-6 border-b border-zinc-700">
+          <div class="w-2/3 flex flex-col gap-6">
+            <div class="flex gap-6">
+              <div class="w-1/2">
+                <.input field={@form[:platform]} type="select" options={@platforms} phx-change="platform-selected" label="Platform" prompt="Choose a platform" />
+              </div>
+
+              <div class="w-1/2">
+                <.input
+                  field={@form[:architecture]}
+                  type="select"
+                  options={@architectures}
+                  disabled={@architectures == []}
+                  phx-change="architecture-selected"
+                  label="Architecture"
+                  prompt={(@architectures != [] && "Choose an architecture") || ""}
+                />
+              </div>
+            </div>
+
+            <.input
+              field={@form[:firmware_id]}
+              type="select"
+              options={firmware_dropdown_options(@firmwares)}
+              disabled={@firmwares == []}
+              label="Firmware"
+              prompt={(@firmwares != [] && "Choose a firmware") || "Please select a platform and architecture first"}
+              hint="This firmware will be distributed to devices assigned to this deployment group."
+            />
+
+            <%!-- <.input field={@form[:tags]} label="Description" placeholder="eg. sensor hub at customer X" />
+
+            <.input field={@form[:version]} value={tags_to_string(@form[:tags])} label="Tags" placeholder="eg. batch-123" /> --%>
+          </div>
+        </div>
+
+        <div class="flex p-6 gap-6">
+          <div class="w-2/3 flex flex-col gap-6">
+            <div class="text-base text-neutral-50 font-medium">Device matching conditions</div>
+            <div class="flex flex-col gap-3">
+              <p class="text-sm text-zinc-400">
+                These conditions are used for matching devices which don't have a configured deployment group.
+              </p>
+              <p class="text-sm text-zinc-400">
+                The matching is undertaken when a device connects to the platform.
+              </p>
+            </div>
+            <div class="flex gap-6">
+              <div class="w-1/2">
+                <.input field={@form[:tags]} value={tags_to_string(@form[:conditions])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+              </div>
+
+              <div class="w-1/2">
+                <.input field={@form[:version]} value={@form[:conditions].value["version"]} label="Version requirement" placeholder="eg. 1.2.3" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center h-14 px-4 border-t border-zinc-700">
+          <.button style="secondary" type="submit">
+            <.icon name="save" /> Save changes
+          </.button>
+        </div>
       </div>
-      {select(f, :platform, @platforms, prompt: "Choose a platform", required: true, id: "platform", class: "form-control")}
-    </div>
-
-    <div class="button-submit-wrapper">
-      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups"} class="btn btn-secondary">
-        Cancel
-      </.link>
-    </div>
-  </.form>
-<% else %>
-  <.form :let={f} for={@form} phx-submit="create-deployment-group">
-    <div class="form-group">
-      <label for="name_input">Deployment Group name</label>
-      {text_input(f, :name, class: "form-control", id: "name_input")}
-      <div class="has-error">{error_tag(f, :name)}</div>
-    </div>
-
-    <div class="form-group">
-      <div class="help-text tooltip-label help-tooltip">
-        <label for="firmware_id" class="tooltip-label">
-          Firmware version
-        </label>
-        <span class="tooltip-info mb-1"></span>
-        <span class="tooltip-text">Once selected, deployment groups will use the same platform and architecture going forward.</span>
-      </div>
-      {select(f, :firmware_id, firmware_dropdown_options(@firmwares), prompt: "Choose a firmware version", required: true, id: "firmware_id", class: "form-control")}
-      <div class="select-icon"></div>
-      <div class="has-error">{error_tag(f, :firmware_id)}</div>
-    </div>
-
-    <h3 class="mb-2">Device Matching Conditions</h3>
-
-    <div class="form-group">
-      <label for="tags_input">Tag(s) distributed to</label>
-      {text_input(f, :tags,
-        class: "form-control",
-        id: "tags_input",
-        value:
-          @form.source
-          |> Ecto.Changeset.get_change(:conditions, %{})
-          |> Map.get("tags", "")
-      )}
-      <div class="has-error">{error_tag(f, :tags)}</div>
-    </div>
-
-    <div class="form-group">
-      <label for="version_input">Version requirement</label>
-      {text_input(f, :version,
-        class: "form-control",
-        id: "version_input",
-        value:
-          @form.source
-          |> Ecto.Changeset.get_change(:conditions, %{})
-          |> Map.get("version", "")
-      )}
-      <div class="has-error">{error_tag(f, :version)}</div>
-    </div>
-
-    <div class="button-submit-wrapper">
-      <.link class="btn btn-secondary" navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups"}>Back</.link>
-      {submit("Create Deployment", class: "btn btn-primary")}
-    </div>
-  </.form>
-<% end %>
+    </.form>
+  </div>
+</div>

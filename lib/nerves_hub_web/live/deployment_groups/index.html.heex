@@ -1,100 +1,136 @@
-<%= if Enum.empty?(@deployment_groups) do %>
-  <div class="no-results-blowup-wrapper">
-    <img src="/images/deployment.svg" alt="No deployments" />
-    <h3 style="margin-top: 2.75rem">{@product.name} doesn’t have any deployments configured</h3>
-    <div class="mt-3">
-      <.link class="btn btn-outline-light btn-action" aria-label="Setup a deployment" navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/new"}>
-        <div class="button-icon add"></div>
-        <span class="action-text">Setup your first Deployment</span>
-      </.link>
+<div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
+
+<div class="h-0 flex-1 overflow-y-auto">
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Deployment Groups</h1>
+    <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">{@pager_meta.total_count}</div>
+    <form :if={Enum.any?(@entries) || @currently_filtering} class="flex items-center h-full" phx-change="update-filters">
+      <div class="grid grid-cols-1 h-full">
+        <input
+          type="text"
+          class="col-start-1 row-start-1 block h-full w-full bg-base-900 text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
+          name="name"
+          id="deployment_group_search_top"
+          placeholder="Search..."
+          title="Search"
+          value={@current_filters[:name]}
+          phx-debounce="500"
+        />
+
+        <svg class="pointer-events-none col-start-1 row-start-1 mr-3 self-center justify-self-end" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path
+            d="M16.6668 16.6666L13.2916 13.2914M13.2916 13.2914C14.3472 12.2358 15.0002 10.7775 15.0002 9.16665C15.0002 5.94499 12.3885 3.33331 9.16683 3.33331C5.94517 3.33331 3.3335 5.94499 3.3335 9.16665C3.3335 12.3883 5.94517 15 9.16683 15C10.7777 15 12.236 14.3471 13.2916 13.2914Z"
+            stroke="#A1A1AA"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </div>
+    </form>
+    <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/new"} aria-label="Add a new deployment group">
+      <.icon name="add" /> Create Deployment Group
+    </.button>
+  </div>
+
+  <%= if Enum.empty?(@entries) do %>
+    <!-- TODO: Go over empty-state with new design -->
+    <div class="h-full pb-16 flex items-center justify-center">
+      <span class="text-xl font-medium text-neutral-50">{@product.name} doesn’t have any deployment groups configured.</span>
     </div>
-  </div>
-<% else %>
-  <div class="action-row">
-    <h1>Deployment Groups</h1>
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/new"} class="btn btn-outline-light btn-action" aria-label="Create deployment">
-      <span class="button-icon add"></span>
-      <span class="action-text">Create Deployment</span>
-    </.link>
-  </div>
+  <% else %>
+    <div class="listing">
+      <table class="">
+        <thead>
+          <tr>
+            <th phx-click="sort" phx-value-sort="name" class="cursor-pointer w-1/5">
+              <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th phx-click="sort" phx-value-sort="platform" class="cursor-pointer">
+              <Sorting.sort_icon text="Platform" field="platform" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th phx-click="sort" phx-value-sort="architecture" class="cursor-pointer">
+              <Sorting.sort_icon text="Architecture" field="architecture" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th phx-click="sort" phx-value-sort="device_count" class="cursor-pointer">
+              <Sorting.sort_icon text="Devices" field="device_count" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th phx-click="sort" phx-value-sort="firmware_version" class="cursor-pointer min-w-fit">
+              <Sorting.sort_icon text="Firmware version" field="firmware_version" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th>
+              Device Tags
+            </th>
+            <th>
+              Version Constraint
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={deployment_group <- @entries} class={["border-b border-zinc-800"]}>
+            <td>
+              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{deployment_group.name}"}>
+                <div class="h-[40px] w-full flex gap-[8px] items-center">
+                  <svg class={["size-1.5", (deployment_group.is_active && "fill-emerald-500") || "fill-zinc-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
+                    <circle cx="3" cy="3" r="3" />
+                  </svg>
 
-  <%= for {platform, deployment_groups} <- @deployment_groups do %>
-    <h3 class="mt-4">{platform}</h3>
+                  {deployment_group.name}
+                </div>
+              </.link>
+            </td>
 
-    <table class="table table-sm table-hover">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>State</th>
-          <th>Devices</th>
-          <th>Firmware version</th>
-          <th>Distributed to</th>
-          <th>Version requirement</th>
-        </tr>
-      </thead>
-      <tr :for={deployment_group <- deployment_groups} class="item">
-        <td>
-          <div class="mobile-label help-text">Name</div>
-          <div>
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{deployment_group.name}"}>{deployment_group.name}</.link>
-          </div>
-        </td>
-        <td>
-          <div class="mobile-label help-text">State</div>
-          <div class={"deployment-group-state state-#{if deployment_group.is_active, do: "on", else: "off"}"}>
-            {if deployment_group.is_active, do: "On", else: "Off"}
-          </div>
-        </td>
-        <td>
-          <div class="mobile-label help-text">Devices</div>
-          <div>
-            {@counts[deployment_group.id]}
-          </div>
-        </td>
-        <td>
-          <div class="mobile-label help-text">Firmware version</div>
-          <div>
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{deployment_group.firmware.uuid}"}>
-              <span class="badge ff-m">
-                {firmware_simple_display_name(deployment_group.firmware)}
+            <td>
+              {deployment_group.firmware.platform}
+            </td>
+
+            <td>
+              {deployment_group.firmware.architecture}
+            </td>
+
+            <td>
+              {deployment_group.device_count}
+            </td>
+
+            <td class="min-w-fit">
+              <span class="inline-block h-7 py-1 px-2 items-center rounded bg-zinc-800">
+                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{deployment_group.firmware.uuid}"} class="flex items-center">
+                  <span class="text-sm text-base-300 mr-1">{deployment_group.firmware.version} ({String.slice(deployment_group.firmware.uuid, 0..7)})</span>
+                  <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M8 10V8M8 6V5.99333M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
+                      stroke="#A1A1AA"
+                      stroke-width="1.2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </.link>
               </span>
-            </.link>
-          </div>
-        </td>
-        <td>
-          <div class="mobile-label help-text">Distributed to</div>
-          <div>
-            <%= if Enum.count(tags(deployment_group)) > 0 do %>
-              <%= for tag <- tags(deployment_group) do %>
-                <span class="badge">
-                  {tag}
-                </span>
-              <% end %>
-            <% else %>
-              -
-            <% end %>
-          </div>
-        </td>
-        <td>
-          <div class="mobile-label help-text">Version requirement</div>
-          {version(deployment_group)}
-        </td>
-        <td class="actions">
-          <div class="mobile-label help-text">Actions</div>
-          <div class="dropdown options">
-            <a class="dropdown-toggle options" href="#" id={"deployment-#{deployment_group.id}"} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              <div class="mobile-label pr-2">Open</div>
-              <img src="/images/icons/more.svg" alt="options" />
-            </a>
-            <div class="dropdown-menu dropdown-menu-right">
-              <a class="dropdown-item" aria-label="Download Audit Logs" href={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{deployment_group.name}/audit_logs/download"}>
-                <div class="button-icon download"></div>
-                <span class="action-text">Download Audit Logs</span>
-              </a>
-            </div>
-          </div>
-        </td>
-      </tr>
-    </table>
+            </td>
+
+            <td>
+              <div class="flex items-center gap-[4px]">
+                <%= if Enum.count(tags(deployment_group)) > 0 do %>
+                  <%= for tag <- tags(deployment_group) do %>
+                    <span class="badge">
+                      {tag}
+                    </span>
+                  <% end %>
+                <% else %>
+                  -
+                <% end %>
+              </div>
+            </td>
+
+            <td>
+              {version(deployment_group)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   <% end %>
-<% end %>
+</div>
+
+<Pager.render_with_page_sizes pager={@pager_meta} page_sizes={[25, 50, 100]} />

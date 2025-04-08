@@ -10,9 +10,5 @@
       <h6>Help</h6>
       <a href="https://github.com/nerves-hub/nerves_hub_web/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
     </div>
-    <div :if={Application.get_env(:nerves_hub, :new_ui)} class="footer-nav early-release">
-      <h6>Early release</h6>
-      <a href={"/ui/switch?return_to=#{@conn.request_path}"}>Try the new UI</a>
-    </div>
   </div>
 </footer>

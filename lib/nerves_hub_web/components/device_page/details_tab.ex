@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Scripts
 
   alias NervesHubWeb.Components.HealthStatus
-  alias NervesHubWeb.Components.NewUI.DeviceLocation
+  alias NervesHubWeb.Components.DeviceLocation
 
   @keys_to_cleanup [
     :support_scripts,
@@ -524,6 +524,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> halt()
   end
 
+  def hooked_event("set-deployment-group", %{"deployment_id" => ""}, socket) do
+    socket
+    |> send_toast(:error, "Please select a deployment group.")
+    |> halt()
+  end
+
   def hooked_event("set-deployment-group", %{"deployment_id" => deployment_id}, socket) do
     %{user: user, device: device, deployment_groups: deployment_groups} = socket.assigns
 
@@ -635,6 +641,16 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   end
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}
+
+  def hooked_info(%Broadcast{event: "location:updated"}, socket) do
+    %{device: device, org: org} = socket.assigns
+
+    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
+
+    socket
+    |> assign(:device, device)
+    |> halt()
+  end
 
   def hooked_info(
         %Broadcast{event: "health_check_report"},
