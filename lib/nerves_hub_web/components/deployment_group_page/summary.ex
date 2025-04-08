@@ -156,9 +156,77 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 <span :for={tag <- @deployment_group.conditions["tags"]} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">{tag}</span>
               </span>
             </div>
-            <div class="flex gap-4 items-center">
+            <div class="flex gap-4 items-center pb-2">
               <span class="text-sm text-nerves-gray-500 w-36">Version requirement:</span>
               <code class="text-sm text-zinc-300">{@deployment_group.conditions["version"]}</code>
+            </div>
+            <div
+              :if={@deployment_group.device_count > 0 || @unmatched_device_count > 0 || @matched_devices_outside_deployment_group_count > 0}
+              class="flex flex-col justify-between pt-3 gap-2 border-t border-zinc-700"
+            >
+              <div :if={@deployment_group.device_count > 0 && @matched_device_count == @deployment_group.device_count} class="flex gap-4 pt-2 items-center">
+                <span class="text-sm text-zinc-300">100% of devices in this deployment group match conditions</span>
+              </div>
+              <div :if={@matched_device_count != @deployment_group.device_count} class="flex gap-4 items-center">
+                <span class="text-sm text-zinc-300">{round(@matched_device_count / @deployment_group.device_count * 100)}% of devices in this deployment group match conditions</span>
+              </div>
+              <div :if={@unmatched_device_count > 0} class="flex py-2 gap-2 items-center">
+                <div class="text-sm text-zinc-300">
+                  {@unmatched_device_count} {if @unmatched_device_count == 1, do: "device", else: "devices"}
+                  <span class="text-sm text-nerves-gray-500">{if @unmatched_device_count == 1, do: "doesn't", else: "don't"} match inside deployment group</span>
+                </div>
+                <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
+                <%!-- <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
+                  <.icon name="open" />
+                </.link> --%>
+                <button
+                  class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-zinc-800 border border-zinc-700 rounded-full"
+                  phx-click="remove-unmatched-devices-from-deployment-group"
+                  data-confirm={"This will remove #{@unmatched_device_count} #{if @unmatched_device_count == 1, do: "device", else: "devices"} from #{@deployment_group.name}. Continue?"}
+                >
+                  <.icon name="trash" class="mr-1" /> Remove {if @unmatched_device_count == 1, do: "device", else: "devices"}
+                </button>
+                <div id="remove-devices-from-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
+                  <.icon name="info" />
+                  <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+                    This action will remove {@unmatched_device_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
+                    <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+                  </div>
+                </div>
+              </div>
+              <div :if={@matched_devices_outside_deployment_group_count > 0} class="flex gap-2 items-center">
+                <div class="text-sm text-zinc-300">
+                  {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
+                  <span class="text-sm text-nerves-gray-500">{if @matched_devices_outside_deployment_group_count == 1, do: "matches", else: "match"} outside of deployment group</span>
+                </div>
+                <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
+                <%!-- <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
+                  <.icon name="open" />
+                </.link> --%>
+                <button
+                  class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-zinc-800 border border-zinc-700 rounded-full"
+                  phx-click="move-matched-devices-to-deployment-group"
+                  data-confirm={"This will move #{@matched_devices_outside_deployment_group_count} #{if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} into #{@deployment_group.name}. Continue?"}
+                >
+                  <.icon name="folder-move" class="mr-1" /> Move {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
+                </button>
+                <div id="move-devices-to-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
+                  <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M10 12.5V10M10 7.5V7.49167M17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 5.85786 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.85786 17.5 10Z"
+                      stroke="#A1A1AA"
+                      stroke-width="1.2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+                    This action will move {@matched_devices_outside_deployment_group_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}<br />
+                    that do not belong to a deployment <br />group into {@deployment_group.name}
+                    <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -166,6 +234,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
     </div>
     """
   end
+
+  defp deployment_group_percentage(_up_to_date_count, %{device_count: 0}), do: 0.0
 
   defp deployment_group_percentage(up_to_date_count, deployment_group) do
     floor(up_to_date_count / deployment_group.device_count * 100)
