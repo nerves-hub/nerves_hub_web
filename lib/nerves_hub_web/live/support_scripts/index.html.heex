@@ -1,35 +1,51 @@
-<%= if @scripts == [] do %>
-  <div class="no-results-blowup-wrapper">
-    <h3 style="margin-top: 2.75rem">{@product.name} doesn’t have any Support Scripts yet</h3>
-    <div class="flex-row align-items-center mt-3">
-      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} class="btn btn-outline-light" aria-label="Create Support Script">
-        <span class="action-text">Create Support Script</span>
-        <span class="button-icon add"></span>
-      </.link>
+<div class="h-[56px] flex justify-end bg-base-900 border-b border-base-700"></div>
+
+<div class="h-0 flex-1 overflow-y-auto">
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Support Scripts</h1>
+    <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">
+      {@pager_meta.total_count}
     </div>
-  </div>
-<% else %>
-  <div class="action-row">
-    <h1>Support Scripts</h1>
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} class="btn btn-outline-light btn-action" aria-label="Create Support Script">
-      <span class="button-icon add"></span>
-      <span class="action-text">Create Support Script</span>
+    <.link class="action-button" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} aria-label="Add Support Scripts">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="action-text">Add Support Script</span>
     </.link>
   </div>
+  <%= if Enum.any?(@scripts) do %>
+    <div class="listing">
+      <table>
+        <thead>
+          <tr>
+            <th phx-click="sort" phx-value-sort="name" class="cursor-pointer">
+              <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+            <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
+              <Sorting.sort_icon text="Added on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={script <- @scripts} class="border-b border-zinc-800">
+            <td class="h-[52px]">
+              <.link class="size-full flex items-center" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/#{script.id}/edit"}>
+                {script.name}
+              </.link>
+            </td>
 
-  <table class="table">
-    <tr :for={command <- @scripts} class="item">
-      <td>
-        {command.name}
-      </td>
-      <td class="actions">
-        <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/#{command.id}/edit"} class="btn btn-outline-light btn-action mr-1">
-          Edit
-        </.link>
-        <.link phx-click="delete-support-script" phx-value-script_id={command.id} class="btn btn-outline-light btn-action" data-confirm="Are you sure?">
-          Delete
-        </.link>
-      </td>
-    </tr>
-  </table>
-<% end %>
+            <td>
+              {Calendar.strftime(script.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="h-full pb-16 flex items-center justify-center">
+      <span class="text-xl font-medium text-neutral-50">{@product.name} doesn’t have any Support Scripts.</span>
+    </div>
+  <% end %>
+</div>
+
+<Pager.render_with_page_sizes pager={@pager_meta} page_sizes={[25, 50, 100]} />

@@ -1,20 +1,43 @@
-<h1>Add Support Script</h1>
+<div class="h-[56px] skrink-0 flex justify-between bg-base-900 border-b border-base-700 pl-6 items-center">
+  <div class="flex gap-2.5">
+    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts"} class="back-link flex gap-2.5 items-center">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="text-base-400">All Support Scripts</span>
+    </.link>
+    <span class="text-base-400">/</span>
+    <span class="text-zinc-50 font-semibold">Add Support Script</span>
+  </div>
+</div>
 
-<.form :let={f} for={@form} phx-submit="create-script">
-  <div class="form-group">
-    <label for="name_input">Script name</label>
-    {text_input(f, :name, class: "form-control", id: "name_input")}
-    <div class="has-error">{error_tag(f, :name)}</div>
+<div class="h-0 flex-1 overflow-y-auto">
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <h1 class="text-base font-semibold text-neutral-50">Add Support Script</h1>
   </div>
 
-  <div class="form-group">
-    <label for="text_input">Script text</label>
-    {textarea(f, :text, rows: 5, class: "form-control", id: "text_input")}
-    <div class="has-error">{error_tag(f, :text)}</div>
-  </div>
+  <div class="flex flex-col items-start justify-between gap-4 p-6">
+    <.form for={@form} class="w-full" phx-submit="create-script">
+      <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+        <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+          <div class="text-base text-neutral-50 font-medium">General settings</div>
+        </div>
+        <div class="flex p-6 gap-6">
+          <div class="w-1/2 flex flex-col gap-6">
+            <.input field={@form[:name]} label="Name" placeholder="eg. System Debugging" />
+          </div>
 
-  <div class="button-submit-wrapper">
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts"} class="btn btn-secondary">Back</.link>
-    {submit("Add Script", class: "btn btn-primary")}
+          <div class="w-1/2 flex flex-col gap-2">
+            <.input field={@form[:text]} label="Script code" type="textarea" rows="10" />
+            <div class="text-xs tracking-wide text-zinc-400">Make sure this is valid Elixir and will not crash the device</div>
+          </div>
+        </div>
+        <div class="flex justify-between items-center h-14 px-4 border-t border-zinc-700">
+          <.button style="secondary" type="submit">
+            <.icon name="save" /> Save changes
+          </.button>
+        </div>
+      </div>
+    </.form>
   </div>
-</.form>
+</div>

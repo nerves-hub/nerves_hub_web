@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
 
   alias NervesHub.Tracker
 
+  alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
 
   def tab_params(_params, _uri, socket) do
@@ -21,6 +22,12 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
 
   def cleanup() do
     [:console_active?]
+  end
+
+  def hooked_info(%Broadcast{event: "console_joined"}, socket) do
+    socket
+    |> assign(:console_active?, AsyncResult.ok(true))
+    |> halt()
   end
 
   def hooked_info(%Broadcast{event: "file-data/start", payload: payload}, socket) do

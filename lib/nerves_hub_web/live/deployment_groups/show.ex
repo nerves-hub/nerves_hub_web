@@ -4,11 +4,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
-  alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
-  alias NervesHub.ManagedDeployments.DeploymentGroup
-
-  alias NervesHubWeb.Components.AuditLogFeed
 
   alias NervesHubWeb.Components.DeploymentGroupPage.Activity, as: ActivityTab
   alias NervesHubWeb.Components.DeploymentGroupPage.ReleaseHistory, as: ReleaseHistoryTab
@@ -143,62 +139,5 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     else
       "px-6 py-2 h-11 font-normal text-sm text-zinc-300 hover:border-b hover:border-indigo-500 relative -bottom-px"
     end
-  end
-
-  defp deployment_group_percentage(%{total_updating_devices: 0}), do: 100
-
-  defp deployment_group_percentage(deployment_group) do
-    floor(
-      deployment_group.current_updated_devices / deployment_group.total_updating_devices * 100
-    )
-  end
-
-  defp help_message_for(field) do
-    case field do
-      :failure_threshold ->
-        "Maximum number of target devices from this deployment group that can be in an unhealthy state before marking the deployment group unhealthy"
-
-      :failure_rate ->
-        "Maximum number of device install failures from this deployment group within X seconds before being marked unhealthy"
-
-      :device_failure_rate ->
-        "Maximum number of device failures within X seconds a device can have for this deployment group before being marked unhealthy"
-
-      :device_failure_threshold ->
-        "Maximum number of install attempts and/or failures a device can have for this deployment group before being marked unhealthy"
-
-      :penalty_timeout_minutes ->
-        "Number of minutes a device is placed in the penalty box for reaching the failure rate and threshold"
-    end
-  end
-
-  defp version(%DeploymentGroup{conditions: %{"version" => ""}}), do: "-"
-  defp version(%DeploymentGroup{conditions: %{"version" => version}}), do: version
-
-  defp firmware_summary(%Firmware{version: nil}) do
-    ["Unknown"]
-  end
-
-  defp firmware_summary(%Firmware{} = f) do
-    ["#{firmware_display_name(f)}"]
-  end
-
-  defp firmware_summary(%DeploymentGroup{firmware: %Firmware{} = f}) do
-    firmware_summary(f)
-  end
-
-  defp firmware_summary(
-         %DeploymentGroup{firmware: %Ecto.Association.NotLoaded{}} = deployment_group
-       ) do
-    ManagedDeployments.preload_firmware_and_archive(deployment_group)
-  end
-
-  defp tags(%DeploymentGroup{conditions: %{"tags" => tags}}), do: tags
-
-  defp opposite_status(%DeploymentGroup{is_active: true}), do: "Off"
-  defp opposite_status(%DeploymentGroup{is_active: false}), do: "On"
-
-  defp firmware_display_name(%Firmware{} = f) do
-    "#{f.version} #{f.platform} #{f.architecture} #{f.uuid}"
   end
 end

@@ -1,7 +1,6 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   use NervesHubWeb, :updated_live_view
 
-  alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
@@ -154,10 +153,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
       empty_values: []
     ).changes
-  end
-
-  defp firmware_simple_display_name(%Firmware{} = f) do
-    "#{f.version} #{f.uuid}"
   end
 
   defp version(%DeploymentGroup{conditions: %{"version" => ""}}), do: "-"
