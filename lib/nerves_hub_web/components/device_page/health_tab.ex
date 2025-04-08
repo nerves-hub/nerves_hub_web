@@ -52,6 +52,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     |> cont()
   end
 
+  def cleanup() do
+    [:time_frame, :time_frame_opts, :charts]
+  end
+
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
   def hooked_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do

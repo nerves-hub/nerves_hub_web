@@ -19,6 +19,10 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
     |> cont()
   end
 
+  def cleanup() do
+    [:console_active?]
+  end
+
   def hooked_info(%Broadcast{event: "file-data/start", payload: payload}, socket) do
     if socket.assigns.user.id == payload.uploaded_by do
       send_toast(socket, :info, "Upload started.")

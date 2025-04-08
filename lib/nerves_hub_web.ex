@@ -323,23 +323,6 @@ defmodule NervesHubWeb do
 
       alias Phoenix.Socket.Broadcast
 
-      def halt(socket), do: {:halt, socket}
-
-      def cont(socket), do: {:cont, socket}
-
-      def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
-
-      def sidebar_tab(socket, tab) do
-        socket
-        |> assign(:sidebar_tab, tab)
-        |> assign(:tab_hint, tab)
-      end
-
-      def send_toast(socket, kind, msg) do
-        NervesHubWeb.LiveToast.send_toast(kind, msg)
-        socket
-      end
-
       @tab_id unquote(tab_id)
 
       defp tab_hook_id(), do: "#{@tab_id}_tab"
@@ -370,7 +353,12 @@ defmodule NervesHubWeb do
         if socket.assigns.tab == @tab_id do
           tab_params(params, uri, socket)
         else
-          {:cont, socket}
+          cleanup()
+          |> Enum.reduce(socket, fn key, acc ->
+            new_assigns = Map.delete(acc.assigns, key)
+            Map.put(acc, :assigns, new_assigns)
+          end)
+          |> cont()
         end
       end
 
@@ -378,7 +366,28 @@ defmodule NervesHubWeb do
         cont(socket)
       end
 
-      defoverridable tab_params: 3
+      def cleanup() do
+        []
+      end
+
+      defoverridable tab_params: 3, cleanup: 0
+
+      def halt(socket), do: {:halt, socket}
+
+      def cont(socket), do: {:cont, socket}
+
+      def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
+
+      def sidebar_tab(socket, tab) do
+        socket
+        |> assign(:sidebar_tab, tab)
+        |> assign(:tab_hint, tab)
+      end
+
+      def send_toast(socket, kind, msg) do
+        NervesHubWeb.LiveToast.send_toast(kind, msg)
+        socket
+      end
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

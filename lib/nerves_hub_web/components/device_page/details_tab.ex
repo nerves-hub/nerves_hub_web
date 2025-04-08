@@ -16,9 +16,17 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.NewUI.DeviceLocation
 
+  @keys_to_cleanup [
+    :support_scripts,
+    :firmwares,
+    :update_information,
+    :alarms,
+    :extension_overrides,
+    :deployment_groups
+  ]
+
   def tab_params(_params, _uri, %{assigns: %{device: device}} = socket) do
     socket
-    |> assign(:device_connection, device.latest_connection)
     |> assign_support_scripts()
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:update_information, Devices.resolve_update(device))
@@ -29,6 +37,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> assign_deployment_groups()
     |> cont()
   end
+
+  def cleanup(), do: @keys_to_cleanup
 
   defp assign_metadata(%{assigns: %{device: device}} = socket) do
     health = Devices.get_latest_health(device.id)

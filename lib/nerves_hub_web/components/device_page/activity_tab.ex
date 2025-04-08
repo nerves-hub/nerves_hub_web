@@ -11,6 +11,10 @@ defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
     |> cont()
   end
 
+  def cleanup() do
+    [:activity, :audit_pager]
+  end
+
   defp logs_and_pager_assigns(socket, page_number \\ 1, page_size \\ 25) do
     {logs, audit_pager} =
       AuditLogs.logs_for_feed(socket.assigns.device, %{
