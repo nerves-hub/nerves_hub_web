@@ -1196,6 +1196,17 @@ defmodule NervesHub.Devices do
     update_device(device, %{updates_blocked_until: blocked_until})
   end
 
+  @doc """
+  Move devices to a deployment group. A deployment group struct or id can
+  be given. Devices are fetched by their id and also filtered by the given
+  deployment group firmware's architecture and platform.
+
+  `Repo.update_all()` is used to update the rows. The return informs how
+  many rows were updated and how many were ignored because of a problem.
+
+  move_many_to_deployment_group([1, 2, 3], deployment_group)
+  > {:ok, %{updated: 3, ignored: 0}}
+  """
   @spec move_many_to_deployment_group(
           [non_neg_integer()],
           DeploymentGroup.t() | non_neg_integer()
@@ -1214,6 +1225,7 @@ defmodule NervesHub.Devices do
 
     {devices_updated_count, _} =
       Device
+      |> Repo.exclude_deleted()
       |> where([d], d.id in ^device_ids)
       |> where([d], d.firmware_metadata["platform"] == ^firmware.platform)
       |> where([d], d.firmware_metadata["architecture"] == ^firmware.architecture)
@@ -1222,6 +1234,39 @@ defmodule NervesHub.Devices do
     :ok = Enum.each(device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
 
     {:ok, %{updated: devices_updated_count, ignored: length(device_ids) - devices_updated_count}}
+  end
+
+  @doc """
+  Removes unmatched devices from deployment group. The given device ids are
+  assumed to be ids of devices that "match" a deployment group's conditions,
+  e.g. devices from ManagedDeployments.matched_device_ids/2. Devices are
+  fetched by their id and also filtered by the deployment group's id and
+  product id.
+
+  `Repo.update_all()` is used to update the rows. The return informs how
+  many rows were updated and how many were ignored because of a problem.
+
+  remove_unmatched_devices_from_deployment_group([1, 2, 3], deployment_group)
+  > {:ok, %{updated: 3, ignored: 0}}
+  """
+  @spec remove_unmatched_devices_from_deployment_group([non_neg_integer()], DeploymentGroup.t()) ::
+          {:ok, %{updated: non_neg_integer(), ignored: non_neg_integer()}}
+  def remove_unmatched_devices_from_deployment_group(matched_device_ids, deployment_group) do
+    {devices_updated_count, _} =
+      Device
+      |> Repo.exclude_deleted()
+      |> where([d], d.deployment_id == ^deployment_group.id)
+      |> where([d], d.product_id == ^deployment_group.product_id)
+      |> where([d], d.id not in ^matched_device_ids)
+      |> Repo.update_all(set: [deployment_id: nil])
+
+    :ok = Enum.each(matched_device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
+
+    {:ok,
+     %{
+       updated: devices_updated_count,
+       ignored: length(matched_device_ids) - devices_updated_count
+     }}
   end
 
   @spec move_many([Device.t()], Product.t(), User.t()) :: %{

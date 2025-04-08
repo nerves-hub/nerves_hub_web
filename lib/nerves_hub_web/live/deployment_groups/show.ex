@@ -1,17 +1,13 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   use NervesHubWeb, :updated_live_view
 
-  import Ecto.Query
-
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
-  alias NervesHub.Devices.Device
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
-  alias NervesHub.Repo
 
   alias NervesHubWeb.Components.AuditLogFeed
 
@@ -119,8 +115,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       deployment_group
       |> ManagedDeployments.matched_device_ids(in_deployment: false)
       |> Devices.move_many_to_deployment_group(deployment_group)
-      |> then(fn {:ok, %{updated: devices_updated_count}} ->
-        devices_updated_count
+      |> then(fn {:ok, %{updated: updated_count, ignored: ignored_count}} ->
+        if ignored_count > 0 do
+          {:error, updated_count, ignored_count}
+        else
+          updated_count
+        end
       end)
     end
 
@@ -137,15 +137,17 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       ManagedDeployments.matched_device_ids(deployment_group, in_deployment: true)
 
     remove_devices = fn ->
-      Device
-      |> Repo.exclude_deleted()
-      |> where([d], d.deployment_id == ^deployment_group.id)
-      |> where([d], d.product_id == ^deployment_group.product_id)
-      |> where([d], d.id not in ^matched_device_ids)
-      |> Repo.update_all(set: [deployment_id: nil])
-      |> then(fn {devices_removed_count, _} ->
-        devices_removed_count
-      end)
+      {:ok, %{updated: updated, ignored: ignored}} =
+        Devices.remove_unmatched_devices_from_deployment_group(
+          matched_device_ids,
+          deployment_group
+        )
+
+      if ignored > 0 do
+        {:error, updated, ignored}
+      else
+        updated
+      end
     end
 
     socket
@@ -155,11 +157,39 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   @impl Phoenix.LiveView
+  def handle_async(
+        :move_devices_to_deployment,
+        {:ok, {:error, updated_count, ignored_count}},
+        socket
+      ) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    :ok =
+      Logging.log_to_sentry(
+        deployment_group,
+        "There was an issue moving devices to a deployment group.",
+        %{
+          updated_count: updated_count,
+          ignored_count: ignored_count,
+          deployment_group_id: deployment_group.id
+        }
+      )
+
+    socket
+    |> send_toast(
+      :error,
+      "#{updated_count} devices moved to #{socket.assigns.deployment_group.name}. However, we couldn't move #{ignored_count} devices. We've been notified and are looking into it."
+    )
+    |> assign_matched_devices_count()
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
   def handle_async(:move_devices_to_deployment, {:ok, devices_updated_count}, socket) do
     socket
     |> send_toast(
       :info,
-      "#{devices_updated_count} devices moved to #{socket.assigns.deployment_group.name}"
+      "#{devices_updated_count} devices moved to #{socket.assigns.deployment_group.name} <br /> a new line!"
     )
     |> assign_matched_devices_count()
     |> noreply()
@@ -174,6 +204,34 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> send_toast(
       :error,
       "There was an issue moving devices to #{deployment_group.name}. We've been notified and are looking into it."
+    )
+    |> assign_matched_devices_count()
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_async(
+        :remove_devices_from_deployment,
+        {:ok, {:error, updated_count, ignored_count}},
+        socket
+      ) do
+    %{assigns: %{deployment_group: deployment_group}} = socket
+
+    :ok =
+      Logging.log_to_sentry(
+        deployment_group,
+        "There was an issue removing devices from a deployment group.",
+        %{
+          updated_count: updated_count,
+          ignored_count: ignored_count,
+          deployment_group_id: deployment_group.id
+        }
+      )
+
+    socket
+    |> send_toast(
+      :error,
+      "#{updated_count} devices removed from #{socket.assigns.deployment_group.name}. However, we couldn't remove #{ignored_count} devices. We've been notified and are looking into it."
     )
     |> assign_matched_devices_count()
     |> noreply()

@@ -184,27 +184,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   phx-click="remove-unmatched-devices-from-deployment-group"
                   data-confirm={"This will remove #{@unmatched_device_count} #{if @unmatched_device_count == 1, do: "device", else: "devices"} from #{@deployment_group.name}. Continue?"}
                 >
-                  <svg class="size-5 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                      d="M15 7H9M15 7H18M15 7C15 5.34315 13.6569 4 12 4C10.3431 4 9 5.34315 9 7M9 7H6M4 7H6M6 7V18C6 19.1046 6.89543 20 8 20H16C17.1046 20 18 19.1046 18 18V7M18 7H20M10 11V16M14 16V11"
-                      stroke-width="1.2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke="#A1A1AA"
-                    />
-                  </svg>
-                  Remove {if @unmatched_device_count == 1, do: "device", else: "devices"}
+                  <.icon name="trash" class="mr-1" /> Remove {if @unmatched_device_count == 1, do: "device", else: "devices"}
                 </button>
                 <div id="remove-devices-from-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
-                  <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                      d="M10 12.5V10M10 7.5V7.49167M17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 5.85786 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.85786 17.5 10Z"
-                      stroke="#A1A1AA"
-                      stroke-width="1.2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
+                  <.icon name="info" />
                   <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
                     This action will remove {@unmatched_device_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
                     <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
