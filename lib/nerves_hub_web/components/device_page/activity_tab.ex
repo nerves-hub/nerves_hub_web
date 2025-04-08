@@ -1,15 +1,18 @@
-defmodule NervesHubWeb.Components.DevicePage.Activity do
-  use NervesHubWeb, :live_component
+defmodule NervesHubWeb.Components.DevicePage.ActivityTab do
+  use NervesHubWeb, tab_component: :activity
 
   alias NervesHub.AuditLogs
 
   alias NervesHubWeb.Components.Pager
 
-  def update(assigns, socket) do
+  def tab_params(_params, _uri, socket) do
     socket
-    |> assign(assigns)
     |> logs_and_pager_assigns()
-    |> ok()
+    |> cont()
+  end
+
+  def cleanup() do
+    [:activity, :audit_pager]
   end
 
   defp logs_and_pager_assigns(socket, page_number \\ 1, page_size \\ 25) do
@@ -82,12 +85,12 @@ defmodule NervesHubWeb.Components.DevicePage.Activity do
         </div>
       </div>
 
-      <Pager.render_with_page_sizes pager={@audit_pager} page_sizes={[25, 50, 100]} target={@myself} />
+      <Pager.render_with_page_sizes pager={@audit_pager} page_sizes={[25, 50, 100]} />
     </div>
     """
   end
 
-  def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
+  def hooked_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
     url =
@@ -96,10 +99,10 @@ defmodule NervesHubWeb.Components.DevicePage.Activity do
     socket
     |> logs_and_pager_assigns(1, String.to_integer(page_size))
     |> push_patch(to: url)
-    |> noreply()
+    |> halt()
   end
 
-  def handle_event("paginate", %{"page" => page_num}, socket) do
+  def hooked_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_size" => socket.assigns.audit_pager.page_size, "page_number" => page_num}
 
     url =
@@ -111,6 +114,12 @@ defmodule NervesHubWeb.Components.DevicePage.Activity do
       socket.assigns.audit_pager.page_size
     )
     |> push_patch(to: url)
-    |> noreply()
+    |> halt()
   end
+
+  def hooked_event(_name, _params, socket), do: {:cont, socket}
+
+  def hooked_info(_name, socket), do: {:cont, socket}
+
+  def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 end
