@@ -189,7 +189,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     socket
     |> send_toast(
       :info,
-      "#{devices_updated_count} devices moved to #{socket.assigns.deployment_group.name} <br /> a new line!"
+      "#{devices_updated_count} devices moved to #{socket.assigns.deployment_group.name}"
     )
     |> assign_matched_devices_count()
     |> noreply()
