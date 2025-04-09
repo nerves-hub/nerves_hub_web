@@ -69,24 +69,11 @@ defmodule NervesHubWeb.Router do
   scope("/api", NervesHubWeb.API, as: :api) do
     pipe_through(:api)
 
-    get("/health", HealthCheckController, :health_check)
-
     post("/users/auth", UserController, :auth)
     post("/users/login", UserController, :login)
 
     scope "/devices" do
       pipe_through([:api_user])
-
-      get("/:identifier", DeviceController, :show)
-      post("/:identifier/reboot", DeviceController, :reboot)
-      post("/:identifier/reconnect", DeviceController, :reconnect)
-      post("/:identifier/code", DeviceController, :code)
-      post("/:identifier/upgrade", DeviceController, :upgrade)
-      post("/:identifier/move", DeviceController, :move)
-      delete("/:identifier/penalty", DeviceController, :penalty)
-
-      get("/:identifier/scripts", ScriptController, :index)
-      post("/:identifier/scripts/:id", ScriptController, :send)
     end
 
     scope "/" do
@@ -140,13 +127,18 @@ defmodule NervesHubWeb.Router do
                   pipe_through([:api_device])
 
                   get("/", DeviceController, :show)
-                  delete("/", DeviceController, :delete)
                   put("/", DeviceController, :update)
+                  delete("/", DeviceController, :delete)
+
                   post("/reboot", DeviceController, :reboot)
                   post("/reconnect", DeviceController, :reconnect)
                   post("/code", DeviceController, :code)
                   post("/upgrade", DeviceController, :upgrade)
+                  post("/move", DeviceController, :move)
                   delete("/penalty", DeviceController, :penalty)
+
+                  get("/scripts", ScriptController, :index)
+                  post("/scripts/:id", ScriptController, :send)
 
                   scope "/certificates" do
                     get("/", DeviceCertificateController, :index)

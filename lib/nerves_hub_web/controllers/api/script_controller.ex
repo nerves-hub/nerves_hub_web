@@ -13,7 +13,7 @@ defmodule NervesHubWeb.API.ScriptController do
         if Accounts.has_org_role?(device.org, user, :view) do
           conn
           |> assign(:scripts, Scripts.all_by_product(device.product))
-          |> render("index.json")
+          |> render(:index)
         else
           conn
           |> put_resp_header("content-type", "application/json")

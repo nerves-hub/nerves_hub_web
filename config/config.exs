@@ -38,7 +38,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
     signing_salt: "Kct3W8U7uQ6KAczYjzNbiYS6A8Pbtk3f"
   ],
   render_errors: [
-    formats: [html: NervesHubWeb.ErrorView, json: NervesHubWeb.API.ErrorView],
+    formats: [html: NervesHubWeb.ErrorView, json: NervesHubWeb.API.ErrorJSON],
     accepts: ~w(html json)
   ],
   pubsub_server: NervesHub.PubSub

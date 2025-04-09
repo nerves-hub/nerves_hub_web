@@ -106,7 +106,7 @@ defmodule NervesHubWeb.API.DeviceCertificateControllerTest do
           cert: ""
         )
 
-      assert json_response(conn, 500)["errors"] != %{}
+      assert json_response(conn, 422)["errors"] != %{}
     end
   end
 

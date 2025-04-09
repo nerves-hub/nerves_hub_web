@@ -21,7 +21,9 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn = post(conn, Routes.api_device_path(conn, :create, org.name, product.name), device)
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, Routes.api_device_path(conn, :show, device.identifier))
+      conn =
+        get(conn, Routes.api_device_path(conn, :show, org.name, product.name, device.identifier))
+
       assert json_response(conn, 200)["data"]["identifier"] == identifier
       assert json_response(conn, 200)["data"]["updates_enabled"] == true
     end
@@ -50,15 +52,42 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
     end
   end
 
+  describe "show" do
+    test "device that the user has access to", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      device = Fixtures.device_fixture(org, product, firmware)
+
+      conn =
+        get(conn, Routes.api_device_path(conn, :show, org.name, product.name, device.identifier))
+
+      assert json_response(conn, 200)["data"]
+
+      assert json_response(conn, 200)["data"]["identifier"] == device.identifier
+    end
+
+    test "device that the user does not have access to", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+
+      assert_error_sent(404, fn ->
+        get(conn, Routes.api_device_path(conn, :show, org.name, product.name, "abcd"))
+      end)
+      |> assert_authorization_error(404)
+    end
+  end
+
   describe "delete devices" do
     test "deletes chosen device", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
 
-      Fixtures.device_fixture(org, product, firmware)
+      to_delete = Fixtures.device_fixture(org, product, firmware)
 
-      [to_delete | _] = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
+      # fully load all the associations
+      to_delete = Devices.get_complete_device(to_delete.id)
 
       conn =
         delete(
@@ -68,9 +97,13 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert response(conn, 204)
 
-      conn = get(conn, Routes.api_device_path(conn, :show, to_delete.identifier))
-
-      assert json_response(conn, 200)["status"] != ""
+      assert_error_sent(404, fn ->
+        get(
+          conn,
+          Routes.api_device_path(conn, :show, org.name, product.name, to_delete.identifier)
+        )
+      end)
+      |> assert_authorization_error(404)
     end
   end
 
@@ -95,7 +128,11 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, Routes.api_device_path(conn, :show, to_update.identifier))
+      conn =
+        get(
+          conn,
+          Routes.api_device_path(conn, :show, org.name, product.name, to_update.identifier)
+        )
 
       assert json_response(conn, 200)
       assert conn.assigns.device.tags == ["a", "b", "c", "d"]
@@ -189,10 +226,10 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       conn =
         post(
           conn,
-          Routes.api_device_path(conn, :move, device.identifier),
+          Routes.api_device_path(conn, :move, org.name, product.name, device.identifier),
           %{
-            "org_name" => org2.name,
-            "product_name" => product2.name
+            "new_org_name" => org2.name,
+            "new_product_name" => product2.name
           }
         )
 
@@ -215,17 +252,17 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       {:ok, device} = Devices.update_device(device, %{updates_blocked_until: DateTime.utc_now()})
 
-      conn =
+      assert_error_sent(401, fn ->
         post(
           conn,
-          Routes.api_device_path(conn, :move, device.identifier),
+          Routes.api_device_path(conn, :move, org.name, product.name, device.identifier),
           %{
-            "org_name" => org2.name,
-            "product_name" => product2.name
+            "new_org_name" => org2.name,
+            "new_product_name" => product2.name
           }
         )
-
-      assert response(conn, 403)
+      end)
+      |> assert_authorization_error()
     end
   end
 end

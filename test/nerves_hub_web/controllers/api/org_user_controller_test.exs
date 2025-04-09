@@ -26,8 +26,11 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
 
       test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
         Accounts.add_org_user(org, user, %{role: @role})
-        conn = get(conn, Routes.api_org_user_path(conn, :index, org.name))
-        assert json_response(conn, 403)["status"] != ""
+
+        assert_error_sent(401, fn ->
+          get(conn, Routes.api_org_user_path(conn, :index, org.name))
+        end)
+        |> assert_authorization_error()
       end
     end
   end
@@ -61,8 +64,11 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
         Accounts.add_org_user(org, user, %{role: @role})
         org_user = %{"username" => "1234", "role" => "admin"}
-        conn = post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
-        assert json_response(conn, 403)["status"] != ""
+
+        assert_error_sent(401, fn ->
+          post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
+        end)
+        |> assert_authorization_error()
       end
     end
   end
@@ -90,8 +96,11 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
 
       test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
         Accounts.add_org_user(org, user, %{role: @role})
-        conn = delete(conn, Routes.api_org_user_path(conn, :remove, org.name, "1234"))
-        assert json_response(conn, 403)["status"] != ""
+
+        assert_error_sent(401, fn ->
+          delete(conn, Routes.api_org_user_path(conn, :remove, org.name, "1234"))
+        end)
+        |> assert_authorization_error()
       end
     end
   end
@@ -118,10 +127,10 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
       test "error: org #{@role}", %{conn2: conn, org: org, user2: user} do
         Accounts.add_org_user(org, user, %{role: @role})
 
-        conn =
+        assert_error_sent(401, fn ->
           put(conn, Routes.api_org_user_path(conn, :update, org.name, user.id), role: "manage")
-
-        assert json_response(conn, 403)["status"] != ""
+        end)
+        |> assert_authorization_error()
       end
     end
   end

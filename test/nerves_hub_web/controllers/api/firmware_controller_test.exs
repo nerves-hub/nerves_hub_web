@@ -41,7 +41,7 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
 
     test "renders errors when data is invalid", %{conn: conn, org: org, product: product} do
       conn = post(conn, Routes.api_firmware_path(conn, :create, org.name, product.name))
-      assert json_response(conn, 500)["errors"] != %{}
+      assert json_response(conn, 422)["errors"] != %{}
     end
   end
 
