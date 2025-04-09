@@ -1,45 +1,48 @@
-defmodule NervesHubWeb.API.DeviceView do
-  use NervesHubWeb, :api_view
+defmodule NervesHubWeb.API.DeviceJSON do
+  @moduledoc false
 
-  alias NervesHub.Repo
-  alias NervesHub.Tracker
-
-  def render("index.json", %{devices: devices, pagination: pagination}) do
+  @doc """
+  Renders a list of devices.
+  """
+  def index(%{devices: devices, pagination: pagination}) do
     %{
-      data: render_many(devices, __MODULE__, "device.json"),
+      data: for(device <- devices, do: device(device)),
       pagination: pagination
     }
   end
 
-  def render("show.json", %{device: device}) do
-    %{data: render_one(device, __MODULE__, "device.json")}
-  end
-
-  def render("device.json", %{device: device}) do
-    device = Repo.preload(device, :latest_connection)
-
+  @doc """
+  Renders a devices.
+  """
+  def show(%{device: device}) do
     %{
-      identifier: device.identifier,
-      tags: device.tags,
-      version: version(device),
-      online: Tracker.sync_online?(device),
-      connection_status: connection_status(device),
-      # deprecated
-      last_communication: connection_last_seen_at(device),
-      description: device.description,
-      firmware_metadata: device.firmware_metadata,
-      deployment_group:
-        render_one(device.deployment_group, __MODULE__, "deployment_group.json",
-          as: :deployment_group
-        ),
-      updates_enabled: device.updates_enabled,
-      updates_blocked_until: device.updates_blocked_until,
-      org_name: device.org.name,
-      product_name: device.product.name
+      data: device(device)
     }
   end
 
-  def render("deployment_group.json", %{deployment_group: deployment_group}) do
+  defp device(device) do
+    %{
+      identifier: device.identifier,
+      description: device.description,
+      tags: device.tags,
+      online: connection_status(device),
+      connection_status: connection_status(device),
+      firmware_metadata: device.firmware_metadata,
+      version: version(device),
+      deployment_group: deployment_group(device.deployment_group),
+      updates_enabled: device.updates_enabled,
+      updates_blocked_until: device.updates_blocked_until,
+      # do we need these?
+      org_name: device.org.name,
+      product_name: device.product.name,
+      # deprecated
+      last_communication: connection_last_seen_at(device)
+    }
+  end
+
+  defp deployment_group(nil), do: nil
+
+  defp deployment_group(deployment_group) do
     %{
       firmware_uuid: deployment_group.firmware.uuid,
       firmware_version: deployment_group.firmware.version,

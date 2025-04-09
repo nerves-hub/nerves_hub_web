@@ -1,8 +1,8 @@
-defmodule NervesHubWeb.API.ErrorView do
-  use NervesHubWeb, :api_view
+defmodule NervesHubWeb.API.ErrorJSON do
+  @moduledoc false
 
   def render("401.json", _) do
-    %{errors: %{detail: "Not Authenticated"}}
+    %{errors: %{detail: "Resource Not Found or Authorization Insufficient"}}
   end
 
   def render("404.json", _) do

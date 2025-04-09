@@ -62,8 +62,10 @@ defmodule NervesHubWeb.API.ProductControllerTest do
 
       Accounts.add_org_user(org, user, %{role: :view})
 
-      conn = post(conn, Routes.api_product_path(conn, :create, org.name), product)
-      assert json_response(conn, 403)["status"] != ""
+      assert_error_sent(401, fn ->
+        post(conn, Routes.api_product_path(conn, :create, org.name), product)
+      end)
+      |> assert_authorization_error()
     end
   end
 
@@ -74,9 +76,10 @@ defmodule NervesHubWeb.API.ProductControllerTest do
       conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
       assert response(conn, 204)
 
-      assert_raise(Ecto.NoResultsError, fn ->
+      assert_error_sent(404, fn ->
         get(conn, Routes.api_product_path(conn, :show, org.name, product.name))
       end)
+      |> assert_authorization_error(404)
     end
   end
 
@@ -89,23 +92,19 @@ defmodule NervesHubWeb.API.ProductControllerTest do
       conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
       assert response(conn, 204)
 
-      assert_raise(Ecto.NoResultsError, fn ->
+      assert_error_sent(404, fn ->
         get(conn, Routes.api_product_path(conn, :show, org.name, product.name))
       end)
+      |> assert_authorization_error(404)
     end
 
     test "error: org delete", %{user2: user, conn2: conn, org: org, product: product} do
       Accounts.add_org_user(org, user, %{role: :view})
 
-      conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
-      assert json_response(conn, 403)["status"] != ""
-    end
-
-    test "error: org read", %{user2: user, conn2: conn, org: org, product: product} do
-      Accounts.add_org_user(org, user, %{role: :view})
-
-      conn = delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
-      assert json_response(conn, 403)["status"] != ""
+      assert_error_sent(401, fn ->
+        delete(conn, Routes.api_product_path(conn, :delete, org.name, product.name))
+      end)
+      |> assert_authorization_error()
     end
   end
 

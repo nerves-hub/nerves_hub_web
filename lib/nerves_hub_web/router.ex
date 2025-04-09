@@ -71,8 +71,6 @@ defmodule NervesHubWeb.Router do
   scope("/api", NervesHubWeb.API, as: :api) do
     pipe_through(:api)
 
-    get("/health", HealthCheckController, :health_check)
-
     post("/users/auth", UserController, :auth)
     post("/users/login", UserController, :login)
 
@@ -142,13 +140,18 @@ defmodule NervesHubWeb.Router do
                   pipe_through([:api_device])
 
                   get("/", DeviceController, :show)
-                  delete("/", DeviceController, :delete)
                   put("/", DeviceController, :update)
+                  delete("/", DeviceController, :delete)
+
                   post("/reboot", DeviceController, :reboot)
                   post("/reconnect", DeviceController, :reconnect)
                   post("/code", DeviceController, :code)
                   post("/upgrade", DeviceController, :upgrade)
+                  post("/move", DeviceController, :move)
                   delete("/penalty", DeviceController, :penalty)
+
+                  get("/scripts", ScriptController, :index)
+                  post("/scripts/:id", ScriptController, :send)
 
                   scope "/certificates" do
                     get("/", DeviceCertificateController, :index)

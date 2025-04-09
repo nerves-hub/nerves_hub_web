@@ -34,7 +34,7 @@ defmodule NervesHubWeb do
 
       import Plug.Conn
       import Phoenix.LiveView.Controller
-      import NervesHub.RoleValidateHelpers
+      import NervesHubWeb.Helpers.RoleValidateHelpers
 
       import Phoenix.LiveView.Controller
 
@@ -53,16 +53,19 @@ defmodule NervesHubWeb do
 
   def api_controller() do
     quote do
-      use Phoenix.Controller, namespace: NervesHubWeb
+      use Phoenix.Controller, formats: [:json]
+
       use Gettext, backend: NervesHubWeb.Gettext
 
       import Plug.Conn
       import Phoenix.LiveView.Controller
-      import NervesHub.RoleValidateHelpers
+      import NervesHubWeb.Helpers.RoleValidateHelpers
 
       import Phoenix.LiveView.Controller
 
       alias NervesHubWeb.Router.Helpers, as: Routes
+
+      action_fallback(NervesHubWeb.API.FallbackController)
 
       def whitelist(params, keys) do
         keys
@@ -249,29 +252,6 @@ defmodule NervesHubWeb do
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
-    end
-  end
-
-  def api_view() do
-    quote do
-      use Phoenix.View,
-        root: "lib/nerves_hub_web/templates",
-        namespace: NervesHubWeb
-
-      use Gettext, backend: NervesHubWeb.Gettext
-
-      # Import convenience functions from controllers
-      import Phoenix.Controller, only: [get_flash: 2, view_module: 1]
-
-      import NervesHubWeb.ErrorHelpers
-
-      alias NervesHubWeb.Router.Helpers, as: Routes
-
-      def render("error.json", %{error: error}) do
-        %{
-          error: error
-        }
-      end
     end
   end
 
