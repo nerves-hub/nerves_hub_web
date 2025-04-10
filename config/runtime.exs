@@ -39,6 +39,7 @@ config :nerves_hub,
     String.to_integer(System.get_env("DEPLOYMENT_CALCULATOR_INTERVAL_SECONDS", "3600")),
   mapbox_access_token: System.get_env("MAPBOX_ACCESS_TOKEN"),
   dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "false") == "true",
+  insights_enabled: System.get_env("INSIGHTS_ENABLED", "false") == "true",
   extension_config: [
     geo: [
       # No interval, fetch geo on device connection by default
