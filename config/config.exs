@@ -85,10 +85,10 @@ config :flop, repo: NervesHub.Repo
 
 # Configure esbuild (the version is required)
 config :esbuild,
-  version: "0.17.11",
+  version: "0.25.2",
   default: [
     args:
-      ~w(ui-rework/app.js --bundle --target=es2017 --outdir=../priv/static/assets/ui-rework --external:/fonts/* --external:/images/* --loader:.png=file),
+      ~w(ui-rework/app.js --bundle --target=es2021 --outdir=../priv/static/assets/ui-rework --external:/fonts/* --external:/images/* --loader:.png=file),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
