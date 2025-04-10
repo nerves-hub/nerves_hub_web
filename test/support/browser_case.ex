@@ -30,10 +30,12 @@ defmodule NervesHubWeb.ConnCase.Browser do
           deployment_group: deployment_group
         } = fixture
 
+        token = NervesHub.Accounts.create_user_session_token(user)
+
         conn =
           build_conn()
           |> init_test_session(%{
-            "auth_user_id" => user.id
+            "user_token" => token
           })
 
         %{

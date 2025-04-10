@@ -37,19 +37,12 @@ defmodule NervesHubWeb.Live.AccountTokens do
   def handle_event("create_account_token", %{"user_token" => params}, socket) do
     user = socket.assigns.user
 
-    case Accounts.create_user_token(user, params["note"]) do
-      {:ok, %{token: token}} ->
-        socket
-        |> put_flash(:info, "Token created : #{token}")
-        |> push_navigate(to: ~p"/account/tokens")
-        |> noreply()
+    token = Accounts.create_user_api_token(user, params["note"])
 
-      {:error, changeset} ->
-        socket
-        |> put_flash(:error, "There was an issue creating the token")
-        |> assign(:form, to_form(changeset))
-        |> noreply()
-    end
+    socket
+    |> put_flash(:info, "Token created : #{token}")
+    |> push_patch(to: ~p"/account/tokens")
+    |> noreply()
   end
 
   def handle_event("delete", %{"access_token_id" => token_id}, socket) do
@@ -70,6 +63,6 @@ defmodule NervesHubWeb.Live.AccountTokens do
   end
 
   defp assign_access_tokens(socket) do
-    assign(socket, :tokens, Accounts.get_user_tokens(socket.assigns.user))
+    assign(socket, :tokens, Accounts.get_user_api_tokens(socket.assigns.user))
   end
 end
