@@ -61,13 +61,11 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   def hooked_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do
     payload = %{unit: get_time_unit({unit, String.to_integer(amount)})}
 
-    socket =
-      socket
-      |> assign(:time_frame, {unit, String.to_integer(amount)})
-      |> push_event("update-time-unit", payload)
-      |> update_charts()
-
-    {:halt, socket}
+    socket
+    |> assign(:time_frame, {unit, String.to_integer(amount)})
+    |> push_event("update-time-unit", payload)
+    |> update_charts()
+    |> halt()
   end
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}
@@ -78,12 +76,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       ) do
     latest_metrics = Metrics.get_latest_metric_set(device.id)
 
-    socket =
-      socket
-      |> assign(:latest_metrics, latest_metrics)
-      |> assign_metadata()
-
-    {:halt, socket}
+    socket
+    |> assign(:latest_metrics, latest_metrics)
+    |> assign_metadata()
+    |> halt()
   end
 
   def hooked_info(_event, socket), do: {:cont, socket}
@@ -91,7 +87,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   def render(assigns) do
     ~H"""
     <div class="w-full p-6">
-      <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
+      <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="mb-6 w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
         <div class="flex flex-col shadow-device-details-content">
           <div class="flex pt-2 px-4 pb-4 gap-2 items-center justify-items-stretch flex-wrap">
             <div class="grow flex flex-col h-16 py-2 px-3 rounded border-b border-emerald-500 bg-health-good">
@@ -142,7 +138,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
         </div>
       </div>
 
-      <div class="my-6 w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
+      <div class="w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
         <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
           <div class="flex items-end gap-3">
             <div class="text-base text-neutral-50 font-medium">Health over time</div>
@@ -175,7 +171,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
 
         <div class="p-10 flex flex-col gap-10">
           <div :if={Enum.empty?(@charts)} class="flex items-center justify-center p-6">
-            <span class="text-indigo-500 font-extralight">No data for selected period.</span>
+            <span class="text-zinc-500 font-extralight">No metrics for the selected period.</span>
           </div>
 
           <div :for={chart <- @charts} :if={Enum.any?(@charts)} class="flex flex-col gap-3">
@@ -378,10 +374,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   end
 
   defp custom_metrics(metrics) do
-    metrics
-    |> Enum.reject(fn {key, _value} ->
-      key in @manual_metrics
-    end)
+    Enum.reject(metrics, &(elem(&1, 1) in @manual_metrics))
   end
 
   defp nice_round(val) when is_float(val), do: Float.round(val, 1)

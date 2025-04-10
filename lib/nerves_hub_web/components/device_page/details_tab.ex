@@ -352,8 +352,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             </.button>
           </div>
 
-          <div class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <form :if={Enum.any?(@firmwares)} id="push-update-form" phx-submit="push-update" class="flex gap-2 items-center w-full">
+          <div :if={Enum.any?(@firmwares)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
+            <form id="push-update-form" phx-submit="push-update" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <label for="firmware" class="hidden">Firmware</label>
                 <select

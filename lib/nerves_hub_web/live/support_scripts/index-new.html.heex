@@ -19,46 +19,43 @@
     <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">
       {@pager_meta.total_count}
     </div>
-    <.link class="action-button" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} aria-label="Add Support Scripts">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path d="M4.1665 10.0001H9.99984M15.8332 10.0001H9.99984M9.99984 10.0001V4.16675M9.99984 10.0001V15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-      <span class="action-text">Add Support Script</span>
-    </.link>
-  </div>
-  <%= if Enum.any?(@scripts) do %>
-    <div class="listing">
-      <table>
-        <thead>
-          <tr>
-            <th phx-click="sort" phx-value-sort="name" class="cursor-pointer">
-              <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
-            </th>
-            <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
-              <Sorting.sort_icon text="Added on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr :for={script <- @scripts} class="border-b border-zinc-800">
-            <td class="h-[52px]">
-              <.link class="size-full flex items-center" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/#{script.id}/edit"}>
-                {script.name}
-              </.link>
-            </td>
 
-            <td>
-              {Calendar.strftime(script.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  <% else %>
-    <div class="h-full pb-16 flex items-center justify-center">
-      <span class="text-xl font-medium text-neutral-50">{@product.name} doesn’t have any Support Scripts.</span>
-    </div>
-  <% end %>
+    <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} aria-label="Add a support script">
+      <.icon name="add" />Add Support Script
+    </.button>
+  </div>
+
+  <div :if={Enum.any?(@scripts)} class="listing">
+    <table>
+      <thead>
+        <tr>
+          <th phx-click="sort" phx-value-sort="name" class="cursor-pointer">
+            <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
+          </th>
+          <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
+            <Sorting.sort_icon text="Added on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr :for={script <- @scripts} class="border-b border-zinc-800">
+          <td class="h-[52px]">
+            <.link class="size-full flex items-center" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/#{script.id}/edit"}>
+              {script.name}
+            </.link>
+          </td>
+
+          <td>
+            {Calendar.strftime(script.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div :if={Enum.empty?(@scripts)} class="h-full pb-16 flex items-center justify-center">
+    <span class="text-xl font-medium text-neutral-50">{@product.name} doesn’t have any Support Scripts.</span>
+  </div>
 </div>
 
 <Pager.render_with_page_sizes pager={@pager_meta} page_sizes={[25, 50, 100]} />
