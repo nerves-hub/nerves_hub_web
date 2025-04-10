@@ -184,7 +184,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   phx-click="remove-unmatched-devices-from-deployment-group"
                   data-confirm={"This will remove #{@unmatched_device_count} #{if @unmatched_device_count == 1, do: "device", else: "devices"} from #{@deployment_group.name}. Continue?"}
                 >
-                  <.icon name="trash" class="mr-1" /> Remove {if @unmatched_device_count == 1, do: "device", else: "devices"}
+                  <.icon name="trash" class="mr-1 stroke-zinc-400" /> Remove {if @unmatched_device_count == 1, do: "device", else: "devices"}
                 </button>
                 <div id="remove-devices-from-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
                   <.icon name="info" class="stroke-zinc-400" />
