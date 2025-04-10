@@ -1,24 +1,12 @@
 defmodule NervesHub.Repo.Migrations.ChangeUserTokenColumnType do
   use Ecto.Migration
 
-  def up do
-    repo().query!("DELETE FROM user_tokens")
-
+  def change do
     alter table(:user_tokens) do
-      remove(:token, :string, null: false)
-    end
-
-    flush()
-
-    alter table(:user_tokens) do
-      add(:token, :binary, null: false)
-      add(:context, :string, null: false)
+      modify(:token, :binary)
+      add(:context, :string, null: false, default: "api")
     end
 
     create(unique_index(:user_tokens, [:context, :token]))
-  end
-
-  def down do
-    raise "One way migration"
   end
 end
