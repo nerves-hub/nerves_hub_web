@@ -8,7 +8,7 @@ import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
 import Chart from "./hooks/chart.js"
-import ConnectedDevicesAnalytics from "./hooks/connected_devices_analytics.js"
+import ConnectedDevicesAnalytics from "./hooks/connectedDevicesAnalytics.js"
 import Console from "./hooks/console.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
