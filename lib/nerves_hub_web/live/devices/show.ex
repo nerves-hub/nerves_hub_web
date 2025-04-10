@@ -106,24 +106,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(%Broadcast{event: "connection:heartbeat"}, socket) do
-    %{device: device, org: org} = socket.assigns
+    %{device: device} = socket.assigns
 
-    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
-
-    socket
-    |> assign(:device, device)
-    |> assign(:device_connection, device.latest_connection)
-    |> noreply()
+    {:noreply, assign(socket, :device_connection, Connections.get_latest_for_device(device.id))}
   end
 
   def handle_info(
         %Broadcast{event: "connection:status", payload: %{status: "online"}},
-        %{assigns: %{device: device}} = socket
+        %{assigns: %{device: device, org: org}} = socket
       ) do
-    device =
-      device
-      |> Repo.reload()
-      |> Repo.preload([:deployment_group, :latest_connection])
+    device = load_device(org, device.identifier)
 
     {:noreply, general_assigns(socket, device)}
   end
@@ -138,8 +130,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
     %{device: device, org: org} = socket.assigns
 
-    # Get device with its latest connection data preloaded
-    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
+    device = load_device(org, device.identifier)
 
     socket
     |> assign(:device, device)
@@ -195,7 +186,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(%Broadcast{event: "location:updated"}, socket) do
     %{device: device, org: org} = socket.assigns
 
-    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
+    device = load_device(org, device.identifier)
 
     {:noreply, assign(socket, :device, device)}
   end
