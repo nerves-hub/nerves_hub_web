@@ -15,6 +15,7 @@ defmodule NervesHub.Fixtures do
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Repo
+  alias NervesHub.Scripts
   alias NervesHub.Support
   alias NervesHub.Support.Fwup
 
@@ -454,6 +455,26 @@ defmodule NervesHub.Fixtures do
           established_at: now,
           last_seen_at: now,
           status: :connected
+        },
+        params
+      )
+    )
+    |> Repo.insert!()
+  end
+
+  def support_script_fixture(
+        %Products.Product{} = product,
+        %Accounts.User{} = user,
+        params \\ %{}
+      ) do
+    Scripts.Script.create_changeset(
+      %Scripts.Script{},
+      product,
+      user,
+      Map.merge(
+        %{
+          name: "Script #{counter()}",
+          text: "echo 'Hello, World!'"
         },
         params
       )

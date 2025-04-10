@@ -1,11 +1,11 @@
-defmodule NervesHub.RoleValidateHelpersTest do
+defmodule NervesHubWeb.RoleValidateHelpersTest do
   use NervesHub.DataCase, async: true
 
   import Plug.Test
   import Plug.Conn
 
   alias NervesHub.Fixtures
-  alias NervesHub.RoleValidateHelpers, as: Validator
+  alias NervesHubWeb.Helpers.RoleValidateHelpers, as: Validator
 
   setup do
     user = Fixtures.user_fixture()
@@ -28,11 +28,10 @@ defmodule NervesHub.RoleValidateHelpersTest do
   test "org role", %{conn: conn} do
     user = Fixtures.user_fixture()
 
-    conn =
+    assert_raise(NervesHubWeb.UnauthorizedError, fn ->
       conn
       |> Plug.Conn.assign(:user, user)
       |> Validator.validate_role(org: :admin)
-
-    assert conn.halted
+    end)
   end
 end

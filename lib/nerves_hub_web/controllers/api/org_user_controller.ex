@@ -5,13 +5,11 @@ defmodule NervesHubWeb.API.OrgUserController do
   alias NervesHub.Accounts.SwooshEmail
   alias NervesHub.SwooshMailer
 
-  action_fallback(NervesHubWeb.API.FallbackController)
-
   plug(:validate_role, org: :admin)
 
   def index(%{assigns: %{org: org}} = conn, _params) do
     org_users = Accounts.get_org_users(org)
-    render(conn, "index.json", org_users: org_users)
+    render(conn, :index, org_users: org_users)
   end
 
   def add(%{assigns: %{org: org}} = conn, params) do
@@ -33,14 +31,14 @@ defmodule NervesHubWeb.API.OrgUserController do
         "location",
         Routes.api_org_user_path(conn, :show, org.name, user.id)
       )
-      |> render("show.json", org_user: org_user)
+      |> render(:show, org_user: org_user)
     end
   end
 
   def show(%{assigns: %{org: org}} = conn, %{"user_id" => user_id}) do
     with {:ok, user} <- Accounts.get_user(user_id),
          {:ok, org_user} <- Accounts.get_org_user(org, user) do
-      render(conn, "show.json", org_user: org_user)
+      render(conn, :show, org_user: org_user)
     end
   end
 
@@ -65,7 +63,7 @@ defmodule NervesHubWeb.API.OrgUserController do
          {:ok, org_user} <- Accounts.get_org_user(org, user),
          {:ok, role} <- Map.fetch(params, "role"),
          {:ok, org_user} <- Accounts.change_org_user_role(org_user, role) do
-      render(conn, "show.json", org_user: org_user)
+      render(conn, :show, org_user: org_user)
     end
   end
 end

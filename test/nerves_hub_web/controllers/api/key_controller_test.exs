@@ -63,8 +63,10 @@ defmodule NervesHubWeb.API.KeyControllerTest do
       pub_key = Fwup.get_public_key(name)
       key = %{name: name, key: pub_key, org_id: org.id}
 
-      conn = post(conn, Routes.api_key_path(conn, :create, org.name), key)
-      assert json_response(conn, 403)["status"] != ""
+      assert_error_sent(401, fn ->
+        post(conn, Routes.api_key_path(conn, :create, org.name), key)
+      end)
+      |> assert_authorization_error(401)
     end
   end
 
@@ -92,8 +94,11 @@ defmodule NervesHubWeb.API.KeyControllerTest do
 
     test "error: org view", %{user2: user, conn2: conn, org: org, key: key} do
       Accounts.add_org_user(org, user, %{role: :view})
-      conn = delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))
-      assert json_response(conn, 403)["status"] != ""
+
+      assert_error_sent(401, fn ->
+        delete(conn, Routes.api_key_path(conn, :delete, org.name, key.name))
+      end)
+      |> assert_authorization_error(401)
     end
   end
 

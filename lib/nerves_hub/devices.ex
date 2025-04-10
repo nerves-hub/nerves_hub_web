@@ -254,8 +254,14 @@ defmodule NervesHub.Devices do
         {:error, :not_found}
 
       device ->
-        {:ok, Repo.preload(device, [:org, :product, deployment_group: [:firmware]])}
+        {:ok,
+         Repo.preload(device, [:org, :product, :latest_connection, deployment_group: [:firmware]])}
     end
+  end
+
+  def get_by_identifier!(identifier) do
+    device = Repo.get_by!(Device, identifier: identifier)
+    Repo.preload(device, [:org, :product, :latest_connection, deployment_group: [:firmware]])
   end
 
   @spec get_device_by_identifier(Org.t(), String.t()) :: {:ok, Device.t()} | {:error, :not_found}
@@ -273,6 +279,7 @@ defmodule NervesHub.Devices do
   def get_device_by_identifier!(org, identifier, preload_assoc \\ nil)
       when is_binary(identifier) do
     get_device_by_identifier_query(org, identifier, preload_assoc)
+    |> Repo.exclude_deleted()
     |> Repo.one!()
   end
 

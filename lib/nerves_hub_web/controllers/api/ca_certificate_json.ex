@@ -1,18 +1,17 @@
-defmodule NervesHubWeb.API.CACertificateView do
-  use NervesHubWeb, :api_view
+defmodule NervesHubWeb.API.CACertificateJSON do
+  @moduledoc false
 
   alias NervesHub.Devices.CACertificate.JITP
-  alias NervesHubWeb.API.CACertificateView
 
-  def render("index.json", %{ca_certificates: ca_certificates}) do
-    %{data: render_many(ca_certificates, CACertificateView, "ca_certificate.json")}
+  def index(%{ca_certificates: ca_certificates}) do
+    %{data: for(ca <- ca_certificates, do: ca_certificate(ca))}
   end
 
-  def render("show.json", %{ca_certificate: ca_certificate}) do
-    %{data: render_one(ca_certificate, CACertificateView, "ca_certificate.json")}
+  def show(%{ca_certificate: ca}) do
+    %{data: ca_certificate(ca)}
   end
 
-  def render("ca_certificate.json", %{ca_certificate: ca_certificate}) do
+  def ca_certificate(ca_certificate) do
     %{
       serial: ca_certificate.serial,
       not_before: ca_certificate.not_before,
