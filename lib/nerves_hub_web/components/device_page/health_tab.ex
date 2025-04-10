@@ -85,6 +85,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   def hooked_info(_event, socket), do: {:cont, socket}
 
   def render(assigns) do
+    health_enabled = assigns.product.extensions.health && assigns.device.extensions.health
+
+    assigns = Map.put(assigns, :health_enabled?, health_enabled)
+
     ~H"""
     <div class="w-full p-6">
       <div :if={Enum.any?(@latest_metrics) && @health_enabled?} class="mb-6 w-full flex flex-col bg-zinc-900 border border-zinc-700 rounded">
@@ -374,7 +378,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   end
 
   defp custom_metrics(metrics) do
-    Enum.reject(metrics, &(elem(&1, 1) in @manual_metrics))
+    Enum.reject(metrics, &(elem(&1, 0) in @manual_metrics))
   end
 
   defp nice_round(val) when is_float(val), do: Float.round(val, 1)

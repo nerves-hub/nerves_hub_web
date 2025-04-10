@@ -33,6 +33,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   @tab_components [ActivityTab, ConsoleTab, DetailsTab, HealthTab, SettingsTab]
 
   alias NervesHubWeb.Presence
+  alias Phoenix.LiveView.AsyncResult
   alias Phoenix.Socket.Broadcast
 
   @running_script_placeholder "Running Script.."
@@ -106,24 +107,16 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(%Broadcast{event: "connection:heartbeat"}, socket) do
-    %{device: device, org: org} = socket.assigns
+    %{device: device} = socket.assigns
 
-    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
-
-    socket
-    |> assign(:device, device)
-    |> assign(:device_connection, device.latest_connection)
-    |> noreply()
+    {:noreply, assign(socket, :device_connection, Connections.get_latest_for_device(device.id))}
   end
 
   def handle_info(
         %Broadcast{event: "connection:status", payload: %{status: "online"}},
-        %{assigns: %{device: device}} = socket
+        %{assigns: %{device: device, org: org}} = socket
       ) do
-    device =
-      device
-      |> Repo.reload()
-      |> Repo.preload([:deployment_group, :latest_connection])
+    device = load_device(org, device.identifier)
 
     {:noreply, general_assigns(socket, device)}
   end
@@ -138,13 +131,12 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(%Broadcast{event: "connection:change", payload: payload}, socket) do
     %{device: device, org: org} = socket.assigns
 
-    # Get device with its latest connection data preloaded
-    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
+    device = load_device(org, device.identifier)
 
     socket
     |> assign(:device, device)
     |> assign(:device_connection, device.latest_connection)
-    |> assign(:console_active?, Tracker.console_active?(device))
+    |> async_console_status_check()
     |> assign(:fwup_progress, nil)
     |> assign(:update_information, Devices.resolve_update(device))
     |> then(fn socket ->
@@ -154,8 +146,10 @@ defmodule NervesHubWeb.Live.Devices.Show do
   end
 
   def handle_info(%Broadcast{event: "console_joined"}, socket) do
+    status = socket.assigns.console_online
+
     socket
-    |> assign(:console_active?, true)
+    |> assign(:console_online, AsyncResult.ok(status, true))
     |> noreply()
   end
 
@@ -195,7 +189,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_info(%Broadcast{event: "location:updated"}, socket) do
     %{device: device, org: org} = socket.assigns
 
-    {:ok, device} = Devices.get_device_by_identifier(org, device.identifier, :latest_connection)
+    device = load_device(org, device.identifier)
 
     {:noreply, assign(socket, :device, device)}
   end
@@ -648,14 +642,22 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
   defp general_assigns(socket, device) do
     socket
-    |> assign(:console_active?, Tracker.console_active?(device))
+    |> assign(:device, device)
     |> assign(:update_information, Devices.resolve_update(device))
     |> assign(:firmwares, Firmwares.get_firmware_for_device(device))
     |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign(:deployment_group, device.deployment_group)
     |> assign(:device_connection, device.latest_connection)
-    |> assign(:device, device)
+    |> async_console_status_check()
+  end
+
+  def async_console_status_check(socket) do
+    device_id = socket.assigns.device.id
+
+    assign_async(socket, :console_online, fn ->
+      {:ok, %{console_online: Tracker.console_active?(device_id)}}
+    end)
   end
 
   defp fetch_location(nil), do: %{}
