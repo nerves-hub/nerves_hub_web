@@ -9,6 +9,10 @@ defmodule NervesHubWeb.Helpers.RoleValidateHelpers do
     validate_org_user_role(conn, org, user, role)
   end
 
+  def validate_role(%{assigns: %{device: device, user: user}} = conn, org: role) do
+    validate_org_user_role(conn, device.org, user, role)
+  end
+
   def validate_role(_conn, [{_key, value}]) do
     halt_role(value)
   end
