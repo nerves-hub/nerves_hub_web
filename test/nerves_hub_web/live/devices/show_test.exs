@@ -425,7 +425,7 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
       |> assert_has("div", text: "Memory used")
       |> assert_has("div", text: "100MB (60%)")
       |> assert_has("span", text: "Last reported :")
-      |> assert_has("time", text: "ago")
+      |> assert_has("time", text: "now")
     end
   end
 
