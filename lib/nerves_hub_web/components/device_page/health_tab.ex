@@ -374,7 +374,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   end
 
   defp custom_metrics(metrics) do
-    Enum.reject(metrics, &(elem(&1, 1) in @manual_metrics))
+    Enum.reject(metrics, &(elem(&1, 0) in @manual_metrics))
   end
 
   defp nice_round(val) when is_float(val), do: Float.round(val, 1)
