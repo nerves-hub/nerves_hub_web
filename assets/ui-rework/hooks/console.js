@@ -36,7 +36,7 @@ const defaultTermOptions = {
 
 const debounce = (func, time = 100) => {
   let timer
-  return function (event) {
+  return function(event) {
     if (timer) clearTimeout(timer)
     timer = setTimeout(func, time, event)
   }
@@ -104,17 +104,6 @@ export default {
       term.write(payload.data)
     })
 
-    // store version outside of callback closure to set
-    // dropzone's dropEffect later on
-    let metadata = {}
-    channel.on("metadata", payload => {
-      metadata = payload
-
-      document.querySelector(
-        "#console-title"
-      ).innerHTML = `Console - ${metadata.version}`
-    })
-
     let downloadingFileBuffer = []
 
     channel.on("file-data/start", () => {
@@ -170,7 +159,6 @@ export default {
       term.scrollToBottom()
     })
 
-
     document.getElementById("fullscreen").addEventListener("click", () => {
       // put this on the next tick instead of immediate just to reduce risk of racing
       window.setTimeout(() => {
@@ -188,7 +176,7 @@ export default {
 
     let dropzone = document.getElementById("dropzone")
 
-    dropzone.addEventListener("dragover", function (e) {
+    dropzone.addEventListener("dragover", function(e) {
       e.stopPropagation()
       e.preventDefault()
 
