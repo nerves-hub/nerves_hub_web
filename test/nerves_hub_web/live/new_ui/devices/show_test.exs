@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.Live.Devices.NewUI.ShowTest do
+defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
