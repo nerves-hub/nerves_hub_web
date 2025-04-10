@@ -287,6 +287,26 @@ defmodule NervesHub.AccountsTest do
     assert {:ok, <<_token::32-bytes, _crc::32>>} = Base62.decode(token)
   end
 
+  test "old tokens are allowed", %{user: user} do
+    secret =
+      <<user.name::binary, user.email::binary, DateTime.to_unix(DateTime.utc_now())::32>>
+
+    <<initial::160>> = Plug.Crypto.KeyGenerator.generate(secret, "user-#{user.id}", length: 20)
+    <<rand::30-bytes, _::binary>> = Base62.encode(initial) |> String.pad_leading(30, "0")
+    crc = :erlang.crc32(rand) |> Base62.encode() |> String.pad_leading(6, "0")
+    token = "nhu_#{rand}#{crc}"
+
+    Repo.insert!(%UserToken{
+      token: token,
+      context: "api",
+      note: "I love working with binary",
+      user_id: user.id
+    })
+
+    {:ok, query} = UserToken.verify_api_token_query(token)
+    assert user.id == Repo.one!(query) |> Map.get(:id)
+  end
+
   describe "UserToken CRCs" do
     test "if the crc doesn't match, return :crc_mismatch", %{user: user} do
       token = Accounts.create_user_api_token(user, "Test token")

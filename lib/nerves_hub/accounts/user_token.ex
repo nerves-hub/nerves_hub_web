@@ -3,6 +3,7 @@ defmodule NervesHub.Accounts.UserToken do
 
   import Ecto.Query
 
+  alias Base62, as: OldBase62
   alias NervesHub.Accounts.User
   alias NervesHub.Utils.Base62
 
@@ -107,8 +108,24 @@ defmodule NervesHub.Accounts.UserToken do
   The query returns the User found by the token, if any.
   """
   def verify_api_token_query(token) do
-    case verify_token_format(token) do
-      {:ok, hashed_token} ->
+    format = get_token_format_type(token)
+
+    cond do
+      format == :old && old_token_valid?(token) ->
+        query =
+          from(ut in __MODULE__,
+            join: user in assoc(ut, :user),
+            where: is_nil(user.deleted_at),
+            select: user
+          )
+
+        {:ok, query}
+
+      format == :new && new_token_valid?(token) ->
+        <<"nh", _u, "_", token_with_crc::binary>> = token
+        {:ok, <<token::32-bytes, _::32>>} = Base62.decode(token_with_crc)
+        hashed_token = :crypto.hash(@hash_algorithm, token)
+
         query =
           from(token in by_token_and_context_query(hashed_token, "api"),
             join: user in assoc(token, :user),
@@ -118,10 +135,39 @@ defmodule NervesHub.Accounts.UserToken do
 
         {:ok, query}
 
-      _ ->
+      true ->
         :error
     end
   end
+
+  defp get_token_format_type(token) do
+    <<"nh", _u, "_", _::30-bytes, _::6-bytes>> = token
+    :old
+  rescue
+    MatchError -> :new
+  end
+
+  defp old_token_valid?(<<"nh", _u, "_", hmac::30-bytes, crc_bin::6-bytes>>) do
+    with {:ok, crc} <- OldBase62.decode(crc_bin),
+         :ok <- assert_crc(hmac, crc) do
+      true
+    else
+      _ -> false
+    end
+  end
+
+  defp old_token_valid?(_), do: false
+
+  defp new_token_valid?(<<"nh", _u, "_", token_with_crc::binary>>) do
+    with {:ok, <<token::32-bytes, crc::32>>} <- Base62.decode(token_with_crc),
+         :ok <- assert_crc(token, crc) do
+      true
+    else
+      _ -> false
+    end
+  end
+
+  defp new_token_valid?(_), do: false
 
   defp assert_crc(token, crc) do
     if :erlang.crc32(token) == crc do
