@@ -655,13 +655,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def async_console_status_check(socket) do
     device_id = socket.assigns.device.id
 
-    assign_async(
-      socket,
-      :console_online,
-      fn ->
-        {:ok, %{console_online: Tracker.console_active?(device_id)}}
-      end
-    )
+    assign_async(socket, :console_online, fn ->
+      {:ok, %{console_online: Tracker.console_active?(device_id)}}
+    end)
   end
 
   defp fetch_location(nil), do: %{}
