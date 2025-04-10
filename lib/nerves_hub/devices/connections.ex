@@ -117,12 +117,15 @@ defmodule NervesHub.Devices.Connections do
     DeviceConnection
     |> where(id: ^ref_id)
     |> Repo.update_all(
-      set: [
-        last_seen_at: now,
-        disconnected_at: now,
-        disconnected_reason: reason,
-        status: :disconnected
-      ]
+      [
+        set: [
+          last_seen_at: now,
+          disconnected_at: now,
+          disconnected_reason: reason,
+          status: :disconnected
+        ]
+      ],
+      timeout: 60_000
     )
     |> case do
       {1, _} -> :ok
@@ -190,7 +193,7 @@ defmodule NervesHub.Devices.Connections do
     {delete_count, _} =
       DeviceConnection
       |> where([d], d.id in subquery(query))
-      |> Repo.delete_all(timeout: 30_000)
+      |> Repo.delete_all(timeout: 60_000)
 
     if delete_count == 0 do
       :ok

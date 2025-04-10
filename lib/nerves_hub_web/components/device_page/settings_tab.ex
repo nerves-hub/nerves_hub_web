@@ -311,18 +311,18 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       {:ok, device} ->
         socket
         |> assign(:device, device)
-        |> send_toast(:info, "Device updated.")
+        |> put_flash(:info, "Device updated.")
         |> halt()
 
       {:error, :update_with_audit, changeset, _} ->
         socket
-        |> send_toast(:error, "We couldn't save your changes.")
+        |> put_flash(:error, "We couldn't save your changes.")
         |> assign(:settings_form, to_form(changeset))
         |> halt()
 
       {:error, _, _, _} ->
         socket
-        |> send_toast(:error, "An unknown error occured, please contact support.")
+        |> put_flash(:error, "An unknown error occured, please contact support.")
         |> halt()
     end
   end
@@ -336,7 +336,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
     socket
     |> assign(:device, device)
-    |> send_toast(:info, "The device has been deleted. This action can be undone.")
+    |> put_flash(:info, "The device has been deleted. This action can be undone.")
     |> halt()
   end
 
@@ -349,7 +349,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
     socket
     |> assign(:device, device)
-    |> send_toast(:info, "The device has been restored.")
+    |> put_flash(:info, "The device has been restored.")
     |> halt()
   end
 
@@ -363,7 +363,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
     send(self(), :reload_device)
 
     socket
-    |> send_toast(:info, "Device permanently destroyed successfully.")
+    |> put_flash(:info, "Device permanently destroyed successfully.")
     |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
     |> halt()
   end
@@ -382,13 +382,13 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
          {:ok, _db_cert} <- Devices.delete_device_certificate(db_cert),
          updated_certs <- Enum.reject(certs, &(&1.serial == serial)) do
       socket
-      |> send_toast(:info, "Certificate deleted.")
+      |> put_flash(:info, "Certificate deleted.")
       |> assign(device: %{device | device_certificates: updated_certs})
       |> halt()
     else
       _ ->
         socket
-        |> send_toast(:error, "Failed to delete certificate, please contact support.")
+        |> put_flash(:error, "Failed to delete certificate, please contact support.")
         |> halt()
     end
   end
@@ -408,14 +408,14 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
     case result do
       {:ok, _pf} ->
-        send_toast(
+        put_flash(
           socket,
           :info,
           "The #{extension} extension successfully #{(value == "on" && "enabled") || "disabled"}."
         )
 
       {:error, _changeset} ->
-        send_toast(
+        put_flash(
           socket,
           :error,
           "There was an unexpected error when updating the #{extension} extension. Please contact support."
@@ -445,10 +445,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
       updated = update_in(device.device_certificates, &[db_cert | &1])
 
       assign(socket, :device, updated)
-      |> send_toast(:info, "Certificate Upload Successful")
+      |> put_flash(:info, "Certificate Upload Successful")
     else
       {:error, :malformed} ->
-        send_toast(socket, :error, "Incorrect filetype or malformed certificate")
+        put_flash(socket, :error, "Incorrect filetype or malformed certificate")
 
       {:error, %Ecto.Changeset{errors: errors}} ->
         formatted =
@@ -456,10 +456,10 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
             ["* ", to_string(field), " ", msg]
           end)
 
-        send_toast(socket, :error, IO.iodata_to_binary(["Failed to save:\n", formatted]))
+        put_flash(socket, :error, IO.iodata_to_binary(["Failed to save:\n", formatted]))
 
       err ->
-        send_toast(socket, :error, "Unknown file error - #{inspect(err)}")
+        put_flash(socket, :error, "Unknown file error - #{inspect(err)}")
     end
     |> halt()
   end

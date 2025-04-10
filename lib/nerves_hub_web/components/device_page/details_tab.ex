@@ -459,7 +459,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     socket
     |> assign(:device, updated_device)
-    |> send_toast(:info, Enum.join(message))
+    |> put_flash(:info, Enum.join(message))
     |> halt()
   end
 
@@ -485,14 +485,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     socket
     |> assign(:device, device)
-    |> send_toast(:info, "Manual device location information has been cleared.")
+    |> put_flash(:info, "Manual device location information has been cleared.")
     |> halt()
   end
 
   def hooked_event("enable-location-editor", _, socket) do
     socket
     |> assign(:enable_location_editor, true)
-    |> send_toast(:info, "Please use the map to search and pin your devices location.")
+    |> put_flash(:info, "Please use the map to search and pin your devices location.")
     |> halt()
   end
 
@@ -519,8 +519,14 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     socket
     |> assign(:device, device)
-    |> send_toast(:info, "Custom location coordinates saved.")
+    |> put_flash(:info, "Custom location coordinates saved.")
     |> assign(:enable_location_editor, false)
+    |> halt()
+  end
+
+  def hooked_event("set-deployment-group", %{"deployment_id" => ""}, socket) do
+    socket
+    |> put_flash(:error, "Please select a deployment group.")
     |> halt()
   end
 
@@ -537,7 +543,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     socket
     |> assign(:device, device)
-    |> send_toast(:info, "Device successfully added to Deployment Group.")
+    |> put_flash(:info, "Device successfully added to Deployment Group.")
     |> halt()
   end
 
@@ -553,7 +559,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         DeviceTemplates.audit_pushed_available_update(user, device, deployment_group)
 
         socket
-        |> send_toast(:info, "Pushing available firmware update.")
+        |> put_flash(:info, "Pushing available firmware update.")
         |> halt()
 
       :error ->
@@ -562,7 +568,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
         )
 
         socket
-        |> send_toast(
+        |> put_flash(
           :info,
           "There was an error sending the update to the device. Please contact support."
         )
@@ -572,7 +578,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
   def hooked_event("push-update", %{"uuid" => uuid}, socket) when uuid == "" do
     socket
-    |> send_toast(:error, "Please select a firmware version to send to the device.")
+    |> put_flash(:error, "Please select a firmware version to send to the device.")
     |> halt()
   end
 
@@ -598,7 +604,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     socket
     |> assign(:device, device)
-    |> send_toast(:info, "Sending firmware update request.")
+    |> put_flash(:info, "Sending firmware update request.")
     |> halt()
   end
 
@@ -609,7 +615,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     socket
     |> assign(:device, device)
-    |> send_toast(:info, "Device successfully removed from the deployment group")
+    |> put_flash(:info, "Device successfully removed from the deployment group")
     |> halt()
   end
 
@@ -653,7 +659,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     socket
     |> assign(:firmwares, firmware)
-    |> send_toast(:info, "New firmware available for selection")
+    |> put_flash(:info, "New firmware available for selection")
     |> halt()
   end
 

@@ -96,7 +96,6 @@ defmodule NervesHub.MixProject do
       {:process_hub, "~> 0.3.1-alpha"},
       {:jason, "~> 1.2", override: true},
       {:libcluster_postgres, "~> 0.1.2"},
-      {:live_toast, "~> 0.7", git: "https://github.com/srcrip/live_toast"},
       {:logfmt_ex, "~> 0.4"},
       {:mimic, "~> 1.10", only: [:test, :dev]},
       {:nimble_csv, "~> 1.1"},

@@ -6,12 +6,7 @@ import defaultTheme from "tailwindcss/defaultTheme"
 import tailWindForms from "@tailwindcss/forms"
 
 export default {
-  content: [
-    "./js/**/*.js",
-    "../lib/*_web.ex",
-    "../lib/*_web/**/*.*ex",
-    "../deps/live_toast/lib/**/*.*ex"
-  ],
+  content: ["./js/**/*.js", "../lib/*_web.ex", "../lib/*_web/**/*.*ex"],
   theme: {
     extend: {
       fontFamily: {
@@ -58,14 +53,14 @@ export default {
           600: "#6366F1"
         },
         primary: {
-          500: '#6366F1'
+          500: "#6366F1"
         },
         success: {
-          500: '#10b981'
+          500: "#10b981"
         },
         warning: {
-          500: '#f59e0b'
-        },
+          500: "#f59e0b"
+        }
       },
       boxShadow: {
         "filter-slider":

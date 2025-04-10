@@ -177,7 +177,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
                 <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
                 <%!-- <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
-                  <.icon name="open" />
+                  <.icon name="open" class="stroke-zinc-400" />
                 </.link> --%>
                 <button
                   class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-zinc-800 border border-zinc-700 rounded-full"
@@ -187,7 +187,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   <.icon name="trash" class="mr-1" /> Remove {if @unmatched_device_count == 1, do: "device", else: "devices"}
                 </button>
                 <div id="remove-devices-from-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
-                  <.icon name="info" />
+                  <.icon name="info" class="stroke-zinc-400" />
                   <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
                     This action will remove {@unmatched_device_count} {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} from {@deployment_group.name}
                     <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
@@ -201,14 +201,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                 </div>
                 <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
                 <%!-- <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
-                  <.icon name="open" />
+                  <.icon name="open" class="stroke-zinc-400" />
                 </.link> --%>
                 <button
                   class="flex items-center text-sm cursor-pointer pl-1 pr-2 h-6 bg-zinc-800 border border-zinc-700 rounded-full"
                   phx-click="move-matched-devices-to-deployment-group"
                   data-confirm={"This will move #{@matched_devices_outside_deployment_group_count} #{if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"} into #{@deployment_group.name}. Continue?"}
                 >
-                  <.icon name="folder-move" class="mr-1" /> Move {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
+                  <.icon name="folder-move" class="mr-1 stroke-zinc-400" /> Move {if @matched_devices_outside_deployment_group_count == 1, do: "device", else: "devices"}
                 </button>
                 <div id="move-devices-to-deployment-group" class="relative z-20" phx-hook="ToolTip" data-placement="top">
                   <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">

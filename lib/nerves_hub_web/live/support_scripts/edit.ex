@@ -30,14 +30,13 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
     case Scripts.update(script, org_user.user, script_params) do
       {:ok, _script} ->
         socket
-        |> put_flash(:info, "Support Script updated")
-        |> send_toast(:info, "Support Script updated successfully.")
+        |> put_flash(:info, "Support Script updated successfully.")
         |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/scripts")
         |> noreply()
 
       {:error, changeset} ->
         socket
-        |> send_toast(:error, "There was an error updating the Support Script.")
+        |> put_flash(:error, "There was an error updating the Support Script.")
         |> assign(:form, to_form(changeset))
         |> noreply()
     end
@@ -54,14 +53,13 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
     case Scripts.delete(id, product, org_user.user) do
       {:ok, _} ->
         socket
-        |> put_flash(:info, "Support Script deleted")
-        |> send_toast(:info, "Support Script deleted successfully.")
+        |> put_flash(:info, "Support Script deleted successfully.")
         |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/scripts")
         |> noreply()
 
       {:error, _} ->
         socket
-        |> send_toast(:error, "There was an error deleting the Support Script.")
+        |> put_flash(:error, "There was an error deleting the Support Script.")
         |> noreply()
     end
   end

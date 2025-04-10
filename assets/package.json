@@ -22,7 +22,6 @@
     "jquery": "^3.6.0",
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
-    "live_toast": "file:../deps/live_toast",
     "mapbox-gl": "^3.9.3",
     "moment": "^2.29.4",
     "phoenix": "file:../deps/phoenix",

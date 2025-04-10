@@ -10,8 +10,15 @@ defmodule NervesHubWeb.Components.Icons do
       <.icon name="trash" class="ml-1 w-3 h-3" />
   """
   attr(:name, :string, required: true)
-  attr(:class, :string, default: nil)
-  attr(:stroke, :string, default: "#A1A1AA")
+  attr(:class, :any, default: nil)
+
+  def icon(%{name: "close"} = assigns) do
+    ~H"""
+    <svg class={["size-5", @class]} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 12L7 7M12 12L17 17M12 12L17 7M12 12L7 17" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    """
+  end
 
   def icon(%{name: "save"} = assigns) do
     ~H"""
@@ -118,7 +125,6 @@ defmodule NervesHubWeb.Components.Icons do
         stroke-width="1.2"
         stroke-linecap="round"
         stroke-linejoin="round"
-        stroke={assigns.stroke}
       />
     </svg>
     """
@@ -212,7 +218,6 @@ defmodule NervesHubWeb.Components.Icons do
         stroke-width="1.2"
         stroke-linecap="round"
         stroke-linejoin="round"
-        stroke="#A1A1AA"
       />
     </svg>
     """
@@ -240,7 +245,6 @@ defmodule NervesHubWeb.Components.Icons do
         stroke-width="1.2"
         stroke-linecap="round"
         stroke-linejoin="round"
-        stroke="#A1A1AA"
       />
     </svg>
     """
@@ -248,10 +252,9 @@ defmodule NervesHubWeb.Components.Icons do
 
   def icon(%{name: "info"} = assigns) do
     ~H"""
-    <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg class={["size-5", @class]} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M10 12.5V10M10 7.5V7.49167M17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 5.85786 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.85786 17.5 10Z"
-        stroke="#A1A1AA"
         stroke-width="1.2"
         stroke-linecap="round"
         stroke-linejoin="round"

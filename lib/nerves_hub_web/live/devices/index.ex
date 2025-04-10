@@ -272,7 +272,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
-    |> send_toast(
+    |> put_flash(
       :info,
       "Tagged #{Enum.count(socket.assigns.selected_devices)} selected device(s)."
     )
@@ -356,7 +356,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
-    |> send_toast(:info, "Disabled updates for #{Enum.count(successfuls)} selected device(s).")
+    |> put_flash(:info, "Disabled updates for #{Enum.count(successfuls)} selected device(s).")
     |> assign_display_devices()
     |> noreply()
   end
@@ -368,7 +368,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
-    |> send_toast(:info, "Enabled updates for #{Enum.count(successfuls)} selected device(s).")
+    |> put_flash(:info, "Enabled updates for #{Enum.count(successfuls)} selected device(s).")
     |> assign_display_devices()
     |> noreply()
   end
@@ -380,7 +380,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
     socket
     |> assign(selected_devices: socket.assigns.selected_devices)
-    |> send_toast(
+    |> put_flash(
       :info,
       "#{Enum.count(successfuls)} selected device(s) cleared from the penalty box."
     )
@@ -532,7 +532,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> Enum.filter(fn m -> is_binary(m) end)
       |> Enum.join(" ")
 
-    send_toast(socket, :info, message)
+    put_flash(socket, :info, message)
   end
 
   defp firmware_versions(product_id) do
@@ -723,9 +723,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
           "#{updated_count} #{maybe_pluralize.(updated_count, "device")} added to deployment #{deployment_group_name}. #{not_updated_count} #{maybe_pluralize.(not_updated_count, "device")} could not be added to deployment because of mismatched firmware"
       end
 
-    socket
-    |> put_flash(:info, message)
-    |> send_toast(:info, message)
+    put_flash(socket, :info, message)
   end
 
   defp progress_style(nil) do

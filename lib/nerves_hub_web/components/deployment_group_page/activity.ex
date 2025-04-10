@@ -82,16 +82,18 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
         </div>
       </div>
 
-      <Pager.render_with_page_sizes pager={@audit_pager} page_sizes={[25, 50, 100]} target={@myself} />
+      <Pager.render_with_page_sizes pager={@audit_pager} page_sizes={[25, 50, 100]} phx-target={@myself} />
     </div>
     """
   end
 
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
+    %{org: org, product: product, deployment_group: deployment_group} = socket.assigns
+
     params = %{"page_size" => page_size, "page_number" => 1}
 
     url =
-      ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices/#{socket.assigns.deployment_group.name}/activity?#{params}"
+      ~p"/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/activity?#{params}"
 
     socket
     |> logs_and_pager_assigns(1, String.to_integer(page_size))
@@ -101,9 +103,10 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Activity do
 
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_size" => socket.assigns.audit_pager.page_size, "page_number" => page_num}
+    %{org: org, product: product, deployment_group: deployment_group} = socket.assigns
 
     url =
-      ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices/#{socket.assigns.deployment_group.name}/activity?#{params}"
+      ~p"/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}/activity?#{params}"
 
     socket
     |> logs_and_pager_assigns(

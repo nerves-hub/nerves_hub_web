@@ -7,7 +7,6 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
   attr(:enabled_device, :any)
   attr(:enabled_product, :any)
   attr(:enable_location_editor, :boolean)
-  attr(:target, :any)
 
   # catch all to add the mapbox token
   def render(assigns) when not is_map_key(assigns, :mapbox_access_token) do
@@ -91,15 +90,14 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
         class="size-full"
         phx-hook="DeviceLocationMapWithGeocoder"
         phx-update="ignore"
-        data-target={assigns[:target]}
         data-access-token={@mapbox_access_token}
         data-style="mapbox://styles/mapbox/dark-v11"
       >
       </div>
 
       <div class="flex justify-end gap-3">
-        <.button phx-click="discard-location-changes" phx-target={assigns[:target]}>Discard changes</.button>
-        <.button phx-click="save-location-changes" phx-target={assigns[:target]} style="primary">Save changes</.button>
+        <.button phx-click="discard-location-changes">Discard changes</.button>
+        <.button phx-click="save-location-changes" style="primary">Save changes</.button>
       </div>
     </div>
     """
@@ -121,7 +119,7 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
           <div class="text-zinc-300">No location information found.</div>
           <div class="text-zinc-300">Please check if the Geo extension has been included in your firmware.</div>
           <div>
-            <.button phx-click="enable-location-editor" phx-target={@target}>Manually set the location</.button>
+            <.button phx-click="enable-location-editor">Manually set the location</.button>
           </div>
         </div>
       </div>
@@ -217,13 +215,12 @@ defmodule NervesHubWeb.Components.NewUI.DeviceLocation do
             tabindex="-1"
           >
             <div role="none">
-              <button phx-click="enable-location-editor" phx-target={assigns[:target]} class="block w-full text-left px-4 pt-2 pb-3 text-xs text-zinc-300 hover:bg-zinc-700" role="menuitem" tabindex="-1">
+              <button phx-click="enable-location-editor" class="block w-full text-left px-4 pt-2 pb-3 text-xs text-zinc-300 hover:bg-zinc-700" role="menuitem" tabindex="-1">
                 Manually update location
               </button>
               <button
                 :if={@source == "manual"}
                 phx-click="clear-manual-location-information"
-                phx-target={assigns[:target]}
                 class="block w-full text-left px-4 pt-2 pb-3 text-xs text-zinc-300 hover:bg-zinc-700"
                 role="menuitem"
                 tabindex="-1"
