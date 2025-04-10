@@ -1,7 +1,7 @@
 defmodule NervesHubWeb.Live.Product.Insights do
-  alias NervesHub.Firmwares
   use NervesHubWeb, :updated_live_view
 
+  alias NervesHub.Firmwares
   alias NervesHub.Insights, as: InsightsQueries
 
   def mount(_params, _session, socket) do
@@ -18,18 +18,14 @@ defmodule NervesHubWeb.Live.Product.Insights do
     |> ok()
   end
 
-  defp connected_devices_count(socket) do
-    product = socket.assigns.product
-
+  defp connected_devices_count(%{assigns: %{product: product}} = socket) do
     assign_async(socket, :connected_devices_count, fn ->
       count = InsightsQueries.connected_count(product)
       {:ok, %{connected_devices_count: count}}
     end)
   end
 
-  defp connected_device_counts_last_24_hours(socket) do
-    product = socket.assigns.product
-
+  defp connected_device_counts_last_24_hours(%{assigns: %{product: product}} = socket) do
     assign_async(socket, :connected_device_counts_last_24_hours, fn ->
       count = InsightsQueries.connected_device_counts_last_24_hours(product)
       {:ok, %{connected_device_counts_last_24_hours: count}}
