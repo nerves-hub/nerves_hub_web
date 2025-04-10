@@ -257,7 +257,6 @@
   .clickable-table-row {
     position: relative;
     transform: translate(0);
-    clip-path: inset(0);
   }
 
   .clickable-table-row-mask {
