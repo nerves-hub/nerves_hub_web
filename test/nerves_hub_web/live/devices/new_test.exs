@@ -8,7 +8,7 @@ defmodule NervesHubWeb.Live.Devices.NewTest do
       |> assert_has("h1", text: "Add Device")
       |> click_button("Add Device")
       |> assert_path("/org/#{org.name}/#{product.name}/devices/new")
-      |> assert_has("div", text: "Failed to add device.")
+      |> assert_has("div", text: "Failed to add new device.")
       |> assert_has(".help-block", text: "can't be blank")
     end
 

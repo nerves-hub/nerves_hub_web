@@ -255,7 +255,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
               type="link"
               style="danger"
               phx-click="delete-deployment-group"
-              phx-target={@myself}
               aria-label="Delete"
               data-confirm={[
                 "Are you sure you want to delete this deployment group?",
@@ -300,7 +299,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
         # TODO: if we move away from slugs with deployment names we won't need
         # to use `push_navigate` here.
         socket
-        |> LiveToast.put_toast(:info, "Deployment group updated")
+        |> put_flash(:info, "Deployment group updated")
         |> push_navigate(
           to: ~p"/org/#{org.name}/#{product.name}/deployment_groups/#{updated.name}"
         )
@@ -308,7 +307,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
       {:error, changeset} ->
         socket
-        |> send_toast(
+        |> put_flash(
           :error,
           "An error occurred while updating the deployment group. Please check the form for errors."
         )

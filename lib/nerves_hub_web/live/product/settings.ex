@@ -28,7 +28,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
     socket
     |> assign(:product, product)
-    |> send_toast(
+    |> put_flash(
       :info,
       "Delta updates #{(product.delta_updatable && "enabled") || "disabled"} successfully."
     )
@@ -52,7 +52,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     socket
     |> assign(:shared_secrets, refreshed.shared_secret_auths)
     |> push_event("sharedsecret:created", %{})
-    |> send_toast(:info, "A new Shared Secret has been created.")
+    |> put_flash(:info, "A new Shared Secret has been created.")
     |> noreply()
   end
 
@@ -67,7 +67,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
     socket
     |> assign(:shared_secrets, refreshed.shared_secret_auths)
-    |> send_toast(:info, "The Shared Secret has been deactivated.")
+    |> put_flash(:info, "The Shared Secret has been deactivated.")
     |> noreply()
   end
 
@@ -78,7 +78,6 @@ defmodule NervesHubWeb.Live.Product.Settings do
       {:ok, _product} ->
         socket
         |> put_flash(:info, "Product deleted successfully.")
-        |> send_toast(:info, "Product deleted successfully.")
         |> push_navigate(to: ~p"/org/#{socket.assigns.org.name}")
         |> noreply()
 
@@ -88,7 +87,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
         socket
         |> put_flash(:error, message)
-        |> send_toast(:error, message)
+        |> put_flash(:error, message)
         |> noreply()
     end
   end
@@ -109,7 +108,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     socket =
       case result do
         {:ok, _pf} ->
-          send_toast(
+          put_flash(
             socket,
             :info,
             "The #{extension} extension was #{(value == "on" && "enabled") || "disabled"} successfully."
@@ -117,8 +116,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
 
         {:error, _changeset} ->
           socket
-          |> put_flash(:error, "Failed to set extension")
-          |> send_toast(
+          |> put_flash(
             :error,
             "Failed to update the #{extension} extension. Please contact support if this problem persists."
           )

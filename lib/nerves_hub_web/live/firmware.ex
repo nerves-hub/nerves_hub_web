@@ -165,17 +165,11 @@ defmodule NervesHubWeb.Live.Firmware do
       {:ok, _} ->
         socket
         |> put_flash(:info, "Firmware successfully deleted")
-        |> send_toast(:info, "Firmware successfully deleted.")
         |> push_patch(to: ~p"/org/#{org.name}/#{product.name}/firmware")
         |> noreply()
 
       {:error, changeset} ->
-        message =
-          changeset.errors
-          |> Enum.map_join(", ", fn {_field, {message, _info}} -> message end)
-
-        error_feedback(socket, changeset)
-        |> send_toast(:error, "The firmware couldn't be deleted: #{message}.")
+        error_feedback(socket, changeset, prefix: "Error deleting firmware:")
     end
   end
 
@@ -247,8 +241,7 @@ defmodule NervesHubWeb.Live.Firmware do
     case Firmwares.create_firmware(socket.assigns.org, filepath) do
       {:ok, _firmware} ->
         socket
-        |> put_flash(:info, "Firmware uploaded")
-        |> send_toast(:info, "Firmware uploaded successfully.")
+        |> put_flash(:info, "Firmware uploaded successfully")
         |> push_patch(
           to: ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/firmware"
         )
@@ -259,21 +252,15 @@ defmodule NervesHubWeb.Live.Firmware do
           socket,
           "Please register public keys for verifying firmware signatures first"
         )
-        |> send_toast(
-          :error,
-          "Please register public keys for verifying firmware signatures first"
-        )
 
       {:error, :invalid_signature} ->
         error_feedback(socket, "Firmware corrupt, signature invalid, or missing public key")
-        |> send_toast(:error, "Firmware corrupt, signature invalid, or missing public key.")
 
       {:error,
        %Ecto.Changeset{
          errors: [product_id: {"can't be blank", [validation: :required]}]
        }} ->
         error_feedback(socket, "No matching product could be found.")
-        |> send_toast(:error, "No matching product could be found.")
 
       {:error,
        %Ecto.Changeset{
@@ -282,51 +269,37 @@ defmodule NervesHubWeb.Live.Firmware do
              {"has already been taken",
               [constraint: :unique, constraint_name: "firmwares_product_id_uuid_index"]}
          ]
-       } = changeset} ->
-        error_feedback(socket, changeset)
-        |> send_toast(
-          :error,
+       } = _changeset} ->
+        error_feedback(
+          socket,
           "Firmware UUID has already been taken, has this version been uploaded already?"
         )
 
-      {:error, %Ecto.Changeset{}} ->
-        error_feedback(socket, "Unknown error uploading firmware.")
-        |> send_toast(:error, "Unknown error uploading firmware, please contact support.")
-
       {:error, error} when is_binary(error) ->
         error_feedback(socket, error)
-        |> send_toast(:error, error)
 
       _ ->
-        error_feedback(socket, "Unknown error uploading firmware")
-        |> send_toast(:error, "Unknown error uploading firmware, please contact support.")
+        error_feedback(socket, "Unknown error uploading firmware. Please contact support.")
     end
   end
 
-  defp error_feedback(
-         socket,
-         %Ecto.Changeset{errors: [uuid: {"has already been taken", _}]} = changeset
-       ) do
-    socket
-    |> assign(:error_message, "Duplicate Firmware Is Not Allowed")
-    |> assign(:error_code, :duplicate_firmware)
-    |> assign(:uuid, changeset.changes.uuid)
-    |> noreply()
-  end
+  defp error_feedback(socket, changeset_or_message, opts \\ [])
 
-  defp error_feedback(socket, %Ecto.Changeset{} = changeset) do
+  defp error_feedback(socket, %Ecto.Changeset{} = changeset, opts) do
     error_message =
       changeset.errors
       |> Enum.map_join(", ", fn {_field, {message, _info}} -> message end)
+
+    error_message = Enum.join([opts[:prefix] || "", error_message], " ")
 
     socket
     |> put_flash(:error, error_message)
     |> noreply()
   end
 
-  defp error_feedback(socket, message) do
+  defp error_feedback(socket, message, _opts) do
     socket
-    |> assign(:error_message, message)
+    |> put_flash(:error, message)
     |> noreply()
   end
 

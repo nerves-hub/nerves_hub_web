@@ -93,14 +93,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
     |> case do
       {:error, :not_found} ->
         socket
-        |> send_toast(:error, "Invalid firmware selected")
+        |> put_flash(:error, "Invalid firmware selected")
         |> noreply()
 
       {_, {:ok, deployment_group}} ->
         _ = DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)
 
         socket
-        |> LiveToast.put_toast(:info, "Deployment Group created")
+        |> put_flash(:info, "Deployment Group created")
         |> push_navigate(
           to: ~p"/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}"
         )
@@ -108,7 +108,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
 
       {_firmware, {:error, changeset}} ->
         socket
-        |> send_toast(:error, "There was an error creating the deployment")
+        |> put_flash(:error, "There was an error creating the deployment")
         |> assign(:form, to_form(changeset))
         |> noreply()
     end

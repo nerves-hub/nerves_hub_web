@@ -116,11 +116,6 @@ defmodule NervesHubWeb do
         |> assign(:tab_hint, tab)
       end
 
-      def send_toast(socket, kind, msg) do
-        NervesHubWeb.LiveToast.send_toast(kind, msg)
-        socket
-      end
-
       def whitelist(params, keys) do
         keys
         |> Enum.filter(fn x -> !is_nil(params[to_string(x)]) end)
@@ -192,11 +187,6 @@ defmodule NervesHubWeb do
         socket
         |> assign(:sidebar_tab, tab)
         |> assign(:tab_hint, tab)
-      end
-
-      def send_toast(socket, kind, msg) do
-        NervesHubWeb.LiveToast.send_toast(kind, msg)
-        socket
       end
 
       # Routes generation with the ~p sigil
@@ -318,7 +308,8 @@ defmodule NervesHubWeb do
           push_navigate: 2,
           start_async: 3,
           connected?: 1,
-          consume_uploaded_entry: 3
+          consume_uploaded_entry: 3,
+          put_flash: 3
         ]
 
       alias Phoenix.Socket.Broadcast
@@ -382,11 +373,6 @@ defmodule NervesHubWeb do
         socket
         |> assign(:sidebar_tab, tab)
         |> assign(:tab_hint, tab)
-      end
-
-      def send_toast(socket, kind, msg) do
-        NervesHubWeb.LiveToast.send_toast(kind, msg)
-        socket
       end
 
       # Routes generation with the ~p sigil

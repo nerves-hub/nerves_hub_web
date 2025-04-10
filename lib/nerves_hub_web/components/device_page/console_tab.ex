@@ -25,7 +25,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
 
   def hooked_info(%Broadcast{event: "file-data/start", payload: payload}, socket) do
     if socket.assigns.user.id == payload.uploaded_by do
-      send_toast(socket, :info, "Upload started.")
+      put_flash(socket, :info, "Upload started.")
     else
       socket
     end
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
 
   def hooked_info(%Broadcast{event: "file-data/stop", payload: payload}, socket) do
     if socket.assigns.user.id == payload.uploaded_by do
-      send_toast(socket, :info, "Upload finished.")
+      put_flash(socket, :info, "Upload finished.")
     else
       socket
     end

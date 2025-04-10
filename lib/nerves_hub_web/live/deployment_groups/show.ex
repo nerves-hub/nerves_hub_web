@@ -87,8 +87,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     DeploymentGroupTemplates.audit_deployment_toggle_active(user, deployment_group, active_str)
 
     socket
-    |> put_flash(:info, "Deployment set #{active_str}")
-    |> send_toast(:info, "Deployment #{(value && "resumed") || "paused"}")
+    |> put_flash(:info, "Deployment #{(value && "resumed") || "paused"}")
     |> assign(:deployment_group, deployment_group)
     |> noreply()
   end
@@ -126,7 +125,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     socket
     |> start_async(:move_devices_to_deployment, move_devices)
-    |> send_toast(:info, "Moving devices to deployment, this may take a moment")
+    |> put_flash(:info, "Moving devices to deployment, this may take a moment")
     |> noreply()
   end
 
@@ -152,7 +151,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     socket
     |> start_async(:remove_devices_from_deployment, remove_devices)
-    |> send_toast(:info, "Removing devices from deployment, this may take a moment")
+    |> put_flash(:info, "Removing devices from deployment, this may take a moment")
     |> noreply()
   end
 
@@ -176,7 +175,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       )
 
     socket
-    |> send_toast(
+    |> put_flash(
       :error,
       "#{updated_count} devices moved to #{socket.assigns.deployment_group.name}. However, we couldn't move #{ignored_count} devices. We've been notified and are looking into it."
     )
@@ -187,7 +186,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   @impl Phoenix.LiveView
   def handle_async(:move_devices_to_deployment, {:ok, devices_updated_count}, socket) do
     socket
-    |> send_toast(
+    |> put_flash(
       :info,
       "#{devices_updated_count} devices moved to #{socket.assigns.deployment_group.name}"
     )
@@ -201,7 +200,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     :ok = Logging.log_to_sentry(deployment_group, reason)
 
     socket
-    |> send_toast(
+    |> put_flash(
       :error,
       "There was an issue moving devices to #{deployment_group.name}. We've been notified and are looking into it."
     )
@@ -229,7 +228,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
       )
 
     socket
-    |> send_toast(
+    |> put_flash(
       :error,
       "#{updated_count} devices removed from #{socket.assigns.deployment_group.name}. However, we couldn't remove #{ignored_count} devices. We've been notified and are looking into it."
     )
@@ -240,7 +239,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   @impl Phoenix.LiveView
   def handle_async(:remove_devices_from_deployment, {:ok, devices_removed_count}, socket) do
     socket
-    |> send_toast(
+    |> put_flash(
       :info,
       "#{devices_removed_count} devices removed from #{socket.assigns.deployment_group.name}"
     )
@@ -254,7 +253,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     :ok = Logging.log_to_sentry(deployment_group, reason)
 
     socket
-    |> send_toast(
+    |> put_flash(
       :error,
       "There was an issue removing devices from #{deployment_group.name}. We've been notified and are looking into it."
     )
