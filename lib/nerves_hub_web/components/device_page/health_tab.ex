@@ -61,13 +61,11 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   def hooked_event("set-time-frame", %{"unit" => unit, "amount" => amount}, socket) do
     payload = %{unit: get_time_unit({unit, String.to_integer(amount)})}
 
-    socket =
-      socket
-      |> assign(:time_frame, {unit, String.to_integer(amount)})
-      |> push_event("update-time-unit", payload)
-      |> update_charts()
-
-    {:halt, socket}
+    socket
+    |> assign(:time_frame, {unit, String.to_integer(amount)})
+    |> push_event("update-time-unit", payload)
+    |> update_charts()
+    |> halt()
   end
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}
@@ -78,12 +76,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
       ) do
     latest_metrics = Metrics.get_latest_metric_set(device.id)
 
-    socket =
-      socket
-      |> assign(:latest_metrics, latest_metrics)
-      |> assign_metadata()
-
-    {:halt, socket}
+    socket
+    |> assign(:latest_metrics, latest_metrics)
+    |> assign_metadata()
+    |> halt()
   end
 
   def hooked_info(_event, socket), do: {:cont, socket}
@@ -378,8 +374,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   end
 
   defp custom_metrics(metrics) do
-    metrics
-    |> Enum.reject(fn {key, _value} ->
+    Enum.reject(metrics, fn {key, _value} ->
       key in @manual_metrics
     end)
   end
