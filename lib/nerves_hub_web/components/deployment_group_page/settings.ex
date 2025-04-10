@@ -29,7 +29,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col items-start justify-between gap-4 p-6">
-      <.form for={@form} class="w-full flex flex-col gap-4" phx-submit="update-deployment-group">
+      <.form for={@form} class="w-full flex flex-col gap-4" phx-submit="update-deployment-group" phx-target={@myself}>
         <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
           <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
             <div class="text-base text-neutral-50 font-medium">General settings</div>
