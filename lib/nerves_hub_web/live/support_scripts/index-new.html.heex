@@ -24,39 +24,38 @@
       <.icon name="add" />Add Support Script
     </.button>
   </div>
-  <%= if Enum.any?(@scripts) do %>
-    <div class="listing">
-      <table>
-        <thead>
-          <tr>
-            <th phx-click="sort" phx-value-sort="name" class="cursor-pointer">
-              <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
-            </th>
-            <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
-              <Sorting.sort_icon text="Added on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr :for={script <- @scripts} class="border-b border-zinc-800">
-            <td class="h-[52px]">
-              <.link class="size-full flex items-center" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/#{script.id}/edit"}>
-                {script.name}
-              </.link>
-            </td>
 
-            <td>
-              {Calendar.strftime(script.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  <% else %>
-    <div class="h-full pb-16 flex items-center justify-center">
-      <span class="text-xl font-medium text-neutral-50">{@product.name} doesn’t have any Support Scripts.</span>
-    </div>
-  <% end %>
+  <div :if={Enum.any?(@scripts)} class="listing">
+    <table>
+      <thead>
+        <tr>
+          <th phx-click="sort" phx-value-sort="name" class="cursor-pointer">
+            <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
+          </th>
+          <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
+            <Sorting.sort_icon text="Added on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr :for={script <- @scripts} class="border-b border-zinc-800">
+          <td class="h-[52px]">
+            <.link class="size-full flex items-center" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/#{script.id}/edit"}>
+              {script.name}
+            </.link>
+          </td>
+
+          <td>
+            {Calendar.strftime(script.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div :if={Enum.empty?(@scripts)} class="h-full pb-16 flex items-center justify-center">
+    <span class="text-xl font-medium text-neutral-50">{@product.name} doesn’t have any Support Scripts.</span>
+  </div>
 </div>
 
 <Pager.render_with_page_sizes pager={@pager_meta} page_sizes={[25, 50, 100]} />
