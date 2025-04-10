@@ -6,15 +6,14 @@ defmodule NervesHubWeb.Components.DevicePage.ConsoleTab do
   alias Phoenix.LiveView.JS
 
   def tab_params(_params, _uri, socket) do
-    device = socket.assigns.device
+    device_id = socket.assigns.device.id
 
     socket
     |> assign_async(
       :console_active?,
       fn ->
-        {:ok, %{console_active?: Tracker.console_active?(device)}}
-      end,
-      reset: true
+        {:ok, %{console_active?: Tracker.console_active?(device_id)}}
+      end
     )
     |> cont()
   end
