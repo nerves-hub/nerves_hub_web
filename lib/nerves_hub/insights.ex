@@ -17,7 +17,7 @@ defmodule NervesHub.Insights do
   @doc """
   Count of currently connected Devices, scoped to an individual Product.
   """
-  @spec connected_count(product :: NervesHub.Products.Product.t()) :: integer()
+  @spec connected_count(product :: Product.t()) :: number()
   def connected_count(product) do
     Device
     |> join(:left, [d], lc in assoc(d, :latest_connection), as: :latest_connection)
@@ -85,7 +85,7 @@ defmodule NervesHub.Insights do
   @doc """
   Count of devices where the health status isn't 'healthy' or 'unknown', scoped to an individual Product.
   """
-  @spec not_healthy_devices_count(product :: NervesHub.Products.Product.t()) :: integer()
+  @spec not_healthy_devices_count(product :: Product.t()) :: number()
   def not_healthy_devices_count(product) do
     Device
     |> join(:left, [d], lc in assoc(d, :latest_health), as: :latest_health)
@@ -97,7 +97,7 @@ defmodule NervesHub.Insights do
   @doc """
   Count of devices which haven't connected in the last 24 hours, scoped to an individual Product.
   """
-  @spec not_recently_seen_count(product :: NervesHub.Products.Product.t()) :: integer()
+  @spec not_recently_seen_count(product :: Product.t()) :: number()
   def not_recently_seen_count(product) do
     Device
     |> join(:left, [d], lc in assoc(d, :latest_connection), as: :latest_connection)
@@ -110,7 +110,7 @@ defmodule NervesHub.Insights do
   @doc """
   Count of different firmware versions run on connected devices, scoped to an individual Product.
   """
-  @spec active_firmware_versions_count(product :: NervesHub.Products.Product.t()) :: integer()
+  @spec active_firmware_versions_count(product :: Product.t()) :: number()
   def active_firmware_versions_count(product) do
     Device
     |> select([d], %{version: d.firmware_metadata["uuid"]})
@@ -122,7 +122,7 @@ defmodule NervesHub.Insights do
   @doc """
   List of unique firmware versions run on connected devices, scoped to an individual Product.
   """
-  @spec active_firmware_versions(product :: NervesHub.Products.Product.t()) :: integer()
+  @spec active_firmware_versions(product :: Product.t()) :: list()
   def active_firmware_versions(product) do
     Device
     |> select([d], %{version: d.firmware_metadata["uuid"]})
@@ -134,7 +134,7 @@ defmodule NervesHub.Insights do
   @doc """
   Count of devices which have reconnected more than 5 times in the last 24 hours, scoped to an individual Product.
   """
-  @spec high_reconnect_count(product :: NervesHub.Products.Product.t()) :: integer()
+  @spec high_reconnect_count(product :: Product.t()) :: number()
   def high_reconnect_count(product) do
     Device
     |> join(:left, [d], lc in assoc(d, :device_connections), as: :device_connections)
