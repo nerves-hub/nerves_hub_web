@@ -12,14 +12,14 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     Endpoint.subscribe("device:#{device.id}")
   end
 
-  test "Initially shows a loading message (async loading)", %{conn: conn, fixture: fixture} do
-    %{device: device} = fixture
+  test "shows a loading message (async loading)", %{conn: conn, fixture: fixture} do
+    %{device: device, org: org, product: product} = fixture
 
-    conn
-    |> visit(device_index_path(fixture))
-    |> assert_has("h3", text: "Loading devices...")
-    # and then loads the device list after a second
-    |> assert_has("div a", text: device.identifier, timeout: 1000)
+    {:ok, lv, html} = live(conn, "/org/#{org.name}/#{product.name}/devices")
+
+    assert html =~ "Loading devices..."
+
+    assert render_async(lv) =~ device.identifier
   end
 
   describe "handle_event" do

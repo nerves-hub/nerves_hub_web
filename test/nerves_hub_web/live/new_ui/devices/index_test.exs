@@ -1,21 +1,23 @@
 defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: false
+  use Mimic
 
   alias NervesHub.Fixtures
-
   alias NervesHub.Repo
 
   alias NervesHubWeb.Endpoint
 
-  test "Initially shows a loading message (async loading)", %{conn: conn, fixture: fixture} do
+  test "shows a loading message (async loading)", %{conn: conn, fixture: fixture} do
     %{device: device, org: org, product: product} = fixture
 
-    conn
-    |> put_session("new_ui", true)
-    |> visit("/org/#{org.name}/#{product.name}/devices")
-    |> assert_has("span", text: "Loading devices ...")
-    # and then loads the device list after a second
-    |> assert_has("div a", text: device.identifier, timeout: 1000)
+    {:ok, lv, html} =
+      conn
+      |> put_session("new_ui", true)
+      |> live("/org/#{org.name}/#{product.name}/devices")
+
+    assert html =~ "Loading devices ..."
+
+    assert render_async(lv) =~ device.identifier
   end
 
   describe "bulk adding devices to deployment group" do
