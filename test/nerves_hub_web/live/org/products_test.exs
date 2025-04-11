@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "MyAmazingProduct")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/MyAmazingProduct/devices")
-      |> assert_has("h3", text: "MyAmazingProduct doesn’t have any devices yet")
+      |> assert_has("h3", text: "MyAmazingProduct doesn’t have any devices yet", timeout: 1000)
     end
 
     test "product name accepts spaces", %{conn: conn, org: org} do
@@ -51,7 +51,10 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "My Amazing Product")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My Amazing Product/devices")
-      |> assert_has("h3", text: "My Amazing Product doesn’t have any devices yet")
+      |> assert_has("h3",
+        text: "My Amazing Product doesn’t have any devices yet",
+        timeout: 1000
+      )
     end
 
     test "trims whitespace around the product name, and creates a new product when given a non blank name",
@@ -62,7 +65,10 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "  My Amazing Product  ")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My Amazing Product/devices")
-      |> assert_has("h3", text: "My Amazing Product doesn’t have any devices yet")
+      |> assert_has("h3",
+        text: "My Amazing Product doesn’t have any devices yet",
+        timeout: 1000
+      )
     end
 
     test "trims extra whitespace in the product name, and creates a new product when given a non blank name",
@@ -73,7 +79,10 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> fill_in("Name", with: "  My  Amazing  Product  ")
       |> click_button("Create Product")
       |> assert_path("/org/#{org.name}/My Amazing Product/devices")
-      |> assert_has("h3", text: "My Amazing Product doesn’t have any devices yet")
+      |> assert_has("h3",
+        text: "My Amazing Product doesn’t have any devices yet",
+        timeout: 1000
+      )
     end
   end
 

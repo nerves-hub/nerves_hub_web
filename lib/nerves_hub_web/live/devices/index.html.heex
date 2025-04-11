@@ -1,432 +1,465 @@
-<%= if @devices == [] && !@currently_filtering do %>
-  <div class="no-results-blowup-wrapper">
-    <img src="/images/device.svg" alt="No devices" />
-    <h3 style="margin-top: 2.75rem">{@product.name} doesn’t have any devices yet</h3>
-    <div class="mt-3">
-      <.link class="btn btn-outline-light btn-action" aria-label="Add new device" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"}>
-        <div class="button-icon add"></div>
-        <span class="action-text">Add your first Device</span>
-      </.link>
+<.async_result :let={devices} assign={@devices}>
+  <:loading>
+    <div class="no-results-blowup-wrapper">
+      <img src="/images/device.svg" alt="No devices" />
+      <h3 style="margin-top: 2.75rem">Loading devices...</h3>
     </div>
-    <p class="mt-3">
-      Or follow <a class="strong inline" target="_blank" rel="noopener noreferrer" href="https://docs.nerves-hub.org/nerves-hub/setup/devices">these steps</a> to add a device using the terminal.
-    </p>
-  </div>
-<% else %>
-  <div class="action-row">
-    <div class="flex-row align-items-center">
-      <h1 class="mr-3 mb-0">Devices</h1>
-      <button
-        class={"btn btn-outline-light btn-action #{if @show_filters, do: "btn-filter-hide", else: "btn-filter-show"}"}
-        type="button"
-        phx-click="toggle-filters"
-        phx-value-toggle={to_string(@show_filters)}
-      >
-        <span class="action-text">
-          {if @show_filters, do: "Hide Filters", else: "Show Filters"}
-        </span>
-        <span class="button-icon filter"></span>
-      </button>
-      <p class="ml-2" style="opacity: 0.7;">
-        {@total_entries} devices found <span :if={Enum.count(@selected_devices) > 0}>({Enum.count(@selected_devices)} selected)</span>
+  </:loading>
+  <:failed :let={_failure}>
+    <div class="no-results-blowup-wrapper">
+      <img src="/images/device.svg" alt="No devices" />
+      <h3 style="margin-top: 2.75rem">There was an error loading the device for {@product.name}</h3>
+    </div>
+  </:failed>
+
+  <%= if Enum.empty?(devices) && !@currently_filtering do %>
+    <div class="no-results-blowup-wrapper">
+      <img src="/images/device.svg" alt="No devices" />
+      <h3 style="margin-top: 2.75rem">{@product.name} doesn’t have any devices yet</h3>
+      <div class="mt-3">
+        <.link class="btn btn-outline-light btn-action" aria-label="Add new device" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"}>
+          <div class="button-icon add"></div>
+          <span class="action-text">Add your first Device</span>
+        </.link>
+      </div>
+      <p class="mt-3">
+        Or follow <a class="strong inline" target="_blank" rel="noopener noreferrer" href="https://docs.nerves-hub.org/nerves-hub/setup/devices">these steps</a> to add a device using the terminal.
       </p>
     </div>
-    <div>
-      <a class="btn btn-outline-light btn-action" aria-label="Add new device" href={Routes.product_path(@socket, :devices_export, @org.name, @product.name)}>
-        <div class="button-icon download"></div>
-        <span class="action-text">Export</span>
-      </a>
-      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"} class="btn btn-outline-light btn-action" aria-label="Add new device">
-        <div class="button-icon add"></div>
-        <span class="action-text">Add Device</span>
-      </.link>
+  <% else %>
+    <div class="action-row">
+      <div class="flex-row align-items-center">
+        <h1 class="mr-3 mb-0">Devices</h1>
+        <button
+          class={"btn btn-outline-light btn-action #{if @show_filters, do: "btn-filter-hide", else: "btn-filter-show"}"}
+          type="button"
+          phx-click="toggle-filters"
+          phx-value-toggle={to_string(@show_filters)}
+        >
+          <span class="action-text">
+            {if @show_filters, do: "Hide Filters", else: "Show Filters"}
+          </span>
+          <span class="button-icon filter"></span>
+        </button>
+        <p class="ml-2" style="opacity: 0.7;">
+          {@total_entries} devices found <span :if={Enum.count(@selected_devices) > 0}>({Enum.count(@selected_devices)} selected)</span>
+        </p>
+      </div>
+      <div>
+        <a class="btn btn-outline-light btn-action" aria-label="Add new device" href={Routes.product_path(@socket, :devices_export, @org.name, @product.name)}>
+          <div class="button-icon download"></div>
+          <span class="action-text">Export</span>
+        </a>
+        <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"} class="btn btn-outline-light btn-action" aria-label="Add new device">
+          <div class="button-icon add"></div>
+          <span class="action-text">Add Device</span>
+        </.link>
+      </div>
     </div>
-  </div>
 
-  <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex; gap: 4px;">
-    <%= for size <- @paginate_opts.page_sizes do %>
-      <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"btn btn-secondary btn-sm #{if size == @paginate_opts.page_size, do: "active"}"}>
-        {size}
-      </button>
+    <div class="action-row btn-group-toggle" style="justify-content: flex-end; display: flex; gap: 4px;">
+      <%= for size <- @paginate_opts.page_sizes do %>
+        <button phx-click="set-paginate-opts" phx-value-page-size={size} class={"btn btn-secondary btn-sm #{if size == @paginate_opts.page_size, do: "active"}"}>
+          {size}
+        </button>
+      <% end %>
+    </div>
+    <%= if @show_filters do %>
+      <div class="filter-wrapper">
+        <h4 class="color-white mb-2">Filters</h4>
+        <form id="filter-form" phx-change="update-filters" class="filter-form device-filters">
+          <div class="form-group">
+            <label for="input_id">ID</label>
+            <input type="text" name="device_id" id="input_id" class="form-control" value={@current_filters[:device_id]} phx-debounce="500" />
+          </div>
+          <div class="form-group">
+            <label for="input_connection">Connection</label>
+            <div class="pos-rel">
+              <select name="connection" id="input_connection" class="form-control">
+                <option {selected?(@current_filters, :connection, "")} value="">All</option>
+                <option {selected?(@current_filters, :connection, "connected")} value="connected">Connected</option>
+                <option {selected?(@current_filters, :connection, "disconnected")} value="disconnected">Disconnected</option>
+                <option {selected?(@current_filters, :connection, "not_seen")} value="not_seen">Not Seen</option>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="connection_type">Connection Type</label>
+            <div class="pos-rel">
+              <select name="connection_type" id="connection_type" class="form-control">
+                <option {selected?(@current_filters, :connection_type, "")} value="">All</option>
+                <option {selected?(@current_filters, :connection_type, "cellular")} value="cellular">Cellular</option>
+                <option {selected?(@current_filters, :connection_type, "ethernet")} value="ethernet">Ethernet</option>
+                <option {selected?(@current_filters, :connection_type, "wifi")} value="wifi">WiFi</option>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="deployment_id">Deployment Group</label>
+            <select name="deployment_id" id="deployment_id" class="form-control">
+              <option {selected?(@current_filters, :deployment_id, "")} value="">All</option>
+              <%= for deployment_group <- @deployment_groups do %>
+                <option {selected?(@current_filters, :deployment_id, deployment_group.id)} value={deployment_group.id}>{deployment_group.name}</option>
+              <% end %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="input_health">Firmware Updates</label>
+            <div class="pos-rel">
+              <select name="updates" id="input_health" class="form-control">
+                <option {selected?(@current_filters, :updates, "")} value="">All</option>
+                <option {selected?(@current_filters, :updates, "enabled")} value="enabled">Enabled</option>
+                <option {selected?(@current_filters, :updates, "penalty-box")} value="penalty-box">Penalty Box</option>
+                <option {selected?(@current_filters, :updates, "disabled")} value="disabled">Disabled</option>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="input_firmware">Firmware</label>
+            <div class="pos-rel">
+              <select name="firmware_version" id="input_firmware" class="form-control">
+                <option {selected?(@current_filters, :firmware_version, "")} value="">All</option>
+                <%= for version <- @firmware_versions do %>
+                  <option {selected?(@current_filters, :firmware_version, version)}>{version}</option>
+                <% end %>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="platform">Platform</label>
+            <div class="pos-rel">
+              <select name="platform" id="platform" class="form-control">
+                <option {selected?(@current_filters, :platform, "")} value="">All</option>
+                <%= for platform <- @platforms do %>
+                  <option {selected?(@current_filters, :platform, platform)} value={platform}>{if platform, do: platform, else: "Unknown"}</option>
+                <% end %>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="input_tags">Tags</label>
+            <input type="text" name="tag" id="input_tags" class="form-control" value={@current_filters[:tag]} phx-debounce="500" />
+          </div>
+          <div class="form-group">
+            <label for="has_no_tags">Untagged</label>
+            <div class="pos-rel">
+              <select name="has_no_tags" id="has_no_tags" class="form-control">
+                <option {selected?(@current_filters, :has_no_tags, false)} value="false">All</option>
+                <option {selected?(@current_filters, :has_no_tags, true)} value="true">Only untagged</option>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="alarm_status">Alarm Status</label>
+            <div class="pos-rel">
+              <select name="alarm_status" id="alarm_status" class="form-control">
+                <option {selected?(@current_filters, :alarm_status, "")} value="">All</option>
+                <option {selected?(@current_filters, :alarm_status, "with")} value="with">Has Alarms</option>
+                <option {selected?(@current_filters, :alarm_status, "without")} value="without">No alarms</option>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="alarm">Alarm</label>
+            <div class="pos-rel">
+              <select name="alarm" id="alarm" class="form-control">
+                <option {selected?(@current_filters, :alarm, "")} value="">All</option>
+                <%= for alarm <- @current_alarms do %>
+                  <option value={alarm} {selected?(@current_filters, :alarm, alarm)}>{alarm}</option>
+                <% end %>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="metrics_key">Metrics</label>
+            <div class="pos-rel">
+              <select name="metrics_key" id="metrics_key" class="form-control">
+                <option {selected?(@current_filters, :metrics_key, "")} value="">All</option>
+                <option :for={key <- @metrics_keys} value={key} {selected?(@current_filters, :metrics_key, key)}>{key}</option>
+              </select>
+              <div class="select-icon"></div>
+            </div>
+          </div>
+          <div :if={@current_filters.metrics_key != ""} class="form-group">
+            <label for="metrics_operator">Operator</label>
+            <select name="metrics_operator" id="metrics_operator" class="form-control">
+              <option {selected?(@current_filters, :metrics_operator, "gt")} value="gt">Greater Than</option>
+              <option {selected?(@current_filters, :metrics_operator, "lt")} value="lt">Less than</option>
+            </select>
+            <div class="select-icon"></div>
+          </div>
+          <div :if={@current_filters.metrics_key != ""} class="form-group">
+            <label for="metrics_value">Value</label>
+            <input type="number" name="metrics_value" id="metrics_value" class="form-control" value={@current_filters[:metrics_value]} phx-debounce="100" />
+          </div>
+        </form>
+        <button class="btn btn-secondary" type="button" phx-click="reset-filters">Reset Filters</button>
+      </div>
     <% end %>
-  </div>
-  <%= if @show_filters do %>
-    <div class="filter-wrapper">
-      <h4 class="color-white mb-2">Filters</h4>
-      <form id="filter-form" phx-change="update-filters" class="filter-form device-filters">
-        <div class="form-group">
-          <label for="input_id">ID</label>
-          <input type="text" name="device_id" id="input_id" class="form-control" value={@current_filters[:device_id]} phx-debounce="500" />
-        </div>
-        <div class="form-group">
-          <label for="input_connection">Connection</label>
-          <div class="pos-rel">
-            <select name="connection" id="input_connection" class="form-control">
-              <option {selected?(@current_filters, :connection, "")} value="">All</option>
-              <option {selected?(@current_filters, :connection, "connected")} value="connected">Connected</option>
-              <option {selected?(@current_filters, :connection, "disconnected")} value="disconnected">Disconnected</option>
-              <option {selected?(@current_filters, :connection, "not_seen")} value="not_seen">Not Seen</option>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="connection_type">Connection Type</label>
-          <div class="pos-rel">
-            <select name="connection_type" id="connection_type" class="form-control">
-              <option {selected?(@current_filters, :connection_type, "")} value="">All</option>
-              <option {selected?(@current_filters, :connection_type, "cellular")} value="cellular">Cellular</option>
-              <option {selected?(@current_filters, :connection_type, "ethernet")} value="ethernet">Ethernet</option>
-              <option {selected?(@current_filters, :connection_type, "wifi")} value="wifi">WiFi</option>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="deployment_id">Deployment Group</label>
-          <select name="deployment_id" id="deployment_id" class="form-control">
-            <option {selected?(@current_filters, :deployment_id, "")} value="">All</option>
-            <%= for deployment_group <- @deployment_groups do %>
-              <option {selected?(@current_filters, :deployment_id, deployment_group.id)} value={deployment_group.id}>{deployment_group.name}</option>
-            <% end %>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="input_health">Firmware Updates</label>
-          <div class="pos-rel">
-            <select name="updates" id="input_health" class="form-control">
-              <option {selected?(@current_filters, :updates, "")} value="">All</option>
-              <option {selected?(@current_filters, :updates, "enabled")} value="enabled">Enabled</option>
-              <option {selected?(@current_filters, :updates, "penalty-box")} value="penalty-box">Penalty Box</option>
-              <option {selected?(@current_filters, :updates, "disabled")} value="disabled">Disabled</option>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="input_firmware">Firmware</label>
-          <div class="pos-rel">
-            <select name="firmware_version" id="input_firmware" class="form-control">
-              <option {selected?(@current_filters, :firmware_version, "")} value="">All</option>
-              <%= for version <- @firmware_versions do %>
-                <option {selected?(@current_filters, :firmware_version, version)}>{version}</option>
-              <% end %>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="input_platform">Platform</label>
-          <div class="pos-rel">
-            <select name="platform" id="platform" class="form-control">
-              <option {selected?(@current_filters, :platform, "")} value="">All</option>
-              <%= for platform <- @platforms do %>
-                <option {selected?(@current_filters, :platform, platform)}>{if platform, do: platform, else: "Unknown"}</option>
-              <% end %>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="input_tags">Tags</label>
-          <input type="text" name="tag" id="input_tags" class="form-control" value={@current_filters[:tag]} phx-debounce="500" />
-        </div>
-        <div class="form-group">
-          <label for="has_no_tags">Untagged</label>
-          <div class="pos-rel">
-            <select name="has_no_tags" id="has_no_tags" class="form-control">
-              <option {selected?(@current_filters, :has_no_tags, false)} value="false">All</option>
-              <option {selected?(@current_filters, :has_no_tags, true)} value="true">Only untagged</option>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="alarm_status">Alarm Status</label>
-          <div class="pos-rel">
-            <select name="alarm_status" id="alarm_status" class="form-control">
-              <option {selected?(@current_filters, :alarm_status, "")} value="">All</option>
-              <option {selected?(@current_filters, :alarm_status, "with")} value="with">Has Alarms</option>
-              <option {selected?(@current_filters, :alarm_status, "without")} value="without">No alarms</option>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="alarm">Alarm</label>
-          <div class="pos-rel">
-            <select name="alarm" id="alarm" class="form-control">
-              <option {selected?(@current_filters, :alarm, "")} value="">All</option>
-              <%= for alarm <- @current_alarms do %>
-                <option {selected?(@current_filters, :alarm, alarm)}>{alarm}</option>
-              <% end %>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="metrics">Metrics</label>
-          <div class="pos-rel">
-            <select name="metrics_key" id="metrics_key" class="form-control">
-              <option {selected?(@current_filters, :metrics_key, "")} value="">All</option>
-              <%= for key <- @metrics_keys do %>
-                <option {selected?(@current_filters, :metrics_key, key)}>{key}</option>
-              <% end %>
-            </select>
-            <div class="select-icon"></div>
-          </div>
-        </div>
-        <div :if={@current_filters.metrics_key != ""} class="form-group">
-          <label for="metrics_operator">Operator</label>
-          <select name="metrics_operator" id="metrics_operator" class="form-control">
-            <option {selected?(@current_filters, :metrics_operator, "gt")} value="gt">Greater Than</option>
-            <option {selected?(@current_filters, :metrics_operator, "lt")} value="lt">Less than</option>
-          </select>
-          <div class="select-icon"></div>
-        </div>
-        <div :if={@current_filters.metrics_key != ""} class="form-group">
-          <label for="metrics_value">Value</label>
-          <input type="number" name="metrics_value" id="metrics_value" class="form-control" value={@current_filters[:metrics_value]} phx-debounce="100" />
-        </div>
-      </form>
-      <button class="btn btn-secondary" type="button" phx-click="reset-filters">Reset Filters</button>
-    </div>
-  <% end %>
 
-  <div class={if length(@selected_devices) == 0, do: "hidden"}>
-    <div class="filter-wrapper">
-      <div class="flex-row">
-        <h4 class="color-white mb-2 flex-row align-items-center flex-grow">Bulk Actions <span class="help-text ml-2">{length(@selected_devices)} selected</span></h4>
+    <div class={if length(@selected_devices) == 0, do: "hidden"}>
+      <div class="filter-wrapper">
+        <div class="flex-row">
+          <h4 class="color-white mb-2 flex-row align-items-center flex-grow">Bulk Actions <span class="help-text ml-2">{length(@selected_devices)} selected</span></h4>
 
-        <button class="btn btn-outline-light btn-action btn-secondary" type="button" phx-click="deselect-all">Deselect All</button>
-      </div>
+          <button class="btn btn-outline-light btn-action btn-secondary" type="button" phx-click="deselect-all">Deselect All</button>
+        </div>
 
-      <div class="row mt-2">
-        <form id="move-product" class="col-lg-4" phx-change="target-product" phx-submit="move-devices-product">
-          <label for="move_to_product">Move device(s) to product:</label>
-          <div class="flex-row align-items-center">
-            <div class="flex-grow pos-rel">
-              <select name="product" id="move_to_product" class="form-control">
-                <option value=""></option>
-                <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
-                  <optgroup label={org.name}>
-                    <%= for product <- products, product.id != @product.id do %>
-                      <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}>{product.name}</option>
-                    <% end %>
-                  </optgroup>
-                <% end %>
-              </select>
-              <div class="select-icon"></div>
-            </div>
+        <div class="row mt-2">
+          <form id="move-product" class="col-lg-4" phx-change="target-product" phx-submit="move-devices-product">
+            <label for="move_to_product">Move device(s) to product:</label>
+            <div class="flex-row align-items-center">
+              <div class="flex-grow pos-rel">
+                <select name="product" id="move_to_product" class="form-control">
+                  <option value=""></option>
+                  <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
+                    <optgroup label={org.name}>
+                      <%= for product <- products, product.id != @product.id do %>
+                        <option {target_selected?(@target_product, product.name)} value={"#{org.id}:#{product.id}:#{product.name}"}>{product.name}</option>
+                      <% end %>
+                    </optgroup>
+                  <% end %>
+                </select>
+                <div class="select-icon"></div>
+              </div>
 
-            <button class="btn btn-outline-light btn-action btn-primary ml-1" type="submit" data-confirm={move_alert(@target_product)} {unless @target_product, do: [disabled: true], else: []}>
-              Move
-            </button>
-          </div>
-        </form>
-
-        <form id="bulk-tag-input" class="col-lg-4" phx-submit="tag-devices" phx-change="validate-tags">
-          <label for="input_set_tags">Set tag(s) to:</label>
-          <div class="flex-row align-items-center">
-            <div class="flex-grow">
-              <input type="text" name="tags" id="input_set_tags" class="form-control" value={@current_filters[:tag]} phx-debounce="500" />
-            </div>
-            <button
-              class="btn btn-outline-light btn-action btn-primary ml-1"
-              type="submit"
-              data-confirm="This will update tags on all selected devices"
-              {if @valid_tags && @device_tags != "", do: [], else: [disabled: true]}
-            >
-              Set
-            </button>
-          </div>
-          <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
-        </form>
-
-        <form :if={Enum.any?(@available_deployment_groups_for_filtered_platform)} id="move-deployment" class="col-lg-4" phx-change="target-deployment-group" phx-submit="move-devices-deployment-group">
-          <label for="move_to_deployment_group">Move device(s) to deployment group:</label>
-          <div class="flex-row align-items-center">
-            <div class="flex-grow pos-rel">
-              <select name="deployment_group" id="move_to_deployment_group" class="form-control">
-                <option value=""></option>
-                <%= for deployment_group <- @available_deployment_groups_for_filtered_platform do %>
-                  <option value={deployment_group.id} {if @target_deployment_group && @target_deployment_group.id == deployment_group.id, do: [selected: true], else: []}>
-                    {deployment_group.name}
-                  </option>
-                <% end %>
-              </select>
-              <div class="select-icon"></div>
-            </div>
-
-            <button
-              class="btn btn-outline-light btn-action btn-primary ml-1"
-              type="submit"
-              data-confirm={"This will move all selected devices to #{@target_deployment_group && @target_deployment_group.name}. Continue?"}
-              id="move-deployment-group-submit"
-              {unless @target_deployment_group, do: [disabled: true], else: []}
-            >
-              Move
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <div class="row mt-2">
-        <div class="col-lg-12">
-          <label>Firmware Updates</label>
-
-          <div class="flex-row flex-gap-1">
-            <form class="inline-block" id="disable-updates" phx-submit="disable-updates-for-devices">
-              <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will disable updates for all selected devices" phx-click="disable-updates-for-devices">
-                <span class="button-icon firmware-disabled"></span>
-                <span class="action-text">Disable</span>
+              <button class="btn btn-outline-light btn-action btn-primary ml-1" type="submit" data-confirm={move_alert(@target_product)} {unless @target_product, do: [disabled: true], else: []}>
+                Move
               </button>
-            </form>
+            </div>
+          </form>
 
-            <form class="inline-block" id="enable-updates" phx-submit="enable-updates-for-devices">
-              <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will enable updates for all selected devices" phx-click="enable-updates-for-devices">
-                <span class="button-icon firmware-enabled"></span>
-                <span class="action-text">Enable</span>
+          <form id="bulk-tag-input" class="col-lg-4" phx-submit="tag-devices" phx-change="validate-tags">
+            <label for="input_set_tags">Set tag(s) to:</label>
+            <div class="flex-row align-items-center">
+              <div class="flex-grow">
+                <input type="text" name="tags" id="input_set_tags" class="form-control" value={@current_filters[:tag]} phx-debounce="500" />
+              </div>
+              <button
+                class="btn btn-outline-light btn-action btn-primary ml-1"
+                type="submit"
+                data-confirm="This will update tags on all selected devices"
+                {if @valid_tags && @device_tags != "", do: [], else: [disabled: true]}
+              >
+                Set
               </button>
-            </form>
+            </div>
+            <div class={if @valid_tags, do: "hidden"}><span class="has-error"> Tags Cannot Contain Spaces </span></div>
+          </form>
 
-            <form class="inline-block" id="clear-penalty-box" phx-submit="clear-penalty-box-for-devices">
-              <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will clear the penalty box all selected devices" phx-click="clear-penalty-box-for-devices">
-                <span class="button-icon firmware-enabled"></span>
-                <span class="action-text">Clear Penalty box</span>
+          <form
+            :if={Enum.any?(@available_deployment_groups_for_filtered_platform)}
+            id="move-deployment"
+            class="col-lg-4"
+            phx-change="target-deployment-group"
+            phx-submit="move-devices-deployment-group"
+          >
+            <label for="move_to_deployment_group">Move device(s) to deployment group:</label>
+            <div class="flex-row align-items-center">
+              <div class="flex-grow pos-rel">
+                <select name="deployment_group" id="move_to_deployment_group" class="form-control">
+                  <option value=""></option>
+                  <%= for deployment_group <- @available_deployment_groups_for_filtered_platform do %>
+                    <option value={deployment_group.id} {if @target_deployment_group && @target_deployment_group.id == deployment_group.id, do: [selected: true], else: []}>
+                      {deployment_group.name}
+                    </option>
+                  <% end %>
+                </select>
+                <div class="select-icon"></div>
+              </div>
+
+              <button
+                class="btn btn-outline-light btn-action btn-primary ml-1"
+                type="submit"
+                data-confirm={"This will move all selected devices to #{@target_deployment_group && @target_deployment_group.name}. Continue?"}
+                id="move-deployment-group-submit"
+                {unless @target_deployment_group, do: [disabled: true], else: []}
+              >
+                Move
               </button>
-            </form>
+            </div>
+          </form>
+        </div>
+
+        <div class="row mt-2">
+          <div class="col-lg-12">
+            <label>Firmware Updates</label>
+
+            <div class="flex-row flex-gap-1">
+              <form class="inline-block" id="disable-updates" phx-submit="disable-updates-for-devices">
+                <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will disable updates for all selected devices" phx-click="disable-updates-for-devices">
+                  <span class="button-icon firmware-disabled"></span>
+                  <span class="action-text">Disable</span>
+                </button>
+              </form>
+
+              <form class="inline-block" id="enable-updates" phx-submit="enable-updates-for-devices">
+                <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will enable updates for all selected devices" phx-click="enable-updates-for-devices">
+                  <span class="button-icon firmware-enabled"></span>
+                  <span class="action-text">Enable</span>
+                </button>
+              </form>
+
+              <form class="inline-block" id="clear-penalty-box" phx-submit="clear-penalty-box-for-devices">
+                <button class="btn btn-outline-light btn-action" type="submit" data-confirm="This will clear the penalty box all selected devices" phx-click="clear-penalty-box-for-devices">
+                  <span class="button-icon firmware-enabled"></span>
+                  <span class="action-text">Clear Penalty box</span>
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <table class="table table-sm table-hover">
-    <thead>
-      <tr>
-        <th>
-          <input class="checkbox" title="Check/uncheck all" {[checked: Enum.count(@selected_devices) == Enum.count(@devices)]} id="toggle-all" name="toggle-all" type="checkbox" phx-click="select-all" />
-        </th>
-        {devices_table_header("Identifier", "identifier", @current_sort, @sort_direction)}
-        <th>Firmware</th>
-        <th>Platform</th>
-        {devices_table_header("Added", "inserted_at", @current_sort, @sort_direction)}
-        {devices_table_header("Seen", "connection_last_seen_at", @current_sort, @sort_direction)}
-        {devices_table_header("Tags", "tags", @current_sort, @sort_direction)}
-        <th></th>
-      </tr>
-    </thead>
-    <%= for device <- @devices do %>
-      <tr class={
-        if device.id in @selected_devices do
-          "selected-row"
-        end
-      }>
-        <td>
-          <input class="checkbox" {if device.id in @selected_devices, do: [checked: true], else: []} type="checkbox" id={"#{device.id}-select"} phx-value-id={device.id} phx-click="select" />
-        </td>
-        <td>
-          <div class="mobile-label help-text">Identifier</div>
-          <div class="device-id-with-icon">
-            <%= if @device_statuses[device.identifier] == "online" do %>
-              <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
-            <% else %>
-              <span title={last_seen_at_status(device.latest_connection)}>
-                <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
-              </span>
-            <% end %>
-            <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class={"ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
-              {device.identifier}
-            </.link>
-          </div>
-        </td>
-
-        <td>
-          <div class="mobile-label help-text">Firmware</div>
-          <div>
-            <%= if is_nil(device.firmware_metadata) do %>
-              <span class="color-white-50">Unknown</span>
-            <% else %>
-              <span class="badge">
-                {device.firmware_metadata.version}
-              </span>
-            <% end %>
-          </div>
-        </td>
-
-        <td>
-          <div class="mobile-label help-text">Platform</div>
-          <div>
-            <%= if is_nil(device.firmware_metadata) do %>
-              <span class="color-white-50">Unknown</span>
-            <% else %>
-              <span class="badge">
-                {device.firmware_metadata.platform}
-              </span>
-            <% end %>
-          </div>
-        </td>
-
-        <td>
-          <div class="mobile-label help-text">Added</div>
-          <div title={NaiveDateTime.to_iso8601(device.inserted_at)}>
-            {Timex.from_now(device.inserted_at)}
-          </div>
-        </td>
-
-        <td>
-          <div class="mobile-label help-text">Seen</div>
-          <div :if={device.latest_connection} title={last_seen_at(device.latest_connection)}>
-            {last_seen_at(device.latest_connection)}
-          </div>
-        </td>
-
-        <td>
-          <div class="mobile-label help-text">Tags</div>
-          <div>
-            <%= if !is_nil(device.tags) do %>
-              <%= for tag <- device.tags do %>
-                <span class="badge">{tag}</span>
-              <% end %>
-            <% end %>
-          </div>
-        </td>
-
-        <td class="actions">
-          <div class="mobile-label help-text">Actions</div>
-          <div class="dropdown options">
-            <a class="dropdown-toggle options" data-target="#" id={device.identifier} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              <div class="mobile-label pr-2">Open</div>
-              <img src="/images/icons/more.svg" alt="options" />
-            </a>
-            <div class="dropdown-menu dropdown-menu-right">
-              <.link phx-click="reboot-device" phx-value-device_identifier={device.identifier} class="dropdown-item">
-                Reboot
-              </.link>
-              <div class="dropdown-divider"></div>
-              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}/console"} class="dropdown-item">
-                Console
-              </.link>
-              <div class="dropdown-divider"></div>
-              <div class="dropdown-divider"></div>
-              <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
-                <span>
-                  {if device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}
+    <table class="table table-sm table-hover">
+      <thead>
+        <tr>
+          <th>
+            <label for="toggle-all" class="hidden">
+              Select all devices
+            </label>
+            <input
+              class="checkbox"
+              title="Check/uncheck all"
+              {[checked: Enum.count(@selected_devices) == Enum.count(devices)]}
+              id="toggle-all"
+              name="toggle-all"
+              type="checkbox"
+              phx-click="select-all"
+            />
+          </th>
+          {devices_table_header("Identifier", "identifier", @current_sort, @sort_direction)}
+          <th>Firmware</th>
+          <th>Platform</th>
+          {devices_table_header("Added", "inserted_at", @current_sort, @sort_direction)}
+          {devices_table_header("Seen", "connection_last_seen_at", @current_sort, @sort_direction)}
+          {devices_table_header("Tags", "tags", @current_sort, @sort_direction)}
+          <th></th>
+        </tr>
+      </thead>
+      <%= for device <- devices do %>
+        <tr class={
+          if device.id in @selected_devices do
+            "selected-row"
+          end
+        }>
+          <td>
+            <label for={"#{device.id}-select"} class="hidden">
+              Select device {device.identifier}
+            </label>
+            <input class="checkbox" {if device.id in @selected_devices, do: [checked: true], else: []} type="checkbox" id={"#{device.id}-select"} phx-value-id={device.id} phx-click="select" />
+          </td>
+          <td>
+            <div class="mobile-label help-text">Identifier</div>
+            <div class="device-id-with-icon">
+              <%= if @device_statuses.result[device.identifier] == "online" do %>
+                <img src="/images/icons/check.svg" alt="connected" class="table-icon" />
+              <% else %>
+                <span title={last_seen_at_status(device.latest_connection)}>
+                  <img src="/images/icons/cross.svg" alt="offline" class="table-icon" />
                 </span>
+              <% end %>
+              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class={"ff-m #{firmware_update_status(device)}"} title={firmware_update_title(device)}>
+                {device.identifier}
               </.link>
+            </div>
+          </td>
 
-              <div class="dropdown-divider"></div>
-
-              <%= link to: Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier), class: "dropdown-item", aria: [label: "Download Audit Logs"] do %>
-                <div class="button-icon download"></div>
-                <span class="action-text">Download Audit Logs</span>
+          <td>
+            <div class="mobile-label help-text">Firmware</div>
+            <div>
+              <%= if is_nil(device.firmware_metadata) do %>
+                <span class="color-white-50">Unknown</span>
+              <% else %>
+                <span class="badge">
+                  {device.firmware_metadata.version}
+                </span>
               <% end %>
             </div>
-          </div>
-        </td>
-      </tr>
-    <% end %>
-  </table>
-  {pagination_links(@paginate_opts)}
-<% end %>
+          </td>
+
+          <td>
+            <div class="mobile-label help-text">Platform</div>
+            <div>
+              <%= if is_nil(device.firmware_metadata) do %>
+                <span class="color-white-50">Unknown</span>
+              <% else %>
+                <span class="badge">
+                  {device.firmware_metadata.platform}
+                </span>
+              <% end %>
+            </div>
+          </td>
+
+          <td>
+            <div class="mobile-label help-text">Added</div>
+            <div title={NaiveDateTime.to_iso8601(device.inserted_at)}>
+              {Timex.from_now(device.inserted_at)}
+            </div>
+          </td>
+
+          <td>
+            <div class="mobile-label help-text">Seen</div>
+            <div :if={device.latest_connection} title={last_seen_at(device.latest_connection)}>
+              {last_seen_at(device.latest_connection)}
+            </div>
+          </td>
+
+          <td>
+            <div class="mobile-label help-text">Tags</div>
+            <div>
+              <%= if !is_nil(device.tags) do %>
+                <%= for tag <- device.tags do %>
+                  <span class="badge">{tag}</span>
+                <% end %>
+              <% end %>
+            </div>
+          </td>
+
+          <td class="actions">
+            <div class="mobile-label help-text">Actions</div>
+            <div class="dropdown options">
+              <a class="dropdown-toggle options" data-target="#" id={device.identifier} data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <div class="mobile-label pr-2">Open</div>
+                <img src="/images/icons/more.svg" alt="options" />
+              </a>
+              <div class="dropdown-menu dropdown-menu-right">
+                <.link phx-click="reboot-device" phx-value-device_identifier={device.identifier} class="dropdown-item">
+                  Reboot
+                </.link>
+                <div class="dropdown-divider"></div>
+                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}/console"} class="dropdown-item">
+                  Console
+                </.link>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-divider"></div>
+                <.link phx-click="toggle-device-updates" phx-value-device_identifier={device.identifier} class="dropdown-item">
+                  <span>
+                    {if device.updates_enabled, do: "Disable Updates", else: "Enable Updates"}
+                  </span>
+                </.link>
+
+                <div class="dropdown-divider"></div>
+
+                <%= link to: Routes.device_path(@socket, :export_audit_logs, @org.name, @product.name, device.identifier), class: "dropdown-item", aria: [label: "Download Audit Logs"] do %>
+                  <div class="button-icon download"></div>
+                  <span class="action-text">Download Audit Logs</span>
+                <% end %>
+              </div>
+            </div>
+          </td>
+        </tr>
+      <% end %>
+    </table>
+    {pagination_links(@paginate_opts)}
+  <% end %>
+</.async_result>
