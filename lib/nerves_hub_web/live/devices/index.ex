@@ -473,9 +473,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
       filters: transform_deployment_filter(socket.assigns.current_filters)
     }
 
-    socket
-    |> assign(:devices, AsyncResult.loading())
-    |> assign(:device_statuses, AsyncResult.loading())
+    if socket.assigns[:devices] && socket.assigns.devices.ok? do
+      socket
+    else
+      socket
+      |> assign(:devices, AsyncResult.loading())
+      |> assign(:device_statuses, AsyncResult.loading())
+    end
     |> start_async(:update_device_list, fn ->
       %{page: Devices.filter(product, user, opts), opts: paginate_opts}
     end)
