@@ -17,11 +17,14 @@ defmodule NervesHub.Accounts.UserToken do
   schema "user_tokens" do
     belongs_to(:user, User)
 
-    field(:token, :string)
+    field(:token, :binary)
     field(:context, :string)
     field(:note, :string)
 
     field(:last_used, :utc_datetime)
+
+    # blah blah blah
+    field(:old_token, :string)
 
     timestamps()
   end
@@ -116,6 +119,8 @@ defmodule NervesHub.Accounts.UserToken do
           from(ut in __MODULE__,
             join: user in assoc(ut, :user),
             where: is_nil(user.deleted_at),
+            where: ut.context == "api",
+            where: ut.old_token == ^token,
             select: user
           )
 
@@ -127,8 +132,8 @@ defmodule NervesHub.Accounts.UserToken do
         hashed_token = :crypto.hash(@hash_algorithm, token)
 
         query =
-          from(token in by_token_and_context_query(hashed_token, "api"),
-            join: user in assoc(token, :user),
+          from(ut in by_token_and_context_query(hashed_token, "api"),
+            join: user in assoc(ut, :user),
             where: is_nil(user.deleted_at),
             select: user
           )
