@@ -20,7 +20,7 @@ defmodule NervesHubWeb.Live.Devices.NewTest do
       |> click_button("Add Device")
       |> assert_path("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("div", text: "Device created successfully.")
-      |> assert_has("a", text: "aaabbbccc111222333")
+      |> assert_has("a", text: "aaabbbccc111222333", timeout: 1000)
     end
 
     test "creates a device with an identifier and tags", %{conn: conn, org: org, product: product} do
@@ -32,7 +32,7 @@ defmodule NervesHubWeb.Live.Devices.NewTest do
       |> click_button("Add Device")
       |> assert_path("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("div", text: "Device created successfully.")
-      |> assert_has("span", text: "josh")
+      |> assert_has("span", text: "josh", timeout: 1000)
       |> assert_has("span", text: "lars")
     end
   end

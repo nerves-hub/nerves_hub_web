@@ -7,6 +7,17 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
 
   alias NervesHubWeb.Endpoint
 
+  test "Initially shows a loading message (async loading)", %{conn: conn, fixture: fixture} do
+    %{device: device, org: org, product: product} = fixture
+
+    conn
+    |> put_session("new_ui", true)
+    |> visit("/org/#{org.name}/#{product.name}/devices")
+    |> assert_has("span", text: "Loading devices ...")
+    # and then loads the device list after a second
+    |> assert_has("div a", text: device.identifier, timeout: 1000)
+  end
+
   describe "bulk adding devices to deployment group" do
     test "add multiple devices to deployment in new UI",
          %{conn: conn, fixture: fixture} do
@@ -30,6 +41,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> visit(
         "/org/#{org.name}/#{product.name}/devices?platform=#{deployment_group.firmware.platform}"
       )
+      |> assert_has("div", text: "2", timeout: 1000)
       |> check("Select all devices")
       |> assert_has("div", text: "2 devices selected")
       |> within("form#deployment-move", fn session ->
