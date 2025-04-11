@@ -13,6 +13,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHub.Products.Product
   alias NervesHub.Tracker
 
+  alias Phoenix.LiveView.AsyncResult
   alias Phoenix.LiveView.JS
   alias Phoenix.Socket.Broadcast
 
@@ -239,17 +240,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     selected_devices = socket.assigns.selected_devices
 
     selected_devices =
-      if Enum.count(selected_devices) > 0 do
+      if !socket.assigns.devices.ok? || Enum.count(selected_devices) > 0 do
         []
       else
-        Enum.map(socket.assigns.devices, & &1.id)
+        Enum.map(socket.assigns.devices.result, & &1.id)
       end
 
-    socket =
-      socket
-      |> assign(:selected_devices, selected_devices)
-
-    {:noreply, socket}
+    socket
+    |> assign(:selected_devices, selected_devices)
+    |> noreply()
   end
 
   def handle_event("deselect-all", _, socket) do
@@ -474,7 +473,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
       filters: transform_deployment_filter(socket.assigns.current_filters)
     }
 
-    page = Devices.filter(product, user, opts)
+    socket
+    |> assign(:devices, AsyncResult.loading())
+    |> assign(:device_statuses, AsyncResult.loading())
+    |> start_async(:update_device_list, fn ->
+      %{page: Devices.filter(product, user, opts), opts: paginate_opts}
+    end)
+  end
+
+  def handle_async(:update_device_list, {:ok, %{page: page, opts: paginate_opts}}, socket) do
+    %{devices: devices, device_statuses: device_statuses} = socket.assigns
 
     statuses =
       Enum.into(page.entries, %{}, fn device ->
@@ -484,11 +492,22 @@ defmodule NervesHubWeb.Live.Devices.Index do
       end)
 
     socket
-    |> assign(:device_statuses, statuses)
-    |> assign_display_devices(page)
+    |> assign(:devices, AsyncResult.ok(devices, page.entries))
+    |> assign(:device_statuses, AsyncResult.ok(device_statuses, statuses))
+    |> device_pagination_assigns(paginate_opts, page)
+    |> noreply()
   end
 
-  defp assign_display_devices(%{assigns: %{paginate_opts: paginate_opts}} = socket, page) do
+  def handle_async(:update_device_list, {:exit, reason}, socket) do
+    %{devices: devices, device_statuses: device_statuses} = socket.assigns
+
+    socket
+    |> assign(:devices, AsyncResult.failed(devices, {:exit, reason}))
+    |> assign(:device_statuses, AsyncResult.ok(device_statuses, {:exit, reason}))
+    |> noreply()
+  end
+
+  defp device_pagination_assigns(socket, paginate_opts, page) do
     paginate_opts =
       paginate_opts
       |> Map.put(:page_number, page.current_page)
@@ -496,7 +515,6 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> Map.put(:total_pages, page.total_pages)
 
     socket
-    |> assign(:devices, page.entries)
     |> assign(:total_entries, page.total_count)
     |> assign(:paginate_opts, paginate_opts)
   end
