@@ -720,6 +720,13 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> JS.hide(transition: "fade-out", to: "##{id}")
   end
 
+  def fade_in(selector) do
+    JS.show(
+      to: selector,
+      transition: {"transition-all transform ease-out duration-300", "opacity-0", "opacity-100"}
+    )
+  end
+
   defp update_flash_for_moving_deployment_group(
          socket,
          updated_count,
