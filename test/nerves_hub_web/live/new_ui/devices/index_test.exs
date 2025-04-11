@@ -15,7 +15,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> put_session("new_ui", true)
       |> live("/org/#{org.name}/#{product.name}/devices")
 
-    assert html =~ "Loading devices ..."
+    assert html =~ "Loading..."
 
     assert render_async(lv) =~ device.identifier
   end

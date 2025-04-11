@@ -15,8 +15,15 @@
 
 <div class="h-0 flex-1 overflow-y-auto">
   <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
-    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">All Devices</h1>
-    <div class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto">{@total_entries}</div>
+    <h1 :if={!@devices.ok?} class="text-xl leading-[30px] font-semibold text-neutral-50">Loading...</h1>
+    <h1 :if={@devices.ok?} id="devices-header" class="text-xl leading-[30px] font-semibold text-neutral-50 hidden" phx-mounted={fade_in("#devices-header")}>
+      All Devices
+    </h1>
+    <div class="mr-auto">
+      <div :if={@devices.ok?} id="device-count" class="rounded-sm bg-zinc-800 text-xs text-zinc-300 px-1.5 py-0.5 mr-auto hidden" phx-mounted={fade_in("#device-count")}>
+        {@total_entries}
+      </div>
+    </div>
     <form :if={@devices.ok? && (Enum.any?(@devices.result) || @currently_filtering)} class="flex items-center h-full" phx-change="update-filters">
       <div class="grid grid-cols-1 h-full">
         <input
@@ -54,8 +61,61 @@
 
   <.async_result :let={devices} assign={@devices}>
     <:loading>
-      <div class="h-full pb-16 flex items-center justify-center">
-        <span class="text-xl font-medium text-neutral-50 animate-pulse">Loading devices ...</span>
+      <div class="listing">
+        <table>
+          <thead>
+            <tr>
+              <th class="checkbox">
+                <input class="checkbox" disabled type="checkbox" />
+              </th>
+              <th>Identifier</th>
+              <th class="w-24">
+                <div class="flex justify-center">Health</div>
+              </th>
+              <th>Firmware</th>
+              <th>Platform</th>
+              <th>Uptime</th>
+              <th>Tags</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={_ <- 1..10} class="border-b border-zinc-800 isolate clickable-table-row animate-pulse">
+              <td class="checkbox"><input class="checkbox opacity-50" type="checkbox" /></td>
+              <td>
+                <div class="flex gap-[8px] items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6" fill="none">
+                    <circle cx="3" cy="3" r="3" fill="#71717A" />
+                  </svg>
+                  <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-[200px]"></div>
+                </div>
+              </td>
+
+              <td>
+                <div class="flex gap-[8px] items-center justify-center">
+                  <div class="size-4 bg-gray-200 rounded-full dark:bg-gray-700"></div>
+                </div>
+              </td>
+
+              <td>
+                <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-[80px]"></div>
+              </td>
+
+              <td>
+                <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-[80px]"></div>
+              </td>
+
+              <td>
+                <div class="h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-[80px]"></div>
+              </td>
+
+              <td>
+                <div class="flex items-center gap-[4px]">
+                  <div class="tag h-2.5 bg-gray-200 rounded-full dark:bg-gray-700 w-[30px]"></div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </:loading>
     <:failed :let={_failure}>
@@ -70,8 +130,8 @@
         <span class="text-xl font-medium text-neutral-50">{@product.name} doesn’t have any devices yet.</span>
       </div>
     <% else %>
-      <div class="listing">
-        <table class="">
+      <div id="device-list" class="listing hidden" phx-mounted={fade_in("#device-list")}>
+        <table>
           <thead>
             <tr>
               <th class="checkbox">
