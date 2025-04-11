@@ -2,8 +2,10 @@ defmodule NervesHub.Repo.Migrations.ChangeUserTokenColumnType do
   use Ecto.Migration
 
   def change do
+    rename table(:user_tokens), :token, to: :old_token
+
     alter table(:user_tokens) do
-      modify(:token, :binary)
+      add(:token, :binary)
       add(:context, :string, null: false, default: "api")
     end
 

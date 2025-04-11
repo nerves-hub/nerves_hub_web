@@ -297,7 +297,7 @@ defmodule NervesHub.AccountsTest do
     token = "nhu_#{rand}#{crc}"
 
     Repo.insert!(%UserToken{
-      token: token,
+      old_token: token,
       context: "api",
       note: "I love working with binary",
       user_id: user.id
