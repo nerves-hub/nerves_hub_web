@@ -110,70 +110,46 @@ defmodule NervesHub.Accounts.UserToken do
 
   The query returns the User found by the token, if any.
   """
-  def verify_api_token_query(token) do
-    format = get_token_format_type(token)
-
-    cond do
-      format == :old && old_token_valid?(token) ->
-        query =
-          from(ut in __MODULE__,
-            join: user in assoc(ut, :user),
-            where: is_nil(user.deleted_at),
-            where: ut.context == "api",
-            where: ut.old_token == ^token,
-            select: user
-          )
-
-        {:ok, query}
-
-      format == :new && new_token_valid?(token) ->
-        <<"nh", _u, "_", token_with_crc::binary>> = token
-        {:ok, <<token::32-bytes, _::32>>} = Base62.decode(token_with_crc)
-        hashed_token = :crypto.hash(@hash_algorithm, token)
-
-        query =
-          from(ut in by_token_and_context_query(hashed_token, "api"),
-            join: user in assoc(ut, :user),
-            where: is_nil(user.deleted_at),
-            select: user
-          )
-
-        {:ok, query}
-
-      true ->
-        :error
-    end
-  end
-
-  defp get_token_format_type(token) do
-    <<"nh", _u, "_", _::30-bytes, _::6-bytes>> = token
-    :old
-  rescue
-    MatchError -> :new
-  end
-
-  defp old_token_valid?(<<"nh", _u, "_", hmac::30-bytes, crc_str::6-bytes>>) do
+  @spec verify_api_token_query(String.t()) :: {:ok, Ecto.Query.t()} | :error
+  # TODO: This first match is the V1 token that will need to be removed when deprecated
+  def verify_api_token_query(<<"nhu_", hmac::30-bytes, crc_str::6-bytes>> = token) do
     with {:ok, crc_bin} <- Base62.decode(crc_str),
          crc = :crypto.bytes_to_integer(crc_bin),
          :ok <- assert_crc(hmac, crc) do
-      true
+      query =
+        from(ut in __MODULE__,
+          join: user in assoc(ut, :user),
+          where: is_nil(user.deleted_at),
+          where: ut.context == "api",
+          where: ut.old_token == ^token,
+          select: user
+        )
+
+      {:ok, query}
     else
-      _ -> false
+      _ -> :error
     end
   end
 
-  defp old_token_valid?(_), do: false
-
-  defp new_token_valid?(<<"nh", _u, "_", token_with_crc::binary>>) do
+  def verify_api_token_query(<<"nhu_", token_with_crc::binary>>) do
     with {:ok, <<token::32-bytes, crc::32>>} <- Base62.decode(token_with_crc),
          :ok <- assert_crc(token, crc) do
-      true
+      hashed_token = :crypto.hash(@hash_algorithm, token)
+
+      query =
+        from(ut in by_token_and_context_query(hashed_token, "api"),
+          join: user in assoc(ut, :user),
+          where: is_nil(user.deleted_at),
+          select: user
+        )
+
+      {:ok, query}
     else
-      _ -> false
+      _ -> :error
     end
   end
 
-  defp new_token_valid?(_), do: false
+  def verify_api_token_query(_token), do: :error
 
   defp assert_crc(token, crc) do
     if :erlang.crc32(token) == crc do
