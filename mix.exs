@@ -70,7 +70,6 @@ defmodule NervesHub.MixProject do
       {:recon, "~> 2.5"},
       {:assert_eventually, "~> 1.0.0", only: [:dev, :test]},
       {:bandit, "~> 1.0"},
-      {:base62, "~> 1.2"},
       {:bcrypt_elixir, "~> 3.0"},
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 0.4.1"},

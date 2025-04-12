@@ -3,7 +3,6 @@ defmodule NervesHub.Accounts.UserToken do
 
   import Ecto.Query
 
-  alias Base62, as: OldBase62
   alias NervesHub.Accounts.User
   alias NervesHub.Utils.Base62
 
@@ -153,8 +152,9 @@ defmodule NervesHub.Accounts.UserToken do
     MatchError -> :new
   end
 
-  defp old_token_valid?(<<"nh", _u, "_", hmac::30-bytes, crc_bin::6-bytes>>) do
-    with {:ok, crc} <- OldBase62.decode(crc_bin),
+  defp old_token_valid?(<<"nh", _u, "_", hmac::30-bytes, crc_str::6-bytes>>) do
+    with {:ok, crc_bin} <- Base62.decode(crc_str),
+         crc = :crypto.bytes_to_integer(crc_bin),
          :ok <- assert_crc(hmac, crc) do
       true
     else
