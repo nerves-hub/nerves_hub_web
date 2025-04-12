@@ -58,9 +58,11 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
       user: user,
       user_two: user_two
     } do
+      token_two = NervesHub.Accounts.create_user_session_token(user_two)
+
       conn_two =
         build_conn()
-        |> init_test_session(%{"auth_user_id" => user_two.id})
+        |> init_test_session(%{"user_token" => token_two})
         |> init_test_session(%{"new_ui" => true})
 
       conn
@@ -88,9 +90,11 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
       firmware = Firmwares.get_firmware_by_uuid(device.firmware_metadata.uuid)
       device_two = Fixtures.device_fixture(org, product, firmware)
 
+      token_two = NervesHub.Accounts.create_user_session_token(user_two)
+
       conn_two =
         build_conn()
-        |> init_test_session(%{"auth_user_id" => user_two.id})
+        |> init_test_session(%{"user_token" => token_two})
         |> init_test_session(%{"new_ui" => true})
 
       conn

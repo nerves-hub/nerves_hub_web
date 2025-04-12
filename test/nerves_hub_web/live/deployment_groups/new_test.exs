@@ -63,10 +63,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.NewTest do
       org = Fixtures.org_fixture(user, %{name: "empty_org"})
       product = Fixtures.product_fixture(user, org)
 
+      token = NervesHub.Accounts.create_user_session_token(user)
+
       conn =
         build_conn()
         |> Map.put(:assigns, %{org: org})
-        |> init_test_session(%{"auth_user_id" => user.id})
+        |> init_test_session(%{"user_token" => token})
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/deployments/new")

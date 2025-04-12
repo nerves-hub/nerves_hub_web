@@ -24,7 +24,7 @@ defmodule NervesHubWeb.SessionControllerTest do
   end
 
   describe "create session" do
-    test "redirected to product when logging in", %{user: user} do
+    test "redirected to the orgs page when logging in", %{user: user} do
       conn = build_conn()
 
       conn =
@@ -34,7 +34,7 @@ defmodule NervesHubWeb.SessionControllerTest do
           login: %{email: user.email, password: user.password}
         )
 
-      assert redirected_to(conn) == Routes.home_path(conn, :index)
+      assert redirected_to(conn) == "/orgs"
     end
 
     test "redirected to original URL when logging in", %{user: user} do

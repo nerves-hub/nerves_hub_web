@@ -38,7 +38,6 @@ defmodule NervesHub.MixProject do
     [
       mod: {NervesHub.Application, []},
       extra_applications: [
-        :base62,
         :inets,
         :jason,
         :logger,

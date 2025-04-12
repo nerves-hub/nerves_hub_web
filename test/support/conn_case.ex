@@ -82,17 +82,17 @@ defmodule NervesHubWeb.APIConnCase do
     end
 
     user = Fixtures.user_fixture()
-    {:ok, token} = NervesHub.Accounts.create_user_token(user, "test-token")
+    token = NervesHub.Accounts.create_user_api_token(user, "test-token")
 
     user2 = Fixtures.user_fixture()
-    {:ok, token2} = NervesHub.Accounts.create_user_token(user2, "test-token")
+    token2 = NervesHub.Accounts.create_user_api_token(user2, "test-token")
 
     org = Fixtures.org_fixture(user)
     product = Fixtures.product_fixture(user, org, %{name: "starter"})
 
     {:ok,
-     conn: build_auth_conn(token.token),
-     conn2: build_auth_conn(token2.token),
+     conn: build_auth_conn(token),
+     conn2: build_auth_conn(token2),
      org: org,
      user: user,
      user_token: token,

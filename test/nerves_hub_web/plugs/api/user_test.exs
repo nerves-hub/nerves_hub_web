@@ -2,7 +2,7 @@ defmodule NervesHubWeb.API.Plugs.UserTest do
   use ExUnit.Case, async: false
   use NervesHubWeb.APIConnCase
 
-  test "can use API token auth", %{user: user, user_token: %{token: token}} do
+  test "can use API token auth", %{user: user, user_token: token} do
     conn =
       build_conn()
       |> put_req_header("authorization", "token #{token}")
