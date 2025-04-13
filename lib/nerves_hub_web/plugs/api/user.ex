@@ -9,8 +9,8 @@ defmodule NervesHubWeb.API.Plugs.AuthenticateUser do
 
   def call(conn, _opts) do
     with {:ok, token} <- get_req_token(conn),
-         {:ok, user} <- Accounts.fetch_user_by_api_token(token),
-         :ok <- Accounts.mark_last_used(token) do
+         {:ok, user, user_token} <- Accounts.fetch_user_by_api_token(token),
+         :ok <- Accounts.mark_last_used(user_token) do
       assign(conn, :user, user)
     else
       _ ->

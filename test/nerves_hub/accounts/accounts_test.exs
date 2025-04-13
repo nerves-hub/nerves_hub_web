@@ -11,6 +11,7 @@ defmodule NervesHub.AccountsTest do
   alias NervesHub.Accounts.User
   alias NervesHub.Accounts.UserToken
   alias NervesHub.Fixtures
+  alias NervesHub.Support.Utils
   alias NervesHub.Utils.Base62
 
   @required_org_params %{name: "Org"}
@@ -287,24 +288,10 @@ defmodule NervesHub.AccountsTest do
     assert {:ok, <<_token::32-bytes, _crc::32>>} = Base62.decode(token)
   end
 
-  test "old tokens are allowed", %{user: user} do
-    secret =
-      <<user.name::binary, user.email::binary, DateTime.to_unix(DateTime.utc_now())::32>>
-
-    <<initial::160>> = Plug.Crypto.KeyGenerator.generate(secret, "user-#{user.id}", length: 20)
-    <<rand::30-bytes, _::binary>> = Base62.encode(initial) |> String.pad_leading(30, "0")
-    crc = :erlang.crc32(rand) |> Base62.encode() |> String.pad_leading(6, "0")
-    token = "nhu_#{rand}#{crc}"
-
-    Repo.insert!(%UserToken{
-      old_token: token,
-      context: "api",
-      note: "I love working with binary",
-      user_id: user.id
-    })
-
-    {:ok, query} = UserToken.verify_api_token_query(token)
-    assert user.id == Repo.one!(query) |> Map.get(:id)
+  test "old tokens are allowed", %{user: %{id: id} = user} do
+    user_token = Utils.create_v1_user_token!(user)
+    {:ok, query} = UserToken.verify_api_token_query(user_token.old_token)
+    assert {%{id: ^id}, _user_token} = Repo.one!(query)
   end
 
   describe "UserToken CRCs" do
@@ -317,15 +304,23 @@ defmodule NervesHub.AccountsTest do
 
       encoded_token = Base62.encode(<<token::32-bytes, crc + 1::32>>)
 
-      assert :crc_mismatch = UserToken.verify_token_format("nhu_#{encoded_token}")
+      assert {:error, :crc_mismatch} = UserToken.verify_api_token_query("nhu_#{encoded_token}")
     end
 
-    test "if the token is invalid, return :crc_mismatch", %{user: user} do
+    test "rejects unsupported token prefix", %{user: user} do
       token = Accounts.create_user_api_token(user, "Test token")
 
       <<"nhu_", only_token::binary>> = token
 
-      assert :invalid = UserToken.verify_token_format(only_token)
+      assert {:error, :invalid_token} = UserToken.verify_api_token_query(only_token)
+    end
+
+    test "rejects non-base62 characters", %{user: user} do
+      token = Accounts.create_user_api_token(user, "Test token")
+
+      partial = String.slice(token, 0, byte_size(token) - 1)
+
+      assert {:error, :invalid_token} = UserToken.verify_api_token_query("#{partial}.")
     end
   end
 
