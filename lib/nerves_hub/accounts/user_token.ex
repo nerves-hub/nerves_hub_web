@@ -108,9 +108,10 @@ defmodule NervesHub.Accounts.UserToken do
   @doc """
   Checks if the token is valid and returns its underlying lookup query.
 
-  The query returns the User found by the token, if any.
+  The query returns a tuple of User and UserToken `{user, user_token}`
   """
-  @spec verify_api_token_query(String.t()) :: {:ok, Ecto.Query.t()} | :error
+  @spec verify_api_token_query(String.t()) ::
+          {:ok, Ecto.Query.t()} | {:error, :invalid_crc | :crc_mismatch}
   # TODO: This first match is the V1 token that will need to be removed when deprecated
   def verify_api_token_query(<<"nhu_", hmac::30-bytes, crc_str::6-bytes>> = token) do
     with {:ok, crc_bin} <- Base62.decode(crc_str),
@@ -122,12 +123,13 @@ defmodule NervesHub.Accounts.UserToken do
           where: is_nil(user.deleted_at),
           where: ut.context == "api",
           where: ut.old_token == ^token,
-          select: user
+          select: {user, ut}
         )
 
       {:ok, query}
     else
-      _ -> :error
+      {:error, %ArgumentError{}} -> {:error, :invalid_token}
+      err -> {:error, err}
     end
   end
 
@@ -140,52 +142,23 @@ defmodule NervesHub.Accounts.UserToken do
         from(ut in by_token_and_context_query(hashed_token, "api"),
           join: user in assoc(ut, :user),
           where: is_nil(user.deleted_at),
-          select: user
+          select: {user, ut}
         )
 
       {:ok, query}
     else
-      _ -> :error
+      {:error, %ArgumentError{}} -> {:error, :invalid_token}
+      err -> {:error, err}
     end
   end
 
-  def verify_api_token_query(_token), do: :error
+  def verify_api_token_query(_token), do: {:error, :invalid_token}
 
   defp assert_crc(token, crc) do
     if :erlang.crc32(token) == crc do
       :ok
     else
       :crc_mismatch
-    end
-  end
-
-  @doc """
-  Checks if the token is valid and returns a query for updating the `last_used` field.
-  """
-  def mark_last_used_query(token) do
-    case verify_token_format(token) do
-      {:ok, hashed_token} ->
-        query = by_token_and_context_query(hashed_token, "api")
-
-        {:ok, query}
-
-      _ ->
-        :error
-    end
-  end
-
-  @spec verify_token_format(String.t()) :: {:ok, String.t()} | :crc_mismatch | :invalid
-  def verify_token_format(token) do
-    with <<"nh", _u, "_", token_with_crc::binary>> <- token,
-         {:ok, <<token::32-bytes, crc::32>>} <- Base62.decode(token_with_crc),
-         :ok <- assert_crc(token, crc) do
-      {:ok, :crypto.hash(@hash_algorithm, token)}
-    else
-      :crc_mismatch ->
-        :crc_mismatch
-
-      _ ->
-        :invalid
     end
   end
 

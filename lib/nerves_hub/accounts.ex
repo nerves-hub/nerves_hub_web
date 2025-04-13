@@ -738,6 +738,15 @@ defmodule NervesHub.Accounts do
   Get a UserToken preloaded with the User
   """
   @spec get_user_token(String.t()) :: {:ok, UserToken.t()} | {:error, :not_found}
+  def get_user_token("nh" <> _ = friendly_token) do
+    with {:ok, query} <- UserToken.verify_api_token_query(friendly_token),
+         {%User{}, user_token} <- Repo.one(query) do
+      {:ok, user_token}
+    else
+      _ -> {:error, :not_found}
+    end
+  end
+
   def get_user_token(token) do
     from(UserToken, where: [token: ^token], preload: [:user])
     |> Repo.one()
@@ -782,8 +791,8 @@ defmodule NervesHub.Accounts do
   """
   def fetch_user_by_api_token(token) do
     with {:ok, query} <- UserToken.verify_api_token_query(token),
-         %User{} = user <- Repo.one(query) do
-      {:ok, user}
+         {user, user_token} <- Repo.one(query) do
+      {:ok, user, user_token}
     else
       _ -> :error
     end
@@ -792,14 +801,11 @@ defmodule NervesHub.Accounts do
   @doc """
   Update the API token as just used.
   """
-  def mark_last_used(token) do
-    with {:ok, query} <- UserToken.mark_last_used_query(token),
-         {1, nil} <-
-           Repo.update_all(query,
-             set: [last_used: DateTime.truncate(DateTime.utc_now(), :second)]
-           ) do
-      :ok
-    else
+  def mark_last_used(user_token) do
+    changeset = Ecto.Changeset.change(user_token, %{last_used: DateTime.utc_now(:second)})
+
+    case Repo.update(changeset) do
+      {:ok, _user_token} -> :ok
       _ -> :error
     end
   end
