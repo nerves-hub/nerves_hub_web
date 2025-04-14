@@ -294,6 +294,24 @@ defmodule NervesHub.AccountsTest do
     assert {%{id: ^id}, _user_token} = Repo.one!(query)
   end
 
+  describe "create_user_session_token/1" do
+    test "it creates a session token for the user", %{user: user} do
+      token = Accounts.create_user_session_token(user)
+      user_by_token = Accounts.get_user_by_session_token(token)
+      assert user.id == user_by_token.id
+
+      {:ok, user_token} = Accounts.get_user_token(token)
+      assert user_token.context == "session"
+      assert user_token.token
+    end
+
+    test "it sets a note on the user_token", %{user: user} do
+      token = Accounts.create_user_session_token(user, "A nice note")
+      {:ok, user_token} = Accounts.get_user_token(token)
+      assert user_token.note == "A nice note"
+    end
+  end
+
   describe "UserToken CRCs" do
     test "if the crc doesn't match, return :crc_mismatch", %{user: user} do
       token = Accounts.create_user_api_token(user, "Test token")
