@@ -345,7 +345,7 @@
           </div>
           <div class="mt-6">
             <label class="sidebar-label" for="input_platform">Platform</label>
-            <select class="sidebar-select" name="input_platform" id="input_platform">
+            <select class="sidebar-select" name="platform" id="input_platform">
               <option {selected?(@current_filters, :platform, "")} value="">All</option>
               <%= for platform <- @platforms do %>
                 <option {selected?(@current_filters, :platform, platform)} value={platform}>{if platform, do: platform, else: "Unknown"}</option>

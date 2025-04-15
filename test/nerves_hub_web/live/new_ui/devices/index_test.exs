@@ -49,4 +49,31 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       assert Repo.reload(device2) |> Map.get(:deployment_id)
     end
   end
+
+  describe "filtering devices" do
+    test "by platform", %{conn: conn, fixture: fixture} do
+      %{
+        device: device,
+        org: org,
+        product: product,
+        user: user
+      } = fixture
+
+      org_key = Fixtures.org_key_fixture(org, user)
+      foo_firmware = Fixtures.firmware_fixture(org_key, product, %{platform: "foo"})
+      device2 = Fixtures.device_fixture(org, product, foo_firmware)
+
+      conn
+      |> put_session("new_ui", true)
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier)
+      |> assert_has("a", text: device2.identifier)
+      |> select("Platform", option: "foo")
+      |> refute_has("a", text: device.identifier)
+      |> assert_has("a", text: device2.identifier)
+      |> select("Platform", option: "platform")
+      |> assert_has("a", text: device.identifier)
+      |> refute_has("a", text: device2.identifier)
+    end
+  end
 end
