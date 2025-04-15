@@ -9,7 +9,7 @@ defmodule NervesHubWeb.Live.Firmware do
 
   embed_templates("firmware_templates/*")
 
-  @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
+  @pagination_opts ["page_number", "page_size", "sort", "sort_direction", "filter"]
 
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
@@ -203,7 +203,8 @@ defmodule NervesHubWeb.Live.Firmware do
       page: pagination_opts["page_number"],
       page_size: pagination_opts["page_size"],
       sort: pagination_opts["sort"] || "inserted_at",
-      sort_direction: pagination_opts["sort_direction"]
+      sort_direction: pagination_opts["sort_direction"],
+      filter: pagination_opts["filter"]
     }
 
     {entries, pager_meta} = Firmwares.filter(product, opts)
