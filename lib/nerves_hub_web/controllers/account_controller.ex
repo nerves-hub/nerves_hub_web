@@ -3,52 +3,64 @@ defmodule NervesHubWeb.AccountController do
 
   alias Ecto.Changeset
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.SwooshEmail
   alias NervesHub.Accounts.User
-  alias NervesHub.SwooshMailer
+  alias NervesHub.Accounts.UserNotifier
+
+  alias NervesHubWeb.Auth
 
   plug(:registrations_allowed when action in [:new, :create])
 
   def new(conn, _params) do
-    render(conn, "new.html", changeset: Ecto.Changeset.change(%User{}))
+    changeset = Ecto.Changeset.change(%User{})
+
+    conn
+    |> put_layout(false)
+    |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
+    |> render(:new, changeset: changeset)
   end
 
   def create(conn, %{"user" => user_params} = _) do
     case Accounts.create_user(user_params) do
       {:ok, new_user} ->
-        _ =
-          new_user
-          |> SwooshEmail.welcome_user()
-          |> SwooshMailer.deliver()
+        {:ok, _} =
+          Accounts.deliver_user_confirmation_instructions(
+            new_user,
+            &url(~p"/confirm/#{&1}")
+          )
 
         conn
-        |> put_flash(:info, "Account successfully created, login below")
-        |> redirect(to: "/login")
+        |> put_layout(false)
+        |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
+        |> assign(:email, new_user.email)
+        |> render(:registered)
 
       {:error, %Changeset{} = changeset} ->
-        render(conn, "new.html", changeset: changeset)
+        conn
+        |> put_layout(false)
+        |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
+        |> render(:new, changeset: changeset)
     end
   end
 
   def invite(conn, %{"token" => token} = _) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
-      render(
-        conn,
-        "invite.html",
-        changeset: %Changeset{data: invite},
-        org: org,
-        token: token
-      )
+      conn
+      |> assign(:changeset, %Changeset{data: invite})
+      |> assign(:org, org)
+      |> assign(:token, token)
+      |> put_layout(false)
+      |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
+      |> render(:invite)
     else
       _ ->
         conn
         |> put_flash(:error, "Invalid or expired invite")
-        |> redirect(to: "/")
+        |> redirect(to: "/login")
     end
   end
 
-  def accept_invite(conn, %{"user" => user_params, "token" => token} = _) do
+  def accept_invite(conn, %{"user" => user_params, "token" => token}) do
     with {:ok, invite} <- Accounts.get_valid_invite(token),
          {:ok, org} <- Accounts.get_org(invite.org_id) do
       _accept_invite(conn, token, user_params, invite, org)
@@ -68,30 +80,21 @@ defmodule NervesHubWeb.AccountController do
   defp _accept_invite(conn, token, user_params, invite, org) do
     case Accounts.create_user_from_invite(invite, org, user_params) do
       {:ok, new_org_user} ->
-        # Now let everyone in the organization - except the new guy -
-        # know about this new user.
-        email =
-          SwooshEmail.tell_org_user_added(
-            org,
-            Accounts.get_org_users(org),
-            invite.invited_by,
-            new_org_user.user
-          )
-
-        _ = SwooshMailer.deliver(email)
+        # Now let all admins in the organization know about this new user.
+        UserNotifier.deliver_all_tell_org_user_added(org, invite.invited_by, new_org_user.user)
 
         conn
-        |> put_flash(:info, "Account successfully created, login below")
-        |> redirect(to: "/login")
+        |> put_flash(:info, "Welcome to NervesHub!")
+        |> Auth.log_in_user(new_org_user.user, user_params)
 
       {:error, %Changeset{} = changeset} ->
-        render(
-          conn,
-          "invite.html",
-          changeset: changeset,
-          org: org,
-          token: token
-        )
+        conn
+        |> assign(:changeset, changeset)
+        |> assign(:org, org)
+        |> assign(:token, token)
+        |> put_layout(false)
+        |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
+        |> render(:invite)
     end
   end
 
