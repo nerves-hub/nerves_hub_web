@@ -505,6 +505,11 @@ defmodule NervesHubWeb.Live.Devices.Index do
   def handle_async(:update_device_list, {:exit, reason}, socket) do
     %{devices: devices, device_statuses: device_statuses} = socket.assigns
 
+    message =
+      "Live.Devices.Index.handle_async:update_device_list failed due to exit: #{inspect(reason)}"
+
+    {:ok, _} = Sentry.capture_message(message, result: :none)
+
     socket
     |> assign(:devices, AsyncResult.failed(devices, {:exit, reason}))
     |> assign(:device_statuses, AsyncResult.ok(device_statuses, {:exit, reason}))
