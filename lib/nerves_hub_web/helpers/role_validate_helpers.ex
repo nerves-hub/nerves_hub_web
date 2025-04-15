@@ -14,18 +14,14 @@ defmodule NervesHubWeb.Helpers.RoleValidateHelpers do
   end
 
   def validate_role(_conn, [{_key, value}]) do
-    halt_role(value)
+    raise NervesHubWeb.UnauthorizedError, required_role: to_string(value)
   end
 
   def validate_org_user_role(conn, org, user, role) do
     if NervesHub.Accounts.has_org_role?(org, user, role) do
       conn
     else
-      halt_role(to_string(role))
+      raise NervesHubWeb.UnauthorizedError, required_role: to_string(role)
     end
-  end
-
-  def halt_role(required_role) do
-    raise NervesHubWeb.UnauthorizedError, required_role: required_role
   end
 end
