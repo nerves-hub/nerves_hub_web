@@ -69,6 +69,14 @@ defmodule NervesHubWeb.APIConnCase do
 
       alias NervesHubWeb.Router.Helpers, as: Routes
 
+      def assert_authorization_error(response, status \\ 401) do
+        {^status, _headers, json_response} = response
+
+        assert JSON.decode!(json_response) == %{
+                 "errors" => %{"detail" => "Resource Not Found or Authorization Insufficient"}
+               }
+      end
+
       # The default endpoint for testing
       @endpoint NervesHubWeb.Endpoint
     end

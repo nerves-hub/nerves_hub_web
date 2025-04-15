@@ -4,19 +4,17 @@ defmodule NervesHubWeb.API.CACertificateController do
   alias NervesHub.Certificate
   alias NervesHub.Devices
 
-  action_fallback(NervesHubWeb.API.FallbackController)
-
   plug(:validate_role, [org: :manage] when action in [:create, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
   def index(%{assigns: %{org: org}} = conn, _params) do
     ca_certificates = Devices.get_ca_certificates(org)
-    render(conn, "index.json", ca_certificates: ca_certificates)
+    render(conn, :index, ca_certificates: ca_certificates)
   end
 
   def show(%{assigns: %{org: org}} = conn, %{"serial" => serial}) do
     with {:ok, ca_certificate} <- Devices.get_ca_certificate_by_org_and_serial(org, serial) do
-      render(conn, "show.json", ca_certificate: ca_certificate)
+      render(conn, :show, ca_certificate: ca_certificate)
     end
   end
 
@@ -44,10 +42,13 @@ defmodule NervesHubWeb.API.CACertificateController do
         "location",
         Routes.api_ca_certificate_path(conn, :show, org.name, ca_certificate.serial)
       )
-      |> render("show.json", ca_certificate: ca_certificate)
+      |> render(:show, ca_certificate: ca_certificate)
     else
-      {:error, :not_found} -> {:error, "error decoding certificate"}
-      e -> e
+      {:error, :not_found} ->
+        {:error, {:certificate_decoding_error, "Error decoding certificate"}}
+
+      e ->
+        e
     end
   end
 

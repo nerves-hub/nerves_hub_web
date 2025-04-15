@@ -3,22 +3,20 @@ defmodule NervesHubWeb.API.UserController do
 
   alias NervesHub.Accounts
 
-  action_fallback(NervesHubWeb.API.FallbackController)
-
   def me(%{assigns: %{user: user}} = conn, _params) do
-    render(conn, "show.json", user: user)
+    render(conn, :show, user: user)
   end
 
   def auth(conn, %{"email" => email, "password" => password}) do
     with {:ok, user} <- Accounts.authenticate(email, password) do
-      render(conn, "show.json", user: user)
+      render(conn, :show, user: user)
     end
   end
 
   def login(conn, %{"email" => email, "password" => password, "note" => note}) do
     with {:ok, user} <- Accounts.authenticate(email, password),
          token <- Accounts.create_user_api_token(user, note) do
-      render(conn, "show.json", user: user, token: token)
+      render(conn, :show, user: user, token: token)
     end
   end
 end

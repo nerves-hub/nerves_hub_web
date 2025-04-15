@@ -6,8 +6,6 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
-  action_fallback(NervesHubWeb.API.FallbackController)
-
   plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
@@ -15,13 +13,13 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   def index(%{assigns: %{product: product}} = conn, _params) do
     deployment_groups = ManagedDeployments.get_deployment_groups_by_product(product)
-    render(conn, "index.json", deployment_groups: deployment_groups)
+    render(conn, :index, deployment_groups: deployment_groups)
   end
 
   def create(%{assigns: %{org: org, product: product, user: user}} = conn, params) do
     case Map.get(params, "firmware") do
       nil ->
-        {:error, :no_firmware_uuid}
+        {:error, {:no_firmware_uuid, "No firmware UUID provided"}}
 
       uuid ->
         with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
@@ -43,14 +41,14 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
               deployment_group.name
             )
           )
-          |> render("show.json", deployment_group: %{deployment_group | firmware: firmware})
+          |> render(:show, deployment_group: %{deployment_group | firmware: firmware})
         end
     end
   end
 
   def show(%{assigns: %{org: _org, product: product}} = conn, %{"name" => name}) do
     with {:ok, deployment_group} <- ManagedDeployments.get_deployment_group_by_name(product, name) do
-      render(conn, "show.json", deployment_group: deployment_group)
+      render(conn, :show, deployment_group: deployment_group)
     end
   end
 
@@ -69,7 +67,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
            ) do
       DeploymentGroupTemplates.audit_deployment_updated(user, deployment_group)
 
-      render(conn, "show.json", deployment_group: updated_deployment_group)
+      render(conn, :show, deployment_group: updated_deployment_group)
     end
   end
 

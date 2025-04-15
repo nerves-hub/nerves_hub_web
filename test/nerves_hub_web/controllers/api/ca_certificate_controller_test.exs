@@ -49,7 +49,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
     test "renders errors when data is invalid", %{conn: conn, org: org} do
       conn = post(conn, Routes.api_ca_certificate_path(conn, :create, org.name), cert: "")
 
-      assert json_response(conn, 500)["errors"] != %{}
+      assert json_response(conn, 422)["errors"] != %{}
     end
   end
 
