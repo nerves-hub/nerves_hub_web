@@ -108,7 +108,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
           path: |
-            priv/plts
+            _build/dev
 
       - name: Create PLTs
         if: steps.plt_cache.outputs.cache-hit != 'true'
@@ -122,7 +122,7 @@ jobs:
           key: |
             ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt
           path: |
-            priv/plts
+            _build/dev
 
       - name: Run dialyzer
         run: mix dialyzer
