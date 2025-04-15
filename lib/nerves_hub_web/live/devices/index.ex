@@ -781,4 +781,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp maybe_assign_available_deployment_groups_for_filtered_platform(socket),
     do: assign(socket, :available_deployment_groups_for_filtered_platform, [])
+
+  defp has_results?(%AsyncResult{} = device_async, currently_filtering?) do
+    device_async.ok? && (Enum.any?(device_async.result) || currently_filtering?)
+  end
 end
