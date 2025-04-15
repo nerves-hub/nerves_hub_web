@@ -124,7 +124,13 @@ defmodule NervesHub.Fixtures do
   end
 
   def user_fixture(params \\ %{}) do
-    {:ok, user} = params |> Enum.into(user_params()) |> Accounts.create_user()
+    {:ok, user} =
+      params
+      |> Enum.into(user_params())
+      |> Accounts.create_user()
+
+    {:ok, user} = Accounts.confirm_user(user)
+
     user
   end
 

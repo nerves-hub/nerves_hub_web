@@ -35,6 +35,7 @@ defmodule NervesHub.Accounts.User do
     field(:password_hash, :string)
     field(:password_reset_token, UUID)
     field(:password_reset_token_expires, :utc_datetime)
+    field(:confirmed_at, :naive_datetime)
     field(:deleted_at, :utc_datetime)
 
     field(:server_role, Ecto.Enum, values: [:admin, :view])
@@ -42,10 +43,10 @@ defmodule NervesHub.Accounts.User do
     timestamps()
   end
 
-  defp changeset(%User{} = user, params) do
+  defp changeset(%User{} = user, params, opts \\ []) do
     user
     |> cast(params, @required_params ++ @optional_params)
-    |> hash_password()
+    |> maybe_hash_password(opts)
     |> password_validations()
     |> update_change(:name, &trim/1)
     |> validate_format(:name, ~r/^[a-zA-Z\'\- ]+$/, message: "has invalid character(s)")
@@ -53,15 +54,67 @@ defmodule NervesHub.Accounts.User do
     |> unique_constraint(:email)
   end
 
+  def registration_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:name, :email, :password])
+    |> validate_name(opts)
+    |> validate_email(opts)
+    |> validate_password(opts)
+  end
+
+  defp validate_name(changeset, _opts) do
+    changeset
+    |> update_change(:name, &trim/1)
+    |> validate_required([:name])
+    |> validate_length(:name, min: 2, max: 100)
+    |> validate_format(:name, ~r/^[a-zA-Z\'\- ]+$/, message: "has invalid character(s)")
+  end
+
+  defp validate_email(changeset, _opts) do
+    changeset
+    |> validate_required([:email])
+    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
+    |> validate_length(:email, max: 160)
+    |> unique_constraint(:email)
+  end
+
+  defp validate_password(changeset, opts) do
+    changeset
+    |> validate_required([:password])
+    |> validate_length(:password, min: 12, max: 72)
+    # Examples of additional password validation:
+    # |> validate_format(:password, ~r/[a-z]/, message: "at least one lower case character")
+    # |> validate_format(:password, ~r/[A-Z]/, message: "at least one upper case character")
+    # |> validate_format(:password, ~r/[!?@#$%^&*_0-9]/, message: "at least one digit or punctuation character")
+    |> maybe_hash_password(opts)
+  end
+
+  defp maybe_hash_password(changeset, opts) do
+    hash_password? = Keyword.get(opts, :hash_password, true)
+    password = get_change(changeset, :password)
+
+    if hash_password? && password && changeset.valid? do
+      changeset
+      # If using Bcrypt, then further validate it is at most 72 bytes long
+      |> validate_length(:password, max: 72, count: :bytes)
+      # Hashing could be done with `Ecto.Changeset.prepare_changes/2`, but that
+      # would keep the database transaction open longer and hurt performance.
+      |> put_change(:password_hash, Bcrypt.hash_pwd_salt(password))
+      |> delete_change(:password)
+    else
+      changeset
+    end
+  end
+
   def creation_changeset(%User{} = user, params) do
     changeset(user, params)
     |> validate_required([:password])
   end
 
-  def password_changeset(%User{} = user, params) do
+  def password_changeset(%User{} = user, params, opts \\ []) do
     user
     |> cast(params, [:password, :password_confirmation])
-    |> hash_password()
+    |> maybe_hash_password(opts)
     |> password_validations()
     |> validate_confirmation(:password, message: "does not match", required: true)
     |> validate_required([:password_hash])
@@ -72,6 +125,14 @@ defmodule NervesHub.Accounts.User do
     changeset(user, params)
     |> generate_password_reset_token_expires()
     |> email_password_update_valid?(user, params)
+  end
+
+  @doc """
+  Confirms the account by setting `confirmed_at`.
+  """
+  def confirm_changeset(user) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    change(user, confirmed_at: now)
   end
 
   @doc """
@@ -90,23 +151,19 @@ defmodule NervesHub.Accounts.User do
   end
 
   def with_all_orgs(%User{} = u) do
-    u
-    |> Repo.preload(:orgs)
+    Repo.preload(u, :orgs)
   end
 
   def with_all_orgs(user_query) do
-    user_query
-    |> preload(:orgs)
+    preload(user_query, :orgs)
   end
 
   def with_org_keys(%User{} = u) do
-    u
-    |> Repo.preload(orgs: [:org_keys])
+    Repo.preload(u, orgs: [:org_keys])
   end
 
   def with_org_keys(user_query) do
-    user_query
-    |> preload(orgs: [:org_keys])
+    preload(user_query, orgs: [:org_keys])
   end
 
   def role_or_higher(:view), do: [:view, :manage, :admin]
@@ -182,16 +239,6 @@ defmodule NervesHub.Accounts.User do
   end
 
   defp generate_password_reset_token_expires(%Changeset{} = changeset), do: changeset
-
-  defp hash_password(%Ecto.Changeset{valid?: true, changes: %{password: password}} = changeset) do
-    password_hash = Bcrypt.hash_pwd_salt(password)
-
-    changeset
-    |> put_change(:password_hash, password_hash)
-    |> put_change(:password_confirmation, nil)
-  end
-
-  defp hash_password(changeset), do: changeset
 
   @doc """
   The time length that a password reset token is valid.

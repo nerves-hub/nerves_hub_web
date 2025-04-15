@@ -1,0 +1,17 @@
+<mjml>
+  <mj-body>
+    <mj-section>
+      <mj-column>
+        <mj-image width="200px" align="left" src="https://manage.nervescloud.com/images/logo-colored.svg"></mj-image>
+
+        <mj-divider border-color="#6366f1"></mj-divider>
+
+        <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">Hi <%= @user_name %></mj-text>
+
+        <mj-text font-size="20px" font-family="sans-serif" padding-top="20px"><strong><%= @removed_user_name %></strong> has been removed from the <strong><%= @org_name %></strong> organization by <strong><%= @instigator_name %></strong>.</mj-text>
+      </mj-column>
+    </mj-section>
+
+    <%= render_dynamic_component NervesHub.Emails.ClosingBlock, %{} %>
+  </mj-body>
+</mjml>

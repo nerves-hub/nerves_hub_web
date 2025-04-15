@@ -219,14 +219,15 @@ defmodule NervesHubWeb.Router do
 
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
+    get("/confirm/:token", SessionController, :confirm)
 
     get("/register", AccountController, :new)
     post("/register", AccountController, :create)
 
     get("/password-reset", PasswordResetController, :new)
     post("/password-reset", PasswordResetController, :create)
-    get("/password-reset/:token", PasswordResetController, :new_password_form)
-    put("/password-reset/:token", PasswordResetController, :reset)
+    get("/password-reset/:token", PasswordResetController, :edit)
+    put("/password-reset/:token", PasswordResetController, :update)
 
     get("/invite/:token", AccountController, :invite)
     post("/invite/:token", AccountController, :accept_invite)

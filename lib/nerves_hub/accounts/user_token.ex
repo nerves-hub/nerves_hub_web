@@ -9,6 +9,8 @@ defmodule NervesHub.Accounts.UserToken do
   @rand_size 32
   @hash_algorithm :sha512
 
+  @confirm_validity_in_days 1
+  @password_reset_validity_in_days 1
   @session_validity_in_days 60
 
   @type t :: %__MODULE__{}
@@ -128,7 +130,7 @@ defmodule NervesHub.Accounts.UserToken do
 
       {:ok, query}
     else
-      {:error, %ArgumentError{}} -> {:error, :invalid_token}
+      :error -> {:error, :invalid_token}
       err -> {:error, err}
     end
   end
@@ -147,12 +149,88 @@ defmodule NervesHub.Accounts.UserToken do
 
       {:ok, query}
     else
-      {:error, %ArgumentError{}} -> {:error, :invalid_token}
+      :error -> {:error, :invalid_token}
       err -> {:error, err}
     end
   end
 
   def verify_api_token_query(_token), do: {:error, :invalid_token}
+
+  @doc """
+  Checks if the token is valid and returns its underlying lookup query.
+
+  The query returns the user found by the token, if any.
+
+  The given token is valid if it matches its hashed counterpart in the
+  database. This function also checks if the token is being used within a
+  certain period.
+
+  The default contexts supported by this function are either
+  "confirm", for account confirmation emails, and "reset_password",
+  for resetting the password.
+  """
+  def verify_account_confirmation_token_query(<<"nhu_", token_with_crc::binary>>) do
+    with {:ok, <<token::32-bytes, crc::32>>} <- Base62.decode(token_with_crc),
+         :ok <- assert_crc(token, crc) do
+      hashed_token = :crypto.hash(@hash_algorithm, token)
+
+      query =
+        from(ut in by_token_and_context_query(hashed_token, "confirm"),
+          join: user in assoc(ut, :user),
+          where: is_nil(user.deleted_at),
+          select: {user, ut}
+        )
+
+      {:ok, query}
+    else
+      :error -> {:error, :invalid_token}
+      err -> {:error, err}
+    end
+  end
+
+  @doc """
+  Checks if the token is valid and returns its underlying lookup query.
+
+  The query returns the user found by the token, if any.
+
+  The given token is valid if it matches its hashed counterpart in the
+  database. This function also checks if the token is being used within a
+  certain period.
+
+  The default contexts supported by this function are either
+  "confirm", for account confirmation emails, and "reset_password",
+  for resetting the password.
+  """
+  def verify_reset_password_token_query(<<"nhu_", token_with_crc::binary>>) do
+    with {:ok, <<token::32-bytes, crc::32>>} <- Base62.decode(token_with_crc),
+         :ok <- assert_crc(token, crc) do
+      hashed_token = :crypto.hash(@hash_algorithm, token)
+
+      query =
+        from(ut in by_token_and_context_query(hashed_token, "reset_password"),
+          join: user in assoc(ut, :user),
+          where: is_nil(user.deleted_at),
+          select: {user, ut}
+        )
+
+      {:ok, query}
+    else
+      :error -> {:error, :invalid_token}
+      err -> {:error, err}
+    end
+  end
+
+  def confirm_token_still_valid?(token) do
+    valid_until = NaiveDateTime.add(token.inserted_at, @confirm_validity_in_days, :day)
+
+    NaiveDateTime.compare(NaiveDateTime.utc_now(), valid_until) == :lt
+  end
+
+  def password_reset_token_still_valid?(token) do
+    valid_until = NaiveDateTime.add(token.inserted_at, @password_reset_validity_in_days, :day)
+
+    NaiveDateTime.compare(NaiveDateTime.utc_now(), valid_until) == :lt
+  end
 
   defp assert_crc(token, crc) do
     if :erlang.crc32(token) == crc do
@@ -167,6 +245,17 @@ defmodule NervesHub.Accounts.UserToken do
   """
   def by_token_and_context_query(token, context) do
     from(__MODULE__, where: [token: ^token, context: ^context])
+  end
+
+  @doc """
+  Gets all tokens for the given user for the given contexts.
+  """
+  def by_user_and_contexts_query(user, :all) do
+    from(t in __MODULE__, where: t.user_id == ^user.id)
+  end
+
+  def by_user_and_contexts_query(user, [_ | _] = contexts) do
+    from(t in __MODULE__, where: t.user_id == ^user.id and t.context in ^contexts)
   end
 
   defp trim(string) when is_binary(string) do
