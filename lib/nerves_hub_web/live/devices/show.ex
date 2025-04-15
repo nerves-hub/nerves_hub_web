@@ -523,8 +523,8 @@ defmodule NervesHubWeb.Live.Devices.Show do
     socket = stream(socket, :presences, [])
 
     if connected?(socket) do
-      Presence.track_user(topic, user.id, %{name: user.name})
-      Presence.subscribe(topic)
+      _ = Presence.track_user(topic, user.id, %{name: user.name})
+      _ = Presence.subscribe(topic)
       stream(socket, :presences, Presence.list_online_users(topic))
     else
       socket
