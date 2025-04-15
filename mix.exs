@@ -26,7 +26,8 @@ defmodule NervesHub.MixProject do
       ],
       dialyzer: [
         flags: [:missing_return, :extra_return, :unmatched_returns, :error_handling, :underspecs],
-        plt_add_apps: [:ex_unit, :mix]
+        plt_add_apps: [:ex_unit, :mix],
+        plt_core_path: "_build/#{Mix.env()}"
       ]
     ]
   end

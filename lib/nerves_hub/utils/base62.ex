@@ -52,7 +52,7 @@ defmodule NervesHub.Utils.Base62 do
     |> :binary.list_to_bin()
   end
 
-  @spec decode(binary()) :: {:ok, binary()} | {:error, ArgumentError.t()}
+  @spec decode(binary()) :: {:ok, binary()} | {:error, Exception.t()}
   def decode(bin) do
     {:ok, decode!(bin)}
   rescue
