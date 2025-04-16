@@ -1,7 +1,7 @@
 defmodule NervesHub.Accounts.UserNotifierTest do
   use NervesHub.DataCase
 
-  import Swoosh.TestAssertions
+  import Swoosh.X.TestAssertions
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.User
