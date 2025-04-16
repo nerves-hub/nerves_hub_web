@@ -81,7 +81,8 @@ defmodule NervesHubWeb.AccountController do
     case Accounts.create_user_from_invite(invite, org, user_params) do
       {:ok, new_org_user} ->
         # Now let all admins in the organization know about this new user.
-        UserNotifier.deliver_all_tell_org_user_added(org, invite.invited_by, new_org_user.user)
+        _ =
+          UserNotifier.deliver_all_tell_org_user_added(org, invite.invited_by, new_org_user.user)
 
         conn
         |> put_flash(:info, "Welcome to NervesHub!")

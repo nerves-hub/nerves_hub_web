@@ -118,7 +118,7 @@ defmodule NervesHub.Accounts do
     Repo.update(changeset)
     |> case do
       {:ok, user} ->
-        deliver_user_password_updated(user, reset_url)
+        _ = deliver_user_password_updated(user, reset_url)
         {:ok, user}
 
       {:error, changeset} ->
@@ -942,7 +942,7 @@ defmodule NervesHub.Accounts do
     |> Repo.transaction()
     |> case do
       {:ok, %{user: user}} ->
-        UserNotifier.deliver_reset_password_confirmation(user)
+        _ = UserNotifier.deliver_reset_password_confirmation(user)
 
         {:ok, user}
 

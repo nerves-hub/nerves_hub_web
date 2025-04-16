@@ -49,7 +49,7 @@ defmodule NervesHubWeb.API.OrgUserController do
       # know about this new user.
       instigator = conn.assigns.user
 
-      UserNotifier.deliver_all_tell_org_user_added(org, instigator, user)
+      _ = UserNotifier.deliver_all_tell_org_user_added(org, instigator, user)
 
       conn
       |> put_status(:created)
@@ -82,7 +82,7 @@ defmodule NervesHubWeb.API.OrgUserController do
          :ok <- Accounts.remove_org_user(org, user_to_remove) do
       # Now let every admin in the organization know
       # that this user has been removed from the organization.
-      UserNotifier.deliver_all_tell_org_user_removed(org, user, user_to_remove)
+      _ = UserNotifier.deliver_all_tell_org_user_removed(org, user, user_to_remove)
 
       send_resp(conn, :no_content, "")
     end

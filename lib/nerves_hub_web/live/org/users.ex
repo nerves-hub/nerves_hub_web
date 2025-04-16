@@ -57,8 +57,8 @@ defmodule NervesHubWeb.Live.Org.Users do
       {:ok, %Invite{} = invite} ->
         invite_url = url(~p"/invite/#{invite.token}")
 
-        UserNotifier.deliver_user_invite(invite.email, org, invited_by, invite_url)
-        UserNotifier.deliver_all_tell_org_user_invited(org, invited_by, invite.email)
+        _ = UserNotifier.deliver_user_invite(invite.email, org, invited_by, invite_url)
+        _ = UserNotifier.deliver_all_tell_org_user_invited(org, invited_by, invite.email)
 
         socket
         |> put_flash(:info, "User has been invited")
@@ -66,8 +66,8 @@ defmodule NervesHubWeb.Live.Org.Users do
         |> noreply()
 
       {:ok, %OrgUser{} = org_user} ->
-        UserNotifier.deliver_all_tell_org_user_added(org, invited_by, org_user.user)
-        UserNotifier.deliver_org_user_added(org, invited_by, org_user.user)
+        _ = UserNotifier.deliver_all_tell_org_user_added(org, invited_by, org_user.user)
+        _ = UserNotifier.deliver_org_user_added(org, invited_by, org_user.user)
 
         socket
         |> put_flash(:info, "User has been added to #{org.name}")
@@ -126,7 +126,7 @@ defmodule NervesHubWeb.Live.Org.Users do
 
     case Accounts.remove_org_user(org, user_to_remove) do
       :ok ->
-        UserNotifier.deliver_all_tell_org_user_removed(org, user, user_to_remove)
+        _ = UserNotifier.deliver_all_tell_org_user_removed(org, user, user_to_remove)
 
         {:noreply,
          socket
