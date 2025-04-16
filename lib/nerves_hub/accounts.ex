@@ -3,7 +3,6 @@ defmodule NervesHub.Accounts do
 
   alias Ecto.Changeset
   alias Ecto.Multi
-  alias Ecto.UUID
 
   alias NervesHub.Accounts.Invite
   alias NervesHub.Accounts.Org
@@ -83,6 +82,64 @@ defmodule NervesHub.Accounts do
     %User{}
     |> User.registration_changeset(user_params)
     |> Repo.insert()
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for changing the users password.
+
+  ## Examples
+
+      iex> change_user_password(user)
+      %Ecto.Changeset{data: %User{}}
+
+  """
+  def change_user_password(%User{} = user, attrs \\ %{}) do
+    User.password_changeset(user, attrs, hash_password: false)
+  end
+
+  @doc """
+  Updates the Users password.
+
+  ## Examples
+
+      iex> update_user_password(user, "valid password", %{password: ...})
+      {:ok, %User{}}
+
+      iex> update_user_password(user, "invalid password", %{password: ...})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_user_password(%User{} = user, password, attrs, reset_url) do
+    changeset =
+      user
+      |> User.password_changeset(attrs)
+      |> User.validate_current_password(password)
+
+    Repo.update(changeset)
+    |> case do
+      {:ok, user} ->
+        deliver_user_password_updated(user, reset_url)
+        {:ok, user}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
+  end
+
+  @doc ~S"""
+  Delivers an email confirming that a users password has been updated.
+
+  ## Examples
+
+      iex> deliver_user_password_updated(user, &url(~p"/reset-password/#{&1}"))
+      {:ok, %{to: ..., body: ...}}
+
+  """
+  def deliver_user_password_updated(%User{} = user, reset_url_fun)
+      when is_function(reset_url_fun, 1) do
+    {encoded_token, user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
+    Repo.insert!(user_token)
+    UserNotifier.deliver_password_updated(user, reset_url_fun.(encoded_token))
   end
 
   @doc """
@@ -588,32 +645,6 @@ defmodule NervesHub.Accounts do
     invite
     |> Invite.changeset(%{accepted: true})
     |> Repo.update()
-  end
-
-  @doc """
-  Sets the `password_reset_token` field on the user struct
-
-  returns one of:
-    * `{:error, :no_user}` if the user couldn't be found by `email`
-    * `{:ok, %User{}}` if the `update` was successful
-    * `{:error, %Ecto.Changeset{}}` if the `update` failed
-  """
-  @spec update_password_reset_token(String.t()) ::
-          {:ok, User.t()} | {:error, :no_user} | {:error, Ecto.Changeset.t()}
-  def update_password_reset_token(email) when is_binary(email) do
-    query = from(u in User, where: u.email == ^email)
-
-    query
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :no_user}
-
-      %User{} = user ->
-        user
-        |> change_user(%{password_reset_token: UUID.generate()})
-        |> Repo.update()
-    end
   end
 
   @spec user_in_org?(integer(), integer()) :: boolean()

@@ -57,7 +57,10 @@ defmodule NervesHubWeb.PasswordResetController do
         |> Auth.log_in_user(updated_user, user_params)
 
       {:error, changeset} ->
-        render(conn, :edit, changeset: changeset)
+        conn
+        |> put_layout(false)
+        |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
+        |> render(:edit, changeset: changeset)
     end
   end
 

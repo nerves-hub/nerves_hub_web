@@ -10,7 +10,6 @@ defmodule NervesHub.Accounts.User do
   alias NervesHub.Repo
 
   alias Ecto.Changeset
-  alias Ecto.UUID
 
   alias __MODULE__
 
@@ -19,7 +18,6 @@ defmodule NervesHub.Accounts.User do
   @password_min_length 8
 
   @required_params [:name, :email, :password_hash]
-  @optional_params [:password, :password_reset_token, :password_reset_token_expires]
 
   schema "users" do
     has_many(:user_tokens, UserToken)
@@ -30,14 +28,17 @@ defmodule NervesHub.Accounts.User do
     # The username column has been repurposed as a name field
     field(:name, :string, source: :username)
     field(:email, :string)
-    field(:password, :string, virtual: true)
-    field(:password_confirmation, :string, virtual: true)
+    field(:password, :string, virtual: true, redact: true)
+    field(:password_confirmation, :string, virtual: true, redact: true)
     field(:password_hash, :string)
-    field(:password_reset_token, UUID)
-    field(:password_reset_token_expires, :utc_datetime)
+
     field(:confirmed_at, :naive_datetime)
     field(:deleted_at, :utc_datetime)
 
+    # TODO: look into removing :password
+    field(:current_password, :string, virtual: true, redact: true)
+
+    # Platform authentication for routes like the Oban dashboard
     field(:server_role, Ecto.Enum, values: [:admin, :view])
 
     timestamps()
@@ -45,7 +46,7 @@ defmodule NervesHub.Accounts.User do
 
   defp changeset(%User{} = user, params, opts \\ []) do
     user
-    |> cast(params, @required_params ++ @optional_params)
+    |> cast(params, [:name, :email, :password])
     |> maybe_hash_password(opts)
     |> password_validations()
     |> update_change(:name, &trim/1)
@@ -111,19 +112,40 @@ defmodule NervesHub.Accounts.User do
     |> validate_required([:password])
   end
 
-  def password_changeset(%User{} = user, params, opts \\ []) do
+  @doc """
+  A User changeset for changing the password.
+
+  ## Options
+
+    * `:hash_password` - Hashes the password so it can be stored securely
+      in the database and ensures the password field is cleared to prevent
+      leaks in the logs. If password hashing is not needed and clearing the
+      password field is not desired (like when using this changeset for
+      validations on a LiveView form), this option can be set to `false`.
+      Defaults to `true`.
+  """
+  def password_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(params, [:password, :password_confirmation])
-    |> maybe_hash_password(opts)
-    |> password_validations()
-    |> validate_confirmation(:password, message: "does not match", required: true)
-    |> validate_required([:password_hash])
-    |> expire_password_reset_token()
+    |> cast(attrs, [:password])
+    |> validate_confirmation(:password, message: "does not match password")
+    |> validate_password(opts)
+  end
+
+  @doc """
+  Validates the current password otherwise adds an error to the changeset.
+  """
+  def validate_current_password(changeset, password) do
+    changeset = cast(changeset, %{current_password: password}, [:current_password])
+
+    if valid_password?(changeset.data, password) do
+      changeset
+    else
+      add_error(changeset, :current_password, "is not correct")
+    end
   end
 
   def update_changeset(%User{} = user, params) do
     changeset(user, params)
-    |> generate_password_reset_token_expires()
     |> email_password_update_valid?(user, params)
   end
 
@@ -197,48 +219,15 @@ defmodule NervesHub.Accounts.User do
     end
   end
 
-  defp email_password_update_valid?(%Changeset{changes: %{password: _}} = changeset, _, _) do
-    changeset
-    |> add_error(
-      :current_password,
-      "You must provide a current password in order to change your email or password."
-    )
-  end
-
   defp email_password_update_valid?(%Changeset{changes: %{email: _}} = changeset, _, _) do
     changeset
     |> add_error(
       :current_password,
-      "You must provide a current password in order to change your email or password."
+      "You must confirm your current password in order to change your password."
     )
   end
 
   defp email_password_update_valid?(%Changeset{} = changeset, _, _), do: changeset
-
-  defp expire_password_reset_token(%Changeset{changes: %{password: _}} = changeset) do
-    changeset
-    |> put_change(
-      :password_reset_token_expires,
-      DateTime.utc_now()
-      |> DateTime.truncate(:second)
-    )
-  end
-
-  defp expire_password_reset_token(%Changeset{} = changeset), do: changeset
-
-  defp generate_password_reset_token_expires(
-         %Changeset{changes: %{password_reset_token: _}} = changeset
-       ) do
-    changeset
-    |> put_change(
-      :password_reset_token_expires,
-      DateTime.utc_now()
-      |> Timex.shift(password_reset_window())
-      |> DateTime.truncate(:second)
-    )
-  end
-
-  defp generate_password_reset_token_expires(%Changeset{} = changeset), do: changeset
 
   @doc """
   The time length that a password reset token is valid.

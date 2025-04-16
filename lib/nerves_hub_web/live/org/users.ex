@@ -55,7 +55,7 @@ defmodule NervesHubWeb.Live.Org.Users do
 
     case Accounts.add_or_invite_to_org(invite_params, org, invited_by) do
       {:ok, %Invite{} = invite} ->
-        invite_url = &url(~p"/invite/#{&1}")
+        invite_url = url(~p"/invite/#{invite.token}")
 
         UserNotifier.deliver_user_invite(invite.email, org, invited_by, invite_url)
         UserNotifier.deliver_all_tell_org_user_invited(org, invited_by, invite.email)
@@ -65,9 +65,9 @@ defmodule NervesHubWeb.Live.Org.Users do
         |> push_patch(to: ~p"/org/#{org}/settings/users")
         |> noreply()
 
-      {:ok, %OrgUser{}} ->
-        UserNotifier.deliver_all_tell_org_user_added(org, invited_by, invite_params["email"])
-        UserNotifier.deliver_org_user_added(org, invited_by, invite_params["email"])
+      {:ok, %OrgUser{} = org_user} ->
+        UserNotifier.deliver_all_tell_org_user_added(org, invited_by, org_user.user)
+        UserNotifier.deliver_org_user_added(org, invited_by, org_user.user)
 
         socket
         |> put_flash(:info, "User has been added to #{org.name}")

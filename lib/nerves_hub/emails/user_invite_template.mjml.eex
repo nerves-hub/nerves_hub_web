@@ -8,14 +8,14 @@
 
         <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">Hi</mj-text>
 
-        <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">You've been invited to join the <strong><%= @org_name %></strong> organization on <strong><%= @platform_name %></strong> by <strong><%= @invited_by %></strong>.</mj-text>
+        <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">You've been invited to join the <strong><%= @org_name %></strong> organization on <strong><%= @platform_name %></strong> by <strong><%= @invited_by_name %></strong>.</mj-text>
 
         <mj-text font-size="20px" font-family="sans-serif" padding-left="25px" padding-right="25px" padding-top="20px">
-          Please click the button below to confirm your account.
+          Please click the button below to setup your account.
         </mj-text>
 
-        <mj-button align="left" padding-top="20px" inner-padding="8px 10px 5px 10px" href="<%= @confirmation_url %>" font-size="18px" background-color="#6366f1" border-radius="4px" color="#fafafa" font-family="sans-serif">
-          Confirm Account
+        <mj-button align="left" padding-top="20px" inner-padding="8px 10px 5px 10px" href="<%= @invite_url %>" font-size="18px" background-color="#6366f1" border-radius="4px" color="#fafafa" font-family="sans-serif">
+          Create an account with <%= @platform_name %>
         </mj-button>
       </mj-column>
     </mj-section>

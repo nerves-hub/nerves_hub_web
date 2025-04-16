@@ -10,7 +10,7 @@ defmodule NervesHub.Emails.UserInviteTemplate do
 
     You've been invited to join the {@org_name} organization on {@platform_name} by {@invited_by_name}.
 
-    To get started click on the link below to register your account and set up your password:
+    To get started, click on the link below to register your account:
 
     {@invite_url}
 

@@ -8,7 +8,7 @@
   </.link>
 </div>
 
-<.form :let={f} for={@form} phx-submit="update">
+<.form :let={f} id="details-form" for={@form} phx-submit="update-details">
   <div class="form-group">
     <label for="name_input">Name</label>
     {text_input(f, :name, class: "form-control", id: "name_input")}
@@ -21,8 +21,20 @@
     <div class="has-error">{error_tag(f, :email)}</div>
   </div>
 
-  <h4 class="color-white mt-4 mb-2">Change Password</h4>
+  <div class="form-group">
+    <label for="details_current_password_input">Password (required for updating your email address)</label>
+    {password_input(f, :current_password, class: "form-control", id: "details_current_password_input")}
+    <div class="has-error">{error_tag(f, :current_password)}</div>
+  </div>
 
+  <div class="button-submit-wrapper">
+    {submit("Save Changes", class: "btn btn-primary")}
+  </div>
+</.form>
+
+<h4 class="color-white mt-4 mb-2">Change Password</h4>
+
+<.form :let={f} id="password-form" for={@password_changeset} phx-submit="update-password">
   <div class="form-group">
     <label for="current_password_input">Old Password</label>
     {password_input(f, :current_password, class: "form-control", id: "current_password_input")}
@@ -35,7 +47,13 @@
     <div class="has-error">{error_tag(f, :password)}</div>
   </div>
 
+  <div class="form-group">
+    <label for="password_confirmation_input">Confirm New Password</label>
+    {password_input(f, :password_confirmation, class: "form-control", id: "password_confirmation_input")}
+    <div class="has-error">{error_tag(f, :password_confirmation)}</div>
+  </div>
+
   <div class="button-submit-wrapper">
-    {submit("Save Changes", class: "btn btn-primary")}
+    {submit("Update Password", class: "btn btn-primary")}
   </div>
 </.form>
