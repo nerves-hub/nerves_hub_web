@@ -17,16 +17,17 @@ defmodule NervesHubWeb.PasswordResetController do
   end
 
   def create(conn, %{"user" => %{"email" => email}}) do
-    case Accounts.get_user_by_email(email) do
-      {:ok, user} ->
-        Accounts.deliver_user_reset_password_instructions(
-          user,
-          &url(~p"/password-reset/#{&1}")
-        )
+    _ =
+      case Accounts.get_user_by_email(email) do
+        {:ok, user} ->
+          Accounts.deliver_user_reset_password_instructions(
+            user,
+            &url(~p"/password-reset/#{&1}")
+          )
 
-      _ ->
-        nil
-    end
+        _ ->
+          nil
+      end
 
     conn
     |> put_layout(false)
