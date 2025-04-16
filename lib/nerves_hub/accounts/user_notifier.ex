@@ -8,6 +8,7 @@ defmodule NervesHub.Accounts.UserNotifier do
   alias NervesHub.Emails.OrgUserAddedTemplate
   alias NervesHub.Emails.PasswordResetTemplate
   alias NervesHub.Emails.PasswordResetConfirmationTemplate
+  alias NervesHub.Emails.PasswordUpdatedTemplate
   alias NervesHub.Emails.TellOrgUserAddedTemplate
   alias NervesHub.Emails.TellOrgUserInvitedTemplate
   alias NervesHub.Emails.TellOrgUserRemovedTemplate
@@ -29,8 +30,25 @@ defmodule NervesHub.Accounts.UserNotifier do
     send_email(user, "#{platform_name()}: Confirm your account", html, text)
   end
 
+  def deliver_password_updated(user, reset_url) do
+    assigns = %{
+      user_name: user.name,
+      reset_url: reset_url,
+      platform_name: platform_name()
+    }
+
+    html = PasswordUpdatedTemplate.render(assigns)
+    text = PasswordUpdatedTemplate.text_render(assigns)
+
+    send_email(user, "#{platform_name()}: Your password has been updated", html, text)
+  end
+
   def deliver_reset_password_instructions(user, reset_url) do
-    assigns = %{name: user.name, reset_url: reset_url}
+    assigns = %{
+      user_name: user.name,
+      reset_url: reset_url,
+      platform_name: platform_name()
+    }
 
     html = PasswordResetTemplate.render(assigns)
     text = PasswordResetTemplate.text_render(assigns)
@@ -39,7 +57,10 @@ defmodule NervesHub.Accounts.UserNotifier do
   end
 
   def deliver_reset_password_confirmation(user) do
-    assigns = %{name: user.name}
+    assigns = %{
+      user_name: user.name,
+      platform_name: platform_name()
+    }
 
     html = PasswordResetConfirmationTemplate.render(assigns)
     text = PasswordResetConfirmationTemplate.text_render(assigns)
@@ -121,11 +142,13 @@ defmodule NervesHub.Accounts.UserNotifier do
   end
 
   def deliver_all_tell_org_user_added(org, instigator, new_user) do
-    admins = Accounts.get_org_admins(org)
+    admins =
+      Accounts.get_org_admins(org)
+      |> Enum.reject(&(&1.id == instigator.id))
 
-    for admin <- admins do
+    Enum.map(admins, fn admin ->
       deliver_tell_org_user_added(org, admin, instigator, new_user)
-    end
+    end)
   end
 
   def deliver_tell_org_user_added(org, admin, instigator, new_user) do
@@ -148,11 +171,13 @@ defmodule NervesHub.Accounts.UserNotifier do
   end
 
   def deliver_all_tell_org_user_removed(org, instigator, user) do
-    admins = Accounts.get_org_admins(org)
+    admins =
+      Accounts.get_org_admins(org)
+      |> Enum.reject(&(&1.id == instigator.id))
 
-    for admin <- admins do
+    Enum.map(admins, fn admin ->
       deliver_tell_org_user_removed(org, admin, instigator, user)
-    end
+    end)
   end
 
   def deliver_tell_org_user_removed(org, admin, instigator, removed_user) do

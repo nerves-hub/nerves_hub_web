@@ -144,7 +144,7 @@ defmodule NervesHub.AccountsTest do
       target_email = user.email
 
       assert {:ok, %User{email: ^target_email}} =
-               Accounts.authenticate(user.email, user.password)
+               Accounts.authenticate(user.email, "test_password")
     end
 
     test "with invalid credentials", %{user: user} do
@@ -173,7 +173,7 @@ defmodule NervesHub.AccountsTest do
     assert user.email == expected_email
 
     assert {:ok, %User{email: ^expected_email}} =
-             Accounts.authenticate(user.email, user.password)
+             Accounts.authenticate(user.email, "test_password")
   end
 
   test "org_key name must be unique", %{user: user} do
@@ -244,7 +244,7 @@ defmodule NervesHub.AccountsTest do
 
     assert {:ok, %OrgUser{}} =
              Accounts.create_user_from_invite(invite, org, %{
-               "password" => "password123",
+               "password" => "password123456",
                "name" => "Invited"
              })
   end

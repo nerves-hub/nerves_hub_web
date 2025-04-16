@@ -4,13 +4,15 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.SwooshEmail
+  alias NervesHub.Accounts.UserToken
   alias NervesHub.Fixtures
+
+  alias NervesHub.Repo
 
   describe "new password_reset" do
     test "renders form", %{conn: conn} do
       conn = get(conn, Routes.password_reset_path(conn, :new))
-      assert html_response(conn, 200) =~ "Reset Password"
+      assert html_response(conn, 200) =~ "Reset your password"
     end
   end
 
@@ -18,14 +20,14 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
     setup [:create_user]
 
     test "with valid params", %{conn: conn, user: user} do
-      params = %{"password_reset" => %{"email" => user.email}}
+      params = %{"user" => %{"email" => user.email}}
 
       reset_conn = post(conn, Routes.password_reset_path(conn, :create), params)
 
-      assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
+      assert html_response(reset_conn, 200) =~
+               "If your email is recognized, you will receive instructions to reset your password shortly."
 
-      {:ok, updated_user} = Accounts.get_user(user.id)
-      assert_email_sent(SwooshEmail.forgot_password(updated_user))
+      assert_email_sent(subject: "NervesHub: Reset your password")
     end
 
     test "with invalid params", %{conn: conn} do
@@ -39,30 +41,19 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
   describe "reset password" do
     setup [:create_user]
 
-    test "new_password_form with invalid token", %{conn: conn, user: user} do
-      params = %{"user" => %{"email" => user.email}}
-
-      reset_conn =
-        get(
-          conn,
-          Routes.password_reset_path(conn, :new_password_form, "not a good token"),
-          params
-        )
+    test "new_password_form with invalid token", %{conn: conn} do
+      reset_conn = get(conn, Routes.password_reset_path(conn, :edit, "not a good token"))
 
       assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
     end
 
     test "new_password_form with valid token", %{conn: conn, user: user} do
-      params = %{"user" => %{"email" => user.email}}
+      {encoded_token, user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
+      Repo.insert!(user_token)
 
-      token =
-        Accounts.update_password_reset_token(user.email)
-        |> elem(1)
-        |> Map.get(:password_reset_token)
+      reset_conn = get(conn, Routes.password_reset_path(conn, :edit, encoded_token))
 
-      reset_conn = get(conn, Routes.password_reset_path(conn, :new_password_form, token), params)
-
-      assert html_response(reset_conn, 200) =~ "New Password"
+      assert html_response(reset_conn, 200) =~ "Reset your password"
     end
 
     test "with valid params", %{conn: conn, user: user} do
@@ -70,13 +61,11 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
         "user" => %{"password" => "new password", "password_confirmation" => "new password"}
       }
 
-      token =
-        Accounts.update_password_reset_token(user.email)
-        |> elem(1)
-        |> Map.get(:password_reset_token)
+      {encoded_token, user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
+      Repo.insert!(user_token)
 
-      reset_conn = put(conn, Routes.password_reset_path(conn, :reset, token), params)
-      assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
+      reset_conn = put(conn, Routes.password_reset_path(conn, :update, encoded_token), params)
+      assert redirected_to(reset_conn) == ~p"/orgs"
 
       # enforce side effect
       {:ok, updated_user} = Accounts.get_user(user.id)
@@ -84,7 +73,7 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
 
       # check token is expired
       second_params = %{"user" => %{"password" => "newer password"}}
-      put(conn, Routes.password_reset_path(conn, :reset, token), second_params)
+      put(conn, Routes.password_reset_path(conn, :update, encoded_token), second_params)
       {:ok, second_updated_user} = Accounts.get_user(user.id)
       assert second_updated_user.password_hash == updated_user.password_hash
     end
@@ -92,13 +81,11 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
     test "with invalid params", %{conn: conn, user: user} do
       params = %{"user" => %{"password" => ""}}
 
-      token =
-        Accounts.update_password_reset_token(user.email)
-        |> elem(1)
-        |> Map.get(:password_reset_token)
+      {encoded_token, user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
+      Repo.insert!(user_token)
 
-      reset_conn = put(conn, Routes.password_reset_path(conn, :reset, token), params)
-      assert html_response(reset_conn, 200) =~ "You must provide a new password."
+      reset_conn = put(conn, Routes.password_reset_path(conn, :update, encoded_token), params)
+      assert html_response(reset_conn, 200) =~ "can&#39;t be blank"
 
       # enforce side effect
       {:ok, updated_user} = Accounts.get_user(user.id)
@@ -110,7 +97,7 @@ defmodule NervesHubWeb.PasswordResetControllerTest do
 
       bad_token = Ecto.UUID.bingenerate()
 
-      reset_conn = put(conn, Routes.password_reset_path(conn, :reset, bad_token), params)
+      reset_conn = put(conn, Routes.password_reset_path(conn, :update, bad_token), params)
       assert redirected_to(reset_conn) == Routes.session_path(reset_conn, :new)
 
       # enforce side effect

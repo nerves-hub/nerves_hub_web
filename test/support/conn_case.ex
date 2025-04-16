@@ -17,6 +17,8 @@ defmodule NervesHubWeb.ConnCase do
 
   using do
     quote do
+      use NervesHubWeb, :verified_routes
+
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest, except: [init_test_session: 2]

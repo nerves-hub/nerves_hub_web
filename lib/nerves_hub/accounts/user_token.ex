@@ -130,7 +130,7 @@ defmodule NervesHub.Accounts.UserToken do
 
       {:ok, query}
     else
-      :error -> {:error, :invalid_token}
+      {:error, _} -> {:error, :invalid_token}
       err -> {:error, err}
     end
   end
@@ -149,7 +149,7 @@ defmodule NervesHub.Accounts.UserToken do
 
       {:ok, query}
     else
-      :error -> {:error, :invalid_token}
+      {:error, _} -> {:error, :invalid_token}
       err -> {:error, err}
     end
   end
@@ -183,7 +183,7 @@ defmodule NervesHub.Accounts.UserToken do
 
       {:ok, query}
     else
-      :error -> {:error, :invalid_token}
+      {:error, _} -> {:error, :invalid_token}
       err -> {:error, err}
     end
   end
@@ -215,10 +215,12 @@ defmodule NervesHub.Accounts.UserToken do
 
       {:ok, query}
     else
-      :error -> {:error, :invalid_token}
+      {:error, _} -> {:error, :invalid_token}
       err -> {:error, err}
     end
   end
+
+  def verify_reset_password_token_query(_), do: {:error, :invalid_token}
 
   def confirm_token_still_valid?(token) do
     valid_until = NaiveDateTime.add(token.inserted_at, @confirm_validity_in_days, :day)
