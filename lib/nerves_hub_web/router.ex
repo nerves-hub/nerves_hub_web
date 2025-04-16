@@ -22,6 +22,16 @@ defmodule NervesHubWeb.Router do
     plug(:put_dynamic_root_layout)
   end
 
+  pipeline :updated_layout do
+    plug(:use_updated_layout)
+  end
+
+  def use_updated_layout(conn, _) do
+    conn
+    |> put_layout(false)
+    |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
+  end
+
   def put_dynamic_root_layout(conn, _) do
     session = Plug.Conn.get_session(conn)
 
@@ -215,7 +225,7 @@ defmodule NervesHubWeb.Router do
 
   scope "/", NervesHubWeb do
     # Only unauthenticated users can use these routes
-    pipe_through([:browser, :redirect_if_user_is_authenticated])
+    pipe_through([:browser, :redirect_if_user_is_authenticated, :updated_layout])
 
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)

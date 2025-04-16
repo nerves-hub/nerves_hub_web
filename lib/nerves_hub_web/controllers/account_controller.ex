@@ -13,10 +13,7 @@ defmodule NervesHubWeb.AccountController do
   def new(conn, _params) do
     changeset = Ecto.Changeset.change(%User{})
 
-    conn
-    |> put_layout(false)
-    |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
-    |> render(:new, changeset: changeset)
+    render(conn, :new, changeset: changeset)
   end
 
   def create(conn, %{"user" => user_params} = _) do
@@ -29,16 +26,11 @@ defmodule NervesHubWeb.AccountController do
           )
 
         conn
-        |> put_layout(false)
-        |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
         |> assign(:email, new_user.email)
         |> render(:registered)
 
       {:error, %Changeset{} = changeset} ->
-        conn
-        |> put_layout(false)
-        |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
-        |> render(:new, changeset: changeset)
+        render(conn, :new, changeset: changeset)
     end
   end
 
@@ -49,8 +41,6 @@ defmodule NervesHubWeb.AccountController do
       |> assign(:changeset, %Changeset{data: invite})
       |> assign(:org, org)
       |> assign(:token, token)
-      |> put_layout(false)
-      |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
       |> render(:invite)
     else
       _ ->
@@ -93,8 +83,6 @@ defmodule NervesHubWeb.AccountController do
         |> assign(:changeset, changeset)
         |> assign(:org, org)
         |> assign(:token, token)
-        |> put_layout(false)
-        |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
         |> render(:invite)
     end
   end

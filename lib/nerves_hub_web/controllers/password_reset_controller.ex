@@ -10,10 +10,7 @@ defmodule NervesHubWeb.PasswordResetController do
   plug(:get_user_by_reset_password_token when action in [:edit, :update])
 
   def new(conn, _params) do
-    conn
-    |> put_layout(false)
-    |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
-    |> render(:new)
+    render(conn, :new)
   end
 
   def create(conn, %{"user" => %{"email" => email}}) do
@@ -29,10 +26,7 @@ defmodule NervesHubWeb.PasswordResetController do
           nil
       end
 
-    conn
-    |> put_layout(false)
-    |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
-    |> render(:instructions_sent)
+    render(conn, :instructions_sent)
   end
 
   def create(conn, _params) do
@@ -44,10 +38,7 @@ defmodule NervesHubWeb.PasswordResetController do
   def edit(%{assigns: %{user: user}} = conn, _params) do
     changeset = User.password_changeset(user, %{}, hash_password: false)
 
-    conn
-    |> put_layout(false)
-    |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
-    |> render(:edit, changeset: changeset)
+    render(conn, :edit, changeset: changeset)
   end
 
   def update(%{assigns: %{user: user}} = conn, %{"user" => user_params}) do
@@ -58,10 +49,7 @@ defmodule NervesHubWeb.PasswordResetController do
         |> Auth.log_in_user(updated_user, user_params)
 
       {:error, changeset} ->
-        conn
-        |> put_layout(false)
-        |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
-        |> render(:edit, changeset: changeset)
+        render(conn, :edit, changeset: changeset)
     end
   end
 
