@@ -149,15 +149,8 @@ defmodule NervesHubWeb.AccountControllerTest do
       |> assert_has("h1", with: "Welcome to NervesHub!")
       |> assert_has("div", with: org.name)
 
-      assert_email_sent(fn email ->
-        assert email.subject == "#{platform_name}: Sgt Pepper has been added to Jeff"
-
-        assert to_string(email.text_body) =~
-                 "*Sgt Pepper* has been added to the *Jeff* organization by Jeff."
-
-        assert email.html_body =~
-                 "<strong>Sgt Pepper</strong> has been added to the <strong>Jeff</strong> organization by <strong>Jeff</strong>."
-      end)
+      # don't send email to admin who added the user
+      refute_email_sent(subject: "NervesHub: Sgt Pepper has been added to Jeff")
     end
   end
 end
