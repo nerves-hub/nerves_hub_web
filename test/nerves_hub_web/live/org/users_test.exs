@@ -51,9 +51,8 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User removed")
 
-      assert_email_sent(
-        subject: "NervesHub: #{org_user.user.name} has been removed from #{org.name}"
-      )
+      # don't send email to admin who added the user
+      refute_email_sent()
     end
   end
 
@@ -84,6 +83,9 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("div", text: "User has been added to #{org.name}")
       |> refute_has("h1", text: "Outstanding Invites")
       |> assert_has("td", text: josh_again.email)
+
+      # don't send email to admin who added the user
+      refute_email_sent(subject: "NervesHub: morejosh has been added")
 
       assert_email_sent(subject: "NervesHub: You have been added to #{org.name}")
     end
