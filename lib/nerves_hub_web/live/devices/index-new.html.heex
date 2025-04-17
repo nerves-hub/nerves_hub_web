@@ -48,10 +48,10 @@
         </svg>
       </div>
     </form>
-    <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org.name}/#{@product.name}/devices/export"} download>
+    <.button :if={has_results?(@devices, @currently_filtering)} type="link" aria-label="Export devices" href={~p"/org/#{@org}/#{@product}/devices/export"} download>
       <.icon name="export" /> Export
     </.button>
-    <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/devices/new"} aria-label="Add new device">
+    <.button type="link" navigate={~p"/org/#{@org}/#{@product}/devices/new"} aria-label="Add new device">
       <.icon name="add" /> Add Device
     </.button>
     <.button :if={has_results?(@devices, @currently_filtering)} type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
@@ -222,7 +222,7 @@
                         </svg> --%>
                     <% end %>
                   </span>
-                  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}"} class="ff-m font-mono">
+                  <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}"} class="ff-m font-mono">
                     {device.identifier}
                     <span class="clickable-table-row-mask" />
                   </.link>
@@ -295,7 +295,7 @@
                       Reboot
                     </.link>
                     <div class="dropdown-divider"></div>
-                    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}/console"} class="dropdown-item">
+                    <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device}/console"} class="dropdown-item">
                       Console
                     </.link>
                     <div class="dropdown-divider"></div>

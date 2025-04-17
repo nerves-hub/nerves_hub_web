@@ -33,6 +33,7 @@ defmodule NervesHub.Devices.Device do
   ]
   @required_params [:org_id, :product_id, :identifier]
 
+  @derive {Phoenix.Param, key: :identifier}
   schema "devices" do
     belongs_to(:org, Org)
     belongs_to(:product, Product)

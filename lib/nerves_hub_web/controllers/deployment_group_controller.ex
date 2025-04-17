@@ -17,7 +17,7 @@ defmodule NervesHubWeb.DeploymentGroupController do
       [] ->
         conn
         |> put_flash(:error, "No audit logs exist for this deployment group.")
-        |> redirect(to: ~p"/org/#{org.name}/#{product.name}/deployment_groups")
+        |> redirect(to: ~p"/org/#{org}/#{product}/deployment_groups")
 
       audit_logs ->
         audit_logs = AuditLogs.format_for_csv(audit_logs)

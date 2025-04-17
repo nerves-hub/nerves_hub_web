@@ -394,6 +394,6 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
   end
 
   def device_index_path(%{org: org, product: product}) do
-    ~p"/org/#{org.name}/#{product.name}/devices"
+    ~p"/org/#{org}/#{product}/devices"
   end
 end

@@ -17,6 +17,7 @@ defmodule NervesHub.Accounts.Org do
   @type id :: pos_integer() | nil
   @type t :: %__MODULE__{id: id()}
 
+  @derive {Phoenix.Param, key: :name}
   schema "orgs" do
     has_many(:org_keys, OrgKey)
     has_many(:products, Product, where: [deleted_at: nil])

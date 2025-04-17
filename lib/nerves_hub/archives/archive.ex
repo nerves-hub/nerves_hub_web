@@ -21,6 +21,7 @@ defmodule NervesHub.Archives.Archive do
           version: Version.build()
         }
 
+  @derive {Phoenix.Param, key: :uuid}
   schema "archives" do
     belongs_to(:product, Product, where: [deleted_at: nil])
     belongs_to(:org_key, OrgKey)

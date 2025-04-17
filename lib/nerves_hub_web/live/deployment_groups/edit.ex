@@ -56,9 +56,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Edit do
 
         socket
         |> put_flash(:info, "Deployment Group updated")
-        |> push_navigate(
-          to: ~p"/org/#{org.name}/#{product.name}/deployment_groups/#{updated.name}"
-        )
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{updated}")
         |> noreply()
 
       {:error, changeset} ->

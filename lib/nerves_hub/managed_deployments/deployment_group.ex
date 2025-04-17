@@ -43,6 +43,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :current_updated_devices
   ]
 
+  @derive {Phoenix.Param, key: :name}
   schema "deployments" do
     belongs_to(:firmware, Firmware)
     belongs_to(:product, Product, where: [deleted_at: nil])

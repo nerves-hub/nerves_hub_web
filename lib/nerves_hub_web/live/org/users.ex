@@ -62,7 +62,7 @@ defmodule NervesHubWeb.Live.Org.Users do
 
         socket
         |> put_flash(:info, "User has been invited")
-        |> push_patch(to: ~p"/org/#{org.name}/settings/users")
+        |> push_patch(to: ~p"/org/#{org}/settings/users")
         |> noreply()
 
       {:ok, %OrgUser{} = org_user} ->
@@ -71,7 +71,7 @@ defmodule NervesHubWeb.Live.Org.Users do
 
         socket
         |> put_flash(:info, "User has been added to #{org.name}")
-        |> push_patch(to: ~p"/org/#{org.name}/settings/users")
+        |> push_patch(to: ~p"/org/#{org}/settings/users")
         |> noreply()
 
       {:error, changeset} ->
@@ -110,7 +110,7 @@ defmodule NervesHubWeb.Live.Org.Users do
         {:noreply,
          socket
          |> put_flash(:info, "Role updated")
-         |> push_patch(to: ~p"/org/#{socket.assigns.org.name}/settings/users")}
+         |> push_patch(to: ~p"/org/#{socket.assigns.org}/settings/users")}
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Error updating role")}

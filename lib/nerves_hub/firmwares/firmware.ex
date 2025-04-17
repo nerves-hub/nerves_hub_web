@@ -42,6 +42,7 @@ defmodule NervesHub.Firmwares.Firmware do
     :version
   ]
 
+  @derive {Phoenix.Param, key: :uuid}
   schema "firmwares" do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:product, Product, where: [deleted_at: nil])

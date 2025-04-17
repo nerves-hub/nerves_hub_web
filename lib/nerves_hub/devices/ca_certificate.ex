@@ -24,6 +24,7 @@ defmodule NervesHub.Devices.CACertificate do
     :last_used
   ]
 
+  @derive {Phoenix.Param, key: :serial}
   schema "ca_certificates" do
     belongs_to(:org, Org, where: [deleted_at: nil])
     belongs_to(:jitp, JITP)

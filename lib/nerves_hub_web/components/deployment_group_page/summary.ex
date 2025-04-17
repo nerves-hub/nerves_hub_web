@@ -51,10 +51,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500 w-16">Firmware:</span>
 
-              <.link
-                navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@deployment_group.firmware.uuid}"}
-                class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
-              >
+              <.link navigate={~p"/org/#{@org}/#{@product}/firmware/#{@deployment_group.firmware}"} class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800">
                 <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.firmware.version} ({String.slice(@deployment_group.firmware.uuid, 0..7)})</span>
               </.link>
             </div>
@@ -63,7 +60,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
               <.link
                 :if={@deployment_group.archive}
-                navigate={~p"/org/#{@org.name}/#{@product.name}/archives/#{@deployment_group.archive.uuid}"}
+                navigate={~p"/org/#{@org}/#{@product}/archives/#{@deployment_group.archive}"}
                 class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
               >
                 <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.archive.version} ({String.slice(@deployment_group.archive.uuid, 0..7)})</span>
@@ -85,7 +82,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               </div>
               <div :for={inflight_update <- @inflight_updates} :if={@inflight_updates != []} class="flex gap-4 items-center">
                 <span class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800 text-base-300">
-                  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{inflight_update.device.identifier}"}>
+                  <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{inflight_update.device}"}>
                     {inflight_update.device.identifier}
                   </.link>
                 </span>
@@ -176,7 +173,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   <span class="text-sm text-nerves-gray-500">{if @unmatched_device_count == 1, do: "doesn't", else: "don't"} match inside deployment group</span>
                 </div>
                 <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
-                <%!-- <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
+                <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
                   <.icon name="open" class="stroke-zinc-400" />
                 </.link> --%>
                 <button
@@ -200,7 +197,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   <span class="text-sm text-nerves-gray-500">{if @matched_devices_outside_deployment_group_count == 1, do: "matches", else: "match"} outside of deployment group</span>
                 </div>
                 <%!-- We have no way of filtering by version as of March 2025. When we do we can use this. --%>
-                <%!-- <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
+                <%!-- <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="flex items-center h-6 bg-zinc-800 border border-zinc-700 rounded-full">
                   <.icon name="open" class="stroke-zinc-400" />
                 </.link> --%>
                 <button
