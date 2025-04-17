@@ -68,7 +68,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("h1", text: "Outstanding Invites")
       |> assert_has("td", text: "josh@mrjosh.com")
 
-      assert_email_sent(subject: "NervesHub: You have been invite to join Jeff")
+      assert_email_sent(subject: "NervesHub: You have been invited to join Jeff")
     end
 
     test "adds user if they are already registered", %{conn: conn, org: org} do
