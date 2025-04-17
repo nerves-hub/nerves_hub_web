@@ -90,7 +90,7 @@ defmodule NervesHub.Accounts.UserNotifier do
 
     send_email(
       email,
-      "#{platform_name()}: You have been invite to join #{org.name}",
+      "#{platform_name()}: You have been invited to join #{org.name}",
       html,
       text
     )
