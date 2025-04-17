@@ -52,7 +52,7 @@
         <div class="grid grid-cols-2 px-4 pb-4 pt-2 gap-4">
           <div :for={product <- org.products} class="flex justify-between gap-[16px] p-4 w-full border border-zinc-700 rounded bg-gradient-to-r from-zinc-800/50 to-zinc-800">
             <div class="text-neutral-50 font-semibold text-sm">
-              <.link navigate={~p"/org/#{org.name}/#{product.name}/devices"}>
+              <.link navigate={~p"/org/#{org}/#{product}/devices"}>
                 {product.name}
               </.link>
             </div>

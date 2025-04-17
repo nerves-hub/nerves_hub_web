@@ -103,7 +103,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
 
     socket
     |> put_flash(:info, "Deployment Group successfully deleted")
-    |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployment_groups")
+    |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups")
     |> noreply()
   end
 

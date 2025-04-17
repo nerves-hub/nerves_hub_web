@@ -165,7 +165,7 @@ defmodule NervesHubWeb.Live.Firmware do
       {:ok, _} ->
         socket
         |> put_flash(:info, "Firmware successfully deleted")
-        |> push_patch(to: ~p"/org/#{org.name}/#{product.name}/firmware")
+        |> push_patch(to: ~p"/org/#{org}/#{product}/firmware")
         |> noreply()
 
       {:error, changeset} ->
@@ -224,7 +224,7 @@ defmodule NervesHubWeb.Live.Firmware do
       stringify_keys(new_params)
       |> Enum.into(current_params)
 
-    ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/firmware?#{params}"
+    ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/firmware?#{params}"
   end
 
   defp stringify_keys(params) do
@@ -242,9 +242,7 @@ defmodule NervesHubWeb.Live.Firmware do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Firmware uploaded successfully")
-        |> push_patch(
-          to: ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/firmware"
-        )
+        |> push_patch(to: ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/firmware")
         |> noreply()
 
       {:error, :no_public_keys} ->

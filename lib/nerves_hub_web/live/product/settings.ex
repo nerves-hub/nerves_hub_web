@@ -78,7 +78,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
       {:ok, _product} ->
         socket
         |> put_flash(:info, "Product deleted successfully.")
-        |> push_navigate(to: ~p"/org/#{socket.assigns.org.name}")
+        |> push_navigate(to: ~p"/org/#{socket.assigns.org}")
         |> noreply()
 
       {:error, _changeset} ->

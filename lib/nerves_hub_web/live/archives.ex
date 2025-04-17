@@ -161,7 +161,7 @@ defmodule NervesHubWeb.Live.Archives do
       {:ok, _} ->
         socket
         |> put_flash(:info, "Archive successfully deleted")
-        |> push_patch(to: ~p"/org/#{org.name}/#{product.name}/archives")
+        |> push_patch(to: ~p"/org/#{org}/#{product}/archives")
         |> noreply()
 
       {:error, changeset} ->
@@ -224,7 +224,7 @@ defmodule NervesHubWeb.Live.Archives do
       stringify_keys(new_params)
       |> Enum.into(current_params)
 
-    ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/archives?#{params}"
+    ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/archives?#{params}"
   end
 
   defp stringify_keys(params) do
@@ -242,9 +242,7 @@ defmodule NervesHubWeb.Live.Archives do
       {:ok, _firmware} ->
         socket
         |> put_flash(:info, "Archive uploaded successfully.")
-        |> push_patch(
-          to: ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/archives"
-        )
+        |> push_patch(to: ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/archives")
         |> noreply()
 
       {:error, :no_public_keys} ->

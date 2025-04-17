@@ -17,6 +17,7 @@ defmodule NervesHub.Products.Product do
 
   @type t :: %__MODULE__{}
 
+  @derive {Phoenix.Param, key: :name}
   schema "products" do
     has_many(:devices, Device, where: [deleted_at: nil])
     has_many(:firmwares, Firmware)

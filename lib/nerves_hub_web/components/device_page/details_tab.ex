@@ -277,7 +277,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             <span :if={is_nil(@device.deployment_group)} class="text-sm text-nerves-gray-500">No assigned deployment group</span>
             <.link
               :if={@device.deployment_group}
-              navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@device.deployment_group.name}"}
+              navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@device.deployment_group}"}
               class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
             >
               <svg class="w-1.5 h-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -434,7 +434,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
 
           <div class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} aria-label="Add a support script">
+            <.button type="link" navigate={~p"/org/#{@org}/#{@product}/scripts/new"} aria-label="Add a support script">
               <.icon name="add" />Add a support script
             </.button>
           </div>

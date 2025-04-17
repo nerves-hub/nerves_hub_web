@@ -52,7 +52,7 @@
             <h3 class="subtitle ">{org.name}</h3>
           </.link>
           <div :for={product <- org.products} class="my-4">
-            <.link navigate={~p"/org/#{org.name}/#{product.name}/devices"} class="product-picker-product">
+            <.link navigate={~p"/org/#{org}/#{product}/devices"} class="product-picker-product">
               {product.name}
             </.link>
           </div>

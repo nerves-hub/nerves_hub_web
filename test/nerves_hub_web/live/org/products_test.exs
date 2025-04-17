@@ -50,7 +50,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> assert_has("h1", text: "Create Product")
       |> fill_in("Name", with: "My Amazing Product")
       |> click_button("Create Product")
-      |> assert_path("/org/#{org.name}/My Amazing Product/devices")
+      |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
       |> assert_has("h3",
         text: "My Amazing Product doesn’t have any devices yet",
         timeout: 1000
@@ -64,7 +64,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> assert_has("h1", text: "Create Product")
       |> fill_in("Name", with: "  My Amazing Product  ")
       |> click_button("Create Product")
-      |> assert_path("/org/#{org.name}/My Amazing Product/devices")
+      |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
       |> assert_has("h3",
         text: "My Amazing Product doesn’t have any devices yet",
         timeout: 1000
@@ -78,7 +78,7 @@ defmodule NervesHubWeb.Live.Org.ProductsTest do
       |> assert_has("h1", text: "Create Product")
       |> fill_in("Name", with: "  My  Amazing  Product  ")
       |> click_button("Create Product")
-      |> assert_path("/org/#{org.name}/My Amazing Product/devices")
+      |> assert_path("/org/#{org.name}/My%20Amazing%20Product/devices")
       |> assert_has("h3",
         text: "My Amazing Product doesn’t have any devices yet",
         timeout: 1000

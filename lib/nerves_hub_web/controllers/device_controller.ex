@@ -34,7 +34,7 @@ defmodule NervesHubWeb.DeviceController do
       [] ->
         conn
         |> put_flash(:error, "No audit logs exist for this device.")
-        |> redirect(to: ~p"/org/#{org.name}/#{product.name}/devices")
+        |> redirect(to: ~p"/org/#{org}/#{product}/devices")
 
       audit_logs ->
         audit_logs = AuditLogs.format_for_csv(audit_logs)
