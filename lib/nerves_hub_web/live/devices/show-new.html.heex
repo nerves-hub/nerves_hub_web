@@ -1,6 +1,6 @@
 <div class="h-[56px] skrink-0 flex justify-end bg-base-900 border-b border-base-700 pl-6 items-center">
   <div class="flex gap-2.5">
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="back-link flex gap-2.5 items-center">
+    <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="back-link flex gap-2.5 items-center">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
@@ -81,7 +81,7 @@
 
         <span :if={is_nil(@device.firmware_metadata)} class="text-sm text-base-300 font-mono">Unknown</span>
 
-        <.link :if={@device.firmware_metadata} navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{@device.firmware_metadata.uuid}"} class="flex items-center">
+        <.link :if={@device.firmware_metadata} navigate={~p"/org/#{@org}/#{@product}/firmware/#{@device.firmware_metadata.uuid}"} class="flex items-center">
           <span class="text-sm text-base-300 mr-1 font-mono">{@device.firmware_metadata.version} ({String.slice(@device.firmware_metadata.uuid, 0..7)})</span>
           <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
@@ -203,19 +203,19 @@
 
   <div class="flex w-full justify-between px-6 border-b border-zinc-700">
     <div class="flex">
-      <.link class={tab_classes(@tab, :details)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}"}>
+      <.link class={tab_classes(@tab, :details)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}"}>
         Details
       </.link>
-      <.link class={tab_classes(@tab, :health)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/healthz"}>
+      <.link class={tab_classes(@tab, :health)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/healthz"}>
         Health
       </.link>
-      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/activity"}>
+      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"}>
         Activity
       </.link>
-      <.link class={tab_classes(@tab, :console)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/conzole"}>
+      <.link class={tab_classes(@tab, :console)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/conzole"}>
         Console
       </.link>
-      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/settingz"}>
+      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/settingz"}>
         Settings
       </.link>
     </div>

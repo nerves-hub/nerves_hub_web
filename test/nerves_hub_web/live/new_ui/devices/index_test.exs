@@ -80,13 +80,13 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       conn
       |> put_session("new_ui", true)
       |> visit("/org/#{org.name}/#{product.name}/devices")
-      |> assert_has("a", text: device.identifier)
+      |> assert_has("a", text: device.identifier, timeout: 1000)
       |> assert_has("a", text: device2.identifier)
       |> select("Platform", option: "foo")
+      |> assert_has("a", text: device2.identifier, timeout: 1000)
       |> refute_has("a", text: device.identifier)
-      |> assert_has("a", text: device2.identifier)
       |> select("Platform", option: "platform")
-      |> assert_has("a", text: device.identifier)
+      |> assert_has("a", text: device.identifier, timeout: 1000)
       |> refute_has("a", text: device2.identifier)
     end
   end

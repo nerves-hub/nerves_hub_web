@@ -27,7 +27,7 @@ defmodule NervesHubWeb.Live.Devices.New do
       {:ok, _device} ->
         socket
         |> put_flash(:info, "Device created successfully.")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/devices")
         |> noreply()
 
       {:error, changeset} ->

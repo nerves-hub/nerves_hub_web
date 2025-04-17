@@ -25,7 +25,7 @@ defmodule NervesHubWeb.Live.SupportScripts.New do
       {:ok, _script} ->
         socket
         |> put_flash(:info, "Support Script created successfully.")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/scripts")
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/scripts")
         |> noreply()
 
       {:error, changeset} ->

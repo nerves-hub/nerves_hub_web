@@ -1,6 +1,6 @@
 <div class="h-[56px] skrink-0 flex justify-end bg-base-900 border-b border-base-700 pl-6 items-center">
   <div class="flex gap-2.5">
-    <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups"} class="back-link flex gap-2.5 items-center">
+    <.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups"} class="back-link flex gap-2.5 items-center">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
@@ -73,16 +73,16 @@
 
   <div class="flex w-full justify-between px-6 border-b border-zinc-700">
     <div class="flex">
-      <.link class={tab_classes(@tab, :summary)} patch={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}"}>
+      <.link class={tab_classes(@tab, :summary)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}"}>
         Summary
       </.link>
-      <.link class={tab_classes(@tab, :release_history)} patch={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}/releases"}>
+      <.link class={tab_classes(@tab, :release_history)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/releases"}>
         Release History
       </.link>
-      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}/activity"}>
+      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/activity"}>
         Activity
       </.link>
-      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}/settings"}>
+      <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}/settings"}>
         Settings
       </.link>
     </div>

@@ -20,7 +20,7 @@
       {@pager_meta.total_count}
     </div>
 
-    <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/new"} aria-label="Add a support script">
+    <.button type="link" navigate={~p"/org/#{@org}/#{@product}/scripts/new"} aria-label="Add a support script">
       <.icon name="add" />Add Support Script
     </.button>
   </div>
@@ -40,7 +40,7 @@
       <tbody>
         <tr :for={script <- @scripts} class="border-b border-zinc-800">
           <td class="h-[52px]">
-            <.link class="size-full flex items-center" navigate={~p"/org/#{@org.name}/#{@product.name}/scripts/#{script.id}/edit"}>
+            <.link class="size-full flex items-center" navigate={~p"/org/#{@org}/#{@product}/scripts/#{script}/edit"}>
               {script.name}
             </.link>
           </td>

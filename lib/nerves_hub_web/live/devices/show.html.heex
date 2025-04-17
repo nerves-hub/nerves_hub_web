@@ -5,7 +5,7 @@
 </div>
 
 <div class="action-row mb-1">
-  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices"} class="back-link">
+  <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="back-link">
     All Devices
   </.link>
   <div class="btn-group" role="group" aria-label="Device Actions">
@@ -49,7 +49,7 @@
         <span class="button-icon delete"></span>
         <span class="action-text">Delete</span>
       </button>
-      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/settings"} class="btn btn-outline-light btn-action" aria-label="Edit">
+      <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{@device}/settings"} class="btn btn-outline-light btn-action" aria-label="Edit">
         <span class="button-icon edit"></span>
         <span class="action-text">Settings</span>
       </.link>
@@ -119,7 +119,7 @@
           </div>
         </div>
         <div class="text-right">
-          <.link navigate={~p"/org/#{@org.name}/#{@product.name}/scripts"}>
+          <.link navigate={~p"/org/#{@org}/#{@product}/scripts"}>
             Add and edit scripts
           </.link>
         </div>
@@ -213,7 +213,7 @@
               </time>
             </div>
             <div>
-              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{@device.identifier}/health"}>
+              <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{@device}/health"}>
                 Full metrics
               </.link>
             </div>
@@ -231,7 +231,7 @@
           </div>
           <div :if={@deployment_group} class="d-flex flex-row">
             <div class="mr-1">
-              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{@deployment_group.name}"} class="badge">
+              <.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@deployment_group}"} class="badge">
                 <div class={"deployment-group-state state-#{if @deployment_group.is_active, do: "on", else: "off"}"}>{@deployment_group.name}</div>
               </.link>
             </div>

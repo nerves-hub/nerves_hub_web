@@ -687,6 +687,6 @@ defmodule NervesHubWeb.Live.Devices.ShowTest do
   end
 
   def device_show_path(%{device: device, org: org, product: product}) do
-    ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}"
+    ~p"/org/#{org}/#{product}/devices/#{device}"
   end
 end

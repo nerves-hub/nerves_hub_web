@@ -61,7 +61,7 @@
           <tr :for={archive <- @archives} class="border-b border-zinc-800">
             <td>
               <div class="flex gap-[8px] items-center">
-                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/archives/#{archive.uuid}"}>
+                <.link navigate={~p"/org/#{@org}/#{@product}/archives/#{archive}"}>
                   {archive.uuid}
                 </.link>
               </div>
@@ -113,7 +113,7 @@
                     Reboot
                   </.link>
                   <div class="dropdown-divider"></div>
-                  <.link navigate={~p"/org/#{@org.name}/#{@product.name}/devices/#{device.identifier}/console"} class="dropdown-item">
+                  <.link navigate={~p"/org/#{@org}/#{@product}/devices/#{device.identifier}/console"} class="dropdown-item">
                     Console
                   </.link>
                   <div class="dropdown-divider"></div>
