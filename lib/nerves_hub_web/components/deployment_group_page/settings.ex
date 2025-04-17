@@ -300,9 +300,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
         # to use `push_navigate` here.
         socket
         |> put_flash(:info, "Deployment group updated")
-        |> push_navigate(
-          to: ~p"/org/#{org.name}/#{product.name}/deployment_groups/#{updated.name}"
-        )
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups/#{updated}")
         |> noreply()
 
       {:error, changeset} ->
@@ -327,7 +325,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
 
     socket
     |> put_flash(:info, "Deployment group successfully deleted")
-    |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/deployment_groups")
+    |> push_navigate(to: ~p"/org/#{org}/#{product}/deployment_groups")
     |> noreply()
   end
 

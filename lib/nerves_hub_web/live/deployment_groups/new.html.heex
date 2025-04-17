@@ -14,7 +14,7 @@
     </div>
 
     <div class="button-submit-wrapper">
-      <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups"} class="btn btn-secondary">
+      <.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups"} class="btn btn-secondary">
         Cancel
       </.link>
     </div>
@@ -69,7 +69,7 @@
     </div>
 
     <div class="button-submit-wrapper">
-      <.link class="btn btn-secondary" navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups"}>Back</.link>
+      <.link class="btn btn-secondary" navigate={~p"/org/#{@org}/#{@product}/deployment_groups"}>Back</.link>
       {submit("Create Deployment", class: "btn btn-primary")}
     </div>
   </.form>

@@ -284,8 +284,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event("paginate", %{"page" => page_num}, socket) do
     params = %{"page_size" => socket.assigns.page_size, "page_number" => page_num}
 
-    url =
-      ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices/#{socket.assigns.device.identifier}/activity?#{params}"
+    %{org: org, product: product, device: device} = socket.assigns
+
+    url = ~p"/org/#{org}/#{product}/devices/#{device}/activity?#{params}"
 
     socket
     |> push_patch(to: url)
@@ -341,7 +342,7 @@ defmodule NervesHubWeb.Live.Devices.Show do
 
     socket
     |> put_flash(:info, "Device destroyed successfully.")
-    |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/devices")
+    |> push_navigate(to: ~p"/org/#{org}/#{product}/devices")
     |> noreply()
   end
 
@@ -483,8 +484,9 @@ defmodule NervesHubWeb.Live.Devices.Show do
   def handle_event("set-paginate-opts", %{"page-size" => page_size}, socket) do
     params = %{"page_size" => page_size, "page_number" => 1}
 
-    url =
-      ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/devices/#{socket.assigns.device.identifier}/activity?#{params}"
+    %{org: org, product: product, device: device} = socket.assigns
+
+    url = ~p"/org/#{org}/#{product}/devices/#{device}/activity?#{params}"
 
     socket
     |> push_patch(to: url)

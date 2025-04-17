@@ -31,7 +31,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
       {:ok, _script} ->
         socket
         |> put_flash(:info, "Support Script updated successfully.")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/scripts")
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/scripts")
         |> noreply()
 
       {:error, changeset} ->
@@ -54,7 +54,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
       {:ok, _} ->
         socket
         |> put_flash(:info, "Support Script deleted successfully.")
-        |> push_navigate(to: ~p"/org/#{org.name}/#{product.name}/scripts")
+        |> push_navigate(to: ~p"/org/#{org}/#{product}/scripts")
         |> noreply()
 
       {:error, _} ->

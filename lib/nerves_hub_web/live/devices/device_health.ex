@@ -154,7 +154,7 @@ defmodule NervesHubWeb.Live.Devices.DeviceHealth do
 
       types(charts) != types(data) ->
         push_patch(socket,
-          to: ~p"/org/#{org.name}/#{product.name}/devices/#{device.identifier}/health"
+          to: ~p"/org/#{org}/#{product}/devices/#{device}/health"
         )
 
       true ->

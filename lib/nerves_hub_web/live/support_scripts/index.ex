@@ -110,7 +110,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
       stringify_keys(new_params)
       |> Enum.into(current_params)
 
-    ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/scripts?#{params}"
+    ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/scripts?#{params}"
   end
 
   defp stringify_keys(params) do

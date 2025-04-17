@@ -41,7 +41,7 @@
         </svg>
       </div>
     </form>
-    <.button type="link" navigate={~p"/org/#{@org.name}/#{@product.name}/deployments/newz"} aria-label="Add a new deployment group">
+    <.button type="link" navigate={~p"/org/#{@org}/#{@product}/deployments/newz"} aria-label="Add a new deployment group">
       <.icon name="add" /> Create Deployment Group
     </.button>
   </div>
@@ -82,7 +82,7 @@
         <tbody>
           <tr :for={deployment_group <- @entries} class={["border-b border-zinc-800"]}>
             <td>
-              <.link navigate={~p"/org/#{@org.name}/#{@product.name}/deployment_groups/#{deployment_group.name}"}>
+              <.link navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{deployment_group}"}>
                 <div class="h-[40px] w-full flex gap-[8px] items-center">
                   <svg class={["size-1.5", (deployment_group.is_active && "fill-emerald-500") || "fill-zinc-500"]} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6">
                     <circle cx="3" cy="3" r="3" />
@@ -107,7 +107,7 @@
 
             <td class="min-w-fit">
               <span class="inline-block h-7 py-1 px-2 items-center rounded bg-zinc-800">
-                <.link navigate={~p"/org/#{@org.name}/#{@product.name}/firmware/#{deployment_group.firmware.uuid}"} class="flex items-center">
+                <.link navigate={~p"/org/#{@org}/#{@product}/firmware/#{deployment_group.firmware}"} class="flex items-center">
                   <span class="text-sm text-base-300 mr-1">{deployment_group.firmware.version} ({String.slice(deployment_group.firmware.uuid, 0..7)})</span>
                   <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
