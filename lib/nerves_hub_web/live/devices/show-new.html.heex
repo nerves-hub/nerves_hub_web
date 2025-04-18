@@ -12,8 +12,8 @@
 
   <div class="flex items-center gap-2 ml-auto mr-6">
     <div id="present-users" phx-update="stream" class="border-r border-base-700 px-5 mr-3 h-8 flex flex-row-reverse -space-x-1 space-x-reverse overflow-hidden">
-      <div :for={{id, %{user: user}} <- @streams.presences} class="inline-flex items-center justify-center z-10" id={id}>
-        <span class="inline-flex items-center justify-center px-1 size-7 ring-2 ring-zinc-600 rounded-full bg-zinc-800 font-medium text-zinc-400 text-sm">
+      <div :for={{id, %{user: user}} <- @streams.presences} class="inline-flex items-center justify-center z-10 cursor-default" id={id}>
+        <span class="inline-flex items-center justify-center px-1 size-7 ring-2 ring-zinc-600 rounded-full bg-zinc-800 font-medium text-zinc-400 text-sm" title={user.name}>
           {String.split(user.name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}
         </span>
       </div>
