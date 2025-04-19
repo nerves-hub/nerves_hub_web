@@ -4,22 +4,25 @@ defmodule NervesHubWeb.AccountControllerTest do
   import Swoosh.TestAssertions
 
   alias NervesHub.Accounts
+  alias NervesHub.Accounts.UserToken
+
+  alias NervesHub.Repo
 
   describe "new" do
     test "renders registration form when registrations are enabled" do
       Application.put_env(:nerves_hub, :open_for_registrations, true)
 
-      conn = get(build_conn(), ~p"/register")
-
-      assert html_response(conn, 200) =~ "Create New Account"
+      build_conn()
+      |> visit(~p"/register")
+      |> assert_has("h1", with: "Create a new account")
     end
 
     test "redirects to /login with a flash when registrations are disabled" do
       Application.put_env(:nerves_hub, :open_for_registrations, false)
 
-      conn = get(build_conn(), ~p"/register")
-
-      assert redirected_to(conn, 302) =~ ~p"/login"
+      build_conn()
+      |> visit(~p"/register")
+      |> assert_path(~p"/login")
     end
   end
 
@@ -27,71 +30,127 @@ defmodule NervesHubWeb.AccountControllerTest do
     test "registers new account" do
       Application.put_env(:nerves_hub, :open_for_registrations, true)
 
-      conn =
-        post(build_conn(), ~p"/register", %{
-          "user" => %{
-            "name" => "My Name",
-            "email" => "mrjosh@josh.com",
-            "password" => "12345678"
-          }
-        })
-
-      assert redirected_to(conn, 302) =~ "/"
-
-      assert get_session(conn, :phoenix_flash) == %{
-               "info" => "Account successfully created, login below"
-             }
+      build_conn()
+      |> visit(~p"/register")
+      |> assert_has("h1", with: "Create a new account")
+      |> fill_in("Name", with: "Sgt Pepper")
+      |> fill_in("Email address", with: "sgtpepper@geocities.com")
+      |> fill_in("Password", with: "JohnRingoPaulGeorge")
+      |> submit()
+      |> assert_has("h1", with: "Please confirm your email")
+      |> assert_has("p", with: "Your new account was created successfully!")
 
       platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
 
-      assert_email_sent(subject: "Welcome to #{platform_name}!")
+      assert_email_sent(fn email ->
+        assert email.subject == "#{platform_name}: Confirm your account"
+        assert to_string(email.text_body) =~ "Thanks for creating an account with NervesHub."
+        assert email.html_body =~ "Thanks for creating an account with NervesHub."
+      end)
     end
 
-    test "requires information new account" do
+    test "requires name, email, and password, to create a new account" do
       Application.put_env(:nerves_hub, :open_for_registrations, true)
 
-      conn =
-        post(build_conn(), ~p"/register", %{
-          "user" => %{}
-        })
+      build_conn()
+      |> visit(~p"/register")
+      |> assert_has("h1", with: "Create a new account")
+      |> fill_in("Name", with: "")
+      |> fill_in("Email address", with: "")
+      |> fill_in("Password", with: "")
+      |> submit()
+      |> assert_path(~p"/register")
+      |> assert_has("p", with: "can't be blank", times: 3)
 
-      assert html_response(conn, 200) =~ "can&#39;t be blank"
+      refute_email_sent()
+    end
+
+    test "confirm account and be logged in" do
+      Application.put_env(:nerves_hub, :open_for_registrations, true)
+
+      params = %{
+        name: "Sgt Pepper",
+        email: "sgtpepper@geocities.com",
+        password: "JohnRingoPaulGeorge"
+      }
+
+      {:ok, user} = Accounts.create_user(params)
+
+      {encoded_token, user_token} = UserToken.build_hashed_token(user, "confirm", nil)
+      Repo.insert!(user_token)
+
+      build_conn()
+      |> visit(~p"/confirm/#{encoded_token}")
+      |> assert_path(~p"/orgs")
+
+      platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
+
+      assert_email_sent(fn email ->
+        assert email.subject == "#{platform_name}: Welcome Sgt Pepper!"
+        assert to_string(email.text_body) =~ "Welcome to #{platform_name}!"
+        assert email.html_body =~ "Welcome to #{platform_name}!"
+      end)
+    end
+
+    test "send new confirm account email if the token is older than 1 day" do
+      Application.put_env(:nerves_hub, :open_for_registrations, true)
+
+      params = %{
+        name: "Sgt Pepper",
+        email: "sgtpepper@geocities.com",
+        password: "JohnRingoPaulGeorge"
+      }
+
+      {:ok, user} = Accounts.create_user(params)
+
+      {encoded_token, user_token} = UserToken.build_hashed_token(user, "confirm", nil)
+
+      twenty_five_hours_ago =
+        NaiveDateTime.utc_now()
+        |> NaiveDateTime.add(-25, :hour)
+        |> NaiveDateTime.truncate(:second)
+
+      user_token
+      |> Map.put(:inserted_at, twenty_five_hours_ago)
+      |> Repo.insert!()
+
+      build_conn()
+      |> visit(~p"/confirm/#{encoded_token}")
+      |> assert_path(~p"/confirm/#{encoded_token}")
+      |> assert_has("p",
+        with:
+          "It looks like your confirmation link has expired. A new link has been sent to your email."
+      )
+
+      platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
+
+      assert_email_sent(fn email ->
+        assert email.subject == "#{platform_name}: Confirm your account"
+        assert to_string(email.text_body) =~ "Please use the link below to confirm your account:"
+        assert email.html_body =~ "Please click the button below to confirm your account:"
+      end)
     end
   end
 
   describe "invite" do
-    test "renders invite creation form", %{org: org, user: user} do
+    test "- accept an invite and log in the user", %{org: org, user: user} do
       {:ok, invite} =
         Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, org, user)
 
-      conn = get(build_conn(), ~p"/invite/#{invite.token}")
+      platform_name = Application.get_env(:nerves_hub, :support_email_platform_name)
 
-      assert html_response(conn, 200) =~
-               "You will be added to the #{org.name} organization"
-    end
-  end
+      build_conn()
+      |> visit(~p"/invite/#{invite.token}")
+      |> assert_has("h1", with: "You've been invited to join #{org.name} on #{platform_name}")
+      |> fill_in("Name", with: "Sgt Pepper")
+      |> fill_in("Password", with: "JohnRingoPaulGeorge")
+      |> submit()
+      |> assert_path(~p"/orgs")
+      |> assert_has("h1", with: "Welcome to NervesHub!")
+      |> assert_has("div", with: org.name)
 
-  describe "accept_invite" do
-    test "accepts submitted invitation", %{user: user, org: org} do
-      {:ok, invite} =
-        Accounts.invite(%{"email" => "joe@example.com", "role" => "view"}, org, user)
-
-      conn =
-        post(build_conn(), ~p"/invite/#{invite.token}", %{
-          "user" => %{
-            "name" => "My Name",
-            "email" => "not_joe@example.com",
-            "password" => "12345678"
-          }
-        })
-
-      assert redirected_to(conn, 302) =~ "/"
-
-      assert get_session(conn, :phoenix_flash) == %{
-               "info" => "Account successfully created, login below"
-             }
-
-      assert_email_sent(subject: "#{user.name} added My Name to #{org.name}")
+      # don't send email to admin who added the user
+      refute_email_sent(subject: "NervesHub: Sgt Pepper has been added to Jeff")
     end
   end
 end
