@@ -42,7 +42,7 @@ defmodule NervesHubWeb.SessionController do
     with {:token_fetched, {:ok, user, user_token}} <-
            {:token_fetched, Accounts.fetch_user_by_confirm_token(token)},
          {:token_valid, true, _user} <-
-           {:token_valid, UserToken.confirm_token_still_valid?(user_token), user},
+           {:token_valid, UserToken.token_still_valid?(:confirm, user_token), user},
          {:user_confirmed, {:ok, user}, _} <-
            {:user_confirmed, Accounts.confirm_user(user), user},
          {:ok, _} <- UserNotifier.deliver_welcome_email(user) do
