@@ -723,12 +723,15 @@ defmodule NervesHub.ManagedDeploymentsTest do
           tags: ["foo"]
         })
 
-      assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
-               device1.id,
-               device2.id,
-               device3.id,
-               device4.id
-             ]
+      matched_ids = ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false)
+
+      assert Enum.sort(matched_ids) ==
+               Enum.sort([
+                 device1.id,
+                 device2.id,
+                 device3.id,
+                 device4.id
+               ])
     end
   end
 end
