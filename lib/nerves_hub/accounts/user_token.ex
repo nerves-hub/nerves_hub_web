@@ -4,6 +4,7 @@ defmodule NervesHub.Accounts.UserToken do
   import Ecto.Query
 
   alias NervesHub.Accounts.User
+  alias NervesHub.Accounts.UserToken
   alias NervesHub.Utils.Base62
 
   @rand_size 32
@@ -135,57 +136,8 @@ defmodule NervesHub.Accounts.UserToken do
     end
   end
 
-  def verify_api_token_query(<<"nhu_", token_with_crc::binary>>) do
-    with {:ok, <<token::32-bytes, crc::32>>} <- Base62.decode(token_with_crc),
-         :ok <- assert_crc(token, crc) do
-      hashed_token = :crypto.hash(@hash_algorithm, token)
-
-      query =
-        from(ut in by_token_and_context_query(hashed_token, "api"),
-          join: user in assoc(ut, :user),
-          where: is_nil(user.deleted_at),
-          select: {user, ut}
-        )
-
-      {:ok, query}
-    else
-      {:error, _} -> {:error, :invalid_token}
-      err -> {:error, err}
-    end
-  end
-
-  def verify_api_token_query(_token), do: {:error, :invalid_token}
-
-  @doc """
-  Checks if the token is valid and returns its underlying lookup query.
-
-  The query returns the user found by the token, if any.
-
-  The given token is valid if it matches its hashed counterpart in the
-  database. This function also checks if the token is being used within a
-  certain period.
-
-  The default contexts supported by this function are either
-  "confirm", for account confirmation emails, and "reset_password",
-  for resetting the password.
-  """
-  def verify_account_confirmation_token_query(<<"nhu_", token_with_crc::binary>>) do
-    with {:ok, <<token::32-bytes, crc::32>>} <- Base62.decode(token_with_crc),
-         :ok <- assert_crc(token, crc) do
-      hashed_token = :crypto.hash(@hash_algorithm, token)
-
-      query =
-        from(ut in by_token_and_context_query(hashed_token, "confirm"),
-          join: user in assoc(ut, :user),
-          where: is_nil(user.deleted_at),
-          select: {user, ut}
-        )
-
-      {:ok, query}
-    else
-      {:error, _} -> {:error, :invalid_token}
-      err -> {:error, err}
-    end
+  def verify_api_token_query(token) do
+    verify_token_query(token, "api")
   end
 
   @doc """
@@ -201,13 +153,34 @@ defmodule NervesHub.Accounts.UserToken do
   "confirm", for account confirmation emails, and "reset_password",
   for resetting the password.
   """
-  def verify_reset_password_token_query(<<"nhu_", token_with_crc::binary>>) do
+  def verify_account_confirmation_token_query(token) do
+    verify_token_query(token, "confirm")
+  end
+
+  @doc """
+  Checks if the token is valid and returns its underlying lookup query.
+
+  The query returns the user found by the token, if any.
+
+  The given token is valid if it matches its hashed counterpart in the
+  database. This function also checks if the token is being used within a
+  certain period.
+
+  The default contexts supported by this function are either
+  "confirm", for account confirmation emails, and "reset_password",
+  for resetting the password.
+  """
+  def verify_reset_password_token_query(token) do
+    verify_token_query(token, "reset_password")
+  end
+
+  defp verify_token_query(<<"nhu_", token_with_crc::binary>>, context) do
     with {:ok, <<token::32-bytes, crc::32>>} <- Base62.decode(token_with_crc),
          :ok <- assert_crc(token, crc) do
       hashed_token = :crypto.hash(@hash_algorithm, token)
 
       query =
-        from(ut in by_token_and_context_query(hashed_token, "reset_password"),
+        from(ut in by_token_and_context_query(hashed_token, context),
           join: user in assoc(ut, :user),
           where: is_nil(user.deleted_at),
           select: {user, ut}
@@ -220,16 +193,21 @@ defmodule NervesHub.Accounts.UserToken do
     end
   end
 
-  def verify_reset_password_token_query(_), do: {:error, :invalid_token}
+  defp verify_token_query(_, _), do: {:error, :invalid_token}
 
-  def confirm_token_still_valid?(token) do
-    valid_until = NaiveDateTime.add(token.inserted_at, @confirm_validity_in_days, :day)
+  @spec token_still_valid?(atom() | pos_integer(), UserToken.t()) :: boolean
+  def token_still_valid?(type_or_validity_in_days, token)
 
-    NaiveDateTime.compare(NaiveDateTime.utc_now(), valid_until) == :lt
+  def token_still_valid?(:confirm, token) do
+    token_still_valid?(@confirm_validity_in_days, token)
   end
 
-  def password_reset_token_still_valid?(token) do
-    valid_until = NaiveDateTime.add(token.inserted_at, @password_reset_validity_in_days, :day)
+  def token_still_valid?(:password_reset, token) do
+    token_still_valid?(@password_reset_validity_in_days, token)
+  end
+
+  def token_still_valid?(validity_in_days, token) do
+    valid_until = NaiveDateTime.add(token.inserted_at, validity_in_days, :day)
 
     NaiveDateTime.compare(NaiveDateTime.utc_now(), valid_until) == :lt
   end

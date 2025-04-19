@@ -916,7 +916,7 @@ defmodule NervesHub.Accounts do
   def get_user_by_reset_password_token(token) do
     with {:ok, query} <- UserToken.verify_reset_password_token_query(token),
          {%User{} = user, token} <- Repo.one(query),
-         true <- UserToken.password_reset_token_still_valid?(token) do
+         true <- UserToken.token_still_valid?(:password_reset, token) do
       user
     else
       _ -> nil
