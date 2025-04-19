@@ -45,7 +45,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     with {:ok, role} <- Map.fetch(params, "role"),
          {:ok, user} <- Accounts.get_user(user_id),
          {:ok, org_user} <- Accounts.add_org_user(org, user, %{role: role}) do
-      # Now let every admin in the organization - except the new person -
+      # Now let every admin in the organization - except the admin who undertook the action -
       # know about this new user.
       instigator = conn.assigns.user
 
@@ -80,7 +80,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     with {:ok, user_to_remove} <- Accounts.get_user(user_id),
          {:ok, _org_user} <- Accounts.get_org_user(org, user_to_remove),
          :ok <- Accounts.remove_org_user(org, user_to_remove) do
-      # Now let every admin in the organization know
+      # Now let every admin in the organization - except the admin who undertook the action
       # that this user has been removed from the organization.
       _ = UserNotifier.deliver_all_tell_org_user_removed(org, user, user_to_remove)
 
