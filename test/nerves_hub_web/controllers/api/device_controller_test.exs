@@ -710,67 +710,6 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
     end
   end
 
-  describe "scripts: list" do
-    test "success, with nested url", %{conn: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      path =
-        Routes.api_device_script_path(conn, :index, org.name, product.name, device.identifier)
-
-      conn
-      |> get(path)
-      |> json_response(200)
-      |> assert
-    end
-
-    test "auth failure, with nested url", %{conn2: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      assert_error_sent(404, fn ->
-        get(
-          conn,
-          Routes.api_device_script_path(conn, :index, org.name, product.name, device.identifier)
-        )
-      end)
-      |> assert_authorization_error(404)
-    end
-
-    test "success, with short url", %{conn: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      path = Routes.api_script_path(conn, :index, device.identifier)
-
-      conn
-      |> get(path)
-      |> json_response(200)
-      |> assert
-    end
-
-    test "auth failure, with short url", %{conn2: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      assert_error_sent(401, fn ->
-        get(
-          conn,
-          Routes.api_script_path(conn, :index, device.identifier)
-        )
-      end)
-      |> assert_authorization_error(401)
-    end
-  end
-
   describe "scripts: send" do
     test "success, with nested url", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)

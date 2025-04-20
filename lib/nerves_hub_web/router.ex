@@ -85,7 +85,6 @@ defmodule NervesHubWeb.Router do
       post("/move", DeviceController, :move)
       delete("/penalty", DeviceController, :penalty)
 
-      get("/scripts", ScriptController, :index)
       post("/scripts/:id", ScriptController, :send)
     end
 
