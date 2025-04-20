@@ -140,6 +140,30 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       end)
       |> assert_authorization_error(404)
     end
+
+    test "does not have required role to delete chosen device", %{
+      conn: conn,
+      user: user,
+      conn2: other_user_conn,
+      org: org
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      to_delete = Fixtures.device_fixture(org, product, firmware)
+
+      # fully load all the associations
+      to_delete = Devices.get_complete_device(to_delete.id)
+
+      assert_error_sent(404, fn ->
+        delete(
+          other_user_conn,
+          Routes.api_device_path(conn, :delete, org.name, product.name, to_delete.identifier)
+        )
+      end)
+      |> assert_authorization_error(404)
+    end
   end
 
   describe "update devices" do

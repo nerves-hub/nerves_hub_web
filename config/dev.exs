@@ -119,3 +119,5 @@ config :nerves_hub, NervesHub.RateLimit, limit: 10
 
 config :nerves_hub,
   open_for_registrations: true
+
+config :open_api_spex, :cache_adapter, OpenApiSpex.Plug.NoneCache

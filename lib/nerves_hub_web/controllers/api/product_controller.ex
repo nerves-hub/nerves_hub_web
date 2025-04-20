@@ -1,16 +1,58 @@
 defmodule NervesHubWeb.API.ProductController do
   use NervesHubWeb, :api_controller
+  use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Products
   alias NervesHub.Products.Product
 
+  alias NervesHubWeb.API.Schemas.ProductSchemas
+
+  tags(["Products"])
+  security([%{}, %{"bearer_auth" => []}])
+
   plug(:validate_role, [org: :admin] when action in [:create, :delete, :update])
   plug(:validate_role, [org: :view] when action in [:show])
+
+  operation(:index,
+    summary: "List all Products for an Organization",
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ]
+    ],
+    responses: [
+      ok: {"Product list response", "application/json", ProductSchemas.ProductListResponse}
+    ]
+  )
 
   def index(%{assigns: %{user: user, org: org}} = conn, _params) do
     products = Products.get_products_by_user_and_org(user, org)
     render(conn, :index, products: products)
   end
+
+  operation(:create,
+    summary: "Create a new Product in an Organization",
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ]
+    ],
+    request_body: {
+      "Product creation request body",
+      "application/json",
+      ProductSchemas.ProductCreationRequest,
+      required: true
+    },
+    responses: [
+      ok: {"Product response", "application/json", ProductSchemas.Product}
+    ]
+  )
 
   def create(%{assigns: %{org: org}} = conn, params) do
     params =
@@ -26,15 +68,84 @@ defmodule NervesHubWeb.API.ProductController do
     end
   end
 
+  operation(:show,
+    summary: "Retrieves a Products details",
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ],
+      product_name: [
+        in: :path,
+        description: "Product Name",
+        type: :string,
+        example: "example_product"
+      ]
+    ],
+    responses: [
+      ok: {"Product response", "application/json", ProductSchemas.Product}
+    ]
+  )
+
   def show(%{assigns: %{product: product}} = conn, _params) do
     render(conn, :show, product: product)
   end
+
+  operation(:delete,
+    summary: "Delete an Organizations Product",
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ],
+      product_name: [
+        in: :path,
+        description: "Product Name",
+        type: :string,
+        example: "example_product"
+      ]
+    ],
+    responses: [
+      no_content: "Empty response"
+    ]
+  )
 
   def delete(%{assigns: %{product: product}} = conn, _params) do
     with {:ok, %Product{}} <- Products.delete_product(product) do
       send_resp(conn, :no_content, "")
     end
   end
+
+  operation(:update,
+    summary: "Update an Organizations Product",
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ],
+      product_name: [
+        in: :path,
+        description: "Product Name",
+        type: :string,
+        example: "example_product"
+      ]
+    ],
+    request_body: {
+      "Product update request body",
+      "application/json",
+      ProductSchemas.ProductUpdateRequest,
+      required: true
+    },
+    responses: [
+      ok: {"Product response", "application/json", ProductSchemas.Product}
+    ]
+  )
 
   def update(%{assigns: %{product: product}} = conn, %{"product" => params}) do
     with {:ok, product} <- Products.update_product(product, params) do

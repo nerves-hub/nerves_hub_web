@@ -50,6 +50,7 @@ defmodule NervesHubWeb.Router do
 
   pipeline :api do
     plug(:accepts, ["json"])
+    plug(OpenApiSpex.Plug.PutApiSpec, module: NervesHubWeb.ApiSpec)
   end
 
   pipeline :api_require_authenticated_user do
@@ -66,6 +67,11 @@ defmodule NervesHubWeb.Router do
 
   pipeline :api_device do
     plug(NervesHubWeb.API.Plugs.Device)
+  end
+
+  scope "/api" do
+    pipe_through(:api)
+    get("/openapi", OpenApiSpex.Plug.RenderSpec, [])
   end
 
   scope("/api", NervesHubWeb.API, as: :api) do
@@ -182,6 +188,13 @@ defmodule NervesHubWeb.Router do
         end
       end
     end
+  end
+
+  scope "/api" do
+    # Use the default browser stack
+    pipe_through(:browser)
+
+    get("/swaggerui", OpenApiSpex.Plug.SwaggerUI, path: "/api/openapi")
   end
 
   scope "/", NervesHubWeb do

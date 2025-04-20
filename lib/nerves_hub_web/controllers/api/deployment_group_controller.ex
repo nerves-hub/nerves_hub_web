@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.DeploymentGroupController do
   use NervesHubWeb, :api_controller
+  use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Firmwares
@@ -11,10 +12,22 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
 
   @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active]
 
+  operation(:index,
+    summary: "List all Deployment Groups for a Product",
+    security: [%{}, %{"bearer_auth" => []}],
+    tags: ["Deployment Groups"]
+  )
+
   def index(%{assigns: %{product: product}} = conn, _params) do
     deployment_groups = ManagedDeployments.get_deployment_groups_by_product(product)
     render(conn, :index, deployment_groups: deployment_groups)
   end
+
+  operation(:create,
+    summary: "Create a new Deployment Group for a Product",
+    security: [%{}, %{"bearer_auth" => []}],
+    tags: ["Deployment Groups"]
+  )
 
   def create(%{assigns: %{org: org, product: product, user: user}} = conn, params) do
     case Map.get(params, "firmware") do
@@ -46,11 +59,23 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
     end
   end
 
+  operation(:show,
+    summary: "Show a Deployment Group",
+    security: [%{}, %{"bearer_auth" => []}],
+    tags: ["Deployment Groups"]
+  )
+
   def show(%{assigns: %{org: _org, product: product}} = conn, %{"name" => name}) do
     with {:ok, deployment_group} <- ManagedDeployments.get_deployment_group_by_name(product, name) do
       render(conn, :show, deployment_group: deployment_group)
     end
   end
+
+  operation(:update,
+    summary: "Update a Deployment Group",
+    security: [%{}, %{"bearer_auth" => []}],
+    tags: ["Deployment Groups"]
+  )
 
   def update(%{assigns: %{product: product, user: user}} = conn, %{
         "name" => name,
@@ -70,6 +95,12 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
       render(conn, :show, deployment_group: updated_deployment_group)
     end
   end
+
+  operation(:delete,
+    summary: "Delete a Product's Deployment Group",
+    security: [%{}, %{"bearer_auth" => []}],
+    tags: ["Deployment Groups"]
+  )
 
   def delete(%{assigns: %{product: product}} = conn, %{"name" => name}) do
     with {:ok, deployment_group} <-

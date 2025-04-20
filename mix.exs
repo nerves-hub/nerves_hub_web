@@ -102,6 +102,7 @@ defmodule NervesHub.MixProject do
       {:number, "~> 1.0.5"},
       {:oban, "~> 2.11"},
       {:oban_web, "~> 2.11"},
+      {:open_api_spex, "~> 3.21"},
       {:opentelemetry_exporter, "~> 1.8"},
       {:opentelemetry, "~> 1.5"},
       {:opentelemetry_api, "~> 1.4"},
