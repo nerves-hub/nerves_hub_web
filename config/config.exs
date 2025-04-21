@@ -43,6 +43,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
     accepts: ~w(html json)
   ],
   pubsub_server: NervesHub.PubSub
+
 # cspell:enable
 ##
 # Database and Oban
