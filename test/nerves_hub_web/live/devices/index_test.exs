@@ -95,7 +95,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     test "filters devices by tag", %{conn: conn, fixture: fixture} do
       %{device: device, firmware: firmware, org: org, product: product} = fixture
 
-      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["filter_test"]})
+      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["filter-test"]})
 
       conn
       |> visit(device_index_path(fixture))
@@ -153,7 +153,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       %{device: device, firmware: firmware, org: org, product: product} = fixture
 
       device2 =
-        Fixtures.device_fixture(org, product, firmware, %{tags: ["filter_test", "test_filter"]})
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["filter-test", "test-filter"]})
 
       conn
       |> visit(device_index_path(fixture))
