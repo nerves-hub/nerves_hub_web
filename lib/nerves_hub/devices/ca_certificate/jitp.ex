@@ -8,7 +8,7 @@ defmodule NervesHub.Devices.CACertificate.JITP do
     # so devices can be created
     belongs_to(:product, Product)
 
-    # Will be coppied to the device when it's created
+    # Will be copied to the device when it's created
     field(:tags, NervesHub.Types.Tag)
     field(:description, :string)
     timestamps()

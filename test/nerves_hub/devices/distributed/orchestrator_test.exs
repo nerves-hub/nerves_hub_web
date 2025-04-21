@@ -187,7 +187,7 @@ defmodule NervesHub.Devices.Distributed.OrchestratorTest do
     # `Devices.available_for_update` should be called:
     # - once upon Orchestrator startup
     # - once for when an out of date device comes online
-    # - and nooooo more times after that
+    # - and no more times after that
     Devices
     |> expect(:available_for_update, 1, fn _deployment_group, _slots ->
       []

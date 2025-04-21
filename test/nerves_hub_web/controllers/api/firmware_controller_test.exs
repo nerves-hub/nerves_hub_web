@@ -26,7 +26,7 @@ defmodule NervesHubWeb.API.FirmwareControllerTest do
 
       upload = %Plug.Upload{
         path: signed_firmware_path,
-        filename: "doesnt_matter.fw"
+        filename: "does_not_matter.fw"
       }
 
       params = %{"firmware" => upload}

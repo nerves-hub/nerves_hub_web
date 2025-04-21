@@ -23,7 +23,7 @@ defmodule NervesHub.Accounts.EmailTest do
     user = %{
       name: "Sad Guy",
       email: "sad_guy@forgot_password.com",
-      password_reset_token: "ultrarandomresettoken"
+      password_reset_token: "ultra_random_reset_token"
     }
 
     email = SwooshEmail.forgot_password(user)
@@ -52,7 +52,7 @@ defmodule NervesHub.Accounts.EmailTest do
     new_user = %{
       name: "Happy Guy",
       email: "happy_guy@knows_password.com",
-      password_reset_token: "ultrarandomresettoken"
+      password_reset_token: "ultra_random_reset_token"
     }
 
     org_users_emails = ["abc@def.com", "ghi@jkl.com", "mno@pqr.com"]
@@ -83,7 +83,7 @@ defmodule NervesHub.Accounts.EmailTest do
     user = %{
       name: "Sad Guy",
       email: "sad_guy@knows_password.com",
-      password_reset_token: "ultrarandomresettoken"
+      password_reset_token: "ultra_random_reset_token"
     }
 
     org_users_emails = ["abc@def.com", "ghi@jkl.com", "mno@pqr.com"]

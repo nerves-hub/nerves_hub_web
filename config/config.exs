@@ -31,6 +31,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 ##
 # NervesHub Web
 #
+# cspell:disable
 config :nerves_hub, NervesHubWeb.Endpoint,
   adapter: Bandit.PhoenixAdapter,
   secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
@@ -42,7 +43,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
     accepts: ~w(html json)
   ],
   pubsub_server: NervesHub.PubSub
-
+# cspell:enable
 ##
 # Database and Oban
 #

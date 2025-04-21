@@ -35,7 +35,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
           <div class="help-text mb-1">Last connected</div>
           <p :if={!@device_connection}>Never</p>
           <p :if={@device_connection} class="tooltip-label">
-            <time id="connection-establisted-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@device_connection.established_at, :second)), " ", "T")}>
+            <time id="connection-established-at" phx-hook="UpdatingTimeAgo" datetime={String.replace(DateTime.to_string(DateTime.truncate(@device_connection.established_at, :second)), " ", "T")}>
               {Timex.from_now(@device_connection.established_at)}
             </time>
             <span class="tooltip-info ml-1" id="connection-information-tooltip-icon"></span>
@@ -43,7 +43,7 @@ defmodule NervesHubWeb.Components.DeviceHeader do
               <span class="row">
                 <span class="col pl-1">Device connected:</span>
                 <span class="col pl-0">
-                  <span id="connection-establisted-at-localtime" phx-hook="LocalTime">
+                  <span id="connection-established-at-localtime" phx-hook="LocalTime">
                     {@device_connection.established_at}
                   </span>
                 </span>

@@ -137,7 +137,7 @@ defmodule NervesHub.Devices.DeviceCertificate do
   defp maybe_require_der(changeset, %{from_json: true}) do
     # This is set when cert is from a CSV that was exported as JSON
     # which only occurs when the device connected before DERs were
-    # being saved but havent connected since. In that case, we still want
+    # being saved but haven't connected since. In that case, we still want
     # to import the cert details to consider it valid which will also
     # store the DER on next connect as well, but we have to remove then
     # DER field requirement to do so

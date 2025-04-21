@@ -95,7 +95,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
     test "filters devices by tag", %{conn: conn, fixture: fixture} do
       %{device: device, firmware: firmware, org: org, product: product} = fixture
 
-      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["filtertest"]})
+      device2 = Fixtures.device_fixture(org, product, firmware, %{tags: ["filter_test"]})
 
       conn
       |> visit(device_index_path(fixture))
@@ -103,10 +103,10 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
       |> click_button("Show Filters")
-      |> fill_in("Tags", with: "filtertest-noshow")
+      |> fill_in("Tags", with: "filter-test-no-show")
       |> assert_has("div", text: "0 devices found", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
-      |> fill_in("Tags", with: "filtertest")
+      |> fill_in("Tags", with: "filter-test")
       |> assert_has("div", text: "1 devices found", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
     end
@@ -153,7 +153,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       %{device: device, firmware: firmware, org: org, product: product} = fixture
 
       device2 =
-        Fixtures.device_fixture(org, product, firmware, %{tags: ["filtertest", "testfilter"]})
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["filter_test", "test_filter"]})
 
       conn
       |> visit(device_index_path(fixture))
@@ -161,13 +161,13 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device.identifier)
       |> assert_has("div a", text: device2.identifier)
       |> click_button("Show Filters")
-      |> fill_in("Tags", with: "filtertest-noshow")
+      |> fill_in("Tags", with: "filter-test-no-show")
       |> assert_has("div", text: "0 devices found", timeout: 1_000)
       |> refute_has("div a", text: device2.identifier)
-      |> fill_in("Tags", with: "filtertest")
+      |> fill_in("Tags", with: "filter-test")
       |> assert_has("div", text: "1 devices found", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
-      |> fill_in("Tags", with: "filtertest, testfilter")
+      |> fill_in("Tags", with: "filter-test, test-filter")
       |> assert_has("div", text: "1 devices found", timeout: 1_000)
       |> assert_has("div a", text: device2.identifier)
     end
@@ -182,7 +182,7 @@ defmodule NervesHubWeb.Live.Devices.IndexTest do
       |> assert_has("div a", text: device.identifier, timeout: 1000)
       |> assert_has("div a", text: device2.identifier)
       |> click_button("Show Filters")
-      |> fill_in("Tags", with: "doesntmatter")
+      |> fill_in("Tags", with: "does_not_matter")
       |> assert_has("div", text: "0 devices found", timeout: 1000)
       |> refute_has("div a", text: device2.identifier)
     end
