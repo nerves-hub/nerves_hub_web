@@ -338,7 +338,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           Routes.api_device_path(conn, :reboot, org.name, product.name, device.identifier)
         )
 
-      assert response(conn, 200)
+      assert response(conn, 204)
     end
 
     test "auth failure, with nested url", %{conn2: conn, user: user, org: org} do
@@ -364,7 +364,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       conn = post(conn, Routes.api_device_path(conn, :reboot, device.identifier))
 
-      assert response(conn, 200)
+      assert response(conn, 204)
     end
 
     test "auth failure, with short url", %{conn2: conn, user: user, org: org} do
@@ -396,7 +396,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           Routes.api_device_path(conn, :reconnect, org.name, product.name, device.identifier)
         )
 
-      assert response(conn, 200)
+      assert response(conn, 204)
     end
 
     test "auth failure, with nested url", %{conn2: conn, user: user, org: org} do
@@ -422,7 +422,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       conn = post(conn, Routes.api_device_path(conn, :reconnect, device.identifier))
 
-      assert response(conn, 200)
+      assert response(conn, 205)
     end
 
     test "auth failure, with short url", %{conn2: conn, user: user, org: org} do
@@ -455,7 +455,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           %{body: "boop"}
         )
 
-      assert response(conn, 200)
+      assert response(conn, 204)
     end
 
     test "auth failure, with nested url", %{conn2: conn, user: user, org: org} do
@@ -482,7 +482,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       conn = post(conn, Routes.api_device_path(conn, :code, device.identifier), %{body: "boop"})
 
-      assert response(conn, 200)
+      assert response(conn, 204)
     end
 
     test "auth failure, with short url", %{conn2: conn, user: user, org: org} do
