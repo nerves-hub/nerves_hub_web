@@ -10,6 +10,7 @@ defmodule NervesHubWeb.ApiSpec do
   alias OpenApiSpex.Server
   alias OpenApiSpex.Tag
 
+  alias NervesHubWeb.API.OpenAPI.DeviceControllerSpecs
   alias NervesHubWeb.Endpoint
   alias NervesHubWeb.Router
 
@@ -62,6 +63,11 @@ defmodule NervesHubWeb.ApiSpec do
             "Device management, including action requests eg. upgrade, reboot, reconnect"
         },
         %Tag{
+          name: "Devices (short URL)",
+          description:
+            "Device management, including action requests eg. upgrade, reboot, reconnect"
+        },
+        %Tag{
           name: "Device Certificates",
           description: "Device Certificate management"
         },
@@ -91,6 +97,7 @@ defmodule NervesHubWeb.ApiSpec do
         }
       ]
     }
+    |> DeviceControllerSpecs.add_operations()
     # Discover request/response schemas from path specs
     |> OpenApiSpex.resolve_schema_modules()
   end

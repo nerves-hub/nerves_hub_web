@@ -1,6 +1,5 @@
 defmodule NervesHubWeb.API.DeviceController do
   use NervesHubWeb, :api_controller
-  use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Accounts
   alias NervesHub.AuditLogs.DeviceTemplates
@@ -32,12 +31,6 @@ defmodule NervesHubWeb.API.DeviceController do
 
   plug(:validate_role, [org: :view] when action in [:index, :show, :auth])
 
-  operation(:index,
-    summary: "List all Devices for a Product",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
-
   def index(%{assigns: %{org: org, product: product}} = conn, params) do
     opts = %{
       pagination: Map.get(params, "pagination", %{}),
@@ -54,12 +47,6 @@ defmodule NervesHubWeb.API.DeviceController do
     |> assign(:pagination, pagination)
     |> render(:index)
   end
-
-  operation(:create,
-    summary: "Create a Device for a Product",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
 
   def create(%{assigns: %{org: org, product: product}} = conn, params) do
     params =
@@ -80,33 +67,15 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  operation(:show,
-    summary: "Show a Device for a Product",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
-
   def show(conn, _) do
     render(conn, :show)
   end
-
-  operation(:delete,
-    summary: "Delete a Device for a Product",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
 
   def delete(%{assigns: %{org: _org, device: device}} = conn, _params) do
     {:ok, _device} = Devices.delete_device(device)
 
     send_resp(conn, :no_content, "")
   end
-
-  operation(:update,
-    summary: "Update a Device for a Product",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
 
   def update(%{assigns: %{device: device}} = conn, params) do
     with {:ok, updated_device} <- Devices.update_device(device, params) do
@@ -117,12 +86,6 @@ defmodule NervesHubWeb.API.DeviceController do
       |> render(:show, device: updated_device)
     end
   end
-
-  operation(:auth,
-    summary: "Test a Devices Certificate authentication",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
 
   def auth(%{assigns: %{org: org}} = conn, %{"certificate" => cert64}) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
@@ -142,37 +105,19 @@ defmodule NervesHubWeb.API.DeviceController do
     end
   end
 
-  operation(:reboot,
-    summary: "Request a Device reboot",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
-
   def reboot(%{assigns: %{user: user, device: device}} = conn, _params) do
     DeviceTemplates.audit_reboot(user, device)
 
     _ = Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
-    send_resp(conn, 200, "Success")
+    send_resp(conn, :no_content, "")
   end
-
-  operation(:reconnect,
-    summary: "Request a Device reconnect",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
 
   def reconnect(%{assigns: %{device: device}} = conn, _params) do
     _ = Endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
 
-    send_resp(conn, 200, "Success")
+    send_resp(conn, :no_content, "")
   end
-
-  operation(:code,
-    summary: "Request a Device run some Elixir code in it's console connection",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
 
   def code(%{assigns: %{device: device}} = conn, %{"body" => body}) do
     body
@@ -185,14 +130,8 @@ defmodule NervesHubWeb.API.DeviceController do
 
     Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{"data" => "\r"})
 
-    send_resp(conn, 200, "Success")
+    send_resp(conn, :no_content, "")
   end
-
-  operation(:upgrade,
-    summary: "Send new Firmware to a Device",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
 
   def upgrade(%{assigns: %{device: device, user: user}} = conn, %{"uuid" => uuid}) do
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(device.product, uuid)
@@ -218,30 +157,18 @@ defmodule NervesHubWeb.API.DeviceController do
         payload
       )
 
-    send_resp(conn, 204, "")
+    send_resp(conn, :no_content, "")
   end
-
-  operation(:penalty,
-    summary: "Clear the penalty box for a Device",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
 
   def penalty(%{assigns: %{device: device, user: user}} = conn, _params) do
     case Devices.clear_penalty_box(device, user) do
       {:ok, _device} ->
-        send_resp(conn, 204, "")
+        send_resp(conn, :no_content, "")
 
       {:error, _, _, _} ->
         {:error, "Failed to clear penalty box. Please contact support if this persists."}
     end
   end
-
-  operation(:move,
-    summary: "Move a Device to a different Product in the same or different Organization",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Devices"]
-  )
 
   def move(%{assigns: %{device: device, user: user}} = conn, %{
         "new_org_name" => org_name,
