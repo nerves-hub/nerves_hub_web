@@ -42,6 +42,13 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:"500", %{reason: reason})
   end
 
+  def call(conn, :error) do
+    conn
+    |> put_status(400)
+    |> put_view(NervesHubWeb.API.ErrorJSON)
+    |> render(:"400", %{reason: "An unknown error occurred, please check the request."})
+  end
+
   defp put_status_from_changeset(conn, changeset) do
     status = status_from_changeset_errors(changeset.errors)
     put_status(conn, status)

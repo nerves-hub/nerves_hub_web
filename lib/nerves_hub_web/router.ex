@@ -50,6 +50,7 @@ defmodule NervesHubWeb.Router do
 
   pipeline :api do
     plug(:accepts, ["json"])
+    plug(OpenApiSpex.Plug.PutApiSpec, module: NervesHubWeb.ApiSpec)
   end
 
   pipeline :api_require_authenticated_user do
@@ -68,6 +69,11 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.API.Plugs.Device)
   end
 
+  scope "/api" do
+    pipe_through(:api)
+    get("/openapi", OpenApiSpex.Plug.RenderSpec, [])
+  end
+
   scope("/api", NervesHubWeb.API, as: :api) do
     pipe_through(:api)
 
@@ -78,14 +84,14 @@ defmodule NervesHubWeb.Router do
       pipe_through([:api_require_authenticated_user, :api_device])
 
       get("/", DeviceController, :show)
+
+      post("/code", DeviceController, :code)
+      post("/move", DeviceController, :move)
       post("/reboot", DeviceController, :reboot)
       post("/reconnect", DeviceController, :reconnect)
-      post("/code", DeviceController, :code)
       post("/upgrade", DeviceController, :upgrade)
-      post("/move", DeviceController, :move)
       delete("/penalty", DeviceController, :penalty)
 
-      get("/scripts", ScriptController, :index)
       post("/scripts/:id", ScriptController, :send)
     end
 
@@ -151,7 +157,6 @@ defmodule NervesHubWeb.Router do
                   delete("/penalty", DeviceController, :penalty)
 
                   scope "/scripts", as: :device do
-                    get("/", ScriptController, :index)
                     post("/:id", ScriptController, :send)
                   end
 
@@ -178,11 +183,20 @@ defmodule NervesHubWeb.Router do
                 put("/:name", DeploymentGroupController, :update)
                 delete("/:name", DeploymentGroupController, :delete)
               end
+
+              get("/scripts", ScriptController, :index)
             end
           end
         end
       end
     end
+  end
+
+  scope "/api" do
+    # Use the default browser stack
+    pipe_through(:browser)
+
+    get("/swaggerui", OpenApiSpex.Plug.SwaggerUI, path: "/api/openapi")
   end
 
   scope "/", NervesHubWeb do

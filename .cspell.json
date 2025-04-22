@@ -128,7 +128,8 @@
     "psql",
     "postgrex",
     "tzdata",
-    "logfmt"
-
+    "logfmt",
+    "Spex",
+    "swaggerui"
   ]
 }
