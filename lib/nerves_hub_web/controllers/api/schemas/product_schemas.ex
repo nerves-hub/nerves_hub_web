@@ -25,7 +25,6 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
           format: :"date-time"
         }
       },
-      required: [:name],
       example: %{
         "id" => 123,
         "name" => "Example Product",
@@ -73,10 +72,11 @@ defmodule NervesHubWeb.API.Schemas.ProductSchemas do
           properties: %{
             name: %Schema{type: :string},
             delta_updatable: %Schema{type: :boolean}
-          }
+          },
+          required: [:name]
         }
       },
-      required: [:name],
+      required: [:product],
       example: %{
         "product" => %{
           "name" => "ExampleProduct"
