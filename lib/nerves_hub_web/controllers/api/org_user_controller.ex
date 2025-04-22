@@ -23,13 +23,10 @@ defmodule NervesHubWeb.API.OrgUserController do
     with {:ok, role} <- Map.fetch(params, "role"),
          {:ok, user} <- Accounts.get_user_by_email(email),
          {:ok, org_user} <- Accounts.add_org_user(org, user, %{role: role}) do
-      # Now let everyone in the organization - except the new person -
-      # know about this new user.
+      # Let every other admin in the organization know about this new user.
       instigator = conn.assigns.user
 
-      _ =
-        SwooshEmail.tell_org_user_added(org, Accounts.get_org_users(org), instigator, user)
-        |> SwooshMailer.deliver()
+      _ = UserNotifier.deliver_all_tell_org_user_added(org, instigator, user)
 
       conn
       |> put_status(:created)
