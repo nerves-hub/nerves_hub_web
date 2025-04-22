@@ -84,11 +84,12 @@ defmodule NervesHubWeb.Router do
       pipe_through([:api_require_authenticated_user, :api_device])
 
       get("/", DeviceController, :show)
+
+      post("/code", DeviceController, :code)
+      post("/move", DeviceController, :move)
       post("/reboot", DeviceController, :reboot)
       post("/reconnect", DeviceController, :reconnect)
-      post("/code", DeviceController, :code)
       post("/upgrade", DeviceController, :upgrade)
-      post("/move", DeviceController, :move)
       delete("/penalty", DeviceController, :penalty)
 
       post("/scripts/:id", ScriptController, :send)
@@ -139,7 +140,7 @@ defmodule NervesHubWeb.Router do
               scope "/devices" do
                 get("/", DeviceController, :index)
                 post("/", DeviceController, :create)
-                post("/auth", DeviceController, :auth)
+                post("/auth/:certificate", DeviceController, :auth)
 
                 scope "/:identifier" do
                   pipe_through([:api_device])
@@ -156,7 +157,6 @@ defmodule NervesHubWeb.Router do
                   delete("/penalty", DeviceController, :penalty)
 
                   scope "/scripts", as: :device do
-                    get("/", ScriptController, :index)
                     post("/:id", ScriptController, :send)
                   end
 
@@ -183,6 +183,8 @@ defmodule NervesHubWeb.Router do
                 put("/:name", DeploymentGroupController, :update)
                 delete("/:name", DeploymentGroupController, :delete)
               end
+
+              get("/scripts", ScriptController, :index)
             end
           end
         end
