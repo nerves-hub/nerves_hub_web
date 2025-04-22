@@ -44,7 +44,7 @@ defmodule NervesHubWeb.UserConsoleChannel do
   end
 
   def handle_in(event, payload, socket) do
-    # Keypresses are coming in here raw
+    # Key presses are coming in here raw
     # Send them to the device
     topic = "device:console:#{socket.assigns.device_id}"
     socket.endpoint.broadcast!(topic, event, payload)

@@ -20,7 +20,7 @@ branch](https://github.com/nerves-hub/nerves_hub_web/tree/maint-v1.0)) and is un
 
 ## Migration from 1.x to 2.x
 
-Migration should be quite straight-forward, there should not be any breaking changes. It is still the same application and NervesHubLink should stay largely compatible. You may find you no longer need a lot of the AWS services that was relied on by the 1.x version. We recommend decomissioning those if they aren't used for other things. Version 2.x requires an application server to run on, an S3-compatible object storage and a Postgres database. It also requires some control over how ingress is done for custom SSL handling. This should all be less than the requirements of Legacy NervesHub.
+Migration should be quite straight-forward, there should not be any breaking changes. It is still the same application and NervesHubLink should stay largely compatible. You may find you no longer need a lot of the AWS services that was relied on by the 1.x version. We recommend decommissioning those if they aren't used for other things. Version 2.x requires an application server to run on, an S3-compatible object storage and a Postgres database. It also requires some control over how ingress is done for custom SSL handling. This should all be less than the requirements of Legacy NervesHub.
 
 ## Project overview and setup
 

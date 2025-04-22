@@ -77,11 +77,11 @@ defmodule NervesHubWeb.Live.NewUI.SupportScriptsTest do
       |> click_button("Save changes")
       |> assert_path("/org/#{org.name}/#{product.name}/scripts/#{script.id}/edit")
       |> assert_has("p", text: "can't be blank", count: 1)
-      |> fill_in("Name", with: "MOTDDDDD")
+      |> fill_in("Name", with: "MOTD")
       |> fill_in("Script code", with: "dbg(NervesMOTD.print())")
       |> click_button("Save changes")
       |> assert_path("/org/#{org.name}/#{product.name}/scripts")
-      |> assert_has("td", text: "MOTDDDDD")
+      |> assert_has("td", text: "MOTD")
 
       assert %{text: "dbg(NervesMOTD.print())"} = Scripts.get!(script.id)
     end

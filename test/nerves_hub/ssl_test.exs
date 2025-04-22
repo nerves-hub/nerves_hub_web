@@ -105,7 +105,7 @@ defmodule NervesHub.SSLTest do
       assert {:fail, :ignore_deleted_device} = run_verify(context.cert)
     end
 
-    test "valiadates known intermediary signer CA", context do
+    test "validates known intermediary signer CA", context do
       subject_rdn = "/O=#{context.org.name}/CN=#{context.device.identifier} Signer"
 
       private_key = X509.PrivateKey.new_ec(:secp256r1)

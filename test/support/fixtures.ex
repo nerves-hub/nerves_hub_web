@@ -45,7 +45,7 @@ defmodule NervesHub.Fixtures do
   def user_params() do
     %{
       org_name: "org-#{counter()}.com",
-      email: "email-#{counter()}@mctesterson.com",
+      email: "email-#{counter()}@smiths.com",
       name: "User #{counter_in_alpha()}",
       password: "test_password"
     }

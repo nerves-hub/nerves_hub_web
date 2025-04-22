@@ -67,7 +67,7 @@
   <div class="col-lg-6">
     <div>
       <h3 class="mb-2">Information</h3>
-      <!-- Show if device has overriden any product-level extensions by disabling them -->
+      <!-- Show if device has overridden any product-level extensions by disabling them -->
       <div :if={@extension_overrides != []} class="display-box">
         <div class="help-text mb-1">Extensions</div>
         Device has disabled extensions: {Enum.join(@extension_overrides, ", ")}

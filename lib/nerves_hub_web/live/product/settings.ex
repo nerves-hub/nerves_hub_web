@@ -71,7 +71,7 @@ defmodule NervesHubWeb.Live.Product.Settings do
     |> noreply()
   end
 
-  def handle_event("delete-product", _parmas, socket) do
+  def handle_event("delete-product", _params, socket) do
     authorized!(:"product:delete", socket.assigns.org_user)
 
     case Products.delete_product(socket.assigns.product) do
