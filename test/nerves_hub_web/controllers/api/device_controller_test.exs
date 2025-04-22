@@ -422,7 +422,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       conn = post(conn, Routes.api_device_path(conn, :reconnect, device.identifier))
 
-      assert response(conn, 205)
+      assert response(conn, 204)
     end
 
     test "auth failure, with short url", %{conn2: conn, user: user, org: org} do
