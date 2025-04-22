@@ -85,7 +85,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("td", text: josh_again.email)
 
       # don't send email to admin who added the user
-      refute_email_sent(subject: "NervesHub: morejosh has been added")
+      refute_email_sent(subject: "NervesHub: Josh Again has been added to")
 
       assert_email_sent(subject: "NervesHub: You have been added to #{org.name}")
     end
