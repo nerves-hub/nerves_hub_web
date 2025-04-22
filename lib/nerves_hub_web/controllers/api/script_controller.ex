@@ -18,11 +18,8 @@ defmodule NervesHubWeb.API.ScriptController do
     |> render(:index)
   end
 
-  operation(:send,
-    summary: "Send a Support Script to a Device",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Support Scripts"]
-  )
+  # This operation is defined in `NervesHubWeb.API.OpenAPI.DeviceControllerSpecs`
+  operation(:send, false)
 
   def send(%{assigns: %{device: device}} = conn, %{"id" => id}) do
     with {:ok, command} <- Scripts.get(device.product, id),
