@@ -5,14 +5,13 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
   alias NervesHub.Certificate
   alias NervesHub.Devices
 
+  security([%{}, %{"bearer_auth" => []}])
+  tags(["Device Certificates"])
+
   plug(:validate_role, [org: :manage] when action in [:create, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
-  operation(:index,
-    summary: "List all Certificates for a Device",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Device Certificates"]
-  )
+  operation(:index, summary: "List all Certificates for a Device")
 
   def index(%{assigns: %{org: org}} = conn, %{"identifier" => identifier}) do
     with {:ok, device} <- Devices.get_device_by_identifier(org, identifier) do
@@ -21,11 +20,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
     end
   end
 
-  operation(:show,
-    summary: "Show a Certificate for a Device",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Device Certificates"]
-  )
+  operation(:show, summary: "Show a Certificate for a Device")
 
   def show(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
     with {:ok, device_certificate} <-
@@ -34,11 +29,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
     end
   end
 
-  operation(:create,
-    summary: "Create a Certificate for a Device",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Device Certificates"]
-  )
+  operation(:create, summary: "Create a Certificate for a Device")
 
   def create(%{assigns: %{org: org, product: product, device: device}} = conn, %{"cert" => cert64}) do
     with {:ok, cert_pem} <- Base.decode64(cert64),
@@ -79,11 +70,7 @@ defmodule NervesHubWeb.API.DeviceCertificateController do
     end
   end
 
-  operation(:delete,
-    summary: "Delete a Device's Certificate",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Device Certificates"]
-  )
+  operation(:delete, summary: "Delete a Device's Certificate")
 
   def delete(%{assigns: %{device: device}} = conn, %{"serial" => serial}) do
     with {:ok, device_certificate} <-

@@ -4,13 +4,12 @@ defmodule NervesHubWeb.API.ScriptController do
 
   alias NervesHub.Scripts
 
+  security([%{}, %{"bearer_auth" => []}])
+  tags(["Support Scripts"])
+
   plug(:validate_role, [org: :view] when action in [:index, :send])
 
-  operation(:index,
-    summary: "List all Support Scripts for a Product",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Support Scripts"]
-  )
+  operation(:index, summary: "List all Support Scripts for a Product")
 
   def index(%{assigns: %{product: product}} = conn, _params) do
     conn

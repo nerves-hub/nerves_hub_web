@@ -8,13 +8,14 @@ defmodule NervesHubWeb.API.UserController do
 
   alias NervesHub.Accounts
 
+  tags(["Auth"])
+
   operation(:me,
     summary: "Show details of the currently logged in user",
     responses: [
       ok: {"User response", "application/json", UserResponse}
     ],
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Auth"]
+    security: [%{}, %{"bearer_auth" => []}]
   )
 
   def me(%{assigns: %{user: user}} = conn, _params) do
@@ -28,8 +29,7 @@ defmodule NervesHubWeb.API.UserController do
     responses: [
       ok: {"User response", "application/json", UserResponse}
     ],
-    security: [],
-    tags: ["Auth"]
+    security: []
   )
 
   def auth(conn, %{"email" => email, "password" => password}) do
@@ -45,8 +45,7 @@ defmodule NervesHubWeb.API.UserController do
     responses: [
       ok: {"User response", "application/json", UserResponse}
     ],
-    security: [],
-    tags: ["Auth"]
+    security: []
   )
 
   def login(conn, %{"email" => email, "password" => password, "note" => note}) do

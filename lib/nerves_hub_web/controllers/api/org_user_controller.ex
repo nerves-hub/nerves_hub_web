@@ -8,22 +8,17 @@ defmodule NervesHubWeb.API.OrgUserController do
 
   plug(:validate_role, org: :admin)
 
-  operation(:index,
-    summary: "List all members of an Organization",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Organization Members"]
-  )
+  security([%{}, %{"bearer_auth" => []}])
+  tags(["Organization Members"])
+
+  operation(:index, summary: "List all members of an Organization")
 
   def index(%{assigns: %{org: org}} = conn, _params) do
     org_users = Accounts.get_org_users(org)
     render(conn, :index, org_users: org_users)
   end
 
-  operation(:add,
-    summary: "Add a member to an Organization",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Organization Members"]
-  )
+  operation(:add, summary: "Add a member to an Organization")
 
   def add(%{assigns: %{org: org}} = conn, %{"email" => email} = params) do
     with {:ok, role} <- Map.fetch(params, "role"),
@@ -73,11 +68,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     :error
   end
 
-  operation(:show,
-    summary: "Show membership details of a user in an Organization",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Organization Members"]
-  )
+  operation(:show, summary: "Show membership details of a user in an Organization")
 
   def show(%{assigns: %{org: org}} = conn, %{"user_id" => user_id}) do
     with {:ok, user} <- Accounts.get_user(user_id),
@@ -86,11 +77,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     end
   end
 
-  operation(:remove,
-    summary: "Remove a user from an Organization",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Organization Members"]
-  )
+  operation(:remove, summary: "Remove a user from an Organization")
 
   def remove(%{assigns: %{org: org}} = conn, %{"user_id" => user_id}) do
     with {:ok, user} <- Accounts.get_user(user_id),
@@ -108,11 +95,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     end
   end
 
-  operation(:update,
-    summary: "Update a user's role in an Organization",
-    security: [%{}, %{"bearer_auth" => []}],
-    tags: ["Organization Members"]
-  )
+  operation(:update, summary: "Update a user's role in an Organization")
 
   def update(%{assigns: %{org: org}} = conn, %{"user_id" => user_id} = params) do
     with {:ok, user} <- Accounts.get_user(user_id),

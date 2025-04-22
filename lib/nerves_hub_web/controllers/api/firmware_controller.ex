@@ -13,18 +13,14 @@ defmodule NervesHubWeb.API.FirmwareController do
   tags(["Firmwares"])
   security([%{}, %{"bearer_auth" => []}])
 
-  operation(:index,
-    summary: "List all Firmwares for a Product"
-  )
+  operation(:index, summary: "List all Firmwares for a Product")
 
   def index(%{assigns: %{product: product}} = conn, _params) do
     firmwares = Firmwares.get_firmwares_by_product(product.id)
     render(conn, :index, firmwares: firmwares)
   end
 
-  operation(:create,
-    summary: "Upload a Firmware for a Product"
-  )
+  operation(:create, summary: "Upload a Firmware for a Product")
 
   def create(%{assigns: %{org: org, product: product}} = conn, params) do
     params = whitelist(params, [:firmware])
@@ -47,9 +43,7 @@ defmodule NervesHubWeb.API.FirmwareController do
     end
   end
 
-  operation(:show,
-    summary: "Show a Firmware"
-  )
+  operation(:show, summary: "Show a Firmware")
 
   def show(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
@@ -57,9 +51,7 @@ defmodule NervesHubWeb.API.FirmwareController do
     end
   end
 
-  operation(:delete,
-    summary: "Delete a Firmware"
-  )
+  operation(:delete, summary: "Delete a Firmware")
 
   def delete(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
