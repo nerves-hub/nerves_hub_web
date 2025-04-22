@@ -57,7 +57,7 @@ defmodule NervesHubWeb.Live.Devices.Settings do
 
       {:error, _, _, _} ->
         socket
-        |> put_flash(:error, "An unknown error occured, please contact support.")
+        |> put_flash(:error, "An unknown error occurred, please contact support.")
         |> noreply()
     end
   end

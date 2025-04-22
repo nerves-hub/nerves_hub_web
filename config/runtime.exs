@@ -452,7 +452,7 @@ if host = System.get_env("STATSD_HOST") do
 end
 
 config :nerves_hub, :audit_logs,
-  enabled: System.get_env("TRUNATE_AUDIT_LOGS_ENABLED", "false") == "true",
+  enabled: System.get_env("TRUNCATE_AUDIT_LOGS_ENABLED", "false") == "true",
   default_days_kept:
     String.to_integer(System.get_env("TRUNCATE_AUDIT_LOGS_DEFAULT_DAYS_KEPT", "30"))
 

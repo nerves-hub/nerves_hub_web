@@ -71,7 +71,7 @@ defmodule NervesHubWeb.Endpoint do
 
   plug(
     Plug.Parsers,
-    parsers: [:urlencoded, NervesHubWeb.DymanicConfigMultipart, :json],
+    parsers: [:urlencoded, NervesHubWeb.DynamicConfigMultipart, :json],
     pass: ["*/*"],
     json_decoder: Phoenix.json_library()
   )

@@ -4,7 +4,7 @@ defmodule NervesHub.Scripts.Runner do
   use NervesHubLink on the device to evaluate the script directly.
 
   If the device has not been updated then the console channel will be
-  used as a back up for catpuring output.
+  used as a back up for capturing output.
 
   Runner - {:send, text} -> DeviceChannel
 

@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.DymanicConfigMultipart do
+defmodule NervesHubWeb.DynamicConfigMultipart do
   @moduledoc """
   A wrapper around `Plug.Parsers.MULTIPART` which allows for the `:length` opt (max file size)
   to be set during runtime.

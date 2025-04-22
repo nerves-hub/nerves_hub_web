@@ -23,7 +23,7 @@ defmodule NervesHubWeb.Live.AccountTest do
       |> visit("/account")
       |> assert_has("h1", text: "Personal Info")
       |> fill_in("Old Password", with: user.password)
-      |> fill_in("New Password", with: "foobarbaz")
+      |> fill_in("New Password", with: "foo_bar_baz")
       |> click_button("Save Changes")
       |> assert_path("/account")
       |> assert_has("div", text: "Account updated")
