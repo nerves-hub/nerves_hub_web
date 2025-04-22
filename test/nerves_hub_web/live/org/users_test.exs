@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("div", text: "Role updated")
     end
 
-    test "delete org user", %{conn: conn, org: org, user: user} do
+    test "delete org user", %{conn: conn, org: org} do
       {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
 
       conn
@@ -51,7 +51,8 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User removed")
 
-      assert_email_sent(subject: "#{user.name} removed #{org_user.user.name} from #{org.name}")
+      # don't send email to admin who added the user
+      refute_email_sent()
     end
   end
 
@@ -67,7 +68,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("h1", text: "Outstanding Invites")
       |> assert_has("td", text: "josh@mrjosh.com")
 
-      assert_email_sent(subject: "Hi from NervesHub!")
+      assert_email_sent(subject: "NervesHub: You have been invited to join Jeff")
     end
 
     test "adds user if they are already registered", %{conn: conn, org: org} do
@@ -83,7 +84,10 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> refute_has("h1", text: "Outstanding Invites")
       |> assert_has("td", text: josh_again.email)
 
-      assert_email_sent(subject: "Welcome to #{org.name}")
+      # don't send email to admin who added the user
+      refute_email_sent(subject: "NervesHub: Josh Again has been added to")
+
+      assert_email_sent(subject: "NervesHub: You have been added to #{org.name}")
     end
 
     test "rescind unaccepted invite", %{conn: conn, org: org, user: user} do

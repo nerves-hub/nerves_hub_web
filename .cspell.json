@@ -16,10 +16,12 @@
     "cacertfile",
     "cacerts",
     "checkmark",
+    "circuitboard",
     "conzole",
     "dropzone",
     "ecto",
     "esbuild",
+    "evenodd",
     "filelib",
     "firmwares",
     "fkey",
@@ -130,6 +132,14 @@
     "tzdata",
     "logfmt",
     "Spex",
-    "swaggerui"
+    "swaggerui",
+    "validtoken",
+    "invalidtoken",
+    "Mjml",
+    "mjml",
+    "noformat",
+    "foobarbazhumbug",
+    "ultrarandomresettoken",
+    "Balony"
   ]
 }

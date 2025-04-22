@@ -3,8 +3,7 @@ defmodule NervesHubWeb.API.OrgUserController do
   use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Accounts
-  alias NervesHub.Accounts.SwooshEmail
-  alias NervesHub.SwooshMailer
+  alias NervesHub.Accounts.UserNotifier
 
   plug(:validate_role, org: :admin)
 
@@ -24,13 +23,10 @@ defmodule NervesHubWeb.API.OrgUserController do
     with {:ok, role} <- Map.fetch(params, "role"),
          {:ok, user} <- Accounts.get_user_by_email(email),
          {:ok, org_user} <- Accounts.add_org_user(org, user, %{role: role}) do
-      # Now let everyone in the organization - except the new person -
-      # know about this new user.
+      # Let every other admin in the organization know about this new user.
       instigator = conn.assigns.user
 
-      _ =
-        SwooshEmail.tell_org_user_added(org, Accounts.get_org_users(org), instigator, user)
-        |> SwooshMailer.deliver()
+      _ = UserNotifier.deliver_all_tell_org_user_added(org, instigator, user)
 
       conn
       |> put_status(:created)
@@ -46,13 +42,11 @@ defmodule NervesHubWeb.API.OrgUserController do
     with {:ok, role} <- Map.fetch(params, "role"),
          {:ok, user} <- Accounts.get_user(user_id),
          {:ok, org_user} <- Accounts.add_org_user(org, user, %{role: role}) do
-      # Now let everyone in the organization - except the new guy -
+      # Now let every admin in the organization - except the admin who undertook the action -
       # know about this new user.
       instigator = conn.assigns.user
 
-      _ =
-        SwooshEmail.tell_org_user_added(org, Accounts.get_org_users(org), instigator, user)
-        |> SwooshMailer.deliver()
+      _ = UserNotifier.deliver_all_tell_org_user_added(org, instigator, user)
 
       conn
       |> put_status(:created)
@@ -79,17 +73,13 @@ defmodule NervesHubWeb.API.OrgUserController do
 
   operation(:remove, summary: "Remove a user from an Organization")
 
-  def remove(%{assigns: %{org: org}} = conn, %{"user_id" => user_id}) do
-    with {:ok, user} <- Accounts.get_user(user_id),
-         {:ok, _org_user} <- Accounts.get_org_user(org, user),
-         :ok <- Accounts.remove_org_user(org, user) do
-      # Now let everyone in the organization know
+  def remove(%{assigns: %{org: org, user: user}} = conn, %{"user_id" => user_id}) do
+    with {:ok, user_to_remove} <- Accounts.get_user(user_id),
+         {:ok, _org_user} <- Accounts.get_org_user(org, user_to_remove),
+         :ok <- Accounts.remove_org_user(org, user_to_remove) do
+      # Now let every admin in the organization - except the admin who undertook the action
       # that this user has been removed from the organization.
-      instigator = conn.assigns.user
-
-      _ =
-        SwooshEmail.tell_org_user_removed(org, Accounts.get_org_users(org), instigator, user)
-        |> SwooshMailer.deliver()
+      _ = UserNotifier.deliver_all_tell_org_user_removed(org, user, user_to_remove)
 
       send_resp(conn, :no_content, "")
     end

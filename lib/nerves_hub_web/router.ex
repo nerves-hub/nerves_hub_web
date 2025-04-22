@@ -22,6 +22,16 @@ defmodule NervesHubWeb.Router do
     plug(:put_dynamic_root_layout)
   end
 
+  pipeline :updated_layout do
+    plug(:use_updated_layout)
+  end
+
+  def use_updated_layout(conn, _) do
+    conn
+    |> put_layout(false)
+    |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
+  end
+
   def put_dynamic_root_layout(conn, _) do
     session = Plug.Conn.get_session(conn)
 
@@ -215,18 +225,19 @@ defmodule NervesHubWeb.Router do
 
   scope "/", NervesHubWeb do
     # Only unauthenticated users can use these routes
-    pipe_through([:browser, :redirect_if_user_is_authenticated])
+    pipe_through([:browser, :redirect_if_user_is_authenticated, :updated_layout])
 
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
+    get("/confirm/:token", SessionController, :confirm)
 
     get("/register", AccountController, :new)
     post("/register", AccountController, :create)
 
     get("/password-reset", PasswordResetController, :new)
     post("/password-reset", PasswordResetController, :create)
-    get("/password-reset/:token", PasswordResetController, :new_password_form)
-    put("/password-reset/:token", PasswordResetController, :reset)
+    get("/password-reset/:token", PasswordResetController, :edit)
+    put("/password-reset/:token", PasswordResetController, :update)
 
     get("/invite/:token", AccountController, :invite)
     post("/invite/:token", AccountController, :accept_invite)

@@ -9,6 +9,10 @@
     <meta name="description" content="" />
     <meta name="author" content="" />
 
+    <link rel="icon" type="image/png" href={~p"/images/favicon-96x96.png"} sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href={~p"/images/favicon.svg"} />
+    <link rel="shortcut icon" href={~p"/images/favicon.ico"} />
+
     <.live_title suffix={" · #{Application.get_env(:nerves_hub, :web_title_suffix)}"}>
       {assigns[:page_title] || "Welcome"}
     </.live_title>
