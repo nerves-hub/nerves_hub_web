@@ -140,7 +140,7 @@ defmodule NervesHubWeb.Router do
               scope "/devices" do
                 get("/", DeviceController, :index)
                 post("/", DeviceController, :create)
-                post("/auth/:certificate", DeviceController, :auth)
+                post("/auth", DeviceController, :auth)
 
                 scope "/:identifier" do
                   pipe_through([:api_device])

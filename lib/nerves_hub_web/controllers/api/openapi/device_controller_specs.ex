@@ -2,6 +2,7 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   import OpenApiSpex.Operation, only: [request_body: 4, response: 3]
 
   alias NervesHubWeb.API.Schemas.DeviceSchemas
+  alias NervesHubWeb.API.Schemas.DeviceCertificateSchemas
 
   @organization_parameter %OpenApiSpex.Parameter{
     name: :org_name,
@@ -326,28 +327,27 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
   end
 
   defp certificate_auth_action(openapi) do
-    certificate_serial_parameter =
-      %OpenApiSpex.Parameter{
-        name: :certificate_serial,
-        in: :path,
-        description: "Device Certificate Serial (Base64 encoded)",
-        required: true,
-        schema: %OpenApiSpex.Schema{type: :integer},
-        example: "device-serial"
-      }
+    request_body =
+      request_body(
+        "Device certificate auth request body",
+        "application/json",
+        DeviceCertificateSchemas.DeviceCertificateAuthRequest,
+        required: true
+      )
 
     auth_operation =
       device_operation(
         "Test a Devices Certificate authentication",
         :auth,
-        [@organization_parameter, @product_parameter, certificate_serial_parameter],
+        [@organization_parameter, @product_parameter],
         ["Devices"],
+        request_body: request_body,
         response: @device_response
       )
 
     add_to_paths(
       openapi,
-      "/api/orgs/{org_name}/products/{product_name}/devices/auth/{certificate_serial}",
+      "/api/orgs/{org_name}/products/{product_name}/devices/auth",
       %OpenApiSpex.PathItem{post: auth_operation}
     )
   end
