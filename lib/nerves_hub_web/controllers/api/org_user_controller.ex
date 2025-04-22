@@ -24,7 +24,7 @@ defmodule NervesHubWeb.API.OrgUserController do
     with {:ok, role} <- Map.fetch(params, "role"),
          {:ok, user} <- Accounts.get_user_by_email(email),
          {:ok, org_user} <- Accounts.add_org_user(org, user, %{role: role}) do
-      # Now let everyone in the organization - except the new guy -
+      # Now let everyone in the organization - except the new person -
       # know about this new user.
       instigator = conn.assigns.user
 
