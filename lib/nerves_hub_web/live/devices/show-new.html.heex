@@ -12,10 +12,14 @@
 
   <div class="flex items-center gap-2 ml-auto mr-6">
     <div id="present-users" phx-update="stream" class="border-r border-base-700 px-5 mr-3 h-8 flex flex-row-reverse -space-x-1 space-x-reverse overflow-hidden">
-      <div :for={{id, %{user: user}} <- @streams.presences} class="inline-flex items-center justify-center z-10" id={id}>
+      <div :for={{id, %{user: user}} <- @streams.presences} class="inline-flex items-center justify-center z-10 cursor-default" id={id} phx-hook="ToolTip" data-placement="bottom">
         <span class="inline-flex items-center justify-center px-1 size-7 ring-2 ring-zinc-600 rounded-full bg-zinc-800 font-medium text-zinc-400 text-sm">
           {String.split(user.name) |> Enum.map(fn w -> String.at(w, 0) |> String.upcase() end)}
         </span>
+        <div class="tooltip-content hidden w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+          {user.name}
+          <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+        </div>
       </div>
     </div>
     <.button :if={@pinned?} aria-label="Unpin device" style="primary" phx-click="unpin">
