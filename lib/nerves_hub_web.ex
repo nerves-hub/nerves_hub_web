@@ -62,6 +62,9 @@ defmodule NervesHubWeb do
 
       alias NervesHubWeb.Router.Helpers, as: Routes
 
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
+
       action_fallback(NervesHubWeb.API.FallbackController)
 
       def whitelist(params, keys) do

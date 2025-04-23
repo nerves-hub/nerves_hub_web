@@ -547,9 +547,7 @@ defmodule NervesHub.Accounts do
     end
   end
 
-  @spec invite(%{email: String.t()}, Org.t(), User.t()) ::
-          {:ok, Invite.t()}
-          | {:error, Changeset.t()}
+  @spec invite(map(), Org.t(), User.t()) :: {:ok, Invite.t()} | {:error, Changeset.t()}
   def invite(params, org, invited_by) do
     params =
       Map.merge(params, %{
