@@ -1,0 +1,25 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    We were unable to sign you in.
+  </:title>
+
+  <div :if={!Application.get_env(:nerves_hub, :support_email_address)} class="mt-8">
+    <p class="text-sm/6 text-zinc-300">
+      Sorry, we were unable to log you in with Google.
+    </p>
+
+    <p class="mt-2 text-sm/6 text-zinc-300">
+      Please contact your platform administrator if you continue to experience issues with Google login.
+    </p>
+  </div>
+
+  <div :if={Application.get_env(:nerves_hub, :support_email_address)} class="mt-8">
+    <p class="text-sm/6 text-zinc-300">
+      Sorry, we were unable to log you in with Google.
+    </p>
+
+    <p class="mt-2 text-sm/6 text-zinc-300">
+      Please contact our <.link class="underline" href={"mailto:#{Application.get_env(:nerves_hub, :support_email_address)}"}>support team</.link> if you continue to experience issues.
+    </p>
+  </div>
+</Layouts.auth>

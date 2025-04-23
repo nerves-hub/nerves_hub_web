@@ -206,6 +206,8 @@ defmodule NervesHubWeb do
 
       alias NervesHubWeb.Layouts
 
+      alias NervesHubWeb.Components.OAuthLinks
+
       def platform_name(), do: Application.get_env(:nerves_hub, :support_email_platform_name)
 
       # Include general helpers for rendering HTML

@@ -18,7 +18,9 @@
             />
           </svg>
         </.link>
-        <h1 class="mt-12 text-2xl/9 font-bold tracking-tight text-neutral-50">{@title}</h1>
+        <h1 class="mt-12 text-2xl/9 font-bold tracking-tight text-neutral-50">
+          {render_slot(@title)}
+        </h1>
         <p :if={assigns[:subheader]} class="mt-2 text-sm/6 text-zinc-300">
           {render_slot(@subheader)}
         </p>

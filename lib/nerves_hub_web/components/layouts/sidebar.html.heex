@@ -68,8 +68,11 @@
 
     <div class="sticky bottom-0 mt-auto col-start-1 col-end-2">
       <a href="#" class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-white hover:bg-indigo-700">
-        <div class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
+        <div :if={!@user.profile_picture_url} class="relative inline-flex items-center justify-center w-8 h-8 pt-0.5 overflow-hidden bg-gray-100 rounded-full dark:bg-gray-600">
           <span class="font-medium text-gray-600 dark:text-gray-300">{String.split(@user.name) |> Enum.map(fn w -> String.at(w, 0) end)}</span>
+        </div>
+        <div :if={@user.profile_picture_url} class="relative inline-flex items-center justify-center w-8 h-8 overflow-hidden">
+          <img src={@user.profile_picture_url} alt="User Profile Picture" class="w-full h-full object-cover rounded-full" />
         </div>
 
         <div class="">

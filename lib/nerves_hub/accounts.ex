@@ -610,6 +610,24 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  def find_or_create_user_from_ueberauth!(%Ueberauth.Auth{info: info} = auth) do
+    User
+    |> where(email: ^info.email)
+    |> Repo.exclude_deleted()
+    |> Repo.one()
+    |> case do
+      nil ->
+        %User{}
+        |> User.oauth_changeset(auth)
+        |> Repo.insert()
+
+      %User{} = user ->
+        user
+        |> User.oauth_changeset(auth)
+        |> Repo.update()
+    end
+  end
+
   @doc """
   Inserts a new user record, creating a org and adding a user to
   that new org if needed
