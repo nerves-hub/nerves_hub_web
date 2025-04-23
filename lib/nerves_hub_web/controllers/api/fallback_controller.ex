@@ -28,6 +28,26 @@ defmodule NervesHubWeb.API.FallbackController do
     |> render(:"404")
   end
 
+  def call(conn, {:error, :org_user_not_found}) do
+    conn
+    |> put_status(422)
+    |> put_view(NervesHubWeb.API.ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "A user with that email address could not be found, you may need to invite them instead."
+    })
+  end
+
+  def call(conn, {:error, :org_user_exists}) do
+    conn
+    |> put_status(422)
+    |> put_view(NervesHubWeb.API.ErrorJSON)
+    |> render(:"422", %{
+      reason:
+        "A user with that email address already exists, please use the add user api endpoint."
+    })
+  end
+
   def call(conn, {:error, reason}) when is_binary(reason) or is_atom(reason) do
     conn
     |> put_status(500)

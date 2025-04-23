@@ -55,6 +55,35 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
     end
   end
 
+  describe "invite org_users" do
+    test "renders org_user when data is valid", %{conn: conn, org: org} do
+      org_user = %{"email" => "bogus@example.com", "role" => "manage"}
+      conn = post(conn, Routes.api_org_user_path(conn, :invite, org.name), org_user)
+      assert response(conn, 204)
+
+      assert_email_sent()
+    end
+
+    test "renders errors when role is invalid", %{conn: conn, org: org} do
+      org_user = %{"email" => "bogus@example.com", "role" => "bogus"}
+
+      conn = post(conn, Routes.api_org_user_path(conn, :invite, org.name), org_user)
+
+      assert %{"role" => ["is invalid"]} = json_response(conn, 422)["errors"]
+    end
+
+    test "renders errors when user already has an account", %{conn: conn, org: org, user2: user2} do
+      org_user = %{"email" => user2.email, "role" => "bogus"}
+
+      conn = post(conn, Routes.api_org_user_path(conn, :invite, org.name), org_user)
+
+      assert %{
+               "detail" =>
+                 "A user with that email address already exists, please use the add user api endpoint."
+             } = json_response(conn, 422)["errors"]
+    end
+  end
+
   describe "add role" do
     for role <- [:manage, :view] do
       @role role

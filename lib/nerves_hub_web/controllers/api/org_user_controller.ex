@@ -35,7 +35,7 @@ defmodule NervesHubWeb.API.OrgUserController do
   end
 
   operation(:add,
-    summary: "Add a member to an Organization",
+    summary: "Add a user to an Organization",
     parameters: [
       org_name: [
         in: :path,
@@ -57,7 +57,7 @@ defmodule NervesHubWeb.API.OrgUserController do
 
   def add(%{assigns: %{org: org}} = conn, %{"email" => email} = params) do
     with {:ok, role} <- Map.fetch(params, "role"),
-         {:ok, user} <- Accounts.get_user_by_email(email),
+         {:user, {:ok, user}} <- {:user, Accounts.get_user_by_email(email)},
          {:ok, org_user} <- Accounts.add_org_user(org, user, %{role: role}) do
       # Let every other admin in the organization know about this new user.
       instigator = conn.assigns.user
@@ -68,13 +68,67 @@ defmodule NervesHubWeb.API.OrgUserController do
       |> put_status(:created)
       |> put_resp_header(
         "location",
-        Routes.api_org_user_path(conn, :show, org.name, user.id)
+        Routes.api_org_user_path(conn, :show, org.name, user.email)
       )
       |> render(:show, org_user: org_user)
+    else
+      {:user, {:error, :not_found}} ->
+        {:error, :org_user_not_found}
+
+      error ->
+        error
     end
   end
 
   def add(_conn, _params) do
+    :error
+  end
+
+  operation(:invite,
+    summary: "Invite a user to the Organization",
+    parameters: [
+      org_name: [
+        in: :path,
+        description: "Organization Name",
+        type: :string,
+        example: "example_org"
+      ]
+    ],
+    request_body: {
+      "Org User creation request body",
+      "application/json",
+      OrgUserSchemas.OrgUserCreationRequest,
+      required: true
+    },
+    responses: [
+      no_content: "Empty response"
+    ]
+  )
+
+  def invite(%{assigns: %{org: org, user: invited_by}} = conn, %{"email" => email} = params) do
+    with {:ok, role} <- Map.fetch(params, "role"),
+         {:user, {:error, :not_found}} <- {:user, Accounts.get_user_by_email(email)},
+         {:ok, invite} <- Accounts.invite(%{"email" => email, "role" => role}, org, invited_by) do
+      invite_url = url(~p"/invite/#{invite.token}")
+
+      # Let every other admin in the organization know about this new user.
+
+      _ = UserNotifier.deliver_user_invite(invite.email, org, invited_by, invite_url)
+      _ = UserNotifier.deliver_all_tell_org_user_invited(org, invited_by, invite.email)
+
+      conn
+      |> put_status(:created)
+      |> send_resp(:no_content, "")
+    else
+      {:user, {:ok, _}} ->
+        {:error, :org_user_exists}
+
+      error ->
+        error
+    end
+  end
+
+  def invite(_conn, _params) do
     :error
   end
 

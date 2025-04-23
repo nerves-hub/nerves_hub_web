@@ -117,6 +117,7 @@ defmodule NervesHubWeb.Router do
           scope "/users" do
             get("/", OrgUserController, :index)
             post("/", OrgUserController, :add)
+            post("/invite", OrgUserController, :invite)
             get("/:user_email", OrgUserController, :show)
             put("/:user_email", OrgUserController, :update)
             delete("/:user_email", OrgUserController, :remove)
