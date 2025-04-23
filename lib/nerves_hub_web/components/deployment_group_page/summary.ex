@@ -29,8 +29,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
         <div class="flex text-xl text-neutral-50 font-medium leading-6 h-10 justify-center items-center">All devices are up to date!</div>
       </div>
 
-      <div :if={@waiting_for_update_count > 0} class="w-full h-24 box-content flex items-center justify-center rounded border border-zinc-700 bg-zinc-900">
-        <div class="relative sticky top-0 w-full items-center justify-center rounded overflow-visible z-20">
+      <div :if={@waiting_for_update_count > 0} class="relative w-full h-24 box-content flex items-center justify-center rounded border border-zinc-700 bg-zinc-900">
+        <div class="absolute top-0 w-full items-center justify-center rounded overflow-visible z-20">
           <div class="z-40 absolute -top-px border-t rounded-tl border-success-500" role="progressbar" style={"width: #{deployment_group_percentage(@up_to_date_count, @deployment_group)}%"}>
             <div class="animate-pulse bg-progress-glow w-full h-16" />
           </div>
