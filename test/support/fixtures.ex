@@ -488,6 +488,65 @@ defmodule NervesHub.Fixtures do
     |> Repo.insert!()
   end
 
+  def ueberauth_google_success_fixture() do
+    %Ueberauth.Auth{
+      uid: "735086597857067149793",
+      provider: :google,
+      strategy: Ueberauth.Strategy.Google,
+      info: %Ueberauth.Auth.Info{
+        name: "Jane Person",
+        first_name: "Jane",
+        last_name: "Person",
+        nickname: nil,
+        email: "jane@person.com",
+        location: nil,
+        description: nil,
+        image: "https://lh3.googleusercontent.com/a/thisdoesntexist=s96-c",
+        phone: nil,
+        birthday: nil
+      },
+      credentials: %Ueberauth.Auth.Credentials{
+        token: "dummytoken",
+        refresh_token: nil,
+        token_type: "Bearer",
+        secret: nil,
+        expires: true,
+        expires_at: 1_745_381_095,
+        scopes: [
+          "https://www.googleapis.com/auth/userinfo.email",
+          "https://www.googleapis.com/auth/userinfo.profile",
+          "openid"
+        ],
+        other: %{}
+      },
+      extra: %Ueberauth.Auth.Extra{
+        raw_info: %{
+          user: %{
+            "email" => "jane@person.com",
+            "email_verified" => true,
+            "family_name" => "Person",
+            "given_name" => "Jane",
+            "hd" => "person.com",
+            "name" => "Jane Person",
+            "picture" => "https://lh3.googleusercontent.com/a/thisdoesntexist=s96-c",
+            "sub" => "735086597857067149793"
+          },
+          token: %OAuth2.AccessToken{
+            access_token: "dummytoken",
+            refresh_token: nil,
+            expires_at: 1_745_381_095,
+            token_type: "Bearer",
+            other_params: %{
+              "id_token" => "anotherdummytoken",
+              "scope" =>
+                "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid"
+            }
+          }
+        }
+      }
+    }
+  end
+
   defp counter() do
     System.unique_integer([:positive])
   end

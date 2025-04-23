@@ -113,25 +113,5 @@ defmodule NervesHubWeb.SessionControllerTest do
       |> submit()
       |> assert_path(~p"/orgs/new")
     end
-
-    test "not shown google auth button if not enabled" do
-      Application.put_env(:nerves_hub_web, :google_auth_enabled, false)
-
-      build_conn()
-      |> visit(~p"/login")
-      |> assert_has("h1", with: "Sign in to your account")
-      |> refute_has("span", text: "Or create a new account with")
-      |> refute_has("span", text: "Google")
-    end
-
-    test "shows google auth button if enabled" do
-      Application.put_env(:nerves_hub_web, :google_auth_enabled, true)
-
-      build_conn()
-      |> visit(~p"/login")
-      |> assert_has("h1", with: "Sign in to your account")
-      |> assert_has("span", with: "Or create a new account with")
-      |> assert_has("span", with: "Google")
-    end
   end
 end

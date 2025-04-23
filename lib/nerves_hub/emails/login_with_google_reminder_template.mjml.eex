@@ -1,0 +1,25 @@
+<mjml>
+  <mj-body background-color="#fafafa">
+    <%= render_dynamic_component NervesHub.Emails.LogoHeader, %{} %>
+
+    <mj-section padding-top="0px">
+      <mj-column>
+        <mj-text font-size="20px" font-family="sans-serif" padding-top="20px">Hi <%= @user_name %></mj-text>
+
+        <mj-text font-size="20px" font-family="sans-serif" padding-left="25px" padding-right="25px" padding-top="20px">
+          We have received a request to reset your password.
+        </mj-text>
+
+        <mj-text font-size="20px" font-family="sans-serif" padding-left="25px" padding-right="25px" padding-top="20px">
+          As your account was created using Google, there is no need to reset your password.
+        </mj-text>
+
+        <mj-text font-size="20px" font-family="sans-serif" padding-left="25px" padding-right="25px" padding-top="20px">
+          Please use the Google login button on the login page to access your account.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <%= render_dynamic_component NervesHub.Emails.ClosingBlock, %{} %>
+  </mj-body>
+</mjml>

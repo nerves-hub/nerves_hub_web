@@ -617,9 +617,14 @@ defmodule NervesHub.Accounts do
     |> Repo.one()
     |> case do
       nil ->
-        %User{}
-        |> User.oauth_changeset(auth)
-        |> Repo.insert()
+        {:ok, user} =
+          %User{}
+          |> User.oauth_changeset(auth)
+          |> Repo.insert()
+
+        {:ok, _} = UserNotifier.deliver_welcome_email(user)
+
+        {:ok, user}
 
       %User{} = user ->
         user
@@ -904,7 +909,7 @@ defmodule NervesHub.Accounts do
   ## Reset password
 
   @doc ~S"""
-  Delivers the reset password email to the given user.
+  Delivers the reset password email to the given user, unless they have logged in with Google auth.
 
   ## Examples
 
@@ -912,6 +917,14 @@ defmodule NervesHub.Accounts do
       {:ok, %{to: ..., body: ...}}
 
   """
+  def deliver_user_reset_password_instructions(
+        %User{google_id: google_id} = user,
+        reset_password_url_fun
+      )
+      when not is_nil(google_id) and is_function(reset_password_url_fun, 1) do
+    UserNotifier.deliver_login_with_google_reminder(user)
+  end
+
   def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun)
       when is_function(reset_password_url_fun, 1) do
     {encoded_token, user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
