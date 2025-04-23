@@ -142,4 +142,43 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
       |> assert_has("a", text: deployment_group.name)
     end
   end
+
+  describe "pagination" do
+    test "no pagination when less than 25 deployment groups", %{
+      conn: conn,
+      org: org,
+      product: product
+    } do
+      conn
+      |> put_session("new_ui", true)
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
+      |> refute_has("button", text: "25", timeout: 1000)
+    end
+
+    test "pagination with more than 25 deployment groups", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      for i <- 1..26 do
+        Fixtures.deployment_group_fixture(org, deployment_group.firmware, %{
+          name: "Deployment-group-#{i}"
+        })
+      end
+
+      deployment_groups = ManagedDeployments.get_deployment_groups_by_product(product)
+      [first_deployment_group | _] = deployment_groups |> Enum.sort_by(& &1.name)
+
+      conn
+      |> put_session("new_ui", true)
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
+      |> assert_has("a", text: first_deployment_group.name, timeout: 1000)
+      |> assert_has("button", text: "25", timeout: 1000)
+      |> assert_has("button", text: "50", timeout: 1000)
+      |> assert_has("button", text: "2", timeout: 1000)
+      |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
+      |> refute_has("a", text: first_deployment_group.name, timeout: 1000)
+    end
+  end
 end

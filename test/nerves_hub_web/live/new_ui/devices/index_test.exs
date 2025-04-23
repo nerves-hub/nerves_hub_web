@@ -2,6 +2,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
   use NervesHubWeb.ConnCase.Browser, async: false
   use Mimic
 
+  alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Repo
 
@@ -88,6 +89,74 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> select("Platform", option: "platform")
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> refute_has("a", text: device2.identifier)
+    end
+  end
+
+  describe "pagination" do
+    test "no pagination when less than 25 devices", %{conn: conn, fixture: fixture} do
+      %{
+        org: org,
+        product: product
+      } = fixture
+
+      conn
+      |> put_session("new_ui", true)
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> refute_has("button", text: "25", timeout: 1000)
+    end
+
+    test "pagination with more than 25 devices", %{conn: conn, fixture: fixture} do
+      %{
+        org: org,
+        product: product,
+        firmware: firmware
+      } = fixture
+
+      for _i <- 1..26 do
+        Fixtures.device_fixture(org, product, firmware)
+      end
+
+      devices = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
+      [first_device | _] = devices |> Enum.sort_by(& &1.identifier)
+
+      conn
+      |> put_session("new_ui", true)
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: first_device.identifier, timeout: 1000)
+      |> assert_has("button", text: "25", timeout: 1000)
+      |> refute_has("button", text: "50", timeout: 1000)
+      |> assert_has("button", text: "2", timeout: 1000)
+      |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
+      |> refute_has("a", text: first_device.identifier, timeout: 1000)
+      |> click_button("button[phx-click='paginate'][phx-value-page='1']", "1")
+      |> assert_has("a", text: first_device.identifier, timeout: 1000)
+    end
+
+    test "pagination with more than 50 devices", %{conn: conn, fixture: fixture} do
+      %{
+        org: org,
+        product: product,
+        firmware: firmware
+      } = fixture
+
+      for _i <- 1..51 do
+        Fixtures.device_fixture(org, product, firmware)
+      end
+
+      devices = Devices.get_devices_by_org_id_and_product_id(org.id, product.id)
+      [first_device | _] = devices |> Enum.sort_by(& &1.identifier)
+
+      conn
+      |> put_session("new_ui", true)
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: first_device.identifier, timeout: 1000)
+      |> assert_has("button", text: "25", timeout: 1000)
+      |> assert_has("button", text: "50", timeout: 1000)
+      |> assert_has("button", text: "2", timeout: 1000)
+      |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
+      |> refute_has("a", text: first_device.identifier, timeout: 1000)
+      |> click_button("button[phx-click='paginate'][phx-value-page='3']", "3")
+      |> refute_has("a", text: first_device.identifier, timeout: 1000)
     end
   end
 end
