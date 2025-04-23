@@ -610,7 +610,9 @@ defmodule NervesHub.Accounts do
     end
   end
 
-  def find_or_create_user_from_ueberauth!(%Ueberauth.Auth{info: info} = auth) do
+  @spec update_or_create_user_from_ueberauth(Ueberauth.Auth.t()) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def update_or_create_user_from_ueberauth(%Ueberauth.Auth{info: info} = auth) do
     User
     |> where(email: ^info.email)
     |> Repo.exclude_deleted()

@@ -11,7 +11,7 @@ defmodule NervesHubWeb.OAuthController do
   end
 
   def callback(%{assigns: %{ueberauth_auth: auth}} = conn, _params) do
-    case Accounts.find_or_create_user_from_ueberauth!(auth) do
+    case Accounts.update_or_create_user_from_ueberauth(auth) do
       {:ok, user} ->
         conn
         |> put_flash(:info, "Welcome back!")
