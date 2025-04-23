@@ -6,6 +6,7 @@ Mimic.copy(NervesHub.Firmwares.Upload.File)
 Mimic.copy(NervesHub.Firmwares.Upload)
 Mimic.copy(NervesHub.Tracker)
 Mimic.copy(NervesHub.Scripts.Runner)
+Mimic.copy(Ueberauth)
 
 ExUnit.start(capture_log: true, exclude: [:pending])
 

@@ -610,6 +610,31 @@ defmodule NervesHub.Accounts do
     end
   end
 
+  @spec update_or_create_user_from_ueberauth(Ueberauth.Auth.t()) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def update_or_create_user_from_ueberauth(%Ueberauth.Auth{info: info} = auth) do
+    User
+    |> where(email: ^info.email)
+    |> Repo.exclude_deleted()
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:ok, user} =
+          %User{}
+          |> User.oauth_changeset(auth)
+          |> Repo.insert()
+
+        {:ok, _} = UserNotifier.deliver_welcome_email(user)
+
+        {:ok, user}
+
+      %User{} = user ->
+        user
+        |> User.oauth_changeset(auth)
+        |> Repo.update()
+    end
+  end
+
   @doc """
   Inserts a new user record, creating a org and adding a user to
   that new org if needed
@@ -886,7 +911,7 @@ defmodule NervesHub.Accounts do
   ## Reset password
 
   @doc ~S"""
-  Delivers the reset password email to the given user.
+  Delivers the reset password email to the given user, unless they have logged in with Google auth.
 
   ## Examples
 
@@ -894,7 +919,16 @@ defmodule NervesHub.Accounts do
       {:ok, %{to: ..., body: ...}}
 
   """
-  def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun)
+  def deliver_user_reset_password_instructions(
+        %User{google_id: google_id} = user,
+        _reset_password_url_fun,
+        login_url
+      )
+      when not is_nil(google_id) do
+    UserNotifier.deliver_login_with_google_reminder(user, login_url)
+  end
+
+  def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun, _login_url)
       when is_function(reset_password_url_fun, 1) do
     {encoded_token, user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
     Repo.insert!(user_token)

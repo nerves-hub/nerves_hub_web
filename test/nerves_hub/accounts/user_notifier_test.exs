@@ -56,8 +56,8 @@ defmodule NervesHub.Accounts.UserNotifierTest do
     }
 
     invited_by = %User{
-      name: "Balony",
-      email: "balony@curedmeats.com"
+      name: "Baloney",
+      email: "baloney@curedmeats.com"
     }
 
     {:ok, email} =
@@ -70,7 +70,7 @@ defmodule NervesHub.Accounts.UserNotifierTest do
     assert email.to == [{"", "tony@salami.com"}]
 
     assert email.html_body =~
-             "You've been added to the <strong>My Org Name</strong> organization by <strong>Balony</strong>."
+             "You've been added to the <strong>My Org Name</strong> organization by <strong>Baloney</strong>."
   end
 
   test "tell org about new user" do

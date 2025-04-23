@@ -32,7 +32,14 @@ defmodule NervesHub.Accounts.User do
     field(:password_confirmation, :string, virtual: true, redact: true)
     field(:password_hash, :string)
 
+    field(:profile_picture_url, :string)
+
+    field(:google_id, :string)
+    field(:google_hd, :string)
+    field(:google_last_synced_at, :naive_datetime)
+
     field(:confirmed_at, :naive_datetime)
+
     field(:deleted_at, :utc_datetime)
 
     # TODO: look into removing :password
@@ -62,6 +69,37 @@ defmodule NervesHub.Accounts.User do
     |> validate_email(opts)
     |> validate_password(opts)
   end
+
+  def oauth_changeset(%User{} = user, %Ueberauth.Auth{info: info} = auth, opts \\ []) do
+    oauth_attrs = [:name, :email, :profile_picture_url, :google_id, :google_hd]
+
+    attrs = %{
+      name: info.name,
+      email: info.email,
+      profile_picture_url: info.image,
+      google_id: auth.uid,
+      google_hd: auth.extra.raw_info.user["hd"]
+    }
+
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    user
+    |> cast(attrs, oauth_attrs)
+    |> validate_name(opts)
+    |> validate_email(opts)
+    |> validate_required([:google_id])
+    |> put_change(:google_last_synced_at, now)
+    |> maybe_add_confirmed_at()
+  end
+
+  defp maybe_add_confirmed_at(%{data: %{confirmed_at: confirmed_at}} = changeset)
+       when is_nil(confirmed_at) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    put_change(changeset, :confirmed_at, now)
+  end
+
+  defp maybe_add_confirmed_at(changeset), do: changeset
 
   defp validate_name(changeset, _opts) do
     changeset

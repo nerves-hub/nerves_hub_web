@@ -1,4 +1,7 @@
-<Layouts.auth title="Reset your password" flash={@flash}>
+<Layouts.auth flash={@flash}>
+  <:title>
+    Reset your password
+  </:title>
   <div class="mt-6">
     <div :if={@changeset.action} role="alert" class="mb-6 mr-2 w-full rounded-sm p-3 ring-1 bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900">
       <p class="mt-1 text-sm leading-5">Oops, we couldn't save your account details.</p>

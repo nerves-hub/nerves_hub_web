@@ -241,6 +241,11 @@ defmodule NervesHubWeb.Router do
 
     get("/invite/:token", AccountController, :invite)
     post("/invite/:token", AccountController, :accept_invite)
+
+    scope "/auth" do
+      get("/:provider", OAuthController, :request)
+      get("/:provider/callback", OAuthController, :callback)
+    end
   end
 
   scope "/org/:org_name/:product_name", NervesHubWeb do

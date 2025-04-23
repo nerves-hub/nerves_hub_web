@@ -5,6 +5,7 @@ defmodule NervesHub.Accounts.UserNotifier do
   alias NervesHub.Accounts.User
 
   alias NervesHub.Emails.ConfirmationTemplate
+  alias NervesHub.Emails.LoginWithGoogleReminderTemplate
   alias NervesHub.Emails.OrgUserAddedTemplate
   alias NervesHub.Emails.PasswordResetTemplate
   alias NervesHub.Emails.PasswordResetConfirmationTemplate
@@ -41,6 +42,19 @@ defmodule NervesHub.Accounts.UserNotifier do
     text = PasswordUpdatedTemplate.text_render(assigns)
 
     send_email(user, "#{platform_name()}: Your password has been updated", html, text)
+  end
+
+  def deliver_login_with_google_reminder(user, login_url) do
+    assigns = %{
+      user_name: user.name,
+      login_url: login_url,
+      platform_name: platform_name()
+    }
+
+    html = LoginWithGoogleReminderTemplate.render(assigns)
+    text = LoginWithGoogleReminderTemplate.text_render(assigns)
+
+    send_email(user, "#{platform_name()}: Login with Google", html, text)
   end
 
   def deliver_reset_password_instructions(user, reset_url) do

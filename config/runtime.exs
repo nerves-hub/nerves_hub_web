@@ -458,3 +458,12 @@ config :nerves_hub, :audit_logs,
 
 config :nerves_hub, NervesHub.RateLimit,
   limit: System.get_env("DEVICE_CONNECT_RATE_LIMIT", "100") |> String.to_integer()
+
+config :nerves_hub,
+  enable_google_auth: !is_nil(System.get_env("GOOGLE_CLIENT_ID"))
+
+if System.get_env("GOOGLE_CLIENT_ID") do
+  config :ueberauth, Ueberauth.Strategy.Google.OAuth,
+    client_id: System.get_env("GOOGLE_CLIENT_ID"),
+    client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
+end

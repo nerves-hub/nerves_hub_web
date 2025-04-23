@@ -106,5 +106,10 @@ config :tailwind,
     cd: Path.expand("../assets", __DIR__)
   ]
 
+config :ueberauth, Ueberauth,
+  providers: [
+    google: {Ueberauth.Strategy.Google, [default_scope: "email profile openid"]}
+  ]
+
 # Environment specific config
 import_config "#{Mix.env()}.exs"
