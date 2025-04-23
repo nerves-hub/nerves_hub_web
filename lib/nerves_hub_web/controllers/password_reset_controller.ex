@@ -19,7 +19,8 @@ defmodule NervesHubWeb.PasswordResetController do
         {:ok, user} ->
           Accounts.deliver_user_reset_password_instructions(
             user,
-            &url(~p"/password-reset/#{&1}")
+            &url(~p"/password-reset/#{&1}"),
+            url(~p"/login")
           )
 
         _ ->

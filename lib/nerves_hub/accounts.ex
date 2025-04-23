@@ -921,13 +921,14 @@ defmodule NervesHub.Accounts do
   """
   def deliver_user_reset_password_instructions(
         %User{google_id: google_id} = user,
-        reset_password_url_fun
+        _reset_password_url_fun,
+        login_url
       )
-      when not is_nil(google_id) and is_function(reset_password_url_fun, 1) do
-    UserNotifier.deliver_login_with_google_reminder(user)
+      when not is_nil(google_id) do
+    UserNotifier.deliver_login_with_google_reminder(user, login_url)
   end
 
-  def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun)
+  def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun, _login_url)
       when is_function(reset_password_url_fun, 1) do
     {encoded_token, user_token} = UserToken.build_hashed_token(user, "reset_password", nil)
     Repo.insert!(user_token)

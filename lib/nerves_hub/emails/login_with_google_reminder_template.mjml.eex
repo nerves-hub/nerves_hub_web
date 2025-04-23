@@ -15,7 +15,7 @@
         </mj-text>
 
         <mj-text font-size="20px" font-family="sans-serif" padding-left="25px" padding-right="25px" padding-top="20px">
-          Please use the Google login button on the login page to access your account.
+          Please use the Google login button on the <a href="<%= @login_url %>">login page</a> to access your account.
         </mj-text>
       </mj-column>
     </mj-section>

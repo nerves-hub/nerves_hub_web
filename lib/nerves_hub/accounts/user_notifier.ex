@@ -44,9 +44,10 @@ defmodule NervesHub.Accounts.UserNotifier do
     send_email(user, "#{platform_name()}: Your password has been updated", html, text)
   end
 
-  def deliver_login_with_google_reminder(user) do
+  def deliver_login_with_google_reminder(user, login_url) do
     assigns = %{
       user_name: user.name,
+      login_url: login_url,
       platform_name: platform_name()
     }
 
