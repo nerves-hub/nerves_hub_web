@@ -175,4 +175,4 @@
   on_reset="reset-filters"
 />
 
-<Pager.render_with_page_sizes pager={@pager_meta} page_sizes={[25, 50, 100]} />
+<Pager.render_with_page_sizes pager={@pager_meta} page_sizes={@paginate_opts.page_sizes} />

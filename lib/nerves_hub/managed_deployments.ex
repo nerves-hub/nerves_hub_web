@@ -34,16 +34,14 @@ defmodule NervesHub.ManagedDeployments do
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
+    pagination = Map.get(opts, :pagination, %{})
+    sorting = Map.get(opts, :sort, {:asc, :name})
 
-    sort = Map.get(opts, :sort, "name")
-    sort_direction = Map.get(opts, :sort_direction, "desc")
-
-    sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
     filters = Map.get(opts, :filters, %{})
 
     flop = %Flop{
-      page: String.to_integer(Map.get(opts, :page, "1")),
-      page_size: String.to_integer(Map.get(opts, :page_size, "25"))
+      page: pagination.page,
+      page_size: pagination.page_size
     }
 
     subquery =
@@ -60,7 +58,7 @@ defmodule NervesHub.ManagedDeployments do
     |> join(:left, [d], f in assoc(d, :firmware))
     |> where([d], d.product_id == ^product.id)
     |> Filtering.build_filters(filters)
-    |> sort_deployment_groups(sort_opts)
+    |> sort_deployment_groups(sorting)
     |> preload([_d, _dev, f], firmware: f)
     |> select_merge([_f, dev], %{device_count: dev.device_count})
     |> Flop.run(flop)

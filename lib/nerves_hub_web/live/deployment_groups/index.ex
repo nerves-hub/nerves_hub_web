@@ -10,7 +10,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.Components.FilterSidebar
 
-  @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
   @default_filters %{
     name: "",
     platform: "",
@@ -22,6 +21,26 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     platform: :string,
     architecture: :string
   }
+
+  @default_page 1
+  @default_page_size 25
+
+  @default_pagination %{
+    page_number: @default_page,
+    page_size: @default_page_size,
+    page_sizes: [25, 50, 100],
+    total_pages: 0
+  }
+
+  @pagination_types %{
+    page_number: :integer,
+    page_size: :integer,
+    page_sizes: {:array, :integer},
+    total_pages: :integer
+  }
+
+  @default_sorting %{sort_direction: "asc", sort: "name"}
+  @sort_types %{sort_direction: :string, sort: :string}
 
   @impl Phoenix.LiveView
   def mount(_params, _session, %{assigns: %{product: product}} = socket) do
@@ -37,6 +56,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
 
     socket
     |> page_title("Deployments - #{product.name}")
+    |> assign(:paginate_opts, @default_pagination)
+    |> assign(:sort_direction, @default_sorting.sort_direction)
+    |> assign(:current_sort, @default_sorting.sort)
     |> sidebar_tab(:deployments)
     |> assign(:deployment_groups, deployment_groups)
     |> assign(:platforms, Firmwares.get_unique_platforms(product))
@@ -51,11 +73,19 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   @impl Phoenix.LiveView
   def handle_params(params, _url, socket) do
     filters = Map.merge(@default_filters, filter_changes(params))
+    pagination_changes = pagination_changes(params)
+    pagination_opts = Map.merge(@default_pagination, pagination_changes)
 
     socket
     |> assign(:params, params)
+    |> assign(:current_sort, Map.get(params, "sort", @default_sorting.sort))
+    |> assign(
+      :sort_direction,
+      Map.get(params, "sort_direction", @default_sorting.sort_direction)
+    )
     |> assign(:current_filters, filters)
     |> assign(:currently_filtering, filters != @default_filters)
+    |> assign(:paginate_opts, pagination_opts)
     |> assign_deployment_groups_with_pagination()
     |> noreply()
   end
@@ -128,37 +158,41 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   defp assign_deployment_groups_with_pagination(socket) do
-    %{assigns: %{product: product, params: params, current_filters: filters}} = socket
-
-    pagination_opts = Map.take(params, @pagination_opts)
+    %{
+      assigns: %{
+        product: product,
+        current_filters: filters,
+        paginate_opts: paginate_opts
+      }
+    } = socket
 
     opts = %{
-      page: pagination_opts["page_number"],
-      page_size: pagination_opts["page_size"],
-      sort: pagination_opts["sort"] || "name",
-      sort_direction: pagination_opts["sort_direction"] || "asc",
+      pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
+      sort:
+        {String.to_existing_atom(socket.assigns.sort_direction),
+         String.to_atom(socket.assigns.current_sort)},
       filters: filters
     }
 
     {entries, pager_meta} = ManagedDeployments.filter(product, opts)
 
     socket
-    |> assign(:current_sort, opts.sort)
-    |> assign(:sort_direction, opts.sort_direction)
     |> assign(:entries, entries)
     |> assign(:pager_meta, pager_meta)
   end
 
   defp self_path(socket, new_params) do
-    current_params =
-      socket.assigns.params
-      |> Map.reject(fn {key, _val} -> key in ["org_name", "product_name"] end)
+    params = Enum.into(stringify_keys(new_params), socket.assigns.params)
+    pagination = pagination_changes(params)
+    filter = filter_changes(params)
+    sort = sort_changes(params)
 
-    params =
-      stringify_keys(new_params)
-      |> Enum.into(current_params)
+    query =
+      filter
+      |> Map.merge(pagination)
+      |> Map.merge(sort)
 
-    ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/deployment_groups?#{params}"
+    ~p"/org/#{socket.assigns.org.name}/#{socket.assigns.product.name}/deployment_groups?#{query}"
   end
 
   defp stringify_keys(params) do
@@ -171,9 +205,21 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     end
   end
 
+  defp sort_changes(params) do
+    Ecto.Changeset.cast({@default_sorting, @sort_types}, params, Map.keys(@default_sorting)).changes
+  end
+
   defp filter_changes(params) do
     Ecto.Changeset.cast({@default_filters, @filter_types}, params, Map.keys(@default_filters),
       empty_values: []
+    ).changes
+  end
+
+  defp pagination_changes(params) do
+    Ecto.Changeset.cast(
+      {@default_pagination, @pagination_types},
+      params,
+      Map.keys(@default_pagination)
     ).changes
   end
 
