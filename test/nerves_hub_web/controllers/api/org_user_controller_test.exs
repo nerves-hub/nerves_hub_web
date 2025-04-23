@@ -37,11 +37,11 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
 
   describe "add org_users" do
     test "renders org_user when data is valid", %{conn: conn, org: org, user2: user2} do
-      org_user = %{"user_id" => user2.id, "role" => "manage"}
+      org_user = %{"email" => user2.email, "role" => "manage"}
       conn = post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
       assert json_response(conn, 201)["data"]
 
-      conn = get(conn, Routes.api_org_user_path(conn, :show, org.name, user2.id))
+      conn = get(conn, Routes.api_org_user_path(conn, :show, org.name, user2.email))
       assert json_response(conn, 200)["data"]["name"] == user2.name
 
       # don't send email to admin who added the user
@@ -49,7 +49,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
     end
 
     test "renders errors when data is invalid", %{conn: conn, org: org, user2: user2} do
-      org_user = %{"user_id" => user2.id, "role" => "bogus"}
+      org_user = %{"email" => user2.email, "role" => "bogus"}
       conn = post(conn, Routes.api_org_user_path(conn, :add, org.name), org_user)
       assert json_response(conn, 422)["errors"] != %{}
     end
@@ -75,13 +75,13 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
     setup [:create_org_user]
 
     test "remove existing user", %{conn: conn, org: org, user2: user} do
-      conn = delete(conn, Routes.api_org_user_path(conn, :remove, org.name, user.id))
+      conn = delete(conn, Routes.api_org_user_path(conn, :remove, org.name, user.email))
       assert response(conn, 204)
 
       # don't send email to admin who added the user
       refute_email_sent()
 
-      conn = get(conn, Routes.api_org_user_path(conn, :show, org.name, user.id))
+      conn = get(conn, Routes.api_org_user_path(conn, :show, org.name, user.email))
       assert response(conn, 404)
     end
   end
@@ -106,11 +106,11 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
 
     test "renders org_user when data is valid", %{conn: conn, org: org, user2: user} do
       conn =
-        put(conn, Routes.api_org_user_path(conn, :update, org.name, user.id), role: "manage")
+        put(conn, Routes.api_org_user_path(conn, :update, org.name, user.email), role: "manage")
 
       assert json_response(conn, 200)["data"]["role"] == "manage"
 
-      path = Routes.api_org_user_path(conn, :show, org.name, user.id)
+      path = Routes.api_org_user_path(conn, :show, org.name, user.email)
       conn = get(conn, path)
       assert json_response(conn, 200)["data"]["role"] == "manage"
     end
@@ -124,7 +124,7 @@ defmodule NervesHubWeb.API.OrgUserControllerTest do
         Accounts.add_org_user(org, user, %{role: @role})
 
         assert_error_sent(401, fn ->
-          put(conn, Routes.api_org_user_path(conn, :update, org.name, user.id), role: "manage")
+          put(conn, Routes.api_org_user_path(conn, :update, org.name, user.email), role: "manage")
         end)
         |> assert_authorization_error()
       end

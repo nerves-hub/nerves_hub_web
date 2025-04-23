@@ -117,9 +117,9 @@ defmodule NervesHubWeb.Router do
           scope "/users" do
             get("/", OrgUserController, :index)
             post("/", OrgUserController, :add)
-            get("/:user_id", OrgUserController, :show)
-            put("/:user_id", OrgUserController, :update)
-            delete("/:user_id", OrgUserController, :remove)
+            get("/:user_email", OrgUserController, :show)
+            put("/:user_email", OrgUserController, :update)
+            delete("/:user_email", OrgUserController, :remove)
           end
 
           scope "/keys" do
