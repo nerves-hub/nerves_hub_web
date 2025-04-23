@@ -56,24 +56,90 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
     |> assert_has("td div", text: "0")
   end
 
-  test "filter deployment groups on name", %{
-    conn: conn,
-    org: org,
-    product: product,
-    deployment_group: deployment_group
-  } do
-    conn
-    |> put_session("new_ui", true)
-    |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
-    |> assert_has("h1", text: "Deployment Groups")
-    |> assert_has("a", text: deployment_group.name)
-    |> unwrap(fn view ->
-      render_change(view, "update-filters", %{"name" => deployment_group.name})
-    end)
-    |> assert_has("a", text: deployment_group.name)
-    |> unwrap(fn view ->
-      render_change(view, "update-filters", %{"name" => "blah"})
-    end)
-    |> refute_has("a", text: deployment_group.name)
+  describe "filtering" do
+    test "filter deployment groups on name", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> put_session("new_ui", true)
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
+      |> assert_has("h1", text: "Deployment Groups")
+      |> assert_has("a", text: deployment_group.name)
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"name" => deployment_group.name})
+      end)
+      |> assert_has("a", text: deployment_group.name)
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"name" => "blah"})
+      end)
+      |> refute_has("a", text: deployment_group.name)
+    end
+
+    test "filter deployment groups on platform", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      platform = deployment_group.firmware.platform
+
+      conn
+      |> put_session("new_ui", true)
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
+      |> assert_has("td", text: platform)
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"platform" => platform})
+      end)
+      |> assert_has("td", text: platform)
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"platform" => "blah"})
+      end)
+      |> refute_has("td", text: platform)
+    end
+
+    test "filter deployment groups on architecture", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      architecture = deployment_group.firmware.architecture
+
+      conn
+      |> put_session("new_ui", true)
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
+      |> assert_has("td", text: architecture)
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"architecture" => architecture})
+      end)
+      |> assert_has("td", text: architecture)
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"architecture" => "blah"})
+      end)
+      |> refute_has("td", text: architecture)
+    end
+
+    test "reset filters", %{
+      conn: conn,
+      org: org,
+      product: product,
+      deployment_group: deployment_group
+    } do
+      conn
+      |> put_session("new_ui", true)
+      |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
+      |> assert_has("a", text: deployment_group.name)
+      |> unwrap(fn view ->
+        render_change(view, "update-filters", %{"name" => "blah"})
+      end)
+      |> refute_has("a", text: deployment_group.name)
+      |> unwrap(fn view ->
+        render_change(view, "reset-filters", %{})
+      end)
+      |> assert_has("a", text: deployment_group.name)
+    end
   end
 end
