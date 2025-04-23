@@ -24,4 +24,12 @@ defmodule NervesHub.ManagedDeployments.Filtering do
   def filter(query, _filters, :name, value) do
     where(query, [d], ilike(d.name, ^"%#{value}%"))
   end
+
+  def filter(query, _filters, :platform, value) do
+    where(query, [_d, _dev, f], f.platform == ^value)
+  end
+
+  def filter(query, _filters, :architecture, value) do
+    where(query, [_d, _dev, f], f.architecture == ^value)
+  end
 end

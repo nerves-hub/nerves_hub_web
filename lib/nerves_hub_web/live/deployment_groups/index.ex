@@ -1,20 +1,26 @@
 defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   use NervesHubWeb, :updated_live_view
 
+  alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
   alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
+  alias NervesHubWeb.Components.FilterSidebar
 
   @pagination_opts ["page_number", "page_size", "sort", "sort_direction"]
   @default_filters %{
-    name: ""
+    name: "",
+    platform: "",
+    architecture: ""
   }
 
   @filter_types %{
-    name: :string
+    name: :string,
+    platform: :string,
+    architecture: :string
   }
 
   @impl Phoenix.LiveView
@@ -33,9 +39,12 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
     |> page_title("Deployments - #{product.name}")
     |> sidebar_tab(:deployments)
     |> assign(:deployment_groups, deployment_groups)
+    |> assign(:platforms, Firmwares.get_unique_platforms(product))
+    |> assign(:architectures, Firmwares.get_unique_architectures(product))
     |> assign(:counts, counts)
     |> assign(:current_filters, @default_filters)
     |> assign(:currently_filtering, false)
+    |> assign(:show_filters, false)
     |> ok()
   end
 
@@ -70,6 +79,11 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   end
 
   @impl Phoenix.LiveView
+  def handle_event("toggle-filters", %{"toggle" => toggle}, socket) do
+    {:noreply, assign(socket, :show_filters, toggle != "true")}
+  end
+
+  @impl Phoenix.LiveView
   def handle_event(
         "update-filters",
         params,
@@ -77,6 +91,13 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
       ) do
     socket
     |> push_patch(to: self_path(socket, params))
+    |> noreply()
+  end
+
+  @impl Phoenix.LiveView
+  def handle_event("reset-filters", _params, socket) do
+    socket
+    |> push_patch(to: self_path(socket, @default_filters))
     |> noreply()
   end
 

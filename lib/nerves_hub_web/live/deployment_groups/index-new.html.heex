@@ -44,6 +44,9 @@
     <.button type="link" navigate={~p"/org/#{@org}/#{@product}/deployments/newz"} aria-label="Add a new deployment group">
       <.icon name="add" /> Create Deployment Group
     </.button>
+    <.button type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
+      <.icon name="filter" /> Filters
+    </.button>
   </div>
 
   <%= if Enum.empty?(@entries) do %>
@@ -145,5 +148,31 @@
     </div>
   <% end %>
 </div>
+
+<FilterSidebar.render
+  show={@show_filters}
+  current_filters={@current_filters}
+  filter_options={
+    %{
+      name: %{
+        label: "Search",
+        type: :text
+      },
+      platform: %{
+        label: "Platform",
+        type: :select,
+        values: [{"All", ""} | Enum.map(@platforms, &{if(&1, do: &1, else: "Unknown"), &1})]
+      },
+      architecture: %{
+        label: "Architecture",
+        type: :select,
+        values: [{"All", ""} | Enum.map(@architectures, &{if(&1, do: &1, else: "Unknown"), &1})]
+      }
+    }
+  }
+  on_toggle="toggle-filters"
+  on_update="update-filters"
+  on_reset="reset-filters"
+/>
 
 <Pager.render_with_page_sizes pager={@pager_meta} page_sizes={[25, 50, 100]} />
