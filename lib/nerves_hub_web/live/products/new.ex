@@ -1,39 +1,22 @@
-defmodule NervesHubWeb.Live.Org.Products do
+defmodule NervesHubWeb.Live.Products.New do
   use NervesHubWeb, :updated_live_view
 
   alias NervesHub.Extensions
   alias NervesHub.Products
   alias NervesHub.Products.Product
 
-  embed_templates("product_templates/*")
-
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
-    {:ok, socket}
-  end
-
-  @impl Phoenix.LiveView
-  def handle_params(params, _url, socket) do
-    socket
-    |> apply_action(socket.assigns.live_action, params)
-    |> noreply()
-  end
-
-  defp apply_action(socket, :index, _params) do
     products = Products.get_products_by_user_and_org(socket.assigns.user, socket.assigns.org)
 
-    socket
-    |> page_title("Products - #{socket.assigns.org.name}")
-    |> assign(:products, products)
-    |> render_with(&products_template/1)
-  end
+    socket =
+      socket
+      |> page_title("New Product - #{socket.assigns.org.name}")
+      |> assign(:form, to_form(Products.change_product(%Product{})))
+      |> assign(:products, products)
+      |> assign(:available_extensions, extensions())
 
-  defp apply_action(socket, :new, _params) do
-    socket
-    |> page_title("New Product - #{socket.assigns.org.name}")
-    |> assign(:form, to_form(Products.change_product(%Product{})))
-    |> assign(:available_extensions, extensions())
-    |> render_with(&new_product_template/1)
+    {:ok, socket}
   end
 
   @impl Phoenix.LiveView

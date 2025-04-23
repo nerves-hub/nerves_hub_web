@@ -300,8 +300,8 @@ defmodule NervesHubWeb.Router do
         NervesHubWeb.Mounts.FetchOrgUser,
         {NervesHubWeb.Mounts.LayoutSelector, :no_sidebar}
       ] do
-      live("/org/:org_name", Live.Org.Products, :index)
-      live("/org/:org_name/new", Live.Org.Products, :new)
+      live("/org/:org_name", Live.Org.Show)
+      live("/org/:org_name/new", Live.Products.New)
       live("/org/:org_name/settings", Live.Org.Settings)
       live("/org/:org_name/settings/keys", Live.Org.SigningKeys, :index)
       live("/org/:org_name/settings/keys/new", Live.Org.SigningKeys, :new)
