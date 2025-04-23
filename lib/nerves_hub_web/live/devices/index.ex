@@ -18,6 +18,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias Phoenix.Socket.Broadcast
 
   alias NervesHubWeb.Components.DeviceUpdateStatus
+  alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
