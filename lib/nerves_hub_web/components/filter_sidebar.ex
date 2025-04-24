@@ -3,12 +3,26 @@ defmodule NervesHubWeb.Components.FilterSidebar do
 
   attr(:show, :boolean, required: true)
   attr(:current_filters, :map, required: true)
-  attr(:filter_options, :map, required: true)
-  attr(:on_toggle, :any, required: true)
-  attr(:on_update, :any, required: true)
-  attr(:on_reset, :any, required: true)
+  attr(:on_toggle, :any, default: "toggle-filters")
+  attr(:on_update, :any, default: "update-filters")
+  attr(:on_reset, :any, default: "reset-filters")
+
+  slot(:filter, required: true) do
+    attr(:attr, :string, required: true, doc: "Filter attribute name")
+    attr(:label, :string, required: true)
+    attr(:type, :atom, required: true)
+    attr(:values, :list)
+  end
 
   def render(assigns) do
+    # Convert filter attributes to atoms for getting current filter values
+    assigns =
+      update(assigns, :filter, fn filters ->
+        Enum.map(filters, fn %{attr: attr} = filter ->
+          %{filter | attr: String.to_existing_atom(attr)}
+        end)
+      end)
+
     ~H"""
     <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 sm:pl-16 z-40">
       <div class={[
@@ -35,19 +49,19 @@ defmodule NervesHubWeb.Components.FilterSidebar do
 
           <div class="flex flex-1 flex-col pb-4">
             <form id="filter-form" class="px-4 grow" phx-change={@on_update}>
-              <div :for={{field, options} <- @filter_options} class="mt-6">
-                <label class="sidebar-label" for={"input_#{field}"}>{options.label}</label>
-                <%= case options.type do %>
+              <div :for={filter <- @filter} class="mt-6">
+                <label class="sidebar-label" for={"input_#{filter.attr}"}>{filter.label}</label>
+                <%= case filter.type do %>
                   <% :text -> %>
-                    <input class="sidebar-text-input" type="text" name={field} id={"input_#{field}"} value={@current_filters[field]} phx-debounce="500" />
+                    <input class="sidebar-text-input" type="text" name={filter.attr} id={"input_#{filter.attr}"} value={@current_filters[filter.attr]} phx-debounce="500" />
                   <% :select -> %>
-                    <select class="sidebar-select" name={field} id={"input_#{field}"}>
-                      <option :for={{label, value} <- options.values} value={value} selected={@current_filters[field] == value}>
+                    <select class="sidebar-select" name={filter.attr} id={"input_#{filter.attr}"}>
+                      <option :for={{label, value} <- filter.values} value={value} selected={@current_filters[filter.attr] == value}>
                         {label}
                       </option>
                     </select>
                   <% :number -> %>
-                    <input class="sidebar-text-input" type="number" name={field} id={"input_#{field}"} value={@current_filters[field]} phx-debounce="100" />
+                    <input class="sidebar-text-input" type="number" name={filter.attr} id={"input_#{filter.attr}"} value={@current_filters[filter.attr]} phx-debounce="100" />
                 <% end %>
               </div>
             </form>

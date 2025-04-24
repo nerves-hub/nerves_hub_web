@@ -149,30 +149,10 @@
   <% end %>
 </div>
 
-<FilterSidebar.render
-  show={@show_filters}
-  current_filters={@current_filters}
-  filter_options={
-    %{
-      name: %{
-        label: "Search",
-        type: :text
-      },
-      platform: %{
-        label: "Platform",
-        type: :select,
-        values: [{"All", ""} | Enum.map(@platforms, &{if(&1, do: &1, else: "Unknown"), &1})]
-      },
-      architecture: %{
-        label: "Architecture",
-        type: :select,
-        values: [{"All", ""} | Enum.map(@architectures, &{if(&1, do: &1, else: "Unknown"), &1})]
-      }
-    }
-  }
-  on_toggle="toggle-filters"
-  on_update="update-filters"
-  on_reset="reset-filters"
-/>
+<FilterSidebar.render show={@show_filters} current_filters={@current_filters}>
+  <:filter attr="name" label="Search" type={:text} />
+  <:filter attr="platform" label="Platform" type={:select} values={[{"All", ""} | Enum.map(@platforms, &{if(&1, do: &1, else: "Unknown"), &1})]} />
+  <:filter attr="architecture" label="Architecture" type={:select} values={[{"All", ""} | Enum.map(@architectures, &{if(&1, do: &1, else: "Unknown"), &1})]} />
+</FilterSidebar.render>
 
 <Pager.render_with_page_sizes pager={@pager_meta} page_sizes={@paginate_opts.page_sizes} />

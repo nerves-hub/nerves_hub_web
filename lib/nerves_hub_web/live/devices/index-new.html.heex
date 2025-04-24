@@ -323,132 +323,75 @@
   </.async_result>
 </div>
 
-<FilterSidebar.render
-  show={@show_filters}
-  current_filters={@current_filters}
-  filter_options={
-    %{
-      device_id: %{
-        label: "Search",
-        type: :text
-      },
-      health_status: %{
-        label: "Health status",
-        type: :select,
-        values: [
-          {"All", ""},
-          {"Unknown", "unknown"},
-          {"Healthy", "healthy"},
-          {"Warning", "warning"},
-          {"Unhealthy", "unhealthy"}
-        ]
-      },
-      connection: %{
-        label: "Connection",
-        type: :select,
-        values: [
-          {"All", ""},
-          {"Connected", "connected"},
-          {"Disconnected", "disconnected"},
-          {"Not Seen", "not_seen"}
-        ]
-      },
-      connection_type: %{
-        label: "Connection Type",
-        type: :select,
-        values: [
-          {"All", ""},
-          {"Cellular", "cellular"},
-          {"Ethernet", "ethernet"},
-          {"WiFi", "wifi"}
-        ]
-      },
-      deployment_id: %{
-        label: "Deployment Group",
-        type: :select,
-        values: [
-          {"All", ""},
-          {"No Deployment Group", "-1"}
-          | Enum.map(@deployment_groups, &{&1.name, &1.id})
-        ]
-      },
-      updates: %{
-        label: "Firmware Updates",
-        type: :select,
-        values: [
-          {"All", ""},
-          {"Enabled", "enabled"},
-          {"Penalty Box", "penalty-box"},
-          {"Disabled", "disabled"}
-        ]
-      },
-      firmware_version: %{
-        label: "Firmware",
-        type: :select,
-        values: [{"All", ""} | Enum.map(@firmware_versions, &{&1, &1})]
-      },
-      platform: %{
-        label: "Platform",
-        type: :select,
-        values: [{"All", ""} | Enum.map(@platforms, &{if(&1, do: &1, else: "Unknown"), &1})]
-      },
-      tag: %{
-        label: "Tags",
-        type: :text
-      },
-      has_no_tags: %{
-        label: "Untagged",
-        type: :select,
-        values: [
-          {"All", "false"},
-          {"Only untagged", "true"}
-        ]
-      },
-      alarm_status: %{
-        label: "Alarm Status",
-        type: :select,
-        values: [
-          {"All", ""},
-          {"Has Alarms", "with"},
-          {"No alarms", "without"}
-        ]
-      },
-      alarm: %{
-        label: "Alarm",
-        type: :select,
-        values: [{"All", ""} | Enum.map(@current_alarms, &{&1, &1})]
-      },
-      metrics_key: %{
-        label: "Metrics",
-        type: :select,
-        values: [{"All", ""} | Enum.map(@metrics_keys, &{&1, &1})]
-      },
-      metrics_operator: %{
-        label: "Metrics Operator",
-        type: :select,
-        values: [
-          {"Greater Than", "gt"},
-          {"Less than", "lt"}
-        ]
-      },
-      metrics_value: %{
-        label: "Metrics Value",
-        type: :number
-      },
-      is_pinned: %{
-        label: "Pinned",
-        type: :select,
-        values: [
-          {"All", "false"},
-          {"Only pinned devices", "true"}
-        ]
-      }
-    }
-  }
-  on_toggle="toggle-filters"
-  on_update="update-filters"
-  on_reset="reset-filters"
-/>
+<FilterSidebar.render show={@show_filters} current_filters={@current_filters}>
+  <:filter attr="device_id" label="Device Identifier" type={:text} />
+  <:filter
+    attr="health_status"
+    label="Health Status"
+    type={:select}
+    values={[
+      {"All", ""},
+      {"Unknown", "unknown"},
+      {"Healthy", "healthy"},
+      {"Warning", "warning"},
+      {"Unhealthy", "unhealthy"}
+    ]}
+  />
+  <:filter
+    attr="connection"
+    label="Connection"
+    type={:select}
+    values={[
+      {"All", ""},
+      {"Connected", "connected"},
+      {"Disconnected", "disconnected"},
+      {"Not Seen", "not_seen"}
+    ]}
+  />
+  <:filter
+    attr="connection_type"
+    label="Connection Type"
+    type={:select}
+    values={[
+      {"All", ""},
+      {"Cellular", "cellular"},
+      {"Ethernet", "ethernet"},
+      {"WiFi", "wifi"}
+    ]}
+  />
+
+  <:filter
+    attr="deployment_id"
+    label="Deployment Group"
+    type={:select}
+    values={[
+      {"All", ""},
+      {"No Deployment Group", "-1"}
+      | Enum.map(@deployment_groups, &{&1.name, &1.id})
+    ]}
+  />
+  <:filter
+    attr="updates"
+    label="Firmware Updates"
+    type={:select}
+    values={[
+      {"All", ""},
+      {"Enabled", "enabled"},
+      {"Penalty Box", "penalty-box"},
+      {"Disabled", "disabled"}
+    ]}
+  />
+  <:filter attr="firmware_version" label="Firmware" type={:select} values={[{"All", ""} | Enum.map(@firmware_versions, &{&1, &1})]} />
+  <:filter attr="platform" label="Platform" type={:select} values={[{"All", ""} | Enum.map(@platforms, &{if(&1, do: &1, else: "Unknown"), &1})]} />
+  <:filter attr="tags" label="Tags" type={:text} />
+  <:filter attr="has_no_tags" label="Untagged" type={:select} values={[{"All", "false"}, {"Only untagged", "true"}]} />
+  <:filter attr="alarm_status" label="Alarm Status" type={:select} values={[{"All", ""}, {"Has Alarms", "with"}, {"No Alarms", "without"}]} />
+  <:filter attr="alarm" label="Alarm" type={:select} values={[{"All", ""} | Enum.map(@current_alarms, &{&1, &1})]} />
+  <:filter attr="metrics_key" label="Metrics" type={:select} values={[{"All", ""} | Enum.map(@metrics_keys, &{&1, &1})]} />
+  <:filter attr="metrics_operator" label="Metrics Operator" type={:select} values={[{"Greater Than", "gt"}, {"Less Than", "lt"}]} />
+  <:filter attr="metrics_value" label="Metrics Value" type={:number} />
+  <:filter attr="is_pinned" label="Pinned" type={:select} values={[{"All", "false"}, {"Only pinned devices", "true"}]} />
+</FilterSidebar.render>
 
 <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 mb-[119px] sm:pl-16 z-40">
   <div class={[
