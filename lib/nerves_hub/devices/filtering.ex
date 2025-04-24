@@ -38,6 +38,10 @@ defmodule NervesHub.Devices.Filtering do
     end
   end
 
+  def filter(query, _filters, :health_status, "unknown") do
+    where(query, [latest_health: lh], lh.status == ^"unknown" or is_nil(lh))
+  end
+
   def filter(query, _filters, :health_status, value) do
     where(query, [latest_health: lh], lh.status == ^value)
   end

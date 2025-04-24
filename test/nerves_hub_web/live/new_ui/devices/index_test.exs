@@ -90,6 +90,38 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> assert_has("a", text: device.identifier, timeout: 1000)
       |> refute_has("a", text: device2.identifier)
     end
+
+    test "by health status", %{conn: conn, fixture: fixture} do
+      %{
+        device: device,
+        org: org,
+        product: product,
+        firmware: firmware
+      } = fixture
+
+      device2 = Fixtures.device_fixture(org, product, firmware)
+
+      {:ok, _} =
+        Devices.save_device_health(%{
+          "device_id" => device2.id,
+          "data" => %{},
+          "status" => :healthy,
+          "status_reasons" => %{}
+        })
+
+      conn
+      |> put_session("new_ui", true)
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+      |> assert_has("a", text: device2.identifier)
+      |> select("Health Status", option: "Unknown")
+      # This also asserts that devices with nil health status are listed as unknown
+      |> assert_has("a", text: device.identifier, timeout: 1000)
+      |> refute_has("a", text: device2.identifier)
+      |> select("Health Status", option: "Healthy")
+      |> assert_has("a", text: device2.identifier, timeout: 1000)
+      |> refute_has("a", text: device.identifier)
+    end
   end
 
   describe "pagination" do
