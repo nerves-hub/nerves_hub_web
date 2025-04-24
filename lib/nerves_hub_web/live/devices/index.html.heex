@@ -69,8 +69,8 @@
         <h4 class="color-white mb-2">Filters</h4>
         <form id="filter-form" phx-change="update-filters" class="filter-form device-filters">
           <div class="form-group">
-            <label for="input_id">ID</label>
-            <input type="text" name="device_id" id="input_id" class="form-control" value={@current_filters[:device_id]} phx-debounce="500" />
+            <label for="input_identifier">ID</label>
+            <input type="text" name="identifier" id="input_identifier" class="form-control" value={@current_filters[:identifier]} phx-debounce="500" />
           </div>
           <div class="form-group">
             <label for="input_connection">Connection</label>

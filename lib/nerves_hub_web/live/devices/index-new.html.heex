@@ -29,11 +29,11 @@
         <input
           type="text"
           class="col-start-1 row-start-1 block h-full w-full bg-base-900 text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
-          name="device_id"
+          name="identifier"
           id="device_search_top"
-          placeholder="Search..."
+          placeholder="Search by identifier..."
           title="Search"
-          value={@current_filters[:device_id]}
+          value={@current_filters[:identifier]}
           phx-debounce="500"
         />
 
@@ -324,7 +324,7 @@
 </div>
 
 <FilterSidebar.render show={@show_filters} current_filters={@current_filters}>
-  <:filter attr="device_id" label="Device Identifier" type={:text} />
+  <:filter attr="identifier" label="Device Identifier" type={:text} />
   <:filter
     attr="health_status"
     label="Health Status"

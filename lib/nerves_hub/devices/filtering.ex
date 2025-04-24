@@ -87,7 +87,7 @@ defmodule NervesHub.Devices.Filtering do
     end
   end
 
-  def filter(query, _filters, :device_id, value) do
+  def filter(query, _filters, :identifier, value) do
     where(query, [d], ilike(d.identifier, ^"%#{value}%"))
   end
 
