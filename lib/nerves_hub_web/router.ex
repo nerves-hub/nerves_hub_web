@@ -187,7 +187,7 @@ defmodule NervesHubWeb.Router do
                 delete("/:uuid", FirmwareController, :delete)
               end
 
-              scope "/deployment_groups" do
+              scope "/deployments" do
                 get("/", DeploymentGroupController, :index)
                 post("/", DeploymentGroupController, :create)
                 get("/:name", DeploymentGroupController, :show)
