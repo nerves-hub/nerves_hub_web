@@ -13,13 +13,15 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Index do
   @default_filters %{
     name: "",
     platform: "",
-    architecture: ""
+    architecture: "",
+    search: ""
   }
 
   @filter_types %{
     name: :string,
     platform: :string,
-    architecture: :string
+    architecture: :string,
+    search: :string
   }
 
   @default_page 1

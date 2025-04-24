@@ -29,11 +29,11 @@
         <input
           type="text"
           class="col-start-1 row-start-1 block h-full w-full bg-base-900 text-base-400 border border-base-600 rounded text-sm px-3 py-1 gap-2 font-normal h-5"
-          name="identifier"
+          name="search"
           id="device_search_top"
-          placeholder="Search by identifier..."
+          placeholder="Search..."
           title="Search"
-          value={@current_filters[:identifier]}
+          value={@current_filters[:search]}
           phx-debounce="500"
         />
 

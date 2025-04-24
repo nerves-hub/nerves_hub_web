@@ -44,7 +44,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_operator: "gt",
     metrics_value: "",
     deployment_id: "",
-    is_pinned: false
+    is_pinned: false,
+    search: ""
   }
 
   @filter_types %{
@@ -64,7 +65,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_operator: :string,
     metrics_value: :string,
     deployment_id: :string,
-    is_pinned: :boolean
+    is_pinned: :boolean,
+    search: :string
   }
 
   @default_page 1

@@ -123,6 +123,23 @@ defmodule NervesHub.Devices.Filtering do
     end
   end
 
+  def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
+    search_term = "%#{value}%"
+
+    query
+    |> where(
+      [d],
+      ilike(d.identifier, ^search_term) or
+        ilike(fragment("COALESCE(?->>'version', '')", d.firmware_metadata), ^search_term) or
+        ilike(fragment("COALESCE(?->>'platform', '')", d.firmware_metadata), ^search_term) or
+        fragment(
+          "string_array_to_string(COALESCE(?, ARRAY[]::text[]), ' ', ' ') ILIKE ?",
+          d.tags,
+          ^search_term
+        )
+    )
+  end
+
   # Ignore any undefined filter.
   # This will prevent error 500 responses on deprecated saved bookmarks etc.
   def filter(query, _filters, _key, _value) do
