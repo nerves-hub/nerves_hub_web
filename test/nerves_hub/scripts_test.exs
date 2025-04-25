@@ -65,7 +65,7 @@ defmodule NervesHub.ScriptsTest do
   end
 
   describe "user removal" do
-    test "user is removed - editor fields are nilified", %{product: product, user: user} do
+    test "user is removed - editor fields are nullified", %{product: product, user: user} do
       {:ok, script} =
         Scripts.create(product, user, %{
           name: "MOTD",

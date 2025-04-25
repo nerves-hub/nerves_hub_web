@@ -183,7 +183,7 @@ defmodule SocketClient do
   def handle_message("extensions", "health:check", %{}, socket) do
     socket =
       socket
-      |> assign(:receive_check_helth?, true)
+      |> assign(:receive_check_health?, true)
 
     {:ok, socket}
   end

@@ -140,6 +140,30 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       end)
       |> assert_authorization_error(404)
     end
+
+    test "does not have required role to delete chosen device", %{
+      conn: conn,
+      user: user,
+      conn2: other_user_conn,
+      org: org
+    } do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+
+      to_delete = Fixtures.device_fixture(org, product, firmware)
+
+      # fully load all the associations
+      to_delete = Devices.get_complete_device(to_delete.id)
+
+      assert_error_sent(404, fn ->
+        delete(
+          other_user_conn,
+          Routes.api_device_path(conn, :delete, org.name, product.name, to_delete.identifier)
+        )
+      end)
+      |> assert_authorization_error(404)
+    end
   end
 
   describe "update devices" do
@@ -314,7 +338,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           Routes.api_device_path(conn, :reboot, org.name, product.name, device.identifier)
         )
 
-      assert response(conn, 200)
+      assert response(conn, 204)
     end
 
     test "auth failure, with nested url", %{conn2: conn, user: user, org: org} do
@@ -340,7 +364,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       conn = post(conn, Routes.api_device_path(conn, :reboot, device.identifier))
 
-      assert response(conn, 200)
+      assert response(conn, 204)
     end
 
     test "auth failure, with short url", %{conn2: conn, user: user, org: org} do
@@ -372,7 +396,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           Routes.api_device_path(conn, :reconnect, org.name, product.name, device.identifier)
         )
 
-      assert response(conn, 200)
+      assert response(conn, 204)
     end
 
     test "auth failure, with nested url", %{conn2: conn, user: user, org: org} do
@@ -398,7 +422,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       conn = post(conn, Routes.api_device_path(conn, :reconnect, device.identifier))
 
-      assert response(conn, 200)
+      assert response(conn, 204)
     end
 
     test "auth failure, with short url", %{conn2: conn, user: user, org: org} do
@@ -431,7 +455,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
           %{body: "boop"}
         )
 
-      assert response(conn, 200)
+      assert response(conn, 204)
     end
 
     test "auth failure, with nested url", %{conn2: conn, user: user, org: org} do
@@ -458,7 +482,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
 
       conn = post(conn, Routes.api_device_path(conn, :code, device.identifier), %{body: "boop"})
 
-      assert response(conn, 200)
+      assert response(conn, 204)
     end
 
     test "auth failure, with short url", %{conn2: conn, user: user, org: org} do
@@ -707,67 +731,6 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         )
       end)
       |> assert_authorization_error()
-    end
-  end
-
-  describe "scripts: list" do
-    test "success, with nested url", %{conn: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      path =
-        Routes.api_device_script_path(conn, :index, org.name, product.name, device.identifier)
-
-      conn
-      |> get(path)
-      |> json_response(200)
-      |> assert
-    end
-
-    test "auth failure, with nested url", %{conn2: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      assert_error_sent(404, fn ->
-        get(
-          conn,
-          Routes.api_device_script_path(conn, :index, org.name, product.name, device.identifier)
-        )
-      end)
-      |> assert_authorization_error(404)
-    end
-
-    test "success, with short url", %{conn: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      path = Routes.api_script_path(conn, :index, device.identifier)
-
-      conn
-      |> get(path)
-      |> json_response(200)
-      |> assert
-    end
-
-    test "auth failure, with short url", %{conn2: conn, user: user, org: org} do
-      product = Fixtures.product_fixture(user, org)
-      org_key = Fixtures.org_key_fixture(org, user)
-      firmware = Fixtures.firmware_fixture(org_key, product)
-      device = Fixtures.device_fixture(org, product, firmware)
-
-      assert_error_sent(401, fn ->
-        get(
-          conn,
-          Routes.api_script_path(conn, :index, device.identifier)
-        )
-      end)
-      |> assert_authorization_error(401)
     end
   end
 

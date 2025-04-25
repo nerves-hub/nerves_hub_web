@@ -27,7 +27,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
       assert %{"description" => ^description} = resp_data
     end
 
-    test "supports valid JITP", %{conn: conn, org: org, product: %{id: pid, name: pname}} do
+    test "supports valid JITP", %{conn: conn, org: org, product: %{id: pid, name: product_name}} do
       ca_key = X509.PrivateKey.new_ec(:secp256r1)
       ca_cert = X509.Certificate.self_signed(ca_key, "CN=#{org.name}", template: :root_ca)
       serial = X509.Certificate.serial(ca_cert) |> to_string
@@ -42,7 +42,7 @@ defmodule NervesHubWeb.API.CACertificateControllerTest do
       assert %{"serial" => ^serial} = resp_data
       assert %{"description" => ^description} = resp_data
 
-      assert %{"description" => "Jitter", "tags" => ["howdy"], "product_name" => ^pname} =
+      assert %{"description" => "Jitter", "tags" => ["howdy"], "product_name" => ^product_name} =
                resp_data["jitp"]
     end
 

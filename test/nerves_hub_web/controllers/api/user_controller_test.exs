@@ -13,7 +13,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
   end
 
   test "authenticate existing accounts" do
-    password = "12345678"
+    password = "1234567891011"
 
     user =
       Fixtures.user_fixture(%{
@@ -32,7 +32,7 @@ defmodule NervesHubWeb.API.UserControllerTest do
   end
 
   test "create token for existing account when authenticated" do
-    password = "12345678"
+    password = "1234567891011"
 
     user =
       Fixtures.user_fixture(%{

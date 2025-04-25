@@ -7,7 +7,9 @@ defmodule NervesHubWeb.Live.Account do
 
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
-    {:ok, socket}
+    socket
+    |> assign(:password_changeset, Accounts.change_user_password(socket.assigns.user))
+    |> ok()
   end
 
   @impl Phoenix.LiveView
@@ -32,7 +34,7 @@ defmodule NervesHubWeb.Live.Account do
   end
 
   @impl Phoenix.LiveView
-  def handle_event("update", %{"user" => params}, socket) do
+  def handle_event("update-details", %{"user" => params}, socket) do
     socket.assigns.user
     |> Accounts.update_user(params)
     |> case do
@@ -49,14 +51,39 @@ defmodule NervesHubWeb.Live.Account do
     end
   end
 
+  @impl Phoenix.LiveView
+  def handle_event(
+        "update-password",
+        %{"user" => %{"current_password" => password} = user_params},
+        socket
+      ) do
+    user_params = Map.delete(user_params, "current_password")
+
+    reset_url = &url(~p"/password-reset/#{&1}")
+
+    socket.assigns.user
+    |> Accounts.update_user_password(password, user_params, reset_url)
+    |> case do
+      {:ok, user} ->
+        socket
+        |> assign(:user, user)
+        |> put_flash(:info, "Account updated")
+        |> noreply()
+
+      {:error, changeset} ->
+        socket
+        |> assign(:password_changeset, changeset)
+        |> noreply()
+    end
+  end
+
   def handle_event("delete", params, socket) do
     if params["confirm_email"] == socket.assigns.user.email do
       {:ok, _} = Accounts.remove_account(socket.assigns.user.id)
 
-      params = %{message: "Your account has successfully been deleted"}
-
       socket
-      |> redirect(to: ~p"/login?#{params}")
+      |> redirect(to: ~p"/login")
+      |> put_flash(:error, "Your account has successfully been deleted")
       |> noreply()
     else
       socket

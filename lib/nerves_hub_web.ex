@@ -29,16 +29,13 @@ defmodule NervesHubWeb do
 
   def controller() do
     quote do
-      use Phoenix.Controller, namespace: NervesHubWeb
+      use Phoenix.Controller, formats: [:html]
+
       use Gettext, backend: NervesHubWeb.Gettext
 
       import Plug.Conn
-      import Phoenix.LiveView.Controller
+
       import NervesHubWeb.Helpers.RoleValidateHelpers
-
-      import Phoenix.LiveView.Controller
-
-      alias NervesHubWeb.Router.Helpers, as: Routes
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
@@ -64,6 +61,9 @@ defmodule NervesHubWeb do
       import Phoenix.LiveView.Controller
 
       alias NervesHubWeb.Router.Helpers, as: Routes
+
+      # Routes generation with the ~p sigil
+      unquote(verified_routes())
 
       action_fallback(NervesHubWeb.API.FallbackController)
 
@@ -206,6 +206,12 @@ defmodule NervesHubWeb do
       # Import convenience functions from controllers
       import Phoenix.Controller,
         only: [get_csrf_token: 0, view_module: 1, view_template: 1]
+
+      alias NervesHubWeb.Layouts
+
+      alias NervesHubWeb.Components.OAuthLinks
+
+      def platform_name(), do: Application.get_env(:nerves_hub, :support_email_platform_name)
 
       # Include general helpers for rendering HTML
       unquote(html_helpers())

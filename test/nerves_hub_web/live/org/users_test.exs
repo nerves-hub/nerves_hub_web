@@ -41,7 +41,7 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("div", text: "Role updated")
     end
 
-    test "delete org user", %{conn: conn, org: org, user: user} do
+    test "delete org user", %{conn: conn, org: org} do
       {:ok, org_user} = Accounts.add_org_user(org, Fixtures.user_fixture(), %{role: :view})
 
       conn
@@ -51,12 +51,13 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User removed")
 
-      assert_email_sent(subject: "#{user.name} removed #{org_user.user.name} from #{org.name}")
+      # don't send email to admin who added the user
+      refute_email_sent()
     end
   end
 
   describe "invites" do
-    test "sends invite to user if they aren't registed", %{conn: conn, org: org} do
+    test "sends invite to user if they aren't registered", %{conn: conn, org: org} do
       conn
       |> visit("/org/#{org.name}/settings/users/invite")
       |> assert_has("h1", text: "Add New User")
@@ -67,23 +68,26 @@ defmodule NervesHubWeb.Live.Org.UsersTest do
       |> assert_has("h1", text: "Outstanding Invites")
       |> assert_has("td", text: "josh@mrjosh.com")
 
-      assert_email_sent(subject: "Hi from NervesHub!")
+      assert_email_sent(subject: "NervesHub: You have been invited to join Jeff")
     end
 
     test "adds user if they are already registered", %{conn: conn, org: org} do
-      morejosh = Fixtures.user_fixture(%{name: "morejosh"})
+      josh_again = Fixtures.user_fixture(%{name: "Josh Again"})
 
       conn
       |> visit("/org/#{org.name}/settings/users/invite")
       |> assert_has("h1", text: "Add New User")
-      |> fill_in("Email", with: morejosh.email)
+      |> fill_in("Email", with: josh_again.email)
       |> click_button("Send Invitation")
       |> assert_path("/org/#{org.name}/settings/users")
       |> assert_has("div", text: "User has been added to #{org.name}")
       |> refute_has("h1", text: "Outstanding Invites")
-      |> assert_has("td", text: morejosh.email)
+      |> assert_has("td", text: josh_again.email)
 
-      assert_email_sent(subject: "Welcome to #{org.name}")
+      # don't send email to admin who added the user
+      refute_email_sent(subject: "NervesHub: Josh Again has been added to")
+
+      assert_email_sent(subject: "NervesHub: You have been added to #{org.name}")
     end
 
     test "rescind unaccepted invite", %{conn: conn, org: org, user: user} do

@@ -31,6 +31,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
 ##
 # NervesHub Web
 #
+# cspell:disable
 config :nerves_hub, NervesHubWeb.Endpoint,
   adapter: Bandit.PhoenixAdapter,
   secret_key_base: "ZH9GG2S5CwIMWXBg92wUuoyKFrjgqaAybHLTLuUk1xZO0HeidcJbnMBSTHDcyhSn",
@@ -43,6 +44,7 @@ config :nerves_hub, NervesHubWeb.Endpoint,
   ],
   pubsub_server: NervesHub.PubSub
 
+# cspell:enable
 ##
 # Database and Oban
 #
@@ -102,6 +104,11 @@ config :tailwind,
       --output=../priv/static/assets/ui-rework/app.css
     ),
     cd: Path.expand("../assets", __DIR__)
+  ]
+
+config :ueberauth, Ueberauth,
+  providers: [
+    google: {Ueberauth.Strategy.Google, [default_scope: "email profile openid"]}
   ]
 
 # Environment specific config

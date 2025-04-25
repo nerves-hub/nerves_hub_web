@@ -1,5 +1,6 @@
 defmodule NervesHubWeb.API.FirmwareController do
   use NervesHubWeb, :api_controller
+  use OpenApiSpex.ControllerSpecs
 
   alias NervesHub.Firmwares
   alias NervesHub.Repo
@@ -9,10 +10,17 @@ defmodule NervesHubWeb.API.FirmwareController do
   plug(:validate_role, [org: :manage] when action in [:create, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
+  tags(["Firmwares"])
+  security([%{}, %{"bearer_auth" => []}])
+
+  operation(:index, summary: "List all Firmwares for a Product")
+
   def index(%{assigns: %{product: product}} = conn, _params) do
     firmwares = Firmwares.get_firmwares_by_product(product.id)
     render(conn, :index, firmwares: firmwares)
   end
+
+  operation(:create, summary: "Upload a Firmware for a Product")
 
   def create(%{assigns: %{org: org, product: product}} = conn, params) do
     params = whitelist(params, [:firmware])
@@ -35,11 +43,15 @@ defmodule NervesHubWeb.API.FirmwareController do
     end
   end
 
+  operation(:show, summary: "Show a Firmware")
+
   def show(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid) do
       render(conn, :show, firmware: firmware)
     end
   end
+
+  operation(:delete, summary: "Delete a Firmware")
 
   def delete(%{assigns: %{product: product}} = conn, %{"uuid" => uuid}) do
     with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),

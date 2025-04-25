@@ -22,6 +22,16 @@ defmodule NervesHubWeb.Router do
     plug(:put_dynamic_root_layout)
   end
 
+  pipeline :updated_layout do
+    plug(:use_updated_layout)
+  end
+
+  def use_updated_layout(conn, _) do
+    conn
+    |> put_layout(false)
+    |> put_root_layout(html: {NervesHubWeb.Layouts, :root})
+  end
+
   def put_dynamic_root_layout(conn, _) do
     session = Plug.Conn.get_session(conn)
 
@@ -50,6 +60,7 @@ defmodule NervesHubWeb.Router do
 
   pipeline :api do
     plug(:accepts, ["json"])
+    plug(OpenApiSpex.Plug.PutApiSpec, module: NervesHubWeb.ApiSpec)
   end
 
   pipeline :api_require_authenticated_user do
@@ -68,6 +79,11 @@ defmodule NervesHubWeb.Router do
     plug(NervesHubWeb.API.Plugs.Device)
   end
 
+  scope "/api" do
+    pipe_through(:api)
+    get("/openapi", OpenApiSpex.Plug.RenderSpec, [])
+  end
+
   scope("/api", NervesHubWeb.API, as: :api) do
     pipe_through(:api)
 
@@ -78,14 +94,14 @@ defmodule NervesHubWeb.Router do
       pipe_through([:api_require_authenticated_user, :api_device])
 
       get("/", DeviceController, :show)
+
+      post("/code", DeviceController, :code)
+      post("/move", DeviceController, :move)
       post("/reboot", DeviceController, :reboot)
       post("/reconnect", DeviceController, :reconnect)
-      post("/code", DeviceController, :code)
       post("/upgrade", DeviceController, :upgrade)
-      post("/move", DeviceController, :move)
       delete("/penalty", DeviceController, :penalty)
 
-      get("/scripts", ScriptController, :index)
       post("/scripts/:id", ScriptController, :send)
     end
 
@@ -101,9 +117,10 @@ defmodule NervesHubWeb.Router do
           scope "/users" do
             get("/", OrgUserController, :index)
             post("/", OrgUserController, :add)
-            get("/:user_id", OrgUserController, :show)
-            put("/:user_id", OrgUserController, :update)
-            delete("/:user_id", OrgUserController, :remove)
+            post("/invite", OrgUserController, :invite)
+            get("/:user_email", OrgUserController, :show)
+            put("/:user_email", OrgUserController, :update)
+            delete("/:user_email", OrgUserController, :remove)
           end
 
           scope "/keys" do
@@ -151,7 +168,6 @@ defmodule NervesHubWeb.Router do
                   delete("/penalty", DeviceController, :penalty)
 
                   scope "/scripts", as: :device do
-                    get("/", ScriptController, :index)
                     post("/:id", ScriptController, :send)
                   end
 
@@ -171,18 +187,27 @@ defmodule NervesHubWeb.Router do
                 delete("/:uuid", FirmwareController, :delete)
               end
 
-              scope "/deployment_groups" do
+              scope "/deployments" do
                 get("/", DeploymentGroupController, :index)
                 post("/", DeploymentGroupController, :create)
                 get("/:name", DeploymentGroupController, :show)
                 put("/:name", DeploymentGroupController, :update)
                 delete("/:name", DeploymentGroupController, :delete)
               end
+
+              get("/scripts", ScriptController, :index)
             end
           end
         end
       end
     end
+  end
+
+  scope "/api" do
+    # Use the default browser stack
+    pipe_through(:browser)
+
+    get("/swaggerui", OpenApiSpex.Plug.SwaggerUI, path: "/api/openapi")
   end
 
   scope "/", NervesHubWeb do
@@ -201,21 +226,27 @@ defmodule NervesHubWeb.Router do
 
   scope "/", NervesHubWeb do
     # Only unauthenticated users can use these routes
-    pipe_through([:browser, :redirect_if_user_is_authenticated])
+    pipe_through([:browser, :redirect_if_user_is_authenticated, :updated_layout])
 
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
+    get("/confirm/:token", SessionController, :confirm)
 
     get("/register", AccountController, :new)
     post("/register", AccountController, :create)
 
     get("/password-reset", PasswordResetController, :new)
     post("/password-reset", PasswordResetController, :create)
-    get("/password-reset/:token", PasswordResetController, :new_password_form)
-    put("/password-reset/:token", PasswordResetController, :reset)
+    get("/password-reset/:token", PasswordResetController, :edit)
+    put("/password-reset/:token", PasswordResetController, :update)
 
     get("/invite/:token", AccountController, :invite)
     post("/invite/:token", AccountController, :accept_invite)
+
+    scope "/auth" do
+      get("/:provider", OAuthController, :request)
+      get("/:provider/callback", OAuthController, :callback)
+    end
   end
 
   scope "/org/:org_name/:product_name", NervesHubWeb do

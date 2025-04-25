@@ -3,84 +3,67 @@ defmodule NervesHubWeb.PasswordResetController do
 
   alias NervesHub.Accounts
   alias NervesHub.Accounts.PasswordReset
-  alias NervesHub.Accounts.SwooshEmail
   alias NervesHub.Accounts.User
-  alias NervesHub.SwooshMailer
 
-  alias Ecto.Changeset
+  alias NervesHubWeb.Auth
+
+  plug(:get_user_by_reset_password_token when action in [:edit, :update])
 
   def new(conn, _params) do
-    conn
-    |> render("new.html", changeset: PasswordReset.changeset(%PasswordReset{}, %{}))
+    render(conn, :new)
   end
 
-  def create(conn, %{"password_reset" => %{"email" => email}})
-      when is_binary(email) and email != "" do
-    case Accounts.update_password_reset_token(email) do
-      {:ok, user} ->
-        _ =
-          user
-          |> SwooshEmail.forgot_password()
-          |> SwooshMailer.deliver()
+  def create(conn, %{"user" => %{"email" => email}}) do
+    _ =
+      case Accounts.get_user_by_email(email) do
+        {:ok, user} ->
+          Accounts.deliver_user_reset_password_instructions(
+            user,
+            &url(~p"/password-reset/#{&1}"),
+            url(~p"/login")
+          )
 
-        :ok
+        _ ->
+          nil
+      end
 
-      {:error, _} ->
-        :ok
-    end
-
-    conn
-    |> put_flash(:info, "Please check your email in order to reset your password.")
-    |> redirect(to: Routes.session_path(conn, :new))
+    render(conn, :instructions_sent)
   end
 
   def create(conn, _params) do
     conn
     |> put_flash(:error, "You must enter an email address.")
-    |> render("new.html", changeset: PasswordReset.changeset(%PasswordReset{}, %{}))
+    |> render(:new, changeset: PasswordReset.changeset(%PasswordReset{}, %{}))
   end
 
-  def new_password_form(conn, params) do
-    params["token"]
-    |> Accounts.get_user_with_password_reset_token()
-    |> case do
-      {:ok, user} ->
-        conn
-        |> render(
-          "new_password_form.html",
-          token: user.password_reset_token,
-          changeset: User.update_changeset(user, %{})
-        )
+  def edit(%{assigns: %{user: user}} = conn, _params) do
+    changeset = User.password_changeset(user, %{}, hash_password: false)
 
-      {:error, :not_found} ->
+    render(conn, :edit, changeset: changeset)
+  end
+
+  def update(%{assigns: %{user: user}} = conn, %{"user" => user_params}) do
+    case Accounts.reset_user_password(user, user_params) do
+      {:ok, updated_user} ->
         conn
-        |> put_flash(
-          :warning,
-          "We're sorry, your password reset link is expired. Please try again."
-        )
-        |> redirect(to: Routes.session_path(conn, :new))
+        |> put_flash(:info, "Password reset successfully.")
+        |> Auth.log_in_user(updated_user, user_params)
+
+      {:error, changeset} ->
+        render(conn, :edit, changeset: changeset)
     end
   end
 
-  def reset(conn, %{"token" => token, "user" => user}) do
-    case Accounts.reset_password(token, user) do
-      {:ok, _user} ->
-        conn
-        |> put_flash(:info, "Password reset successfully. Please log in.")
-        |> redirect(to: Routes.session_path(conn, :new))
+  defp get_user_by_reset_password_token(conn, _opts) do
+    %{"token" => token} = conn.params
 
-      {:error, :not_found} ->
-        conn
-        |> put_flash(
-          :warning,
-          "We're sorry, your password reset link is expired or incorrect. Please try again."
-        )
-        |> redirect(to: Routes.session_path(conn, :new))
-
-      {:error, %Changeset{} = changeset} ->
-        conn
-        |> put_flash(:error, "You must provide a new password.")
-        |> render("new_password_form.html", token: token, changeset: changeset)
+    if user = Accounts.get_user_by_reset_password_token(token) do
+      conn |> assign(:user, user) |> assign(:token, token)
+    else
+      conn
+      |> put_flash(:error, "Reset password link is invalid or it has expired.")
+      |> redirect(to: ~p"/login")
+      |> halt()
     end
   end
 end

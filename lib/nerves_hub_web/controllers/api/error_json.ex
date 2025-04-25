@@ -9,6 +9,14 @@ defmodule NervesHubWeb.API.ErrorJSON do
     %{errors: %{detail: "Resource Not Found or Authorization Insufficient"}}
   end
 
+  def render("400.json", %{reason: reason}) do
+    %{errors: %{detail: reason}}
+  end
+
+  def render("422.json", %{reason: reason}) do
+    %{errors: %{detail: reason}}
+  end
+
   # By default, Phoenix returns the status message from
   # the template name. For example, "404.json" becomes
   # "Not Found".

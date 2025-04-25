@@ -5,8 +5,8 @@ defmodule NervesHubWeb.Live.Org.Users do
   alias NervesHub.Accounts.Invite
   alias NervesHub.Accounts.Org
   alias NervesHub.Accounts.OrgUser
-  alias NervesHub.Accounts.SwooshEmail
-  alias NervesHub.SwooshMailer
+  alias NervesHub.Accounts.UserNotifier
+
   alias NervesHubWeb.Components.Utils
 
   embed_templates("user_templates/*")
@@ -51,30 +51,28 @@ defmodule NervesHubWeb.Live.Org.Users do
   def handle_event("send_invite", %{"invite" => invite_params}, socket) do
     authorized!(:"org_user:invite", socket.assigns.org_user)
 
-    case Accounts.add_or_invite_to_org(invite_params, socket.assigns.org, socket.assigns.user) do
+    %{org: org, user: invited_by} = socket.assigns
+
+    case Accounts.add_or_invite_to_org(invite_params, org, invited_by) do
       {:ok, %Invite{} = invite} ->
-        _ =
-          SwooshEmail.invite(invite, socket.assigns.org, socket.assigns.user)
-          |> SwooshMailer.deliver()
+        invite_url = url(~p"/invite/#{invite.token}")
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "User has been invited")
-         |> push_patch(to: ~p"/org/#{socket.assigns.org}/settings/users")}
+        _ = UserNotifier.deliver_user_invite(invite.email, org, invited_by, invite_url)
+        _ = UserNotifier.deliver_all_tell_org_user_invited(org, invited_by, invite.email)
 
-      {:ok, %OrgUser{}} ->
-        _ =
-          SwooshEmail.org_user_created(
-            invite_params["email"],
-            socket.assigns.org,
-            socket.assigns.user
-          )
-          |> SwooshMailer.deliver()
+        socket
+        |> put_flash(:info, "User has been invited")
+        |> push_patch(to: ~p"/org/#{org}/settings/users")
+        |> noreply()
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "User has been added to #{socket.assigns.org.name}")
-         |> push_patch(to: ~p"/org/#{socket.assigns.org}/settings/users")}
+      {:ok, %OrgUser{} = org_user} ->
+        _ = UserNotifier.deliver_all_tell_org_user_added(org, invited_by, org_user.user)
+        _ = UserNotifier.deliver_org_user_added(org, invited_by, org_user.user)
+
+        socket
+        |> put_flash(:info, "User has been added to #{org.name}")
+        |> push_patch(to: ~p"/org/#{org}/settings/users")
+        |> noreply()
 
       {:error, changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
@@ -122,18 +120,13 @@ defmodule NervesHubWeb.Live.Org.Users do
   def handle_event("delete_org_user", %{"user_id" => user_id}, socket) do
     authorized!(:"org_user:delete", socket.assigns.org_user)
 
-    {:ok, user} = Accounts.get_user(user_id)
+    %{org: org, user: user} = socket.assigns
 
-    case Accounts.remove_org_user(socket.assigns.org, user) do
+    {:ok, user_to_remove} = Accounts.get_user(user_id)
+
+    case Accounts.remove_org_user(org, user_to_remove) do
       :ok ->
-        _ =
-          SwooshEmail.tell_org_user_removed(
-            socket.assigns.org,
-            Accounts.get_org_users(socket.assigns.org),
-            socket.assigns.user,
-            user
-          )
-          |> SwooshMailer.deliver()
+        _ = UserNotifier.deliver_all_tell_org_user_removed(org, user, user_to_remove)
 
         {:noreply,
          socket

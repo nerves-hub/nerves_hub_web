@@ -318,7 +318,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
       {:error, _, _, _} ->
         socket
-        |> put_flash(:error, "An unknown error occured, please contact support.")
+        |> put_flash(:error, "An unknown error occurred, please contact support.")
         |> halt()
     end
   end

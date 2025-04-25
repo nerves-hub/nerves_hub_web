@@ -1,5 +1,4 @@
 defmodule NervesHubWeb.API.DeviceController do
-  alias NervesHubWeb.Helpers.RoleValidateHelpers
   use NervesHubWeb, :api_controller
 
   alias NervesHub.Accounts
@@ -10,7 +9,9 @@ defmodule NervesHubWeb.API.DeviceController do
   alias NervesHub.Firmwares
   alias NervesHub.Products
   alias NervesHub.Repo
+
   alias NervesHubWeb.Endpoint
+  alias NervesHubWeb.Helpers.RoleValidateHelpers
 
   plug(
     :validate_role,
@@ -70,8 +71,7 @@ defmodule NervesHubWeb.API.DeviceController do
     render(conn, :show)
   end
 
-  def delete(%{assigns: %{org: org}} = conn, %{"identifier" => identifier}) do
-    {:ok, device} = Devices.get_device_by_identifier(org, identifier)
+  def delete(%{assigns: %{org: _org, device: device}} = conn, _params) do
     {:ok, _device} = Devices.delete_device(device)
 
     send_resp(conn, :no_content, "")
@@ -110,13 +110,13 @@ defmodule NervesHubWeb.API.DeviceController do
 
     _ = Endpoint.broadcast_from(self(), "device:#{device.id}", "reboot", %{})
 
-    send_resp(conn, 200, "Success")
+    send_resp(conn, :no_content, "")
   end
 
   def reconnect(%{assigns: %{device: device}} = conn, _params) do
     _ = Endpoint.broadcast("device_socket:#{device.id}", "disconnect", %{})
 
-    send_resp(conn, 200, "Success")
+    send_resp(conn, :no_content, "")
   end
 
   def code(%{assigns: %{device: device}} = conn, %{"body" => body}) do
@@ -130,7 +130,7 @@ defmodule NervesHubWeb.API.DeviceController do
 
     Endpoint.broadcast_from!(self(), "device:console:#{device.id}", "dn", %{"data" => "\r"})
 
-    send_resp(conn, 200, "Success")
+    send_resp(conn, :no_content, "")
   end
 
   def upgrade(%{assigns: %{device: device, user: user}} = conn, %{"uuid" => uuid}) do
@@ -157,13 +157,13 @@ defmodule NervesHubWeb.API.DeviceController do
         payload
       )
 
-    send_resp(conn, 204, "")
+    send_resp(conn, :no_content, "")
   end
 
   def penalty(%{assigns: %{device: device, user: user}} = conn, _params) do
     case Devices.clear_penalty_box(device, user) do
       {:ok, _device} ->
-        send_resp(conn, 204, "")
+        send_resp(conn, :no_content, "")
 
       {:error, _, _, _} ->
         {:error, "Failed to clear penalty box. Please contact support if this persists."}

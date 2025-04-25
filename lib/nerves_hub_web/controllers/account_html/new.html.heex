@@ -1,0 +1,34 @@
+<Layouts.auth flash={@flash}>
+  <:title>
+    Create a new account
+  </:title>
+  <div class="mt-6">
+    <div :if={Enum.any?(@changeset.errors)} role="alert" class="mb-6 mr-2 w-full rounded-sm p-3 ring-1 bg-rose-50 text-rose-900 shadow-md ring-rose-500 fill-rose-900">
+      <p class="mt-1 text-sm leading-5">Oops, we couldn't save your account details.</p>
+    </div>
+
+    <div>
+      <.form :let={f} for={@changeset} action={~p"/register"} class="space-y-6">
+        <div>
+          <.input field={f[:name]} label="Name" placeholder="eg. Jane Doe" />
+        </div>
+
+        <div>
+          <.input field={f[:email]} label="Email address" placeholder="eg. person@company.com" />
+        </div>
+
+        <div>
+          <.input field={f[:password]} label="Password" type="password" autocomplete="current-password" required />
+        </div>
+
+        <div>
+          <.button style="primary" type="submit" class="flex w-full justify-center">
+            Register
+          </.button>
+        </div>
+      </.form>
+    </div>
+
+    <OAuthLinks.render />
+  </div>
+</Layouts.auth>
