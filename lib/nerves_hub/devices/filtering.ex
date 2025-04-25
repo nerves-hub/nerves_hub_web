@@ -38,6 +38,10 @@ defmodule NervesHub.Devices.Filtering do
     end
   end
 
+  def filter(query, _filters, :health_status, "unknown") do
+    where(query, [latest_health: lh], lh.status == ^"unknown" or is_nil(lh))
+  end
+
   def filter(query, _filters, :health_status, value) do
     where(query, [latest_health: lh], lh.status == ^value)
   end
@@ -83,7 +87,7 @@ defmodule NervesHub.Devices.Filtering do
     end
   end
 
-  def filter(query, _filters, :device_id, value) do
+  def filter(query, _filters, :identifier, value) do
     where(query, [d], ilike(d.identifier, ^"%#{value}%"))
   end
 
@@ -117,6 +121,23 @@ defmodule NervesHub.Devices.Filtering do
     else
       query
     end
+  end
+
+  def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
+    search_term = "%#{value}%"
+
+    query
+    |> where(
+      [d],
+      ilike(d.identifier, ^search_term) or
+        ilike(fragment("COALESCE(?->>'version', '')", d.firmware_metadata), ^search_term) or
+        ilike(fragment("COALESCE(?->>'platform', '')", d.firmware_metadata), ^search_term) or
+        fragment(
+          "string_array_to_string(COALESCE(?, ARRAY[]::text[]), ' ', ' ') ILIKE ?",
+          d.tags,
+          ^search_term
+        )
+    )
   end
 
   # Ignore any undefined filter.

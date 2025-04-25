@@ -18,6 +18,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias Phoenix.Socket.Broadcast
 
   alias NervesHubWeb.Components.DeviceUpdateStatus
+  alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.HealthStatus
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
@@ -33,7 +34,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     platform: "",
     healthy: "",
     health_status: "",
-    device_id: "",
+    identifier: "",
     tag: "",
     updates: "",
     has_no_tags: false,
@@ -43,7 +44,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_operator: "gt",
     metrics_value: "",
     deployment_id: "",
-    is_pinned: false
+    is_pinned: false,
+    search: ""
   }
 
   @filter_types %{
@@ -53,7 +55,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
     platform: :string,
     healthy: :string,
     health_status: :string,
-    device_id: :string,
+    identifier: :string,
     tag: :string,
     updates: :string,
     has_no_tags: :boolean,
@@ -63,7 +65,8 @@ defmodule NervesHubWeb.Live.Devices.Index do
     metrics_operator: :string,
     metrics_value: :string,
     deployment_id: :string,
-    is_pinned: :boolean
+    is_pinned: :boolean,
+    search: :string
   }
 
   @default_page 1

@@ -24,4 +24,31 @@ defmodule NervesHub.ManagedDeployments.Filtering do
   def filter(query, _filters, :name, value) do
     where(query, [d], ilike(d.name, ^"%#{value}%"))
   end
+
+  def filter(query, _filters, :platform, value) do
+    where(query, [_d, _dev, f], f.platform == ^value)
+  end
+
+  def filter(query, _filters, :architecture, value) do
+    where(query, [_d, _dev, f], f.architecture == ^value)
+  end
+
+  def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
+    search_term = "%#{value}%"
+
+    query
+    |> where(
+      [d, _dev, f],
+      ilike(d.name, ^search_term) or
+        ilike(f.platform, ^search_term) or
+        ilike(f.architecture, ^search_term) or
+        ilike(fragment(" COALESCE(?->>'tags', '')", d.conditions), ^search_term)
+    )
+  end
+
+  # Ignore any undefined filter.
+  # This will prevent error 500 responses on deprecated saved bookmarks etc.
+  def filter(query, _filters, _key, _value) do
+    query
+  end
 end
