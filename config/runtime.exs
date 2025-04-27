@@ -462,6 +462,9 @@ config :nerves_hub, NervesHub.RateLimit,
 config :nerves_hub,
   enable_google_auth: !is_nil(System.get_env("GOOGLE_CLIENT_ID"))
 
+config :nerves_hub,
+  show_google_auth: System.get_env("GOOGLE_SHOW_AUTH", "true") == "true"
+
 if System.get_env("GOOGLE_CLIENT_ID") do
   config :ueberauth, Ueberauth.Strategy.Google.OAuth,
     client_id: System.get_env("GOOGLE_CLIENT_ID"),

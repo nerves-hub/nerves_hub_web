@@ -38,6 +38,7 @@ defmodule NervesHubWeb.Components.OAuthLinks do
   end
 
   defp google_auth_enabled?() do
-    Application.get_env(:nerves_hub, :enable_google_auth)
+    Application.get_env(:nerves_hub, :enable_google_auth) &&
+      Application.get_env(:nerves_hub, :show_google_auth)
   end
 end

@@ -14,6 +14,7 @@ defmodule NervesHubWeb.OAuthControllerTest do
 
     on_exit(fn ->
       Application.put_env(:nerves_hub_web, :google_auth_enabled, false)
+      Application.put_env(:nerves_hub_web, :show_google_auth, true)
     end)
   end
 
@@ -43,6 +44,27 @@ defmodule NervesHubWeb.OAuthControllerTest do
     end)
 
     build_conn()
+    |> visit(~p"/auth/google/callback?state=dummy&code=dummy&scope=email+profile&prompt=none")
+    |> assert_path("/orgs")
+    |> assert_has("div", with: "Welcome back!")
+
+    assert_email_sent(subject: "NervesHub: Welcome Jane Person!")
+  end
+
+  test "create new account successfully, even when the google auth button is hidden" do
+    Application.put_env(:nerves_hub_web, :show_google_auth, false)
+
+    Mimic.stub(Ueberauth, :call, fn conn, _routes ->
+      google_auth = Fixtures.ueberauth_google_success_fixture()
+      assigns = Map.put(conn.assigns, :ueberauth_auth, google_auth)
+      %{conn | assigns: assigns}
+    end)
+
+    build_conn()
+    |> visit(~p"/login")
+    |> assert_has("h1", with: "Sign in to your account")
+    |> refute_has("span", text: "Or create a new account with")
+    |> refute_has("span", text: "Google")
     |> visit(~p"/auth/google/callback?state=dummy&code=dummy&scope=email+profile&prompt=none")
     |> assert_path("/orgs")
     |> assert_has("div", with: "Welcome back!")
