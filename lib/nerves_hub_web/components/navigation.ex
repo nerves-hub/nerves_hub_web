@@ -15,13 +15,7 @@ defmodule NervesHubWeb.Components.Navigation do
   def updated_sidebar(assigns) do
     ~H"""
     <ul role="list">
-      <.nav_link
-        :if={Application.get_env(:nerves_hub, :insights_enabled)}
-        label="Insights"
-        path={~p"/org/#{@org.name}/#{@product.name}/insights"}
-        selected={:insights == @selected_tab}
-        width_and_height={24}
-      >
+      <.nav_link :if={Application.get_env(:nerves_hub, :insights_enabled)} label="Insights" path={~p"/org/#{@org}/#{@product}/insights"} selected={:insights == @selected_tab} width_and_height={24}>
         <path
           d="M21 12H22M18.5 5.5L19.5 4.5M12 3V2M5.5 5.5L4.5 4.5M3 12H2M10 22H14M17 12C17 9.23858 14.7614 7 12 7C9.23858 7 7 9.23858 7 12C7 14.0503 8.2341 15.8124 10 16.584V19H14V16.584C15.7659 15.8124 17 14.0503 17 12Z"
           stroke-width="1.2"
