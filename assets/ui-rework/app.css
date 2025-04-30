@@ -265,6 +265,11 @@
     z-index: 10;
     max-height: 52px;
   }
+
+  .scrollable-table-cell {
+    overflow-y: scroll;
+    scrollbar-width: none;
+  }
 }
 
 html {
