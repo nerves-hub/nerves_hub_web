@@ -524,13 +524,13 @@ defmodule NervesHubWeb.Live.Devices.Show do
     topic = "device-#{device.identifier}"
     socket = stream(socket, :presences, [])
 
-    if connected?(socket) do
-      # TODO: handle the unhappy-path for both calls to Presence
-      _ = Presence.track_user(topic, user.id, %{name: user.name})
-      _ = Presence.subscribe(topic)
-      stream(socket, :presences, Presence.list_online_users(topic))
+    with true <- connected?(socket),
+         {:ok, _} <- Presence.track_user(topic, user.id, %{name: user.name}),
+         :ok <- Presence.subscribe(topic) do
+      stream(socket, :presences, Presence.list_present_users(topic))
     else
-      socket
+      _ ->
+        socket
     end
   end
 
