@@ -1,0 +1,24 @@
+<div class="w-[800px] py-6">
+  <div class="flex flex-col items-start justify-between gap-4 p-6">
+    <.form for={@form} class="w-full" phx-submit="create_product">
+      <div class="flex flex-col w-full bg-zinc-900 border border-zinc-700 rounded">
+        <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+          <div class="text-base text-neutral-50 font-medium">Create Product</div>
+        </div>
+        <div class="flex p-6 gap-6">
+          <div class="w-full flex flex-col gap-6">
+            <.input field={@form[:name]} label="Name" placeholder="ellipsis, umbrella, .." />
+            <p>Once created, a product name cannot be changed.</p>
+            <input type="hidden" name="product[delta_updatable]" value="true" />
+            <input :for={{key, _description} <- @available_extensions} type="hidden" name={"product[extensions][#{key}]"} value="true" />
+          </div>
+        </div>
+        <div class="flex justify-between items-center h-14 px-4 border-t border-zinc-700">
+          <.button style="secondary" type="submit">
+            <.icon name="save" /> Create
+          </.button>
+        </div>
+      </div>
+    </.form>
+  </div>
+</div>

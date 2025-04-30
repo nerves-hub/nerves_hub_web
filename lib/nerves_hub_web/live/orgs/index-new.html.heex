@@ -30,10 +30,12 @@
       <div :for={org <- @user.orgs} class="bg-zinc-900 border border-zinc-700 rounded">
         <div class="h-[56px] px-4 flex items-center justify-between">
           <div class="flex items-center gap-[12px]">
-            <div class="size-8 bg-zinc-800 text-zinc-500 uppercase rounded font-semibold text-sm flex items-center justify-center">
-              {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
-            </div>
-            <h3 class="text-base font-medium text-neutral-50">{org.name}</h3>
+            <a href={~p"/org/#{org}"} class="contents">
+              <div class="size-8 bg-zinc-800 text-zinc-500 uppercase rounded font-semibold text-sm flex items-center justify-center">
+                {org.name |> String.split(" ") |> Enum.map(&String.first/1) |> Enum.join()}
+              </div>
+              <h3 class="text-base font-medium text-neutral-50">{org.name}</h3>
+            </a>
           </div>
           <%!-- <div class="flex gap-2 items-center">
             <.button type="link">
