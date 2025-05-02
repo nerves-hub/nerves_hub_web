@@ -12,6 +12,5 @@ defmodule NervesHub.Emails.OrgUserAddedTemplate do
 
     <ClosingBlock.text_support_section />
     """noformat
-    |> Phoenix.HTML.Safe.to_iodata()
   end
 end

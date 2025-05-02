@@ -14,6 +14,5 @@ defmodule NervesHub.Emails.PasswordResetConfirmationTemplate do
 
     <ClosingBlock.text_support_section />
     """noformat
-    |> Phoenix.HTML.Safe.to_iodata()
   end
 end

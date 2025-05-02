@@ -25,8 +25,7 @@ defmodule NervesHub.Accounts.UserNotifier do
       platform_name: platform_name()
     }
 
-    html = ConfirmationTemplate.render(assigns)
-    text = ConfirmationTemplate.text_render(assigns)
+    {html, text} = render(ConfirmationTemplate, assigns)
 
     send_email(user, "#{platform_name()}: Confirm your account", html, text)
   end
@@ -38,8 +37,7 @@ defmodule NervesHub.Accounts.UserNotifier do
       platform_name: platform_name()
     }
 
-    html = PasswordUpdatedTemplate.render(assigns)
-    text = PasswordUpdatedTemplate.text_render(assigns)
+    {html, text} = render(PasswordUpdatedTemplate, assigns)
 
     send_email(user, "#{platform_name()}: Your password has been updated", html, text)
   end
@@ -51,8 +49,7 @@ defmodule NervesHub.Accounts.UserNotifier do
       platform_name: platform_name()
     }
 
-    html = LoginWithGoogleReminderTemplate.render(assigns)
-    text = LoginWithGoogleReminderTemplate.text_render(assigns)
+    {html, text} = render(LoginWithGoogleReminderTemplate, assigns)
 
     send_email(user, "#{platform_name()}: Login with Google", html, text)
   end
@@ -64,8 +61,7 @@ defmodule NervesHub.Accounts.UserNotifier do
       platform_name: platform_name()
     }
 
-    html = PasswordResetTemplate.render(assigns)
-    text = PasswordResetTemplate.text_render(assigns)
+    {html, text} = render(PasswordResetTemplate, assigns)
 
     send_email(user, "#{platform_name()}: Reset your password", html, text)
   end
@@ -76,8 +72,7 @@ defmodule NervesHub.Accounts.UserNotifier do
       platform_name: platform_name()
     }
 
-    html = PasswordResetConfirmationTemplate.render(assigns)
-    text = PasswordResetConfirmationTemplate.text_render(assigns)
+    {html, text} = render(PasswordResetConfirmationTemplate, assigns)
 
     send_email(user, "#{platform_name()}: Your password has been reset", html, text)
   end
@@ -85,8 +80,7 @@ defmodule NervesHub.Accounts.UserNotifier do
   def deliver_welcome_email(user) do
     assigns = %{user_name: user.name, platform_name: platform_name()}
 
-    html = WelcomeTemplate.render(assigns)
-    text = WelcomeTemplate.text_render(assigns)
+    {html, text} = render(WelcomeTemplate, assigns)
 
     send_email(user, "#{platform_name()}: Welcome #{user.name}!", html, text)
   end
@@ -99,8 +93,7 @@ defmodule NervesHub.Accounts.UserNotifier do
       invite_url: invite_url
     }
 
-    html = UserInviteTemplate.render(assigns)
-    text = UserInviteTemplate.text_render(assigns)
+    {html, text} = render(UserInviteTemplate, assigns)
 
     send_email(
       email,
@@ -117,8 +110,7 @@ defmodule NervesHub.Accounts.UserNotifier do
       org_name: org.name
     }
 
-    html = OrgUserAddedTemplate.render(assigns)
-    text = OrgUserAddedTemplate.text_render(assigns)
+    {html, text} = render(OrgUserAddedTemplate, assigns)
 
     send_email(
       user,
@@ -144,8 +136,7 @@ defmodule NervesHub.Accounts.UserNotifier do
       org_name: org.name
     }
 
-    html = TellOrgUserInvitedTemplate.render(assigns)
-    text = TellOrgUserInvitedTemplate.text_render(assigns)
+    {html, text} = render(TellOrgUserInvitedTemplate, assigns)
 
     send_email(
       admin,
@@ -173,8 +164,7 @@ defmodule NervesHub.Accounts.UserNotifier do
       org_name: org.name
     }
 
-    html = TellOrgUserAddedTemplate.render(assigns)
-    text = TellOrgUserAddedTemplate.text_render(assigns)
+    {html, text} = render(TellOrgUserAddedTemplate, assigns)
 
     send_email(
       admin,
@@ -202,8 +192,7 @@ defmodule NervesHub.Accounts.UserNotifier do
       org_name: org.name
     }
 
-    html = TellOrgUserRemovedTemplate.render(assigns)
-    text = TellOrgUserRemovedTemplate.text_render(assigns)
+    {html, text} = render(TellOrgUserRemovedTemplate, assigns)
 
     send_email(
       admin,
@@ -211,6 +200,17 @@ defmodule NervesHub.Accounts.UserNotifier do
       html,
       text
     )
+  end
+
+  def render(module, assigns) do
+    html = module.render(assigns)
+
+    text =
+      module.text_render(assigns)
+      |> Phoenix.HTML.Safe.to_iodata()
+      |> IO.iodata_to_binary()
+
+    {html, text}
   end
 
   defp send_email(%User{} = user, subject, html, text) do
