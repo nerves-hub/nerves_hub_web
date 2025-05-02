@@ -82,13 +82,13 @@ else
     NervesHub.SeedHelpers.nerves_team_seed(%{
       email: root_user_email,
       username: root_user_name,
-      password: root_user_name
+      password: "nerveshub123"
     })
   else
     Accounts.create_user(%{
       username: root_user_name,
       email: root_user_email,
-      password: "nerveshub"
+      password: "nerveshub123"
     })
   end
 end
