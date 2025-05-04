@@ -406,14 +406,19 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
           <div :if={Enum.any?(@support_scripts)} class="flex flex-col pt-2 px-4 pb-6 gap-2">
             <div :for={script <- @support_scripts} class="flex flex-col gap-2">
-              <div class="flex gap-4">
+              <div class="flex items-center gap-4">
                 <span class="text-base text-zinc-300">{script.name}</span>
 
-                <button class="p-1 border border-green-500 rounded-full bg-zinc-800" type="button" disabled={script.running?} phx-click="run-script" phx-value-id={script.id}>
+                <button :if={!script.running?} class="p-1 border border-green-500 rounded-full bg-zinc-800" type="button" phx-click="run-script" phx-value-id={script.id}>
                   <svg class="w-3 h-3 stroke-green-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M8 19V5L18 12L8 19Z" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </button>
+
+                <svg :if={script.running?} class="mr-3 -ml-1 size-5 animate-spin text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
 
                 <button :if={script.output} class="p-1 border border-red-500 rounded-full bg-zinc-800" type="button" phx-click="clear-script-output" phx-value-id={script.id}>
                   <svg class="size-3 stroke-red-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -627,8 +632,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     script = Enum.find(scripts, fn script -> script.id == String.to_integer(id) end)
 
     socket
-    |> assign(:support_scripts, update_script(scripts, id, %{running?: true}))
     |> start_async({:run_script, id}, fn -> Scripts.Runner.send(device, script) end)
+    |> assign(:support_scripts, update_script(scripts, id, %{output: nil, running?: true}))
     |> halt()
   end
 
