@@ -37,10 +37,11 @@ defmodule NervesHub.Extensions do
   @doc """
   Get list of supported extensions as atoms with descriptive text.
   """
-  @spec list() :: list(atom())
+  @spec list() :: [:geo | :health | :logging, ...]
   def list(), do: @supported_extensions
 
-  @spec module(extension()) :: NervesHub.Extensions.Geo | NervesHub.Extensions.Health
+  @spec module(extension()) ::
+          NervesHub.Extensions.Geo | NervesHub.Extensions.Health | NervesHub.Extensions.Logging
   def module(:geo), do: NervesHub.Extensions.Geo
   def module(:health), do: NervesHub.Extensions.Health
   def module(:logging), do: NervesHub.Extensions.Logging
