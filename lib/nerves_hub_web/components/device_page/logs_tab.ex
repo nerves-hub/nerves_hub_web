@@ -47,6 +47,26 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
 
   def hooked_info(_event, socket), do: {:cont, socket}
 
+  def render(%{product: %{extensions: %{logging: logging}}} = assigns) when logging == false do
+    ~H"""
+    <div class="size-full p-12">
+      <div class="size-full flex justify-center items-center p-6 gap-6 text-medium font-mono">
+        <div>Device logs aren't enabled for this product.</div>
+      </div>
+    </div>
+    """
+  end
+
+  def render(%{device: %{extensions: %{logging: logging}}} = assigns) when logging == false do
+    ~H"""
+    <div class="size-full p-12">
+      <div class="size-full flex justify-center items-center p-6 gap-6 text-medium font-mono">
+        <div>Device logs aren't enabled. Please check the device settings.</div>
+      </div>
+    </div>
+    """
+  end
+
   def render(assigns) do
     ~H"""
     <div class="size-full p-12">

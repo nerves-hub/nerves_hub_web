@@ -35,16 +35,16 @@ defmodule NervesHub.Devices.LogLines do
   end
 
   @doc """
-  Inserts a one log line for a device.
+  Creates a log line for a device.
 
   ## Examples
 
-      iex> insert(device, %{level: :info, message: "Hello", meta: %{}, logged_at: NaiveDateTime.utc_now()})
+      iex> create!(device, %{level: :info, message: "Hello", meta: %{}, logged_at: NaiveDateTime.utc_now()})
       %LogLine{}
 
   """
-  @spec insert(Device.t(), log_line_payload) :: LogLine.t()
-  def insert(%Device{} = device, attrs) do
+  @spec create!(Device.t(), log_line_payload) :: LogLine.t()
+  def create!(%Device{} = device, attrs) do
     device
     |> LogLine.create(attrs)
     |> Repo.insert!()
