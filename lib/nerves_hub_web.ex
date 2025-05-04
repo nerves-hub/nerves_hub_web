@@ -293,6 +293,9 @@ defmodule NervesHubWeb do
           push_event: 3,
           push_navigate: 2,
           start_async: 3,
+          stream: 4,
+          stream_configure: 3,
+          stream_insert: 4,
           connected?: 1,
           consume_uploaded_entry: 3,
           put_flash: 3
