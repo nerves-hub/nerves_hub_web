@@ -11,5 +11,9 @@ defmodule NervesHub.Repo.Migrations.CreateDeviceLogLines do
       add(:meta, :map, null: false, default: %{})
       add(:logged_at, :naive_datetime_usec, null: false)
     end
+
+    create(index("device_log_lines", [:device_id]))
+    create(index("device_log_lines", [:product_id]))
+    create(index("device_log_lines", [:logged_at]))
   end
 end

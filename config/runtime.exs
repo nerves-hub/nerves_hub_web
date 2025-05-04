@@ -50,6 +50,9 @@ config :nerves_hub,
         System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer(),
       ui_polling_seconds:
         System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer()
+    ],
+    logging: [
+      days_to_keep: String.to_integer(System.get_env("EXTENSIONS_LOGGING_DAYS_TO_KEEP", "3"))
     ]
   ],
   new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"

@@ -63,6 +63,28 @@ defmodule NervesHub.Devices.LogLinesTest do
     assert Enum.all?(recent, &(&1.device_id == device.id))
   end
 
+  test "truncate/1", %{device: device} do
+    now_minus_two_days =
+      NaiveDateTime.utc_now()
+      |> NaiveDateTime.shift(day: -2)
+
+    attrs = %{
+      level: :info,
+      logged_at: now_minus_two_days,
+      message: "a few days ago"
+    }
+
+    LogLines.create!(device, attrs)
+
+    recent = LogLines.recent(device)
+
+    assert length(recent) == 1
+
+    {:ok, 1} = LogLines.truncate(1)
+
+    assert [] == LogLines.recent(device)
+  end
+
   test "associations", %{device: device1, device2: device2} do
     log11 = random_log(device1)
     log12 = random_log(device1)

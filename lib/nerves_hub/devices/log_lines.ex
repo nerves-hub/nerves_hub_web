@@ -49,4 +49,16 @@ defmodule NervesHub.Devices.LogLines do
     |> LogLine.create(attrs)
     |> Repo.insert!()
   end
+
+  @spec truncate(pos_integer()) :: {:ok, non_neg_integer()}
+  def truncate(days_to_keep) do
+    days_ago = NaiveDateTime.shift(NaiveDateTime.utc_now(), day: -days_to_keep)
+
+    {count, _} =
+      LogLine
+      |> where([ll], ll.logged_at < ^days_ago)
+      |> Repo.delete_all()
+
+    {:ok, count}
+  end
 end
