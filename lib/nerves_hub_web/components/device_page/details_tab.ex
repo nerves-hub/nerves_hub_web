@@ -228,7 +228,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
         <div class="flex flex-col pb-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
           <div class="h-14 pl-4 pr-3 flex items-center text-neutral-50 font-medium leading-6">
-            General info
+            General Info
           </div>
           <div class="flex flex-col gap-3">
             <div :if={@device.description != ""} class="min-h-7 px-4 flex gap-4 items-center">
@@ -241,10 +241,11 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
               <span class="text-sm text-zinc-300">{NaiveDateTime.to_string(@device.inserted_at)}</span>
             </div>
 
-            <div class="min-h-7 flex px-4 gap-4 items-center">
+            <div class="min-h-7 flex px-4 gap-4 items-center relative">
               <span class="text-sm text-nerves-gray-500">Tags:</span>
               <span :if={is_nil(@device.tags)} class="text-sm text-nerves-gray-500">No Tags</span>
-              <span :if={@device.tags} class="flex gap-1">
+              <span class="device-show-tag-gradient-mask" />
+              <span :if={@device.tags} class="flex gap-1 max-w-full text-nowrap relative scrollable-inner">
                 <span :for={tag <- @device.tags || []} class="text-sm text-zinc-300 px-2 py-1 border border-zinc-800 bg-zinc-800 rounded">{tag}</span>
               </span>
             </div>
