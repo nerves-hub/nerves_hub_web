@@ -266,9 +266,36 @@
     max-height: 52px;
   }
 
-  .scrollable-table-cell {
+  .scrollable-inner {
     overflow-y: scroll;
     scrollbar-width: none;
+  }
+
+  .pinned-device-tag-gradient-mask {
+    position: absolute;
+    top: 0;
+    right: 16px;
+    width: 50px;
+    height: 100%;
+    background-image: linear-gradient(
+      to right,
+      rgba(24, 24, 27, 0),
+      rgba(24, 24, 27, 1)
+    );
+  }
+
+  .device-show-tag-gradient-mask {
+    position: absolute;
+    top: 0;
+    right: 16px;
+    width: 50px;
+    height: 100%;
+    z-index: 1;
+    background-image: linear-gradient(
+      to right,
+      rgba(24, 24, 27, 0),
+      rgba(24, 24, 27, 1)
+    );
   }
 }
 

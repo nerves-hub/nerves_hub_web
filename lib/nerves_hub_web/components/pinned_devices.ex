@@ -96,8 +96,9 @@ defmodule NervesHubWeb.Components.PinnedDevices do
                     </span>
                   </td>
 
-                  <td class="max-w-[250px] scrollable-table-cell">
-                    <div class="flex items-center text-nowrap gap-[4px]">
+                  <td class="max-w-[250px] relative">
+                    <span class="pinned-device-tag-gradient-mask" />
+                    <div class="flex items-center text-nowrap gap-[4px] scrollable-inner">
                       <%= if !is_nil(device.tags) do %>
                         <%= for tag <- device.tags do %>
                           <span class="tag">{tag}</span>
