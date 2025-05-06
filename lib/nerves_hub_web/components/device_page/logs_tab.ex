@@ -50,8 +50,9 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
   def render(%{product: %{extensions: %{logging: logging}}} = assigns) when logging == false do
     ~H"""
     <div class="size-full p-12">
-      <div class="size-full flex justify-center items-center p-6 gap-6 text-medium font-mono">
-        <div>Device logs aren't enabled for this product.</div>
+      <div class="size-full flex flex-col justify-center items-center p-6 gap-6 text-medium font-mono">
+        <div class="font-bold">Device logs aren't enabled for this product.</div>
+        <div>Please check the product settings.</div>
       </div>
     </div>
     """
@@ -60,8 +61,9 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
   def render(%{device: %{extensions: %{logging: logging}}} = assigns) when logging == false do
     ~H"""
     <div class="size-full p-12">
-      <div class="size-full flex justify-center items-center p-6 gap-6 text-medium font-mono">
-        <div>Device logs aren't enabled. Please check the device settings.</div>
+      <div class="size-full flex flex-col justify-center items-center p-6 gap-6 text-medium font-mono">
+        <div class="font-bold">Device logs aren't enabled.</div>
+        <div>Please check the device settings.</div>
       </div>
     </div>
     """

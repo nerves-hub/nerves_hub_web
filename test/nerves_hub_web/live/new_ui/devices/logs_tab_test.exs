@@ -22,6 +22,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/logs")
     |> assert_has("div", text: "Device logs aren't enabled for this product.")
+    |> assert_has("div", text: "Please check the product settings.")
   end
 
   test "device logs aren't enabled for the device", %{
@@ -38,7 +39,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
     conn
     |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/logs")
-    |> assert_has("div", text: "Device logs aren't enabled. Please check the device settings.")
+    |> assert_has("div", text: "Device logs aren't enabled.")
+    |> assert_has("div", text: "Please check the device settings.")
   end
 
   test "no device logs have been created for the device", %{
