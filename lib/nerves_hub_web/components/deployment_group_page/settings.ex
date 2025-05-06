@@ -254,7 +254,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <.button
               type="link"
               style="danger"
-              phx-click="delete-deployment-group"
+              phx-click="delete"
               aria-label="Delete"
               data-confirm={[
                 "Are you sure you want to delete this deployment group?",
