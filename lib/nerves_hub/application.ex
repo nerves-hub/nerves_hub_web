@@ -24,18 +24,15 @@ defmodule NervesHub.Application do
     topologies = Application.get_env(:libcluster, :topologies, [])
 
     children =
-      [
-        {Ecto.Migrator,
-         repos: Application.fetch_env!(:nerves_hub, :ecto_repos),
-         skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
-        {Finch, name: Swoosh.Finch}
-      ] ++
+      [{Finch, name: Swoosh.Finch}] ++
+        ecto_migrations() ++
         NervesHub.StatsdMetricsReporter.config() ++
         [
           NervesHub.MetricsPoller.child_spec(),
-          NervesHub.RateLimit,
-          NervesHub.Repo,
-          NervesHub.ObanRepo,
+          NervesHub.RateLimit
+        ] ++
+        ecto_repos() ++
+        [
           {Phoenix.PubSub, name: NervesHub.PubSub},
           {Cluster.Supervisor, [topologies]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
@@ -71,6 +68,33 @@ defmodule NervesHub.Application do
   def config_change(changed, _new, removed) do
     NervesHubWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp ecto_migrations() do
+    [
+      Supervisor.child_spec(
+        {Ecto.Migrator,
+         repos: [NervesHub.Repo],
+         skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true,
+         id: NervesHub.RepoMigrator},
+        id: :repo_migrator
+      ),
+      Supervisor.child_spec(
+        {Ecto.Migrator,
+         repos: [NervesHub.AnalyticsRepo],
+         skip: Application.get_env(:nerves_hub, :analytics_enabled) != true},
+        id: :analytics_repo_migrator
+      )
+    ]
+  end
+
+  defp ecto_repos() do
+    [NervesHub.Repo, NervesHub.ObanRepo] ++
+      if Application.get_env(:nerves_hub, :analytics_enabled) do
+        [NervesHub.AnalyticsRepo]
+      else
+        []
+      end
   end
 
   defp deployments_orchestrator("test"), do: []

@@ -22,15 +22,7 @@ defmodule NervesHub.Extensions.Logging do
 
   @impl NervesHub.Extensions
   def handle_in("logging:send", log_line, socket) do
-    inserted_log_line = LogLines.create!(socket.assigns.device, log_line)
-
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "device:#{socket.assigns.device.identifier}:internal",
-        "logs:received",
-        inserted_log_line
-      )
+    _ = LogLines.create!(socket.assigns.device, log_line)
 
     {:noreply, socket}
   end

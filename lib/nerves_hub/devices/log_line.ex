@@ -3,24 +3,20 @@ defmodule NervesHub.Devices.LogLine do
 
   import Ecto.Changeset
 
-  alias NervesHub.Devices.Device
-  alias NervesHub.Products.Product
-
   @type t :: %__MODULE__{}
-  @primary_key {:id, UUIDv7, autogenerate: true}
+  @primary_key false
 
-  @required [:device_id, :product_id, :level, :message, :logged_at]
+  @required [:device_id, :product_id, :timestamp, :level, :message]
   @optional [:meta]
 
+  @primary_key false
   schema "device_log_lines" do
-    belongs_to(:device, Device)
-    belongs_to(:product, Product)
-
-    field(:level, Ecto.Enum, values: [:debug, :info, :warning, :error], default: :info)
-    field(:message, :string)
-    field(:meta, :map, default: %{})
-
-    field(:logged_at, :naive_datetime_usec)
+    field(:timestamp, Ch, type: "DateTime64(6, 'UTC')")
+    field(:product_id, Ch, type: "UInt64")
+    field(:device_id, Ch, type: "UInt64")
+    field(:level, Ch, type: "LowCardinality(String)")
+    field(:message, Ch, type: "String")
+    field(:meta, Ch, type: "Map(LowCardinality(String), String)", default: %{})
   end
 
   def create(device, params \\ %{}) do
@@ -32,6 +28,5 @@ defmodule NervesHub.Devices.LogLine do
     %__MODULE__{}
     |> cast(params, @required ++ @optional)
     |> validate_required(@required)
-    |> foreign_key_constraint(:device_id)
   end
 end

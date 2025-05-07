@@ -7,7 +7,23 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
   alias NervesHub.Repo
 
   setup %{conn: conn} do
+    Application.put_env(:nerves_hub, :analytics_enabled, true)
+
     [conn: init_test_session(conn, %{"new_ui" => true})]
+  end
+
+  test "clickhouse (analytics) isn't enabled", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    Application.put_env(:nerves_hub, :analytics_enabled, false)
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/logs")
+    |> assert_has("div", text: "Analytics aren't enabled for your platform.")
+    |> assert_has("div", text: "Check contact your Ops team for more information.")
   end
 
   test "device logs aren't enabled for the product", %{
@@ -68,8 +84,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
     for n <- 1..5 do
       attrs = %{
-        level: :info,
-        logged_at: NaiveDateTime.utc_now(),
+        level: "info",
+        timestamp: NaiveDateTime.utc_now(),
         message: "something wicked this way comes : #{n}"
       }
 
@@ -96,8 +112,8 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
     |> Repo.update()
 
     attrs = %{
-      level: :info,
-      logged_at: NaiveDateTime.utc_now(),
+      level: "info",
+      timestamp: DateTime.utc_now(),
       message: "something wicked this way comes"
     }
 
@@ -110,20 +126,12 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
       |> assert_has("div", text: "something wicked this way comes")
 
     attrs = %{
-      level: :info,
-      logged_at: NaiveDateTime.utc_now(),
+      level: "info",
+      timestamp: DateTime.utc_now(),
       message: "something wicked this way comes, again"
     }
 
-    inserted_log_line = LogLines.create!(device, attrs)
-
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "device:#{device.identifier}:internal",
-        "logs:received",
-        inserted_log_line
-      )
+    LogLines.create!(device, attrs)
 
     assert_has(session, "div", text: "something wicked this way comes, again")
   end
@@ -139,12 +147,14 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
     for n <- 1..26 do
       attrs = %{
-        level: :info,
-        logged_at: NaiveDateTime.utc_now(),
+        level: "info",
+        timestamp: DateTime.utc_now(),
         message: "something wicked this way comes : #{n}"
       }
 
       LogLines.create!(device, attrs)
+
+      Process.sleep(50)
     end
 
     session =
@@ -156,23 +166,15 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
       |> refute_has("div", text: "something wicked this way comes : 1", exact: true)
 
     attrs = %{
-      level: :info,
-      logged_at: NaiveDateTime.utc_now(),
+      level: "info",
+      timestamp: DateTime.utc_now(),
       message: "something wicked this way comes, again"
     }
 
-    inserted_log_line = LogLines.create!(device, attrs)
-
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "device:#{device.identifier}:internal",
-        "logs:received",
-        inserted_log_line
-      )
+    LogLines.create!(device, attrs)
 
     session
     |> assert_has("div", text: "something wicked this way comes, again")
-    |> refute_has("div", text: "something wicked this way comes : 2", exact: true)
+    |> refute_has("div", text: "something wicked this way comes : 2", exact: true, timeout: 500)
   end
 end

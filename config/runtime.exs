@@ -267,6 +267,16 @@ if config_env() == :prod do
     database_auto_migrator: System.get_env("DATABASE_AUTO_MIGRATOR", "true") == "true"
 end
 
+if config_env() == :prod do
+  if clickhouse_url = System.get_env("CLICKHOUSE_URL") do
+    config :nerves_hub, NervesHub.AnalyticsRepo, url: clickhouse_url
+
+    config :nerves_hub, analytics_enabled: true
+  else
+    config :nerves_hub, analytics_enabled: false
+  end
+end
+
 # Libcluster is using Postgres for Node discovery
 # The library only accepts keyword configs, so the DATABASE_URL has to be
 # parsed and put together with the ssl pieces from above.

@@ -18,7 +18,7 @@ config :mime, :types, %{
 config :nerves_hub,
   env: Mix.env(),
   namespace: NervesHub,
-  ecto_repos: [NervesHub.Repo]
+  ecto_repos: [NervesHub.AnalyticsRepo, NervesHub.Repo]
 
 ##
 # NervesHub Device
@@ -75,8 +75,7 @@ config :nerves_hub, Oban,
        {"*/1 * * * *", NervesHub.Workers.CleanStaleDeviceConnections},
        {"1,16,31,46 * * * *", NervesHub.Workers.DeleteOldDeviceConnections},
        {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates},
-       {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation},
-       {"*/15 * * * *", NervesHub.Workers.DeviceLogLinesTruncation}
+       {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation}
      ]}
   ]
 

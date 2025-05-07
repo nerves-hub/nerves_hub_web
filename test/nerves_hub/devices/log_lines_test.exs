@@ -3,8 +3,10 @@ defmodule NervesHub.Devices.LogLinesTest do
 
   alias NervesHub.Devices.LogLine
   alias NervesHub.Devices.LogLines
+
   alias NervesHub.Fixtures
-  # alias NervesHub.Repo
+
+  alias NervesHub.AnalyticsRepo
 
   setup do
     user = Fixtures.user_fixture()
@@ -16,6 +18,8 @@ defmodule NervesHub.Devices.LogLinesTest do
     device2 = Fixtures.device_fixture(org, product, firmware)
     device3 = Fixtures.device_fixture(org, product, firmware)
 
+    AnalyticsRepo.query("TRUNCATE TABLE device_log_lines", [])
+
     {:ok,
      %{
        device: device,
@@ -25,30 +29,31 @@ defmodule NervesHub.Devices.LogLinesTest do
   end
 
   test "create!/2", %{device: device} do
-    level = :info
+    level = "info"
     message = "something happened"
-    logged_at = now()
+    logged_at = DateTime.utc_now()
     device_id = device.id
+    product_id = device.product_id
 
-    log = LogLines.create!(device, %{level: level, logged_at: logged_at, message: message})
+    log = LogLines.create!(device, %{timestamp: logged_at, level: level, message: message})
 
     %LogLine{
-      id: log_id,
+      timestamp: ^logged_at,
       device_id: ^device_id,
-      logged_at: ^logged_at,
+      product_id: ^product_id,
       level: ^level,
       message: ^message
     } = log
 
     [
       %LogLine{
-        id: ^log_id,
+        timestamp: ^logged_at,
         device_id: ^device_id,
-        logged_at: ^logged_at,
+        product_id: ^product_id,
         level: ^level,
         message: ^message
       }
-    ] = Repo.preload(device, :device_logs).device_logs
+    ] = AnalyticsRepo.all(LogLine)
   end
 
   test "recent/1", %{device: device, device2: device2} do
@@ -63,55 +68,14 @@ defmodule NervesHub.Devices.LogLinesTest do
     assert Enum.all?(recent, &(&1.device_id == device.id))
   end
 
-  test "truncate/1", %{device: device} do
-    now_minus_two_days =
-      NaiveDateTime.utc_now()
-      |> NaiveDateTime.shift(day: -2)
-
-    attrs = %{
-      level: :info,
-      logged_at: now_minus_two_days,
-      message: "a few days ago"
-    }
-
-    LogLines.create!(device, attrs)
-
-    recent = LogLines.recent(device)
-
-    assert length(recent) == 1
-
-    {:ok, 1} = LogLines.truncate(1)
-
-    assert [] == LogLines.recent(device)
-  end
-
-  test "associations", %{device: device1, device2: device2} do
-    log11 = random_log(device1)
-    log12 = random_log(device1)
-    log21 = random_log(device2)
-    log22 = random_log(device2)
-
-    [device1, device2] = Repo.preload([device1, device2], :device_logs)
-
-    2 = length(device1.device_logs)
-    2 = length(device2.device_logs)
-
-    assert Enum.sort([log11.id, log12.id]) == Enum.sort(device1.device_logs |> Enum.map(& &1.id))
-    assert Enum.sort([log21.id, log22.id]) == Enum.sort(device2.device_logs |> Enum.map(& &1.id))
-  end
-
-  defp now() do
-    NaiveDateTime.utc_now()
-  end
-
   defp random_word(n \\ 6) do
     1..n |> Enum.map(fn _ -> Enum.random(?a..?z) end) |> to_string()
   end
 
   defp random_log(device) do
     attrs = %{
+      timestamp: DateTime.utc_now(),
       level: Enum.random(["error", "warning", "info", "debug"]),
-      logged_at: now(),
       message: random_word()
     }
 

@@ -5,15 +5,15 @@ defmodule NervesHub.Devices.LogLines do
 
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.LogLine
-  alias NervesHub.Repo
+  alias NervesHub.AnalyticsRepo
 
   import Ecto.Query
 
   @type log_line_payload :: %{
+          timestamp: DateTime.t(),
           level: String.t(),
           message: String.t(),
-          meta: map(),
-          logged_at: NaiveDateTime.t()
+          meta: map()
         }
 
   @doc """
@@ -28,10 +28,11 @@ defmodule NervesHub.Devices.LogLines do
   @spec recent(Device.t()) :: list(LogLine.t())
   def recent(device) do
     LogLine
+    |> where(product_id: ^device.product_id)
     |> where(device_id: ^device.id)
-    |> order_by(desc: :id)
+    |> order_by(desc: :timestamp)
     |> limit(25)
-    |> Repo.all()
+    |> AnalyticsRepo.all()
   end
 
   @doc """
@@ -39,7 +40,7 @@ defmodule NervesHub.Devices.LogLines do
 
   ## Examples
 
-      iex> create!(device, %{level: :info, message: "Hello", meta: %{}, logged_at: NaiveDateTime.utc_now()})
+      iex> create!(device, %{level: :info, message: "Hello", meta: %{}, timestamp: DateTime.utc_now()})
       %LogLine{}
 
   """
@@ -47,18 +48,17 @@ defmodule NervesHub.Devices.LogLines do
   def create!(%Device{} = device, attrs) do
     device
     |> LogLine.create(attrs)
-    |> Repo.insert!()
-  end
+    |> AnalyticsRepo.insert!()
+    |> then(fn log_line ->
+      _ =
+        Phoenix.Channel.Server.broadcast(
+          NervesHub.PubSub,
+          "device:#{device.identifier}:internal",
+          "logs:received",
+          log_line
+        )
 
-  @spec truncate(pos_integer()) :: {:ok, non_neg_integer()}
-  def truncate(days_to_keep) do
-    days_ago = NaiveDateTime.shift(NaiveDateTime.utc_now(), day: -days_to_keep)
-
-    {count, _} =
-      LogLine
-      |> where([ll], ll.logged_at < ^days_ago)
-      |> Repo.delete_all()
-
-    {:ok, count}
+      log_line
+    end)
   end
 end

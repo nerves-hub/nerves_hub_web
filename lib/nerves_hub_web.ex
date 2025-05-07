@@ -125,6 +125,10 @@ defmodule NervesHubWeb do
         |> Enum.into(%{}, fn x -> {x, params[to_string(x)]} end)
       end
 
+      def analytics_enabled?() do
+        Application.get_env(:nerves_hub, :analytics_enabled)
+      end
+
       defp setup_tab_components(socket, tabs \\ []) do
         if socket.assigns[:new_ui] do
           Enum.reduce(tabs, socket, fn component, socket ->
@@ -362,6 +366,10 @@ defmodule NervesHubWeb do
         socket
         |> assign(:sidebar_tab, tab)
         |> assign(:tab_hint, tab)
+      end
+
+      def analytics_enabled?() do
+        Application.get_env(:nerves_hub, :analytics_enabled)
       end
 
       # Routes generation with the ~p sigil
