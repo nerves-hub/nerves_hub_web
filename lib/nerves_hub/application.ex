@@ -37,7 +37,9 @@ defmodule NervesHub.Application do
           {Cluster.Supervisor, [topologies]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, Application.fetch_env!(:nerves_hub, Oban)},
-          NervesHubWeb.Presence
+          NervesHubWeb.Presence,
+          {NervesHub.RateLimit.LogLines,
+           [clean_period: :timer.minutes(5), key_older_than: :timer.hours(1)]}
         ] ++
         deployments_orchestrator(deploy_env()) ++
         endpoints(deploy_env())

@@ -93,6 +93,7 @@ defmodule NervesHub.MixProject do
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
       {:hackney, "~> 1.16"},
+      {:hammer, "~> 7.0.0"},
       {:hlclock, "~> 1.0"},
       {:process_hub, "~> 0.3.1-alpha"},
       {:jason, "~> 1.2", override: true},
