@@ -49,7 +49,8 @@ defmodule NervesHubWeb.ExtensionsChannel do
 
             if extension do
               mod = Extensions.module(extension, ver)
-              %{attach?: Code.ensure_loaded?(mod), version: ver, module: mod, status: :detached}
+              attach = Code.ensure_loaded?(mod) && mod.enabled?()
+              %{attach?: attach, version: ver, module: mod, status: :detached}
             else
               %{attach?: false, version: version, module: nil, status: :detached}
             end

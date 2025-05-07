@@ -11,6 +11,11 @@ defmodule NervesHub.Extensions.Logging do
   end
 
   @impl NervesHub.Extensions
+  def enabled?() do
+    Application.get_env(:nerves_hub, :analytics_enabled)
+  end
+
+  @impl NervesHub.Extensions
   def attach(socket) do
     {:noreply, socket}
   end

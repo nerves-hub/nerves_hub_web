@@ -35,7 +35,7 @@ defmodule NervesHub.Fixtures do
   @product_params %{
     name: "valid product",
     delta_updatable: true,
-    extensions: %{health: true, geo: true}
+    extensions: %{health: true, geo: true, logging: true}
   }
 
   defdelegate reload(record), to: Repo
