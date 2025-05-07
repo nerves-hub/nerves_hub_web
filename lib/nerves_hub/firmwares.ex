@@ -386,7 +386,7 @@ defmodule NervesHub.Firmwares do
   end
 
   @spec create_firmware_delta(Firmware.t(), Firmware.t()) ::
-          {:ok, FirmwareDelta.t()}
+          :ok
           | {:error, Changeset.t()}
 
   def create_firmware_delta(source_firmware, target_firmware) do
@@ -398,40 +398,65 @@ defmodule NervesHub.Firmwares do
     {:ok, source_url} = firmware_upload_config().download_file(source_firmware)
     {:ok, target_url} = firmware_upload_config().download_file(target_firmware)
 
-    firmware_delta_path = delta_updater().create_firmware_delta_file(source_url, target_url)
-    firmware_delta_filename = Path.basename(firmware_delta_path)
+    case delta_updater().create_firmware_delta_file(source_url, target_url) do
+      {:ok, firmware_delta_path} ->
+        firmware_delta_filename = Path.basename(firmware_delta_path)
 
-    Repo.transaction(
-      fn ->
-        with upload_metadata <-
-               firmware_upload_config().metadata(org.id, firmware_delta_filename),
-             {:ok, firmware_delta} <-
-               insert_firmware_delta(%{
-                 source_id: source_firmware.id,
-                 target_id: target_firmware.id,
-                 upload_metadata: upload_metadata
-               }),
-             {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
-             :ok <- firmware_upload_config().upload_file(firmware_delta_path, upload_metadata),
-             :ok <- delta_updater().cleanup_firmware_delta_files(firmware_delta_path) do
-          Logger.info(
-            "Created firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}, successfully."
+        result =
+          Repo.transaction(
+            fn ->
+              with upload_metadata <-
+                     firmware_upload_config().metadata(org.id, firmware_delta_filename),
+                   {:ok, firmware_delta} <-
+                     insert_firmware_delta(%{
+                       source_id: source_firmware.id,
+                       target_id: target_firmware.id,
+                       upload_metadata: upload_metadata
+                     }),
+                   {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
+                   :ok <-
+                     firmware_upload_config().upload_file(firmware_delta_path, upload_metadata),
+                   :ok <- delta_updater().cleanup_firmware_delta_files(firmware_delta_path) do
+                Logger.info(
+                  "Created firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}, successfully.",
+                  product_id: source_firmware.product_id,
+                  source_firmware: source_firmware.uuid,
+                  target_firmware: target_firmware.uuid
+                )
+
+                firmware_delta
+              else
+                {:error, error} ->
+                  delta_updater().cleanup_firmware_delta_files(firmware_delta_path)
+
+                  Logger.error(
+                    "Failed to create firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}: #{inspect(error)}",
+                    product_id: source_firmware.product_id,
+                    source_firmware: source_firmware.uuid,
+                    target_firmware: target_firmware.uuid
+                  )
+
+                  Repo.rollback(error)
+              end
+            end,
+            timeout: 30_000
           )
 
-          firmware_delta
-        else
-          {:error, error} ->
-            delta_updater().cleanup_firmware_delta_files(firmware_delta_path)
-
-            Logger.error(
-              "Failed to create firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}: #{inspect(error)}"
-            )
-
-            Repo.rollback(error)
+        case result do
+          {:ok, _delta} -> :ok
+          {:error, err} -> {:error, err}
         end
-      end,
-      timeout: 30_000
-    )
+
+      {:error, :no_delta_support_in_firmware} ->
+        Logger.info(
+          "Delta generation failed gracefully. There were no markers for delta generation.",
+          product_id: source_firmware.product_id,
+          source_firmware: source_firmware.uuid,
+          target_firmware: target_firmware.uuid
+        )
+
+        :ok
+    end
   end
 
   # Private functions

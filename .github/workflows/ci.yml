@@ -44,10 +44,13 @@ jobs:
           - "9000:9000"
 
     steps:
-      - name: Install system deps
+      - name: Install fwup
         run: |
           wget https://github.com/fwup-home/fwup/releases/download/v${FWUP_VERSION}/fwup_${FWUP_VERSION}_amd64.deb
           sudo dpkg -i fwup_${FWUP_VERSION}_amd64.deb && rm fwup_${FWUP_VERSION}_amd64.deb
+
+      - name: Install xdelta3 and mtools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xdelta3 mtools
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -147,7 +150,7 @@ jobs:
         run: mix dialyzer --format github --format dialyxir
 
       - name: Run tests
-        run: mix test
+        run: mix test --include mtools
 
   build-and-publish:
     runs-on: ubuntu-latest

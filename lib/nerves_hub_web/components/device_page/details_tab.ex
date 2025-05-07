@@ -596,7 +596,22 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     %{product: product, device: device, user: user} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
-    {:ok, url} = Firmwares.get_firmware_url(firmware)
+
+    {:ok, url} =
+      if device.firmware_metadata && device.firmware_metadata.uuid do
+        Logger.info(
+          "Manually sending firmware delta for updating from #{device.firmware_metadata.uuid} to #{firmware.uuid} to #{device.identifier}..."
+        )
+
+        Devices.get_delta_or_firmware_url(device.firmware_metadata.uuid, firmware)
+      else
+        Logger.info(
+          "Manually sending full firmware for updating from to #{firmware.uuid} to #{device.identifier}..."
+        )
+
+        Firmwares.get_firmware_url(firmware)
+      end
+
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
     {:ok, device} = Devices.disable_updates(device, user)
 

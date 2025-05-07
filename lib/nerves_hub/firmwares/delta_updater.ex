@@ -9,7 +9,8 @@ defmodule NervesHub.Firmwares.DeltaUpdater do
   @doc """
   Called to create a firmware delta file on the local filesystem
   """
-  @callback create_firmware_delta_file(String.t(), String.t()) :: String.t()
+  @callback create_firmware_delta_file(String.t(), String.t()) ::
+              {:ok, String.t()} | {:error, term()}
 
   @doc """
   Called to cleanup any files or directories create during the firmware delta creation process.
