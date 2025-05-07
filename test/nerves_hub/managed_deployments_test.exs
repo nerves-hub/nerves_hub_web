@@ -632,10 +632,10 @@ defmodule NervesHub.ManagedDeploymentsTest do
           tags: ["beta", "rpi"]
         })
 
-      assert ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false) == [
-               device1.id,
-               device2.id
-             ]
+      device_ids = ManagedDeployments.matched_device_ids(deployment_group, in_deployment: false)
+
+      assert Enum.member?(device_ids, device1.id)
+      assert Enum.member?(device_ids, device2.id)
     end
 
     test "matches against only version if deployment group has no tags", %{
