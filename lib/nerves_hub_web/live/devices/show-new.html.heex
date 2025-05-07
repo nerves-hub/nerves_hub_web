@@ -66,14 +66,13 @@
 
   <div class="h-[89px] shrink-0 flex justify-between p-6">
     <div class="flex gap-3 items-center">
-      <% color =
-        case Map.get(@device_connection || %{}, :status) do
-          :connected -> "#10B981"
-          :connecting -> "#6366f1"
-          _ -> "#71717A"
-        end %>
-      <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6 6" fill="none">
-        <circle cx="3" cy="3" r="3" fill={color} />
+      <svg
+        data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
+        class="h-3 w-3 data-[connection-status=connecting]:fill-indigo-500 data-[connection-status=connecting]:animate-pulse data-[connection-status=connected]:fill-emerald-500 data-[connection-status=unknown]:fill-zinc-500"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 6 6"
+      >
+        <circle cx="3" cy="3" r="3" fill="currentColor" />
       </svg>
       <h1 class="text-xl font-semibold leading-[30px] text-zinc-50 font-mono">
         {@device.identifier}
