@@ -30,6 +30,13 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
 
   @impl GenServer
   def handle_info(:start_orchestrators, _) do
+    :ok = start_orchestrators()
+
+    {:stop, :shutdown, nil}
+  end
+
+  @spec start_orchestrators() :: :ok
+  def start_orchestrators() do
     _ =
       ManagedDeployments.should_run_orchestrator()
       |> Enum.map(fn deployment ->
@@ -39,6 +46,6 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
         ProcessHub.start_children(:deployment_orchestrators, specs)
       end)
 
-    {:stop, :shutdown, nil}
+    :ok
   end
 end
