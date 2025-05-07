@@ -145,6 +145,24 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
+  @spec get_deployment_group_for_update(Device.t()) ::
+          {:ok, DeploymentGroup.t()} | {:error, :not_found}
+  def get_deployment_group_for_update(%Device{deployment_id: deployment_id}) do
+    DeploymentGroup
+    |> where([d], d.id == ^deployment_id)
+    |> join(:left, [d], f in assoc(d, :firmware))
+    |> preload([d, f], firmware: f)
+    |> preload(:product)
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:error, :not_found}
+
+      deployment_group ->
+        {:ok, deployment_group}
+    end
+  end
+
   @spec get_deployment_group(Product.t(), String.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get_deployment_group(%Product{id: product_id}, deployment_id) do
