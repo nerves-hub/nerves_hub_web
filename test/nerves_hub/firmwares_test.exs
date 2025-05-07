@@ -303,4 +303,17 @@ defmodule NervesHub.FirmwaresTest do
                Firmwares.get_firmware_delta_by_source_and_target(source, target)
     end
   end
+
+  describe "filter/2" do
+    test "counts the number of devices that have the firmware installed", %{
+      org: org,
+      firmware: firmware,
+      product: product
+    } do
+      _device_2 = Fixtures.device_fixture(org, product, firmware)
+      _device_3 = Fixtures.device_fixture(org, product, firmware)
+      {[firmware], _} = Firmwares.filter(product)
+      assert firmware.install_count == 3
+    end
+  end
 end

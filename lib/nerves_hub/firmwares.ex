@@ -86,7 +86,7 @@ defmodule NervesHub.Firmwares do
       Device
       |> select([d], %{
         firmware_uuid: fragment("? ->> 'uuid'", d.firmware_metadata),
-        install_count: count(fragment("? ->> 'uuid'", d.firmware_metadata), :distinct)
+        install_count: count(fragment("? ->> 'uuid'", d.firmware_metadata))
       })
       |> where([d], not is_nil(d.firmware_metadata))
       |> where([d], not is_nil(fragment("? ->> 'uuid'", d.firmware_metadata)))
