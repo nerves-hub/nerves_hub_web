@@ -11,6 +11,9 @@ defmodule NervesHubWeb.Presence do
 
   require Logger
 
+  alias NervesHub.Devices.Device
+  alias NervesHub.Helpers.Logging
+
   @impl Phoenix.Presence
   def init(_opts) do
     {:ok, %{}}
@@ -58,14 +61,16 @@ defmodule NervesHubWeb.Presence do
 
   Returns an :ok tuple with reference on success, {:error, reason} on failure.
   """
-  @spec track_user(String.t(), String.t(), map()) :: {:ok, binary()} | {:error, term()}
-  def track_user(topic, id, params) do
+  @spec track_user(String.t(), String.t(), map(), Device.t()) ::
+          {:ok, binary()} | {:error, term()}
+  def track_user(topic, id, params, resource) do
     case track(self(), topic, id, params) do
       {:ok, ref} ->
         {:ok, ref}
 
       {:error, reason} ->
         Logger.error("Failed to track user #{id} in topic #{topic}: #{inspect(reason)}")
+        Logging.log_to_sentry(resource, reason)
         {:error, reason}
     end
   end
@@ -75,14 +80,15 @@ defmodule NervesHubWeb.Presence do
 
   Returns :ok on success, :error on failure.
   """
-  @spec subscribe(String.t()) :: :ok | :error
-  def subscribe(topic) do
+  @spec subscribe(String.t(), Device.t()) :: :ok | :error
+  def subscribe(topic, resource) do
     case Phoenix.PubSub.subscribe(NervesHub.PubSub, "proxy:#{topic}") do
       :ok ->
         :ok
 
       {:error, reason} ->
         Logger.error("Failed to subscribe to presence topic #{topic}: #{inspect(reason)}")
+        Logging.log_to_sentry(resource, reason)
         :error
     end
   end
