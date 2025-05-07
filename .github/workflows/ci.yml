@@ -36,10 +36,13 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Install system deps
+      - name: Install fwup
         run: |
           wget https://github.com/fwup-home/fwup/releases/download/v${FWUP_VERSION}/fwup_${FWUP_VERSION}_amd64.deb
           sudo dpkg -i fwup_${FWUP_VERSION}_amd64.deb && rm fwup_${FWUP_VERSION}_amd64.deb
+
+      - name: Install xdelta3
+        run: apt-get update && apt-get install -y --no-install-recommends xdelta3
 
       - name: Checkout
         uses: actions/checkout@v4
