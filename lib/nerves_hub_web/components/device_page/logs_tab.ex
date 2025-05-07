@@ -31,7 +31,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
       dom_id: fn log_line ->
         timestamp =
           log_line.timestamp
-          |> NaiveDateTime.to_string()
+          |> DateTime.to_string()
           |> String.replace(" ", "-")
           |> String.replace(":", "-")
           |> String.replace(".", "-")
@@ -106,7 +106,9 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
       <div :if={@has_logs} class="text-base italic font-medium pb-6">Showing the last 25 log lines.</div>
       <div :if={@has_logs} id="log_lines" phx-update="stream" class="flex flex-col size-full items-start gap-2">
         <div :for={{dom_id, line} <- @streams.log_lines} id={dom_id} phx-mounted={@log_inserted && fade_in()} class="flex flex-row gap-4 font-mono text-sm">
-          <div>{line.timestamp |> NaiveDateTime.truncate(:second)}Z</div>
+          <div id={"#{DateTime.to_unix(line.timestamp, :microsecond)}-log-line-localtime"} phx-hook="LogLineLocalTime">
+            {line.timestamp}
+          </div>
           <div
             data-log-level={line.level}
             class="w-24 data-[log-level=emergency]:text-red-500 data-[log-level=alert]:text-red-500 data-[log-level=critical]:text-red-500 data-[log-level=error]:text-red-500 data-[log-level=warn]:text-orange-500 data-[log-level=warning]:text-orange-500 data-[log-level=debug]:text-blue-500"
