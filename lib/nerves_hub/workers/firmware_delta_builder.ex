@@ -7,6 +7,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
       states: [:available, :scheduled, :executing]
     ]
 
+  require Logger
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
 
@@ -14,6 +15,10 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
   def perform(%Oban.Job{args: %{"source_id" => source_id, "target_id" => target_id}}) do
     source = Firmwares.get_firmware!(source_id)
     target = Firmwares.get_firmware!(target_id)
+
+    Logger.info(
+      "Attempting firmware delta build for #{source.platform} #{source.version} to #{target.version}..."
+    )
 
     {:ok, _firmware_delta} = maybe_create_firmware_delta(source, target)
 

@@ -1722,7 +1722,12 @@ defmodule NervesHub.Devices do
     |> Repo.delete_all()
   end
 
-  defp get_delta_or_firmware_url(device_firmware_uuid, target_firmware) do
+  @doc """
+  Get firmware or delta update URL.
+  """
+  @spec get_delta_or_firmware_url(String.t(), Firmware.t()) ::
+          {:ok, String.t()} | {:error, :failure}
+  def get_delta_or_firmware_url(device_firmware_uuid, target_firmware) do
     with %Firmware{} = device_firmware <- Firmwares.get_firmware_by_uuid(device_firmware_uuid),
          {:ok, firmware_delta} <-
            Firmwares.get_firmware_delta_by_source_and_target(device_firmware, target_firmware) do

@@ -377,38 +377,6 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
-  def handle_event("push-update", %{"uuid" => ""}, socket) do
-    socket
-    |> put_flash(:error, "Please select a firmware you would like to send to the device.")
-    |> noreply()
-  end
-
-  def handle_event("push-update", %{"uuid" => uuid}, socket) do
-    authorized!(:"device:push-update", socket.assigns.org_user)
-
-    %{product: product, device: device, user: user} = socket.assigns
-
-    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
-    {:ok, url} = Firmwares.get_firmware_url(firmware)
-    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
-    {:ok, device} = Devices.disable_updates(device, user)
-
-    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
-
-    payload = %UpdatePayload{
-      update_available: true,
-      firmware_url: url,
-      firmware_meta: meta
-    }
-
-    _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "devices/update-manual", payload)
-
-    socket
-    |> assign(:device, device)
-    |> put_flash(:info, "Pushing firmware update")
-    |> noreply()
-  end
-
   def handle_event("push-available-update", _, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 

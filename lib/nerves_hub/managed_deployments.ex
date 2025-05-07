@@ -368,7 +368,7 @@ defmodule NervesHub.ManagedDeployments do
 
   defp maybe_trigger_delta_generation(deployment_group, changeset) do
     # Firmware changed on active deployment
-    if deployment_group.is_active and Map.has_key?(changeset.changes, :firmware_id) do
+    if Map.has_key?(changeset.changes, :firmware_id) do
       deployment_group = Repo.preload(deployment_group, :product, force: true)
 
       if deployment_group.product.delta_updatable do
