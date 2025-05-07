@@ -68,7 +68,7 @@
     <div class="flex gap-3 items-center">
       <svg
         data-connection-status={Map.get(@device_connection || %{}, :status) || "unknown"}
-        class="h-3 w-3 data-[connection-status=connecting]:fill-indigo-500 data-[connection-status=connecting]:animate-pulse data-[connection-status=connected]:fill-emerald-500 data-[connection-status=unknown]:fill-zinc-500"
+        class="h-3 w-3 data-[connection-status=connecting]:fill-indigo-500 data-[connection-status=connecting]:animate-pulse data-[connection-status=connected]:fill-emerald-500 data-[connection-status=disconnected]:fill-zinc-500 data-[connection-status=unknown]:fill-zinc-500"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 6 6"
       >
