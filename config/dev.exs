@@ -65,7 +65,7 @@ config :nerves_hub, NervesHubWeb.DeviceEndpoint,
         versions: [:"tlsv1.2"],
         verify: :verify_peer,
         verify_fun: {&NervesHub.SSL.verify_fun/3, nil},
-        fail_if_no_peer_cert: true,
+        fail_if_no_peer_cert: false,
         keyfile: Path.join(ssl_dir, "device.nerves-hub.org-key.pem"),
         certfile: Path.join(ssl_dir, "device.nerves-hub.org.pem"),
         cacertfile: Path.join(ssl_dir, "ca.pem")
