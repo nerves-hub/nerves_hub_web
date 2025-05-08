@@ -102,6 +102,7 @@ defmodule NervesHubWeb.Router do
       post("/upgrade", DeviceController, :upgrade)
       delete("/penalty", DeviceController, :penalty)
 
+      get("/scripts", ScriptController, :index)
       post("/scripts/:id", ScriptController, :send)
     end
 
