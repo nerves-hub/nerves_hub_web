@@ -214,11 +214,14 @@
       <.link class={tab_classes(@tab, :health)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/healthz"}>
         Health
       </.link>
-      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"}>
-        Activity
-      </.link>
       <.link class={tab_classes(@tab, :console)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/conzole"}>
         Console
+      </.link>
+      <.link :if={analytics_enabled?()} class={tab_classes(@tab, :logs)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/logs"}>
+        Logs
+      </.link>
+      <.link class={tab_classes(@tab, :activity)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/activity"}>
+        Activity
       </.link>
       <.link class={tab_classes(@tab, :settings)} patch={~p"/org/#{@org}/#{@product}/devices/#{@device}/settingz"}>
         Settings

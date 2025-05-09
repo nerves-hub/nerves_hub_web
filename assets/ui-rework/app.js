@@ -14,6 +14,7 @@ import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder
 import Flash from "./hooks/flash.js"
 import HighlightCode from "./hooks/highlightCode.js"
 import LocalTime from "./hooks/localTime.js"
+import LogLineLocalTime from "./hooks/logLineLocalTime.js"
 import SharedSecretClipboardClick from "./hooks/sharedSecretClipboardClick.js"
 import SimpleDate from "./hooks/simpleDate.js"
 import SupportScriptOutput from "./hooks/supportScriptOutput.js"
@@ -38,6 +39,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
     Flash,
     HighlightCode,
     LocalTime,
+    LogLineLocalTime,
     SharedSecretClipboardClick,
     SimpleDate,
     SupportScriptOutput,

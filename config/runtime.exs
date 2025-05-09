@@ -50,6 +50,9 @@ config :nerves_hub,
         System.get_env("FEATURES_HEALTH_INTERVAL_MINUTES", "60") |> String.to_integer(),
       ui_polling_seconds:
         System.get_env("FEATURES_HEALTH_UI_POLLING_SECONDS", "60") |> String.to_integer()
+    ],
+    logging: [
+      days_to_keep: String.to_integer(System.get_env("EXTENSIONS_LOGGING_DAYS_TO_KEEP", "3"))
     ]
   ],
   new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"
@@ -262,6 +265,16 @@ if config_env() == :prod do
 
   config :nerves_hub,
     database_auto_migrator: System.get_env("DATABASE_AUTO_MIGRATOR", "true") == "true"
+end
+
+if config_env() == :prod do
+  if clickhouse_url = System.get_env("CLICKHOUSE_URL") do
+    config :nerves_hub, NervesHub.AnalyticsRepo, url: clickhouse_url
+
+    config :nerves_hub, analytics_enabled: true
+  else
+    config :nerves_hub, analytics_enabled: false
+  end
 end
 
 # Libcluster is using Postgres for Node discovery

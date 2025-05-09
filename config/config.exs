@@ -18,7 +18,7 @@ config :mime, :types, %{
 config :nerves_hub,
   env: Mix.env(),
   namespace: NervesHub,
-  ecto_repos: [NervesHub.Repo]
+  ecto_repos: [NervesHub.AnalyticsRepo, NervesHub.Repo]
 
 ##
 # NervesHub Device

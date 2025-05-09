@@ -17,6 +17,11 @@ defmodule NervesHub.Extensions.Health do
   end
 
   @impl NervesHub.Extensions
+  def enabled?() do
+    true
+  end
+
+  @impl NervesHub.Extensions
   def attach(socket) do
     extension_config = Application.get_env(:nerves_hub, :extension_config, [])
 

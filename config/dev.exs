@@ -88,6 +88,15 @@ config :nerves_hub, NervesHub.ObanRepo,
   pool_size: 10,
   ssl: false
 
+if System.get_env("ANALYTICS_ENABLED", "true") == "true" do
+  config :nerves_hub, NervesHub.AnalyticsRepo,
+    url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default")
+
+  config :nerves_hub, analytics_enabled: true
+else
+  config :nerves_hub, analytics_enabled: false
+end
+
 ##
 # Firmware upload
 #

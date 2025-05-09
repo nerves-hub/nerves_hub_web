@@ -22,6 +22,7 @@ jobs:
       FWUP_VERSION: "1.12.0"
       MIX_ENV: "test"
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/nerves_hub_test
+      CLICKHOUSE_URL: http://default:@localhost:8123/default
 
     services:
       db:
@@ -34,6 +35,13 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      clickhouse:
+        image: clickhouse/clickhouse-server:25.4.2.31
+        env:
+          CLICKHOUSE_SKIP_USER_SETUP: 1
+        ports:
+          - "8123:8123"
+          - "9000:9000"
 
     steps:
       - name: Install system deps
@@ -47,7 +55,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install cspell
         run: npm install -g cspell
