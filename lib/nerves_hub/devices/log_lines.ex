@@ -3,9 +3,9 @@ defmodule NervesHub.Devices.LogLines do
   Device logging storage and querying.
   """
 
+  alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.LogLine
-  alias NervesHub.AnalyticsRepo
 
   import Ecto.Query
 
