@@ -39,7 +39,9 @@ defmodule NervesHub.Application do
           {Oban, Application.fetch_env!(:nerves_hub, Oban)},
           NervesHubWeb.Presence,
           {NervesHub.RateLimit.LogLines,
-           [clean_period: :timer.minutes(5), key_older_than: :timer.hours(1)]}
+           [clean_period: :timer.minutes(5), key_older_than: :timer.hours(1)]},
+          {PartitionSupervisor,
+           child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
         ] ++
         deployments_orchestrator(deploy_env()) ++
         endpoints(deploy_env())

@@ -4,6 +4,10 @@ defmodule NervesHub.Extensions.Logging do
   alias NervesHub.Devices.LogLines
   alias NervesHub.RateLimit.LogLines, as: RateLimit
 
+  @rate_limit_tokens_per_sec 5
+  @rate_limit_max_capacity 10
+  @rate_limit_token_cost 1
+
   @impl NervesHub.Extensions
   def description() do
     """
@@ -28,15 +32,18 @@ defmodule NervesHub.Extensions.Logging do
 
   @impl NervesHub.Extensions
   def handle_in("logging:send", log_line, %{assigns: %{device: device}} = socket) do
-    # 5 tokens per second, max capacity of 10
-    _ =
-      case RateLimit.hit("device_#{device.id}", 5, 10, 1) do
-        {:allow, _} ->
-          LogLines.create!(device, log_line)
+    case RateLimit.hit(
+           "device_#{device.id}",
+           @rate_limit_tokens_per_sec,
+           @rate_limit_max_capacity,
+           @rate_limit_token_cost
+         ) do
+      {:allow, _} ->
+        schedule_create(device, log_line)
 
-        {:deny, _} ->
-          :noop
-      end
+      {:deny, _} ->
+        :noop
+    end
 
     {:noreply, socket}
   end
@@ -44,5 +51,15 @@ defmodule NervesHub.Extensions.Logging do
   @impl NervesHub.Extensions
   def handle_info(_, socket) do
     {:noreply, socket}
+  end
+
+  defp schedule_create(device, log_line) do
+    _ =
+      Task.Supervisor.async(
+        {:via, PartitionSupervisor, {NervesHub.AnalyticsEventsProcessing, self()}},
+        fn -> LogLines.create!(device, log_line) end
+      )
+
+    :noop
   end
 end
