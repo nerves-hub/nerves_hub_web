@@ -14,7 +14,6 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
   describe "index" do
     test "lists scripts", %{conn: conn, product: product, device: device, user: user} do
       script = Fixtures.support_script_fixture(product, user)
-      conn = Map.put(conn, :assigns, %{product: product})
       conn = get(conn, Routes.api_script_path(conn, :index, device))
       data = [script_response] = json_response(conn, 200)["data"]
       assert Enum.count(data) == 1

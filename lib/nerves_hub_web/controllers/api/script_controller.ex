@@ -11,9 +11,9 @@ defmodule NervesHubWeb.API.ScriptController do
 
   operation(:index, summary: "List all Support Scripts for a Product")
 
-  def index(%{assigns: %{product: product}} = conn, _params) do
+  def index(%{assigns: %{device: device}} = conn, _params) do
     conn
-    |> assign(:scripts, Scripts.all_by_product(product))
+    |> assign(:scripts, Scripts.all_by_product(device.product))
     |> render(:index)
   end
 
