@@ -106,7 +106,7 @@ defmodule NervesHub.Application do
   # Only run the `ProcessHub` supervisor on the `web` or `all` nodes only.
   defp deployments_orchestrator(_) do
     case Application.get_env(:nerves_hub, :app) do
-      ["device"] ->
+      "device" ->
         []
 
       _ ->
