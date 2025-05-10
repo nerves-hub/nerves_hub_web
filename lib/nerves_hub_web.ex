@@ -96,6 +96,15 @@ defmodule NervesHubWeb do
 
       alias NervesHubWeb.Components.Navigation
 
+      @type tab ::
+              :archives
+              | :deployments
+              | :devices
+              | :firmware
+              | :insights
+              | :settings
+              | :support_scripts
+
       # Routes generation with the ~p sigil
       unquote(verified_routes())
 
@@ -109,10 +118,7 @@ defmodule NervesHubWeb do
 
       def page_title(socket, page_title), do: assign(socket, :page_title, page_title)
 
-      @spec sidebar_tab(
-              Phoenix.Socket.t(),
-              :archives | :firmware | :deployments | :devices | :settings | :support_scripts
-            ) :: Phoenix.Socket.t()
+      @spec sidebar_tab(Phoenix.LiveView.Socket.t(), tab()) :: Phoenix.LiveView.Socket.t()
       def sidebar_tab(socket, tab) do
         socket
         |> assign(:sidebar_tab, tab)

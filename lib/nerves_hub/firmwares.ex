@@ -68,6 +68,28 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
+  @spec get_installed_firmwares(Product.t(), [String.t()]) :: [Firmware.t()]
+  def get_installed_firmwares(product, uuids) do
+    subquery =
+      Device
+      |> select([d], %{
+        firmware_uuid: fragment("? ->> 'uuid'", d.firmware_metadata),
+        install_count: count(fragment("? ->> 'uuid'", d.firmware_metadata), :distinct)
+      })
+      |> where([d], not is_nil(d.firmware_metadata))
+      |> where([d], not is_nil(fragment("? ->> 'uuid'", d.firmware_metadata)))
+      |> Repo.exclude_deleted()
+      |> group_by([d], fragment("? ->> 'uuid'", d.firmware_metadata))
+
+    Firmware
+    |> join(:left, [f], d in subquery(subquery), on: d.firmware_uuid == f.uuid)
+    |> where([f], f.product_id == ^product.id)
+    |> where([f], f.uuid in ^uuids)
+    |> select_merge([_f, d], %{install_count: d.install_count})
+    |> order_by([_f, d], d.install_count)
+    |> Repo.all()
+  end
+
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
@@ -94,15 +116,25 @@ defmodule NervesHub.Firmwares do
       |> group_by([d], fragment("? ->> 'uuid'", d.firmware_metadata))
 
     Firmware
-    |> join(:left, [f], d in subquery(subquery), on: d.firmware_uuid == f.uuid)
+    |> join(:left, [f], d in subquery(subquery),
+      as: :install_count,
+      on: d.firmware_uuid == f.uuid
+    )
     |> where([f], f.product_id == ^product.id)
+    |> filter_selection(opts[:filter])
     |> sort_firmware(sort_opts)
-    |> select_merge([_f, d], %{install_count: d.install_count})
+    |> select_merge([_f, install_count: ic], %{install_count: ic.install_count})
     |> Flop.run(flop)
   end
 
+  defp filter_selection(query, "active_firmware") do
+    where(query, [_f, install_count: ic], ic.install_count > 0)
+  end
+
+  defp filter_selection(query, _filter), do: query
+
   defp sort_firmware(query, {direction, :install_count}) do
-    order_by(query, [_f, d], {^direction, d.install_count})
+    order_by(query, [_f, install_count: ic], {^direction, ic.install_count})
   end
 
   defp sort_firmware(query, sort), do: order_by(query, ^sort)

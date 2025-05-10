@@ -6,6 +6,7 @@ defmodule NervesHub.Devices.Filtering do
   import Ecto.Query
 
   alias NervesHub.Devices.Alarms
+  alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceMetric
   alias NervesHub.Types.Tag
 
@@ -59,6 +60,25 @@ defmodule NervesHub.Devices.Filtering do
       query,
       [latest_connection: lc],
       fragment("?::jsonb <@ ?", ^[value], lc.metadata["connection_types"])
+    )
+  end
+
+  def filter(query, _filters, :filter, "not_recently_seen") do
+    query
+    |> where([latest_connection: lc], lc.status == :disconnected)
+    |> where([latest_connection: lc], lc.disconnected_at < ago(24, "hour"))
+  end
+
+  def filter(query, _filters, :filter, "unstable_connections") do
+    unstable_connections =
+      Device
+      |> select([d], %{id: d.id, count: count()})
+      |> join(:left, [d], dc in assoc(d, :device_connections))
+      |> where([_, dc], dc.established_at > ago(24, "hour"))
+      |> group_by([d], d.id)
+
+    join(query, :inner, [d], uc in subquery(unstable_connections),
+      on: d.id == uc.id and uc.count > 5
     )
   end
 

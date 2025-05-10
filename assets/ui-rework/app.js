@@ -8,6 +8,7 @@ import TimeAgo from "javascript-time-ago"
 import en from "javascript-time-ago/locale/en"
 
 import Chart from "./hooks/chart.js"
+import ConnectedDevicesAnalytics from "./hooks/connectedDevicesAnalytics.js"
 import Console from "./hooks/console.js"
 import DeviceLocationMap from "./hooks/deviceLocationMap.js"
 import DeviceLocationMapWithGeocoder from "./hooks/deviceLocationMapWithGeocoder.js"
@@ -33,6 +34,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
   params: { _csrf_token: csrfToken },
   hooks: {
     Chart,
+    ConnectedDevicesAnalytics,
     Console,
     DeviceLocationMap,
     DeviceLocationMapWithGeocoder,

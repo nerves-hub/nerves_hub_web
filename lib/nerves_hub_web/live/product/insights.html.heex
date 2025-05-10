@@ -1,0 +1,174 @@
+<div class="h-[56px] shrink-0 flex justify-end bg-base-900 border-b border-base-700 pl-6 items-center">
+  <div class="h-full border-l flex items-center justify-center border-base-700 bg-base-900">
+    <a :if={Application.get_env(:nerves_hub, :new_ui)} href={"/ui/switch?return_to=#{@current_path}"} class="">
+      <svg class="box-content px-5 h-5 w-5 stroke-zinc-500 hover:stroke-indigo-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M21 14V19C21 20.1046 20.1046 21 19 21H16M3 16V19C3 20.1046 3.89543 21 5 21H16M3 16V5C3 3.89543 3.89543 3 5 3H11M3 16C4.40293 15.7662 6.63687 15.7073 8.94504 16.2427M16 21C14.2965 18.2317 11.5726 16.8522 8.94504 16.2427M8.94504 16.2427C9.87157 15.1698 11.1851 14.1585 13 13.3925M8.5 7C8 7 7 7.3 7 8.5C7 9.7 8 10 8.5 10C9 10 10 9.7 10 8.5C10 7.3 9 7 8.5 7ZM17.5 9.46262L14.7188 11L15.25 7.74377L13 5.43769L16.1094 4.96262L17.5 2L18.8906 4.96262L22 5.43769L19.75 7.74377L20.2812 11L17.5 9.46262Z"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </a>
+  </div>
+</div>
+
+<div class="h-0 flex-1 overflow-y-auto">
+  <div class="flex items-center h-[90px] gap-4 px-6 py-7 border-b border-[#3F3F46] text-sm font-medium">
+    <h1 class="text-xl leading-[30px] font-semibold text-neutral-50">Insights</h1>
+  </div>
+
+  <div class="grid grid-cols-4 grid-rows-4 gap-4 p-6">
+    <div class="col-span-2 flex flex-col justify-between rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+      <div class="h-14 pl-4 pr-3 flex items-center justify-between">
+        <div class="text-neutral-50 font-medium leading-6">
+          <.async_result :let={count} assign={@connected_devices_count}>
+            <:failed :let={_failure}>Opps!</:failed>
+            <div class="text-xl text-neutral-50 font-medium leading-6">
+              {count} <span class="text-nerves-gray-500">connected devices</span>
+            </div>
+          </.async_result>
+        </div>
+      </div>
+      <div class="flex gap-2 items-center text-nerves-gray-500">
+        <div class="w-full h-[100px]">
+          <.async_result :let={timeseries} assign={@connected_device_counts_last_24_hours}>
+            <:failed :let={_failure}>Opps!</:failed>
+            <canvas
+              id="connected_device_counts_last_24_hours"
+              phx-hook="ConnectedDevicesAnalytics"
+              phx-update="ignore"
+              data-metrics={JSON.encode!(timeseries)}
+              data-label-singular="device"
+              data-label-plural="devices"
+            >
+            </canvas>
+          </.async_result>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-span-2 row-span-2 flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+      <div class="h-14 pl-4 pr-3 flex items-center justify-between">
+        <div class="text-neutral-50 font-medium leading-6">Health Summary</div>
+      </div>
+      <div class="h-full w-full pl-4 pr-3 flex items-center justify-center">
+        <div class="pt-6 text-nerves-gray-500 font-light leading-6">More data coming soon</div>
+      </div>
+    </div>
+
+    <div class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content pt-4">
+      <div class="pl-4 pr-3 flex items-center justify-between">
+        <div class="text-nerves-gray-500 text-sm font-normal leading-6">Not seen recently</div>
+        <div id="reconnections-tooltip" phx-hook="ToolTip" data-placement="top">
+          <svg class="w-5 h-5 stroke-nerves-gray-500" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M10 12.5V10M10 7.5V7.49167M17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 5.85786 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.85786 17.5 10Z"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <div class="tooltip-content w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 hidden">
+            Devices which haven't connected in the last 24 hours.
+            <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+          </div>
+        </div>
+      </div>
+      <div class="grow flex pt-2 px-4 pb-4 gap-2 items-center text-3xl text-neutral-50">
+        <.async_result :let={count} assign={@not_recently_seen_count}>
+          <:loading><span class="animate-pulse text-nerves-gray-500 text-2xl">Loading ...</span></:loading>
+          <:failed :let={_failure}>Opps!</:failed>
+          {count}
+        </.async_result>
+      </div>
+      <div class="px-4 py-3 text-xs border-t border-zinc-700">
+        <.link
+          class="text-xs font-normal text-zinc-400 underline underline-offset-4 decoration-dotted hover:text-neutral-50"
+          navigate={~p"/org/#{@org.name}/#{@product.name}/devices?filter=not_recently_seen"}
+        >
+          View Devices
+        </.link>
+      </div>
+    </div>
+
+    <div class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content pt-4">
+      <div class="pl-4 pr-3 flex items-center justify-between">
+        <div class="text-nerves-gray-500 text-sm font-normal leading-6">Unstable Connections</div>
+        <div id="flapping-connections-tooltip" phx-hook="ToolTip" data-placement="top">
+          <svg class="w-5 h-5 stroke-nerves-gray-500" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M10 12.5V10M10 7.5V7.49167M17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 5.85786 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.85786 17.5 10Z"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <div class="tooltip-content w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 hidden">
+            Over 5 disconnections in the last 24 hours.
+            <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+          </div>
+        </div>
+      </div>
+      <div class="grow flex pt-2 px-4 pb-4 gap-2 items-center text-3xl text-neutral-50">
+        <.async_result :let={count} assign={@high_reconnect_count}>
+          <:loading><span class="animate-pulse text-nerves-gray-500 text-2xl">Loading ...</span></:loading>
+          <:failed :let={_failure}>Opps!</:failed>
+          {count}
+        </.async_result>
+      </div>
+      <div class="px-4 py-3 text-xs border-t border-zinc-700">
+        <.link
+          class="text-xs font-normal text-zinc-400 underline underline-offset-4 decoration-dotted hover:text-neutral-50"
+          navigate={~p"/org/#{@org.name}/#{@product.name}/devices?filter=unstable_connections"}
+        >
+          View Devices
+        </.link>
+      </div>
+    </div>
+
+    <div class="flex flex-col rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content pt-4">
+      <div class="pl-4 pr-3 flex items-center justify-between">
+        <div class="text-nerves-gray-500 text-sm font-normal leading-6">Active Firmware Versions</div>
+        <div id="active-firmwares-tooltip" phx-hook="ToolTip" data-placement="top">
+          <svg class="w-5 h-5 stroke-nerves-gray-500" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M10 12.5V10M10 7.5V7.49167M17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 5.85786 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.85786 17.5 10Z"
+              stroke-width="1.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <div class="tooltip-content w-max absolute top-0 left-0 z-20 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 hidden">
+            Unique firmware versions installed on devices.
+            <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+          </div>
+        </div>
+      </div>
+      <div class="flex pt-2 px-4 pb-2 gap-2 items-center text-3xl text-neutral-50">
+        <.async_result :let={count} assign={@active_firmware_versions_count}>
+          <:loading><span class="animate-pulse text-nerves-gray-500 text-2xl">Loading ...</span></:loading>
+          <:failed :let={_failure}>Opps!</:failed>
+          {count}
+        </.async_result>
+      </div>
+      <div class="grow px-4 pb-4 text-xs font-normal text-zinc-400">
+        <.async_result :let={unknown_count} assign={@unknown_active_firmware_versions_count}>
+          <:loading>Loading ...</:loading>
+          <:failed :let={_failure}>Opps!</:failed>
+          <div :if={unknown_count > 0}>
+            Including <span class="text-neutral-50">{unknown_count}</span> unknown firmware version{if(unknown_count > 1, do: "s")}.
+          </div>
+        </.async_result>
+      </div>
+      <div class="px-4 py-3 text-xs border-t border-zinc-700">
+        <.link
+          class="text-xs font-normal text-zinc-400 underline underline-offset-4 decoration-dotted hover:text-neutral-50"
+          navigate={~p"/org/#{@org.name}/#{@product.name}/firmware?filter=active_firmware"}
+        >
+          View Firmware
+        </.link>
+      </div>
+    </div>
+  </div>
+</div>

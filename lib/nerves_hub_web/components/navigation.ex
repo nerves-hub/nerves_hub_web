@@ -15,6 +15,14 @@ defmodule NervesHubWeb.Components.Navigation do
   def updated_sidebar(assigns) do
     ~H"""
     <ul role="list">
+      <.nav_link :if={Application.get_env(:nerves_hub, :insights_enabled)} label="Insights" path={~p"/org/#{@org}/#{@product}/insights"} selected={:insights == @selected_tab} width_and_height={24}>
+        <path
+          d="M21 12H22M18.5 5.5L19.5 4.5M12 3V2M5.5 5.5L4.5 4.5M3 12H2M10 22H14M17 12C17 9.23858 14.7614 7 12 7C9.23858 7 7 9.23858 7 12C7 14.0503 8.2341 15.8124 10 16.584V19H14V16.584C15.7659 15.8124 17 14.0503 17 12Z"
+          stroke-width="1.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </.nav_link>
       <.nav_link label="Devices" path={~p"/org/#{@org}/#{@product}/devices"} selected={:devices == @selected_tab}>
         <path
           d="M2.5 10.8333H17.5M2.5 10.8333V14.1666C2.5 15.0871 3.24619 15.8333 4.16667 15.8333H15.8333C16.7538 15.8333 17.5 15.0871 17.5 14.1666V10.8333M2.5 10.8333L3.85106 5.42907C4.03654 4.68712 4.70318 4.16663 5.46796 4.16663H14.532C15.2968 4.16663 15.9635 4.68712 16.1489 5.42907L17.5 10.8333M5 13.3333H15"
@@ -76,13 +84,14 @@ defmodule NervesHubWeb.Components.Navigation do
   attr(:label, :any)
   attr(:path, :any)
   attr(:selected, :any)
+  attr(:width_and_height, :any, default: 20)
   slot(:inner_block)
 
   def nav_link(assigns) do
     ~H"""
     <li class={["h-11 flex items-center px-4 hover:bg-sidebar-item-hover", @selected && "bg-sidebar-item-selected border-r-2 border-indigo-500"]}>
       <.link class="group flex items-center gap-x-3 text-sm tracking-wide leading-[19px] text-[#D4D4D8] font-light w-full h-full" navigate={@path}>
-        <svg class={"w-5 h-5" <> active_icon(@selected)} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg class={"w-5 h-5" <> active_icon(@selected)} viewBox={"0 0 #{@width_and_height} #{@width_and_height}"} fill="none" xmlns="http://www.w3.org/2000/svg">
           {render_slot(@inner_block)}
         </svg>
         <span class={[@selected && "font-semibold text-zinc-50"]}>{@label}</span>
