@@ -35,7 +35,8 @@ defmodule NervesHub.Devices.LogLinesTest do
     device_id = device.id
     product_id = device.product_id
 
-    log = LogLines.create!(device, %{timestamp: logged_at, level: level, message: message})
+    log =
+      LogLines.create!(device, %{"timestamp" => logged_at, "level" => level, "message" => message})
 
     %LogLine{
       timestamp: ^logged_at,
@@ -74,9 +75,9 @@ defmodule NervesHub.Devices.LogLinesTest do
 
   defp random_log(device) do
     attrs = %{
-      timestamp: DateTime.utc_now(),
-      level: Enum.random(["error", "warning", "info", "debug"]),
-      message: random_word()
+      "timestamp" => DateTime.utc_now(),
+      "level" => Enum.random(["error", "warning", "info", "debug"]),
+      "message" => random_word()
     }
 
     LogLines.create!(device, attrs)

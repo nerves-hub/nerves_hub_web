@@ -84,9 +84,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
     for n <- 1..5 do
       attrs = %{
-        level: "info",
-        timestamp: NaiveDateTime.utc_now(),
-        message: "something wicked this way comes : #{n}"
+        "level" => "info",
+        "timestamp" => DateTime.utc_now(),
+        "message" => "something wicked this way comes : #{n}"
       }
 
       LogLines.create!(device, attrs)
@@ -112,9 +112,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
     |> Repo.update()
 
     attrs = %{
-      level: "info",
-      timestamp: DateTime.utc_now(),
-      message: "something wicked this way comes"
+      "level" => "info",
+      "timestamp" => DateTime.utc_now(),
+      "message" => "something wicked this way comes"
     }
 
     LogLines.create!(device, attrs)
@@ -126,9 +126,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
       |> assert_has("div", text: "something wicked this way comes")
 
     attrs = %{
-      level: "info",
-      timestamp: DateTime.utc_now(),
-      message: "something wicked this way comes, again"
+      "level" => "info",
+      "timestamp" => DateTime.utc_now(),
+      "message" => "something wicked this way comes, again"
     }
 
     LogLines.create!(device, attrs)
@@ -147,9 +147,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
     for n <- 1..26 do
       attrs = %{
-        level: "info",
-        timestamp: DateTime.utc_now(),
-        message: "something wicked this way comes : #{n}"
+        "level" => "info",
+        "timestamp" => DateTime.utc_now(),
+        "message" => "something wicked this way comes : #{n}"
       }
 
       LogLines.create!(device, attrs)
@@ -166,9 +166,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
       |> refute_has("div", text: "something wicked this way comes : 1", exact: true)
 
     attrs = %{
-      level: "info",
-      timestamp: DateTime.utc_now(),
-      message: "something wicked this way comes, again"
+      "level" => "info",
+      "timestamp" => DateTime.utc_now(),
+      "message" => "something wicked this way comes, again"
     }
 
     LogLines.create!(device, attrs)
