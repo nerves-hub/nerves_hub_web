@@ -55,7 +55,7 @@ defmodule NervesHub.Extensions.Logging do
 
   defp schedule_create(device, log_line) do
     _ =
-      Task.Supervisor.async(
+      Task.Supervisor.start_child(
         {:via, PartitionSupervisor, {NervesHub.AnalyticsEventsProcessing, self()}},
         fn -> LogLines.create!(device, log_line) end
       )
