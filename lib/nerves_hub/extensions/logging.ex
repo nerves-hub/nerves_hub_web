@@ -31,7 +31,7 @@ defmodule NervesHub.Extensions.Logging do
   end
 
   @impl NervesHub.Extensions
-  def handle_in("logging:send", log_line, %{assigns: %{device: device}} = socket) do
+  def handle_in("send", log_line, %{assigns: %{device: device}} = socket) do
     case RateLimit.hit(
            "device_#{device.id}",
            @rate_limit_tokens_per_sec,
