@@ -76,7 +76,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
     ProcessHub.start_child(:deployment_orchestrators, spec, async_wait: true)
     |> ProcessHub.await()
     |> case do
-      {:error, {:already_started, _} = info} ->
+      {:error, {{_id, _node, {:already_started, _pid}} = info, []}} ->
         # :already_started is an ok (good) result
         {:ok, info}
 
