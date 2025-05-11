@@ -104,9 +104,9 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
         <div>No logs have been received yet.</div>
       </div>
       <div :if={@has_logs} class="text-base italic font-medium pb-6">Showing the last 25 log lines.</div>
-      <div :if={@has_logs} id="log_lines" phx-update="stream" class="flex flex-col size-full items-start gap-2">
+      <div :if={@has_logs} id="log_lines" phx-update="stream" class="flex flex-col size-full items-start gap-2 pb-10">
         <div :for={{dom_id, line} <- @streams.log_lines} id={dom_id} phx-mounted={@log_inserted && fade_in()} class="flex flex-row gap-4 font-mono text-sm">
-          <div id={"#{DateTime.to_unix(line.timestamp, :microsecond)}-log-line-localtime"} phx-hook="LogLineLocalTime">
+          <div id={"#{DateTime.to_unix(line.timestamp, :microsecond)}-log-line-localtime"} phx-hook="LogLineLocalTime" class="w-60">
             {line.timestamp}
           </div>
           <div
