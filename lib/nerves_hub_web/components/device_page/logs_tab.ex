@@ -99,7 +99,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
 
   def render(assigns) do
     ~H"""
-    <div class="size-full p-12">
+    <div class="size-full p-12 bg-[#0e1019]">
       <div :if={!@has_logs} class="size-full flex justify-center items-center p-6 gap-6 text-medium font-mono">
         <div>No logs have been received yet.</div>
       </div>
