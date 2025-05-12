@@ -136,6 +136,42 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
     assert_has(session, "div", text: "something wicked this way comes, again")
   end
 
+  test "new log lines are not prepended to the recent device logs list if streaming is turned off",
+       %{
+         conn: conn,
+         org: org,
+         product: product,
+         device: device
+       } do
+    Product.changeset(product, %{"extensions" => %{"logging" => true}})
+    |> Repo.update()
+
+    attrs = %{
+      "level" => "info",
+      "timestamp" => DateTime.utc_now(),
+      "message" => "something wicked this way comes"
+    }
+
+    {:ok, _} = LogLines.async_create(device, attrs)
+
+    session =
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/logs")
+      |> assert_has("div", text: "Showing the last 25 log lines.")
+      |> assert_has("div", text: "something wicked this way comes")
+      |> click_button("#toggle-log-streaming", "")
+
+    attrs = %{
+      "level" => "info",
+      "timestamp" => DateTime.utc_now(),
+      "message" => "something wicked this way comes, again"
+    }
+
+    {:ok, _} = LogLines.async_create(device, attrs)
+
+    refute_has(session, "div", text: "something wicked this way comes, again", timeout: 500)
+  end
+
   test "only 25 log lines are shown", %{
     conn: conn,
     org: org,
