@@ -35,8 +35,12 @@ defmodule NervesHub.Devices.LogLinesTest do
     device_id = device.id
     product_id = device.product_id
 
-    log =
-      LogLines.create!(device, %{"timestamp" => logged_at, "level" => level, "message" => message})
+    {:ok, log} =
+      LogLines.async_create(device, %{
+        "timestamp" => logged_at,
+        "level" => level,
+        "message" => message
+      })
 
     %LogLine{
       timestamp: ^logged_at,
@@ -80,6 +84,8 @@ defmodule NervesHub.Devices.LogLinesTest do
       "message" => random_word()
     }
 
-    LogLines.create!(device, attrs)
+    {:ok, log_line} = LogLines.async_create(device, attrs)
+
+    log_line
   end
 end

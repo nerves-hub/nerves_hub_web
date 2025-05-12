@@ -57,7 +57,7 @@ defmodule NervesHub.Extensions.Logging do
     _ =
       Task.Supervisor.start_child(
         {:via, PartitionSupervisor, {NervesHub.AnalyticsEventsProcessing, self()}},
-        fn -> LogLines.create!(device, log_line) end
+        fn -> {:ok, _} = LogLines.async_create(device, log_line) end
       )
 
     :noop

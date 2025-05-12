@@ -44,13 +44,15 @@ defmodule NervesHub.Devices.LogLines do
       %LogLine{}
 
   """
-  @spec create!(Device.t(), log_line_payload) :: LogLine.t()
-  def create!(%Device{} = device, attrs) do
-    device
-    |> LogLine.create(attrs)
-    |> AnalyticsRepo.insert!()
-    |> then(fn log_line ->
-      _ =
+  @spec async_create(Device.t(), log_line_payload) ::
+          {:ok, LogLine.t()} | {:error, Ecto.Changeset.t()}
+  def async_create(%Device{} = device, attrs) do
+    changeset = LogLine.create_changeset(device, attrs)
+
+    case Ecto.Changeset.apply_action(changeset, :create) do
+      {:ok, log_line} ->
+        AnalyticsRepo.insert_all(LogLine, [changeset.changes], settings: [async_insert: 1])
+
         Phoenix.Channel.Server.broadcast(
           NervesHub.PubSub,
           "device:#{device.identifier}:internal",
@@ -58,7 +60,10 @@ defmodule NervesHub.Devices.LogLines do
           log_line
         )
 
-      log_line
-    end)
+        {:ok, log_line}
+
+      error ->
+        error
+    end
   end
 end

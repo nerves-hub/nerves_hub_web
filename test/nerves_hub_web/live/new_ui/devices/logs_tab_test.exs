@@ -89,7 +89,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
         "message" => "something wicked this way comes : #{n}"
       }
 
-      LogLines.create!(device, attrs)
+      {:ok, _} = LogLines.async_create(device, attrs)
     end
 
     conn
@@ -117,7 +117,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
       "message" => "something wicked this way comes"
     }
 
-    LogLines.create!(device, attrs)
+    {:ok, _} = LogLines.async_create(device, attrs)
 
     session =
       conn
@@ -131,7 +131,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
       "message" => "something wicked this way comes, again"
     }
 
-    LogLines.create!(device, attrs)
+    {:ok, _} = LogLines.async_create(device, attrs)
 
     assert_has(session, "div", text: "something wicked this way comes, again")
   end
@@ -152,9 +152,9 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
         "message" => "something wicked this way comes : #{n}"
       }
 
-      LogLines.create!(device, attrs)
+      {:ok, _} = LogLines.async_create(device, attrs)
 
-      Process.sleep(50)
+      Process.sleep(5)
     end
 
     session =
@@ -171,7 +171,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
       "message" => "something wicked this way comes, again"
     }
 
-    LogLines.create!(device, attrs)
+    {:ok, _} = LogLines.async_create(device, attrs)
 
     session
     |> assert_has("div", text: "something wicked this way comes, again")

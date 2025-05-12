@@ -18,7 +18,7 @@ defmodule NervesHub.Devices.LogLine do
     field(:meta, Ch, type: "Map(LowCardinality(String), String)", default: %{})
   end
 
-  def create(device, params \\ %{}) do
+  def create_changeset(device, params \\ %{}) do
     params =
       params
       |> Map.put("device_id", device.id)
