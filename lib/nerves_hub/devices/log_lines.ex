@@ -51,14 +51,15 @@ defmodule NervesHub.Devices.LogLines do
 
     case Ecto.Changeset.apply_action(changeset, :create) do
       {:ok, log_line} ->
-        AnalyticsRepo.insert_all(LogLine, [changeset.changes], settings: [async_insert: 1])
+        _ = AnalyticsRepo.insert_all(LogLine, [changeset.changes], settings: [async_insert: 1])
 
-        Phoenix.Channel.Server.broadcast(
-          NervesHub.PubSub,
-          "device:#{device.identifier}:internal",
-          "logs:received",
-          log_line
-        )
+        _ =
+          Phoenix.Channel.Server.broadcast(
+            NervesHub.PubSub,
+            "device:#{device.identifier}:internal",
+            "logs:received",
+            log_line
+          )
 
         {:ok, log_line}
 
