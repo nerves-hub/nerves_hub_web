@@ -4,7 +4,6 @@ defmodule NervesHub.Devices.LogLine do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
-  @primary_key false
 
   @required [:device_id, :product_id, :timestamp, :level, :message]
   @optional [:meta]
