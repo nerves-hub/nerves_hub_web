@@ -20,7 +20,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistrationTest 
     end)
 
     expect(ProcessHub, :start_child, fn _hub_id, _spec, _opts -> :ok end)
-    expect(ProcessHub, :await, fn _ -> {:ok} end)
+    expect(ProcessHub, :await, fn _ -> {:ok, :fake_result} end)
 
     OrchestratorRegistration.check_running_orchestrators()
   end
