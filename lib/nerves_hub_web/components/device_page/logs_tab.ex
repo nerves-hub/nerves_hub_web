@@ -124,49 +124,55 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
 
   def render(assigns) do
     ~H"""
-    <div class="size-full bg-[#0e1019]">
+    <div class="size-full bg-[#0e1019] pb-10">
       <div :if={!@has_logs} class="size-full flex justify-center items-center p-6 gap-6 text-medium font-mono">
         <div>No logs have been received yet.</div>
       </div>
-      <div :if={@has_logs} class="flex flex-row items-center justify-between h-11 border-b border-zinc-700 px-12">
-        <div>
-          <span class="text-sm text-zinc-400">Live log streaming :</span>
-          <button
-            id="toggle-log-streaming"
-            type="button"
-            phx-click="toggle_log_streaming"
-            class={[
-              "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
-              (@streaming_enabled && "bg-emerald-500") || "bg-red-500"
-            ]}
-            role="switch"
-            aria-checked="false"
-          >
-            <span
-              aria-hidden="true"
+      <div :if={@has_logs} class="size-full">
+        <div class="flex flex-row items-center justify-between h-11 border-b border-zinc-700 px-12">
+          <div>
+            <span class="text-sm text-zinc-400">Live log streaming :</span>
+            <button
+              id="toggle-log-streaming"
+              type="button"
+              phx-click="toggle_log_streaming"
               class={[
-                "pointer-events-none inline-block size-3",
-                (@streaming_enabled && "translate-x-3") || "translate-x-0",
-                "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
+                (@streaming_enabled && "bg-emerald-500") || "bg-red-500"
               ]}
+              role="switch"
+              aria-checked="false"
             >
-            </span>
-          </button>
+              <span
+                aria-hidden="true"
+                class={[
+                  "pointer-events-none inline-block size-3",
+                  (@streaming_enabled && "translate-x-3") || "translate-x-0",
+                  "transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                ]}
+              >
+              </span>
+            </button>
+          </div>
+          <span class="text-sm text-zinc-400 font-extralight">Showing the last 25 log lines.</span>
         </div>
-        <span class="text-sm text-zinc-400 font-extralight">Showing the last 25 log lines.</span>
-      </div>
-      <div :if={@has_logs} id="log_lines" phx-update="stream" class="flex flex-col size-full items-start gap-2 px-12 py-10">
-        <div :for={{dom_id, line} <- @streams.log_lines} id={dom_id} phx-mounted={@log_inserted && fade_in()} class="flex flex-row gap-4 font-mono text-sm">
-          <div id={"#{DateTime.to_unix(line.timestamp, :microsecond)}-log-line-localtime"} phx-hook="LogLineLocalTime" class="w-60">
-            {line.timestamp}
+        <div :if={@has_logs} class="size-full relative pb-10">
+          <div id="log_lines" phx-update="stream" class="scrollable-inner flex flex-col overflow-y-visible overflow-x-auto h-full max-w-0 min-w-full items-start gap-3 px-12 pt-10">
+            <div :for={{dom_id, line} <- @streams.log_lines} id={dom_id} phx-mounted={@log_inserted && fade_in()} class="flex flex-row w-full gap-2 font-mono text-sm">
+              <div id={"#{DateTime.to_unix(line.timestamp, :microsecond)}-log-line-localtime"} phx-hook="LogLineLocalTime" class="min-w-fit">
+                {line.timestamp}
+              </div>
+              <div
+                data-log-level={line.level}
+                class="data-[log-level=emergency]:text-red-500 data-[log-level=alert]:text-red-500 data-[log-level=critical]:text-red-500 data-[log-level=error]:text-red-500 data-[log-level=warn]:text-orange-500 data-[log-level=warning]:text-orange-500 data-[log-level=debug]:text-blue-500"
+              >
+                [{line.level}]
+              </div>
+              <div class="whitespace-pre pr-10">{line.message}</div>
+            </div>
           </div>
-          <div
-            data-log-level={line.level}
-            class="w-24 data-[log-level=emergency]:text-red-500 data-[log-level=alert]:text-red-500 data-[log-level=critical]:text-red-500 data-[log-level=error]:text-red-500 data-[log-level=warn]:text-orange-500 data-[log-level=warning]:text-orange-500 data-[log-level=debug]:text-blue-500"
-          >
-            [{line.level}]
-          </div>
-          <div>{line.message}</div>
+          <div class="device-logs-gradient-mask" />
+          <div class="h-10"></div>
         </div>
       </div>
     </div>

@@ -297,6 +297,20 @@
       rgba(24, 24, 27, 1)
     );
   }
+
+  .device-logs-gradient-mask {
+    position: absolute;
+    top: 0;
+    right: 0px;
+    width: 50px;
+    height: 100%;
+    z-index: 1;
+    background-image: linear-gradient(
+      to right,
+      rgba(14, 16, 25, 0),
+      rgba(14, 16, 25, 1)
+    );
+  }
 }
 
 html {
