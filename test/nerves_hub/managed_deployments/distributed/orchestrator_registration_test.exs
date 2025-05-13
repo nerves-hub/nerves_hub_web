@@ -1,17 +1,16 @@
-defmodule NervesHub.Workers.MonitorDeploymentOrchestratorsTest do
+defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistrationTest do
   use NervesHub.DataCase
   use Mimic
 
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration
-  alias NervesHub.Workers.MonitorDeploymentOrchestrators
 
   test "logs to sentry and restarts orchestrator processes" do
     expect(ProcessHub, :process_list, fn _table_name, _node_context ->
       []
     end)
 
-    expect(ManagedDeployments, :should_run_orchestrator, fn ->
+    expect(ManagedDeployments, :should_run_orchestrator, 2, fn ->
       [%ManagedDeployments.DeploymentGroup{}]
     end)
 
@@ -20,8 +19,9 @@ defmodule NervesHub.Workers.MonitorDeploymentOrchestratorsTest do
       assert extra.deployment_count == 1
     end)
 
-    expect(OrchestratorRegistration, :start_orchestrators, fn -> :ok end)
+    expect(ProcessHub, :start_child, fn _hub_id, _spec, _opts -> :ok end)
+    expect(ProcessHub, :await, fn _ -> {:ok, :fake_result} end)
 
-    MonitorDeploymentOrchestrators.perform(%Oban.Job{})
+    OrchestratorRegistration.check_running_orchestrators()
   end
 end
