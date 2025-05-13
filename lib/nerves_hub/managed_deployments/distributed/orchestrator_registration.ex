@@ -90,7 +90,7 @@ defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorRegistration do
   end
 
   defp report_errors(results) do
-    errors = Enum.filter(results, fn result -> elem(result, 0) == :error end)
+    errors = Enum.filter(results, fn {status, _} -> status == :error end)
 
     _ =
       if Enum.any?(errors) do
