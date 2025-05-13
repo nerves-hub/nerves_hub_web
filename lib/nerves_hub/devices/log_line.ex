@@ -33,14 +33,18 @@ defmodule NervesHub.Devices.LogLine do
 
   defp maybe_set_timestamp(%{"timestamp" => _} = params), do: params
 
-  defp maybe_set_timestamp(params) do
+  defp maybe_set_timestamp(%{"meta" => %{"time" => timestamp}} = params)
+       when is_binary(timestamp) do
     {:ok, timestamp} =
-      params["meta"]["time"]
+      timestamp
       |> String.to_integer()
       |> DateTime.from_unix(:microsecond)
 
     Map.put(params, "timestamp", timestamp)
   end
+
+  # time in metadata must be string format
+  defp maybe_set_timestamp(params), do: params
 
   defp format_message(%{"message" => message} = params) when is_binary(message), do: params
 

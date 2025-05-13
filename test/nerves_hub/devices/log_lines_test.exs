@@ -61,6 +61,41 @@ defmodule NervesHub.Devices.LogLinesTest do
     ] = AnalyticsRepo.all(LogLine)
   end
 
+  test "create!/2 - unix timestamp is extracted from the meta information (string format)", %{
+    device: device
+  } do
+    level = "info"
+    message = "something happened"
+    logged_at = DateTime.utc_now()
+    device_id = device.id
+    product_id = device.product_id
+
+    {:ok, log} =
+      LogLines.async_create(device, %{
+        "level" => level,
+        "message" => message,
+        "meta" => %{"time" => logged_at |> DateTime.to_unix(:microsecond) |> to_string}
+      })
+
+    %LogLine{
+      timestamp: ^logged_at,
+      device_id: ^device_id,
+      product_id: ^product_id,
+      level: ^level,
+      message: ^message
+    } = log
+
+    [
+      %LogLine{
+        timestamp: ^logged_at,
+        device_id: ^device_id,
+        product_id: ^product_id,
+        level: ^level,
+        message: ^message
+      }
+    ] = AnalyticsRepo.all(LogLine)
+  end
+
   test "recent/1", %{device: device, device2: device2} do
     for _ <- 0..30 do
       random_log(device)
