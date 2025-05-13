@@ -54,14 +54,14 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
 
   def hooked_async(_name, _async_fun_result, socket), do: {:cont, socket}
 
-  def hooked_event("toggle_log_streaming", _, %{assigns: %{streaming_enabled: false}} = socket) do
+  def hooked_event("toggle-log-streaming", _, %{assigns: %{streaming_enabled: false}} = socket) do
     socket
     |> fetch_logs(reset: true)
     |> assign(:streaming_enabled, true)
     |> halt()
   end
 
-  def hooked_event("toggle_log_streaming", _, %{assigns: %{streaming_enabled: true}} = socket) do
+  def hooked_event("toggle-log-streaming", _, %{assigns: %{streaming_enabled: true}} = socket) do
     socket
     |> assign(:streaming_enabled, false)
     |> halt()
@@ -135,7 +135,7 @@ defmodule NervesHubWeb.Components.DevicePage.LogsTab do
             <button
               id="toggle-log-streaming"
               type="button"
-              phx-click="toggle_log_streaming"
+              phx-click="toggle-log-streaming"
               class={[
                 "relative inline-flex items-center h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-1.5 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-0",
                 (@streaming_enabled && "bg-emerald-500") || "bg-red-500"
