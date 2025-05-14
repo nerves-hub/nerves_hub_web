@@ -1,4 +1,4 @@
-defmodule NervesHub.Devices.Distributed.OrchestratorTest do
+defmodule NervesHub.ManagedDeployments.Distributed.OrchestratorTest do
   use NervesHub.DataCase, async: false
 
   use Mimic

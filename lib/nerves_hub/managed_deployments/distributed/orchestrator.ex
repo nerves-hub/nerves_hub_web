@@ -78,6 +78,15 @@ defmodule NervesHub.ManagedDeployments.Distributed.Orchestrator do
     {:ok, state}
   end
 
+  def terminate(reason, state) do
+    Logger.info("Orchestrator terminated",
+      deployment_id: state.deployment_group.id,
+      reason: inspect(reason)
+    )
+
+    :ok
+  end
+
   @doc """
   Trigger an update for a deployments devices.
 

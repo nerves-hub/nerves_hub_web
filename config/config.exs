@@ -76,8 +76,7 @@ config :nerves_hub, Oban,
        {"*/1 * * * *", NervesHub.Workers.CleanStaleDeviceConnections},
        {"1,16,31,46 * * * *", NervesHub.Workers.DeleteOldDeviceConnections},
        {"*/5 * * * *", NervesHub.Workers.ExpireInflightUpdates},
-       {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation},
-       {"*/15 * * * *", NervesHub.Workers.MonitorDeploymentOrchestrators}
+       {"*/15 * * * *", NervesHub.Workers.DeviceHealthTruncation}
      ]}
   ]
 
