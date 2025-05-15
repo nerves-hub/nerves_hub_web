@@ -71,6 +71,12 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               <.input field={@settings_form[:description]} label="Description" placeholder="eg. sensor hub at customer X" />
 
               <.input field={@settings_form[:tags]} value={tags_to_string(@settings_form[:tags])} label="Tags" placeholder="eg. batch-123" />
+
+              <.input field={@settings_form[:first_in_line_for_updates]} type="checkbox" label="First in line for updates">
+                <:rich_hint>
+                  Prioritizes this device for updates when part of a deployment group
+                </:rich_hint>
+              </.input>
             </div>
 
             <div class="w-1/2 flex flex-col gap-2">

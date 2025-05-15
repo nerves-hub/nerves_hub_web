@@ -696,6 +696,8 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
+  @spec update_firmware_metadata(Device.t(), FirmwareMetadata.t() | nil) ::
+          {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def update_firmware_metadata(device, nil) do
     {:ok, device}
   end
@@ -705,6 +707,9 @@ defmodule NervesHub.Devices do
     update_device(device, %{firmware_metadata: metadata})
   end
 
+  @type update_device_return :: {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
+  @spec update_device(Device.t(), map()) :: update_device_return
+  @spec update_device(Device.t(), map(), broadcast: boolean()) :: update_device_return
   def update_device(%Device{} = device, params, opts \\ []) do
     changeset = Device.changeset(device, params)
 
@@ -729,7 +734,7 @@ defmodule NervesHub.Devices do
   - not be running the same firmware version associated with the deployment
   - not in the penalty box (based on `updates_blocked_until`)
 
-  The list is ordered by current connection age. Devices that have been online longer
+  The list is ordered by current connection page. Devices that have been online longer
   are updated first.
   """
   @spec available_for_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
@@ -751,7 +756,10 @@ defmodule NervesHub.Devices do
     |> where([d, firmware: f], fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, f.uuid))
     |> where([inflight_update: ifu], is_nil(ifu))
     |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
-    |> order_by([latest_connection: lc], asc: lc.established_at)
+    |> order_by([d, latest_connection: lc],
+      desc: d.first_in_line_for_updates,
+      asc: lc.established_at
+    )
     |> limit(^count)
     |> Repo.all()
   end
