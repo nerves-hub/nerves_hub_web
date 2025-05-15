@@ -41,7 +41,7 @@
         </svg>
       </div>
     </form>
-    <.button type="link" navigate={~p"/org/#{@org}/#{@product}/deployments/newz"} aria-label="Add a new deployment group">
+    <.button type="link" navigate={~p"/org/#{@org}/#{@product}/deployment_groups/newz"} aria-label="Add a new deployment group">
       <.icon name="add" /> Create Deployment Group
     </.button>
     <.button type="button" phx-click="toggle-filters" phx-value-toggle={to_string(@show_filters)}>
