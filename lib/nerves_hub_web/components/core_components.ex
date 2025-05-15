@@ -366,11 +366,14 @@ defmodule NervesHubWeb.CoreComponents do
 
     ~H"""
     <div phx-feedback-for={@name}>
-      <label class="flex items-center gap-4 text-sm font-medium leading-6 text-zinc-300">
+      <span class="flex items-center gap-4 text-sm font-medium leading-6 text-zinc-300">
         <input type="hidden" name={@name} value="false" />
-        <input type="checkbox" id={@id} name={@name} value="true" checked={@checked} class="rounded border-zinc-700 text-zinc-400 focus:ring-0 checked:bg-indigo-500" {@rest} />
-        {@label}
-      </label>
+        <input type="checkbox" id={@name} name={@name} value="true" checked={@checked} class="rounded border-zinc-700 text-zinc-400 focus:ring-0 checked:bg-indigo-500" {@rest} />
+        <label for={@name}>{@label}</label>
+      </span>
+      <%!-- <input type="hidden" name={@name} value="false" />
+      <label for={@name}>{@label}</label>
+      <input type="checkbox" id={@name} name={@name} value="true" checked={@checked} class="rounded border-zinc-700 text-zinc-400 focus:ring-0 checked:bg-indigo-500" {@rest} /> --%>
       <span :if={assigns[:hint] || assigns[:rich_hint]} class="text-xs text-zinc-400">
         {assigns[:hint] || render_slot(assigns[:rich_hint])}
       </span>

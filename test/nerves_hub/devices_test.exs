@@ -8,6 +8,7 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
@@ -678,6 +679,55 @@ defmodule NervesHub.DevicesTest do
 
       refute device.deployment_id
       assert_receive %{event: "devices/deployment-cleared"}
+    end
+  end
+
+  describe "available_for_update/2" do
+    test "orders by device.first_in_line_for_updates", %{
+      deployment_group: deployment_group,
+      device: device1,
+      org: org,
+      product: product
+    } do
+      device2 =
+        Fixtures.device_fixture(org, product, deployment_group.firmware, %{
+          first_in_line_for_updates: true
+        })
+
+      device3 = Fixtures.device_fixture(org, product, deployment_group.firmware)
+
+      Enum.each([device1, device2, device3], fn device ->
+        %{id: latest_connection_id} =
+          DeviceConnection.create_changeset(%{
+            product_id: product.id,
+            device_id: device.id,
+            established_at: DateTime.utc_now(),
+            last_seen_at: DateTime.utc_now(),
+            status: :connected
+          })
+          |> Repo.insert!()
+
+        Device
+        |> where(id: ^device.id)
+        |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+        {:ok, device} =
+          Devices.update_firmware_metadata(
+            device,
+            Map.from_struct(%{
+              device.firmware_metadata
+              | uuid: UUIDv7.autogenerate()
+            })
+          )
+
+        {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
+      end)
+
+      [device_first_in_line_for_update | _] =
+        devices = Devices.available_for_update(deployment_group, 100)
+
+      assert length(devices) == 3
+      assert device_first_in_line_for_update.id == device2.id
     end
   end
 end

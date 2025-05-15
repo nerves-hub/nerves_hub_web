@@ -355,6 +355,7 @@ defmodule NervesHubWeb.DeviceChannel do
   # A new UUID is being reported from an update
   defp update_metadata(device, params) do
     with {:ok, metadata} <- Firmwares.metadata_from_device(params),
+         {:ok, device} <- maybe_update_first_in_line_for_updates(device, metadata),
          {:ok, device} <- Devices.update_firmware_metadata(device, metadata) do
       Devices.firmware_update_successful(device)
     end
@@ -431,4 +432,9 @@ defmodule NervesHubWeb.DeviceChannel do
   end
 
   defp safe_to_request_extensions?(version), do: Version.match?(version, ">= 2.2.0")
+
+  defp maybe_update_first_in_line_for_updates(device, nil),
+    do: Devices.update_device(device, %{first_in_line_for_updates: true})
+
+  defp maybe_update_first_in_line_for_updates(device, _metadata), do: {:ok, device}
 end
