@@ -35,7 +35,47 @@ defmodule NervesHub.Devices.LogLinesTest do
     device_id = device.id
     product_id = device.product_id
 
-    log = LogLines.create!(device, %{timestamp: logged_at, level: level, message: message})
+    {:ok, log} =
+      LogLines.async_create(device, %{
+        "timestamp" => logged_at,
+        "level" => level,
+        "message" => message
+      })
+
+    %LogLine{
+      timestamp: ^logged_at,
+      device_id: ^device_id,
+      product_id: ^product_id,
+      level: ^level,
+      message: ^message
+    } = log
+
+    [
+      %LogLine{
+        timestamp: ^logged_at,
+        device_id: ^device_id,
+        product_id: ^product_id,
+        level: ^level,
+        message: ^message
+      }
+    ] = AnalyticsRepo.all(LogLine)
+  end
+
+  test "create!/2 - unix timestamp is extracted from the meta information (string format)", %{
+    device: device
+  } do
+    level = "info"
+    message = "something happened"
+    logged_at = DateTime.utc_now()
+    device_id = device.id
+    product_id = device.product_id
+
+    {:ok, log} =
+      LogLines.async_create(device, %{
+        "level" => level,
+        "message" => message,
+        "meta" => %{"time" => logged_at |> DateTime.to_unix(:microsecond) |> to_string}
+      })
 
     %LogLine{
       timestamp: ^logged_at,
@@ -74,11 +114,13 @@ defmodule NervesHub.Devices.LogLinesTest do
 
   defp random_log(device) do
     attrs = %{
-      timestamp: DateTime.utc_now(),
-      level: Enum.random(["error", "warning", "info", "debug"]),
-      message: random_word()
+      "timestamp" => DateTime.utc_now(),
+      "level" => Enum.random(["error", "warning", "info", "debug"]),
+      "message" => random_word()
     }
 
-    LogLines.create!(device, attrs)
+    {:ok, log_line} = LogLines.async_create(device, attrs)
+
+    log_line
   end
 end

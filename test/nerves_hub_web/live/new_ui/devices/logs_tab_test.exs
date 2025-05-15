@@ -84,12 +84,12 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
     for n <- 1..5 do
       attrs = %{
-        level: "info",
-        timestamp: NaiveDateTime.utc_now(),
-        message: "something wicked this way comes : #{n}"
+        "level" => "info",
+        "timestamp" => DateTime.utc_now(),
+        "message" => "something wicked this way comes : #{n}"
       }
 
-      LogLines.create!(device, attrs)
+      {:ok, _} = LogLines.async_create(device, attrs)
     end
 
     conn
@@ -112,12 +112,12 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
     |> Repo.update()
 
     attrs = %{
-      level: "info",
-      timestamp: DateTime.utc_now(),
-      message: "something wicked this way comes"
+      "level" => "info",
+      "timestamp" => DateTime.utc_now(),
+      "message" => "something wicked this way comes"
     }
 
-    LogLines.create!(device, attrs)
+    {:ok, _} = LogLines.async_create(device, attrs)
 
     session =
       conn
@@ -126,14 +126,50 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
       |> assert_has("div", text: "something wicked this way comes")
 
     attrs = %{
-      level: "info",
-      timestamp: DateTime.utc_now(),
-      message: "something wicked this way comes, again"
+      "level" => "info",
+      "timestamp" => DateTime.utc_now(),
+      "message" => "something wicked this way comes, again"
     }
 
-    LogLines.create!(device, attrs)
+    {:ok, _} = LogLines.async_create(device, attrs)
 
     assert_has(session, "div", text: "something wicked this way comes, again")
+  end
+
+  test "new log lines are not prepended to the recent device logs list if streaming is turned off",
+       %{
+         conn: conn,
+         org: org,
+         product: product,
+         device: device
+       } do
+    Product.changeset(product, %{"extensions" => %{"logging" => true}})
+    |> Repo.update()
+
+    attrs = %{
+      "level" => "info",
+      "timestamp" => DateTime.utc_now(),
+      "message" => "something wicked this way comes"
+    }
+
+    {:ok, _} = LogLines.async_create(device, attrs)
+
+    session =
+      conn
+      |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/logs")
+      |> assert_has("div", text: "Showing the last 25 log lines.")
+      |> assert_has("div", text: "something wicked this way comes")
+      |> click_button("#toggle-log-streaming", "")
+
+    attrs = %{
+      "level" => "info",
+      "timestamp" => DateTime.utc_now(),
+      "message" => "something wicked this way comes, again"
+    }
+
+    {:ok, _} = LogLines.async_create(device, attrs)
+
+    refute_has(session, "div", text: "something wicked this way comes, again", timeout: 500)
   end
 
   test "only 25 log lines are shown", %{
@@ -147,14 +183,14 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
 
     for n <- 1..26 do
       attrs = %{
-        level: "info",
-        timestamp: DateTime.utc_now(),
-        message: "something wicked this way comes : #{n}"
+        "level" => "info",
+        "timestamp" => DateTime.utc_now(),
+        "message" => "something wicked this way comes : #{n}"
       }
 
-      LogLines.create!(device, attrs)
+      {:ok, _} = LogLines.async_create(device, attrs)
 
-      Process.sleep(50)
+      Process.sleep(5)
     end
 
     session =
@@ -166,12 +202,12 @@ defmodule NervesHubWeb.Live.NewUI.Devices.LogsTabTest do
       |> refute_has("div", text: "something wicked this way comes : 1", exact: true)
 
     attrs = %{
-      level: "info",
-      timestamp: DateTime.utc_now(),
-      message: "something wicked this way comes, again"
+      "level" => "info",
+      "timestamp" => DateTime.utc_now(),
+      "message" => "something wicked this way comes, again"
     }
 
-    LogLines.create!(device, attrs)
+    {:ok, _} = LogLines.async_create(device, attrs)
 
     session
     |> assert_has("div", text: "something wicked this way comes, again")

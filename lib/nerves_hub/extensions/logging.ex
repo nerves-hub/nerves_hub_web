@@ -31,7 +31,7 @@ defmodule NervesHub.Extensions.Logging do
   end
 
   @impl NervesHub.Extensions
-  def handle_in("logging:send", log_line, %{assigns: %{device: device}} = socket) do
+  def handle_in("send", log_line, %{assigns: %{device: device}} = socket) do
     case RateLimit.hit(
            "device_#{device.id}",
            @rate_limit_tokens_per_sec,
@@ -55,9 +55,9 @@ defmodule NervesHub.Extensions.Logging do
 
   defp schedule_create(device, log_line) do
     _ =
-      Task.Supervisor.async(
+      Task.Supervisor.start_child(
         {:via, PartitionSupervisor, {NervesHub.AnalyticsEventsProcessing, self()}},
-        fn -> LogLines.create!(device, log_line) end
+        fn -> {:ok, _} = LogLines.async_create(device, log_line) end
       )
 
     :noop
