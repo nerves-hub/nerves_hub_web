@@ -35,8 +35,8 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <div class="text-base text-neutral-50 font-medium">General settings</div>
           </div>
 
-          <div class="flex p-6 gap-6">
-            <div class="w-1/2 flex flex-col gap-6">
+          <div class="flex flex-col p-6 gap-6">
+            <div class="w-1/2">
               <.input field={@form[:name]} label="Name" placeholder="Production" />
             </div>
           </div>
@@ -90,6 +90,24 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             </div>
             <div class="w-1/2">
               <.input field={@form[:version]} value={@form[:conditions].value["version"]} label="Version requirement" placeholder="eg. 1.2.3" />
+            </div>
+          </div>
+        </div>
+
+        <div class="w-2/3 flex flex-col bg-zinc-900 border border-zinc-700 rounded">
+          <div class="flex justify-between items-center h-14 px-4 border-b border-zinc-700">
+            <div class="text-base text-neutral-50 font-medium">Device queue settings</div>
+          </div>
+
+          <div class="flex flex-col p-6 gap-6">
+            <div class="w-1/2">
+              <.input
+                field={@form[:queue_management]}
+                type="select"
+                options={[[value: "FIFO", key: "FIFO"], [value: "LIFO", key: "LIFO"]]}
+                label="Queue management"
+                hint="FIFO (First-In, First-Out) prioritizes devices that have been connected the longest for updates, while LIFO (Last-In, First-Out) prioritizes the most recently connected devices."
+              />
             </div>
           </div>
         </div>
