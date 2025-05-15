@@ -14,7 +14,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
     archives = Archives.all_by_product(assigns.deployment_group.product)
     firmwares = Firmwares.get_firmwares_for_deployment_group(assigns.deployment_group)
 
-    changeset = DeploymentGroup.changeset(assigns.deployment_group, %{})
+    changeset = DeploymentGroup.update_changeset(assigns.deployment_group, %{})
 
     socket
     |> assign(assigns)
