@@ -86,7 +86,7 @@ echo "127.0.0.1 nerves-hub.org" | sudo tee -a /etc/hosts
 Once the server is running, by default in development you can access it at http://localhost:4000
 
 In development you can login into a pre-generated account with the email
-`nerveshub@nerves-hub.org` and password `nerveshub`.
+`nerveshub@nerves-hub.org` and password `nerveshubweb`.
 
 ### Running Tests
 
