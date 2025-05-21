@@ -32,6 +32,9 @@
           <th phx-click="sort" phx-value-sort="name" class="cursor-pointer">
             <Sorting.sort_icon text="Name" field="name" selected_field={@current_sort} selected_direction={@sort_direction} />
           </th>
+          <th>
+            Script Tags
+          </th>
           <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
             <Sorting.sort_icon text="Added on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
           </th>
@@ -43,6 +46,15 @@
             <.link class="size-full flex items-center" navigate={~p"/org/#{@org}/#{@product}/scripts/#{script}/edit"}>
               {script.name}
             </.link>
+          </td>
+          <td>
+            <div class="flex items-center gap-[4px] text-nowrap">
+              <%= if !is_nil(script.tags) do %>
+                <%= for tag <- script.tags do %>
+                  <span class="tag">{tag}</span>
+                <% end %>
+              <% end %>
+            </div>
           </td>
 
           <td>
