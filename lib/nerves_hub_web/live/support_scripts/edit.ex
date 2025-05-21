@@ -3,6 +3,8 @@ defmodule NervesHubWeb.Live.SupportScripts.Edit do
 
   alias NervesHub.Scripts
 
+  alias NervesHubWeb.Components.Utils
+
   @impl Phoenix.LiveView
   def mount(
         %{"script_id" => script_id},

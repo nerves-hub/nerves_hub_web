@@ -47,4 +47,12 @@ defmodule NervesHubWeb.Components.Utils do
 
     "#{round(usage)} of #{round(available / 1000)} MB (#{round(percentage)}%)"
   end
+
+  def tags_to_string(%Phoenix.HTML.FormField{} = field) do
+    tags_to_string(field.value)
+  end
+
+  def tags_to_string(%{tags: tags}), do: tags_to_string(tags)
+  def tags_to_string(tags) when is_list(tags), do: Enum.join(tags, ", ")
+  def tags_to_string(tags), do: tags
 end
