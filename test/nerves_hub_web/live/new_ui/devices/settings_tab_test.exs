@@ -1,7 +1,8 @@
 defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
+  use NervesHubWeb.ConnCase.Browser, async: false
+
   alias NervesHub.Devices
   alias NervesHubWeb.Components.Utils
-  use NervesHubWeb.ConnCase.Browser, async: false
 
   setup %{conn: conn} do
     [conn: init_test_session(conn, %{"new_ui" => true})]
