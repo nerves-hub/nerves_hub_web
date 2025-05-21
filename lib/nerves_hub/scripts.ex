@@ -6,6 +6,7 @@ defmodule NervesHub.Scripts do
   alias NervesHub.AuditLogs.ProductTemplates
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHub.Scripts.Filtering
   alias NervesHub.Scripts.Script
 
   alias NervesHub.Repo
@@ -19,6 +20,8 @@ defmodule NervesHub.Scripts do
 
     sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
 
+    filters = Map.get(opts, :filters, %{})
+
     flop = %Flop{
       page: String.to_integer(Map.get(opts, :page, "1")),
       page_size: String.to_integer(Map.get(opts, :page_size, "25"))
@@ -26,6 +29,7 @@ defmodule NervesHub.Scripts do
 
     Script
     |> where([f], f.product_id == ^product.id)
+    |> Filtering.build_filters(filters)
     |> order_by(^sort_opts)
     |> Flop.run(flop)
   end

@@ -11,7 +11,8 @@ defmodule NervesHubWeb.API.ScriptJSON do
     %{
       id: script.id,
       name: script.name,
-      text: script.text
+      text: script.text,
+      tags: script.tags
     }
   end
 end
