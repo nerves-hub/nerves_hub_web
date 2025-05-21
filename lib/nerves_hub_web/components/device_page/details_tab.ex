@@ -311,7 +311,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
 
           <div :if={is_nil(@device.deployment_group) && Enum.any?(@deployment_groups)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <form id="set-deployment-group-form" phx-submit="set-deployment-group" class="flex gap-2 items-center w-full">
+            <form id="set-deployment-group-form" phx-update="ignore" phx-submit="set-deployment-group" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <label for="deployment_group" class="hidden">Deployment Group</label>
                 <select
@@ -354,7 +354,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
 
           <div :if={Enum.any?(@firmwares)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <form id="push-update-form" phx-submit="push-update" class="flex gap-2 items-center w-full">
+            <form id="push-update-form" phx-update="ignore" phx-submit="push-update" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <label for="firmware" class="hidden">Firmware</label>
                 <select
