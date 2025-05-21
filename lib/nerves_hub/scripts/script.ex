@@ -8,6 +8,7 @@ defmodule NervesHub.Scripts.Script do
 
   @type t :: %__MODULE__{}
   @required [:name, :text]
+  @optional [:tags]
 
   schema "scripts" do
     belongs_to(:product, Product)
@@ -16,13 +17,14 @@ defmodule NervesHub.Scripts.Script do
 
     field(:name, :string)
     field(:text, :string)
+    field(:tags, NervesHub.Types.Tag)
 
     timestamps()
   end
 
   def create_changeset(%__MODULE__{} = struct, product, created_by, params) do
     struct
-    |> cast(params, @required)
+    |> cast(params, @required ++ @optional)
     |> put_assoc(:product, product)
     |> put_assoc(:created_by, created_by)
     |> validate_required(@required ++ [:created_by])
@@ -32,7 +34,7 @@ defmodule NervesHub.Scripts.Script do
 
   def update_changeset(%__MODULE__{} = struct, edited_by, params \\ %{}) do
     struct
-    |> cast(params, @required)
+    |> cast(params, @required ++ @optional)
     |> put_change(:last_updated_by_id, edited_by.id)
     |> validate_required(@required)
     |> validate_length(:name, lte: 255)
