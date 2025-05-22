@@ -115,20 +115,23 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   end
 
   defp assign_scripts_with_pagination(socket) do
-    %{assigns: %{product: product, paginate_opts: paginate_opts}} = socket
+    %{
+      assigns: %{
+        product: product,
+        paginate_opts: paginate_opts,
+        sort_direction: sort_direction,
+        current_sort: current_sort
+      }
+    } = socket
 
     opts = %{
       pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
-      sort:
-        {String.to_existing_atom(socket.assigns.sort_direction),
-         String.to_atom(socket.assigns.current_sort)}
+      sort: {String.to_existing_atom(sort_direction), String.to_atom(current_sort)}
     }
 
     {entries, pager_meta} = Scripts.filter(product, opts)
 
     socket
-    # |> assign(:current_sort, opts.sort)
-    # |> assign(:sort_direction, opts.sort_direction)
     |> assign(:scripts, entries)
     |> assign(:pager_meta, pager_meta)
   end

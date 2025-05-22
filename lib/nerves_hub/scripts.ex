@@ -4,11 +4,11 @@ defmodule NervesHub.Scripts do
   alias Ecto.Changeset
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.ProductTemplates
+  alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Scripts.Filtering
   alias NervesHub.Scripts.Script
-  alias NervesHub.Filtering, as: CommonFiltering
 
   alias NervesHub.Repo
 

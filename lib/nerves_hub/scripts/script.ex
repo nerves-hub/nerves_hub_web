@@ -5,6 +5,7 @@ defmodule NervesHub.Scripts.Script do
 
   alias NervesHub.Accounts.User
   alias NervesHub.Products.Product
+  alias NervesHub.Types.Tag
 
   @type t :: %__MODULE__{}
   @required [:name, :text]
@@ -17,7 +18,7 @@ defmodule NervesHub.Scripts.Script do
 
     field(:name, :string)
     field(:text, :string)
-    field(:tags, NervesHub.Types.Tag)
+    field(:tags, Tag)
 
     timestamps()
   end

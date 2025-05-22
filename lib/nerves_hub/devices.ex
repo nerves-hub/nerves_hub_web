@@ -24,6 +24,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Extensions
+  alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareMetadata
@@ -31,7 +32,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products
   alias NervesHub.Products.Product
-  alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
