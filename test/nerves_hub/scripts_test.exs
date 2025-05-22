@@ -99,25 +99,28 @@ defmodule NervesHub.ScriptsTest do
 
   describe "filter" do
     test "filter on tags", %{product: product, user: user} do
-      {:ok, with_tags} =
+      {:ok, script1} =
         Scripts.create(product, user, %{
           name: "MOTD",
           text: "NervesMOTD.print()",
-          tags: "red, green"
+          tags: "hello, world"
         })
 
-      {:ok, _without_tags} =
+      {:ok, _script} =
         Scripts.create(product, user, %{
           name: "Another script",
-          text: "Some code"
+          text: "Some code",
+          tags: "world"
         })
 
-      scripts = Scripts.get_by_product_and_tags(product, "red")
-      assert length(scripts) == 1
-
+      {scripts, _page} = Scripts.filter(product, %{filters: %{tags: "hello"}})
       [script] = scripts
-      assert script.name == with_tags.name
-      assert script.tags == with_tags.tags
+
+      assert script.name == script1.name
+      assert script.tags == script1.tags
+
+      {scripts, _page} = Scripts.filter(product, %{filters: %{tags: "world"}})
+      assert length(scripts) == 2
     end
   end
 end
