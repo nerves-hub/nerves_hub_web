@@ -4,30 +4,23 @@ defmodule NervesHub.Scripts do
   alias Ecto.Changeset
   alias NervesHub.Accounts.User
   alias NervesHub.AuditLogs.ProductTemplates
+  alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHub.Scripts.Filtering
   alias NervesHub.Scripts.Script
 
   alias NervesHub.Repo
 
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
-    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
-
-    sort = Map.get(opts, :sort, "name")
-    sort_direction = Map.get(opts, :sort_direction, "desc")
-
-    sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
-
-    flop = %Flop{
-      page: String.to_integer(Map.get(opts, :page, "1")),
-      page_size: String.to_integer(Map.get(opts, :page_size, "25"))
-    }
-
-    Script
-    |> where([f], f.product_id == ^product.id)
-    |> order_by(^sort_opts)
-    |> Flop.run(flop)
+    CommonFiltering.filter(
+      Script,
+      product,
+      opts,
+      &Filtering.build_filters/2,
+      &order_by(&1, ^&2)
+    )
   end
 
   def all_by_product(product) do

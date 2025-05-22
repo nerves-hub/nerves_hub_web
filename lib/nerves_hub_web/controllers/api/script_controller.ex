@@ -11,9 +11,24 @@ defmodule NervesHubWeb.API.ScriptController do
 
   operation(:index, summary: "List all Support Scripts for a Product")
 
-  def index(%{assigns: %{device: device}} = conn, _params) do
+  def index(%{assigns: %{device: device}} = conn, params) do
+    filters =
+      for {key, val} <- Map.get(params, "filters", %{}),
+          into: %{},
+          do: {String.to_existing_atom(key), val}
+
+    opts = %{
+      pagination: Map.get(params, "pagination", %{}),
+      filters: filters
+    }
+
+    {scripts, page} = Scripts.filter(device.product, opts)
+
+    pagination = Map.take(page, [:page_number, :page_size, :total_entries, :total_pages])
+
     conn
-    |> assign(:scripts, Scripts.all_by_product(device.product))
+    |> assign(:scripts, scripts)
+    |> assign(:pagination, pagination)
     |> render(:index)
   end
 
