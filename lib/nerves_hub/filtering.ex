@@ -15,8 +15,7 @@ defmodule NervesHub.Filtering do
     - opts: Map of options including:
       - sort: Tuple of {direction, field} for sorting
       - filters: Map of filters to apply
-      - page: Page number for pagination
-      - page_size: Number of items per page
+      - pagination: Map of pagination options
     - filter_builder: Function that takes (query, filters) and returns modified query
     - sorter: Function that takes (query, sort) and returns modified query
 

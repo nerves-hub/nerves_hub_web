@@ -8,13 +8,13 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.ManagedDeployments.Filtering
   alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.Products.Product
   alias NervesHub.Workers.FirmwareDeltaBuilder
-  alias NervesHub.Filtering, as: CommonFiltering
 
   alias NervesHub.Repo
 
