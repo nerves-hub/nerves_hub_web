@@ -31,6 +31,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products
   alias NervesHub.Products.Product
+  alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
 
@@ -135,36 +136,35 @@ defmodule NervesHub.Devices do
           total_count: non_neg_integer()
         }
   def filter(product, user, opts) do
-    pagination = Map.get(opts, :pagination, %{})
-    sorting = Map.get(opts, :sort, {:asc, :identifier})
-    filters = Map.get(opts, :filters, %{})
+    base_query =
+      Device
+      |> Repo.exclude_deleted()
+      |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+      |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
+      |> join(:left, [d, dc, dh], pd in PinnedDevice,
+        on: pd.device_id == d.id and pd.user_id == ^user.id,
+        as: :pinned
+      )
+      |> preload([latest_connection: lc], latest_connection: lc)
+      |> preload([latest_health: lh], latest_health: lh)
 
-    flop = %Flop{page: pagination.page, page_size: pagination.page_size}
+    {entries, meta} =
+      CommonFiltering.filter(
+        base_query,
+        product,
+        opts,
+        &Filtering.build_filters/2,
+        &sort_devices/2
+      )
 
-    Device
-    |> where([d], d.product_id == ^product.id)
-    |> Repo.exclude_deleted()
-    |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
-    |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
-    |> join(:left, [d, dc, dh], pd in PinnedDevice,
-      on: pd.device_id == d.id and pd.user_id == ^user.id,
-      as: :pinned
-    )
-    |> preload([latest_connection: lc], latest_connection: lc)
-    |> preload([latest_health: lh], latest_health: lh)
-    |> Filtering.build_filters(filters)
-    |> sort_devices(sorting)
-    |> Flop.run(flop)
-    |> then(fn {entries, meta} ->
-      meta
-      |> Map.take([
-        :current_page,
-        :page_size,
-        :total_pages,
-        :total_count
-      ])
-      |> Map.put(:entries, entries)
-    end)
+    meta
+    |> Map.take([
+      :current_page,
+      :page_size,
+      :total_pages,
+      :total_count
+    ])
+    |> Map.put(:entries, entries)
   end
 
   def get_minimal_device_location_by_product(product) do

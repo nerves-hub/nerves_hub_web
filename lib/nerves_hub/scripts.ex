@@ -8,26 +8,19 @@ defmodule NervesHub.Scripts do
   alias NervesHub.Products.Product
   alias NervesHub.Scripts.Filtering
   alias NervesHub.Scripts.Script
+  alias NervesHub.Filtering, as: CommonFiltering
 
   alias NervesHub.Repo
 
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
-    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
-
-    sorting = Map.get(opts, :sort, {:asc, :name})
-    filters = Map.get(opts, :filters, %{})
-
-    flop = %Flop{
-      page: Map.get(opts, :page, 1),
-      page_size: Map.get(opts, :page_size, 25)
-    }
-
-    Script
-    |> where([f], f.product_id == ^product.id)
-    |> Filtering.build_filters(filters)
-    |> order_by(^sorting)
-    |> Flop.run(flop)
+    CommonFiltering.filter(
+      Script,
+      product,
+      opts,
+      &Filtering.build_filters/2,
+      &order_by(&1, ^&2)
+    )
   end
 
   def all_by_product(product) do
