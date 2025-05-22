@@ -2,6 +2,7 @@ defmodule NervesHub.Filtering do
   @moduledoc """
   Common filtering functionality for NervesHub resources.
   """
+  alias NervesHub.Products.Product
 
   import Ecto.Query
 
@@ -18,16 +19,24 @@ defmodule NervesHub.Filtering do
       - page_size: Number of items per page
     - filter_builder: Function that takes (query, filters) and returns modified query
     - sorter: Function that takes (query, sort) and returns modified query
+
+  ## Returns
+    A tuple containing:
+    - List of entries matching the query
+    - Flop metadata containing pagination information
   """
+  @spec filter(Ecto.Query.t(), Product.t(), map(), function(), function()) ::
+          {[any()], Flop.Meta.t()}
   def filter(base_query, product, opts \\ %{}, filter_builder, sorter) do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
 
     sorting = Map.get(opts, :sort, {:asc, :name})
     filters = Map.get(opts, :filters, %{})
+    pagination = Map.get(opts, :pagination, %{})
 
     flop = %Flop{
-      page: Map.get(opts, :page, 1),
-      page_size: Map.get(opts, :page_size, 25)
+      page: Map.get(pagination, :page, 1),
+      page_size: Map.get(pagination, :page_size, 25)
     }
 
     base_query

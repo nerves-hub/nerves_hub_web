@@ -32,7 +32,7 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
   end
 
-  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  @spec filter(Product.t(), map()) :: {[DeploymentGroup.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
     subquery =
       Device

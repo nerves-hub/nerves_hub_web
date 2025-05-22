@@ -118,8 +118,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
     %{assigns: %{product: product, paginate_opts: paginate_opts}} = socket
 
     opts = %{
-      page: paginate_opts.page_number,
-      page_size: paginate_opts.page_size,
+      pagination: %{page: paginate_opts.page_number, page_size: paginate_opts.page_size},
       sort:
         {String.to_existing_atom(socket.assigns.sort_direction),
          String.to_atom(socket.assigns.current_sort)}
