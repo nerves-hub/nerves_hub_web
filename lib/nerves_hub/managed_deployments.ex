@@ -65,22 +65,26 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   defp sort_deployment_groups(query, {direction, :platform}) do
-    order_by(query, [_d, _dev, f], {^direction, f.platform})
+    order_by(query, [_d, _dev, f], [{direction_to_nulls_last(direction), f.platform}])
   end
 
   defp sort_deployment_groups(query, {direction, :architecture}) do
-    order_by(query, [_d, _dev, f], {^direction, f.architecture})
+    order_by(query, [_d, _dev, f], [{direction_to_nulls_last(direction), f.architecture}])
   end
 
   defp sort_deployment_groups(query, {direction, :device_count}) do
-    order_by(query, [_d, dev], {^direction, dev.device_count})
+    order_by(query, [_d, dev], [{direction_to_nulls_last(direction), dev.device_count}])
   end
 
   defp sort_deployment_groups(query, {direction, :firmware_version}) do
-    order_by(query, [_d, _dev, f], {^direction, f.version})
+    order_by(query, [_d, _dev, f], [{direction_to_nulls_last(direction), f.version}])
   end
 
   defp sort_deployment_groups(query, sort), do: order_by(query, ^sort)
+
+  # Helper to map :asc/:desc to :asc_nulls_last/:desc_nulls_last
+  defp direction_to_nulls_last(:asc), do: :asc_nulls_last
+  defp direction_to_nulls_last(:desc), do: :desc_nulls_last
 
   @spec get_deployment_groups_by_product(Product.t()) :: [DeploymentGroup.t()]
   def get_deployment_groups_by_product(%Product{id: product_id}) do
