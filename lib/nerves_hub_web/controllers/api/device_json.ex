@@ -36,7 +36,8 @@ defmodule NervesHubWeb.API.DeviceJSON do
       org_name: device.org.name,
       product_name: device.product.name,
       # deprecated
-      last_communication: connection_last_seen_at(device)
+      last_communication: connection_last_seen_at(device),
+      priority_updates: device.priority_updates
     }
   end
 

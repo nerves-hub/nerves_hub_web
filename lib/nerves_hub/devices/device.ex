@@ -29,7 +29,8 @@ defmodule NervesHub.Devices.Device do
     :deployment_id,
     :status,
     :first_seen_at,
-    :custom_location_coordinates
+    :custom_location_coordinates,
+    :priority_updates
   ]
   @required_params [:org_id, :product_id, :identifier]
 
@@ -69,6 +70,7 @@ defmodule NervesHub.Devices.Device do
     field(:updates_enabled, :boolean, default: true)
     field(:update_attempts, {:array, :utc_datetime}, default: [])
     field(:updates_blocked_until, :utc_datetime)
+    field(:priority_updates, :boolean, default: false)
 
     field(:deleted_at, :utc_datetime)
 

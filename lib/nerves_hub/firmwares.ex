@@ -304,8 +304,9 @@ defmodule NervesHub.Firmwares do
     {:ok, metadata}
   end
 
+  @spec metadata_from_device(map()) :: {:ok, FirmwareMetadata.t() | nil}
   def metadata_from_device(metadata) do
-    params = %{
+    metadata = %{
       uuid: Map.get(metadata, "nerves_fw_uuid"),
       architecture: Map.get(metadata, "nerves_fw_architecture"),
       platform: Map.get(metadata, "nerves_fw_platform"),
@@ -318,7 +319,25 @@ defmodule NervesHub.Firmwares do
       misc: Map.get(metadata, "nerves_fw_misc")
     }
 
-    metadata_or_firmware(params)
+    case FirmwareMetadata.changeset(%FirmwareMetadata{}, metadata).valid? do
+      true ->
+        {:ok, metadata}
+
+      false ->
+        case Map.get(metadata, :uuid) do
+          nil ->
+            {:ok, nil}
+
+          uuid ->
+            case get_firmware_by_uuid(uuid) do
+              nil ->
+                {:ok, nil}
+
+              firmware ->
+                metadata_from_firmware(firmware)
+            end
+        end
+    end
   end
 
   def create_firmware_transfer(params) do
@@ -474,29 +493,6 @@ defmodule NervesHub.Firmwares do
 
       _ ->
         params
-    end
-  end
-
-  @spec metadata_or_firmware(map()) :: {:ok, FirmwareMetadata.t() | nil}
-  def metadata_or_firmware(metadata) do
-    case FirmwareMetadata.changeset(%FirmwareMetadata{}, metadata).valid? do
-      true ->
-        {:ok, metadata}
-
-      false ->
-        case Map.get(metadata, :uuid) do
-          nil ->
-            {:ok, nil}
-
-          uuid ->
-            case get_firmware_by_uuid(uuid) do
-              nil ->
-                {:ok, nil}
-
-              firmware ->
-                metadata_from_firmware(firmware)
-            end
-        end
     end
   end
 

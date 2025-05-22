@@ -8,9 +8,11 @@ defmodule NervesHub.DevicesTest do
   alias NervesHub.Devices.CACertificate
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
+  alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Firmwares
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Products
 
   alias NervesHub.Repo
@@ -479,6 +481,14 @@ defmodule NervesHub.DevicesTest do
       assert deployment_group.current_updated_devices == 1
     end
 
+    test "reverts device.priority_updates to false", %{device: device} do
+      {:ok, device} = Devices.update_device(device, %{priority_updates: true})
+      assert device.priority_updates
+
+      {:ok, device} = Devices.firmware_update_successful(device)
+      refute device.priority_updates
+    end
+
     test "device updates successfully", %{device: device, deployment_group: deployment_group} do
       {:ok, device} = update_firmware_uuid(device, Ecto.UUID.generate())
 
@@ -678,6 +688,124 @@ defmodule NervesHub.DevicesTest do
 
       refute device.deployment_id
       assert_receive %{event: "devices/deployment-cleared"}
+    end
+  end
+
+  describe "available_for_update/2" do
+    test "when deployment_group.queue_management is set to FIFO", %{
+      deployment_group: deployment_group,
+      device: device1 = %{id: device1_id},
+      org: org,
+      product: product
+    } do
+      assert deployment_group.queue_management == :FIFO
+
+      device2 =
+        %{id: device2_id} =
+        Fixtures.device_fixture(org, product, deployment_group.firmware, %{priority_updates: true})
+
+      device3 =
+        %{id: device3_id} =
+        Fixtures.device_fixture(org, product, deployment_group.firmware, %{priority_updates: true})
+
+      device4 =
+        %{id: device4_id} =
+        Fixtures.device_fixture(org, product, deployment_group.firmware)
+
+      Enum.with_index([device1, device2, device3, device4], fn device, index ->
+        %{id: latest_connection_id} =
+          DeviceConnection.create_changeset(%{
+            product_id: product.id,
+            device_id: device.id,
+            established_at: DateTime.utc_now() |> DateTime.add(index + 1, :minute),
+            last_seen_at: DateTime.utc_now(),
+            status: :connected
+          })
+          |> Repo.insert!()
+
+        Device
+        |> where(id: ^device.id)
+        |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+        {:ok, device} =
+          Devices.update_firmware_metadata(
+            device,
+            Map.from_struct(%{
+              device.firmware_metadata
+              | uuid: UUIDv7.autogenerate()
+            })
+          )
+
+        {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
+      end)
+
+      assert [%{id: ^device2_id}, %{id: ^device3_id}, %{id: ^device1_id}, %{id: ^device4_id}] =
+               Devices.available_for_update(deployment_group, 10)
+    end
+
+    test "when deployment_group.queue_management is set to LIFO",
+         %{
+           deployment_group: deployment_group,
+           device: device1 = %{id: device1_id},
+           org: org,
+           product: product
+         } do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{
+          enable_priority_updates: true
+        })
+
+      {:ok, device1} = Devices.update_device(device1, %{first_seen_at: DateTime.utc_now()})
+
+      device2 =
+        %{id: device2_id} =
+        Fixtures.device_fixture(org, product, deployment_group.firmware, %{
+          priority_updates: true,
+          first_seen_at: DateTime.utc_now() |> DateTime.add(-1, :day)
+        })
+
+      device3 =
+        %{id: device3_id} =
+        Fixtures.device_fixture(org, product, deployment_group.firmware, %{
+          priority_updates: true,
+          first_seen_at: DateTime.utc_now() |> DateTime.add(-7, :day)
+        })
+
+      device4 =
+        %{id: device4_id} =
+        Fixtures.device_fixture(org, product, deployment_group.firmware, %{
+          first_seen_at: DateTime.utc_now() |> DateTime.add(-3, :day)
+        })
+
+      Enum.each([device1, device2, device3, device4], fn device ->
+        %{id: latest_connection_id} =
+          DeviceConnection.create_changeset(%{
+            product_id: product.id,
+            device_id: device.id,
+            established_at: DateTime.utc_now(),
+            last_seen_at: DateTime.utc_now(),
+            status: :connected
+          })
+          |> Repo.insert!()
+
+        Device
+        |> where(id: ^device.id)
+        |> Repo.update_all(set: [latest_connection_id: latest_connection_id])
+
+        {:ok, device} =
+          Devices.update_firmware_metadata(
+            device,
+            Map.from_struct(%{
+              device.firmware_metadata
+              | uuid: UUIDv7.autogenerate()
+            })
+          )
+
+        {:ok, _} = Devices.update_device(device, %{deployment_id: deployment_group.id})
+      end)
+
+      assert [%{id: ^device2_id}, %{id: ^device3_id}, %{id: ^device1_id}, %{id: ^device4_id}] =
+               Devices.available_for_update(%{deployment_group | queue_management: :LIFO}, 10)
     end
   end
 end
