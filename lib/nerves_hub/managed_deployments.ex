@@ -64,27 +64,44 @@ defmodule NervesHub.ManagedDeployments do
     |> Flop.run(flop)
   end
 
-  defp sort_deployment_groups(query, {direction, :platform}) do
-    order_by(query, [_d, _dev, f], [{direction_to_nulls_last(direction), f.platform}])
+  defp sort_deployment_groups(query, {:asc, :platform}) do
+    order_by(query, [_d, _dev, f], asc_nulls_last: f.platform)
   end
 
-  defp sort_deployment_groups(query, {direction, :architecture}) do
-    order_by(query, [_d, _dev, f], [{direction_to_nulls_last(direction), f.architecture}])
+  defp sort_deployment_groups(query, {:desc, :platform}) do
+    order_by(query, [_d, _dev, f], desc_nulls_last: f.platform)
   end
 
-  defp sort_deployment_groups(query, {direction, :device_count}) do
-    order_by(query, [_d, dev], [{direction_to_nulls_last(direction), dev.device_count}])
+  defp sort_deployment_groups(query, {:asc, :architecture}) do
+    order_by(query, [_d, _dev, f], asc_nulls_last: f.architecture)
   end
 
-  defp sort_deployment_groups(query, {direction, :firmware_version}) do
-    order_by(query, [_d, _dev, f], [{direction_to_nulls_last(direction), f.version}])
+  defp sort_deployment_groups(query, {:desc, :architecture}) do
+    order_by(query, [_d, _dev, f], desc_nulls_last: f.architecture)
+  end
+
+  defp sort_deployment_groups(query, {:asc, :device_count}) do
+    order_by(query, [_d, dev], asc_nulls_last: dev.device_count)
+  end
+
+  defp sort_deployment_groups(query, {:desc, :device_count}) do
+    order_by(query, [_d, dev], desc_nulls_last: dev.device_count)
+  end
+
+  defp sort_deployment_groups(query, {:asc, :firmware_version}) do
+    order_by(query, [_d, _dev, f], asc_nulls_last: f.version)
+  end
+
+  defp sort_deployment_groups(query, {:desc, :firmware_version}) do
+    order_by(query, [_d, _dev, f], desc_nulls_last: f.version)
   end
 
   defp sort_deployment_groups(query, sort), do: order_by(query, ^sort)
 
-  # Helper to map :asc/:desc to :asc_nulls_last/:desc_nulls_last
-  defp direction_to_nulls_last(:asc), do: :asc_nulls_last
-  defp direction_to_nulls_last(:desc), do: :desc_nulls_last
+  # This helper function is no longer used as we now pattern match on direction
+  # directly in the sort_deployment_groups function clauses
+  # defp direction_to_nulls_last(:asc), do: :asc_nulls_last
+  # defp direction_to_nulls_last(:desc), do: :desc_nulls_last
 
   @spec get_deployment_groups_by_product(Product.t()) :: [DeploymentGroup.t()]
   def get_deployment_groups_by_product(%Product{id: product_id}) do
