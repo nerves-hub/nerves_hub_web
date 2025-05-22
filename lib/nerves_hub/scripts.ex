@@ -15,22 +15,18 @@ defmodule NervesHub.Scripts do
   def filter(product, opts \\ %{}) do
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
 
-    sort = Map.get(opts, :sort, "name")
-    sort_direction = Map.get(opts, :sort_direction, "desc")
-
-    sort_opts = {String.to_existing_atom(sort_direction), String.to_atom(sort)}
-
+    sorting = Map.get(opts, :sort, {:asc, :name})
     filters = Map.get(opts, :filters, %{})
 
     flop = %Flop{
-      page: String.to_integer(Map.get(opts, :page, "1")),
-      page_size: String.to_integer(Map.get(opts, :page_size, "25"))
+      page: Map.get(opts, :page, 1),
+      page_size: Map.get(opts, :page_size, 25)
     }
 
     Script
     |> where([f], f.product_id == ^product.id)
     |> Filtering.build_filters(filters)
-    |> order_by(^sort_opts)
+    |> order_by(^sorting)
     |> Flop.run(flop)
   end
 
