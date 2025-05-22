@@ -35,6 +35,7 @@ defmodule NervesHub.Devices.DeviceCertificate do
     <<40, 117, 24, 41, 252, 84, 254, 212, 72, 54, 173, 127, 169, 9, 229, 111, 184, 184, 156, 115>>
   ]
 
+  @derive {Phoenix.Param, key: :serial}
   schema "device_certificates" do
     belongs_to(:device, Device)
     belongs_to(:org, Org, where: [deleted_at: nil])
