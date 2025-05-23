@@ -20,7 +20,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Edit do
     archives = Archives.all_by_product(deployment_group.product)
     firmwares = Firmwares.get_firmwares_for_deployment_group(deployment_group)
 
-    changeset = DeploymentGroup.changeset(deployment_group, %{}) |> tags_to_string()
+    changeset = DeploymentGroup.update_changeset(deployment_group, %{}) |> tags_to_string()
 
     socket
     |> assign(:archives, archives)
