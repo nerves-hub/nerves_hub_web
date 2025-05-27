@@ -29,14 +29,13 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
   @sort_types %{sort_direction: :string, sort: :string}
 
   @impl Phoenix.LiveView
-  def mount(unsigned_params, _session, socket) do
+  def mount(_params, _session, socket) do
     socket
     |> page_title("Support Scripts - #{socket.assigns.product.name}")
     |> assign(:paginate_opts, @default_pagination)
     |> assign(:sort_direction, @default_sorting.sort_direction)
     |> assign(:current_sort, @default_sorting.sort)
     |> sidebar_tab(:support_scripts)
-    |> assign(:params, unsigned_params)
     |> ok()
   end
 
@@ -142,9 +141,7 @@ defmodule NervesHubWeb.Live.SupportScripts.Index do
     sort = sort_changes(params)
 
     query =
-      params
-      |> Map.merge(pagination)
-      |> Map.merge(sort)
+      Map.merge(pagination, sort)
 
     ~p"/org/#{socket.assigns.org}/#{socket.assigns.product}/scripts?#{query}"
   end
