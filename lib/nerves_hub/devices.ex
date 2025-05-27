@@ -152,9 +152,9 @@ defmodule NervesHub.Devices do
       CommonFiltering.filter(
         base_query,
         product,
-        opts,
         &Filtering.build_filters/2,
-        &sort_devices/2
+        &sort_devices/2,
+        opts
       )
 
     meta

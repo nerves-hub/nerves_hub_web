@@ -53,9 +53,9 @@ defmodule NervesHub.ManagedDeployments do
     CommonFiltering.filter(
       base_query,
       product,
-      opts,
       &Filtering.build_filters/2,
-      &sort_deployment_groups/2
+      &sort_deployment_groups/2,
+      opts
     )
   end
 

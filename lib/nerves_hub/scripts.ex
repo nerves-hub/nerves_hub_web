@@ -15,13 +15,15 @@ defmodule NervesHub.Scripts do
   @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
     CommonFiltering.filter(
-      Script,
+      from(Script),
       product,
-      opts,
       &Filtering.build_filters/2,
-      &order_by(&1, ^&2)
+      &sort_scripts/2,
+      opts
     )
   end
+
+  defp sort_scripts(query, sort), do: order_by(query, ^sort)
 
   def all_by_product(product) do
     Script
