@@ -1220,7 +1220,7 @@ defmodule NervesHub.Devices do
       |> where([d], d.id in ^device_ids)
       |> where([d], d.firmware_metadata["platform"] == ^firmware.platform)
       |> where([d], d.firmware_metadata["architecture"] == ^firmware.architecture)
-      |> Repo.update_all(set: [deployment_id: id])
+      |> Repo.update_all([set: [deployment_id: id]], timeout: :infinity)
 
     :ok = Enum.each(device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
 
@@ -1249,7 +1249,7 @@ defmodule NervesHub.Devices do
       |> where([d], d.deployment_id == ^deployment_group.id)
       |> where([d], d.product_id == ^deployment_group.product_id)
       |> where([d], d.id not in ^matched_device_ids)
-      |> Repo.update_all(set: [deployment_id: nil])
+      |> Repo.update_all([set: [deployment_id: nil]], timeout: :infinity)
 
     :ok = Enum.each(matched_device_ids, &broadcast(%Device{id: &1}, "devices/updated"))
 
