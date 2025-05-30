@@ -308,4 +308,22 @@ defmodule NervesHubWeb.Live.NewUI.Devices.ShowTest do
       refute Repo.reload(device) |> Map.get(:updates_enabled)
     end
   end
+
+  test "enabling and disabling priority updates", %{
+    conn: conn,
+    org: org,
+    product: product,
+    device: device
+  } do
+    refute device.priority_updates
+
+    conn
+    |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}")
+    |> within("#toggle-priority-updates", fn session ->
+      session
+      |> check("Priority Updates")
+    end)
+
+    assert Repo.reload(device) |> Map.get(:priority_updates)
+  end
 end
