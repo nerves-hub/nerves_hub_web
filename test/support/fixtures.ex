@@ -227,7 +227,7 @@ defmodule NervesHub.Fixtures do
     {is_active, params} = Map.pop(params, :is_active, false)
 
     {:ok, deployment_group} =
-      %{org_id: org.id, firmware_id: firmware.id}
+      %{org_id: org.id, firmware_id: firmware.id, product_id: firmware.product_id}
       |> Enum.into(params)
       |> Enum.into(@deployment_group_params)
       |> ManagedDeployments.create_deployment_group()

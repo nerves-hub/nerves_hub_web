@@ -22,6 +22,7 @@ defmodule NervesHubWeb.API.DeploymentGroupControllerTest do
         org_id: context.org.id,
         firmware: firmware.uuid,
         firmware_id: firmware.id,
+        product_id: firmware.product_id,
         conditions: %{
           version: "",
           tags: ["test"]

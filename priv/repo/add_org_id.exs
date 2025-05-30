@@ -55,7 +55,7 @@ IO.puts "\n"
   from(d in Deployment, where: is_nil(d.org_id), preload: [:product])
   |> Repo.all()
   |> Enum.reduce({[], []}, fn deployment_group, {success, errors} ->
-    DeploymentGroup.creation_changeset(deployment_group, %{org_id: deployment_group.product.org_id})
+    DeploymentGroup.update_changeset(deployment_group, %{org_id: deployment_group.product.org_id})
     |> Repo.update()
     |> case do
       {:ok, deployment_group} ->
