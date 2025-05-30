@@ -8,6 +8,7 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
   alias NervesHub.ManagedDeployments.Filtering
@@ -31,19 +32,8 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
   end
 
-  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  @spec filter(Product.t(), map()) :: {[DeploymentGroup.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
-    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
-    pagination = Map.get(opts, :pagination, %{})
-    sorting = Map.get(opts, :sort, {:asc, :name})
-
-    filters = Map.get(opts, :filters, %{})
-
-    flop = %Flop{
-      page: pagination.page,
-      page_size: pagination.page_size
-    }
-
     subquery =
       Device
       |> select([d], %{
@@ -53,15 +43,20 @@ defmodule NervesHub.ManagedDeployments do
       |> Repo.exclude_deleted()
       |> group_by([d], d.deployment_id)
 
-    DeploymentGroup
-    |> join(:left, [d], dev in subquery(subquery), on: dev.deployment_id == d.id)
-    |> join(:left, [d], f in assoc(d, :firmware))
-    |> where([d], d.product_id == ^product.id)
-    |> Filtering.build_filters(filters)
-    |> sort_deployment_groups(sorting)
-    |> preload([_d, _dev, f], firmware: f)
-    |> select_merge([_f, dev], %{device_count: dev.device_count})
-    |> Flop.run(flop)
+    base_query =
+      DeploymentGroup
+      |> join(:left, [d], dev in subquery(subquery), on: dev.deployment_id == d.id)
+      |> join(:left, [d], f in assoc(d, :firmware))
+      |> preload([_d, _dev, f], firmware: f)
+      |> select_merge([_f, dev], %{device_count: dev.device_count})
+
+    CommonFiltering.filter(
+      base_query,
+      product,
+      &Filtering.build_filters/2,
+      &sort_deployment_groups/2,
+      opts
+    )
   end
 
   defp sort_deployment_groups(query, {direction, :platform}) do
