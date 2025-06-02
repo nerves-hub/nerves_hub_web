@@ -76,4 +76,7 @@ defmodule NervesHub.DeviceSSLTransport do
 
   @impl ThousandIsland.Transport
   defdelegate negotiated_protocol(socket), to: ThousandIsland.Transports.SSL
+
+  @impl ThousandIsland.Transport
+  defdelegate connection_information(socket), to: ThousandIsland.Transports.SSL
 end
