@@ -87,13 +87,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
   def create_changeset(%DeploymentGroup{} = deployment, params) do
     base_changeset(deployment, params)
-    |> validate_change(:is_active, fn :is_active, is_active ->
-      if is_active do
-        [is_active: "cannot be true on creation"]
-      else
-        []
-      end
-    end)
   end
 
   def update_changeset(%DeploymentGroup{} = deployment, params) do

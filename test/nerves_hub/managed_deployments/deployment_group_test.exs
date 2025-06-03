@@ -141,35 +141,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroupTest do
     end
   end
 
-  describe "create_changeset/2" do
-    setup do
-      deployment_group = %DeploymentGroup{
-        org_id: 1,
-        firmware_id: 1,
-        name: "Bestest Devices",
-        conditions: %{
-          "tags" => ["foo"],
-          "version" => "1.2.3"
-        },
-        product_id: 1,
-        concurrent_updates: 1000,
-        inflight_update_expiration_minutes: 10
-      }
-
-      %{deployment_group: deployment_group}
-    end
-
-    test "is_active must be false", %{deployment_group: deployment_group} do
-      changeset =
-        DeploymentGroup.create_changeset(deployment_group, %{
-          is_active: true
-        })
-
-      refute changeset.valid?
-      assert errors_on(changeset).is_active == ["cannot be true on creation"]
-    end
-  end
-
   describe "update_changeset/2" do
     setup do
       Fixtures.standard_fixture()
