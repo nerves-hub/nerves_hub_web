@@ -121,6 +121,12 @@ defmodule NervesHub.ScriptsTest do
 
       {scripts, _page} = Scripts.filter(product, %{filters: %{tags: "world"}})
       assert length(scripts) == 2
+
+      {scripts, _page} = Scripts.filter(product, %{filters: %{tags: "world, hello"}})
+      [script] = scripts
+
+      assert script.name == script1.name
+      assert script.tags == script1.tags
     end
   end
 end
