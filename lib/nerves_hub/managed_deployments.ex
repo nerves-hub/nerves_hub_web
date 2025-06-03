@@ -11,7 +11,6 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
-  alias NervesHub.ManagedDeployments.Filtering
   alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.Products.Product
   alias NervesHub.Workers.FirmwareDeltaBuilder
@@ -53,29 +52,27 @@ defmodule NervesHub.ManagedDeployments do
     CommonFiltering.filter(
       base_query,
       product,
-      &Filtering.build_filters/2,
-      &sort_deployment_groups/2,
       opts
     )
   end
 
-  defp sort_deployment_groups(query, {direction, :platform}) do
+  def sort_deployment_groups(query, {direction, :platform}) do
     order_by(query, [_d, _dev, f], {^direction, f.platform})
   end
 
-  defp sort_deployment_groups(query, {direction, :architecture}) do
+  def sort_deployment_groups(query, {direction, :architecture}) do
     order_by(query, [_d, _dev, f], {^direction, f.architecture})
   end
 
-  defp sort_deployment_groups(query, {direction, :device_count}) do
+  def sort_deployment_groups(query, {direction, :device_count}) do
     order_by(query, [_d, dev], {^direction, dev.device_count})
   end
 
-  defp sort_deployment_groups(query, {direction, :firmware_version}) do
+  def sort_deployment_groups(query, {direction, :firmware_version}) do
     order_by(query, [_d, _dev, f], {^direction, f.version})
   end
 
-  defp sort_deployment_groups(query, sort), do: order_by(query, ^sort)
+  def sort_deployment_groups(query, sort), do: order_by(query, ^sort)
 
   @spec get_deployment_groups_by_product(Product.t()) :: [DeploymentGroup.t()]
   def get_deployment_groups_by_product(%Product{id: product_id}) do

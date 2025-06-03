@@ -18,7 +18,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceHealth
-  alias NervesHub.Devices.Filtering
+  alias NervesHub.Devices.Filtering, as: DeviceFiltering
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
@@ -104,7 +104,7 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p, dg, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
     |> Repo.exclude_deleted()
     |> sort_devices(sorting)
-    |> Filtering.build_filters(filters)
+    |> DeviceFiltering.build_filters(filters)
     |> preload([d, o, p, dg, f, latest_connection: lc, latest_health: lh],
       org: o,
       product: p,
@@ -152,8 +152,6 @@ defmodule NervesHub.Devices do
       CommonFiltering.filter(
         base_query,
         product,
-        &Filtering.build_filters/2,
-        &sort_devices/2,
         opts
       )
 
@@ -183,31 +181,31 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
-  defp sort_devices(query, {:asc, :connection_established_at}) do
+  def sort_devices(query, {:asc, :connection_established_at}) do
     order_by(query, [latest_connection: latest_connection],
       desc_nulls_last: latest_connection.established_at
     )
   end
 
-  defp sort_devices(query, {:desc, :connection_established_at}) do
+  def sort_devices(query, {:desc, :connection_established_at}) do
     order_by(query, [latest_connection: latest_connection],
       asc_nulls_first: latest_connection.established_at
     )
   end
 
-  defp sort_devices(query, {:asc, :connection_last_seen_at}) do
+  def sort_devices(query, {:asc, :connection_last_seen_at}) do
     order_by(query, [latest_connection: latest_connection],
       desc_nulls_last: latest_connection.last_seen_at
     )
   end
 
-  defp sort_devices(query, {:desc, :connection_last_seen_at}) do
+  def sort_devices(query, {:desc, :connection_last_seen_at}) do
     order_by(query, [latest_connection: latest_connection],
       asc_nulls_first: latest_connection.last_seen_at
     )
   end
 
-  defp sort_devices(query, sort), do: order_by(query, [], ^sort)
+  def sort_devices(query, sort), do: order_by(query, [], ^sort)
 
   def get_device_count_by_org_id(org_id) do
     q =

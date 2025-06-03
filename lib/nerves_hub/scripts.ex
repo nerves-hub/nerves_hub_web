@@ -7,7 +7,6 @@ defmodule NervesHub.Scripts do
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Products
   alias NervesHub.Products.Product
-  alias NervesHub.Scripts.Filtering
   alias NervesHub.Scripts.Script
 
   alias NervesHub.Repo
@@ -17,13 +16,11 @@ defmodule NervesHub.Scripts do
     CommonFiltering.filter(
       from(Script),
       product,
-      &Filtering.build_filters/2,
-      &sort_scripts/2,
       opts
     )
   end
 
-  defp sort_scripts(query, sort), do: order_by(query, ^sort)
+  def sort_scripts(query, sort), do: order_by(query, ^sort)
 
   def all_by_product(product) do
     Script

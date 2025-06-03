@@ -2,9 +2,12 @@ defmodule NervesHub.Filtering do
   @moduledoc """
   Common filtering functionality for NervesHub resources.
   """
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
+  alias NervesHub.Scripts
   alias NervesHub.Scripts.Script
 
   import Ecto.Query
@@ -15,8 +18,6 @@ defmodule NervesHub.Filtering do
   ## Parameters
     - base_query: The initial Ecto query to build upon
     - product: The product to filter by
-    - filter_builder: Function that takes (query, filters) and returns modified query
-    - sorter: Function that takes (query, sort) and returns modified query
     - opts: Map of options maybe including:
       - sort: Tuple of {direction, field} for sorting
       - filters: Map of filters to apply
@@ -27,9 +28,11 @@ defmodule NervesHub.Filtering do
     - List of entries matching the query
     - Flop metadata containing pagination information
   """
-  @spec filter(Ecto.Query.t(), Product.t(), function(), function(), map()) ::
+  @spec filter(Ecto.Query.t(), Product.t(), map()) ::
           {[%Device{}] | [%DeploymentGroup{}] | [%Script{}], Flop.Meta.t()}
-  def filter(base_query, product, filter_builder, sorter, opts \\ %{}) do
+  def filter(base_query, product, opts \\ %{}) do
+    %{filter_builder: filter_builder, sorter: sorter} = filter_config(base_query.from)
+
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
 
     sorting = Map.get(opts, :sort, {:asc, :name})
@@ -47,4 +50,22 @@ defmodule NervesHub.Filtering do
     |> sorter.(sorting)
     |> Flop.run(flop)
   end
+
+  defp filter_config(%{source: {_, Device}}),
+    do: %{
+      filter_builder: &Devices.Filtering.build_filters/2,
+      sorter: &Devices.sort_devices/2
+    }
+
+  defp filter_config(%{source: {_, DeploymentGroup}}),
+    do: %{
+      filter_builder: &ManagedDeployments.Filtering.build_filters/2,
+      sorter: &ManagedDeployments.sort_deployment_groups/2
+    }
+
+  defp filter_config(%{source: {_, Script}}),
+    do: %{
+      filter_builder: &Scripts.Filtering.build_filters/2,
+      sorter: &Scripts.sort_scripts/2
+    }
 end
