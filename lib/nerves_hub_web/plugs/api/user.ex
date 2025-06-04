@@ -20,9 +20,19 @@ defmodule NervesHubWeb.API.Plugs.AuthenticateUser do
 
   defp get_req_token(conn) do
     with [header] <- get_req_header(conn, "authorization"),
-         [scheme, token | _] = String.split(header, " "),
+         {scheme, token} <- get_scheme_and_token(header),
          true <- String.downcase(scheme) in ["token", "bearer"] do
       {:ok, token}
+    end
+  end
+
+  defp get_scheme_and_token(header) do
+    case String.split(header, " ") do
+      [scheme, token | _] ->
+        {scheme, token}
+
+      _ ->
+        :invalid_token_format
     end
   end
 end
