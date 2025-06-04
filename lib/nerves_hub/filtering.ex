@@ -2,13 +2,13 @@ defmodule NervesHub.Filtering do
   @moduledoc """
   Common filtering functionality for NervesHub resources.
   """
-  alias NervesHub.Devices.Filtering, as: DevicesFiltering
   alias NervesHub.Devices.Device
-  alias NervesHub.ManagedDeployments.Filtering, as: DeploymentsFiltering
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.ManagedDeployments.DeploymentGroup
+  alias NervesHub.ManagedDeployments.DeploymentGroupFiltering
   alias NervesHub.Products.Product
-  alias NervesHub.Scripts.Filtering, as: ScriptsFiltering
   alias NervesHub.Scripts.Script
+  alias NervesHub.Scripts.ScriptFiltering
 
   import Ecto.Query
 
@@ -29,10 +29,8 @@ defmodule NervesHub.Filtering do
     - Flop metadata containing pagination information
   """
   @spec filter(Ecto.Query.t(), Product.t(), map()) ::
-          {[%Device{}] | [%DeploymentGroup{}] | [%Script{}], Flop.Meta.t()}
+          {[Device.t()] | [DeploymentGroup.t()] | [Script.t()], Flop.Meta.t()}
   def filter(base_query, product, opts \\ %{}) do
-    %{filter_builder: filter_builder, sorter: sorter} = filter_config(base_query.from)
-
     opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
 
     sorting = Map.get(opts, :sort, {:asc, :name})
@@ -46,26 +44,25 @@ defmodule NervesHub.Filtering do
 
     base_query
     |> where([q], q.product_id == ^product.id)
-    |> filter_builder.(filters)
-    |> sorter.(sorting)
+    |> filter_and_sort(base_query.from, sorting, filters)
     |> Flop.run(flop)
   end
 
-  defp filter_config(%{source: {_, Device}}),
-    do: %{
-      filter_builder: &DevicesFiltering.build_filters/2,
-      sorter: &DevicesFiltering.sort_devices/2
-    }
+  defp filter_and_sort(query, %{source: {_, Device}}, sorting_opts, filter_opts) do
+    query
+    |> DeviceFiltering.sort(sorting_opts)
+    |> DeviceFiltering.build_filters(filter_opts)
+  end
 
-  defp filter_config(%{source: {_, DeploymentGroup}}),
-    do: %{
-      filter_builder: &DeploymentsFiltering.build_filters/2,
-      sorter: &DeploymentsFiltering.sort_deployment_groups/2
-    }
+  defp filter_and_sort(query, %{source: {_, DeploymentGroup}}, sorting_opts, filter_opts) do
+    query
+    |> DeploymentGroupFiltering.sort(sorting_opts)
+    |> DeploymentGroupFiltering.build_filters(filter_opts)
+  end
 
-  defp filter_config(%{source: {_, Script}}),
-    do: %{
-      filter_builder: &ScriptsFiltering.build_filters/2,
-      sorter: &ScriptsFiltering.sort_scripts/2
-    }
+  defp filter_and_sort(query, %{source: {_, Script}}, sorting_opts, filter_opts) do
+    query
+    |> ScriptFiltering.sort(sorting_opts)
+    |> ScriptFiltering.build_filters(filter_opts)
+  end
 end

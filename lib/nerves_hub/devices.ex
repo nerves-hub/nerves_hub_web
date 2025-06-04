@@ -17,8 +17,8 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceHealth
-  alias NervesHub.Devices.Filtering, as: DeviceFiltering
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
@@ -103,7 +103,7 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p, dg, f], lc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, o, p, dg, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
     |> Repo.exclude_deleted()
-    |> DeviceFiltering.sort_devices(sorting)
+    |> DeviceFiltering.sort(sorting)
     |> DeviceFiltering.build_filters(filters)
     |> preload([d, o, p, dg, f, latest_connection: lc, latest_health: lh],
       org: o,
