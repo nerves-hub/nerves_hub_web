@@ -103,7 +103,7 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p, dg, f], lc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, o, p, dg, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
     |> Repo.exclude_deleted()
-    |> sort_devices(sorting)
+    |> DeviceFiltering.sort_devices(sorting)
     |> DeviceFiltering.build_filters(filters)
     |> preload([d, o, p, dg, f, latest_connection: lc, latest_health: lh],
       org: o,
@@ -180,32 +180,6 @@ defmodule NervesHub.Devices do
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
-
-  def sort_devices(query, {:asc, :connection_established_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      desc_nulls_last: latest_connection.established_at
-    )
-  end
-
-  def sort_devices(query, {:desc, :connection_established_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      asc_nulls_first: latest_connection.established_at
-    )
-  end
-
-  def sort_devices(query, {:asc, :connection_last_seen_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      desc_nulls_last: latest_connection.last_seen_at
-    )
-  end
-
-  def sort_devices(query, {:desc, :connection_last_seen_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      asc_nulls_first: latest_connection.last_seen_at
-    )
-  end
-
-  def sort_devices(query, sort), do: order_by(query, [], ^sort)
 
   def get_device_count_by_org_id(org_id) do
     q =

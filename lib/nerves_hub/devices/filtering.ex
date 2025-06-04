@@ -1,6 +1,6 @@
 defmodule NervesHub.Devices.Filtering do
   @moduledoc """
-  Encapsulates all device filtering logic
+  Encapsulates all device filtering and sorting logic
   """
 
   import Ecto.Query
@@ -145,6 +145,33 @@ defmodule NervesHub.Devices.Filtering do
   def filter(query, _filters, _key, _value) do
     query
   end
+
+  @spec sort_devices(Ecto.Query.t(), {atom(), atom()}) :: Ecto.Query.t()
+  def sort_devices(query, {:asc, :connection_established_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      desc_nulls_last: latest_connection.established_at
+    )
+  end
+
+  def sort_devices(query, {:desc, :connection_established_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      asc_nulls_first: latest_connection.established_at
+    )
+  end
+
+  def sort_devices(query, {:asc, :connection_last_seen_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      desc_nulls_last: latest_connection.last_seen_at
+    )
+  end
+
+  def sort_devices(query, {:desc, :connection_last_seen_at}) do
+    order_by(query, [latest_connection: latest_connection],
+      asc_nulls_first: latest_connection.last_seen_at
+    )
+  end
+
+  def sort_devices(query, sort), do: order_by(query, [], ^sort)
 
   defp build_tag_filter(query, value) do
     case Tag.cast(value) do

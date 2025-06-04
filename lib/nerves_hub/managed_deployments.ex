@@ -56,24 +56,6 @@ defmodule NervesHub.ManagedDeployments do
     )
   end
 
-  def sort_deployment_groups(query, {direction, :platform}) do
-    order_by(query, [_d, _dev, f], {^direction, f.platform})
-  end
-
-  def sort_deployment_groups(query, {direction, :architecture}) do
-    order_by(query, [_d, _dev, f], {^direction, f.architecture})
-  end
-
-  def sort_deployment_groups(query, {direction, :device_count}) do
-    order_by(query, [_d, dev], {^direction, dev.device_count})
-  end
-
-  def sort_deployment_groups(query, {direction, :firmware_version}) do
-    order_by(query, [_d, _dev, f], {^direction, f.version})
-  end
-
-  def sort_deployment_groups(query, sort), do: order_by(query, ^sort)
-
   @spec get_deployment_groups_by_product(Product.t()) :: [DeploymentGroup.t()]
   def get_deployment_groups_by_product(%Product{id: product_id}) do
     DeploymentGroup

@@ -1,6 +1,6 @@
 defmodule NervesHub.ManagedDeployments.Filtering do
   @moduledoc """
-  Encapsulates all deployment group filtering logic
+  Encapsulates all deployment group filtering and sorting logic
   """
   import Ecto.Query
 
@@ -51,4 +51,23 @@ defmodule NervesHub.ManagedDeployments.Filtering do
   def filter(query, _filters, _key, _value) do
     query
   end
+
+  @spec sort_deployment_groups(Ecto.Query.t(), {atom(), atom()}) :: Ecto.Query.t()
+  def sort_deployment_groups(query, {direction, :platform}) do
+    order_by(query, [_d, _dev, f], {^direction, f.platform})
+  end
+
+  def sort_deployment_groups(query, {direction, :architecture}) do
+    order_by(query, [_d, _dev, f], {^direction, f.architecture})
+  end
+
+  def sort_deployment_groups(query, {direction, :device_count}) do
+    order_by(query, [_d, dev], {^direction, dev.device_count})
+  end
+
+  def sort_deployment_groups(query, {direction, :firmware_version}) do
+    order_by(query, [_d, _dev, f], {^direction, f.version})
+  end
+
+  def sort_deployment_groups(query, sort), do: order_by(query, ^sort)
 end

@@ -2,12 +2,12 @@ defmodule NervesHub.Filtering do
   @moduledoc """
   Common filtering functionality for NervesHub resources.
   """
-  alias NervesHub.Devices
+  alias NervesHub.Devices.Filtering, as: DevicesFiltering
   alias NervesHub.Devices.Device
-  alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.Filtering, as: DeploymentsFiltering
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Products.Product
-  alias NervesHub.Scripts
+  alias NervesHub.Scripts.Filtering, as: ScriptsFiltering
   alias NervesHub.Scripts.Script
 
   import Ecto.Query
@@ -53,19 +53,19 @@ defmodule NervesHub.Filtering do
 
   defp filter_config(%{source: {_, Device}}),
     do: %{
-      filter_builder: &Devices.Filtering.build_filters/2,
-      sorter: &Devices.sort_devices/2
+      filter_builder: &DevicesFiltering.build_filters/2,
+      sorter: &DevicesFiltering.sort_devices/2
     }
 
   defp filter_config(%{source: {_, DeploymentGroup}}),
     do: %{
-      filter_builder: &ManagedDeployments.Filtering.build_filters/2,
-      sorter: &ManagedDeployments.sort_deployment_groups/2
+      filter_builder: &DeploymentsFiltering.build_filters/2,
+      sorter: &DeploymentsFiltering.sort_deployment_groups/2
     }
 
   defp filter_config(%{source: {_, Script}}),
     do: %{
-      filter_builder: &Scripts.Filtering.build_filters/2,
-      sorter: &Scripts.sort_scripts/2
+      filter_builder: &ScriptsFiltering.build_filters/2,
+      sorter: &ScriptsFiltering.sort_scripts/2
     }
 end

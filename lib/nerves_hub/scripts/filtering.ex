@@ -1,6 +1,6 @@
 defmodule NervesHub.Scripts.Filtering do
   @moduledoc """
-  Encapsulates all script filtering logic
+  Encapsulates all script filtering and sorting logic
   """
   import Ecto.Query
 
@@ -48,4 +48,7 @@ defmodule NervesHub.Scripts.Filtering do
   def filter(query, _filters, _key, _value) do
     query
   end
+
+  @spec sort_scripts(Ecto.Query.t(), {atom(), atom()}) :: Ecto.Query.t()
+  def sort_scripts(query, sort), do: order_by(query, ^sort)
 end
