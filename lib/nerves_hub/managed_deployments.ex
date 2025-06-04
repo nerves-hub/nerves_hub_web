@@ -252,7 +252,7 @@ defmodule NervesHub.ManagedDeployments do
         changeset =
           deployment_group
           |> DeploymentGroup.with_firmware()
-          |> DeploymentGroup.changeset(params)
+          |> DeploymentGroup.update_changeset(params)
           |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
 
         case Repo.update(changeset) do
@@ -363,7 +363,7 @@ defmodule NervesHub.ManagedDeployments do
 
   @spec create_deployment_group(map()) :: {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
   def create_deployment_group(params) do
-    changeset = DeploymentGroup.creation_changeset(%DeploymentGroup{}, params)
+    changeset = DeploymentGroup.create_changeset(%DeploymentGroup{}, params)
 
     case Repo.insert(changeset) do
       {:ok, deployment_group} ->

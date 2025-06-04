@@ -13,7 +13,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
   plug(:validate_role, [org: :manage] when action in [:create, :update, :delete])
   plug(:validate_role, [org: :view] when action in [:index, :show])
 
-  @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active]
+  @whitelist_fields [:name, :org_id, :firmware_id, :conditions, :is_active, :product_id]
 
   operation(:index, summary: "List all Deployment Groups for a Product")
 
@@ -33,6 +33,7 @@ defmodule NervesHubWeb.API.DeploymentGroupController do
         with {:ok, firmware} <- Firmwares.get_firmware_by_product_and_uuid(product, uuid),
              params <- Map.put(params, "firmware_id", firmware.id),
              params <- Map.put(params, "org_id", org.id),
+             params <- Map.put(params, "product_id", product.id),
              params <- whitelist(params, @whitelist_fields),
              {:ok, deployment_group} <- ManagedDeployments.create_deployment_group(params) do
           DeploymentGroupTemplates.audit_deployment_created(user, deployment_group)

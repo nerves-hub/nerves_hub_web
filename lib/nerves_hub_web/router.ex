@@ -386,7 +386,8 @@ defmodule NervesHubWeb.Router do
 
       live("/org/:org_name/:product_name/deployment_groups", Live.DeploymentGroups.Index)
       live("/org/:org_name/:product_name/deployments/new", Live.DeploymentGroups.New)
-      live("/org/:org_name/:product_name/deployments/newz", Live.DeploymentGroups.Newz)
+
+      live("/org/:org_name/:product_name/deployment_groups/newz", Live.DeploymentGroups.Newz)
 
       live(
         "/org/:org_name/:product_name/deployment_groups/:name",

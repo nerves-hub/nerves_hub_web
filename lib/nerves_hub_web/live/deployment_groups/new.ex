@@ -72,6 +72,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.New do
     |> Firmwares.get_firmware(params[:firmware_id])
     |> case do
       {:ok, firmware} ->
+        params = Map.put(params, :product_id, firmware.product_id)
         {firmware, ManagedDeployments.create_deployment_group(params)}
 
       {:error, :not_found} ->

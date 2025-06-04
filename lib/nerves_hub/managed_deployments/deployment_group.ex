@@ -85,52 +85,12 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     timestamps()
   end
 
-  def creation_changeset(%DeploymentGroup{} = deployment, params) do
-    # set product_id by getting it from firmware
-    with_product_id = handle_product_id(deployment, params)
-
-    deployment
-    |> cast(with_product_id, @required_fields ++ @optional_fields)
-    |> validate_required(@required_fields)
-    |> unique_constraint(:name, name: :deployments_product_id_name_index)
-    |> validate_change(:is_active, fn :is_active, is_active ->
-      creation_errors(:is_active, is_active)
-    end)
+  def create_changeset(%DeploymentGroup{} = deployment, params) do
+    base_changeset(deployment, params)
   end
 
-  defp creation_errors(:is_active, is_active) do
-    if is_active do
-      [is_active: "cannot be true on creation"]
-    else
-      []
-    end
-  end
-
-  defp handle_product_id(%DeploymentGroup{}, %{firmware: %Firmware{product_id: p_id}} = params) do
-    params |> Map.put(:product_id, p_id)
-  end
-
-  defp handle_product_id(%DeploymentGroup{firmware: %Firmware{product_id: p_id}}, params) do
-    params |> Map.put(:product_id, p_id)
-  end
-
-  defp handle_product_id(%DeploymentGroup{} = d, %{firmware_id: f_id} = params) do
-    handle_product_id(d, params |> Map.put(:firmware, Firmware |> Repo.get!(f_id)))
-  end
-
-  defp handle_product_id(%DeploymentGroup{firmware_id: nil}, params) do
-    params
-  end
-
-  defp handle_product_id(%DeploymentGroup{} = d, params) do
-    handle_product_id(d |> with_firmware(), params)
-  end
-
-  def changeset(%DeploymentGroup{} = deployment, params) do
-    deployment
-    |> cast(params, @required_fields ++ @optional_fields)
-    |> validate_required(@required_fields)
-    |> unique_constraint(:name, name: :deployments_product_id_name_index)
+  def update_changeset(%DeploymentGroup{} = deployment, params) do
+    base_changeset(deployment, params)
     |> prepare_changes(fn changeset ->
       if changeset.changes[:firmware_id] do
         put_change(changeset, :current_updated_devices, 0)
@@ -138,6 +98,13 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
         changeset
       end
     end)
+  end
+
+  defp base_changeset(%DeploymentGroup{} = deployment, params) do
+    deployment
+    |> cast(params, @required_fields ++ @optional_fields)
+    |> validate_required(@required_fields)
+    |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> validate_conditions()
   end
 
@@ -159,32 +126,44 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
 
   def with_product(query), do: preload(query, :product)
 
-  defp validate_conditions(changeset, _options \\ []) do
-    validate_change(changeset, :conditions, fn :conditions, conditions ->
-      types = %{tags: {:array, :string}, version: :string}
+  defp validate_conditions(changeset) do
+    validate_change(changeset, :conditions, fn
+      :conditions, conditions when conditions == %{} ->
+        [conditions: "can't be blank"]
 
-      version =
-        case Map.get(conditions, "version") do
-          "" -> nil
-          v -> v
-        end
+      :conditions, %{"version" => nil} ->
+        [version: "can't be blank"]
 
-      conditions = Map.put(conditions, "version", version)
+      :conditions, conditions ->
+        types = %{tags: {:array, :string}, version: :string}
+        # merge the new conditions with the existing ones so that we can
+        # update tags and version independently
+        conditions = Map.merge(changeset.data.conditions || %{}, conditions)
 
-      changeset =
-        {%{}, types}
-        |> cast(conditions, Map.keys(types))
-        |> validate_required([:tags])
-        |> validate_length(:tags, min: 1)
-        |> validate_change(:version, fn :version, version ->
-          if not is_nil(version) and Version.parse_requirement(version) == :error do
-            [version: "Must be valid Elixir version requirement string"]
-          else
-            []
-          end
-        end)
+        changeset =
+          {%{}, types}
+          # allow "" as valid value for `version`
+          |> cast(conditions, Map.keys(types), empty_values: [nil])
+          |> validate_required([:tags])
+          |> validate_change(
+            :version,
+            fn
+              :version, "" ->
+                []
 
-      changeset.errors
+              :version, nil ->
+                [version: "can't be nil"]
+
+              :version, version ->
+                if Version.parse_requirement(version) == :error do
+                  [version: "must be valid Elixir version requirement string"]
+                else
+                  []
+                end
+            end
+          )
+
+        changeset.errors
     end)
   end
 end
