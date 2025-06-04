@@ -668,6 +668,8 @@ defmodule NervesHub.Devices do
     |> Repo.all()
   end
 
+  @spec update_firmware_metadata(Device.t(), FirmwareMetadata.t() | nil) ::
+          {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def update_firmware_metadata(device, nil) do
     {:ok, device}
   end
@@ -677,6 +679,8 @@ defmodule NervesHub.Devices do
     update_device(device, %{firmware_metadata: metadata})
   end
 
+  @spec update_device(Device.t(), map(), broadcast: boolean()) ::
+          {:ok, Device.t()} | {:error, Ecto.Changeset.t()}
   def update_device(%Device{} = device, params, opts \\ []) do
     changeset = Device.changeset(device, params)
 
@@ -701,8 +705,13 @@ defmodule NervesHub.Devices do
   - not be running the same firmware version associated with the deployment
   - not in the penalty box (based on `updates_blocked_until`)
 
-  The list is ordered by current connection age. Devices that have been online longer
-  are updated first.
+  If the deployment group has `enable_priority_updates` set to false (the default),
+  devices are ordered by their `latest_connection`: devices connected the longest will
+  be updated first.
+
+  If the deployment group has `enable_priority_updates` set to true,
+  devices are ordered by most recently connected for the first time (`device.first_seen_at`),
+  then by `device.priority_updates`.
   """
   @spec available_for_update(DeploymentGroup.t(), non_neg_integer()) :: [Device.t()]
   def available_for_update(deployment_group, count) do
@@ -723,7 +732,21 @@ defmodule NervesHub.Devices do
     |> where([d, firmware: f], fragment("(? #>> '{\"uuid\"}') != ?", d.firmware_metadata, f.uuid))
     |> where([inflight_update: ifu], is_nil(ifu))
     |> where([d], is_nil(d.updates_blocked_until) or d.updates_blocked_until < ^now)
-    |> order_by([latest_connection: lc], asc: lc.established_at)
+    |> then(fn query ->
+      case deployment_group.queue_management do
+        :FIFO ->
+          order_by(query, [d, latest_connection: lc],
+            desc: d.priority_updates,
+            asc: lc.established_at
+          )
+
+        :LIFO ->
+          order_by(query, [d],
+            desc: d.priority_updates,
+            desc_nulls_last: d.first_seen_at
+          )
+      end
+    end)
     |> limit(^count)
     |> Repo.all()
   end
@@ -926,6 +949,7 @@ defmodule NervesHub.Devices do
     end
   end
 
+  @spec firmware_update_successful(Device.t()) :: {:ok, Device.t()} | {:error, Changeset.t()}
   def firmware_update_successful(device) do
     :telemetry.execute([:nerves_hub, :devices, :update, :successful], %{count: 1}, %{
       identifier: device.identifier,
@@ -957,6 +981,7 @@ defmodule NervesHub.Devices do
     |> Ecto.Changeset.change()
     |> Ecto.Changeset.put_change(:update_attempts, [])
     |> Ecto.Changeset.put_change(:updates_blocked_until, nil)
+    |> Ecto.Changeset.put_change(:priority_updates, false)
     |> Repo.update()
   end
 
