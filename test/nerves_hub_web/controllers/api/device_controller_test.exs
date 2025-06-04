@@ -753,7 +753,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         )
 
       NervesHub.Scripts.Runner
-      |> expect(:send, fn _, _ -> {:ok, "hello"} end)
+      |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
 
       conn
       |> post(path)
@@ -784,7 +784,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       |> assert_authorization_error(404)
     end
 
-    test "success, with short url", %{conn: conn, user: user, org: org} do
+    test "success, with short url ", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)
@@ -800,7 +800,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         )
 
       NervesHub.Scripts.Runner
-      |> expect(:send, fn _, _ -> {:ok, "hello"} end)
+      |> expect(:send, fn _, _, _ -> {:ok, "hello"} end)
 
       conn
       |> post(path)
