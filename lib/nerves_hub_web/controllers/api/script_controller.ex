@@ -20,10 +20,20 @@ defmodule NervesHubWeb.API.ScriptController do
   # This operation is defined in `NervesHubWeb.API.OpenAPI.DeviceControllerSpecs`
   operation(:send, false)
 
-  def send(%{assigns: %{device: device}} = conn, %{"id" => id}) do
+  def send(%{assigns: %{device: device}} = conn, %{"id" => id} = params) do
     with {:ok, command} <- Scripts.get(device.product, id),
-         {:ok, io} <- Scripts.Runner.send(device, command) do
+         {:ok, timeout} <- get_timeout_param(params),
+         {:ok, io} <- Scripts.Runner.send(device, command, timeout) do
       text(conn, io)
     end
   end
+
+  defp get_timeout_param(%{"timeout" => timeout}) do
+    case Integer.parse(timeout) do
+      {value, ""} -> {:ok, value}
+      _ -> {:error, "Invalid timeout value"}
+    end
+  end
+
+  defp get_timeout_param(_params), do: {:ok, 30_000}
 end
