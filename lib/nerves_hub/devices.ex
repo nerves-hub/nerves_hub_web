@@ -17,13 +17,14 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceCertificate
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.DeviceFiltering
   alias NervesHub.Devices.DeviceHealth
-  alias NervesHub.Devices.Filtering
   alias NervesHub.Devices.InflightUpdate
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.UpdatePayload
   alias NervesHub.Extensions
+  alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.FirmwareMetadata
@@ -102,8 +103,8 @@ defmodule NervesHub.Devices do
     |> join(:left, [d, o, p, dg, f], lc in assoc(d, :latest_connection), as: :latest_connection)
     |> join(:left, [d, o, p, dg, f, lc], lh in assoc(d, :latest_health), as: :latest_health)
     |> Repo.exclude_deleted()
-    |> sort_devices(sorting)
-    |> Filtering.build_filters(filters)
+    |> DeviceFiltering.sort(sorting)
+    |> DeviceFiltering.build_filters(filters)
     |> preload([d, o, p, dg, f, latest_connection: lc, latest_health: lh],
       org: o,
       product: p,
@@ -135,36 +136,33 @@ defmodule NervesHub.Devices do
           total_count: non_neg_integer()
         }
   def filter(product, user, opts) do
-    pagination = Map.get(opts, :pagination, %{})
-    sorting = Map.get(opts, :sort, {:asc, :identifier})
-    filters = Map.get(opts, :filters, %{})
+    base_query =
+      Device
+      |> Repo.exclude_deleted()
+      |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
+      |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
+      |> join(:left, [d, dc, dh], pd in PinnedDevice,
+        on: pd.device_id == d.id and pd.user_id == ^user.id,
+        as: :pinned
+      )
+      |> preload([latest_connection: lc], latest_connection: lc)
+      |> preload([latest_health: lh], latest_health: lh)
 
-    flop = %Flop{page: pagination.page, page_size: pagination.page_size}
+    {entries, meta} =
+      CommonFiltering.filter(
+        base_query,
+        product,
+        opts
+      )
 
-    Device
-    |> where([d], d.product_id == ^product.id)
-    |> Repo.exclude_deleted()
-    |> join(:left, [d], dc in assoc(d, :latest_connection), as: :latest_connection)
-    |> join(:left, [d, dc], dh in assoc(d, :latest_health), as: :latest_health)
-    |> join(:left, [d, dc, dh], pd in PinnedDevice,
-      on: pd.device_id == d.id and pd.user_id == ^user.id,
-      as: :pinned
-    )
-    |> preload([latest_connection: lc], latest_connection: lc)
-    |> preload([latest_health: lh], latest_health: lh)
-    |> Filtering.build_filters(filters)
-    |> sort_devices(sorting)
-    |> Flop.run(flop)
-    |> then(fn {entries, meta} ->
-      meta
-      |> Map.take([
-        :current_page,
-        :page_size,
-        :total_pages,
-        :total_count
-      ])
-      |> Map.put(:entries, entries)
-    end)
+    meta
+    |> Map.take([
+      :current_page,
+      :page_size,
+      :total_pages,
+      :total_count
+    ])
+    |> Map.put(:entries, entries)
   end
 
   def get_minimal_device_location_by_product(product) do
@@ -182,32 +180,6 @@ defmodule NervesHub.Devices do
     |> Repo.exclude_deleted()
     |> Repo.all()
   end
-
-  defp sort_devices(query, {:asc, :connection_established_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      desc_nulls_last: latest_connection.established_at
-    )
-  end
-
-  defp sort_devices(query, {:desc, :connection_established_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      asc_nulls_first: latest_connection.established_at
-    )
-  end
-
-  defp sort_devices(query, {:asc, :connection_last_seen_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      desc_nulls_last: latest_connection.last_seen_at
-    )
-  end
-
-  defp sort_devices(query, {:desc, :connection_last_seen_at}) do
-    order_by(query, [latest_connection: latest_connection],
-      asc_nulls_first: latest_connection.last_seen_at
-    )
-  end
-
-  defp sort_devices(query, sort), do: order_by(query, [], ^sort)
 
   def get_device_count_by_org_id(org_id) do
     q =

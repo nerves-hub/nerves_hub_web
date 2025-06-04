@@ -19,5 +19,21 @@ defmodule NervesHubWeb.API.ScriptControllerTest do
       assert Enum.count(data) == 1
       assert script_response["id"] == script.id
     end
+
+    test "list scripts with tag", %{conn: conn, product: product, device: device, user: user} do
+      _script = Fixtures.support_script_fixture(product, user)
+      script_with_tags = Fixtures.support_script_fixture(product, user, %{tags: "hello,world"})
+
+      # Assert no filters returns both scripts
+      conn = get(conn, Routes.api_script_path(conn, :index, device))
+      data = json_response(conn, 200)["data"]
+      assert Enum.count(data) == 2
+
+      # Assert filtering on tag returns tagged script
+      conn = get(conn, Routes.api_script_path(conn, :index, device), %{filters: %{tags: "hello"}})
+      data = [script_response] = json_response(conn, 200)["data"]
+      assert Enum.count(data) == 1
+      assert script_response["id"] == script_with_tags.id
+    end
   end
 end

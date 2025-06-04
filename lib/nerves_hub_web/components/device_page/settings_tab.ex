@@ -70,7 +70,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
               <.input field={@settings_form[:description]} label="Description" placeholder="eg. sensor hub at customer X" />
 
-              <.input field={@settings_form[:tags]} value={tags_to_string(@settings_form[:tags])} label="Tags" placeholder="eg. batch-123" />
+              <.input field={@settings_form[:tags]} value={Utils.tags_to_string(@settings_form[:tags])} label="Tags" placeholder="eg. batch-123" />
             </div>
 
             <div class="w-1/2 flex flex-col gap-2">
@@ -465,12 +465,4 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         into: %{},
         do: {extension, Extensions.module(extension).description()}
   end
-
-  defp tags_to_string(%Phoenix.HTML.FormField{} = field) do
-    tags_to_string(field.value)
-  end
-
-  defp tags_to_string(%{tags: tags}), do: tags_to_string(tags)
-  defp tags_to_string(tags) when is_list(tags), do: Enum.join(tags, ", ")
-  defp tags_to_string(tags), do: tags
 end

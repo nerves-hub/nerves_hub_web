@@ -15,7 +15,7 @@ defmodule NervesHub.ScriptsTest do
   end
 
   describe "creating a script" do
-    test "successful", %{product: product, user: user} do
+    test "create script without tags", %{product: product, user: user} do
       {:ok, script} =
         Scripts.create(product, user, %{
           name: "MOTD",
@@ -24,6 +24,19 @@ defmodule NervesHub.ScriptsTest do
 
       assert script.product_id == product.id
       assert script.created_by_id == user.id
+    end
+
+    test "create script with tags", %{product: product, user: user} do
+      {:ok, script} =
+        Scripts.create(product, user, %{
+          name: "MOTD",
+          text: "NervesMOTD.print()",
+          tags: "red, green"
+        })
+
+      assert script.product_id == product.id
+      assert script.created_by_id == user.id
+      assert script.tags == ["red", "green"]
     end
   end
 
@@ -36,9 +49,10 @@ defmodule NervesHub.ScriptsTest do
         })
 
       {:ok, script} =
-        Scripts.update(script, user, %{name: "New Name"})
+        Scripts.update(script, user, %{name: "New Name", tags: "foo,bar"})
 
       assert script.name == "New Name"
+      assert script.tags == ["foo", "bar"]
       assert script.last_updated_by_id == user.id
     end
 
@@ -80,6 +94,39 @@ defmodule NervesHub.ScriptsTest do
       script = Scripts.get!(script.id)
       assert script.created_by_id == nil
       assert script.last_updated_by_id == nil
+    end
+  end
+
+  describe "filter" do
+    test "filter on tags", %{product: product, user: user} do
+      {:ok, script1} =
+        Scripts.create(product, user, %{
+          name: "MOTD",
+          text: "NervesMOTD.print()",
+          tags: "hello, world"
+        })
+
+      {:ok, _script} =
+        Scripts.create(product, user, %{
+          name: "Another script",
+          text: "Some code",
+          tags: "world"
+        })
+
+      {scripts, _page} = Scripts.filter(product, %{filters: %{tags: "hello"}})
+      [script] = scripts
+
+      assert script.name == script1.name
+      assert script.tags == script1.tags
+
+      {scripts, _page} = Scripts.filter(product, %{filters: %{tags: "world"}})
+      assert length(scripts) == 2
+
+      {scripts, _page} = Scripts.filter(product, %{filters: %{tags: "world, hello"}})
+      [script] = scripts
+
+      assert script.name == script1.name
+      assert script.tags == script1.tags
     end
   end
 end

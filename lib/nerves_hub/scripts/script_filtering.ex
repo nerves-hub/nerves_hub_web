@@ -1,8 +1,10 @@
-defmodule NervesHub.ManagedDeployments.Filtering do
+defmodule NervesHub.Scripts.ScriptFiltering do
   @moduledoc """
-  Encapsulates all deployment group filtering logic
+  Encapsulates all script filtering and sorting logic
   """
   import Ecto.Query
+
+  alias NervesHub.Types.Tag
 
   @spec build_filters(Ecto.Query.t(), %{optional(atom) => String.t()}) :: Ecto.Query.t()
   def build_filters(query, filters) do
@@ -22,28 +24,23 @@ defmodule NervesHub.ManagedDeployments.Filtering do
   end
 
   def filter(query, _filters, :name, value) do
-    where(query, [d], ilike(d.name, ^"%#{value}%"))
+    where(query, [s], ilike(s.name, ^"%#{value}%"))
   end
 
-  def filter(query, _filters, :platform, value) do
-    where(query, [_d, _dev, f], f.platform == ^value)
-  end
+  def filter(query, _filters, :tags, value) do
+    case Tag.cast(value) do
+      {:ok, tags} ->
+        Enum.reduce(tags, query, fn tag, query ->
+          where(
+            query,
+            [s],
+            fragment("string_array_to_string(?, ' ', ' ') ILIKE ?", s.tags, ^"%#{tag}%")
+          )
+        end)
 
-  def filter(query, _filters, :architecture, value) do
-    where(query, [_d, _dev, f], f.architecture == ^value)
-  end
-
-  def filter(query, _filters, :search, value) when is_binary(value) and value != "" do
-    search_term = "%#{value}%"
-
-    query
-    |> where(
-      [d, _dev, f],
-      ilike(d.name, ^search_term) or
-        ilike(f.platform, ^search_term) or
-        ilike(f.architecture, ^search_term) or
-        ilike(fragment(" COALESCE(?->>'tags', '')", d.conditions), ^search_term)
-    )
+      {:error, _} ->
+        query
+    end
   end
 
   # Ignore any undefined filter.
@@ -51,4 +48,7 @@ defmodule NervesHub.ManagedDeployments.Filtering do
   def filter(query, _filters, _key, _value) do
     query
   end
+
+  @spec sort(Ecto.Query.t(), {atom(), atom()}) :: Ecto.Query.t()
+  def sort(query, sort), do: order_by(query, ^sort)
 end

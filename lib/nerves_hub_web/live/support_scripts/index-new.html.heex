@@ -35,6 +35,9 @@
           <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
             <Sorting.sort_icon text="Added on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
           </th>
+          <th>
+            Tags
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -44,9 +47,17 @@
               {script.name}
             </.link>
           </td>
-
           <td>
             {Calendar.strftime(script.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}
+          </td>
+          <td>
+            <div class="flex items-center gap-[4px] text-nowrap">
+              <%= if !is_nil(script.tags) do %>
+                <%= for tag <- script.tags do %>
+                  <span class="tag">{tag}</span>
+                <% end %>
+              <% end %>
+            </div>
           </td>
         </tr>
       </tbody>
