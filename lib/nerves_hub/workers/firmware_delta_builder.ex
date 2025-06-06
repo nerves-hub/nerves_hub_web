@@ -7,6 +7,7 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
       states: [:available, :scheduled, :executing]
     ]
 
+  require Logger
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
 
@@ -15,7 +16,17 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
     source = Firmwares.get_firmware!(source_id)
     target = Firmwares.get_firmware!(target_id)
 
-    {:ok, _firmware_delta} = maybe_create_firmware_delta(source, target)
+    Logger.metadata(
+      product_id: source.product_id,
+      source_firmware: source.uuid,
+      target_firmware: target.uuid
+    )
+
+    Logger.info(
+      "Attempting firmware delta build for #{source.platform} #{source.version} to #{target.version}..."
+    )
+
+    :ok = maybe_create_firmware_delta(source, target)
 
     Enum.each(ManagedDeployments.get_deployment_groups_by_firmware(target_id), fn deployment ->
       ManagedDeployments.broadcast(deployment, "deployments/update")
@@ -35,11 +46,11 @@ defmodule NervesHub.Workers.FirmwareDeltaBuilder do
 
   defp maybe_create_firmware_delta(source, target) do
     case Firmwares.get_firmware_delta_by_source_and_target(source, target) do
-      {:ok, firmware_delta} ->
-        {:ok, firmware_delta}
+      {:ok, _} ->
+        :ok
 
       {:error, :not_found} ->
-        {:ok, _firmware_delta} = Firmwares.create_firmware_delta(source, target)
+        :ok = Firmwares.create_firmware_delta(source, target)
     end
   end
 end

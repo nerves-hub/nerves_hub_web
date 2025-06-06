@@ -119,6 +119,24 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
+  @spec get_deployment_group_for_update(Device.t()) ::
+          {:ok, DeploymentGroup.t()} | {:error, :not_found}
+  def get_deployment_group_for_update(%Device{deployment_id: deployment_id}) do
+    DeploymentGroup
+    |> where([d], d.id == ^deployment_id)
+    |> join(:left, [d], f in assoc(d, :firmware))
+    |> preload([d, f], firmware: f)
+    |> preload(:product)
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:error, :not_found}
+
+      deployment_group ->
+        {:ok, deployment_group}
+    end
+  end
+
   @spec get_deployment_group(Product.t(), String.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get_deployment_group(%Product{id: product_id}, deployment_id) do
@@ -324,7 +342,7 @@ defmodule NervesHub.ManagedDeployments do
 
   defp maybe_trigger_delta_generation(deployment_group, changeset) do
     # Firmware changed on active deployment
-    if deployment_group.is_active and Map.has_key?(changeset.changes, :firmware_id) do
+    if Map.has_key?(changeset.changes, :firmware_id) do
       deployment_group = Repo.preload(deployment_group, :product, force: true)
 
       if deployment_group.product.delta_updatable do

@@ -11,6 +11,6 @@ Mimic.copy(NervesHub.Scripts.Runner)
 Mimic.copy(Sentry)
 Mimic.copy(Ueberauth)
 
-ExUnit.start(capture_log: true, exclude: [:pending])
+ExUnit.start(capture_log: true, exclude: [:pending, :mtools])
 
 Ecto.Adapters.SQL.Sandbox.mode(NervesHub.Repo, :manual)

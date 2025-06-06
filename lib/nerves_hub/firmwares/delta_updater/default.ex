@@ -68,55 +68,67 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
     {_, 0} = System.cmd("unzip", ["-qq", source_path, "-d", source_work_dir], env: [])
     {_, 0} = System.cmd("unzip", ["-qq", target_path, "-d", target_work_dir], env: [])
 
-    _ =
-      for absolute <- Path.wildcard(target_work_dir <> "/**"), not File.dir?(absolute) do
-        path = Path.relative_to(absolute, target_work_dir)
+    {:ok, deltas} = Confuse.Fwup.get_delta_files(Path.join(target_work_dir, "meta.conf"))
 
-        _ =
-          if String.starts_with?(path, "meta.") do
-            File.cp!(Path.join(target_work_dir, path), Path.join(output_work_dir, path))
-          else
-            output_path = Path.join(output_work_dir, path)
+    all_delta_files =
+      Enum.flat_map(deltas, fn {_k, files} ->
+        files
+      end)
+      |> Enum.uniq()
 
-            output_path
-            |> Path.dirname()
-            |> File.mkdir_p!()
+    if all_delta_files == [] do
+      {:error, :no_delta_support_in_firmware}
+    else
+      _ =
+        for absolute <- Path.wildcard(target_work_dir <> "/**"), not File.dir?(absolute) do
+          path = Path.relative_to(absolute, target_work_dir)
 
-            source_filepath = Path.join(source_work_dir, path)
-            target_filepath = Path.join(target_work_dir, path)
+          output_path = Path.join(output_work_dir, path)
 
-            case File.stat(source_filepath) do
-              {:ok, _} ->
-                args = [
-                  "-A",
-                  "-S",
-                  "-f",
-                  "-s",
-                  source_filepath,
-                  target_filepath,
-                  output_path
-                ]
+          output_path
+          |> Path.dirname()
+          |> File.mkdir_p!()
 
-                {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true, env: [])
+          _ =
+            if String.starts_with?(path, "meta.") or path not in all_delta_files do
+              File.cp!(Path.join(target_work_dir, path), Path.join(output_work_dir, path))
+            else
+              source_filepath = Path.join(source_work_dir, path)
+              target_filepath = Path.join(target_work_dir, path)
 
-              {:error, :enoent} ->
-                File.cp!(target_filepath, output_path)
+              case File.stat(source_filepath) do
+                {:ok, _} ->
+                  args = [
+                    "-A",
+                    "-S",
+                    "-f",
+                    "-s",
+                    source_filepath,
+                    target_filepath,
+                    output_path
+                  ]
+
+                  {_, 0} = System.cmd("xdelta3", args, stderr_to_stdout: true, env: [])
+
+                {:error, :enoent} ->
+                  File.cp!(target_filepath, output_path)
+              end
             end
-          end
-      end
+        end
 
-    # firmware archive files order matters:
-    # 1. meta.conf.ed25519 (optional)
-    # 2. meta.conf
-    # 3. other...
-    [
-      "meta.conf.*",
-      "meta.conf",
-      "data"
-    ]
-    |> Enum.each(&add_to_zip(&1, output_work_dir, output_path))
+      # firmware archive files order matters:
+      # 1. meta.conf.ed25519 (optional)
+      # 2. meta.conf
+      # 3. other...
+      [
+        "meta.conf.*",
+        "meta.conf",
+        "data"
+      ]
+      |> Enum.each(&add_to_zip(&1, output_work_dir, output_path))
 
-    output_path
+      {:ok, output_path}
+    end
   end
 
   defp add_to_zip(glob, workdir, output) do

@@ -760,11 +760,16 @@ defmodule NervesHub.Devices do
   def resolve_update(%{deployment_id: nil}), do: %UpdatePayload{update_available: false}
 
   def resolve_update(device) do
-    {:ok, deployment_group} = ManagedDeployments.get_deployment_group_for_device(device)
+    Logger.metadata(device_id: device.id)
+    {:ok, deployment_group} = ManagedDeployments.get_deployment_group_for_update(device)
+    do_resolve_update(device, deployment_group)
+  end
 
+  def do_resolve_update(device, deployment_group) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
-        {:ok, url} = Firmwares.get_firmware_url(deployment_group.firmware)
+        {:ok, url} = get_delta_or_firmware_url(device.firmware_metadata.uuid, deployment_group)
+
         {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
 
         %UpdatePayload{
@@ -1636,16 +1641,10 @@ defmodule NervesHub.Devices do
   end
 
   defp broadcast_update_request(device_id, inflight_update, deployment_group) do
-    {:ok, url} = Firmwares.get_firmware_url(deployment_group.firmware)
-    {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
-
-    update_payload = %UpdatePayload{
-      update_available: true,
-      firmware_url: url,
-      firmware_meta: meta,
-      deployment_group: deployment_group,
-      deployment_id: deployment_group.id
-    }
+    Logger.metadata(device_id: device_id)
+    deployment_group = Repo.preload(deployment_group, :product)
+    device = get_device(device_id)
+    update_payload = do_resolve_update(device, deployment_group)
 
     payload = %{inflight_update: inflight_update, update_payload: update_payload}
 
@@ -1715,5 +1714,59 @@ defmodule NervesHub.Devices do
     |> where([p], p.user_id == ^user_id)
     |> where([p], p.device_id in subquery(sub))
     |> Repo.delete_all()
+  end
+
+  @doc """
+  Get firmware or delta update URL.
+  """
+  @spec get_delta_or_firmware_url(String.t(), Firmware.t() | DeploymentGroup.t()) ::
+          {:ok, String.t()} | {:error, :failure}
+  def get_delta_or_firmware_url(device_firmware_uuid, %DeploymentGroup{
+        product: %{delta_updatable: true},
+        firmware: target_firmware
+      }) do
+    # Get firmware delta URL if available but otherwise deliver full firmware
+    with %Firmware{} = device_firmware <- Firmwares.get_firmware_by_uuid(device_firmware_uuid),
+         {:ok, firmware_delta} <-
+           Firmwares.get_firmware_delta_by_source_and_target(device_firmware, target_firmware) do
+      Logger.info(
+        "Delivering firmware delta between #{device_firmware_uuid} and #{target_firmware.uuid}...",
+        from_firmware: device_firmware.uuid,
+        to_firmware: target_firmware.uuid,
+        delta: firmware_delta.id
+      )
+
+      Firmwares.get_firmware_url(firmware_delta)
+    else
+      _ ->
+        # When a resolve has been triggered, even with delta support on
+        # it is best to deliver a firmware even if we can't get a delta.
+        # This could be typical for some manual deployments.
+        Logger.info(
+          "Delivering full firmware between #{device_firmware_uuid} and #{target_firmware.uuid}...",
+          source_firmware: device_firmware_uuid,
+          _firmware: target_firmware.uuid
+        )
+
+        Firmwares.get_firmware_url(target_firmware)
+    end
+  end
+
+  def get_delta_or_firmware_url(device_firmware_uuid, %DeploymentGroup{firmware: target_firmware}) do
+    Logger.info("Delivering full firmware #{target_firmware.uuid}...",
+      source_firmware: device_firmware_uuid,
+      target_firmware: target_firmware.uuid
+    )
+
+    Firmwares.get_firmware_url(target_firmware)
+  end
+
+  def get_delta_or_firmware_url(device_firmware_uuid, %Firmware{} = target_firmware) do
+    Logger.info("Delivering full firmware #{target_firmware.uuid}...",
+      source_firmware: device_firmware_uuid,
+      target_firmware: target_firmware.uuid
+    )
+
+    Firmwares.get_firmware_url(target_firmware)
   end
 end
