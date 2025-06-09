@@ -60,12 +60,6 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install cspell
-        run: npm install -g cspell
-
-      - name: Check spelling
-        run: cspell . --quiet
-
       - name: Set up Elixir
         id: beam
         uses: erlef/setup-beam@v1
@@ -114,6 +108,9 @@ jobs:
 
       - name: Check for unused dependencies
         run: mix deps.unlock --unused
+
+      - name: Check spelling
+        run: mix spellweaver.check
 
       - name: Run Credo (won't fail the build)
         run: mix credo --mute-exit-status
