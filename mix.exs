@@ -130,6 +130,7 @@ defmodule NervesHub.MixProject do
       {:postgrex, "~> 0.14"},
       {:sentry, "~> 10.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
+      {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},
       {:sweet_xml, "~> 0.6"},
       {:swoosh, "~> 1.12"},
       {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},

@@ -57,12 +57,6 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install cspell
-        run: npm install -g cspell
-
-      - name: Check spelling
-        run: cspell . --quiet
-
       - name: Set up Elixir
         id: beam
         uses: erlef/setup-beam@v1
