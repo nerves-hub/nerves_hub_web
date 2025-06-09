@@ -163,7 +163,13 @@ defmodule NervesHub.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       "ecto.migrate.reset": ["ecto.drop", "ecto.create", "ecto.migrate"],
       "ecto.migrate.redo": ["ecto.rollback", "ecto.migrate"],
-      test: ["ecto.create --quiet", "ecto.migrate", "test"]
+      test: ["ecto.create --quiet", "ecto.migrate", "test"],
+      check: [
+        "compile --warnings-as-errors",
+        "format --check-formatted",
+        "spellweaver.check",
+        "deps.unlock --check-unused"
+      ]
     ]
   end
 

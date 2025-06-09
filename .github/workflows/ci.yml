@@ -106,6 +106,9 @@ jobs:
       - name: Check for unused dependencies
         run: mix deps.unlock --unused
 
+      - name: Check spelling
+        run: mix spellweaver.check
+
       - name: Run Credo (won't fail the build)
         run: mix credo --mute-exit-status
 
