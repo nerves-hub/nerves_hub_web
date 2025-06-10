@@ -2,7 +2,7 @@ defmodule NervesHub.AnalyticsRepo.Migrations.CreateUpdateStat do
   use Ecto.Migration
 
   def change do
-    create table(:device_stats,
+    create table(:update_stats,
              primary_key: false,
              engine: "MergeTree",
              options: [

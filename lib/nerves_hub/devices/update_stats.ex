@@ -5,10 +5,13 @@ defmodule NervesHub.Devices.UpdateStats do
 
   alias NervesHub.AnalyticsRepo
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.Devices.UpdateStat
 
   import Ecto.Query
+
+  @types [:fwup_full, :fwup_delta]
 
   @spec stats_by_device(Device.t()) :: [map()]
   def stats_by_device(%Device{} = device) do
@@ -18,7 +21,7 @@ defmodule NervesHub.Devices.UpdateStats do
         select: %{
           total_update_bytes: sum(s.update_bytes),
           total_saved_bytes: sum(s.saved_bytes),
-          num_updates: count(s.id)
+          num_updates: fragment("count()")
         }
       )
     )
@@ -34,7 +37,7 @@ defmodule NervesHub.Devices.UpdateStats do
         select: %{
           total_update_bytes: sum(s.update_bytes),
           total_saved_bytes: sum(s.saved_bytes),
-          num_updates: count(s.id)
+          num_updates: fragment("count()")
         }
       )
     )
@@ -47,31 +50,44 @@ defmodule NervesHub.Devices.UpdateStats do
         select: %{
           total_update_bytes: sum(s.update_bytes),
           total_saved_bytes: sum(s.saved_bytes),
-          num_updates: count(s.id)
+          num_updates: fragment("count()")
         }
       )
     )
   end
 
-  @types [:fwup_full, :fwup_delta]
-  @doc """
-  Log an update statistic for a device.
-  """
-  @spec log_stat(
+  @spec log_full_update(
+          Device.t(),
+          DeploymentGroup.t()
+        ) :: :ok | {:error, Ecto.Changeset.t()}
+  def log_full_update(%Device{} = device, %DeploymentGroup{} = deployment_group) do
+    log_stat(device, deployment_group, :fwup_full, deployment_group.firmware.size, 0)
+  end
+
+  @spec log_delta_update(
           Device.t(),
           DeploymentGroup.t(),
-          type :: :fwup_full | :fwup_delta,
-          update_bytes :: non_neg_integer(),
-          saved_bytes :: integer()
+          FirmwareDelta.t()
         ) :: :ok | {:error, Ecto.Changeset.t()}
-  def log_stat(
+  def log_delta_update(
         %Device{} = device,
         %DeploymentGroup{} = deployment_group,
-        type,
-        update_bytes,
-        saved_bytes \\ 0
-      )
-      when type in @types do
+        %FirmwareDelta{} = firmware_delta
+      ) do
+    target_size = deployment_group.firmware.size
+    delta_size = Map.get(firmware_delta.upload_metadata, "size", target_size)
+    saved = target_size - delta_size
+    log_stat(device, deployment_group, :fwup_delta, delta_size, saved)
+  end
+
+  defp log_stat(
+         %Device{} = device,
+         %DeploymentGroup{} = deployment_group,
+         type,
+         update_bytes,
+         saved_bytes
+       )
+       when type in @types do
     source_uuid =
       case device do
         %{firmware_metadata: %{uuid: source_uuid}} -> source_uuid
@@ -80,6 +96,8 @@ defmodule NervesHub.Devices.UpdateStats do
 
     changeset =
       UpdateStat.create_changeset(device, deployment_group, %{
+        timestamp: DateTime.utc_now(),
+        type: Atom.to_string(type),
         source_firmware_uuid: source_uuid,
         target_firmware_uuid: deployment_group.firmware.uuid,
         update_bytes: update_bytes,

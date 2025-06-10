@@ -38,9 +38,9 @@ defmodule NervesHub.Devices.UpdateStat do
   def create_changeset(device, deployment_group, params \\ %{}) do
     params =
       params
-      |> Map.put("device_id", device.id)
-      |> Map.put("product_id", device.product_id)
-      |> Map.put("deployment_id", deployment_group.id)
+      |> Map.put(:device_id, device.id)
+      |> Map.put(:product_id, device.product_id)
+      |> Map.put(:deployment_id, deployment_group.id)
 
     %__MODULE__{}
     |> cast(params, @required)
