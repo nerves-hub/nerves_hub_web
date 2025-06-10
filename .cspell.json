@@ -13,6 +13,13 @@
     "test"
   ],
   "words": [
+    "AEXAMPLE",
+    "BUCKETPOLICY",
+    "FABBEXAMPLE",
+    "Mjml",
+    "ROOTFS",
+    "Spex",
+    "Ueberauth",
     "acreateserial",
     "anotherdummytoken",
     "behaviours",
@@ -82,6 +89,7 @@
     "mapbox",
     "maxlength",
     "memsup",
+    "memset",
     "metas",
     "minlength",
     "mjml",

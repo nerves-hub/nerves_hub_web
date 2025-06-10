@@ -44,10 +44,13 @@ jobs:
           - "9000:9000"
 
     steps:
-      - name: Install system deps
+      - name: Install fwup
         run: |
           wget https://github.com/fwup-home/fwup/releases/download/v${FWUP_VERSION}/fwup_${FWUP_VERSION}_amd64.deb
           sudo dpkg -i fwup_${FWUP_VERSION}_amd64.deb && rm fwup_${FWUP_VERSION}_amd64.deb
+
+      - name: Install xdelta3 and mtools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xdelta3 mtools
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,12 +59,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      - name: Install cspell
-        run: npm install -g cspell
-
-      - name: Check spelling
-        run: cspell . --quiet
 
       - name: Set up Elixir
         id: beam
@@ -112,6 +109,9 @@ jobs:
       - name: Check for unused dependencies
         run: mix deps.unlock --unused
 
+      - name: Check spelling
+        run: mix spellweaver.check
+
       - name: Run Credo (won't fail the build)
         run: mix credo --mute-exit-status
 
@@ -147,7 +147,7 @@ jobs:
         run: mix dialyzer --format github --format dialyxir
 
       - name: Run tests
-        run: mix test
+        run: mix test --include mtools
 
   build-and-publish:
     runs-on: ubuntu-latest
