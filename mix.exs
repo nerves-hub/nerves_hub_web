@@ -165,11 +165,13 @@ defmodule NervesHub.MixProject do
       "ecto.migrate.reset": ["ecto.drop", "ecto.create", "ecto.migrate"],
       "ecto.migrate.redo": ["ecto.rollback", "ecto.migrate"],
       test: ["ecto.create --quiet", "ecto.migrate", "test"],
+      # Runs most of the non-test CI checks for you
       check: [
         "compile --warnings-as-errors",
         "format --check-formatted",
         "spellweaver.check",
-        "deps.unlock --check-unused"
+        "deps.unlock --check-unused",
+        "dialyzer --format github --format dialyxir"
       ]
     ]
   end
