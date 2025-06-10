@@ -31,7 +31,12 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
       <div :if={@waiting_for_update_count > 0} class="relative w-full h-24 box-content flex items-center justify-center rounded border border-zinc-700 bg-zinc-900">
         <div class="absolute top-0 w-full items-center justify-center rounded overflow-visible z-20">
-          <div class="z-40 absolute -top-px border-t rounded-tl border-success-500" role="progressbar" style={"width: #{deployment_group_percentage(@up_to_date_count, @deployment_group)}%"}>
+          <div
+            :if={@deployment_group.is_active}
+            class="z-40 absolute -top-px border-t rounded-tl border-success-500"
+            role="progressbar"
+            style={"width: #{deployment_group_percentage(@up_to_date_count, @deployment_group)}%"}
+          >
             <div class="animate-pulse bg-progress-glow w-full h-16" />
           </div>
 
