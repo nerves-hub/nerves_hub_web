@@ -39,11 +39,11 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Settings do
             <div class="w-1/2 flex flex-col gap-6">
               <.input field={@form[:name]} label="Name" placeholder="Production" />
               <.input field={@form[:delta_updatable]} type="checkbox" label="Delta updates" phx-click="toggle-delta-updates">
-            <:rich_hint>
-              Check out the <.link class="underline" href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank">NervesHub documentation</.link>
-              for more information on delta updates.
-            </:rich_hint>
-          </.input>
+                <:rich_hint>
+                  Check out the <.link class="underline" href="https://docs.nerves-hub.org/nerves-hub/setup/firmware#delta-updates" target="_blank">NervesHub documentation</.link>
+                  for more information on delta updates.
+                </:rich_hint>
+              </.input>
             </div>
           </div>
         </div>
