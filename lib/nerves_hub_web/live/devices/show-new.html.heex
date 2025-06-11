@@ -1,13 +1,13 @@
 <div class="h-[56px] shrink-0 flex justify-end bg-base-900 border-b border-base-700 pl-6 items-center">
-  <div class="flex gap-2.5">
+  <div class="flex gap-2.5 items-center">
     <.link navigate={~p"/org/#{@org}/#{@product}/devices"} class="back-link flex gap-2.5 items-center">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M4.16671 10L9.16671 5M4.16671 10L9.16671 15M4.16671 10H15.8334" stroke="#A1A1AA" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
-      <span class="text-base-400">All Devices</span>
+      <span class="text-base-400 whitespace-nowrap hidden md:block">All Devices</span>
     </.link>
-    <span class="text-base-400">/</span>
-    <span class="text-zinc-50 font-semibold">{@device.identifier}</span>
+    <span class="text-base-400 hidden lg:block">/</span>
+    <span class="text-zinc-50 font-semibold hidden lg:block">{@device.identifier}</span>
   </div>
 
   <div class="flex items-center gap-2 ml-auto mr-6">
