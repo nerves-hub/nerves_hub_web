@@ -794,13 +794,13 @@ defmodule NervesHub.Devices do
   @spec delta_updatable?(
           source :: Firmware.t(),
           target :: Firmware.t(),
-          Product.t(),
+          DeploymentGroup.t(),
           fwup_version :: String.t()
         ) :: boolean()
-  def delta_updatable?(nil, _target, _product, _fwup_version), do: false
+  def delta_updatable?(nil, _target, _deployment_group, _fwup_version), do: false
 
-  def delta_updatable?(source, target, product, fwup_version) do
-    product.delta_updatable and
+  def delta_updatable?(source, target, deployment_group, fwup_version) do
+    deployment_group.delta_updatable and
       target.delta_updatable and
       source.delta_updatable and
       Version.match?(fwup_version, @min_fwup_delta_updatable_version)
@@ -1722,7 +1722,7 @@ defmodule NervesHub.Devices do
   @spec get_delta_or_firmware_url(String.t(), Firmware.t() | DeploymentGroup.t()) ::
           {:ok, String.t()} | {:error, :failure}
   def get_delta_or_firmware_url(device_firmware_uuid, %DeploymentGroup{
-        product: %{delta_updatable: true},
+        delta_updatable: true,
         firmware: target_firmware
       }) do
     # Get firmware delta URL if available but otherwise deliver full firmware

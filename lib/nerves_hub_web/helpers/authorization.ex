@@ -53,6 +53,10 @@ defmodule NervesHubWeb.Helpers.Authorization do
   def authorized?(:"deployment_group:create", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"deployment_group:update", %OrgUser{role: role}), do: role_check(:manage, role)
   def authorized?(:"deployment_group:toggle", %OrgUser{role: role}), do: role_check(:manage, role)
+
+  def authorized?(:"deployment_group:toggle_delta_updates", %OrgUser{role: role}),
+    do: role_check(:manage, role)
+
   def authorized?(:"deployment_group:delete", %OrgUser{role: role}), do: role_check(:manage, role)
 
   def authorized?(:"support_script:create", %OrgUser{role: role}), do: role_check(:manage, role)

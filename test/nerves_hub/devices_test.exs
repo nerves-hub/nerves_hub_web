@@ -380,25 +380,24 @@ defmodule NervesHub.DevicesTest do
 
   test "delta_updatable?", %{
     firmware: source,
-    product: product,
     deployment_group: deployment_group
   } do
     fwup_version = @valid_fwup_version
     %{firmware: target} = Repo.preload(deployment_group, :firmware)
 
-    assert Devices.delta_updatable?(source, target, product, fwup_version) == false
+    assert Devices.delta_updatable?(source, target, deployment_group, fwup_version) == false
 
     source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
     target = Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
 
-    assert product.delta_updatable == true
+    assert deployment_group.delta_updatable == true
     assert source.delta_updatable == true
     assert target.delta_updatable == true
 
-    assert Devices.delta_updatable?(source, target, product, fwup_version) == true
+    assert Devices.delta_updatable?(source, target, deployment_group, fwup_version) == true
 
     # case where the source firmware does not exist
-    assert Devices.delta_updatable?(nil, target, product, fwup_version) == false
+    assert Devices.delta_updatable?(nil, target, deployment_group, fwup_version) == false
   end
 
   test "matches_deployment_group? works when device and/or deployment tags are nil", %{
