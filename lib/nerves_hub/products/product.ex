@@ -13,7 +13,6 @@ defmodule NervesHub.Products.Product do
   alias NervesHub.Scripts.Script
 
   @required_params [:name, :org_id]
-  @optional_params [:delta_updatable]
 
   @type t :: %__MODULE__{}
 
@@ -34,7 +33,6 @@ defmodule NervesHub.Products.Product do
 
     field(:name, :string)
     field(:deleted_at, :utc_datetime)
-    field(:delta_updatable, :boolean, default: false)
     embeds_one(:extensions, ProductExtensionsSetting, on_replace: :update)
 
     field(:device_count, :integer, virtual: true)
@@ -50,7 +48,7 @@ defmodule NervesHub.Products.Product do
   @doc false
   def changeset(product, params) do
     product
-    |> cast(params, @required_params ++ @optional_params)
+    |> cast(params, @required_params)
     |> cast_embed(:extensions)
     |> update_change(:name, &trim/1)
     |> validate_required(@required_params)
@@ -58,7 +56,7 @@ defmodule NervesHub.Products.Product do
   end
 
   def update_changeset(product, params) do
-    cast(product, params, @optional_params)
+    cast(product, params, [])
   end
 
   def delete_changeset(product, _params \\ %{}) do

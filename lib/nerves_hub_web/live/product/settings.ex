@@ -21,20 +21,6 @@ defmodule NervesHubWeb.Live.Product.Settings do
     {:ok, socket}
   end
 
-  def handle_event("toggle-delta-updates", _params, socket) do
-    authorized!(:"product:update", socket.assigns.org_user)
-
-    {:ok, product} = Products.toggle_delta_updates(socket.assigns.product)
-
-    socket
-    |> assign(:product, product)
-    |> put_flash(
-      :info,
-      "Delta updates #{(product.delta_updatable && "enabled") || "disabled"} successfully."
-    )
-    |> noreply()
-  end
-
   def handle_event("update", %{"product" => params}, socket) do
     authorized!(:"product:update", socket.assigns.org_user)
 

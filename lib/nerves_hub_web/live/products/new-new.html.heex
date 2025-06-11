@@ -9,7 +9,6 @@
           <div class="w-full flex flex-col gap-6">
             <.input field={@form[:name]} label="Name" placeholder="ellipsis, umbrella, .." />
             <p>Once created, a product name cannot be changed.</p>
-            <input type="hidden" name="product[delta_updatable]" value="true" />
             <input :for={{key, _description} <- @available_extensions} type="hidden" name={"product[extensions][#{key}]"} value="true" />
           </div>
         </div>
