@@ -21,13 +21,6 @@ defmodule NervesHubWeb.Live.Product.Settings do
     {:ok, socket}
   end
 
-  def handle_event("update", %{"product" => params}, socket) do
-    authorized!(:"product:update", socket.assigns.org_user)
-
-    {:ok, product} = Products.update_product(socket.assigns.product, params)
-    {:noreply, assign(socket, :product, product)}
-  end
-
   def handle_event("add-shared-secret", _params, socket) do
     authorized!(:"product:update", socket.assigns.org_user)
 
