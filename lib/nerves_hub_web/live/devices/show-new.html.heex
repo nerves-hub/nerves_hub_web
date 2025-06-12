@@ -82,7 +82,7 @@
 
     <div class="flex items-center gap-2">
       <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
-        <span class="text-sm text-zinc-400 mr-1">Version:</span>
+        <span class="text-sm text-zinc-400 mr-1 hidden lg:block">Version:</span>
 
         <span :if={is_nil(@device.firmware_metadata)} class="text-sm text-base-300 font-mono">Unknown</span>
 
@@ -101,7 +101,7 @@
       </div>
 
       <div class="flex h-7 py-1 px-2 items-center rounded bg-zinc-800">
-        <span class="text-sm text-zinc-400">Firmware updates:</span>
+        <span class="text-sm text-zinc-400 hidden lg:block">Firmware updates:</span>
         <%= cond do %>
           <% is_nil(@device.deployment_id) -> %>
             <span class="ml-2 mr-1 text-sm text-base-300">N/A</span>
