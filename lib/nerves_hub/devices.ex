@@ -128,13 +128,7 @@ defmodule NervesHub.Devices do
     |> Repo.one!()
   end
 
-  @spec filter(Product.t(), User.t(), map()) :: %{
-          entries: list(Device.t()),
-          current_page: non_neg_integer(),
-          page_size: non_neg_integer(),
-          total_pages: non_neg_integer(),
-          total_count: non_neg_integer()
-        }
+  @spec filter(Product.t(), User.t(), map()) :: {[Device.t()], Flop.Meta.t()}
   def filter(product, user, opts) do
     base_query =
       Device
@@ -148,21 +142,11 @@ defmodule NervesHub.Devices do
       |> preload([latest_connection: lc], latest_connection: lc)
       |> preload([latest_health: lh], latest_health: lh)
 
-    {entries, meta} =
-      CommonFiltering.filter(
-        base_query,
-        product,
-        opts
-      )
-
-    meta
-    |> Map.take([
-      :current_page,
-      :page_size,
-      :total_pages,
-      :total_count
-    ])
-    |> Map.put(:entries, entries)
+    CommonFiltering.filter(
+      base_query,
+      product,
+      opts
+    )
   end
 
   def get_minimal_device_location_by_product(product) do
