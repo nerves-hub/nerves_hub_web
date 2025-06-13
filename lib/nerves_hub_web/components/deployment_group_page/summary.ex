@@ -1,12 +1,28 @@
 defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   use NervesHubWeb, :live_component
 
+  alias NervesHub.Firmwares
   alias NervesHub.Devices
 
+  import NervesHubWeb.LayoutView,
+    only: [humanize_size: 1]
+
   def update(%{update_inflight_info: true}, socket) do
+    %{product: product} = socket.assigns
     deployment_group = socket.assigns.deployment_group
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
+
+    socket =
+      if product.delta_updatable do
+        assign(
+          socket,
+          :deltas,
+          Firmwares.get_deltas_by_target_firmware(deployment_group.firmware)
+        )
+      else
+        assign(socket, :deltas, nil)
+      end
 
     socket
     |> assign(:inflight_updates, inflight_updates)
@@ -59,6 +75,21 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <.link navigate={~p"/org/#{@org}/#{@product}/firmware/#{@deployment_group.firmware}"} class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800">
                 <span class="text-xs text-zinc-300 tracking-tight">{@deployment_group.firmware.version} ({String.slice(@deployment_group.firmware.uuid, 0..7)})</span>
               </.link>
+            </div>
+            <div class="flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500 w-16">Size:</span>
+              <span class="pl-1 text-xs text-nerves-gray-700">{humanize_size(@deployment_group.firmware.size)}</span>
+            </div>
+            <div :if={assigns[:deltas]} class="flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500 w-16">Deltas:</span>
+              <span :for={delta <- @deltas} class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800">
+                <span class="text-xs text-zinc-300 tracking-tight">
+                  {delta.source.version}
+                  <span :if={delta.upload_metadata["size"]}>
+                    - {humanize_size(delta.upload_metadata["size"])}
+                  </span>
+                </span>
+              </span>
             </div>
             <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500 w-16">Archive:</span>

@@ -23,6 +23,15 @@ defmodule NervesHub.Firmwares do
 
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
 
+  @spec get_deltas_by_target_firmware(firmware :: Firmware.t()) :: [FirmwareDelta.t()]
+  def get_deltas_by_target_firmware(firmware) do
+    FirmwareDelta
+    |> where([fd], fd.target_id == ^firmware.id)
+    |> preload(:source)
+    |> preload(:target)
+    |> Repo.all()
+  end
+
   @spec count(Product.t()) :: non_neg_integer()
   def count(product) do
     Firmware
@@ -399,7 +408,7 @@ defmodule NervesHub.Firmwares do
     {:ok, target_url} = firmware_upload_config().download_file(target_firmware)
 
     case delta_updater().create_firmware_delta_file(source_url, target_url) do
-      {:ok, firmware_delta_path} ->
+      {:ok, firmware_delta_path, metadata} ->
         firmware_delta_filename = Path.basename(firmware_delta_path)
 
         result =
@@ -411,7 +420,7 @@ defmodule NervesHub.Firmwares do
                      insert_firmware_delta(%{
                        source_id: source_firmware.id,
                        target_id: target_firmware.id,
-                       upload_metadata: upload_metadata
+                       upload_metadata: Map.merge(metadata, upload_metadata)
                      }),
                    {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
                    :ok <-
