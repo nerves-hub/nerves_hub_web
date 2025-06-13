@@ -99,7 +99,7 @@ defmodule NervesHub.Devices.DeviceFiltering do
     where(query, [d], d.deployment_id == ^value)
   end
 
-  def filter(query, _filters, :tag, value) do
+  def filter(query, _filters, :tags, value) do
     build_tag_filter(query, value)
   end
 
