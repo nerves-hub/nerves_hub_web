@@ -43,8 +43,10 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
   ]
 
   def tab_params(_params, _uri, socket) do
+    time_frame = Map.get(socket.assigns, :time_frame, @default_time_frame)
+
     socket
-    |> assign(:time_frame, @default_time_frame)
+    |> assign(:time_frame, time_frame)
     |> assign(:time_frame_opts, @time_frame_opts)
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(socket.assigns.device.id))
     |> assign_charts()
@@ -79,6 +81,7 @@ defmodule NervesHubWeb.Components.DevicePage.HealthTab do
     socket
     |> assign(:latest_metrics, latest_metrics)
     |> assign_metadata()
+    |> update_charts()
     |> halt()
   end
 
