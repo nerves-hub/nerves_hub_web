@@ -41,7 +41,8 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :connecting_code,
     :total_updating_devices,
     :current_updated_devices,
-    :queue_management
+    :queue_management,
+    :delta_updatable
   ]
 
   @derive {Phoenix.Param, key: :name}
@@ -72,6 +73,7 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:current_updated_devices, :integer, default: 0)
     field(:inflight_update_expiration_minutes, :integer, default: 60)
     field(:queue_management, Ecto.Enum, values: [:FIFO, :LIFO], default: :FIFO)
+    field(:delta_updatable, :boolean, default: false)
 
     # TODO: (nshoes) this column is unused, remove after 1st March
     # field(:recalculation_type, Ecto.Enum, values: [:device, :calculator_queue], default: :device)

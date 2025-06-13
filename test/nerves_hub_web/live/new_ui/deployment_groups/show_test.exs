@@ -17,6 +17,18 @@ defmodule NervesHubWeb.Live.NewUI.DelploymentGroups.ShowTest do
       %{context | conn: conn}
     end
 
+    test "toggle delta updates", %{conn: conn, deployment_group: deployment_group} do
+      # Delta updates are enabled in deployment group fixture
+      assert deployment_group.delta_updatable
+
+      conn
+      |> check("Delta updates")
+      |> assert_has("div", text: "Delta updates disabled successfully.")
+
+      deployment_group = Repo.reload(deployment_group)
+      refute deployment_group.delta_updatable
+    end
+
     test "can update only version", %{conn: conn, deployment_group: deployment_group} do
       conn
       |> fill_in("Version requirement", with: "1.2.3")

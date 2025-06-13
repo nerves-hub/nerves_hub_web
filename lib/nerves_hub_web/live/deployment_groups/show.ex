@@ -92,6 +92,21 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> noreply()
   end
 
+  def handle_event("toggle-delta-updates", _params, socket) do
+    authorized!(:"deployment_group:toggle_delta_updates", socket.assigns.org_user)
+
+    {:ok, deployment_group} =
+      ManagedDeployments.toggle_delta_updates(socket.assigns.deployment_group)
+
+    socket
+    |> assign(:deployment_group, deployment_group)
+    |> put_flash(
+      :info,
+      "Delta updates #{(deployment_group.delta_updatable && "enabled") || "disabled"} successfully."
+    )
+    |> noreply()
+  end
+
   def handle_event("delete", _params, socket) do
     authorized!(:"deployment_group:delete", socket.assigns.org_user)
 

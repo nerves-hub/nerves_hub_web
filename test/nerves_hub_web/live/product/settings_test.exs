@@ -4,24 +4,9 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
   alias NervesHub.Fixtures
   alias NervesHub.Products
 
-  describe "update product" do
-    test "delta firmware updates", %{conn: conn, org: org, user: user} do
-      product = Fixtures.product_fixture(user, org, %{delta_updatable: false})
-      refute product.delta_updatable
-
-      conn
-      |> visit("/org/#{org.name}/#{product.name}/settings")
-      |> assert_has("h1", text: "Product Settings")
-      |> check("Enable delta firmware updates")
-
-      product = NervesHub.Repo.reload(product)
-      assert product.delta_updatable
-    end
-  end
-
   describe "delete product" do
     test "soft deletes the product", %{conn: conn, org: org, user: user} do
-      product = Fixtures.product_fixture(user, org, %{delta_updatable: false})
+      product = Fixtures.product_fixture(user, org)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/settings")
@@ -57,7 +42,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
     test "add shared secret", %{conn: conn, org: org, user: user} do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
 
-      product = Fixtures.product_fixture(user, org, %{delta_updatable: false})
+      product = Fixtures.product_fixture(user, org)
 
       conn =
         conn
@@ -72,7 +57,7 @@ defmodule NervesHubWeb.Live.Product.SettingsTest do
     test "deactivate shared secret", %{conn: conn, org: org, user: user} do
       Application.put_env(:nerves_hub, NervesHubWeb.DeviceSocket, shared_secrets: [enabled: true])
 
-      product = Fixtures.product_fixture(user, org, %{delta_updatable: false})
+      product = Fixtures.product_fixture(user, org)
 
       {:ok, _} = Products.create_shared_secret_auth(product)
 
