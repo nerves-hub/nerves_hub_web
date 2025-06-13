@@ -10,6 +10,16 @@ defmodule NervesHub.Firmwares.DeltaUpdateTest do
   @pi_style File.read!("test/fixtures/fwup/pi-style.conf")
   @pi_style_delta File.read!("test/fixtures/fwup/pi-style-delta.conf")
 
+  setup_all do
+    with path_1 when is_binary(path_1) <- System.find_executable("mdir"),
+         path_2 when is_binary(path_2) <- System.find_executable("mcopy") do
+      :ok
+    else
+      _ ->
+        flunk("Please install mtools to run these tests.")
+    end
+  end
+
   defp offsets(start, parts_with_sizes) do
     {offsets, _} =
       parts_with_sizes
