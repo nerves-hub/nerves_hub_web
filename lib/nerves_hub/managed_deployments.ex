@@ -251,6 +251,14 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
+  @spec toggle_delta_updates(DeploymentGroup.t()) ::
+          {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
+  def toggle_delta_updates(deployment_group),
+    do:
+      update_deployment_group(deployment_group, %{
+        delta_updatable: !deployment_group.delta_updatable
+      })
+
   @doc """
   Update a deployment
 
@@ -335,21 +343,31 @@ defmodule NervesHub.ManagedDeployments do
       {:is_active, is_active} when is_active != true ->
         DeploymentGroupTemplates.audit_deployment_group_change(deployment_group, "is inactive")
 
+      {:delta_updatable, delta_updatable?} ->
+        DeploymentGroupTemplates.audit_deployment_group_change(
+          deployment_group,
+          "delta updates #{(delta_updatable? && "enabled") || "disabled"}"
+        )
+
       _ ->
         :ignore
     end)
   end
 
-  defp maybe_trigger_delta_generation(deployment_group, changeset) do
-    # Firmware changed on active deployment
-    if Map.has_key?(changeset.changes, :firmware_id) do
-      deployment_group = Repo.preload(deployment_group, :product, force: true)
+  defp maybe_trigger_delta_generation(
+         %{delta_updatable: true} = deployment_group,
+         %{changes: %{firmware_id: _}} = _changeset
+       ),
+       do: trigger_delta_generation_for_deployment_group(deployment_group)
 
-      if deployment_group.product.delta_updatable do
-        trigger_delta_generation_for_deployment_group(deployment_group)
-      end
-    end
-  end
+  defp maybe_trigger_delta_generation(
+         deployment_group,
+         %{changes: %{delta_updatable: true}} = _changeset
+       ),
+       do: trigger_delta_generation_for_deployment_group(deployment_group)
+
+  defp maybe_trigger_delta_generation(_deployment_group, _changeset),
+    do: :ok
 
   defp trigger_delta_generation_for_deployment_group(deployment_group) do
     NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment_group(

@@ -29,12 +29,12 @@ defmodule NervesHub.Fixtures do
       "version" => "<= 1.0.0",
       "tags" => ["beta", "beta-edge"]
     },
-    is_active: false
+    is_active: false,
+    delta_updatable: true
   }
   @device_params %{tags: ["beta", "beta-edge"], extensions: %{health: true, geo: true}}
   @product_params %{
     name: "valid product",
-    delta_updatable: true,
     extensions: %{health: true, geo: true, logging: true}
   }
 

@@ -11,8 +11,7 @@ defmodule NervesHubWeb.API.ProductJSON do
 
   def product(product) do
     %{
-      name: product.name,
-      delta_updatable: product.delta_updatable
+      name: product.name
     }
   end
 end
