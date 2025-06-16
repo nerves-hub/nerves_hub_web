@@ -65,6 +65,9 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
     _ = File.mkdir_p(target_work_dir)
     _ = File.mkdir_p(output_work_dir)
 
+    %{size: source_size} = File.stat!(source_path)
+    %{size: target_size} = File.stat!(target_path)
+
     {_, 0} = System.cmd("unzip", ["-qq", source_path, "-d", source_work_dir], env: [])
     {_, 0} = System.cmd("unzip", ["-qq", target_path, "-d", target_work_dir], env: [])
 
@@ -127,7 +130,10 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
       ]
       |> Enum.each(&add_to_zip(&1, output_work_dir, output_path))
 
-      {:ok, output_path}
+      {:ok, %{size: size}} = File.stat(output_path)
+
+      {:ok, output_path,
+       %{"size" => size, "source_size" => source_size, "target_size" => target_size}}
     end
   end
 

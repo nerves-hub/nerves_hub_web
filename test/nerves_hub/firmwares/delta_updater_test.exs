@@ -178,9 +178,14 @@ defmodule NervesHub.Firmwares.DeltaUpdateTest do
 
     fw_a = build_fw!(Path.join(dir, "a.fw"), fwup_conf_path, data_path_1)
     fw_b = build_fw!(Path.join(dir, "b.fw"), fwup_conf_path, data_path_2)
+    %{size: source_size} = File.stat!(fw_a)
+    %{size: target_size} = File.stat!(fw_b)
 
-    {:ok, delta_path} =
+    {:ok, delta_path,
+     %{"size" => delta_size, "source_size" => ^source_size, "target_size" => ^target_size}} =
       Default.do_delta_file(fw_a, fw_b, Path.join(dir, "delta.fw"), Path.join(dir, "work"))
+
+    assert %{size: ^delta_size} = File.stat!(delta_path)
 
     img_a = complete!(fw_a, Path.join(dir, "a.img"))
     hash_a = sha256sum(img_a)
@@ -212,9 +217,14 @@ defmodule NervesHub.Firmwares.DeltaUpdateTest do
 
     fw_a = build_fw!(Path.join(dir, "a.fw"), fwup_conf_path, data_path_1)
     fw_b = build_fw!(Path.join(dir, "b.fw"), fwup_conf_path, data_path_2)
+    %{size: source_size} = File.stat!(fw_a)
+    %{size: target_size} = File.stat!(fw_b)
 
-    {:ok, delta_path} =
+    {:ok, delta_path,
+     %{"size" => delta_size, "source_size" => ^source_size, "target_size" => ^target_size}} =
       Default.do_delta_file(fw_a, fw_b, Path.join(dir, "delta.fw"), Path.join(dir, "work"))
+
+    assert %{size: ^delta_size} = File.stat!(delta_path)
 
     img_a = complete!(fw_a, Path.join(dir, "a.img"))
     hash_a = sha256sum(img_a)
@@ -246,9 +256,14 @@ defmodule NervesHub.Firmwares.DeltaUpdateTest do
 
     fw_a = build_fw!(Path.join(dir, "a.fw"), fwup_conf_path, data_path_1)
     fw_b = build_fw!(Path.join(dir, "b.fw"), fwup_conf_path, data_path_2)
+    %{size: source_size} = File.stat!(fw_a)
+    %{size: target_size} = File.stat!(fw_b)
 
-    {:ok, delta_path} =
+    {:ok, delta_path,
+     %{"size" => delta_size, "source_size" => ^source_size, "target_size" => ^target_size}} =
       Default.do_delta_file(fw_a, fw_b, Path.join(dir, "delta.fw"), Path.join(dir, "work"))
+
+    assert %{size: ^delta_size} = File.stat!(delta_path)
 
     img_a = complete!(fw_a, Path.join(dir, "a.img"))
     hash_a = sha256sum(img_a)
@@ -322,9 +337,14 @@ defmodule NervesHub.Firmwares.DeltaUpdateTest do
 
     fw_a = build_fw!(Path.join(dir, "a.fw"), fwup_conf_path, data_path_1)
     fw_b = build_fw!(Path.join(dir, "b.fw"), fwup_conf_path, data_path_2)
+    %{size: source_size} = File.stat!(fw_a)
+    %{size: target_size} = File.stat!(fw_b)
 
-    {:ok, delta_path} =
+    {:ok, delta_path,
+     %{"size" => delta_size, "source_size" => ^source_size, "target_size" => ^target_size}} =
       Default.do_delta_file(fw_a, fw_b, Path.join(dir, "delta.fw"), Path.join(dir, "work"))
+
+    %{size: ^delta_size} = File.stat!(delta_path)
 
     img_a = complete!(fw_a, Path.join(dir, "a.img"))
     hash_a = sha256sum(img_a)
@@ -372,8 +392,14 @@ defmodule NervesHub.Firmwares.DeltaUpdateTest do
     fw_a = build_fw!(Path.join(dir, "a.fw"), fwup_conf_path, data_path_1)
     fw_b = build_fw!(Path.join(dir, "b.fw"), fwup_conf_path, data_path_2)
 
-    {:ok, delta_path} =
+    %{size: source_size} = File.stat!(fw_a)
+    %{size: target_size} = File.stat!(fw_b)
+
+    {:ok, delta_path,
+     %{"size" => delta_size, "source_size" => ^source_size, "target_size" => ^target_size}} =
       Default.do_delta_file(fw_a, fw_b, Path.join(dir, "delta.fw"), Path.join(dir, "work"))
+
+    assert %{size: ^delta_size} = File.stat!(delta_path)
 
     img_a = complete!(fw_a, Path.join(dir, "a.img"))
     hash_a = sha256sum(img_a)
