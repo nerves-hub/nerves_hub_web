@@ -3,7 +3,7 @@ defmodule NervesHub.Repo.Migrations.MoveDeltaUpdatableToDeploymentGroup do
 
   def change do
     alter table(:deployments) do
-      add :delta_updatable, :boolean, default: false
+      add :delta_updatable, :boolean, default: false, null: false
     end
 
     alter table(:products) do
