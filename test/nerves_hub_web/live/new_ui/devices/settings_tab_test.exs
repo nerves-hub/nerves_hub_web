@@ -86,14 +86,18 @@ defmodule NervesHubWeb.NewUi.Devices.SettingsTabTest do
   describe "extensions" do
     test "toggle extension", %{conn: conn, org: org, product: product, device: device} do
       # Assume at least one extension exists
-      [ext | _] = Map.keys(device.product.extensions)
+      [ext | _] = Map.keys(device.product.extensions) |> Enum.filter(&(&1 != :__struct__))
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices/#{device.identifier}/settingz")
       |> assert_has("div", text: "Extensions")
-      |> click("#extension-#{ext}")
+      |> unwrap(fn view ->
+        render_change(view, "update-extension", %{"extension" => ext, "value" => "on"})
+      end)
       |> assert_has("div", text: "successfully enabled")
-      |> click("#extension-#{ext}")
+      |> unwrap(fn view ->
+        render_change(view, "update-extension", %{"extension" => ext, "value" => "off"})
+      end)
       |> assert_has("div", text: "successfully disabled")
     end
   end
