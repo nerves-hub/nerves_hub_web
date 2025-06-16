@@ -354,14 +354,20 @@ defmodule NervesHub.ManagedDeployments do
     end)
   end
 
-  defp maybe_trigger_delta_generation(deployment_group, changeset) do
-    # Firmware changed on active deployment
-    if Map.has_key?(changeset.changes, :firmware_id) do
-      if deployment_group.delta_updatable do
-        trigger_delta_generation_for_deployment_group(deployment_group)
-      end
-    end
-  end
+  defp maybe_trigger_delta_generation(
+         %{delta_updatable: true} = deployment_group,
+         %{changes: %{firmware_id: _}} = _changeset
+       ),
+       do: trigger_delta_generation_for_deployment_group(deployment_group)
+
+  defp maybe_trigger_delta_generation(
+         deployment_group,
+         %{changes: %{delta_updatable: true}} = _changeset
+       ),
+       do: trigger_delta_generation_for_deployment_group(deployment_group)
+
+  defp maybe_trigger_delta_generation(_deployment_group, _changeset),
+    do: :ok
 
   defp trigger_delta_generation_for_deployment_group(deployment_group) do
     NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment_group(
