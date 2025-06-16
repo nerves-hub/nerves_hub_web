@@ -29,12 +29,12 @@ defmodule NervesHub.Fixtures do
       "version" => "<= 1.0.0",
       "tags" => ["beta", "beta-edge"]
     },
-    is_active: false
+    is_active: false,
+    delta_updatable: true
   }
   @device_params %{tags: ["beta", "beta-edge"], extensions: %{health: true, geo: true}}
   @product_params %{
     name: "valid product",
-    delta_updatable: true,
     extensions: %{health: true, geo: true, logging: true}
   }
 
@@ -179,11 +179,18 @@ defmodule NervesHub.Fixtures do
         id: target_id,
         org_id: org_id
       }) do
+    delta_metadata = %{
+      "size" => 5,
+      "source_size" => 7,
+      "target_size" => 10
+    }
+
     {:ok, firmware_delta} =
       Firmwares.insert_firmware_delta(%{
         source_id: source_id,
         target_id: target_id,
-        upload_metadata: @uploader.metadata(org_id, "#{Ecto.UUID.generate()}.fw")
+        upload_metadata:
+          Map.merge(delta_metadata, @uploader.metadata(org_id, "#{Ecto.UUID.generate()}.fw"))
       })
 
     firmware_delta
@@ -227,7 +234,7 @@ defmodule NervesHub.Fixtures do
     {is_active, params} = Map.pop(params, :is_active, false)
 
     {:ok, deployment_group} =
-      %{org_id: org.id, firmware_id: firmware.id}
+      %{org_id: org.id, firmware_id: firmware.id, product_id: firmware.product_id}
       |> Enum.into(params)
       |> Enum.into(@deployment_group_params)
       |> ManagedDeployments.create_deployment_group()

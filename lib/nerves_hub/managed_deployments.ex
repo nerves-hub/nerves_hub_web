@@ -8,9 +8,9 @@ defmodule NervesHub.ManagedDeployments do
   alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
+  alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
-  alias NervesHub.ManagedDeployments.Filtering
   alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.Products.Product
   alias NervesHub.Workers.FirmwareDeltaBuilder
@@ -31,19 +31,8 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
   end
 
-  @spec filter(Product.t(), map()) :: {[Product.t()], Flop.Meta.t()}
+  @spec filter(Product.t(), map()) :: {[DeploymentGroup.t()], Flop.Meta.t()}
   def filter(product, opts \\ %{}) do
-    opts = Map.reject(opts, fn {_key, val} -> is_nil(val) end)
-    pagination = Map.get(opts, :pagination, %{})
-    sorting = Map.get(opts, :sort, {:asc, :name})
-
-    filters = Map.get(opts, :filters, %{})
-
-    flop = %Flop{
-      page: pagination.page,
-      page_size: pagination.page_size
-    }
-
     subquery =
       Device
       |> select([d], %{
@@ -53,34 +42,19 @@ defmodule NervesHub.ManagedDeployments do
       |> Repo.exclude_deleted()
       |> group_by([d], d.deployment_id)
 
-    DeploymentGroup
-    |> join(:left, [d], dev in subquery(subquery), on: dev.deployment_id == d.id)
-    |> join(:left, [d], f in assoc(d, :firmware))
-    |> where([d], d.product_id == ^product.id)
-    |> Filtering.build_filters(filters)
-    |> sort_deployment_groups(sorting)
-    |> preload([_d, _dev, f], firmware: f)
-    |> select_merge([_f, dev], %{device_count: dev.device_count})
-    |> Flop.run(flop)
-  end
+    base_query =
+      DeploymentGroup
+      |> join(:left, [d], dev in subquery(subquery), on: dev.deployment_id == d.id)
+      |> join(:left, [d], f in assoc(d, :firmware))
+      |> preload([_d, _dev, f], firmware: f)
+      |> select_merge([_f, dev], %{device_count: dev.device_count})
 
-  defp sort_deployment_groups(query, {direction, :platform}) do
-    order_by(query, [_d, _dev, f], {^direction, f.platform})
+    CommonFiltering.filter(
+      base_query,
+      product,
+      opts
+    )
   end
-
-  defp sort_deployment_groups(query, {direction, :architecture}) do
-    order_by(query, [_d, _dev, f], {^direction, f.architecture})
-  end
-
-  defp sort_deployment_groups(query, {direction, :device_count}) do
-    order_by(query, [_d, dev], {^direction, dev.device_count})
-  end
-
-  defp sort_deployment_groups(query, {direction, :firmware_version}) do
-    order_by(query, [_d, _dev, f], {^direction, f.version})
-  end
-
-  defp sort_deployment_groups(query, sort), do: order_by(query, ^sort)
 
   @spec get_deployment_groups_by_product(Product.t()) :: [DeploymentGroup.t()]
   def get_deployment_groups_by_product(%Product{id: product_id}) do
@@ -135,6 +109,24 @@ defmodule NervesHub.ManagedDeployments do
     |> where([d], d.id == ^deployment_id)
     |> join(:left, [d], f in assoc(d, :firmware))
     |> preload([d, f], firmware: f)
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:error, :not_found}
+
+      deployment_group ->
+        {:ok, deployment_group}
+    end
+  end
+
+  @spec get_deployment_group_for_update(Device.t()) ::
+          {:ok, DeploymentGroup.t()} | {:error, :not_found}
+  def get_deployment_group_for_update(%Device{deployment_id: deployment_id}) do
+    DeploymentGroup
+    |> where([d], d.id == ^deployment_id)
+    |> join(:left, [d], f in assoc(d, :firmware))
+    |> preload([d, f], firmware: f)
+    |> preload(:product)
     |> Repo.one()
     |> case do
       nil ->
@@ -259,6 +251,14 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
+  @spec toggle_delta_updates(DeploymentGroup.t()) ::
+          {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
+  def toggle_delta_updates(deployment_group),
+    do:
+      update_deployment_group(deployment_group, %{
+        delta_updatable: !deployment_group.delta_updatable
+      })
+
   @doc """
   Update a deployment
 
@@ -278,7 +278,7 @@ defmodule NervesHub.ManagedDeployments do
         changeset =
           deployment_group
           |> DeploymentGroup.with_firmware()
-          |> DeploymentGroup.changeset(params)
+          |> DeploymentGroup.update_changeset(params)
           |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
 
         case Repo.update(changeset) do
@@ -343,21 +343,31 @@ defmodule NervesHub.ManagedDeployments do
       {:is_active, is_active} when is_active != true ->
         DeploymentGroupTemplates.audit_deployment_group_change(deployment_group, "is inactive")
 
+      {:delta_updatable, delta_updatable?} ->
+        DeploymentGroupTemplates.audit_deployment_group_change(
+          deployment_group,
+          "delta updates #{(delta_updatable? && "enabled") || "disabled"}"
+        )
+
       _ ->
         :ignore
     end)
   end
 
-  defp maybe_trigger_delta_generation(deployment_group, changeset) do
-    # Firmware changed on active deployment
-    if deployment_group.is_active and Map.has_key?(changeset.changes, :firmware_id) do
-      deployment_group = Repo.preload(deployment_group, :product, force: true)
+  defp maybe_trigger_delta_generation(
+         %{delta_updatable: true} = deployment_group,
+         %{changes: %{firmware_id: _}} = _changeset
+       ),
+       do: trigger_delta_generation_for_deployment_group(deployment_group)
 
-      if deployment_group.product.delta_updatable do
-        trigger_delta_generation_for_deployment_group(deployment_group)
-      end
-    end
-  end
+  defp maybe_trigger_delta_generation(
+         deployment_group,
+         %{changes: %{delta_updatable: true}} = _changeset
+       ),
+       do: trigger_delta_generation_for_deployment_group(deployment_group)
+
+  defp maybe_trigger_delta_generation(_deployment_group, _changeset),
+    do: :ok
 
   defp trigger_delta_generation_for_deployment_group(deployment_group) do
     NervesHub.Devices.get_device_firmware_for_delta_generation_by_deployment_group(
@@ -389,7 +399,7 @@ defmodule NervesHub.ManagedDeployments do
 
   @spec create_deployment_group(map()) :: {:ok, DeploymentGroup.t()} | {:error, Changeset.t()}
   def create_deployment_group(params) do
-    changeset = DeploymentGroup.creation_changeset(%DeploymentGroup{}, params)
+    changeset = DeploymentGroup.create_changeset(%DeploymentGroup{}, params)
 
     case Repo.insert(changeset) do
       {:ok, deployment_group} ->

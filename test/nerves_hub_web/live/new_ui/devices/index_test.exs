@@ -156,7 +156,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> visit("/org/#{org.name}/#{product.name}/devices")
       |> assert_has("a", text: first_device.identifier, timeout: 1000)
       |> assert_has("button", text: "25", timeout: 1000)
-      |> refute_has("button", text: "50", timeout: 1000)
+      |> assert_has("button", text: "50", timeout: 1000)
       |> assert_has("button", text: "2", timeout: 1000)
       |> click_button("button[phx-click='paginate'][phx-value-page='2']", "2")
       |> refute_has("a", text: first_device.identifier, timeout: 1000)

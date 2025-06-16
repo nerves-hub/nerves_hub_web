@@ -23,6 +23,15 @@ defmodule NervesHub.Firmwares do
 
   defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
 
+  @spec get_deltas_by_target_firmware(firmware :: Firmware.t()) :: [FirmwareDelta.t()]
+  def get_deltas_by_target_firmware(firmware) do
+    FirmwareDelta
+    |> where([fd], fd.target_id == ^firmware.id)
+    |> preload(:source)
+    |> preload(:target)
+    |> Repo.all()
+  end
+
   @spec count(Product.t()) :: non_neg_integer()
   def count(product) do
     Firmware
@@ -304,8 +313,9 @@ defmodule NervesHub.Firmwares do
     {:ok, metadata}
   end
 
+  @spec metadata_from_device(map()) :: {:ok, FirmwareMetadata.t() | nil}
   def metadata_from_device(metadata) do
-    params = %{
+    metadata = %{
       uuid: Map.get(metadata, "nerves_fw_uuid"),
       architecture: Map.get(metadata, "nerves_fw_architecture"),
       platform: Map.get(metadata, "nerves_fw_platform"),
@@ -318,7 +328,25 @@ defmodule NervesHub.Firmwares do
       misc: Map.get(metadata, "nerves_fw_misc")
     }
 
-    metadata_or_firmware(params)
+    case FirmwareMetadata.changeset(%FirmwareMetadata{}, metadata).valid? do
+      true ->
+        {:ok, metadata}
+
+      false ->
+        case Map.get(metadata, :uuid) do
+          nil ->
+            {:ok, nil}
+
+          uuid ->
+            case get_firmware_by_uuid(uuid) do
+              nil ->
+                {:ok, nil}
+
+              firmware ->
+                metadata_from_firmware(firmware)
+            end
+        end
+    end
   end
 
   def create_firmware_transfer(params) do
@@ -367,7 +395,7 @@ defmodule NervesHub.Firmwares do
   end
 
   @spec create_firmware_delta(Firmware.t(), Firmware.t()) ::
-          {:ok, FirmwareDelta.t()}
+          :ok
           | {:error, Changeset.t()}
 
   def create_firmware_delta(source_firmware, target_firmware) do
@@ -379,40 +407,65 @@ defmodule NervesHub.Firmwares do
     {:ok, source_url} = firmware_upload_config().download_file(source_firmware)
     {:ok, target_url} = firmware_upload_config().download_file(target_firmware)
 
-    firmware_delta_path = delta_updater().create_firmware_delta_file(source_url, target_url)
-    firmware_delta_filename = Path.basename(firmware_delta_path)
+    case delta_updater().create_firmware_delta_file(source_url, target_url) do
+      {:ok, firmware_delta_path, metadata} ->
+        firmware_delta_filename = Path.basename(firmware_delta_path)
 
-    Repo.transaction(
-      fn ->
-        with upload_metadata <-
-               firmware_upload_config().metadata(org.id, firmware_delta_filename),
-             {:ok, firmware_delta} <-
-               insert_firmware_delta(%{
-                 source_id: source_firmware.id,
-                 target_id: target_firmware.id,
-                 upload_metadata: upload_metadata
-               }),
-             {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
-             :ok <- firmware_upload_config().upload_file(firmware_delta_path, upload_metadata),
-             :ok <- delta_updater().cleanup_firmware_delta_files(firmware_delta_path) do
-          Logger.info(
-            "Created firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}, successfully."
+        result =
+          Repo.transaction(
+            fn ->
+              with upload_metadata <-
+                     firmware_upload_config().metadata(org.id, firmware_delta_filename),
+                   {:ok, firmware_delta} <-
+                     insert_firmware_delta(%{
+                       source_id: source_firmware.id,
+                       target_id: target_firmware.id,
+                       upload_metadata: Map.merge(metadata, upload_metadata)
+                     }),
+                   {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
+                   :ok <-
+                     firmware_upload_config().upload_file(firmware_delta_path, upload_metadata),
+                   :ok <- delta_updater().cleanup_firmware_delta_files(firmware_delta_path) do
+                Logger.info(
+                  "Created firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}, successfully.",
+                  product_id: source_firmware.product_id,
+                  source_firmware: source_firmware.uuid,
+                  target_firmware: target_firmware.uuid
+                )
+
+                firmware_delta
+              else
+                {:error, error} ->
+                  delta_updater().cleanup_firmware_delta_files(firmware_delta_path)
+
+                  Logger.error(
+                    "Failed to create firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}: #{inspect(error)}",
+                    product_id: source_firmware.product_id,
+                    source_firmware: source_firmware.uuid,
+                    target_firmware: target_firmware.uuid
+                  )
+
+                  Repo.rollback(error)
+              end
+            end,
+            timeout: 30_000
           )
 
-          firmware_delta
-        else
-          {:error, error} ->
-            delta_updater().cleanup_firmware_delta_files(firmware_delta_path)
-
-            Logger.error(
-              "Failed to create firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}: #{inspect(error)}"
-            )
-
-            Repo.rollback(error)
+        case result do
+          {:ok, _delta} -> :ok
+          {:error, err} -> {:error, err}
         end
-      end,
-      timeout: 30_000
-    )
+
+      {:error, :no_delta_support_in_firmware} ->
+        Logger.info(
+          "Delta generation failed gracefully. There were no markers for delta generation.",
+          product_id: source_firmware.product_id,
+          source_firmware: source_firmware.uuid,
+          target_firmware: target_firmware.uuid
+        )
+
+        :ok
+    end
   end
 
   # Private functions
@@ -474,29 +527,6 @@ defmodule NervesHub.Firmwares do
 
       _ ->
         params
-    end
-  end
-
-  @spec metadata_or_firmware(map()) :: {:ok, FirmwareMetadata.t() | nil}
-  def metadata_or_firmware(metadata) do
-    case FirmwareMetadata.changeset(%FirmwareMetadata{}, metadata).valid? do
-      true ->
-        {:ok, metadata}
-
-      false ->
-        case Map.get(metadata, :uuid) do
-          nil ->
-            {:ok, nil}
-
-          uuid ->
-            case get_firmware_by_uuid(uuid) do
-              nil ->
-                {:ok, nil}
-
-              firmware ->
-                metadata_from_firmware(firmware)
-            end
-        end
     end
   end
 

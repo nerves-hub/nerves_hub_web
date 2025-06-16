@@ -267,7 +267,7 @@ defmodule NervesHub.FirmwaresTest do
       expect(UploadFile, :download_file, fn ^target -> {:ok, target_url} end)
 
       expect(DeltaUpdaterDefault, :create_firmware_delta_file, fn ^source_url, ^target_url ->
-        firmware_delta_path
+        {:ok, firmware_delta_path, %{size: 5}}
       end)
 
       expect(UploadFile, :upload_file, fn ^firmware_delta_path, _ -> :ok end)
@@ -290,7 +290,7 @@ defmodule NervesHub.FirmwaresTest do
       target = Fixtures.firmware_fixture(org_key, product)
 
       expect(DeltaUpdaterDefault, :create_firmware_delta_file, fn _s, _t ->
-        "path/to/firmware.fw"
+        {:ok, "path/to/firmware.fw", %{size: 5}}
       end)
 
       expect(UploadFile, :upload_file, fn _p, _m -> {:error, :failed} end)

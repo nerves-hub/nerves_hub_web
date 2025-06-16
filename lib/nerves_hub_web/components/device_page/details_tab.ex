@@ -273,38 +273,61 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
             Deployment Groups
           </div>
 
-          <div class="flex pt-2 px-4 pb-6 gap-4 items-center">
-            <span class="text-sm text-nerves-gray-500">Assigned deployment group:</span>
-            <span :if={is_nil(@device.deployment_group)} class="text-sm text-nerves-gray-500">No assigned deployment group</span>
-            <.link
-              :if={@device.deployment_group}
-              navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@device.deployment_group}"}
-              class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
-            >
-              <svg class="w-1.5 h-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="3" cy="3" r="3" fill="#10B981" />
-              </svg>
-              <span class="text-xs text-zinc-300 tracking-tight" class="">{@device.deployment_group.name}</span>
-            </.link>
-
-            <button
-              :if={@device.deployment_group}
-              class="p-1 border border-red-500 rounded-full bg-zinc-800"
-              data-confirm="Are you sure you want to remove the device from the deployment?"
-              aria-label="Remove device from the assigned deployment group"
-              type="button"
-              phx-click="remove-from-deployment-group"
-            >
-              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
-                  stroke="#EF4444"
-                  stroke-width="1.2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
+          <div class="flex flex-col pt-2 px-4 pb-6 gap-4">
+            <div class="text-sm font-medium leading-6 text-zinc-300">
+              <form id="toggle-priority-updates" phx-change="toggle-device-priority-updates">
+                <input type="hidden" name="device[priority_updates]" value="off" />
+                <input
+                  type="checkbox"
+                  id="device[priority_updates]"
+                  name="device[priority_updates]"
+                  checked={@device.priority_updates}
+                  value="on"
+                  class="rounded border-zinc-700 text-zinc-400 focus:ring-0 checked:bg-indigo-500"
                 />
-              </svg>
-            </button>
+                <label for="device[priority_updates]" class="pl-2">Priority Updates</label>
+                <div id="priority-update-info" class="inline-block align-middle relative pl-1" phx-hook="ToolTip" data-placement="right">
+                  <.icon name="info" class="stroke-zinc-400" />
+                  <div class="tooltip-content hidden w-max absolute top-0 left-0 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
+                    When enabled, this device will be prioritized for updates and bypasses the deployment group's queue management. <br />
+                    The priority setting will automatically revert after the next successful update. <br />
+                    <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div class="flex pt-2 gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">Assigned deployment group:</span>
+              <span :if={is_nil(@device.deployment_group)} class="text-sm text-nerves-gray-500">No assigned deployment group</span>
+              <.link
+                :if={@device.deployment_group}
+                navigate={~p"/org/#{@org}/#{@product}/deployment_groups/#{@device.deployment_group}"}
+                class="flex items-center gap-1 pl-1.5 pr-2.5 py-0.5 border border-zinc-700 rounded-full bg-zinc-800"
+              >
+                <svg class="w-1.5 h-1.5" viewBox="0 0 6 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="3" cy="3" r="3" fill="#10B981" />
+                </svg>
+                <span class="text-xs text-zinc-300 tracking-tight" class="">{@device.deployment_group.name}</span>
+              </.link>
+              <button
+                :if={@device.deployment_group}
+                class="p-1 border border-red-500 rounded-full bg-zinc-800"
+                data-confirm="Are you sure you want to remove the device from the deployment?"
+                aria-label="Remove device from the assigned deployment group"
+                type="button"
+                phx-click="remove-from-deployment-group"
+              >
+                <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M12.4999 5.83337H7.49992M12.4999 5.83337H14.9999M12.4999 5.83337C12.4999 4.45266 11.3806 3.33337 9.99992 3.33337C8.61921 3.33337 7.49992 4.45266 7.49992 5.83337M7.49992 5.83337H4.99992M3.33325 5.83337H4.99992M4.99992 5.83337V15C4.99992 15.9205 5.74611 16.6667 6.66659 16.6667H13.3333C14.2537 16.6667 14.9999 15.9205 14.9999 15V5.83337M14.9999 5.83337H16.6666M8.33325 9.16671V13.3334M11.6666 13.3334V9.16671"
+                    stroke="#EF4444"
+                    stroke-width="1.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
           <div :if={@device.status == :registered && @device.deployment_id} class="flex pt-2 px-4 pb-6 gap-4 items-center">
             <span class="text-sm text-nerves-gray-500">Please note: The device will be removed from the deployment group upon connection if the arch and platform don't match.</span>
@@ -329,17 +352,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 Add to deployment group
               </.button>
             </form>
-            <div>
-              <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M10 12.5V10M10 7.5V7.49167M17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 5.85786 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.85786 17.5 10Z"
-                  stroke="#A1A1AA"
-                  stroke-width="1.2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </div>
           </div>
 
           <div :if={@update_information.update_available && @device.deployment_id} class="flex p-4 gap-4 items-center justify-between border-t border-zinc-700">
@@ -371,17 +383,6 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 Send update
               </.button>
             </form>
-            <div>
-              <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M10 12.5V10M10 7.5V7.49167M17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10C2.5 5.85786 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.85786 17.5 10Z"
-                  stroke="#A1A1AA"
-                  stroke-width="1.2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </div>
           </div>
         </div>
       </div>
@@ -594,7 +595,22 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     %{product: product, device: device, user: user} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
-    {:ok, url} = Firmwares.get_firmware_url(firmware)
+
+    {:ok, url} =
+      if device.firmware_metadata && device.firmware_metadata.uuid do
+        Logger.info(
+          "Manually sending firmware delta for updating from #{device.firmware_metadata.uuid} to #{firmware.uuid} to #{device.identifier}..."
+        )
+
+        Devices.get_delta_or_firmware_url(device.firmware_metadata.uuid, firmware)
+      else
+        Logger.info(
+          "Manually sending full firmware for updating from to #{firmware.uuid} to #{device.identifier}..."
+        )
+
+        Firmwares.get_firmware_url(firmware)
+      end
+
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
     {:ok, device} = Devices.disable_updates(device, user)
 
@@ -644,6 +660,25 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     socket
     |> assign(:support_scripts, update_script(scripts, id, %{output: nil, running?: false}))
     |> halt()
+  end
+
+  def hooked_event("toggle-device-priority-updates", _params, socket) do
+    %{assigns: %{device: device}} = socket
+
+    case Devices.update_device(device, %{priority_updates: !device.priority_updates}) do
+      {:ok, device} ->
+        socket
+        |> assign(:device, device)
+        |> put_flash(:info, "Device updated successfully.")
+        |> halt()
+
+      {:error, changeset} ->
+        Logger.info("Couldn't update device.priority_updates: #{inspect(changeset)}")
+
+        socket
+        |> put_flash(:error, "There was an issue updating the device, please check the logs.")
+        |> halt()
+    end
   end
 
   def hooked_event(_event, _params, socket), do: {:cont, socket}

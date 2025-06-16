@@ -76,6 +76,7 @@ defmodule NervesHub.MixProject do
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 0.4.1"},
       {:comeonin, "~> 5.3"},
+      {:confuse, "~> 0.1.1"},
       {:contex, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:crontab, "~> 1.1"},
@@ -130,6 +131,7 @@ defmodule NervesHub.MixProject do
       {:postgrex, "~> 0.14"},
       {:sentry, "~> 10.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
+      {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},
       {:sweet_xml, "~> 0.6"},
       {:swoosh, "~> 1.12"},
       {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
@@ -162,7 +164,15 @@ defmodule NervesHub.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       "ecto.migrate.reset": ["ecto.drop", "ecto.create", "ecto.migrate"],
       "ecto.migrate.redo": ["ecto.rollback", "ecto.migrate"],
-      test: ["ecto.create --quiet", "ecto.migrate", "test"]
+      test: ["ecto.create --quiet", "ecto.migrate", "test"],
+      # Runs most of the non-test CI checks for you
+      check: [
+        "compile --warnings-as-errors",
+        "format --check-formatted",
+        "spellweaver.check",
+        "deps.unlock --check-unused",
+        "dialyzer --format github --format dialyxir"
+      ]
     ]
   end
 

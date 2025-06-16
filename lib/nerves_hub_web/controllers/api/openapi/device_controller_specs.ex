@@ -303,6 +303,14 @@ defmodule NervesHubWeb.API.OpenAPI.DeviceControllerSpecs do
         required: true,
         schema: %OpenApiSpex.Schema{type: :integer},
         example: "123"
+      },
+      %OpenApiSpex.Parameter{
+        name: :timeout,
+        in: :path,
+        description: "How long to wait for a device response in milliseconds",
+        required: false,
+        schema: %OpenApiSpex.Schema{type: :integer},
+        example: "10000"
       }
     ]
 

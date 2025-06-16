@@ -20,6 +20,7 @@ defmodule NervesHubWeb.Live.Devices.Index do
   alias NervesHubWeb.Components.DeviceUpdateStatus
   alias NervesHubWeb.Components.FilterSidebar
   alias NervesHubWeb.Components.HealthStatus
+  alias NervesHubWeb.Components.Pager
   alias NervesHubWeb.Components.Sorting
   alias NervesHubWeb.LayoutView.DateTimeFormat
 
@@ -483,25 +484,24 @@ defmodule NervesHubWeb.Live.Devices.Index do
       |> assign(:devices, AsyncResult.loading())
       |> assign(:device_statuses, AsyncResult.loading())
     end
-    |> start_async(:update_device_list, fn ->
-      %{page: Devices.filter(product, user, opts), opts: paginate_opts}
-    end)
+    |> start_async(:update_device_list, fn -> Devices.filter(product, user, opts) end)
   end
 
-  def handle_async(:update_device_list, {:ok, %{page: page, opts: paginate_opts}}, socket) do
-    %{devices: devices, device_statuses: device_statuses} = socket.assigns
+  def handle_async(:update_device_list, {:ok, {updated_devices, pager}}, socket) do
+    %{devices: old_devices, device_statuses: old_device_statuses, paginate_opts: paginate_opts} =
+      socket.assigns
 
-    statuses =
-      Enum.into(page.entries, %{}, fn device ->
+    updated_device_statuses =
+      Enum.into(updated_devices, %{}, fn device ->
         socket.endpoint.subscribe("device:#{device.identifier}:internal")
 
         {device.identifier, Tracker.connection_status(device)}
       end)
 
     socket
-    |> assign(:devices, AsyncResult.ok(devices, page.entries))
-    |> assign(:device_statuses, AsyncResult.ok(device_statuses, statuses))
-    |> device_pagination_assigns(paginate_opts, page)
+    |> assign(:devices, AsyncResult.ok(old_devices, updated_devices))
+    |> assign(:device_statuses, AsyncResult.ok(old_device_statuses, updated_device_statuses))
+    |> device_pagination_assigns(paginate_opts, pager)
     |> noreply()
   end
 
@@ -519,16 +519,17 @@ defmodule NervesHubWeb.Live.Devices.Index do
     |> noreply()
   end
 
-  defp device_pagination_assigns(socket, paginate_opts, page) do
+  defp device_pagination_assigns(socket, paginate_opts, pager) do
     paginate_opts =
       paginate_opts
-      |> Map.put(:page_number, page.current_page)
-      |> Map.put(:page_size, page.page_size)
-      |> Map.put(:total_pages, page.total_pages)
+      |> Map.put(:page_number, pager.current_page)
+      |> Map.put(:page_size, pager.page_size)
+      |> Map.put(:total_pages, pager.total_pages)
 
     socket
-    |> assign(:total_entries, page.total_count)
+    |> assign(:total_entries, pager.total_count)
     |> assign(:paginate_opts, paginate_opts)
+    |> assign(:pager_meta, pager)
   end
 
   defp transform_deployment_filter(%{deployment_id: ""} = filters),

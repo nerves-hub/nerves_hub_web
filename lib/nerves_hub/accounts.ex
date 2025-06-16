@@ -358,7 +358,8 @@ defmodule NervesHub.Accounts do
       Product
       |> Repo.exclude_deleted()
       |> join(:left, [p], dev in subquery(devices), on: dev.product_id == p.id, as: :devices)
-      |> select_merge([_f, devices: devices], %{device_count: devices.device_count})
+      |> order_by([p], asc: p.name)
+      |> select_merge([_, devices: devices], %{device_count: devices.device_count})
 
     User
     |> where(id: ^user_id)

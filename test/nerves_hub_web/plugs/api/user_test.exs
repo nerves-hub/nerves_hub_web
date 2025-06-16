@@ -77,4 +77,20 @@ defmodule NervesHubWeb.API.Plugs.UserTest do
       |> get("/api/users/me")
     end)
   end
+
+  test "rejects improperly formatted API token" do
+    assert_raise(NervesHubWeb.UnauthorizedError, fn ->
+      build_conn()
+      |> put_req_header("authorization", "asdf")
+      |> put_req_header("accept", "application/json")
+      |> get("/api/users/me")
+    end)
+
+    assert_raise(NervesHubWeb.UnauthorizedError, fn ->
+      build_conn()
+      |> put_req_header("authorization", "token")
+      |> put_req_header("accept", "application/json")
+      |> get("/api/users/me")
+    end)
+  end
 end

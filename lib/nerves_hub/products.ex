@@ -13,7 +13,6 @@ defmodule NervesHub.Products do
   alias NervesHub.Extensions
   alias NervesHub.Products.Product
   alias NervesHub.Products.SharedSecretAuth
-  alias NervesHub.Workers.FirmwareDeltaBuilder
 
   alias NimbleCSV.RFC4180, as: CSV
 
@@ -102,57 +101,6 @@ defmodule NervesHub.Products do
   def create_product(params) do
     Product.changeset(%Product{}, params)
     |> Repo.insert()
-  end
-
-  @doc """
-  Toggle the delta updates attribute for a product.
-
-  ## Examples
-
-      iex> toggle_delta_updates(product)
-      {:ok, %Product{}}
-
-  """
-  @spec toggle_delta_updates(Product.t()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
-  def toggle_delta_updates(%Product{} = product) do
-    update_product(product, %{delta_updatable: !product.delta_updatable})
-  end
-
-  @doc """
-  Updates a product.
-
-  ## Examples
-
-      iex> update_product(product, %{field: new_value})
-      {:ok, %Product{}}
-
-      iex> update_product(product, %{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
-  """
-  @spec update_product(Product.t(), map()) :: {:ok, Product.t()} | {:error, Ecto.Changeset.t()}
-  def update_product(%Product{} = product, attrs) do
-    result =
-      product
-      |> Product.update_changeset(attrs)
-      |> Repo.update()
-
-    case result do
-      {:ok, %{delta_updatable: true} = new_product} when product.delta_updatable == false ->
-        :ok = trigger_delta_generation_for_product(new_product)
-        result
-
-      _ ->
-        result
-    end
-  end
-
-  defp trigger_delta_generation_for_product(product) do
-    NervesHub.Devices.get_device_firmware_for_delta_generation_by_product(product.id)
-    |> Enum.uniq()
-    |> Enum.each(fn {source_id, target_id} ->
-      FirmwareDeltaBuilder.start(source_id, target_id)
-    end)
   end
 
   @doc """

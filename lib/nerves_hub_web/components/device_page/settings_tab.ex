@@ -70,7 +70,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
               <.input field={@settings_form[:description]} label="Description" placeholder="eg. sensor hub at customer X" />
 
-              <.input field={@settings_form[:tags]} value={tags_to_string(@settings_form[:tags])} label="Tags" placeholder="eg. batch-123" />
+              <.input field={@settings_form[:tags]} value={Utils.tags_to_string(@settings_form[:tags])} label="Tags" placeholder="eg. batch-123" />
             </div>
 
             <div class="w-1/2 flex flex-col gap-2">
@@ -187,7 +187,7 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
               </div>
             </div>
             <div class="flex gap-2">
-              <.link class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600" href={~p"/org/#{@org}/#{@product}/devices/#{@device}/certificate/#{certificate.serial}/download"} download>
+              <.link class="flex px-3 py-1.5 gap-2 rounded bg-zinc-800 border border-zinc-600" href={~p"/org/#{@org}/#{@product}/devices/#{@device}/certificate/#{certificate}/download"} download>
                 <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M6.66671 16.6667H5.00004C4.07957 16.6667 3.33337 15.9205 3.33337 15V5.00004C3.33337 4.07957 4.07957 3.33337 5.00004 3.33337H12.643C13.085 3.33337 13.509 3.50897 13.8215 3.82153L16.1786 6.17855C16.4911 6.49111 16.6667 6.91504 16.6667 7.35706V15C16.6667 15.9205 15.9205 16.6667 15 16.6667H13.3334M6.66671 16.6667V12.5H13.3334V16.6667M6.66671 16.6667H13.3334M6.66671 6.66671V9.16671H9.16671V6.66671H6.66671Z"
@@ -465,12 +465,4 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
         into: %{},
         do: {extension, Extensions.module(extension).description()}
   end
-
-  defp tags_to_string(%Phoenix.HTML.FormField{} = field) do
-    tags_to_string(field.value)
-  end
-
-  defp tags_to_string(%{tags: tags}), do: tags_to_string(tags)
-  defp tags_to_string(tags) when is_list(tags), do: Enum.join(tags, ", ")
-  defp tags_to_string(tags), do: tags
 end
