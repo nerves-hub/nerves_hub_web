@@ -27,10 +27,12 @@ defmodule NervesHubWeb.DynamicConfigMultipart do
   end
 
   defp max_file_size(conn) do
-    if String.match?(conn.request_path, ~r/^\/api\/orgs\/[-\w]+\/products\/[-\w]+\/firmwares$/) do
-      Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload, [])[:max_size]
-    else
-      1_000_000
+    case conn.path_info do
+      ["api", "orgs", _org_name, "products", _product_name, "firmwares"] ->
+        Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload, [])[:max_size]
+
+      _ ->
+        1_000_000
     end
   end
 end
