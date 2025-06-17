@@ -15,10 +15,14 @@ defmodule NervesHubWeb.DynamicConfigMultipart do
 
   def init(opts) do
     opts
+    |> Keyword.put_new(:max_default_size, 1_000_000)
+    |> Keyword.put_new_lazy(:max_firmware_size, fn ->
+        Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload, [])[:max_size]
+    end)
   end
 
   def parse(conn, "multipart", subtype, headers, opts) do
-    opts = @multipart.init([length: max_file_size(conn)] ++ opts)
+    opts = @multipart.init([length: max_file_size(conn, opts)] ++ opts)
     @multipart.parse(conn, "multipart", subtype, headers, opts)
   end
 
@@ -26,13 +30,13 @@ defmodule NervesHubWeb.DynamicConfigMultipart do
     {:next, conn}
   end
 
-  defp max_file_size(conn) do
+  defp max_file_size(conn, opts) do
     case conn.path_info do
       ["api", "orgs", _org_name, "products", _product_name, "firmwares"] ->
-        Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload, [])[:max_size]
+        Keyword.fetch!(opts, :max_firmware_size)
 
       _ ->
-        1_000_000
+        Keyword.fetch!(opts, :max_default_size)
     end
   end
 end
