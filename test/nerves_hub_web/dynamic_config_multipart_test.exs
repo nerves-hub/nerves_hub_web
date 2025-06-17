@@ -3,8 +3,17 @@ defmodule NervesHubWeb.DynamicConfigMultipartTest do
 
   alias NervesHubWeb.DynamicConfigMultipart
 
-  @reasonable_size 100
-  @firmware_size 1_000_001
+  @reasonable_size 1000
+  @max_default_size 1024
+
+  @firmware_size 2000
+  @max_firmware_size 2048
+
+  test "default options" do
+    opts = DynamicConfigMultipart.init([])
+    assert Keyword.fetch!(opts, :max_default_size) == 1_000_000
+    assert Keyword.fetch!(opts, :max_firmware_size) == 200_000_000
+  end
 
   describe "non-firmware paths" do
     test "allows resonably sized file through" do
@@ -28,24 +37,20 @@ defmodule NervesHubWeb.DynamicConfigMultipartTest do
     end
 
     test "returns :too_large error when multipart body exceeds the firmware limit" do
-      # bring max_size down so it doesn't make a huge file
-      config = Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload, [])
-      :ok = Application.put_env(:nerves_hub, NervesHub.Firmwares.Upload, max_size: 100)
-
-      # reset the config after we're done
-      on_exit(fn ->
-        Application.put_env(:nerves_hub, NervesHub.Firmwares.Upload, config)
-      end)
-
       assert_raise Plug.Parsers.RequestTooLargeError, fn ->
-        upload_multipart_file("/api/orgs/acme/products/anvil/firmwares", 101)
+        upload_multipart_file("/api/orgs/acme/products/anvil/firmwares", 4096)
       end
     end
   end
 
   def upload_multipart_file(path, filesize) do
-    # create an instance of the parser
-    parser = Plug.Parsers.init(parsers: [DynamicConfigMultipart], pass: ["*/*"])
+    # create an instance of the parser,
+    # we shrink the sizes down so we don't have to generate huge files
+    parser =
+      {DynamicConfigMultipart,
+       max_default_size: @max_default_size, max_firmware_size: @max_firmware_size}
+
+    parsers = Plug.Parsers.init(parsers: [parser], pass: ["*/*"])
 
     # create a multipart payload matching the given filesize
     {body, boundary} = multipart_file(filesize)
@@ -53,7 +58,7 @@ defmodule NervesHubWeb.DynamicConfigMultipartTest do
     # run it through our parser
     Plug.Test.conn(:post, path, body)
     |> put_req_header("content-type", "multipart/form-data; boundary=#{boundary}")
-    |> Plug.Parsers.call(parser)
+    |> Plug.Parsers.call(parsers)
   end
 
   defp multipart_file(size) do
@@ -63,11 +68,7 @@ defmodule NervesHubWeb.DynamicConfigMultipartTest do
 
     body = """
     --#{boundary}\r
-    Content-Disposition: form-data; name="title"\r
-    \r
-    Test Upload\r
-    --#{boundary}\r
-    Content-Disposition: form-data; name="file"; filename="large.txt"\r
+    Content-Disposition: form-data; name="file"; filename="larger.txt"\r
     Content-Type: text/plain\r
     \r
     #{large_content}\r
