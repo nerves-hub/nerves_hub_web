@@ -126,20 +126,14 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Edit do
 
   defp help_message_for(field) do
     case field do
-      :failure_threshold ->
-        "Maximum number of target devices from this deployment group that can be in an unhealthy state before deployment group is marked unhealthy"
-
-      :failure_rate ->
-        "Maximum number of device install failures from this deployment group within X seconds before being marked unhealthy"
-
       :device_failure_rate ->
-        "Maximum number of device failures within X seconds a device can have for this deployment group before being marked unhealthy"
+        "Maximum number of update attempts within X seconds a device can have for this deployment group before being placed in penalty box."
 
       :device_failure_threshold ->
-        "Maximum number of install attempts and/or failures a device can have for this deployment group before being marked unhealthy"
+        "Maximum number of update attempts a device can have for this deployment group before being placed in penalty box."
 
       :penalty_timeout_minutes ->
-        "Number of minutes a device is placed in the penalty box for reaching the failure rate and threshold"
+        "Number of minutes a device is placed in penalty box for reaching the failure rate or threshold."
     end
   end
 
