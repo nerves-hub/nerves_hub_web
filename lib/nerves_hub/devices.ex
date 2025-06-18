@@ -34,6 +34,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
+  alias NervesHub.Workers.RemoveDeviceFromPenaltyBox
 
   @min_fwup_delta_updatable_version ">=1.10.0"
 
@@ -885,34 +886,37 @@ defmodule NervesHub.Devices do
         {:error, :updates_blocked, device}
 
       failure_rate_met?(device, deployment_group) ->
-        blocked_until =
-          DateTime.utc_now()
-          |> DateTime.truncate(:second)
-          |> DateTime.add(deployment_group.penalty_timeout_minutes * 60, :second)
-
-        DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device)
-        clear_inflight_update(device)
-
-        {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
+        {:ok, device} = put_device_in_penalty_box(device, deployment_group)
 
         {:error, :updates_blocked, device}
 
       failure_threshold_met?(device, deployment_group) ->
-        blocked_until =
-          DateTime.utc_now()
-          |> DateTime.truncate(:second)
-          |> DateTime.add(deployment_group.penalty_timeout_minutes * 60, :second)
-
-        DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device)
-        clear_inflight_update(device)
-
-        {:ok, device} = update_device(device, %{updates_blocked_until: blocked_until})
+        {:ok, device} = put_device_in_penalty_box(device, deployment_group)
 
         {:error, :updates_blocked, device}
 
       true ->
         {:ok, device}
     end
+  end
+
+  defp put_device_in_penalty_box(device, deployment_group) do
+    blocked_until =
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+      |> DateTime.add(deployment_group.penalty_timeout_minutes * 60, :second)
+
+    :ok = DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device)
+    _ = clear_inflight_update(device)
+
+    _job =
+      %{"device_id" => device.id}
+      |> RemoveDeviceFromPenaltyBox.new(scheduled_at: blocked_until)
+      |> Oban.insert!()
+
+    Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}")
+
+    update_device(device, %{updates_blocked_until: blocked_until})
   end
 
   def update_attempted(device, now \\ DateTime.utc_now()) do
