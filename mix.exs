@@ -129,7 +129,7 @@ defmodule NervesHub.MixProject do
       {:phoenix_test, "~> 0.5", only: :test, runtime: false},
       {:plug, "~> 1.7"},
       {:postgrex, "~> 0.14"},
-      {:sentry, "~> 10.0"},
+      {:sentry, "~> 11.0"},
       {:slipstream, "~> 1.0", only: [:test, :dev]},
       {:spellweaver, "~> 0.1", only: [:test, :dev], runtime: false},
       {:sweet_xml, "~> 0.6"},
