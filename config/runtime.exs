@@ -55,7 +55,8 @@ config :nerves_hub,
       days_to_keep: String.to_integer(System.get_env("EXTENSIONS_LOGGING_DAYS_TO_KEEP", "3"))
     ]
   ],
-  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true"
+  new_ui: System.get_env("NEW_UI_ENABLED", "true") == "true",
+  enable_delta_updates: System.get_env("ENABLE_DELTA_UPDATES", "true") == "true"
 
 config :nerves_hub, :device_socket_drainer,
   batch_size: String.to_integer(System.get_env("DEVICE_SOCKET_DRAINER_BATCH_SIZE", "1000")),
