@@ -18,10 +18,12 @@ defmodule NervesHubWeb.Live.NewUI.DelploymentGroups.ShowTest do
     end
 
     test "toggle delta updates", %{conn: conn, deployment_group: deployment_group} do
-      # Delta updates are enabled in deployment group fixture
-      assert deployment_group.delta_updatable
+      deployment_group =
+        Ecto.Changeset.change(deployment_group, delta_updatable: true) |> Repo.update!()
 
       conn
+      |> check("Delta updates")
+      |> assert_has("div", text: "Delta updates enabled successfully.")
       |> check("Delta updates")
       |> assert_has("div", text: "Delta updates disabled successfully.")
 

@@ -387,10 +387,12 @@ defmodule NervesHub.DevicesTest do
 
     assert Devices.delta_updatable?(source, target, deployment_group, fwup_version) == false
 
+    deployment_group =
+      Ecto.Changeset.change(deployment_group, delta_updatable: true) |> Repo.update!()
+
     source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
     target = Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
 
-    assert deployment_group.delta_updatable == true
     assert source.delta_updatable == true
     assert target.delta_updatable == true
 
