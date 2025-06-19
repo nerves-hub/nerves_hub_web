@@ -34,8 +34,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     :device_failure_rate_seconds,
     :device_failure_rate_amount,
     :failure_threshold,
-    :failure_rate_seconds,
-    :failure_rate_amount,
     :healthy,
     :penalty_timeout_minutes,
     :connecting_code,
@@ -61,8 +59,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:device_failure_rate_seconds, :integer, default: 180)
     field(:device_failure_rate_amount, :integer, default: 5)
     field(:failure_threshold, :integer, default: 50)
-    field(:failure_rate_seconds, :integer, default: 300)
-    field(:failure_rate_amount, :integer, default: 5)
     field(:is_active, :boolean)
     field(:name, :string)
     field(:healthy, :boolean, default: true)

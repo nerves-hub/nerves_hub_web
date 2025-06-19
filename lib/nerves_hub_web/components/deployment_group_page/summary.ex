@@ -140,17 +140,6 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               <span class="text-sm text-zinc-300">{@deployment_group.inflight_update_expiration_minutes}</span>
             </div>
             <div class="flex gap-4 items-center">
-              <span class="text-sm text-nerves-gray-500">Failure rate:</span>
-              <span class="text-sm text-zinc-300">
-                <span class="font-bold">{@deployment_group.failure_rate_amount}</span> failures per <span class="font-bold">{@deployment_group.failure_rate_seconds}</span> seconds
-              </span>
-            </div>
-
-            <div class="flex gap-4 items-center pb-6">
-              <span class="text-sm text-nerves-gray-500">Failure threshold:</span>
-              <span class="text-sm text-zinc-300">{@deployment_group.failure_threshold}</span>
-            </div>
-            <div class="flex gap-4 items-center">
               <span class="text-sm text-nerves-gray-500">Device failure rate:</span>
               <span class="text-sm text-zinc-300">
                 <span class="font-bold">{@deployment_group.device_failure_rate_amount}</span> failures per <span class="font-bold">{@deployment_group.device_failure_rate_seconds}</span> seconds
