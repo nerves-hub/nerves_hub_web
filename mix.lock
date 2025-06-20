@@ -127,5 +127,5 @@
   "uuidv7": {:hex, :uuidv7, "1.0.0", "659179b2e248b98f96e7e988b882d369c055b6ae7a836237ccca52cd4d0f6988", [:mix], [{:ecto, "~> 3.12", [hex: :ecto, repo: "hexpm", optional: false]}], "hexpm", "0ecd337108456f7d8b1a9a54ef435443d3f8c10a5b685bd866ef9e396b444cbc"},
   "websock": {:hex, :websock, "0.5.3", "2f69a6ebe810328555b6fe5c831a851f485e303a7c8ce6c5f675abeb20ebdadc", [:mix], [], "hexpm", "6105453d7fac22c712ad66fab1d45abdf049868f253cf719b625151460b8b453"},
   "websock_adapter": {:hex, :websock_adapter, "0.5.8", "3b97dc94e407e2d1fc666b2fb9acf6be81a1798a2602294aac000260a7c4a47d", [:mix], [{:bandit, ">= 0.6.0", [hex: :bandit, repo: "hexpm", optional: true]}, {:plug, "~> 1.14", [hex: :plug, repo: "hexpm", optional: false]}, {:plug_cowboy, "~> 2.6", [hex: :plug_cowboy, repo: "hexpm", optional: true]}, {:websock, "~> 0.5", [hex: :websock, repo: "hexpm", optional: false]}], "hexpm", "315b9a1865552212b5f35140ad194e67ce31af45bcee443d4ecb96b5fd3f3782"},
-  "x509": {:hex, :x509, "0.8.10", "5d1ec6d5f4db31982f9dc34e6a1eebd631d04599e0b6c1c259f1dadd4495e11f", [:mix], [], "hexpm", "a191221665af28b9bdfff0c986ef55f80e126d8ce751bbdf6cefa846410140c0"},
+  "x509": {:hex, :x509, "0.9.0", "f6fa947a04da9330269c50295c954db60ed8b3d86f5d4b1238ac7d37f4126064", [:mix], [], "hexpm", "ce364b4862db1c622bbe2c23c901d8d7ec0239202547b324fe4798cf8d9f00f4"},
 }
