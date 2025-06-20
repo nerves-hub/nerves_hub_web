@@ -43,7 +43,9 @@ defmodule NervesHubWeb.API.ScriptController do
     end
   end
 
-  defp get_timeout_param(%{"timeout" => timeout}) do
+  defp get_timeout_param(%{"timeout" => timeout}) when is_integer(timeout), do: {:ok, timeout}
+
+  defp get_timeout_param(%{"timeout" => timeout}) when is_binary(timeout) do
     case Integer.parse(timeout) do
       {value, ""} -> {:ok, value}
       _ -> {:error, "Invalid timeout value"}
