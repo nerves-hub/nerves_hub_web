@@ -1,20 +1,19 @@
 defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   use NervesHubWeb, :live_component
 
-  alias NervesHub.Firmwares
   alias NervesHub.Devices
+  alias NervesHub.Firmwares
 
   import NervesHubWeb.LayoutView,
     only: [humanize_size: 1]
 
   def update(%{update_inflight_info: true}, socket) do
-    %{product: product} = socket.assigns
-    deployment_group = socket.assigns.deployment_group
+    %{deployment_group: deployment_group} = socket.assigns
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
 
     socket =
-      if product.delta_updatable do
+      if deployment_group.delta_updatable do
         assign(
           socket,
           :deltas,
