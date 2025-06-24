@@ -543,9 +543,16 @@ defmodule NervesHubWeb.Live.Devices.Index do
 
   defp update_device_statuses(socket, payload) do
     # Only sync devices currently on display
-    if Map.has_key?(socket.assigns.device_statuses, payload.device_id) do
-      device_statuses = Map.put(socket.assigns.device_statuses, payload.device_id, payload.status)
-      {:noreply, assign(socket, :device_statuses, device_statuses)}
+    if Map.has_key?(socket.assigns.device_statuses.result, payload.device_id) do
+      updated_device_statuses =
+        Map.put(socket.assigns.device_statuses.result, payload.device_id, payload.status)
+
+      {:noreply,
+       assign(
+         socket,
+         :device_statuses,
+         AsyncResult.ok(socket.assigns.device_statuses, updated_device_statuses)
+       )}
     else
       {:noreply, socket}
     end
