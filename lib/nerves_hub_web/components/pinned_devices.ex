@@ -21,16 +21,16 @@ defmodule NervesHubWeb.Components.PinnedDevices do
             <table class="">
               <thead>
                 <tr>
-                  <th>Identifier</th>
+                  <th class="rounded-tl">Identifier</th>
                   <th>Health</th>
                   <th>Firmware</th>
                   <th>Platform</th>
                   <th>Tags</th>
-                  <th>Project</th>
+                  <th class="rounded-tr">Project</th>
                 </tr>
               </thead>
               <tbody>
-                <tr :for={device <- @devices} class="border-b border-zinc-800 relative">
+                <tr :for={device <- @devices} class="border-b last:border-0 border-zinc-800 relative last:rounded-b">
                   <td>
                     <div class="flex gap-[8px] items-center">
                       <span title="status">
