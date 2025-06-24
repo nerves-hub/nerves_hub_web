@@ -34,7 +34,6 @@ defmodule NervesHub.Devices do
   alias NervesHub.Products.Product
   alias NervesHub.Repo
   alias NervesHub.TaskSupervisor, as: Tasks
-  alias NervesHub.Workers.RemoveDeviceFromPenaltyBox
 
   @min_fwup_delta_updatable_version ">=1.10.0"
 
@@ -909,14 +908,9 @@ defmodule NervesHub.Devices do
     :ok = DeviceTemplates.audit_firmware_upgrade_blocked(deployment_group, device)
     _ = clear_inflight_update(device)
 
-    _job =
-      %{"device_id" => device.id}
-      |> RemoveDeviceFromPenaltyBox.new(scheduled_at: blocked_until)
-      |> Oban.insert!()
-
     Logger.info("Device #{device.identifier} put in penalty box until #{blocked_until}")
 
-    update_device(device, %{updates_blocked_until: blocked_until})
+    update_device(device, %{updates_blocked_until: blocked_until, update_attempts: []})
   end
 
   def update_attempted(device, now \\ DateTime.utc_now()) do
