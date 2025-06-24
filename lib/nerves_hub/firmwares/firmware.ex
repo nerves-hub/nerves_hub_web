@@ -62,6 +62,7 @@ defmodule NervesHub.Firmwares.Firmware do
     field(:version, :string)
 
     field(:install_count, :integer, virtual: true)
+    field(:delta_count, :integer, virtual: true)
 
     timestamps()
   end

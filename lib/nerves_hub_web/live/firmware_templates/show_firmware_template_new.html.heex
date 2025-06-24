@@ -98,6 +98,46 @@
           </div>
         </div>
       </div>
+      <div class="flex flex-col pb-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+        <div class="h-14 pl-4 pr-3 flex items-center text-neutral-50 font-medium leading-6">
+          Deltas
+        </div>
+        <div class="flex flex-col gap-3">
+          <div class="min-h-7 px-4 flex gap-4 items-center">
+            <span class="text-sm text-nerves-gray-500">Author:</span>
+            <span class="text-sm text-zinc-300">{@firmware.author}</span>
+          </div>
+
+          <div class="min-h-7 px-4 flex gap-4 items-center">
+            <span class="text-sm text-nerves-gray-500">Description:</span>
+            <span :if={@firmware.description} class="text-sm text-zinc-300">{@firmware.description}</span>
+            <span :if={!@firmware.description} class="text-sm text-zinc-400">No description</span>
+          </div>
+
+          <div :if={@firmware.misc} class="min-h-7 px-4 flex gap-4 items-center">
+            <span class="text-sm text-nerves-gray-500">Misc:</span>
+            <span class="text-sm text-zinc-300">{@firmware.misc}</span>
+          </div>
+
+          <div class="min-h-7 px-4 flex gap-4 items-center">
+            <span class="text-sm text-nerves-gray-500">Install count:</span>
+            <span :if={@firmware.install_count} class="text-sm text-zinc-300">{@firmware.install_count}</span>
+            <span :if={!@firmware.install_count} class="text-sm text-zinc-400">No installations</span>
+          </div>
+
+          <div class="min-h-7 px-4 flex gap-4 items-center">
+            <span class="text-sm text-nerves-gray-500">Signed with:</span>
+            <span class="flex items-center gap-1 pl-2.5 pr-3 py-0.5 border border-zinc-700 rounded-full bg-zinc-800">
+              <code class="text-xs text-zinc-300">{format_signed(@firmware, @org_keys)}</code>
+            </span>
+          </div>
+
+          <div class="min-h-7 px-4 flex gap-4 items-center">
+            <span class="text-sm text-nerves-gray-500">Uploaded on:</span>
+            <span class="text-sm text-zinc-300">{Calendar.strftime(@firmware.inserted_at, "%Y-%m-%d at %I:%M %p UTC")}</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="w-1/2 flex flex-col gap-4">

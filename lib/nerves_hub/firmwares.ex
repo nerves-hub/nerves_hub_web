@@ -91,7 +91,15 @@ defmodule NervesHub.Firmwares do
       page_size: String.to_integer(Map.get(opts, :page_size, "25"))
     }
 
-    subquery =
+    delta_source_subquery =
+      FirmwareDelta
+      |> select([d], %{
+        source_id: d.source_id,
+        delta_count: count(d.id)
+      })
+      |> group_by([d], d.source_id)
+
+    device_subquery =
       Device
       |> select([d], %{
         firmware_uuid: fragment("? ->> 'uuid'", d.firmware_metadata),
@@ -103,10 +111,11 @@ defmodule NervesHub.Firmwares do
       |> group_by([d], fragment("? ->> 'uuid'", d.firmware_metadata))
 
     Firmware
-    |> join(:left, [f], d in subquery(subquery), on: d.firmware_uuid == f.uuid)
+    |> join(:left, [f], d in subquery(device_subquery), on: d.firmware_uuid == f.uuid)
+    |> join(:left, [f], dt in subquery(delta_source_subquery), on: dt.source_id == f.id)
     |> where([f], f.product_id == ^product.id)
     |> sort_firmware(sort_opts)
-    |> select_merge([_f, d], %{install_count: d.install_count})
+    |> select_merge([_f, d, dt], %{install_count: d.install_count, delta_count: dt.delta_count})
     |> Flop.run(flop)
   end
 

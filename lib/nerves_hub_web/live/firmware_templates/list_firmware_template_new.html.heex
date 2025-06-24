@@ -54,6 +54,9 @@
             <th phx-click="sort" phx-value-sort="install_count" class="cursor-pointer">
               <Sorting.sort_icon text="Install count" field="install_count" selected_field={@current_sort} selected_direction={@sort_direction} />
             </th>
+            <th phx-click="sort" phx-value-sort="delta_count" class="cursor-pointer">
+              <Sorting.sort_icon text="Delta count" field="delta_count" selected_field={@current_sort} selected_direction={@sort_direction} />
+            </th>
             <th>Signing Key</th>
             <th phx-click="sort" phx-value-sort="inserted_at" class="cursor-pointer">
               <Sorting.sort_icon text="Uploaded on" field="inserted_at" selected_field={@current_sort} selected_direction={@sort_direction} />
@@ -86,6 +89,10 @@
 
             <td>
               {firmware.install_count || 0}
+            </td>
+
+            <td>
+              {firmware.delta_count || 0}
             </td>
 
             <td>
