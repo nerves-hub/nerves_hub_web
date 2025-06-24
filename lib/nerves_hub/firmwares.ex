@@ -32,6 +32,15 @@ defmodule NervesHub.Firmwares do
     |> Repo.all()
   end
 
+  @spec get_deltas_by_source_firmware(firmware :: Firmware.t()) :: [FirmwareDelta.t()]
+  def get_deltas_by_source_firmware(firmware) do
+    FirmwareDelta
+    |> where([fd], fd.source_id == ^firmware.id)
+    |> preload(:source)
+    |> preload(:target)
+    |> Repo.all()
+  end
+
   @spec count(Product.t()) :: non_neg_integer()
   def count(product) do
     Firmware

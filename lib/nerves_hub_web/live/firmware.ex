@@ -50,11 +50,15 @@ defmodule NervesHubWeb.Live.Firmware do
          "firmware_uuid" => firmware_uuid
        }) do
     firmware = Firmwares.get_firmware_by_product_and_uuid!(product, firmware_uuid)
+    source_deltas = Firmwares.get_deltas_by_source_firmware(firmware)
+    target_deltas = Firmwares.get_deltas_by_target_firmware(firmware)
 
     socket
     |> page_title("Firmware #{firmware_uuid} - #{product.name}")
     |> assign(:firmware, firmware)
     |> assign(:org_keys, Accounts.list_org_keys(socket.assigns.org))
+    |> assign(:source_deltas, source_deltas)
+    |> assign(:target_deltas, target_deltas)
     |> then(fn socket ->
       if Application.get_env(:nerves_hub, :new_ui) && socket.assigns[:new_ui] do
         render_with(socket, &show_firmware_template_new/1)
