@@ -675,7 +675,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   def hooked_event("push-delta", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{product: product, device: device, user: user} = socket.assigns
+    %{product: product, device: %Device{} = device, user: user} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
@@ -683,7 +683,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       "Manually sending firmware delta for updating from #{device.firmware_metadata.uuid} to #{firmware.uuid} to #{device.identifier}..."
     )
 
-    {:ok, url} = Devices.get_delta_or_firmware_url(device, firmware)
+    # Ensure the update stats get logged
+    {:ok, url} = Devices.get_delta_or_firmware_url(device, firmware, nil)
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
     {:ok, device} = Devices.disable_updates(device, user)
 
