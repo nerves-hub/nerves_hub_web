@@ -542,20 +542,15 @@ defmodule NervesHubWeb.Live.Devices.Index do
     do: %{filters | deployment_id: String.to_integer(filters.deployment_id)}
 
   defp update_device_statuses(socket, payload) do
-    # Only sync devices currently on display
-    if Map.has_key?(socket.assigns.device_statuses.result, payload.device_id) do
-      updated_device_statuses =
-        Map.put(socket.assigns.device_statuses.result, payload.device_id, payload.status)
+    updated_device_statuses =
+      Map.replace(socket.assigns.device_statuses.result, payload.device_id, payload.status)
 
-      {:noreply,
-       assign(
-         socket,
-         :device_statuses,
-         AsyncResult.ok(socket.assigns.device_statuses, updated_device_statuses)
-       )}
-    else
-      {:noreply, socket}
-    end
+    {:noreply,
+     assign(
+       socket,
+       :device_statuses,
+       AsyncResult.ok(updated_device_statuses)
+     )}
   end
 
   defp move_products_toast(socket, successfuls) do
