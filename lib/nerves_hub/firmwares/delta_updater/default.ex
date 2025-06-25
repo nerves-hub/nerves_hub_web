@@ -50,8 +50,14 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
   def delta_updatable?(file_path) do
     {meta, 0} = System.cmd("unzip", ["-qqp", file_path, "meta.conf"], env: [])
 
-    (meta =~ "delta-source-raw-offset" && meta =~ "delta-source-raw-count") or
-      (meta =~ "delta-source-fat-offset" && meta =~ "delta-source-fat-path")
+    path =
+      System.tmp_dir!()
+      |> Path.join("meta.conf")
+
+    File.write!(path, meta)
+    {:ok, feature_usage} = Confuse.Fwup.get_feature_usage(path)
+
+    feature_usage.raw_deltas? or feature_usage.fat_deltas?
   end
 
   def do_delta_file(source_path, target_path, output_path, work_dir) do
@@ -133,7 +139,11 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
       {:ok, %{size: size}} = File.stat(output_path)
 
       {:ok, output_path,
-       %{"size" => size, "source_size" => source_size, "target_size" => target_size}}
+       %{
+         "size" => size,
+         "source_size" => source_size,
+         "target_size" => target_size
+       }}
     end
   end
 

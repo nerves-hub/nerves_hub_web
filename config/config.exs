@@ -112,5 +112,7 @@ config :ueberauth, Ueberauth,
     google: {Ueberauth.Strategy.Google, [default_scope: "email profile openid"]}
   ]
 
+config :bun, :version, "1.2.2"
+
 # Environment specific config
 import_config "#{Mix.env()}.exs"

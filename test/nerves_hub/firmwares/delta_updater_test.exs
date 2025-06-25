@@ -9,6 +9,8 @@ defmodule NervesHub.Firmwares.DeltaUpdateTest do
   @mixed_no_deltas File.read!("test/fixtures/fwup/mixed-no-deltas.conf")
   @pi_style File.read!("test/fixtures/fwup/pi-style.conf")
   @pi_style_delta File.read!("test/fixtures/fwup/pi-style-delta.conf")
+  # TODO: Add fwup conf for encrypted disk with deltas, and tests to avoid generating
+  #       deltas if encryption doesn't match both sides
 
   setup_all do
     with path_1 when is_binary(path_1) <- System.find_executable("mdir"),

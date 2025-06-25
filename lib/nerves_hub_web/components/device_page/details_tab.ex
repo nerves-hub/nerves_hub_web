@@ -602,7 +602,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           "Manually sending firmware delta for updating from #{device.firmware_metadata.uuid} to #{firmware.uuid} to #{device.identifier}..."
         )
 
-        Devices.get_delta_or_firmware_url(device.firmware_metadata.uuid, firmware)
+        Devices.get_delta_or_firmware_url(device, firmware)
       else
         Logger.info(
           "Manually sending full firmware for updating from to #{firmware.uuid} to #{device.identifier}..."

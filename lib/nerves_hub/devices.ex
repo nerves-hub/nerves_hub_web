@@ -752,7 +752,7 @@ defmodule NervesHub.Devices do
   def do_resolve_update(device, deployment_group) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
-        {:ok, url} = get_delta_or_firmware_url(device.firmware_metadata.uuid, deployment_group)
+        {:ok, url} = get_delta_or_firmware_url(device, deployment_group)
 
         {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
 
@@ -776,17 +776,17 @@ defmodule NervesHub.Devices do
   end
 
   @spec delta_updatable?(
-          source :: Firmware.t(),
+          _source :: Firmware.t(),
           target :: Firmware.t(),
           DeploymentGroup.t(),
           fwup_version :: String.t()
         ) :: boolean()
   def delta_updatable?(nil, _target, _deployment_group, _fwup_version), do: false
 
-  def delta_updatable?(source, target, deployment_group, fwup_version) do
+  def delta_updatable?(_source, target, deployment_group, fwup_version) do
+    # note that source delta does not need delta markers to be updatable
     deployment_group.delta_updatable and
       target.delta_updatable and
-      source.delta_updatable and
       Version.match?(fwup_version, @min_fwup_delta_updatable_version)
   end
 
@@ -1703,14 +1703,24 @@ defmodule NervesHub.Devices do
   @doc """
   Get firmware or delta update URL.
   """
-  @spec get_delta_or_firmware_url(String.t(), Firmware.t() | DeploymentGroup.t()) ::
+  @spec get_delta_or_firmware_url(Device.t(), Firmware.t() | DeploymentGroup.t()) ::
           {:ok, String.t()} | {:error, :failure}
-  def get_delta_or_firmware_url(device_firmware_uuid, %DeploymentGroup{
-        delta_updatable: true,
-        firmware: target_firmware
-      }) do
+  def get_delta_or_firmware_url(
+        %{firmware_metadata: %{uuid: device_firmware_uuid}} = device,
+        deployment_group = %DeploymentGroup{
+          delta_updatable: true,
+          firmware: target_firmware
+        }
+      ) do
     # Get firmware delta URL if available but otherwise deliver full firmware
     with %Firmware{} = device_firmware <- Firmwares.get_firmware_by_uuid(device_firmware_uuid),
+         true <-
+           delta_updatable?(
+             device_firmware,
+             target_firmware,
+             deployment_group,
+             device.firmware_metadata.fwup_version
+           ),
          {:ok, firmware_delta} <-
            Firmwares.get_firmware_delta_by_source_and_target(device_firmware, target_firmware) do
       Logger.info(
