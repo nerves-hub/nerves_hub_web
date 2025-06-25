@@ -72,7 +72,7 @@ config :nerves_hub, NervesHub.ObanRepo,
   pool_size: 10
 
 config :nerves_hub, NervesHub.AnalyticsRepo,
-  url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default")
+  url: System.get_env("CLICKHOUSE_URL", "http://default:@localhost:8123/default_test")
 
 config :nerves_hub, analytics_enabled: true
 

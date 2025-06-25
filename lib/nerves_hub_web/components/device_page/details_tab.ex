@@ -9,6 +9,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.Metrics
   alias NervesHub.Devices.UpdatePayload
+  alias NervesHub.Devices.UpdateStats
   alias NervesHub.Firmwares
   alias NervesHub.ManagedDeployments
   alias NervesHub.Scripts
@@ -647,6 +648,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       "Manually sending full firmware for updating from to #{firmware.uuid} to #{device.identifier}..."
     )
 
+    # Explicitly log the update stats
+    _ =
+      if UpdateStats.enabled?() do
+        UpdateStats.log_full_update(device, nil, firmware)
+      end
+
     {:ok, url} = Firmwares.get_firmware_url(firmware)
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
     {:ok, device} = Devices.disable_updates(device, user)
@@ -676,7 +683,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   def hooked_event("push-delta", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{product: product, device: device, user: user} = socket.assigns
+    %{product: product, device: %Device{} = device, user: user} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
@@ -684,7 +691,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
       "Manually sending firmware delta for updating from #{device.firmware_metadata.uuid} to #{firmware.uuid} to #{device.identifier}..."
     )
 
-    {:ok, url} = Devices.get_delta_or_firmware_url(device, firmware)
+    # Ensure the update stats get logged
+    {:ok, url} = Devices.get_delta_or_firmware_url(device, firmware, nil, log_update_stats?: true)
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
     {:ok, device} = Devices.disable_updates(device, user)
 

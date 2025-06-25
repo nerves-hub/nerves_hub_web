@@ -3,6 +3,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
   alias NervesHub.Devices
   alias NervesHub.Firmwares
+  alias NervesHub.Devices.UpdateStats
 
   import NervesHubWeb.LayoutView,
     only: [humanize_size: 1]
@@ -12,6 +13,23 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
 
     inflight_updates = Devices.inflight_updates_for(deployment_group)
 
+    socket
+    |> assign(:inflight_updates, inflight_updates)
+    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
+    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
+    |> assign(:updating_count, Devices.updating_count(deployment_group))
+    |> assign_deltas_and_stats()
+    |> ok()
+  end
+
+  def update(assigns, socket) do
+    socket
+    |> assign(assigns)
+    |> assign_deltas_and_stats()
+    |> ok()
+  end
+
+  defp assign_deltas_and_stats(%{assigns: %{deployment_group: deployment_group}} = socket) do
     socket =
       if deployment_group.delta_updatable do
         assign(
@@ -20,21 +38,14 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
           Firmwares.get_deltas_by_target_firmware(deployment_group.firmware)
         )
       else
-        assign(socket, :deltas, nil)
+        assign(socket, :deltas, [])
       end
 
-    socket
-    |> assign(:inflight_updates, inflight_updates)
-    |> assign(:up_to_date_count, Devices.up_to_date_count(deployment_group))
-    |> assign(:waiting_for_update_count, Devices.waiting_for_update_count(deployment_group))
-    |> assign(:updating_count, Devices.updating_count(deployment_group))
-    |> ok()
-  end
-
-  def update(assigns, socket) do
-    socket
-    |> assign(assigns)
-    |> ok()
+    if UpdateStats.enabled?() do
+      assign(socket, :update_stats, UpdateStats.stats_by_deployment(deployment_group))
+    else
+      socket
+    end
   end
 
   def render(assigns) do
@@ -248,6 +259,42 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div :if={UpdateStats.enabled?()} class="flex flex-col gap-2 p-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+            <div class="h-9 flex items-start justify-between">
+              <div class="text-neutral-50 font-medium leading-6">Transfer stats</div>
+            </div>
+            <div :if={@update_stats == %{}} class="flex gap-4 items-center">
+              <span class="text-sm text-nerves-gray-500">No stats recorded for this firmware.</span>
+            </div>
+            <div :for={{source_uuid, stat} <- @update_stats} class="flex flex-col gap-2">
+              <%= with %{source: source} <- Enum.find(assigns[:deltas] || [], &(&1.source.uuid == source_uuid)) do %>
+                <div class="h-10 text-sm flex items-start justify-between">
+                  <div class="text-neutral-50 font-medium leading-6">{source.version}</div>
+                </div>
+                <div class="flex gap-4 items-center">
+                  <span class="text-sm text-nerves-gray-500">Update count:</span>
+                  <span class="text-sm text-zinc-300">{stat.num_updates}</span>
+                </div>
+                <div class="flex gap-4 items-center">
+                  <span class="text-sm text-nerves-gray-500">Total updates size:</span>
+                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stat.total_update_bytes)}</span>
+                </div>
+                <div class="flex gap-4 items-center">
+                  <span class="text-sm text-nerves-gray-500">Delta update savings:</span>
+                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stat.total_saved_bytes)}</span>
+                </div>
+                <div class="flex gap-4 items-center">
+                  <span class="text-sm text-nerves-gray-500">Average size per device:</span>
+                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stat.total_update_bytes / stat.num_updates)}</span>
+                </div>
+                <div class="flex gap-4 items-center">
+                  <span class="text-sm text-nerves-gray-500">Average saved per device:</span>
+                  <span class="text-sm text-zinc-300">{Sizeable.filesize(stat.total_saved_bytes / stat.num_updates)}</span>
+                </div>
+              <% end %>
             </div>
           </div>
         </div>
