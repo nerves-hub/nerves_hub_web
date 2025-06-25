@@ -74,6 +74,10 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     # TODO: (nshoes) this column is unused, remove after 1st March
     # field(:recalculation_type, Ecto.Enum, values: [:device, :calculator_queue], default: :device)
 
+    # TODO: (nshoes) this column is unused, remove after 1st July
+    field(:failure_rate_seconds, :integer, default: 300)
+    field(:failure_rate_amount, :integer, default: 5)
+
     field(:device_count, :integer, virtual: true)
 
     # TODO: (joshk) this column is unused, remove after 1st May
