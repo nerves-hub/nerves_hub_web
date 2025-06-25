@@ -6,6 +6,7 @@ defmodule NervesHub.MixProject do
       app: :nerves_hub,
       version: "2.0.0+#{build()}",
       start_permanent: Mix.env() == :prod,
+      consolidate_protocols: Mix.env() != :dev,
       deps: deps(),
       aliases: aliases(),
       preferred_cli_env: [
@@ -72,6 +73,7 @@ defmodule NervesHub.MixProject do
   # Run "mix help deps" for examples and options.
   defp deps() do
     [
+      {:sizeable, "~> 1.0"},
       {:mix_test_watch, "~> 1.0", only: :test, runtime: false},
       {:recon, "~> 2.5"},
       {:assert_eventually, "~> 1.0.0", only: [:dev, :test]},

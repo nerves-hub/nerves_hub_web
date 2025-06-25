@@ -661,7 +661,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
   def hooked_event("push-delta", %{"uuid" => uuid}, socket) do
     authorized!(:"device:push-update", socket.assigns.org_user)
 
-    %{product: product, device: device, user: user} = socket.assigns
+    %{product: product, device: %Device{} = device, user: user} = socket.assigns
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 

@@ -8,6 +8,7 @@ defmodule NervesHub.Devices.Device do
   alias NervesHub.Devices.DeviceConnection
   alias NervesHub.Devices.DeviceHealth
   alias NervesHub.Devices.DeviceMetric
+  alias NervesHub.Devices.UpdateStat
   alias NervesHub.Extensions.DeviceExtensionsSetting
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -46,6 +47,7 @@ defmodule NervesHub.Devices.Device do
     has_many(:device_connections, DeviceConnection, on_delete: :delete_all)
     has_many(:device_metrics, DeviceMetric, on_delete: :delete_all)
     has_many(:device_health, DeviceHealth, on_delete: :delete_all)
+    has_many(:update_stats, UpdateStat, on_delete: :delete_all)
 
     field(:identifier, :string)
     field(:description, :string)

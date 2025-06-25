@@ -9,6 +9,7 @@ defmodule NervesHubWeb.WebsocketTest do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Devices.DeviceConnection
+  alias NervesHub.Devices.UpdateStat
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator
@@ -873,6 +874,75 @@ defmodule NervesHubWeb.WebsocketTest do
 
       device = Repo.reload(device)
       assert device.deployment_id
+
+      close_socket_cleanly(socket)
+    end
+
+    test "creates update_stat after successful firmware update",
+         %{
+           user: user,
+           tmp_dir: tmp_dir
+         } do
+      org = Fixtures.org_fixture(user)
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user, tmp_dir)
+
+      target_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{
+          version: "0.0.1",
+          dir: tmp_dir
+        })
+
+      source_firmware =
+        Fixtures.firmware_fixture(org_key, product, %{
+          version: "0.0.2",
+          dir: tmp_dir
+        })
+
+      {:ok, deployment_group} =
+        Fixtures.deployment_group_fixture(org, target_firmware, %{
+          name: "Every Device",
+          conditions: %{
+            "version" => "<= 1.0.0",
+            "tags" => ["beta", "beta-edge"]
+          }
+        })
+        |> ManagedDeployments.update_deployment_group(%{is_active: true})
+
+      device =
+        Fixtures.device_fixture(
+          org,
+          product,
+          target_firmware,
+          %{
+            deployment_id: deployment_group.id,
+            tags: ["beta", "beta-edge"],
+            identifier: @valid_serial,
+            product: @valid_product
+          }
+        )
+
+      assert device.deployment_id
+      refute Repo.exists?(UpdateStat)
+
+      Fixtures.device_certificate_fixture(device)
+
+      subscribe_for_updates(device)
+
+      {:ok, socket} = SocketClient.start_link(@socket_config)
+
+      SocketClient.join_and_wait(socket, %{
+        "device_api_version" => "2.2.0",
+        "nerves_fw_uuid" => source_firmware.uuid,
+        "nerves_fw_product" => "test",
+        "nerves_fw_architecture" => device.firmware_metadata.architecture,
+        "nerves_fw_platform" => "test_host",
+        "nerves_fw_version" => "0.1.0"
+      })
+
+      assert_online_and_available(device)
+
+      assert Repo.exists?(UpdateStat)
 
       close_socket_cleanly(socket)
     end

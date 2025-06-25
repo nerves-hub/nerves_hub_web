@@ -4,6 +4,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   alias NervesHub.AuditLogs
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.Devices
+  alias NervesHub.Devices.UpdateStats
+  alias NervesHub.Firmwares
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
@@ -51,6 +53,8 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
     |> assign(:audit_pager, audit_pager)
     |> assign(:inflight_updates, inflight_updates)
     |> assign(:firmware, deployment_group.firmware)
+    |> assign(:deltas, Firmwares.get_deltas_by_target_firmware(deployment_group.firmware))
+    |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
     |> assign_matched_devices_count()
     |> schedule_inflight_updates_updater()
     |> ok()

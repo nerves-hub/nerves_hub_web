@@ -280,7 +280,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
       |> select("Update status", option: "Updating")
       |> assert_has("a", text: device.identifier, timeout: 1000)
 
-      {:ok, _device} = Devices.firmware_update_successful(device)
+      {:ok, _device} = Devices.firmware_update_successful(device, device.firmware_metadata)
 
       conn
       |> visit("/org/#{org.name}/#{product.name}/devices")
