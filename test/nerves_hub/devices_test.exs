@@ -566,6 +566,7 @@ defmodule NervesHub.DevicesTest do
         Devices.verify_update_eligibility(device, deployment_group)
 
       assert device.updates_blocked_until
+      assert device.update_attempts == []
       assert Devices.count_inflight_updates_for(deployment_group) == 0
     end
 
@@ -588,6 +589,7 @@ defmodule NervesHub.DevicesTest do
         Devices.verify_update_eligibility(device, deployment_group)
 
       assert device.updates_blocked_until
+      assert device.update_attempts == []
       assert Devices.count_inflight_updates_for(deployment_group) == 0
     end
 
