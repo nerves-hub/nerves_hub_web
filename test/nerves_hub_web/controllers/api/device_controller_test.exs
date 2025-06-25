@@ -761,6 +761,52 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       |> assert
     end
 
+    test "handles timeout param as a string or integer", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      device = Fixtures.device_fixture(org, product, firmware)
+      script = Fixtures.support_script_fixture(product, user)
+
+      path =
+        Routes.api_device_script_path(
+          conn,
+          :send,
+          org.name,
+          product.name,
+          device.identifier,
+          script.id,
+          %{"timeout" => "1000"}
+        )
+
+      NervesHub.Scripts.Runner
+      |> expect(:send, fn _, _, 1000 -> {:ok, "hello"} end)
+
+      conn
+      |> post(path)
+      |> response(200)
+      |> assert
+
+      path =
+        Routes.api_device_script_path(
+          conn,
+          :send,
+          org.name,
+          product.name,
+          device.identifier,
+          script.id,
+          %{"timeout" => 1000}
+        )
+
+      NervesHub.Scripts.Runner
+      |> expect(:send, fn _, _, 1000 -> {:ok, "hello"} end)
+
+      conn
+      |> post(path)
+      |> response(200)
+      |> assert
+    end
+
     test "auth failure, with nested url", %{conn2: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user)
@@ -784,7 +830,7 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       |> assert_authorization_error(404)
     end
 
-    test "success, with short url ", %{conn: conn, user: user, org: org} do
+    test "success, with short url", %{conn: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user)
       firmware = Fixtures.firmware_fixture(org_key, product)

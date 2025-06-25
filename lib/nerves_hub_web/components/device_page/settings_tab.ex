@@ -404,6 +404,8 @@ defmodule NervesHubWeb.Components.DevicePage.SettingsTab do
 
     case result do
       {:ok, _pf} ->
+        send(self(), :reload_device)
+
         put_flash(
           socket,
           :info,
