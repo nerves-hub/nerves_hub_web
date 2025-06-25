@@ -387,10 +387,12 @@ defmodule NervesHub.DevicesTest do
 
     assert Devices.delta_updatable?(source, target, deployment_group, fwup_version) == false
 
+    deployment_group =
+      Ecto.Changeset.change(deployment_group, delta_updatable: true) |> Repo.update!()
+
     source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
     target = Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
 
-    assert deployment_group.delta_updatable == true
     assert source.delta_updatable == true
     assert target.delta_updatable == true
 
@@ -564,6 +566,7 @@ defmodule NervesHub.DevicesTest do
         Devices.verify_update_eligibility(device, deployment_group)
 
       assert device.updates_blocked_until
+      assert device.update_attempts == []
       assert Devices.count_inflight_updates_for(deployment_group) == 0
     end
 
@@ -586,6 +589,7 @@ defmodule NervesHub.DevicesTest do
         Devices.verify_update_eligibility(device, deployment_group)
 
       assert device.updates_blocked_until
+      assert device.update_attempts == []
       assert Devices.count_inflight_updates_for(deployment_group) == 0
     end
 

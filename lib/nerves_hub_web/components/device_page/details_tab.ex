@@ -289,7 +289,7 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 <div id="priority-update-info" class="inline-block align-middle relative pl-1" phx-hook="ToolTip" data-placement="right">
                   <.icon name="info" class="stroke-zinc-400" />
                   <div class="tooltip-content hidden w-max absolute top-0 left-0 text-xs px-2 py-1.5 rounded border border-[#3F3F46] bg-base-900 flex">
-                    When enabled, this device will be prioritized for updates and bypasses the deployment group's queue management. <br />
+                    When enabled, this device will be prioritized for updates and <br /> bypasses the deployment group's queue management. <br />
                     The priority setting will automatically revert after the next successful update. <br />
                     <div class="tooltip-arrow absolute w-2 h-2 border-[#3F3F46] bg-base-900 origin-center rotate-45"></div>
                   </div>
