@@ -33,6 +33,8 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     |> assign(:latest_metrics, Metrics.get_latest_metric_set(device.id))
     |> assign(:alarms, Alarms.get_current_alarms_for_device(device))
     |> assign(:extension_overrides, extension_overrides(device, device.product))
+    |> assign(:delta_available?, false)
+    |> assign(:selected_firmware, "")
     |> assign_metadata()
     |> assign_deployment_groups()
     |> cont()
@@ -366,11 +368,12 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
           </div>
 
           <div :if={Enum.any?(@firmwares)} class="flex p-4 gap-4 items-center border-t border-zinc-700">
-            <form id="push-update-form" phx-update="ignore" phx-submit="push-update" class="flex gap-2 items-center w-full">
+            <form id="push-update-form" phx-change="select-firmware-version" phx-submit="push-update" class="flex gap-2 items-center w-full">
               <div class="grow grid grid-cols-1">
                 <label for="firmware" class="hidden">Firmware</label>
                 <select
                   id="firmware"
+                  phx-update="ignore"
                   name="uuid"
                   class="col-start-1 row-start-1 appearance-none border rounded border-zinc-600 bg-zinc-900 py-1.5 pl-3 pr-8 text-sm text-zinc-400 focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-indigo-500"
                 >
@@ -379,7 +382,35 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
                 </select>
               </div>
 
-              <.button type="submit" disabled={disconnected?(@device_connection)} aria-label="Send firmware update" data-confirm="Are you sure you want to send this firmware to the device?">
+              <.button
+                :if={@delta_available?}
+                type="button"
+                disabled={disconnected?(@device_connection)}
+                aria-label="Send firmware update"
+                data-confirm="Are you sure you want to send this firmware to the device?"
+                phx-value-uuid={@selected_firmware}
+                phx-click="push-delta"
+              >
+                Send delta update
+              </.button>
+              <.button
+                :if={@delta_available?}
+                type="button"
+                disabled={disconnected?(@device_connection)}
+                aria-label="Send firmware update"
+                data-confirm="Are you sure you want to send this firmware to the device?"
+                phx-value-uuid={@selected_firmware}
+                phx-click="push-update"
+              >
+                Send full update
+              </.button>
+              <.button
+                :if={not @delta_available?}
+                type="submit"
+                disabled={disconnected?(@device_connection)}
+                aria-label="Send firmware update"
+                data-confirm="Are you sure you want to send this firmware to the device?"
+              >
                 Send update
               </.button>
             </form>
@@ -583,6 +614,22 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     end
   end
 
+  def hooked_event("select-firmware-version", %{"uuid" => ""}, socket) do
+    socket
+    |> halt()
+  end
+
+  def hooked_event("select-firmware-version", %{"uuid" => uuid}, socket) do
+    %{product: product, device: device} = socket.assigns
+
+    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
+
+    socket
+    |> assign(:delta_available?, Devices.delta_updatable?(device, firmware))
+    |> assign(:selected_firmware, uuid)
+    |> halt()
+  end
+
   def hooked_event("push-update", %{"uuid" => uuid}, socket) when uuid == "" do
     socket
     |> put_flash(:error, "Please select a firmware version to send to the device.")
@@ -596,21 +643,48 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
 
     {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
 
-    {:ok, url} =
-      if device.firmware_metadata && device.firmware_metadata.uuid do
-        Logger.info(
-          "Manually sending firmware delta for updating from #{device.firmware_metadata.uuid} to #{firmware.uuid} to #{device.identifier}..."
-        )
+    Logger.info(
+      "Manually sending full firmware for updating from to #{firmware.uuid} to #{device.identifier}..."
+    )
 
-        Devices.get_delta_or_firmware_url(device.firmware_metadata.uuid, firmware)
-      else
-        Logger.info(
-          "Manually sending full firmware for updating from to #{firmware.uuid} to #{device.identifier}..."
-        )
+    {:ok, url} = Firmwares.get_firmware_url(firmware)
+    {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
+    {:ok, device} = Devices.disable_updates(device, user)
 
-        Firmwares.get_firmware_url(firmware)
-      end
+    DeviceTemplates.audit_firmware_pushed(user, device, firmware)
 
+    payload = %UpdatePayload{
+      update_available: true,
+      firmware_url: url,
+      firmware_meta: meta
+    }
+
+    _ = NervesHubWeb.Endpoint.broadcast("device:#{device.id}", "devices/update-manual", payload)
+
+    socket
+    |> assign(:device, device)
+    |> put_flash(:info, "Sending firmware update request.")
+    |> halt()
+  end
+
+  def hooked_event("push-delta", %{"uuid" => uuid}, socket) when uuid == "" do
+    socket
+    |> put_flash(:error, "Please select a firmware version to send to the device.")
+    |> halt()
+  end
+
+  def hooked_event("push-delta", %{"uuid" => uuid}, socket) do
+    authorized!(:"device:push-update", socket.assigns.org_user)
+
+    %{product: product, device: device, user: user} = socket.assigns
+
+    {:ok, firmware} = Firmwares.get_firmware_by_product_and_uuid(product, uuid)
+
+    Logger.info(
+      "Manually sending firmware delta for updating from #{device.firmware_metadata.uuid} to #{firmware.uuid} to #{device.identifier}..."
+    )
+
+    {:ok, url} = Devices.get_delta_or_firmware_url(device, firmware)
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
     {:ok, device} = Devices.disable_updates(device, user)
 

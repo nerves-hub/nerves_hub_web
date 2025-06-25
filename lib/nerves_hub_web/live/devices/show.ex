@@ -495,6 +495,11 @@ defmodule NervesHubWeb.Live.Devices.Show do
     |> noreply()
   end
 
+  def handle_event("select-firmware-version", _, socket) do
+    socket
+    |> noreply()
+  end
+
   def handle_async({:run_script, index}, result, %{assigns: %{scripts: scripts}} = socket) do
     output =
       case result do
