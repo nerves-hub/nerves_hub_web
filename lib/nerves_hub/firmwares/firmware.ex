@@ -37,6 +37,10 @@ defmodule NervesHub.Firmwares.Firmware do
     :platform,
     :product_id,
     :size,
+    :tool,
+    :tool_delta_required_version,
+    :tool_full_required_version,
+    :tool_metadata,
     :upload_metadata,
     :uuid,
     :version
@@ -56,6 +60,15 @@ defmodule NervesHub.Firmwares.Firmware do
     field(:misc, :string)
     field(:platform, :string)
     field(:size, :integer)
+    field(:tool, :string, default: "fwup")
+    # Which version of the tool is required for delta updates
+    field(:tool_delta_required_version, :string)
+    # Which version of the tool is required for full updates
+    field(:tool_full_required_version, :string)
+    # Other values that the tool usage might care about
+    # that don't seem likely to be the same between different firmware update tools
+    field(:tool_metadata, :map)
+
     field(:upload_metadata, :map)
     field(:uuid, :string)
     field(:vcs_identifier, :string)

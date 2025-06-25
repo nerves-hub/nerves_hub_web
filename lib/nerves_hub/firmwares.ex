@@ -10,7 +10,6 @@ defmodule NervesHub.Firmwares do
   alias NervesHub.Firmwares.FirmwareDelta
   alias NervesHub.Firmwares.FirmwareMetadata
   alias NervesHub.Firmwares.FirmwareTransfer
-  alias NervesHub.Fwup
   alias NervesHub.Products
   alias NervesHub.Products.Product
   alias NervesHub.Workers.DeleteFirmware
@@ -407,9 +406,9 @@ defmodule NervesHub.Firmwares do
     {:ok, source_url} = firmware_upload_config().download_file(source_firmware)
     {:ok, target_url} = firmware_upload_config().download_file(target_firmware)
 
-    case delta_updater().create_firmware_delta_file(source_url, target_url) do
-      {:ok, firmware_delta_path, metadata} ->
-        firmware_delta_filename = Path.basename(firmware_delta_path)
+    case update_tool().create_firmware_delta_file(source_url, target_url) do
+      {:ok, created} ->
+        firmware_delta_filename = Path.basename(created.filepath)
 
         result =
           Repo.transaction(
@@ -420,14 +419,19 @@ defmodule NervesHub.Firmwares do
                      insert_firmware_delta(%{
                        source_id: source_firmware.id,
                        target_id: target_firmware.id,
-                       upload_metadata: Map.merge(metadata, upload_metadata)
+                       tool: created.tool,
+                       tool_metadata: created.tool_metadata,
+                       size: created.size,
+                       source_size: created.source_size,
+                       target_size: created.target_size,
+                       upload_metadata: upload_metadata
                      }),
                    {:ok, firmware_delta} <- get_firmware_delta(firmware_delta.id),
                    :ok <-
-                     firmware_upload_config().upload_file(firmware_delta_path, upload_metadata),
-                   :ok <- delta_updater().cleanup_firmware_delta_files(firmware_delta_path) do
+                     firmware_upload_config().upload_file(created.filepath, upload_metadata),
+                   :ok <- update_tool().cleanup_firmware_delta_files(created.filepath) do
                 Logger.info(
-                  "Created firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}, successfully.",
+                  "Created firmware delta successfully.",
                   product_id: source_firmware.product_id,
                   source_firmware: source_firmware.uuid,
                   target_firmware: target_firmware.uuid
@@ -436,10 +440,10 @@ defmodule NervesHub.Firmwares do
                 firmware_delta
               else
                 {:error, error} ->
-                  delta_updater().cleanup_firmware_delta_files(firmware_delta_path)
+                  update_tool().cleanup_firmware_delta_files(created.filepath)
 
                   Logger.error(
-                    "Failed to create firmware delta between #{source_firmware.uuid} and #{target_firmware.uuid}: #{inspect(error)}",
+                    "Failed to create firmware delta: #{inspect(error)}",
                     product_id: source_firmware.product_id,
                     source_firmware: source_firmware.uuid,
                     target_firmware: target_firmware.uuid
@@ -488,32 +492,50 @@ defmodule NervesHub.Firmwares do
     |> Repo.insert()
   end
 
+  @spec refresh_firmware_tool_metadata(Firmware.t()) :: :ok | {:error, any()}
+  def refresh_firmware_tool_metadata(firmware) do
+    case update_tool().get_firmware_metadata_from_upload(firmware) do
+      {:ok, %{tool_metadata: tm}} ->
+        firmware
+        |> Firmware.update_changeset(%{tool_metadata: tm})
+        |> Repo.update()
+
+      err ->
+        err
+    end
+  end
+
   @spec build_firmware_params(Org.t(), Path.t()) :: {:ok, map()} | {:error, any()}
   defp build_firmware_params(%{id: org_id} = org, filepath) do
     org = NervesHub.Repo.preload(org, :org_keys)
 
     with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
-         {:ok, metadata} <- Fwup.metadata(filepath) do
-      filename = metadata.uuid <> ".fw"
+         {:ok, %{firmware_metadata: fm, tool_metadata: tm} = m} <-
+           update_tool().get_firmware_metadata_from_file(filepath) do
+      filename = fm.uuid <> ".fw"
 
       params =
         resolve_product(%{
-          architecture: metadata.architecture,
-          author: metadata.author,
-          description: metadata.description,
+          architecture: fm.architecture,
+          author: fm.author,
+          description: fm.description,
           filename: filename,
           filepath: filepath,
-          misc: metadata.misc,
+          misc: fm.misc,
           org_id: org_id,
           org_key_id: org_key_id,
-          delta_updatable: delta_updater().delta_updatable?(filepath),
-          platform: metadata.platform,
-          product_name: metadata.product,
+          delta_updatable: update_tool().delta_updatable?(filepath),
+          platform: fm.platform,
+          product_name: fm.product,
           upload_metadata: firmware_upload_config().metadata(org_id, filename),
           size: :filelib.file_size(filepath),
-          uuid: metadata.uuid,
-          vcs_identifier: metadata.vcs_identifier,
-          version: metadata.version
+          tool: m.tool,
+          tool_delta_required_version: m.tool_delta_required_version,
+          tool_full_required_version: m.tool_full_required_version,
+          uuid: fm.uuid,
+          vcs_identifier: fm.vcs_identifier,
+          version: fm.version,
+          tool_metadata: tm
         })
 
       {:ok, params}
@@ -530,11 +552,12 @@ defmodule NervesHub.Firmwares do
     end
   end
 
-  defp delta_updater() do
+  defp update_tool() do
     Application.get_env(
       :nerves_hub,
-      :delta_updater,
-      NervesHub.Firmwares.DeltaUpdater.Default
+      :update_tool,
+      # Fall back to old config key
+      Application.get_env(:nerves_hub, :delta_updater, NervesHub.Firmwares.UpdateTool.Fwup)
     )
   end
 end

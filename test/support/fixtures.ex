@@ -189,6 +189,11 @@ defmodule NervesHub.Fixtures do
       Firmwares.insert_firmware_delta(%{
         source_id: source_id,
         target_id: target_id,
+        tool_metadata: %{"delta_fwup_version" => "1.13.0"},
+        tool: "fwup",
+        size: 500,
+        source_size: 700,
+        target_size: 1000,
         upload_metadata:
           Map.merge(delta_metadata, @uploader.metadata(org_id, "#{Ecto.UUID.generate()}.fw"))
       })
@@ -252,12 +257,13 @@ defmodule NervesHub.Fixtures do
         params \\ %{}
       ) do
     {:ok, metadata} = Firmwares.metadata_from_firmware(firmware)
+    {fwup_version, params} = Map.pop(params, :fwup_version, "1.0.0")
 
     {:ok, device} =
       %{
         org_id: org.id,
         product_id: product.id,
-        firmware_metadata: metadata,
+        firmware_metadata: Map.put(metadata, :fwup_version, fwup_version),
         identifier: "device-#{counter()}"
       }
       |> Enum.into(params)
