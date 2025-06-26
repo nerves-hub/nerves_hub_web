@@ -37,6 +37,10 @@ defmodule NervesHub.Firmwares.Firmware do
     :platform,
     :product_id,
     :size,
+    :tool,
+    :tool_delta_required_version,
+    :tool_full_required_version,
+    :tool_metadata,
     :upload_metadata,
     :uuid,
     :version

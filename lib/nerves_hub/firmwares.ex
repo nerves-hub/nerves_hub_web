@@ -492,32 +492,45 @@ defmodule NervesHub.Firmwares do
     |> Repo.insert()
   end
 
+  @spec refresh_firmware_tool_metadata(Firmware.t()) :: :ok | {:error, any()}
+  def refresh_firmware_tool_metadata(firmware) do
+    case update_tool().get_firmware_metadata_from_upload(firmware) do
+      {:ok, %{tool_metadata: tm}} ->
+        firmware
+        |> Firmware.update_changeset(%{tool_metadata: tm})
+        |> Repo.update()
+      err -> err
+    end
+  end
+
   @spec build_firmware_params(Org.t(), Path.t()) :: {:ok, map()} | {:error, any()}
   defp build_firmware_params(%{id: org_id} = org, filepath) do
     org = NervesHub.Repo.preload(org, :org_keys)
 
     with {:ok, %{id: org_key_id}} <- verify_signature(filepath, org.org_keys),
-         {:ok, metadata} <- update_tool().get_firmware_metadata_from_file(filepath) do
-      filename = metadata.uuid <> ".fw"
+         {:ok, %{firmware_metadata: fm, tool_metadata: tm}} <-
+           update_tool().get_firmware_metadata_from_file(filepath) do
+      filename = fm.uuid <> ".fw"
 
       params =
         resolve_product(%{
-          architecture: metadata.architecture,
-          author: metadata.author,
-          description: metadata.description,
+          architecture: fm.architecture,
+          author: fm.author,
+          description: fm.description,
           filename: filename,
           filepath: filepath,
-          misc: metadata.misc,
+          misc: fm.misc,
           org_id: org_id,
           org_key_id: org_key_id,
           delta_updatable: update_tool().delta_updatable?(filepath),
-          platform: metadata.platform,
-          product_name: metadata.product,
+          platform: fm.platform,
+          product_name: fm.product,
           upload_metadata: firmware_upload_config().metadata(org_id, filename),
           size: :filelib.file_size(filepath),
-          uuid: metadata.uuid,
-          vcs_identifier: metadata.vcs_identifier,
-          version: metadata.version
+          uuid: fm.uuid,
+          vcs_identifier: fm.vcs_identifier,
+          version: fm.version,
+          tool_metadata: tm
         })
 
       {:ok, params}

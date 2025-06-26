@@ -8,15 +8,25 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   alias NervesHub.Firmwares
   alias NervesHub.Fwup, as: FwupUtil
 
+  require Logger
+
   @impl NervesHub.Firmwares.UpdateTool
   def get_firmware_metadata_from_file(filepath) do
     with {:ok, firmware_metadata} <- FwupUtil.metadata(filepath),
          {:ok, meta_conf_path} <- extract_meta_conf_locally(filepath),
          {:ok, tool_metadata} <- Confuse.Fwup.get_feature_usage(meta_conf_path) do
-      %{firmware_metadata: firmware_metadata, tool_metadata: tool_metadata}
+      {:ok, %{firmware_metadata: firmware_metadata, tool_metadata: tool_metadata}}
     else
       err ->
         err
+    end
+  end
+
+  @impl NervesHub.Firmwares.UpdateTool
+  def get_firmware_metadata_from_upload(firmware) do
+    case dl_archive(firmware) do
+      {:ok, filepath} -> get_firmware_metadata_from_file(filepath)
+      err -> err
     end
   end
 
@@ -29,21 +39,8 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
     source_path = Path.join(work_dir, "source.fw") |> Path.expand()
     target_path = Path.join(work_dir, "target.fw") |> Path.expand()
 
-    {:ok, :saved_to_file} =
-      :httpc.request(
-        :get,
-        {source_url |> to_charlist, []},
-        [],
-        stream: source_path |> to_charlist
-      )
-
-    {:ok, :saved_to_file} =
-      :httpc.request(
-        :get,
-        {target_url |> to_charlist, []},
-        [],
-        stream: target_path |> to_charlist
-      )
+    dl!(source_url, source_path)
+    dl!(target_url, target_path)
 
     output_filename = uuid <> ".fw"
     output_path = Path.join(work_dir, output_filename) |> Path.expand()
@@ -208,22 +205,54 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
 
   defp extract_meta_conf_locally(filepath) do
     try do
-      path =
-        File.mkdir_p!(
-          Path.join(System.tmp_dir!(), "nerves-hub-meta-#{System.unique_integer(:positive)}")
-        )
+      dir =
+        System.tmp_dir!()
+        |> Path.join("nerves-hub-meta-#{System.unique_integer([:positive])}")
 
+      File.mkdir_p(dir)
+
+      path = Path.join(dir, "meta.conf")
       stream = File.stream!(path)
 
-      filepath
-      |> Unzip.LocalFile.open()
+      {:ok, unzip} =
+        filepath
+        |> Unzip.LocalFile.open()
+        |> Unzip.new()
+
+      unzip
       |> Unzip.file_stream!("meta.conf")
       |> Enum.into(stream, &IO.iodata_to_binary/1)
 
       {:ok, path}
     rescue
-      _ ->
-        {:error, :unzip_failed}
+      e ->
+        Logger.error("Extracing meta.conf failed due to: #{inspect(e)}")
+        {:error, :extract_meta_conf_failed}
     end
+  end
+
+  defp dl_archive(firmware) do
+    try do
+      {:ok, url} = firmware_upload_config().download_file(firmware)
+      archive_path = Path.join(System.tmp_dir(), "nh-#{firmware.uuid}.fw")
+      dl!(url, archive_path)
+      {:ok, archive_path}
+    rescue
+      e ->
+        Logger.error("Downloading firmware failed due to: #{inspect(e)}")
+        {:error, :download_firmware_failed}
+    end
+  end
+
+  defp firmware_upload_config(), do: Application.fetch_env!(:nerves_hub, :firmware_upload)
+
+  defp dl!(url, filepath) do
+    {:ok, :saved_to_file} =
+      :httpc.request(
+        :get,
+        {url |> to_charlist, []},
+        [],
+        stream: filepath |> to_charlist
+      )
   end
 end

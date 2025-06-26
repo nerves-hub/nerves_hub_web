@@ -17,9 +17,6 @@ defmodule NervesHub.DevicesTest do
 
   alias NervesHub.Repo
 
-  @invalid_fwup_version "1.9.0"
-  @valid_fwup_version "1.10.0"
-
   setup do
     user = Fixtures.user_fixture()
     org = Fixtures.org_fixture(user)
@@ -377,33 +374,6 @@ defmodule NervesHub.DevicesTest do
 
   test "get_device_by_identifier without existing device", %{org: org} do
     assert {:error, :not_found} = Devices.get_device_by_identifier(org, "non existing identifier")
-  end
-
-  test "delta_updatable?", %{
-    firmware: source,
-    deployment_group: deployment_group
-  } do
-    %{firmware: target} = Repo.preload(deployment_group, :firmware)
-
-    assert Devices.delta_updatable?(source, target, deployment_group, @valid_fwup_version) ==
-             false
-
-    deployment_group =
-      Ecto.Changeset.change(deployment_group, delta_updatable: true) |> Repo.update!()
-
-    source = Ecto.Changeset.change(source, delta_updatable: true) |> Repo.update!()
-    target = Ecto.Changeset.change(target, delta_updatable: true) |> Repo.update!()
-
-    assert source.delta_updatable == true
-    assert target.delta_updatable == true
-
-    assert Devices.delta_updatable?(source, target, deployment_group, @valid_fwup_version) == true
-
-    assert Devices.delta_updatable?(source, target, deployment_group, @invalid_fwup_version) ==
-             false
-
-    # case where the source firmware does not exist
-    assert Devices.delta_updatable?(nil, target, deployment_group, @valid_fwup_version) == false
   end
 
   test "matches_deployment_group? works when device and/or deployment tags are nil", %{

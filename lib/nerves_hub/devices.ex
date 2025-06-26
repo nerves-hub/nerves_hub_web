@@ -773,12 +773,10 @@ defmodule NervesHub.Devices do
     end
   end
 
-  @spec delta_updatable?(
-          Device.t(),
-          DeploymentGroup.t()
-        ) :: boolean()
-  def delta_updatable?(device, deployment_group) do
+  defp delta_updatable?(device, deployment_group) do
     # note that source delta does not need delta markers to be updatable
+    # Any advanced decision about whether to delta update or not are delegated
+    # to the specialized update tool implementation
     deployment_group.delta_updatable and
       deployment_group.firmware.delta_updatable and
       :delta == update_tool().device_update_type(device, deployment_group)

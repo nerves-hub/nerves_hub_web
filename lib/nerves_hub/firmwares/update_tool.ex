@@ -43,6 +43,7 @@ defmodule NervesHub.Firmwares.UpdateTool do
   end
 
   alias NervesHub.Devices.Device
+  alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentGroup
 
   @typedoc "Metadata about the file upload."
@@ -75,6 +76,12 @@ defmodule NervesHub.Firmwares.UpdateTool do
   Retrieves metadata from a firmware file.
   """
   @callback get_firmware_metadata_from_file(String.t()) ::
+              {:ok, metadata()} | {:error, term()}
+
+  @doc """
+  Retrieves metadata from a firmware upload.
+  """
+  @callback get_firmware_metadata_from_upload(Firmware.t()) ::
               {:ok, metadata()} | {:error, term()}
 
   @doc """
