@@ -1,11 +1,26 @@
-defmodule NervesHub.Firmwares.DeltaUpdater.Default do
+defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   @moduledoc """
-  Default NervesHub.Firmwares.DeltaUpdater implementation
+  Default NervesHub.Firmwares.UpdateTool implementation, providing fwup support.
   """
 
-  @behaviour NervesHub.Firmwares.DeltaUpdater
+  @behaviour NervesHub.Firmwares.UpdateTool
 
-  @impl NervesHub.Firmwares.DeltaUpdater
+  alias NervesHub.Firmwares
+  alias NervesHub.Fwup, as: FwupUtil
+
+  @impl NervesHub.Firmwares.UpdateTool
+  def get_firmware_metadata_from_file(filepath) do
+    with {:ok, firmware_metadata} <- FwupUtil.metadata(filepath),
+         {:ok, meta_conf_path} <- extract_meta_conf_locally(filepath),
+         {:ok, tool_metadata} <- Confuse.Fwup.get_feature_usage(meta_conf_path) do
+      %{firmware_metadata: firmware_metadata, tool_metadata: tool_metadata}
+    else
+      err ->
+        err
+    end
+  end
+
+  @impl NervesHub.Firmwares.UpdateTool
   def create_firmware_delta_file(source_url, target_url) do
     uuid = Ecto.UUID.generate()
     work_dir = Path.join(System.tmp_dir(), uuid) |> Path.expand()
@@ -36,7 +51,7 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
     do_delta_file(source_path, target_path, output_path, work_dir)
   end
 
-  @impl NervesHub.Firmwares.DeltaUpdater
+  @impl NervesHub.Firmwares.UpdateTool
   def cleanup_firmware_delta_files(firmware_delta_path) do
     _ =
       firmware_delta_path
@@ -46,7 +61,7 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
     :ok
   end
 
-  @impl NervesHub.Firmwares.DeltaUpdater
+  @impl NervesHub.Firmwares.UpdateTool
   def delta_updatable?(file_path) do
     {meta, 0} = System.cmd("unzip", ["-qqp", file_path, "meta.conf"], env: [])
 
@@ -58,6 +73,31 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
     {:ok, feature_usage} = Confuse.Fwup.get_feature_usage(path)
 
     feature_usage.raw_deltas? or feature_usage.fat_deltas?
+  end
+
+  @very_safe_version Version.parse!("1.13.0")
+  @oldest_version Version.parse!("0.2.0")
+  @impl NervesHub.Firmwares.UpdateTool
+  def device_update_type(device, deployment_group) do
+    # Unknown version, assume oldest
+    device_fwup_version = device.firmware_metadata.fwup_version || @oldest_version
+    source = Firmwares.get_firmware_by_uuid(device.firmware_metadata.uuid)
+    target = deployment_group.firmware
+
+    delta_result = Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
+
+    with {:ok, %{tool_metadata: tm}} <- delta_result,
+         delta_min <- tm["delta_fwup_version"] || @very_safe_version,
+         {:ok, delta_version} <- Version.parse(delta_min),
+         :lt <- Version.compare(delta_version, device_fwup_version) do
+      :delta
+    else
+      _ ->
+        :full
+    end
+  rescue
+    _ ->
+      :full
   end
 
   def do_delta_file(source_path, target_path, output_path, work_dir) do
@@ -138,11 +178,14 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
 
       {:ok, %{size: size}} = File.stat(output_path)
 
-      {:ok, output_path,
+      {:ok,
        %{
-         "size" => size,
-         "source_size" => source_size,
-         "target_size" => target_size
+         filepath: output_path,
+         size: size,
+         source_size: source_size,
+         target_size: target_size,
+         tool: "fwup",
+         tool_metadata: %{}
        }}
     end
   end
@@ -160,6 +203,27 @@ defmodule NervesHub.Firmwares.DeltaUpdater.Default do
         {_, 0} = System.cmd("zip", args, cd: workdir, env: [])
 
         :ok
+    end
+  end
+
+  defp extract_meta_conf_locally(filepath) do
+    try do
+      path =
+        File.mkdir_p!(
+          Path.join(System.tmp_dir!(), "nerves-hub-meta-#{System.unique_integer(:positive)}")
+        )
+
+      stream = File.stream!(path)
+
+      filepath
+      |> Unzip.LocalFile.open()
+      |> Unzip.file_stream!("meta.conf")
+      |> Enum.into(stream, &IO.iodata_to_binary/1)
+
+      {:ok, path}
+    rescue
+      _ ->
+        {:error, :unzip_failed}
     end
   end
 end

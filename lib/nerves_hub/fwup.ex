@@ -3,44 +3,7 @@ defmodule NervesHub.Fwup do
   Helpers for dealing with files created by FWUP.
   """
 
-  defmodule Metadata do
-    @enforce_keys [:architecture, :platform, :product, :uuid, :version]
-
-    defstruct [
-      :architecture,
-      :platform,
-      :product,
-      :uuid,
-      :version,
-      :author,
-      :description,
-      :misc,
-      :vcs_identifier
-    ]
-
-    @type t() :: %__MODULE__{
-            architecture: String.t(),
-            platform: String.t(),
-            product: String.t(),
-            uuid: String.t(),
-            version: String.t(),
-            author: String.t(),
-            description: String.t(),
-            misc: String.t(),
-            vcs_identifier: String.t()
-          }
-
-    def keys() do
-      blank_values =
-        Enum.reduce(@enforce_keys, %{}, fn key, acc ->
-          Map.put(acc, key, nil)
-        end)
-
-      struct!(Metadata, blank_values)
-      |> Map.from_struct()
-      |> Map.keys()
-    end
-  end
+  alias NervesHub.Firmwares.UpdateTool.Metadata
 
   @doc """
   Decode and parse metadata from a FWUP file.
