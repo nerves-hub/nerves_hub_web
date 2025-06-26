@@ -62,8 +62,4 @@ defmodule NervesHub.Firmwares.Upload.S3 do
   defp presigned_url_opts() do
     Application.get_env(:nerves_hub, __MODULE__)[:presigned_url_opts]
   end
-
-  def key_prefix() do
-    "firmware"
-  end
 end

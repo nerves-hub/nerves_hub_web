@@ -76,7 +76,7 @@ defmodule NervesHub.MixProject do
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 1.0.0"},
       {:comeonin, "~> 5.3"},
-      {:confuse, "~> 0.1.1"},
+      {:confuse, "~> 0.1.2"},
       {:contex, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:crontab, "~> 1.1"},
@@ -140,6 +140,7 @@ defmodule NervesHub.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:timex, "~> 3.1"},
       {:ueberauth_google, "~> 0.12"},
+      {:unzip, "~> 0.12"},
       {:uuidv7, "~> 1.0"},
       {:x509, "~> 0.5.1 or ~> 0.6"},
       {:flop, "~> 0.26.1"}
