@@ -5,6 +5,7 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
   alias NervesHub.Devices
   alias NervesHub.Fixtures
   alias NervesHub.Repo
+  alias Phoenix.Socket.Broadcast
 
   alias NervesHubWeb.Endpoint
 
@@ -19,6 +20,60 @@ defmodule NervesHubWeb.Live.NewUI.Devices.IndexTest do
     assert html =~ "Loading..."
 
     assert render_async(lv) =~ device.identifier
+  end
+
+  describe "device connection status updates" do
+    setup context do
+      Map.merge(context, %{offline_indicator_color: "#71717A", online_indicator_color: "#10B981"})
+    end
+
+    test "connection:change", %{
+      conn: conn,
+      fixture: fixture,
+      offline_indicator_color: offline_indicator_color,
+      online_indicator_color: online_indicator_color
+    } do
+      %{device: device, org: org, product: product} = fixture
+
+      conn
+      |> init_test_session(%{"new_ui" => true})
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("circle[fill='#{offline_indicator_color}']", timeout: 1000)
+      |> unwrap(fn view ->
+        send(view.pid, %Broadcast{
+          topic: "device:#{device.identifier}:internal",
+          event: "connection:change",
+          payload: %{device_id: device.identifier, status: "online"}
+        })
+
+        render(view)
+      end)
+      |> assert_has("circle[fill='#{online_indicator_color}']")
+    end
+
+    test "connection:status", %{
+      conn: conn,
+      fixture: fixture,
+      offline_indicator_color: offline_indicator_color,
+      online_indicator_color: online_indicator_color
+    } do
+      %{device: device, org: org, product: product} = fixture
+
+      conn
+      |> init_test_session(%{"new_ui" => true})
+      |> visit("/org/#{org.name}/#{product.name}/devices")
+      |> assert_has("circle[fill='#{offline_indicator_color}']", timeout: 1000)
+      |> unwrap(fn view ->
+        send(view.pid, %Broadcast{
+          topic: "device:#{device.identifier}:internal",
+          event: "connection:status",
+          payload: %{device_id: device.identifier, status: "online"}
+        })
+
+        render(view)
+      end)
+      |> assert_has("circle[fill='#{online_indicator_color}']")
+    end
   end
 
   describe "bulk adding devices to deployment group" do
