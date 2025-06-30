@@ -422,7 +422,7 @@
           <label for="move_to" class="sidebar-label">Move device(s) to product:</label>
 
           <div class="flex gap-2">
-            <select name="product" id="move_to" class="sidebar-select">
+            <select name="product" id="move_to" class="sidebar-select" phx-update="ignore">
               <option value="">Select product</option>
               <%= for org <- @user.orgs, products = org.products, length(products) > 0 do %>
                 <optgroup label={org.name}>
@@ -450,7 +450,7 @@
 
           <div class="flex gap-2">
             <label for="deployment_group" class="hidden">Deployment Group</label>
-            <select name="deployment_group" id="deployment_group" class="sidebar-select">
+            <select name="deployment_group" id="deployment_group" class="sidebar-select" phx-update="ignore">
               <option value="">Select deployment group</option>
               <%= for deployment_group <- @available_deployment_groups_for_filtered_platform do %>
                 <option value={deployment_group.id} {if @target_deployment_group && @target_deployment_group.id == deployment_group.id, do: [selected: true], else: []}>
