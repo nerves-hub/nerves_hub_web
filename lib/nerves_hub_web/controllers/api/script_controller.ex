@@ -40,6 +40,12 @@ defmodule NervesHubWeb.API.ScriptController do
          {:ok, timeout} <- get_timeout_param(params),
          {:ok, io} <- Scripts.Runner.send(device, command, timeout) do
       text(conn, io)
+    else
+      {:error, reason} ->
+        conn
+        |> put_status(:service_unavailable)
+        |> put_view(NervesHubWeb.API.ErrorJSON)
+        |> render(:"500", %{reason: reason})
     end
   end
 
