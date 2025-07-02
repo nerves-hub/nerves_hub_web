@@ -807,6 +807,36 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
       |> assert
     end
 
+    test "returns 503 for timeouts", %{conn: conn, user: user, org: org} do
+      product = Fixtures.product_fixture(user, org)
+      org_key = Fixtures.org_key_fixture(org, user)
+      firmware = Fixtures.firmware_fixture(org_key, product)
+      device = Fixtures.device_fixture(org, product, firmware)
+      script = Fixtures.support_script_fixture(product, user)
+
+      path =
+        Routes.api_device_script_path(
+          conn,
+          :send,
+          org.name,
+          product.name,
+          device.identifier,
+          script.id
+        )
+
+      message = "device not responding"
+
+      NervesHub.Scripts.Runner
+      |> expect(:send, fn _, _, _ -> {:error, message} end)
+
+      resp =
+        conn
+        |> post(path)
+        |> json_response(503)
+
+      assert resp == %{"errors" => %{"detail" => message}}
+    end
+
     test "auth failure, with nested url", %{conn2: conn, user: user, org: org} do
       product = Fixtures.product_fixture(user, org)
       org_key = Fixtures.org_key_fixture(org, user)
