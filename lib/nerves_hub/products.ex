@@ -5,6 +5,7 @@ defmodule NervesHub.Products do
 
   import Ecto.Query, warn: false
 
+  alias NervesHub.Devices.Device
   alias NervesHub.Repo
 
   alias NervesHub.Accounts.Org
@@ -195,10 +196,19 @@ defmodule NervesHub.Products do
 
   @spec devices_csv(Product.t()) :: binary()
   def devices_csv(%Product{} = product) do
-    product = Repo.preload(product, [:org, devices: :device_certificates])
-    data = Enum.map(product.devices, &device_csv_line(&1, product))
+    product = Repo.preload(product, [:org])
 
-    [@csv_header | data]
+    {:ok, devices} =
+      Repo.transaction(fn ->
+        Device
+        |> where([d], d.product_id == ^product.id)
+        |> Repo.exclude_deleted()
+        |> Repo.stream(max_rows: 10_000)
+        |> Stream.map(&device_csv_line(&1, product))
+        |> Enum.to_list()
+      end)
+
+    [@csv_header | devices]
     |> CSV.dump_to_iodata()
     |> IO.iodata_to_binary()
   end
@@ -215,6 +225,8 @@ defmodule NervesHub.Products do
   end
 
   defp format_device_certificates(device) do
+    device = Repo.preload(device, :device_certificates)
+
     for db_cert <- device.device_certificates, into: "" do
       if db_cert.der do
         db_cert.der
