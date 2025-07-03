@@ -250,6 +250,15 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
               </div>
             </div>
           </div>
+
+          <div :if={@update_stats} class="flex flex-col gap-2 p-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+            <div class="h-9 flex items-start justify-between">
+              <div class="text-neutral-50 font-medium leading-6">Transfer stats</div>
+            </div>
+            <pre>
+            { @update_stats |> inspect(pretty: true) }
+            </pre>
+          </div>
         </div>
       </div>
     </div>

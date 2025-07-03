@@ -23,6 +23,7 @@ defmodule NervesHub.Devices do
   alias NervesHub.Devices.PinnedDevice
   alias NervesHub.Devices.SharedSecretAuth
   alias NervesHub.Devices.UpdatePayload
+  alias NervesHub.Devices.UpdateStats
   alias NervesHub.Extensions
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.Firmwares
@@ -736,21 +737,23 @@ defmodule NervesHub.Devices do
   @doc """
   Resolve an update for the device's deployment
   """
-  @spec resolve_update(Device.t()) :: UpdatePayload.t()
-  def resolve_update(%{status: :registered}), do: %UpdatePayload{update_available: false}
+  @spec resolve_update(Device.t(), keyword()) :: UpdatePayload.t()
+  def resolve_update(device, opts \\ [])
+  def resolve_update(%{status: :registered}, _opts), do: %UpdatePayload{update_available: false}
 
-  def resolve_update(%{deployment_id: nil}), do: %UpdatePayload{update_available: false}
+  def resolve_update(%{deployment_id: nil}, _opts), do: %UpdatePayload{update_available: false}
 
-  def resolve_update(device) do
+  def resolve_update(device, opts) do
     Logger.metadata(device_id: device.id)
     {:ok, deployment_group} = ManagedDeployments.get_deployment_group_for_update(device)
-    do_resolve_update(device, deployment_group)
+    do_resolve_update(device, deployment_group, opts)
   end
 
-  def do_resolve_update(device, deployment_group) do
+  def do_resolve_update(device, deployment_group, opts) do
     case verify_update_eligibility(device, deployment_group) do
       {:ok, _device} ->
-        {:ok, url} = get_delta_or_firmware_url(device, deployment_group)
+        {:ok, url} =
+          get_delta_or_firmware_url(device, deployment_group.firmware, deployment_group, opts)
 
         {:ok, meta} = Firmwares.metadata_from_firmware(deployment_group.firmware)
 
@@ -1631,7 +1634,7 @@ defmodule NervesHub.Devices do
     Logger.metadata(device_id: device_id)
     deployment_group = Repo.preload(deployment_group, :product)
     device = get_device(device_id)
-    update_payload = do_resolve_update(device, deployment_group)
+    update_payload = do_resolve_update(device, deployment_group, log_update_stats?: true)
 
     payload = %{inflight_update: inflight_update, update_payload: update_payload}
 
@@ -1705,24 +1708,26 @@ defmodule NervesHub.Devices do
 
   @doc """
   Get firmware or delta update URL.
+
+  Options:
+    - `log_update_stats?`: This is an update and we log the stats for it.
   """
-  @spec get_delta_or_firmware_url(Device.t(), Firmware.t() | DeploymentGroup.t()) ::
+  @spec get_delta_or_firmware_url(
+          Device.t(),
+          Firmware.t(),
+          DeploymentGroup.t() | nil,
+          Keyword.t()
+        ) ::
           {:ok, String.t()} | {:error, :failure}
-  def get_delta_or_firmware_url(
-        %Device{} = device,
-        %DeploymentGroup{
-          delta_updatable: true,
-          firmware: target
-        }
-      ) do
-    get_delta_or_firmware_url(device, target)
-  end
+  def get_delta_or_firmware_url(device, target, deployment_group, opts \\ [])
 
   def get_delta_or_firmware_url(
-        %{firmware_metadata: %{uuid: source_uuid}} = device,
+        %Device{firmware_metadata: %{uuid: source_uuid}} = device,
         %Firmware{
           delta_updatable: true
-        } = target
+        } = target,
+        deployment_group,
+        opts
       ) do
     # Get firmware delta URL if available but otherwise deliver full firmware
     with %Firmware{} = source <- Firmwares.get_firmware_by_uuid(source_uuid),
@@ -1735,6 +1740,11 @@ defmodule NervesHub.Devices do
         delta: delta.id
       )
 
+      _ =
+        if opts[:log_update_stats?] do
+          UpdateStats.log_delta_update(device, deployment_group, target, delta)
+        end
+
       Firmwares.get_firmware_url(delta)
     else
       false ->
@@ -1744,6 +1754,11 @@ defmodule NervesHub.Devices do
           _firmware: target.uuid
         )
 
+        _ =
+          if opts[:log_update_stats?] do
+            UpdateStats.log_full_update(device, deployment_group, target)
+          end
+
         Firmwares.get_firmware_url(target)
 
       {:error, :not_found} ->
@@ -1752,6 +1767,11 @@ defmodule NervesHub.Devices do
           source_firmware: source_uuid,
           _firmware: target.uuid
         )
+
+        _ =
+          if opts[:log_update_stats?] do
+            UpdateStats.log_full_update(device, deployment_group, target)
+          end
 
         Firmwares.get_firmware_url(target)
 
@@ -1765,24 +1785,25 @@ defmodule NervesHub.Devices do
           _firmware: target.uuid
         )
 
+        _ =
+          if opts[:log_update_stats?] do
+            UpdateStats.log_full_update(device, deployment_group, target)
+          end
+
         Firmwares.get_firmware_url(target)
     end
   end
 
-  def get_delta_or_firmware_url(_, %DeploymentGroup{firmware: target}) do
+  def get_delta_or_firmware_url(%Device{} = device, %Firmware{} = target, deployment_group, opts) do
     Logger.warning(
       "Delivering full firmware, deltas disabled for deployment group for: #{target.uuid}...",
       _firmware: target.uuid
     )
 
-    Firmwares.get_firmware_url(target)
-  end
-
-  def get_delta_or_firmware_url(_, %Firmware{} = target) do
-    Logger.warning(
-      "Delivering full firmware, deltas disabled for deployment group for: #{target.uuid}...",
-      _firmware: target.uuid
-    )
+    _ =
+      if opts[:log_update_stats?] do
+        UpdateStats.log_full_update(device, deployment_group, target)
+      end
 
     Firmwares.get_firmware_url(target)
   end
