@@ -10,34 +10,39 @@ defmodule NervesHubWeb.DynamicConfigMultipart do
   Thank you to https://hexdocs.pm/plug/Plug.Parsers.MULTIPART.html#module-dynamic-configuration
   for the inspiration.
   """
+  @behaviour Plug.Parsers
 
-  @multipart Plug.Parsers.MULTIPART
-
+  @impl Plug.Parsers
   def init(opts) do
+    # This is called at compile time by default so adding options in runtime.exs
+    # will not be captured here and could lead to unknown problems. For dynamic,
+    # it will be best to calculate options during the parse phase. Otherwise,
+    # all phoenix plugs would need to be set to configure at runtime with
+    # `config :phoenix, plug_init_mode: :runtime`
     opts
-    |> Keyword.put_new(:max_default_size, 1_000_000)
-    |> Keyword.put_new_lazy(:max_firmware_size, fn ->
-      Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload, [])[:max_size]
-    end)
   end
 
+  @impl Plug.Parsers
   def parse(conn, "multipart", subtype, headers, opts) do
-    plug_opts = Keyword.drop(opts, [:max_default_size, :max_firmware_size])
-    plug_opts = @multipart.init([length: max_file_size(conn, opts)] ++ plug_opts)
-    @multipart.parse(conn, "multipart", subtype, headers, plug_opts)
+    plug_opts =
+      opts
+      |> Keyword.put_new_lazy(:length, fn -> max_file_size(conn) end)
+      |> Plug.Parsers.MULTIPART.init()
+
+    Plug.Parsers.MULTIPART.parse(conn, "multipart", subtype, headers, plug_opts)
   end
 
   def parse(conn, _type, _subtype, _headers, _opts) do
     {:next, conn}
   end
 
-  defp max_file_size(conn, opts) do
-    case conn.path_info do
-      ["api", "orgs", _org_name, "products", _product_name, "firmwares"] ->
-        Keyword.fetch!(opts, :max_firmware_size)
-
-      _ ->
-        Keyword.fetch!(opts, :max_default_size)
+  defp max_file_size(conn) do
+    with ["api", "orgs", _org_name, "products", _product_name, "firmwares"] <- conn.path_info,
+         size <- Application.get_env(:nerves_hub, NervesHub.Firmwares.Upload)[:max_size],
+         true <- is_integer(size) do
+      size
+    else
+      _ -> 1_000_000
     end
   end
 end
