@@ -98,7 +98,7 @@
             </div>
             <div class="flex gap-6">
               <div class="w-1/2">
-                <.input field={@form[:tags]} value={tags_to_string(@form[:conditions])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
+                <.input field={@form[:tags]} value={tags_to_string(@form[:conditions].value["tags"])} label="Tag(s) distributed to" placeholder="eg. batch-123" />
               </div>
 
               <div class="w-1/2">
