@@ -148,15 +148,9 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Newz do
 
   defp inject_conditions_map(params), do: params
 
-  @doc """
-  Convert tags from a list to a comma-separated list (in a string)
-  """
-  def tags_to_string(%Phoenix.HTML.FormField{} = field) do
-    field.value ||
-      %{}
-      |> Map.get("tags", [])
-      |> Enum.join(", ")
-  end
+  def tags_to_string(nil), do: ""
+
+  def tags_to_string(tags), do: Enum.join(tags, ", ")
 
   defp tags_as_list(""), do: []
 

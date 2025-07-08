@@ -45,4 +45,27 @@ defmodule NervesHubWeb.Live.NewUI.DelploymentGroups.NewTest do
     assert deployment_group.firmware_id == fixture.firmware.id
     assert deployment_group.conditions == %{"version" => "1.2.3", "tags" => ["a", "b"]}
   end
+
+  test "errors display for invalid version", %{conn: conn, org: org, product: product} do
+    conn
+    |> fill_in("Name", with: "Canaries")
+    |> select("Platform", option: "platform")
+    |> unwrap(fn view ->
+      render_change(view, "platform-selected", %{
+        "deployment_group" => %{"platform" => "platform"}
+      })
+    end)
+    |> select("Architecture", option: "x86_64")
+    |> unwrap(fn view ->
+      render_change(view, "architecture-selected", %{
+        "deployment_group" => %{"architecture" => "x86_64"}
+      })
+    end)
+    |> select("Firmware", option: "1.0.0", exact_option: false)
+    |> fill_in("Tag(s) distributed to", with: "a, b")
+    |> fill_in("Version requirement", with: "1.0")
+    |> submit()
+    |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/newz")
+    |> assert_has("p", text: "must be valid Elixir version requirement string")
+  end
 end
