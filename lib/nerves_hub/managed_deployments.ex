@@ -468,7 +468,12 @@ defmodule NervesHub.ManagedDeployments do
 
     bad_version =
       if deployment_group.conditions["version"] != "" do
-        !Version.match?(device_version, deployment_group.conditions["version"])
+        try do
+          !Version.match?(device_version, deployment_group.conditions["version"])
+        rescue
+          _ ->
+            true
+        end
       else
         false
       end

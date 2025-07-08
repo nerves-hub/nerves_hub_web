@@ -417,6 +417,28 @@ defmodule NervesHub.ManagedDeploymentsTest do
       [audit_log] = AuditLogs.logs_for(deployment_group)
       assert audit_log.description =~ "no longer matches deployment group"
     end
+
+    test "removes device from deployment group and creates audit log when deployment group version constraint is invalid",
+         %{
+           device: device,
+           deployment_group: deployment_group
+         } do
+      {:ok, _} =
+        deployment_group
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.put_change(:conditions, %{"tags" => ["beta", "rpi"], "version" => "0.1"})
+        |> Repo.update()
+
+      deployment_group = Repo.reload(deployment_group)
+
+      device = Devices.update_deployment_group(device, deployment_group)
+
+      device = ManagedDeployments.verify_deployment_group_membership(device)
+      refute device.deployment_id
+
+      [audit_log] = AuditLogs.logs_for(deployment_group)
+      assert audit_log.description =~ "no longer matches deployment group"
+    end
   end
 
   describe "matched_devices_count/2" do
