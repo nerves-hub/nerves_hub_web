@@ -16,7 +16,6 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Devices.Connections
   alias NervesHub.Devices.Device
   alias NervesHub.Firmwares
-  alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias Phoenix.Socket.Broadcast
@@ -297,12 +296,13 @@ defmodule NervesHubWeb.DeviceChannel do
   def handle_in(msg, params, socket) do
     # Ignore unhandled messages so that it doesn't crash the link process
     # preventing cascading problems.
-    Logger.warning(
-      "[DeviceChannel] Unhandled handle_in message! - #{inspect(msg)} - #{inspect(params)}"
-    )
-
     device = socket.assigns.device
-    Logging.log_to_sentry(device, "[DeviceChannel] Unhandled handle_in message!", %{message: msg})
+
+    Logger.warning(
+      "[DeviceChannel] Unhandled handle_in message - #{inspect(msg)} - #{inspect(params)}",
+      device_id: device.id,
+      device_identifier: device.identifier
+    )
 
     {:noreply, socket}
   end
