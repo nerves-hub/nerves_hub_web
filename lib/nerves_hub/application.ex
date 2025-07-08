@@ -86,7 +86,8 @@ defmodule NervesHub.Application do
       Supervisor.child_spec(
         {Ecto.Migrator,
          repos: [NervesHub.AnalyticsRepo],
-         skip: Application.get_env(:nerves_hub, :analytics_enabled) != true},
+         skip: Application.get_env(:nerves_hub, :analytics_auto_migrator) != true,
+         id: NervesHub.AnalyticsRepoMigrator},
         id: :analytics_repo_migrator
       )
     ]

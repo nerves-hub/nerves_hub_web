@@ -269,9 +269,16 @@ end
 
 if config_env() == :prod do
   if clickhouse_url = System.get_env("CLICKHOUSE_URL") do
+    # Required for Clickhouse Cloud (https://github.com/plausible/analytics/discussions/3497)
+    # (using a default order will cause issues for the migration table)
+    config :ecto_ch, default_table_engine: "MergeTree"
+
     config :nerves_hub, NervesHub.AnalyticsRepo, url: clickhouse_url
 
     config :nerves_hub, analytics_enabled: true
+
+    config :nerves_hub,
+      analytics_auto_migrator: System.get_env("ANALYTICS_AUTO_MIGRATOR", "true") == "true"
   else
     config :nerves_hub, analytics_enabled: false
   end
