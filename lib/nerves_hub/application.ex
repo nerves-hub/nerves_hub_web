@@ -21,7 +21,10 @@ defmodule NervesHub.Application do
 
     NervesHub.Logger.attach()
 
-    topologies = Application.get_env(:libcluster, :topologies, [])
+    topology = [
+      strategy: LibclusterPostgres.Strategy,
+      config: NervesHub.Repo.config()
+    ]
 
     children =
       [{Finch, name: Swoosh.Finch}] ++
@@ -34,7 +37,7 @@ defmodule NervesHub.Application do
         ecto_repos() ++
         [
           {Phoenix.PubSub, name: NervesHub.PubSub},
-          {Cluster.Supervisor, [topologies]},
+          {Cluster.Supervisor, [[app: topology]]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, Application.fetch_env!(:nerves_hub, Oban)},
           NervesHubWeb.Presence,
