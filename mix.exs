@@ -98,7 +98,7 @@ defmodule NervesHub.MixProject do
       {:hlclock, "~> 1.0"},
       {:process_hub, "~> 0.3.1-alpha"},
       {:jason, "~> 1.2", override: true},
-      {:libcluster_postgres, "~> 0.1.2"},
+      {:libcluster_postgres, "~> 0.2.0"},
       {:logfmt_ex, "~> 0.4"},
       {:mimic, "~> 1.10", only: [:test, :dev]},
       {:mjml_eex, "~> 0.12.0"},
