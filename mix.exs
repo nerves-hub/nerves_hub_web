@@ -24,6 +24,7 @@ defmodule NervesHub.MixProject do
           ]
         ]
       ],
+      compilers: compilers(System.get_env("MIX_UNUSED")) ++ Mix.compilers(),
       dialyzer: [
         flags: [:missing_return, :extra_return, :unmatched_returns, :error_handling, :underspecs],
         plt_add_apps: [:ex_unit, :mix],
@@ -101,6 +102,7 @@ defmodule NervesHub.MixProject do
       {:libcluster_postgres, "~> 0.2.0"},
       {:logfmt_ex, "~> 0.4"},
       {:mimic, "~> 1.10", only: [:test, :dev]},
+      {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.12.0"},
       {:nimble_csv, "~> 1.1"},
       {:number, "~> 1.0.5"},
@@ -182,4 +184,7 @@ defmodule NervesHub.MixProject do
 
   defp elixirc_paths(_),
     do: ["lib"]
+
+  defp compilers(mix_unused) when not is_nil(mix_unused), do: [:unused]
+  defp compilers(_), do: []
 end

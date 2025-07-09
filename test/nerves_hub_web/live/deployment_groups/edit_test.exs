@@ -30,7 +30,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.EditTest do
       |> click_button("Save Change")
 
     {:ok, reloaded_deployment_group} =
-      ManagedDeployments.get_deployment_group(product, deployment_group.id)
+      ManagedDeployments.get_deployment_group(deployment_group.id)
 
     conn
     |> assert_path(

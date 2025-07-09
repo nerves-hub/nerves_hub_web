@@ -19,3 +19,6 @@ test/fixtures/ssl/device-root-ca.srl
 .iex.exs
 .lexical
 .elixir-tools
+
+.DS_Store
+/cover/

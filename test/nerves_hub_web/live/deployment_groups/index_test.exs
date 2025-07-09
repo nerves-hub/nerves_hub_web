@@ -39,8 +39,6 @@ defmodule NervesHubWeb.Live.DeploymentGroups.IndexTest do
     |> assert_has("a", text: deployment_group.name)
     |> assert_has("td div", text: "0")
 
-    ManagedDeployments.set_deployment_group(device)
-
     conn
     |> visit("/org/#{org.name}/#{product.name}/deployment_groups")
     |> assert_has("h1", text: "Deployment Groups")
