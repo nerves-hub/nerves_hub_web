@@ -112,5 +112,8 @@ config :ueberauth, Ueberauth,
     google: {Ueberauth.Strategy.Google, [default_scope: "email profile openid"]}
   ]
 
+# Used by spellweaver
+config :bun, :version, "1.2.18"
+
 # Environment specific config
 import_config "#{Mix.env()}.exs"
