@@ -30,16 +30,22 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
   end
 
   defp assign_deltas_and_stats(%{assigns: %{deployment_group: deployment_group}} = socket) do
-    if deployment_group.delta_updatable do
-      assign(
-        socket,
-        :deltas,
-        Firmwares.get_deltas_by_target_firmware(deployment_group.firmware)
-      )
+    socket =
+      if deployment_group.delta_updatable do
+        assign(
+          socket,
+          :deltas,
+          Firmwares.get_deltas_by_target_firmware(deployment_group.firmware)
+        )
+      else
+        assign(socket, :deltas, [])
+      end
+
+    if UpdateStats.enabled?() do
+      assign(socket, :update_stats, UpdateStats.stats_by_deployment(deployment_group))
     else
-      assign(socket, :deltas, [])
+      socket
     end
-    |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
   end
 
   def render(assigns) do
@@ -256,7 +262,7 @@ defmodule NervesHubWeb.Components.DeploymentGroupPage.Summary do
             </div>
           </div>
 
-          <div class="flex flex-col gap-2 p-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
+          <div :if={UpdateStats.enabled?()} class="flex flex-col gap-2 p-4 rounded border border-zinc-700 bg-zinc-900 shadow-device-details-content">
             <div class="h-9 flex items-start justify-between">
               <div class="text-neutral-50 font-medium leading-6">Transfer stats</div>
             </div>

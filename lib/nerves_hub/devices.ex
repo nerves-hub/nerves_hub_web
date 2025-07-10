@@ -1749,7 +1749,7 @@ defmodule NervesHub.Devices do
       )
 
       _ =
-        if opts[:log_update_stats?] do
+        if UpdateStats.enabled?() && opts[:log_update_stats?] do
           UpdateStats.log_delta_update(device, deployment_group, target, delta)
         end
 
@@ -1764,7 +1764,7 @@ defmodule NervesHub.Devices do
         )
 
         _ =
-          if opts[:log_update_stats?] do
+          if UpdateStats.enabled?() && opts[:log_update_stats?] do
             UpdateStats.log_full_update(device, deployment_group, target)
           end
 
@@ -1779,7 +1779,7 @@ defmodule NervesHub.Devices do
         )
 
         _ =
-          if opts[:log_update_stats?] do
+          if UpdateStats.enabled?() && opts[:log_update_stats?] do
             UpdateStats.log_full_update(device, deployment_group, target)
           end
 
@@ -1797,7 +1797,7 @@ defmodule NervesHub.Devices do
         )
 
         _ =
-          if opts[:log_update_stats?] do
+          if UpdateStats.enabled?() && opts[:log_update_stats?] do
             UpdateStats.log_full_update(device, deployment_group, target)
           end
 
@@ -1820,7 +1820,7 @@ defmodule NervesHub.Devices do
     )
 
     _ =
-      if opts[:log_update_stats?] do
+      if UpdateStats.enabled?() && opts[:log_update_stats?] do
         UpdateStats.log_full_update(device, dg, target)
       end
 

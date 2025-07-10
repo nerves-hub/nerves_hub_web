@@ -13,6 +13,10 @@ defmodule NervesHub.Devices.UpdateStats do
 
   import Ecto.Query
 
+  def enabled? do
+    Application.get_env(:nerves_hub, :analytics_enabled)
+  end
+
   @types [:fwup_full, :fwup_delta]
 
   @spec stats_by_device(Device.t()) ::

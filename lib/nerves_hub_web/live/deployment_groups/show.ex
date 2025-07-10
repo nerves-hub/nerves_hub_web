@@ -368,16 +368,22 @@ defmodule NervesHubWeb.Live.DeploymentGroups.Show do
   end
 
   defp assign_deltas_and_stats(%{assigns: %{deployment_group: deployment_group}} = socket) do
-    if deployment_group.delta_updatable do
-      assign(
-        socket,
-        :deltas,
-        Firmwares.get_deltas_by_target_firmware(deployment_group.firmware)
-      )
+    socket =
+      if deployment_group.delta_updatable do
+        assign(
+          socket,
+          :deltas,
+          Firmwares.get_deltas_by_target_firmware(deployment_group.firmware)
+        )
+      else
+        assign(socket, :deltas, [])
+      end
+
+    if UpdateStats.enabled?() do
+      assign(socket, :update_stats, UpdateStats.stats_by_deployment(deployment_group))
     else
-      assign(socket, :deltas, [])
+      socket
     end
-    |> assign(:update_stats, UpdateStats.stats_by_deployment(deployment_group))
   end
 
   defp assign_matched_devices_count(%{assigns: %{deployment_group: deployment_group}} = socket) do
