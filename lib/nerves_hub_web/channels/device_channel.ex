@@ -19,6 +19,7 @@ defmodule NervesHubWeb.DeviceChannel do
   alias NervesHub.Helpers.Logging
   alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
+  alias NervesHubWeb.ExternalDeviceListenerChannel
   alias Phoenix.Socket.Broadcast
 
   @decorate with_span("Channels.DeviceChannel.join")
@@ -237,6 +238,15 @@ defmodule NervesHubWeb.DeviceChannel do
       device_id: device.id,
       percent: percent
     })
+
+    # Broadcast to external firmware update subscribers
+    case ExternalDeviceListenerChannel.broadcast_firmware_update(device, percent) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.error("[DeviceChannel] Failed to broadcast firmware update: #{inspect(reason)}")
+    end
 
     # if we know the update has already started, we can move on
     if socket.assigns.update_started? do
