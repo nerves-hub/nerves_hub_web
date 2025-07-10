@@ -5,7 +5,7 @@ defmodule NervesHub.FirmwaresTest do
   alias Ecto.Changeset
 
   alias NervesHub.Firmwares
-  alias NervesHub.Firmwares.DeltaUpdater.Default, as: DeltaUpdaterDefault
+  alias NervesHub.Firmwares.UpdateTool.Fwup, as: UpdateToolDefault
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.Firmwares.Upload.File, as: UploadFile
   alias NervesHub.Fixtures
@@ -266,13 +266,21 @@ defmodule NervesHub.FirmwaresTest do
       expect(UploadFile, :download_file, fn ^source -> {:ok, source_url} end)
       expect(UploadFile, :download_file, fn ^target -> {:ok, target_url} end)
 
-      expect(DeltaUpdaterDefault, :create_firmware_delta_file, fn ^source_url, ^target_url ->
-        {:ok, firmware_delta_path, %{size: 5}}
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn ^source_url, ^target_url ->
+        {:ok,
+         %{
+           filepath: firmware_delta_path,
+           size: 5,
+           source_size: 10,
+           target_size: 15,
+           tool: "fwup",
+           tool_metadata: %{}
+         }}
       end)
 
       expect(UploadFile, :upload_file, fn ^firmware_delta_path, _ -> :ok end)
 
-      expect(DeltaUpdaterDefault, :cleanup_firmware_delta_files, fn ^firmware_delta_path ->
+      expect(UpdateToolDefault, :cleanup_firmware_delta_files, fn ^firmware_delta_path ->
         :ok
       end)
 
@@ -289,13 +297,21 @@ defmodule NervesHub.FirmwaresTest do
     } do
       target = Fixtures.firmware_fixture(org_key, product)
 
-      expect(DeltaUpdaterDefault, :create_firmware_delta_file, fn _s, _t ->
-        {:ok, "path/to/firmware.fw", %{size: 5}}
+      expect(UpdateToolDefault, :create_firmware_delta_file, fn _s, _t ->
+        {:ok,
+         %{
+           filepath: "path/to/firmware.fw",
+           size: 5,
+           source_size: 10,
+           target_size: 15,
+           tool: "fwup",
+           tool_metadata: %{}
+         }}
       end)
 
       expect(UploadFile, :upload_file, fn _p, _m -> {:error, :failed} end)
 
-      expect(DeltaUpdaterDefault, :cleanup_firmware_delta_files, fn _p -> :ok end)
+      expect(UpdateToolDefault, :cleanup_firmware_delta_files, fn _p -> :ok end)
 
       Firmwares.create_firmware_delta(source, target)
 

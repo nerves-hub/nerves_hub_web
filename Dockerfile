@@ -103,8 +103,8 @@ FROM ${RUNNER_IMAGE} AS app
 
 RUN apt-get update -y \
     && apt-get install -y libstdc++6 openssl libncurses6 locales bash openssl curl python3 python3-pip jq xdelta3 zip unzip wget \
-    && wget https://github.com/fwup-home/fwup/releases/download/v1.12.0/fwup_1.12.0_amd64.deb \
-    && dpkg -i fwup_1.12.0_amd64.deb && rm fwup_1.12.0_amd64.deb \
+    && wget https://github.com/fwup-home/fwup/releases/download/v1.13.0/fwup_1.13.0_amd64.deb \
+    && dpkg -i fwup_1.13.0_amd64.deb && rm fwup_1.13.0_amd64.deb \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set the locale
