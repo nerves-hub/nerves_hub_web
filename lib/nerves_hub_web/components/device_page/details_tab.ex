@@ -649,9 +649,10 @@ defmodule NervesHubWeb.Components.DevicePage.DetailsTab do
     )
 
     # Explicitly log the update stats
-    if UpdateStats.enabled?() do
-      _ = UpdateStats.log_full_update(device, nil, firmware)
-    end
+    _ =
+      if UpdateStats.enabled?() do
+        UpdateStats.log_full_update(device, nil, firmware)
+      end
 
     {:ok, url} = Firmwares.get_firmware_url(firmware)
     {:ok, meta} = Firmwares.metadata_from_firmware(firmware)
