@@ -47,7 +47,8 @@ defmodule NervesHub.Application do
            child_spec: Task.Supervisor, name: NervesHub.AnalyticsEventsProcessing}
         ] ++
         deployments_orchestrator(deploy_env()) ++
-        endpoints(deploy_env())
+        endpoints(deploy_env()) ++
+        maybe_add_google_auth(deploy_env())
 
     opts = [strategy: :one_for_one, name: NervesHub.Supervisor]
     Supervisor.start_link(children, opts)
@@ -139,6 +140,19 @@ defmodule NervesHub.Application do
 
       "web" ->
         [NervesHubWeb.Endpoint]
+    end
+  end
+
+  defp maybe_add_google_auth("test") do
+    []
+  end
+
+  defp maybe_add_google_auth(_) do
+    cond do
+      !is_nil(System.get_env("GOOGLE_APPLICATION_CREDENTIALS")) ||
+      !is_nil(System.get_env("GOOGLE_APPLICATION_CREDENTIALS_JSON")) ->
+        [{Goth, name: NervesHub.Goth}]
+      true -> []
     end
   end
 
