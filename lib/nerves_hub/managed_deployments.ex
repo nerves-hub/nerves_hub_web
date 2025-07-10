@@ -5,24 +5,18 @@ defmodule NervesHub.ManagedDeployments do
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
   alias NervesHub.AuditLogs.DeviceTemplates
-  alias NervesHub.Deployments.InflightDeploymentCheck
   alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
-  alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.Products.Product
   alias NervesHub.Workers.FirmwareDeltaBuilder
+  alias Phoenix.Channel.Server, as: PhoenixChannelServer
 
   alias NervesHub.Repo
 
   alias Ecto.Changeset
-
-  @spec all() :: [DeploymentGroup.t()]
-  def all() do
-    Repo.all(DeploymentGroup)
-  end
 
   @spec should_run_orchestrator() :: [DeploymentGroup.t()]
   def should_run_orchestrator() do
@@ -91,34 +85,6 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
   end
 
-  @spec get(integer()) :: {:ok, DeploymentGroup.t()} | {:error, :not_found}
-  def get(id) when is_integer(id) do
-    case Repo.get(DeploymentGroup, id) do
-      nil ->
-        {:error, :not_found}
-
-      deployment_group ->
-        {:ok, deployment_group}
-    end
-  end
-
-  @spec get_deployment_group_for_device(Device.t()) ::
-          {:ok, DeploymentGroup.t()} | {:error, :not_found}
-  def get_deployment_group_for_device(%Device{deployment_id: deployment_id}) do
-    DeploymentGroup
-    |> where([d], d.id == ^deployment_id)
-    |> join(:left, [d], f in assoc(d, :firmware))
-    |> preload([d, f], firmware: f)
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      deployment_group ->
-        {:ok, deployment_group}
-    end
-  end
-
   @spec get_deployment_group_for_update(Device.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get_deployment_group_for_update(%Device{deployment_id: deployment_id}) do
@@ -137,27 +103,8 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  @spec get_deployment_group(Product.t(), String.t()) ::
+  @spec get_deployment_group(DeploymentGroup.t() | integer()) ::
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
-  def get_deployment_group(%Product{id: product_id}, deployment_id) do
-    from(
-      d in DeploymentGroup,
-      where: d.id == ^deployment_id,
-      join: f in assoc(d, :firmware),
-      where: f.product_id == ^product_id,
-      preload: [{:firmware, :product}]
-    )
-    |> DeploymentGroup.with_firmware()
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      deployment_group ->
-        {:ok, deployment_group}
-    end
-  end
-
   def get_deployment_group(%DeploymentGroup{id: id}), do: get_deployment_group(id)
 
   def get_deployment_group(deployment_id) do
@@ -245,7 +192,7 @@ defmodule NervesHub.ManagedDeployments do
         {:error, :not_found}
 
       {:ok, deployment_group} ->
-        _ = deployment_deleted_event(deployment_group)
+        :ok = deployment_deleted_event(deployment_group)
 
         {:ok, deployment_group}
     end
@@ -301,17 +248,9 @@ defmodule NervesHub.ManagedDeployments do
 
         if Map.has_key?(changeset.changes, :is_active) do
           if deployment_group.is_active do
-            deployment_activated_event(deployment_group)
+            :ok = deployment_activated_event(deployment_group)
           else
-            deployment_deactivated_event(deployment_group)
-          end
-        end
-
-        if Map.has_key?(changeset.changes, :orchestrator_strategy) do
-          if deployment_group.orchestrator_strategy == :distributed do
-            start_deployments_distributed_orchestrator_event(deployment_group)
-          else
-            shutdown_deployments_distributed_orchestrator_event(deployment_group)
+            :ok = deployment_deactivated_event(deployment_group)
           end
         end
 
@@ -379,19 +318,6 @@ defmodule NervesHub.ManagedDeployments do
     end)
   end
 
-  @doc """
-  Delete any matching inflight deployment checks for devices
-  """
-  @spec delete_inflight_checks(DeploymentGroup.t()) :: :ok
-  def delete_inflight_checks(deployment_group) do
-    _ =
-      InflightDeploymentCheck
-      |> where([idc], idc.deployment_id == ^deployment_group.id)
-      |> Repo.delete_all()
-
-    :ok
-  end
-
   @spec new_deployment_group() :: Changeset.t()
   def new_deployment_group() do
     Ecto.Changeset.change(%DeploymentGroup{})
@@ -416,7 +342,7 @@ defmodule NervesHub.ManagedDeployments do
   def broadcast(deployment_group, event, payload \\ %{})
 
   def broadcast(:none, event, payload) do
-    Phoenix.Channel.Server.broadcast(
+    PhoenixChannelServer.broadcast(
       NervesHub.PubSub,
       "deployment:none",
       event,
@@ -425,7 +351,7 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   def broadcast(%DeploymentGroup{id: id}, event, payload) do
-    Phoenix.Channel.Server.broadcast(
+    PhoenixChannelServer.broadcast(
       NervesHub.PubSub,
       "deployment:#{id}",
       event,
@@ -464,7 +390,12 @@ defmodule NervesHub.ManagedDeployments do
           device
       )
       when not is_nil(deployment_id) do
-    {:ok, deployment_group} = get_deployment_group_for_device(device)
+    deployment_group =
+      DeploymentGroup
+      |> where([d], d.id == ^deployment_id)
+      |> join(:left, [d], f in assoc(d, :firmware))
+      |> preload([d, f], firmware: f)
+      |> Repo.one()
 
     bad_version =
       if deployment_group.conditions["version"] != "" do
@@ -543,10 +474,6 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  def set_deployment_group(device) do
-    preload_with_firmware_and_archive(device)
-  end
-
   defp set_deployment_group_telemetry(result, device, deployment_group \\ nil) do
     metadata = %{device: device}
 
@@ -569,9 +496,9 @@ defmodule NervesHub.ManagedDeployments do
     %DeploymentGroup{} = Repo.preload(deployment_group, [:archive, :firmware])
   end
 
-  @spec preload_with_firmware_and_archive(Device.t(), boolean()) :: Device.t()
-  def preload_with_firmware_and_archive(device, force \\ false) do
-    %Device{} = Repo.preload(device, [deployment_group: [:archive, :firmware]], force: force)
+  @spec preload_with_firmware_and_archive(Device.t()) :: Device.t()
+  def preload_with_firmware_and_archive(device) do
+    %Device{} = Repo.preload(device, deployment_group: [:archive, :firmware])
   end
 
   @doc """
@@ -634,39 +561,24 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
   end
 
-  def deployment_created_event(deployment_group) do
+  @spec deployment_created_event(DeploymentGroup.t()) :: :ok
+  defp deployment_created_event(deployment_group) do
     _ = DistributedOrchestrator.start_orchestrator(deployment_group)
 
     :ok
   end
 
-  def start_deployments_distributed_orchestrator_event(deployment_group) do
+  @spec deployment_activated_event(DeploymentGroup.t()) :: :ok
+  defp deployment_activated_event(deployment_group) do
     _ = DistributedOrchestrator.start_orchestrator(deployment_group)
 
     :ok
   end
 
-  def shutdown_deployments_distributed_orchestrator_event(deployment) do
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "orchestrator:deployment:#{deployment.id}",
-        "deactivated",
-        %{}
-      )
-
-    :ok
-  end
-
-  def deployment_activated_event(deployment_group) do
-    _ = DistributedOrchestrator.start_orchestrator(deployment_group)
-
-    :ok
-  end
-
+  @spec deployment_deactivated_event(DeploymentGroup.t()) :: :ok
   def deployment_deactivated_event(deployment_group) do
     _ =
-      Phoenix.Channel.Server.broadcast(
+      PhoenixChannelServer.broadcast(
         NervesHub.PubSub,
         "orchestrator:deployment:#{deployment_group.id}",
         "deactivated",
@@ -676,7 +588,8 @@ defmodule NervesHub.ManagedDeployments do
     :ok
   end
 
-  def deployment_deleted_event(deployment_group) do
+  @spec deployment_deleted_event(DeploymentGroup.t()) :: :ok
+  defp deployment_deleted_event(deployment_group) do
     _ = broadcast(deployment_group, "deleted")
 
     :ok

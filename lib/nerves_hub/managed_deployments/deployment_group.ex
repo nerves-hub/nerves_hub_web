@@ -71,9 +71,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     field(:queue_management, Ecto.Enum, values: [:FIFO, :LIFO], default: :FIFO)
     field(:delta_updatable, :boolean, default: false)
 
-    # TODO: (nshoes) this column is unused, remove after 1st March
-    # field(:recalculation_type, Ecto.Enum, values: [:device, :calculator_queue], default: :device)
-
     field(:device_count, :integer, virtual: true)
 
     # TODO: (joshk) this column is unused, remove after 1st May

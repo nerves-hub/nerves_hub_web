@@ -83,7 +83,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
     |> assert_has("div", text: "Deployment Group successfully deleted")
 
-    assert ManagedDeployments.get_deployment_group(product, deployment_group.id) ==
+    assert ManagedDeployments.get_deployment_group(deployment_group.id) ==
              {:error, :not_found}
 
     logs = AuditLogs.logs_for(deployment_group)
@@ -112,7 +112,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     |> assert_path(URI.encode("/org/#{org.name}/#{product.name}/deployment_groups"))
     |> assert_has("div", text: "Deployment Group successfully deleted")
 
-    assert ManagedDeployments.get_deployment_group(product, deployment_group.id) ==
+    assert ManagedDeployments.get_deployment_group(deployment_group.id) ==
              {:error, :not_found}
 
     logs = AuditLogs.logs_for(deployment_group)
@@ -142,7 +142,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
     |> then(fn conn ->
       {:ok, reloaded_deployment_group} =
-        ManagedDeployments.get_deployment_group(product, deployment_group.id)
+        ManagedDeployments.get_deployment_group(deployment_group.id)
 
       assert reloaded_deployment_group.is_active
       assert_has(conn, "span", text: "Turn Off")
@@ -156,7 +156,7 @@ defmodule NervesHubWeb.Live.DeploymentGroups.ShowTest do
     |> assert_path("/org/#{org.name}/#{product.name}/deployment_groups/#{deployment_group.name}")
     |> then(fn conn ->
       {:ok, reloaded_deployment_group} =
-        ManagedDeployments.get_deployment_group(product, deployment_group.id)
+        ManagedDeployments.get_deployment_group(deployment_group.id)
 
       refute reloaded_deployment_group.is_active
       assert_has(conn, "span", text: "Turn On")
