@@ -4,8 +4,6 @@ defmodule NervesHub.ManagedDeployments do
   require Logger
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
-  alias NervesHub.AuditLogs.DeviceTemplates
-  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -224,7 +222,7 @@ defmodule NervesHub.ManagedDeployments do
 
         changeset =
           deployment_group
-          |> DeploymentGroup.with_firmware()
+          |> Repo.preload(:firmware)
           |> DeploymentGroup.update_changeset(params)
           |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
 
@@ -243,7 +241,7 @@ defmodule NervesHub.ManagedDeployments do
 
     case result do
       {:ok, {deployment_group, changeset}} ->
-        _ = maybe_trigger_delta_generation(deployment_group, changeset)
+        :ok = maybe_trigger_delta_generation(deployment_group, changeset)
         :ok = broadcast(deployment_group, "deployments/update")
 
         if Map.has_key?(changeset.changes, :is_active) do
@@ -359,21 +357,6 @@ defmodule NervesHub.ManagedDeployments do
     )
   end
 
-  @doc """
-  Find all potential devices for a deployment
-
-  Based on the product, firmware platform, firmware architecture, and device tags
-  """
-  @spec estimate_devices_matched_by_conditions(integer(), String.t(), map()) :: integer()
-  def estimate_devices_matched_by_conditions(product_id, platform, conditions) do
-    Device
-    |> where([dev], dev.product_id == ^product_id)
-    |> where([dev], fragment("d0.firmware_metadata ->> 'platform'") == ^platform)
-    |> where([dev], fragment("?::jsonb->'tags' <@ to_jsonb(?::text[])", ^conditions, dev.tags))
-    |> Repo.all()
-    |> Enum.count(&version_match?(&1, %{conditions: conditions}))
-  end
-
   # Check that a device version matches for a deployment's conditions
   # A deployment not having a version condition returns true
   defp version_match?(_device, %{conditions: %{"version" => ""}}), do: true
@@ -444,52 +427,6 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   def verify_deployment_group_membership(device), do: device
-
-  @doc """
-  If the device is missing a deployment group, find a matching deployment group
-
-  Do nothing if a deployment group is already set
-  """
-  @spec set_deployment_group(Device.t()) :: Device.t()
-  def set_deployment_group(%{deployment_id: nil} = device) do
-    case matching_deployment_groups(device, [true]) do
-      [] ->
-        set_deployment_group_telemetry(:none_found, device)
-
-        %{device | deployment_group: nil}
-
-      [deployment] ->
-        set_deployment_group_telemetry(:one_found, device, deployment)
-
-        DeviceTemplates.audit_set_deployment(device, deployment, :one_found)
-
-        Devices.update_deployment_group(device, deployment)
-
-      [deployment | _] ->
-        set_deployment_group_telemetry(:multiple_found, device, deployment)
-
-        DeviceTemplates.audit_set_deployment(device, deployment, :multiple_found)
-
-        Devices.update_deployment_group(device, deployment)
-    end
-  end
-
-  defp set_deployment_group_telemetry(result, device, deployment_group \\ nil) do
-    metadata = %{device: device}
-
-    metadata =
-      if deployment_group do
-        Map.put(metadata, :deployment_group, deployment_group)
-      else
-        metadata
-      end
-
-    :telemetry.execute(
-      [:nerves_hub, :managed_deployments, :set_deployment_group, result],
-      %{count: 1},
-      metadata
-    )
-  end
 
   @spec preload_firmware_and_archive(DeploymentGroup.t()) :: DeploymentGroup.t()
   def preload_firmware_and_archive(deployment_group) do

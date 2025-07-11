@@ -2,7 +2,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   use Ecto.Schema
 
   import Ecto.Changeset
-  import Ecto.Query
 
   alias NervesHub.Accounts.Org
   alias NervesHub.Archives.Archive
@@ -11,7 +10,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
   alias NervesHub.Firmwares.Firmware
   alias NervesHub.ManagedDeployments.DeploymentRelease
   alias NervesHub.Products.Product
-  alias NervesHub.Repo
 
   alias __MODULE__
 
@@ -82,10 +80,12 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     timestamps()
   end
 
+  @spec create_changeset(DeploymentGroup.t(), map()) :: Ecto.Changeset.t()
   def create_changeset(%DeploymentGroup{} = deployment, params) do
     base_changeset(deployment, params)
   end
 
+  @spec update_changeset(DeploymentGroup.t(), map()) :: Ecto.Changeset.t()
   def update_changeset(%DeploymentGroup{} = deployment, params) do
     base_changeset(deployment, params)
     |> prepare_changes(fn changeset ->
@@ -104,24 +104,6 @@ defmodule NervesHub.ManagedDeployments.DeploymentGroup do
     |> unique_constraint(:name, name: :deployments_product_id_name_index)
     |> validate_conditions()
   end
-
-  def with_firmware(%DeploymentGroup{firmware: %Firmware{}} = d), do: d
-
-  def with_firmware(%DeploymentGroup{} = d) do
-    d
-    |> Repo.preload(:firmware)
-  end
-
-  def with_firmware(query), do: preload(query, :firmware)
-
-  def with_product(%DeploymentGroup{product: %Product{}} = d), do: d
-
-  def with_product(%DeploymentGroup{} = d) do
-    d
-    |> Repo.preload(:product)
-  end
-
-  def with_product(query), do: preload(query, :product)
 
   defp validate_conditions(changeset) do
     validate_change(changeset, :conditions, fn

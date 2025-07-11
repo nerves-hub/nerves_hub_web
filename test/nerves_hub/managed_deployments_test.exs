@@ -9,7 +9,9 @@ defmodule NervesHub.ManagedDeploymentsTest do
   alias NervesHub.Devices.Device
   alias NervesHub.Fixtures
   alias NervesHub.ManagedDeployments
+  alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
+  alias NervesHub.Workers.FirmwareDeltaBuilder
 
   alias Ecto.Changeset
   alias Phoenix.Socket.Broadcast
@@ -59,7 +61,7 @@ defmodule NervesHub.ManagedDeploymentsTest do
         is_active: false
       }
 
-      {:ok, %ManagedDeployments.DeploymentGroup{} = deployment_group} =
+      {:ok, %DeploymentGroup{} = deployment_group} =
         ManagedDeployments.create_deployment_group(params)
 
       for key <- Map.keys(params) do
@@ -161,6 +163,88 @@ defmodule NervesHub.ManagedDeploymentsTest do
 
       topic = "orchestrator:deployment:#{deployment_group.id}"
       assert_receive %Broadcast{topic: ^topic, event: "deactivated"}, 500
+    end
+
+    test "triggers delta generation when firmware is updated and delta updates are enabled",
+         %{
+           deployment_group: deployment_group,
+           firmware: %{id: firmware_id} = firmware,
+           firmware2: %{id: firmware2_id} = firmware2,
+           org: org,
+           product: product
+         } do
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+
+      assert deployment_group.delta_updatable
+      assert deployment_group.firmware_id == firmware.id
+
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
+        |> Devices.update_deployment_group(deployment_group)
+
+      assert device.deployment_id == deployment_group.id
+
+      expect(
+        FirmwareDeltaBuilder,
+        :start,
+        fn ^firmware_id, ^firmware2_id -> :ok end
+      )
+
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware2.id})
+    end
+
+    test "triggers delta generation when delta updates are enabled",
+         %{
+           deployment_group: deployment_group,
+           firmware: %{id: firmware_id} = firmware,
+           firmware2: %{id: firmware2_id} = firmware2,
+           org: org,
+           product: product
+         } do
+      refute deployment_group.delta_updatable
+      assert deployment_group.firmware_id == firmware.id
+
+      {:ok, deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{firmware_id: firmware2.id})
+
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
+        |> Devices.update_deployment_group(deployment_group)
+
+      assert device.deployment_id == deployment_group.id
+
+      expect(
+        FirmwareDeltaBuilder,
+        :start,
+        fn ^firmware_id, ^firmware2_id -> :ok end
+      )
+
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
+    end
+
+    test "does not trigger delta generation if firmware has not changed",
+         %{
+           deployment_group: deployment_group,
+           firmware: firmware,
+           org: org,
+           product: product
+         } do
+      refute deployment_group.delta_updatable
+      assert deployment_group.firmware_id == firmware.id
+
+      device =
+        Fixtures.device_fixture(org, product, firmware, %{tags: ["beta", "rpi"]})
+        |> Devices.update_deployment_group(deployment_group)
+
+      assert device.deployment_id == deployment_group.id
+
+      reject(FirmwareDeltaBuilder, :start, 2)
+
+      {:ok, _deployment_group} =
+        ManagedDeployments.update_deployment_group(deployment_group, %{delta_updatable: true})
     end
   end
 
@@ -764,5 +848,28 @@ defmodule NervesHub.ManagedDeploymentsTest do
                  device4.id
                ])
     end
+  end
+
+  test "should_run_orchestrator/0", %{deployment_group: deployment_group} do
+    assert [] == ManagedDeployments.should_run_orchestrator()
+    {:ok, _} = ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
+    assert length(ManagedDeployments.should_run_orchestrator()) == 1
+  end
+
+  test "get_deployment_groups_by_firmware/1", %{
+    firmware: firmware
+  } do
+    assert [] == ManagedDeployments.get_deployment_groups_by_firmware(123)
+    assert length(ManagedDeployments.get_deployment_groups_by_firmware(firmware.id)) == 1
+  end
+
+  test "get_deployment_group_for_update/1", %{deployment_group: deployment_group} do
+    assert {:ok, %DeploymentGroup{}} =
+             ManagedDeployments.get_deployment_group_for_update(%Device{
+               deployment_id: deployment_group.id
+             })
+
+    assert ManagedDeployments.get_deployment_group_for_update(%Device{deployment_id: 123}) ==
+             {:error, :not_found}
   end
 end
