@@ -17,6 +17,10 @@ defmodule NervesHub.Uploads do
   def url(key, opts \\ []) do
     backend().url(key, opts)
   end
+
+  def delete(key) do
+    backend().delete(key)
+  end
 end
 
 defmodule NervesHub.Uploads.File do
@@ -107,5 +111,80 @@ defmodule NervesHub.Uploads.S3 do
       false ->
         "https://s3.amazonaws.com/#{bucket()}#{key}"
     end
+  end
+end
+
+defmodule NervesHub.Uploads.GCS do
+  @behaviour NervesHub.Uploads
+
+  alias GoogleApi.Storage.V1.Api.Objects
+  alias GoogleApi.Storage.V1.Connection
+
+  def bucket() do
+    Application.get_env(:nerves_hub, __MODULE__)[:bucket]
+  end
+
+  @impl NervesHub.Uploads
+  def delete(key) do
+    conn = get_connection()
+
+    try do
+      {:ok, _} = Objects.storage_objects_delete(
+        conn,
+        bucket(),
+        key
+      )
+      :ok
+    rescue
+      e -> {:error, e}
+    end
+  end
+
+  @impl NervesHub.Uploads
+  def upload(file_path, key, opts) do
+    conn = get_connection()
+
+    try do
+      {:ok, _object} = Objects.storage_objects_insert_simple(
+        conn,
+        bucket(),
+        "multipart",
+        %{name: key, metadata: Keyword.get(opts, :meta, %{})},
+        File.read!(file_path)
+      )
+      :ok
+    rescue
+      e -> {:error, e}
+    end
+  end
+
+  @impl NervesHub.Uploads
+  def url(key, opts) do
+    case Keyword.has_key?(opts, :signed) do
+      true ->
+        gcs_client = cond do
+          !is_nil(System.get_env("GOOGLE_APPLICATION_CREDENTIALS")) ->
+            GcsSignedUrl.Client.load_from_file(System.fetch_env!("GOOGLE_APPLICATION_CREDENTIALS"))
+          !is_nil(System.get_env("GOOGLE_APPLICATION_CREDENTIALS_JSON")) ->
+            credentials = System.fetch_env!("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+                          |> Jason.decode!()
+            GcsSignedUrl.Client.load(credentials)
+          true -> nil
+        end
+        GcsSignedUrl.generate_v4(
+          gcs_client,
+          bucket(),
+          key,
+          opts[:signed]
+        )
+
+      false ->
+        "https://storage.googleapis.com/#{bucket()}/#{key}"
+    end
+  end
+
+  defp get_connection() do
+    token = Goth.fetch!(NervesHub.Goth)
+    Connection.new(token.token)
   end
 end

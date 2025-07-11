@@ -330,6 +330,16 @@ if config_env() == :prod do
       config :ex_aws,
         json_codec: Jason
 
+    "GCS" ->
+      config :nerves_hub, firmware_upload: NervesHub.Firmwares.Upload.GCS
+
+      config :nerves_hub, NervesHub.Uploads, backend: NervesHub.Uploads.GCS
+
+      config :nerves_hub, NervesHub.Uploads.GCS, bucket: System.fetch_env!("GOOGLE_STORAGE_BUCKET_NAME")
+
+      config :nerves_hub, NervesHub.Firmwares.Upload.GCS,
+             bucket: System.fetch_env!("GOOGLE_STORAGE_BUCKET_NAME")
+
     "local" ->
       local_path = System.get_env("FIRMWARE_UPLOAD_PATH")
 
