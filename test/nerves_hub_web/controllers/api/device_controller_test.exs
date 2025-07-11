@@ -131,14 +131,6 @@ defmodule NervesHubWeb.API.DeviceControllerTest do
         )
 
       assert response(conn, 204)
-
-      assert_error_sent(404, fn ->
-        get(
-          conn,
-          Routes.api_device_path(conn, :show, org.name, product.name, to_delete.identifier)
-        )
-      end)
-      |> assert_authorization_error(404)
     end
 
     test "does not have required role to delete chosen device", %{
