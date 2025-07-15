@@ -4,25 +4,17 @@ defmodule NervesHub.ManagedDeployments do
   require Logger
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
-  alias NervesHub.AuditLogs.DeviceTemplates
-  alias NervesHub.Deployments.InflightDeploymentCheck
-  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.ManagedDeployments.DeploymentGroup
   alias NervesHub.ManagedDeployments.Distributed.Orchestrator, as: DistributedOrchestrator
-  alias NervesHub.ManagedDeployments.InflightDeploymentCheck
   alias NervesHub.Products.Product
   alias NervesHub.Workers.FirmwareDeltaBuilder
+  alias Phoenix.Channel.Server, as: PhoenixChannelServer
 
   alias NervesHub.Repo
 
   alias Ecto.Changeset
-
-  @spec all() :: [DeploymentGroup.t()]
-  def all() do
-    Repo.all(DeploymentGroup)
-  end
 
   @spec should_run_orchestrator() :: [DeploymentGroup.t()]
   def should_run_orchestrator() do
@@ -91,34 +83,6 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
   end
 
-  @spec get(integer()) :: {:ok, DeploymentGroup.t()} | {:error, :not_found}
-  def get(id) when is_integer(id) do
-    case Repo.get(DeploymentGroup, id) do
-      nil ->
-        {:error, :not_found}
-
-      deployment_group ->
-        {:ok, deployment_group}
-    end
-  end
-
-  @spec get_deployment_group_for_device(Device.t()) ::
-          {:ok, DeploymentGroup.t()} | {:error, :not_found}
-  def get_deployment_group_for_device(%Device{deployment_id: deployment_id}) do
-    DeploymentGroup
-    |> where([d], d.id == ^deployment_id)
-    |> join(:left, [d], f in assoc(d, :firmware))
-    |> preload([d, f], firmware: f)
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      deployment_group ->
-        {:ok, deployment_group}
-    end
-  end
-
   @spec get_deployment_group_for_update(Device.t()) ::
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
   def get_deployment_group_for_update(%Device{deployment_id: deployment_id}) do
@@ -137,27 +101,8 @@ defmodule NervesHub.ManagedDeployments do
     end
   end
 
-  @spec get_deployment_group(Product.t(), String.t()) ::
+  @spec get_deployment_group(DeploymentGroup.t() | integer()) ::
           {:ok, DeploymentGroup.t()} | {:error, :not_found}
-  def get_deployment_group(%Product{id: product_id}, deployment_id) do
-    from(
-      d in DeploymentGroup,
-      where: d.id == ^deployment_id,
-      join: f in assoc(d, :firmware),
-      where: f.product_id == ^product_id,
-      preload: [{:firmware, :product}]
-    )
-    |> DeploymentGroup.with_firmware()
-    |> Repo.one()
-    |> case do
-      nil ->
-        {:error, :not_found}
-
-      deployment_group ->
-        {:ok, deployment_group}
-    end
-  end
-
   def get_deployment_group(%DeploymentGroup{id: id}), do: get_deployment_group(id)
 
   def get_deployment_group(deployment_id) do
@@ -245,7 +190,7 @@ defmodule NervesHub.ManagedDeployments do
         {:error, :not_found}
 
       {:ok, deployment_group} ->
-        _ = deployment_deleted_event(deployment_group)
+        :ok = deployment_deleted_event(deployment_group)
 
         {:ok, deployment_group}
     end
@@ -277,7 +222,7 @@ defmodule NervesHub.ManagedDeployments do
 
         changeset =
           deployment_group
-          |> DeploymentGroup.with_firmware()
+          |> Repo.preload(:firmware)
           |> DeploymentGroup.update_changeset(params)
           |> Ecto.Changeset.put_change(:total_updating_devices, device_count)
 
@@ -296,22 +241,14 @@ defmodule NervesHub.ManagedDeployments do
 
     case result do
       {:ok, {deployment_group, changeset}} ->
-        _ = maybe_trigger_delta_generation(deployment_group, changeset)
+        :ok = maybe_trigger_delta_generation(deployment_group, changeset)
         :ok = broadcast(deployment_group, "deployments/update")
 
         if Map.has_key?(changeset.changes, :is_active) do
           if deployment_group.is_active do
-            deployment_activated_event(deployment_group)
+            :ok = deployment_activated_event(deployment_group)
           else
-            deployment_deactivated_event(deployment_group)
-          end
-        end
-
-        if Map.has_key?(changeset.changes, :orchestrator_strategy) do
-          if deployment_group.orchestrator_strategy == :distributed do
-            start_deployments_distributed_orchestrator_event(deployment_group)
-          else
-            shutdown_deployments_distributed_orchestrator_event(deployment_group)
+            :ok = deployment_deactivated_event(deployment_group)
           end
         end
 
@@ -379,19 +316,6 @@ defmodule NervesHub.ManagedDeployments do
     end)
   end
 
-  @doc """
-  Delete any matching inflight deployment checks for devices
-  """
-  @spec delete_inflight_checks(DeploymentGroup.t()) :: :ok
-  def delete_inflight_checks(deployment_group) do
-    _ =
-      InflightDeploymentCheck
-      |> where([idc], idc.deployment_id == ^deployment_group.id)
-      |> Repo.delete_all()
-
-    :ok
-  end
-
   @spec new_deployment_group() :: Changeset.t()
   def new_deployment_group() do
     Ecto.Changeset.change(%DeploymentGroup{})
@@ -416,7 +340,7 @@ defmodule NervesHub.ManagedDeployments do
   def broadcast(deployment_group, event, payload \\ %{})
 
   def broadcast(:none, event, payload) do
-    Phoenix.Channel.Server.broadcast(
+    PhoenixChannelServer.broadcast(
       NervesHub.PubSub,
       "deployment:none",
       event,
@@ -425,27 +349,12 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   def broadcast(%DeploymentGroup{id: id}, event, payload) do
-    Phoenix.Channel.Server.broadcast(
+    PhoenixChannelServer.broadcast(
       NervesHub.PubSub,
       "deployment:#{id}",
       event,
       payload
     )
-  end
-
-  @doc """
-  Find all potential devices for a deployment
-
-  Based on the product, firmware platform, firmware architecture, and device tags
-  """
-  @spec estimate_devices_matched_by_conditions(integer(), String.t(), map()) :: integer()
-  def estimate_devices_matched_by_conditions(product_id, platform, conditions) do
-    Device
-    |> where([dev], dev.product_id == ^product_id)
-    |> where([dev], fragment("d0.firmware_metadata ->> 'platform'") == ^platform)
-    |> where([dev], fragment("?::jsonb->'tags' <@ to_jsonb(?::text[])", ^conditions, dev.tags))
-    |> Repo.all()
-    |> Enum.count(&version_match?(&1, %{conditions: conditions}))
   end
 
   # Check that a device version matches for a deployment's conditions
@@ -464,11 +373,21 @@ defmodule NervesHub.ManagedDeployments do
           device
       )
       when not is_nil(deployment_id) do
-    {:ok, deployment_group} = get_deployment_group_for_device(device)
+    deployment_group =
+      DeploymentGroup
+      |> where([d], d.id == ^deployment_id)
+      |> join(:left, [d], f in assoc(d, :firmware))
+      |> preload([d, f], firmware: f)
+      |> Repo.one()
 
     bad_version =
       if deployment_group.conditions["version"] != "" do
-        !Version.match?(device_version, deployment_group.conditions["version"])
+        try do
+          !Version.match?(device_version, deployment_group.conditions["version"])
+        rescue
+          _ ->
+            true
+        end
       else
         false
       end
@@ -509,64 +428,14 @@ defmodule NervesHub.ManagedDeployments do
 
   def verify_deployment_group_membership(device), do: device
 
-  @doc """
-  If the device is missing a deployment group, find a matching deployment group
-
-  Do nothing if a deployment group is already set
-  """
-  @spec set_deployment_group(Device.t()) :: Device.t()
-  def set_deployment_group(%{deployment_id: nil} = device) do
-    case matching_deployment_groups(device, [true]) do
-      [] ->
-        set_deployment_group_telemetry(:none_found, device)
-
-        %{device | deployment_group: nil}
-
-      [deployment] ->
-        set_deployment_group_telemetry(:one_found, device, deployment)
-
-        DeviceTemplates.audit_set_deployment(device, deployment, :one_found)
-
-        Devices.update_deployment_group(device, deployment)
-
-      [deployment | _] ->
-        set_deployment_group_telemetry(:multiple_found, device, deployment)
-
-        DeviceTemplates.audit_set_deployment(device, deployment, :multiple_found)
-
-        Devices.update_deployment_group(device, deployment)
-    end
-  end
-
-  def set_deployment_group(device) do
-    preload_with_firmware_and_archive(device)
-  end
-
-  defp set_deployment_group_telemetry(result, device, deployment_group \\ nil) do
-    metadata = %{device: device}
-
-    metadata =
-      if deployment_group do
-        Map.put(metadata, :deployment_group, deployment_group)
-      else
-        metadata
-      end
-
-    :telemetry.execute(
-      [:nerves_hub, :managed_deployments, :set_deployment_group, result],
-      %{count: 1},
-      metadata
-    )
-  end
-
   @spec preload_firmware_and_archive(DeploymentGroup.t()) :: DeploymentGroup.t()
   def preload_firmware_and_archive(deployment_group) do
     %DeploymentGroup{} = Repo.preload(deployment_group, [:archive, :firmware])
   end
 
-  @spec preload_with_firmware_and_archive(Device.t(), boolean()) :: Device.t()
-  def preload_with_firmware_and_archive(device, force \\ false) do
-    %Device{} = Repo.preload(device, [deployment_group: [:archive, :firmware]], force: force)
+  @spec preload_with_firmware_and_archive(Device.t()) :: Device.t()
+  def preload_with_firmware_and_archive(device) do
+    %Device{} = Repo.preload(device, deployment_group: [:archive, :firmware])
   end
 
   @doc """
@@ -629,39 +498,24 @@ defmodule NervesHub.ManagedDeployments do
     |> Repo.all()
   end
 
-  def deployment_created_event(deployment_group) do
+  @spec deployment_created_event(DeploymentGroup.t()) :: :ok
+  defp deployment_created_event(deployment_group) do
     _ = DistributedOrchestrator.start_orchestrator(deployment_group)
 
     :ok
   end
 
-  def start_deployments_distributed_orchestrator_event(deployment_group) do
+  @spec deployment_activated_event(DeploymentGroup.t()) :: :ok
+  defp deployment_activated_event(deployment_group) do
     _ = DistributedOrchestrator.start_orchestrator(deployment_group)
 
     :ok
   end
 
-  def shutdown_deployments_distributed_orchestrator_event(deployment) do
-    _ =
-      Phoenix.Channel.Server.broadcast(
-        NervesHub.PubSub,
-        "orchestrator:deployment:#{deployment.id}",
-        "deactivated",
-        %{}
-      )
-
-    :ok
-  end
-
-  def deployment_activated_event(deployment_group) do
-    _ = DistributedOrchestrator.start_orchestrator(deployment_group)
-
-    :ok
-  end
-
+  @spec deployment_deactivated_event(DeploymentGroup.t()) :: :ok
   def deployment_deactivated_event(deployment_group) do
     _ =
-      Phoenix.Channel.Server.broadcast(
+      PhoenixChannelServer.broadcast(
         NervesHub.PubSub,
         "orchestrator:deployment:#{deployment_group.id}",
         "deactivated",
@@ -671,7 +525,8 @@ defmodule NervesHub.ManagedDeployments do
     :ok
   end
 
-  def deployment_deleted_event(deployment_group) do
+  @spec deployment_deleted_event(DeploymentGroup.t()) :: :ok
+  defp deployment_deleted_event(deployment_group) do
     _ = broadcast(deployment_group, "deleted")
 
     :ok

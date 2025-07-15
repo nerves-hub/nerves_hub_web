@@ -269,46 +269,20 @@ end
 
 if config_env() == :prod do
   if clickhouse_url = System.get_env("CLICKHOUSE_URL") do
+    # Required for Clickhouse Cloud (https://github.com/plausible/analytics/discussions/3497)
+    # (using a default order will cause issues for the migration table)
+    config :ecto_ch, default_table_engine: "MergeTree"
+
     config :nerves_hub, NervesHub.AnalyticsRepo, url: clickhouse_url
 
     config :nerves_hub, analytics_enabled: true
+
+    config :nerves_hub,
+      analytics_auto_migrator: System.get_env("ANALYTICS_AUTO_MIGRATOR", "true") == "true"
   else
     config :nerves_hub, analytics_enabled: false
   end
 end
-
-# Libcluster is using Postgres for Node discovery
-# The library only accepts keyword configs, so the DATABASE_URL has to be
-# parsed and put together with the ssl pieces from above.
-#
-# By using the dev database url as the default it allows us to reduce the
-# libcluster config and keep it all here.
-postgres_config =
-  Ecto.Repo.Supervisor.parse_url(
-    System.get_env("DATABASE_URL", "postgres://postgres:postgres@localhost/nerves_hub_dev")
-  )
-
-libcluster_db_config =
-  [port: 5432]
-  |> Keyword.merge(postgres_config)
-  |> Keyword.take([:hostname, :username, :password, :database, :port])
-  |> then(fn keywords ->
-    if config_env() == :prod do
-      Keyword.merge(keywords, ssl: database_ssl_opts)
-    else
-      keywords
-    end
-  end)
-  |> Keyword.merge(parameters: [])
-  |> Keyword.merge(channel_name: "nerves_hub_clustering")
-
-config :libcluster,
-  topologies: [
-    postgres: [
-      strategy: LibclusterPostgres.Strategy,
-      config: libcluster_db_config
-    ]
-  ]
 
 ##
 # Firmware upload backend.

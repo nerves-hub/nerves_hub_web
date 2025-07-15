@@ -21,8 +21,6 @@ defmodule NervesHub.Application do
 
     NervesHub.Logger.attach()
 
-    topologies = Application.get_env(:libcluster, :topologies, [])
-
     children =
       [{Finch, name: Swoosh.Finch}] ++
         ecto_migrations() ++
@@ -34,7 +32,7 @@ defmodule NervesHub.Application do
         ecto_repos() ++
         [
           {Phoenix.PubSub, name: NervesHub.PubSub},
-          {Cluster.Supervisor, [topologies]},
+          {Cluster.Supervisor, [libcluster_topology()]},
           {Task.Supervisor, name: NervesHub.TaskSupervisor},
           {Oban, Application.fetch_env!(:nerves_hub, Oban)},
           NervesHubWeb.Presence,
@@ -74,19 +72,33 @@ defmodule NervesHub.Application do
     :ok
   end
 
+  defp libcluster_topology() do
+    repo_config =
+      NervesHub.Repo.config()
+      |> Keyword.take([:hostname, :username, :password, :database, :port, :ssl])
+      |> Keyword.merge(parameters: [])
+      |> Keyword.merge(channel_name: "nerves_hub_clustering")
+
+    [
+      app: [
+        strategy: LibclusterPostgres.Strategy,
+        config: repo_config
+      ]
+    ]
+  end
+
   defp ecto_migrations() do
     [
       Supervisor.child_spec(
         {Ecto.Migrator,
          repos: [NervesHub.Repo],
-         skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true,
-         id: NervesHub.RepoMigrator},
+         skip: Application.get_env(:nerves_hub, :database_auto_migrator) != true},
         id: :repo_migrator
       ),
       Supervisor.child_spec(
         {Ecto.Migrator,
          repos: [NervesHub.AnalyticsRepo],
-         skip: Application.get_env(:nerves_hub, :analytics_enabled) != true},
+         skip: Application.get_env(:nerves_hub, :analytics_auto_migrator) != true},
         id: :analytics_repo_migrator
       )
     ]

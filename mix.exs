@@ -9,7 +9,9 @@ defmodule NervesHub.MixProject do
       deps: deps(),
       aliases: aliases(),
       preferred_cli_env: [
-        docs: :docs
+        docs: :docs,
+        coveralls: :test,
+        "coveralls.html": :test
       ],
       elixirc_paths: elixirc_paths(Mix.env()),
       elixir: "~> 1.18.0",
@@ -24,12 +26,14 @@ defmodule NervesHub.MixProject do
           ]
         ]
       ],
+      compilers: compilers(System.get_env("MIX_UNUSED")) ++ Mix.compilers(),
       dialyzer: [
         flags: [:missing_return, :extra_return, :unmatched_returns, :error_handling, :underspecs],
         plt_add_apps: [:ex_unit, :mix],
         plt_core_path: "priv/plts",
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
-      ]
+      ],
+      test_coverage: [tool: ExCoveralls]
     ]
   end
 
@@ -76,7 +80,7 @@ defmodule NervesHub.MixProject do
       {:castore, "~> 1.0"},
       {:circular_buffer, "~> 1.0.0"},
       {:comeonin, "~> 5.3"},
-      {:confuse, "~> 0.1.1"},
+      {:confuse, "~> 0.1.5"},
       {:contex, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:crontab, "~> 1.1"},
@@ -89,6 +93,7 @@ defmodule NervesHub.MixProject do
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
+      {:excoveralls, "~> 0.18", only: :test},
       {:finch, "~> 0.20.0"},
       {:floki, ">= 0.27.0", only: :test},
       {:gen_smtp, "~> 1.0"},
@@ -98,9 +103,10 @@ defmodule NervesHub.MixProject do
       {:hlclock, "~> 1.0"},
       {:process_hub, "~> 0.3.1-alpha"},
       {:jason, "~> 1.2", override: true},
-      {:libcluster_postgres, "~> 0.1.2"},
+      {:libcluster_postgres, "~> 0.2.0"},
       {:logfmt_ex, "~> 0.4"},
-      {:mimic, "~> 1.10", only: [:test, :dev]},
+      {:mimic, "~> 2.0", only: [:test, :dev]},
+      {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.12.0"},
       {:nimble_csv, "~> 1.1"},
       {:number, "~> 1.0.5"},
@@ -140,6 +146,7 @@ defmodule NervesHub.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:timex, "~> 3.1"},
       {:ueberauth_google, "~> 0.12"},
+      {:unzip, "~> 0.12"},
       {:uuidv7, "~> 1.0"},
       {:x509, "~> 0.5.1 or ~> 0.6"},
       {:flop, "~> 0.26.1"}
@@ -169,9 +176,9 @@ defmodule NervesHub.MixProject do
       check: [
         "compile --warnings-as-errors",
         "format --check-formatted",
-        "spellweaver.check",
         "deps.unlock --check-unused",
-        "dialyzer --format github --format dialyxir"
+        "dialyzer --format github --format dialyxir",
+        "spellweaver.check"
       ]
     ]
   end
@@ -182,4 +189,7 @@ defmodule NervesHub.MixProject do
 
   defp elixirc_paths(_),
     do: ["lib"]
+
+  defp compilers(mix_unused) when not is_nil(mix_unused), do: [:unused]
+  defp compilers(_), do: []
 end

@@ -19,7 +19,7 @@ jobs:
       packages: read
 
     env:
-      FWUP_VERSION: "1.12.0"
+      FWUP_VERSION: "1.13.0"
       MIX_ENV: "test"
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/nerves_hub_test
       CLICKHOUSE_URL: http://default:@localhost:8123/default
