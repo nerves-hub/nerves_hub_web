@@ -105,7 +105,7 @@ defmodule NervesHub.MixProject do
       {:jason, "~> 1.2", override: true},
       {:libcluster_postgres, "~> 0.2.0"},
       {:logfmt_ex, "~> 0.4"},
-      {:mimic, "~> 1.10", only: [:test, :dev]},
+      {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.12.0"},
       {:nimble_csv, "~> 1.1"},
