@@ -100,11 +100,12 @@ defmodule NervesHub.Firmwares.UpdateTool.Fwup do
   def device_update_type(%Device{firmware_metadata: fw_meta} = device, %Firmware{} = target) do
     # Unknown version, assume oldest
     device_fwup_version = device.firmware_metadata.fwup_version || @oldest_version
-    source = Firmwares.get_firmware_by_uuid(device.firmware_metadata.uuid)
 
-    delta_result = Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)
-
-    with {:delta_result, {:ok, %{tool_metadata: tm}}} <- {:delta_result, delta_result},
+    with {:source, %Firmware{} = source} <-
+           {:source, Firmwares.get_firmware_by_uuid(device.firmware_metadata.uuid)},
+         {:delta_result, {:ok, %{tool_metadata: tm}}} <-
+           {:delta_result,
+            Firmwares.get_firmware_delta_by_source_and_target(source.id, target.id)},
          {:delta_min, delta_min} <-
            {:delta_min, Map.get(tm, "delta_fwup_version", @very_safe_version)},
          {:parse_version, {:ok, delta_version}} <- {:parse_version, Version.parse(delta_min)},

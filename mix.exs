@@ -9,7 +9,9 @@ defmodule NervesHub.MixProject do
       deps: deps(),
       aliases: aliases(),
       preferred_cli_env: [
-        docs: :docs
+        docs: :docs,
+        coveralls: :test,
+        "coveralls.html": :test
       ],
       elixirc_paths: elixirc_paths(Mix.env()),
       elixir: "~> 1.18.0",
@@ -30,7 +32,8 @@ defmodule NervesHub.MixProject do
         plt_add_apps: [:ex_unit, :mix],
         plt_core_path: "priv/plts",
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
-      ]
+      ],
+      test_coverage: [tool: ExCoveralls]
     ]
   end
 
@@ -90,7 +93,8 @@ defmodule NervesHub.MixProject do
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:ex_aws, "~> 2.0"},
       {:ex_aws_s3, "~> 2.0"},
-      {:finch, "~> 0.19.0"},
+      {:excoveralls, "~> 0.18", only: :test},
+      {:finch, "~> 0.20.0"},
       {:floki, ">= 0.27.0", only: :test},
       {:gen_smtp, "~> 1.0"},
       {:gettext, "~> 0.26.2"},
@@ -101,7 +105,7 @@ defmodule NervesHub.MixProject do
       {:jason, "~> 1.2", override: true},
       {:libcluster_postgres, "~> 0.2.0"},
       {:logfmt_ex, "~> 0.4"},
-      {:mimic, "~> 1.10", only: [:test, :dev]},
+      {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mix_unused, "~> 0.4.1", only: [:dev]},
       {:mjml_eex, "~> 0.12.0"},
       {:nimble_csv, "~> 1.1"},
