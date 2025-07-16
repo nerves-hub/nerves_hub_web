@@ -1,14 +1,12 @@
-defmodule NervesHubWeb.APISocket do
+defmodule NervesHubWeb.EventStreamSocket do
   use Phoenix.Socket
 
   alias NervesHub.Accounts
 
-  channel("device:*", NervesHubWeb.ExternalDeviceListenerChannel)
+  channel("device:*", NervesHubWeb.DeviceEventsStreamChannel)
 
   @impl Phoenix.Socket
   def connect(params, socket, _connect_info) do
-    IO.inspect(params, label: "APISocket params")
-
     case Map.get(params, "token") do
       token when is_binary(token) and byte_size(token) > 0 ->
         # Authenticate user and store in socket assigns

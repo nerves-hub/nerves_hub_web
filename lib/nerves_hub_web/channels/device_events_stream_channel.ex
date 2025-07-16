@@ -1,4 +1,4 @@
-defmodule NervesHubWeb.ExternalDeviceListenerChannel do
+defmodule NervesHubWeb.DeviceEventsStreamChannel do
   @moduledoc """
   Phoenix Channel for external services to subscribe to device updates.
   Currently only supports firmware update progress.
@@ -13,25 +13,13 @@ defmodule NervesHubWeb.ExternalDeviceListenerChannel do
   alias NervesHub.Accounts
   alias NervesHub.Devices
 
-  #######################################
-  # Public API for broadcasting updates #
-  #######################################
-
-  def broadcast_firmware_update(device, percent) do
-    NervesHubWeb.Endpoint.broadcast("device:#{device.identifier}", "firmware_update", %{
-      percent: percent
-    })
-  end
-
-  ##########################
-  # Channel implementation #
-  ##########################
-
   @impl Phoenix.Channel
   def join("device:" <> device_identifier, _params, socket) do
     # Socket already has authenticated user, just validate device access
     case authorize_device_access(socket.assigns.user, device_identifier) do
       {:ok, _device} ->
+        :ok = Phoenix.PubSub.subscribe(NervesHub.PubSub, "device:#{device_identifier}:internal")
+
         {:ok, socket}
 
       {:error, reason} ->
@@ -41,7 +29,7 @@ defmodule NervesHubWeb.ExternalDeviceListenerChannel do
 
   @impl Phoenix.Channel
   def handle_info(
-        %Phoenix.Socket.Broadcast{event: "firmware_update", payload: %{percent: percent}},
+        %Phoenix.Socket.Broadcast{event: "fwup_progress", payload: %{percent: percent}},
         socket
       ) do
     # Forward the firmware update progress to the connected client
@@ -51,9 +39,7 @@ defmodule NervesHubWeb.ExternalDeviceListenerChannel do
   end
 
   def handle_info(msg, socket) do
-    Logger.debug(
-      "[ExternalDeviceListenerChannel] Unhandled handle_info message! - #{inspect(msg)}"
-    )
+    Logger.debug("[DeviceEventsStreamChannel] Unhandled handle_info message! - #{inspect(msg)}")
 
     {:noreply, socket}
   end

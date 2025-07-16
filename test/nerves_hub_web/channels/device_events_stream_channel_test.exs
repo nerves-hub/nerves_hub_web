@@ -1,32 +1,34 @@
-defmodule NervesHubWeb.ExternalDeviceListenerChannelTest do
+defmodule NervesHubWeb.DeviceEventsStreamChannelTest do
   use NervesHubWeb.ChannelCase
 
   alias NervesHub.Fixtures
   alias NervesHub.Accounts
-  alias NervesHubWeb.APISocket
-  alias NervesHubWeb.ExternalDeviceListenerChannel
+  alias NervesHubWeb.EventStreamSocket
+  alias NervesHubWeb.DeviceEventsStreamChannel
 
-  describe "broadcast_firmware_update/2" do
-    test "causes all subscribers to receive firmware updates" do
+  describe "handle_info/2" do
+    test "handles fwup_progress messages" do
       user = Fixtures.user_fixture()
 
       device = device_fixture(user, %{identifier: "test-device-123"})
 
       user_token = Accounts.create_user_api_token(user, "test-token")
 
-      {:ok, socket} = connect(APISocket, %{"token" => user_token})
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => user_token})
 
       {:ok, _join_reply, _channel} =
-        subscribe_and_join(socket, ExternalDeviceListenerChannel, "device:#{device.identifier}")
+        subscribe_and_join(socket, DeviceEventsStreamChannel, "device:#{device.identifier}")
 
       # Broadcast a firmware update
-      ExternalDeviceListenerChannel.broadcast_firmware_update(device, 50)
+      NervesHubWeb.Endpoint.broadcast("device:#{device.identifier}:internal", "fwup_progress", %{
+        percent: 50
+      })
 
       # Assert that the channel receives the firmware update message
       assert_push("firmware_update", %{percent: 50})
     end
 
-    test "unauthorized user cannot join device channel" do
+    test "unauthorized user cannot join the device channel" do
       user = Fixtures.user_fixture()
       other_user = Fixtures.user_fixture()
 
@@ -35,19 +37,19 @@ defmodule NervesHubWeb.ExternalDeviceListenerChannelTest do
       other_user_token = Accounts.create_user_api_token(other_user, "test-token")
 
       # Connect with unauthorized user's token
-      {:ok, socket} = connect(APISocket, %{"token" => other_user_token})
+      {:ok, socket} = connect(EventStreamSocket, %{"token" => other_user_token})
 
       # Attempt to join should fail
       assert {:error, %{reason: _reason}} =
                subscribe_and_join(
                  socket,
-                 ExternalDeviceListenerChannel,
+                 DeviceEventsStreamChannel,
                  "device:#{device.identifier}"
                )
     end
 
     test "missing token prevents joining" do
-      assert {:error, :no_token} == connect(APISocket, %{})
+      assert {:error, :no_token} == connect(EventStreamSocket, %{})
     end
   end
 
