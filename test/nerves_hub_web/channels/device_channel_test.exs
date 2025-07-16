@@ -7,6 +7,7 @@ defmodule NervesHubWeb.DeviceChannelTest do
   alias NervesHub.AuditLogs
   alias NervesHub.Devices
   alias NervesHub.Fixtures
+  alias NervesHub.ManagedDeployments
   alias NervesHub.Repo
   alias NervesHubWeb.DeviceChannel
   alias NervesHubWeb.DeviceSocket
@@ -273,6 +274,50 @@ defmodule NervesHubWeb.DeviceChannelTest do
 
     assert state.assigns.device.deployment_id == new_deployment_group.id
     refute is_nil(state.assigns.deployment_channel)
+
+    close_cleanly(device_channel)
+  end
+
+  test "deployment group is set when device joins" do
+    user = Fixtures.user_fixture()
+    {device, _firmware, deployment_group} = device_fixture(user, %{identifier: "123"})
+    refute device.deployment_id
+
+    {:ok, deployment_group} =
+      ManagedDeployments.update_deployment_group(deployment_group, %{is_active: true})
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _join_reply, device_channel} =
+      subscribe_and_join(socket, DeviceChannel, "device")
+
+    assert device_channel.assigns.device.deployment_id == deployment_group.id
+
+    close_cleanly(device_channel)
+  end
+
+  test "deployment group is removed when device joins" do
+    user = Fixtures.user_fixture()
+    {device, _firmware, deployment_group} = device_fixture(user, %{identifier: "123"})
+    Devices.update_deployment_group(device, deployment_group)
+
+    {:ok, deployment_group} =
+      ManagedDeployments.update_deployment_group(deployment_group, %{
+        conditions: %{"version" => "< 0.0.1"}
+      })
+
+    %{db_cert: certificate, cert: _cert} = Fixtures.device_certificate_fixture(device)
+
+    {:ok, socket} =
+      connect(DeviceSocket, %{}, connect_info: %{peer_data: %{ssl_cert: certificate.der}})
+
+    {:ok, _join_reply, device_channel} =
+      subscribe_and_join(socket, DeviceChannel, "device")
+
+    refute device_channel.assigns.device.deployment_id
 
     close_cleanly(device_channel)
   end
