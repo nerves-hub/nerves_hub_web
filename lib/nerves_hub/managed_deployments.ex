@@ -4,6 +4,8 @@ defmodule NervesHub.ManagedDeployments do
   require Logger
 
   alias NervesHub.AuditLogs.DeploymentGroupTemplates
+  alias NervesHub.AuditLogs.DeviceTemplates
+  alias NervesHub.Devices
   alias NervesHub.Devices.Device
   alias NervesHub.Filtering, as: CommonFiltering
   alias NervesHub.ManagedDeployments.DeploymentGroup
@@ -366,6 +368,54 @@ defmodule NervesHub.ManagedDeployments do
   end
 
   defp version_match?(_device, _deployment_group), do: true
+
+  @doc """
+  If the device is missing a deployment group, find a matching deployment group
+
+  Do nothing if a deployment group is already set
+  """
+  @spec set_deployment_group(Device.t()) :: Device.t()
+  def set_deployment_group(%{deployment_id: nil} = device) do
+    case matching_deployment_groups(device, [true]) do
+      [] ->
+        set_deployment_group_telemetry(:none_found, device)
+
+        %{device | deployment_group: nil}
+
+      [deployment] ->
+        set_deployment_group_telemetry(:one_found, device, deployment)
+
+        DeviceTemplates.audit_set_deployment(device, deployment, :one_found)
+
+        Devices.update_deployment_group(device, deployment)
+
+      [deployment | _] ->
+        set_deployment_group_telemetry(:multiple_found, device, deployment)
+
+        DeviceTemplates.audit_set_deployment(device, deployment, :multiple_found)
+
+        Devices.update_deployment_group(device, deployment)
+    end
+  end
+
+  def set_deployment_group(device), do: device
+
+  defp set_deployment_group_telemetry(result, device, deployment_group \\ nil) do
+    metadata = %{device: device}
+
+    metadata =
+      if deployment_group do
+        Map.put(metadata, :deployment_group, deployment_group)
+      else
+        metadata
+      end
+
+    :telemetry.execute(
+      [:nerves_hub, :managed_deployments, :set_deployment_group, result],
+      %{count: 1},
+      metadata
+    )
+  end
 
   @spec verify_deployment_group_membership(Device.t()) :: Device.t()
   def verify_deployment_group_membership(
